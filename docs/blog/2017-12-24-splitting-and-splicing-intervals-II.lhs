@@ -88,8 +88,7 @@ by importing the `Data.Set` library
 import qualified Data.Set as S
 \end{code}
 
-and then using the library to write a function
-`rng i j` that defines the **range-set** `{i..j-1}`
+to write a function `rng i j` that defines the **range-set** `i..j`
 
 \begin{code}
 {-@ reflect rng @-}
@@ -109,7 +108,7 @@ Equational Reasoning
 
 To build up a little intuition about the above
 definition and how LH reasons about Sets, lets
-write some simple "unit proofs". For example,
+write some simple _unit proofs_. For example,
 lets check that `2` is indeed in the range-set
 `rng 1 3`, by writing a type signature
 
@@ -119,31 +118,31 @@ lets check that `2` is indeed in the range-set
 
 Any _implementation_ of the above type is a _proof_
 that `2` is indeed in `rng 1 3`. Notice that we can
-_reuse_ the operators from `Data.Set` (here, `S.member`)
+reuse the operators from `Data.Set` (here, `S.member`)
 to talk about set operations in the refinement logic.
-Lets write this _proof_ in an [equational style][bird-algebra]:
+Lets write this proof in an [equational style][bird-algebra]:
 
 \begin{code}
 test1 ()
   =   S.member 2 (rng 1 3)
-  -- by unfolding `rng 1 3`
+      -- by unfolding `rng 1 3`
   === S.member 2 (S.union (S.singleton 1) (rng 2 3))
-  -- by unfolding `rng 2 3`
+      -- by unfolding `rng 2 3`
   === S.member 2 (S.union (S.singleton 1)
                           (S.union (S.singleton 2) (rng 3 3)))
-  -- by set-theory
+      -- by set-theory
   === True
   *** QED
 \end{code}
 
 the "proof" uses two library operators:
 
-- **Implicit Equality** `e1 === e2`
-  [checks that][lh-imp-eq] `e1` is indeed equal
-  to `e2` after _unfolding functions at most once_,
-  and returns a term that equals both `e1` and `e2`, and
+- `e1 === e2` is an [implicit equality][lh-imp-eq]
+  that checks `e1` is indeed equal to `e2` after
+  **unfolding functions at most once**, and returns
+  a term that equals `e1` and `e2`, and
 
-- `e *** QED` allows us to [convert any term][lh-qed] `e`
+- `e *** QED` [converts any term][lh-qed] `e`
   into a proof.
 
 The first two steps of `test1`, simply unfold `rng`
@@ -155,30 +154,29 @@ and `S.member`.
 Reusing Proofs
 --------------
 
-As a second example, lets check that:
+Next, lets check that:
 
 \begin{code}
 {-@ test2 :: () -> { S.member 2 (rng 0 3) } @-}
 test2 ()
   =   S.member 2 (rng 0 3)
-  -- by unfolding and set-theory
+      -- by unfolding and set-theory
   === (2 == 0 || S.member 2 (rng 1 3))
-  -- by re-using test1 as a lemma
+      -- by re-using test1 as a lemma
   ==? True ? test1 ()
   *** QED
 \end{code}
 
-We _could_ do the proof by unfolding in
+We could do the proof by unfolding in
 the equational style. However, `test1`
 already establishes that `S.member 2 (rng 1 3)`
-and we can _reuse_ this using:
+and we can reuse this fact using:
 
-- **Explicit Equality** `e1 ==? e2 ? pf`
-  [which checks][lh-exp-eq] `e1` equals `e2`
-  _using_ any extra facts asserted by the
-  "lemma" `pf` (in addition to unfolding
-  functions at most once), and returns a
-  term that equals both `e1` and `e2`.
+- `e1 ==? e2 ? pf` which is an [explicit equality][lh-exp-eq]
+  which checks that `e1` equals `e2` _because of_ the
+  extra facts asserted by the `Proof` named `pf`
+  (in addition to unfolding functions at most once)
+  and returns a term that equals both `e1` and `e2`.
 
 Proof by Logical Evaluation
 ---------------------------
@@ -240,21 +238,21 @@ The proof makes this clear:
 \begin{code}
 lem_mem i j x
   | i >= j
-  -- BASE CASE
+      -- BASE CASE
   =   not (S.member x (rng i j))
-  -- by unfolding
+      -- by unfolding
   === not (S.member x S.empty)
-  -- by set-theory
+      -- by set-theory
   === True *** QED
 
   | i < j
-  -- INDUCTIVE CASE
+      -- INDUCTIVE CASE
   =   not (S.member x (rng i j))
-  -- by unfolding
+      -- by unfolding
   === not (S.member x (S.union (S.singleton i) (rng (i+1) j)))
-  -- by set-theory
+      -- by set-theory
   === not (S.member x (rng (i+1) j))
-  -- by "induction hypothesis"
+      -- by "induction hypothesis"
   ==? True ? lem_mem (i + 1) j x *** QED
 \end{code}
 
@@ -328,23 +326,26 @@ the second interval, i.e. `j2-i2`:
 \begin{code}
 lem_disj i1 j1 i2 j2
   | i2 >= j2
-  -- Base CASE
+      -- Base CASE
   =   disjoint (rng i1 j1) (rng i2 j2)
-  -- by unfolding
+      -- by unfolding
   === disjoint (rng i1 j1) S.empty
-  -- by set-theory
+      -- by set-theory
   === True
   *** QED
 
   | i2 < j2
-  -- Inductive CASE
+      -- Inductive CASE
   =   disjoint (rng i1 j1) (rng i2 j2)
-  -- by unfolding
+      -- by unfolding
   === disjoint (rng i1 j1) (S.union (S.singleton i2) (rng (i2+1) j2))
-  -- by induction and lem_mem
+      -- by induction and lem_mem
   ==? True ? (lem_mem i1 j1 i2 &&& lem_disj i1 j1 (i2+1) j2)
   *** QED
 \end{code}
+
+Here, the operator `pf1 &&& pf2` conjoins the
+two facts asserted by `pf1` and `pf2`.
 
 Again, we can get PLE to do the boring calculations:
 
@@ -363,9 +364,9 @@ Splitting Intervals
 
 Finally, we can establish the **splitting property**
 of an interval `i..j`, that is, given some `x` that lies
-between `i` and `j` we can _split_ `i..j` into `i..x`
+between `i` and `j` we can **split** `i..j` into `i..x`
 and `x..j`. We define a predicate that a set `s` can
-be _split_ into `a` and `b` as:
+be split into `a` and `b` as:
 
 \begin{code}
 {-@ inline split @-}
@@ -398,7 +399,7 @@ for the SMT solver's decision procedures.
 
 An interval `i1..j1` is _enclosed by_ `i2..j2`
 if `i2 <= i1 < j1 <= j2`. Lets verify that the
-range-set of an interval is _contained within_
+range-set of an interval is **contained** in
 that of an enclosing one.
 
 \begin{code}
@@ -408,9 +409,9 @@ that of an enclosing one.
   @-}
 \end{code}
 
-Here's a "proof-by-picture". We can _split_ the
+Here's a "proof-by-picture". We can split the
 larger interval `i2..j2` into smaller pieces,
-`i2..i1`, `i1..j1` and `j1..j2` _one of_ which
+`i2..i1`, `i1..j1` and `j1..j2` one of which
 is the `i1..j1`, thereby completing the proof:
 
 <br>
