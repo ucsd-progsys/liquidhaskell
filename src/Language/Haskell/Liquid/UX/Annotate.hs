@@ -416,7 +416,7 @@ instance ToJSON Loc where
                              , "column"   .= toJSON c ]
 
 instance ToJSON AnnErrors where
-  toJSON (AnnErrors errs) = Array $ V.fromList $ fmap toJ errs
+  toJSON (AnnErrors errs) = Array $ V.fromList (toJ <$> errs)
     where
       toJ (l,l',s)        = object [ "start"   .= toJSON l
                                    , "stop"    .= toJSON l'
