@@ -420,7 +420,15 @@ instance ToJSON AnnErrors where
     where
       toJ (l,l',s)        = object [ "start"   .= toJSON l
                                    , "stop"    .= toJSON l'
-                                   , "message" .= toJSON s  ]
+                                   , "message" .= toJSON (dropFilePath s)
+                                   ]
+
+dropFilePath :: String -> String
+dropFilePath msg
+  | null msg' = msg
+  | otherwise = msg'
+  where
+    (_, msg') = break (':' ==) msg
 
 instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
   toJSON (Asc kas) = object [ tshow k .= toJSON a | (k, a) <- M.toList kas ]
