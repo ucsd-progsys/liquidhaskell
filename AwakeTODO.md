@@ -1,6 +1,0 @@
-- see the Category issue
-- set-up atom
-- see Jeff's thread on Monoids
-- write a prefix checker
-- check the parser paper
-- check gab's slides
