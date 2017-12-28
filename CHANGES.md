@@ -2,6 +2,8 @@
 
 ## NEXT 
 
+## 0.8.2.2
+
 - Support for GHC 8.2.2 
 
 - Support for GADTs and TypeFamilies, see
@@ -12,8 +14,10 @@
 	- `tests/neg/bag.hs`
 	- `tests/pos/ListISort-bag.hs`
 
-- Add support for *inductive predicates* see `tests/pos/Ind{Even,Perm,Star}.hs`
-  for examples.
+- Add support for *inductive predicates* see 
+	- `tests/pos/IndEven.hs`
+	- `tests/pos/IndPerm.hs`
+	- `tests/pos/IndStar.hs`
 
 ## 0.8.0.1
 
