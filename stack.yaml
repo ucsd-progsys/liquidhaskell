@@ -1,4 +1,6 @@
-resolver: nightly-2017-10-06
+
+# resolver: nightly-2017-10-06
+resolver: lts-10.0
 
 packages:
 - liquid-fixpoint/

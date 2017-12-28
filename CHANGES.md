@@ -1,6 +1,16 @@
 # Changes
 
-## NEXT
+## NEXT 
+
+- Support for GHC 8.2.2 
+
+- Support for GADTs and TypeFamilies, see
+	- `tests/{pos,neg}/ExactGADT*.hs` 
+
+- Add support for Bags/Multisets, see 
+	- `tests/pos/bag.hs`
+	- `tests/neg/bag.hs`
+	- `tests/pos/ListISort-bag.hs`
 
 - Add support for *inductive predicates* see `tests/pos/Ind{Even,Perm,Star}.hs`
   for examples.
