@@ -441,7 +441,7 @@ copyright :: String
 copyright = "LiquidHaskell v" ++ myVersion ++ " Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
   where
     myVersion :: String
-    myVersion = "0.8.2.0"
+    myVersion = "0.8.2.2"
     -- CIRCLE HASSLES: myVersion = showVersion version
 
 -- NOTE [searchpath]
