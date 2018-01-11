@@ -8,8 +8,8 @@ module ORM where
 import Prelude hiding (length, filter)
 
 --  here is a "user" query
-{-@ prop0 :: [Row] -> [{v:Row | rowLeft v == 5}] @-}
-prop0 :: [Row] -> [Row]
+{-@ prop0 :: [Blob] -> [{v:Blob | xVal v == 5}] @-}
+prop0 :: [Blob] -> [Blob]
 prop0 = filterQ (Qry Eq Fst (Const 5))
 
 {-@ prop1 :: [Int] -> [{v:Int | v == 10}] @-}
@@ -24,8 +24,8 @@ prop2 = filterQQ (mkQQ 10)
 mkQQ :: Int -> QQ
 mkQQ n = QQ n
 
-{-@ filterQ :: q:Qry -> [Row] -> [{v:Row | evalQ q v}] @-}
-filterQ :: Qry -> [Row] -> [Row]
+{-@ filterQ :: q:Qry -> [Blob] -> [{v:Blob | evalQ q v}] @-}
+filterQ :: Qry -> [Blob] -> [Blob]
 filterQ q = filter (evalQ q)
 
 {-@ filterQQ :: q:QQ -> [Int] -> [{v:Int | evalQQ q v}] @-}
@@ -44,22 +44,22 @@ data Qry = Qry Cmp Val Val
 data QQ  = QQ Int
 
 
-data Row = Row {rowLeft :: Int, rowRight :: Int}
-{-@ data Row = Row {rowLeft :: Int, rowRight :: Int} @-}
+{-@ data Blob = Blob {xVal :: Int, yVal :: Int} @-}
+data Blob = Blob {xVal :: Int, yVal :: Int}
 
 {-@ reflect evalQQ @-}
 evalQQ :: QQ -> Int -> Bool
 evalQQ (QQ x) y = x == y
 
 {-@ reflect evalQ @-}
-evalQ :: Qry -> Row -> Bool
+evalQ :: Qry -> Blob -> Bool
 evalQ (Qry o v1 v2) r = evalC o (evalV v1 r) (evalV v2 r)
 
 {-@ reflect evalV @-}
-evalV :: Val -> Row -> Int
+evalV :: Val -> Blob -> Int
 evalV (Const n) _ = n
-evalV Fst       r = rowLeft  r
-evalV Snd       r = rowRight r
+evalV Fst       r = xVal  r
+evalV Snd       r = yVal r
 
 {-@ reflect evalC @-}
 evalC :: Cmp -> Int -> Int -> Bool

@@ -996,7 +996,7 @@ specP
     <|> (reserved "lazyvar"       >> liftM LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
-
+    <|> (reserved "ple"           >> liftM Insts autoinstP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
     <|> {- DEFAULT -}                liftM Asrts  tyBindsP
