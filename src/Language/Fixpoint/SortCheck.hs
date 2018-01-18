@@ -450,13 +450,13 @@ elab f (POr ps) = do
   ps' <- mapM (elab f) ps
   return (POr (fst <$> ps'), boolSort)
 
-elab f@(_,g) e@(PAtom Eq e1 e2) = do
+elab f@(_,g) e@(PAtom eq e1 e2) | eq == Eq || eq == Ne = do
   t1        <- checkExpr g e1
   t2        <- checkExpr g e2
   (t1',t2') <- unite g e  t1 t2 `withError` (errElabExpr e)
   e1'       <- elabAs f t1' e1
   e2'       <- elabAs f t2' e2
-  return (PAtom Eq (ECst e1' t1') (ECst e2' t2') , boolSort)
+  return (PAtom eq (ECst e1' t1') (ECst e2' t2') , boolSort)
 
 elab f (PAtom r e1 e2)
   | r == Ueq || r == Une = do
