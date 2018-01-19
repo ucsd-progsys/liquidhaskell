@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
@@ -39,6 +40,8 @@ import Control.Monad
 import Data.Maybe
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
+import Options.Applicative.Simple (simpleVersion)
+import qualified Paths_liquidhaskell as Meta
 import System.Directory
 import System.Exit
 import System.Environment
@@ -440,8 +443,7 @@ envCfg = do
 copyright :: String
 copyright = "LiquidHaskell v" ++ myVersion ++ " Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
   where
-    myVersion :: String
-    myVersion = "0.8.2.2"
+    myVersion = $(simpleVersion Meta.version)
     -- CIRCLE HASSLES: myVersion = showVersion version
 
 -- NOTE [searchpath]

@@ -148,6 +148,7 @@ Library
                 , QuickCheck >= 2.7
                 , ghc-prim
                 , hpc >= 0.6
+                , optparse-simple
 
    hs-source-dirs:  src, include
    Exposed-Modules: LiquidHaskell,
