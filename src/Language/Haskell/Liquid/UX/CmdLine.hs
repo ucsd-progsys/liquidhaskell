@@ -444,14 +444,12 @@ envCfg = do
 copyright :: String
 copyright = concat $ concat
   [ ["LiquidHaskell "]
-  , [myVersion]
+  , [$(simpleVersion Meta.version)]
   , [" (" ++ commitCount ++ " commits)" | commitCount /= ("1"::String) &&
                                           commitCount /= ("UNKNOWN" :: String)]
   , [" Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"]
   ]
   where
-    myVersion = $(simpleVersion Meta.version)
-    -- CIRCLE HASSLES: myVersion = showVersion version
     commitCount = $gitCommitCount
 
 -- NOTE [searchpath]
