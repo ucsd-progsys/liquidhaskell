@@ -40,6 +40,7 @@ import Control.Monad
 import Data.Maybe
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
+import Development.GitRev (gitCommitCount)
 import Options.Applicative.Simple (simpleVersion)
 import qualified Paths_liquidhaskell as Meta
 import System.Directory
@@ -445,6 +446,7 @@ copyright = "LiquidHaskell v" ++ myVersion ++ " Copyright 2013-17 Regents of the
   where
     myVersion = $(simpleVersion Meta.version)
     -- CIRCLE HASSLES: myVersion = showVersion version
+    commitCount = $gitCommitCount
 
 -- NOTE [searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,
