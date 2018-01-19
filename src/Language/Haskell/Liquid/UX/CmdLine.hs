@@ -442,7 +442,13 @@ envCfg = do
     l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
-copyright = "LiquidHaskell v" ++ myVersion ++ " Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
+copyright = concat $ concat
+  [ ["LiquidHaskell "]
+  , [myVersion]
+  , [" (" ++ commitCount ++ " commits)" | commitCount /= ("1"::String) &&
+                                          commitCount /= ("UNKNOWN" :: String)]
+  , [" Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"]
+  ]
   where
     myVersion = $(simpleVersion Meta.version)
     -- CIRCLE HASSLES: myVersion = showVersion version
