@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
@@ -39,6 +40,9 @@ import Control.Monad
 import Data.Maybe
 import Data.Aeson (encode)
 import qualified Data.ByteString.Lazy.Char8 as B
+import Development.GitRev (gitCommitCount)
+import Options.Applicative.Simple (simpleVersion)
+import qualified Paths_liquidhaskell as Meta
 import System.Directory
 import System.Exit
 import System.Environment
@@ -438,11 +442,15 @@ envCfg = do
     l       = newPos "ENVIRONMENT" 0 0
 
 copyright :: String
-copyright = "LiquidHaskell v" ++ myVersion ++ " Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"
+copyright = concat $ concat
+  [ ["LiquidHaskell "]
+  , [$(simpleVersion Meta.version)]
+  , [" (" ++ commitCount ++ " commits)" | commitCount /= ("1"::String) &&
+                                          commitCount /= ("UNKNOWN" :: String)]
+  , [" Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"]
+  ]
   where
-    myVersion :: String
-    myVersion = "0.8.2.2"
-    -- CIRCLE HASSLES: myVersion = showVersion version
+    commitCount = $gitCommitCount
 
 -- NOTE [searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,
