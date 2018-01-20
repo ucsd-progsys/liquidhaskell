@@ -98,7 +98,7 @@ makeGhcSpec :: Config
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
   sp         <- throwLeft =<< execBare act initEnv
-  let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp) wiredSortedSyms
+  let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp defVars) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
     act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
@@ -160,15 +160,16 @@ postProcess cbs specEnv sp@(SP {..})
     addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
     allowHO           = higherOrderFlag gsConfig
 
-ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp        = res
+ghcSpecEnv :: GhcSpec -> [Var] -> SEnv SortedReft
+ghcSpecEnv sp defs   = res
   where
     res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
-    binds            =  ([(x,        rSort t) | (x, Loc _ _ t) <- gsMeas sp])
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)          <- gsFreeSyms sp,
-                                                                  isConLikeId v ]
+    binds            =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas sp])
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
+                                                                 isConLikeId v ]
+                     ++ [(symbol x, vSort x) |  x  <- defs]
     rSort t          = rTypeSortedReft emb t
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
