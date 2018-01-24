@@ -9,3 +9,10 @@ data Field typ where
   FldY :: Field Int
 
 poogle = FldY
+
+data Goob a where
+  GooX :: (a ~ Int) => Goob a
+  GooY :: (a ~ Int) => Goob a
+
+
+
