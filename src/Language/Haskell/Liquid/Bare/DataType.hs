@@ -561,9 +561,9 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  -- let cs        = RT.ofType <$> dataConTheta c' -- dataConStupidTheta c'
-  let cs        = [ F.tracepp ("eqSub = " ++ show su) p | p <- RT.ofType <$> dataConTheta c'
-                                                        , let su = eqSubst p ]
+  let cs        = RT.ofType <$> dataConTheta c' -- dataConStupidTheta c'
+  -- let cs        = [ F.tracepp ("eqSub = " ++ show su) p | p <- RT.ofType <$> dataConTheta c'
+  --                                                       , let su = eqSubst p ]
 
   let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig

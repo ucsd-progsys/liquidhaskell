@@ -136,15 +136,17 @@ tyConDataName full tc
     msg        = "tyConDataCons tc = " ++ F.showpp tc
 
 dataConDecl :: DataCon -> DataCtor
-dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
+dataConDecl d     = F.tracepp msg $ DataCtor dx [] xts Nothing
+-- dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
   where
     isGadt        = not (isVanillaDataCon d)
     msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
     xts           = [(makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
     dx            = symbol <$> GM.locNamedThing d
     its           = zip [1..] ts
-    (_,ps,ts,t)   = dataConSig d
-    outT
+    (_,_ps,ts,t)   = dataConSig d
+    _outT :: Maybe BareType
+    _outT
       | isGadt    = Just (RT.bareOfType t)
       | otherwise = Nothing
 
