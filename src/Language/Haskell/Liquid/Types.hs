@@ -1084,17 +1084,6 @@ type HAxiom = Axiom Var    Type CoreExpr
 
 type AxiomEq = F.Equation
 
--- data AxiomEq = AxiomEq
---   { axiomName :: Symbol             -- ^ name of function
---   , axiomArgs :: [(Symbol, F.Sort)] -- ^ parameters and sorts
---   , axiomBody :: Expr               -- ^ TODO:???
---   -- , axiomEq   :: Expr               -- ^ TODO:??? What is diff between body and eq?
---   , axiomSort :: F.Sort             -- ^ output sort
---   } deriving (Generic, Show)
--- instance B.Binary AxiomEq
--- instance F.PPrint AxiomEq where
---   pprintTidy k (AxiomEq n xs b _ _) = text "axeq" <+> F.pprint n <+> F.pprint xs <+> ":=" <+> F.pprintTidy k b
-
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
                                          "\nFun Name: " ++ (showPpr n) ++
@@ -1105,19 +1094,6 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
-{-
-
-instance F.Subable AxiomEq where
-  syms   a = F.syms (axiomBody a) ++ F.syms (axiomEq a)
-  subst su = mapAxiomEqExpr (F.subst su)
-  substf f = mapAxiomEqExpr (F.substf f)
-  substa f = mapAxiomEqExpr (F.substa f)
-
-mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
-mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
-                       , axiomEq   = f (axiomEq   a) }
-
--}
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
@@ -1142,6 +1118,7 @@ data DataName
 -- | Data Constructor
 data DataCtor = DataCtor
   { dcName   :: F.LocSymbol               -- ^ DataCon name
+  , dcTheta  :: [BareType]                -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
   , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
   , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
@@ -1269,7 +1246,6 @@ lmapEAlias (LMap v ys e) = RTA (F.val v) [] ys e (F.loc v) (F.loc v)
 --------------------------------------------------------------------------------
 -- | Constructor and Destructors for RTypes ------------------------------------
 --------------------------------------------------------------------------------
-
 data RTypeRep c tv r = RTypeRep
   { ty_vars   :: [RTVar tv (RType c tv ())]
   , ty_preds  :: [PVar (RType c tv ())]

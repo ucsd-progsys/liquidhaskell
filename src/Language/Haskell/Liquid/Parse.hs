@@ -1361,14 +1361,14 @@ dataConP = do
   x   <- locParserP dataConNameP
   spaces
   xts <- dataConFieldsP
-  return $ DataCtor x xts Nothing
+  return $ DataCtor x [] xts Nothing
 
 adtDataConP :: Parser DataCtor
 adtDataConP = do
   x     <- locParserP dataConNameP
   dcolon
   tr    <- toRTypeRep <$> bareTypeP
-  return $ DataCtor x (tRepFields tr) (Just $ ty_res tr)
+  return $ DataCtor x [] (tRepFields tr) (Just $ ty_res tr)
 
 tRepFields :: RTypeRep c tv r -> [(Symbol, RType c tv r)]
 tRepFields tr = zip (ty_binds tr) (ty_args tr)

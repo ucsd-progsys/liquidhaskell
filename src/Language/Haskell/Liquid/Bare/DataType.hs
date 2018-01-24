@@ -458,7 +458,7 @@ errInvalidDataCon c d = ErrBadData sp (pprint (val d)) msg
     msg               = ppVar c <+> "is not the type constructor"
 
 checkDataCtor :: DataCtor -> BareM ()
-checkDataCtor (DataCtor lc xts _)
+checkDataCtor (DataCtor lc _ xts _)
   | x : _ <- dups = Ex.throw (err lc x :: UserError)
   | otherwise     = return ()
     where
@@ -557,25 +557,28 @@ ofBDataCtor :: ModName
             -> [PVar RSort]
             -> DataCtor
             -> BareM (DataCon, DataConP)
-ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
+ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  let cs        = RT.ofType <$> dataConStupidTheta c'
+  -- let cs        = RT.ofType <$> dataConTheta c' -- dataConStupidTheta c'
+  let cs        = [ F.tracepp ("eqSub = " ++ show su) p | p <- RT.ofType <$> dataConTheta c'
+                                                        , let su = eqSubst p ]
+
   let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
-    (xs, ts) = unzip xts
-    t0       = RT.gApp tc αs πs
+    (xs, ts)    = unzip xts
+    t0          = RT.gApp tc αs πs
     -- nFlds    = length xts
     -- rs       = [RT.rVar α | RTV α <- αs]
     -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
-    isGadt   = isJust res
-    dLoc     = F.Loc l l' ()
+    isGadt      = isJust res
+    dLoc        = F.Loc l l' ()
 
 -- | This computes the result of a `DataCon` application.
 --   For 'isVanillaDataCon' we can just use the `TyCon`

@@ -1,4 +1,4 @@
-{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--exact-data-con" @-}
 
 {-# LANGUAGE  GADTs #-}
 
@@ -9,10 +9,3 @@ data Field typ where
   FldY :: Field Int
 
 poogle = FldY
-
-data Goob a where
-  GooX :: (a ~ Int) => Goob a
-  GooY :: (a ~ Int) => Goob a
-
-
-

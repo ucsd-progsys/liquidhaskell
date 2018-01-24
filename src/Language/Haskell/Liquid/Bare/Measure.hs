@@ -42,7 +42,7 @@ import TysWiredIn (boolTyCon) -- , wiredInTyCons)
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
-
+import Text.Printf     (printf)
 import qualified Data.List as L
 
 import qualified Data.HashMap.Strict as M
@@ -136,12 +136,19 @@ tyConDataName full tc
     msg        = "tyConDataCons tc = " ++ F.showpp tc
 
 dataConDecl :: DataCon -> DataCtor
-dataConDecl d  = DataCtor dx xts Nothing
+dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
   where
-    xts        = [(makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
-    dx         = symbol <$> GM.locNamedThing d
-    its        = zip [1..] ts
-    (_,_,ts,_) = dataConSig d
+    isGadt        = not (isVanillaDataCon d)
+    msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
+    xts           = [(makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
+    dx            = symbol <$> GM.locNamedThing d
+    its           = zip [1..] ts
+    (_,ps,ts,t)   = dataConSig d
+    outT
+      | isGadt    = Just (RT.bareOfType t)
+      | otherwise = Nothing
+
+
 
 --------------------------------------------------------------------------------
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
