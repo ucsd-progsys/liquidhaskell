@@ -561,15 +561,15 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  let cs        = RT.ofType <$> dataConTheta c' -- dataConStupidTheta c'
-  -- let cs        = [ F.tracepp ("eqSub = " ++ show su) p | p <- RT.ofType <$> dataConTheta c'
-  --                                                       , let su = eqSubst p ]
-
   let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
   let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
+
+  let usedTvs   = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
+  -- let cs        = RT.ofType <$> dataConStupidTheta c'
+  let cs        = [ p | p <- RT.ofType <$> dataConTheta c', keepPredType usedTvs p ]
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts)    = unzip xts
@@ -579,6 +579,13 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
     -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
     isGadt      = isJust res
     dLoc        = F.Loc l l' ()
+
+
+keepPredType :: S.HashSet RTyVar -> SpecType -> Bool
+keepPredType tvs p
+  | Just (tv, _) <- eqSubst p = S.member tv tvs
+  | otherwise                 = True
+
 
 -- | This computes the result of a `DataCon` application.
 --   For 'isVanillaDataCon' we can just use the `TyCon`

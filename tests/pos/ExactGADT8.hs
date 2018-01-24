@@ -22,16 +22,16 @@ class PersistEntity record where
 data Blob  = B { xVal :: Int, yVal :: Int }
 
 instance PersistEntity Blob where
-  {-@ data EntityField Blob typ where
+  {- data EntityField Blob typ where
             BlobXVal :: EntityField Blob Int
           | BlobYVal :: EntityField Blob Int
     @-}
   -- ORIG
-  data EntityField Blob typ where
-     BlobXVal :: EntityField Blob Int
-     BlobYVal :: EntityField Blob Int
+  -- data EntityField Blob typ where
+     -- BlobXVal :: EntityField Blob Int
+     -- BlobYVal :: EntityField Blob Int
 
   -- TH-GEN
-  -- data EntityField Blob typ
-    -- = typ ~ Int => BlobXVal |
-      -- typ ~ Int => BlobYVal
+  data EntityField Blob typ
+    = typ ~ Int => BlobXVal |
+      typ ~ Int => BlobYVal
