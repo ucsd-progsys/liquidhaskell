@@ -136,7 +136,7 @@ tyConDataName full tc
     msg        = "tyConDataCons tc = " ++ F.showpp tc
 
 dataConDecl :: DataCon -> DataCtor
-dataConDecl d     = F.tracepp msg $ DataCtor dx [] xts Nothing
+dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
 -- dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
   where
     isGadt        = not (isVanillaDataCon d)

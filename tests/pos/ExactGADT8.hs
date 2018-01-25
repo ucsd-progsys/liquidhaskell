@@ -35,3 +35,20 @@ instance PersistEntity Blob where
   data EntityField Blob typ
     = typ ~ Int => BlobXVal |
       typ ~ Int => BlobYVal
+
+data RefinedFilter record typ = RefinedFilter
+  { refinedFilterField  :: EntityField record typ
+  -- , refinedFilterValue  :: typ
+  -- , refinedFilterFilter :: RefinedPersistFilter
+  }
+
+{- reflect evalQBlob @-}
+evalQBlob :: RefinedFilter Blob typ -> Blob -> Bool
+evalQBlob filter blob = case refinedFilterField filter of
+  BlobXVal -> True
+  BlobYVal -> True
+
+{-@ reflect foo @-}
+foo :: RefinedFilter Blob typ -> Blob -> Bool
+foo (RefinedFilter BlobXVal) blob = True
+foo (RefinedFilter BlobYVal) blob = True
