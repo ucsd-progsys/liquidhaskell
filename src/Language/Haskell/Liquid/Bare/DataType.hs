@@ -76,7 +76,7 @@ addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
-makeFamInstEmbeds cs embs = L.foldl' embed embs famInstSorts
+makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
   where
     famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
@@ -86,6 +86,7 @@ makeFamInstEmbeds cs embs = L.foldl' embed embs famInstSorts
                                 , let ty    = famInstType n c' ts ]
     tcInsts               = maybeToList . tyConFamInst_maybe
     embed embs (c, t)     = M.insert c t embs
+    cs                    = F.notracepp "famInstTcs-all" cs0
     -- tcSorts               = maybeToList . famInstSort embs
 
 famInstType :: Int -> TyCon -> [Type] -> Type
@@ -563,7 +564,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   res'         <- mapM (mkSpecType' l ps) res
   let t0'       = dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
 
@@ -598,7 +599,7 @@ dataConResultTy :: DataCon
 dataConResultTy _ _ _ (Just t) = t
 dataConResultTy c αs t _
   | isVanillaDataCon c         = t
-  | False                      = F.tracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
+  | False                      = F.notracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
 dataConResultTy c _ _ _        = RT.ofType t
   where
     (_,_,_,_,_,t)              = {- GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr (_tr0, _tr1, _tr2)) $ -} dataConFullSig c

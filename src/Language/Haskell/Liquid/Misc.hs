@@ -283,3 +283,10 @@ join aBs bCs = [ (a, c) | (a, b) <- aBs, c <- b2cs b ]
   where
     bM       = M.fromList bCs
     b2cs b   = maybeToList (M.lookup b bM)
+
+
+fstByRank :: (Ord r, Hashable k, Eq k) => [(r, k, v)] -> [(r, k, v)]
+fstByRank rkvs = [ (r, k, v) | (k, rvs) <- krvss, let (r, v) = getFst rvs ]
+  where
+    getFst     = head . L.sortBy (compare `on` fst)
+    krvss      = groupList [ (k, (r, v)) | (r, k, v) <- rkvs ]

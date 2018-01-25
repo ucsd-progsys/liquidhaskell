@@ -746,7 +746,7 @@ makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                           , [(Var, LocSpecType)] )
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   sigs'    <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
-  asms'    <- mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+  asms'    <- Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
   invs     <- mconcat <$> mapM makeInvariants specs
   ialias   <- mconcat <$> mapM makeIAliases   specs
   ntys     <- mconcat <$> mapM makeNewTypes   specs
@@ -754,11 +754,12 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   tyi      <- gets tcEnv
   let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
   let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
-  let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((==name) . fst) specs)
+  let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((== name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
-  checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs. 
+  checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.
   -- checkDuplicateSigs asms
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
+
 
 checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()
 checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
