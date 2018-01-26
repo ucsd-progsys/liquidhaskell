@@ -78,16 +78,17 @@ addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
   where
-    famInstSorts          = F.notracepp "famInstTcs"
+    famInstSorts          = F.tracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
-                                | c        <- cs
-                                , (c', ts) <- tcInsts c
-                                , let n     = tyConArity c
-                                , let ty    = famInstType n c' ts ]
-    tcInsts               = maybeToList . tyConFamInst_maybe
+                                | c   <- cs
+                                , ty  <- maybeToList (famInstTyConType c) ]
     embed embs (c, t)     = M.insert c t embs
-    cs                    = F.notracepp "famInstTcs-all" cs0
-    -- tcSorts               = maybeToList . famInstSort embs
+    cs                    = F.tracepp "famInstTcs-all" cs0
+
+famInstTyConType :: TyCon -> Maybe Type
+famInstTyConType c = case tyConFamInst_maybe c of
+  Just (c', ts) -> Just (famInstType (tyConArity c) c' ts)
+  Nothing       -> Nothing
 
 famInstType :: Int -> TyCon -> [Type] -> Type
 famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
@@ -562,9 +563,9 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  let t0'       = dataConResultTy c' αs t0 res'
+  let t0'       = F.tracepp ("dataConResultTy c' = " ++ show c') $ dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
 
@@ -574,7 +575,9 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     (xs, ts)    = unzip xts
-    t0          = RT.gApp tc αs πs
+    t0          = case famInstTyConType tc of
+                    Nothing -> RT.gApp tc αs πs
+                    Just ty -> RT.ofType ty
     -- nFlds    = length xts
     -- rs       = [RT.rVar α | RTV α <- αs]
     -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?

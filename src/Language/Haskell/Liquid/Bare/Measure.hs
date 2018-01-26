@@ -132,8 +132,12 @@ tyConDataName full tc
   where
     post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = isVanillaAlgTyCon tc
-    dcs        = F.notracepp msg $ tyConDataCons tc
     msg        = "tyConDataCons tc = " ++ F.showpp tc
+    dcs        = F.notracepp msg $ reverse $ tyConDataCons tc
+                  -- RJ: this "reverse" is a horrible
+                  --     hack to get around the fact that GHC
+                  --     seems unable to look up the constructor
+                  --     when it is shadowed by a type alias name (!)
 
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing

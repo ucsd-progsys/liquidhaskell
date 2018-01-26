@@ -2,44 +2,37 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module Query where
+module ExactGADT8 where
 -----------------------------------
 
 {- data Goob a where
        GooX :: (a ~ Int) => Goob a
     |  GooY :: (a ~ Int) => Goob a
-  @-}
-
-
--- data Goob a where
-  -- GooX :: (a ~ Int) => Goob a
-  -- GooY :: (a ~ Int) => Goob a
+  -}
 
 class PersistEntity record where
     data EntityField record :: * -> *
 
-{-@ data Blob  = B { xVal :: Int, yVal :: Int } @-}
-data Blob  = B { xVal :: Int, yVal :: Int }
+{-@ data Blob  = Bingo { xVal :: Int, yVal :: Int } @-}
+data Blob  = Bingo { xVal :: Int, yVal :: Int }
 
 instance PersistEntity Blob where
-  {-@ data EntityField Blob typ where
-            BlobXVal :: EntityField Blob {v:_ | True }
-          | BlobYVal :: EntityField Blob {v:_ | True }
+  {- data EntityField Blob typ where
+            ExactGADT8.BlobXVal :: EntityField Blob {v:_ | True }
+          | ExectGADT8.BlobYVal :: EntityField Blob {v:_ | True }
     @-}
   -- ORIG
-  -- data EntityField Blob typ where
-     -- BlobXVal :: EntityField Blob Int
-     -- BlobYVal :: EntityField Blob Int
+  data EntityField Blob typ where
+    BlobXVal :: EntityField Blob Int
+    BlobYVal :: EntityField Blob Int
 
   -- TH-GEN
-  data EntityField Blob typ
-    = typ ~ Int => BlobXVal |
-      typ ~ Int => BlobYVal
+  -- data EntityField Blob typ
+  --  = typ ~ Int => BlobXVal |
+  --    typ ~ Int => BlobYVal
 
 data RefinedFilter record typ = RefinedFilter
   { refinedFilterField  :: EntityField record typ
-  -- , refinedFilterValue  :: typ
-  -- , refinedFilterFilter :: RefinedPersistFilter
   }
 
 {- reflect evalQBlob @-}

@@ -33,6 +33,9 @@ import           Var
 import           TysWiredIn
 import           DataCon                                    (DataCon)
 import           InstEnv
+import           FamInstEnv
+import           TcRnDriver (runTcInteractive)
+import           FamInst    (tcGetFamInstEnvs)
 
 import           Control.Monad.Reader
 import           Control.Monad.State
@@ -97,17 +100,43 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
-  sp         <- throwLeft =<< execBare act initEnv
+  fiEnv      <- makeFamInstEnv env
+  sp         <- throwLeft =<< execBare act (initEnv fiEnv)
   let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp defVars) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
-    act       = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
-    throwLeft = either Ex.throw return
-    lmap'     = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
-    initEnv   = BE name mempty mempty mempty env lmap' mempty mempty mempty
-                    (initAxSymbols name defVars specs)
-                    (initPropSymbols specs)
-                    cfg 0
+    act        = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
+    throwLeft  = either Ex.throw return
+    lmap'      = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
+    initEnv fie = BE { modName  = name
+                     , tcEnv    = mempty
+                     , rtEnv    = mempty
+                     , varEnv   = mempty
+                     , hscEnv   = env
+                     , famEnv   = fie
+                     , logicEnv = lmap'
+                     , dcEnv    = mempty
+                     , bounds   = mempty
+                     , embeds   = mempty
+                     , axSyms   = initAxSymbols name defVars specs
+                     , propSyms = initPropSymbols specs
+                     , beConfig = cfg
+                     , beIndex  = 0
+                     }
+
+makeFamInstEnv :: HscEnv -> IO (M.HashMap Symbol DataCon)
+makeFamInstEnv env = do
+  famInsts <- getFamInstances env
+  let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
+  let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
+  return      (F.tracepp "FAM-INST-TCS" $ M.fromList fiDcs)
+
+getFamInstances :: HscEnv -> IO [FamInst]
+getFamInstances env = do
+  (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
+  return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
+
+
 
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
@@ -218,7 +247,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
                 , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
-                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
+                , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
                 }
 
 -- sortUniquable :: (Uniquable a) => [a] -> [a]
