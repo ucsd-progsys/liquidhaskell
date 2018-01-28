@@ -42,11 +42,12 @@ import Language.Haskell.Liquid.Misc (zipWithDefM)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Misc
 
-
--- NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
--- e.g. toType, in this module as they cannot handle LH type holes. Since
--- this module is responsible for plugging the holes we obviously cannot
--- assume, as in e.g. L.H.L.Constraint.* that they do not appear.
+--------------------------------------------------------------------------------
+-- | NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
+--   e.g. toType, in this module as they cannot handle LH type holes. Since
+--   this module is responsible for plugging the holes we obviously cannot
+--   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
+--------------------------------------------------------------------------------
 
 makePluggedSigs :: ModName
                 -> F.TCEmb TyCon

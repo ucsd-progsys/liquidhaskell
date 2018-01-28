@@ -1088,15 +1088,15 @@ instance SubsTy BTyVar (RType BTyCon BTyVar ()) Sort where
 
 instance SubsTy Symbol RSort Sort where
   subt (v, RVar α _) (FObj s)
-    | symbol v == s = FObj $ rTyVarSymbol α
+    | symbol v == s = FObj $ symbol {- rTyVarSymbol -} α
     | otherwise     = FObj s
   subt _ s          = s
 
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
-    | rtyVarUniqueSymbol v == s
-      || symbol v == s
+    | -- rtyVarUniqueSymbol v == s ||
+      symbol v == s
     = typeSort M.empty $ toType sv
     | otherwise
     = FObj s
@@ -1386,7 +1386,7 @@ tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
 tyVarSort :: TyVar -> Sort
-tyVarSort = FObj . tyVarUniqueSymbol
+tyVarSort = FObj . symbol -- tyVarUniqueSymbol
 
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
@@ -1397,7 +1397,7 @@ typeSortForAll tce τ
   where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = tyVarUniqueSymbol <$> as
+        sas                 = {- tyVarUniqueSymbol -} symbol <$> as
         n                   = length as
 
 -- RJ: why not make this the Symbolic instance?
@@ -1457,17 +1457,17 @@ mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe men
 classBinds :: TCEmb TyCon -> SpecType -> [(Symbol, SortedReft)]
 classBinds _ (RApp c ts _ _)
    | isFracCls c
-   = [(rTyVarSymbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
+   = [({- rTyVarSymbol -} symbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
    | isNumCls c
-   = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
+   = [({- rTyVarSymbol -} symbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
    | rtc_tc c == eqPrimTyCon
-   = [(rTyVarSymbol a, rTypeSortedReft emb t)]
+   = [({- rTyVarSymbol -} symbol a, rTypeSortedReft emb t)]
 classBinds _ _
   = []
 
-rTyVarSymbol :: RTyVar -> Symbol
-rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
+-- rTyVarSymbol :: RTyVar -> Symbol
+-- rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------

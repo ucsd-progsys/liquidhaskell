@@ -299,7 +299,7 @@ makeDataFields :: F.TCEmb TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecTy
                -> [F.DataField]
 makeDataFields tce c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
-    su                      = zip (rtyVarUniqueSymbol <$> as) [0..]
+    su                      = zip ({- rtyVarUniqueSymbol -} F.symbol <$> as) [0..]
     fSort                   = muSort c (length as) . F.substVars su . RT.rTypeSort tce
 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort

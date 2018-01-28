@@ -217,7 +217,8 @@ module Language.Haskell.Liquid.Types (
 
   , Axiom(..), HAxiom, AxiomEq -- (..)
 
-  , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
+  -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
+  , rtyVarType
   )
   where
 
@@ -595,6 +596,15 @@ instance F.Symbolic BTyVar where
 -- instance F.Symbolic RTyVar where
   -- symbol (RTV tv) = F.symbol . getName $ tv
 
+instance F.Symbolic RTyVar where
+  symbol (RTV tv) = tyVarUniqueSymbol tv
+
+-- rtyVarUniqueSymbol  :: RTyVar -> Symbol
+-- rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
+
+tyVarUniqueSymbol :: TyVar -> Symbol
+tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
+
 data BTyCon = BTyCon
   { btc_tc    :: !F.LocSymbol    -- ^ TyCon name with location information
   , btc_class :: !Bool         -- ^ Is this a class type constructor?
@@ -617,12 +627,6 @@ instance F.Symbolic BTyCon where
 instance NFData BTyCon
 
 instance NFData RTyCon
-
-rtyVarUniqueSymbol  :: RTyVar -> Symbol
-rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
-
-tyVarUniqueSymbol :: TyVar -> Symbol
-tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 rtyVarType :: RTyVar -> Type
 rtyVarType (RTV v) = TyVarTy v
