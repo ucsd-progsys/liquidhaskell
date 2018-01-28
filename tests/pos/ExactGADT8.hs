@@ -2,8 +2,8 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
+--------------------------------------------------------------------------------
 module ExactGADT8 where
------------------------------------
 
 {- data Goob a where
        GooX :: (a ~ Int) => Goob a
@@ -26,10 +26,10 @@ instance PersistEntity Blob where
     BlobXVal :: EntityField Blob Int
     BlobYVal :: EntityField Blob Int
 
-  -- TH-GEN
-  -- data EntityField Blob typ
-  --  = typ ~ Int => BlobXVal |
-  --    typ ~ Int => BlobYVal
+-- TH-GEN
+-- data EntityField Blob typ
+--  = typ ~ Int => BlobXVal |
+--    typ ~ Int => BlobYVal
 
 data RefinedFilter record typ = RefinedFilter
   { refinedFilterField  :: EntityField record typ

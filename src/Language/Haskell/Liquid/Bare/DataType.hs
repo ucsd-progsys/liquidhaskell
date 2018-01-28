@@ -67,7 +67,7 @@ import           Text.PrettyPrint.HughesPJ       ((<+>))
 -- | makeClassEmbeds: sort-embeddings for numeric, and family-instance tycons
 --------------------------------------------------------------------------------
 addClassEmbeds :: Maybe [ClsInst] -> [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
-addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
+addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 
 --------------------------------------------------------------------------------
 -- | makeFamInstEmbeds : embed family instance tycons, see [NOTE:FamInstEmbeds]

@@ -592,8 +592,8 @@ instance NFData   RTyVar
 instance F.Symbolic BTyVar where
   symbol (BTV tv) = tv
 
-instance F.Symbolic RTyVar where
-  symbol (RTV tv) = F.symbol . getName $ tv
+-- instance F.Symbolic RTyVar where
+  -- symbol (RTV tv) = F.symbol . getName $ tv
 
 data BTyCon = BTyCon
   { btc_tc    :: !F.LocSymbol    -- ^ TyCon name with location information

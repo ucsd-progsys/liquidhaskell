@@ -1385,11 +1385,11 @@ tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
-typeUniqueSymbol :: Type -> Symbol
-typeUniqueSymbol = symbol . typeUniqueString
-
 tyVarSort :: TyVar -> Sort
 tyVarSort = FObj . tyVarUniqueSymbol
+
+typeUniqueSymbol :: Type -> Symbol
+typeUniqueSymbol = symbol . typeUniqueString
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
 typeSortForAll tce τ

@@ -100,14 +100,14 @@ makeGhcSpec :: Config
             -> IO GhcSpec
 --------------------------------------------------------------------------------
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
-  fiEnv      <- makeFamInstEnv env
-  sp         <- throwLeft =<< execBare act (initEnv fiEnv)
-  let renv    = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp defVars) wiredSortedSyms
+  (fiTcs, fie) <- makeFamInstEnv env
+  let act       = makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs
+  sp           <- throwLeft =<< execBare act (initEnv fie)
+  let renv      = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp defVars) wiredSortedSyms
   throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
   where
-    act        = makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs
-    throwLeft  = either Ex.throw return
-    lmap'      = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
+    throwLeft   = either Ex.throw return
+    lmap'       = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
     initEnv fie = BE { modName  = name
                      , tcEnv    = mempty
                      , rtEnv    = mempty
@@ -124,12 +124,12 @@ makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = 
                      , beIndex  = 0
                      }
 
-makeFamInstEnv :: HscEnv -> IO (M.HashMap Symbol DataCon)
+makeFamInstEnv :: HscEnv -> IO ([TyCon], M.HashMap Symbol DataCon)
 makeFamInstEnv env = do
   famInsts <- getFamInstances env
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
   let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return      (F.tracepp "FAM-INST-TCS" $ M.fromList fiDcs)
+  return      (fiTcs, F.tracepp "FAM-INST-TCS" $ M.fromList fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
@@ -340,7 +340,7 @@ loadLiftedSpec cfg srcF
       ex  <- doesFileExist specF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
-      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
+      putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
       return lSp
 
 insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
@@ -407,17 +407,15 @@ checkDisjoint xs ys
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
-  :: Config -> FilePath -> [CoreBind] -> [TyCon] -> Maybe [ClsInst] -> [Var] -> [Var]
+  :: Config -> FilePath -> [CoreBind] -> [TyCon] -> [TyCon] -> Maybe [ClsInst] -> [Var] -> [Var]
   -> NameSet -> [(ModName, Ms.BareSpec)]
   -> BareM GhcSpec
 --------------------------------------------------------------------------------
-makeGhcSpec' cfg file cbs tcs instenv vars defVars exports specs0 = do
+makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   -- liftIO $ _dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
-
-  embs           <- addClassEmbeds instenv tcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-
+  embs           <- addClassEmbeds instenv fiTcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
   lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
@@ -514,7 +512,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 invs adts sp = do
   let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs invs
-  let xts' = xts ++ gsAsmSigs sp
+  let xts' = xts ++ F.tracepp "GS-ASMSIGS" (gsAsmSigs sp)
   let vts  = [ (v, t)        | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
   let msR  = [ (symbol v, t) | (v, t) <- vts ]
   let vs   = [ v             | (v, _) <- vts ]
@@ -775,7 +773,7 @@ makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                           , [(Var, LocSpecType)] )
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   sigs'    <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
-  asms'    <- Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+  asms'    <- F.tracepp "MAKE-ASSUME-SPEC" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
   invs     <- mconcat <$> mapM makeInvariants specs
   ialias   <- mconcat <$> mapM makeIAliases   specs
   ntys     <- mconcat <$> mapM makeNewTypes   specs
