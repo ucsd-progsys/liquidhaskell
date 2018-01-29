@@ -287,7 +287,7 @@ data PPEnv
     deriving (Show)
 
 ppEnv :: PPEnv
-ppEnv           = ppEnvCurrent
+ppEnv           = ppEnvCurrent { ppTyVar = True }
 
 ppEnvCurrent :: PPEnv
 ppEnvCurrent    = PP False False False False
@@ -2203,12 +2203,13 @@ instance F.PPrint BTyVar where
   pprintTidy _ (BTV α) = text (F.symbolString α)
 
 instance F.PPrint RTyVar where
-  pprintTidy _ (RTV α)
-   | ppTyVar ppEnv  = ppr_tyvar α
+  -- pprintTidy k = pprintTidy k . F.symbol --(RTV α)
+  pprintTidy k (RTV α)
+   | ppTyVar ppEnv  = F.pprintTidy k (F.symbol α) -- ppr_tyvar α
    | otherwise      = ppr_tyvar_short α
    where
-     ppr_tyvar :: Var -> Doc
-     ppr_tyvar       = text . tvId
+     -- _ppr_tyvar :: Var -> Doc
+     -- _ppr_tyvar       = text . tvId
 
      ppr_tyvar_short :: TyVar -> Doc
      ppr_tyvar_short = text . showPpr

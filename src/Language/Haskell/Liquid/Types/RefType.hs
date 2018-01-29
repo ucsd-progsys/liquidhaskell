@@ -1025,7 +1025,7 @@ subsFreeRef m s (α', τ', t')  (RProp ss t)
 -- | Type Substitutions --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-subts :: (Foldable t, SubsTy tv ty c) => t (tv, ty) -> c -> c
+subts :: (SubsTy tv ty c) => [(tv, ty)] -> c -> c
 subts = flip (foldr subt)
 
 instance SubsTy RTyVar (RType RTyCon RTyVar ()) RTyVar where
