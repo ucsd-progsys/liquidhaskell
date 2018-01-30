@@ -50,16 +50,18 @@ import Language.Haskell.Liquid.Bare.Resolve
 
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
-ofBareType l
-  = ofBRType expandRTAliasApp (resolve l <=< expand l)
+ofBareType l bt
+  = F.tracepp msg <$> ofBRType expandRTAliasApp (resolve l <=< expand l) bt
+  where msg = "OF-BARETYPE: " ++ F.showpp bt
+
 
 ofMeaSort :: BareType -> BareM SpecType
 ofMeaSort
-  = ofBRType failRTAliasApp {- _expandRTAliasApp_ -} return
+  = ofBRType failRTAliasApp return
 
 ofBSort :: BSort -> BareM RSort
 ofBSort
-  = ofBRType failRTAliasApp {- _expandRTAliasApp_ -} return
+  = ofBRType failRTAliasApp return
 
 
 --------------------------------------------------------------------------------
@@ -195,7 +197,7 @@ failRTAliasApp l rta _ _
 
 _expandRTAliasApp_ :: SourcePos -> RTAlias RTyVar SpecType -> [BSort] -> () -> BareM RSort
 _expandRTAliasApp_ l rta args _ = do
-  res <- expandRTAliasApp l rta ([ const mempty <$> t | t <- args] ) mempty 
+  res <- expandRTAliasApp l rta ([ const mempty <$> t | t <- args] ) mempty
   return (void res)
 
 expandRTAliasApp :: SourcePos -> RTAlias RTyVar SpecType -> [BareType] -> RReft -> BareM SpecType
@@ -210,8 +212,8 @@ expandRTAliasApp l rta args r
          return  $ F.subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
 
   where
-    αs        = rtTArgs rta
-    εs        = rtVArgs rta
+    (αs, εs)  = F.tracepp _msg (rtTArgs rta, rtVArgs rta)
+    _msg      = "EXPAND-RTALIAS-APP: " ++ F.showpp (rtName rta)
     err       :: Doc -> Error
     err       = ErrAliasApp (sourcePosSrcSpan l)
                             (pprint $ rtName rta)
