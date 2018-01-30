@@ -51,8 +51,8 @@ import Language.Haskell.Liquid.Bare.Resolve
 --------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l bt
-  = F.tracepp msg <$> ofBRType expandRTAliasApp (resolve l <=< expand l) bt
-  where msg = "OF-BARETYPE: " ++ F.showpp bt
+  = {- F.tracepp msg <$> -} ofBRType expandRTAliasApp (resolve l <=< expand l) bt
+  -- where msg = "OF-BARETYPE: " ++ F.showpp bt
 
 
 ofMeaSort :: BareType -> BareM SpecType
@@ -212,7 +212,7 @@ expandRTAliasApp l rta args r
          return  $ F.subst esu . (`strengthen` r) . subsTyVars_meet tsu $ rtBody rta
 
   where
-    (αs, εs)  = F.tracepp _msg (rtTArgs rta, rtVArgs rta)
+    (αs, εs)  = F.notracepp _msg (rtTArgs rta, rtVArgs rta)
     _msg      = "EXPAND-RTALIAS-APP: " ++ F.showpp (rtName rta)
     err       :: Doc -> Error
     err       = ErrAliasApp (sourcePosSrcSpan l)

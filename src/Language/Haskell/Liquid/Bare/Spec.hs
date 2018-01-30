@@ -254,12 +254,12 @@ lookupIds !ignoreUnknown
       | ignoreUnknown
       = return Nothing
     handleError err
-      = throwError $ F.tracepp "HANDLE-ERROR" err
+      = throwError err
 
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
   where
-    coSub           = F.tracepp ("mkVarSpec: " ++ show v) $ M.fromList [ (F.symbol a, specTvSymbol a) | a <- tvs ]
+    coSub           = M.fromList [ (F.symbol a, specTvSymbol a) | a <- tvs ]
     tvs             = fmap ty_var_value . fst4 . bkUniv . val $ b
     specTvSymbol    = F.symbol . bareRTyVar
     txCoerce        = mapExprReft (F.applyCoSub coSub)

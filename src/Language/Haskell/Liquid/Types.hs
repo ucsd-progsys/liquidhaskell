@@ -1230,17 +1230,17 @@ dataNameSymbol (DnCon  z) = z
 data RTAlias x a = RTA
   { rtName  :: Symbol             -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
-  , rtVArgs :: [x]                -- ^ value parameters
+  , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  , rtPos   :: F.SourcePos          -- ^ start position
-  , rtPosE  :: F.SourcePos          -- ^ end   position
+  , rtPos   :: F.SourcePos        -- ^ start position
+  , rtPosE  :: F.SourcePos        -- ^ end   position
   } deriving (Data, Typeable, Generic)
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
 
 mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
-                     , rtVArgs = f <$> rtVArgs rt
+                     -- , rtVArgs = f <$> rtVArgs rt
                      }
 
 lmapEAlias :: LMap -> RTAlias Symbol Expr
@@ -1513,7 +1513,7 @@ emapExprArg f = go
     go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
     go γ (REx z t t')       = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)       = RExprArg (f γ <$> F.tracepp "RExprArg" e)
+    go γ (RExprArg e)       = RExprArg (f γ <$> F.notracepp "RExprArg" e)
     go γ (RAppTy t t' r)    = RAppTy (go γ t) (go γ t') r
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
     mo _ t@(RProp _ (RHole {})) = t

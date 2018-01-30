@@ -1127,7 +1127,7 @@ rtAliasP f bodyP
        body <- bodyP
        posE <- getPosition
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos posE
+       return $ RTA name (f <$> tArgs) vArgs body pos posE
 
 aliasIdP :: Parser Symbol
 aliasIdP = condIdP (letter <|> char '_') alphaNums (isAlpha . head)

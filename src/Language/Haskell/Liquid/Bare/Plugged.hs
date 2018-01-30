@@ -108,7 +108,7 @@ plugHoles tce tyi x f t (Loc l l' st)
                     Left e -> throwError e
                     Right s -> return (vmap s)
        let su    = F.notracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
-           coSub = F.tracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
+           coSub = F.notracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
            st3   = subts su st''
            st4   = mapExprReft (F.applyCoSub coSub) st3
            ps'   = fmap (subts su') <$> ps
