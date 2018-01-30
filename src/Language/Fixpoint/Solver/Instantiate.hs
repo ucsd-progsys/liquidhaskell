@@ -417,15 +417,9 @@ substEqCoerce eq es bd = do
   env      <- seSort <$> gets evEnv
   let ts    = snd    <$> eqArgs eq
   let coSub = mkCoSub env es ts
-  return    $ applyCoSub coSub bd
+  return    $ Vis.applyCoSub coSub bd
 
--- | @CoSub@ is a map from (coercion) ty-vars represented as 'FObj s'
---   to the ty-vars that they should be substituted with. Note the
---   domain and range are both Symbol and not the Int used for real ty-vars.
-
-type CoSub = M.HashMap Symbol Symbol
-
-mkCoSub :: SEnv Sort -> [Expr] -> [Sort] -> CoSub
+mkCoSub :: SEnv Sort -> [Expr] -> [Sort] -> Vis.CoSub
 mkCoSub env es xTs = Misc.safeFromList "mkCoSub" xys
   where
     eTs            = sortExpr sp env <$> es
@@ -440,16 +434,6 @@ matchSorts = go
     go (FFunc s1 t1) (FFunc s2 t2) = go s1 s2 ++ go t1 t2
     go (FApp s1 t1)  (FApp s2 t2)  = go s1 s2 ++ go t1 t2
     go _             _             = []
-
-applyCoSub :: CoSub -> Expr -> Expr
-applyCoSub coSub      = Vis.mapExpr fE
-  where
-    fE (ECoerc s t e) = ECoerc (txS s) (txS t) e
-    fE e              = e
-    txS               = Vis.mapSort fS
-    fS (FObj a)       = FObj   (txV a)
-    fS t              = t
-    txV a             = M.lookupDefault a a coSub
 
 --------------------------------------------------------------------------------
 getEqBody :: Equation -> Maybe Expr
