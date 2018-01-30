@@ -34,7 +34,7 @@ module Language.Fixpoint.Types.Visitor (
   , mapExpr, mapMExpr
 
   -- * Coercion Substitutions
-  , CoSub (..)
+  , CoSub
   , applyCoSub
 
   -- * Predicates on Constraints
