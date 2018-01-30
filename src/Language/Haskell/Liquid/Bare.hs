@@ -599,7 +599,7 @@ makeGhcSpec1 :: [(Symbol, Var)]
              -> BareM GhcSpec
 makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
-       asmSigs     <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
+       asmSigs     <- F.tracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
        ctors       <- makePluggedAsmSigs embs tyi           $ tx cs'
        return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
@@ -772,7 +772,7 @@ makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                           , [(Var, LocSpecType)]
                           , [(Var, LocSpecType)] )
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
-  sigs'    <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
+  sigs'    <- F.tracepp "MAKE-ASSERT-SPEC-1" <$> (mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs)
   asms'    <- F.notracepp "MAKE-ASSUME-SPEC-1" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
   invs     <- mconcat <$> mapM makeInvariants specs
   ialias   <- mconcat <$> mapM makeIAliases   specs

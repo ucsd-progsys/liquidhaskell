@@ -108,11 +108,12 @@ plugHoles tce tyi x f t (Loc l l' st)
                     Left e -> throwError e
                     Right s -> return (vmap s)
        let su    = F.notracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
-           st''' = mapExprReft (F.applyCoSub coSub) $ subts su st''
-           coSub = F.notracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
+           coSub = F.tracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
+           st3   = subts su st''
+           st4   = mapExprReft (F.applyCoSub coSub) st3
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st4)
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt
