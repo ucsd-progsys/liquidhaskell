@@ -128,9 +128,10 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
 
-data MapTyVarST = MTVST { vmap   :: [(Var, RTyVar)]
-                        , errmsg :: Error
-                        }
+data MapTyVarST = MTVST
+  { vmap   :: [(Var, RTyVar)]
+  , errmsg :: Error
+  }
 
 initMapSt :: Error -> MapTyVarST
 initMapSt = MTVST []

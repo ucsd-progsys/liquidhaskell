@@ -107,7 +107,7 @@ plugHoles tce tyi x f t (Loc l l' st)
                     Left e -> throwError e
                     Right s -> return (vmap s)
        let su    = F.tracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
-           st''' = _fIX_ME_HERE_applyCoSub $ subts su st''
+           st''' = {- _fixme_applyCoSub $ -} subts su st''
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
        Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')

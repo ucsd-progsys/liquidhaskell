@@ -3,6 +3,9 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 
+-- | This module contains the code that DOES reflection; i.e. converts Haskell
+--   definitions into refinements.
+
 module Language.Haskell.Liquid.Bare.Axiom
   ( makeHaskellAxioms )
   where
@@ -84,7 +87,8 @@ mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 makeAssumeType
-  :: F.TCEmb TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType ->  Var -> CoreExpr
+  :: F.TCEmb TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType
+  -> Var -> CoreExpr
   -> (LocSpecType, AxiomEq)
 makeAssumeType tce lmap dm x mbT v def
   = (x {val = at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts le out)

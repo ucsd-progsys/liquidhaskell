@@ -44,17 +44,15 @@ import qualified Data.List                                  as L
 import qualified Data.HashSet                               as S
 import qualified Data.HashMap.Strict                        as M
 
-
-
-import           Language.Fixpoint.Misc                     (group, snd3, groupList)
-
-
+import qualified Language.Fixpoint.Misc                     as Misc
 import qualified Language.Fixpoint.Types                    as F
+import qualified Language.Fixpoint.Types.Visitor            as F
+
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types              hiding (freeTyVars)
 import           Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure            as Ms
@@ -145,7 +143,7 @@ makeHIMeas f vs spec
 varSymbols :: ([Var] -> [Var]) -> [Var] -> [(LocSymbol, a)] -> BareM [(Var, a)]
 varSymbols f vs = concatMapM go
   where
-    lvs         = M.map L.sort $ group [(sym v, locVar v) | v <- vs]
+    lvs         = M.map L.sort $ Misc.group [(sym v, locVar v) | v <- vs]
     sym         = dropModuleNames . F.symbol . showPpr
     locVar v    = (getSourcePos v, v)
     go (s, ns)  = case M.lookup (val s) lvs of
@@ -216,7 +214,7 @@ makeDefaultMethods defVs sigs
     , "$dm" `F.isPrefixOfSym` dropModuleNames dm
     , let mod = takeModuleNames dm
     , let method = qualifySymbol mod $ F.dropSym 3 (dropModuleNames dm)
-    , let mb = L.find ((method `F.isPrefixOfSym`) . F.symbol . snd3) sigs
+    , let mb = L.find ((method `F.isPrefixOfSym`) . F.symbol . Misc.snd3) sigs
     , isJust mb
     , let Just (m,_,t) = mb
     ]
@@ -259,9 +257,12 @@ lookupIds !ignoreUnknown
       = throwError $ F.tracepp "HANDLE-ERROR" err
 
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, _, b) = tx <$> mkLSpecType b
+mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
   where
-    tx              = (v,) . fmap generalize
+    coSub           = M.fromList [ (F.symbol a, specTvSymbol a) | a <- tvs ]
+    tvs             = fmap ty_var_value . fst4 . bkUniv . val $ b
+    specTvSymbol    = F.symbol . bareRTyVar
+    txCoerce        = mapExprReft (F.applyCoSub coSub)
 
 makeIAliases :: (ModName, Ms.Spec (Located BareType) bndr)
              -> BareM [(Located SpecType, Located SpecType)]
@@ -340,7 +341,7 @@ makeSpecDictionaryOne embs (RI x t xts)
 
 
 resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol (RISig SpecType))] -> [Maybe (Var, M.HashMap F.Symbol (RISig SpecType))]
-resolveDictionaries vars ds  = lookupVar <$> concat (go <$> groupList ds)
+resolveDictionaries vars ds  = lookupVar <$> concat (go <$> Misc.groupList ds)
  where
     go (x,is)           = addIndex 0 x $ reverse is
 
