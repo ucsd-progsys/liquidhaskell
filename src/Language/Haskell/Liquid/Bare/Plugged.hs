@@ -107,9 +107,9 @@ plugHoles tce tyi x f t (Loc l l' st)
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
                     Right s -> return (vmap s)
-       let su    = F.tracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
+       let su    = F.notracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
            st''' = mapExprReft (F.applyCoSub coSub) $ subts su st''
-           coSub = F.tracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
+           coSub = F.notracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
        Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')

@@ -257,25 +257,25 @@ lookupGhcDnTyCon src (DnName s)
       where
         res        = dataConTyCon x
         _ok        = res == listTyCon
-    ftc _z         = GM.tracePpr ("lookupGhcDnTyCon 1 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
-                     Nothing
+    ftc _z         = GM.notracePpr ("lookupGhcDnTyCon 1 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                     $ Nothing
 
 lookupGhcDnTyCon src (DnCon  s)
                    = lookupGhcThing err ftc (Just tcName) s
   where
     err            = "type konstructor " ++ src
     ftc (AConLike (RealDataCon x))
-                   = GM.tracePpr ("lookupGhcDnTyCon 1 s = " ++ show s ++ "result = " ++ GM.showPpr x)
+                   = GM.notracePpr ("lookupGhcDnTyCon 1 s = " ++ show s ++ "result = " ++ GM.showPpr x)
                      $ Just (1, dataConTyCon x)
     ftc (AConLike _z)
-                   = GM.tracePpr ("lookupGhcDnTyCon 2 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                   = GM.notracePpr ("lookupGhcDnTyCon 2 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
                      $ Nothing
     ftc (AnId _z)
-                   = GM.tracePpr ("lookupGhcDnTyCon 3 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                   = GM.notracePpr ("lookupGhcDnTyCon 3 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
                      $ Nothing
-    ftc (ATyCon _z) = GM.tracePpr ("lookupGhcDnTyCon 4 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+    ftc (ATyCon _z) = GM.notracePpr ("lookupGhcDnTyCon 4 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
                      $ Nothing
-    ftc _z          = GM.tracePpr ("lookupGhcDnTyCon 5 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+    ftc _z          = GM.notracePpr ("lookupGhcDnTyCon 5 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
                      $ Nothing
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon

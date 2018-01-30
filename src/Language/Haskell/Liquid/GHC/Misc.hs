@@ -212,6 +212,9 @@ isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 -- | Pretty Printers -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
+notracePpr :: Outputable a => String -> a -> a
+notracePpr _ x = x
+
 tracePpr :: Outputable a => String -> a -> a
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 

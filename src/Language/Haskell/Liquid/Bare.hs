@@ -129,7 +129,7 @@ makeFamInstEnv env = do
   famInsts <- getFamInstances env
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
   let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return      (fiTcs, F.tracepp "FAM-INST-TCS" $ M.fromList fiDcs)
+  return      (fiTcs, F.notracepp "FAM-INST-TCS" $ M.fromList fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
@@ -247,7 +247,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
                 , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
-                , Ms.dataDecls = F.tracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
+                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
                 }
 
 -- sortUniquable :: (Uniquable a) => [a] -> [a]
@@ -340,7 +340,7 @@ loadLiftedSpec cfg srcF
       ex  <- doesFileExist specF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
-      putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
+      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
       return lSp
 
 insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
@@ -512,7 +512,7 @@ makeGhcAxioms file name embs cbs su specs lSpec0 invs adts sp = do
   let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs invs
-  let xts' = xts ++ F.tracepp "GS-ASMSIGS" (gsAsmSigs sp)
+  let xts' = xts ++ F.notracepp "GS-ASMSIGS" (gsAsmSigs sp)
   let vts  = [ (v, t)        | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
   let msR  = [ (symbol v, t) | (v, t) <- vts ]
   let vs   = [ v             | (v, _) <- vts ]
@@ -599,7 +599,7 @@ makeGhcSpec1 :: [(Symbol, Var)]
              -> BareM GhcSpec
 makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
-       asmSigs     <- F.tracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
+       asmSigs     <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
        ctors       <- makePluggedAsmSigs embs tyi           $ tx cs'
        return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
@@ -773,14 +773,14 @@ makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                           , [(Var, LocSpecType)] )
 makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   sigs'    <- mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs
-  asms'    <- F.tracepp "MAKE-ASSUME-SPEC-1" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+  asms'    <- F.notracepp "MAKE-ASSUME-SPEC-1" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
   invs     <- mconcat <$> mapM makeInvariants specs
   ialias   <- mconcat <$> mapM makeIAliases   specs
   ntys     <- mconcat <$> mapM makeNewTypes   specs
   let dms   = makeDefaultMethods vars mts
   tyi      <- gets tcEnv
   let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-  let asms  = F.tracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
+  let asms  = F.notracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((== name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
   checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.

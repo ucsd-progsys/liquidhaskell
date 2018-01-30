@@ -78,12 +78,12 @@ addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
   where
-    famInstSorts          = F.tracepp "famInstTcs"
+    famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
                                 , ty  <- maybeToList (famInstTyConType c) ]
     embed embs (c, t)     = M.insert c t embs
-    cs                    = F.tracepp "famInstTcs-all" cs0
+    cs                    = F.notracepp "famInstTcs-all" cs0
 
 famInstTyConType :: TyCon -> Maybe Type
 famInstTyConType c = case tyConFamInst_maybe c of
@@ -563,9 +563,9 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  let t0'       = F.tracepp ("dataConResultTy c' = " ++ show c') $ dataConResultTy c' αs t0 res'
+  let t0'       = F.notracepp ("dataConResultTy c' = " ++ show c') $ dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
 
