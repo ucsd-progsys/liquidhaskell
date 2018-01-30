@@ -240,7 +240,7 @@ type LocSymbol = Located Symbol
 type LocText   = Located T.Text
 
 isDummy :: (Symbolic a) => a -> Bool
-isDummy a = symbol a == symbol dummyName
+isDummy a = isPrefixOfSym (symbol dummyName) (symbol a)
 
 instance Symbolic a => Symbolic (Located a) where
   symbol = symbol . val
