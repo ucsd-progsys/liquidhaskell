@@ -18,13 +18,13 @@ module Language.Haskell.Liquid.Types.Dictionaries (
 import           Data.Hashable
 import           Prelude                                   hiding (error)
 import           Var
+import           Name                                      (getName)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNamesCorrect)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Fixpoint.Misc                (mapFst)
-
 import qualified Data.HashMap.Strict                       as M
 
 makeDictionaries :: [RInstance SpecType] -> DEnv F.Symbol SpecType
@@ -36,7 +36,9 @@ makeDictionary (RI c ts xts) = (makeDictionaryName (btc_tc c) ts, M.fromList (ma
 
 makeDictionaryName :: Located F.Symbol -> [SpecType] -> F.Symbol
 makeDictionaryName t ts
-  = F.symbol ("$f" ++ F.symbolString (val t) ++ concatMap makeDicTypeName ts)
+  = F.notracepp _msg $ F.symbol ("$f" ++ F.symbolString (val t) ++ concatMap makeDicTypeName ts)
+  where
+    _msg = "MAKE-DICTIONARY " ++ F.showpp (val t, ts)
 
 
 makeDicTypeName :: SpecType -> String
@@ -44,17 +46,18 @@ makeDicTypeName (RFun _ _ _ _)
   = "(->)"
 makeDicTypeName (RApp c _ _ _)
   = F.symbolString $ dropModuleNamesCorrect $ F.symbol $ rtc_tc c
-makeDicTypeName (RVar a _)
-  = show a
+-- makeDicTypeName (RVar a _)
+  -- = show a
+makeDicTypeName (RVar (RTV a) _)
+  = show (getName a)      -- RJ: DO NOT use show/symbol here as they add the unique-suffix
+                          -- which then breaks the class resolution.
 makeDicTypeName t
   = panic Nothing ("makeDicTypeName: called with invalid type " ++ show t)
 
 
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
------------------------- Dictionay Environment -------------------------------
-------------------------------------------------------------------------------
-------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Dictionary Environment ----------------------------------------------------
+--------------------------------------------------------------------------------
 
 
 dfromList :: [(Var, M.HashMap F.Symbol (RISig t))] -> DEnv Var t

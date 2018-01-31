@@ -1049,9 +1049,9 @@ instance Show RTyCon where
 instance Show BTyCon where
   show = F.showpp
 
---------------------------------------------------------------------------
--- | Refined Instances ---------------------------------------------------
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Refined Instances ---------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data RInstance t = RI
   { riclass :: BTyCon
@@ -1154,7 +1154,7 @@ data HasDataDecl
 
 instance F.PPrint HasDataDecl where
   pprintTidy _ HasDecl    = text "HasDecl"
-  pprintTidy k (NoDecl z) = text "NoDecl" <+> parens (F.pprintTidy k z) 
+  pprintTidy k (NoDecl z) = text "NoDecl" <+> parens (F.pprintTidy k z)
 
 hasDecl :: DataDecl -> HasDataDecl
 hasDecl d
