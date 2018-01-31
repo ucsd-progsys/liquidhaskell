@@ -445,12 +445,12 @@ copyright :: String
 copyright = concat $ concat
   [ ["LiquidHaskell "]
   , [$(simpleVersion Meta.version)]
-  , [" (" ++ commitCount ++ " commits)" | commitCount /= ("1"::String) &&
-                                          commitCount /= ("UNKNOWN" :: String)]
-  , [" Copyright 2013-17 Regents of the University of California. All Rights Reserved.\n"]
+  -- , [" (" ++ _commitCount ++ " commits)" | _commitCount /= ("1"::String) &&
+  --                                          _commitCount /= ("UNKNOWN" :: String)]
+  , ["\nCopyright 2013-18 Regents of the University of California. All Rights Reserved.\n"]
   ]
   where
-    commitCount = $gitCommitCount
+    _commitCount = $gitCommitCount
 
 -- NOTE [searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,

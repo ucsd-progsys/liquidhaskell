@@ -67,7 +67,7 @@ import           Text.PrettyPrint.HughesPJ       ((<+>))
 -- | makeClassEmbeds: sort-embeddings for numeric, and family-instance tycons
 --------------------------------------------------------------------------------
 addClassEmbeds :: Maybe [ClsInst] -> [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
-addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
+addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 
 --------------------------------------------------------------------------------
 -- | makeFamInstEmbeds : embed family instance tycons, see [NOTE:FamInstEmbeds]
@@ -76,17 +76,19 @@ addClassEmbeds instenv tcs = makeFamInstEmbeds tcs . makeNumEmbeds instenv
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
-makeFamInstEmbeds cs embs = L.foldl' embed embs famInstSorts
+makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
   where
     famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
-                                | c        <- cs
-                                , (c', ts) <- tcInsts c
-                                , let n     = tyConArity c
-                                , let ty    = famInstType n c' ts ]
-    tcInsts               = maybeToList . tyConFamInst_maybe
+                                | c   <- cs
+                                , ty  <- maybeToList (famInstTyConType c) ]
     embed embs (c, t)     = M.insert c t embs
-    -- tcSorts               = maybeToList . famInstSort embs
+    cs                    = F.notracepp "famInstTcs-all" cs0
+
+famInstTyConType :: TyCon -> Maybe Type
+famInstTyConType c = case tyConFamInst_maybe c of
+  Just (c', ts) -> Just (famInstType (tyConArity c) c' ts)
+  Nothing       -> Nothing
 
 famInstType :: Int -> TyCon -> [Type] -> Type
 famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
@@ -297,7 +299,7 @@ makeDataFields :: F.TCEmb TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecTy
                -> [F.DataField]
 makeDataFields tce c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
-    su                      = zip (rtyVarUniqueSymbol <$> as) [0..]
+    su                      = zip ({- rtyVarUniqueSymbol -} F.symbol <$> as) [0..]
     fSort                   = muSort c (length as) . F.substVars su . RT.rTypeSort tce
 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
@@ -458,7 +460,7 @@ errInvalidDataCon c d = ErrBadData sp (pprint (val d)) msg
     msg               = ppVar c <+> "is not the type constructor"
 
 checkDataCtor :: DataCtor -> BareM ()
-checkDataCtor (DataCtor lc xts _)
+checkDataCtor (DataCtor lc _ xts _)
   | x : _ <- dups = Ex.throw (err lc x :: UserError)
   | otherwise     = return ()
     where
@@ -557,25 +559,37 @@ ofBDataCtor :: ModName
             -> [PVar RSort]
             -> DataCtor
             -> BareM (DataCon, DataConP)
-ofBDataCtor name l l' tc αs ps ls πs (DataCtor c xts res) = do
+ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  let cs        = RT.ofType <$> dataConStupidTheta c'
-  let t0'       = dataConResultTy c' αs t0 res'
+  let t0'       = F.notracepp ("dataConResultTy c' = " ++ show c' ++ " res' = " ++ show res') $ dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
   let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
+
+  let usedTvs   = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
+  -- let cs        = RT.ofType <$> dataConStupidTheta c'
+  let cs        = [ p | p <- RT.ofType <$> dataConTheta c', keepPredType usedTvs p ]
   return          (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
-    (xs, ts) = unzip xts
-    t0       = RT.gApp tc αs πs
+    (xs, ts)    = unzip xts
+    t0          = case famInstTyConType tc of
+                    Nothing -> RT.gApp tc αs πs
+                    Just ty -> RT.ofType ty
     -- nFlds    = length xts
     -- rs       = [RT.rVar α | RTV α <- αs]
     -- t0       = F.tracepp "t0 = " $ RT.rApp tc rs (rPropP [] . pdVarReft <$> πs) mempty -- 1089 HEREHERE use the SPECIALIZED type?
-    isGadt   = isJust res
-    dLoc     = F.Loc l l' ()
+    isGadt      = isJust res
+    dLoc        = F.Loc l l' ()
+
+
+keepPredType :: S.HashSet RTyVar -> SpecType -> Bool
+keepPredType tvs p
+  | Just (tv, _) <- eqSubst p = S.member tv tvs
+  | otherwise                 = True
+
 
 -- | This computes the result of a `DataCon` application.
 --   For 'isVanillaDataCon' we can just use the `TyCon`
@@ -588,7 +602,7 @@ dataConResultTy :: DataCon
 dataConResultTy _ _ _ (Just t) = t
 dataConResultTy c αs t _
   | isVanillaDataCon c         = t
-  | False                      = F.tracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
+  | False                      = F.notracepp "RESULT-TYPE:" $ RT.subsTyVars_meet (gadtSubst αs c) t
 dataConResultTy c _ _ _        = RT.ofType t
   where
     (_,_,_,_,_,t)              = {- GM.tracePpr ("FULL-SIG:" ++ show c ++ " -- repr : " ++ GM.showPpr (_tr0, _tr1, _tr2)) $ -} dataConFullSig c

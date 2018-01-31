@@ -28,7 +28,8 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict as M
 
 import Language.Fixpoint.Types.Names (dummySymbol)
-import qualified Language.Fixpoint.Types as F
+import qualified Language.Fixpoint.Types         as F
+import qualified Language.Fixpoint.Types.Visitor as F
 -- import Language.Fixpoint.Types (traceFix, showFix)
 -- import Language.Fixpoint.Misc (traceShow)
 
@@ -42,11 +43,12 @@ import Language.Haskell.Liquid.Misc (zipWithDefM)
 import Language.Haskell.Liquid.Bare.Env
 import Language.Haskell.Liquid.Bare.Misc
 
-
--- NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
--- e.g. toType, in this module as they cannot handle LH type holes. Since
--- this module is responsible for plugging the holes we obviously cannot
--- assume, as in e.g. L.H.L.Constraint.* that they do not appear.
+--------------------------------------------------------------------------------
+-- | NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
+--   e.g. toType, in this module as they cannot handle LH type holes. Since
+--   this module is responsible for plugging the holes we obviously cannot
+--   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
+--------------------------------------------------------------------------------
 
 makePluggedSigs :: ModName
                 -> F.TCEmb TyCon
@@ -104,12 +106,14 @@ plugHoles tce tyi x f t (Loc l l' st)
                                     -- NOTE: this use of toType is safe as rt' is derived from t.
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
-                    Right s -> return $ vmap s
-       let su    = [(y, rTyVar x) | (x, y) <- tyvsmap]
-           st''' = subts su st''
+                    Right s -> return (vmap s)
+       let su    = F.notracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
+           coSub = F.notracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.symbol x) | (y, x) <- su]
+           st3   = subts su st''
+           st4   = mapExprReft (F.applyCoSub coSub) st3
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st''')
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st4)
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt

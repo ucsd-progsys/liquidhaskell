@@ -1025,7 +1025,7 @@ subsFreeRef m s (α', τ', t')  (RProp ss t)
 -- | Type Substitutions --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-subts :: (Foldable t, SubsTy tv ty c) => t (tv, ty) -> c -> c
+subts :: (SubsTy tv ty c) => [(tv, ty)] -> c -> c
 subts = flip (foldr subt)
 
 instance SubsTy RTyVar (RType RTyCon RTyVar ()) RTyVar where
@@ -1088,15 +1088,15 @@ instance SubsTy BTyVar (RType BTyCon BTyVar ()) Sort where
 
 instance SubsTy Symbol RSort Sort where
   subt (v, RVar α _) (FObj s)
-    | symbol v == s = FObj $ rTyVarSymbol α
+    | symbol v == s = FObj $ symbol {- rTyVarSymbol -} α
     | otherwise     = FObj s
   subt _ s          = s
 
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
-    | rtyVarUniqueSymbol v == s
-      || symbol v == s
+    | -- rtyVarUniqueSymbol v == s ||
+      symbol v == s
     = typeSort M.empty $ toType sv
     | otherwise
     = FObj s
@@ -1385,11 +1385,11 @@ tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
+tyVarSort :: TyVar -> Sort
+tyVarSort = FObj . symbol -- tyVarUniqueSymbol
+
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . typeUniqueString
-
-tyVarSort :: TyVar -> Sort
-tyVarSort = FObj . tyVarUniqueSymbol
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
 typeSortForAll tce τ
@@ -1397,7 +1397,7 @@ typeSortForAll tce τ
   where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = tyVarUniqueSymbol <$> as
+        sas                 = {- tyVarUniqueSymbol -} symbol <$> as
         n                   = length as
 
 -- RJ: why not make this the Symbolic instance?
@@ -1457,17 +1457,17 @@ mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe men
 classBinds :: TCEmb TyCon -> SpecType -> [(Symbol, SortedReft)]
 classBinds _ (RApp c ts _ _)
    | isFracCls c
-   = [(rTyVarSymbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
+   = [({- rTyVarSymbol -} symbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
    | isNumCls c
-   = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
+   = [({- rTyVarSymbol -} symbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
    | rtc_tc c == eqPrimTyCon
-   = [(rTyVarSymbol a, rTypeSortedReft emb t)]
+   = [({- rTyVarSymbol -} symbol a, rTypeSortedReft emb t)]
 classBinds _ _
   = []
 
-rTyVarSymbol :: RTyVar -> Symbol
-rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
+-- rTyVarSymbol :: RTyVar -> Symbol
+-- rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------
@@ -1648,8 +1648,12 @@ instance PPrint DataDecl where
                     $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
 
 instance PPrint DataCtor where
-  pprintTidy k (DataCtor c xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
-  pprintTidy k (DataCtor c xts (Just t)) = pprintTidy k c <+> dcolon <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+  pprintTidy k (DataCtor c _   xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
+  pprintTidy k (DataCtor c ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppThetas ths <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+    where
+      ppThetas [] = empty
+      ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
+
 
 ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
 ppFields k sep kvs = hcat $ punctuate sep (F.pprintTidy k <$> kvs)

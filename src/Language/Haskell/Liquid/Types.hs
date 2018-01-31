@@ -124,6 +124,7 @@ module Language.Haskell.Liquid.Types (
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
   , mapReft, mapReftM, mapPropM
+  , mapExprReft
   , mapBot, mapBind
   , foldRType
 
@@ -217,7 +218,8 @@ module Language.Haskell.Liquid.Types (
 
   , Axiom(..), HAxiom, AxiomEq -- (..)
 
-  , rtyVarUniqueSymbol, tyVarUniqueSymbol, rtyVarType
+  -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
+  , rtyVarType
   )
   where
 
@@ -225,7 +227,7 @@ import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
 import           Data.String
 import           DataCon
-import           GHC                                    (HscEnv, ModuleName, moduleNameString, getName)
+import           GHC                                    (HscEnv, ModuleName, moduleNameString)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
 import           NameSet
@@ -286,7 +288,7 @@ data PPEnv
     deriving (Show)
 
 ppEnv :: PPEnv
-ppEnv           = ppEnvCurrent
+ppEnv           = ppEnvCurrent { ppTyVar = True }
 
 ppEnvCurrent :: PPEnv
 ppEnvCurrent    = PP False False False False
@@ -593,12 +595,19 @@ instance F.Symbolic BTyVar where
   symbol (BTV tv) = tv
 
 instance F.Symbolic RTyVar where
-  symbol (RTV tv) = F.symbol . getName $ tv
+  symbol (RTV tv) = F.symbol tv -- tyVarUniqueSymbol tv
+
+-- instance F.Symbolic RTyVar where
+  -- symbol (RTV tv) = F.symbol . getName $ tv
+-- rtyVarUniqueSymbol  :: RTyVar -> Symbol
+-- rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
+-- tyVarUniqueSymbol :: TyVar -> Symbol
+-- tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 data BTyCon = BTyCon
   { btc_tc    :: !F.LocSymbol    -- ^ TyCon name with location information
-  , btc_class :: !Bool         -- ^ Is this a class type constructor?
-  , btc_prom  :: !Bool         -- ^ Is Promoted Data Con?
+  , btc_class :: !Bool           -- ^ Is this a class type constructor?
+  , btc_prom  :: !Bool           -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
 
@@ -617,12 +626,6 @@ instance F.Symbolic BTyCon where
 instance NFData BTyCon
 
 instance NFData RTyCon
-
-rtyVarUniqueSymbol  :: RTyVar -> Symbol
-rtyVarUniqueSymbol (RTV tv) = tyVarUniqueSymbol tv
-
-tyVarUniqueSymbol :: TyVar -> Symbol
-tyVarUniqueSymbol tv = F.symbol $ show (getName tv) ++ "_" ++ show (varUnique tv)
 
 rtyVarType :: RTyVar -> Type
 rtyVarType (RTV v) = TyVarTy v
@@ -713,9 +716,10 @@ instance NFData TyConInfo
 instance Show TyConInfo where
   show (TyConInfo x y _) = show x ++ "\n" ++ show y
 
---------------------------------------------------------------------
----- Unified Representation of Refinement Types --------------------
---------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Unified Representation of Refinement Types --------------------------------
+--------------------------------------------------------------------------------
+
 type RTVU c tv = RTVar tv (RType c tv ())
 type PVU  c tv = PVar     (RType c tv ())
 
@@ -889,8 +893,8 @@ data UReft r = MkUReft
 
 instance B.Binary r => B.Binary (UReft r)
 
-type BRType     = RType BTyCon BTyVar
-type RRType     = RType RTyCon RTyVar
+type BRType     = RType BTyCon BTyVar       -- ^ "Bare" parsed version
+type RRType     = RType RTyCon RTyVar       -- ^ "Resolved" version
 type RRep       = RTypeRep RTyCon RTyVar
 
 type BSort      = BRType    ()
@@ -1045,9 +1049,9 @@ instance Show RTyCon where
 instance Show BTyCon where
   show = F.showpp
 
---------------------------------------------------------------------------
--- | Refined Instances ---------------------------------------------------
---------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Refined Instances ---------------------------------------------------------
+--------------------------------------------------------------------------------
 
 data RInstance t = RI
   { riclass :: BTyCon
@@ -1084,17 +1088,6 @@ type HAxiom = Axiom Var    Type CoreExpr
 
 type AxiomEq = F.Equation
 
--- data AxiomEq = AxiomEq
---   { axiomName :: Symbol             -- ^ name of function
---   , axiomArgs :: [(Symbol, F.Sort)] -- ^ parameters and sorts
---   , axiomBody :: Expr               -- ^ TODO:???
---   -- , axiomEq   :: Expr               -- ^ TODO:??? What is diff between body and eq?
---   , axiomSort :: F.Sort             -- ^ output sort
---   } deriving (Generic, Show)
--- instance B.Binary AxiomEq
--- instance F.PPrint AxiomEq where
---   pprintTidy k (AxiomEq n xs b _ _) = text "axeq" <+> F.pprint n <+> F.pprint xs <+> ":=" <+> F.pprintTidy k b
-
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
                                          "\nFun Name: " ++ (showPpr n) ++
@@ -1105,19 +1098,6 @@ instance Show (Axiom Var Type CoreExpr) where
                                          "\nLHS      :" ++ (showPpr lhs) ++
                                          "\nRHS      :" ++ (showPpr rhs)
 
-{-
-
-instance F.Subable AxiomEq where
-  syms   a = F.syms (axiomBody a) ++ F.syms (axiomEq a)
-  subst su = mapAxiomEqExpr (F.subst su)
-  substf f = mapAxiomEqExpr (F.substf f)
-  substa f = mapAxiomEqExpr (F.substa f)
-
-mapAxiomEqExpr :: (Expr -> Expr) -> AxiomEq -> AxiomEq
-mapAxiomEqExpr f a = a { axiomBody = f (axiomBody a)
-                       , axiomEq   = f (axiomEq   a) }
-
--}
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
@@ -1142,6 +1122,7 @@ data DataName
 -- | Data Constructor
 data DataCtor = DataCtor
   { dcName   :: F.LocSymbol               -- ^ DataCon name
+  , dcTheta  :: [BareType]                -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
   , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
   , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
@@ -1170,6 +1151,10 @@ data HasDataDecl
   = NoDecl  (Maybe SizeFun)
   | HasDecl
   deriving (Show)
+
+instance F.PPrint HasDataDecl where
+  pprintTidy _ HasDecl    = text "HasDecl"
+  pprintTidy k (NoDecl z) = text "NoDecl" <+> parens (F.pprintTidy k z)
 
 hasDecl :: DataDecl -> HasDataDecl
 hasDecl d
@@ -1249,17 +1234,17 @@ dataNameSymbol (DnCon  z) = z
 data RTAlias x a = RTA
   { rtName  :: Symbol             -- ^ name of the alias
   , rtTArgs :: [x]                -- ^ type parameters
-  , rtVArgs :: [x]                -- ^ value parameters
+  , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  , rtPos   :: F.SourcePos          -- ^ start position
-  , rtPosE  :: F.SourcePos          -- ^ end   position
+  , rtPos   :: F.SourcePos        -- ^ start position
+  , rtPosE  :: F.SourcePos        -- ^ end   position
   } deriving (Data, Typeable, Generic)
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
 
 mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
 mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
-                     , rtVArgs = f <$> rtVArgs rt
+                     -- , rtVArgs = f <$> rtVArgs rt
                      }
 
 lmapEAlias :: LMap -> RTAlias Symbol Expr
@@ -1269,7 +1254,6 @@ lmapEAlias (LMap v ys e) = RTA (F.val v) [] ys e (F.loc v) (F.loc v)
 --------------------------------------------------------------------------------
 -- | Constructor and Destructors for RTypes ------------------------------------
 --------------------------------------------------------------------------------
-
 data RTypeRep c tv r = RTypeRep
   { ty_vars   :: [RTVar tv (RType c tv ())]
   , ty_preds  :: [PVar (RType c tv ())]
@@ -1327,11 +1311,11 @@ mkUnivs :: (Foldable t, Foldable t1, Foldable t2)
         -> RType c tv r
 mkUnivs αs πs ls t = foldr RAllT (foldr RAllP (foldr RAllS t ls) πs) αs
 
-bkUniv :: RType t1 a t2 -> ([RTVar a (RType t1 a ())], [PVar (RType t1 a ())], [Symbol], RType t1 a t2)
-bkUniv (RAllT α t)      = let (αs, πs, ls, t') = bkUniv t in  (α:αs, πs, ls, t')
-bkUniv (RAllP π t)      = let (αs, πs, ls, t') = bkUniv t in  (αs, π:πs, ls, t')
-bkUniv (RAllS s t)      = let (αs, πs, ss, t') = bkUniv t in  (αs, πs, s:ss, t')
-bkUniv t                = ([], [], [], t)
+bkUniv :: RType tv c r -> ([RTVar c (RType tv c ())], [PVar (RType tv c ())], [Symbol], RType tv c r)
+bkUniv (RAllT α t) = let (αs, πs, ls, t') = bkUniv t in (α:αs, πs, ls, t')
+bkUniv (RAllP π t) = let (αs, πs, ls, t') = bkUniv t in (αs, π:πs, ls, t')
+bkUniv (RAllS s t) = let (αs, πs, ss, t') = bkUniv t in (αs, πs, s:ss, t')
+bkUniv t           = ([], [], [], t)
 
 bkClass :: TyConable c
         => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
@@ -1489,9 +1473,13 @@ pApp p es = F.mkEApp fn (F.EVar p:es)
 pappSym :: Show a => a -> Symbol
 pappSym n  = F.symbol $ "papp" ++ show n
 
----------------------------------------------------------------
---------------------------- Visitors --------------------------
----------------------------------------------------------------
+--------------------------------------------------------------------------------
+-- | Visitors ------------------------------------------------------------------
+--------------------------------------------------------------------------------
+mapExprReft :: (Expr -> Expr) -> RType c tv RReft -> RType c tv RReft
+mapExprReft f = mapReft g
+  where
+    g (MkUReft (F.Reft (x, e)) p s) = MkUReft (F.Reft (x, f e)) p s
 
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
 isTrivial t = foldReft (\_ r b -> F.isTauto r && b) True t
@@ -1529,7 +1517,7 @@ emapExprArg f = go
     go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
     go γ (REx z t t')       = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)       = RExprArg (f γ <$> F.tracepp "RExprArg" e)
+    go γ (RExprArg e)       = RExprArg (f γ <$> F.notracepp "RExprArg" e)
     go γ (RAppTy t t' r)    = RAppTy (go γ t) (go γ t') r
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
     mo _ t@(RProp _ (RHole {})) = t
@@ -2223,12 +2211,13 @@ instance F.PPrint BTyVar where
   pprintTidy _ (BTV α) = text (F.symbolString α)
 
 instance F.PPrint RTyVar where
-  pprintTidy _ (RTV α)
-   | ppTyVar ppEnv  = ppr_tyvar α
+  -- pprintTidy k = pprintTidy k . F.symbol --(RTV α)
+  pprintTidy k (RTV α)
+   | ppTyVar ppEnv  = F.pprintTidy k (F.symbol α) -- ppr_tyvar α
    | otherwise      = ppr_tyvar_short α
    where
-     ppr_tyvar :: Var -> Doc
-     ppr_tyvar       = text . tvId
+     -- _ppr_tyvar :: Var -> Doc
+     -- _ppr_tyvar       = text . tvId
 
      ppr_tyvar_short :: TyVar -> Doc
      ppr_tyvar_short = text . showPpr

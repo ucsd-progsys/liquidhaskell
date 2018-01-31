@@ -400,7 +400,7 @@ checkAbstractRefs t = go t
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r
+checkReft env emb (Just t) _ = (\z -> dr $+$ z {- $+$ text "In environment" $+$ nest 4 (pprint env) -}) <$> checkSortedReftFull env r
   where
     r                        = rTypeSortedReft emb t
     dr                       = text "Sort Error in Refinement:" <+> pprint r

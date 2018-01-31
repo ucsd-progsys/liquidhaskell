@@ -42,7 +42,7 @@ import TysWiredIn (boolTyCon) -- , wiredInTyCons)
 import Data.Traversable (forM, mapM)
 import Text.PrettyPrint.HughesPJ (text)
 import Text.Parsec.Pos (SourcePos)
-
+import Text.Printf     (printf)
 import qualified Data.List as L
 
 import qualified Data.HashMap.Strict as M
@@ -74,6 +74,7 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec tcs
   | exactDC cfg = mapMaybe tyConDataDecl
+                . F.notracepp "makeHaskellDataDecls-1"
                 . zipMap   (hasDataDecl spec . fst)
                 . liftableTyCons
                 . filter isReflectableTyCon
@@ -104,7 +105,7 @@ hasDataDecl spec = \tc -> M.lookupDefault def (tcName tc) decls
   where
     def          = NoDecl Nothing
     tcName       = tyConDataName False
-    decls        = M.fromList [ (Just (tycName d), hasDecl d) | d <- Ms.dataDecls spec ]
+    decls        = M.fromList [ (Just (tycName d), F.notracepp ("HAS-DECL d = " ++ (show (tycName d))) $ hasDecl d) | d <- Ms.dataDecls spec ]
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((TyCon, DataName), HasDataDecl) -> Maybe DataDecl
@@ -132,16 +133,24 @@ tyConDataName full tc
   where
     post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = isVanillaAlgTyCon tc
-    dcs        = F.notracepp msg $ tyConDataCons tc
-    msg        = "tyConDataCons tc = " ++ F.showpp tc
+    dcs        = tyConDataCons tc
 
 dataConDecl :: DataCon -> DataCtor
-dataConDecl d  = DataCtor dx xts Nothing
+dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
+-- dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
   where
-    xts        = [(makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
-    dx         = symbol <$> GM.locNamedThing d
-    its        = zip [1..] ts
-    (_,_,ts,_) = dataConSig d
+    isGadt        = not (isVanillaDataCon d)
+    msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
+    xts           = [(makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
+    dx            = symbol <$> GM.locNamedThing d
+    its           = zip [1..] ts
+    (_,_ps,ts,t)   = dataConSig d
+    _outT :: Maybe BareType
+    _outT
+      | isGadt    = Just (RT.bareOfType t)
+      | otherwise = Nothing
+
+
 
 --------------------------------------------------------------------------------
 makeHaskellMeasures :: F.TCEmb TyCon -> [CoreBind] -> Ms.BareSpec
