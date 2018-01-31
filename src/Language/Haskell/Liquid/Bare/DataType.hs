@@ -563,9 +563,9 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   c'           <- lookupGhcDataCon c
   ts'          <- mapM (mkSpecType' l ps) ts
   res'         <- mapM (mkSpecType' l ps) res
-  let t0'       = F.tracepp ("dataConResultTy c' = " ++ show c' ++ " res' = " ++ show res') $ dataConResultTy c' αs t0 res'
+  let t0'       = F.notracepp ("dataConResultTy c' = " ++ show c' ++ " res' = " ++ show res') $ dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
-  let (yts, ot) = F.tracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
+  let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
                 $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
 
