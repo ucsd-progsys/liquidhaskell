@@ -74,6 +74,7 @@ makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg spec tcs
   | exactDC cfg = mapMaybe tyConDataDecl
+                . F.tracepp "makeHaskellDataDecls-1"
                 . zipMap   (hasDataDecl spec . fst)
                 . liftableTyCons
                 . filter isReflectableTyCon
@@ -104,7 +105,7 @@ hasDataDecl spec = \tc -> M.lookupDefault def (tcName tc) decls
   where
     def          = NoDecl Nothing
     tcName       = tyConDataName False
-    decls        = M.fromList [ (Just (tycName d), hasDecl d) | d <- Ms.dataDecls spec ]
+    decls        = M.fromList [ (Just (tycName d), F.tracepp ("HAS-DECL d = " ++ (show (tycName d))) $ hasDecl d) | d <- Ms.dataDecls spec ]
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((TyCon, DataName), HasDataDecl) -> Maybe DataDecl
@@ -116,7 +117,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = F.notracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
+      , tycDCons  = F.tracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
@@ -132,12 +133,7 @@ tyConDataName full tc
   where
     post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = isVanillaAlgTyCon tc
-    msg        = "tyConDataCons tc = " ++ F.showpp tc
-    dcs        = F.notracepp msg $ reverse $ tyConDataCons tc
-                  -- RJ: this "reverse" is a horrible
-                  --     hack to get around the fact that GHC
-                  --     seems unable to look up the constructor
-                  --     when it is shadowed by a type alias name (!)
+    dcs        = tyConDataCons tc
 
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing

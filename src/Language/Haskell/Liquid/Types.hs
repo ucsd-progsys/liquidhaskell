@@ -1152,6 +1152,10 @@ data HasDataDecl
   | HasDecl
   deriving (Show)
 
+instance F.PPrint HasDataDecl where
+  pprintTidy _ HasDecl    = text "HasDecl"
+  pprintTidy k (NoDecl z) = text "NoDecl" <+> parens (F.pprintTidy k z) 
+
 hasDecl :: DataDecl -> HasDataDecl
 hasDecl d
   | null (tycDCons d)
