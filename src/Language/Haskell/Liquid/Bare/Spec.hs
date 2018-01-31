@@ -259,10 +259,17 @@ lookupIds !ignoreUnknown
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
   where
-    coSub           = M.fromList [ (F.symbol a, specTvSymbol a) | a <- tvs ]
-    tvs             = fmap ty_var_value . fst4 . bkUniv . val $ b
+    coSub           = F.tracepp _msg $ M.fromList [ (F.symbol a, specTvSymbol a) | a <- tvs ]
+    _msg            = "mkVarSpec v = " ++ F.showpp (v, b)
+    tvs             = bareTypeVars (val b) -- fmap ty_var_value . fst4 . bkUniv . val $ b
     specTvSymbol    = F.symbol . bareRTyVar
     txCoerce        = mapExprReft (F.applyCoSub coSub)
+
+bareTypeVars :: BareType -> [BTyVar]
+bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
+  where
+    vs         = fst4 . bkUniv $ t
+    vs'        = freeTyVars    $ t
 
 makeIAliases :: (ModName, Ms.Spec (Located BareType) bndr)
              -> BareM [(Located SpecType, Located SpecType)]
