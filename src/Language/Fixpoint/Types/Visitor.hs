@@ -334,7 +334,8 @@ type CoSub = M.HashMap Symbol Symbol
 applyCoSub :: CoSub -> Expr -> Expr
 applyCoSub coSub      = mapExpr fE
   where
-    fE (ECoerc s t e) = ECoerc (txS s) (txS t) e
+    fE (ECoerc s t e) = ECoerc  (txS s) (txS t) e
+    fE (ELam (x,t) e) = ELam (x, txS t)         e
     fE e              = e
     txS               = mapSort fS
     fS (FObj a)       = FObj   (txV a)
