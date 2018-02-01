@@ -120,23 +120,61 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc (locNamedThing, typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
+import Language.Haskell.Liquid.GHC.Misc (isPredType, locNamedThing, typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
 import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
 
 import Data.List (sort, foldl')
 
-strengthenDataConType :: Symbolic t
-                      => (t, RType c tv (UReft Reft)) -> (t, RType c tv (UReft Reft))
-strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
-    where
-      trep = toRTypeRep t
-      tres = ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
-      xs   = ty_binds trep
-      as   = ty_vars  trep
-      x'   = symbol x
-      expr | null xs && null as = EVar x'
-           | null xs            = mkEApp (dummyLoc x') []
-           | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+strengthenDataConType :: (Var, SpecType) -> (Var, SpecType)
+strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
+  where
+    tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
+    trep     = toRTypeRep t
+    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
+    (xs, ts) = dataConArgs trep
+    as       = ty_vars  trep
+    x'       = symbol x
+    expr | null xs && null as = EVar x'
+         | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+
+
+dataConArgs :: SpecRep -> ([Symbol], [SpecType])
+dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
+  where
+    -- xs           = ty_binds trep
+    xs           = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+    ts           = ty_args trep
+    isValTy      = not . isPredType . toType
+
+-- RJ: AAAAAAARGHHH: this is duplicate of RT.strengthenDataConType
+{-
+makeDataConCtor :: Var -> SpecType
+makeDataConCtor x = (dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
+  where
+    tres     = F.tracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
+    trep     = toRTypeRep . ofType . varType $ x
+    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
+    (xs, ts) = dataConArgs trep
+    as       = ty_vars  trep
+    x'       = symbol x
+    expr | null xs && null as = EVar x'
+         | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+
+makeDataConCtor :: Var -> (Var, LocSpecType)
+makeDataConCtor x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
+  where
+    t    :: SpecType
+    t    = ofType $ varType x
+    trep = toRTypeRep t
+    xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+
+    res  = ty_res trep `strengthen` MkUReft ref mempty mempty
+    vv   = vv_
+    x'   = symbol x
+    ref  = Reft (vv, PAtom Eq (EVar vv) eq)
+    eq   | null (ty_vars trep) && null xs = EVar x'
+         | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
+-}
 
 pdVar :: PVar t -> Predicate
 pdVar v        = Pr [uPVar v]

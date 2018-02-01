@@ -68,7 +68,7 @@ import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
 import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
-import           Language.Haskell.Liquid.GHC.Misc          ( isInternal, collectArguments, tickSrcSpan, showPpr )
+import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
@@ -286,10 +286,10 @@ trustVar :: Config -> GhcInfo -> Var -> Bool
 trustVar cfg info x = trustInternals cfg && derivedVar info x
 
 derivedVar :: GhcInfo -> Var -> Bool
-derivedVar info x = x `elem` derVars info || isInternal x
+derivedVar info x = x `elem` derVars info || GM.isInternal x
 
 doTermCheck :: S.HashSet Var -> Bind Var -> Bool
-doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || isInternal x) . bindersOf
+doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || GM.isInternal x) . bindersOf
 
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
@@ -309,14 +309,14 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . isClassPred . varType) <$> vs)
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isPredVar {- isClassPred . varType -}) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where
        (xs, es)       = unzip xes
        dxs            = F.pprint <$> xs
-       collectArgs    = collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
+       collectArgs    = GM.collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
        checkEqTypes :: [[Maybe SpecType]] -> CG [[SpecType]]
        checkEqTypes x = mapM (checkAll err1 toRSort) (catMaybes <$> x)
        checkSameLens  = checkAll err2 length
@@ -379,8 +379,8 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     rts  = zipWith (addObligation OTerm) ts' <$> rss
     (xs, es)     = unzip xes
     mkSub ys ys' = F.mkSubst [(x, F.EVar y) | (x, y) <- zip ys ys']
-    collectArgs  = collectArguments . length . ty_binds . toRTypeRep
-    err x        = "Constant: makeTermEnvs: no terminating expression for " ++ showPpr x
+    collectArgs  = GM.collectArguments . length . ty_binds . toRTypeRep
+    err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
 addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
@@ -669,12 +669,12 @@ cconsE' γ (Cast e co) t
 
 cconsE' γ e@(Cast e' c) t
   = do t' <- castTy γ (exprType e) e' c
-       addC (SubC γ t' t) ("cconsE Cast: " ++ showPpr e)
+       addC (SubC γ t' t) ("cconsE Cast: " ++ GM.showPpr e)
 
 cconsE' γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE: " ++ showPpr e)
+       addC (SubC γ te' t) ("cconsE: " ++ GM.showPpr e)
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
 lambdaSingleton γ tce x e
@@ -850,7 +850,7 @@ consE γ e@(Case _ _ _ cs)
 
 consE γ (Tick tt e)
   = do t <- consE (setLocation γ (Sp.Tick tt)) e
-       addLocA Nothing (tickSrcSpan tt) (AnnUse t)
+       addLocA Nothing (GM.tickSrcSpan tt) (AnnUse t)
        return t
 
 -- See Note [Type classes with a single method]
@@ -865,7 +865,7 @@ consE _ e@(Coercion _)
    = trueTy $ exprType e
 
 consE _ e@(Type t)
-  = panic Nothing $ "consE cannot handle type " ++ showPpr (e, t)
+  = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
 
 caseKVKind ::[Alt Var] -> KVKind
 caseKVKind [(DataAlt _, _, Var _)] = ProjectE
@@ -884,7 +884,7 @@ getExprFun γ e          = go e
     go (App x (Type _)) = go x
     go (Var x)          = x
     go _                = panic (Just (getLocation γ)) msg
-    msg                 = "getFunName on \t" ++ showPpr e
+    msg                 = "getFunName on \t" ++ GM.showPpr e
 
 -- | `exprDict e` returns the dictionary `Var` inside the expression `e`
 getExprDict :: CGEnv -> CoreExpr -> Maybe Var
@@ -986,7 +986,7 @@ castTy' γ t (Tick _ e)
   = castTy' γ t e
 
 castTy' _ _ e
-  = panic Nothing $ "castTy cannot handle expr " ++ showPpr e
+  = panic Nothing $ "castTy cannot handle expr " ++ GM.showPpr e
 
 {-
 showCoercion :: Coercion -> String
@@ -1060,7 +1060,7 @@ checkUnbound γ e x t a
   | otherwise              = panic (Just $ getLocation γ) msg
   where
     msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
-                  , "In", showPpr e, "Arg = " , show a ]
+                  , "In", GM.showPpr e, "Arg = " , show a ]
 
 
 dropExists :: CGEnv -> SpecType -> CG (CGEnv, SpecType)
@@ -1104,7 +1104,8 @@ caseEnv γ x _   (DataAlt c) ys pIs
        cγ               <- addBinders cγ' x' [(x', xt)]
        return $ addArguments cγ ys
   where
-    ys'' = F.symbol <$> (filter (not . isClassPred . varType) ys)
+       ys'' = F.symbol <$> filter (not . GM.isPredVar) ys
+    -- ys'' = F.symbol <$> (filter (not . isClassPred . varType) ys)
 
 caseEnv γ x acs a _ _
   = do let x'  = F.symbol x
@@ -1137,9 +1138,9 @@ unfoldR :: SpecType
         -> (SpecType, [SpecType], SpecType)
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
-        tbody              = instantiatePvs (instantiateTys td ts) $ reverse rs
+        tbody              = instantiatePvs (instantiateTys (F.notracepp "UNFOLDR-1" td) ts) $ reverse rs
         (ys0, yts', _, rt) = safeBkArrow $ instantiateTys tbody tvs'
-        yts''              = zipWith F.subst sus (yts'++[rt])
+        yts''              = F.notracepp "UNFOLDR-0" $ zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
         sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
         (αs, ys')          = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
@@ -1172,7 +1173,7 @@ checkAll _ _ t@(RAllT _ _)    = t
 checkAll x g t                = checkErr x g t
 
 checkErr :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkErr (msg, e) γ t         = panic (Just sp) $ msg ++ showPpr e ++ ", type: " ++ showpp t
+checkErr (msg, e) γ t         = panic (Just sp) $ msg ++ GM.showPpr e ++ ", type: " ++ showpp t
   where
     sp                        = getLocation γ
 
@@ -1207,7 +1208,7 @@ argType (LitTy (StrTyLit s))
 argType (TyVarTy x)
   = Just $ F.EVar $ F.symbol $ varName x
 argType t
-  | F.symbol (showPpr t) == anyTypeSymbol
+  | F.symbol (GM.showPpr t) == anyTypeSymbol
   = Just $ F.EVar anyTypeSymbol
 argType _
   = Nothing
@@ -1232,7 +1233,7 @@ lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) | not (isClassPred $ exprType e2)
+                              (Just p1, Just p2) | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
                                                  -> Just $ F.EApp p1 p2
                               (Just p1, Just _ ) -> Just p1
                               _  -> Nothing
@@ -1285,7 +1286,7 @@ makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argExpr γ x) of
       (Just f', Just x')
-                 | not (isClassPred $ exprType x)
+                 | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
                  -> strengthenMeet t (uTop $ F.exprReft f' )
@@ -1305,7 +1306,7 @@ funExpr γ (Var v) | S.member v (fargs γ)
 
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
-      (Just e1', Just e2') | not (isClassPred $ exprType e2)
+      (Just e1', Just e2') | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
                            -> Just (F.EApp e1' e2')
       (Just e1', Just _)
                            -> Just e1'
@@ -1351,7 +1352,7 @@ strengthenMeet t _                  = t
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------
 exprLoc                         :: CoreExpr -> Maybe SrcSpan
-exprLoc (Tick tt _)             = Just $ tickSrcSpan tt
+exprLoc (Tick tt _)             = Just $ GM.tickSrcSpan tt
 exprLoc (App e a) | isType a    = exprLoc e
 exprLoc _                       = Nothing
 
