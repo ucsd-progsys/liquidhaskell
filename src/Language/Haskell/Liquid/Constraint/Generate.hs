@@ -45,7 +45,7 @@ import           Unify
 import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ                     hiding (first)
 import           Control.Monad.State
-import           Data.Maybe                                    (fromMaybe, catMaybes, fromJust, isJust)
+import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
@@ -797,33 +797,19 @@ consE γ e'@(App e a@(Type τ))
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> return tt
 
--- RJ: The snippet below is *too long*. Please pull stuff from the where-clause
--- out to the top-level.
-consE γ e'@(App e a) | isDictionary a
-  = if isJust tt
-      then return $ fromRISig $ fromJust tt
-      else do ([], πs, ls, te) <- bkUniv <$> consE γ e
-              te0              <- instantiatePreds γ e' $ foldr RAllP te πs
-              te'              <- instantiateStrata ls te0
-              (γ', te''')      <- dropExists γ te'
-              te''             <- dropConstraints γ te'''
-              updateLocA {- πs -}  (exprLoc e) te''
-              let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-              pushConsBind      $ cconsE γ' a tx
-              addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
-
-  where
-    tt                           = dhasinfo dinfo $ grepfunname e
-    grepfunname (App x (Type _)) = grepfunname x
-    grepfunname (Var x)          = x
-    grepfunname e                = panic Nothing $ "grepfunname on \t" ++ showPpr e
-    isDictionary _               = isJust (mdict a)
-    mdict w                      = case w of
-                                     Var x          -> case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
-                                     Tick _ e       -> mdict e
-                                     App a (Type _) -> mdict a
-                                     _              -> Nothing
-    dinfo                        = dlookup (denv γ) (fromJust (mdict a))
+consE γ e'@(App e a) | Just aDict <- getExprDict γ a
+  = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
+      Just riSig -> return (fromRISig riSig)
+      _          -> do
+        ([], πs, ls, te) <- bkUniv <$> consE γ e
+        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
+        te'              <- instantiateStrata ls te0
+        (γ', te''')      <- dropExists γ te'
+        te''             <- dropConstraints γ te'''
+        updateLocA {- πs -}  (exprLoc e) te''
+        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
+        pushConsBind      $ cconsE γ' a tx
+        addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 
 consE γ e'@(App e a)
@@ -891,6 +877,23 @@ updateEnvironment γ a
   = γ += ("varType", F.symbol $ varName a, kindToRType $ tyVarKind a)
   | otherwise
   = return γ
+
+getExprFun :: CGEnv -> CoreExpr -> Var
+getExprFun γ e          = go e
+  where
+    go (App x (Type _)) = go x
+    go (Var x)          = x
+    go _                = panic (Just (getLocation γ)) msg
+    msg                 = "getFunName on \t" ++ showPpr e
+
+-- | `exprDict e` returns the dictionary `Var` inside the expression `e`
+getExprDict :: CGEnv -> CoreExpr -> Maybe Var
+getExprDict γ           =  go
+  where
+    go (Var x)          = case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
+    go (Tick _ e)       = go e
+    go (App a (Type _)) = go a
+    go _                = Nothing
 
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
