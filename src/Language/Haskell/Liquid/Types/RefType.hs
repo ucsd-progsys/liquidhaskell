@@ -141,8 +141,8 @@ strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
 dataConArgs :: SpecRep -> ([Symbol], [SpecType])
 dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
-    -- xs           = ty_binds trep
-    xs           = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+    xs           = ty_binds trep
+    -- xs           = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
     ts           = ty_args trep
     isValTy      = not . isPredType . toType
 
