@@ -25,7 +25,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Var
 import           Coercion
 import qualified Pair
-
+-- import qualified Text.Printf as Printf
 import qualified CoreSyn                               as C
 import           Literal
 import           IdInfo
@@ -456,7 +456,11 @@ _simpleSymbolVar' :: Id -> Symbol
 _simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
 
 isErasable :: Id -> Bool
-isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
+isErasable v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+  -- where
+    -- v         = F.tracepp _msg v0
+    -- _msg      = Printf.printf "isErasable: isCoVar %s = %s" (showPpr v0) (show $ isCoVar v0)
+
 
 isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
@@ -544,5 +548,6 @@ instance Simplify C.CoreBind where
 
 instance Simplify C.CoreAlt where
   simplify (c, xs, e) = (c, xs, simplify e)
-
+    -- where xs   = F.tracepp _msg xs0
+    --      _msg = "isCoVars? " ++ F.showpp [(x, isCoVar x, varType x) | x <- xs0]
   inline p (c, xs, e) = (c, xs, inline p e)

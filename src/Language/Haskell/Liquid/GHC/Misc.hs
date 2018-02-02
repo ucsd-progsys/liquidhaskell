@@ -22,6 +22,7 @@ import           PrelNames                                  (fractionalClassKeys
 import           FamInstEnv
 import           Debug.Trace
 
+import qualified CoreUtils
 import           DataCon                                    (isTupleDataCon)
 import           Prelude                                    hiding (error)
 import           Avail                                      (availsToNameSet)
@@ -53,7 +54,7 @@ import           TcRnDriver
 
 
 import           RdrName
-import           Type                                       (liftedTypeKind)
+import           Type                                       (isClassPred, isEqPred, liftedTypeKind)
 import           TyCoRep
 import           Var
 import           IdInfo
@@ -738,3 +739,24 @@ simplesymbol = symbol . getName
 binders :: Bind a -> [a]
 binders (NonRec z _) = [z]
 binders (Rec xes)    = fst <$> xes
+
+
+--------------------------------------------------------------------------------
+-- | The following functions test if a `CoreExpr` or `CoreVar` are just types
+--   in disguise, e.g. have `PredType` (in the GHC sense of the word), and so
+--   shouldn't appear in refinements.
+--------------------------------------------------------------------------------
+
+isPredExpr :: CoreExpr -> Bool
+isPredExpr = isPredType . CoreUtils.exprType
+
+isPredVar :: Var -> Bool
+isPredVar v = F.notracepp msg . isPredType . varType $ v
+  where
+    msg     =  "isGoodCaseBind v = " ++ show v
+
+isPredType :: Type -> Bool
+isPredType = anyF [ isClassPred, isEqPred ]
+
+anyF :: [a -> Bool] -> a -> Bool
+anyF ps x = or [ p x | p <- ps ]

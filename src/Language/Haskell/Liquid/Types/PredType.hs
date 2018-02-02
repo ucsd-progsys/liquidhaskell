@@ -74,7 +74,7 @@ dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
     wrapT               = dcWrapSpecType dc dcp
     workX               = dataConWorkId dc            -- this is the weird one for GADTs
     wrapX               = dataConWrapId dc            -- this is what the user expects to see
-    isVanilla           = F.notracepp ("IS-Vanilla: " ++ showpp dc) $ isVanillaDataCon dc
+    isVanilla           = {- F.notracepp ("IS-Vanilla: " ++ showpp dc) $ -} isVanillaDataCon dc
 
 dcWorkSpecType :: DataCon -> SpecType -> SpecType
 dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)

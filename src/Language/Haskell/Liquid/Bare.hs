@@ -446,7 +446,8 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
     -- The lifted-spec is saved in the next step
     >>= makeGhcAxioms file name embs cbs su specs lSpec0 invs adts
     >>= makeLogicMap
-    >>= makeExactDataCons name cfg (snd <$> syms)
+    -- RJ: AAAAAAARGHHH: this is duplicate of RT.strengthenDataConType
+    -- >>= makeExactDataCons name cfg (snd <$> syms)
     -- This step needs the UPDATED logic map, ie should happen AFTER makeLogicMap
     >>= makeGhcSpec4 quals defVars specs name su syms
     >>= addRTEnv
@@ -462,31 +463,18 @@ addRTEnv spec = do
   rt <- rtEnv <$> get
   return $ spec { gsRTAliases = rt }
 
-makeExactDataCons :: ModName -> Config -> [Var] -> GhcSpec -> BareM GhcSpec
-makeExactDataCons _n cfg vs spec
-  | exactDC cfg = return $ spec { gsTySigs = gsTySigs spec ++ xts}
-  | otherwise   = return   spec
-  where
-    xts         = makeDataConCtor <$> filter f vs
-    f v         = GM.isDataConId v
+-- RJ: AAAAAAARGHHH: this is duplicate of RT.strengthenDataConType
+-- // _makeExactDataCons :: ModName -> Config -> [Var] -> GhcSpec -> BareM GhcSpec
+-- // _makeExactDataCons _n cfg vs spec
+  -- // | exactDC cfg = return $ spec { gsTySigs = gsTySigs spec ++ xts}
+  -- // | otherwise   = return   spec
+  -- // where
+    -- // xts         = makeDataConCtor <$> filter f vs
+    -- // f v         = GM.isDataConId v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
 
-makeDataConCtor :: Var -> (Var, LocSpecType)
-makeDataConCtor x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
-  where
-    t    :: SpecType
-    t    = ofType $ varType x
-    trep = toRTypeRep t
-    xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
-
-    res  = ty_res trep `strengthen` MkUReft ref mempty mempty
-    vv   = vv_
-    x'   = symbol x
-    ref  = Reft (vv, PAtom Eq (EVar vv) eq)
-    eq   | null (ty_vars trep) && null xs = EVar x'
-         | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
 
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
