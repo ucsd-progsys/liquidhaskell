@@ -13,8 +13,8 @@ class PersistEntity record where
 
 instance PersistEntity Blob where
     {-@ data EntityField Blob typ where
-          BinahUpdateLib.BlobXVal :: EntityField Blob {v:Int | v >= 10}
-        | BinahUpdateLib.BlobYVal :: EntityField Blob Int
+          BinahUpdateLib.BlobYVal :: EntityField Blob {v:_ | True}
+        | BinahUpdateLib.BlobXVal :: EntityField Blob {v:_ | v >= 10}
       @-}
     data EntityField Blob typ where
         BlobXVal :: EntityField Blob Int

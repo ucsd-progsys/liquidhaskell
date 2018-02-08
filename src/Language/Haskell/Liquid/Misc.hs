@@ -288,5 +288,8 @@ join aBs bCs = [ (a, c) | (a, b) <- aBs, c <- b2cs b ]
 fstByRank :: (Ord r, Hashable k, Eq k) => [(r, k, v)] -> [(r, k, v)]
 fstByRank rkvs = [ (r, k, v) | (k, rvs) <- krvss, let (r, v) = getFst rvs ]
   where
-    getFst     = head . L.sortBy (compare `on` fst)
+    getFst     = head . sortOn fst
     krvss      = groupList [ (k, (r, v)) | (r, k, v) <- rkvs ]
+
+sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
+sortOn f = L.sortBy (compare `on` f)

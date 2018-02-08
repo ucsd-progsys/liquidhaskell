@@ -739,7 +739,7 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   let tcs          = [(x, y) | (_, x, y, _)       <- tcDds]
   let tycons       = tcs ++ wiredTyCons
   let tyi          = qualifyRTyCon (qualifySymbol syms) <$> makeTyConInfo tycons
-  datacons        <- makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
+  datacons        <- F.tracepp "CHOP1-pluggedDataCons" <$> makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
   let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
   myName          <- modName <$> get
   let adts         = makeDataDecls cfg embs myName tds datacons
