@@ -11,7 +11,7 @@ class PersistEntity record where
 
 instance PersistEntity Blob where
     {-@ data EntityField Blob typ where
-          BlobXVal :: EntityField Blob {v:Int | v >= 0}
+          BlobXVal :: EntityField Blob {v:Int | v >= 10}
         | BlobYVal :: EntityField Blob Int
       @-}
     data EntityField Blob typ where
@@ -21,15 +21,11 @@ instance PersistEntity Blob where
 {-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
 
-{-@ data Update record typ = Update { updateField :: EntityField record typ, updateValue :: typ } @-}
 data Update record typ = Update 
     { updateField :: EntityField record typ
     , updateValue :: typ
     } 
 
-{-@ data variance Update covariant covariant contravariant @-}
-
-{-@ createUpdate :: EntityField record a -> a -> Update record a @-}
 createUpdate :: EntityField record a -> a -> Update record a
 createUpdate field value = Update {
       updateField = field
@@ -37,4 +33,4 @@ createUpdate field value = Update {
 }
 
 testUpdateQuery :: () -> Update Blob Int
-testUpdateQuery () = createUpdate BlobXVal (-1)
+testUpdateQuery () = createUpdate BlobXVal 8  -- toggle to 80 to be SAFE 
