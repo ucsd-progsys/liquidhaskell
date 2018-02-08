@@ -54,7 +54,7 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -65,7 +65,7 @@ sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps''
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
-    ps''             = elaborate "PLE1" env <$> ps'
+    ps''             = zipWith (\i -> elaborate ("PLE1 " ++ show i) env) is ps' -- <$> ps'
     axs'             = elaborate "PLE2" env <$> axs
     fi'              = fi { asserts = axs' ++ asserts fi }
 
@@ -416,20 +416,21 @@ substEqCoerce :: Equation -> [Expr] -> Expr -> EvalST Expr
 substEqCoerce eq es bd = do
   env      <- seSort <$> gets evEnv
   let ts    = snd    <$> eqArgs eq
-  let coSub = mkCoSub env es ts
+  let sp    = panicSpan "mkCoSub"
+  let eTs   = sortExpr sp env <$> es
+  let coSub = tracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub env eTs ts
   return    $ Vis.applyCoSub coSub bd
 
-mkCoSub :: SEnv Sort -> [Expr] -> [Sort] -> Vis.CoSub
-mkCoSub env es xTs = Misc.safeFromList "mkCoSub" xys
+mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
+mkCoSub env eTs xTs = Misc.safeFromList "mkCoSub" xys
   where
-    eTs            = sortExpr sp env <$> es
-    sp             = panicSpan "mkCoSub"
-    xys            = concat (zipWith matchSorts xTs eTs)
+    sp              = panicSpan "mkCoSub"
+    xys             = concat (zipWith matchSorts xTs eTs)
 
-matchSorts :: Sort -> Sort -> [(Symbol, Symbol)]
-matchSorts = go
+matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
+matchSorts s1 s2 = tracepp ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
   where
-    go (FObj x)      (FObj y)      = [(x, y)]
+    go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
     go (FFunc s1 t1) (FFunc s2 t2) = go s1 s2 ++ go t1 t2
     go (FApp s1 t1)  (FApp s2 t2)  = go s1 s2 ++ go t1 t2
