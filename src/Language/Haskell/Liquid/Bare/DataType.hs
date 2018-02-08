@@ -387,7 +387,7 @@ makeConTypes' :: ModName -> [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
                        , [[(DataCon, Located DataConP)]])
 makeConTypes' name dcs vdcs = do
-  dcs' <- canonizeDecls dcs
+  dcs' <- F.notracepp "CANONIZED-DECLS" <$> canonizeDecls dcs
   unzip <$> mapM (uncurry (ofBDataDecl name)) (groupVariances dcs' vdcs)
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
@@ -650,17 +650,12 @@ qualifyDataCtor qualFlag name l ct@(xts, t)
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
- | needsQual = (Just x, F.notracepp msg $ qualifyName name x)
+ | needsQual = (Just x, F.notracepp msg $ qualifyModName name x)
  | otherwise = (Nothing, x)
  where
    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
    x         = val lx
    needsQual = not (isWiredIn lx)
-
-qualifyName :: ModName -> F.Symbol -> F.Symbol
-qualifyName n = GM.qualifySymbol nSym
- where
-   nSym       = F.symbol n
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)

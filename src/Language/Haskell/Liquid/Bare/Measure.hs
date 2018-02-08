@@ -70,12 +70,12 @@ import           Language.Haskell.Liquid.Bare.Resolve
 import           Language.Haskell.Liquid.Bare.ToBare
 
 --------------------------------------------------------------------------------
-makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
+makeHaskellDataDecls :: Config -> ModName -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls cfg spec tcs
+makeHaskellDataDecls cfg name spec tcs
   | exactDC cfg = mapMaybe tyConDataDecl
-                . F.notracepp "makeHaskellDataDecls-1"
-                . zipMap   (hasDataDecl spec . fst)
+                . F.tracepp "makeHaskellDataDecls-1"
+                . zipMap   (hasDataDecl name spec . fst)
                 . liftableTyCons
                 . filter isReflectableTyCon
                 $ tcs
@@ -100,12 +100,23 @@ zipMap f xs = zip xs (map f xs)
 zipMapMaybe :: (a -> Maybe b) -> [a] -> [(a, b)]
 zipMapMaybe f = mapMaybe (\x -> (x, ) <$> f x)
 
-hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
-hasDataDecl spec = \tc -> M.lookupDefault def (tcName tc) decls
+hasDataDecl :: ModName -> Ms.BareSpec -> TyCon -> HasDataDecl
+hasDataDecl mod spec
+                 = \tc -> F.tracepp (msg tc) $ M.lookupDefault def (tcName tc) decls
   where
+    msg tc       = "hasDataDecl " ++ show (tcName tc)
     def          = NoDecl Nothing
-    tcName       = tyConDataName False
-    decls        = M.fromList [ (Just (tycName d), F.notracepp ("HAS-DECL d = " ++ (show (tycName d))) $ hasDecl d) | d <- Ms.dataDecls spec ]
+    tcName       = fmap (qualifiedDataName mod) . tyConDataName True -- False
+    dcName       =       qualifiedDataName mod  . tycName
+    decls        = M.fromList [ F.tracepp "HAS-DECL" (Just dn, hasDecl d)
+                              | d     <- Ms.dataDecls spec
+                              , let dn = dcName d]
+
+qualifiedDataName :: ModName -> DataName -> DataName
+qualifiedDataName mod d = F.tracepp "qualifiedTycName" $ case d of
+  DnName lx -> DnName (qualifyModName mod <$> lx)
+  DnCon  lx -> DnName (qualifyModName mod <$> lx)
+
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((TyCon, DataName), HasDataDecl) -> Maybe DataDecl

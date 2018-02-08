@@ -164,7 +164,7 @@ module Language.Haskell.Liquid.Types (
   -- * Modules and Imports
   , ModName (..), ModType (..)
   , isSrcImport, isSpecImport
-  , getModName, getModString
+  , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
   , RTEnv (..)
@@ -1898,6 +1898,10 @@ getModName (ModName _ m) = m
 getModString :: ModName -> String
 getModString = moduleNameString . getModName
 
+qualifyModName :: ModName -> Symbol -> Symbol
+qualifyModName n = qualifySymbol nSym
+  where
+    nSym         = F.symbol n
 
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases ---------------------------------------------------
