@@ -33,6 +33,10 @@ module Language.Fixpoint.Types.Visitor (
   , mapKVars, mapKVars', mapGVars', mapKVarSubsts
   , mapExpr, mapMExpr
 
+  -- * Coercion Substitutions
+  , CoSub
+  , applyCoSub
+
   -- * Predicates on Constraints
   , isConcC , isKvarC
 
@@ -318,6 +322,25 @@ stripCasts = trans (defaultVisitor { txExpr = const go }) () ()
 --  where
 --    go (ECst e _) = e
 --    go e          = e
+
+--------------------------------------------------------------------------------
+-- | @CoSub@ is a map from (coercion) ty-vars represented as 'FObj s'
+--   to the ty-vars that they should be substituted with. Note the
+--   domain and range are both Symbol and not the Int used for real ty-vars.
+--------------------------------------------------------------------------------
+
+type CoSub = M.HashMap Symbol Sort -- Symbol
+
+applyCoSub :: CoSub -> Expr -> Expr
+applyCoSub coSub      = mapExpr fE
+  where
+    fE (ECoerc s t e) = ECoerc  (txS s) (txS t) e
+    fE (ELam (x,t) e) = ELam (x, txS t)         e
+    fE e              = e
+    txS               = mapSort fS
+    fS (FObj a)       = {- FObj -} (txV a)
+    fS t              = t
+    txV a             = M.lookupDefault (FObj a) a coSub
 
 ---------------------------------------------------------------------------------
 -- | Visitors over @Sort@
