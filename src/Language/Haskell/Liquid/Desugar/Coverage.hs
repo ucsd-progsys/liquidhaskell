@@ -31,6 +31,9 @@ import NameSet hiding (FreeVars)
 import Name
 import Bag
 import CostCentre
+#ifdef DETERMINISTIC_PROFILING
+import CostCentreState
+#endif
 import CoreSyn
 import Id
 import VarSet
@@ -38,7 +41,9 @@ import Data.List
 import FastString
 import HscTypes
 import TyCon
+#ifndef DETERMINISTIC_PROFILING
 import UniqSupply
+#endif
 import BasicTypes
 import MonadUtils
 import Maybes
@@ -79,7 +84,9 @@ addTicksToBinds hsc_env mod mod_loc exports tyCons binds
     Just orig_file <- ml_hs_file mod_loc,
     not ("boot" `isSuffixOf` orig_file) = do
 
+#ifndef DETERMINISTIC_PROFILING
      us <- mkSplitUniqSupply 'C' -- for cost centres
+#endif
      let  orig_file2 = guessSourceFile binds orig_file
 
           tickPass tickish (binds,st) =
@@ -102,7 +109,11 @@ addTicksToBinds hsc_env mod mod_loc exports tyCons binds
 
           initState = TT { tickBoxCount = 0
                          , mixEntries   = []
+#ifdef DETERMINISTIC_PROFILING
+                         , ccIndices    = newCostCentreState
+#else
                          , uniqSupply   = us
+#endif
                          }
 
           (binds1,st) = foldr tickPass (binds, initState) passes
@@ -1020,7 +1031,11 @@ liftL f (L loc a) = do
 
 data TickTransState = TT { tickBoxCount:: Int
                          , mixEntries  :: [MixEntry_]
+#ifdef DETERMINISTIC_PROFILING
+                         , ccIndices   :: CostCentreState
+#else
                          , uniqSupply  :: UniqSupply
+#endif
                          }
 
 data TickTransEnv = TTE { fileName     :: FastString
@@ -1095,10 +1110,18 @@ instance Monad TM where
 instance HasDynFlags TM where
   getDynFlags = TM $ \ env st -> (tte_dflags env, noFVs, st)
 
+#ifdef DETERMINISTIC_PROFILING
+-- | Get the next HPC cost centre index for a given centre name
+getCCIndexM :: FastString -> TM CostCentreIndex
+getCCIndexM n = TM $ \_ st -> let (idx, is') = getCCIndex n $
+                                                 ccIndices st
+                              in (idx, noFVs, st { ccIndices = is' })
+#else
 instance MonadUnique TM where
   getUniqueSupplyM = TM $ \_ st -> (uniqSupply st, noFVs, st)
   getUniqueM = TM $ \_ st -> let (u, us') = takeUniqFromSupply (uniqSupply st)
                              in (u, noFVs, st { uniqSupply = us' })
+#endif
 
 getState :: TM TickTransState
 getState = TM $ \ _ st -> (st, noFVs, st)
@@ -1226,8 +1249,14 @@ mkTickish boxLabel countEntries topOnly pos fvs decl_path = do
       return $ HpcTick (this_mod env) c
 
     ProfNotes -> do
+#ifdef DETERMINISTIC_PROFILING
+      let nm = mkFastString cc_name
+      flavour <- HpcCC <$> getCCIndexM nm
+      let cc = mkUserCC nm (this_mod env) pos flavour
+#else
       ccUnique <- getUniqueM
       let cc = mkUserCC (mkFastString cc_name) (this_mod env) pos ccUnique
+#endif
           count = countEntries && gopt Opt_ProfCountEntries dflags
       return $ ProfNote cc count True{-scopes-}
 

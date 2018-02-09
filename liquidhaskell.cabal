@@ -62,6 +62,10 @@ Flag include
   Description: use in-tree include directory
   Default:     False
 
+Flag deterministic-profiling
+  Description: Support building against GHC with https://phabricator.haskell.org/D4388 backported
+  Default:     False
+
 Executable liquid
   default-language: Haskell98
   Build-Depends: base >=4.8.1.0 && <5
@@ -281,6 +285,8 @@ Library
      hs-source-dirs: devel
    if flag(devel)
      ghc-options: -Werror
+   if flag(deterministic-profiling)
+     cpp-options: -DDETERMINISTIC_PROFILING
    Default-Extensions: PatternGuards
 
 test-suite test
