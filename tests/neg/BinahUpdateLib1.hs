@@ -18,9 +18,8 @@ instance PersistEntity Blob where
       @-}
    data EntityField Blob typ
       = typ ~ Int => BlobXVal |
-	typ ~ Int => BlobYVal
+        typ ~ Int => BlobYVal
 
-{-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
 
 data Update record typ = Update
