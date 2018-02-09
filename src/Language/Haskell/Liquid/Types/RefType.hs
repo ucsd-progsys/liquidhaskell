@@ -1501,10 +1501,46 @@ classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
   | isEqual c
   = [(symbol a, rTypeSortedReft emb t)]
 classBinds  emb (RApp c [_, (RVar a _), t] _ _)
-  | showpp c == "Data.Type.Equality.~"  -- God forgive me for this AWFUL HACK...
+  | showpp c == "Data.Type.Equality.~"  -- see [NOTE:type-equality-hack]
   = [(symbol a, rTypeSortedReft emb t)]
 classBinds _ t
   = notracepp ("CLASSBINDS: " ++ showpp (toType t, isEqualityConstr t)) []
+
+{- | [NOTE:type-equality-hack]
+
+God forgive me for this AWFUL HACK.
+
+How can I “test for” (i.e. write a function of type `Type -> Bool`)
+
+that returns `True` for values (i.e. `Type`s) that print out as:
+
+ ```
+     typ ~ GHC.Types.Int
+ ```
+
+ or with, which some more detail, looks like
+
+ ```
+    (~ (TYPE LiftedRep) typ GHC.Types.Int)
+ ```
+
+ and which are generated from Haskell source that looks like
+
+ ```
+ instance PersistEntity Blob where
+    data EntityField Blob typ
+       = typ ~ Int => BlobXVal |
+         typ ~ Int => BlobYVal
+ ```
+
+ see tests/neg/BinahUpdateLib1.hs
+
+ I would have thought that `Type.isEqPred` or `Type.isNomEqPred` described here
+
+ https://downloads.haskell.org/~ghc/8.2.1/docs/html/libraries/ghc-8.2.1/src/Type.html#isEqPred
+
+ and which is what `isEqualityConstr` below is doing, but alas it doesn't work.
+-}
 
 isEqualityConstr :: SpecType -> Bool
 isEqualityConstr = (isEqPred  .||. isNomEqPred) . toType
