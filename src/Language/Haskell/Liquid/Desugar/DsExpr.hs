@@ -383,8 +383,14 @@ dsExpr (HsSCC _ cc expr@(L loc _)) = do
       then do
         mod_name <- getModule
         count <- goptM Opt_ProfCountEntries
+#ifdef DETERMINISTIC_PROFILING
+        let nm = sl_fs cc
+        flavour <- ExprCC <$> getCCIndexM nm
+        Tick (ProfNote (mkUserCC nm mod_name loc flavour) count True)
+#else
         uniq <- newUnique
         Tick (ProfNote (mkUserCC (sl_fs cc) mod_name loc uniq) count True)
+#endif
                <$> dsLExpr expr
       else dsLExpr expr
 
