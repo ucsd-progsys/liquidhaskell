@@ -48,14 +48,15 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import Language.Fixpoint.Misc (mlookup, sortNub, groupList, mapSnd, mapFst)
 import Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import Language.Fixpoint.SortCheck (isFirstOrder)
 
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
-import           Language.Haskell.Liquid.Misc
+import qualified Language.Fixpoint.Misc                as Misc
+import qualified Language.Haskell.Liquid.Misc          as Misc
+import           Language.Haskell.Liquid.Misc             ((.||.))
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types
@@ -70,12 +71,12 @@ import           Language.Haskell.Liquid.Bare.Resolve
 import           Language.Haskell.Liquid.Bare.ToBare
 
 --------------------------------------------------------------------------------
-makeHaskellDataDecls :: Config -> Ms.BareSpec -> [TyCon] -> [DataDecl]
+makeHaskellDataDecls :: Config -> ModName -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
-makeHaskellDataDecls cfg spec tcs
+makeHaskellDataDecls cfg name spec tcs
   | exactDC cfg = mapMaybe tyConDataDecl
                 . F.notracepp "makeHaskellDataDecls-1"
-                . zipMap   (hasDataDecl spec . fst)
+                . zipMap   (hasDataDecl name spec . fst)
                 . liftableTyCons
                 . filter isReflectableTyCon
                 $ tcs
@@ -100,12 +101,21 @@ zipMap f xs = zip xs (map f xs)
 zipMapMaybe :: (a -> Maybe b) -> [a] -> [(a, b)]
 zipMapMaybe f = mapMaybe (\x -> (x, ) <$> f x)
 
-hasDataDecl :: Ms.BareSpec -> TyCon -> HasDataDecl
-hasDataDecl spec = \tc -> M.lookupDefault def (tcName tc) decls
+hasDataDecl :: ModName -> Ms.BareSpec -> TyCon -> HasDataDecl
+hasDataDecl mod spec
+                 = \tc -> F.notracepp (msg tc) $ M.lookupDefault def (tcName tc) decls
   where
+    msg tc       = "hasDataDecl " ++ show (tcName tc)
     def          = NoDecl Nothing
-    tcName       = tyConDataName False
-    decls        = M.fromList [ (Just (tycName d), F.notracepp ("HAS-DECL d = " ++ (show (tycName d))) $ hasDecl d) | d <- Ms.dataDecls spec ]
+    tcName       = fmap (qualifiedDataName mod) . tyConDataName True -- False
+    dcName       =       qualifiedDataName mod  . tycName
+    decls        = M.fromList [ (Just dn, hasDecl d)
+                                | d     <- Ms.dataDecls spec
+                                , let dn = dcName d]
+
+qualifiedDataName :: ModName -> DataName -> DataName
+qualifiedDataName mod (DnName lx) = DnName (qualifyModName mod <$> lx)
+qualifiedDataName mod (DnCon  lx) = DnCon  (qualifyModName mod <$> lx)
 
 {-tyConDataDecl :: {tc:TyCon | isAlgTyCon tc} -> Maybe DataDecl @-}
 tyConDataDecl :: ((TyCon, DataName), HasDataDecl) -> Maybe DataDecl
@@ -133,7 +143,7 @@ tyConDataName full tc
   where
     post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = isVanillaAlgTyCon tc
-    dcs        = tyConDataCons tc
+    dcs        = Misc.sortOn symbol (tyConDataCons tc)
 
 dataConDecl :: DataCon -> DataCtor
 dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
@@ -215,7 +225,7 @@ strengthenHaskellMeasures = strengthenHaskell strengthenResult'
 
 strengthenHaskell :: (Var -> SpecType) -> S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskell strengthen hmeas sigs
-  = go <$> groupList (reverse sigs ++ hsigs)
+  = go <$> Misc.groupList (reverse sigs ++ hsigs)
   where
     hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
     go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
@@ -230,8 +240,8 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isGadt _ _))
-  = (condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
- ++ (condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
+  = (Misc.condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
+ ++ (Misc.condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields = not (isGadt || noMeasureFields cfg)
     go ((x, t), i)
@@ -261,7 +271,7 @@ dataConSel dc n Check    = mkArrow as [] [] [xt] bareBool
 
 dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
   where
-    ti                   = fromMaybe err $ getNth (i-1) ts
+    ti                   = fromMaybe err $ Misc.getNth (i-1) ts
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
@@ -269,7 +279,7 @@ dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
 bkDataCon :: (F.Reftable r) => DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (Symbol, RRType r, r))
 bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
   where
-    ts                = RT.ofType <$> takeLast nFlds _ts
+    ts                = RT.ofType <$> Misc.takeLast nFlds _ts
     t                 = {- traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ -}
                         RT.ofType  $ mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> αs
@@ -323,7 +333,7 @@ makeMeasureSpec (mod, spec) = inModule mod mkSpec
 
 makeMeasureSpec' :: MSpec SpecType DataCon
                  -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
-makeMeasureSpec' = mapFst (mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
+makeMeasureSpec' = Misc.mapFst (Misc.mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
 makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
@@ -341,11 +351,11 @@ mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(Symbol, DataCon)] -> Ms.MSpec t Data
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
   where
     m'                = fmap (tx.val) m
-    cm'               = hashMapMapKeys (symbol . tx) $ Ms.ctorMap m'
-    tx                = mlookup (M.fromList ndcs)
+    cm'               = Misc.hashMapMapKeys (symbol . tx) $ Ms.ctorMap m'
+    tx                = Misc.mlookup (M.fromList ndcs)
 
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
-measureCtors = sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
+measureCtors = Misc.sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
 
 mkMeasureSort ::  Ms.MSpec BareType LocSymbol -> BareM (Ms.MSpec SpecType LocSymbol)
 mkMeasureSort (Ms.MSpec c mm cm im)
@@ -356,9 +366,9 @@ mkMeasureSort (Ms.MSpec c mm cm im)
 
       txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
       txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds})
-                  (mapM (mapSndM ofMeaSort) (dparams def))
+                  (mapM (Misc.mapSndM ofMeaSort) (dparams def))
                   (mapM ofMeaSort $ dsort def)
-                  (mapM (mapSndM $ mapM ofMeaSort) (binds def))
+                  (mapM (Misc.mapSndM $ mapM ofMeaSort) (binds def))
 
 
 varMeasures :: (Monoid r) => [Var] -> [(Symbol, Located (RRType r))]

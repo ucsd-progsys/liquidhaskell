@@ -236,9 +236,9 @@ _propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
 --------------------------------------------------------------------------------
 
-makeLiftedSpec0 :: Config -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
+makeLiftedSpec0 :: Config -> ModName -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
                 -> BareM Ms.BareSpec
-makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
+makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
@@ -247,7 +247,7 @@ makeLiftedSpec0 cfg embs cbs defTcs mySpec = do
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
                 , Ms.measures  = F.notracepp "MS-MEAS" $ ms
                 , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
-                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg mySpec tcs
+                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg name mySpec tcs
                 }
 
 -- sortUniquable :: (Uniquable a) => [a] -> [a]
@@ -416,7 +416,7 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
   embs           <- addClassEmbeds instenv fiTcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
-  lSpec0         <- makeLiftedSpec0 cfg embs cbs tcs mySpec
+  lSpec0         <- makeLiftedSpec0 cfg name embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
@@ -588,7 +588,7 @@ makeGhcSpec1 :: [(Symbol, Var)]
 makeGhcSpec1 syms vars defVars embs tyi exports name sigs asms cs' ms' cms' su sp
   = do tySigs      <- makePluggedSigs name embs tyi exports $ tx sigs
        asmSigs     <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
-       ctors       <- makePluggedAsmSigs embs tyi           $ tx cs'
+       ctors       <- F.notracepp "MAKE-CTORS-SPEC"    <$> (makePluggedAsmSigs embs tyi           $ tx cs' )
        return $ sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
                    , gsAsmSigs  = filter (\(v,_) -> v `elem` vs) asmSigs
                    , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors

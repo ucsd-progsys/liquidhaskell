@@ -2,19 +2,19 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--ple" @-} 
+{-@ LIQUID "--ple" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
-module BinahUpdate where 
+module BinahUpdateLib where
 
 class PersistEntity record where
     data EntityField record :: * -> *
 
 instance PersistEntity Blob where
     {-@ data EntityField Blob typ where
-          BlobXVal :: EntityField Blob {v:Int | v >= 10}
-        | BlobYVal :: EntityField Blob Int
+          BinahUpdateLib.BlobYVal :: EntityField Blob {v:_ | True}
+        | BinahUpdateLib.BlobXVal :: EntityField Blob {v:_ | v >= 10}
       @-}
     data EntityField Blob typ where
         BlobXVal :: EntityField Blob Int
@@ -23,10 +23,10 @@ instance PersistEntity Blob where
 {-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
 
-data Update record typ = Update 
+data Update record typ = Update
     { updateField :: EntityField record typ
     , updateValue :: typ
-    } 
+    }
 
 createUpdate :: EntityField record a -> a -> Update record a
 createUpdate field value = Update {
@@ -35,4 +35,4 @@ createUpdate field value = Update {
 }
 
 testUpdateQuery :: () -> Update Blob Int
-testUpdateQuery () = createUpdate BlobXVal 8  -- toggle to 80 to be SAFE 
+testUpdateQuery () = createUpdate BlobXVal 8  -- toggle to 80 to be SAFE

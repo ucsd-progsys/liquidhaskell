@@ -52,7 +52,8 @@ module Language.Haskell.Liquid.Types (
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs
   , rTyConPropVs
-  , isClassRTyCon, isClassType, isEqType, isRVar, isBool
+  -- , isClassRTyCon
+  , isClassType, isEqType, isRVar, isBool
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -164,7 +165,7 @@ module Language.Haskell.Liquid.Types (
   -- * Modules and Imports
   , ModName (..), ModType (..)
   , isSrcImport, isSpecImport
-  , getModName, getModString
+  , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
   , RTEnv (..)
@@ -237,7 +238,7 @@ import           SrcLoc                                 (SrcSpan)
 import           TyCon
 import           Type                                   (getClassPredTys_maybe)
 import           Language.Haskell.Liquid.GHC.TypeRep                          hiding  (maybeParen, pprArrowChain)
-import           TysPrim                                (eqPrimTyCon)
+import           TysPrim                                (eqReprPrimTyCon, eqPrimTyCon)
 import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
 
@@ -653,8 +654,8 @@ isRVar _          = False
 isClassBTyCon :: BTyCon -> Bool
 isClassBTyCon = btc_class
 
-isClassRTyCon :: RTyCon -> Bool
-isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqPrimTyCon)
+-- isClassRTyCon :: RTyCon -> Bool
+-- isClassRTyCon x = (isClassTyCon $ rtc_tc x) || (rtc_tc x == eqPrimTyCon)
 
 rTyConPVs :: RTyCon -> [RPVar]
 rTyConPVs     = rtc_pvars
@@ -969,8 +970,8 @@ instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
   isTuple    = TyCon.isTupleTyCon   . rtc_tc
-  isClass    = isClassRTyCon
-  isEqual    = (eqPrimTyCon ==) . rtc_tc
+  isClass    = isClass . rtc_tc -- isClassRTyCon
+  isEqual    = isEqual . rtc_tc
   ppTycon    = F.toFix
 
   isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
@@ -983,8 +984,8 @@ instance TyConable TyCon where
   isFun      = isFunTyCon
   isList     = (listTyCon ==)
   isTuple    = TyCon.isTupleTyCon
-  isClass c  = isClassTyCon c || c == eqPrimTyCon
-  isEqual    = (eqPrimTyCon ==)
+  isClass c  = isClassTyCon c   || isEqual c -- c == eqPrimTyCon
+  isEqual c  = c == eqPrimTyCon || c == eqReprPrimTyCon
   ppTycon    = text . showPpr
 
   isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
@@ -1898,6 +1899,10 @@ getModName (ModName _ m) = m
 getModString :: ModName -> String
 getModString = moduleNameString . getModName
 
+qualifyModName :: ModName -> Symbol -> Symbol
+qualifyModName n = qualifySymbol nSym
+  where
+    nSym         = F.symbol n
 
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases ---------------------------------------------------
