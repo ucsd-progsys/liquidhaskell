@@ -289,8 +289,7 @@ data PPEnv
     deriving (Show)
 
 ppEnv :: PPEnv
-ppEnv           = ppEnvCurrent 
-		   -- { ppTyVar = True } SET THIS TO SEE UNIQUE SUFFIX ON TYVar
+ppEnv           = ppEnvCurrent -- { ppTyVar = True } SET THIS TO SEE UNIQUE SUFFIX ON TYVar
 		   
 ppEnvCurrent :: PPEnv
 ppEnvCurrent    = PP False False False False
