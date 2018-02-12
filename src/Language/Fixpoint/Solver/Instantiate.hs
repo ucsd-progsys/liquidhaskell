@@ -418,7 +418,7 @@ substEqCoerce eq es bd = do
   let ts    = snd    <$> eqArgs eq
   let sp    = panicSpan "mkCoSub"
   let eTs   = sortExpr sp env <$> es
-  let coSub = tracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
+  let coSub = notracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
   return    $ Vis.applyCoSub coSub bd
 
 mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
@@ -427,7 +427,7 @@ mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
     xys         = concat (zipWith matchSorts xTs eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = tracepp ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
+matchSorts s1 s2 = notracepp ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
