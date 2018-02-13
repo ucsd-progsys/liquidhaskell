@@ -12,7 +12,7 @@ data List a = N | C { x :: a, xs :: List a }
 
 -- | Associate an abstract refinement with the _tail_ xs
 
-{-@ data List a <p :: List a -> Prop>
+{-@ data List [size] a <p :: List a -> Bool>
       = N | C { x  :: a
               , xs :: List <p> a <<p>>
               }
@@ -22,22 +22,22 @@ data List a = N | C { x :: a, xs :: List a }
 -- | Infinite Streams
 -------------------------------------------------------------------------
 
--- | Infinite List = List where _each_ tail is a `cons` ...
+-- | Infinite List = List where _each_ tail is a `kons` ...
 
-{-@ type Stream a = {xs: List <{\v -> cons v}> a | cons xs} @-}
+{-@ type Stream a = {xs: List <{\v -> kons v}> a | kons xs} @-}
 
 -- | A simple measure for when a `List` is a `Cons`
 
-{-@ measure cons  :: (List a) -> Prop
-    cons (C x xs) = true 
-    cons (N)      = false 
-  @-}
+{-@ measure kons @-}
+kons :: List a -> Bool 
+kons (C x xs) = True 
+kons (N)      = False 
 
 -------------------------------------------------------------------------
 -- | Creating an Infinite Stream
 -------------------------------------------------------------------------
 
-{-@ Lazy repeat @-}
+{-@ lazy repeat @-}
                  
 {-@ repeat :: a -> Stream a @-}
 repeat   :: a -> List a
@@ -67,10 +67,11 @@ take _ N        = liquidError "never happens"
 
 -- | Other specs from before ...
 
-{-@ measure size :: List a -> Int 
-    size (N)      = 0
-    size (C x xs) = (1 + size xs)
-  @-}
+{-@ measure size @-}
+{-@ size :: List a -> Nat @-} 
+size :: List a -> Int 
+size (N)      = 0
+size (C x xs) = (1 + size xs)
 
 
 
