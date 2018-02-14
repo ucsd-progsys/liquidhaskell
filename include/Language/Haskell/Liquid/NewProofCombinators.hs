@@ -18,7 +18,12 @@ module Language.Haskell.Liquid.NewProofCombinators (
 
   -- * These two operators check all intermediate equalities
   , (===) -- proof of equality is implicit eg. x === y
-  , (==?) -- proof of equality is explitic eg. x ==? y ? p
+  , (==?) -- proof of equality is explicit eg. x ==? y ? p
+  , (=<=) -- proof of equality is implicit eg. x <= y
+  , (=<=?) -- proof of equality is explicit eg. x <= y
+  , (=>=)  -- proof of equality is implicit eg. x =>= y 
+  , (=>=?) -- proof of equality is explicit eg. x =>=? y ? p
+
 
   -- Uncheck operator used only for proof debugging
   , (==!) -- x ==! y always succeds
@@ -95,6 +100,18 @@ infixl 3 ===
 (===) :: a -> a -> a
 x === _  = x
 
+infixl 3 =<=
+{-@ (=<=) :: x:a -> y:{a | x <= y} -> {v:a | v == y} @-}
+(=<=) :: a -> a -> a
+_ =<= y  = y
+
+infixl 3 =>=
+{-@ (=>=) :: x:a -> y:{a | x >= y}  -> {v:a | v == y} @-}
+(=>=) :: a -> a -> a
+_ =>= y  = y
+
+
+
 -------------------------------------------------------------------------------
 -- | Explicit equality
 -- 	`x ==? y ? p`
@@ -106,6 +123,16 @@ infixl 3 ==?
 {-@ (==?) :: x:a -> y:a -> {v:_ | x == y} -> {v:a | v == x && v == y} @-}
 (==?) :: a -> a -> b -> a
 (==?) x _ _ = x
+
+infixl 3 =<=?
+{-@ (=<=?) :: x:a -> y:a -> {v:_ | x <= y} -> {v:a | v == y} @-}
+(=<=?) :: a -> a -> b ->  a
+(=<=?) _ y _ = y
+
+infixl 3 =>=?
+{-@ (=>=?) :: x:a -> y:a -> {v:_ | x >= y} -> {v:a | v == y} @-}
+(=>=?) :: a -> a -> b -> a
+(=>=?) _ y _  = y
 
 -------------------------------------------------------------------------------
 -- | `?` is basically Haskell's $ and is used for the right precedence
