@@ -105,17 +105,17 @@ infixl 3 ==:, <=:, <:, >:, ==?
 -- | Comparison operators requiring proof terms
 
 (<=:) :: a -> a -> Proof -> a
-{-@ (<=:) :: x:a -> y:a -> {v:Proof | x <= y } -> {v:a | v == x } @-}
-(<=:) x _ _ = x
+{-@ (<=:) :: x:a -> y:a -> {v:Proof | x <= y } -> {v:a | v == y } @-}
+(<=:) _ y _ = y
 
 (<:) :: a -> a -> Proof -> a
-{-@ (<:) :: x:a -> y:a -> {v:Proof | x < y } -> {v:a | v == x } @-}
-(<:) x _ _ = x
+{-@ (<:) :: x:a -> y:a -> {v:Proof | x < y } -> {v:a | v == y } @-}
+(<:) _ y _ = y
 
 
 (>:) :: a -> a -> Proof -> a
-{-@ (>:) :: x:a -> y:a -> {v:Proof | x >y } -> {v:a | v == x } @-}
-(>:) x _ _ = x
+{-@ (>:) :: x:a -> y:a -> {v:Proof | x > y } -> {v:a | v == y } @-}
+(>:) _ y _ = y
 
 
 (==:) :: a -> a -> Proof -> a
@@ -169,30 +169,30 @@ class OptLEq a r where
 
 instance (a~b) => OptLEq a (Proof -> b) where
 {-@ instance OptLEq a (Proof -> b) where
-  <=. :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ x }
+  <=. :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ y }
   @-}
-  (<=.) x _ _ = x
+  (<=.) _ y _ = y
 
 instance (a~b) => OptLEq a b where
 {-@ instance OptLEq a b where
-  <=. :: x:a -> y:{a | x <= y} -> {v:b | v ~~ x }
+  <=. :: x:a -> y:{a | x <= y} -> {v:b | v ~~ y }
   @-}
-  (<=.) x _ = x
+  (<=.) _ y = y
 
 class OptGEq a r where
   (>=.) :: a -> a -> r
 
 instance OptGEq a (Proof -> a) where
 {-@ instance OptGEq a (Proof -> a) where
-  >=. :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == x }
+  >=. :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == y }
   @-}
-  (>=.) x _ _ = x
+  (>=.) _ y _ = y
 
 instance OptGEq a a where
 {-@ instance OptGEq a a where
-  >=. :: x:a -> y:{a| x >= y} -> {v:a | v == x  }
+  >=. :: x:a -> y:{a| x >= y} -> {v:a | v == y  }
   @-}
-  (>=.) x _ = x
+  (>=.) _ y = y
 
 
 class OptLess a r where
@@ -200,15 +200,15 @@ class OptLess a r where
 
 instance (a~b) => OptLess a (Proof -> b) where
 {-@ instance OptLess a (Proof -> b) where
-  <. :: x:a -> y:a -> {v:Proof | x < y} -> {v:b | v ~~ x  }
+  <. :: x:a -> y:a -> {v:Proof | x < y} -> {v:b | v ~~ y  }
   @-}
-  (<.) x _ _ = x
+  (<.) _ y _ = y
 
 instance (a~b) => OptLess a b where
 {-@ instance OptLess a b where
-  <. :: x:a -> y:{a| x < y} -> {v:b | v ~~ x  }
+  <. :: x:a -> y:{a| x < y} -> {v:b | v ~~ y  }
   @-}
-  (<.) x _ = x
+  (<.) _ x = x
 
 
 class OptGt a r where
@@ -216,15 +216,15 @@ class OptGt a r where
 
 instance (a~b) => OptGt a (Proof -> b) where
 {-@ instance OptGt a (Proof -> b) where
-  >. :: x:a -> y:a -> {v:Proof| x > y} -> {v:b | v ~~ x }
+  >. :: x:a -> y:a -> {v:Proof| x > y} -> {v:b | v ~~ y }
   @-}
-  (>.) x _ _ = x
+  (>.) _ y _ = y
 
 instance (a~b) => OptGt a b where
 {-@ instance OptGt a b where
-  >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ x  }
+  >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ y  }
   @-}
-  (>.) x _ = x
+  (>.) _ x = x
 
 
 -------------------------------------------------------------------------------
