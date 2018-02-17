@@ -39,6 +39,7 @@ import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
 import Paths_liquidhaskell
+import ParserTests 
 
 import Text.Printf
 
@@ -62,7 +63,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, errorTests, benchTests, proverTests ]
+    tests = group "Tests" [ parserTests, unitTests, errorTests, benchTests, proverTests ]
     -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests  ]
