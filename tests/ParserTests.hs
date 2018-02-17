@@ -11,7 +11,7 @@
 --
 -- $ stack test liquidhaskell --test-arguments="-p ParserTests"
 
-module Parser (parserTests) where
+module ParserTests (parserTests) where
 
 import           Data.Data
 import           Data.Generics.Aliases
