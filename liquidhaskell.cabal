@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 661e708019b8e6283d74354d3c934c0df7b51db6297241a00b9a9352f59b814f
+-- hash: b81bf6c9b7c9a47ad2674470ee215b846024897c5114da77211851f9869b94dd
 
 name:           liquidhaskell
 version:        0.8.2.3
@@ -1184,73 +1184,9 @@ executable target
       Paths_liquidhaskell
   default-language: Haskell2010
 
-test-suite liquidhaskell-parser
-  type: exitcode-stdio-1.0
-  main-is: Parser.hs
-  hs-source-dirs:
-      tests
-  ghc-options: -W -W
-  build-depends:
-      base >=4.8.1.0 && <5
-    , cmdargs >=0.10
-    , containers >=0.5
-    , ghc-boot
-    , hpc >=0.6
-    , liquid-fixpoint >=0.7.0.7
-    , parsec
-    , syb
-    , tasty >=0.10
-    , tasty-ant-xml
-    , tasty-hunit >=0.9
-    , tasty-rerun >=1.1
-    , text
-    , time >=1.4
-    , transformers >=0.3
-  if flag(devel)
-    hs-source-dirs:
-        tests
-        src
-    build-depends:
-        aeson
-      , binary
-      , bytestring
-      , cereal
-      , data-default >=0.5
-      , deepseq
-      , directory >=1.2
-      , filepath >=1.3
-      , ghc
-      , ghc-boot
-      , hashable >=1.2
-      , hpc >=0.6
-      , liquid-fixpoint >=0.7.0.7
-      , mtl >=2.1
-      , pretty
-      , syb >=0.4.4
-      , template-haskell
-      , unordered-containers >=0.2
-  else
-    build-depends:
-        array >=0.5
-      , base >=4 && <5
-      , bytestring
-      , containers >=0.5
-      , directory >=1.2
-      , ghc
-      , ghc-boot
-      , hpc >=0.6
-      , liquidhaskell
-      , template-haskell >=2.9
-  other-modules:
-      TestCommits
-      Paths_liquidhaskell
-  default-language: Haskell2010
-
 test-suite test
   type: exitcode-stdio-1.0
-  main-is: test.hs
-  hs-source-dirs:
-      tests
+  main-is: tests/test.hs
   ghc-options: -W -threaded
   build-depends:
       base >=4.8.1.0 && <5
@@ -1274,7 +1210,5 @@ test-suite test
     , time >=1.4
     , transformers >=0.3
   other-modules:
-      Parser
-      TestCommits
       Paths_liquidhaskell
   default-language: Haskell2010

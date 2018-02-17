@@ -1,17 +1,17 @@
-{-# LANGUAGE DeriveDataTypeable  #-}
-{-# LANGUAGE DoAndIfThenElse     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE DoAndIfThenElse            #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -- | Simple test suite to test the parser.
 --
 -- Run as:
 --
--- $ stack test :liquidhaskell-parser
+-- $ stack test liquidhaskell --test-arguments="-p ParserTests"
 
-module Main where
+module Parser (parserTests) where
 
 import           Data.Data
 import           Data.Generics.Aliases
@@ -27,13 +27,13 @@ import           Test.Tasty.Runners.AntXML
 -- ---------------------------------------------------------------------
 
 -- | Test suite entry point, returns exit failure if any test fails.
-main :: IO ()
-main =  defaultMainWithIngredients (
-                antXMLRunner:defaultIngredients
-              ) tests
+-- main :: IO ()
+-- main =  defaultMainWithIngredients (
+                -- antXMLRunner:defaultIngredients
+              -- ) tests
 
-tests :: TestTree
-tests =
+parserTests :: TestTree
+parserTests =
   testGroup "ParserTests"
     [
       testSucceeds
