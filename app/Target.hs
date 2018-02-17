@@ -1,5 +1,4 @@
 {-# LANGUAGE LambdaCase #-}
-module Target where
 
 import Language.Haskell.Interpreter
 import System.Environment

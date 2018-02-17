@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
-module LHi where 
 
 import           System.Environment      (getArgs)
 import           System.Daemon
@@ -35,3 +34,4 @@ client cmd = runClient "localhost" (port cmd) cmd
 command :: IO Command
 -------------------------------------------------------------------------------
 command = getOpts =<< getArgs
+

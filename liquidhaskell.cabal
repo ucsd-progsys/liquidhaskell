@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f8a178df42bcd114afc0075ae904677b7f1473afac965e6722b7fb1680d649c5
+-- hash: 8ec97855b5268f64549e47f192634c08d406629533dd1fafc419b929f521892f
 
 name:           liquidhaskell
 version:        0.8.2.3
@@ -13,7 +13,7 @@ homepage:       https://github.com/ucsd-progsys/liquidhaskell#readme
 bug-reports:    https://github.com/ucsd-progsys/liquidhaskell/issues
 author:         Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:     Ranjit Jhala <jhala@cs.ucsd.edu>
-copyright:      2010-17 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+copyright:      2010-18 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
@@ -991,7 +991,7 @@ library
     , text >=1.2
     , text-format
     , th-lift
-    , time
+    , time >=1.4
     , transformers >=0.3
     , unordered-containers >=0.2
     , vector >=0.10
@@ -1003,7 +1003,6 @@ library
   if flag(deterministic-profiling)
     cpp-options: -DDETERMINISTIC_PROFILING
   exposed-modules:
-      Gradual
       Gradual.Concretize
       Gradual.GUI
       Gradual.GUI.Annotate
@@ -1110,10 +1109,7 @@ library
       Language.Haskell.Liquid.UX.Server
       Language.Haskell.Liquid.UX.Tidy
       Language.Haskell.Liquid.WiredIn
-      LHi
-      Liquid
       LiquidHaskell
-      Target
       Test.Target
       Test.Target.Eval
       Test.Target.Expr
@@ -1136,8 +1132,21 @@ library
       Paths_liquidhaskell
   default-language: Haskell2010
 
+executable gradual
+  main-is: app/Gradual.hs
+  ghc-options: -W
+  build-depends:
+      base >=4.8.1.0 && <5
+    , hpc >=0.6
+    , liquid-fixpoint >=0.7.0.7
+    , liquidhaskell
+    , time >=1.4
+  other-modules:
+      Paths_liquidhaskell
+  default-language: Haskell2010
+
 executable liquid
-  main-is: src/Liquid.hs
+  main-is: app/Liquid.hs
   default-extensions: PatternGuards
   ghc-options: -W -threaded -fdefer-typed-holes
   build-depends:
@@ -1152,9 +1161,23 @@ executable liquid
     , located-base
     , pretty
     , process
-    , time
+    , time >=1.4
   if flag(devel)
     ghc-options: -Werror
+  other-modules:
+      Paths_liquidhaskell
+  default-language: Haskell2010
+
+executable target
+  main-is: app/Target.hs
+  ghc-options: -W
+  build-depends:
+      base >=4.8.1.0 && <5
+    , hint
+    , hpc >=0.6
+    , liquid-fixpoint >=0.7.0.7
+    , liquidhaskell
+    , time >=1.4
   other-modules:
       Paths_liquidhaskell
   default-language: Haskell2010
@@ -1178,6 +1201,7 @@ test-suite liquidhaskell-parser
     , tasty-hunit >=0.9
     , tasty-rerun >=1.1
     , text
+    , time >=1.4
     , transformers >=0.3
   if flag(devel)
     hs-source-dirs:
@@ -1202,7 +1226,6 @@ test-suite liquidhaskell-parser
       , pretty
       , syb >=0.4.4
       , template-haskell
-      , time
       , unordered-containers >=0.2
   else
     build-depends:
@@ -1216,7 +1239,6 @@ test-suite liquidhaskell-parser
       , hpc >=0.6
       , liquidhaskell
       , template-haskell >=2.9
-      , time >=1.4
   other-modules:
       TestCommits
       Paths_liquidhaskell
@@ -1246,6 +1268,7 @@ test-suite test
     , tasty-hunit >=0.9
     , tasty-rerun >=1.1
     , text
+    , time >=1.4
     , transformers >=0.3
   other-modules:
       Parser

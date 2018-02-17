@@ -10,8 +10,9 @@ import           Language.Fixpoint.Utils.Files
 import           System.Directory
 import           Data.Time.Clock (UTCTime)
 import qualified Control.Exception as Ex
-import           Data.Aeson
-import qualified Data.ByteString.Lazy   as B
+
+-- import           Data.Aeson
+-- import qualified Data.ByteString.Lazy   as B
 
 -- data Time = TimeTodo deriving (Eq, Ord, Show)
 
@@ -50,9 +51,9 @@ modificationTime f = (Just <$> getModificationTime f) `Ex.catch` handler
 
 getTypeInfo :: Int -> Int -> Maybe A.AnnMap -> String
 getTypeInfo _ _ Nothing     = "ERROR: corrupt annotation info"
-getTypeInfo l c (Just info) = error "TODO: getTypeInfo"
+getTypeInfo _l _c (Just _info) = undefined "TODO: getTypeInfo"
 
 getAnnMap :: FilePath -> IO (Maybe A.AnnMap)
-getAnnMap srcF = decode <$> B.readFile jsonF
+getAnnMap srcF = undefined -- _decode <$> B.readFile jsonF
   where
-    jsonF      = extFileName Json srcF
+    _jsonF      = extFileName Json srcF

@@ -1,5 +1,3 @@
-module Liquid where 
-
 import Language.Haskell.Liquid.Liquid (liquid)
 import System.Environment             (getArgs)
 
