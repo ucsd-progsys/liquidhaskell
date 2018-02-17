@@ -1,6 +1,6 @@
 {-# LANGUAGE TupleSections #-}
 
--- module Main where
+module Gradual where
 
 import Language.Haskell.Liquid.Liquid (liquidConstraints)
 

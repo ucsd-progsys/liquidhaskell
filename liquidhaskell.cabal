@@ -1,375 +1,1256 @@
-Name:                liquidhaskell
-Version:             0.8.2.4
-Copyright:           2010-17 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
-Synopsis:            Liquid Types for Haskell
-Description:         Liquid Types for Haskell.
-Homepage:            https://github.com/ucsd-progsys/liquidhaskell
-License:             BSD3
-License-file:        LICENSE
-Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
-Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
-Category:            Language
-Build-Type:          Simple
-Cabal-version:       >=1.22
+-- This file has been generated from package.yaml by hpack version 0.20.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: b1d0cc4e3f754b9b26e2215a21058b9519beac90e65ace7c02cd97b7ba0c0e68
 
+name:           liquidhaskell
+version:        0.8.2.3
+synopsis:       Liquid Types for Haskell
+description:    Liquid Types for Haskell.
+category:       Language
+homepage:       https://github.com/ucsd-progsys/liquidhaskell#readme
+bug-reports:    https://github.com/ucsd-progsys/liquidhaskell/issues
+author:         Ranjit Jhala, Niki Vazou, Eric Seidel
+maintainer:     Ranjit Jhala <jhala@cs.ucsd.edu>
+copyright:      2010-17 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
 
-data-files: include/*.hquals
-          , include/*.hs
-          , include/*.spec
-          , include/CoreToLogic.lg
-          , include/Control/*.spec
-          , include/Control/Parallel/*.spec
-          , include/Data/*.hquals
-          , include/Data/*.spec
-          , include/Data/Text/*.spec
-          , include/Data/Text/Fusion/*.spec
-          , include/Data/Text/Lazy/*.spec
-          , include/Data/ByteString/*.spec
-          , include/Foreign/*.spec
-          , include/Foreign/C/*.spec
-          , include/Foreign/Marshal/*.spec
-          , include/GHC/*.hquals
-          , include/GHC/*.spec
-          , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/*.hs
-          , include/Language/Haskell/Liquid/*.pred
-          , include/System/*.spec
-          , include/710/Data/*.spec
-          , syntax/liquid.css
+extra-source-files:
+    CHANGES.md
+    devel/Paths_liquidhaskell.hs
+    README.md
+    tests/errors/AmbiguousInline.hs
+    tests/errors/AmbiguousReflect.hs
+    tests/errors/BadAliasApp.hs
+    tests/errors/BadAnnotation.hs
+    tests/errors/BadAnnotation1.hs
+    tests/errors/BadData1.hs
+    tests/errors/BadData2.hs
+    tests/errors/BadDataCon2.hs
+    tests/errors/BadDataConType.hs
+    tests/errors/BadDataDeclTyVars.hs
+    tests/errors/BadPragma0.hs
+    tests/errors/BadPragma1.hs
+    tests/errors/BadPragma2.hs
+    tests/errors/BadPredApp.hs
+    tests/errors/BadQualifier.hs
+    tests/errors/BadSig0.hs
+    tests/errors/BadSig1.hs
+    tests/errors/BadSyn1.hs
+    tests/errors/BadSyn2.hs
+    tests/errors/BadSyn3.hs
+    tests/errors/BadSyn4.hs
+    tests/errors/CyclicExprAlias0.hs
+    tests/errors/CyclicExprAlias1.hs
+    tests/errors/CyclicExprAlias2.hs
+    tests/errors/CyclicExprAlias3.hs
+    tests/errors/CyclicPredAlias0.hs
+    tests/errors/CyclicPredAlias1.hs
+    tests/errors/CyclicPredAlias2.hs
+    tests/errors/CyclicPredAlias3.hs
+    tests/errors/CyclicTypeAlias0.hs
+    tests/errors/CyclicTypeAlias1.hs
+    tests/errors/CyclicTypeAlias2.hs
+    tests/errors/CyclicTypeAlias3.hs
+    tests/errors/DupAlias.hs
+    tests/errors/DupData.hs
+    tests/errors/DupFunSigs.hs
+    tests/errors/DupMeasure.hs
+    tests/errors/EmptyData.hs
+    tests/errors/ExportMeasure0.hs
+    tests/errors/ExportMeasure1.hs
+    tests/errors/ExportReflect0.hs
+    tests/errors/Fractional.hs
+    tests/errors/HigherOrderBinder.hs
+    tests/errors/HoleCrash1.hs
+    tests/errors/HoleCrash2.hs
+    tests/errors/HoleCrash3.hs
+    tests/errors/Inconsistent0.hs
+    tests/errors/Inconsistent1.hs
+    tests/errors/Inconsistent2.hs
+    tests/errors/LiftMeasureCase.hs
+    tests/errors/LocalHole.hs
+    tests/errors/MissingAbsRefArgs.hs
+    tests/errors/MissingSizeFun.hs
+    tests/errors/MultiInstMeasures.hs
+    tests/errors/MultiRecSels.hs
+    tests/errors/ParseBind.hs
+    tests/errors/ParseClass.hs
+    tests/errors/ShadowFieldInline.hs
+    tests/errors/ShadowFieldReflect.hs
+    tests/errors/ShadowMeasure.hs
+    tests/errors/ShadowMeasureVar.hs
+    tests/errors/T1140.hs
+    tests/errors/T773.hs
+    tests/errors/T774.hs
+    tests/errors/TerminationExprNum.hs
+    tests/errors/TerminationExprSort.hs
+    tests/errors/TerminationExprUnb.hs
+    tests/errors/TODOUnboundAbsRef.hs
+    tests/errors/TODOVarInTypeAlias.hs
+    tests/errors/UnboundAbsRef.hs
+    tests/errors/UnboundFunInSpec.hs
+    tests/errors/UnboundFunInSpec1.hs
+    tests/errors/UnboundFunInSpec2.hs
+    tests/errors/UnboundVarInAssume.hs
+    tests/errors/UnboundVarInSpec.hs
+    tests/ffi-include/foo.c
+    tests/ffi-include/foo.h
+    tests/import/client/ExactGADT9.hs
+    tests/import/client/ListClient.hs
+    tests/import/client/RC1015.hs
+    tests/import/client/ReflectClient0.hs
+    tests/import/client/ReflectClient1.hs
+    tests/import/client/ReflectClient2.hs
+    tests/import/client/ReflectClient3.hs
+    tests/import/client/ReflectClient4.hs
+    tests/import/client/ReflectClient4a.hs
+    tests/import/client/ReflectClient5.hs
+    tests/import/client/ReflectClient6.hs
+    tests/import/client/ReflectClient7.hs
+    tests/import/client/T1096_Foo.hs
+    tests/import/client/T1104Client.hs
+    tests/import/client/T1180.hs
+    tests/import/lib/Bools.hs
+    tests/import/lib/ExactGADT8.hs
+    tests/import/lib/ListLib.hs
+    tests/import/lib/Peano.hs
+    tests/import/lib/ReflectLib0.hs
+    tests/import/lib/ReflectLib1.hs
+    tests/import/lib/ReflectLib2.hs
+    tests/import/lib/ReflectLib3.hs
+    tests/import/lib/ReflectLib4.hs
+    tests/import/lib/ReflectLib5.hs
+    tests/import/lib/ReflectLib6.hs
+    tests/import/lib/ReflectLib7.hs
+    tests/import/lib/RL1015.hs
+    tests/import/lib/T1096_Types.hs
+    tests/import/lib/T1102_LibX.hs
+    tests/import/lib/T1102_LibY.hs
+    tests/import/lib/T1102_LibZ.hs
+    tests/import/lib/T1104Lib.hs
+    tests/import/lib/T1112.hs
+    tests/import/lib/T1112Lib.hs
+    tests/import/lib/T1117.hs
+    tests/import/lib/T1117Lib.hs
+    tests/import/lib/T1118.hs
+    tests/import/lib/T1118Lib1.hs
+    tests/import/lib/T1118Lib2.hs
+    tests/neg/AbsApp.hs
+    tests/neg/AdtPeano0.hs
+    tests/neg/AdtPeano1.hs
+    tests/neg/AdtPeano2.hs
+    tests/neg/alias00.hs
+    tests/neg/ass0.hs
+    tests/neg/Ast.hs
+    tests/neg/Automate.hs
+    tests/neg/AutoSize.hs
+    tests/neg/AutoTerm.hs
+    tests/neg/AutoTerm1.hs
+    tests/neg/BadNats.hs
+    tests/neg/bag.hs
+    tests/neg/bag1.hs
+    tests/neg/Baz.hs
+    tests/neg/BigNum.hs
+    tests/neg/BinahQuery.hs
+    tests/neg/BinahUpdate.hs
+    tests/neg/BinahUpdateClient.hs
+    tests/neg/BinahUpdateLib.hs
+    tests/neg/BinahUpdateLib1.hs
+    tests/neg/BinarySearchOverflow.hs
+    tests/neg/Books.hs
+    tests/neg/CastedTotality.hs
+    tests/neg/CheckedNum.hs
+    tests/neg/Class1.hs
+    tests/neg/Class2.hs
+    tests/neg/Class3.hs
+    tests/neg/Class4.hs
+    tests/neg/Class5.hs
+    tests/neg/Client.hs
+    tests/neg/CompareConstraints.hs
+    tests/neg/concat.hs
+    tests/neg/concat1.hs
+    tests/neg/concat2.hs
+    tests/neg/Constraints.hs
+    tests/neg/ConstraintsAppend.hs
+    tests/neg/contra0.hs
+    tests/neg/coretologic.hs
+    tests/neg/csv.hs
+    tests/neg/datacon-eq.hs
+    tests/neg/DependentTypes.hs
+    tests/neg/deppair0.hs
+    tests/neg/deptupW.hs
+    tests/neg/elim-ex-compose.hs
+    tests/neg/elim-ex-let.hs
+    tests/neg/elim-ex-list.hs
+    tests/neg/elim-ex-map-1.hs
+    tests/neg/elim-ex-map-2.hs
+    tests/neg/elim-ex-map-3.hs
+    tests/neg/elim000.hs
+    tests/neg/errmsg.hs
+    tests/neg/errorloc.hs
+    tests/neg/Eval.hs
+    tests/neg/EvalQuery.hs
+    tests/neg/Even.hs
+    tests/neg/ex0-unsafe.hs
+    tests/neg/ex1-unsafe.hs
+    tests/neg/ExactADT6.hs
+    tests/neg/ExactGADT5.hs
+    tests/neg/ExactGADT6.hs
+    tests/neg/ExactGADT7.hs
+    tests/neg/filterAbs.hs
+    tests/neg/foldN.hs
+    tests/neg/foldN1.hs
+    tests/neg/FunctionRef.hs
+    tests/neg/FunSoundness.hs
+    tests/neg/GeneralizedTermination.hs
+    tests/neg/grty0.hs
+    tests/neg/grty1.hs
+    tests/neg/grty2.hs
+    tests/neg/grty3.hs
+    tests/neg/HasElem.hs
+    tests/neg/Hex00.hs
+    tests/neg/HigherOrder.hs
+    tests/neg/HolesTop.hs
+    tests/neg/inc2.hs
+    tests/neg/IntAbsRef.hs
+    tests/neg/LazyWhere.hs
+    tests/neg/LazyWhere1.hs
+    tests/neg/LetRecStack.hs
+    tests/neg/Lib.hs
+    tests/neg/LibSpec.hs
+    tests/neg/LiquidClass.hs
+    tests/neg/LiquidClass1.hs
+    tests/neg/list00.hs
+    tests/neg/ListConcat.hs
+    tests/neg/ListElem.hs
+    tests/neg/ListISort-LType.hs
+    tests/neg/ListISort.hs
+    tests/neg/ListKeys.hs
+    tests/neg/ListMSort.hs
+    tests/neg/listne.hs
+    tests/neg/ListQSort.hs
+    tests/neg/ListRange.hs
+    tests/neg/lit.hs
+    tests/neg/LocalSpec.hs
+    tests/neg/mapreduce-tiny.hs
+    tests/neg/mapreduce.hs
+    tests/neg/maps.hs
+    tests/neg/MaybeMonad.hs
+    tests/neg/meas0.hs
+    tests/neg/meas2.hs
+    tests/neg/meas3.hs
+    tests/neg/meas5.hs
+    tests/neg/meas7.hs
+    tests/neg/meas9.hs
+    tests/neg/MeasureContains.hs
+    tests/neg/MeasureDups.hs
+    tests/neg/MergeSort.hs
+    tests/neg/monad3.hs
+    tests/neg/monad4.hs
+    tests/neg/monad5.hs
+    tests/neg/monad6.hs
+    tests/neg/monad7.hs
+    tests/neg/mr00.hs
+    tests/neg/multi-pred-app-00.hs
+    tests/neg/MultiParamTypeClasses.hs
+    tests/neg/MultipleInvariants.hs
+    tests/neg/nestedRecursion.hs
+    tests/neg/NewTypes.hs
+    tests/neg/NewTypes0.hs
+    tests/neg/NoExhaustiveGuardsError.hs
+    tests/neg/NoMethodBindingError.hs
+    tests/neg/pair.hs
+    tests/neg/pair0.hs
+    tests/neg/PairMeasure.hs
+    tests/neg/pargs.hs
+    tests/neg/pargs1.hs
+    tests/neg/partial.hs
+    tests/neg/ple0.hs
+    tests/neg/poly0.hs
+    tests/neg/poly1.hs
+    tests/neg/poly2-degenerate.hs
+    tests/neg/poly2.hs
+    tests/neg/polypred.hs
+    tests/neg/poslist.hs
+    tests/neg/pragma0-unsafe.hs
+    tests/neg/pred.hs
+    tests/neg/Propability.hs
+    tests/neg/Propability0.hs
+    tests/neg/prune0.hs
+    tests/neg/QQTySig.hs
+    tests/neg/QQTySyn1.hs
+    tests/neg/QQTySyn2.hs
+    tests/neg/qsloop.hs
+    tests/neg/range.hs
+    tests/neg/Rebind.hs
+    tests/neg/record0.hs
+    tests/neg/RecQSort.hs
+    tests/neg/RecSelector.hs
+    tests/neg/revshape.hs
+    tests/neg/RG.hs
+    tests/neg/risers.hs
+    tests/neg/SafePartialFunctions.hs
+    tests/neg/Solver.hs
+    tests/neg/stacks.hs
+    tests/neg/state0.hs
+    tests/neg/state00.hs
+    tests/neg/StateConstraints.hs
+    tests/neg/StateConstraints0.hs
+    tests/neg/StateConstraints00.hs
+    tests/neg/Strata.hs
+    tests/neg/StreamInvariants.hs
+    tests/neg/StrictPair0.hs
+    tests/neg/StrictPair1.hs
+    tests/neg/string00.hs
+    tests/neg/Strings.hs
+    tests/neg/Sum.hs
+    tests/neg/sumk.hs
+    tests/neg/sumPoly.hs
+    tests/neg/T1013A.hs
+    tests/neg/T1078.hs
+    tests/neg/T1126.hs
+    tests/neg/T1173.hs
+    tests/neg/T1192.hs
+    tests/neg/T602.hs
+    tests/neg/T743-mini.hs
+    tests/neg/T743.hs
+    tests/neg/T745.hs
+    tests/neg/TerminationNum.hs
+    tests/neg/TerminationNum0.hs
+    tests/neg/TermReal.hs
+    tests/neg/test00.hs
+    tests/neg/test00a.hs
+    tests/neg/test00b.hs
+    tests/neg/test00c.hs
+    tests/neg/test1.hs
+    tests/neg/test2.hs
+    tests/neg/testRec.hs
+    tests/neg/TopLevel.hs
+    tests/neg/TotalHaskell.hs
+    tests/neg/trans.hs
+    tests/neg/truespec.hs
+    tests/neg/tyclass0-unsafe.hs
+    tests/neg/TypeLitNat.hs
+    tests/neg/Variance.hs
+    tests/neg/Variance1.hs
+    tests/neg/vector0.hs
+    tests/neg/vector00.hs
+    tests/neg/vector0a.hs
+    tests/neg/vector1a.hs
+    tests/neg/vector2.hs
+    tests/neg/VerifiedMonoid.hs
+    tests/neg/VerifiedNum.hs
+    tests/neg/wrap0.hs
+    tests/neg/wrap1.hs
+    tests/pos/Abs.hs
+    tests/pos/absref-crash.hs
+    tests/pos/absref-crash0.hs
+    tests/pos/Ackermann.hs
+    tests/pos/adt0.hs
+    tests/pos/AdtList0.hs
+    tests/pos/AdtList1.hs
+    tests/pos/AdtList2.hs
+    tests/pos/AdtList3.hs
+    tests/pos/AdtList4.hs
+    tests/pos/AdtList5.hs
+    tests/pos/AdtPeano0.hs
+    tests/pos/AdtPeano1.hs
+    tests/pos/AdtPeano2.hs
+    tests/pos/alias00.hs
+    tests/pos/alias01.hs
+    tests/pos/alphaconvert-List.hs
+    tests/pos/alphaconvert-Set.hs
+    tests/pos/AmortizedQueue.hs
+    tests/pos/ANF.hs
+    tests/pos/anfbug.hs
+    tests/pos/anftest.hs
+    tests/pos/anish1.hs
+    tests/pos/Assume.hs
+    tests/pos/AssumedRecursive.hs
+    tests/pos/Automate.hs
+    tests/pos/AutoSize.hs
+    tests/pos/AutoTerm.hs
+    tests/pos/AutoTerm1.hs
+    tests/pos/Avg.hs
+    tests/pos/AVL.hs
+    tests/pos/AVLRJ.hs
+    tests/pos/bag.hs
+    tests/pos/bag1.hs
+    tests/pos/bangPatterns.hs
+    tests/pos/BinahQuery.hs
+    tests/pos/BinahUpdate.hs
+    tests/pos/BinarySearch.hs
+    tests/pos/BinarySearchOverflow.hs
+    tests/pos/Books.hs
+    tests/pos/bool0.hs
+    tests/pos/bool1.hs
+    tests/pos/bool2.hs
+    tests/pos/bounds1.hs
+    tests/pos/BST.hs
+    tests/pos/BST000.hs
+    tests/pos/case-lambda-join.hs
+    tests/pos/CasesToLogic.hs
+    tests/pos/Cat.hs
+    tests/pos/CheckedNum.hs
+    tests/pos/Chunks.hs
+    tests/pos/Class.hs
+    tests/pos/Class2.hs
+    tests/pos/ClassReg.hs
+    tests/pos/Client521.hs
+    tests/pos/ClojurVector.hs
+    tests/pos/cmptag0.hs
+    tests/pos/coerce1.hs
+    tests/pos/Coercion.hs
+    tests/pos/comma.hs
+    tests/pos/CommentedOut.hs
+    tests/pos/compare.hs
+    tests/pos/compare1.hs
+    tests/pos/compare2.hs
+    tests/pos/CompareConstraints.hs
+    tests/pos/Compiler.hs
+    tests/pos/comprehension.hs
+    tests/pos/comprehensionTerm.hs
+    tests/pos/Constraints.hs
+    tests/pos/ConstraintsAppend.hs
+    tests/pos/contra0.hs
+    tests/pos/coretologic.hs
+    tests/pos/CountMonad.hs
+    tests/pos/csgordon_issue_296.hs
+    tests/pos/cut00.hs
+    tests/pos/data2.hs
+    tests/pos/DataBase.hs
+    tests/pos/datacon-inv.hs
+    tests/pos/datacon0.hs
+    tests/pos/datacon1.hs
+    tests/pos/dataConQuals.hs
+    tests/pos/DataKinds.hs
+    tests/pos/DB00.hs
+    tests/pos/deepmeas0.hs
+    tests/pos/DepData.hs
+    tests/pos/DependentPairs.hs
+    tests/pos/DependentPairsFun.hs
+    tests/pos/deppair0.hs
+    tests/pos/deppair1.hs
+    tests/pos/DepTriples.hs
+    tests/pos/deptup.hs
+    tests/pos/deptup0.hs
+    tests/pos/deptup1.hs
+    tests/pos/deptup3.hs
+    tests/pos/deptupW.hs
+    tests/pos/div000.hs
+    tests/pos/dropwhile.hs
+    tests/pos/duplicate-bind.hs
+    tests/pos/elements.hs
+    tests/pos/elems.hs
+    tests/pos/elim-ex-compose.hs
+    tests/pos/elim-ex-let.hs
+    tests/pos/elim-ex-list.hs
+    tests/pos/elim-ex-map-1.hs
+    tests/pos/elim-ex-map-2.hs
+    tests/pos/elim-ex-map-3.hs
+    tests/pos/elim00.hs
+    tests/pos/elim01.hs
+    tests/pos/eq-poly-measure.hs
+    tests/pos/eqelems.hs
+    tests/pos/Eval.hs
+    tests/pos/EvalQuery.hs
+    tests/pos/Even.hs
+    tests/pos/Even0.hs
+    tests/pos/ex0.hs
+    tests/pos/ex01.hs
+    tests/pos/ex1.hs
+    tests/pos/ExactADT6.hs
+    tests/pos/ExactFunApp.hs
+    tests/pos/ExactGADT.hs
+    tests/pos/ExactGADT0.hs
+    tests/pos/ExactGADT1.hs
+    tests/pos/ExactGADT2.hs
+    tests/pos/ExactGADT4.hs
+    tests/pos/ExactGADT5.hs
+    tests/pos/ExactGADT6.hs
+    tests/pos/ExactGADT7.hs
+    tests/pos/ExactGADT8a.hs
+    tests/pos/ExactGADT9a.hs
+    tests/pos/exp0.hs
+    tests/pos/extype.hs
+    tests/pos/failName.hs
+    tests/pos/FFI.hs
+    tests/pos/Fib0.hs
+    tests/pos/FibEq.hs
+    tests/pos/filterAbs.hs
+    tests/pos/filterPLE.hs
+    tests/pos/Foldl.hs
+    tests/pos/foldN.hs
+    tests/pos/foldr.hs
+    tests/pos/Foo.hs
+    tests/pos/for.hs
+    tests/pos/forloop.hs
+    tests/pos/Fractional.hs
+    tests/pos/FractionalInstance.hs
+    tests/pos/gadtEval.hs
+    tests/pos/GCD.hs
+    tests/pos/GeneralizedTermination.hs
+    tests/pos/GhcListSort.hs
+    tests/pos/GhcSort1.hs
+    tests/pos/GhcSort2.hs
+    tests/pos/GhcSort3.hs
+    tests/pos/GhcSort3.T.hs
+    tests/pos/gimme.hs
+    tests/pos/go.hs
+    tests/pos/go_ugly_type.hs
+    tests/pos/Goo.hs
+    tests/pos/GoodHMeas.hs
+    tests/pos/Graph.hs
+    tests/pos/grty0.hs
+    tests/pos/grty1.hs
+    tests/pos/grty2.hs
+    tests/pos/grty3.hs
+    tests/pos/HasElem.hs
+    tests/pos/HaskellMeasure.hs
+    tests/pos/HedgeUnion.hs
+    tests/pos/hello.hs
+    tests/pos/Hex00.hs
+    tests/pos/HigherOrderRecFun.hs
+    tests/pos/hole-app.hs
+    tests/pos/hole-fun.hs
+    tests/pos/Holes-Slicing.hs
+    tests/pos/Holes.hs
+    tests/pos/Hutton.hs
+    tests/pos/IcfpDemo.hs
+    tests/pos/idNat.hs
+    tests/pos/idNat0.hs
+    tests/pos/imp0.hs
+    tests/pos/implies.hs
+    tests/pos/IndEven.hs
+    tests/pos/IndPerm.hs
+    tests/pos/IndStar.hs
+    tests/pos/Infinity.hs
+    tests/pos/infix.hs
+    tests/pos/initarray.hs
+    tests/pos/inline.hs
+    tests/pos/inline1.hs
+    tests/pos/Invariants.hs
+    tests/pos/invlhs.hs
+    tests/pos/ite.hs
+    tests/pos/ite1.hs
+    tests/pos/jeff.hs
+    tests/pos/Keys.hs
+    tests/pos/kmp.hs
+    tests/pos/kmpIO.hs
+    tests/pos/kmpVec.hs
+    tests/pos/LambdaDeBruijn.hs
+    tests/pos/LambdaEval.hs
+    tests/pos/LambdaEvalMini.hs
+    tests/pos/LambdaEvalSuperTiny.hs
+    tests/pos/LambdaEvalTiny.hs
+    tests/pos/LazyWhere.hs
+    tests/pos/LazyWhere1.hs
+    tests/pos/lets.hs
+    tests/pos/lex.hs
+    tests/pos/Lib521.hs
+    tests/pos/LiquidArray.hs
+    tests/pos/LiquidClass.hs
+    tests/pos/listAnf.hs
+    tests/pos/ListConcat.hs
+    tests/pos/ListElem.hs
+    tests/pos/ListISort-bag.hs
+    tests/pos/ListISort-LType.hs
+    tests/pos/ListISort-perm.hs
+    tests/pos/ListISort.hs
+    tests/pos/ListKeys.hs
+    tests/pos/ListLen-LType.hs
+    tests/pos/ListLen.hs
+    tests/pos/ListMSort-LType.hs
+    tests/pos/ListMSort.hs
+    tests/pos/ListQSort-LType.hs
+    tests/pos/ListQSort.hs
+    tests/pos/listqual.hs
+    tests/pos/ListRange-LType.hs
+    tests/pos/ListRange.hs
+    tests/pos/ListReverse-LType.hs
+    tests/pos/listSet.hquals
+    tests/pos/listSet.hs
+    tests/pos/listSetDemo.hs
+    tests/pos/ListSort.hs
+    tests/pos/lit.hs
+    tests/pos/lit00.hs
+    tests/pos/lit02.hs
+    tests/pos/LocalHole.hs
+    tests/pos/LocalLazy.hs
+    tests/pos/LocalSpec.hs
+    tests/pos/LocalSpec0.hs
+    tests/pos/LocalSpecImp.hs
+    tests/pos/LocalTermExpr.hs
+    tests/pos/LogicCurry1.hs
+    tests/pos/Loo.hs
+    tests/pos/malformed0.hs
+    tests/pos/Map.hs
+    tests/pos/Map0.hs
+    tests/pos/Map2.hs
+    tests/pos/MapFusion.hs
+    tests/pos/mapreduce-bare.hs
+    tests/pos/MapReduceVerified.hs
+    tests/pos/maps.hs
+    tests/pos/maps1.hs
+    tests/pos/maps2.hs
+    tests/pos/mapTvCrash.hs
+    tests/pos/MaskError.hs
+    tests/pos/maybe.hs
+    tests/pos/maybe0.hs
+    tests/pos/maybe00.hs
+    tests/pos/maybe000.hs
+    tests/pos/maybe1.hs
+    tests/pos/maybe2.hs
+    tests/pos/maybe3.hs
+    tests/pos/maybe4.hs
+    tests/pos/meas0.hs
+    tests/pos/meas00.hs
+    tests/pos/meas00a.hs
+    tests/pos/meas0a.hs
+    tests/pos/meas1.hs
+    tests/pos/meas10.hs
+    tests/pos/meas11.hs
+    tests/pos/meas2.hs
+    tests/pos/meas3.hs
+    tests/pos/meas4.hs
+    tests/pos/meas5.hs
+    tests/pos/meas6.hs
+    tests/pos/meas7.hs
+    tests/pos/meas8.hs
+    tests/pos/meas9.hs
+    tests/pos/MeasureContains.hs
+    tests/pos/MeasureDups.hs
+    tests/pos/Measures.hs
+    tests/pos/Measures1.hs
+    tests/pos/MeasureSets.hs
+    tests/pos/Merge1.hs
+    tests/pos/MergeSort-bag.hs
+    tests/pos/MergeSort.hs
+    tests/pos/Mod1.hs
+    tests/pos/Mod2.hs
+    tests/pos/modTest.hs
+    tests/pos/monad0.hs
+    tests/pos/monad1.hs
+    tests/pos/monad2.hs
+    tests/pos/monad5.hs
+    tests/pos/monad6.hs
+    tests/pos/monad7.hs
+    tests/pos/Moo.hs
+    tests/pos/multi-pred-app-00.hs
+    tests/pos/MultipleInvariants.hs
+    tests/pos/mutrec.hs
+    tests/pos/MutualRec.hs
+    tests/pos/NatClass.hs
+    tests/pos/nats.hs
+    tests/pos/NewType.hs
+    tests/pos/niki.hs
+    tests/pos/niki1.hs
+    tests/pos/NoCaseExpand.hs
+    tests/pos/NoExhaustiveGuardsError.hs
+    tests/pos/nullterm.hs
+    tests/pos/OrdList.hs
+    tests/pos/ORM.hs
+    tests/pos/Overwrite.hs
+    tests/pos/pair.hs
+    tests/pos/pair0.hs
+    tests/pos/pair00.hs
+    tests/pos/PairMeasure.hs
+    tests/pos/PairMeasure0.hs
+    tests/pos/pargs.hs
+    tests/pos/pargs1.hs
+    tests/pos/partial-tycon.hs
+    tests/pos/partialmeasure.hs
+    tests/pos/Permutation.hs
+    tests/pos/PersistentVector.hs
+    tests/pos/ple0.hs
+    tests/pos/ple1.hs
+    tests/pos/pleORM.hs
+    tests/pos/PlugHoles.hs
+    tests/pos/PointDist.hs
+    tests/pos/poly0.hs
+    tests/pos/poly1.hs
+    tests/pos/poly2-degenerate.hs
+    tests/pos/poly2.hs
+    tests/pos/poly3.hs
+    tests/pos/poly3a.hs
+    tests/pos/poly4.hs
+    tests/pos/polyfun.hs
+    tests/pos/polyqual.hs
+    tests/pos/poslist.hs
+    tests/pos/poslist_dc.hs
+    tests/pos/pragma0.hs
+    tests/pos/pred.hs
+    tests/pos/primInt0.hs
+    tests/pos/Product.hs
+    tests/pos/profcrasher.hs
+    tests/pos/PromotedDataCons.hs
+    tests/pos/Propability.hs
+    tests/pos/propmeasure.hs
+    tests/pos/propmeasure1.hs
+    tests/pos/QQTySig.hs
+    tests/pos/QQTySigTyVars.hs
+    tests/pos/QQTySyn.hs
+    tests/pos/qualTest.hs
+    tests/pos/range.hs
+    tests/pos/range1.hs
+    tests/pos/rangeAdt.hs
+    tests/pos/RBTree-col-height.hs
+    tests/pos/RBTree-color.hs
+    tests/pos/RBTree-height.hs
+    tests/pos/RBTree-ord.hs
+    tests/pos/RBTree.hs
+    tests/pos/RealProps.hs
+    tests/pos/RealProps1.hs
+    tests/pos/Rebind.hs
+    tests/pos/rec_annot_go.hs
+    tests/pos/record0.hs
+    tests/pos/record1.hs
+    tests/pos/RecordAccessors.hs
+    tests/pos/RecordSelectorError.hs
+    tests/pos/RecQSort.hs
+    tests/pos/RecQSort0.hs
+    tests/pos/RecSelector.hs
+    tests/pos/recursion0.hs
+    tests/pos/Reduction.hs
+    tests/pos/RefinedADTs.hs
+    tests/pos/reflect0.hs
+    tests/pos/ReflectAlias.hs
+    tests/pos/ReflectBooleanFunctions.hs
+    tests/pos/ReflectMutual.hs
+    tests/pos/RelativeComplete.hs
+    tests/pos/Repeat.hs
+    tests/pos/repeatHigherOrder.hs
+    tests/pos/Resolve.hs
+    tests/pos/ResolveA.hs
+    tests/pos/ResolveB.hs
+    tests/pos/ResolvePred.hs
+    tests/pos/risers.hs
+    tests/pos/rta.hs
+    tests/pos/SafePartialFunctions.hs
+    tests/pos/scanr.hs
+    tests/pos/selfList.hquals
+    tests/pos/selfList.hs
+    tests/pos/SimplerNotation.hs
+    tests/pos/SimplifyTup00.hs
+    tests/pos/Solver.hs
+    tests/pos/spec0.hs
+    tests/pos/StackClass.hs
+    tests/pos/StackMachine.hs
+    tests/pos/stacks0.hs
+    tests/pos/State.hquals
+    tests/pos/State.hs
+    tests/pos/state00.hs
+    tests/pos/State1.hs
+    tests/pos/StateConstraints.hs
+    tests/pos/StateConstraints0.hs
+    tests/pos/StateConstraints00.hs
+    tests/pos/StateF00.hs
+    tests/pos/stateInvarint.hs
+    tests/pos/StreamInvariants.hs
+    tests/pos/Streams.hs
+    tests/pos/StrictPair0.hs
+    tests/pos/StrictPair1.hs
+    tests/pos/string00.hs
+    tests/pos/StringLit.hs
+    tests/pos/Strings.hs
+    tests/pos/StructRec.hs
+    tests/pos/Sum.hs
+    tests/pos/T1013.hs
+    tests/pos/T1024.hs
+    tests/pos/T1025.hs
+    tests/pos/T1025a.hs
+    tests/pos/T1034.hs
+    tests/pos/T1045.hs
+    tests/pos/T1045a.hs
+    tests/pos/T1060.hs
+    tests/pos/T1065.hs
+    tests/pos/T1074.hs
+    tests/pos/T1085.hs
+    tests/pos/T1089b.hs
+    tests/pos/T1092.hs
+    tests/pos/T1100.hs
+    tests/pos/T1120A.hs
+    tests/pos/T1126.hs
+    tests/pos/T1126a.hs
+    tests/pos/T1146.hs
+    tests/pos/T1173.hs
+    tests/pos/T1190.hs
+    tests/pos/T1220.hs
+    tests/pos/T1223.hs
+    tests/pos/T385.hs
+    tests/pos/T531.hs
+    tests/pos/T595.hs
+    tests/pos/T595a.hs
+    tests/pos/T598.hs
+    tests/pos/T675.hs
+    tests/pos/T716.hs
+    tests/pos/T819.hs
+    tests/pos/T819A.hs
+    tests/pos/T820.hs
+    tests/pos/T866.hs
+    tests/pos/T914.hs
+    tests/pos/tagBinder.hs
+    tests/pos/take.hs
+    tests/pos/TemplateHaskell.hs
+    tests/pos/TemplateHaskellImp.hs
+    tests/pos/Term.hs
+    tests/pos/term0.hs
+    tests/pos/TerminationNum.hs
+    tests/pos/TerminationNum0.hs
+    tests/pos/test0.hs
+    tests/pos/test00-int.hs
+    tests/pos/test00.hs
+    tests/pos/test00.old.hs
+    tests/pos/test000.hs
+    tests/pos/test000.hs.hquals
+    tests/pos/test00b.hs
+    tests/pos/test00c.hs
+    tests/pos/test1.hs
+    tests/pos/test2.hs
+    tests/pos/Test761.hs
+    tests/pos/testRec.hs
+    tests/pos/TokenType.hs
+    tests/pos/top0.hs
+    tests/pos/TopLevel.hs
+    tests/pos/ToyMVar.hs
+    tests/pos/trans.hs
+    tests/pos/transpose.hs
+    tests/pos/transTAG.hs
+    tests/pos/tup0.hs
+    tests/pos/tupparse.hs
+    tests/pos/tyclass0.hs
+    tests/pos/tyExpr.hs
+    tests/pos/tyfam0.hs
+    tests/pos/TypeAlias.hs
+    tests/pos/TypeLitNat.hs
+    tests/pos/TypeLitString.hs
+    tests/pos/tyvar.hs
+    tests/pos/UnboxedTuples.hs
+    tests/pos/UnboxedTuplesAndTH.hs
+    tests/pos/unusedtyvars.hs
+    tests/pos/Variance.hs
+    tests/pos/Variance2.hs
+    tests/pos/vecloop.hs
+    tests/pos/vector0.hs
+    tests/pos/vector00.hs
+    tests/pos/vector1.hs
+    tests/pos/vector1a.hs
+    tests/pos/vector1b.hs
+    tests/pos/vector2.hs
+    tests/pos/VerifiedMonoid.hs
+    tests/pos/VerifiedNum.hs
+    tests/pos/WBL.hs
+    tests/pos/WBL0.hs
+    tests/pos/Words.hs
+    tests/pos/Words1.hs
+    tests/pos/wrap0.hs
+    tests/pos/wrap1.hs
+    tests/pos/WrapUnWrap.hs
+    tests/pos/zipper.hs
+    tests/pos/zipper0.hs
+    tests/pos/zipper000.hs
+    tests/pos/zipSO.hs
+    tests/pos/zipW.hs
+    tests/pos/zipW1.hs
+    tests/pos/zipW2.hs
 
-extra-source-files: CHANGES.md
-                  , README.md
-                  , devel/Paths_liquidhaskell.hs
-                  , tests/pos/*.hs
-                  , tests/neg/*.hs
-                  , tests/import/lib/*.hs
-                  , tests/import/client/*.hs
-                  , tests/errors/*.hs
-                  , tests/pos/*.hquals
-                  , tests/ffi-include/foo.c
-                  , tests/ffi-include/foo.h
+data-files:
+    include/710/Data/Traversable.spec
+    include/Bot.hquals
+    include/Control/Exception.spec
+    include/Control/Parallel/Strategies.spec
+    include/CoreToLogic.lg
+    include/Data/Bits.spec
+    include/Data/ByteString.spec
+    include/Data/ByteString/Char8.spec
+    include/Data/ByteString/Lazy.spec
+    include/Data/ByteString/Short.spec
+    include/Data/ByteString/Unsafe.spec
+    include/Data/Either.spec
+    include/Data/Foldable.spec
+    include/Data/Int.spec
+    include/Data/List.spec
+    include/Data/Maybe.spec
+    include/Data/Set.spec
+    include/Data/String.spec
+    include/Data/Text/Fusion.spec
+    include/Data/Text/Fusion/Common.spec
+    include/Data/Text/Lazy/Fusion.spec
+    include/Data/Tuple.spec
+    include/Data/Vector.hquals
+    include/Data/Vector.spec
+    include/Data/Word.spec
+    include/Data/Word8.spec
+    include/Foreign/C/String.spec
+    include/Foreign/C/Types.spec
+    include/Foreign/ForeignPtr.spec
+    include/Foreign/Marshal/Alloc.spec
+    include/Foreign/Marshal/Array.spec
+    include/Foreign/Ptr.spec
+    include/Foreign/Storable.spec
+    include/GHC/Base.hquals
+    include/GHC/Base.spec
+    include/GHC/Classes.spec
+    include/GHC/CString.spec
+    include/GHC/ForeignPtr.spec
+    include/GHC/Int.spec
+    include/GHC/IO/Handle.spec
+    include/GHC/List.spec
+    include/GHC/Num.spec
+    include/GHC/Prim.spec
+    include/GHC/Ptr.spec
+    include/GHC/Read.spec
+    include/GHC/Real.spec
+    include/GHC/Types.spec
+    include/GHC/Word.spec
+    include/KMeansHelper.hs
+    include/Language/Haskell/Liquid/Bag.hs
+    include/Language/Haskell/Liquid/Example.hs
+    include/Language/Haskell/Liquid/Foreign.hs
+    include/Language/Haskell/Liquid/List.hs
+    include/Language/Haskell/Liquid/NewProofCombinators.hs
+    include/Language/Haskell/Liquid/Prelude.hs
+    include/Language/Haskell/Liquid/Prelude.pred
+    include/Language/Haskell/Liquid/ProofCombinators.hs
+    include/Language/Haskell/Liquid/String.hs
+    include/len.hquals
+    include/NotReal.spec
+    include/PatErr.spec
+    include/Prelude.hquals
+    include/Prelude.spec
+    include/Real.spec
+    include/System/IO.spec
 
-Source-Repository head
-  Type:        git
-  Location:    https://github.com/ucsd-progsys/liquidhaskell/
+source-repository head
+  type: git
+  location: https://github.com/ucsd-progsys/liquidhaskell
 
-Flag devel
-  Description: turn on stricter error reporting for development
-  Default:     False
-  Manual:      True
+flag deterministic-profiling
+  description: Support building against GHC with https://phabricator.haskell.org/D4388 backported
+  manual: False
+  default: False
 
-Flag include
-  Description: use in-tree include directory
-  Default:     False
+flag devel
+  description: turn on stricter error reporting for development
+  manual: True
+  default: False
 
-Flag deterministic-profiling
-  Description: Support building against GHC with https://phabricator.haskell.org/D4388 backported
-  Default:     False
+flag include
+  description: use in-tree include directory
+  manual: False
+  default: False
 
-Executable liquid
-  default-language: Haskell98
-  Build-Depends: base >=4.8.1.0 && <5
-               , ghc
-               , ghc-boot
-               , cmdargs
-               , time
-               , deepseq
-               , pretty
-               , process
-               , liquid-fixpoint >= 0.7.0.7
-               , located-base
-               , liquidhaskell
-               , hpc >= 0.6
-
-  Main-is: src/Liquid.hs
-  ghc-options: -W -threaded -fdefer-typed-holes
+library
+  hs-source-dirs:
+      src
+      include
+  default-extensions: PatternGuards
+  ghc-options: -W -fwarn-missing-signatures
+  build-depends:
+      Cabal >=1.18
+    , Diff >=0.3
+    , QuickCheck >=2.7
+    , aeson >=1.2 && <1.3
+    , array >=0.5
+    , base >=4.8.1.0 && <5
+    , bifunctors >=5.1
+    , binary
+    , bytestring >=0.10
+    , cereal
+    , cmdargs >=0.10
+    , containers >=0.5
+    , data-default >=0.5
+    , deepseq >=1.3
+    , directory >=1.2
+    , exceptions >=0.6
+    , filepath >=1.3
+    , fingertree >=0.1
+    , ghc ==8.2.2
+    , ghc-boot ==8.2.2
+    , ghc-paths >=0.1
+    , ghc-prim
+    , gitrev
+    , hashable >=1.2
+    , hpc >=0.6
+    , hscolour >=1.22
+    , liquid-fixpoint >=0.7.0.7
+    , located-base
+    , mtl >=2.1
+    , optparse-simple
+    , parsec >=3.1
+    , pretty >=1.1
+    , process >=1.2
+    , syb >=0.4.4
+    , template-haskell >=2.9
+    , temporary >=1.2
+    , text >=1.2
+    , text-format
+    , th-lift
+    , time
+    , transformers >=0.3
+    , unordered-containers >=0.2
+    , vector >=0.10
+  if flag(include)
+    hs-source-dirs:
+        devel
   if flag(devel)
     ghc-options: -Werror
-  Default-Extensions: PatternGuards
+  if flag(deterministic-profiling)
+    cpp-options: -DDETERMINISTIC_PROFILING
+  exposed-modules:
+      LiquidHaskell
+      Language.Haskell.Liquid.Prelude
+      Language.Haskell.Liquid.Bag
+      Language.Haskell.Liquid.ProofCombinators
+      Language.Haskell.Liquid.Foreign
+      Language.Haskell.Liquid.List
+      Language.Haskell.Liquid.Bare
+      Language.Haskell.Liquid.Constraint.Constraint
+      Language.Haskell.Liquid.Constraint.Init
+      Language.Haskell.Liquid.Constraint.Monad
+      Language.Haskell.Liquid.Constraint.Env
+      Language.Haskell.Liquid.Constraint.Types
+      Language.Haskell.Liquid.Constraint.Split
+      Language.Haskell.Liquid.Constraint.Generate
+      Language.Haskell.Liquid.Constraint.ToFixpoint
+      Language.Haskell.Liquid.Measure
+      Language.Haskell.Liquid.Parse
+      Language.Haskell.Liquid.GHC.Interface
+      Language.Haskell.Liquid.GHC.SpanStack
+      Language.Haskell.Liquid.Types.RefType
+      Language.Haskell.Liquid.Types.Errors
+      Language.Haskell.Liquid.Types.PrettyPrint
+      Language.Haskell.Liquid.Types.Specifications
+      Language.Haskell.Liquid.Types.PredType
+      Language.Haskell.Liquid.Types.Meet
+      Language.Haskell.Liquid.UX.ACSS
+      Language.Haskell.Liquid.UX.DiffCheck
+      Language.Haskell.Liquid.UX.QuasiQuoter
+      Language.Haskell.Liquid.Transforms.Rewrite
+      Language.Haskell.Liquid.Transforms.ANF
+      Language.Haskell.Liquid.Transforms.RefSplit
+      Language.Haskell.Liquid.Transforms.CoreToLogic
+      Language.Haskell.Liquid.Transforms.Rec
+      Language.Haskell.Liquid.Transforms.Simplify
+      Language.Haskell.Liquid.UX.Errors
+      Language.Haskell.Liquid.UX.Annotate
+      Language.Haskell.Liquid.UX.CTags
+      Language.Haskell.Liquid.UX.Config
+      Language.Haskell.Liquid.UX.CmdLine
+      Language.Haskell.Liquid.GHC.Misc
+      Language.Haskell.Liquid.GHC.Play
+      Language.Haskell.Liquid.GHC.TypeRep
+      Language.Haskell.Liquid.GHC.Resugar
+      Language.Haskell.Liquid.Misc
+      Language.Haskell.Liquid.Types.Variance
+      Language.Haskell.Liquid.Types.Bounds
+      Language.Haskell.Liquid.Types.Dictionaries
+      Language.Haskell.Liquid.Constraint.Qualifier
+      Language.Haskell.Liquid.UX.Tidy
+      Language.Haskell.Liquid.Types
+      Language.Haskell.Liquid.Types.Literals
+      Language.Haskell.Liquid.Types.Strata
+      Language.Haskell.Liquid.Types.Fresh
+      Language.Haskell.Liquid.Constraint.Fresh
+      Language.Haskell.Liquid.Types.Visitors
+      Language.Haskell.Liquid.WiredIn
+      Language.Haskell.Liquid.Types.Names
+      Language.Haskell.Liquid.Liquid
+      Language.Haskell.Liquid.Desugar.HscMain
+      Language.Haskell.Liquid.Desugar.Check
+      Language.Haskell.Liquid.Desugar.Coverage
+      Language.Haskell.Liquid.Desugar.Desugar
+      Language.Haskell.Liquid.Desugar.DsArrows
+      Language.Haskell.Liquid.Desugar.DsBinds
+      Language.Haskell.Liquid.Desugar.DsCCall
+      Language.Haskell.Liquid.Desugar.DsExpr
+      Language.Haskell.Liquid.Desugar.DsForeign
+      Language.Haskell.Liquid.Desugar.DsGRHSs
+      Language.Haskell.Liquid.Desugar.DsListComp
+      Language.Haskell.Liquid.Desugar.DsMeta
+      Language.Haskell.Liquid.Desugar.DsUtils
+      Language.Haskell.Liquid.Desugar.Match
+      Language.Haskell.Liquid.Desugar.MatchCon
+      Language.Haskell.Liquid.Desugar.MatchLit
+      Language.Haskell.Liquid.Desugar.DsMonad
+      Language.Haskell.Liquid.Desugar.StaticPtrTable
+      Language.Haskell.Liquid.Desugar.TmOracle
+      Paths_liquidhaskell
+      Language.Haskell.Liquid.Bare.Check
+      Language.Haskell.Liquid.Bare.DataType
+      Language.Haskell.Liquid.Bare.Env
+      Language.Haskell.Liquid.Bare.Expand
+      Language.Haskell.Liquid.Bare.Existential
+      Language.Haskell.Liquid.Bare.Lookup
+      Language.Haskell.Liquid.Bare.Axiom
+      Language.Haskell.Liquid.Bare.Measure
+      Language.Haskell.Liquid.Bare.Misc
+      Language.Haskell.Liquid.Bare.OfType
+      Language.Haskell.Liquid.Bare.Plugged
+      Language.Haskell.Liquid.Bare.ToBare
+      Language.Haskell.Liquid.Bare.Resolve
+      Language.Haskell.Liquid.Bare.RTEnv
+      Language.Haskell.Liquid.Bare.SymSort
+      Language.Haskell.Liquid.Bare.Spec
+      Language.Haskell.Liquid.Interactive.Types
+      Language.Haskell.Liquid.Interactive.Handler
+      Language.Haskell.Liquid.Model
+      Test.Target
+      Test.Target.Eval
+      Test.Target.Expr
+      Test.Target.Monad
+      Test.Target.Targetable
+      Test.Target.Targetable.Function
+      Test.Target.Testable
+      Test.Target.Types
+      Test.Target.Util
+      Gradual.Concretize
+      Gradual.Uniquify
+      Gradual.Types
+      Gradual.Refinements
+      Gradual.PrettyPrinting
+      Gradual.Misc
+      Gradual.Trivial
+      Gradual.GUI
+      Gradual.GUI.Annotate
+      Gradual.GUI.Types
+      Gradual.GUI.Misc
+  other-modules:
+      Gradual
+      Gradual.GUI.Names
+      Gradual.GUI.Render
+      Language.Haskell.Liquid.Desugar.DsUsage
+      Language.Haskell.Liquid.Desugar.PmExpr
+      Language.Haskell.Liquid.GHC
+      Language.Haskell.Liquid.Types.Annotations
+      Language.Haskell.Liquid.UX.Server
+      LHi
+      Liquid
+      Target
+      KMeansHelper
+      Language.Haskell.Liquid.Example
+      Language.Haskell.Liquid.NewProofCombinators
+      Language.Haskell.Liquid.String
+  default-language: Haskell2010
 
--- executable gradual
-  -- default-language: Haskell2010
-  -- main-is:        src/Gradual.hs
-  -- ghc-options: -W -threaded
-  -- if flag(devel)
-    -- ghc-options: -Werror
-  -- build-depends:  base >=4.8.1.0 && <5,
-                  -- liquidhaskell,
-                  -- liquid-fixpoint >= 0.7.0.5,
-                  -- hscolour,
-                  -- cmdargs
-
--- executable target
-  -- default-language: Haskell2010
-  -- main-is:        src/Target.hs
-  -- build-depends:  base >=4.8.1.0 && <5,
-                  -- hint,
-                  -- liquidhaskell
-
-Library
-   Default-Language: Haskell98
-   Build-Depends: base >=4.8.1.0 && <5
-                , ghc == 8.2.2
-                , ghc-boot == 8.2.2
-                , template-haskell >= 2.9
-                , time >= 1.4
-                , array >= 0.5
-                , hpc >= 0.6
-                , cmdargs >= 0.10
-                , time
-                , containers >= 0.5
-                , data-default >= 0.5
-                , deepseq >= 1.3
-                , directory >= 1.2
-                , Diff >= 0.3
-                , filepath >= 1.3
-                , ghc-paths >= 0.1
-                , hscolour >= 1.22
-                , mtl >= 2.1
-                , parsec >= 3.1
-                , pretty >= 1.1
-                , process >= 1.2
-                , syb >= 0.4.4
-                , text >= 1.2
-                , vector >= 0.10
-                , hashable >= 1.2
-                , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.7.0.7
-                , located-base
-                , aeson >= 1.2 && < 1.3
-                , bytestring >= 0.10
-                , fingertree >= 0.1
-                , Cabal >= 1.18
-                , bifunctors >= 5.1
-                , cereal
-                , binary
-                , temporary >= 1.2
-                , transformers >= 0.3
-                , text-format
-                , th-lift
-                , exceptions >= 0.6
-                , QuickCheck >= 2.7
-                , ghc-prim
-                , hpc >= 0.6
-                , gitrev
-                , optparse-simple
-
-   hs-source-dirs:  src, include
-   Exposed-Modules: LiquidHaskell,
-                    Language.Haskell.Liquid.Prelude,
-                    Language.Haskell.Liquid.Bag,
-                    Language.Haskell.Liquid.ProofCombinators,
-                    Language.Haskell.Liquid.Foreign,
-                    Language.Haskell.Liquid.List,
-                    Language.Haskell.Liquid.Bare,
-                    Language.Haskell.Liquid.Constraint.Constraint,
-                    Language.Haskell.Liquid.Constraint.Init,
-                    Language.Haskell.Liquid.Constraint.Monad,
-                    Language.Haskell.Liquid.Constraint.Env,
-                    Language.Haskell.Liquid.Constraint.Types,
-                    Language.Haskell.Liquid.Constraint.Split,
-                    Language.Haskell.Liquid.Constraint.Generate,
-                    Language.Haskell.Liquid.Constraint.ToFixpoint,
-                    Language.Haskell.Liquid.Measure,
-                    Language.Haskell.Liquid.Parse,
-                    Language.Haskell.Liquid.GHC.Interface,
-                    Language.Haskell.Liquid.GHC.SpanStack,
-                    Language.Haskell.Liquid.Types.RefType,
-                    Language.Haskell.Liquid.Types.Errors,
-                    Language.Haskell.Liquid.Types.PrettyPrint,
-                    Language.Haskell.Liquid.Types.Specifications,
-                    Language.Haskell.Liquid.Types.PredType,
-                    Language.Haskell.Liquid.Types.Meet,
-                    Language.Haskell.Liquid.UX.ACSS,
-                    Language.Haskell.Liquid.UX.DiffCheck,
-                    Language.Haskell.Liquid.UX.QuasiQuoter,
-                    Language.Haskell.Liquid.Transforms.Rewrite,
-                    Language.Haskell.Liquid.Transforms.ANF,
-                    Language.Haskell.Liquid.Transforms.RefSplit,
-                    Language.Haskell.Liquid.Transforms.CoreToLogic,
-                    Language.Haskell.Liquid.Transforms.Rec,
-                    Language.Haskell.Liquid.Transforms.Simplify,
-                    Language.Haskell.Liquid.UX.Errors,
-                    Language.Haskell.Liquid.UX.Annotate,
-                    Language.Haskell.Liquid.UX.CTags,
-                    Language.Haskell.Liquid.UX.Config,
-                    Language.Haskell.Liquid.UX.CmdLine,
-                    Language.Haskell.Liquid.GHC.Misc,
-                    Language.Haskell.Liquid.GHC.Play,
-                    Language.Haskell.Liquid.GHC.TypeRep,
-                    Language.Haskell.Liquid.GHC.Resugar,
-                    Language.Haskell.Liquid.Misc,
-                    Language.Haskell.Liquid.Types.Variance,
-                    Language.Haskell.Liquid.Types.Bounds,
-                    Language.Haskell.Liquid.Types.Dictionaries,
-                    Language.Haskell.Liquid.Constraint.Qualifier,
-                    Language.Haskell.Liquid.UX.Tidy,
-                    Language.Haskell.Liquid.Types,
-                    Language.Haskell.Liquid.Types.Literals,
-                    Language.Haskell.Liquid.Types.Strata,
-                    Language.Haskell.Liquid.Types.Fresh,
-                    Language.Haskell.Liquid.Constraint.Fresh,
-                    Language.Haskell.Liquid.Types.Visitors,
-                    Language.Haskell.Liquid.WiredIn,
-                    Language.Haskell.Liquid.Types.Names,
-                    Language.Haskell.Liquid.Liquid,
-
-                    Language.Haskell.Liquid.Desugar.HscMain,
-
-                    -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
-                    Language.Haskell.Liquid.Desugar.Check,
-                    Language.Haskell.Liquid.Desugar.Coverage,
-                    Language.Haskell.Liquid.Desugar.Desugar,
-                    Language.Haskell.Liquid.Desugar.DsArrows,
-                    Language.Haskell.Liquid.Desugar.DsBinds,
-                    Language.Haskell.Liquid.Desugar.DsCCall,
-                    Language.Haskell.Liquid.Desugar.DsExpr,
-                    Language.Haskell.Liquid.Desugar.DsForeign,
-                    Language.Haskell.Liquid.Desugar.DsGRHSs,
-                    Language.Haskell.Liquid.Desugar.DsListComp,
-                    Language.Haskell.Liquid.Desugar.DsMeta,
-                    Language.Haskell.Liquid.Desugar.DsUtils,
-                    Language.Haskell.Liquid.Desugar.Match,
-                    Language.Haskell.Liquid.Desugar.MatchCon,
-                    Language.Haskell.Liquid.Desugar.MatchLit,
-                    Language.Haskell.Liquid.Desugar.DsMonad,
-                    Language.Haskell.Liquid.Desugar.StaticPtrTable,
-                    Language.Haskell.Liquid.Desugar.TmOracle,
-                    Paths_liquidhaskell,
-
-                    -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
-                    Language.Haskell.Liquid.Bare.Check,
-                    Language.Haskell.Liquid.Bare.DataType,
-                    Language.Haskell.Liquid.Bare.Env,
-                    Language.Haskell.Liquid.Bare.Expand,
-                    Language.Haskell.Liquid.Bare.Existential,
-                    Language.Haskell.Liquid.Bare.Lookup,
-                    Language.Haskell.Liquid.Bare.Axiom,
-                    Language.Haskell.Liquid.Bare.Measure,
-                    Language.Haskell.Liquid.Bare.Misc,
-                    Language.Haskell.Liquid.Bare.OfType,
-                    Language.Haskell.Liquid.Bare.Plugged,
-                    Language.Haskell.Liquid.Bare.ToBare,
-                    Language.Haskell.Liquid.Bare.Resolve,
-                    Language.Haskell.Liquid.Bare.RTEnv,
-                    Language.Haskell.Liquid.Bare.SymSort,
-                    Language.Haskell.Liquid.Bare.Spec,
-                    Language.Haskell.Liquid.Interactive.Types,
-                    Language.Haskell.Liquid.Interactive.Handler,
-                    Language.Haskell.Liquid.Model,
-
-                    Test.Target,
-                    Test.Target.Eval,
-                    Test.Target.Expr,
-                    Test.Target.Monad,
-                    Test.Target.Targetable,
-                    Test.Target.Targetable.Function,
-                    Test.Target.Testable,
-                    Test.Target.Types,
-                    Test.Target.Util,
-
-                    Gradual.Concretize,
-                    Gradual.Uniquify,
-                    Gradual.Types,
-                    Gradual.Refinements,
-                    Gradual.PrettyPrinting,
-                    Gradual.Misc,
-                    Gradual.Trivial,
-                    Gradual.GUI,
-                    Gradual.GUI.Annotate,
-                    Gradual.GUI.Types,
-                    Gradual.GUI.Misc
-
-   ghc-options: -W -fwarn-missing-signatures
-   if flag(include)
-     hs-source-dirs: devel
-   if flag(devel)
-     ghc-options: -Werror
-   if flag(deterministic-profiling)
-     cpp-options: -DDETERMINISTIC_PROFILING
-   Default-Extensions: PatternGuards
-
-test-suite test
-  default-language: Haskell98
-  type:              exitcode-stdio-1.0
-  hs-source-dirs:    tests
-  ghc-options:       -W -threaded
---  if flag(devel)
---    ghc-options: -Werror
-  main-is:           test.hs
-  build-depends:     base >=4.8.1.0 && <5
-               ,     containers >= 0.5
-               ,     directory >= 1.2
-               ,     filepath >= 1.3
-               ,     mtl >= 2.1
-               ,     process >= 1.2
-               ,     optparse-applicative >= 0.11
-               ,     stm >= 2.4
-               ,     tagged >= 0.7.3
-               ,     tasty >= 0.10
-               ,     tasty-ant-xml
-               ,     tasty-hunit >= 0.9
-               ,     tasty-rerun >= 1.1
-               ,     transformers >= 0.3
-               ,     syb
-               ,     liquid-fixpoint >= 0.7.0.7
-               ,     hpc >= 0.6
-               ,     text
+executable liquid
+  main-is: src/Liquid.hs
+  default-extensions: PatternGuards
+  ghc-options: -W -threaded -fdefer-typed-holes
+  build-depends:
+      base >=4.8.1.0 && <5
+    , cmdargs
+    , deepseq
+    , ghc
+    , ghc-boot
+    , hpc >=0.6
+    , liquid-fixpoint >=0.7.0.7
+    , liquidhaskell
+    , located-base
+    , pretty
+    , process
+    , time
+  if flag(devel)
+    ghc-options: -Werror
+  other-modules:
+      Paths_liquidhaskell
+  default-language: Haskell2010
 
 test-suite liquidhaskell-parser
-  default-language: Haskell2010
   type: exitcode-stdio-1.0
-  hs-source-dirs: tests
-  ghc-options: -W
   main-is: Parser.hs
+  hs-source-dirs:
+      tests
+  ghc-options: -W -W
   build-depends:
-                     base >=4.8.1.0 && <5
-               ,     ghc-boot
-               ,     containers >= 0.5
-               ,     parsec
-               ,     tasty >= 0.10
-               ,     tasty-ant-xml
-               ,     tasty-hunit >= 0.9
-               ,     tasty-rerun >= 1.1
-               ,     text
-               ,     transformers >= 0.3
-               ,     syb
-               ,     liquid-fixpoint >= 0.7.0.7
-               ,     hpc >= 0.6
-
+      base >=4.8.1.0 && <5
+    , containers >=0.5
+    , ghc-boot
+    , hpc >=0.6
+    , liquid-fixpoint >=0.7.0.7
+    , parsec
+    , syb
+    , tasty >=0.10
+    , tasty-ant-xml
+    , tasty-hunit >=0.9
+    , tasty-rerun >=1.1
+    , text
+    , transformers >=0.3
   if flag(devel)
-    hs-source-dirs:   tests src
+    hs-source-dirs:
+        tests
+        src
     build-depends:
-                  aeson
-                , binary
-                , bytestring
-                , cereal
-                , cmdargs >= 0.10
-                , data-default >= 0.5
-                , deepseq
-                , directory >= 1.2
-                , filepath >= 1.3
-                , mtl >= 2.1
-                , ghc
-                , ghc-boot
-                , hashable >= 1.2
-                , liquid-fixpoint >= 0.7.0.7
-                , pretty
-                , syb >= 0.4.4
-                , time
-                , unordered-containers >= 0.2
-                , template-haskell
-                , hpc >= 0.6
-
+        aeson
+      , binary
+      , bytestring
+      , cereal
+      , cmdargs >=0.10
+      , data-default >=0.5
+      , deepseq
+      , directory >=1.2
+      , filepath >=1.3
+      , ghc
+      , ghc-boot
+      , hashable >=1.2
+      , hpc >=0.6
+      , liquid-fixpoint >=0.7.0.7
+      , mtl >=2.1
+      , pretty
+      , syb >=0.4.4
+      , template-haskell
+      , time
+      , unordered-containers >=0.2
   else
-    build-depends: liquidhaskell
-                 , base >= 4 && < 5
-                 , ghc
-                 , ghc-boot
-                 , array >= 0.5
-                 , time >= 1.4
-                 , directory >= 1.2
-                 , hpc >= 0.6
-                 , containers >= 0.5
-                 , template-haskell >= 2.9
-                 , bytestring
+    build-depends:
+        array >=0.5
+      , base >=4 && <5
+      , bytestring
+      , containers >=0.5
+      , directory >=1.2
+      , ghc
+      , ghc-boot
+      , hpc >=0.6
+      , liquidhaskell
+      , template-haskell >=2.9
+      , time >=1.4
+  other-modules:
+      TestCommits
+      Paths_liquidhaskell
+  default-language: Haskell2010
+
+test-suite test
+  type: exitcode-stdio-1.0
+  main-is: test.hs
+  hs-source-dirs:
+      tests
+  ghc-options: -W -threaded
+  build-depends:
+      base >=4.8.1.0 && <5
+    , containers >=0.5
+    , directory >=1.2
+    , filepath >=1.3
+    , hpc >=0.6
+    , liquid-fixpoint >=0.7.0.7
+    , mtl >=2.1
+    , optparse-applicative >=0.11
+    , process >=1.2
+    , stm >=2.4
+    , syb
+    , tagged >=0.7.3
+    , tasty >=0.10
+    , tasty-ant-xml
+    , tasty-hunit >=0.9
+    , tasty-rerun >=1.1
+    , text
+    , transformers >=0.3
+  other-modules:
+      Parser
+      TestCommits
+      Paths_liquidhaskell
+  default-language: Haskell2010
