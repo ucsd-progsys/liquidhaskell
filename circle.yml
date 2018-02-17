@@ -49,7 +49,7 @@ test:
     # - stack exec -- cabal check
     - stack sdist
   post:
-    # - stack haddock liquidhaskell --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
+    - stack haddock liquidhaskell --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
     # - cp -r dist/doc $CIRCLE_ARTIFACTS
     - mkdir -p $CIRCLE_TEST_REPORTS/tasty
     - cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log

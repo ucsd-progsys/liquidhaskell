@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.8.2.3
+Version:             0.8.2.4
 Copyright:           2010-17 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 Synopsis:            Liquid Types for Haskell
 Description:         Liquid Types for Haskell.
