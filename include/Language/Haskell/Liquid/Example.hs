@@ -1,9 +1,9 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--higherorder"     @-}
 
-module ListExample where
+module Language.Haskell.Liquid.Example where
 
-import NewProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 import Prelude hiding ((++))
 
@@ -51,7 +51,7 @@ leftId (C x xs)
 
 {-@ assoc :: x:L a -> y:L a -> z:L a->  { (x ++ y) ++ z = x ++ (y ++ z) } @-}
 assoc :: L a -> L a -> L a -> Proof
-assoc N y z
+assoc N _ _
   =   ()
   *** Admit                  -- Give up. Replace with QED to see ERROR.
 

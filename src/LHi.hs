@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE OverloadedStrings #-}
 
+module LHi where 
+
 import           System.Environment      (getArgs)
 import           System.Daemon
 import           Control.Concurrent.MVar ( newMVar )

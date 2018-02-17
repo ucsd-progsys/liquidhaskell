@@ -1,10 +1,10 @@
 module KMeansHelper where
 
 import Prelude hiding (zipWith)
-import Data.List (sort, span, minimumBy)
-import Data.Function (on)
-import Data.Ord (comparing)
-import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
+import Data.List (span)
+-- import Data.Function (on)
+-- import Data.Ord (comparing)
+import Language.Haskell.Liquid.Prelude (liquidError)
 
 
 -- | Fixed-Length Lists
@@ -18,7 +18,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 
 {-@ type NonEmptyList a = {v : [a] | (len v) > 0} @-}
 
--- | Clustering 
+-- | Clustering
 
 {-@ type Clustering a  = [(NonEmptyList a)] @-}
 
@@ -27,6 +27,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssert, liquidError)
 ------------------------------------------------------------------
 
 {-@ groupBy       :: (a -> a -> Bool) -> [a] -> (Clustering a) @-}
+groupBy :: (a -> a -> Bool) -> [a] -> [[a]]
 groupBy _  []     =  []
 groupBy eq (x:xs) =  (x:ys) : groupBy eq zs
   where (ys,zs)   = span (eq x) xs
@@ -38,8 +39,8 @@ groupBy eq (x:xs) =  (x:ys) : groupBy eq zs
 {-@ type PosInt = {v: Int | v > 0 } @-}
 
 {-@ partition           :: size:PosInt -> [a] -> (Clustering a) @-}
-
-partition size []       = []
+partition :: Int -> [a] -> [[a]]
+partition _    []       = []
 partition size ys@(_:_) = zs : partition size zs'
   where
     zs                  = take size ys
@@ -50,6 +51,7 @@ partition size ys@(_:_) = zs : partition size zs'
 -----------------------------------------------------------------------
 
 {-@ zipWith :: (a -> b -> c) -> xs:[a] -> (List b (len xs)) -> (List c (len xs)) @-}
+zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWith f (a:as) (b:bs) = f a b : zipWith f as bs
 zipWith _ [] []         = []
 
@@ -73,6 +75,5 @@ transpose c r ((x:xs) : xss) = (x : map head xss) : transpose (c-1) r (xs : map 
 -- transpose c r ((x:xs):xss) = (x : [ xs' | (x':_) <- xss ]) : transpose (c-1) r (xs : [xs' | (_ : xs') <- xss])
 
 -- Not needed, just for exposition
-transpose c r ([] : _)       = liquidError "dead code"
-transpose c r []             = liquidError "dead code"
-
+transpose _ _ ([] : _)       = liquidError "dead code"
+transpose _ _ []             = liquidError "dead code"

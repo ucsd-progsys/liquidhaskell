@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.Desugar.Desugar (
     deSugar, deSugarExpr
     ) where
 
-import DsUsage
+import Language.Haskell.Liquid.Desugar.DsUsage
 import DynFlags
 import HscTypes
 import HsSyn

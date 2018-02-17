@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 
-module DsUsage (
+module Language.Haskell.Liquid.Desugar.DsUsage (
     -- * Dependency/fingerprinting code (used by MkIface)
     mkUsageInfo, mkUsedNames, mkDependencies
     ) where

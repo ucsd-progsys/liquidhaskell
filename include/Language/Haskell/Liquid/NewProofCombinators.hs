@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.NewProofCombinators (
   , (==?) -- proof of equality is explicit eg. x ==? y ? p
   , (=<=) -- proof of equality is implicit eg. x <= y
   , (=<=?) -- proof of equality is explicit eg. x <= y
-  , (=>=)  -- proof of equality is implicit eg. x =>= y 
+  , (=>=)  -- proof of equality is implicit eg. x =>= y
   , (=>=?) -- proof of equality is explicit eg. x =>=? y ? p
 
 
@@ -34,8 +34,8 @@ module Language.Haskell.Liquid.NewProofCombinators (
 
   -- * Combining Proofs
   , (&&&)
-  , withProof 
-  , impossible 
+  , withProof
+  , impossible
 
 
 ) where
@@ -197,18 +197,15 @@ x &&& _ = x
 
 {-@ withProof :: x:a -> b -> {v:a | v = x} @-}
 withProof :: a -> b -> a
-withProof x y = x
+withProof x _y = x
 
 {-@ impossible :: {v:a | false} -> b @-}
 impossible :: a -> b
 impossible _ = undefined
 
 -------------------------------------------------------------------------------
--- | Convenient Syntax for Inductive Propositions 
+-- | Convenient Syntax for Inductive Propositions
 -------------------------------------------------------------------------------
 
 {-@ measure prop :: a -> b           @-}
 {-@ type Prop E = {v:_ | prop v = E} @-}
-
-
-

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b1d0cc4e3f754b9b26e2215a21058b9519beac90e65ace7c02cd97b7ba0c0e68
+-- hash: f8a178df42bcd114afc0075ae904677b7f1473afac965e6722b7fb1680d649c5
 
 name:           liquidhaskell
 version:        0.8.2.3
@@ -1003,65 +1003,46 @@ library
   if flag(deterministic-profiling)
     cpp-options: -DDETERMINISTIC_PROFILING
   exposed-modules:
-      LiquidHaskell
-      Language.Haskell.Liquid.Prelude
-      Language.Haskell.Liquid.Bag
-      Language.Haskell.Liquid.ProofCombinators
-      Language.Haskell.Liquid.Foreign
-      Language.Haskell.Liquid.List
+      Gradual
+      Gradual.Concretize
+      Gradual.GUI
+      Gradual.GUI.Annotate
+      Gradual.GUI.Misc
+      Gradual.GUI.Names
+      Gradual.GUI.Types
+      Gradual.Misc
+      Gradual.PrettyPrinting
+      Gradual.Refinements
+      Gradual.Trivial
+      Gradual.Types
+      Gradual.Uniquify
       Language.Haskell.Liquid.Bare
+      Language.Haskell.Liquid.Bare.Axiom
+      Language.Haskell.Liquid.Bare.Check
+      Language.Haskell.Liquid.Bare.DataType
+      Language.Haskell.Liquid.Bare.Env
+      Language.Haskell.Liquid.Bare.Existential
+      Language.Haskell.Liquid.Bare.Expand
+      Language.Haskell.Liquid.Bare.Lookup
+      Language.Haskell.Liquid.Bare.Measure
+      Language.Haskell.Liquid.Bare.Misc
+      Language.Haskell.Liquid.Bare.OfType
+      Language.Haskell.Liquid.Bare.Plugged
+      Language.Haskell.Liquid.Bare.Resolve
+      Language.Haskell.Liquid.Bare.RTEnv
+      Language.Haskell.Liquid.Bare.Spec
+      Language.Haskell.Liquid.Bare.SymSort
+      Language.Haskell.Liquid.Bare.ToBare
       Language.Haskell.Liquid.Constraint.Constraint
+      Language.Haskell.Liquid.Constraint.Env
+      Language.Haskell.Liquid.Constraint.Fresh
+      Language.Haskell.Liquid.Constraint.Generate
       Language.Haskell.Liquid.Constraint.Init
       Language.Haskell.Liquid.Constraint.Monad
-      Language.Haskell.Liquid.Constraint.Env
-      Language.Haskell.Liquid.Constraint.Types
-      Language.Haskell.Liquid.Constraint.Split
-      Language.Haskell.Liquid.Constraint.Generate
-      Language.Haskell.Liquid.Constraint.ToFixpoint
-      Language.Haskell.Liquid.Measure
-      Language.Haskell.Liquid.Parse
-      Language.Haskell.Liquid.GHC.Interface
-      Language.Haskell.Liquid.GHC.SpanStack
-      Language.Haskell.Liquid.Types.RefType
-      Language.Haskell.Liquid.Types.Errors
-      Language.Haskell.Liquid.Types.PrettyPrint
-      Language.Haskell.Liquid.Types.Specifications
-      Language.Haskell.Liquid.Types.PredType
-      Language.Haskell.Liquid.Types.Meet
-      Language.Haskell.Liquid.UX.ACSS
-      Language.Haskell.Liquid.UX.DiffCheck
-      Language.Haskell.Liquid.UX.QuasiQuoter
-      Language.Haskell.Liquid.Transforms.Rewrite
-      Language.Haskell.Liquid.Transforms.ANF
-      Language.Haskell.Liquid.Transforms.RefSplit
-      Language.Haskell.Liquid.Transforms.CoreToLogic
-      Language.Haskell.Liquid.Transforms.Rec
-      Language.Haskell.Liquid.Transforms.Simplify
-      Language.Haskell.Liquid.UX.Errors
-      Language.Haskell.Liquid.UX.Annotate
-      Language.Haskell.Liquid.UX.CTags
-      Language.Haskell.Liquid.UX.Config
-      Language.Haskell.Liquid.UX.CmdLine
-      Language.Haskell.Liquid.GHC.Misc
-      Language.Haskell.Liquid.GHC.Play
-      Language.Haskell.Liquid.GHC.TypeRep
-      Language.Haskell.Liquid.GHC.Resugar
-      Language.Haskell.Liquid.Misc
-      Language.Haskell.Liquid.Types.Variance
-      Language.Haskell.Liquid.Types.Bounds
-      Language.Haskell.Liquid.Types.Dictionaries
       Language.Haskell.Liquid.Constraint.Qualifier
-      Language.Haskell.Liquid.UX.Tidy
-      Language.Haskell.Liquid.Types
-      Language.Haskell.Liquid.Types.Literals
-      Language.Haskell.Liquid.Types.Strata
-      Language.Haskell.Liquid.Types.Fresh
-      Language.Haskell.Liquid.Constraint.Fresh
-      Language.Haskell.Liquid.Types.Visitors
-      Language.Haskell.Liquid.WiredIn
-      Language.Haskell.Liquid.Types.Names
-      Language.Haskell.Liquid.Liquid
-      Language.Haskell.Liquid.Desugar.HscMain
+      Language.Haskell.Liquid.Constraint.Split
+      Language.Haskell.Liquid.Constraint.ToFixpoint
+      Language.Haskell.Liquid.Constraint.Types
       Language.Haskell.Liquid.Desugar.Check
       Language.Haskell.Liquid.Desugar.Coverage
       Language.Haskell.Liquid.Desugar.Desugar
@@ -1073,33 +1054,66 @@ library
       Language.Haskell.Liquid.Desugar.DsGRHSs
       Language.Haskell.Liquid.Desugar.DsListComp
       Language.Haskell.Liquid.Desugar.DsMeta
+      Language.Haskell.Liquid.Desugar.DsMonad
+      Language.Haskell.Liquid.Desugar.DsUsage
       Language.Haskell.Liquid.Desugar.DsUtils
+      Language.Haskell.Liquid.Desugar.HscMain
       Language.Haskell.Liquid.Desugar.Match
       Language.Haskell.Liquid.Desugar.MatchCon
       Language.Haskell.Liquid.Desugar.MatchLit
-      Language.Haskell.Liquid.Desugar.DsMonad
+      Language.Haskell.Liquid.Desugar.PmExpr
       Language.Haskell.Liquid.Desugar.StaticPtrTable
       Language.Haskell.Liquid.Desugar.TmOracle
-      Paths_liquidhaskell
-      Language.Haskell.Liquid.Bare.Check
-      Language.Haskell.Liquid.Bare.DataType
-      Language.Haskell.Liquid.Bare.Env
-      Language.Haskell.Liquid.Bare.Expand
-      Language.Haskell.Liquid.Bare.Existential
-      Language.Haskell.Liquid.Bare.Lookup
-      Language.Haskell.Liquid.Bare.Axiom
-      Language.Haskell.Liquid.Bare.Measure
-      Language.Haskell.Liquid.Bare.Misc
-      Language.Haskell.Liquid.Bare.OfType
-      Language.Haskell.Liquid.Bare.Plugged
-      Language.Haskell.Liquid.Bare.ToBare
-      Language.Haskell.Liquid.Bare.Resolve
-      Language.Haskell.Liquid.Bare.RTEnv
-      Language.Haskell.Liquid.Bare.SymSort
-      Language.Haskell.Liquid.Bare.Spec
-      Language.Haskell.Liquid.Interactive.Types
+      Language.Haskell.Liquid.GHC
+      Language.Haskell.Liquid.GHC.Interface
+      Language.Haskell.Liquid.GHC.Misc
+      Language.Haskell.Liquid.GHC.Play
+      Language.Haskell.Liquid.GHC.Resugar
+      Language.Haskell.Liquid.GHC.SpanStack
+      Language.Haskell.Liquid.GHC.TypeRep
       Language.Haskell.Liquid.Interactive.Handler
+      Language.Haskell.Liquid.Interactive.Types
+      Language.Haskell.Liquid.Liquid
+      Language.Haskell.Liquid.Measure
+      Language.Haskell.Liquid.Misc
       Language.Haskell.Liquid.Model
+      Language.Haskell.Liquid.Parse
+      Language.Haskell.Liquid.Transforms.ANF
+      Language.Haskell.Liquid.Transforms.CoreToLogic
+      Language.Haskell.Liquid.Transforms.Rec
+      Language.Haskell.Liquid.Transforms.RefSplit
+      Language.Haskell.Liquid.Transforms.Rewrite
+      Language.Haskell.Liquid.Transforms.Simplify
+      Language.Haskell.Liquid.Types
+      Language.Haskell.Liquid.Types.Bounds
+      Language.Haskell.Liquid.Types.Dictionaries
+      Language.Haskell.Liquid.Types.Errors
+      Language.Haskell.Liquid.Types.Fresh
+      Language.Haskell.Liquid.Types.Literals
+      Language.Haskell.Liquid.Types.Meet
+      Language.Haskell.Liquid.Types.Names
+      Language.Haskell.Liquid.Types.PredType
+      Language.Haskell.Liquid.Types.PrettyPrint
+      Language.Haskell.Liquid.Types.RefType
+      Language.Haskell.Liquid.Types.Specifications
+      Language.Haskell.Liquid.Types.Strata
+      Language.Haskell.Liquid.Types.Variance
+      Language.Haskell.Liquid.Types.Visitors
+      Language.Haskell.Liquid.UX.ACSS
+      Language.Haskell.Liquid.UX.Annotate
+      Language.Haskell.Liquid.UX.CmdLine
+      Language.Haskell.Liquid.UX.Config
+      Language.Haskell.Liquid.UX.CTags
+      Language.Haskell.Liquid.UX.DiffCheck
+      Language.Haskell.Liquid.UX.Errors
+      Language.Haskell.Liquid.UX.QuasiQuoter
+      Language.Haskell.Liquid.UX.Server
+      Language.Haskell.Liquid.UX.Tidy
+      Language.Haskell.Liquid.WiredIn
+      LHi
+      Liquid
+      LiquidHaskell
+      Target
       Test.Target
       Test.Target.Eval
       Test.Target.Expr
@@ -1109,33 +1123,17 @@ library
       Test.Target.Testable
       Test.Target.Types
       Test.Target.Util
-      Gradual.Concretize
-      Gradual.Uniquify
-      Gradual.Types
-      Gradual.Refinements
-      Gradual.PrettyPrinting
-      Gradual.Misc
-      Gradual.Trivial
-      Gradual.GUI
-      Gradual.GUI.Annotate
-      Gradual.GUI.Types
-      Gradual.GUI.Misc
-  other-modules:
-      Gradual
-      Gradual.GUI.Names
-      Gradual.GUI.Render
-      Language.Haskell.Liquid.Desugar.DsUsage
-      Language.Haskell.Liquid.Desugar.PmExpr
-      Language.Haskell.Liquid.GHC
-      Language.Haskell.Liquid.Types.Annotations
-      Language.Haskell.Liquid.UX.Server
-      LHi
-      Liquid
-      Target
       KMeansHelper
+      Language.Haskell.Liquid.Bag
       Language.Haskell.Liquid.Example
+      Language.Haskell.Liquid.Foreign
+      Language.Haskell.Liquid.List
       Language.Haskell.Liquid.NewProofCombinators
+      Language.Haskell.Liquid.Prelude
+      Language.Haskell.Liquid.ProofCombinators
       Language.Haskell.Liquid.String
+  other-modules:
+      Paths_liquidhaskell
   default-language: Haskell2010
 
 executable liquid
