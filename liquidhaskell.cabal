@@ -234,7 +234,7 @@ Library
                     Language.Haskell.Liquid.Desugar.MatchLit,
                     Language.Haskell.Liquid.Desugar.DsMonad,
                     Language.Haskell.Liquid.Desugar.StaticPtrTable,
-                    Language.Haskell.Liquid.Desugar.TmOracle
+                    Language.Haskell.Liquid.Desugar.TmOracle,
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
