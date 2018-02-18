@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d2ee3a083da32870465f1df79bae8cff7031973c83dc9cda294bdefdedc37d2c
+-- hash: 04c849e9fa0da6dc9fd0d0986f94d81258733bac3aa983a2106ebc61ffc2f3bb
 
 name:           liquidhaskell
-version:        0.8.2.3
+version:        0.8.2.4
 synopsis:       Liquid Types for Haskell
 description:    Liquid Types for Haskell.
 category:       Language
