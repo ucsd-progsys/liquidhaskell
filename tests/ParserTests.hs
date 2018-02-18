@@ -22,7 +22,7 @@ import qualified Language.Haskell.Liquid.Parse as LH
 import           Text.Parsec.Pos
 import           Test.Tasty
 import           Test.Tasty.HUnit
-import           Test.Tasty.Runners.AntXML
+-- import           Test.Tasty.Runners.AntXML
 
 -- ---------------------------------------------------------------------
 
@@ -508,8 +508,8 @@ parseSingleSpec src =
     Left err  -> show err
     Right res -> show $ dummyLocs res
 
-gadtSpec :: String
-gadtSpec = unlines
+_gadtSpec :: String
+_gadtSpec = unlines
   [ "data Ev where"
   , "   EZ  :: {v:Ev | prop v = Ev Z}"
   , " | ESS :: n:Peano -> {v:Ev | prop v = Ev n} -> {v:Ev | prop v = Ev (S (S n)) }"

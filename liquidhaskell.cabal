@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: b81bf6c9b7c9a47ad2674470ee215b846024897c5114da77211851f9869b94dd
+-- hash: d2ee3a083da32870465f1df79bae8cff7031973c83dc9cda294bdefdedc37d2c
 
 name:           liquidhaskell
 version:        0.8.2.3
@@ -1141,6 +1141,7 @@ executable gradual
     , hpc >=0.6
     , liquid-fixpoint >=0.7.0.7
     , liquidhaskell
+    , parsec
     , time >=1.4
   other-modules:
       Paths_liquidhaskell
@@ -1160,6 +1161,7 @@ executable liquid
     , liquid-fixpoint >=0.7.0.7
     , liquidhaskell
     , located-base
+    , parsec
     , pretty
     , process
     , time >=1.4
@@ -1179,6 +1181,7 @@ executable target
     , hpc >=0.6
     , liquid-fixpoint >=0.7.0.7
     , liquidhaskell
+    , parsec
     , time >=1.4
   other-modules:
       Paths_liquidhaskell
@@ -1186,7 +1189,9 @@ executable target
 
 test-suite test
   type: exitcode-stdio-1.0
-  main-is: tests/test.hs
+  main-is: test.hs
+  hs-source-dirs:
+      tests
   ghc-options: -W -threaded
   build-depends:
       base >=4.8.1.0 && <5
@@ -1196,8 +1201,10 @@ test-suite test
     , filepath >=1.3
     , hpc >=0.6
     , liquid-fixpoint >=0.7.0.7
+    , liquidhaskell
     , mtl >=2.1
     , optparse-applicative >=0.11
+    , parsec
     , process >=1.2
     , stm >=2.4
     , syb
@@ -1210,5 +1217,6 @@ test-suite test
     , time >=1.4
     , transformers >=0.3
   other-modules:
+      ParserTests
       Paths_liquidhaskell
   default-language: Haskell2010
