@@ -15,6 +15,6 @@ extra-deps:
 
 flags:
   liquidhaskell:
-    devel: false 
+    devel: true 
 
 extra-package-dbs: []
