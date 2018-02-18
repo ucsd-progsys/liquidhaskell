@@ -69,7 +69,7 @@ hsSpecificationP :: ModuleName
 -------------------------------------------------------------------------------
 -- hsSpecificationP _ [] _ = Left [ErrParseAnn noSrcSpan (text "Malformed annotation")]
 hsSpecificationP modName specComments specQuotes =
-  case go ([], []) initPState $ reverse specComments of
+  case go ([], []) initPStateWithList $ reverse specComments of
     ([], specs) ->
       Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
     (errs, _) ->
@@ -84,10 +84,16 @@ hsSpecificationP modName specComments specQuotes =
 
 -- | Used to parse .spec files
 
+initPStateWithList :: PState
+initPStateWithList 
+  = initPState { empList  = Just (EVar ("GHC.Types.[]" :: Symbol))
+               , singList = Just (\e -> EApp (EApp (EVar ("GHC.Types.:"  :: Symbol)) e) (EVar ("GHC.Types.[]" :: Symbol)))
+               }
+
 --------------------------------------------------------------------------
 specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
 --------------------------------------------------------------------------
-specSpecificationP f s = mapRight snd $  parseWithError initPState specificationP (newPos f 1 1) s
+specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList specificationP (newPos f 1 1) s
 
 specificationP :: Parser (ModName, Measure.BareSpec)
 specificationP
@@ -101,7 +107,7 @@ specificationP
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either Error BPspec
 -------------------------------------------------------------------------------
-singleSpecP pos = mapRight snd . parseWithError initPState specP pos
+singleSpecP pos = mapRight snd . parseWithError initPStateWithList specP pos
 
 mapRight :: (a -> b) -> Either l a -> Either l b
 mapRight f (Right x) = Right $ f x
@@ -158,7 +164,7 @@ remLineCol pos src rem = (line + offLine, col + offCol)
 --------------------------------------------------------------------------------
 
 parseSymbolToLogic :: SourceName -> String -> Either Error LogicMap
-parseSymbolToLogic f = mapRight snd . parseWithError initPState toLogicP (newPos f 1 1)
+parseSymbolToLogic f = mapRight snd . parseWithError initPStateWithList toLogicP (newPos f 1 1)
 
 toLogicP :: Parser LogicMap
 toLogicP
