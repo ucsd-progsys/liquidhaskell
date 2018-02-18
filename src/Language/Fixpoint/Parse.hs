@@ -71,7 +71,7 @@ module Language.Fixpoint.Parse (
   , isSmall
   , isNotReserved
 
-  , initPState, PState
+  , initPState, PState (..)
 
   , Fixity(..), Assoc(..), addOperatorP
 
@@ -108,7 +108,9 @@ import Control.Monad.State
 type Parser = ParsecT String Integer (State PState)
 type ParserT u a = ParsecT String u (State PState) a
 
-data PState = PState {fixityTable :: OpTable}
+data PState = PState { fixityTable :: OpTable
+                     , empList     :: Maybe Expr
+                     , singList    :: Maybe (Expr -> Expr)}
 
 
 --------------------------------------------------------------------
@@ -360,9 +362,24 @@ expr0P
  <|> lamP
   -- TODO:AZ get rid of these try, after the rest
  <|> try (parens exprP)
+ <|> (reserved "[]" >> emptyListP)
+ <|> try (brackets exprP >>= singletonListP) 
  <|> try (parens exprCastP)
  <|> (charsExpr <$> symCharsP)
-  where
+
+emptyListP :: Parser Expr
+emptyListP = do 
+  e <- empList <$> get 
+  case e of 
+    Nothing -> fail "No parsing support for empty lists"
+    Just s  -> return s 
+
+singletonListP :: Expr -> Parser Expr 
+singletonListP e = do 
+  f <- singList <$> get
+  case f of 
+    Nothing -> fail "No parsing support for singleton lists"
+    Just s  -> return $ s e 
 
 exprCastP :: Parser Expr
 exprCastP
@@ -914,7 +931,7 @@ remainderP p
 
 
 initPState :: PState
-initPState = PState {fixityTable = bops}
+initPState = PState {fixityTable = bops, empList = Nothing, singList = Nothing}
 
 doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
