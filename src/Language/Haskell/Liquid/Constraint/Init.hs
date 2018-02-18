@@ -69,7 +69,7 @@ initEnv info
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makedcs dcsty                       -- data constructors
-       f2       <- (refreshArgs' $ assm info)                           -- assumed refinements      (for imported vars)
+       f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals gsAsmSigs sp                   -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors sp)   -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs sp                    -- internal refinements     (from Haskell measures)
@@ -85,7 +85,7 @@ initEnv info
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let γ0    = measEnv sp (head bs) (cbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 [("initEnv", x, y) | (x, y) <- concat $ tail bs]
+       γ  <- globalize <$> foldM (+=) γ0 (  [("initEnv", x, y) | (x, y) <- concat $ tail bs])
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = spec info

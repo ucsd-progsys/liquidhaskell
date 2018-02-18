@@ -6,7 +6,7 @@
 @DsMonad@: monadery used in desugaring
 -}
 
-{-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}  -- instance MonadThings is necessarily an orphan
 
 module Language.Haskell.Liquid.Desugar.DsMonad (
@@ -85,6 +85,9 @@ import Maybes
 import Var (EvVar)
 import qualified GHC.LanguageExtensions as LangExt
 import UniqFM ( lookupWithDefaultUFM )
+#ifdef DETERMINISTIC_PROFILING
+import CostCentreState
+#endif
 
 import Data.IORef
 import Control.Monad
@@ -176,6 +179,9 @@ mkDsEnvsFromTcGbl :: MonadIO m
                   -> m (DsGblEnv, DsLclEnv)
 mkDsEnvsFromTcGbl hsc_env msg_var tcg_env
   = do { pm_iter_var <- liftIO $ newIORef 0
+#ifdef DETERMINISTIC_PROFILING
+       ; cc_st_var   <- liftIO $ newIORef newCostCentreState
+#endif
        ; let dflags   = hsc_dflags hsc_env
              this_mod = tcg_mod tcg_env
              type_env = tcg_type_env tcg_env
@@ -184,7 +190,11 @@ mkDsEnvsFromTcGbl hsc_env msg_var tcg_env
              complete_matches = hptCompleteSigs hsc_env
                                 ++ tcg_complete_matches tcg_env
        ; return $ mkDsEnvs dflags this_mod rdr_env type_env fam_inst_env
+#ifdef DETERMINISTIC_PROFILING
+                           msg_var pm_iter_var cc_st_var complete_matches
+#else
                            msg_var pm_iter_var complete_matches
+#endif
        }
 
 runDs :: HscEnv -> (DsGblEnv, DsLclEnv) -> DsM a -> IO (Messages, Maybe a)
@@ -204,6 +214,9 @@ runDs hsc_env (ds_gbl, ds_lcl) thing_inside
 initDsWithModGuts :: HscEnv -> ModGuts -> DsM a -> IO (Messages, Maybe a)
 initDsWithModGuts hsc_env guts thing_inside
   = do { pm_iter_var <- newIORef 0
+#ifdef DETERMINISTIC_PROFILING
+       ; cc_st_var   <- newIORef newCostCentreState
+#endif
        ; msg_var <- newIORef emptyMessages
        ; let dflags   = hsc_dflags hsc_env
              type_env = typeEnvFromEntities ids (mg_tcs guts) (mg_fam_insts guts)
@@ -219,7 +232,11 @@ initDsWithModGuts hsc_env guts thing_inside
 
              envs  = mkDsEnvs dflags this_mod rdr_env type_env
                               fam_inst_env msg_var pm_iter_var
+#ifdef DETERMINISTIC_PROFILING
+                              cc_st_var complete_matches
+#else
                               complete_matches
+#endif
        ; runDs hsc_env envs thing_inside
        }
 
@@ -247,9 +264,15 @@ initTcDsForSolver thing_inside
          thing_inside }
 
 mkDsEnvs :: DynFlags -> Module -> GlobalRdrEnv -> TypeEnv -> FamInstEnv
+#ifdef DETERMINISTIC_PROFILING
+         -> IORef Messages -> IORef Int -> IORef CostCentreState
+         -> [CompleteMatch] -> (DsGblEnv, DsLclEnv)
+mkDsEnvs dflags mod rdr_env type_env fam_inst_env msg_var pmvar cc_st_var
+#else
          -> IORef Messages -> IORef Int -> [CompleteMatch]
          -> (DsGblEnv, DsLclEnv)
 mkDsEnvs dflags mod rdr_env type_env fam_inst_env msg_var pmvar
+#endif
          complete_matches
   = let if_genv = IfGblEnv { if_doc       = text "mkDsEnvs",
                              if_rec_types = Just (mod, return type_env) }
@@ -265,6 +288,9 @@ mkDsEnvs dflags mod rdr_env type_env fam_inst_env msg_var pmvar
                            , ds_dph_env = emptyGlobalRdrEnv
                            , ds_parr_bi = panic "DsMonad: uninitialised ds_parr_bi"
                            , ds_complete_matches = completeMatchMap
+#ifdef DETERMINISTIC_PROFILING
+                           , ds_cc_st   = cc_st_var
+#endif
                            }
         lcl_env = DsLclEnv { dsl_meta    = emptyNameEnv
                            , dsl_loc     = real_span

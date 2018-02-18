@@ -25,7 +25,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Var
 import           Coercion
 import qualified Pair
-
+-- import qualified Text.Printf as Printf
 import qualified CoreSyn                               as C
 import           Literal
 import           IdInfo
@@ -243,7 +243,7 @@ coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
   | Pair.Pair s t <- {- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $ -}
                        coercionKind co
-  = (s, t) 
+  = (s, t)
 
 typeEqToLg :: (Type, Type) -> LogicM (Sort, Sort)
 typeEqToLg (s, t) = do
@@ -270,33 +270,38 @@ casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
 casesToLg v e alts
   = mapM (altToLg e) alts >>= go
   where
-    go :: [(DataCon, Expr)] -> LogicM Expr
+    go :: [(C.AltCon, Expr)] -> LogicM Expr
     go [(_,p)]     = return (p `subst1` su)
-    go ((d,p):dps) = do c <- checkDataCon d e
+    go ((d,p):dps) = do c <- checkDataAlt d e
                         e' <- go dps
                         return (EIte c p e' `subst1` su)
     go []          = throw "Bah"
+    su             = (symbol v, e)
 
-    su = (symbol v, e)
+checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
+checkDataAlt (C.DataAlt d) e = return $ EApp (EVar (makeDataConChecker d)) e
+checkDataAlt C.DEFAULT     _ = return PTrue
+checkDataAlt (C.LitAlt _)  _ = throw "Oops, not yet handled: checkDataAlt on Lit"
 
-checkDataCon :: DataCon -> Expr -> LogicM Expr
-checkDataCon d e
-  = return $ EApp (EVar $ makeDataConChecker d) e
-
-altToLg :: Expr -> C.CoreAlt -> LogicM (DataCon, Expr)
-altToLg de (C.DataAlt d, xs, e)
+altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
+altToLg de (a@(C.DataAlt d), xs, e)
   = do p  <- coreToLg e
        dm <- gets lsDCMap
        let su = mkSubst $ concat [ f dm x i | (x, i) <- zip xs [1..]]
-       return (d, subst su p)
+       return (a, subst su p)
   where
     f dm x i = let t = EApp (EVar $ makeDataConSelector (Just dm) d i) de
                in [(symbol x, t), (simplesymbol x, t)]
-altToLg _ (C.LitAlt _, _, _)
-  = throw "altToLg on Lit"
-altToLg _ (C.DEFAULT, _, _)
-  = throw ("Cannot reflect functions with Default pattern matching." ++ 
-           "\n\t Suggestion: Make sure your function is total and is not pattern matching on integer values.")
+
+altToLg _ (a, _, e)
+  = (a, ) <$> coreToLg e
+
+
+--- altToLg _ (C.LitAlt _, _, _)
+  --- = throw "altToLg on Lit"
+--- altToLg _ (C.DEFAULT, _, e)
+  --- = throw ("Cannot reflect functions with Default pattern matching." ++
+           --- "\n\t Suggestion: Make sure your function is total and is not pattern matching on integer values.")
 
 coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
@@ -451,7 +456,11 @@ _simpleSymbolVar' :: Id -> Symbol
 _simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
 
 isErasable :: Id -> Bool
-isErasable v = isPrefixOfSym (symbol ("$"      :: String)) (simpleSymbolVar v)
+isErasable v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+  -- where
+    -- v         = F.tracepp _msg v0
+    -- _msg      = Printf.printf "isErasable: isCoVar %s = %s" (showPpr v0) (show $ isCoVar v0)
+
 
 isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
@@ -539,5 +548,6 @@ instance Simplify C.CoreBind where
 
 instance Simplify C.CoreAlt where
   simplify (c, xs, e) = (c, xs, simplify e)
-
+    -- where xs   = F.tracepp _msg xs0
+    --      _msg = "isCoVars? " ++ F.showpp [(x, isCoVar x, varType x) | x <- xs0]
   inline p (c, xs, e) = (c, xs, inline p e)

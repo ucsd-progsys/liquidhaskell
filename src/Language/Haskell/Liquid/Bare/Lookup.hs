@@ -95,24 +95,19 @@ lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe (Int
 lookupGhcThing' _err f ns x = do
   be     <- get
   let env = hscEnv be
---   _      <- liftIO $ putStrLn ("lookupGhcThing: PRE " ++ symbolicString x)
   ns     <- liftIO $ lookupName env (modName be) ns x
---   _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show ns)
-  -- mts    <- liftIO $ mapM (fmap (join . fmap f) . hscTcRcLookupName env) ns
   ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) ns
-  let kts = catMaybes (f <$> ts)
+  ts'    <- map (AConLike . RealDataCon)  . lookupEnv x <$> gets famEnv
+  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show [(n, getSrcSpan n) | n <- ns] ++ GM.showPpr ts ++ GM.showPpr ts')
+  let kts = catMaybes (f <$> (ts ++ ts'))
   -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
   case Misc.nubHashOn showpp (minBy kts) of
     []  -> return Nothing
     [z] -> return (Just z)
     zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
-  -- case filterByName x $ nubHashOn showpp $ catMaybes mts of
-    -- []  -> return Nothing
-    -- [z] -> return (Just z)
-    -- zs  -> case filterByName x zs of
-             -- [] -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
-
+lookupEnv :: (GhcLookup a) => a -> M.HashMap F.Symbol b -> [b]
+lookupEnv x env = maybeToList (M.lookup (F.symbol x) env)
 
 minBy :: [(Int, a)] -> [a]
 minBy kvs = case kvs' of
@@ -251,7 +246,6 @@ lookupGhcVar x = do
     fv (AConLike (RealDataCon x)) = Just (1, dataConWorkId x)
     fv _                          = Nothing
 
-
 lookupGhcDnTyCon :: String -> DataName -> BareM TyCon
 lookupGhcDnTyCon src (DnName s)
                    = lookupGhcThing err ftc (Just tcName) s
@@ -259,22 +253,30 @@ lookupGhcDnTyCon src (DnName s)
     err            = "type constructor " ++ src
     ftc (ATyCon x) = Just (0, x)
     ftc (AConLike (RealDataCon x))
-              --      | GM.showPpr x == "GHC.Types.[]"
-                   = Just (1, {- GM.tracePpr ("lookupGHCTC1 s =" ++ symbolicIdent s ++ " " ++ show ok) $ -}
-                              dataConTyCon x)
+                   = Just (1, dataConTyCon x)
       where
         res        = dataConTyCon x
         _ok        = res == listTyCon
-    ftc _z         = {- GM.tracePpr ("lookupGhcDnTyCon s = " ++ show s ++ "result = " ++ GM.showPpr z) -}
-                     Nothing
+    ftc _z         = GM.notracePpr ("lookupGhcDnTyCon 1 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                     $ Nothing
 
 lookupGhcDnTyCon src (DnCon  s)
                    = lookupGhcThing err ftc (Just tcName) s
   where
-    err            = "type constructor " ++ src
+    err            = "type konstructor " ++ src
     ftc (AConLike (RealDataCon x))
-                   = Just (1, dataConTyCon x)
-    ftc _          = Nothing
+                   = GM.notracePpr ("lookupGhcDnTyCon 1 s = " ++ show s ++ "result = " ++ GM.showPpr x)
+                     $ Just (1, dataConTyCon x)
+    ftc (AConLike _z)
+                   = GM.notracePpr ("lookupGhcDnTyCon 2 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                     $ Nothing
+    ftc (AnId _z)
+                   = GM.notracePpr ("lookupGhcDnTyCon 3 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                     $ Nothing
+    ftc (ATyCon _z) = GM.notracePpr ("lookupGhcDnTyCon 4 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                     $ Nothing
+    ftc _z          = GM.notracePpr ("lookupGhcDnTyCon 5 s = " ++ show s ++ "result = " ++ GM.showPpr _z)
+                     $ Nothing
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do

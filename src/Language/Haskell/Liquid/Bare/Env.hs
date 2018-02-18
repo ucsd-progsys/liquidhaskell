@@ -35,6 +35,7 @@ import           HscTypes
 import           Prelude                              hiding (error)
 import           Text.Parsec.Pos
 import           TyCon
+import           DataCon
 import           Var
 
 import           Control.Monad.Except
@@ -83,6 +84,7 @@ data BareEnv = BE
   , rtEnv    :: !RTEnv
   , varEnv   :: !(M.HashMap F.Symbol Var)
   , hscEnv   :: !(HscEnv)
+  , famEnv   :: !(M.HashMap F.Symbol DataCon)     -- ^ see NOTE:Family-Instance-Environment
   , logicEnv :: !LogicMap
   , dcEnv    :: !DataConMap
   , bounds   :: !(RBEnv)
@@ -92,6 +94,17 @@ data BareEnv = BE
   , beConfig :: !Config
   , beIndex  :: !Integer
   }
+
+{- | [NOTE:Family-Instance-Environment]
+     For some reason, the usual lookup machinery (lookupGhcThing) refuses
+     to properly lookup _imported_ names of family-instance data-constructors.
+     e.g. see tests/pos/ExactGADT8.hs and tests/pos/ExactGADT9.hs; inside the latter,
+     the lookupGhcThing fails to resolve the name of `BlobXVal` (but it works just fine
+     when BlobXVal is a plain DataCon as in tests/pos/ExactGADT8a.hs
+     To get around this hassle, we also save a map from _family instance_ DataCon-names
+     to the corresponding family instance Tycon in the `famEnv` field of BareEnv.
+     This map is *created* inside the function FIXME, and *used* inside the function FIXME.
+ -}
 
 instance Freshable BareM Integer where
   fresh = do s <- get

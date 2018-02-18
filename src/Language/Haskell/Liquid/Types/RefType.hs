@@ -93,10 +93,10 @@ import Var
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred)
+import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred, isEqPred, isNomEqPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
-import TysPrim          (eqPrimTyCon)
+-- import TysPrim          (eqPrimTyCon)
 -- import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
@@ -120,23 +120,61 @@ import Language.Haskell.Liquid.Types.Variance
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.Names
 import Language.Fixpoint.Misc
-import Language.Haskell.Liquid.GHC.Misc (locNamedThing, typeUniqueString, showPpr, stringTyVar, tyConTyVarsDef)
+import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
 
 import Data.List (sort, foldl')
 
-strengthenDataConType :: Symbolic t
-                      => (t, RType c tv (UReft Reft)) -> (t, RType c tv (UReft Reft))
-strengthenDataConType (x, t) = (x, fromRTypeRep trep{ty_res = tres})
-    where
-      trep = toRTypeRep t
-      tres = ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
-      xs   = ty_binds trep
-      as   = ty_vars  trep
-      x'   = symbol x
-      expr | null xs && null as = EVar x'
-           | null xs            = mkEApp (dummyLoc x') []
-           | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+strengthenDataConType :: (Var, SpecType) -> (Var, SpecType)
+strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
+  where
+    tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
+    trep     = toRTypeRep t
+    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
+    (xs, ts) = dataConArgs trep
+    as       = ty_vars  trep
+    x'       = symbol x
+    expr | null xs && null as = EVar x'
+         | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+
+
+dataConArgs :: SpecRep -> ([Symbol], [SpecType])
+dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
+  where
+    xs           = ty_binds trep
+    -- xs           = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+    ts           = ty_args trep
+    isValTy      = not . GM.isPredType . toType
+
+-- RJ: AAAAAAARGHHH: this is duplicate of RT.strengthenDataConType
+{-
+makeDataConCtor :: Var -> SpecType
+makeDataConCtor x = (dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
+  where
+    tres     = F.tracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
+    trep     = toRTypeRep . ofType . varType $ x
+    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
+    (xs, ts) = dataConArgs trep
+    as       = ty_vars  trep
+    x'       = symbol x
+    expr | null xs && null as = EVar x'
+         | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
+
+makeDataConCtor :: Var -> (Var, LocSpecType)
+makeDataConCtor x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
+  where
+    t    :: SpecType
+    t    = ofType $ varType x
+    trep = toRTypeRep t
+    xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
+
+    res  = ty_res trep `strengthen` MkUReft ref mempty mempty
+    vv   = vv_
+    x'   = symbol x
+    ref  = Reft (vv, PAtom Eq (EVar vv) eq)
+    eq   | null (ty_vars trep) && null xs = EVar x'
+         | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
+-}
 
 pdVar :: PVar t -> Predicate
 pdVar v        = Pr [uPVar v]
@@ -344,7 +382,7 @@ instance Fixpoint String where
 
 -- MOVE TO TYPES
 instance Fixpoint Class where
-  toFix = text . showPpr
+  toFix = text . GM.showPpr
 
 -- MOVE TO TYPES
 class FreeVar a v where
@@ -352,7 +390,7 @@ class FreeVar a v where
 
 -- MOVE TO TYPES
 instance FreeVar RTyCon RTyVar where
-  freeVars = (RTV <$>) . tyConTyVarsDef . rtc_tc
+  freeVars = (RTV <$>) . GM.tyConTyVarsDef . rtc_tc
 
 -- MOVE TO TYPES
 instance FreeVar BTyCon BTyVar where
@@ -484,7 +522,7 @@ bTyVar :: Symbol -> BTyVar
 bTyVar      = BTV
 
 symbolRTyVar :: Symbol -> RTyVar
-symbolRTyVar = rTyVar . stringTyVar . symbolString
+symbolRTyVar = rTyVar . GM.stringTyVar . symbolString
 
 bareRTyVar :: BTyVar -> RTyVar
 bareRTyVar (BTV tv) = symbolRTyVar tv
@@ -525,7 +563,7 @@ bApp :: TyCon -> [BRType r] -> [BRProp r] -> r -> BRType r
 bApp c = RApp (tyConBTyCon c)
 
 tyConBTyCon :: TyCon -> BTyCon
-tyConBTyCon = mkBTyCon . fmap tyConName . locNamedThing
+tyConBTyCon = mkBTyCon . fmap tyConName . GM.locNamedThing
 -- tyConBTyCon = mkBTyCon . fmap symbol . locNamedThing
 
 --- NV TODO : remove this code!!!
@@ -716,7 +754,7 @@ expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
     rs'                        = applyNonNull rs0 (rtPropPV rc pvs) rs
     rs0                        = rtPropTop <$> pvs
     n                          = length fVs
-    fVs                        = tyConTyVarsDef $ rtc_tc rc
+    fVs                        = GM.tyConTyVarsDef $ rtc_tc rc
     as                         = choosen n ts (rVar <$> fVs)
 
     choosen 0 _ _           = []
@@ -775,8 +813,8 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
     ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
     ts'  = if null ts then rVar <$> βs else toRSort <$> ts
     rc'  = M.lookupDefault rc c tyi
-    αs   = tyConTyVarsDef $ rtc_tc rc'
-    βs   = tyConTyVarsDef c
+    αs   = GM.tyConTyVarsDef $ rtc_tc rc'
+    βs   = GM.tyConTyVarsDef c
     rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 
 
@@ -1025,7 +1063,7 @@ subsFreeRef m s (α', τ', t')  (RProp ss t)
 -- | Type Substitutions --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-subts :: (Foldable t, SubsTy tv ty c) => t (tv, ty) -> c -> c
+subts :: (SubsTy tv ty c) => [(tv, ty)] -> c -> c
 subts = flip (foldr subt)
 
 instance SubsTy RTyVar (RType RTyCon RTyVar ()) RTyVar where
@@ -1088,15 +1126,15 @@ instance SubsTy BTyVar (RType BTyCon BTyVar ()) Sort where
 
 instance SubsTy Symbol RSort Sort where
   subt (v, RVar α _) (FObj s)
-    | symbol v == s = FObj $ rTyVarSymbol α
+    | symbol v == s = FObj $ symbol {- rTyVarSymbol -} α
     | otherwise     = FObj s
   subt _ s          = s
 
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
-    | rtyVarUniqueSymbol v == s
-      || symbol v == s
+    | -- rtyVarUniqueSymbol v == s ||
+      symbol v == s
     = typeSort M.empty $ toType sv
     | otherwise
     = FObj s
@@ -1385,11 +1423,11 @@ tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
-typeUniqueSymbol :: Type -> Symbol
-typeUniqueSymbol = symbol . typeUniqueString
-
 tyVarSort :: TyVar -> Sort
-tyVarSort = FObj . tyVarUniqueSymbol
+tyVarSort = FObj . symbol -- tyVarUniqueSymbol
+
+typeUniqueSymbol :: Type -> Symbol
+typeUniqueSymbol = symbol . GM.typeUniqueString
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
 typeSortForAll tce τ
@@ -1397,7 +1435,7 @@ typeSortForAll tce τ
   where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
         (as, tbody)         = splitForAllTys τ
         su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = tyVarUniqueSymbol <$> as
+        sas                 = {- tyVarUniqueSymbol -} symbol <$> as
         n                   = length as
 
 -- RJ: why not make this the Symbolic instance?
@@ -1453,21 +1491,59 @@ mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe men
 -----------------------------------------------------------------------------------------
 -- | Binders generated by class predicates, typically for constraining tyvars (e.g. FNum)
 -----------------------------------------------------------------------------------------
--- classBinds :: TyConable c => RType c RTyVar t -> [(Symbol, SortedReft)]
 classBinds :: TCEmb TyCon -> SpecType -> [(Symbol, SortedReft)]
 classBinds _ (RApp c ts _ _)
-   | isFracCls c
-   = [(rTyVarSymbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
-   | isNumCls c
-   = [(rTyVarSymbol a, trueSortedReft FNum) | (RVar a _) <- ts]
+  | isFracCls c
+  = [(symbol a, trueSortedReft FFrac) | (RVar a _) <- ts]
+  | isNumCls c
+  = [(symbol a, trueSortedReft FNum) | (RVar a _) <- ts]
 classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
-   | rtc_tc c == eqPrimTyCon
-   = [(rTyVarSymbol a, rTypeSortedReft emb t)]
-classBinds _ _
-  = []
+  | isEqual c
+  = [(symbol a, rTypeSortedReft emb t)]
+classBinds  emb (RApp c [_, (RVar a _), t] _ _)
+  | showpp c == "Data.Type.Equality.~"  -- see [NOTE:type-equality-hack]
+  = [(symbol a, rTypeSortedReft emb t)]
+classBinds _ t
+  = notracepp ("CLASSBINDS: " ++ showpp (toType t, isEqualityConstr t)) []
 
-rTyVarSymbol :: RTyVar -> Symbol
-rTyVarSymbol (RTV α) = tyVarUniqueSymbol α
+{- | [NOTE:type-equality-hack]
+
+God forgive me for this AWFUL HACK.
+
+How can I “test for” (i.e. write a function of type `Type -> Bool`)
+
+that returns `True` for values (i.e. `Type`s) that print out as:
+
+ ```
+     typ ~ GHC.Types.Int
+ ```
+
+ or with, which some more detail, looks like
+
+ ```
+    (~ (TYPE LiftedRep) typ GHC.Types.Int)
+ ```
+
+ and which are generated from Haskell source that looks like
+
+ ```
+ instance PersistEntity Blob where
+    data EntityField Blob typ
+       = typ ~ Int => BlobXVal |
+         typ ~ Int => BlobYVal
+ ```
+
+ see tests/neg/BinahUpdateLib1.hs
+
+ I would have thought that `Type.isEqPred` or `Type.isNomEqPred` described here
+
+ https://downloads.haskell.org/~ghc/8.2.1/docs/html/libraries/ghc-8.2.1/src/Type.html#isEqPred
+
+ and which is what `isEqualityConstr` below is doing, but alas it doesn't work.
+-}
+
+isEqualityConstr :: SpecType -> Bool
+isEqualityConstr = (isEqPred  .||. isNomEqPred) . toType
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------
@@ -1574,13 +1650,13 @@ mkTyConInfo c userTv userPv f = TyConInfo tcTv userPv f
 makeTyConVariance :: TyCon -> VarianceInfo
 makeTyConVariance c = varSignToVariance <$> tvs
   where
-    tvs = tyConTyVarsDef c
+    tvs = GM.tyConTyVarsDef c
 
     varsigns = if TC.isTypeSynonymTyCon c
                   then go True (fromJust $ TC.synTyConRhs_maybe c)
                   else L.nub $ concatMap goDCon $ TC.tyConDataCons c
 
-    varSignToVariance v = case filter (\p -> showPpr (fst p) == showPpr v) varsigns of
+    varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
                             []       -> Invariant
                             [(_, b)] -> if b then Covariant else Contravariant
                             _        -> Bivariant
@@ -1648,8 +1724,12 @@ instance PPrint DataDecl where
                     $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
 
 instance PPrint DataCtor where
-  pprintTidy k (DataCtor c xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
-  pprintTidy k (DataCtor c xts (Just t)) = pprintTidy k c <+> dcolon <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+  pprintTidy k (DataCtor c _   xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
+  pprintTidy k (DataCtor c ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppThetas ths <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+    where
+      ppThetas [] = empty
+      ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
+
 
 ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
 ppFields k sep kvs = hcat $ punctuate sep (F.pprintTidy k <$> kvs)

@@ -44,7 +44,8 @@ import           Text.PrettyPrint.HughesPJ              (text )
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
-import qualified Language.Fixpoint.Misc                 as F           --  (mapSnd)
+import qualified Language.Fixpoint.Misc                 as Misc           --  (mapSnd)
+import qualified Language.Haskell.Liquid.Misc           as Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
@@ -604,7 +605,7 @@ bPVar p _ xts  = PV p (PVProp τ) dummySymbol τxs
     safeLast msg _      = panic Nothing $ "safeLast with empty list " ++ msg
 
 propositionSortP :: Parser [(Symbol, BSort)]
-propositionSortP = map (F.mapSnd toRSort) <$> propositionTypeP
+propositionSortP = map (Misc.mapSnd toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
 propositionTypeP = either parserFail return =<< (mkPropositionType <$> bareTypeP)
@@ -1048,7 +1049,7 @@ asizeP :: Parser LocSymbol
 asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = F.mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
+decreaseP = Misc.mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
   where
     f     = ((\n -> fromInteger n - 1) <$>)
 
@@ -1133,7 +1134,7 @@ rtAliasP f bodyP
        body <- bodyP
        posE <- getPosition
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ RTA name (f <$> tArgs) (f <$> vArgs) body pos posE
+       return $ RTA name (f <$> tArgs) vArgs body pos posE
 
 aliasIdP :: Parser Symbol
 aliasIdP = condIdP (letter <|> char '_') alphaNums (isAlpha . head)
@@ -1367,14 +1368,14 @@ dataConP = do
   x   <- locParserP dataConNameP
   spaces
   xts <- dataConFieldsP
-  return $ DataCtor x xts Nothing
+  return $ DataCtor x [] xts Nothing
 
 adtDataConP :: Parser DataCtor
 adtDataConP = do
   x     <- locParserP dataConNameP
   dcolon
   tr    <- toRTypeRep <$> bareTypeP
-  return $ DataCtor x (tRepFields tr) (Just $ ty_res tr)
+  return $ DataCtor x [] (tRepFields tr) (Just $ ty_res tr)
 
 tRepFields :: RTypeRep c tv r -> [(Symbol, RType c tv r)]
 tRepFields tr = zip (ty_binds tr) (ty_args tr)
@@ -1427,12 +1428,12 @@ dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (
   where
     msg                  = "You should specify at least one data constructor for a family instance"
 
-
 dataCtorsP :: Parser (Maybe BareType, [DataCtor])
-dataCtorsP
-  =  (reservedOp "="     >> ((Nothing, ) <$>                 sepBy dataConP    (reservedOp "|")))
- <|> (reserved   "where" >> ((Nothing, ) <$>                 sepBy adtDataConP (reservedOp "|")))
- <|> (                      ((,)         <$> dataPropTyP <*> sepBy adtDataConP (reservedOp "|")))
+dataCtorsP = do
+  (pTy, dcs) <-     (reservedOp "="     >> ((Nothing, ) <$>                 sepBy dataConP    (reservedOp "|")))
+                <|> (reserved   "where" >> ((Nothing, ) <$>                 sepBy adtDataConP (reservedOp "|")))
+                <|> (                      ((,)         <$> dataPropTyP <*> sepBy adtDataConP (reservedOp "|")))
+  return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol
 noWhere = try $ do

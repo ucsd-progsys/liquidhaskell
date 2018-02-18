@@ -190,7 +190,7 @@ checkRTAliases msg _ as = err1s
     err1s                  = checkDuplicateRTAlias msg as
 
 checkBind :: (PPrint v) => Bool -> String -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
-checkBind allowHO s emb tcEnv env' (v, t) = checkTy allowHO msg emb tcEnv env' t
+checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
   where
     msg                      = ErrTySpec (fSrcSpan t) (text s <+> pprint v) (val t)
 
@@ -216,6 +216,8 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
 
 checkTy :: Bool -> (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
 checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (val $ txRefSort tcEnv emb t)
+  where
+    _msg =  "CHECKTY: " ++ showpp (val t)
 
 checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
 checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
@@ -400,7 +402,7 @@ checkAbstractRefs t = go t
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
                              => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft env emb (Just t) _ = (dr $+$) <$> checkSortedReftFull env r
+checkReft env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull env r
   where
     r                        = rTypeSortedReft emb t
     dr                       = text "Sort Error in Refinement:" <+> pprint r

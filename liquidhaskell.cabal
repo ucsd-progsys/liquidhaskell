@@ -1,7 +1,6 @@
 Name:                liquidhaskell
-Version:             0.8.2.2
+Version:             0.8.2.4
 Copyright:           2010-17 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
-build-type:          Simple
 Synopsis:            Liquid Types for Haskell
 Description:         Liquid Types for Haskell.
 Homepage:            https://github.com/ucsd-progsys/liquidhaskell
@@ -63,6 +62,10 @@ Flag include
   Description: use in-tree include directory
   Default:     False
 
+Flag deterministic-profiling
+  Description: Support building against GHC with https://phabricator.haskell.org/D4388 backported
+  Default:     False
+
 Executable liquid
   default-language: Haskell98
   Build-Depends: base >=4.8.1.0 && <5
@@ -73,7 +76,7 @@ Executable liquid
                , deepseq
                , pretty
                , process
-               , liquid-fixpoint >= 0.7.0.6
+               , liquid-fixpoint >= 0.7.0.7
                , located-base
                , liquidhaskell
                , hpc >= 0.6
@@ -131,7 +134,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.7.0.6
+                , liquid-fixpoint >= 0.7.0.7
                 , located-base
                 , aeson >= 1.2 && < 1.3
                 , bytestring >= 0.10
@@ -148,6 +151,8 @@ Library
                 , QuickCheck >= 2.7
                 , ghc-prim
                 , hpc >= 0.6
+                , gitrev
+                , optparse-simple
 
    hs-source-dirs:  src, include
    Exposed-Modules: LiquidHaskell,
@@ -229,7 +234,7 @@ Library
                     Language.Haskell.Liquid.Desugar.MatchLit,
                     Language.Haskell.Liquid.Desugar.DsMonad,
                     Language.Haskell.Liquid.Desugar.StaticPtrTable,
-                    Language.Haskell.Liquid.Desugar.TmOracle
+                    Language.Haskell.Liquid.Desugar.TmOracle,
                     Paths_liquidhaskell,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
@@ -280,6 +285,8 @@ Library
      hs-source-dirs: devel
    if flag(devel)
      ghc-options: -Werror
+   if flag(deterministic-profiling)
+     cpp-options: -DDETERMINISTIC_PROFILING
    Default-Extensions: PatternGuards
 
 test-suite test
@@ -305,7 +312,7 @@ test-suite test
                ,     tasty-rerun >= 1.1
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.7.0.6
+               ,     liquid-fixpoint >= 0.7.0.7
                ,     hpc >= 0.6
                ,     text
 
@@ -327,7 +334,7 @@ test-suite liquidhaskell-parser
                ,     text
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.7.0.6
+               ,     liquid-fixpoint >= 0.7.0.7
                ,     hpc >= 0.6
 
   if flag(devel)
@@ -346,7 +353,7 @@ test-suite liquidhaskell-parser
                 , ghc
                 , ghc-boot
                 , hashable >= 1.2
-                , liquid-fixpoint >= 0.7.0.6
+                , liquid-fixpoint >= 0.7.0.7
                 , pretty
                 , syb >= 0.4.4
                 , time

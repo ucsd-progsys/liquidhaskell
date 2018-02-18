@@ -1,4 +1,4 @@
-{-@ LIQUID "--exact-data-con"                      @-}
+{-@ LIQUID "--exact-data-con" @-}
 
 {-# LANGUAGE  GADTs #-}
 

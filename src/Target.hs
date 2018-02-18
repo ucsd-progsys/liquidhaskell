@@ -1,5 +1,5 @@
 {-# LANGUAGE LambdaCase #-}
-module Main where
+-- module Main where
 
 import Language.Haskell.Interpreter
 import System.Environment
