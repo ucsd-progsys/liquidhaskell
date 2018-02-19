@@ -450,7 +450,7 @@ mkS :: ByteString -> Maybe Expr
 mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 
 ignoreVar :: Id -> Bool
-ignoreVar i = simpleSymbolVar i `elem` ["I#"]
+ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
 _simpleSymbolVar' :: Id -> Symbol
 _simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
