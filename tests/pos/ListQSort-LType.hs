@@ -1,4 +1,4 @@
-module ListRange () where
+module ListRange (llen) where
 
 import Language.Haskell.Liquid.Prelude
 
@@ -8,12 +8,12 @@ data List [llen] a <p :: x0:a -> x1:a -> Bool>
   | Cons { lHd :: a, lTl :: List <p> (a <p lHd>) }
 @-}
 
-{-@ measure llen :: (List a) -> Int
-    llen(Nil)       = 0
-    llen(Cons x xs) = 1 + (llen xs)
-  @-}
+{-@ measure llen @-}
+llen :: (List a) -> Int
+{-@ llen :: List a -> Nat @-}
+llen Nil         = 0
+llen (Cons x xs) = 1 + (llen xs)
 
-{-@ invariant {v:List a | (llen v) >= 0} @-}
 
 {-@ qualif ZLLen(v:ListRange.List a) : (llen(v) >= 0)@-}
 

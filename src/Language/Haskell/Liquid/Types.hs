@@ -361,6 +361,7 @@ data GhcSpec = SP {
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
   , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
+  , gsStTerm     :: !(S.HashSet Var)             -- ^ Binders to be for structural termination 
   , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
   , gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to expand with automatic axiom instances maybe with specified fuel
   , gsConfig     :: !Config                      -- ^ Configuration Options

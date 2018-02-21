@@ -1,17 +1,15 @@
-module Range () where
+module Range (llen) where
 
 import Language.Haskell.Liquid.Prelude
 
 data L a = Nil | Con a (L a)
 {-@ data L [llen] a = Nil | Con { lHd ::a, lTl :: L a } @-}
 
-{-@ measure llen :: (L a) -> Int
-    llen(Nil)      = 0
-    llen(Con x xs) = 1 + (llen xs)
-  @-}
-
-{-@ invariant {v:L a | llen v >= 0} @-}
-{-@ invariant {v:Int | v >= 0 } @-}
+{-@ measure llen @-}
+{-@ llen :: L a -> Nat @-}
+llen :: L a -> Int 
+llen Nil = 0 
+llen (Con _ xs) = 1 + llen xs 
 
 range :: Int -> Int -> L Int
 range i j = range' (j-i) i j

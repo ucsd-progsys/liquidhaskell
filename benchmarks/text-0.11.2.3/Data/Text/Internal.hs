@@ -1,5 +1,6 @@
 {-@ LIQUID "--maxparams=3"    @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
@@ -65,8 +66,8 @@ import Language.Haskell.Liquid.Prelude
     toff (Text a o l) = o
   @-}
 
-{-@ measure tlen :: Text -> Int
-    tlen (Text a o l) = l
+{-@ measure tlen :: Text -> Int 
+    tlen (Text a o l) = l  
   @-}
 
 {-@ type TextN  N = {v:Text | (tlen v) = N} @-}

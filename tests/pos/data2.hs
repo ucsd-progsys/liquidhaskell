@@ -1,4 +1,4 @@
-module Range (prop_rng1) where
+module Range (prop_rng1, llen) where
 
 import Control.Applicative
 import Language.Haskell.Liquid.Prelude
@@ -6,12 +6,11 @@ import Language.Haskell.Liquid.Prelude
 data LL a = N | C { headC :: a, tailC :: (LL a) }
 {-@ data LL [llen] a = N | C { headC :: a, tailC :: (LL a) } @-}
 
-{-@ measure llen :: (LL a) -> Int
-    llen(N)      = 0
-    llen(C x xs) = 1 + (llen xs) 
-  @-}
-
-{-@ invariant {v:LL a | (llen v) >= 0} @-}
+{-@ measure llen @-}
+llen :: LL a -> Int 
+{-@ llen :: LL a -> Nat @-}
+llen N = 0 
+llen (C _ xs) = 1 + llen xs 
 
 --instance Functor LL where
 --  fmap f N                = N

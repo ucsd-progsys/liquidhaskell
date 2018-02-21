@@ -1,5 +1,6 @@
 {- LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE BangPatterns #-}
 -- |
@@ -51,7 +52,7 @@ default(Int64)
 data TPairS b = Text :* b
 infixl 2 :*
 
-{-@ measure pslen :: TPairS b -> Int
+{-@ measure pslen :: TPairS b -> Int  
     pslen ((:*) t b) = (ltlen t)
   @-}
 

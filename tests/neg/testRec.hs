@@ -1,4 +1,4 @@
-module TestRec () where
+module TestRec (llen) where
 
 import Prelude hiding (map, foldl)
 
@@ -6,10 +6,11 @@ data L a = N | C a (L a)
 
 {-@ data L [llen] @-}
 
-{-@ measure llen :: (L a) -> Int
-    llen(N) = 0
-    llen(C x xs) = 1 + (llen xs)
-  @-}
+{-@ measure llen @-}
+llen :: (L a) -> Int
+{-@ llen :: (L a) -> Nat @-}
+llen(N) = 0
+llen(C x xs) = 1 + (llen xs)
 
 
 {-@ map :: (a -> b) -> [a] -> [b]@-}

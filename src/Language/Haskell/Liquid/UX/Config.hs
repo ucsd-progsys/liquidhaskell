@@ -34,6 +34,7 @@ data Config = Config {
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , nostructuralT  :: Bool       -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving

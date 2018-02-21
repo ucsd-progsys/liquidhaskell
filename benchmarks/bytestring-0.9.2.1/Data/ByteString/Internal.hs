@@ -1,4 +1,5 @@
-{-@ LIQUID "--pruneunsorted"     @-}
+{-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--trust-sizes"   @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
@@ -175,13 +176,15 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -------------------------------------------------------------------------
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
-{-@ measure bLength     :: ByteString -> Int
-    bLength (PS p o l)  = l
-  @-}
 
+{-@ measure bLength     :: ByteString -> Int 
+    bLength (PS p o l)  = l  
+  @-}  
+   
 {-@ measure bOffset     :: ByteString -> Int
     bOffset (PS p o l)  = o
   @-}
+
 
 {-@ measure bPayload   :: ByteString -> (ForeignPtr Word8)
     bPayload (PS p o l) = p

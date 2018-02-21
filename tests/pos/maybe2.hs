@@ -1,4 +1,4 @@
-module Data.Map.Base (Map(..), isRoot, filterLt, filterGt) where
+module Data.Map.Base (Map(..), isRoot, filterLt, filterGt, mlen) where
 
 data Map k a  = Bin Size k a (Map k a) (Map k a)
               | Tip
@@ -17,12 +17,11 @@ data MaybeS a = NothingS | JustS !a
        | Tip 
   @-}
 
-{-@ measure mlen :: (Map k a) -> Int 
-    mlen(Tip)           = 0
-    mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r) 
-  @-}
-
-{-@ invariant {v:Map k a | (mlen v) >=0} @-}
+{-@ measure mlen @-}
+mlen :: Map k a -> Int 
+{-@ mlen :: Map k a -> Nat @-}
+mlen Tip = 0 
+mlen (Bin _ _ _ l r) = 1 + mlen l + mlen r  
 
 {-@ measure isJustS :: forall a. MaybeS a -> Bool 
     isJustS (JustS x)  = true

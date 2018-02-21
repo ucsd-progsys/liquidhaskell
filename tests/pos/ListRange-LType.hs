@@ -5,7 +5,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ LIQUID "--no-termination" @-}
 
 {-@
-data List [llen] a <p :: x0:a -> x1:a -> Bool>
+data List a <p :: x0:a -> x1:a -> Bool>
   = Nil
   | Cons { lHd :: a, lTl :: List <p> (a <p lHd>) }
 @-}

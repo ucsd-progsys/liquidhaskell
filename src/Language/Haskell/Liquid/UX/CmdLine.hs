@@ -152,6 +152,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , nostructuralT
+    = def &= help "Trust that size functions are inductive"
+          &= name "trust-sizes"
+
  , gradual
     = def &= help "Enable gradual refinementtype checking"
           &= name "gradual"
@@ -515,6 +519,7 @@ defConfig = Config { files             = def
                    , checks            = def
                    , noCheckUnknown    = def
                    , notermination     = def
+                   , nostructuralT     = def 
                    , gradual           = False
                    , gdepth            = 1
                    , ginteractive      = False

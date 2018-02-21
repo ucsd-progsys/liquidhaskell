@@ -1,4 +1,4 @@
-module Map (error) where
+module Map (error, mllen) where
 
 import Language.Haskell.Liquid.Prelude
 
@@ -9,7 +9,7 @@ error :: a -> b
 error x = error x
 
 {-@
-  data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
+  data Map [mllen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
       = Tip
       | Bin { mSz    :: Size
             , mKey   :: k
@@ -17,6 +17,13 @@ error x = error x
             , mLeft  :: Map <l, r> (k <l mKey>) a
             , mRight :: Map <l, r> (k <r mKey>) a }
   @-}
+
+{-@ measure mllen @-}
+mllen :: Map k a -> Int 
+{-@ mllen :: Map k a -> Nat @-}
+mllen Tip = 0 
+mllen (Bin _ _ _ l r) = 1 + if (mllen l < mllen r) then mllen r else mllen l
+
 
 {-@ measure mlen :: (Map k a) -> Int
     mlen(Tip) = 0

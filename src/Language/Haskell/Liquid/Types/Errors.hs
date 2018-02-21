@@ -353,6 +353,11 @@ data TError t =
                 , msg  :: !Doc
                 } -- ^ Termination Error
 
+  | ErrStTerm   { pos  :: !SrcSpan
+                , dname :: !Doc
+                , msg  :: !Doc
+                } -- ^ Termination Error
+
   | ErrRClass   { pos   :: !SrcSpan
                 , cls   :: !Doc
                 , insts :: ![(SrcSpan, Doc)]
@@ -843,6 +848,11 @@ ppError' _ dSp dCtx (ErrTermin _ xs s)
   = dSp <+> text "Termination Error"
         $+$ dCtx
         <+> (hsep $ intersperse comma xs) $+$ s
+
+ppError' _ dSp dCtx (ErrStTerm _ x s)
+  = dSp <+> text "Structural Termination Error"
+        $+$ dCtx
+        <+> (text "Cannot prove termination for size" <+> x) $+$ s
 
 ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"

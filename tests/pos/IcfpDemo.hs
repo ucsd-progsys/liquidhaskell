@@ -30,11 +30,11 @@ range lo hi
   @-}
 data L a = N | C a (L a)
 
-{-@ measure sz  :: L a -> Int
-    sz (C x xs) = 1 + (sz xs)
-    sz (N)      = 0
-  @-}
-{-@ invariant {v:L a | (sz v) >= 0} @-}
+{-@ measure sz  @-}
+sz :: L a -> Int
+{-@ sz :: L a -> Nat @-}
+sz (C x xs) = 1 + (sz xs)
+sz (N)      = 0
 
 {-@ map :: (a -> b) -> xs:L a -> (L b) / [(sz xs)] @-}
 map :: (a -> b) -> L a -> L b

@@ -540,6 +540,7 @@ emptySpec cfg = SP
   , gsNewTypes   = mempty
   , gsLvars      = mempty
   , gsLazy       = mempty
+  , gsStTerm     = mempty
   , gsAutoInst   = mempty
   , gsAutosize   = mempty
   , gsConfig     = cfg
@@ -672,6 +673,7 @@ makeGhcSpec4 :: [Qualifier]
 makeGhcSpec4 quals defVars specs name su syms sp = do
   decr'     <- mconcat <$> mapM (makeHints defVars . snd) specs
   gsTexprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
+  sizes     <- if nostructuralT (getConfig sp) then return mempty else mkThing makeSize
   lazies    <- mkThing makeLazy
   lvars'    <- mkThing makeLVar
   autois    <- mkThing makeAutoInsts
@@ -697,7 +699,8 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
                 , gsLvars      = lvars'
                 , gsAutoInst   = M.fromList $ S.toList autois
                 , gsAutosize   = asize'
-                , gsLazy       = S.insert dictionaryVar lazies
+                , gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
+                , gsStTerm     = sizes
                 , gsLogicMap   = lmap'
                 , gsTySigs     = gsTySigs'
                 , gsTexprs     = [ (v, subst su es) | (v, es) <- gsTexprs' ]

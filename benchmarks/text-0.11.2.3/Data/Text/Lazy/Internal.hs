@@ -1,5 +1,6 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--maxparams=3" @-}
+{-@ LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE BangPatterns, DeriveDataTypeable #-}
 -- |
@@ -63,7 +64,9 @@ data Text = Empty
 {-@ measure ltlen :: Text -> Integer
     ltlen (Empty)      = 0
     ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
-  @-}
+    @-}
+
+
 
 {-@ measure ltlength :: Text -> Integer
     ltlength (Empty)      = 0

@@ -18,7 +18,7 @@ data Expr
   | App Expr Expr
 
 {-@
-data Expr [elen]
+data Expr 
   = Lam { eX :: Bndr, eBody :: Expr }
   | Var { eX :: Bndr                }
   | App { eF :: Expr, eArg  ::Expr  }
