@@ -1,5 +1,6 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--maxparams=3" @-}
+{-@ LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE BangPatterns, DeriveDataTypeable #-}
 -- |
@@ -38,12 +39,9 @@ module Data.Text.Lazy.Internal
     , defaultChunkSize
     , smallChunkSize
     , chunkOverhead
-
-    , ltlen
     ) where
 
 import Data.Text ()
-import Data.Text.Internal (tlen)
 import Data.Text.UnsafeShift (shiftL)
 import Data.Typeable (Typeable)
 import Foreign.Storable (sizeOf)
@@ -63,11 +61,10 @@ data Text = Empty
                       | Chunk { txtHead :: TextNE, txtRest :: Text }
   @-}
 
-{-@ measure ltlen @-}
-{-@ ltlen :: Text -> {v: Integer | 0 <= v } @-}
-ltlen :: Text -> Integer
-ltlen (Empty)      = 0
-ltlen (Chunk t ts) = (fromIntegral (tlen t)) + (ltlen ts)
+{-@ measure ltlen :: Text -> Integer
+    ltlen (Empty)      = 0
+    ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
+    @-}
 
 
 

@@ -389,7 +389,6 @@ textIgnored = [ "Setup.lhs"
               , "Data/Text/IO.hs"
               , "Data/Text/IO/Internal.hs"
               , "Data/Text/Lazy/Builder/Functions.hs"
-              , "Data/Text/Lazy/Fusion.hs" -- name resolution on invariants is broken?
               , "Data/Text/Lazy/Builder/Int.hs"
               , "Data/Text/Lazy/Builder/Int/Digits.hs"
               , "Data/Text/Lazy/Builder/Internal.hs"

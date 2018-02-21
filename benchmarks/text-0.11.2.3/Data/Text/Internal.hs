@@ -1,5 +1,6 @@
 {-@ LIQUID "--maxparams=3"    @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
@@ -38,7 +39,6 @@ module Data.Text.Internal
     , firstf
     -- * Debugging
     , showText
-    , tlen
     ) where
 
 --LIQUID #if defined(ASSERTS)
@@ -66,10 +66,9 @@ import Language.Haskell.Liquid.Prelude
     toff (Text a o l) = o
   @-}
 
-{-@ measure tlen @-}
-tlen :: Text -> Int 
-{-@ tlen :: Text -> Nat @-}
-tlen (Text a o l) = l
+{-@ measure tlen :: Text -> Int 
+    tlen (Text a o l) = l  
+  @-}
 
 {-@ type TextN  N = {v:Text | (tlen v) = N} @-}
 {-@ type TextNC N = {v:Text | (tlength v) = N} @-}

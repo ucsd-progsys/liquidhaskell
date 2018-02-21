@@ -1,5 +1,6 @@
 {- LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE BangPatterns #-}
 -- |
@@ -26,7 +27,6 @@ module Data.Text.Lazy.Fusion
     --LIQUID
     , UC(..)
     , TPairS(..)
-    , pslen
     ) where
 
 import Prelude hiding (length)
@@ -35,7 +35,6 @@ import Data.Text.Fusion.Internal hiding (PairS(..))
 import Data.Text.Fusion.Size (isEmpty, unknownSize)
 import Data.Text.Lazy.Internal
 import qualified Data.Text.Internal as I
-import Data.Text.Internal (tlen)
 import qualified Data.Text.Array as A
 import Data.Text.UnsafeChar (unsafeWrite)
 import Data.Text.UnsafeShift (shiftL)
@@ -53,10 +52,9 @@ default(Int64)
 data TPairS b = Text :* b
 infixl 2 :*
 
-{-@ measure pslen @-}
-pslen :: TPairS b -> Int
-{-@ pslen :: TPairS b -> Nat @-}
-pslen ((:*) t b) = fromIntegral (ltlen t)
+{-@ measure pslen :: TPairS b -> Int  
+    pslen ((:*) t b) = (ltlen t)
+  @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
 {-@ assume stream :: t:Data.Text.Lazy.Internal.Text

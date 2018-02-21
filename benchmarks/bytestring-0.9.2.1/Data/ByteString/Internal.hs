@@ -1,4 +1,5 @@
-{-@ LIQUID "--pruneunsorted"     @-}
+{-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--trust-sizes"   @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
@@ -24,7 +25,6 @@
 module Data.ByteString.Internal (
 
         liquidCanary,   -- LIQUID
-        bLength, 
         ptrLen,         -- LIQUID GHOST for getting a pointer's length
         packWith,       -- LIQUID, because we hid the Read instance... FIX.
 
@@ -177,10 +177,13 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
 
-{-@ measure bLength @-}
-{-@ bLength :: Bytestring -> Nat @-} 
-bLength :: Bytestring -> Int 
-bLength (PS p o l)  = l
+{-@ measure bLength     :: ByteString -> Int 
+    bLength (PS p o l)  = l  
+  @-}  
+   
+{-@ measure bOffset     :: ByteString -> Int
+    bOffset (PS p o l)  = o
+  @-}
 
 
 {-@ measure bPayload   :: ByteString -> (ForeignPtr Word8)

@@ -673,7 +673,7 @@ makeGhcSpec4 :: [Qualifier]
 makeGhcSpec4 quals defVars specs name su syms sp = do
   decr'     <- mconcat <$> mapM (makeHints defVars . snd) specs
   gsTexprs' <- mconcat <$> mapM (makeTExpr defVars . snd) specs
-  sizes     <- mkThing makeSize
+  sizes     <- if nostructuralT (getConfig sp) then return mempty else mkThing makeSize
   lazies    <- mkThing makeLazy
   lvars'    <- mkThing makeLVar
   autois    <- mkThing makeAutoInsts

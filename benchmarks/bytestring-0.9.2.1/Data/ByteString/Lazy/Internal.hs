@@ -1,5 +1,6 @@
-{-@ LIQUID "--maxparams=3" @-}
+{-@ LIQUID "--maxparams=3"    @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--trust-sizes"    @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
@@ -33,8 +34,6 @@ module Data.ByteString.Lazy.Internal (
         defaultChunkSize,
         smallChunkSize,
         chunkOverhead, 
-
-        lbLength
 
   ) where
 
@@ -72,11 +71,10 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
          | Chunk {lbiHead :: ByteStringNE, lbiRest :: ByteString }
   @-}
 
-{-@ measure lbLength @-}
-lbLength :: ByteString -> Int
-{-@ lbLength :: ByteString -> Nat @-}
-lbLength (Empty)      = 0
-lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
+{-@ measure lbLength :: ByteString -> Int
+    lbLength (Empty)      = 0 
+    lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
+    @-}
 
 {-@ measure lbLengths  :: [ByteString] -> Int
     lbLengths ([])   = 0
