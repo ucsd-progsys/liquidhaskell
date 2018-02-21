@@ -692,6 +692,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   gsInvarnts' <- expand' $ gsInvariants sp
   gsCtors'    <- expand' $ gsCtors      sp
   gsIaliases' <- expand' $ gsIaliases   sp
+  let suUpdate v = makeSubst v (gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp) (gsTySigs' ++ gsAsmSigs' ++ gsInSigs')
   return   $ sp { gsQualifiers = subst su quals
                 , gsDecr       = decr'
                 , gsLvars      = lvars'
@@ -700,7 +701,7 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
                 , gsLazy       = S.insert dictionaryVar lazies
                 , gsLogicMap   = lmap'
                 , gsTySigs     = gsTySigs'
-                , gsTexprs     = [ (v, subst su es) | (v, es) <- gsTexprs' ]
+                , gsTexprs     = [ (v, subst (su `mappend` suUpdate v) es) | (v, es) <- gsTexprs' ]
                 , gsMeasures   = gsMeasures'
                 , gsAsmSigs    = gsAsmSigs'
                 , gsInSigs     = gsInSigs'
@@ -712,6 +713,12 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
     mkThing         = mkThing' False
     mkThing' b mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs , b || m == name ]
     makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
+    makeSubst x old new
+      | Just o <- L.lookup x old 
+      , Just n <- L.lookup x new 
+      = mkSubst (zip (getBinds o) (EVar <$> (getBinds n)))
+    makeSubst _ _ _ = mkSubst [] 
+    getBinds = ty_binds . toRTypeRep . val 
 
 
 
