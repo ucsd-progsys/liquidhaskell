@@ -203,6 +203,7 @@ Library
                     Language.Haskell.Liquid.Types.Bounds,
                     Language.Haskell.Liquid.Types.Dictionaries,
                     Language.Haskell.Liquid.Constraint.Qualifier,
+                    Language.Haskell.Liquid.Termination.Structural, 
                     Language.Haskell.Liquid.UX.Tidy,
                     Language.Haskell.Liquid.Types,
                     Language.Haskell.Liquid.Types.Literals,

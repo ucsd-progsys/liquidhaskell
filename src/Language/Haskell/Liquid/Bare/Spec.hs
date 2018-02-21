@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeQualifiers
   , makeHints
   , makeLVar
+  , makeSize
   , makeLazy
   , makeAutoInsts
   , makeDefs
@@ -106,10 +107,23 @@ makeLVar :: [Var]
          -> BareM [Var]
 makeLVar    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <- Ms.lvars spec]
 
+makeSize :: [Var]
+         -> Ms.Spec ty bndr
+         -> BareM [Var]
+makeSize    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <-  lzs]
+  where
+    lzs = catMaybes (getSizeFuns <$> Ms.dataDecls spec)
+    getSizeFuns decl 
+      | Just x       <- tycSFun decl 
+      , SymSizeFun f <- x 
+      = Just f 
+      | otherwise
+      = Nothing
+
 makeLazy :: [Var]
          -> Ms.Spec ty bndr
          -> BareM [Var]
-makeLazy    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <- S.toList $ Ms.lazy spec]
+makeLazy    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <-  S.toList (Ms.lazy spec)]
 
 makeAutoInsts :: [Var]
               -> Ms.Spec ty bndr

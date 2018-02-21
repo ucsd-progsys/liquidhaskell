@@ -48,6 +48,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Model
 -- import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
+import qualified Language.Haskell.Liquid.Termination.Structural as ST
 
 type MbEnv = Maybe HscEnv
 
@@ -164,8 +165,9 @@ liquidQuery cfg tgt info edc = do
   when False (dumpCs cgi)
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
+  let tout = ST.terminationCheck (info' {cbs = cbs''})
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
-  return $  mconcat [oldOut, out]
+  return $  mconcat [oldOut, tout, out]
   where
     cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
     cbs''  = either id              DC.newBinds                        edc
