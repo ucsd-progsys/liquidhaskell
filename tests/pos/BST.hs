@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-totality" @-}
 
-module BST () where
+module BST (blen) where
 
 import Language.Haskell.Liquid.Prelude
 
@@ -15,12 +15,11 @@ data Bst [blen] k v <l :: x0:k -> x1:k -> Bool, r :: x0:k -> x1:k -> Bool>
 
 
 
-{-@ measure blen :: (Bst k v) -> Int
-    blen(Empty)        = 0
-    blen(Bind k v l r) = 1 + (blen l) + (blen r)
-  @-}
-
-{-@ invariant {v:Bst k v | (blen v) >= 0} @-}
+{-@ measure blen @-}
+blen :: (Bst k v) -> Int
+{-@ blen :: (Bst k v) -> Nat @-}
+blen(Empty)        = 0
+blen(Bind k v l r) = 1 + (blen l) + (blen r)
 
 data Bst k v = Empty | Bind k v (Bst k v) (Bst k v)
 

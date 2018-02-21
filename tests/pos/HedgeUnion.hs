@@ -8,12 +8,11 @@ import Language.Haskell.Liquid.Prelude
       | Bin (right :: Map <l, r> k  a) 
   @-}
 
-{-@ measure mlen :: (Map k a) -> Int 
-    mlen(Tip) = 0
-    mlen(Bin r) = 1 + (mlen r)
-  @-}
-
-{-@ invariant {v:Map k a | (mlen v) >= 0}@-}
+{-@ measure mlen @-}
+mlen :: (Map k a) -> Int 
+{-@ mlen :: (Map k a) -> Nat @-} 
+mlen(Tip) = 0
+mlen(Bin r) = 1 + (mlen r)
 
 {- type OMap k a = Map <{\root v -> v < root }, {\root v -> v > root}> k a @-}
 

@@ -3,7 +3,7 @@
 module OrdList (
     OrdList,
         nilOL, isNilOL, unitOL, appOL, consOL, snocOL, concatOL, concatOL',
-        mapOL, fromOL, toOL, foldrOL, foldlOL, llen
+        mapOL, fromOL, toOL, foldrOL, foldlOL, llen, ollen
         -- , olen, olens
 ) where
 
@@ -14,7 +14,7 @@ infixl 5  `snocOL`
 infixr 5  `consOL`
 
 {-@
-data OrdList [olen] a = None
+data OrdList [ollen] a = None
                       | One  (ox  :: a)
                       | Many (oxs1 :: ListNE a)
                       | Cons (ox  :: a)           (oxs3 :: OrdList a)
@@ -27,6 +27,16 @@ data OrdList [olen] a = None
 llen :: [a] -> Int 
 llen [] = 0
 llen (x:xs) = 1 + llen xs 
+
+{-@ measure ollen @-}
+{-@ ollen :: OrdList a -> Nat @-}
+ollen :: OrdList a -> Int 
+ollen None        = 0 
+ollen (One _)     = 1 
+ollen (Many xs)   = llen xs
+ollen (Cons _ xs) = 1 + ollen xs 
+ollen (Snoc xs _) = 1 + ollen xs 
+ollen (Two x y)   = ollen x + ollen y  
 
 {-@ measure olen :: OrdList a -> Int 
     olen (None)      = 0
@@ -46,7 +56,7 @@ llen (x:xs) = 1 + llen xs
 {-@ type OrdListNE a   = {v:OrdList a | (olen v) > 0} @-}
 {-@ type OrdListN  a N = {v:OrdList a | (olen v) = N} @-}
 
-{-@ invariant {v:OrdList a   | (olen v)  >= 0} @-}
+{-@ invariant {v:OrdList a   | (olen v)  >= 0 && ollen v == olen v} @-}
 {-@ invariant {v:[OrdList a] | (olens v) >= 0} @-}
 
 

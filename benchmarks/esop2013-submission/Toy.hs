@@ -1,8 +1,9 @@
 {-@ LIQUID "--pruneunsorted" @-}
 
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality" @-}
 
-module Toy () where
+module Toy (sizeOf) where
 
 import Language.Haskell.Liquid.Prelude (isEven)
 
@@ -60,19 +61,13 @@ count m = foldN (\_ n -> n + 1) m 0
 
 data Vec a = Nil | Cons a (Vec a)
 
-{-@ data Vec [llen] @-} -- a = Nil | Cons (x::a) (xs::Vec a) 
-
--- | We can encode the notion of length as an inductive measure @llen@ 
-
-{-@ measure llen     :: forall a. Vec a -> Int 
-    llen (Nil)       = 0 
-    llen (Cons x xs) = 1 + llen(xs)
-  @-}
+{-@ data Vec [sizeOf] @-} -- a = Nil | Cons (x::a) (xs::Vec a) 
 
 -- | As a warmup, lets check that a /real/ length function indeed computes
 -- the length of the list.
 
-{-@ sizeOf :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
+{-@ measure sizeOf @-}
+{-@ sizeOf :: xs:Vec a -> {v: Int | v = sizeOf xs} @-}
 sizeOf             :: Vec a -> Int
 sizeOf Nil         = 0
 sizeOf (Cons _ xs) = 1 + sizeOf xs
@@ -103,7 +98,7 @@ efoldr op b (Cons x xs) = op xs x (efoldr op b xs)
 -- operate on the `Vec`s. 
 
 -- | First: Computing the length using `efoldr`
-{-@ size :: xs:Vec a -> {v: Int | v = llen(xs)} @-}
+{-@ size :: xs:Vec a -> {v: Int | v = sizeOf(xs)} @-}
 size :: Vec a -> Int
 size = efoldr (\_ _ n -> n + 1) 0
 
@@ -113,6 +108,6 @@ suc :: Int -> Int
 suc x = x + 1 
 
 -- | Second: Appending two lists using `efoldr`
-{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | llen(v) = llen(xs) + llen(ys) } @-} 
+{-@ app  :: xs: Vec a -> ys: Vec a -> {v: Vec a | sizeOf(v) = sizeOf(xs) + sizeOf(ys) } @-} 
 app xs ys = efoldr (\_ z zs -> Cons z zs) ys xs 
 

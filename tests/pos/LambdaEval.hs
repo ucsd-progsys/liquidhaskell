@@ -30,7 +30,7 @@ data Expr
   | Snd Expr
 
 {-@
-data Expr [elen]
+data Expr
   = Lam   { eX :: Bndr, eBody :: Expr }
   | Var   { eX :: Bndr                }
   | App   { eL :: Expr, eR    :: Expr }

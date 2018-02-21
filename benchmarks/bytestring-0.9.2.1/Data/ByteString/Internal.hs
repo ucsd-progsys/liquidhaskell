@@ -175,13 +175,12 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -------------------------------------------------------------------------
 -- LiquidHaskell Specifications -----------------------------------------
 -------------------------------------------------------------------------
-{-@ measure bLength     :: ByteString -> Int
-    bLength (PS p o l)  = l
-  @-}
 
-{-@ measure bOffset     :: ByteString -> Int
-    bOffset (PS p o l)  = o
-  @-}
+{-@ measure bLength @-}
+{-@ bLength :: Bytestring -> Nat @-} 
+bLength :: Bytestring -> Int 
+bLength (PS p o l)  = l
+
 
 {-@ measure bPayload   :: ByteString -> (ForeignPtr Word8)
     bPayload (PS p o l) = p

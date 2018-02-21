@@ -1,5 +1,5 @@
 {-@ LIQUID "--no-totality" @-}
-module GenTerm () where
+module GenTerm (llen) where
 
 import Prelude hiding (reverse)
 
@@ -20,12 +20,11 @@ data L a = N | C a (L a)
 
 {-@ data L [llen] @-}
 
-{-@ measure llen :: (L a) -> Int
-    llen(N)      = 0
-    llen(C x xs) = 1 + (llen xs)
-  @-}
-
-{-@ invariant {v: L a | (llen v) >= 0} @-}
+{-@ measure llen @-}
+llen :: (L a) -> Int
+{-@ llen :: (L a) -> Nat @-}
+llen(N)      = 0
+llen(C x xs) = 1 + (llen xs)
 
 {-@ reverse :: xs: L a -> ys : L a -> L a / [(llen ys)] @-}
 reverse :: L a -> L a -> L a

@@ -18,6 +18,7 @@ define Data.Set.Internal.member x xs      = (Set_mem x xs)
 define Data.Set.Internal.isSubsetOf x y   = (Set_sub x y)
 define Data.Set.Internal.elems xs         = (listElts xs)
 
+define GHC.Real.fromIntegral x = (x)
 
 define GHC.Types.True                 = (true)
 

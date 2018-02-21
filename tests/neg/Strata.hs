@@ -7,12 +7,11 @@ import Prelude hiding (repeat, length)
 data L a = N | Cons a (L a)
 {-@ data L [llen] @-}
 
-{-@ measure llen :: L a -> Int
-    llen (N) = 0
-    llen (Cons x xs) = 1 + (llen xs)
-  @-}
-
-{-@ invariant {v:L a | (llen v) >= 0} @-}
+{-@ measure llen @-}
+llen :: L a -> Int
+{-@ llen :: L a -> Nat @-}
+llen (N) = 0
+llen (Cons x xs) = 1 + (llen xs)
 
 {-@ Cons :: forall <l>.a -> L^l a -> L^l a @-}
 
