@@ -358,6 +358,10 @@ as, by default the *first* (non-function) argument with an
 associated size metric is checked to be strictly terminating
 and non-negative at each recursive call.
 
+A default termination metric is a Haskell function that is proved terminating 
+using structural induction. To deactivate structional induction check on the 
+termination metric, use the `--trust-sizes` flag. 
+
 ### Explicit Termination Metrics
 
 However, consider the function `reverse`
