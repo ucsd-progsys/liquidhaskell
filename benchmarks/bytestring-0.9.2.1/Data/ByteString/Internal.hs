@@ -24,6 +24,7 @@
 module Data.ByteString.Internal (
 
         liquidCanary,   -- LIQUID
+        bLength, 
         ptrLen,         -- LIQUID GHOST for getting a pointer's length
         packWith,       -- LIQUID, because we hid the Read instance... FIX.
 

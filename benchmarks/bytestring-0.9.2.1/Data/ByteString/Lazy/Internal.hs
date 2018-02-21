@@ -32,7 +32,9 @@ module Data.ByteString.Lazy.Internal (
         -- * Chunk allocation sizes
         defaultChunkSize,
         smallChunkSize,
-        chunkOverhead
+        chunkOverhead, 
+
+        lbLength
 
   ) where
 
@@ -70,10 +72,11 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
          | Chunk {lbiHead :: ByteStringNE, lbiRest :: ByteString }
   @-}
 
-{-@ measure lbLength :: ByteString -> Int
-    lbLength (Empty)      = 0
-    lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
-  @-}
+{-@ measure lbLength @-}
+lbLength :: ByteString -> Int
+{-@ lbLength :: ByteString -> Nat @-}
+lbLength (Empty)      = 0
+lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
 
 {-@ measure lbLengths  :: [ByteString] -> Int
     lbLengths ([])   = 0
