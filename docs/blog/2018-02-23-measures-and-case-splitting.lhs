@@ -40,7 +40,7 @@ Let's define a simple data type with three alternatives
 data ABC = A | B | C 
 \end{code}
 
-and a measure that turns `ABD` into an integer
+and a measure that turns `ABC` into an integer
 
 \begin{code}
 {-@ measure toInt @-}
