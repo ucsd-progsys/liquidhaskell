@@ -129,7 +129,7 @@ makeFamInstEnv env = do
   famInsts <- getFamInstances env
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
   let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return      (fiTcs, F.notracepp "FAM-INST-TCS" $ M.fromList fiDcs)
+  return      (fiTcs, F.tracepp "FAM-INST-TCS" $ M.fromList fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
@@ -717,11 +717,11 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
     mkThing' b mk   = S.fromList . mconcat <$> sequence [ mk defVars s | (m, s) <- specs , b || m == name ]
     makeASize       = mapM (lookupGhcTyCon "makeASize") [v | (m, s) <- specs, m == name, v <- S.toList (Ms.autosize s)]
     makeSubst x old new
-      | Just o <- L.lookup x old 
-      , Just n <- L.lookup x new 
+      | Just o <- L.lookup x old
+      , Just n <- L.lookup x new
       = mkSubst (zip (getBinds o) (EVar <$> (getBinds n)))
-    makeSubst _ _ _ = mkSubst [] 
-    getBinds = ty_binds . toRTypeRep . val 
+    makeSubst _ _ _ = mkSubst []
+    getBinds = ty_binds . toRTypeRep . val
 
 
 
@@ -851,7 +851,7 @@ makeGhcSpecCHOP2 specs dcSelectors datacons cls embs = do
   let cms      = makeClassMeasureSpec measures
   let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
   let ms'      = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-  let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec cs (datacons ++ cls)]
+  let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec embs cs (datacons ++ cls)]
   let xs'      = fst <$> ms'
   return (measures, cms', ms', cs', xs')
 

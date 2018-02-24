@@ -74,7 +74,7 @@ module Language.Haskell.Liquid.Types.RefType (
   -- , mkDataConIdsTy
   , expandProductType
   , mkTyConInfo
-  , meetable
+  -- , meetable
   , strengthenRefTypeGen
   , strengthenDataConType
   , isBaseTy
@@ -647,8 +647,8 @@ strengthenRefType t1 t2
   | otherwise
   = panic Nothing msg
   where
-    msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
-                  (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+    msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
+            (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
 meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
 meetable t1 t2 = toRSort t1 == toRSort t2
