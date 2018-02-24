@@ -78,7 +78,7 @@ addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
 makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
   where
-    famInstSorts          = F.tracepp "famInstTcs"
+    famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
                                 , ty  <- maybeToList (famInstTyConType c) ]
@@ -436,7 +436,7 @@ dataConSpec' dcs = concatMap tx dcs
 
 
 meetDataConSpec :: F.TCEmb TyCon -> [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.tracepp "meetDataConSpec" xts)
+meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec" xts)
   where
     dcm0                     = M.fromList $ dataConSpec' dcs
     upd dcm (x, t)           = M.insert x (getSrcSpan x, tx') dcm

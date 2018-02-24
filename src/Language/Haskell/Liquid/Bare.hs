@@ -129,7 +129,7 @@ makeFamInstEnv env = do
   famInsts <- getFamInstances env
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
   let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return      (fiTcs, F.tracepp "FAM-INST-TCS" $ M.fromList fiDcs)
+  return      (fiTcs, F.notracepp "FAM-INST-TCS" $ M.fromList fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do

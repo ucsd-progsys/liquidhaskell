@@ -74,7 +74,6 @@ module Language.Haskell.Liquid.Types.RefType (
   -- , mkDataConIdsTy
   , expandProductType
   , mkTyConInfo
-  , strengthenRefType
   , strengthenRefTypeGen
   , strengthenDataConType
   , isBaseTy
@@ -636,13 +635,19 @@ pprt_raw :: (OkRT c tv r) => RType c tv r -> String
 pprt_raw = render . rtypeDoc Full
 
 {- [NOTE:StrengthenRefType] disabling the `meetable` check because
+
       (1) It requires the 'TCEmb TyCon' to deal with the fact that sometimes,
           GHC uses the "Family Instance" TyCon e.g. 'R:UniquePerson' and sometimes
           the vanilla TyCon App form, e.g. 'Unique Person'
       (2) We could pass in the TCEmb but that would break the 'Monoid' instance for
-          RType, which was probably a bad idea, but which is a battle I'd rather not
-          fight ATM.
+          RType. The 'Monoid' instance was was probably a bad idea to begin with,
+          and we probably ought to do away with it entirely, but thats a battle I'll
+          leave for another day.
+
+    Consequently, its up to users of `strengthenRefType` (and associated functions)
+    to make sure that the two types are compatible. For an example, see 'meetVarTypes'.
  -}
+
 strengthenRefType t1 t2
   | True -- _meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
