@@ -74,7 +74,7 @@ module Language.Haskell.Liquid.Types.RefType (
   -- , mkDataConIdsTy
   , expandProductType
   , mkTyConInfo
-  -- , meetable
+  , strengthenRefType
   , strengthenRefTypeGen
   , strengthenDataConType
   , isBaseTy
@@ -212,6 +212,7 @@ uTop r          = MkUReft r mempty mempty
 
 -- Monoid Instances ---------------------------------------------------------
 
+
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , OkRT c tv r
@@ -223,7 +224,6 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
   mappend = strengthenRefType
-
 
 -- MOVE TO TYPES
 instance ( SubsTy tv (RType c tv ()) c
@@ -635,10 +635,16 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
 pprt_raw :: (OkRT c tv r) => RType c tv r -> String
 pprt_raw = render . rtypeDoc Full
 
-
--- OLD: without unifying type variables, but checking α-equivalence
+{- [NOTE:StrengthenRefType] disabling the `meetable` check because
+      (1) It requires the 'TCEmb TyCon' to deal with the fact that sometimes,
+          GHC uses the "Family Instance" TyCon e.g. 'R:UniquePerson' and sometimes
+          the vanilla TyCon App form, e.g. 'Unique Person'
+      (2) We could pass in the TCEmb but that would break the 'Monoid' instance for
+          RType, which was probably a bad idea, but which is a battle I'd rather not
+          fight ATM.
+ -}
 strengthenRefType t1 t2
-  | True -- meetable t1 t2
+  | True -- _meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = panic Nothing msg
