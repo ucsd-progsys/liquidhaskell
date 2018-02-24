@@ -635,14 +635,10 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
 pprt_raw :: (OkRT c tv r) => RType c tv r -> String
 pprt_raw = render . rtypeDoc Full
 
--- NEWISH: with unifying type variables: causes big problems with TUPLES?
---strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
---  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
---                 (render t1) (render (toRSort t1)) (render t2) (render (toRSort t2))
 
 -- OLD: without unifying type variables, but checking α-equivalence
 strengthenRefType t1 t2
-  | meetable t1 t2
+  | True -- meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = panic Nothing msg
@@ -650,8 +646,8 @@ strengthenRefType t1 t2
     msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
             (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
-meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
-meetable t1 t2 = toRSort t1 == toRSort t2
+_meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
+_meetable t1 t2 = toRSort t1 == toRSort t2
 
 strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
   = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_meet (ty_var_value a2, toRSort t, t) t2)
