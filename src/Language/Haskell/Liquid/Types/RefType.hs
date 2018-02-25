@@ -1360,7 +1360,7 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
               => TCEmb TyCon -> RRType r -> Sort
-rTypeSort tce = typeSort tce . toType
+rTypeSort tce z = typeSort tce . F.notracepp ("toType: " ++ showpp z) . toType $ z
 
 --------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
@@ -1423,6 +1423,8 @@ typeSort tce = go
     go (CastTy t _)     = go t
     go τ                = FObj $ typeUniqueSymbol τ
 
+
+
 tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
 tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
   where
@@ -1437,13 +1439,13 @@ typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . GM.typeUniqueString
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
-typeSortForAll tce τ
-  = genSort $ typeSort tce tbody
-  where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
-        (as, tbody)         = splitForAllTys τ
-        su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = {- tyVarUniqueSymbol -} symbol <$> as
-        n                   = length as
+typeSortForAll tce τ  = genSort $ typeSort tce tbody
+  where
+    genSort t         = foldl' (flip FAbs) (sortSubst su t) [0..n-1]
+    (as, tbody)       = F.notracepp ("splitForallTys" ++ GM.showPpr τ) (splitForAllTys τ)
+    su                = M.fromList $ zip sas (FVar <$>  [0..])
+    sas               = symbol <$> as
+    n                 = length as
 
 -- RJ: why not make this the Symbolic instance?
 tyConName :: TyCon -> Symbol

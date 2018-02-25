@@ -23,9 +23,14 @@ meetVarTypes emb v hs lq = meetError emb err hsT lqT
     lqD              = F.pprint ({- toRSort -} lqT)
 
 meetError :: F.TCEmb TyCon -> Error -> SpecType -> SpecType -> SpecType
-meetError emb e t t'
-  | meetable emb t t' = t `F.meet` t'
+meetError _emb e t t'
+  -- // | meetable emb t t'
+  | True              = t `F.meet` t'
   | otherwise         = panicError e
 
-meetable :: F.TCEmb TyCon -> SpecType -> SpecType -> Bool
-meetable emb t1 t2 = rTypeSort emb t1 == rTypeSort emb t2
+_meetable :: F.TCEmb TyCon -> SpecType -> SpecType -> Bool
+_meetable _emb t1 t2 = F.notracepp ("meetable: " ++  showpp (s1, t1, s2, t2)) (s1 == s2)
+  where
+    s1              = tx t1
+    s2              = tx t2
+    tx              =  rTypeSort _emb . toRSort
