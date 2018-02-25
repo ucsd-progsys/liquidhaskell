@@ -1360,7 +1360,7 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
               => TCEmb TyCon -> RRType r -> Sort
-rTypeSort tce z = typeSort tce . F.notracepp ("toType: " ++ showpp z) . toType $ z
+rTypeSort tce = typeSort tce . toType
 
 --------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
