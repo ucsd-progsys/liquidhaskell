@@ -75,7 +75,7 @@ initEnv info
        f5       <- refreshArgs' $ vals gsInSigs sp                    -- internal refinements     (from Haskell measures)
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize sp) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize sp) dcs'
-       let f4    = mergeDataConTypes (mergeDataConTypes f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
+       let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
@@ -131,8 +131,8 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
 
-mergeDataConTypes ::  [(Var, SpecType)] -> [(Var, SpecType)] -> [(Var, SpecType)]
-mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
+mergeDataConTypes ::  F.TCEmb TyCon -> [(Var, SpecType)] -> [(Var, SpecType)] -> [(Var, SpecType)]
+mergeDataConTypes tce xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
   where
     f (x,_) (y,_) = compare x y
     merge [] ys = ys
@@ -141,7 +141,7 @@ mergeDataConTypes xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
       | x == y    = (x, mXY x tx y ty) : merge xs ys
       | x <  y    = xt : merge xs (yt : ys)
       | otherwise = yt : merge (xt : xs) ys
-    mXY x tx y ty = meetVarTypes (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
+    mXY x tx y ty = meetVarTypes tce (F.pprint x) (getSrcSpan x, tx) (getSrcSpan y, ty)
 
 refreshArgs' :: [(a, SpecType)] -> CG [(a, SpecType)]
 refreshArgs' = mapM (mapSndM refreshArgs)

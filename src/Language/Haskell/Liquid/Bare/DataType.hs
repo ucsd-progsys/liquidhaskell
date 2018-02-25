@@ -435,14 +435,14 @@ dataConSpec' dcs = concatMap tx dcs
     -- tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t) <- RT.mkDataConIdsTy dc (dataConPSpecType dc dcp) ] -- HEREHEREHEREHERE-1089
 
 
-meetDataConSpec :: [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec" xts)
+meetDataConSpec :: F.TCEmb TyCon -> [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
+meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec" xts)
   where
-    dcm0                 = M.fromList $ dataConSpec' dcs
-    upd dcm (x, t)       = M.insert x (getSrcSpan x, tx') dcm
-                             where
-                               tx' = maybe t (meetX x t) (M.lookup x dcm)
-    meetX x t (sp', t')  = meetVarTypes (pprint x) (getSrcSpan x, t) (sp', t')
+    dcm0                     = M.fromList $ dataConSpec' dcs
+    upd dcm (x, t)           = M.insert x (getSrcSpan x, tx') dcm
+                                where
+                                  tx' = maybe t (meetX x t) (M.lookup x dcm)
+    meetX x t (sp', t')      = meetVarTypes emb (pprint x) (getSrcSpan x, t) (sp', t')
 
 checkDataCtors :: TyCon -> [DataCtor] -> BareM ()
 checkDataCtors c ds = do

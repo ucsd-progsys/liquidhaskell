@@ -11,9 +11,10 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Tidy
+import           TyCon                                  hiding (tyConName)
 
-meetVarTypes :: Doc -> (SrcSpan, SpecType) -> (SrcSpan, SpecType) -> SpecType
-meetVarTypes v hs lq = meetError err hsT lqT
+meetVarTypes :: F.TCEmb TyCon -> Doc -> (SrcSpan, SpecType) -> (SrcSpan, SpecType) -> SpecType
+meetVarTypes emb v hs lq = meetError emb err hsT lqT
   where
     (hsSp, hsT)      = hs
     (lqSp, lqT)      = lq
@@ -21,7 +22,15 @@ meetVarTypes v hs lq = meetError err hsT lqT
     hsD              = F.pprint ({- toRSort -} hsT)
     lqD              = F.pprint ({- toRSort -} lqT)
 
-meetError :: Error -> SpecType -> SpecType -> SpecType
-meetError e t t'
-  | meetable t t' = t `F.meet` t'
-  | otherwise     = panicError e
+meetError :: F.TCEmb TyCon -> Error -> SpecType -> SpecType -> SpecType
+meetError _emb e t t'
+  -- // | meetable emb t t'
+  | True              = t `F.meet` t'
+  | otherwise         = panicError e
+
+_meetable :: F.TCEmb TyCon -> SpecType -> SpecType -> Bool
+_meetable _emb t1 t2 = F.notracepp ("meetable: " ++  showpp (s1, t1, s2, t2)) (s1 == s2)
+  where
+    s1              = tx t1
+    s2              = tx t2
+    tx              =  rTypeSort _emb . toRSort
