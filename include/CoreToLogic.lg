@@ -36,3 +36,6 @@ define String.stringEmp  = (stringEmp)
 define Main.mempty       = (mempty)
 define Language.Haskell.Liquid.ProofCombinators.cast x y = (y)
 define Control.Parallel.Strategies.withStrategy s x = (x)
+
+
+define Lib.Derivations.eq x y = (y)
