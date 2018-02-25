@@ -74,6 +74,7 @@ module Language.Fixpoint.Types.Constraints (
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
+  , sortVars
   ) where
 
 import qualified Data.Binary as B
