@@ -122,7 +122,7 @@ numFTyCon  = TC (dummyLoc "num"      ) numTcInfo
 funcFTyCon = TC (dummyLoc "function" ) defTcInfo
 strFTyCon  = TC (dummyLoc strConName ) strTcInfo
 listFTyCon = TC (dummyLoc listConName) defTcInfo
-charFTyCon = TC (dummyLoc "Char"     ) defTcInfo
+charFTyCon = TC (dummyLoc charConName) defTcInfo
 setFTyCon  = TC (dummyLoc setConName ) defTcInfo
 mapFTyCon  = TC (dummyLoc mapConName ) defTcInfo
 

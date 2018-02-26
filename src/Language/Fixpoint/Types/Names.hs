@@ -90,6 +90,7 @@ module Language.Fixpoint.Types.Names (
   , setConName
   , mapConName
   , strConName
+  , charConName
   , nilName
   , consName
   , vvName
@@ -562,8 +563,9 @@ vvName       = "VV"
 propConName  = "Prop"
 _hpropConName = "HProp"
 
-strConName  :: (IsString a) => a
+strConName, charConName :: (IsString a) => a
 strConName   = "Str"
+charConName  = "Char"
 -- symSepName   :: Char
 -- symSepName   = '#' -- DO NOT EVER CHANGE THIS
 
@@ -594,6 +596,7 @@ prims = [ propConName
         , "List"
         , "[]"
         , setConName
+        , charConName
         , "Set_sng"
         , "Set_cup"
         , "Set_cap"
