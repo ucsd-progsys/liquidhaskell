@@ -1426,9 +1426,9 @@ typeSort tce = go
 
 
 tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
-tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
+tyConFTyCon tce c = F.notracepp _msg $ M.lookupDefault def c tce
   where
-    _msg           = "tyConFTyCon c = " ++ show c
+    _msg           = "tyConFTyCon c = " ++ show c ++ "default " ++ show def
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 

@@ -299,7 +299,11 @@ lookupGhcTyCon src s = do
     err = "type constructor or class\n " ++ src
 
 lookupGhcDataCon :: Located F.Symbol -> BareM DataCon
-lookupGhcDataCon dc
+lookupGhcDataCon dc = case lookupWiredDataCon (val dc) of
+                        Just x  -> return x
+                        Nothing -> lookupGhcDataCon' dc
+
+  {-
   | Just n <- isTupleDC (val dc)
   = return $ tupleDataCon Boxed n
   | val dc == "[]"
@@ -308,6 +312,22 @@ lookupGhcDataCon dc
   = return consDataCon
   | otherwise
   = lookupGhcDataCon' dc
+  -}
+
+lookupWiredDataCon :: F.Symbol ->  Maybe DataCon
+lookupWiredDataCon dc
+  | Just n <- isTupleDC dc
+  = Just (tupleDataCon Boxed n)
+  | dc == "[]"
+  = Just nilDataCon
+  | dc == ":"
+  = Just consDataCon
+  | dc == "GHC.Base.Nothing"
+  = Just nothingDataCon
+  | dc == "GHC.Base.Just"
+  = Just justDataCon
+  | otherwise
+  = Nothing
 
 isTupleDC :: F.Symbol -> Maybe Int
 isTupleDC zs

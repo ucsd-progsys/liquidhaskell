@@ -20,7 +20,7 @@ import           Text.Parsec.Pos
 import qualified Data.HashMap.Strict                 as M
 
 -- import           Language.Fixpoint.Misc              (traceShow)
-import           Language.Fixpoint.Types.Names       (prims, unconsSym)
+import qualified Language.Fixpoint.Types.Names       as F -- (prims, unconsSym)
 import Language.Fixpoint.Types (Expr(..),
                                 Qualifier(..),
                                 Reft(..),
@@ -98,7 +98,7 @@ resolveCtorVar ls = do
 isSpecialSym :: Symbol -> BareM Bool
 isSpecialSym s = do
   env0 <- gets (typeAliases . rtEnv)
-  return $ or [s `elem` prims, M.member s env0]
+  return $ or [s `elem` F.prims, M.member s env0]
 
 
 addSym :: MonadState BareEnv m => (Symbol, Var) -> m ()
@@ -106,8 +106,8 @@ addSym (x, v) = modify $ \be -> be { varEnv = M.insert x v (varEnv be) } --  `L.
 
 isCon :: Symbol -> Bool
 isCon s
-  | Just (c,_) <- unconsSym s = isUpper c
-  | otherwise                 = False
+  | Just (c,_) <- F.unconsSym s = isUpper c
+  | otherwise                   = False
 
 instance Resolvable Symbol where
   resolve l x = fmap val $ resolve l $ Loc l l x
@@ -122,7 +122,7 @@ instance Resolvable Sort where
   resolve l (FAbs i  s)   = FAbs i <$> (resolve l s)
   resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
   resolve _ (FTC c)
-    | tcs' `elem` prims   = FTC <$> return c
+    | tcs' `elem` F.prims = FTC <$> return c
     | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
                                emb    <- embeds <$> get
                                let ftc = FTC $ symbolFTycon $ Loc l l' $ symbol ty

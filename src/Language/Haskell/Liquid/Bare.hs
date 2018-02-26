@@ -245,8 +245,8 @@ makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
   let tcs    = uniqNub (defTcs ++ refTcs)
   return     $ mempty
                 { Ms.ealiases  = lmapEAlias . snd <$> xils
-                , Ms.measures  = F.notracepp "MS-MEAS" $ ms
-                , Ms.reflects  = F.notracepp "MS-REFLS" $ Ms.reflects mySpec
+                , Ms.measures  = F.notracepp "MS-MEAS"     $ ms
+                , Ms.reflects  = F.notracepp "MS-REFLS"    $ Ms.reflects mySpec
                 , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg name mySpec tcs
                 }
 
@@ -265,10 +265,6 @@ uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
 -- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
 --   which are defined *outside* the current module e.g. in Base or somewhere
 --   that we don't have access to the code.
--- // _reflectedTyCons :: Config -> Ms.BareSpec -> BareM [TyCon]
--- // _reflectedTyCons cfg spec
-  -- // | exactDC cfg = mapM (lookupGhcTyCon "reflectedTyCons") $ tycName <$> Ms.dataDecls spec
-  -- // | otherwise   = return []
 
 reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
 reflectedTyCons cfg embs cbs spec
@@ -314,7 +310,7 @@ makeLiftedSpec1 file name lSpec0 xts axs invs
     -- xinvs  = [ (Just (varLocSym x), specToBare <$> t) | (Just x, t) <- invs ]
     xinvs  = [ ((varLocSym <$>x), specToBare <$> t) | (x, t) <- invs ]
     lSpec1 = lSpec0 { Ms.asmSigs    = xbs
-                    , Ms.reflSigs   = xbs
+                    , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
                     , Ms.axeqs      = axs
                     , Ms.invariants = xinvs
                     }
@@ -340,7 +336,7 @@ loadLiftedSpec cfg srcF
       ex  <- doesFileExist specF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
-      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.reflSigs lSp)
+      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
       return lSp
 
 insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
@@ -784,6 +780,8 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.
   -- checkDuplicateSigs asms
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
+
+
 
 
 checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()
