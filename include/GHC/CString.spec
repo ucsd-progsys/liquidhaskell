@@ -1,8 +1,10 @@
 module spec GHC.CString where
 
-import GHC.Prim 
+import GHC.Prim
 
 measure strLen :: GHC.Base.String -> GHC.Types.Int
+
+embed GHC.Types.Char as Char
 
 GHC.CString.unpackCString#
   :: x:GHC.Prim.Addr#
