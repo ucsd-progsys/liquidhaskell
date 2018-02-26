@@ -782,6 +782,8 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 
+
+
 checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()
 checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
   Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
