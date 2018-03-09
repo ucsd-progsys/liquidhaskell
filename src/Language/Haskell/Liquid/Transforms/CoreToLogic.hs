@@ -241,14 +241,15 @@ coerceToLg = typeEqToLg . coercionTypeEq
 
 coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
-  | Pair.Pair s t <- {- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $ -}
+  | Pair.Pair s t <- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $
                        coercionKind co
   = (s, t)
 
 typeEqToLg :: (Type, Type) -> LogicM (Sort, Sort)
 typeEqToLg (s, t) = do
   tce   <- gets lsEmb
-  return (typeSort tce s, typeSort tce t)
+  let tx = typeSort tce . expandTypeSynonyms
+  return $ F.tracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
 
   -- Pair t1 t2 <- coercionKind co
   -- getCoVar_maybe :: Coercion -> Maybe CoVar

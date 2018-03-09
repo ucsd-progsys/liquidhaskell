@@ -74,7 +74,6 @@ module Language.Haskell.Liquid.Types.RefType (
   -- , mkDataConIdsTy
   , expandProductType
   , mkTyConInfo
-  , meetable
   , strengthenRefTypeGen
   , strengthenDataConType
   , isBaseTy
@@ -212,6 +211,7 @@ uTop r          = MkUReft r mempty mempty
 
 -- Monoid Instances ---------------------------------------------------------
 
+
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , OkRT c tv r
@@ -223,7 +223,6 @@ instance ( SubsTy tv (RType c tv ()) (RType c tv ())
         => Monoid (RType c tv r)  where
   mempty  = panic Nothing "mempty: RType"
   mappend = strengthenRefType
-
 
 -- MOVE TO TYPES
 instance ( SubsTy tv (RType c tv ()) c
@@ -635,23 +634,31 @@ strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
 pprt_raw :: (OkRT c tv r) => RType c tv r -> String
 pprt_raw = render . rtypeDoc Full
 
--- NEWISH: with unifying type variables: causes big problems with TUPLES?
---strengthenRefType t1 t2 = maybe (errorstar msg) (strengthenRefType_ t1) (unifyShape t1 t2)
---  where msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
---                 (render t1) (render (toRSort t1)) (render t2) (render (toRSort t2))
+{- [NOTE:StrengthenRefType] disabling the `meetable` check because
 
--- OLD: without unifying type variables, but checking α-equivalence
+      (1) It requires the 'TCEmb TyCon' to deal with the fact that sometimes,
+          GHC uses the "Family Instance" TyCon e.g. 'R:UniquePerson' and sometimes
+          the vanilla TyCon App form, e.g. 'Unique Person'
+      (2) We could pass in the TCEmb but that would break the 'Monoid' instance for
+          RType. The 'Monoid' instance was was probably a bad idea to begin with,
+          and we probably ought to do away with it entirely, but thats a battle I'll
+          leave for another day.
+
+    Consequently, its up to users of `strengthenRefType` (and associated functions)
+    to make sure that the two types are compatible. For an example, see 'meetVarTypes'.
+ -}
+
 strengthenRefType t1 t2
-  | meetable t1 t2
+  | True -- _meetable t1 t2
   = strengthenRefType_ (\x _ -> x) t1 t2
   | otherwise
   = panic Nothing msg
   where
-    msg       = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
-                  (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
+    msg = printf "strengthen on differently shaped reftypes \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
+            (showpp t1) (showpp (toRSort t1)) (showpp t2) (showpp (toRSort t2))
 
-meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
-meetable t1 t2 = toRSort t1 == toRSort t2
+_meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
+_meetable t1 t2 = toRSort t1 == toRSort t2
 
 strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
   = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_meet (ty_var_value a2, toRSort t, t) t2)
@@ -1416,10 +1423,12 @@ typeSort tce = go
     go (CastTy t _)     = go t
     go τ                = FObj $ typeUniqueSymbol τ
 
+
+
 tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
-tyConFTyCon tce c = {- tracepp _msg $ -} M.lookupDefault def c tce
+tyConFTyCon tce c = F.notracepp _msg $ M.lookupDefault def c tce
   where
-    _msg           = "tyConFTyCon c = " ++ show c
+    _msg           = "tyConFTyCon c = " ++ show c ++ "default " ++ show def
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
@@ -1430,13 +1439,13 @@ typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . GM.typeUniqueString
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
-typeSortForAll tce τ
-  = genSort $ typeSort tce tbody
-  where genSort t           = foldl (flip FAbs) (sortSubst su t) [0..n-1]
-        (as, tbody)         = splitForAllTys τ
-        su                  = M.fromList $ zip sas (FVar <$>  [0..])
-        sas                 = {- tyVarUniqueSymbol -} symbol <$> as
-        n                   = length as
+typeSortForAll tce τ  = genSort $ typeSort tce tbody
+  where
+    genSort t         = foldl' (flip FAbs) (sortSubst su t) [0..n-1]
+    (as, tbody)       = F.notracepp ("splitForallTys" ++ GM.showPpr τ) (splitForAllTys τ)
+    su                = M.fromList $ zip sas (FVar <$>  [0..])
+    sas               = symbol <$> as
+    n                 = length as
 
 -- RJ: why not make this the Symbolic instance?
 tyConName :: TyCon -> Symbol

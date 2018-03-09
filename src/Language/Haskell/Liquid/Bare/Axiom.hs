@@ -16,6 +16,7 @@ import TyCon
 import Id
 import Name
 import Var
+import Type           (expandTypeSynonyms)
 import Language.Haskell.Liquid.GHC.TypeRep
 
 import Prelude hiding (mapM)
@@ -95,7 +96,7 @@ makeAssumeType tce lmap dm x mbT v def
   where
     t     = fromMaybe (ofType $ varType v) mbT
     out   = rTypeSort tce (ty_res tRep)
-    at    = axiomType x mbT t
+    at    = F.notracepp ("AXIOM-TYPE: " ++ showpp (x, toType t)) $ axiomType x t
     tRep  = toRTypeRep at
     xArgs = F.EVar <$> [x | (x, t) <- zip (ty_binds tRep) (ty_args tRep), not (isClassType t)]
     _msg  = unwords [showpp x, showpp mbT]
@@ -108,8 +109,11 @@ makeAssumeType tce lmap dm x mbT v def
     (xs, def') = grabBody (normalize def)
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
-    xts        = zipWith (\x t -> (F.symbol x, rTypeSort tce t)) xs ts
+    xts        = zipWith (\x t -> (F.symbol x, rTypeSortExp tce t)) xs ts
     ts         = filter (not . isClassType) (ty_args tRep)
+
+rTypeSortExp :: F.TCEmb TyCon -> SpecType -> F.Sort
+rTypeSortExp tce = typeSort tce . expandTypeSynonyms . toType
 
 -- makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Sort -> AxiomEq
 -- makeSMTAxiom = F.mkEquation . val
@@ -179,9 +183,9 @@ instance Subable CoreAlt where
 
 -- | Specification for Haskell function
 axiomType
-  :: (TyConable c) => LocSymbol -> Maybe SpecType -> RType c tv RReft
+  :: (TyConable c) => LocSymbol -> RType c tv RReft
   -> RType c tv RReft
-axiomType s _mbT t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
+axiomType s t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
   where
     res           = strengthen (ty_res tr) (singletonApp s ys)
     ys            = fst $ unzip $ dropWhile (isClassType . snd) xts

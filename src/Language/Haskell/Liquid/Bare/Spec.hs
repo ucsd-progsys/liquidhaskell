@@ -113,10 +113,10 @@ makeSize :: [Var]
 makeSize    vs spec = fmap fst <$> varSymbols id vs [(v, ()) | v <-  lzs]
   where
     lzs = catMaybes (getSizeFuns <$> Ms.dataDecls spec)
-    getSizeFuns decl 
-      | Just x       <- tycSFun decl 
-      , SymSizeFun f <- x 
-      = Just f 
+    getSizeFuns decl
+      | Just x       <- tycSFun decl
+      , SymSizeFun f <- x
+      = Just f
       | otherwise
       = Nothing
 
@@ -273,9 +273,9 @@ lookupIds !ignoreUnknown
 mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
 mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
   where
-    coSub           = F.tracepp _msg $ M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
+    coSub           = {- F.tracepp _msg $ -} M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
     _msg            = "mkVarSpec v = " ++ F.showpp (v, b)
-    tvs             = bareTypeVars (val b) -- fmap ty_var_value . fst4 . bkUniv . val $ b
+    tvs             = bareTypeVars (val b)
     specTvSymbol    = F.symbol . bareRTyVar
     txCoerce        = mapExprReft (F.applyCoSub coSub)
 
