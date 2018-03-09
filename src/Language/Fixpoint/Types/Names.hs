@@ -595,6 +595,9 @@ prims = [ propConName
         , "Pred"
         , "List"
         , "[]"
+        , "int"
+        , "bool"
+        , "real"
         , setConName
         , charConName
         , "Set_sng"
