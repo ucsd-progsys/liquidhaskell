@@ -157,7 +157,7 @@ infixl 3 ==!
 
 -- | To summarize:
 --
--- 	- (==!) is *only* for proof debuging
+-- 	- (==!) is *only* for proof debugging
 --	- (===) does not require explicit proof term
 -- 	- (==?) requires explicit proof term
 
