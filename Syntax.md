@@ -134,8 +134,8 @@ See below for many other examples:
       | Bin { mSz    :: Size
             , mKey   :: k
             , mValue :: a
-            , mLeft  :: Map <l, r> (l mKey) a
-            , mRight :: Map <l, r> (r mKey) a }
+            , mLeft  :: Map (l mKey) a <l, r> 
+            , mRight :: Map (r mKey) a <l, r> }
 
   type OMap k a = Map k a <\root -> {v:k | v < root }, \root -> {v:k | root < v}> 
 ```
@@ -160,7 +160,7 @@ See below for many other examples:
   data List a <p :: a -> {a}> 
     = Emp
     | Cons { lHd :: a 
-           , lTl :: List <p> (p lHd) 
+           , lTl :: List (p lHd) <p> 
            }
 
   type OList a = List a <\x -> {v:a | x <= v}> 
@@ -186,7 +186,7 @@ See below for many other examples:
   data List a <p :: {List a}> 
     = N 
     | C { x  :: a
-        , xs :: p /\ List <p> a
+        , xs :: p /\ List a <p> 
         } 
   
   type Stream a = {xs: List a <{v | isCons v}> | isCons xs}
