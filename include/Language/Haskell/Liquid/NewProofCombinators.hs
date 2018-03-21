@@ -98,7 +98,7 @@ data QED = Admit | QED
 infixl 3 ===
 {-@ (===) :: x:a -> y:{a | y == x} -> {v:a | v == x && v == y} @-}
 (===) :: a -> a -> a
-x === _  = x
+_ === y  = y
 
 infixl 3 =<=
 {-@ (=<=) :: x:a -> y:{a | x <= y} -> {v:a | v == y} @-}
@@ -122,7 +122,7 @@ _ =>= y  = y
 infixl 3 ==?
 {-@ (==?) :: x:a -> y:a -> {v:_ | x == y} -> {v:a | v == x && v == y} @-}
 (==?) :: a -> a -> b -> a
-(==?) x _ _ = x
+(==?) _ y _ = y
 
 infixl 3 =<=?
 {-@ (=<=?) :: x:a -> y:a -> {v:_ | x <= y} -> {v:a | v == y} @-}
@@ -152,7 +152,7 @@ f ? y = f y
 infixl 3 ==!
 {-@ assume (==!) :: x:a -> y:a -> {v:a | v == x && v == y} @-}
 (==!) :: a -> a -> a
-(==!) x _ = x
+(==!) _ y = y
 
 
 -- | To summarize:
@@ -178,13 +178,13 @@ instance (a~b) => OptEq a (Proof -> b) where
 {-@ instance OptEq a (Proof -> b) where
   ==. :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y}
   @-}
-  (==.) x _ _ = x
+  (==.) _ y _ = y
 
 instance (a~b) => OptEq a b where
 {-@ instance OptEq a b where
   ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
-  (==.) x _ = x
+  (==.) _ y = y
 
 -------------------------------------------------------------------------------
 -- | * Combining Proof Certificates -------------------------------------------
