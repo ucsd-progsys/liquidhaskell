@@ -2,6 +2,12 @@
 
 ### New Proposal
 
+**NOTE:** I believe this is a **purely syntactic change**: 
+it should not affect how absref is actually implemented, 
+but it more precisely describes the implementation than 
+the current `-> Bool` formulation.
+
+
 Key idea is to think of an abstract refinement as a (function returning a) refinement type.
 
 That is, the abstract refinement:
