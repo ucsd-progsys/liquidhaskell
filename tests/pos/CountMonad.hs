@@ -67,10 +67,22 @@ test2 = do
   foo y  
   unit
 
-{-@ test3 :: {v:Count () | count v == 2 } @-}
+{-@ test3 :: {v:Count () | count v == 3 } @-}
 test3 = do 
   unit
-  unit
-  incr ()
   incr ()
   unit
+  incr ()
+  unit
+  incr ()
+  unit
+  
+
+
+{-@ replicateTick :: n:Nat -> a -> {v:Count [a] | count v == n} @-}
+replicateTick :: Int -> a -> Count [a]
+replicateTick 0 x = return []
+replicateTick n x = do incr () 
+                       xs <- replicateTick (n-1) x
+                       return ( x : xs )
+
