@@ -7,6 +7,7 @@ it should not affect how absref is actually implemented,
 but it more precisely describes the implementation than 
 the current `-> Bool` formulation.
 
+#### Step 1: Abstract Refinement is "Type with Shape"
 
 Key idea is to think of an abstract refinement as a (function returning a) refinement type.
 
@@ -38,6 +39,7 @@ can just be written as
 
 where we need not write `Int<p>`, its enough to just write `p`.
 
+#### Step 2: An explicit "Meet" Operator 
 
 However, sometimes you need to write things like:
 
