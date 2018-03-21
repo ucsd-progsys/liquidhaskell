@@ -25,7 +25,7 @@ now just becomes
 
 Here, `{S}` denotes a refinement type with shape `S` 
 
-This means that we don't need an explict "application" form, that is
+**Key Payoff:** This means that we don't need an _explicit application_ form, that is
 
 ```
   foo :: forall <p :: Int -> Bool>. [Int<p>] -> Int<p>
