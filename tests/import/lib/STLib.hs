@@ -38,15 +38,4 @@ instance Monad (ST s) where
   (S m) >>= k = S $ \s -> let (a, s') = m s in apply (k a) s'
   fail        = error
 
---------------------------------------------------------------------------------
-
-{-@ fresh :: forall <pre :: Int -> Bool>.
-                    { zoo::Int |- Int<pre> <: {v:Int | 0 <= v} }
-                    ST <pre, {\rv v -> ( 0 <= rv && rv + 1 = v )}> Int (Int<pre>)
-  @-}
-
-{- fresh :: ST <{\v -> (0 <= v)}, {\rv v -> ( 0 <= rv && rv + 1 = v )}> Int Nat @-}
-fresh :: ST Int Int
-fresh = S (\n -> (n, n+1))
-
 
