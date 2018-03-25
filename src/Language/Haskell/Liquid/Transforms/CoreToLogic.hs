@@ -53,8 +53,8 @@ import           Language.Haskell.Liquid.Types.RefType
 
 import qualified Data.HashMap.Strict                   as M
 
-varType :: Var -> Type
-varType = expandTypeSynonyms . Var.varType
+-- varType :: Var -> Type
+-- varType = expandTypeSynonyms . Var.varType
 
 logicType :: (Reftable r) => Type -> RRType r
 logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
@@ -85,7 +85,7 @@ strengthenResult v
     r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
     vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
     f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
-    t   = (ofType $ varType v) :: SpecType
+    t   = (ofType $ expandVarType v) :: SpecType
     mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
 
 
@@ -96,7 +96,7 @@ strengthenResult' v
   | otherwise
   = go mkExpr [] [1..] t
   where f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
-        t   = (ofType $ varType v) :: SpecType
+        t   = (ofType $ expandVarType v) :: SpecType
 
         -- refine types of measures: keep going until you find the last data con!
         -- this code is a hack! we refine the last data constructor,
@@ -186,7 +186,7 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
 
     toArgs f args = [(symbol x, f $ varRType x) | x <- args]
 
-    inline_preds = inline (eqType boolTy . varType)
+    inline_preds = inline (eqType boolTy . expandVarType)
 
 varRType :: (Reftable r) => Var -> Located (RRType r)
 varRType = varLocInfo ofType
@@ -219,10 +219,10 @@ coreToLg (C.Var x)
   | otherwise                  = (lsSymMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)         = toPredApp e
 coreToLg (C.Case e b _ alts)
-  | eqType (varType b) boolTy  = checkBoolAlts alts >>= coreToIte e
+  | eqType (expandVarType b) boolTy  = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)           = do p     <- coreToLg e
                                     tce   <- lsEmb <$> getState
-                                    return $ ELam (symbol x, typeSort tce (varType x)) p
+                                    return $ ELam (symbol x, typeSort tce (expandVarType x)) p
 coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
                                     casesToLg b p alts
 coreToLg (C.Lit l)             = case mkLit l of
@@ -369,7 +369,7 @@ varExpr x
   | isPolyCst t = mkEApp (dummyLoc s) []
   | otherwise   = EVar s
   where
-    t           = varType x
+    t           = expandVarType x
     s           = symbol x
 
 isPolyCst :: Type -> Bool
@@ -476,7 +476,7 @@ class Simplify a where
   normalize :: a -> a
   normalize = inline_preds . inline_anf . simplify
    where
-    inline_preds = inline (eqType boolTy . varType)
+    inline_preds = inline (eqType boolTy . expandVarType)
     inline_anf   = inline isANF
 
 instance Simplify C.CoreExpr where
