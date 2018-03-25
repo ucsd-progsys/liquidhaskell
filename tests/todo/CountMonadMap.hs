@@ -1,14 +1,18 @@
-module Count () where
+{-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--higherorder"       @-}
+
+module Count (sz) where
 
 import Prelude hiding (map)
 
-
 {-@ measure count :: Count a -> Int @-}
 
+{-@ Count :: x:a -> {v:Count a | v == Count x } @-}
 data Count a = Count a
 
 instance Functor Count where
-	fmap = undefined
+  fmap = undefined
+
 instance Applicative Count where
   pure  = undefined
   (<*>) = undefined
@@ -16,7 +20,7 @@ instance Applicative Count where
 instance Monad Count where
 {-@
 instance Monad Count where
-  >>=    :: forall <r :: Count a -> Prop, p :: Count b -> Prop, q :: Count b -> Prop>.
+  >>=    :: forall <r :: Count a -> Bool, p :: Count b -> Bool, q :: Count b -> Bool>.
             {x::Count a <<r>>, y :: Count b <<p>>  |- {v:Count b | count v == count x + count y} <: Count b <<q>>}
             Count a <<r>> -> (a -> Count b<<p>>) -> Count b <<q>> ;
   >>     :: x:Count a -> y:Count b -> {v:Count b | count v == count x + count y};
@@ -28,7 +32,6 @@ instance Monad Count where
   fail          = error
 
 
-
 {-@ assume assertCount :: i:Int -> x:Count a -> {v:Count a | v == x && count v == i } @-}
 assertCount :: Int -> Count a -> Count a
 assertCount _ x = x
@@ -37,7 +40,37 @@ assertCount _ x = x
 getCount :: Count a -> Int
 getCount _ = 0
 
+{-@ data List [sz] @-}
+data List a = Emp | Cons a (List a)
 
+{-@ measure sz @-}
+{-@ sz :: List a -> Nat @-}
+sz :: List a -> Int
+sz Emp         = 0
+sz (Cons x xs) = 1 + sz xs
+
+{-@  mapV :: forall <p :: Count b -> Bool, q :: Count (List b) -> Bool>.
+               { {v:Count (List b) | count v == 0 } <: (Count (List b) <<q>>)}
+               {xs :: List a, y :: Count b <<p>> |- {v:Count [b] | count v == count y * len xs} <: (Count (List b) <<q>>)}
+               (a -> Count b <<p>>) -> xs:List a -> (Count (List b) <<q>>)
+  @-}
+
+mapV :: (a -> Count b) -> List a -> Count (List b)
+mapV f Emp         = return Emp
+mapV f (Cons x xs) = do {y <- f x; ys <- mapV f xs; return (Cons y ys)}
+
+-- xs :: List a, m
+-- n :: Int
+-- ys <- mapV f xs
+-- return (y:ys)
+
+{-
+
+mapV :: (a -> Counter t b) -> Vector n a -> Counter (n :* t) (Vector n b)
+
+mapV :: forall <p :: {Count b}, q :: {Count [b]}, l :: {L a}>.
+         {xs::[a], y :: p |- {v:Count [b] | count v == count y * (len xs + 1)} <: q }
+         (a -> p /\ Count b) -> xs:L a -> q /\ Count {v:[b] | len v == len xs}
 {-@ assume incr :: a -> {v:Count a | count v == 1 } @-}
 incr :: a -> Count a
 incr = Count
@@ -48,26 +81,21 @@ unit = Count ()
 
 type L a = [a]
 
-{-@  map :: forall <p :: Count b -> Prop, q :: Count [b] -> Prop, l :: L a  -> Prop >.
-            {x::a, xs::[a], y :: Count b <<p>>, ys :: {v:Count [b] | count v == len xs * count y} |- {v:Count [b] | count v == count y * (len xs + 1)} <: Count [b] <<q>>}
-            (a -> Count b <<p>>) -> xs:L a -> Count {v:[b] | len v == len xs } <<q>>
-@-}
-
 map :: (a -> Count b) -> [a] -> Count [b]
 -- map f []     = return []
 
 
 {-
 
-y :: Count b 
+y :: Count b
 ys :: {c:Count {v:[b] | len v == len xs} | count c == (count y) * (len xs) }
 
 -}
 
-map f (x:xs) = 
-  let y  = f x   
-      ys = map f xs          -- count v == len xs * count y 
-      -- g y ys = return (y:ys) -- count v == 0 
+map f (x:xs) =
+  let y  = f x
+      ys = map f xs          -- count v == len xs * count y
+      -- g y ys = return (y:ys) -- count v == 0
       -- h z = ys >>= (g xs y ys z)       -- count v == (len xs * count y) +count y
   in  y >>= (h xs y ys)
 
@@ -84,17 +112,17 @@ h xs y ys z = ys >>= (g xs y ys z)
 
 {-
   do y <- f x
-     ys <- map f xs 
+     ys <- map f xs
      -- {v: ??? | count v == len xs * count c }
      return (y:ys)
 
 -}
 
 {-
-map f (x:xs) = 
-  let y  = f x 
+map f (x:xs) =
+  let y  = f x
       ys = map f xs
-  in y:ys     
+  in y:ys
 
 -}
 
@@ -104,35 +132,18 @@ map f (x:xs) =
 {-@ map' :: c:Count b -> xs:[a] -> {v:Count [b] | count v == (len xs) * (count c)} @-}
 map' :: Count b -> [a] -> Count [b]
 map' f []     = return []
-map' f (x:xs) = 
-  do y <- f 
-     ys <- map' f xs 
+map' f (x:xs) =
+  do y <- f
+     ys <- map' f xs
      return (y:ys)
 
 
-{-@ foo :: a -> {v:Count a | count v == 0 }  @-}
-foo :: a -> Count a
-foo y = return y
 
-{-@ test1 :: {v:Count () | count v == 0 } @-}
-test1 :: Count ()
-test1 = do
-  unit
-  unit
-  unit
+mapV
+  :: (a -> CounterN m b) -> Vector n a -> CounterN (n :* m) (Vector n b)
 
-{-@ test2 :: {v:Count () | count v == 1 } @-}
-test2 = do
-  unit
-  y <- incr ()
-  unit
-  foo y
-  unit
+desugars to
+  ::
 
-{-@ test3 :: {v:Count () | count v == 2 } @-}
-test3 = do
-  unit
-  unit
-  incr ()
-  incr ()
-  unit
+
+-}
