@@ -54,7 +54,7 @@ import           TcRnDriver
 
 
 import           RdrName
-import           Type                                       (isClassPred, isEqPred, liftedTypeKind)
+import           Type                                       (expandTypeSynonyms, isClassPred, isEqPred, liftedTypeKind)
 import           TyCoRep
 import           Var
 import           IdInfo
@@ -740,7 +740,8 @@ binders :: Bind a -> [a]
 binders (NonRec z _) = [z]
 binders (Rec xes)    = fst <$> xes
 
-
+expandVarType :: Var -> Type
+expandVarType = expandTypeSynonyms . varType
 --------------------------------------------------------------------------------
 -- | The following functions test if a `CoreExpr` or `CoreVar` are just types
 --   in disguise, e.g. have `PredType` (in the GHC sense of the word), and so

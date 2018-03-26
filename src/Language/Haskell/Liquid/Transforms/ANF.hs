@@ -37,9 +37,9 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
-import           Language.Haskell.Liquid.UX.Config  as UX -- (Config, untidyCore, expandFlag, patternFlag)
+import           Language.Haskell.Liquid.UX.Config  as UX
 import           Language.Haskell.Liquid.Misc       (concatMapM)
-import           Language.Haskell.Liquid.GHC.Misc   (tracePpr, showCBs, showPpr, symbolFastString)
+import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
@@ -59,11 +59,11 @@ anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 anormalize cfg hscEnv modGuts = do
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
-    putStrLn $ showCBs untidy (mg_binds modGuts)
+    putStrLn $ GM.showCBs untidy (mg_binds modGuts)
     putStrLn "***************************** REC CoreBinds ***************************"
-    putStrLn $ showCBs untidy orig_cbs
+    putStrLn $ GM.showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
-    putStrLn $ showCBs untidy rwr_cbs
+    putStrLn $ GM.showCBs untidy rwr_cbs
   (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
@@ -105,7 +105,7 @@ normalizeTopBind γ (Rec xes)
 normalizeTyVars :: Bind Id -> Bind Id
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
   where t'       = subst msg as as' bt
-        msg      = "WARNING unable to renameVars on " ++ showPpr x
+        msg      = "WARNING unable to renameVars on " ++ GM.showPpr x
         as'      = fst $ splitForAllTys $ exprType e
         (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
@@ -226,7 +226,7 @@ normalize γ (Case e x t as)
        as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
        as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
-    where τx = varType x
+    where τx = GM.expandVarType x
 
 normalize γ (Var x)
   = return $ Var (lookupAnfEnv γ x x)
@@ -267,7 +267,7 @@ stitch γ e
 _mkCoreLets' :: [CoreBind] -> CoreExpr -> CoreExpr
 _mkCoreLets' bs e = mkCoreLets bs1 e1
   where
-    (e1, bs1)    = tracePpr "MKCORELETS" (e, bs)
+    (e1, bs1)    = GM.tracePpr "MKCORELETS" (e, bs)
 
 --------------------------------------------------------------------------------
 normalizePattern :: AnfEnv -> Rs.Pattern -> DsMW CoreExpr
@@ -314,11 +314,11 @@ expandDefaultCase _ _ z
 
 expandDefaultCase' :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
-  = case tyConDataCons_maybe tc of
+  = case {- GM.tracePpr ("expandDefaultCase' tc = " ++ GM.showPpr tc) $ -} tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
                      dcs'   <- forM ds' $ cloneCase γ argτs e
                      return $ sortCases $ dcs' ++ dcs
-       Nothing -> return z --
+       Nothing -> return z
 
 expandDefaultCase' _ _ z
    = return z
@@ -347,7 +347,7 @@ freshNormalVar γ t = do
   return (mkUserLocal (anfOcc i) u t sp)
 
 anfOcc :: Int -> OccName
-anfOcc = mkVarOccFS . symbolFastString . F.intSymbol F.anfPrefix
+anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv
   { aeVarEnv  :: VarEnv Id
