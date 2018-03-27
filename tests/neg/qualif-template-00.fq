@@ -1,4 +1,4 @@
-qualif Prefix(v:a, _z_$mon  : b) : (v = z)
+qualif Prefix(v:a, _z_$moon  : b) : (v = z)
 
 bind 0  monday  : {v : int | true}
 bind 10 tuesday : {v : int | true}
