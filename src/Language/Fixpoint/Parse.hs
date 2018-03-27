@@ -260,7 +260,7 @@ blanks  = many (satisfy (`elem` [' ', '\t']))
 
 -- | Integer
 integer :: Parser Integer
-integer = (Token.natural lexer <* spaces) --posInteger
+integer = Token.natural lexer <* spaces
 
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
@@ -286,7 +286,7 @@ locParserP p = do l1 <- getPosition
 
 condIdP  :: Parser Char -> S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP initP okChars p
-  = do c    <- initP -- letter <|> char '_'
+  = do c    <- initP 
        cs   <- many (satisfy (`S.member` okChars))
        blanks
        let s = c:cs
@@ -354,8 +354,8 @@ expr0P :: Parser Expr
 expr0P
   =  trueP
  <|> falseP
- <|> (fastIfP EIte exprP)
- <|> (coerceP exprP)
+ <|> fastIfP EIte exprP
+ <|> coerceP exprP
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reservedOp "_|_" >> return EBot)
@@ -464,14 +464,14 @@ makePrefixFun :: String -> Maybe (Expr -> Expr) -> Expr -> Expr
 makePrefixFun x = fromMaybe (EApp (EVar $ symbol x))
 
 insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
-insertOperator i op ops = go (9 - i) ops
+insertOperator i op = go (9 - i) 
   where
-    go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
-    go 0 (xs:xss) = (xs++[op]):xss
-    go i (xs:xss) = xs:go (i-1) xss
+    go _ []         = die $ err dummySpan (text "insertOperator on empty ops")
+    go 0 (xs:xss)   = (xs ++ [op]) : xss
+    go i (xs:xss)   = xs : go (i - 1) xss
 
 initOpTable :: OpTable
-initOpTable = replicate 10 [] --  take 10 (repeat [])
+initOpTable = replicate 10 [] 
 
 bops :: OpTable
 bops = foldl (flip addOperator) initOpTable buildinOps
@@ -638,7 +638,7 @@ predP  = buildExpressionParser lops pred0P
   where
     lops = [ [Prefix (reservedOp "~"    >> return PNot)]
            , [Prefix (reservedOp "not " >> return PNot)]
-           , [Infix  (reservedOp "&&"   >> return (\x y -> pGAnd x y)) AssocRight]
+           , [Infix  (reservedOp "&&"   >> return pGAnd) AssocRight]
            , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
            , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
            , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
@@ -711,7 +711,7 @@ dataCtorP  = DCtor <$> locSymbolP
                    <*> braces (sepBy dataFieldP comma)
 
 dataDeclP :: Parser DataDecl
-dataDeclP  = DDecl <$> fTyConP <*> intP <* (reservedOp "=")
+dataDeclP  = DDecl <$> fTyConP <*> intP <* reservedOp "="
                    <*> brackets (many (reservedOp "|" *> dataCtorP))
 
 --------------------------------------------------------------------------------
