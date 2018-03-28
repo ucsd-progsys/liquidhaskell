@@ -96,7 +96,7 @@ import           GHC.Generics                (Generic)
 import qualified Data.Char                   as Char -- (isUpper, isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.Misc      (tshow, thd3)
+import qualified Language.Fixpoint.Misc      as Misc      
 import           Language.Fixpoint.Smt.Types
 -- import           Language.Fixpoint.Types.Names     (headSym)
 -- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
@@ -886,8 +886,10 @@ boolP = (reserved "True" >> return True)
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs binfo adts mempty mempty ae
   where
-    cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
-    ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
+    cm         = Misc.safeFromList "defs-cm" 
+                                    [(cid c, c)         | Cst c       <- defs]
+    ws         = Misc.safeFromList "defs-ws" 
+                                    [(Misc.thd3 $ wrft w, w) | Wfc w       <- defs]
     bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
@@ -959,7 +961,7 @@ doParse' parser f s
       Right (r, "", _)  -> r
       Right (_, r, l)   -> die $ err (SS l l) (dRem r)
     where
-      dErr e = vcat [ "parseError"        <+> tshow e
+      dErr e = vcat [ "parseError"        <+> Misc.tshow e
                     , "when parsing from" <+> text f ]
       dRem r = vcat [ "doParse has leftover"
                     , nest 4 (text r)

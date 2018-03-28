@@ -89,12 +89,12 @@ instKQ :: Bool
        -> F.Qualifier
        -> [Sol.EQual]
 instKQ ho env v t q
-  = do (su0, v0) <- candidates senv [(t, [v])] qt
-       xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
-       return     $ Sol.eQual q (F.notracepp msg  (reverse xs))
+  = do (su0, v0) <- candidates senv [(t, [v])] qp
+       xs        <- match senv tyss [v0] (applyQP su0 <$> qps) 
+       return     $ Sol.eQual q (F.tracepp msg (reverse xs))
     where
        msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
-       qt : qts   = qpSort <$> F.qParams q
+       qp : qps   = F.qParams q
        tyss       = instCands ho env
        senv       = (`F.lookupSEnvWithDistance` env)
 
@@ -105,23 +105,35 @@ instCands ho env = filter isOk tyss
     isOk      = if ho then const True else isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
-match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.Sort] -> [[F.Symbol]]
-match env tyss xs (t : ts)
-  = do (su, x) <- candidates env tyss t
-       match env tyss (x : xs) (So.apply su <$> ts)
+match :: So.Env -> [(F.Sort, [F.Symbol])] -> [F.Symbol] -> [F.QualParam] -> [[F.Symbol]]
+match env tyss xs (qp : qps)
+  = do (su, x) <- candidates env tyss qp
+       match env tyss (x : xs) (applyQP su <$> qps)
 match _   _   xs []
   = return xs
 
+applyQP :: So.TVSubst -> F.QualParam -> F.QualParam
+applyQP su qp = qp { qpSort = So.apply su (qpSort qp) }
+
 --------------------------------------------------------------------------------
-candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.Sort -> [(So.TVSubst, F.Symbol)]
+candidates :: So.Env -> [(F.Sort, [F.Symbol])] -> F.QualParam -> [(So.TVSubst, F.Symbol)]
 --------------------------------------------------------------------------------
-candidates env tyss tx = -- traceShow _msg
+candidates env tyss x = -- traceShow _msg
     [(su, y) | (t, ys) <- tyss
-             , su      <- maybeToList $ So.unifyFast mono env tx t
-             , y       <- ys                                   ]
+             , su      <- maybeToList (So.unifyFast mono env xt t)
+             , y       <- ys
+             , matchSym x y                                     
+    ]
   where
-    mono = So.isMono tx
-    _msg  = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp tx
+    xt   = F.qpSort x
+    mono = So.isMono xt
+    _msg = "candidates tyss :=" ++ F.showpp tyss ++ "tx := " ++ F.showpp xt
+
+matchSym :: F.QualParam -> F.Symbol -> Bool 
+matchSym qp y = case F.qpPat qp of
+  F.PatPrefix s -> F.isPrefixOfSym s (F.tidySymbol y) 
+  F.PatSuffix s -> F.isSuffixOfSym s (F.tidySymbol y) 
+  _             -> True 
 
 --------------------------------------------------------------------------------
 okInst :: F.SEnv F.Sort -> F.Symbol -> F.Sort -> Sol.EQual -> Bool

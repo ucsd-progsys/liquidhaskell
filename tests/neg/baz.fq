@@ -14,7 +14,7 @@ constraint:
   env [0]
   lhs {v : int | [v = x] }
   rhs {v : int | v = 0   }
-  id 0 tag []
+  id 1 tag []
 
 // wf:
 //  env []

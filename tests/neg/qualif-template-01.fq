@@ -20,7 +20,7 @@ constraint:
   env [3; 4; 5]
   lhs {v : int | v = s + 1 }
   rhs {v : int | $k0[monday := t] }
-  id 3 tag []
+  id 2 tag []
 
 constraint:
   env [2]
