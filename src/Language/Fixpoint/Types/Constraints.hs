@@ -51,7 +51,9 @@ module Language.Fixpoint.Types.Constraints (
   , QualPattern (..)
   , trueQual
   , qualifier
-  , mkQual, remakeQual
+  , mkQual
+  , remakeQual
+  , mkQ 
 
   -- * Results
   , FixSolution
