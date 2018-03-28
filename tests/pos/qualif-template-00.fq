@@ -10,7 +10,6 @@ bind 3 r : {v : int | true }
 bind 4 s : {v : int | $k0[monday := r] } 
 bind 5 t : {v : int | v = r + 1   }  
 
-
 constraint:
   env [1]
   lhs {v : int | v = q}
