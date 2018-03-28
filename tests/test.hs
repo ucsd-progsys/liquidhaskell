@@ -367,6 +367,7 @@ loggingTestReporter = TestReporter [] $ \opts tree -> Just $ \smap -> do
                        headerDelim,
                        "test, time(s), result"]
 
+
     let dir = "tests" </> "logs" </> host ++ "-" ++ time
     let smry = "tests" </> "logs" </> "cur" </> "summary.csv"
     writeFile smry $ unlines

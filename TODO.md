@@ -1,21 +1,24 @@
 # TODO
 
-## Proper Encoding of DataTypes
+## Qualifier Templates
 
-Need to get proper casts.
+Change qualfier-parameter to datatype: 
 
-So
+```haskell
+data QualParam = QP 
+  { qpName    :: !Symbol
+  , qpPattern :: !QualPattern 
+  } 
 
-    (Cons 1 Emp)
+data QualPattern 
+  = PatNone 
+  | PatPrefix !Symbol 
+  | PatSuffix !Symbol 
+```
 
-should be elaborated to
 
-    ((Cons : (int, List int) => List int) (1 : int) (Emp : List int))
-
-
-1. Rig `checkSym` to call `instantiate`
-    - currently returns poly-type (e.g. `forall a. List a`)
-
-2. Change all places where `unify`/`apply` happens to
-   ALSO apply the substitutions to the casts.
-  
+* see tests/pos/qualif-template-00.fq
+* see tests/pos/qualif-template-01.fq
+ 
+qualif Foo(x @ ($...) : int, )
+qualif Foo(x @ (...$) : int, )

@@ -96,7 +96,7 @@ import           GHC.Generics                (Generic)
 import qualified Data.Char                   as Char -- (isUpper, isLower)
 import           Language.Fixpoint.Smt.Bitvector
 import           Language.Fixpoint.Types.Errors
-import           Language.Fixpoint.Misc      (tshow, thd3)
+import qualified Language.Fixpoint.Misc      as Misc      
 import           Language.Fixpoint.Smt.Types
 -- import           Language.Fixpoint.Types.Names     (headSym)
 -- import           Language.Fixpoint.Types.Visitor   (foldSort, mapSort)
@@ -238,10 +238,11 @@ brackets      = Token.brackets      lexer
 angles        = Token.angles        lexer
 braces        = Token.braces        lexer
 
-semi, colon, comma, stringLiteral :: Parser String
+semi, colon, comma, dot, stringLiteral :: Parser String
 semi          = Token.semi          lexer
 colon         = Token.colon         lexer
 comma         = Token.comma         lexer
+dot           = Token.dot           lexer
 stringLiteral = Token.stringLiteral lexer
 
 whiteSpace :: Parser ()
@@ -260,7 +261,7 @@ blanks  = many (satisfy (`elem` [' ', '\t']))
 
 -- | Integer
 integer :: Parser Integer
-integer = (Token.natural lexer <* spaces) --posInteger
+integer = Token.natural lexer <* spaces
 
 --  try (char '-' >> (negate <$> posInteger))
 --       <|> posInteger
@@ -286,7 +287,7 @@ locParserP p = do l1 <- getPosition
 
 condIdP  :: Parser Char -> S.HashSet Char -> (String -> Bool) -> Parser Symbol
 condIdP initP okChars p
-  = do c    <- initP -- letter <|> char '_'
+  = do c    <- initP 
        cs   <- many (satisfy (`S.member` okChars))
        blanks
        let s = c:cs
@@ -354,8 +355,8 @@ expr0P :: Parser Expr
 expr0P
   =  trueP
  <|> falseP
- <|> (fastIfP EIte exprP)
- <|> (coerceP exprP)
+ <|> fastIfP EIte exprP
+ <|> coerceP exprP
  <|> (ESym <$> symconstP)
  <|> (ECon <$> constantP)
  <|> (reservedOp "_|_" >> return EBot)
@@ -464,14 +465,14 @@ makePrefixFun :: String -> Maybe (Expr -> Expr) -> Expr -> Expr
 makePrefixFun x = fromMaybe (EApp (EVar $ symbol x))
 
 insertOperator :: Int -> Operator String Integer (State PState) Expr -> OpTable -> OpTable
-insertOperator i op ops = go (9 - i) ops
+insertOperator i op = go (9 - i) 
   where
-    go _ []       = die $ err dummySpan (text "insertOperator on empty ops")
-    go 0 (xs:xss) = (xs++[op]):xss
-    go i (xs:xss) = xs:go (i-1) xss
+    go _ []         = die $ err dummySpan (text "insertOperator on empty ops")
+    go 0 (xs:xss)   = (xs ++ [op]) : xss
+    go i (xs:xss)   = xs : go (i - 1) xss
 
 initOpTable :: OpTable
-initOpTable = replicate 10 [] --  take 10 (repeat [])
+initOpTable = replicate 10 [] 
 
 bops :: OpTable
 bops = foldl (flip addOperator) initOpTable buildinOps
@@ -638,7 +639,7 @@ predP  = buildExpressionParser lops pred0P
   where
     lops = [ [Prefix (reservedOp "~"    >> return PNot)]
            , [Prefix (reservedOp "not " >> return PNot)]
-           , [Infix  (reservedOp "&&"   >> return (\x y -> pGAnd x y)) AssocRight]
+           , [Infix  (reservedOp "&&"   >> return pGAnd) AssocRight]
            , [Infix  (reservedOp "||"   >> return (\x y -> POr  [x,y])) AssocRight]
            , [Infix  (reservedOp "=>"   >> return PImp) AssocRight]
            , [Infix  (reservedOp "==>"  >> return PImp) AssocRight]
@@ -711,7 +712,7 @@ dataCtorP  = DCtor <$> locSymbolP
                    <*> braces (sepBy dataFieldP comma)
 
 dataDeclP :: Parser DataDecl
-dataDeclP  = DDecl <$> fTyConP <*> intP <* (reservedOp "=")
+dataDeclP  = DDecl <$> fTyConP <*> intP <* reservedOp "="
                    <*> brackets (many (reservedOp "|" *> dataCtorP))
 
 --------------------------------------------------------------------------------
@@ -723,21 +724,39 @@ qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
   pos    <- getPosition
   n      <- upperIdP
-  params <- parens $ sepBy1 (symBindP tP) comma
+  params <- parens $ sepBy1 (qualParamP tP) comma
   _      <- colon
   body   <- predP
   return  $ mkQual n params body pos
+
+qualParamP :: Parser Sort -> Parser QualParam 
+qualParamP tP = do 
+  x     <- symbolP 
+  pat   <- qualPatP 
+  _     <- colon 
+  t     <- tP 
+  return $ QP x pat t 
+
+qualPatP :: Parser QualPattern
+qualPatP 
+   =  (reserved "as" >> qualStrPatP)
+  <|> return PatNone 
+
+qualStrPatP :: Parser QualPattern
+qualStrPatP 
+   = (PatExact <$> symbolP)
+  <|> parens (    (uncurry PatPrefix <$> pairP symbolP dot qpVarP)
+              <|> (uncurry PatSuffix <$> pairP qpVarP  dot symbolP) )
+
+
+qpVarP :: Parser Int
+qpVarP = char '$' *> intP 
 
 symBindP :: Parser a -> Parser (Symbol, a)
 symBindP = pairP symbolP colon
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
-
--- mkParam :: Symbol -> Symbol
--- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
---  where
---    Just (c,cs) = T.uncons $ symbolSafeText s
 
 ---------------------------------------------------------------------
 -- | Axioms for Symbolic Evaluation ---------------------------------
@@ -867,8 +886,10 @@ boolP = (reserved "True" >> return True)
 defsFInfo :: [Def a] -> FInfo a
 defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs binfo adts mempty mempty ae
   where
-    cm         = M.fromList         [(cid c, c)         | Cst c       <- defs]
-    ws         = M.fromList         [(thd3 $ wrft w, w) | Wfc w       <- defs]
+    cm         = Misc.safeFromList "defs-cm" 
+                                    [(cid c, c)         | Cst c       <- defs]
+    ws         = Misc.safeFromList "defs-ws" 
+                                    [(Misc.thd3 $ wrft w, w) | Wfc w       <- defs]
     bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
@@ -940,7 +961,7 @@ doParse' parser f s
       Right (r, "", _)  -> r
       Right (_, r, l)   -> die $ err (SS l l) (dRem r)
     where
-      dErr e = vcat [ "parseError"        <+> tshow e
+      dErr e = vcat [ "parseError"        <+> Misc.tshow e
                     , "when parsing from" <+> text f ]
       dRem r = vcat [ "doParse has leftover"
                     , nest 4 (text r)

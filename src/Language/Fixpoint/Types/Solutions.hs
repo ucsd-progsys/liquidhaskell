@@ -330,7 +330,7 @@ eQual q xs = {- tracepp "eQual" $ -} EQL q p es
     p      = subst su $  qBody q
     su     = mkSubst  $  safeZip "eQual" qxs es
     es     = eVar    <$> xs
-    qxs    = fst     <$> qParams q
+    qxs    = qpSym   <$> qParams q
 
 --------------------------------------------------------------------------------
 -- | A KIndex uniquely identifies each *use* of a KVar in an (LHS) binder

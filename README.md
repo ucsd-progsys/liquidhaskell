@@ -302,3 +302,15 @@ subsumed by `FTC` which is what I recomend you use. However `FObj`
 is there if you want a simple "unitype" / "any" type for terms 
 that are not "interpreted".
 
+## Qualifier Patterns 
+
+```haskell
+λ> doParse' (qualParamP sortP) "" "z as (mon . $1) : int"
+QP {qpSym = "z", qpPat = PatPrefix "mon" 1, qpSort = FInt}
+λ> doParse' (qualParamP sortP) "" "z as ($1 . mon) : int"
+QP {qpSym = "z", qpPat = PatSuffix 1 "mon", qpSort = FInt}
+λ> doParse' (qualParamP sortP) "" "z as mon : int"
+QP {qpSym = "z", qpPat = PatExact "mon", qpSort = FInt}
+λ> doParse' (qualParamP sortP) "" "z : int"
+QP {qpSym = "z", qpPat = PatNone, qpSort = FInt}
+```

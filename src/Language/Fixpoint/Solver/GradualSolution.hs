@@ -88,7 +88,7 @@ instKQ ho env v t q
        xs        <- match senv tyss [v0] (So.apply su0 <$> qts)
        return     $ Sol.eQual q (reverse xs)
     where
-       qt : qts   = snd <$> F.qParams q
+       qt : qts   = qpSort <$> F.qParams q
        tyss       = instCands ho env
        senv       = (`F.lookupSEnvWithDistance` env)
 

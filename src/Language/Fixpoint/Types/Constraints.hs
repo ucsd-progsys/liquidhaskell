@@ -46,10 +46,15 @@ module Language.Fixpoint.Types.Constraints (
   , gwInfo, GWInfo (..)
 
   -- * Qualifiers
-  , Qualifier (..)
+  , Qualifier   (..)
+  , QualParam   (..)
+  , QualPattern (..)
   , trueQual
   , qualifier
-  , mkQual, remakeQual
+  , mkQual
+  , remakeQual
+  , mkQ 
+  , qualBinds
 
   -- * Results
   , FixSolution
@@ -352,6 +357,8 @@ instance Show   GFixSolution where
   show = showpp
 
 ----------------------------------------------------------------
+instance B.Binary QualPattern 
+instance B.Binary QualParam 
 instance B.Binary Qualifier
 instance B.Binary Kuts
 instance B.Binary HOInfo
@@ -362,6 +369,8 @@ instance (B.Binary a) => B.Binary (WfC a)
 instance (B.Binary a) => B.Binary (SimpC a)
 instance (B.Binary (c a), B.Binary a) => B.Binary (GInfo c a)
 
+instance NFData QualPattern 
+instance NFData QualParam 
 instance NFData Qualifier
 instance NFData Kuts
 instance NFData HOInfo
@@ -379,7 +388,7 @@ instance (NFData a) => NFData (Result a)
 ---------------------------------------------------------------------------
 
 wfC :: (Fixpoint a) => IBindEnv -> SortedReft -> a -> [WfC a]
-wfC be sr x = if all isEmptySubst (sus ) -- ++ gsus)
+wfC be sr x = if all isEmptySubst sus -- ++ gsus)
                  -- NV TO RJ This tests fails with [LT:=GHC.Types.LT][EQ:=GHC.Types.EQ][GT:=GHC.Types.GT]]
                  -- NV TO RJ looks like a resolution issue
                 then [WfC be (v, sr_sort sr, k) x      | k         <- ks ]
@@ -431,13 +440,27 @@ addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
 --------------------------------------------------------------------------------
 -- | Qualifiers ----------------------------------------------------------------
 --------------------------------------------------------------------------------
+data Qualifier = Q 
+  { qName   :: !Symbol     -- ^ Name
+  , qParams :: [QualParam] -- ^ Parameters
+  , qBody   :: !Expr       -- ^ Predicate
+  , qPos    :: !SourcePos  -- ^ Source Location
+  }
+  deriving (Eq, Show, Data, Typeable, Generic)
 
-data Qualifier = Q { qName   :: !Symbol          -- ^ Name
-                   , qParams :: [(Symbol, Sort)] -- ^ Parameters
-                   , qBody   :: !Expr            -- ^ Predicate
-                   , qPos    :: !SourcePos       -- ^ Source Location
-                   }
-               deriving (Eq, Show, Data, Typeable, Generic)
+data QualParam = QP 
+  { qpSym  :: !Symbol
+  , qpPat  :: !QualPattern 
+  , qpSort :: !Sort
+  } 
+  deriving (Eq, Show, Data, Typeable, Generic)
+
+data QualPattern 
+  = PatNone                 -- ^ match everything 
+  | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
+  | PatSuffix !Int !Symbol  -- ^ $i . str  i.e. match suffix 'str' with prefix bound to $i
+  | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
+  deriving (Eq, Show, Data, Typeable, Generic)
 
 trueQual :: Qualifier
 trueQual = Q (symbol ("QTrue" :: String)) [] mempty (dummyPos "trueQual")
@@ -446,6 +469,18 @@ instance Loc Qualifier where
   srcSpan q = SS l l
     where
       l     = qPos q
+
+instance Fixpoint QualParam where 
+  toFix (QP x _ t) = toFix (x, t) 
+
+instance PPrint QualParam where 
+  pprintTidy k (QP x pat t) = pprintTidy k x <+> pprintTidy k pat <+> colon <+> pprintTidy k t 
+
+instance PPrint QualPattern where 
+  pprintTidy _ PatNone         = "" 
+  pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <> pprint i)
+  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <> pprint i) <+> pprintTidy k s 
+  pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s 
 
 instance Fixpoint Qualifier where
   toFix = pprQual
@@ -459,10 +494,19 @@ pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <
     args              = intersperse comma (toFix <$> xts)
 
 qualifier :: SEnv Sort -> SourcePos -> SEnv Sort -> Symbol -> Sort -> Expr -> Qualifier
-qualifier lEnv l γ v so p   = Q "Auto" ((v, so) : xts) p l
+qualifier lEnv l γ v so p   = mkQ "Auto" ((v, so) : xts) p l
   where
     xs  = L.delete v $ L.nub $ syms p
     xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+
+mkQ :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier 
+mkQ n = Q n . qualParams
+
+qualParams :: [(Symbol, Sort)] -> [QualParam]
+qualParams xts = [ QP x PatNone t | (x, t) <- xts]
+
+qualBinds   :: Qualifier -> [(Symbol, Sort)]
+qualBinds q = [ (qpSym qp, qpSort qp) | qp <- qParams q ]
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i
@@ -474,21 +518,19 @@ envSort l lEnv tEnv x i
     -- msg = "unknown symbol in qualifier: " ++ show x
 
 remakeQual :: Qualifier -> Qualifier
-remakeQual q = {- traceShow msg $ -} mkQual (qName q) (qParams q) (qBody q) (qPos q)
+remakeQual q = mkQual (qName q) (qParams q) (qBody q) (qPos q)
 
 -- | constructing qualifiers
-mkQual :: Symbol -> [(Symbol, Sort)] -> Expr -> SourcePos -> Qualifier
-mkQual n xts p = Q n ((v, t) : yts) (subst su p)
+mkQual :: Symbol -> [QualParam] -> Expr -> SourcePos -> Qualifier
+mkQual n qps p = Q n qps' p 
   where
-    (v, t):zts = gSorts xts
-    -- yts        = first mkParam <$> zts
-    yts        = zts
-    su         = mkSubst $ zipWith (\(z,_) (y,_) -> (z, eVar y)) zts yts
+    qps'       = zipWith (\qp t' -> qp { qpSort = t'}) qps ts'
+    ts'        = gSorts (qpSort <$> qps) 
 
-gSorts :: [(a, Sort)] -> [(a, Sort)]
-gSorts xts     = [(x, substVars su t) | (x, t) <- xts]
+gSorts :: [Sort] -> [Sort]
+gSorts ts = substVars su <$> ts 
   where
-    su         = (`zip` [0..]) . sortNub . concatMap (sortVars . snd) $ xts
+    su    = (`zip` [0..]) . sortNub . concatMap sortVars $ ts
 
 substVars :: [(Symbol, Int)] -> Sort -> Sort
 substVars su = mapSort' tx

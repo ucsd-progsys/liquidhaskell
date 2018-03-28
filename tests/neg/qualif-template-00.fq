@@ -1,0 +1,33 @@
+qualif Prefix(v:a, z as (moon . $1) : b) : (v = z)
+
+bind 0  monday  : {v : int | true}
+bind 10 tuesday : {v : int | true}
+
+bind 1 q : {v : int | true}
+bind 2 y : {v : int | v = 10}
+bind 3 r : {v : int | true }
+bind 4 s : {v : int | $k0[monday := r] } 
+bind 5 t : {v : int | v = r + 1   }  
+
+
+constraint:
+  env [1]
+  lhs {v : int | v = q}
+  rhs {v : int | $k0[monday := q] }
+  id 1 tag []
+
+constraint: 
+  env [3; 4; 5]
+  lhs {v : int | v = s + 1 }
+  rhs {v : int | $k0[monday := t] }
+  id 2 tag []
+
+constraint:
+  env [2]
+  lhs {v : int | $k0[monday := y]}
+  rhs {v : int | v = 10}
+  id 3 tag []
+
+wf:
+  env [0; 10]
+  reft {v : int | $k0}

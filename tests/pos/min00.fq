@@ -14,7 +14,7 @@ constraint:
   env []
   lhs {v : int | $k0}
   rhs {v : int | (15 <= v) }
-  id 1 tag []
+  id 2 tag []
 
 
 wf:
