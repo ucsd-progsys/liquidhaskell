@@ -74,13 +74,13 @@ import           Language.Haskell.Liquid.Bare.ToBare
 makeHaskellDataDecls :: Config -> ModName -> Ms.BareSpec -> [TyCon] -> [DataDecl]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg name spec tcs
-  | exactDC cfg = mapMaybe tyConDataDecl
-                . F.notracepp "makeHaskellDataDecls-1"
-                . zipMap   (hasDataDecl name spec . fst)
-                . liftableTyCons
-                . filter isReflectableTyCon
-                $ tcs
-  | otherwise   = []
+  | exactDCFlag cfg = mapMaybe tyConDataDecl
+                    . F.notracepp "makeHaskellDataDecls-1"
+                    . zipMap   (hasDataDecl name spec . fst)
+                    . liftableTyCons
+                    . filter isReflectableTyCon
+                    $ tcs
+  | otherwise       = []
 
 
 isReflectableTyCon :: TyCon -> Bool
@@ -240,8 +240,8 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 
 makeMeasureSelectors :: Config -> DataConMap -> (DataCon, Located DataConP) -> [Measure SpecType DataCon]
 makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isGadt _ _))
-  = (Misc.condNull (exactDC cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
- ++ (Misc.condNull (autofields)  $           catMaybes (go  <$> fields)) --  user-visible measures.
+  = (Misc.condNull (exactDCFlag cfg) $ checker : catMaybes (go' <$> fields)) --  internal measures, needed for reflection
+ ++ (Misc.condNull (autofields)      $           catMaybes (go  <$> fields)) --  user-visible measures.
   where
     autofields = not (isGadt || noMeasureFields cfg)
     go ((x, t), i)

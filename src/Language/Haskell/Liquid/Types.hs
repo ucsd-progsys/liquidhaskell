@@ -21,8 +21,9 @@
 module Language.Haskell.Liquid.Types (
 
   -- * Options
-    Config (..)
-  , HasConfig (..)
+    module Language.Haskell.Liquid.UX.Config
+  --   Config (..)
+  -- , HasConfig (..)
 
   -- * Ghc Information
   , GhcInfo (..)

@@ -268,11 +268,10 @@ uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
 
 reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
 reflectedTyCons cfg embs cbs spec
-  | exactDC cfg = filter (not . isEmbedded embs)
-                $ concatMap varTyCons
-                $ reflectedVars spec cbs
-
-  | otherwise   = []
+  | exactDCFlag cfg = filter (not . isEmbedded embs)
+                    $ concatMap varTyCons
+                    $ reflectedVars spec cbs
+  | otherwise       = []
 
 -- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
 --   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
@@ -459,14 +458,6 @@ addRTEnv spec = do
   rt <- rtEnv <$> get
   return $ spec { gsRTAliases = rt }
 
--- RJ: AAAAAAARGHHH: this is duplicate of RT.strengthenDataConType
--- // _makeExactDataCons :: ModName -> Config -> [Var] -> GhcSpec -> BareM GhcSpec
--- // _makeExactDataCons _n cfg vs spec
-  -- // | exactDC cfg = return $ spec { gsTySigs = gsTySigs spec ++ xts}
-  -- // | otherwise   = return   spec
-  -- // where
-    -- // xts         = makeDataConCtor <$> filter f vs
-    -- // f v         = GM.isDataConId v
 
 varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v

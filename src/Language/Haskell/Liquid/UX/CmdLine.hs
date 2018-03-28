@@ -556,22 +556,16 @@ defConfig = Config { files             = def
                    , counterExamples   = False
                    , timeBinds         = False
                    , untidyCore        = False
-                   -- , noEliminate       = False
                    , eliminate         = FC.Some
                    , noPatternInline   = False
                    , noSimplifyCore    = False
                    , nonLinCuts        = True
                    , autoInstantiate   = def
-                   -- , proofMethod       = def
-                   -- , fuel              = defFuel
                    , debugInstantionation = False
                    , noslice              = False
                    , noLiftedImport       = False
                    , proofLogicEval       = False
                    }
-
--- defFuel :: Int
--- defFuel = 2
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------
