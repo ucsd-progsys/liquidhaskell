@@ -171,7 +171,7 @@ testSpecP =
 
     , testCase "qualif" $
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?=
-          "Qualif (Q {qName = \"Foo\", qParams = [(\"v\",FInt)], qBody = PAtom Lt (EVar \"v\") (ECon (I 0)), qPos = \"Fixpoint.Types.dummyLoc\" (line 0, column 0)})"
+          "Qualif (Q {qName = \"Foo\", qParams = [QP {qpSym = \"v\", qpPat = PatNone, qpSort = FInt}], qBody = PAtom Lt (EVar \"v\") (ECon (I 0)), qPos = \"Fixpoint.Types.dummyLoc\" (line 0, column 0)})"
 
     , testCase "decrease" $
        parseSingleSpec "decrease insert 3" @?=
