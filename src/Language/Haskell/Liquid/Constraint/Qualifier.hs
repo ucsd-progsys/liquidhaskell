@@ -90,7 +90,8 @@ validQual :: SEnv Sort -> Qualifier -> Bool
 validQual lEnv q = isJust $ checkSortExpr env (qBody q)
   where
     env          = unionSEnv lEnv qEnv
-    qEnv         = M.fromList (qParams q)
+    qEnv         = M.fromList (qualBinds q)
+
 
 --------------------------------------------------------------------------------
 sigQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
@@ -228,10 +229,10 @@ mkQual :: SEnv Sort
        -> Sort
        -> Expr
        -> Qualifier
-mkQual lEnv l _ γ v so p   = Q "Auto" ((v, so) : xts) p l
+mkQual lEnv l _ γ v so p   = mkQ "Auto" ((v, so) : xts) p l
   where
     xs   = delete v $ nub $ syms p
-    xts = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
+    xts  = catMaybes $ zipWith (envSort l lEnv γ) xs [0..]
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i

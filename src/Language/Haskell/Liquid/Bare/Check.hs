@@ -4,8 +4,8 @@
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE OverloadedStrings   #-}
-module Language.Haskell.Liquid.Bare.Check (
-    checkGhcSpec
+module Language.Haskell.Liquid.Bare.Check 
+  ( checkGhcSpec
   , checkTerminationExpr
   , checkTy
   ) where
@@ -102,8 +102,10 @@ checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
 checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
-  where γ   = foldl (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qParams q ++ wiredSortedSyms)
-        mkE = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
+  where 
+    γ                = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qualBinds q ++ wiredSortedSyms)
+    mkE              = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
+
 
 
 checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
@@ -201,10 +203,9 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     es      = val <$> les
     mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
     mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
-    go      = foldl (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
-    go'     = foldl (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
-    -- env'    = foldl (\e (x, s) -> insertSEnv x s e) env'' wiredSortedSyms
-    env'   = sr_sort <$> foldl (\e (x,s) -> insertSEnv x s e) env xts
+    go      = L.foldl' (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
+    go'     = L.foldl' (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
+    env'   = sr_sort <$> L.foldl' (\e (x,s) -> insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
 
@@ -296,7 +297,7 @@ checkAppTys = go
     go (RAllS _ t)      = go t
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
-        foldl (\merr t -> merr <|> go t) Nothing ts
+        L.foldl' (\merr t -> merr <|> go t) Nothing ts
     go (RFun _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
@@ -357,7 +358,7 @@ checkAbstractRefs t = go t
     go (RExprArg _)       = Nothing
     go (RHole _)          = Nothing
 
-    go' c rs = foldl (\acc (x, y) -> acc <|> checkOne' x y) Nothing (zip rs (rTyConPVs c))
+    go' c rs = L.foldl' (\acc (x, y) -> acc <|> checkOne' x y) Nothing (zip rs (rTyConPVs c))
 
     checkOne' (RProp xs (RHole _)) p
       | or [s1 /= s2 | ((_, s1), (s2, _, _)) <- zip xs (pargs p)]
@@ -377,9 +378,9 @@ checkAbstractRefs t = go t
       = go t
 
 
-    efold f = foldl (\acc x -> acc <|> f x) Nothing
+    efold f = L.foldl' (\acc x -> acc <|> f x) Nothing
 
-    check s (MkUReft _ (Pr ps) _) = foldl (\acc pp -> acc <|> checkOne s pp) Nothing ps
+    check s (MkUReft _ (Pr ps) _) = L.foldl' (\acc pp -> acc <|> checkOne s pp) Nothing ps
 
     checkOne s p | pvType' p /= s
                  = Just $ text "Incorrect Sort:\n\t"
