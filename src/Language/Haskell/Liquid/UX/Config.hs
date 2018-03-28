@@ -143,8 +143,8 @@ expandFlag :: (HasConfig t) => t -> Bool
 expandFlag = not . nocaseexpand . getConfig
 
 exactDCFlag :: (HasConfig t) => t -> Bool
-exactDCFlag _ = True 
--- exactDCFlag = exactDC . getConfig 
+-- exactDCFlag _ = True 
+exactDCFlag = exactDC . getConfig 
 
 hasOpt :: (HasConfig t) => t -> (Config -> Bool) -> Bool
 hasOpt t f = f (getConfig t)

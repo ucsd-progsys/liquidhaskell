@@ -293,3 +293,13 @@ fstByRank rkvs = [ (r, k, v) | (k, rvs) <- krvss, let (r, v) = getFst rvs ]
 
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)
+
+{- mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
+mapEither f []     = ([], [])
+mapEither f (x:xs) = case f x of 
+                       Left y  -> (y:ys, zs)
+                       Right z -> (ys, z:zs)
+                     where 
+                       (ys, zs) = mapEither f xs 
+-}
+
