@@ -66,7 +66,6 @@ instance Fixpoint Double where
   toFix = double
 
 ------------------------------------------------------------------
-
 data Tidy = Lossy | Full deriving (Eq, Ord)
 
 -- | Implement either `pprintTidy` or `pprintPrec`
