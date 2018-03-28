@@ -54,6 +54,7 @@ module Language.Fixpoint.Types.Constraints (
   , mkQual
   , remakeQual
   , mkQ 
+  , qualBinds
 
   -- * Results
   , FixSolution
@@ -501,6 +502,9 @@ mkQ n = Q n . qualParams
 
 qualParams :: [(Symbol, Sort)] -> [QualParam]
 qualParams xts = [ QP x PatNone t | (x, t) <- xts]
+
+qualBinds   :: Qualifier -> [(Symbol, Sort)]
+qualBinds q = [ (qpSym qp, qpSort qp) | qp <- qParams q ]
 
 envSort :: SourcePos -> SEnv Sort -> SEnv Sort -> Symbol -> Integer -> Maybe (Symbol, Sort)
 envSort l lEnv tEnv x i
