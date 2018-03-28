@@ -45,6 +45,7 @@ module Language.Fixpoint.Types.Names (
 
   -- * Destructors
   , stripPrefix
+  , stripSuffix 
   , consSym
   , unconsSym
   , dropSym
@@ -75,6 +76,7 @@ module Language.Fixpoint.Types.Names (
   , kArgSymbol
   , existSymbol
   , suffixSymbol
+  , mappendSym 
 
   -- * Unwrapping Symbols
   , unLitSymbol
@@ -383,6 +385,9 @@ dropSym n (symbolText -> t) = symbol $ T.drop n t
 
 stripPrefix :: Symbol -> Symbol -> Maybe Symbol
 stripPrefix p x = symbol <$> T.stripPrefix (symbolText p) (symbolText x)
+
+stripSuffix :: Symbol -> Symbol -> Maybe Symbol
+stripSuffix p x = symbol <$> T.stripSuffix (symbolText p) (symbolText x)
 
 
 --------------------------------------------------------------------------------

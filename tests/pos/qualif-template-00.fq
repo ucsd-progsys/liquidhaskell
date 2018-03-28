@@ -1,5 +1,6 @@
 // qualif Goob(v:a, z: b) : (v = z)
-qualif Prefix(v:a, z as $ mon  : b) : (v = z)
+// qualif Prefix2(v:a, x as (mon . $1) : b, y as (sun . $1)) : (v = x + y)
+qualif Prefix(v:a, z as (mon . $1) : b) : (v = z)
 
 bind 0  monday  : {v : int | true}
 bind 10 tuesday : {v : int | true}

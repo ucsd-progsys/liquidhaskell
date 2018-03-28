@@ -1,4 +1,6 @@
-qualif Suffix(v:a, z as sday $ : b) : (v = z)
+// qualif Goob(v:a, z: b) : (v = z)
+// qualif Prefix2(v:a, x as (mon . $1) : b, y as (sun . $1)) : (v = x + y)
+qualif Prefix(v:a, z as ($1 . sday) : b) : (v = z)
 
 bind 0  monday  : {v : int | true}
 bind 10 tuesday : {v : int | true}
@@ -8,7 +10,6 @@ bind 2 y : {v : int | v = 10}
 bind 3 r : {v : int | true }
 bind 4 s : {v : int | $k0[monday := r] } 
 bind 5 t : {v : int | v = r + 1   }  
-
 
 constraint:
   env [1]

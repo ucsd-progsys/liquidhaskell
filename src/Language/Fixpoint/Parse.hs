@@ -238,10 +238,11 @@ brackets      = Token.brackets      lexer
 angles        = Token.angles        lexer
 braces        = Token.braces        lexer
 
-semi, colon, comma, stringLiteral :: Parser String
+semi, colon, comma, dot, stringLiteral :: Parser String
 semi          = Token.semi          lexer
 colon         = Token.colon         lexer
 comma         = Token.comma         lexer
+dot           = Token.dot           lexer
 stringLiteral = Token.stringLiteral lexer
 
 whiteSpace :: Parser ()
@@ -743,20 +744,19 @@ qualPatP
 
 qualStrPatP :: Parser QualPattern
 qualStrPatP 
-   =  PatPrefix <$> (reserved "$" *> symbolP) 
-  <|> PatSuffix <$> (symbolP <* reserved "$") 
+   = (PatExact <$> symbolP)
+  <|> parens (    (uncurry PatPrefix <$> pairP symbolP dot qpVarP)
+              <|> (uncurry PatSuffix <$> pairP qpVarP  dot symbolP) )
 
+
+qpVarP :: Parser Int
+qpVarP = char '$' *> intP 
 
 symBindP :: Parser a -> Parser (Symbol, a)
 symBindP = pairP symbolP colon
 
 pairP :: Parser a -> Parser z -> Parser b -> Parser (a, b)
 pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
-
--- mkParam :: Symbol -> Symbol
--- mkParam s       = unsafeTextSymbol ('~' `T.cons` toUpper c `T.cons` cs)
---  where
---    Just (c,cs) = T.uncons $ symbolSafeText s
 
 ---------------------------------------------------------------------
 -- | Axioms for Symbolic Evaluation ---------------------------------

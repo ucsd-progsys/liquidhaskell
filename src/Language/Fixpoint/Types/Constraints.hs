@@ -456,9 +456,10 @@ data QualParam = QP
   deriving (Eq, Show, Data, Typeable, Generic)
 
 data QualPattern 
-  = PatNone 
-  | PatPrefix !Symbol 
-  | PatSuffix !Symbol
+  = PatNone                 -- ^ match everything 
+  | PatPrefix !Symbol !Int  -- ^ str . $i  i.e. match prefix 'str' with suffix bound to $i
+  | PatSuffix !Int !Symbol  -- ^ $i . str  i.e. match suffix 'str' with prefix bound to $i
+  | PatExact  !Symbol       -- ^ str       i.e. exactly match 'str'
   deriving (Eq, Show, Data, Typeable, Generic)
 
 trueQual :: Qualifier
@@ -476,9 +477,10 @@ instance PPrint QualParam where
   pprintTidy k (QP x pat t) = pprintTidy k x <+> pprintTidy k pat <+> colon <+> pprintTidy k t 
 
 instance PPrint QualPattern where 
-  pprintTidy _ PatNone       = "" 
-  pprintTidy k (PatPrefix s) = "as $" <> pprintTidy k s 
-  pprintTidy k (PatSuffix s) = "as "  <> pprintTidy k s <> "$"
+  pprintTidy _ PatNone         = "" 
+  pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <> pprint i)
+  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <> pprint i) <+> pprintTidy k s 
+  pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s 
 
 instance Fixpoint Qualifier where
   toFix = pprQual
