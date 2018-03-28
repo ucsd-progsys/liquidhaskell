@@ -1,4 +1,4 @@
-qualif Suffix(v:a, _z_nday$ : b) : (v = z)
+qualif Suffix(v:a, z as nday $ : b) : (v = z)
 
 bind 0  monday  : {v : int | true}
 bind 10 tuesday : {v : int | true}

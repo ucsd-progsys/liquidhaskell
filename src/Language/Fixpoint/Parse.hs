@@ -737,7 +737,15 @@ qualParamP tP = do
   return $ QP x pat t 
 
 qualPatP :: Parser QualPattern
-qualPatP = undefined -- TODO: _fixme_qualPatP 
+qualPatP 
+   =  (reserved "as" >> qualStrPatP)
+  <|> return PatNone 
+
+qualStrPatP :: Parser QualPattern
+qualStrPatP 
+   =  PatPrefix <$> (reserved "$" *> symbolP) 
+  <|> PatSuffix <$> (symbolP <* reserved "$") 
+
 
 symBindP :: Parser a -> Parser (Symbol, a)
 symBindP = pairP symbolP colon
