@@ -5,12 +5,7 @@
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
--- TODO: move this into Tidy.
-
-module Language.Haskell.Liquid.UX.Errors
-  ( -- * Cleanup an Error
-    tidyError
- ) where
+module Language.Haskell.Liquid.UX.Errors ( tidyError ) where
 
 import           Control.Arrow                       (second)
 import qualified Data.HashMap.Strict                 as M
@@ -31,11 +26,16 @@ type Ctx  = M.HashMap F.Symbol SpecType
 type CtxM = M.HashMap F.Symbol (WithModel SpecType)
 
 ------------------------------------------------------------------------
-tidyError :: F.FixSolution -> Error -> Error
+tidyError :: Config -> F.FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError sol
-  = fmap (tidySpecType F.Full)
+tidyError cfg sol
+  = fmap (tidySpecType (configTidy cfg)) 
   . tidyErrContext sol
+
+configTidy :: Config -> F.Tidy 
+configTidy cfg 
+  | shortNames cfg = F.Lossy 
+  | otherwise      = F.Full 
 
 tidyErrContext :: F.FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})

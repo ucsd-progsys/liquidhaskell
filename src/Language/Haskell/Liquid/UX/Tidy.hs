@@ -38,7 +38,7 @@ import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
 import qualified Control.Exception                         as Ex
-import           Language.Haskell.Liquid.GHC.Misc          (showPpr, stringTyVar)
+import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
@@ -83,14 +83,15 @@ isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
 -------------------------------------------------------------------------
-tidySpecType k = tidyEqual 
-               . tidyValueVars
-               . tidyDSymbols
-               . tidySymbols
-               . tidyInternalRefas
-               . tidyLocalRefas k
-               . tidyFunBinds
-               . tidyTyVars
+tidySpecType k 
+  = tidyEqual 
+  . tidyValueVars
+  . tidyDSymbols
+  . tidySymbols k 
+  . tidyInternalRefas
+  . tidyLocalRefas k
+  . tidyFunBinds
+  . tidyTyVars
 
 tidyValueVars :: SpecType -> SpecType
 tidyValueVars = mapReft $ \u -> u { ur_reft = tidyVV $ ur_reft u }
@@ -105,12 +106,12 @@ tidyVV r@(Reft (va,_))
     xs        = syms r
     isJunk    = isPrefixOfSym "x"
 
-tidySymbols :: SpecType -> SpecType
-tidySymbols t = substa tidySymbol $ mapBind dropBind t
+tidySymbols :: Tidy -> SpecType -> SpecType
+tidySymbols k t = substa (shortSymbol . tidySymbol) $ mapBind dropBind t
   where
-    xs         = S.fromList (syms t)
-    dropBind x = if x `S.member` xs then tidySymbol x else nonSymbol
-
+    xs          = S.fromList (syms t)
+    dropBind x  = if x `S.member` xs then tidySymbol x else nonSymbol
+    shortSymbol = if k == Lossy then dropModuleNames else id
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
 tidyLocalRefas k = mapReft (txStrata . txReft' k)
