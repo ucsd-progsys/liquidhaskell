@@ -15,22 +15,12 @@ import           Control.Monad.State
 import           Data.Char                           (isUpper)
 import           Text.Parsec.Pos
 
--- import qualified Data.List                           as L
--- import qualified Data.HashSet                        as S
 import qualified Data.HashMap.Strict                 as M
 
 -- import           Language.Fixpoint.Misc              (traceShow)
-import qualified Language.Fixpoint.Types.Names       as F -- (prims, unconsSym)
-import Language.Fixpoint.Types (Expr(..),
-                                Qualifier(..),
-                                Reft(..),
-                                Sort(..),
-                                Symbol,
-                                atLoc,
-                                fTyconSymbol,
-                                symbol,
-                                symbolFTycon)
-
+-- import qualified Language.Fixpoint.Types.Names       as F -- (prims, unconsSym)
+import qualified Language.Fixpoint.Types            as F -- (prims, unconsSym)
+import           Language.Fixpoint.Types (Expr(..), Sort(..))
 import           Language.Haskell.Liquid.Misc        (secondM, third3M)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -42,9 +32,13 @@ class Resolvable a where
 instance Resolvable a => Resolvable [a] where
   resolve = mapM . resolve
 
-instance Resolvable Qualifier where
-  resolve _ (Q n ps b l) = Q n <$> mapM (secondM (resolve l)) ps <*> resolve l b <*> return l
+instance Resolvable F.Qualifier where
+  resolve _ (F.Q n ps b l) = F.Q n <$> mapM (resolve l) ps <*> resolve l b <*> return l
 
+instance Resolvable F.QualParam where 
+  resolve l qp = do 
+    t <- resolve l (F.qpSort qp)
+    return (qp {F.qpSort = t})
 
 instance Resolvable Expr where
   resolve l (EVar s)        = EVar   <$> resolve l s
@@ -90,26 +84,26 @@ resolveCtor ls = do
 resolveCtorVar :: LocSymbol -> BareM LocSymbol
 resolveCtorVar ls = do
   v <- lookupGhcVar ls
-  let qs = symbol v
+  let qs = F.symbol v
   addSym (qs, v)
-  return $ atLoc ls qs
+  return $ F.atLoc ls qs
   -- Loc l l' qs
 
-isSpecialSym :: Symbol -> BareM Bool
+isSpecialSym :: F.Symbol -> BareM Bool
 isSpecialSym s = do
   env0 <- gets (typeAliases . rtEnv)
   return $ or [s `elem` F.prims, M.member s env0]
 
 
-addSym :: MonadState BareEnv m => (Symbol, Var) -> m ()
+addSym :: MonadState BareEnv m => (F.Symbol, Var) -> m ()
 addSym (x, v) = modify $ \be -> be { varEnv = M.insert x v (varEnv be) } --  `L.union` [x] } -- TODO: OMG THIS IS THE SLOWEST THING IN THE WORLD!
 
-isCon :: Symbol -> Bool
+isCon :: F.Symbol -> Bool
 isCon s
   | Just (c,_) <- F.unconsSym s = isUpper c
   | otherwise                   = False
 
-instance Resolvable Symbol where
+instance Resolvable F.Symbol where
   resolve l x = fmap val $ resolve l $ Loc l l x
 
 instance Resolvable Sort where
@@ -125,17 +119,17 @@ instance Resolvable Sort where
     | tcs' `elem` F.prims = FTC <$> return c
     | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
                                emb    <- embeds <$> get
-                               let ftc = FTC $ symbolFTycon $ Loc l l' $ symbol ty
+                               let ftc = FTC $ F.symbolFTycon $ Loc l l' $ F.symbol ty
                                return  $ M.lookupDefault ftc ty emb
     where
-      tcs@(Loc l l' tcs') = fTyconSymbol c
+      tcs@(Loc l l' tcs') = F.fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
 
-instance Resolvable (UReft Reft) where
+instance Resolvable (UReft F.Reft) where
   resolve l (MkUReft r p s) = MkUReft <$> resolve l r <*> resolve l p <*> return s
 
-instance Resolvable Reft where
-  resolve l (Reft (s, ra)) = Reft . (s,) <$> resolve l ra
+instance Resolvable F.Reft where
+  resolve l (F.Reft (s, ra)) = F.Reft . (s,) <$> resolve l ra
 
 instance Resolvable Predicate where
   resolve l (Pr pvs) = Pr <$> resolve l pvs
