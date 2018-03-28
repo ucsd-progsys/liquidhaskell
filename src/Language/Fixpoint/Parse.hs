@@ -723,10 +723,21 @@ qualifierP :: Parser Sort -> Parser Qualifier
 qualifierP tP = do
   pos    <- getPosition
   n      <- upperIdP
-  params <- parens $ sepBy1 (symBindP tP) comma
+  params <- parens $ sepBy1 (qualParamP tP) comma
   _      <- colon
   body   <- predP
   return  $ mkQual n params body pos
+
+qualParamP :: Parser Sort -> Parser QualParam 
+qualParamP tP = do 
+  x     <- symbolP 
+  pat   <- qualPatP 
+  _     <- colon 
+  t     <- tP 
+  return $ QP x pat t 
+
+qualPatP :: Parser QualPattern
+qualPatP = undefined -- TODO: _fixme_qualPatP 
 
 symBindP :: Parser a -> Parser (Symbol, a)
 symBindP = pairP symbolP colon

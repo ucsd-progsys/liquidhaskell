@@ -20,3 +20,5 @@ data QualPattern
 * see tests/pos/qualif-template-00.fq
 * see tests/pos/qualif-template-01.fq
  
+qualif Foo(x @ ($...) : int, )
+qualif Foo(x @ (...$) : int, )

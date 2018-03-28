@@ -94,7 +94,7 @@ instKQ ho env v t q
        return     $ Sol.eQual q (F.notracepp msg  (reverse xs))
     where
        msg        = "instKQ " ++ F.showpp (F.qName q) ++ F.showpp (F.qParams q)
-       qt : qts   = snd <$> F.qParams q
+       qt : qts   = qpSort <$> F.qParams q
        tyss       = instCands ho env
        senv       = (`F.lookupSEnvWithDistance` env)
 

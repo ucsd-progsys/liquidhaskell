@@ -46,7 +46,9 @@ module Language.Fixpoint.Types.Constraints (
   , gwInfo, GWInfo (..)
 
   -- * Qualifiers
-  , Qualifier (..), QualParam (..)
+  , Qualifier   (..)
+  , QualParam   (..)
+  , QualPattern (..)
   , trueQual
   , qualifier
   , mkQual, remakeQual
@@ -444,7 +446,7 @@ data Qualifier = Q
   deriving (Eq, Show, Data, Typeable, Generic)
 
 data QualParam = QP 
-  { qpName :: !Symbol
+  { qpSym  :: !Symbol
   , qpPat  :: !QualPattern 
   , qpSort :: !Sort
   } 
@@ -466,6 +468,14 @@ instance Loc Qualifier where
 
 instance Fixpoint QualParam where 
   toFix (QP x _ t) = toFix (x, t) 
+
+instance PPrint QualParam where 
+  pprintTidy k (QP x pat t) = pprintTidy k x <+> pprintTidy k pat <+> colon <+> pprintTidy k t 
+
+instance PPrint QualPattern where 
+  pprintTidy _ PatNone       = "" 
+  pprintTidy k (PatPrefix s) = "as $" <> pprintTidy k s 
+  pprintTidy k (PatSuffix s) = "as "  <> pprintTidy k s <> "$"
 
 instance Fixpoint Qualifier where
   toFix = pprQual
