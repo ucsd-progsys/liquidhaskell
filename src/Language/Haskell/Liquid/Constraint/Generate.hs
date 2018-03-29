@@ -75,7 +75,7 @@ import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
-
+import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -1128,9 +1128,13 @@ projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
 
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
-altReft γ acs DEFAULT    = mconcat [notLiteralReft l | LitAlt l <- acs]
-  where notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
-altReft _ _ _            = panic Nothing "Constraint : altReft"
+altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [notDataConReft d | DataAlt d <- acs])
+  where 
+    notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
+    notDataConReft d | exactDC (getConfig γ) 
+                     = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
+                     | otherwise = mempty
+altReft _ _ _        = panic Nothing "Constraint : altReft"
 
 unfoldR :: SpecType
         -> SpecType
