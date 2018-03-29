@@ -31,24 +31,26 @@ type CtxM = M.HashMap F.Symbol (WithModel SpecType)
 tidyError :: Config -> F.FixSolution -> Error -> Error
 ------------------------------------------------------------------------
 tidyError cfg sol
-  = fmap (tidySpecType (configTidy cfg)) 
-  . tidyErrContext sol
+  = fmap (tidySpecType tidy) 
+  . tidyErrContext tidy sol
+  where 
+    tidy = configTidy cfg 
 
 configTidy :: Config -> F.Tidy 
 configTidy cfg 
   | shortNames cfg = F.Lossy 
   | otherwise      = F.Full 
 
-tidyErrContext :: F.FixSolution -> Error -> Error
-tidyErrContext _ e@(ErrSubType {})
+tidyErrContext :: F.Tidy -> F.FixSolution -> Error -> Error
+tidyErrContext k _ e@(ErrSubType {})
   = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ tE }
     where
-      (θ, c') = tidyCtx xs $ ctx e
+      (θ, c') = tidyCtx k xs (ctx e)
       xs      = F.syms tA ++ F.syms tE
       tA      = tact e
       tE      = texp e
 
-tidyErrContext _ e@(ErrSubTypeModel {})
+tidyErrContext _ _ e@(ErrSubTypeModel {})
   = e { ctxM = c', tactM = fmap (F.subst θ) tA, texp = fmap (F.subst θ) tE }
     where
       (θ, c') = tidyCtxM xs $ ctxM e
@@ -56,27 +58,26 @@ tidyErrContext _ e@(ErrSubTypeModel {})
       tA      = tactM e
       tE      = texp e
 
-tidyErrContext _ e@(ErrAssType {})
+tidyErrContext k _ e@(ErrAssType {})
   = e { ctx = c', cond = F.subst θ p }
     where
       m       = ctx e
-      (θ, c') = tidyCtx xs m
+      (θ, c') = tidyCtx k xs m
       xs      = F.syms p
       p       = cond e
 
-tidyErrContext _ e
+tidyErrContext _ _ e
   = e
 
 --------------------------------------------------------------------------------
-tidyCtx       :: [F.Symbol] -> Ctx -> (F.Subst, Ctx)
+tidyCtx       :: F.Tidy -> [F.Symbol] -> Ctx -> (F.Subst, Ctx)
 --------------------------------------------------------------------------------
-tidyCtx xs m   = F.tracepp "TIDY-CTX result" (θ1 `mappend` θ2, M.fromList yts)
+tidyCtx k xs m = (θ1 `mappend` θ2, M.fromList yts)
   where
-    yts        = [tBind x (tidySpecType F.Full t) | (x, t) <- xt2s]
-    (θ2, xt2s) = F.tracepp "TIDY-CTX-2" $ tidyREnv xt1s 
-    (θ1, xt1s) = F.tracepp "TIDY-CTX-1" $ tidyTemps xts  
+    yts        = [tBind x (tidySpecType k t) | (x, t) <- xt2s]
+    (θ2, xt2s) = tidyREnv xt1s 
+    (θ1, xt1s) = tidyTemps xts  
     xts        = sliceREnv xs m 
-    -- (θ1, xt1s) = F.tracepp "TIDY-CTX xs =" $ tidyREnv xs m 
     tBind x t  = (x', shiftVV t x') where x' = F.tidySymbol x
 
 tidyCtxM       :: [F.Symbol] -> CtxM -> (F.Subst, CtxM)

@@ -107,11 +107,14 @@ tidyVV r@(Reft (va,_))
     isJunk    = isPrefixOfSym "x"
 
 tidySymbols :: Tidy -> SpecType -> SpecType
-tidySymbols k t = substa (shortSymbol . tidySymbol) $ mapBind dropBind t
+tidySymbols k t = substa (shortSymbol k . tidySymbol) $ mapBind dropBind t
   where
     xs          = S.fromList (syms t)
     dropBind x  = if x `S.member` xs then tidySymbol x else nonSymbol
-    shortSymbol = if (tracepp "shortSymbol k" k) == Lossy then dropModuleNames else id
+
+shortSymbol :: Tidy -> Symbol -> Symbol 
+shortSymbol Lossy = dropModuleNames 
+shortSymbol _     = id 
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
 tidyLocalRefas k = mapReft (txStrata . txReft' k)
