@@ -39,7 +39,7 @@ configTidy cfg
 
 tidyErrContext :: F.FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
-  = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ tE }
+  = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ (F.tracepp "FUCKER" tE) }
     where
       (θ, c') = tidyCtx xs $ ctx e
       xs      = F.syms tA ++ F.syms tE
@@ -68,11 +68,13 @@ tidyErrContext _ e
 --------------------------------------------------------------------------------
 tidyCtx       :: [F.Symbol] -> Ctx -> (F.Subst, Ctx)
 --------------------------------------------------------------------------------
-tidyCtx xs m   = (θ1 `mappend` θ2, M.fromList yts)
+tidyCtx xs m   = F.tracepp "TIDY-CTX result" (θ1 `mappend` θ2, M.fromList yts)
   where
     yts        = [tBind x (tidySpecType F.Full t) | (x, t) <- xt2s]
-    (θ2, xt2s) = tidyTemps xt1s -- [ (x, stripReft t) | (x, t) <- xt1s ] 
-    (θ1, xt1s) = tidyREnv xs m 
+    (θ2, xt2s) = F.tracepp "TIDY-CTX-2" $ tidyREnv xt1s 
+    (θ1, xt1s) = F.tracepp "TIDY-CTX-1" $ tidyTemps xts  
+    xts        = sliceREnv xs m 
+    -- (θ1, xt1s) = F.tracepp "TIDY-CTX xs =" $ tidyREnv xs m 
     tBind x t  = (x', shiftVV t x') where x' = F.tidySymbol x
 
 tidyCtxM       :: [F.Symbol] -> CtxM -> (F.Subst, CtxM)
@@ -82,25 +84,20 @@ tidyCtxM xs m  = (θ, M.fromList yts)
     (θ, xts)  = tidyTemps $ second (fmap stripReft) <$> tidyREnvM xs m
     tBind x t = (x', fmap (\t -> shiftVV t x') t) where x' = F.tidySymbol x
 
-
-stripReft     :: SpecType -> SpecType
-stripReft t   = maybe t' (strengthen t') ro
-  where
-    (t', ro)  = stripRType t
-
-stripRType    :: SpecType -> (SpecType, Maybe RReft)
-stripRType st = (t', ro)
-  where
-    t'        = fmap (const (uTop mempty)) t
-    ro        = stripRTypeBase  t
-    t         = simplifyBounds st
-
-tidyREnv :: [F.Symbol] -> Ctx -> (F.Subst, [(F.Symbol, SpecType)])
-tidyREnv xs m   = (θ, second (F.subst θ) <$> zts) -- [(z, F.subst θ t) | (z, t) <- zts]) 
+tidyREnv :: [(F.Symbol, SpecType)] -> (F.Subst, [(F.Symbol, SpecType)])
+tidyREnv xts    = (θ, second (F.subst θ) <$> zts)
   where 
-    θ           = mconcat [ F.mkSubst [(y, e)] | (y, e) <- yes ]
+    θ           = expandVarDefs yes -- mconcat [ F.mkSubst [(y, e)] | (y, e) <- yes ]
     (yes, zts)  = Misc.mapEither isInline xts 
-    xts         = sliceREnv xs m
+
+-- | 'expandVarDefs [(x1, e1), ... ,(xn, en)] returns a `Subst` that  
+--   contains the fully substituted definitions for each `xi`. For example, 
+--      expandVarDefs [(x1, 'x2 + x3'), (x5, 'x1 + 1')] 
+--   should return 
+--     [x1 := 'x2 + x3, x5 := (x2 + x3) + 1]
+
+expandVarDefs :: [(F.Symbol, F.Expr)] -> F.Subst 
+expandVarDefs = undefined
 
 isInline :: (a, SpecType) -> Either (a, F.Expr) (a, SpecType) 
 isInline (x, t) = either (Left . (x,)) (Right . (x,)) (isInline' t) 
@@ -114,7 +111,17 @@ isInline' t = case ro of
               where 
                   (t', ro) = stripRType t 
 
+stripReft     :: SpecType -> SpecType
+stripReft t   = maybe t' (strengthen t') ro
+  where
+    (t', ro)  = stripRType t
 
+stripRType    :: SpecType -> (SpecType, Maybe RReft)
+stripRType st = (t', ro)
+  where
+    t'        = fmap (const (uTop mempty)) t
+    ro        = stripRTypeBase  t
+    t         = simplifyBounds st
 
 sliceREnv :: [F.Symbol] -> Ctx -> [(F.Symbol, SpecType)]
 sliceREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]

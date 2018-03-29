@@ -124,7 +124,6 @@ tidyLocalRefas k = mapReft (txStrata . txReft' k)
     isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]
     txStr                         = filter (not . isSVar)
 
-
 tidyEqual :: SpecType -> SpecType
 tidyEqual = mapReft txReft
   where 
