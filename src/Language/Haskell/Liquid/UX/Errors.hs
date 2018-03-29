@@ -90,7 +90,7 @@ tidyCtxM xs m  = (θ, M.fromList yts)
 tidyREnv :: [(F.Symbol, SpecType)] -> (F.Subst, [(F.Symbol, SpecType)])
 tidyREnv xts    = (θ, second (F.subst θ) <$> zts)
   where 
-    θ           = expandVarDefs yes -- mconcat [ F.mkSubst [(y, e)] | (y, e) <- yes ]
+    θ           = expandVarDefs yes 
     (yes, zts)  = Misc.mapEither isInline xts 
 
 -- | 'expandVarDefs [(x1, e1), ... ,(xn, en)] returns a `Subst` that  

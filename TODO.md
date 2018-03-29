@@ -1,50 +1,116 @@
 
-# T1258 
+## jp-strict
 
+(develop)
 
-Right now, `liquid tests/todo/T1258.hs` prints: 
-
-```
- 20 | prop = f B C === E *** QED
-             ^^^^^^^^^^^
-
-   Inferred type
-     VV : {v : Baz | v == T1258.E}
-
-   not a subtype of Required type
-     VV : {VV : Baz | VV == ?a}
-
-   In Context
-     ?a : {?a : Baz | ?a == T1258.f T1258.B T1258.C}
-```
-
-lets get it to print 
-
-```
- 20 | prop = f B C === E *** QED
-             ^^^^^^^^^^^
-
-   Inferred type
-     VV : {v : Baz | v == T1258.E}
-
-   not a subtype of Required type
-     VV : {VV : Baz | VV == T1258.f T1258.B T1258.C}
-```
-
-and then, when `--short-names` is on, to print 
-
-```
- s20 | prop = f B C === E *** QED
-             ^^^^^^^^^^^
-
-   Inferred type
-     VV : {v : Baz | v == E}
-
-   not a subtype of Required type
-     VV : {VV : Baz | VV == f B C}
-```
-
-
+  Benchmarks
+    text
+      Data/Text.hs:               OK (48.38s)
+      Data/Text/UnsafeChar.hs:    OK (2.14s)
+      Data/Text/Unsafe.hs:        OK (2.47s)
+      Data/Text/Search.hs:        OK (29.20s)
+      Data/Text/Private.hs:       OK (1.98s)
+      Data/Text/Lazy.hs:          OK (42.25s)
+      Data/Text/Internal.hs:      OK (9.57s)
+      Data/Text/Fusion.hs:        OK (35.74s)
+      Data/Text/Foreign.hs:       OK (6.49s)
+      Data/Text/Array.hs:         OK (3.91s)
+      Data/Text/Lazy/Search.hs:   OK (75.36s)
+      Data/Text/Lazy/Internal.hs: OK (4.86s)
+      Data/Text/Lazy/Fusion.hs:   OK (7.38s)
+      Data/Text/Lazy/Encoding.hs: OK (12.18s)
+      Data/Text/Lazy/Builder.hs:  OK (10.26s)
+      Data/Text/Fusion/Size.hs:   OK (1.87s)
+        Benchmarks
+    bytestring
+      Data/ByteString.T.hs:             OK (190.96s)
+      Data/ByteString.hs:               OK (137.63s)
+      Data/ByteString/Unsafe.hs:        OK (1.96s)
+      Data/ByteString/LazyZip.hs:       OK (8.11s)
+      Data/ByteString/Lazy.hs:          OK (66.69s)
+      Data/ByteString/Internal.hs:      OK (15.01s)
+      Data/ByteString/Fusion.T.hs:      OK (43.32s)
+      Data/ByteString/Fusion.hs:        OK (36.31s)
+      Data/ByteString/Char8.hs:         OK (17.66s)
+      Data/ByteString/Lazy/Internal.hs: OK (2.11s)
+      Data/ByteString/Lazy/Char8.hs:    OK (18.58s)
+Tests
+  Unit
+    pos
+      UnboxedTuplesAndTH.hs:  OK (3.14s)
+      UnboxedTuples.hs:       OK (1.45s)
+      SimplerNotation.hs:     OK (1.24s)
+      RelativeComplete.hs:    OK (1.16s)
+      pleORM.hs:              OK (1.18s)
+      ple1.hs:                OK (1.23s)
+      ple0.hs:                OK (0.82s)
+      MultipleInvariants.hs:  OK (0.75s)
+      DepTriples.hs:          OK (0.72s)
+    neg
+      ple0.hs:                OK (0.63s)
+      MultipleInvariants.hs:  OK (0.71s)
+  Prover
+    without_ple
+      Unification.hs:         OK (5.07s)
+      Solver.hs:              OK (1.40s)
+      ProofCombinators.hs:    OK (0.96s)
+      Peano.hs:               OK (1.17s)
+      Overview.hs:            OK (1.01s)
+      NormalForm.hs:          OK (0.81s)
+      NaturalDeduction.hs:    OK (0.95s)
+      NatInduction.hs:        OK (1.15s)
+      MonoidMaybe.hs:         OK (1.36s)
+      MonoidList.hs:          OK (1.30s)
+      MonadMaybe.hs:          OK (1.12s)
+      MonadList.hs:           OK (1.86s)
+      MonadId.hs:             OK (0.92s)
+      MapFusion.hs:           OK (1.27s)
+      FunctorMaybe.hs:        OK (1.07s)
+      FunctorList.hs:         OK (1.63s)
+      FunctorId.hs:           OK (0.93s)
+      FunctionEquality101.hs: OK (0.88s)
+      FoldrUniversal.hs:      OK (1.68s)
+      Fibonacci.hs:           OK (1.94s)
+      Euclide.hs:             OK (0.79s)
+      Compose.hs:             OK (0.80s)
+      BasicLambdas0.hs:       OK (0.83s)
+      BasicLambdas.hs:        OK (0.78s)
+      ApplicativeMaybe.hs:    OK (2.31s)
+      ApplicativeList.hs:     OK (8.44s)
+      ApplicativeId.hs:       OK (1.17s)
+      Append.hs:              OK (1.50s)
+      AlphaEquivalence.hs:    OK (0.85s)
+    with_ple
+      Unification.hs:         OK (4.87s)
+      Solver.hs:              OK (1.36s)
+      ProofCombinators.hs:    OK (0.94s)
+      Peano.hs:               OK (1.13s)
+      Overview.hs:            OK (1.25s)
+      NormalForm.hs:          OK (0.75s)
+      NaturalDeduction.hs:    OK (0.95s)
+      NatInduction.hs:        OK (0.80s)
+      MonoidMaybe.hs:         OK (0.87s)
+      MonoidList.hs:          OK (1.05s)
+      MonadMaybe.hs:          OK (0.95s)
+      MonadList.hs:           OK (1.94s)
+      MonadId.hs:             OK (0.87s)
+      Maybe.hs:               OK (0.68s)
+      MapFusion.hs:           OK (0.95s)
+      Lists.hs:               OK (0.96s)
+      FunctorMaybe.hs:        OK (0.83s)
+      FunctorList.hs:         OK (1.01s)
+      FunctorId.hs:           OK (0.80s)
+      FunctionEquality101.hs: OK (0.86s)
+      FoldrUniversal.hs:      OK (1.05s)
+      Fibonacci.hs:           OK (11.05s)
+      Euclide.hs:             OK (0.80s)
+      Compose.hs:             OK (0.76s)
+      BasicLambdas.hs:        OK (0.80s)
+      ApplicativeMaybe.hs:    OK (1.19s)
+      ApplicativeList.hs:     OK (8.73s)
+      ApplicativeId.hs:       OK (0.82s)
+      Append.hs:              OK (1.43s)
+      AlphaEquivalence.hs:    OK (0.82s)
 
 # T1173 
 

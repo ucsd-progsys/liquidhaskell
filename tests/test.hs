@@ -170,8 +170,6 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/T1140.hs"               2 "Specified type does not refine Haskell type for `Blank.foo`"
   , errorTest "tests/errors/InlineSubExp0.hs"       1 "== f B C"
   , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
-
-
   ]
 
 unitTests :: IO TestTree
