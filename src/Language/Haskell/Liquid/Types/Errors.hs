@@ -541,10 +541,17 @@ ppReqInContext td tA tE c
                 , text "VV :" <+> pprintTidy td tA]
       , nests 2 [ text "not a subtype of Required type"
                 , text "VV :" <+> pprintTidy td tE]
-      , nests 2 [ text "In Context"
-                , vsep (map (uncurry (pprintBind td)) (M.toList c))
-                ]
+      , ppContext td c 
       ]
+
+ppContext :: PPrint t => Tidy -> M.HashMap Symbol t -> Doc 
+ppContext td c
+  | 0 < length xts = nests 2 [ text "In Context"
+                             , vsep (map (uncurry (pprintBind td)) xts)
+                             ]
+  | otherwise      = empty 
+  where 
+    xts            = M.toList c 
 
 pprintBind :: PPrint t => Tidy -> Symbol -> t -> Doc
 pprintBind td v t = pprintTidy td v <+> char ':' <+> pprintTidy td t

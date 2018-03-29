@@ -1,7 +1,54 @@
+
+# T1258 
+
+
+Right now, `liquid tests/todo/T1258.hs` prints: 
+
+```
+ 20 | prop = f B C === E *** QED
+             ^^^^^^^^^^^
+
+   Inferred type
+     VV : {v : Baz | v == T1258.E}
+
+   not a subtype of Required type
+     VV : {VV : Baz | VV == ?a}
+
+   In Context
+     ?a : {?a : Baz | ?a == T1258.f T1258.B T1258.C}
+```
+
+lets get it to print 
+
+```
+ 20 | prop = f B C === E *** QED
+             ^^^^^^^^^^^
+
+   Inferred type
+     VV : {v : Baz | v == T1258.E}
+
+   not a subtype of Required type
+     VV : {VV : Baz | VV == T1258.f T1258.B T1258.C}
+```
+
+and then, when `--short-names` is on, to print 
+
+```
+ s20 | prop = f B C === E *** QED
+             ^^^^^^^^^^^
+
+   Inferred type
+     VV : {v : Baz | v == E}
+
+   not a subtype of Required type
+     VV : {VV : Baz | VV == f B C}
+```
+
+
+
 # T1173 
 
 * borscht-2017-08-24T18-14-25/summary.csv vs. DEVELOP?
-
 
 
 # 3 Failures moved in tests/DependentHaskell/todo

@@ -7,6 +7,14 @@ module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
    , allowPLE, allowLocalPLE, allowGlobalPLE
+   , patternFlag
+   , higherOrderFlag
+   , pruneFlag
+   , expandFlag
+   , exactDCFlag
+   , hasOpt
+   , totalityCheck
+   , terminationCheck 
    ) where
 
 import Prelude hiding (error)
@@ -17,8 +25,8 @@ import GHC.Generics
 import System.Console.CmdArgs
 
 -- NOTE: adding strictness annotations breaks the help message
-data Config = Config {
-    files          :: [FilePath] -- ^ source files to check
+data Config = Config 
+  { files          :: [FilePath] -- ^ source files to check
   , idirs          :: [FilePath] -- ^ path to directory for including specs
   , diffcheck      :: Bool       -- ^ check subset of binders modified (+ dependencies) since last check
   , linear         :: Bool       -- ^ uninterpreted integer multiplication and division
@@ -76,15 +84,12 @@ data Config = Config {
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  -- NO-TRIGGER , proofMethod     :: ProofMethod -- ^ How to create automatic instances
-  -- NO-TRIGGER , fuel            :: Int         -- ^ Fuel for axiom instantiation
   , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   } deriving (Generic, Data, Typeable, Show, Eq)
 
--- NO-TRIGGER instance Serialize ProofMethod
 instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
@@ -94,11 +99,6 @@ data Instantiate
   | LiquidInstances
   | LiquidInstancesLocal
   deriving (Eq, Data, Typeable, Generic)
-
--- NO-TRIGGER data ProofMethod
--- NO-TRIGGER   = Rewrite
--- NO-TRIGGER   | AllMethods
--- NO-TRIGGER   deriving (Eq, Data, Typeable, Generic)
 
 allowPLE :: Config -> Bool
 allowPLE cfg
@@ -113,13 +113,6 @@ allowLocalPLE :: Config -> Bool
 allowLocalPLE cfg
   =  proofLogicEval  cfg
   || autoInstantiate cfg == LiquidInstancesLocal
-
--- NO-TRIGGER instance Default ProofMethod where
-  -- NO-TRIGGER def = Rewrite
--- NO-TRIGGER
--- NO-TRIGGER instance Show ProofMethod where
-  -- NO-TRIGGER show Rewrite    = "rewrite"
-  -- NO-TRIGGER show AllMethods = "all"
 
 instance Default Instantiate where
   def = NoInstances
@@ -137,26 +130,30 @@ instance HasConfig  Config where
 class HasConfig t where
   getConfig :: t -> Config
 
-  patternFlag :: t -> Bool
-  patternFlag = not . noPatternInline . getConfig
+patternFlag :: (HasConfig t) => t -> Bool
+patternFlag = not . noPatternInline . getConfig
 
-  higherOrderFlag :: t -> Bool
-  higherOrderFlag = higherorder . getConfig
+higherOrderFlag :: (HasConfig t) => t -> Bool
+higherOrderFlag = higherorder . getConfig
 
-  pruneFlag :: t -> Bool
-  pruneFlag = pruneUnsorted . getConfig
+pruneFlag :: (HasConfig t) => t -> Bool
+pruneFlag = pruneUnsorted . getConfig
 
-  expandFlag :: t -> Bool
-  expandFlag = not . nocaseexpand . getConfig
+expandFlag :: (HasConfig t) => t -> Bool
+expandFlag = not . nocaseexpand . getConfig
 
-  hasOpt :: t -> (Config -> Bool) -> Bool
-  hasOpt t f = f (getConfig t)
+exactDCFlag :: (HasConfig t) => t -> Bool
+-- exactDCFlag _ = True 
+exactDCFlag = exactDC . getConfig 
 
-  totalityCheck :: t -> Bool
-  totalityCheck = totalityCheck' . getConfig
+hasOpt :: (HasConfig t) => t -> (Config -> Bool) -> Bool
+hasOpt t f = f (getConfig t)
 
-  terminationCheck :: t -> Bool
-  terminationCheck = terminationCheck' . getConfig
+totalityCheck :: (HasConfig t) => t -> Bool
+totalityCheck = totalityCheck' . getConfig
+
+terminationCheck :: (HasConfig t) => t -> Bool
+terminationCheck = terminationCheck' . getConfig
 
 totalityCheck' :: Config -> Bool
 totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg

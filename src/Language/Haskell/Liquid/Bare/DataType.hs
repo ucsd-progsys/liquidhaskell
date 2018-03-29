@@ -184,7 +184,7 @@ makeDataDecls cfg tce name tds ds
                 ]
   | otherwise = []
   where
-    makeDecls = exactDC cfg && not (noADT cfg)
+    makeDecls = exactDCFlag cfg && not (noADT cfg)
     tds'      = resolveTyCons name tds
 
 -- [NOTE:Orphan-TyCons]
@@ -566,7 +566,7 @@ ofBDataCtor name l l' tc αs ps ls πs (DataCtor c _ xts res) = do
   let t0'       = F.notracepp ("dataConResultTy c' = " ++ show c' ++ " res' = " ++ show res') $ dataConResultTy c' αs t0 res'
   cfg          <- gets beConfig
   let (yts, ot) = F.notracepp ("OFBDataCTOR: " ++ show c' ++ " " ++ show (isVanillaDataCon c', res') ++ " " ++ show isGadt)
-                $ qualifyDataCtor (exactDC cfg && not isGadt) name dLoc (zip xs ts', t0')
+                $ qualifyDataCtor (exactDCFlag cfg && not isGadt) name dLoc (zip xs ts', t0')
   let zts       = zipWith (normalizeField c') [1..] (reverse yts)
 
   let usedTvs   = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))

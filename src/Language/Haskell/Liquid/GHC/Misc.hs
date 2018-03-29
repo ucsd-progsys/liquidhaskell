@@ -349,7 +349,7 @@ locNamedThing x = F.Loc l lE x
     lE         = getSourcePosE x
 
 namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
-namedLocSymbol d = {- dropModuleNamesAndUnique . -} F.symbol <$> locNamedThing d
+namedLocSymbol d = F.symbol <$> locNamedThing d
 
 varLocInfo :: (Type -> a) -> Var -> F.Located a
 varLocInfo f x = f . varType <$> locNamedThing x

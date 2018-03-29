@@ -93,7 +93,7 @@ initEnv info
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makedcs      = map strengthenDataConType
-    makeExactDc dcs = if exactDC (getConfig info) then makedcs dcs else dcs
+    makeExactDc dcs = if exactDCFlag info then makedcs dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants sp ++ ((Nothing,) <$> autoinv))
 
 makeDataConTypes :: Var -> CG (Var, SpecType)

@@ -1,84 +1,128 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE BangPatterns      #-}
 
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
 
--- TODO: move this into Tidy.
-
-module Language.Haskell.Liquid.UX.Errors
-  ( -- * Cleanup an Error
-    tidyError
- ) where
+module Language.Haskell.Liquid.UX.Errors ( tidyError ) where
 
 import           Control.Arrow                       (second)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
+import qualified Data.List                           as L
 import           Data.Hashable
 import           Data.Maybe                          (maybeToList)
-import           Language.Fixpoint.Types             hiding (Error, SrcSpan, shiftVV)
+import qualified Language.Fixpoint.Types             as F 
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Misc        (single)
+import qualified Language.Haskell.Liquid.Misc as Misc 
+import qualified Language.Fixpoint.Misc       as Misc 
 
 -- import Debug.Trace
 
-type Ctx = M.HashMap Symbol SpecType
-type CtxM = M.HashMap Symbol (WithModel SpecType)
+type Ctx  = M.HashMap F.Symbol SpecType
+type CtxM = M.HashMap F.Symbol (WithModel SpecType)
 
 ------------------------------------------------------------------------
-tidyError :: FixSolution -> Error -> Error
+tidyError :: Config -> F.FixSolution -> Error -> Error
 ------------------------------------------------------------------------
-tidyError sol
-  = fmap (tidySpecType Full)
-  . tidyErrContext sol
+tidyError cfg sol
+  = fmap (tidySpecType tidy) 
+  . tidyErrContext tidy sol
+  where 
+    tidy = configTidy cfg 
 
-tidyErrContext :: FixSolution -> Error -> Error
-tidyErrContext _ e@(ErrSubType {})
-  = e { ctx = c', tact = subst θ tA, texp = subst θ tE }
+configTidy :: Config -> F.Tidy 
+configTidy cfg 
+  | shortNames cfg = F.Lossy 
+  | otherwise      = F.Full 
+
+tidyErrContext :: F.Tidy -> F.FixSolution -> Error -> Error
+tidyErrContext k _ e@(ErrSubType {})
+  = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ tE }
     where
-      (θ, c') = tidyCtx xs $ ctx e
-      xs      = syms tA ++ syms tE
+      (θ, c') = tidyCtx k xs (ctx e)
+      xs      = F.syms tA ++ F.syms tE
       tA      = tact e
       tE      = texp e
 
-tidyErrContext _ e@(ErrSubTypeModel {})
-  = e { ctxM = c', tactM = fmap (subst θ) tA, texp = fmap (subst θ) tE }
+tidyErrContext _ _ e@(ErrSubTypeModel {})
+  = e { ctxM = c', tactM = fmap (F.subst θ) tA, texp = fmap (F.subst θ) tE }
     where
       (θ, c') = tidyCtxM xs $ ctxM e
-      xs      = syms tA ++ syms tE
+      xs      = F.syms tA ++ F.syms tE
       tA      = tactM e
       tE      = texp e
 
-tidyErrContext _ e@(ErrAssType {})
-  = e { ctx = c', cond = subst θ p }
+tidyErrContext k _ e@(ErrAssType {})
+  = e { ctx = c', cond = F.subst θ p }
     where
       m       = ctx e
-      (θ, c') = tidyCtx xs m
-      xs      = syms p
+      (θ, c') = tidyCtx k xs m
+      xs      = F.syms p
       p       = cond e
 
-tidyErrContext _ e
+tidyErrContext _ _ e
   = e
 
 --------------------------------------------------------------------------------
-tidyCtx       :: [Symbol] -> Ctx -> (Subst, Ctx)
+tidyCtx       :: F.Tidy -> [F.Symbol] -> Ctx -> (F.Subst, Ctx)
 --------------------------------------------------------------------------------
-tidyCtx xs m  = (θ, M.fromList yts)
+tidyCtx k xs m = (θ1 `mappend` θ2, M.fromList yts)
   where
-    yts       = [tBind x $ tidySpecType Full t | (x, t) <- xts]
-    (θ, xts)  = tidyTemps $ second stripReft <$> tidyREnv xs m
-    tBind x t = (x', shiftVV t x') where x' = tidySymbol x
+    yts        = [tBind x (tidySpecType k t) | (x, t) <- xt2s]
+    (θ2, xt2s) = tidyREnv xt1s 
+    (θ1, xt1s) = tidyTemps xts  
+    xts        = sliceREnv xs m 
+    tBind x t  = (x', shiftVV t x') where x' = F.tidySymbol x
 
-tidyCtxM       :: [Symbol] -> CtxM -> (Subst, CtxM)
+tidyCtxM       :: [F.Symbol] -> CtxM -> (F.Subst, CtxM)
 tidyCtxM xs m  = (θ, M.fromList yts)
   where
     yts       = [tBind x t | (x, t) <- xts]
     (θ, xts)  = tidyTemps $ second (fmap stripReft) <$> tidyREnvM xs m
-    tBind x t = (x', fmap (\t -> shiftVV t x') t) where x' = tidySymbol x
+    tBind x t = (x', fmap (\t -> shiftVV t x') t) where x' = F.tidySymbol x
 
+tidyREnv :: [(F.Symbol, SpecType)] -> (F.Subst, [(F.Symbol, SpecType)])
+tidyREnv xts    = (θ, second (F.subst θ) <$> zts)
+  where 
+    θ           = expandVarDefs yes -- mconcat [ F.mkSubst [(y, e)] | (y, e) <- yes ]
+    (yes, zts)  = Misc.mapEither isInline xts 
+
+-- | 'expandVarDefs [(x1, e1), ... ,(xn, en)] returns a `Subst` that  
+--   contains the fully substituted definitions for each `xi`. For example, 
+--      expandVarDefs [(x1, 'x2 + x3'), (x5, 'x1 + 1')] 
+--   should return 
+--     [x1 := 'x2 + x3, x5 := (x2 + x3) + 1]
+
+expandVarDefs :: [(F.Symbol, F.Expr)] -> F.Subst 
+expandVarDefs      = go mempty 
+  where 
+    go !su xes     
+      | null yes   = su `mappend` (F.mkSubst xes)
+      | otherwise  = go (su `mappend` su') xes''
+      where  
+       xes''       = [(z, F.subst su' e) | (z, e) <- zes] 
+       xs          = S.fromList [x | (x, _) <- xes] 
+       su'         = F.mkSubst yes
+       (yes, zes)  = L.partition (isDef xs . snd) xes 
+    isDef xs e     = all (not . (`S.member` xs)) (F.syms e) 
+
+isInline :: (a, SpecType) -> Either (a, F.Expr) (a, SpecType) 
+isInline (x, t) = either (Left . (x,)) (Right . (x,)) (isInline' t) 
+
+isInline' :: SpecType -> Either F.Expr SpecType 
+isInline' t = case ro of 
+                Nothing -> Right t' 
+                Just rr -> case F.isSingletonReft (ur_reft rr) of 
+                             Just e  -> Left e
+                             Nothing -> Right (strengthen t' rr) 
+              where 
+                  (t', ro) = stripRType t 
 
 stripReft     :: SpecType -> SpecType
 stripReft t   = maybe t' (strengthen t') ro
@@ -92,18 +136,18 @@ stripRType st = (t', ro)
     ro        = stripRTypeBase  t
     t         = simplifyBounds st
 
-tidyREnv      :: [Symbol] -> Ctx -> [(Symbol, SpecType)]
-tidyREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
+sliceREnv :: [F.Symbol] -> Ctx -> [(F.Symbol, SpecType)]
+sliceREnv xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
     xs'       = expandFix deps xs
-    deps y    = maybe [] (syms . rTypeReft) (M.lookup y m)
+    deps y    = maybe [] (F.syms . rTypeReft) (M.lookup y m)
     ok        = not . isFunTy
 
-tidyREnvM      :: [Symbol] -> CtxM -> [(Symbol, WithModel SpecType)]
+tidyREnvM      :: [F.Symbol] -> CtxM -> [(F.Symbol, WithModel SpecType)]
 tidyREnvM xs m = [(x, t) | x <- xs', t <- maybeToList (M.lookup x m), ok t]
   where
     xs'       = expandFix deps xs
-    deps y    = maybe [] (syms . rTypeReft . dropModel) (M.lookup y m)
+    deps y    = maybe [] (F.syms . rTypeReft . dropModel) (M.lookup y m)
     ok        = not . isFunTy . dropModel
 
 expandFix :: (Eq a, Hashable a) => (a -> [a]) -> [a] -> [a]
@@ -114,19 +158,19 @@ expandFix f               = S.toList . go S.empty
       | x `S.member` seen = go seen xs
       | otherwise         = go (S.insert x seen) (f x ++ xs)
 
-tidyTemps     :: (Subable t) => [(Symbol, t)] -> (Subst, [(Symbol, t)])
+tidyTemps     :: (F.Subable t) => [(F.Symbol, t)] -> (F.Subst, [(F.Symbol, t)])
 tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
   where
     txB  x    = M.lookupDefault x x m
-    txTy      = subst θ
+    txTy      = F.subst θ
     m         = M.fromList yzs
-    θ         = mkSubst [(y, EVar z) | (y, z) <- yzs]
+    θ         = F.mkSubst [(y, F.EVar z) | (y, z) <- yzs]
     yzs       = zip ys niceTemps
     ys        = [ x | (x,_) <- xts, isTmpSymbol x]
 
-niceTemps     :: [Symbol]
+niceTemps     :: [F.Symbol]
 niceTemps     = mkSymbol <$> xs ++ ys
   where
-    mkSymbol  = symbol . ('?' :)
-    xs        = single   <$> ['a' .. 'z']
+    mkSymbol  = F.symbol . ('?' :)
+    xs        = Misc.single <$> ['a' .. 'z']
     ys        = ("a" ++) <$> [show n | n <- [0 ..]]

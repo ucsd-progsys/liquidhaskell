@@ -196,14 +196,14 @@ solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   F.Result r sol _ <- solve (fixConfig tgt cfg) finfo
   let resErr        = applySolution sol . cinfoError . snd <$> r
-  resModel_        <- fmap (e2u sol) <$> getModels info cfg resErr
-  let resModel      = resModel_  `addErrors` (e2u sol <$> logErrors cgi)
+  resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
+  let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
 
-e2u :: F.FixSolution -> Error -> UserError
-e2u s = fmap F.pprint . tidyError s
+e2u :: Config -> F.FixSolution -> Error -> UserError
+e2u cfg s = fmap F.pprint . tidyError cfg s
 
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where
