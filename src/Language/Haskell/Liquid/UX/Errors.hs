@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE BangPatterns      #-}
 
 -- | This module contains the functions related to @Error@ type,
 -- in particular, to @tidyError@ using a solution, and @pprint@ errors.
@@ -10,9 +11,10 @@ module Language.Haskell.Liquid.UX.Errors ( tidyError ) where
 import           Control.Arrow                       (second)
 import qualified Data.HashMap.Strict                 as M
 import qualified Data.HashSet                        as S
+import qualified Data.List                           as L
 import           Data.Hashable
 import           Data.Maybe                          (maybeToList)
-import qualified Language.Fixpoint.Types             as F -- hiding (Error, SrcSpan, shiftVV)
+import qualified Language.Fixpoint.Types             as F 
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
@@ -39,7 +41,7 @@ configTidy cfg
 
 tidyErrContext :: F.FixSolution -> Error -> Error
 tidyErrContext _ e@(ErrSubType {})
-  = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ (F.tracepp "FUCKER" tE) }
+  = e { ctx = c', tact = F.subst θ tA, texp = F.subst θ tE }
     where
       (θ, c') = tidyCtx xs $ ctx e
       xs      = F.syms tA ++ F.syms tE
@@ -97,7 +99,17 @@ tidyREnv xts    = (θ, second (F.subst θ) <$> zts)
 --     [x1 := 'x2 + x3, x5 := (x2 + x3) + 1]
 
 expandVarDefs :: [(F.Symbol, F.Expr)] -> F.Subst 
-expandVarDefs = undefined
+expandVarDefs      = go mempty 
+  where 
+    go !su xes     
+      | null yes   = su `mappend` (F.mkSubst xes)
+      | otherwise  = go (su `mappend` su') xes''
+      where  
+       xes''       = [(z, F.subst su' e) | (z, e) <- zes] 
+       xs          = S.fromList [x | (x, _) <- xes] 
+       su'         = F.mkSubst yes
+       (yes, zes)  = L.partition (isDef xs . snd) xes 
+    isDef xs e     = all (not . (`S.member` xs)) (F.syms e) 
 
 isInline :: (a, SpecType) -> Either (a, F.Expr) (a, SpecType) 
 isInline (x, t) = either (Left . (x,)) (Right . (x,)) (isInline' t) 

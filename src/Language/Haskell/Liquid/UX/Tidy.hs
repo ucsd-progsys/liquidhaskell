@@ -111,7 +111,7 @@ tidySymbols k t = substa (shortSymbol . tidySymbol) $ mapBind dropBind t
   where
     xs          = S.fromList (syms t)
     dropBind x  = if x `S.member` xs then tidySymbol x else nonSymbol
-    shortSymbol = if k == Lossy then dropModuleNames else id
+    shortSymbol = if (tracepp "shortSymbol k" k) == Lossy then dropModuleNames else id
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
 tidyLocalRefas k = mapReft (txStrata . txReft' k)
