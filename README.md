@@ -573,30 +573,43 @@ To deactivate this automatic measure definition, and speed up verification, you 
 
 
 Prune Unsorted Predicates
--------------------------
+--------------------------
 
-Consider a measure over lists of integers
+The `--prune-unsorted` flag is needed when using *measures over specialized instances* of ADTs. 
 
+For example, consider a measure over lists of integers
+
+```haskell
     sum :: [Int] -> Int
     sum [] = 0
     sum (x:xs) = 1 + sum xs
+```
 
 This measure will translate into strengthening the types of list constructors
 
+```
     [] :: {v:[Int] | sum v = 0 }
     (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
+```
 
 But what if our list is polymorphic `[a]` and later instantiate to list of ints?
-The hack we do right now is to strengthen the polymorphic list with the `sum` information
+The workaround we have right now is to strengthen the polymorphic list with the 
+`sum` information
 
+```
     [] :: {v:[a] | sum v = 0 }
     (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
+```
 
-But for non numeric `a`s, expressions like `x + sum xs` is unsorted causing the logic to crash.
-We use the flag `--prune-unsorted` to prune away unsorted expressions (like `x + sum xs`) in the logic.
+But for non numeric `a`s, refinements like `x + sum xs` are ill-sorted! 
+
+We use the flag `--prune-unsorted` to prune away unsorted expressions 
+(like `x + sum xs`) inside refinements.
 
 
+```
     liquid --prune-unsorted test.hs
+```
 
 
 Case Expansion
