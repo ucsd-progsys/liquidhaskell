@@ -23,7 +23,7 @@ import           FamInstEnv
 import           Debug.Trace
 
 import qualified CoreUtils
-import           DataCon                                    (isTupleDataCon)
+import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)
 import           Prelude                                    hiding (error)
 import           Avail                                      (availsToNameSet)
 import           BasicTypes                                 (Arity, noOccInfo)
@@ -76,6 +76,7 @@ import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
+import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Desugar.HscMain
@@ -396,7 +397,7 @@ ignoreLetBinds e
 --------------------------------------------------------------------------------
 
 isTupleId :: Id -> Bool
-isTupleId = maybe False isTupleDataCon . idDataConM
+isTupleId = maybe False DataCon.isTupleDataCon . idDataConM
 
 idDataConM :: Id -> Maybe DataCon
 idDataConM x = case idDetails x of
@@ -761,3 +762,18 @@ isPredType = anyF [ isClassPred, isEqPred ]
 
 anyF :: [a -> Bool] -> a -> Bool
 anyF ps x = or [ p x | p <- ps ]
+
+
+-- | 'defaultDataCons t ds' returns the list of '(dc, types)' pairs,
+--   corresponding to the _missing_ cases, i.e. _other_ than those in 'ds',
+--   that are being handled by DEFAULT.
+defaultDataCons :: Type -> [AltCon] -> Maybe [(DataCon, [Type])]
+defaultDataCons (TyConApp tc argτs) ds = do 
+  allDs     <- TC.tyConDataCons_maybe tc
+  let seenDs = [d | DataAlt d <- ds ]
+  let defDs  = keyDiff showPpr allDs seenDs 
+  return [ (d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
+
+defaultDataCons _ _ = 
+  Nothing
+

@@ -161,7 +161,7 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e = go [] $ inline_preds $ simplify e
+coreToDef x _ e          = go [] $ inline_preds $ simplify e
   where
     go args (C.Lam  x e) = go (x:args) e
     go args (C.Tick _ e) = go args e
@@ -173,8 +173,8 @@ coreToDef x _ e = go [] $ inline_preds $ simplify e
     goalt args dx (C.DataAlt d, xs, e)
       = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . E
         <$> coreToLg e
-    goalt _ _ alt
-       = throw $ "Bad alternative" ++ showPpr alt
+    goalt _ dx alt
+       = throw $ "Bad alternative dx = " ++ showPpr (dx, Var.varType dx) ++ showPpr alt
 
     goalt_prop args dx (C.DataAlt d, xs, e)
       = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . P

@@ -303,3 +303,8 @@ mapEither f (x:xs) = case f x of
                        (ys, zs) = mapEither f xs 
 -}
 
+keyDiff :: (Eq k, Hashable k) => (a -> k) -> [a] -> [a] -> [a]
+keyDiff f x1s x2s = M.elems (M.difference (m x1s) (m x2s))
+  where 
+    m xs          = M.fromList [(f x, x) | x <- xs] 
+
