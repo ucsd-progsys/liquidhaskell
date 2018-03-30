@@ -314,7 +314,7 @@ expandDefaultCase _ _ z
 
 expandDefaultCase' :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
-  = case {- GM.tracePpr ("expandDefaultCase' tc = " ++ GM.showPpr tc) $ -} tyConDataCons_maybe tc of
+  = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
                      dcs'   <- forM ds' $ cloneCase γ argτs e
                      return $ sortCases $ dcs' ++ dcs

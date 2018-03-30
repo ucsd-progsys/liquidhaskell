@@ -743,7 +743,7 @@ ppError' _ dSp _ (ErrMeas _ t s)
         $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
 
 ppError' _ dSp dCtx (ErrHMeas _ t s)
-  = dSp <+> text "Cannot lift Haskell function" <+> ppVar t <+> text "to logic"
+  = dSp <+> text "Cannot convert" <+> ppVar t <+> text "to measure"
         $+$ dCtx
         $+$ (nest 4 $ pprint s)
 
