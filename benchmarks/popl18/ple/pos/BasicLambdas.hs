@@ -1,8 +1,4 @@
-
-{-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons" @-}
-
-{- LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
 
 module BasicLambda where
 

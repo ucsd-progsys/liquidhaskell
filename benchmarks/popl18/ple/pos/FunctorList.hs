@@ -1,9 +1,5 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
-
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}

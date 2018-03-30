@@ -1,6 +1,5 @@
-{-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module Euclide where
 

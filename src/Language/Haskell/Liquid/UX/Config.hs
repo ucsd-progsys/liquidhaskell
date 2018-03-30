@@ -88,6 +88,7 @@ data Config = Config
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
+  , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize Instantiate
@@ -102,7 +103,8 @@ data Instantiate
 
 allowPLE :: Config -> Bool
 allowPLE cfg
-  =  (allowGlobalPLE cfg || allowLocalPLE cfg)
+  =  allowGlobalPLE cfg 
+  || allowLocalPLE cfg
 
 allowGlobalPLE :: Config -> Bool
 allowGlobalPLE cfg
@@ -119,10 +121,8 @@ instance Default Instantiate where
 
 instance Show Instantiate where
   show NoInstances           = "none"
-  -- show SMTInstances          = "SMT"
   show LiquidInstancesLocal  = "liquid-local"
   show LiquidInstances       = "liquid-global"
-
 
 instance HasConfig  Config where
   getConfig x = x
@@ -134,17 +134,20 @@ patternFlag :: (HasConfig t) => t -> Bool
 patternFlag = not . noPatternInline . getConfig
 
 higherOrderFlag :: (HasConfig t) => t -> Bool
-higherOrderFlag = higherorder . getConfig
+higherOrderFlag x = higherorder cfg || reflection cfg 
+  where 
+    cfg           = getConfig x
+
+exactDCFlag :: (HasConfig t) => t -> Bool
+exactDCFlag x = exactDC cfg || reflection cfg 
+  where 
+    cfg       = getConfig x
 
 pruneFlag :: (HasConfig t) => t -> Bool
 pruneFlag = pruneUnsorted . getConfig
 
 expandFlag :: (HasConfig t) => t -> Bool
 expandFlag = not . nocaseexpand . getConfig
-
-exactDCFlag :: (HasConfig t) => t -> Bool
--- exactDCFlag _ = True 
-exactDCFlag = exactDC . getConfig 
 
 hasOpt :: (HasConfig t) => t -> (Config -> Bool) -> Bool
 hasOpt t f = f (getConfig t)

@@ -1,13 +1,9 @@
-{-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--reflection"        @-}
+{-@ LIQUID "--ple"               @-}
+{-@ LIQUID "--betaequivalence"   @-}
 
-{-@ LIQUID "--alphaequivalence" @-}
-{-@ LIQUID "--betaequivalence"  @-}
-
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE IncoherentInstances #-}
+{-# LANGUAGE FlexibleContexts    #-}
 module MonadMaybe where
 
 import Prelude hiding (return, Maybe(..))

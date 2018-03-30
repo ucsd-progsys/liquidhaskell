@@ -1,5 +1,4 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection"     @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}

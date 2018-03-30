@@ -184,20 +184,45 @@ LiquidHaskell supports several command line options, to configure the
 checking. Each option can be passed in at the command line, or directly
 added to the source file via:
 
+```haskell
     {-@ LIQUID "option-within-quotes" @-}
+```
 
 for example, to disable termination checking (see below)
 
+```haskell
     {-@ LIQUID "--no-termination" @-}
+```
 
 You may also put command line options in the environment variable
 `LIQUIDHASKELL_OPTS`. For example, if you add the line:
 
+```
     LIQUIDHASKELL_OPTS="--diff"
+```
 
 to your `.bashrc` then, by default, all files will be
 *incrementally checked* unless you run with the overriding
 `--full` flag (see below).
+
+Theorem Proving 
+---------------
+
+To enable theorem proving, e.g. as [described here](https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html)
+use the option 
+
+```haskell
+    {-@ LIQUID "--reflection" @-}
+```
+
+To additionally turn on _proof by logical evaluation_ use the option
+
+```haskell
+    {-@ LIQUID "--reflection" @-}
+```
+
+You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
+
 
 Incremental Checking
 --------------------
@@ -205,35 +230,43 @@ Incremental Checking
 LiquidHaskell supports *incremental* checking where each run only checks
 the part of the program that has been modified since the previous run.
 
+```
     $ liquid --diff foo.hs
+```
 
-Each run of `liquid` saves the file to a `.bak` file and the *subsequent*
-run
+Each run of `liquid` saves the file to a `.bak` file and the *subsequent* run
+
     + does a `diff` to see what has changed w.r.t. the `.bak` file
     + only generates constraints for the `[CoreBind]` corresponding to the
        changed top-level binders and their transitive dependencies.
 
 The time savings are quite significant. For example:
 
+```
     $ time liquid --notermination -i . Data/ByteString.hs > log 2>&1
 
     real	7m3.179s
     user	4m18.628s
     sys	    0m21.549s
+```
 
 Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
 
+```
     $ time liquid -d --notermination -i . Data/ByteString.hs > log 2>&1
 
     real	0m11.584s
     user	0m6.008s
     sys	    0m0.696s
+```
 
 The diff is only performed against **code**, i.e. if you only change
 specifications, qualifiers, measures, etc. `liquid -d` will not perform
 any checks. In this case, you may specify individual definitions to verify:
 
+```
     $ liquid -b bar -b baz foo.hs
+```
 
 This will verify `bar` and `baz`, as well as any functions they use.
 
@@ -540,30 +573,43 @@ To deactivate this automatic measure definition, and speed up verification, you 
 
 
 Prune Unsorted Predicates
--------------------------
+--------------------------
 
-Consider a measure over lists of integers
+The `--prune-unsorted` flag is needed when using *measures over specialized instances* of ADTs. 
 
+For example, consider a measure over lists of integers
+
+```haskell
     sum :: [Int] -> Int
     sum [] = 0
     sum (x:xs) = 1 + sum xs
+```
 
 This measure will translate into strengthening the types of list constructors
 
+```
     [] :: {v:[Int] | sum v = 0 }
     (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
+```
 
 But what if our list is polymorphic `[a]` and later instantiate to list of ints?
-The hack we do right now is to strengthen the polymorphic list with the `sum` information
+The workaround we have right now is to strengthen the polymorphic list with the 
+`sum` information
 
+```
     [] :: {v:[a] | sum v = 0 }
     (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
+```
 
-But for non numeric `a`s, expressions like `x + sum xs` is unsorted causing the logic to crash.
-We use the flag `--prune-unsorted` to prune away unsorted expressions (like `x + sum xs`) in the logic.
+But for non numeric `a`s, refinements like `x + sum xs` are ill-sorted! 
+
+We use the flag `--prune-unsorted` to prune away unsorted expressions 
+(like `x + sum xs`) inside refinements.
 
 
+```
     liquid --prune-unsorted test.hs
+```
 
 
 Case Expansion
