@@ -343,10 +343,6 @@ sortCases = sortBy (cmpAltCon `on` F.fst3)
 --------------------------------------------------------------------------------
 -- | ANF Environments ----------------------------------------------------------
 --------------------------------------------------------------------------------
-
--- freshNormalVar :: Type -> DsM Id
--- freshNormalVar = mkSysLocalM (symbolFastString anfPrefix)
-
 freshNormalVar :: AnfEnv -> Type -> DsM Id
 freshNormalVar γ t = do
   u     <- getUniqueM
