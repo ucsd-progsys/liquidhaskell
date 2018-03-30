@@ -1,8 +1,7 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--betaequivalence"  @-}
 
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 
 {-# LANGUAGE IncoherentInstances   #-}

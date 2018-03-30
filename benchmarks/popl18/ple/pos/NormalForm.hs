@@ -1,5 +1,5 @@
-{-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--reflection"      @-}
+
 {-@ LIQUID "--alphaequivalence" @-}
 {-@ LIQUID "--betaequivalence"  @-}
 {-@ LIQUID "--normalform"       @-} 

@@ -1,8 +1,5 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
-{-@ LIQUID "--no-adt" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module MonoidList where
 

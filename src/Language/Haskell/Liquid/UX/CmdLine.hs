@@ -157,7 +157,7 @@ config = cmdArgsMode $ Config {
           &= name "trust-sizes"
 
  , gradual
-    = def &= help "Enable gradual refinementtype checking"
+    = def &= help "Enable gradual refinement type checking"
           &= name "gradual"
 
  , gdepth
@@ -354,6 +354,9 @@ config = cmdArgsMode $ Config {
     = False &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
+  , reflection 
+    = False &= help "Enable reflection of Haskell functions and theorem proving" 
+        &= name "reflection"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -565,6 +568,7 @@ defConfig = Config { files             = def
                    , noslice              = False
                    , noLiftedImport       = False
                    , proofLogicEval       = False
+                   , reflection           = False
                    }
 
 ------------------------------------------------------------------------

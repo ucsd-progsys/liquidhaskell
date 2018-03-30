@@ -1,14 +1,9 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module Peano where
 
 import Prelude hiding (plus)
-
--- import Proves
 
 import Language.Haskell.Liquid.ProofCombinators
 
@@ -20,10 +15,9 @@ plusComm  :: Peano -> Peano -> Proof
 plusSuccR :: Peano -> Peano -> Proof
 
 
-
 data Peano = Z | S Peano
 
-{-@ data Peano [toInt] = Z | S {prev :: Peano} @-}
+{-@ data Peano [toInt] @-} 
 
 {-@ measure toInt @-}
 toInt :: Peano -> Int
