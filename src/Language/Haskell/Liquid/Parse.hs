@@ -25,6 +25,7 @@ import           Text.Parsec
 import           Text.Parsec.Error                      (newErrorMessage, Message (..))
 import           Text.Parsec.Pos
 
+-- import           Text.Parsec.Char                       (newline) 
 import qualified Text.Parsec.Token                      as Token
 import qualified Data.Text                              as T
 import qualified Data.HashMap.Strict                    as M
@@ -97,13 +98,15 @@ specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.Ba
 specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList specificationP (newPos f 1 1) s
 
 specificationP :: Parser (ModName, Measure.BareSpec)
-specificationP
-  = do reserved "module"
-       reserved "spec"
-       name   <- symbolP
-       reserved "where"
-       xs     <- grabs (specP <* whiteSpace)
-       return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
+specificationP = do 
+  reserved "module"
+  reserved "spec"
+  name   <- symbolP
+  reserved "where"
+  xs     <- if True then grabs (specP <* whiteSpace) else sepBy specP newline
+  return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
+
+-- debugP = grabs (specP <* whiteSpace)
 
 -------------------------------------------------------------------------------
 singleSpecP :: SourcePos -> String -> Either Error BPspec
@@ -205,7 +208,7 @@ stringLiteral = Token.stringLiteral lexer
 -- | BareTypes -----------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{- | [NOTE:BARETYPE-PARSE] Fundamentally, a type is ofthe form
+{- | [NOTE:BARETYPE-PARSE] Fundamentally, a type is of the form
 
       comp -> comp -> ... -> comp
 
@@ -512,7 +515,7 @@ bareTyArgP
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> (dummyP (bbaseNoAppP <* spaces))
+ <|> (dummyP (bbaseNoAppP <* blanks))
  <?> "bareAtomNoAppP"
 
 
@@ -1070,7 +1073,11 @@ varianceP = (reserved "bivariant"     >> return Bivariant)
         <?> "Invalid variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP :: Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsP = xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
+tyBindsP = do 
+  (xs, z) <- xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
+  when (null xs) (parserFail $ "Type signature " ++ show z ++ " must have non-empty list of binders!") 
+  return (xs, z)
+
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP

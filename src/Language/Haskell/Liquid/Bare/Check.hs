@@ -106,8 +106,6 @@ checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
     γ                = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qualBinds q ++ wiredSortedSyms)
     mkE              = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
 
-
-
 checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [(TyCon, TyConP)] -> [Error]
 checkSizeFun emb env tys = mkError <$> mapMaybe go tys
   where
