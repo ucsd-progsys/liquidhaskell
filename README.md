@@ -212,8 +212,17 @@ To enable theorem proving, e.g. as [described here](https://ucsd-progsys.github.
 use the option 
 
 ```haskell
-    {-@ LIQUID "--no-termination" @-}
+    {-@ LIQUID "--reflection" @-}
 ```
+
+To additionally turn on _proof by logical evaluation_ use the option
+
+```haskell
+    {-@ LIQUID "--reflection" @-}
+```
+
+You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
+
 
 Incremental Checking
 --------------------
