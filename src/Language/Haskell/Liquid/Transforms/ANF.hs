@@ -312,7 +312,8 @@ expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
 expandDefaultCase _ _ z
    = return z
 
-expandDefaultCase' :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
+expandDefaultCase' 
+  :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
@@ -324,13 +325,12 @@ expandDefaultCase' _ _ z
    = return z
 
 cloneCase :: AnfEnv -> [Type] -> t -> DataCon -> DsM (AltCon, [Id], t)
-cloneCase γ argτs e d
-  = do xs  <- mapM (freshNormalVar γ) $ dataConInstArgTys d argτs
-       return (DataAlt d, xs, e)
+cloneCase γ argτs e d = do 
+  xs  <- mapM (freshNormalVar γ) (dataConInstArgTys d argτs)
+  return (DataAlt d, xs, e)
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (\x y -> cmpAltCon (F.fst3 x) (F.fst3 y))
-
 
 --------------------------------------------------------------------------------
 -- | ANF Environments ----------------------------------------------------------

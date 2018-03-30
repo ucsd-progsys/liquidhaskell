@@ -247,12 +247,7 @@ typeEqToLg :: (Type, Type) -> LogicM (Sort, Sort)
 typeEqToLg (s, t) = do
   tce   <- gets lsEmb
   let tx = typeSort tce . expandTypeSynonyms
-  return $ F.tracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
-
-  -- Pair t1 t2 <- coercionKind co
-  -- getCoVar_maybe :: Coercion -> Maybe CoVar
-  -- getTyVar_maybe :: Type -> Maybe TyVar
-  -- coVarTypes :: CoVar -> (Type, Type)
+  return (tx s, tx t)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
@@ -274,7 +269,7 @@ casesToLg v e alts = mapM (altToLg e) normAlts >>= go
     go ((d,p):dps) = do c <- checkDataAlt d e
                         e' <- go dps
                         return (EIte c p e' `subst1` su)
-    go []          = throw "Bah"
+    go []          = throw "casesToLg: oops, unexpected!"
     su             = (symbol v, e)
 
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
