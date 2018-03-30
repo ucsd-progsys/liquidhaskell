@@ -29,12 +29,10 @@ import qualified Pair
 import qualified CoreSyn                               as C
 import           Literal
 import           IdInfo
-
+import qualified Data.List                             as L
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
-
 import           TysWiredIn
-
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
@@ -268,9 +266,9 @@ checkBoolAlts alts
   = throw ("checkBoolAlts failed on " ++ showPpr alts)
 
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
-casesToLg v e alts
-  = mapM (altToLg e) alts >>= go
+casesToLg v e alts = mapM (altToLg e) normAlts >>= go
   where
+    normAlts       = normalizeAlts alts
     go :: [(C.AltCon, Expr)] -> LogicM Expr
     go [(_,p)]     = return (p `subst1` su)
     go ((d,p):dps) = do c <- checkDataAlt d e
@@ -284,6 +282,14 @@ checkDataAlt (C.DataAlt d) e = return $ EApp (EVar (makeDataConChecker d)) e
 checkDataAlt C.DEFAULT     _ = return PTrue
 checkDataAlt (C.LitAlt _)  _ = throw "Oops, not yet handled: checkDataAlt on Lit"
 
+-- | 'altsDefault' reorders the CoreAlt to ensure that 'DEFAULT' is at the end.
+normalizeAlts :: [C.CoreAlt] -> [C.CoreAlt]
+normalizeAlts alts      = ctorAlts ++ defAlts 
+  where 
+    (defAlts, ctorAlts) = L.partition isDefault alts 
+    isDefault (con,_,_) = con == C.DEFAULT 
+    
+
 altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
 altToLg de (a@(C.DataAlt d), xs, e)
   = do p  <- coreToLg e
@@ -296,13 +302,6 @@ altToLg de (a@(C.DataAlt d), xs, e)
 
 altToLg _ (a, _, e)
   = (a, ) <$> coreToLg e
-
-
---- altToLg _ (C.LitAlt _, _, _)
-  --- = throw "altToLg on Lit"
---- altToLg _ (C.DEFAULT, _, e)
-  --- = throw ("Cannot reflect functions with Default pattern matching." ++
-           --- "\n\t Suggestion: Make sure your function is total and is not pattern matching on integer values.")
 
 coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
