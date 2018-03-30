@@ -287,7 +287,7 @@ normalizeAlts :: [C.CoreAlt] -> [C.CoreAlt]
 normalizeAlts alts      = ctorAlts ++ defAlts 
   where 
     (defAlts, ctorAlts) = L.partition isDefault alts 
-    isDefault (con,_,_) = con == C.DEFAULT 
+    isDefault (c,_,_)   = c == C.DEFAULT 
     
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
