@@ -692,6 +692,9 @@ isSingletonExpr :: Symbol -> Expr -> Maybe Expr
 isSingletonExpr v (PAtom r e1 e2)
   | e1 == EVar v && isEq r = Just e2
   | e2 == EVar v && isEq r = Just e1
+isSingletonExpr v (PIff e1 e2) 
+  | e1 == EVar v           = Just e2
+  | e2 == EVar v           = Just e1
 isSingletonExpr _ _        = Nothing
 
 pAnd, pOr     :: ListNE Pred -> Pred

@@ -431,7 +431,7 @@ unLitSymbol :: Symbol -> Maybe Symbol
 unLitSymbol = stripPrefix litPrefix
 
 intSymbol :: (Show a) => Symbol -> a -> Symbol
-intSymbol x i = x `suffixSymbol` (symbol $ show i)
+intSymbol x i = x `suffixSymbol` symbol (show i)
 
 tempSymbol :: Symbol -> Integer -> Symbol
 tempSymbol prefix = intSymbol (tempPrefix `mappendSym` prefix)
