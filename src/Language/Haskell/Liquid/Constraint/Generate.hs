@@ -75,6 +75,7 @@ import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
+import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult) 
 import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
 -- import Debug.Trace (trace)
 
@@ -329,9 +330,7 @@ consCBSizedTys γ xes
          | all (==(f x)) (f <$> xs) = return (x:xs)
          | otherwise                = addWarning err >> return []
 
-consCBWithExprs :: CGEnv
-                -> [(Var, CoreExpr)]
-                -> CG CGEnv
+consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBWithExprs γ xes
   = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        texprs    <- termExprs <$> get
@@ -462,10 +461,7 @@ grepDictionary (App e (Var _))        = grepDictionary e
 grepDictionary _                      = Nothing
 
 --------------------------------------------------------------------------------
-consBind :: Bool
-         -> CGEnv
-         -> (Var, CoreExpr, Template SpecType)
-         -> CG (Template SpecType)
+consBind :: Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)
 --------------------------------------------------------------------------------
 consBind _ _ (x, _, t)
   | RecSelId {} <- idDetails x -- don't check record selectors
@@ -475,7 +471,7 @@ consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = γ `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e spect
+       cconsE γπ e (weakenResult x spect)
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -484,7 +480,7 @@ consBind isRec γ (x, e, Asserted spect)
 
 consBind isRec γ (x, e, Internal spect)
   = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv spect
+           (_,πs,_,_) = bkUniv (F.tracepp "consBind 3" spect)
        γπ    <- foldM addPToEnv γ' πs
        let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
        cconsE γπ' e spect
@@ -492,14 +488,14 @@ consBind isRec γ (x, e, Internal spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ Internal spect -- Nothing
+       return $ F.tracepp "consBind 2" $ Internal spect 
   where
     explanation = "Cannot give singleton type to the function definition."
 
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e =<< true spect
+       cconsE γπ e =<< true (F.tracepp ("oho-assumed" ++ F.showpp x) spect)
        addIdA x (defAnn isRec spect)
        return $ Asserted spect
     where πs   = ty_preds $ toRTypeRep spect
@@ -541,19 +537,26 @@ extender γ (x, Assumed t)
 extender γ _
   = return γ
 
-data Template a = Asserted a
-                | Assumed a
-                | Internal a
-                | Unknown
-                deriving (Functor, F.Foldable, T.Traversable)
+data Template a 
+  = Asserted a
+  | Assumed a
+  | Internal a
+  | Unknown
+  deriving (Functor, F.Foldable, T.Traversable)
 
 deriving instance (Show a) => (Show (Template a))
+
+instance PPrint a => PPrint (Template a) where 
+  pprintTidy k (Asserted t) = "Asserted" <+> pprintTidy k t
+  pprintTidy k (Assumed  t) = "Assumed"  <+> pprintTidy k t
+  pprintTidy k (Internal t) = "Internal" <+> pprintTidy k t
+  pprintTidy _ Unknown      = "Unknown"  
 
 unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
 unTemplate (Assumed t)  = t
 unTemplate (Internal t) = t
-unTemplate _ = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
+unTemplate _            = panic Nothing "Constraint.Generate.unTemplate called on `Unknown`"
 
 addPostTemplate :: CGEnv
                 -> Template SpecType

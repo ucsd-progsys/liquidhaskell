@@ -23,7 +23,7 @@ data Foo
 {-@  data Foo [size] @-}
   
 {-@ measure size       @-}
-{-@ size :: Foo -> Nat @-}
+{-@ size :: z:Foo -> {v:Nat | v = size X} @-}
 size :: Foo -> Int 
 size (A x y z) = 1 + size x + size y + size z 
 size (B x y)   = 1 + size x + size y 

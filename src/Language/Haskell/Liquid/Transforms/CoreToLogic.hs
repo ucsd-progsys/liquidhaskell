@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , logicType
   , strengthenResult
   , strengthenResult'
+  , weakenResult
   , normalize
   ) where
 
@@ -58,29 +59,23 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
 
 {- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
 
-   CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
+   CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
 
    CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
 -}
 
 strengthenResult :: Var -> SpecType
-strengthenResult v
-  | isBool res
-  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
-    fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
-  | otherwise
-  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
-    fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
+strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
   where
-    rep = toRTypeRep t
-    res = ty_res rep
-    xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-    r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
-    r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
-    vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
-    f   = dummyLoc $ symbol v 
-    t   = (ofType $ GM.expandVarType v) :: SpecType
-    mkA = EVar . fst 
+    r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty mempty
+    rep            = toRTypeRep t
+    res            = ty_res rep
+    xs             = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
+    vxs            = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
+    f              = dummyLoc (symbol v)
+    t              = ofType (GM.expandVarType v) :: SpecType
+    mkA            = EVar . fst 
+    mkR            = if isBool res then propReft else exprReft 
 
 
 strengthenResult' :: Var -> SpecType
@@ -118,6 +113,13 @@ strengthenResult' v
 
         mkExpr xs = MkUReft (exprReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
         mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
+
+-- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
+--   that is added, e.g. for measures in /strengthenResult'. 
+--   This should only be used _when_ checking the body of 'foo' 
+--   where the output, is, by definition, equal to the singleton.
+weakenResult :: Var -> SpecType -> SpecType 
+weakenResult _ t = _fixme $ F.tracepp "weakenSelfSingleton" t 
 
 
 type LogicM = ExceptT Error (StateT LState Identity)
@@ -172,7 +174,7 @@ coreToDef x _ e = go [] $ inlinePreds $ simplify e
         defExpr          = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
         dataAlts         =             [ a | a@(C.DataAlt _, _, _) <- alts ]
 
-    go _ _               = throw "Measure Functions should have a case at top level"
+    go _ _               = throw "Measure functions should have a case at the top-level"
 
     mkAlt ctor args dx (C.DataAlt d, xs, e)
       = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . ctor 
