@@ -1,7 +1,7 @@
 {-@ LIQUID "--reflection"     @-}
-{- LIQUID "--no-case-expand" @-}
+{-@ LIQUID "--no-case-expand" @-}
 
-module Foo where
+module T1095B where
 
 data Foo 
   = A Foo Foo Foo 
@@ -22,8 +22,8 @@ data Foo
     
 {-@  data Foo [size] @-}
   
-{-@ measure size       @-}
-{-@ size :: z:Foo -> {v:Nat | v = size X} @-}
+{-@ measure size         @-}
+{-@ size :: z:Foo -> Nat @-}
 size :: Foo -> Int 
 size (A x y z) = 1 + size x + size y + size z 
 size (B x y)   = 1 + size x + size y 
@@ -33,7 +33,9 @@ size (E x _)   = 1 + size x
 size (F _)     = 1 
 size (G _)     = 1 
 size _         = 0 
-   
+
+-- with case-expand, the below blows up into a giant
+-- function spanning literally thousands of lines!
 {-@ reflect hasX @-}
 hasX :: Foo -> Bool 
 hasX (A X _ _) = True 

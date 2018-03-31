@@ -57,12 +57,10 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
     t            = toRTypeRep $ ofType τ
     (bs, as, rs) = unzip3 $ dropWhile (isClassType . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
-{- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
-
-   CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
-
-   CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
--}
+{- | [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
+      CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
+     CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
+ -}
 
 strengthenResult :: Var -> SpecType
 strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
@@ -77,50 +75,51 @@ strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds =
     mkA            = EVar . fst 
     mkR            = if isBool res then propReft else exprReft 
 
+-- | Refine types of measures: keep going until you find the last data con!
+--   this code is a hack! we refine the last data constructor,
+--   it got complicated to support both
+--   1. multi parameter measures     (see tests/pos/HasElem.hs)
+--   2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
+--   TODO: SIMPLIFY by dropping support for multi parameter measures
 
 strengthenResult' :: Var -> SpecType
-strengthenResult' v
-  | isBool $ ty_res $ toRTypeRep t
-  = go mkProp [] [1..] t
-  | otherwise
-  = go mkExpr [] [1..] t
-  where f   = dummyLoc $ symbol v 
-        t   = (ofType $ GM.expandVarType v) :: SpecType
+strengthenResult' v = go mkT [] [1..] t
+  where 
+    mkR | boolRes   = propReft 
+        | otherwise = exprReft  
+    mkT xs          = MkUReft (mkR $ mkEApp f (EVar <$> reverse xs)) mempty mempty
+    f               = dummyLoc (symbol v) 
+    t               = ofType (GM.expandVarType v) :: SpecType
+    boolRes         =  isBool $ ty_res $ toRTypeRep t 
 
-        -- refine types of measures: keep going until you find the last data con!
-        -- this code is a hack! we refine the last data constructor,
-        -- it got complicated to support both
-        -- 1. multi parameter measures     (see tests/pos/HasElem.hs)
-        -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
-        -- to simplify, drop support for multi parameter measures
-        go f args i (RAllT a t)
-          = RAllT a $ go f args i t
-        go f args i (RAllP p t)
-          = RAllP p $ go f args i t
-        go f args i (RFun x t1 t2 r)
-          | isClassType t1
-          = RFun x t1 (go f args i t2) r
-        go f args i t@(RFun _ t1 t2 r)
-          | hasRApps t
-          = let x' = intSymbol (symbol ("x" :: String)) (head i)
-            in RFun x' t1 (go f (x':args) (tail i) t2) r
-        go f args _ t
-          = t `strengthen` f args
+    go f args i (RAllT a t)      = RAllT a $ go f args i t
+    go f args i (RAllP p t)      = RAllP p $ go f args i t
+    go f args i (RFun x t1 t2 r)
+     | isClassType t1           = RFun x t1 (go f args i t2) r
+    go f args i t@(RFun _ t1 t2 r)
+     | hasRApps t               = RFun x' t1 (go f (x':args) (tail i) t2) r
+                                       where x' = intSymbol (symbol ("x" :: String)) (head i)
+    go f args _ t                = t `strengthen` f args
 
-        hasRApps (RApp {})        = True
-        hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
-        hasRApps _                = False
-
-        mkExpr xs = MkUReft (exprReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
-        mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
-
+    hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
+    hasRApps (RApp {})        = True
+    hasRApps _                = False
+    
 -- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
 --   that is added, e.g. for measures in /strengthenResult'. 
 --   This should only be used _when_ checking the body of 'foo' 
 --   where the output, is, by definition, equal to the singleton.
 weakenResult :: Var -> SpecType -> SpecType 
-weakenResult _ t = _fixme $ F.tracepp "weakenSelfSingleton" t 
-
+weakenResult v t = F.notracepp msg t'
+  where 
+    msg          = "weakenResult v =" ++ GM.showPpr v ++ " t = " ++ showpp t
+    t'           = fromRTypeRep $ rep { ty_res = mapExprReft weaken (ty_res rep) } 
+    rep          = toRTypeRep t
+    weaken x     = pAnd . filter ((Just vE /=) . isSingletonExpr x) . conjuncts 
+    vE           = mkEApp vF xs
+    xs           = EVar . fst <$> dropWhile (isClassType . snd) xts 
+    xts          = zip (ty_binds rep) (ty_args rep)
+    vF           = dummyLoc (symbol v)
 
 type LogicM = ExceptT Error (StateT LState Identity)
 

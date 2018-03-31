@@ -495,7 +495,7 @@ consBind isRec γ (x, e, Internal spect)
 consBind isRec γ (x, e, Assumed spect)
   = do let γ' = γ `setBind` x
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e =<< true (F.tracepp ("oho-assumed" ++ F.showpp x) spect)
+       cconsE γπ e =<< true spect
        addIdA x (defAnn isRec spect)
        return $ Asserted spect
     where πs   = ty_preds $ toRTypeRep spect

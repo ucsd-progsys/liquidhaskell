@@ -172,8 +172,8 @@ instance SubStratum SubC where
 -- | Generation: Types ---------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data CGInfo = CGInfo {
-    fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
+data CGInfo = CGInfo 
+  { fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
   , hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
   , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
   , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings

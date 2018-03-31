@@ -277,7 +277,7 @@ mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
     _msg            = "mkVarSpec v = " ++ F.showpp (v, b)
     tvs             = bareTypeVars (val b)
     specTvSymbol    = F.symbol . bareRTyVar
-    txCoerce        = mapExprReft (F.applyCoSub coSub)
+    txCoerce        = mapExprReft (\_ -> F.applyCoSub coSub)
 
 bareTypeVars :: BareType -> [BTyVar]
 bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'

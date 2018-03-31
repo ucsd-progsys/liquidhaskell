@@ -110,7 +110,7 @@ plugHoles tce tyi x f t (Loc l l' st)
        let su    = F.notracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
            coSub = F.notracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
            st3   = subts su st''
-           st4   = mapExprReft (F.applyCoSub coSub) st3
+           st4   = mapExprReft (\_ -> F.applyCoSub coSub) st3
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
        Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st4)

@@ -1,7 +1,9 @@
-{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--reflection"     @-}
+{-@ LIQUID "--no-case-expand" @-}
 
 module Foo where
 
+{-@  data Foo [size] @-}
 data Foo 
   = A Foo Foo Foo 
   | B Foo Foo
@@ -19,28 +21,10 @@ data Foo
   | N 
   | X
     
-{-@  data Foo [size]
-      = A {a1 :: Foo, a2 :: Foo, a3 ::  Foo} 
-      | B {b1 :: Foo, b2 :: Foo}
-      | C {c  :: Foo}
-      | D {d  :: Foo}
-      | E {e1 :: Foo, e2 :: Int} 
-      | F {f  :: Int}
-      | G {g  :: Int}
-      | H 
-      | I
-      | J  
-      | K
-      | L
-      | M
-      | N 
-      | X
-@-}
-    
 {-@ measure size @-}
-size :: Foo -> Integer 
-{-@ invariant {t:Foo | 0 <= size t} @-}
-{-@ size :: Foo -> {v:Integer |  0 <= v }  @-}
+size :: Foo -> Int
+
+{-@ size :: Foo -> Nat @-} 
 size (A x y z) = 1 + size x + size y + size z 
 size (B x y)   = 1 + size x + size y 
 size (C x)     = 1 + size x 
