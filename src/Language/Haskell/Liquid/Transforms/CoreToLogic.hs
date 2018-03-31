@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , logicType
   , strengthenResult
   , strengthenResult'
+  , weakenResult
   , normalize
   ) where
 
@@ -30,99 +31,95 @@ import qualified CoreSyn                               as C
 import           Literal
 import           IdInfo
 import qualified Data.List                             as L
+import           Data.Maybe                            (listToMaybe) 
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
 import           TysWiredIn
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
-import           Language.Fixpoint.Misc                (snd3, mapSnd, mapFst)
+import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Fixpoint.Types               hiding (Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
-import           Language.Haskell.Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Types.RefType
 
--- import           Language.Haskell.Liquid.WiredIn
--- import           CoreUtils                                     (exprType)
 
 import qualified Data.HashMap.Strict                   as M
-
--- varType :: Var -> Type
--- varType = expandTypeSynonyms . Var.varType
 
 logicType :: (Reftable r) => Type -> RRType r
 logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
   where
     t            = toRTypeRep $ ofType τ
-    (bs, as, rs) = unzip3 $ dropWhile (isClassType.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
+    (bs, as, rs) = unzip3 $ dropWhile (isClassType . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
-{- [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
-
-   CASE1: measure f@logic :: X -> Prop <=> f@haskell :: x:X -> {v:Bool | (Prop v) <=> (f@logic x)}
-
-   CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
--}
+{- | [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
+      CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
+     CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
+ -}
 
 strengthenResult :: Var -> SpecType
-strengthenResult v
-  | isBool res
-  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
-    fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
-  | otherwise
-  = -- traceShow ("Type for " ++ showPpr v ++ "\t OF \t" ++ show (ty_binds rep)) $
-    fromRTypeRep $ rep{ty_res = res `strengthen` r', ty_binds = xs}
+strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
   where
-    rep = toRTypeRep t
-    res = ty_res rep
-    xs  = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-    r'  = MkUReft (exprReft (mkEApp f (mkA <$> vxs))) mempty mempty
-    r   = MkUReft (propReft (mkEApp f (mkA <$> vxs))) mempty mempty
-    vxs = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
-    f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
-    t   = (ofType $ expandVarType v) :: SpecType
-    mkA = EVar . fst -- if isBool t then EApp (dummyLoc propConName) [(EVar x)] else EVar x
+    r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty mempty
+    rep            = toRTypeRep t
+    res            = ty_res rep
+    xs             = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
+    vxs            = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
+    f              = dummyLoc (symbol v)
+    t              = ofType (GM.expandVarType v) :: SpecType
+    mkA            = EVar . fst 
+    mkR            = if isBool res then propReft else exprReft 
 
+-- | Refine types of measures: keep going until you find the last data con!
+--   this code is a hack! we refine the last data constructor,
+--   it got complicated to support both
+--   1. multi parameter measures     (see tests/pos/HasElem.hs)
+--   2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
+--   TODO: SIMPLIFY by dropping support for multi parameter measures
 
 strengthenResult' :: Var -> SpecType
-strengthenResult' v
-  | isBool $ ty_res $ toRTypeRep t
-  = go mkProp [] [1..] t
-  | otherwise
-  = go mkExpr [] [1..] t
-  where f   = dummyLoc $ symbol v -- dropModuleNames $ simplesymbol v
-        t   = (ofType $ expandVarType v) :: SpecType
+strengthenResult' v = go mkT [] [1..] t
+  where 
+    mkR | boolRes   = propReft 
+        | otherwise = exprReft  
+    mkT xs          = MkUReft (mkR $ mkEApp f (EVar <$> reverse xs)) mempty mempty
+    f               = dummyLoc (symbol v) 
+    t               = ofType (GM.expandVarType v) :: SpecType
+    boolRes         =  isBool $ ty_res $ toRTypeRep t 
 
-        -- refine types of measures: keep going until you find the last data con!
-        -- this code is a hack! we refine the last data constructor,
-        -- it got complicated to support both
-        -- 1. multi parameter measures     (see tests/pos/HasElem.hs)
-        -- 2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
-        -- to simplify, drop support for multi parameter measures
-        go f args i (RAllT a t)
-          = RAllT a $ go f args i t
-        go f args i (RAllP p t)
-          = RAllP p $ go f args i t
-        go f args i (RFun x t1 t2 r)
-          | isClassType t1
-          = RFun x t1 (go f args i t2) r
-        go f args i t@(RFun _ t1 t2 r)
-          | hasRApps t
-          = let x' = intSymbol (symbol ("x" :: String)) (head i)
-            in RFun x' t1 (go f (x':args) (tail i) t2) r
-        go f args _ t
-          = t `strengthen` f args
+    go f args i (RAllT a t)      = RAllT a $ go f args i t
+    go f args i (RAllP p t)      = RAllP p $ go f args i t
+    go f args i (RFun x t1 t2 r)
+     | isClassType t1           = RFun x t1 (go f args i t2) r
+    go f args i t@(RFun _ t1 t2 r)
+     | hasRApps t               = RFun x' t1 (go f (x':args) (tail i) t2) r
+                                       where x' = intSymbol (symbol ("x" :: String)) (head i)
+    go f args _ t                = t `strengthen` f args
 
-        hasRApps (RApp {})        = True
-        hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
-        hasRApps _                = False
-
-        mkExpr xs = MkUReft (exprReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
-        mkProp xs = MkUReft (propReft $ mkEApp f (EVar <$> reverse xs)) mempty mempty
-
+    hasRApps (RFun _ t1 t2 _) = hasRApps t1 || hasRApps t2
+    hasRApps (RApp {})        = True
+    hasRApps _                = False
+    
+-- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
+--   that is added, e.g. for measures in /strengthenResult'. 
+--   This should only be used _when_ checking the body of 'foo' 
+--   where the output, is, by definition, equal to the singleton.
+weakenResult :: Var -> SpecType -> SpecType 
+weakenResult v t = F.notracepp msg t'
+  where 
+    msg          = "weakenResult v =" ++ GM.showPpr v ++ " t = " ++ showpp t
+    t'           = fromRTypeRep $ rep { ty_res = mapExprReft weaken (ty_res rep) } 
+    rep          = toRTypeRep t
+    weaken x     = pAnd . filter ((Just vE /=) . isSingletonExpr x) . conjuncts 
+    vE           = mkEApp vF xs
+    xs           = EVar . fst <$> dropWhile (isClassType . snd) xts 
+    xts          = zip (ty_binds rep) (ty_args rep)
+    vF           = dummyLoc (symbol v)
 
 type LogicM = ExceptT Error (StateT LState Identity)
 
@@ -161,33 +158,46 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e = go [] $ inline_preds $ simplify e
+coreToDef x _ e = go [] $ inlinePreds $ simplify e
   where
     go args (C.Lam  x e) = go (x:args) e
     go args (C.Tick _ e) = go args e
-    go args (C.Case _ _ t alts)
-      | eqType t boolTy  = mapM (goalt_prop (reverse $ tail args) (head args)) alts
-      | otherwise        = mapM (goalt      (reverse $ tail args) (head args)) alts
-    go _ _               = throw "Measure Functions should have a case at top level"
+    go (z:zs) (C.Case _ y t alts) = do 
+                           d1s <- mapM (mkAlt cc myArgs z) dataAlts 
+                           d2s <-       mkDef cc myArgs z  defAlts defExpr 
+                           return (d1s ++ d2s)
+      where 
+        myArgs           = reverse zs
+        cc               = if eqType t boolTy then P else E 
+        defAlts          = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
+        defExpr          = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
+        dataAlts         =             [ a | a@(C.DataAlt _, _, _) <- alts ]
 
-    goalt args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . E
+    go _ _               = throw "Measure functions should have a case at the top-level"
+
+    mkAlt ctor args dx (C.DataAlt d, xs, e)
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . ctor 
         <$> coreToLg e
-    goalt _ _ alt
-       = throw $ "Bad alternative" ++ showPpr alt
+    mkAlt _ _ _ alt 
+      = throw $ "Bad alternative" ++ GM.showPpr alt
 
-    goalt_prop args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . P
-        <$> coreToLg  e
-    goalt_prop _ _ alt
-      = throw $ "Bad alternative" ++ showPpr alt
+    mkDef ctor args dx (Just dtss) (Just e) = do  
+      eDef   <- ctor <$> coreToLg e
+      let ys  = toArgs id args
+      let dxt = Just (varRType dx)
+      return  [ Def x ys d dxt (defArgs ts) eDef | (d, ts) <- dtss ]
 
+    mkDef _ _ _ _ _ = 
+      return [] 
+
+    defArgs       = zipWith (\i t -> (defArg i, defRTyp t)) [0..] 
+    defRTyp       = Just . F.atLoc x . ofType
+    defArg        = tempSymbol (val x)
     toArgs f args = [(symbol x, f $ varRType x) | x <- args]
-
-    inline_preds = inline (eqType boolTy . expandVarType)
+    inlinePreds   = inline (eqType boolTy . GM.expandVarType)
 
 varRType :: (Reftable r) => Var -> Located (RRType r)
-varRType = varLocInfo ofType
+varRType = GM.varLocInfo ofType
 
 coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
 coreToFun _ _v e = go [] $ normalize e
@@ -199,7 +209,7 @@ coreToFun _ _v e = go [] $ normalize e
     go acc e            = (reverse acc,) . Right <$> coreToLg e
 
 instance Show C.CoreExpr where
-  show = showPpr
+  show = GM.showPpr
 
 coreToLogic :: C.CoreExpr -> LogicM Expr
 coreToLogic cb = coreToLg (normalize cb)
@@ -217,19 +227,19 @@ coreToLg (C.Var x)
   | otherwise                  = (lsSymMap <$> getState) >>= eVarWithMap x
 coreToLg e@(C.App _ _)         = toPredApp e
 coreToLg (C.Case e b _ alts)
-  | eqType (expandVarType b) boolTy  = checkBoolAlts alts >>= coreToIte e
+  | eqType (GM.expandVarType b) boolTy  = checkBoolAlts alts >>= coreToIte e
 coreToLg (C.Lam x e)           = do p     <- coreToLg e
                                     tce   <- lsEmb <$> getState
-                                    return $ ELam (symbol x, typeSort tce (expandVarType x)) p
+                                    return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
 coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
                                     casesToLg b p alts
 coreToLg (C.Lit l)             = case mkLit l of
-                                   Nothing -> throw $ "Bad Literal in measure definition" ++ showPpr l
+                                   Nothing -> throw $ "Bad Literal in measure definition" ++ GM.showPpr l
                                    Just i  -> return i
 coreToLg (C.Cast e c)          = do (s, t) <- coerceToLg c
                                     e'     <- coreToLg   e
                                     return (ECoerc s t e')
-coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ showPpr e)
+coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
 
 
@@ -239,7 +249,7 @@ coerceToLg = typeEqToLg . coercionTypeEq
 
 coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
-  | Pair.Pair s t <- tracePpr ("coercion-type-eq-1: " ++ showPpr co) $
+  | Pair.Pair s t <- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
                        coercionKind co
   = (s, t)
 
@@ -263,7 +273,7 @@ checkBoolAlts [(C.DataAlt true, [], etrue), (C.DataAlt false, [], efalse)]
   | false == falseDataCon, true == trueDataCon
   = return (efalse, etrue)
 checkBoolAlts alts
-  = throw ("checkBoolAlts failed on " ++ showPpr alts)
+  = throw ("checkBoolAlts failed on " ++ GM.showPpr alts)
 
 casesToLg :: Var -> Expr -> [C.CoreAlt] -> LogicM Expr
 casesToLg v e alts = mapM (altToLg e) normAlts >>= go
@@ -287,7 +297,7 @@ normalizeAlts :: [C.CoreAlt] -> [C.CoreAlt]
 normalizeAlts alts      = ctorAlts ++ defAlts 
   where 
     (defAlts, ctorAlts) = L.partition isDefault alts 
-    isDefault (con,_,_) = con == C.DEFAULT 
+    isDefault (c,_,_)   = c == C.DEFAULT 
     
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
@@ -298,7 +308,7 @@ altToLg de (a@(C.DataAlt d), xs, e)
        return (a, subst su p)
   where
     f dm x i = let t = EApp (EVar $ makeDataConSelector (Just dm) d i) de
-               in [(symbol x, t), (simplesymbol x, t)]
+               in [(symbol x, t), (GM.simplesymbol x, t)]
 
 altToLg _ (a, _, e)
   = (a, ) <$> coreToLg e
@@ -311,9 +321,9 @@ coreToIte e (efalse, etrue)
        return $ EIte p e2 e1
 
 toPredApp :: C.CoreExpr -> LogicM Expr
-toPredApp p = go . mapFst opSym . splitArgs $ p
+toPredApp p = go . Misc.mapFst opSym . splitArgs $ p
   where
-    opSym = fmap dropModuleNames . tomaybesymbol
+    opSym = fmap GM.dropModuleNames . tomaybesymbol
     go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg e1 <*> coreToLg e2
@@ -368,7 +378,7 @@ varExpr x
   | isPolyCst t = mkEApp (dummyLoc s) []
   | otherwise   = EVar s
   where
-    t           = expandVarType x
+    t           = GM.expandVarType x
     s           = symbol x
 
 isPolyCst :: Type -> Bool
@@ -419,11 +429,11 @@ tosymbol :: C.CoreExpr -> LogicM (Located Symbol)
 tosymbol e
  = case tomaybesymbol e of
     Just x -> return $ dummyLoc x
-    _      -> throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
+    _      -> throw ("Bad Measure Definition:\n" ++ GM.showPpr e ++ "\t cannot be applied")
 
 tosymbol' :: C.CoreExpr -> LogicM (Located Symbol)
-tosymbol' (C.Var x) = return $ dummyLoc $ symbol x -- simpleSymbolVar' x
-tosymbol' e        = throw ("Bad Measure Definition:\n" ++ showPpr e ++ "\t cannot be applied")
+tosymbol' (C.Var x) = return $ dummyLoc $ symbol x 
+tosymbol' e        = throw ("Bad Measure Definition:\n" ++ GM.showPpr e ++ "\t cannot be applied")
 
 makesub :: C.CoreBind -> LogicM (Symbol, Expr)
 makesub (C.NonRec x e) =  (symbol x,) <$> coreToLg e
@@ -452,15 +462,8 @@ mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
-_simpleSymbolVar' :: Id -> Symbol
-_simpleSymbolVar' = simplesymbol --symbol . {- showPpr . -} getName
-
 isErasable :: Id -> Bool
 isErasable v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
-  -- where
-    -- v         = F.tracepp _msg v0
-    -- _msg      = Printf.printf "isErasable: isCoVar %s = %s" (showPpr v0) (show $ isCoVar v0)
-
 
 isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
@@ -475,7 +478,7 @@ class Simplify a where
   normalize :: a -> a
   normalize = inline_preds . inline_anf . simplify
    where
-    inline_preds = inline (eqType boolTy . expandVarType)
+    inline_preds = inline (eqType boolTy . GM.expandVarType)
     inline_anf   = inline isANF
 
 instance Simplify C.CoreExpr where
@@ -541,10 +544,10 @@ isUndefined (_, _, e) = isUndefinedExpr e
 
 instance Simplify C.CoreBind where
   simplify (C.NonRec x e) = C.NonRec x (simplify e)
-  simplify (C.Rec xes)    = C.Rec (mapSnd simplify <$> xes )
+  simplify (C.Rec xes)    = C.Rec (Misc.mapSnd simplify <$> xes )
 
   inline p (C.NonRec x e) = C.NonRec x (inline p e)
-  inline p (C.Rec xes)    = C.Rec (mapSnd (inline p) <$> xes)
+  inline p (C.Rec xes)    = C.Rec (Misc.mapSnd (inline p) <$> xes)
 
 instance Simplify C.CoreAlt where
   simplify (c, xs, e) = (c, xs, simplify e)

@@ -206,13 +206,10 @@ makeMeasureDefinition tce lmap dm cbs x = maybe err chomp $ GM.findVarDef (val x
   where
     chomp (v, def)     = Ms.mkM vx (GM.varLocInfo logicType v) <$> coreToDef' vx v def
                          where vx = F.atLoc x (symbol v)
-    coreToDef' x v def = case runToLogic tce lmap dm mkErr (coreToDef x v def) of
+    coreToDef' x v def = case runToLogic tce lmap dm (errHMeas x) (coreToDef x v def) of
                            Right l -> return     l
                            Left e  -> throwError e
-
-    mkErr :: String -> Error
-    mkErr str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
-    err       = throwError $ mkErr "Cannot extract measure from haskell function"
+    err       = throwError $ errHMeas x "Cannot extract measure from haskell function"
 
 errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)

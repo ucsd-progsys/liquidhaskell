@@ -1477,16 +1477,16 @@ pappSym n  = F.symbol $ "papp" ++ show n
 --------------------------------------------------------------------------------
 -- | Visitors ------------------------------------------------------------------
 --------------------------------------------------------------------------------
-mapExprReft :: (Expr -> Expr) -> RType c tv RReft -> RType c tv RReft
+mapExprReft :: (Symbol -> Expr -> Expr) -> RType c tv RReft -> RType c tv RReft
 mapExprReft f = mapReft g
   where
-    g (MkUReft (F.Reft (x, e)) p s) = MkUReft (F.Reft (x, f e)) p s
+    g (MkUReft (F.Reft (x, e)) p s) = MkUReft (F.Reft (x, f x e)) p s
 
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
 isTrivial t = foldReft (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
-mapReft f = emapReft (\_ -> f) []
+mapReft f = emapReft (const f) []
 
 emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType c tv r1 -> RType c tv r2
 emapReft f γ (RVar α r)          = RVar  α (f γ r)

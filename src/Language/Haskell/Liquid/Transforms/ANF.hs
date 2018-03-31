@@ -28,7 +28,7 @@ import           Var                              (varType, setVarType)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
-import           DataCon                          (dataConInstArgTys)
+-- import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Unique                           (getKey)
@@ -38,7 +38,7 @@ import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX
-import           Language.Haskell.Liquid.Misc       (concatMapM)
+import qualified Language.Haskell.Liquid.Misc       as Misc 
 import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.Rewrite
@@ -48,8 +48,7 @@ import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
-
-
+import           Data.Function                    (on)
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -67,7 +66,7 @@ anormalize cfg hscEnv modGuts = do
   (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
-      act      = concatMapM (normalizeTopBind γ0) rwr_cbs
+      act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
       γ0       = emptyAnfEnv cfg
       rwr_cbs  = rewriteBinds cfg orig_cbs
       orig_cbs = transformRecExpr $ mg_binds modGuts
@@ -312,33 +311,38 @@ expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
 expandDefaultCase _ _ z
    = return z
 
-expandDefaultCase' :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
-expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
-  = case {- GM.tracePpr ("expandDefaultCase' tc = " ++ GM.showPpr tc) $ -} tyConDataCons_maybe tc of
-       Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
-                     dcs'   <- forM ds' $ cloneCase γ argτs e
-                     return $ sortCases $ dcs' ++ dcs
-       Nothing -> return z
-
+expandDefaultCase' 
+  :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
+expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
+  | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do 
+      dcs'    <- forM dtss (cloneCase γ e)
+      return   $ sortCases (dcs' ++ dcs)
 expandDefaultCase' _ _ z
-   = return z
+   = return z 
 
-cloneCase :: AnfEnv -> [Type] -> t -> DataCon -> DsM (AltCon, [Id], t)
-cloneCase γ argτs e d
-  = do xs  <- mapM (freshNormalVar γ) $ dataConInstArgTys d argτs
-       return (DataAlt d, xs, e)
+cloneCase :: AnfEnv -> e -> (DataCon, [Type]) -> DsM (AltCon, [Id], e)
+cloneCase γ e (d, ts) = do 
+  xs  <- mapM (freshNormalVar γ) ts 
+  return (DataAlt d, xs, e)
+
+-- expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
+  -- = case tyConDataCons_maybe tc of
+       -- Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
+                     -- dcs'   <- forM ds' $ cloneCase γ argτs e
+                     -- return $ sortCases $ dcs' ++ dcs
+       -- Nothing -> return z
+
+-- cloneCase :: AnfEnv -> [Type] -> a -> DataCon -> DsM (AltCon, [Id], a)
+-- cloneCase γ argτs e d = do 
+  -- xs  <- mapM (freshNormalVar γ) (dataConInstArgTys d argτs)
+  -- return (DataAlt d, xs, e)
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
-sortCases = sortBy (\x y -> cmpAltCon (F.fst3 x) (F.fst3 y))
-
+sortCases = sortBy (cmpAltCon `on` F.fst3) 
 
 --------------------------------------------------------------------------------
 -- | ANF Environments ----------------------------------------------------------
 --------------------------------------------------------------------------------
-
--- freshNormalVar :: Type -> DsM Id
--- freshNormalVar = mkSysLocalM (symbolFastString anfPrefix)
-
 freshNormalVar :: AnfEnv -> Type -> DsM Id
 freshNormalVar γ t = do
   u     <- getUniqueM
