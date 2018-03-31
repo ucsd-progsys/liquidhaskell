@@ -70,6 +70,7 @@ module Language.Fixpoint.Types.Refinements (
   , isNonTrivial
   , isContraPred
   , isTautoPred
+  , isSingletonExpr 
   , isSingletonReft
   , isFalse
 
