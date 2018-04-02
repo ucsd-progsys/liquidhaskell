@@ -374,7 +374,7 @@ emptyAnfEnv cfg = AnfEnv
   { aeVarEnv    = emptyVarEnv 
   , aeSrcSpan   = Sp.empty 
   , aeCfg       = cfg 
-  , aeCaseDepth = 0
+  , aeCaseDepth = 1
   }
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
