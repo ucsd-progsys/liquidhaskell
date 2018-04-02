@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.UX.Config (
    , patternFlag
    , higherOrderFlag
    , pruneFlag
-   , expandFlag
+   , maxCaseExpand 
    , exactDCFlag
    , hasOpt
    , totalityCheck
@@ -51,7 +51,7 @@ data Config = Config
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
   , trustInternals :: Bool       -- ^ type all internal variables with true
-  , nocaseexpand   :: Bool       -- ^ disable case expand
+  , caseExpandDepth :: Int       -- ^ maximum case expand nesting depth. 
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , nototality     :: Bool       -- ^ disable totality check in definitions
@@ -82,9 +82,9 @@ data Config = Config
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
-  , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
+  -- , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  , debugInstantionation :: Bool   -- ^ Debug Instantiation
+  -- , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
@@ -146,8 +146,8 @@ exactDCFlag x = exactDC cfg || reflection cfg
 pruneFlag :: (HasConfig t) => t -> Bool
 pruneFlag = pruneUnsorted . getConfig
 
-expandFlag :: (HasConfig t) => t -> Bool
-expandFlag = not . nocaseexpand . getConfig
+maxCaseExpand :: (HasConfig t) => t -> Int 
+maxCaseExpand = caseExpandDepth . getConfig
 
 hasOpt :: (HasConfig t) => t -> (Config -> Bool) -> Bool
 hasOpt t f = f (getConfig t)

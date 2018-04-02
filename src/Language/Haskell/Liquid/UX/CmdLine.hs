@@ -46,8 +46,6 @@ import qualified Paths_liquidhaskell as Meta
 import System.Directory
 import System.Exit
 import System.Environment
--- SIGH. CIRCLE hassles: import Paths_liquidhaskell (version)
--- SIGH. CIRCLE hassles: import Data.Version (showVersion)
 import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
@@ -189,9 +187,10 @@ config = cmdArgsMode $ Config {
     = False &= help "Trust GHC generated code"
             &= name "trust-internals"
 
- , nocaseexpand
-    = def &= help "Don't expand the default case in a case-expression"
-          &= name "no-case-expand"
+ , caseExpandDepth 
+    = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
+          &= name "max-case-expand"
+
  , strata
     = def &= help "Enable Strata Analysis"
 
@@ -329,9 +328,9 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  , nonLinCuts
-    = True  &= name "non-linear-cuts"
-            &= help "(TRUE) Treat non-linear kvars as cuts"
+--  , nonLinCuts
+--   = True  &= name "non-linear-cuts"
+--            &= help "(TRUE) Treat non-linear kvars as cuts"
 
   , autoInstantiate
     = def
@@ -346,9 +345,9 @@ config = cmdArgsMode $ Config {
     -- = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
         -- &= name "fuel"
 
-  , debugInstantionation
-    = False &= help "Debug Progress in liquid instantiation"
-        &= name "debug-instantiation"
+ -- , debugInstantionation
+ --   = False &= help "Debug Progress in liquid instantiation"
+ --      &= name "debug-instantiation"
 
   , proofLogicEval
     = False &= help "Enable Proof-by-Logical-Evaluation"
@@ -506,70 +505,71 @@ parsePragma   :: Located String -> IO Config
 parsePragma = withPragma defConfig
 
 defConfig :: Config
-defConfig = Config { files             = def
-                   , idirs             = def
-                   , fullcheck         = def
-                   , linear            = def
-                   , stringTheory      = def
-                   , higherorder       = def
-                   , extensionality    = def
-                   , alphaEquivalence  = def
-                   , betaEquivalence   = def
-                   , normalForm        = def
-                   , higherorderqs     = def
-                   , diffcheck         = def
-                   , saveQuery         = def
-                   , checks            = def
-                   , noCheckUnknown    = def
-                   , notermination     = def
-                   , nostructuralT     = def 
-                   , gradual           = False
-                   , gdepth            = 1
-                   , ginteractive      = False
-                   , totalHaskell      = def
-                   , autoproofs        = def
-                   , nowarnings        = def
-                   , noannotations     = def
-                   , trustInternals    = False
-                   , nocaseexpand      = def
-                   , strata            = def
-                   , notruetypes       = def
-                   , nototality        = False
-                   , pruneUnsorted     = def
-                   , exactDC           = def
-                   , noADT             = def
-                   , noMeasureFields   = def
-                   , cores             = def
-                   , minPartSize       = FC.defaultMinPartSize
-                   , maxPartSize       = FC.defaultMaxPartSize
-                   , maxParams         = defaultMaxParams
-                   , smtsolver         = def
-                   , shortNames        = def
-                   , shortErrors       = def
-                   , cabalDir          = def
-                   , ghcOptions        = def
-                   , cFiles            = def
-                   , port              = defaultPort
-                   , scrapeInternals   = False
-                   , scrapeImports     = False
-                   , scrapeUsedImports = False
-                   , elimStats         = False
-                   , elimBound         = Nothing
-                   , json              = False
-                   , counterExamples   = False
-                   , timeBinds         = False
-                   , untidyCore        = False
-                   , eliminate         = FC.Some
-                   , noPatternInline   = False
-                   , noSimplifyCore    = False
-                   , nonLinCuts        = True
-                   , autoInstantiate   = def
-                   , debugInstantionation = False
-                   , noslice              = False
-                   , noLiftedImport       = False
-                   , proofLogicEval       = False
-                   , reflection           = False
-                   }
+defConfig = Config 
+  { files             = def
+  , idirs             = def
+  , fullcheck         = def
+  , linear            = def
+  , stringTheory      = def
+  , higherorder       = def
+  , extensionality    = def
+  , alphaEquivalence  = def
+  , betaEquivalence   = def
+  , normalForm        = def
+  , higherorderqs     = def
+  , diffcheck         = def
+  , saveQuery         = def
+  , checks            = def
+  , noCheckUnknown    = def
+  , notermination     = def
+  , nostructuralT     = def 
+  , gradual           = False
+  , gdepth            = 1
+  , ginteractive      = False
+  , totalHaskell      = def
+  , autoproofs        = def
+  , nowarnings        = def
+  , noannotations     = def
+  , trustInternals    = False
+  , caseExpandDepth   = 2 
+  , strata            = def
+  , notruetypes       = def
+  , nototality        = False
+  , pruneUnsorted     = def
+  , exactDC           = def
+  , noADT             = def
+  , noMeasureFields   = def
+  , cores             = def
+  , minPartSize       = FC.defaultMinPartSize
+  , maxPartSize       = FC.defaultMaxPartSize
+  , maxParams         = defaultMaxParams
+  , smtsolver         = def
+  , shortNames        = def
+  , shortErrors       = def
+  , cabalDir          = def
+  , ghcOptions        = def
+  , cFiles            = def
+  , port              = defaultPort
+  , scrapeInternals   = False
+  , scrapeImports     = False
+  , scrapeUsedImports = False
+  , elimStats         = False
+  , elimBound         = Nothing
+  , json              = False
+  , counterExamples   = False
+  , timeBinds         = False
+  , untidyCore        = False
+  , eliminate         = FC.Some
+  , noPatternInline   = False
+  , noSimplifyCore    = False
+  -- , nonLinCuts        = True
+  , autoInstantiate   = def
+  -- , debugInstantiate  = False
+  , noslice           = False
+  , noLiftedImport    = False
+  , proofLogicEval    = False
+  , reflection        = False
+  }
 
 ------------------------------------------------------------------------
 -- | Exit Function -----------------------------------------------------

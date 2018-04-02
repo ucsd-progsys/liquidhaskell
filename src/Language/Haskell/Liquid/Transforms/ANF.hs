@@ -221,7 +221,7 @@ normalize γ (Let b e)
 normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
-       let γ' = extendAnfEnv γ x x'
+       let γ' = incrCaseDepth (extendAnfEnv γ x x')
        as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
        as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
@@ -291,13 +291,19 @@ normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
   e'    <- normalize γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
 
+
+--------------------------------------------------------------------------------
+expandDefault :: AnfEnv -> Bool 
+--------------------------------------------------------------------------------
+expandDefault γ = aeCaseDepth γ <= maxCaseExpand γ 
+
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
                   -> Type
                   -> [(AltCon, [Id], CoreExpr)]
                   -> DsM [(AltCon, [Id], CoreExpr)]
 --------------------------------------------------------------------------------
-expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | UX.expandFlag γ
+expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandDefault γ
   = expandDefaultCase' γ tyapp zs
 
 expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
@@ -354,22 +360,31 @@ anfOcc :: Int -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv
-  { aeVarEnv  :: VarEnv Id
-  , aeSrcSpan :: Sp.SpanStack
-  , aeCfg     :: UX.Config
+  { aeVarEnv    :: VarEnv Id
+  , aeSrcSpan   :: Sp.SpanStack
+  , aeCfg       :: UX.Config
+  , aeCaseDepth :: !Int
   }
 
 instance UX.HasConfig AnfEnv where
   getConfig = aeCfg
 
 emptyAnfEnv :: UX.Config -> AnfEnv
-emptyAnfEnv = AnfEnv emptyVarEnv Sp.empty
+emptyAnfEnv cfg = AnfEnv 
+  { aeVarEnv    = emptyVarEnv 
+  , aeSrcSpan   = Sp.empty 
+  , aeCfg       = cfg 
+  , aeCaseDepth = 0
+  }
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
 lookupAnfEnv γ x y = lookupWithDefaultVarEnv (aeVarEnv γ) x y
 
 extendAnfEnv :: AnfEnv -> Id -> Id -> AnfEnv
 extendAnfEnv γ x y = γ { aeVarEnv = extendVarEnv (aeVarEnv γ) x y }
+
+incrCaseDepth :: AnfEnv -> AnfEnv 
+incrCaseDepth γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }
 
 at :: AnfEnv -> Tickish Id -> AnfEnv
 at γ tt = γ { aeSrcSpan = Sp.push (Sp.Tick tt) (aeSrcSpan γ)}
