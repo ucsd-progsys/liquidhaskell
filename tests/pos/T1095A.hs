@@ -1,5 +1,5 @@
 {-@ LIQUID "--reflection"     @-}
-{-@ LIQUID "--no-case-expand" @-}
+{-@ LIQUID "--max-case-expand=0" @-}
 
 module Foo where
 

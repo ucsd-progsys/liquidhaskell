@@ -49,6 +49,7 @@ import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Data.Function                    (on)
+import qualified Text.Printf as Printf 
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -103,13 +104,15 @@ normalizeTopBind γ (Rec xes)
 
 normalizeTyVars :: Bind Id -> Bind Id
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
-  where t'       = subst msg as as' bt
-        msg      = "WARNING unable to renameVars on " ++ GM.showPpr x
-        as'      = fst $ splitForAllTys $ exprType e
-        (as, bt) = splitForAllTys (varType x)
+  where 
+    t'       = subst msg as as' bt
+    msg      = "WARNING: unable to renameVars on " ++ GM.showPpr x
+    as'      = fst $ splitForAllTys $ exprType e
+    (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
-  where nrec = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
-        xes' = (\(NonRec x e) -> (x, e)) <$> nrec
+  where 
+    nrec     = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
+    xes'     = (\(NonRec x e) -> (x, e)) <$> nrec
 
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
@@ -309,9 +312,10 @@ expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandDefault γ
 expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
-                     if (length ds') == 1
-                      then expandDefaultCase' γ tyapp z
-                      else return z
+                     let n   = length ds'
+                     if n == 1
+                       then expandDefaultCase' γ tyapp z
+                       else return (trace (expandMessage False γ n) z) 
        Nothing -> return z --
 
 expandDefaultCase _ _ z
@@ -321,7 +325,8 @@ expandDefaultCase'
   :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
   | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do 
-      dcs'    <- forM dtss (cloneCase γ e)
+      dcs'    <- warnCaseExpand γ <$> forM dtss (cloneCase γ e)
+
       return   $ sortCases (dcs' ++ dcs)
 expandDefaultCase' _ _ z
    = return z 
@@ -331,20 +336,26 @@ cloneCase γ e (d, ts) = do
   xs  <- mapM (freshNormalVar γ) ts 
   return (DataAlt d, xs, e)
 
--- expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
-  -- = case tyConDataCons_maybe tc of
-       -- Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
-                     -- dcs'   <- forM ds' $ cloneCase γ argτs e
-                     -- return $ sortCases $ dcs' ++ dcs
-       -- Nothing -> return z
-
--- cloneCase :: AnfEnv -> [Type] -> a -> DataCon -> DsM (AltCon, [Id], a)
--- cloneCase γ argτs e d = do 
-  -- xs  <- mapM (freshNormalVar γ) (dataConInstArgTys d argτs)
-  -- return (DataAlt d, xs, e)
-
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (cmpAltCon `on` F.fst3) 
+
+warnCaseExpand :: AnfEnv -> [a] -> [a] 
+warnCaseExpand γ xs  
+  | 10 < n          = trace (expandMessage True γ n) xs 
+  | otherwise       = xs
+  where 
+   n                = length xs 
+
+expandMessage :: Bool -> AnfEnv -> Int -> String 
+expandMessage expand γ n = unlines [msg1, msg2]   
+  where 
+    msg1            = Printf.printf "WARNING: (%s) %s DEFAULT with %d cases at depth %d" (showPpr sp) v1 n d 
+    msg2            = Printf.printf "%s expansion with --max-case-expand=%d" v2 d' 
+    (v1, v2, d') 
+      | expand      = ("Expanding"    , "Disable", d-1) :: (String, String, Int)
+      | otherwise   = ("Not expanding", "Enable" , d+1) 
+    d               = aeCaseDepth γ
+    sp              = Sp.srcSpan (aeSrcSpan γ)
 
 --------------------------------------------------------------------------------
 -- | ANF Environments ----------------------------------------------------------

@@ -2,7 +2,7 @@ module NoCaseExpand where
 
 -- time 3.6s w/ "--no-case-expand" flag VS  8.5 s w/o
 
-{- LIQUID "--no-case-expand" @-}
+{- LIQUID "--max-case-expand=0" @-}
 
 data TokenType =
   Space | Keyword | Keyglyph | Layout | Comment | Conid | Varid |

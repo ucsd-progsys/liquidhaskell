@@ -1,4 +1,5 @@
-{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-termination"    @-}
+{- LIQUID "--max-case-expand=5" @-}
 
 module GhcSort () where
 
@@ -16,18 +17,18 @@ sort1 :: (Ord a) => [a] -> [a]
 sort1 = mergeAll . sequences
   where
     sequences (a:b:xs)
-      | a `compare` b == GT = descending b [a]  xs
-      | otherwise           = ascending  b (a:) xs -- a >= b => (a:) ->   
+      | a > b     = descending b [a]  xs
+      | otherwise = ascending  b (a:) xs -- a >= b => (a:) ->   
     sequences [x] = [[x]]
     sequences []  = [[]]
     {- descending :: x:a -> OList {v:a | x < v} -> [a] -> [OList a] @-}
     descending a as (b:bs)
-      | a `compare` b == GT = descending b (a:as) bs
+      | a > b     = descending b (a:as) bs
     descending a as bs      = (a:as): sequences bs
 
     {- ascending :: x:a -> (OList {v:a|v>=x} -> OList a) -> [a] -> [OList a] @-}
     ascending a as (b:bs)
-      | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs -- a <= b
+      | a <= b = ascending b (\ys -> as (a:ys)) bs -- a <= b
     ascending a as bs       = as [a]: sequences bs
 
     mergeAll [x] = x
@@ -40,7 +41,7 @@ sort1 = mergeAll . sequences
 -- merge1 needs to be toplevel,
 -- to get applied transformRec tx
 merge1 (a:as') (b:bs')
-  | a `compare` b == GT = b:merge1 (a:as')  bs'
+  | a > b               = b:merge1 (a:as')  bs'
   | otherwise           = a:merge1 as' (b:bs')
 merge1 [] bs            = bs
 merge1 as []            = as
