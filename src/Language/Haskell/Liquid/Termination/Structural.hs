@@ -59,7 +59,7 @@ isStructurallyRecursive funs (fun, rhs)
   | null xs
   = mkError fun (text "The definition has no value parameters.")
   | otherwise
-  = check (Env (mkError fun) funs (mkVarSet xs) emptyVarSet) body
+  = check (Env (mkError fun) funs (mkVarSet xs) emptyVarSet) [] body
   where
     (_ts, xs, body) = collectTyAndValBinders rhs
 
@@ -80,29 +80,39 @@ shadow (Env retErr funs params subterms) vs
 envAddSubterms :: Env -> [Var] -> Env
 envAddSubterms env vs = env { subterms = subterms env `extendVarSetList` vs }
 
-check :: Env -> CoreExpr -> Result
-check env = \case
-    e@Var{}    -> checkCall env (collectArgs e)
-    e@App{}    -> checkCall env (collectArgs e)
-    Lam v e    -> check (env `shadow` [v]) e
-    Let (NonRec v rhs) body -> check env rhs <> check (env `shadow` [v]) body
-    Let (Rec pairs) body -> foldMap (check (env `shadow` vs)) (body : rhss)
+check :: Env -> [CoreArg] -> CoreExpr -> Result
+check env args = \case
+    Var fun | not (fun `elemVarSet` funs env) -> mempty
+            | (a:_) <- args, isGoodArg env a  -> mempty
+            | [] <- args -> retErr env $ text "Unsaturated call to" <+> (text $ showPpr fun)
+            | otherwise  -> retErr env $ text "Non-structural recursion in call" <+>
+                                        (text $ showPpr (mkApps (Var fun) args)) $$ subTermsHelpMsg
+
+    App e a | isTypeArg a ->                   check env args e
+            | otherwise   -> check env [] a <> check env (a:args) e
+
+    Lam v e    -> check (env `shadow` [v]) [] e
+    Let (NonRec v rhs) body -> check env  [] rhs <> check (env `shadow` [v]) [] body
+    Let (Rec pairs) body -> foldMap (check (env `shadow` vs) []) (body : rhss)
       where (vs,rhss) = unzip pairs
 
     Case scrut bndr _ alts -> mconcat $
-        [ check env scrut ] ++
+        [ check env [] scrut ] ++
         [ let env' | isParam env scrut = env `shadow` (bndr:pats) `envAddSubterms` pats
                    | otherwise         = env `shadow` (bndr:pats)
-          in check env' rhs
+          in check env' [] rhs
         | (_, pats, rhs) <- alts]
 
     -- Boring transparent cases
-    Cast e _   -> check env e
-    Tick _ e   -> check env e
+    Cast e _   -> check env args e
+    Tick _ e   -> check env args e
     -- Boring base cases
     Lit{}      -> mempty
     Coercion{} -> mempty
     Type{}     -> mempty
+  where
+    subTermsHelpMsg | isEmptyVarSet (subterms env) = text "No valid arguments are in scope."
+                    | otherwise = text "Valid arguments are: " <+> (hcat $ punctuate comma $ map (text . showPpr) $ nonDetEltsUniqSet (subterms env))
 
 isParam :: Env -> CoreExpr -> Bool
 isParam env (Var v)    = v `elemVarSet` params env
@@ -115,26 +125,3 @@ isGoodArg env (Var v)    = v `elemVarSet` subterms env
 isGoodArg env (Cast e _) = isGoodArg env e
 isGoodArg env (Tick _ e) = isGoodArg env e
 isGoodArg _   _          = False
-
-checkCall :: Env -> (CoreExpr, [CoreExpr]) -> Result
-checkCall env (Var fun, args)
-    | not (fun `elemVarSet` funs env)
-    = checkArgs
-    | null args
-    = retErr env $ text "Unsaturated call to" <+> (text $ showPpr fun)
-    | isGoodArg env firstArg
-    = checkArgs
-    | otherwise =
-    retErr env $ text "Non-structural recursion in call" <+> (text $ showPpr (App (Var fun) firstArg)) $$ subTermsHelpMsg
-  where
-    valArgs   = dropWhile isTypeArg args
-    firstArg  = head valArgs
-    checkArgs = foldMap (check env) args
-
-    subTermsHelpMsg | isEmptyVarSet (subterms env) = text "No valid arguments are in scope."
-                    | otherwise = text "Valid arguments are: " <+> (hcat $ punctuate comma $ map (text . showPpr) $ nonDetEltsUniqSet (subterms env))
-
--- Not a variable in the function position
-checkCall env (e, args) = foldMap (check env) (e : args)
-
-
