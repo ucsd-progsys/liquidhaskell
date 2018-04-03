@@ -224,8 +224,8 @@ normalize γ (Let b e)
 normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
-       let γ' = incrCaseDepth (extendAnfEnv γ x x')
-       as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
+       let γ' = extendAnfEnv γ x x'
+       as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch (incrCaseDepth c γ') e')
        as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
     where τx = GM.expandVarType x
@@ -394,8 +394,9 @@ lookupAnfEnv γ x y = lookupWithDefaultVarEnv (aeVarEnv γ) x y
 extendAnfEnv :: AnfEnv -> Id -> Id -> AnfEnv
 extendAnfEnv γ x y = γ { aeVarEnv = extendVarEnv (aeVarEnv γ) x y }
 
-incrCaseDepth :: AnfEnv -> AnfEnv 
-incrCaseDepth γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }
+incrCaseDepth :: AltCon -> AnfEnv -> AnfEnv 
+incrCaseDepth DEFAULT γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }
+incrCaseDepth _       γ = γ 
 
 at :: AnfEnv -> Tickish Id -> AnfEnv
 at γ tt = γ { aeSrcSpan = Sp.push (Sp.Tick tt) (aeSrcSpan γ)}

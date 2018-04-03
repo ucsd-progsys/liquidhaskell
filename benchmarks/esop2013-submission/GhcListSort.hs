@@ -1,5 +1,4 @@
 {-@ LIQUID "--no-termination"    @-}
-{-@ LIQUID "--max-case-expand=5" @-}
 
 module GhcSort () where
 
@@ -71,9 +70,8 @@ merge :: (Ord a) => [a] -> [a] -> [a]
 merge [] ys = ys
 merge xs [] = xs
 merge (x:xs) (y:ys)
- = case x `compare` y of
-        GT -> y : merge (x:xs)   ys
-        _  -> x : merge    xs (y:ys)
+  | x > y     = y : merge (x:xs)   ys
+  | otherwise = x : merge    xs (y:ys)
 
 wrap :: a -> [a]
 wrap x = [x]
