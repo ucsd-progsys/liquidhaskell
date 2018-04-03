@@ -150,6 +150,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , structuralTerm
+    = def &= help "Structural Termination Check"
+          &= name "structural-termination"
+
  , nostructuralT
     = def &= help "Trust that size functions are inductive"
           &= name "trust-sizes"
@@ -522,6 +526,7 @@ defConfig = Config
   , checks            = def
   , noCheckUnknown    = def
   , notermination     = def
+  , structuralTerm    = False 
   , nostructuralT     = def 
   , gradual           = False
   , gdepth            = 1
