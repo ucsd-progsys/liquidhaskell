@@ -1,7 +1,7 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--no-case-expand" @-}
+{-@ LIQUID "--max-case-expand=0" @-}
 
 module ReflectDefault where 
 

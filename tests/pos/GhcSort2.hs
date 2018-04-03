@@ -1,3 +1,5 @@
+{-@ LIQUID "--max-case-expand=5" @-}
+
 module GhcSort () where
 
 import Language.Haskell.Liquid.Prelude

@@ -1,31 +1,33 @@
-{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-termination"    @-}
 
 module GhcSort () where
 
 import Language.Haskell.Liquid.Prelude
 
-{-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
+{-@ type OList a =  [a]<{\fld v -> (v >= fld)}>  @-}
+{-@ type DList a =  [a]<{\fld v -> (fld >= v)}>  @-}
 
 ---------------------------------------------------------------------------
 ---------------------------  Official GHC Sort ----------------------------
 ---------------------------------------------------------------------------
 
-{-@ sort1 :: (Ord a) => [a] -> OList a @-}
+{-@ sort1 :: (Ord a) => [a] -> OList a  @-}
 sort1 :: (Ord a) => [a] -> [a]
 sort1 = mergeAll . sequences
   where
     sequences (a:b:xs)
-      | a `compare` b == GT = descending b [a]  xs
-      | otherwise           = ascending  b (a:) xs
+      | a > b     = descending b [a]  xs
+      | otherwise = ascending  b (a:) xs -- a >= b => (a:) ->   
     sequences [x] = [[x]]
     sequences []  = [[]]
-
+    {- descending :: x:a -> OList {v:a | x < v} -> [a] -> [OList a] @-}
     descending a as (b:bs)
-      | a `compare` b == GT = descending b (a:as) bs
+      | a > b     = descending b (a:as) bs
     descending a as bs      = (a:as): sequences bs
 
+    {- ascending :: x:a -> (OList {v:a|v>=x} -> OList a) -> [a] -> [OList a] @-}
     ascending a as (b:bs)
-      | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs
+      | a <= b = ascending b (\ys -> as (a:ys)) bs -- a <= b
     ascending a as bs       = as [a]: sequences bs
 
     mergeAll [x] = x
@@ -38,7 +40,7 @@ sort1 = mergeAll . sequences
 -- merge1 needs to be toplevel,
 -- to get applied transformRec tx
 merge1 (a:as') (b:bs')
-  | a `compare` b == GT = b:merge1 (a:as')  bs'
+  | a > b               = b:merge1 (a:as')  bs'
   | otherwise           = a:merge1 as' (b:bs')
 merge1 [] bs            = bs
 merge1 as []            = as
@@ -47,7 +49,7 @@ merge1 as []            = as
 ------------------- Mergesort ---------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ sort2 :: (Ord a) => [a] -> OList a @-}
+{-@ sort2 :: (Ord a) => [a] -> OList a  @-}
 sort2 :: (Ord a) => [a] -> [a]
 sort2 = mergesort
 
@@ -68,9 +70,8 @@ merge :: (Ord a) => [a] -> [a] -> [a]
 merge [] ys = ys
 merge xs [] = xs
 merge (x:xs) (y:ys)
- = case x `compare` y of
-        GT -> y : merge (x:xs)   ys
-        _  -> x : merge    xs (y:ys)
+  | x > y     = y : merge (x:xs)   ys
+  | otherwise = x : merge    xs (y:ys)
 
 wrap :: a -> [a]
 wrap x = [x]

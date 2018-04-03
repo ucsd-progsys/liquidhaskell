@@ -49,6 +49,7 @@ import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Data.Function                    (on)
+import qualified Text.Printf as Printf 
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -103,13 +104,15 @@ normalizeTopBind γ (Rec xes)
 
 normalizeTyVars :: Bind Id -> Bind Id
 normalizeTyVars (NonRec x e) = NonRec (setVarType x t') $ normalizeForAllTys e
-  where t'       = subst msg as as' bt
-        msg      = "WARNING unable to renameVars on " ++ GM.showPpr x
-        as'      = fst $ splitForAllTys $ exprType e
-        (as, bt) = splitForAllTys (varType x)
+  where 
+    t'       = subst msg as as' bt
+    msg      = "WARNING: unable to renameVars on " ++ GM.showPpr x
+    as'      = fst $ splitForAllTys $ exprType e
+    (as, bt) = splitForAllTys (varType x)
 normalizeTyVars (Rec xes)    = Rec xes'
-  where nrec = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
-        xes' = (\(NonRec x e) -> (x, e)) <$> nrec
+  where 
+    nrec     = normalizeTyVars <$> ((\(x, e) -> NonRec x e) <$> xes)
+    xes'     = (\(NonRec x e) -> (x, e)) <$> nrec
 
 subst :: String -> [TyVar] -> [TyVar] -> Type -> Type
 subst msg as as' bt
@@ -222,7 +225,7 @@ normalize γ (Case e x t as)
   = do n     <- normalizeName γ e
        x'    <- lift $ freshNormalVar γ τx -- rename "wild" to avoid shadowing
        let γ' = extendAnfEnv γ x x'
-       as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch γ' e')
+       as'   <- forM as $ \(c, xs, e') -> liftM (c, xs,) (stitch (incrCaseDepth c γ') e')
        as''  <- lift $ expandDefaultCase γ τx as'
        return $ Case n x' t as''
     where τx = GM.expandVarType x
@@ -291,21 +294,30 @@ normalizePattern γ p@(Rs.PatSelfRecBind {}) = do
   e'    <- normalize γ (Rs.patE p)
   return $ Rs.lower p { Rs.patE = e' }
 
+
+--------------------------------------------------------------------------------
+expandDefault :: AnfEnv -> Bool 
+--------------------------------------------------------------------------------
+expandDefault γ = aeCaseDepth γ <= maxCaseExpand γ 
+
 --------------------------------------------------------------------------------
 expandDefaultCase :: AnfEnv
                   -> Type
                   -> [(AltCon, [Id], CoreExpr)]
                   -> DsM [(AltCon, [Id], CoreExpr)]
 --------------------------------------------------------------------------------
-expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | UX.expandFlag γ
+expandDefaultCase γ tyapp zs@((DEFAULT, _ ,_) : _) | expandDefault γ
   = expandDefaultCase' γ tyapp zs
 
 expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
   = case tyConDataCons_maybe tc of
        Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
-                     if (length ds') == 1
-                      then expandDefaultCase' γ tyapp z
-                      else return z
+                     let n   = length ds'
+                     if n == 1
+                       then expandDefaultCase' γ tyapp z
+                       else if maxCaseExpand γ /= 2 
+                            then return z 
+                            else return (trace (expandMessage False γ n) z) 
        Nothing -> return z --
 
 expandDefaultCase _ _ z
@@ -315,7 +327,7 @@ expandDefaultCase'
   :: AnfEnv -> Type -> [(AltCon, [Id], c)] -> DsM [(AltCon, [Id], c)]
 expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
   | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do 
-      dcs'    <- forM dtss (cloneCase γ e)
+      dcs'    <- warnCaseExpand γ <$> forM dtss (cloneCase γ e)
       return   $ sortCases (dcs' ++ dcs)
 expandDefaultCase' _ _ z
    = return z 
@@ -325,20 +337,26 @@ cloneCase γ e (d, ts) = do
   xs  <- mapM (freshNormalVar γ) ts 
   return (DataAlt d, xs, e)
 
--- expandDefaultCase' γ (TyConApp tc argτs) z@((DEFAULT, _ ,e) : dcs)
-  -- = case tyConDataCons_maybe tc of
-       -- Just ds -> do let ds' = ds \\ [ d | (DataAlt d, _ , _) <- dcs]
-                     -- dcs'   <- forM ds' $ cloneCase γ argτs e
-                     -- return $ sortCases $ dcs' ++ dcs
-       -- Nothing -> return z
-
--- cloneCase :: AnfEnv -> [Type] -> a -> DataCon -> DsM (AltCon, [Id], a)
--- cloneCase γ argτs e d = do 
-  -- xs  <- mapM (freshNormalVar γ) (dataConInstArgTys d argτs)
-  -- return (DataAlt d, xs, e)
-
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (cmpAltCon `on` F.fst3) 
+
+warnCaseExpand :: AnfEnv -> [a] -> [a] 
+warnCaseExpand γ xs  
+  | 10 < n          = trace (expandMessage True γ n) xs 
+  | otherwise       = xs
+  where 
+   n                = length xs 
+
+expandMessage :: Bool -> AnfEnv -> Int -> String 
+expandMessage expand γ n = unlines [msg1, msg2]   
+  where 
+    msg1            = Printf.printf "WARNING: (%s) %s DEFAULT with %d cases at depth %d" (showPpr sp) v1 n d 
+    msg2            = Printf.printf "%s expansion with --max-case-expand=%d" v2 d' 
+    (v1, v2, d') 
+      | expand      = ("Expanding"    , "Disable", d-1) :: (String, String, Int)
+      | otherwise   = ("Not expanding", "Enable" , d+1) 
+    d               = aeCaseDepth γ
+    sp              = Sp.srcSpan (aeSrcSpan γ)
 
 --------------------------------------------------------------------------------
 -- | ANF Environments ----------------------------------------------------------
@@ -354,22 +372,32 @@ anfOcc :: Int -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv
-  { aeVarEnv  :: VarEnv Id
-  , aeSrcSpan :: Sp.SpanStack
-  , aeCfg     :: UX.Config
+  { aeVarEnv    :: VarEnv Id
+  , aeSrcSpan   :: Sp.SpanStack
+  , aeCfg       :: UX.Config
+  , aeCaseDepth :: !Int
   }
 
 instance UX.HasConfig AnfEnv where
   getConfig = aeCfg
 
 emptyAnfEnv :: UX.Config -> AnfEnv
-emptyAnfEnv = AnfEnv emptyVarEnv Sp.empty
+emptyAnfEnv cfg = AnfEnv 
+  { aeVarEnv    = emptyVarEnv 
+  , aeSrcSpan   = Sp.empty 
+  , aeCfg       = cfg 
+  , aeCaseDepth = 1
+  }
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
 lookupAnfEnv γ x y = lookupWithDefaultVarEnv (aeVarEnv γ) x y
 
 extendAnfEnv :: AnfEnv -> Id -> Id -> AnfEnv
 extendAnfEnv γ x y = γ { aeVarEnv = extendVarEnv (aeVarEnv γ) x y }
+
+incrCaseDepth :: AltCon -> AnfEnv -> AnfEnv 
+incrCaseDepth DEFAULT γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }
+incrCaseDepth _       γ = γ 
 
 at :: AnfEnv -> Tickish Id -> AnfEnv
 at γ tt = γ { aeSrcSpan = Sp.push (Sp.Tick tt) (aeSrcSpan γ)}
