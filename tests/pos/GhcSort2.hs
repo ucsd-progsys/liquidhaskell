@@ -1,5 +1,3 @@
-{-@ LIQUID "--max-case-expand=5" @-}
-
 module GhcSort () where
 
 import Language.Haskell.Liquid.Prelude
@@ -39,9 +37,8 @@ merge :: (Ord a) => [a] -> [a] -> Int -> [a]
 merge [] ys _ = ys
 merge xs [] _ = xs
 merge (x:xs) (y:ys) d
- = case x `compare` y of
-        GT -> y : merge (x:xs)   ys (d-1)
-        _  -> x : merge xs   (y:ys) (d-1)
+ | x > y     = y : merge (x:xs)   ys (d-1)
+ | otherwise = x : merge xs   (y:ys) (d-1)
 
 wrap :: a -> [a]
 wrap x = [x]
