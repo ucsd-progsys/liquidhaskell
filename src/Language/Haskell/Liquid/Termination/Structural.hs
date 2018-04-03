@@ -115,7 +115,7 @@ check env args = \case
                     | otherwise = text "Valid arguments are: " <+> (hcat $ punctuate comma $ map (text . showPpr) $ nonDetEltsUniqSet (subterms env))
 
 isParam :: Env -> CoreExpr -> Bool
-isParam env (Var v)    = v `elemVarSet` params env
+isParam env (Var v)    = v `elemVarSet` params env || v `elemVarSet` subterms env
 isParam env (Cast e _) = isParam env e
 isParam env (Tick _ e) = isParam env e
 isParam _   _          = False
