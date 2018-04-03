@@ -315,7 +315,9 @@ expandDefaultCase γ tyapp@(TyConApp tc _) z@((DEFAULT, _ ,_):dcs)
                      let n   = length ds'
                      if n == 1
                        then expandDefaultCase' γ tyapp z
-                       else return (trace (expandMessage False γ n) z) 
+                       else if maxCaseExpand γ /= 2 
+                            then return z 
+                            else return (trace (expandMessage False γ n) z) 
        Nothing -> return z --
 
 expandDefaultCase _ _ z
@@ -326,7 +328,6 @@ expandDefaultCase'
 expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
   | Just dtss <- GM.defaultDataCons t (F.fst3 <$> dcs) = do 
       dcs'    <- warnCaseExpand γ <$> forM dtss (cloneCase γ e)
-
       return   $ sortCases (dcs' ++ dcs)
 expandDefaultCase' _ _ z
    = return z 
