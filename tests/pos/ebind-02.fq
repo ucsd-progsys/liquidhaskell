@@ -1,0 +1,26 @@
+
+bind  0 m  : {v: int | true }
+bind  1 z  : {v: int | v = m - 1 }
+ebind 2 x1 : int                 
+
+constraint:
+  env [0; 1]
+  lhs {v0 : int | v0 = z + 2 }
+  rhs {v0 : int | $k         }
+  id 1 tag []
+
+constraint:
+  env [0; 2]
+  lhs {v2 : int | $k      }
+  rhs {v2 : int | v2 = x1 }
+  id 2 tag []
+
+constraint:
+  env [0; 2]
+  lhs {v3 : int | v3 = x1 + 1 }
+  rhs {v3 : int | v3 = m  + 2 }
+  id 3 tag []
+
+wf: 
+  env [0]
+  reft {v:int | [$k] }
