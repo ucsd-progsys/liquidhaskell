@@ -22,6 +22,8 @@ import qualified Data.HashSet                           as S
 
 
 terminationCheck :: GhcInfo -> Output Doc 
+terminationCheck info | structuralTerm (getConfig info)
+                      = mconcat $ map (resultToDoc . checkBind (cbs info)) (allRecBinds $ cbs info)
 terminationCheck info = mconcat $ map (resultToDoc . checkBind (cbs info)) (S.toList $ gsStTerm $ spec info)
 
 
@@ -40,6 +42,9 @@ resultToDoc (Error x) = mempty {o_result = Unsafe x }
 checkBind :: [CoreBind] -> Var -> Result
 checkBind cbs x = maybe OK isStructurallyRecursiveGroup (findRecBind cbs x)
 
+
+allRecBinds :: [CoreBind] -> [Var]
+allRecBinds cbs = concat[ fst <$> xes |  Rec xes <- cbs ] 
 
 findRecBind :: [CoreBind] -> Var -> Maybe [(Var,CoreExpr)]
 findRecBind [] _ = Nothing

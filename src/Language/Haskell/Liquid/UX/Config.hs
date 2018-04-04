@@ -42,6 +42,7 @@ data Config = Config
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , structuralTerm :: Bool       -- ^ use only structural termination checker
   , nostructuralT  :: Bool       -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
   , gdepth         :: Int        -- ^ depth of gradual concretization
@@ -162,4 +163,4 @@ totalityCheck' :: Config -> Bool
 totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
 
 terminationCheck' :: Config -> Bool
-terminationCheck' cfg = totalHaskell cfg || not (notermination cfg)
+terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) && (not (structuralTerm cfg))
