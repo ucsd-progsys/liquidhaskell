@@ -791,6 +791,7 @@ data Def a
   | Kut !KVar
   | Pack !KVar !Int
   | IBind !Int !Symbol !SortedReft
+  | EBind !Int !Symbol !Sort 
   | Opt !String
   | Def !Equation
   | Mat !Rewrite
@@ -817,9 +818,8 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> Pack  <$> (reserved "pack"       >> kvarP)   <*> (colon >> intP)
     <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
     <|> Kut   <$> (reserved "cut"        >> kvarP)
-    <|> IBind <$> (reserved "bind"       >> intP)
-              <*> symbolP
-              <*> (colon >> {-# SCC "sortedReftP" #-} sortedReftP)
+    <|> EBind <$> (reserved "ebind"      >> intP) <*> symbolP <*> (colon >> braces sortP)
+    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
     <|> Opt    <$> (reserved "fixpoint"   >> stringLiteral)
     <|> Def    <$> (reserved "define"     >> defineP)
     <|> Mat    <$> (reserved "match"      >> matchP)
@@ -884,13 +884,15 @@ boolP = (reserved "True" >> return True)
     <|> (reserved "False" >> return False)
 
 defsFInfo :: [Def a] -> FInfo a
-defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs lts dts kts qs binfo adts mempty mempty ae
+defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts mempty mempty ae
   where
-    cm         = Misc.safeFromList "defs-cm" 
-                                    [(cid c, c)         | Cst c       <- defs]
-    ws         = Misc.safeFromList "defs-ws" 
-                                    [(Misc.thd3 $ wrft w, w) | Wfc w       <- defs]
-    bs         = bindEnvFromList    [(n, x, r)          | IBind n x r <- defs]
+    cm         = Misc.safeFromList 
+                   "defs-cm"        [(cid c, c)         | Cst c       <- defs]
+    ws         = Misc.safeFromList 
+                   "defs-ws"        [(i, w)              | Wfc w    <- defs, let i = Misc.thd3 (wrft w)]
+    bs         = bindEnvFromList  $ exBinds ++ [(n,x,r)  | IBind n x r <- defs] 
+    ebs        = S.fromList         [ n                  | (n,_,_) <- exBinds] 
+    exBinds    =                    [(n, x, RR t mempty) | EBind n x t <- defs]
     lts        = fromListSEnv       [(x, t)             | Con x t     <- defs]
     dts        = fromListSEnv       [(x, t)             | Dis x t     <- defs]
     kts        = KS $ S.fromList    [k                  | Kut k       <- defs]

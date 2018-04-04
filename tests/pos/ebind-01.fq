@@ -1,5 +1,5 @@
 bind  1 m  : {v: int | true }
-ebind 2 x1 : int 
+ebind 2 x1 : { int }
 
 constraint:
   env [1; 2]

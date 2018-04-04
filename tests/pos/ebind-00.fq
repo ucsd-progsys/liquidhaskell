@@ -1,4 +1,4 @@
-ebind 0 x1 : int 
+ebind 0 x1 : { int }
 
 constraint:
   env [0]
