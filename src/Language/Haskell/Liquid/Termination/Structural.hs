@@ -4,7 +4,7 @@ module Language.Haskell.Liquid.Termination.Structural (
 
   terminationCheck
 
-  ) where 
+  ) where
 
 import Language.Haskell.Liquid.Types hiding (terminationCheck)
 import Language.Fixpoint.Types.Errors
@@ -14,28 +14,27 @@ import CoreSyn
 import Var
 import Name (getSrcSpan)
 import VarSet
-import UniqSet (nonDetEltsUniqSet)
 import Data.Monoid ((<>))
 
 import Text.PrettyPrint.HughesPJ hiding ((<>))
 import qualified Data.HashSet                           as S
 
 
-terminationCheck :: GhcInfo -> Output Doc 
+terminationCheck :: GhcInfo -> Output Doc
 terminationCheck info | structuralTerm (getConfig info)
                       = mconcat $ map (resultToDoc . checkBind (cbs info)) (allRecBinds $ cbs info)
 terminationCheck info = mconcat $ map (resultToDoc . checkBind (cbs info)) (S.toList $ gsStTerm $ spec info)
 
 
-data Result = OK | Error [UserError] 
+data Result = OK | Error [UserError]
 
 instance Monoid Result where
-  mempty = OK 
-  mappend OK e = e 
-  mappend e OK = e 
+  mempty = OK
+  mappend OK e = e
+  mappend e OK = e
   mappend (Error e1) (Error e2) = Error (e1 ++ e2)
 
-resultToDoc :: Result -> Output Doc 
+resultToDoc :: Result -> Output Doc
 resultToDoc OK        = mempty
 resultToDoc (Error x) = mempty {o_result = Unsafe x }
 
@@ -44,7 +43,7 @@ checkBind cbs x = maybe OK isStructurallyRecursiveGroup (findRecBind cbs x)
 
 
 allRecBinds :: [CoreBind] -> [Var]
-allRecBinds cbs = concat[ fst <$> xes |  Rec xes <- cbs ] 
+allRecBinds cbs = concat[ fst <$> xes |  Rec xes <- cbs ]
 
 findRecBind :: [CoreBind] -> Var -> Maybe [(Var,CoreExpr)]
 findRecBind [] _ = Nothing
@@ -64,34 +63,55 @@ isStructurallyRecursive funs (fun, rhs)
   | null xs
   = mkError fun (text "The definition has no value parameters.")
   | otherwise
-  = check (Env (mkError fun) funs (mkVarSet xs) emptyVarSet) [] body
+  = check (Env (mkError fun) funs (map initParam xs)) [] body
   where
     (_ts, xs, body) = collectTyAndValBinders rhs
 
 mkError :: Var -> Doc -> Result
 mkError fun expl = Error [ErrStTerm (getSrcSpan fun) (text $ showPpr fun) expl]
 
+data Param = Param
+    { origParam :: VarSet -- ^ Variables bound to parameter
+    , subterms  :: VarSet -- ^ Variables bound to subterms of the parameter
+    }
+
+initParam :: Var -> Param
+initParam x = Param (unitVarSet x) emptyVarSet
+
 data Env = Env
     { retErr   :: Doc -> Result -- ^ How to signal erros
     , funs     :: VarSet        -- ^ Which functions are interesting
-    , params   :: VarSet        -- ^ Variables bound to the first parameter of the current function
-    , subterms :: VarSet        -- ^ Variables bound to immediate subterms of these parameters
+    , params   :: [Param]       -- ^ Parameters
     }
 
-shadow :: Env -> [Var] -> Env
-shadow (Env retErr funs params subterms) vs
-    = Env retErr (funs `delVarSetList` vs) (params `delVarSetList` vs) (subterms `delVarSetList` vs)
 
-envAddSubterms :: Env -> [Var] -> Env
-envAddSubterms env vs = env { subterms = subterms env `extendVarSetList` vs }
+shadow :: Env -> [Var] -> Env
+shadow (Env retErr funs params) vs
+    = Env retErr (funs `delVarSetList` vs) (map shadowParam params)
+  where
+    shadowParam (Param origParam subterms)
+      = Param (origParam `delVarSetList` vs) (subterms `delVarSetList` vs)
+
+envAddSubterms :: CoreExpr -- ^ the scrutinee variable
+               -> [Var]    -- ^ the variables that are subterms
+               -> Env
+               -> Env
+envAddSubterms (Tick _ e) vs env = envAddSubterms e vs env
+envAddSubterms (Cast e _) vs env = envAddSubterms e vs env
+envAddSubterms (Var v)    vs env = env { params = map paramAddSubterms (params env) }
+  where
+    paramAddSubterms p | v `elemVarSet` origParam p || v `elemVarSet` subterms p
+                       = p { subterms = subterms p `extendVarSetList` vs }
+                       | otherwise = p
+envAddSubterms _ _ env = env
 
 check :: Env -> [CoreArg] -> CoreExpr -> Result
 check env args = \case
     Var fun | not (fun `elemVarSet` funs env) -> mempty
-            | (a:_) <- args, isGoodArg env a  -> mempty
+            | isGoodArgs (params env) args  -> mempty
             | [] <- args -> retErr env $ text "Unsaturated call to" <+> (text $ showPpr fun)
             | otherwise  -> retErr env $ text "Non-structural recursion in call" <+>
-                                        (text $ showPpr (mkApps (Var fun) args)) $$ subTermsHelpMsg
+                                        (text $ showPpr (mkApps (Var fun) args))
 
     App e a | isTypeArg a ->                   check env args e
             | otherwise   -> check env [] a <> check env (a:args) e
@@ -103,10 +123,9 @@ check env args = \case
 
     Case scrut bndr _ alts -> mconcat $
         [ check env [] scrut ] ++
-        [ let env' | isParam env scrut = env `shadow` (bndr:pats) `envAddSubterms` pats
-                   | otherwise         = env `shadow` (bndr:pats)
-          in check env' [] rhs
-        | (_, pats, rhs) <- alts]
+        [ check env' [] rhs
+        | (_, pats, rhs) <- alts
+        , let env' = envAddSubterms scrut pats $ env `shadow` (bndr:pats) ]
 
     -- Boring transparent cases
     Cast e _   -> check env args e
@@ -115,18 +134,15 @@ check env args = \case
     Lit{}      -> mempty
     Coercion{} -> mempty
     Type{}     -> mempty
-  where
-    subTermsHelpMsg | isEmptyVarSet (subterms env) = text "No valid arguments are in scope."
-                    | otherwise = text "Valid arguments are: " <+> (hcat $ punctuate comma $ map (text . showPpr) $ nonDetEltsUniqSet (subterms env))
 
-isParam :: Env -> CoreExpr -> Bool
-isParam env (Var v)    = v `elemVarSet` params env || v `elemVarSet` subterms env
-isParam env (Cast e _) = isParam env e
-isParam env (Tick _ e) = isParam env e
-isParam _   _          = False
-
-isGoodArg :: Env -> CoreExpr -> Bool
-isGoodArg env (Var v)    = v `elemVarSet` subterms env
-isGoodArg env (Cast e _) = isGoodArg env e
-isGoodArg env (Tick _ e) = isGoodArg env e
-isGoodArg _   _          = False
+-- This is where we check a function call.
+-- We go through the list of arguments as long as they are equal
+-- to the original parameter. If we find one that is smaller, great. Otherwise,
+-- fail.
+isGoodArgs :: [Param] -> [CoreArg] -> Bool
+isGoodArgs ps     (Cast e _ : as) = isGoodArgs ps (e : as)
+isGoodArgs ps     (Tick _ e : as) = isGoodArgs ps (e : as)
+isGoodArgs (p:ps) (Var v : as)
+    | v `elemVarSet` origParam p = isGoodArgs ps as
+    | v `elemVarSet` subterms p  = True -- yay!
+isGoodArgs _ _ = False
