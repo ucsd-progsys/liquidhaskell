@@ -68,14 +68,14 @@ module Language.Fixpoint.Types.Solutions (
 import           Prelude hiding (lookup)
 import           GHC.Generics
 import           Control.DeepSeq
-import           Data.Maybe (fromMaybe)
+import           Data.Maybe (maybeToList, fromMaybe)
 import           Data.Hashable
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List as L
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
--- import qualified Data.HashSet              as S
+import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
@@ -182,7 +182,34 @@ data EbindSol
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: SInfo a -> [(BindId, EbindSol)]
-ebindInfo = error "TODO:ebindInfo" 
+ebindInfo si = _return_me [(x, EbDef i) | (x, i) <- ebindDefs si] 
+
+ebindDefs :: SInfo a -> [(BindId, SubcId)]
+ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
+                            , bid      <- maybeToList (M.lookup x ebSyms)] 
+  where 
+    ebSyms   = ebindSyms si 
+    cDefs    = cstrDefs  si 
+
+ebindSyms :: SInfo a -> M.HashMap Symbol BindId
+ebindSyms si = M.fromList [ (xi, bi) | bi        <- S.toList (ebinds si)
+                                     , let (xi,_) = lookupBindEnv bi be ] 
+  where
+    be       = bs si 
+ 
+cstrDefs :: SInfo a -> [(SubcId, Symbol)]
+cstrDefs si = [(cid, x) | (cid, c) <- M.toList (cm si)
+                        , x <- maybeToList (cstrDef be c) ]
+  where 
+    be      = bs si
+
+cstrDef :: BindEnv -> SimpC a -> Maybe Symbol 
+cstrDef be c 
+  | Just (EVar x) <- e = Just x 
+  | otherwise          = Nothing 
+  where 
+    (v,_)              = lookupBindEnv (cbind c) be 
+    e                  = isSingletonExpr v (crhs c) 
 
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,

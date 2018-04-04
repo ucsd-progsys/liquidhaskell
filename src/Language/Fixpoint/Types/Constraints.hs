@@ -13,7 +13,6 @@
 
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
-
 module Language.Fixpoint.Types.Constraints (
 
    -- * Top-level Queries
@@ -167,7 +166,7 @@ data SimpC a = SimpC
   { _cenv  :: !IBindEnv
   , _crhs  :: !Expr
   , _cid   :: !(Maybe Integer)
-  , _cbind :: !BindId               -- ^ Id of lhs/rhs binder
+  , cbind :: !BindId               -- ^ Id of lhs/rhs binder
   , _ctag  :: !Tag
   , _cinfo :: !a
   }
@@ -179,10 +178,10 @@ strengthenHyp si ies = strengthenBinds si bindExprs
   where
     bindExprs        = safeFromList "strengthenHyp" (mapFst (subcBind si) <$> ies)
 
-subcBind :: SInfo a -> Integer -> BindId
+subcBind :: SInfo a -> SubcId -> BindId
 subcBind si i
   | Just c <- M.lookup i (cm si)
-  = _cbind c
+  = cbind c
   | otherwise
   = errorstar $ "Unknown subcId in subcBind: " ++ show i
 
@@ -761,7 +760,7 @@ subcToSimpc m s = SimpC
   { _cenv       = senv s
   , _crhs       = reftPred $ sr_reft $ srhs s
   , _cid        = sid s
-  , _cbind      = safeLookup "subcToSimpc" (subcId s) m
+  , cbind      = safeLookup "subcToSimpc" (subcId s) m
   , _ctag       = stag s
   , _cinfo      = sinfo s
   }
