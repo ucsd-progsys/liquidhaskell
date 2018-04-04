@@ -5,7 +5,7 @@
 -- collapse the resulting constraint dependencies.
 -- See the type of `SolverInfo` for details.
 
-module Language.Fixpoint.Solver.Eliminate (solverInfo) where
+module Language.Fixpoint.Solver.Eliminate ( solverInfo ) where
 
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -28,7 +28,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList sE mempty mempty kHyps kS
+    sHyp           = Sol.fromList sE mempty mempty kHyps kS (Sol.ebindInfo sI) 
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI

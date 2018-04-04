@@ -25,6 +25,7 @@ module Language.Fixpoint.Types.Solutions (
   -- * Solution elements
   , Hyp, Cube (..), QBind, GBind
   , EQual (..)
+  , EbindSol (..)
 
   -- * Equal elements
   , eQual
@@ -38,6 +39,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Constructor
   , fromList
+  , ebindInfo
 
   -- * Update
   , update
@@ -120,8 +122,8 @@ update1 s (k, qs) = (change, updateK k qs s)
 --------------------------------------------------------------------------------
 type Solution  = Sol () QBind
 type GSolution = Sol (((Symbol, Sort), Expr), GBind) QBind
-newtype QBind = QB [EQual]   deriving (Show, Data, Typeable, Generic, Eq)
-newtype GBind = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
+newtype QBind  = QB [EQual]   deriving (Show, Data, Typeable, Generic, Eq)
+newtype GBind  = GB [[EQual]] deriving (Show, Data, Typeable, Generic)
 
 emptyGMap :: GSolution -> GSolution
 emptyGMap sol = mapGMap sol (\(x,_) -> (x, GB []))
@@ -167,37 +169,59 @@ instance PPrint QBind where
   pprintTidy k = pprintTidy k . qbEQuals
 
 --------------------------------------------------------------------------------
+-- | An `EbindSol` contains the relevant information for an existential-binder;
+--   (See tests/pos/ebind-*.fq for examples.) This is either 
+--   1. the constraint whose HEAD is a singleton that defines the binder, OR 
+--   2. the solved out TERM that we should use in place of the ebind at USES.
+--------------------------------------------------------------------------------
+data EbindSol 
+  = EbDef SubcId      -- ^ The constraint whose HEAD "defines" the Ebind
+  | EbSol Expr        -- ^ The solved out term that should be used at USES.
+
+--------------------------------------------------------------------------------
+-- | `ebindInfo` constructs the information about the "ebind-definitions". 
+--------------------------------------------------------------------------------
+ebindInfo :: SInfo a -> [(BindId, EbindSol)]
+ebindInfo = error "TODO:ebindInfo" 
+
+--------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
 --------------------------------------------------------------------------------
 data Sol b a = Sol
-  { sEnv  :: !SymEnv                     -- ^ Environment used to elaborate solutions
-  , sMap  :: !(M.HashMap KVar a)         -- ^ Actual solution (for cut kvar)
-  , gMap  :: !(M.HashMap KVar b)         -- ^ Solution for gradual variables
-  , sHyp  :: !(M.HashMap KVar Hyp)       -- ^ Defining cubes  (for non-cut kvar)
-  , sScp  :: !(M.HashMap KVar IBindEnv)  -- ^ set of allowed binders for kvar
+  { sEnv :: !SymEnv                      -- ^ Environment used to elaborate solutions
+  , sMap :: !(M.HashMap KVar a)          -- ^ Actual solution (for cut kvar)
+  , gMap :: !(M.HashMap KVar b)          -- ^ Solution for gradual variables
+  , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
+  , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
+  , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
   }
 
 updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a
 updateGMap sol gmap = sol {gMap = gmap}
-
 
 mapGMap :: Sol b a -> (b -> b) -> Sol b a
 mapGMap sol f = sol {gMap = M.map f (gMap sol)}
 
 
 instance Monoid (Sol a b) where
-  mempty        = Sol mempty mempty mempty mempty mempty
-  mappend s1 s2 = Sol { sEnv  = mappend (sEnv s1) (sEnv s2)
-                      , sMap  = mappend (sMap s1) (sMap s2)
-                      , gMap  = mappend (gMap s1) (gMap s2)
-                      , sHyp  = mappend (sHyp s1) (sHyp s2)
-    --                , sBot  = mappend (sBot s1) (sBot s2)
-                      , sScp  = mappend (sScp s1) (sScp s2)
+  mempty        = Sol { sEnv = mempty 
+                      , sMap = mempty 
+                      , gMap = mempty 
+                      , sHyp = mempty 
+                      , sScp = mempty 
+                      , sEbd = mempty
+                      }
+  mappend s1 s2 = Sol { sEnv = mappend (sEnv s1) (sEnv s2)
+                      , sMap = mappend (sMap s1) (sMap s2)
+                      , gMap = mappend (gMap s1) (gMap s2)
+                      , sHyp = mappend (sHyp s1) (sHyp s2)
+                      , sScp = mappend (sScp s1) (sScp s2)
+                      , sEbd = mappend (sEbd s1) (sEbd s2) 
                       }
 
 instance Functor (Sol a) where
-  fmap f (Sol e s m1 m2 m3) = Sol e (f <$> s) m1 m2 m3
+  fmap f (Sol e s m1 m2 m3 m4) = Sol e (f <$> s) m1 m2 m3 m4
 
 instance (PPrint a, PPrint b) => PPrint (Sol a b) where
   pprintTidy k = pprintTidy k . sMap
@@ -238,13 +262,20 @@ resultGradual s = fmap go' (gMap s)
 --------------------------------------------------------------------------------
 -- | Create a Solution ---------------------------------------------------------
 --------------------------------------------------------------------------------
-fromList :: SymEnv -> [(KVar, a)] -> [(KVar, b)] -> [(KVar, Hyp)] -> M.HashMap KVar IBindEnv -> Sol a b
-fromList env kGs kXs kYs = Sol env kXm kGm kYm -- kBm
+fromList :: SymEnv 
+         -> [(KVar, a)] 
+         -> [(KVar, b)] 
+         -> [(KVar, Hyp)] 
+         -> M.HashMap KVar IBindEnv 
+         -> [(BindId, EbindSol)]
+         -> Sol a b
+fromList env kGs kXs kYs z ebs 
+        = Sol env kXm kGm kYm z ebm
   where
-    kXm              = M.fromList   kXs
-    kYm              = M.fromList   kYs
-    kGm              = M.fromList   kGs
- -- kBm              = const () <$> kXm
+    kXm = M.fromList   kXs
+    kYm = M.fromList   kYs
+    kGm = M.fromList   kGs
+    ebm = M.fromList   ebs
 
 --------------------------------------------------------------------------------
 qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
