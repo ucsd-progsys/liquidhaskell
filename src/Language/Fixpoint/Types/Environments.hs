@@ -47,7 +47,7 @@ module Language.Fixpoint.Types.Environments (
   , bindEnvFromList, bindEnvToList, elemsBindEnv
 
   -- * Information needed to lookup and update Solutions
-  , SolEnv (..)
+  -- , SolEnv (..)
 
   -- * Groups of KVars (needed by eliminate)
   , Packs (..)
@@ -96,8 +96,8 @@ instance PPrint a => PPrint (SizedEnv a) where
 type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
 
-data SolEnv        = SolEnv { soeBinds :: !BindEnv
-                            } deriving (Eq, Show, Generic)
+-- data SolEnv        = SolEnv { soeBinds :: !BindEnv } 
+--                     deriving (Eq, Show, Generic)
 
 instance PPrint a => PPrint (SEnv a) where
   pprintTidy k = pprintKVs k . L.sortBy (compare `on` fst) . toListSEnv

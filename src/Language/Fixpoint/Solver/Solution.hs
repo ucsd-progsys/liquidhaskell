@@ -159,14 +159,14 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted env sr -- (F.tracepp _msg sr)
+    tc            = So.checkSorted env sr 
     -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
 
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
+lhsPred :: F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
 lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
   where
     g          = (ci, be, bs)
@@ -175,7 +175,7 @@ lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
     _msg       = "LhsPred for id = " ++ show (sid c)
 
 type Cid         = Maybe Integer
-type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
+type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
@@ -191,7 +191,7 @@ envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.k
     (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
     xrs             = (\i -> F.notracepp  ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
     is              = F.elemsIBindEnv bs
-    be              = F.soeBinds (snd3 g)
+    be              = snd3 g
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
@@ -335,9 +335,7 @@ isClass _       = False
 -- substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
-combinedSEnv (_, se, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
-  where
-    be                   = F.soeBinds se
+combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
 addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
@@ -352,9 +350,7 @@ delCEnv s k bs  = F.diffIBindEnv bs _kbs
     _kbs = safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
-symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs
-  where
-    be                 = F.soeBinds se
+symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
 
 _noKvars :: F.Expr -> Bool
 _noKvars = null . V.kvars

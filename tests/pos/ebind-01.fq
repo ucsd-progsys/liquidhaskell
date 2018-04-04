@@ -1,14 +1,15 @@
 bind  1 m  : {v: int | true }
 ebind 2 x1 : { int }
+// bind  2 x1 : {v: int | v = m + 1 }
 
 constraint:
   env [1; 2]
-  lhs {v1 : int | v1 = m + 1 }
-  rhs {v1 : int | v1 = x1    }
+  lhs {v : int | v = m + 1 }
+  rhs {v : int | v = x1    }
   id 1 tag []
 
 constraint:
   env [1; 2]
-  lhs {v2 : int | v2 = x1 + 1}
-  rhs {v2 : int | v2 = 2 + m }
+  lhs {v : int | v = x1 + 1}
+  rhs {v : int | v = 2 + m }
   id 2 tag []
