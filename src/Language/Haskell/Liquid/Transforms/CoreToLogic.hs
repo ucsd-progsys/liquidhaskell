@@ -32,6 +32,7 @@ import           Literal
 import           IdInfo
 import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
+import qualified Data.Text                             as T
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
 import           TysWiredIn
@@ -447,7 +448,8 @@ mkLit (MachWord64 n)   = mkI n
 mkLit (MachFloat  n)   = mkR n
 mkLit (MachDouble n)   = mkR n
 mkLit (LitInteger n _) = mkI n
-mkLit (MachStr s)      = mkS s
+mkLit (MachStr    s)   = mkS s
+mkLit (MachChar   c)   = mkC c 
 mkLit _                = Nothing -- ELit sym sort
 
 mkI :: Integer -> Maybe Expr
@@ -458,6 +460,10 @@ mkR                    = Just . ECon . F.R . fromRational
 
 mkS :: ByteString -> Maybe Expr
 mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
+
+mkC :: Char -> Maybe Expr
+mkC                    = Just . ECon . (`F.L` char)  . T.singleton 
+  where char           = FTC F.charFTyCon
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
