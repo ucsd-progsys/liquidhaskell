@@ -613,7 +613,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
        , asserts  = es
        , ae       = axe
        , ddecls   = adts
-       , ebinds   = S.fromList ebs 
+       , ebinds   = ebs 
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -641,7 +641,7 @@ data GInfo c a =
   FI { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
-     , ebinds   :: !(S.HashSet BindId)        -- ^ Subset of existential binders
+     , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
      , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
      , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
      , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate

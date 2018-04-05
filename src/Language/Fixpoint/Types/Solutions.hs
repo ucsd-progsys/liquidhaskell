@@ -18,7 +18,8 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution, GSolution
-  , Sol (gMap, sEnv), updateGMap, updateGMapWithKey
+  , Sol (gMap, sEnv, sEbd)
+  , updateGMap, updateGMapWithKey
   , sScp
   , CMap
 
@@ -43,6 +44,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Update
   , update
+  , updateEbind
 
   -- * Lookup
   , lookupQBind
@@ -75,7 +77,6 @@ import qualified Data.List as L
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
-import qualified Data.HashSet              as S
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
@@ -116,6 +117,7 @@ update1 s (k, qs) = (change, updateK k qs s)
   where
     oldQs         = lookupQBind s k
     change        = qbSize oldQs /= qbSize qs
+
 
 --------------------------------------------------------------------------------
 -- | The `Solution` data type --------------------------------------------------
@@ -184,6 +186,14 @@ instance PPrint EbindSol where
   pprintTidy k (EbSol e) = "EbSol:" <+> pprintTidy k e 
 
 --------------------------------------------------------------------------------
+updateEbind :: Sol a b -> BindId -> Expr -> Sol a b 
+--------------------------------------------------------------------------------
+updateEbind s i e = case M.lookup i (sEbd s) of 
+  Nothing         -> errorstar $ "updateEBind: Unknown ebind " ++ show i
+  Just (EbSol e0) -> errorstar $ "updateEBind: Re-assigning ebind " ++ show i ++ " with solution: " ++ show e0 
+  Just (EbDef _ ) -> s { sEbd = M.insert i (EbSol e) (sEbd s) }
+    
+--------------------------------------------------------------------------------
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: SInfo a -> [(BindId, EbindSol)]
@@ -197,7 +207,7 @@ ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
     cDefs    = cstrDefs  si 
 
 ebindSyms :: SInfo a -> M.HashMap Symbol BindId
-ebindSyms si = M.fromList [ (xi, bi) | bi        <- S.toList (ebinds si)
+ebindSyms si = M.fromList [ (xi, bi) | bi        <- ebinds si
                                      , let (xi,_) = lookupBindEnv bi be ] 
   where
     be       = bs si 

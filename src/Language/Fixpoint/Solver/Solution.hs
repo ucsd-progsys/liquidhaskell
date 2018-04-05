@@ -22,7 +22,7 @@ import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
-import           Language.Fixpoint.Misc
+import qualified Language.Fixpoint.Misc               as Misc
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
@@ -32,7 +32,7 @@ import           Prelude                              hiding (init, lookup)
 import           Language.Fixpoint.Solver.Sanitize
 
 -- DEBUG
--- import Text.Printf (printf)
+import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 
@@ -41,7 +41,7 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = solveEBinds si sol0 
+init cfg si ks = solveEBinds si (F.bs si) sol0 
   where
     sol0       = Sol.fromList senv mempty keqs [] mempty ebs 
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
@@ -102,7 +102,7 @@ instKQ ho env v t q = do
 instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands ho env = filter isOk tyss
   where
-    tyss      = groupList [(t, x) | (x, t) <- xts]
+    tyss      = Misc.groupList [(t, x) | (x, t) <- xts]
     isOk      = if ho then const True else isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
@@ -183,16 +183,29 @@ apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.pAnd (pks:ps), kI)
   where
     (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
-    (ps,  ks, _)  = envConcKVars g bs
+    (ps,  ks, _)  = envConcKVars g s bs
 
 
-envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
-envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
+envConcKVars :: CombinedEnv -> Sol.Sol a b -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
+envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
   where
     (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-    xrs             = (\i -> F.notracepp  ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
+    xrs             = lookupBindEnvExt be s <$> is
     is              = F.elemsIBindEnv bs
-    be              = snd3 g
+    be              = Misc.snd3 g
+
+lookupBindEnvExt :: F.BindEnv -> Sol.Sol a b -> F.BindId -> (F.Symbol, F.SortedReft)
+lookupBindEnvExt be s i 
+  | Just e <- ebSol s i = (x, sr { F.sr_reft = F.exprReft e }) 
+  | otherwise           = (x, sr)
+   where 
+      (x, sr)           = F.lookupBindEnv i be 
+
+ebSol :: Sol.Sol a b -> F.BindId -> Maybe F.Expr 
+ebSol s i = case M.lookup i (Sol.sEbd s) of 
+  Just (Sol.EbSol e) -> Just e 
+  _                  -> Nothing 
+
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
@@ -202,7 +215,7 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs          -> hypPred g s ksu cs
   Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
-    msg     = "applyKVar: " ++ show (fst3 g)
+    msg     = "applyKVar: " ++ show (Misc.fst3 g)
 
 hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
@@ -348,7 +361,7 @@ delCEnv :: Sol.Sol a Sol.QBind -> F.KVar -> F.IBindEnv -> F.IBindEnv
 delCEnv s k bs  = F.diffIBindEnv bs _kbs
                                                 -- ORIG: bs'
   where
-    _kbs = safeLookup "delCEnv" k (Sol.sScp s)
+    _kbs = Misc.safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
 symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
@@ -379,7 +392,7 @@ mconcatPlus :: [KInfo] -> KInfo
 mconcatPlus = foldr mplus mempty
 
 appendTags :: [Tag] -> [Tag] -> [Tag]
-appendTags ts ts' = sortNub (ts ++ ts')
+appendTags ts ts' = Misc.sortNub (ts ++ ts')
 
 extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
@@ -391,9 +404,21 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
   where
     (es, is)              = unzip $ map mF xs
 
-
 --------------------------------------------------------------------------------
-solveEBinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
+solveEBinds :: F.SInfo a -> F.BindEnv -> Sol.Solution -> Sol.Solution 
 --------------------------------------------------------------------------------
-solveEBinds _si _s = undefined 
+solveEBinds si be s = L.foldl' solve1 s ebs 
+  where 
+    solve1 s (i, c) = Sol.updateEbind s i (ebDef si be s (i, c))
+    ebs             = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s)] 
 
+ebDef :: F.SInfo a -> F.BindEnv -> Sol.Solution -> (F.BindId, F.SubcId) -> F.Expr 
+ebDef si be sol (ix, cid) = exElim ix px 
+  where 
+    px                    = lhsPred be sol cx 
+    cx                    = Misc.safeLookup "ebDef" cid (F.cm si)
+
+exElim :: F.BindId -> F.Pred -> F.Expr 
+exElim ix p = F.tracepp msg (F.expr (666 :: Int))
+  where 
+    msg     = printf "exElim: ix = %d, p = %s" ix (F.showpp p) 
