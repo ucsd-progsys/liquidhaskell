@@ -41,14 +41,22 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs 
+init cfg si ks = solveEBinds si sol0 
   where
+    sol0       = Sol.fromList senv mempty keqs [] mempty 
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
     qs         = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
     genv       = instConstants si
     senv       = symbolEnv cfg si
-    ebs        = Sol.ebindInfo si
+
+updateEBinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
+updateEBinds si s = undefined 
+  where
+    ebs         = Sol.ebindInfo si
+  
+solveEbinds :: [(BindId, Expr)]
+FIXME
 
 --------------------------------------------------------------------------------
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)

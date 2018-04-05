@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{- LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -34,7 +33,7 @@ module Language.Fixpoint.Types.Sorts (
   , mapFTyCon -- TODO: hide these
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
-  , setSort, bitVecSort, mapSort
+  , setSort, bitVecSort, mapSort, charSort
   , listFTyCon
   , isListTC
   , sizeBv
@@ -408,6 +407,9 @@ bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Na
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
 
+charSort :: Sort 
+charSort = FTC charFTyCon
+
 symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc
 
@@ -449,7 +451,6 @@ instance NFData DataField
 instance NFData DataCtor
 instance NFData DataDecl
 instance NFData Sub
-
 
 instance Monoid Sort where
   mempty            = FObj "any"
