@@ -86,8 +86,9 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
-  let s2   = mappend s0 s1  
-  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
+  let s2   = mappend s0 s1 
+  let s3   = solveEbinds fi s2 
+  s       <- {-# SCC "sol-refine" #-} refine s3 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
@@ -295,3 +296,23 @@ partitionInfo (i, fi)
     gs   = F.wloc . snd <$> L.filter (F.isGWfc . snd) (M.toList (F.ws fi))
     defs = L.nub (F.gsrc <$> gs)
     uses = L.nub (F.gused <$> gs)
+
+---------------------------------------------------------------------------------
+solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
+--------------------------------------------------------------------------------
+solveEbinds si s0    = L.foldl' solve1 s0 ebs 
+  where 
+    solve1 s (i, c)  = Sol.updateEbind s i (ebDef si be s (i, c))
+    ebs              = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
+    be               = F.bs si
+
+ebDef :: F.SInfo a -> F.BindEnv -> Sol.Solution -> (F.BindId, F.SubcId) -> F.Expr 
+ebDef si be sol (ix, cid) = exElim ix px 
+  where 
+    px                    = S.lhsPred be sol cx 
+    cx                    = Misc.safeLookup "ebDef" cid (F.cm si)
+
+exElim :: F.BindId -> F.Pred -> F.Expr 
+exElim ix p = F.tracepp msg (F.expr (666 :: Int))
+  where 
+    msg     = printf "exElim: ix = %d, p = %s" ix (F.showpp p) 

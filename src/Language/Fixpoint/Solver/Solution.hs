@@ -33,7 +33,7 @@ import           Prelude                              hiding (init, lookup)
 import           Language.Fixpoint.Solver.Sanitize
 
 -- DEBUG
-import Text.Printf (printf)
+-- import Text.Printf (printf)
 -- import           Debug.Trace (trace)
 
 
@@ -42,9 +42,8 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = solveEBinds si (F.bs si) sol0
+init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs 
   where
-    sol0       = Sol.fromList senv mempty keqs [] mempty ebs 
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
     qs         = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
@@ -404,27 +403,6 @@ mrExprInfos :: (a -> (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> (b1, c1)
 mrExprInfos mF erF irF xs = (erF es, irF is)
   where
     (es, is)              = unzip $ map mF xs
-
---------------------------------------------------------------------------------
---- MOVE INTO Solver/Solve.hs
-solveEBinds :: F.SInfo a -> F.BindEnv -> Sol.Solution -> Sol.Solution [HEREHEREHERE] 
---------------------------------------------------------------------------------
-solveEBinds si be s0 = L.foldl' solve1 s0 ebs 
-  where 
-    solve1 s (i, c)  = Sol.updateEbind s i (ebDef si be s (i, c))
-    ebs              = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
-
-ebDef :: F.SInfo a -> F.BindEnv -> Sol.Solution -> (F.BindId, F.SubcId) -> F.Expr 
-ebDef si be sol (ix, cid) = exElim ix px 
-  where 
-    px                    = lhsPred be sol cx 
-    cx                    = Misc.safeLookup "ebDef" cid (F.cm si)
-
-exElim :: F.BindId -> F.Pred -> F.Expr 
-exElim ix p = F.tracepp msg (F.expr (666 :: Int))
-  where 
-    msg     = printf "exElim: ix = %d, p = %s" ix (F.showpp p) 
-
 
 --------------------------------------------------------------------------------
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
