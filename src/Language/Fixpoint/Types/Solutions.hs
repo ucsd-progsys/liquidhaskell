@@ -187,7 +187,7 @@ instance PPrint EbindSol where
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: SInfo a -> [(BindId, EbindSol)]
-ebindInfo si = _return_me [(x, EbDef i) | (x, i) <- ebindDefs si] 
+ebindInfo si = [(x, EbDef i) | (x, i) <- ebindDefs si] 
 
 ebindDefs :: SInfo a -> [(BindId, SubcId)]
 ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
@@ -226,7 +226,7 @@ data Sol b a = Sol
   , gMap :: !(M.HashMap KVar b)          -- ^ Solution for gradual variables
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
-  -- , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
+  , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
   }
 
 updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a
@@ -242,14 +242,14 @@ instance Monoid (Sol a b) where
                       , gMap = mempty 
                       , sHyp = mempty 
                       , sScp = mempty 
-              --        , sEbd = mempty
+                      , sEbd = mempty
                       }
   mappend s1 s2 = Sol { sEnv = mappend (sEnv s1) (sEnv s2)
                       , sMap = mappend (sMap s1) (sMap s2)
                       , gMap = mappend (gMap s1) (gMap s2)
                       , sHyp = mappend (sHyp s1) (sHyp s2)
                       , sScp = mappend (sScp s1) (sScp s2)
-              --        , sEbd = mappend (sEbd s1) (sEbd s2) 
+                      , sEbd = mappend (sEbd s1) (sEbd s2) 
                       }
 
 instance Functor (Sol a) where
@@ -299,15 +299,15 @@ fromList :: SymEnv
          -> [(KVar, b)] 
          -> [(KVar, Hyp)] 
          -> M.HashMap KVar IBindEnv 
-         -- -> [(BindId, EbindSol)]
+         -> [(BindId, EbindSol)]
          -> Sol a b
-fromList env kGs kXs kYs z -- ebs 
-        = Sol env kXm kGm kYm z -- ebm
+fromList env kGs kXs kYs z ebs 
+        = Sol env kXm kGm kYm z ebm
   where
-    kXm = M.fromList   kXs
-    kYm = M.fromList   kYs
-    kGm = M.fromList   kGs
-    -- ebm = M.fromList   ebs
+    kXm = M.fromList kXs
+    kYm = M.fromList kYs
+    kGm = M.fromList kGs
+    ebm = M.fromList ebs
 
 --------------------------------------------------------------------------------
 qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]

@@ -43,20 +43,13 @@ init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solutio
 --------------------------------------------------------------------------------
 init cfg si ks = solveEBinds si sol0 
   where
-    sol0       = Sol.fromList senv mempty keqs [] mempty 
+    sol0       = Sol.fromList senv mempty keqs [] mempty ebs 
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
     qs         = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
     genv       = instConstants si
     senv       = symbolEnv cfg si
-
-updateEBinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
-updateEBinds si s = undefined 
-  where
-    ebs         = Sol.ebindInfo si
-  
-solveEbinds :: [(BindId, Expr)]
-FIXME
+    ebs        = Sol.ebindInfo si
 
 --------------------------------------------------------------------------------
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
@@ -397,3 +390,10 @@ mrExprInfos :: (a -> (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> (b1, c1)
 mrExprInfos mF erF irF xs = (erF es, irF is)
   where
     (es, is)              = unzip $ map mF xs
+
+
+--------------------------------------------------------------------------------
+solveEBinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
+--------------------------------------------------------------------------------
+solveEBinds _si _s = undefined 
+
