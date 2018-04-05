@@ -33,6 +33,7 @@ import           IdInfo
 import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
 import qualified Data.Text                             as T
+import qualified Data.Char 
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
 import           TysWiredIn
@@ -462,8 +463,10 @@ mkS :: ByteString -> Maybe Expr
 mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 
 mkC :: Char -> Maybe Expr
-mkC                    = Just . ECon . (`F.L` char)  . T.singleton 
-  where char           = FTC F.charFTyCon
+mkC                    = Just . ECon . (`F.L` F.charSort)  . repr 
+  where 
+    -- repr            = T.singleton 
+    repr               = T.pack . show . Data.Char.ord 
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
