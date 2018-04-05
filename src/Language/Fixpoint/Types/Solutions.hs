@@ -6,6 +6,7 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
@@ -40,7 +41,6 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Constructor
   , fromList
-  , ebindInfo
 
   -- * Update
   , update
@@ -70,10 +70,10 @@ module Language.Fixpoint.Types.Solutions (
 import           Prelude hiding (lookup)
 import           GHC.Generics
 import           Control.DeepSeq
-import           Data.Maybe (maybeToList, fromMaybe)
 import           Data.Hashable
-import qualified Data.HashMap.Strict       as M
-import qualified Data.List as L
+import qualified Data.Maybe                 as Mb 
+import qualified Data.HashMap.Strict        as M
+import qualified Data.List                  as L
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
@@ -188,44 +188,11 @@ instance PPrint EbindSol where
 --------------------------------------------------------------------------------
 updateEbind :: Sol a b -> BindId -> Expr -> Sol a b 
 --------------------------------------------------------------------------------
-updateEbind s i e = case M.lookup i (sEbd s) of 
+updateEbind s i !e = case M.lookup i (sEbd s) of 
   Nothing         -> errorstar $ "updateEBind: Unknown ebind " ++ show i
   Just (EbSol e0) -> errorstar $ "updateEBind: Re-assigning ebind " ++ show i ++ " with solution: " ++ show e0 
-  Just (EbDef _ ) -> s { sEbd = M.insert i (EbSol e) (sEbd s) }
+  Just _          -> s { sEbd = M.insert i (EbSol e) (sEbd s) }
     
---------------------------------------------------------------------------------
--- | `ebindInfo` constructs the information about the "ebind-definitions". 
---------------------------------------------------------------------------------
-ebindInfo :: SInfo a -> [(BindId, EbindSol)]
-ebindInfo si = [(x, EbDef i) | (x, i) <- ebindDefs si] 
-
-ebindDefs :: SInfo a -> [(BindId, SubcId)]
-ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
-                            , bid      <- maybeToList (M.lookup x ebSyms)] 
-  where 
-    ebSyms   = ebindSyms si 
-    cDefs    = cstrDefs  si 
-
-ebindSyms :: SInfo a -> M.HashMap Symbol BindId
-ebindSyms si = M.fromList [ (xi, bi) | bi        <- ebinds si
-                                     , let (xi,_) = lookupBindEnv bi be ] 
-  where
-    be       = bs si 
- 
-cstrDefs :: SInfo a -> [(SubcId, Symbol)]
-cstrDefs si = [(cid, x) | (cid, c) <- M.toList (cm si)
-                        , x <- maybeToList (cstrDef be c) ]
-  where 
-    be      = bs si
-
-cstrDef :: BindEnv -> SimpC a -> Maybe Symbol 
-cstrDef be c 
-  | Just (EVar x) <- e = Just x 
-  | otherwise          = Nothing 
-  where 
-    (v,_)              = lookupBindEnv (cbind c) be 
-    e                  = isSingletonExpr v (crhs c) 
-
 --------------------------------------------------------------------------------
 -- | A `Sol` contains the various indices needed to compute a solution,
 --   in particular, to compute `lhsPred` for any given constraint.
@@ -266,8 +233,9 @@ instance Functor (Sol a) where
   fmap f (Sol e s m1 m2 m3 m4) = Sol e (f <$> s) m1 m2 m3 m4
 
 instance (PPrint a, PPrint b) => PPrint (Sol a b) where
-  pprintTidy k = pprintTidy k . sMap
-
+  pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s)
+                        , "sEbd :=" <+> pprintTidy k (sEbd s) 
+                        ]
 
 --------------------------------------------------------------------------------
 -- | A `Cube` is a single constraint defining a KVar ---------------------------
@@ -332,7 +300,7 @@ qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
 --------------------------------------------------------------------------------
 lookupQBind :: Sol a QBind -> KVar -> QBind
 --------------------------------------------------------------------------------
-lookupQBind s k = {- tracepp _msg $ -} fromMaybe (QB []) (lookupElab s k)
+lookupQBind s k = {- tracepp _msg $ -} Mb.fromMaybe (QB []) (lookupElab s k)
   where
     _msg        = "lookupQB: k = " ++ show k
 

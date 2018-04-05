@@ -85,8 +85,9 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
-  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s       <- {-# SCC "sol-refine" #-} refine s1 wkl
+  let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
+  let s2   = mappend s0 s1  
+  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res

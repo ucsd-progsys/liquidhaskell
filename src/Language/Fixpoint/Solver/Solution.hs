@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
@@ -41,7 +42,7 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = solveEBinds si (F.bs si) sol0 
+init cfg si ks = solveEBinds si (F.bs si) sol0
   where
     sol0       = Sol.fromList senv mempty keqs [] mempty ebs 
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
@@ -49,7 +50,7 @@ init cfg si ks = solveEBinds si (F.bs si) sol0
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
     genv       = instConstants si
     senv       = symbolEnv cfg si
-    ebs        = Sol.ebindInfo si
+    ebs        = ebindInfo si
 
 --------------------------------------------------------------------------------
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
@@ -168,12 +169,12 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
+lhsPred be s c = {- F.notracepp _msg $ -} fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
     ci         = sid c
-    _msg       = "LhsPred for id = " ++ show (sid c)
+    _msg       = "LhsPred for id = " ++ show (sid c) ++ "with SOLUTION = " ++ F.showpp s
 
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
@@ -405,12 +406,13 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
     (es, is)              = unzip $ map mF xs
 
 --------------------------------------------------------------------------------
-solveEBinds :: F.SInfo a -> F.BindEnv -> Sol.Solution -> Sol.Solution 
+--- MOVE INTO Solver/Solve.hs
+solveEBinds :: F.SInfo a -> F.BindEnv -> Sol.Solution -> Sol.Solution [HEREHEREHERE] 
 --------------------------------------------------------------------------------
-solveEBinds si be s = L.foldl' solve1 s ebs 
+solveEBinds si be s0 = L.foldl' solve1 s0 ebs 
   where 
-    solve1 s (i, c) = Sol.updateEbind s i (ebDef si be s (i, c))
-    ebs             = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s)] 
+    solve1 s (i, c)  = Sol.updateEbind s i (ebDef si be s (i, c))
+    ebs              = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
 
 ebDef :: F.SInfo a -> F.BindEnv -> Sol.Solution -> (F.BindId, F.SubcId) -> F.Expr 
 ebDef si be sol (ix, cid) = exElim ix px 
@@ -422,3 +424,40 @@ exElim :: F.BindId -> F.Pred -> F.Expr
 exElim ix p = F.tracepp msg (F.expr (666 :: Int))
   where 
     msg     = printf "exElim: ix = %d, p = %s" ix (F.showpp p) 
+
+
+--------------------------------------------------------------------------------
+-- | `ebindInfo` constructs the information about the "ebind-definitions". 
+--------------------------------------------------------------------------------
+ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
+ebindInfo si = [(x, Sol.EbDef i) | (x, i) <- ebindDefs si] 
+
+ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId)]
+ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
+                            , bid      <- maybeToList (M.lookup x ebSyms)] 
+  where 
+    ebSyms   = ebindSyms si 
+    cDefs    = cstrDefs  si 
+
+ebindSyms :: F.SInfo a -> M.HashMap F.Symbol F.BindId
+ebindSyms si = M.fromList [ (xi, bi) | bi        <- ebinds si
+                                     , let (xi,_) = F.lookupBindEnv bi be ] 
+  where
+    be       = F.bs si 
+ 
+cstrDefs :: F.SInfo a -> [(F.SubcId, F.Symbol)]
+cstrDefs si = [(cid, x) | (cid, c) <- M.toList (cm si)
+                        , x <- maybeToList (cstrDef be c) ]
+  where 
+    be      = F.bs si
+
+cstrDef :: F.BindEnv -> F.SimpC a -> Maybe F.Symbol 
+cstrDef be c 
+  | Just (F.EVar x) <- e = Just x 
+  | otherwise            = Nothing 
+  where 
+    (v,_)              = F.lookupBindEnv (cbind c) be 
+    e                  = F.notracepp _msg $ F.isSingletonExpr v rhs 
+    _msg                = "cstrDef: " ++ show (stag c) ++ " crhs = " ++ F.showpp rhs 
+    rhs                = V.stripCasts (crhs c)
+
