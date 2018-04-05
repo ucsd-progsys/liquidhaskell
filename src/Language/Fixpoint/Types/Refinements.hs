@@ -698,7 +698,6 @@ isSingletonExpr v (PIff e1 e2)
   | e2 == EVar v           = Just e1
 isSingletonExpr _ _        = Nothing
 
-
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd
 pOr           = simplify . POr
