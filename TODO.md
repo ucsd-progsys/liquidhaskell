@@ -1,16 +1,3 @@
-
-## T1095 
-
-size A = 10 
-size _ = 20 
-
-## jp-strict
-
-See slack
-
-https://gist.github.com/ranjitjhala/9e79513f63acbc5ab6c9ed0c0d811cac
-
-
 ### CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
