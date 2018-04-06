@@ -313,6 +313,6 @@ ebDef si be sol (ix, cid) = exElim ix px
     cx                    = Misc.safeLookup "ebDef" cid (F.cm si)
 
 exElim :: F.BindId -> F.Pred -> F.Expr 
-exElim ix p = F.tracepp msg (F.expr (666 :: Int))
+exElim ix p = F.tracepp msg (F.expr (666 :: Int)) 
   where 
-    msg     = printf "exElim: ix = %d, p = %s" ix (F.showpp p) 
+    msg     = printf "HEREHEREHERE: exElim: ix = %d, p = %s" ix (F.showpp p) 
