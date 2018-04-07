@@ -30,7 +30,8 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import qualified Data.List as L
+import qualified Data.Maybe          as Mb 
+import qualified Data.List           as L
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -300,19 +301,25 @@ partitionInfo (i, fi)
 ---------------------------------------------------------------------------------
 solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
 --------------------------------------------------------------------------------
-solveEbinds si s0    = L.foldl' solve1 s0 ebs 
+solveEbinds si s0  = L.foldl' solve1 s0 ebs 
   where 
-    solve1 s (i, c)  = Sol.updateEbind s i (ebDef si be s (i, c))
-    ebs              = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
-    be               = F.bs si
+    solve1 s (i,c) = Sol.updateEbind s i (ebReft s (i, c))
+    ebs            = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
+    be             = F.bs si
+    xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be] 
+    ebReft s (i,c) = exElim xEnv i (ebindReft si s c) 
 
-ebDef :: F.SInfo a -> F.BindEnv -> Sol.Solution -> (F.BindId, F.SubcId) -> F.Expr 
-ebDef si be sol (ix, cid) = exElim ix px 
+ebindReft :: F.SInfo a -> Sol.Solution -> F.SubcId -> F.Pred 
+ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]
   where 
-    px                    = S.lhsPred be sol cx 
-    cx                    = Misc.safeLookup "ebDef" cid (F.cm si)
+    be             = F.bs si
+    c              = Misc.safeLookup "solveEbinds" cid (F.cm si)
 
-exElim :: F.BindId -> F.Pred -> F.Expr 
-exElim ix p = F.tracepp msg (F.expr (666 :: Int)) 
+
+exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Pred -> F.Pred 
+exElim env xi p = F.notracepp msg (F.pExist yts p) 
   where 
-    msg     = printf "HEREHEREHERE: exElim: ix = %d, p = %s" ix (F.showpp p) 
+    msg         = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
+    yts         = [ (y, yt) | y        <- F.syms p
+                            , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
+                            , xi < yi                                        ]

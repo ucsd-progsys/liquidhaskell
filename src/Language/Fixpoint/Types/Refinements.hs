@@ -827,7 +827,7 @@ instance Falseable Reft where
 -------------------------------------------------------------------------
 
 class Subable a where
-  syms   :: a -> [Symbol]
+  syms   :: a -> [Symbol]                   -- ^ free symbols of a
   substa :: (Symbol -> Symbol) -> a -> a
   -- substa f  = substf (EVar . f)
 

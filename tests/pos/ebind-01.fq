@@ -1,3 +1,5 @@
+fixpoint "--eliminate=all"
+
 bind  1 m  : {v: int | true }
 ebind 2 x1 : { int }
 // bind  2 x1 : {v: int | v = m + 1 }

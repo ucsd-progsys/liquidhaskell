@@ -196,14 +196,14 @@ envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F
 
 lookupBindEnvExt :: F.BindEnv -> Sol.Sol a b -> F.BindId -> (F.Symbol, F.SortedReft)
 lookupBindEnvExt be s i 
-  | Just e <- ebSol s i = (x, sr { F.sr_reft = F.exprReft e }) 
+  | Just p <- ebSol s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
   | otherwise           = (x, sr)
    where 
       (x, sr)           = F.lookupBindEnv i be 
 
 ebSol :: Sol.Sol a b -> F.BindId -> Maybe F.Expr 
 ebSol s i = case M.lookup i (Sol.sEbd s) of 
-  Just (Sol.EbSol e) -> Just e 
+  Just (Sol.EbSol p) -> Just p 
   _                  -> Nothing 
 
 
@@ -212,7 +212,7 @@ applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
-  Left cs          -> hypPred g s ksu cs
+  Left cs   -> hypPred g s ksu cs
   Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
     msg     = "applyKVar: " ++ show (Misc.fst3 g)

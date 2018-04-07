@@ -264,23 +264,47 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
 --------------------------------------------------------------------------------
 -- | TODO: Rewrite using visitor -----------------------------------------------
 --------------------------------------------------------------------------------
+-- exprSymbols :: Expr -> [Symbol]
+-- exprSymbols = go
+  -- where
+    -- go (EVar x)           = [x]
+    -- go (EApp f e)         = go f ++ go e
+    -- go (ELam (x,_) e)     = filter (/= x) (go e)
+    -- go (ECoerc _ _ e)     = go e
+    -- go (ENeg e)           = go e
+    -- go (EBin _ e1 e2)     = go e1 ++ go e2
+    -- go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
+    -- go (ECst e _)         = go e
+    -- go (PAnd ps)          = concatMap go ps
+    -- go (POr ps)           = concatMap go ps
+    -- go (PNot p)           = go p
+    -- go (PIff p1 p2)       = go p1 ++ go p2
+    -- go (PImp p1 p2)       = go p1 ++ go p2
+    -- go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
+    -- go (PKVar _ (Su su))  = syms (M.elems su)
+    -- go (PAll xts p)       = (fst <$> xts) ++ go p
+    -- go _                  = []
+
 exprSymbols :: Expr -> [Symbol]
-exprSymbols = go
+exprSymbols = S.toList . go 
   where
-    go (EVar x)           = [x]
-    go (EApp f e)         = go f ++ go e
-    go (ELam (x,_) e)     = filter (/= x) (go e)
+    gos es                = S.unions (go <$> es)
+    go (EVar x)           = S.singleton x
+    go (EApp f e)         = gos [f, e] 
+    go (ELam (x,_) e)     = S.delete x (go e) 
     go (ECoerc _ _ e)     = go e
     go (ENeg e)           = go e
-    go (EBin _ e1 e2)     = go e1 ++ go e2
-    go (EIte p e1 e2)     = exprSymbols p ++ go e1 ++ go e2
+    go (EBin _ e1 e2)     = gos [e1, e2] 
+    go (EIte p e1 e2)     = gos [p, e1, e2] 
     go (ECst e _)         = go e
-    go (PAnd ps)          = concatMap go ps
-    go (POr ps)           = concatMap go ps
+    go (PAnd ps)          = gos ps
+    go (POr ps)           = gos ps
     go (PNot p)           = go p
-    go (PIff p1 p2)       = go p1 ++ go p2
-    go (PImp p1 p2)       = go p1 ++ go p2
-    go (PAtom _ e1 e2)    = exprSymbols e1 ++ exprSymbols e2
-    go (PKVar _ (Su su))  = {- CUTSOLVER k : -} syms (M.elems su)
-    go (PAll xts p)       = (fst <$> xts) ++ go p
-    go _                  = []
+    go (PIff p1 p2)       = gos [p1, p2] 
+    go (PImp p1 p2)       = gos [p1, p2]
+    go (PAtom _ e1 e2)    = gos [e1, e2] 
+    go (PKVar _ (Su su))  = S.fromList $ syms $ M.elems su
+    go (PAll xts p)       = go p `S.difference` S.fromList (fst <$> xts) 
+    go (PExist xts p)     = go p `S.difference` S.fromList (fst <$> xts) 
+    go _                  = S.empty 
+

@@ -85,7 +85,7 @@ Library
                    Language.Fixpoint.Graph.Partition,
                    Language.Fixpoint.Graph.Deps,
                    Language.Fixpoint.Graph,
-                   Language.Fixpoint.Congruence.Closure,
+                   -- Language.Fixpoint.Congruence.Closure,
                    Language.Fixpoint.Defunctionalize,
                    Language.Fixpoint.Smt.Types,
                    Language.Fixpoint.Smt.Bitvector,

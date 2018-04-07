@@ -1,3 +1,4 @@
+fixpoint "--eliminate=all"
 
 bind  0 m  : {v: int | true }
 bind  1 z  : {v: int | v = m - 1 }

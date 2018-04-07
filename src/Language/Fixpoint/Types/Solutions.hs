@@ -186,7 +186,7 @@ instance PPrint EbindSol where
   pprintTidy k (EbSol e) = "EbSol:" <+> pprintTidy k e 
 
 --------------------------------------------------------------------------------
-updateEbind :: Sol a b -> BindId -> Expr -> Sol a b 
+updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 
 --------------------------------------------------------------------------------
 updateEbind s i !e = case M.lookup i (sEbd s) of 
   Nothing         -> errorstar $ "updateEBind: Unknown ebind " ++ show i

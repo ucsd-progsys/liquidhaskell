@@ -1,3 +1,5 @@
+fixpoint "--eliminate=all"
+
 // bind  0 x1 : {v: int | v = 10 }
 ebind 0 x1 : { int }
 
