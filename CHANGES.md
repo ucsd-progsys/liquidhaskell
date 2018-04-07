@@ -2,6 +2,9 @@
 
 ## NEXT
 
+- Support for "existential binders", see `tests/pos/ebind-*.fq` for example.
+  This only works with `--eliminate`.
+
 ## 0.7.0.0
 
 - New `eliminate` based solver (see ICFP 2017 paper for algorithm)
