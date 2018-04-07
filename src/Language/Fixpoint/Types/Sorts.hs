@@ -34,6 +34,7 @@ module Language.Fixpoint.Types.Sorts (
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort, charSort
+
   , listFTyCon
   , isListTC
   , sizeBv
@@ -391,8 +392,9 @@ instance PPrint DataDecl where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-boolSort, intSort, realSort, strSort, funcSort :: Sort
+boolSort, intSort, realSort, charSort, strSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
+charSort = fTyconSort charFTyCon
 strSort  = fTyconSort strFTyCon
 intSort  = fTyconSort intFTyCon
 realSort = fTyconSort realFTyCon
