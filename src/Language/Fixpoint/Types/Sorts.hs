@@ -391,7 +391,7 @@ instance PPrint DataDecl where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-boolSort, intSort, realSort, charSort, strSort, funcSort :: Sort
+boolSort, intSort, realSort, strSort, charSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
 charSort = fTyconSort charFTyCon
 strSort  = fTyconSort strFTyCon
@@ -407,9 +407,6 @@ bitVecSort = FApp (FTC $ symbolFTycon' bitVecName) (FTC $ symbolFTycon' size32Na
 
 mapSort :: Sort -> Sort -> Sort
 mapSort = FApp . FApp (FTC (symbolFTycon' mapConName))
-
-charSort :: Sort 
-charSort = FTC charFTyCon
 
 symbolFTycon' :: Symbol -> FTycon
 symbolFTycon' = symbolFTycon . dummyLoc
