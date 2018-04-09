@@ -31,7 +31,7 @@ instance GSubable BindEnv where
 instance GSubable (SimpC a) where
   gsubst (benv,i) c = c {_crhs = substGrad x i (_crhs c)}
     where
-      x = fst $ lookupBindEnv (_cbind c) benv
+      x = fst $ lookupBindEnv (cbind c) benv
 
 instance (GSubable v) => GSubable (M.HashMap SubcId v) where
   gsubst i m = M.map (gsubst i) m

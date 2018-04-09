@@ -70,7 +70,7 @@ ignoreQualifiers info fi
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
   where
-    fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts
+    fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts []
     cs               = fixCs    cgi
     ws               = fixWfs   cgi
     bs               = binds    cgi
