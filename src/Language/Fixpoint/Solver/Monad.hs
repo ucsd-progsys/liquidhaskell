@@ -61,17 +61,19 @@ import           Control.Exception.Base (bracket)
 
 type SolveM = StateT SolverState IO
 
-data SolverState = SS { ssCtx     :: !Context          -- ^ SMT Solver Context
-                      , ssBinds   :: !F.SolEnv         -- ^ All variables and types
-                      , ssStats   :: !Stats            -- ^ Solver Statistics
-                      }
+data SolverState = SS 
+  { ssCtx     :: !Context          -- ^ SMT Solver Context
+  , ssBinds   :: !F.BindEnv        -- ^ All variables and types
+  , ssStats   :: !Stats            -- ^ Solver Statistics
+  }
 
-data Stats = Stats { numCstr :: !Int -- ^ # Horn Constraints
-                   , numIter :: !Int -- ^ # Refine Iterations
-                   , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
-                   , numChck :: !Int -- ^ # smtCheckUnsat calls
-                   , numVald :: !Int -- ^ # times SMT said RHS Valid
-                   } deriving (Show, Generic)
+data Stats = Stats 
+  { numCstr :: !Int -- ^ # Horn Constraints
+  , numIter :: !Int -- ^ # Refine Iterations
+  , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
+  , numChck :: !Int -- ^ # smtCheckUnsat calls
+  , numVald :: !Int -- ^ # times SMT said RHS Valid
+  } deriving (Show, Generic)
 
 instance NFData Stats
 
@@ -105,7 +107,7 @@ runSolverM cfg sI act =
     initEnv  = symbolEnv   cfg fi
     -- lts      = F.toListSEnv (F.dLits fi)
     -- ds       = F.ddecls fi
-    be       = F.SolEnv (F.bs fi)
+    be       = F.bs fi
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
     -- lar     = linear cfg || Z3 /= solver cfg
@@ -113,7 +115,7 @@ runSolverM cfg sI act =
 
 
 --------------------------------------------------------------------------------
-getBinds :: SolveM F.SolEnv
+getBinds :: SolveM F.BindEnv 
 --------------------------------------------------------------------------------
 getBinds = ssBinds <$> get
 

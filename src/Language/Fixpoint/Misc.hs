@@ -321,6 +321,10 @@ whenM cond act = do
   b <- cond
   when b act
 
+ifM :: (Monad m) => m Bool -> m a -> m a -> m a 
+ifM c t e = do 
+  b <- c 
+  if b then t else e 
 
 mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
 mapEither _ []     = ([], [])

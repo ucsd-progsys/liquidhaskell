@@ -1,0 +1,16 @@
+fixpoint "--eliminate=all"
+
+// bind  0 x1 : {v: int | v = 10 }
+ebind 0 x1 : { int }
+
+constraint:
+  env [0]
+  lhs {v1 : int | v1 = 10}
+  rhs {v1 : int | v1 = x1}
+  id 1 tag []
+
+constraint:
+  env [0]
+  lhs {v2 : int | v2 = x1 + 1 }
+  rhs {v2 : int | v2 = 110    }
+  id 2 tag []

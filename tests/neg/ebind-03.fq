@@ -1,0 +1,45 @@
+fixpoint "--eliminate=all"
+
+ebind 1 x1 : { int }
+ebind 2 x2 : { int }
+
+
+constraint:
+  env [1]
+  lhs {v : int | v = 1  }
+  rhs {v : int | v = x1 }
+  id 1 tag []
+
+constraint:
+  env [1]
+  lhs {v : int | v = x1 + 1 }
+  rhs {v : int | $ka        }
+  id 2 tag []
+
+constraint:
+  env [2]
+  lhs {v : int | $ka    }
+  rhs {v : int | v = x2 }
+  id 3 tag []
+
+constraint:
+  env [2]
+  lhs {v : int | v = x2 + 1}
+  rhs {v : int | $kb       }
+  id 4 tag []
+
+constraint:
+  env []
+  lhs {v : int | $kb   }
+  rhs {v : int | v = 30 } 
+  id 5 tag []
+
+
+wf: 
+  env []
+  reft {v:int | [$ka] }
+
+wf: 
+  env []
+  reft {v:int | [$kb] }
+

@@ -3,7 +3,6 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{- LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE UndecidableInstances       #-}
@@ -33,8 +32,9 @@ module Language.Fixpoint.Types.Sorts (
   , setFTyCon
   , mapFTyCon -- TODO: hide these
 
-  , basicSorts, intSort, realSort, boolSort, charSort, strSort, funcSort
-  , setSort, bitVecSort, mapSort
+  , basicSorts, intSort, realSort, boolSort, strSort, funcSort
+  , setSort, bitVecSort, mapSort, charSort
+
   , listFTyCon
   , isListTC
   , sizeBv
@@ -392,7 +392,7 @@ instance PPrint DataDecl where
 -- | Exported Basic Sorts -----------------------------------------------
 -------------------------------------------------------------------------
 
-boolSort, intSort, realSort, charSort, strSort, funcSort :: Sort
+boolSort, intSort, realSort, strSort, charSort, funcSort :: Sort
 boolSort = fTyconSort boolFTyCon
 charSort = fTyconSort charFTyCon
 strSort  = fTyconSort strFTyCon
@@ -450,7 +450,6 @@ instance NFData DataField
 instance NFData DataCtor
 instance NFData DataDecl
 instance NFData Sub
-
 
 instance Monoid Sort where
   mempty            = FObj "any"

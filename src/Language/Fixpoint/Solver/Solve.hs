@@ -30,7 +30,8 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import qualified Data.List as L
+import qualified Data.Maybe          as Mb 
+import qualified Data.List           as L
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -85,8 +86,10 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
-  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s       <- {-# SCC "sol-refine" #-} refine s1 wkl
+  let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
+  let s2   = mappend s0 s1 
+  let s3   = solveEbinds fi s2 
+  s       <- {-# SCC "sol-refine" #-} refine s3 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
@@ -294,3 +297,29 @@ partitionInfo (i, fi)
     gs   = F.wloc . snd <$> L.filter (F.isGWfc . snd) (M.toList (F.ws fi))
     defs = L.nub (F.gsrc <$> gs)
     uses = L.nub (F.gused <$> gs)
+
+---------------------------------------------------------------------------------
+solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
+--------------------------------------------------------------------------------
+solveEbinds si s0  = L.foldl' solve1 s0 ebs 
+  where 
+    solve1 s (i,c) = Sol.updateEbind s i (ebReft s (i, c))
+    ebs            = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
+    be             = F.bs si
+    xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be] 
+    ebReft s (i,c) = exElim xEnv i (ebindReft si s c) 
+
+ebindReft :: F.SInfo a -> Sol.Solution -> F.SubcId -> F.Pred 
+ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]
+  where 
+    be             = F.bs si
+    c              = Misc.safeLookup "solveEbinds" cid (F.cm si)
+
+
+exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Pred -> F.Pred 
+exElim env xi p = F.notracepp msg (F.pExist yts p) 
+  where 
+    msg         = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
+    yts         = [ (y, yt) | y        <- F.syms p
+                            , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
+                            , xi < yi                                        ]

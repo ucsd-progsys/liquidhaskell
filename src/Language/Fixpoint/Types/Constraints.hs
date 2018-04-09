@@ -13,7 +13,6 @@
 
 -- | This module contains the top-level QUERY data types and elements,
 --   including (Horn) implication & well-formedness constraints and sets.
-
 module Language.Fixpoint.Types.Constraints (
 
    -- * Top-level Queries
@@ -167,7 +166,7 @@ data SimpC a = SimpC
   { _cenv  :: !IBindEnv
   , _crhs  :: !Expr
   , _cid   :: !(Maybe Integer)
-  , _cbind :: !BindId               -- ^ Id of lhs/rhs binder
+  , cbind :: !BindId               -- ^ Id of lhs/rhs binder
   , _ctag  :: !Tag
   , _cinfo :: !a
   }
@@ -179,10 +178,10 @@ strengthenHyp si ies = strengthenBinds si bindExprs
   where
     bindExprs        = safeFromList "strengthenHyp" (mapFst (subcBind si) <$> ies)
 
-subcBind :: SInfo a -> Integer -> BindId
+subcBind :: SInfo a -> SubcId -> BindId
 subcBind si i
   | Just c <- M.lookup i (cm si)
-  = _cbind c
+  = cbind c
   | otherwise
   = errorstar $ "Unknown subcId in subcBind: " ++ show i
 
@@ -599,8 +598,9 @@ fi :: [SubC a]
    -> [Triggered Expr]
    -> AxiomEnv
    -> [DataDecl]
+   -> [BindId] 
    -> GInfo SubC a
-fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts
+fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
        , bs       = binds
@@ -613,6 +613,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts
        , asserts  = es
        , ae       = axe
        , ddecls   = adts
+       , ebinds   = ebs 
        }
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
@@ -640,6 +641,7 @@ data GInfo c a =
   FI { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
      , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
      , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
+     , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
      , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
      , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
      , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
@@ -662,10 +664,25 @@ instance Monoid HOInfo where
                       }
 
 instance Monoid (GInfo c a) where
-  mempty        = FI M.empty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty mempty
+  mempty        = FI { cm       = M.empty
+                     , ws       = mempty 
+                     , bs       = mempty 
+                     , ebinds   = mempty 
+                     , gLits    = mempty 
+                     , dLits    = mempty 
+                     , kuts     = mempty 
+                     , quals    = mempty 
+                     , bindInfo = mempty 
+                     , ddecls   = mempty 
+                     , hoInfo   = mempty 
+                     , asserts  = mempty 
+                     , ae       = mempty
+                     } 
+
   mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
                      , ws       = mappend (ws i1)       (ws i2)
                      , bs       = mappend (bs i1)       (bs i2)
+                     , ebinds   = mappend (ebinds i1)   (ebinds i2)
                      , gLits    = mappend (gLits i1)    (gLits i2)
                      , dLits    = mappend (dLits i1)    (dLits i2)
                      , kuts     = mappend (kuts i1)     (kuts i2)
@@ -743,7 +760,7 @@ subcToSimpc m s = SimpC
   { _cenv       = senv s
   , _crhs       = reftPred $ sr_reft $ srhs s
   , _cid        = sid s
-  , _cbind      = safeLookup "subcToSimpc" (subcId s) m
+  , cbind      = safeLookup "subcToSimpc" (subcId s) m
   , _ctag       = stag s
   , _cinfo      = sinfo s
   }

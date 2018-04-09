@@ -174,9 +174,9 @@ instance Ord Symbol where
 instance Interned Symbol where
   type Uninterned Symbol = T.Text
   newtype Description Symbol = DT T.Text deriving (Eq)
-  describe = DT
+  describe     = DT
   identify i t = S i t (encode t)
-  cache = sCache
+  cache        = sCache
 
 instance Uninternable Symbol where
   unintern (S _ t _) = t

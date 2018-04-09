@@ -1,5 +1,6 @@
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Solution
   ( -- * Create Initial Solution
@@ -22,8 +23,7 @@ import           Data.Monoid                    ((<>))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
-import           Language.Fixpoint.Misc
--- import qualified Language.Fixpoint.Smt.Theories       as Thy
+import qualified Language.Fixpoint.Misc               as Misc
 import           Language.Fixpoint.Types.Config
 import qualified Language.Fixpoint.Types              as F
 import           Language.Fixpoint.Types                 ((&.&))
@@ -42,13 +42,14 @@ import           Language.Fixpoint.Solver.Sanitize
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv mempty keqs [] mempty
+init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs 
   where
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
     qs         = F.quals si
     ws         = [ w | (k, w) <- M.toList (F.ws si), not (isGWfc w) , k `S.member` ks]
     genv       = instConstants si
     senv       = symbolEnv cfg si
+    ebs        = ebindInfo si
 
 --------------------------------------------------------------------------------
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
@@ -101,7 +102,7 @@ instKQ ho env v t q = do
 instCands :: Bool -> F.SEnv F.Sort -> [(F.Sort, [F.Symbol])]
 instCands ho env = filter isOk tyss
   where
-    tyss      = groupList [(t, x) | (x, t) <- xts]
+    tyss      = Misc.groupList [(t, x) | (x, t) <- xts]
     isOk      = if ho then const True else isNothing . F.functionSort . fst
     xts       = F.toListSEnv env
 
@@ -159,49 +160,62 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted env sr -- (F.tracepp _msg sr)
+    tc            = So.checkSorted env sr 
     -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
 
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: F.SolEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
+lhsPred :: F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
+lhsPred be s c = {- F.notracepp _msg $ -} fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
     ci         = sid c
-    _msg       = "LhsPred for id = " ++ show (sid c)
+    _msg       = "LhsPred for id = " ++ show (sid c) ++ "with SOLUTION = " ++ F.showpp s
 
 type Cid         = Maybe Integer
-type CombinedEnv = (Cid, F.SolEnv, F.IBindEnv)
+type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.pAnd (pks:ps), kI)
   where
     (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
-    (ps,  ks, _)  = envConcKVars g bs
+    (ps,  ks, _)  = envConcKVars g s bs
 
 
-envConcKVars :: CombinedEnv -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
-envConcKVars g bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
+envConcKVars :: CombinedEnv -> Sol.Sol a b -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
+envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
   where
     (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-    xrs             = (\i -> F.notracepp  ("lookupBE i := " ++ show i) $ F.lookupBindEnv i be) <$> is
+    xrs             = lookupBindEnvExt be s <$> is
     is              = F.elemsIBindEnv bs
-    be              = F.soeBinds (snd3 g)
+    be              = Misc.snd3 g
+
+lookupBindEnvExt :: F.BindEnv -> Sol.Sol a b -> F.BindId -> (F.Symbol, F.SortedReft)
+lookupBindEnvExt be s i 
+  | Just p <- ebSol s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
+  | otherwise           = (x, sr)
+   where 
+      (x, sr)           = F.lookupBindEnv i be 
+
+ebSol :: Sol.Sol a b -> F.BindId -> Maybe F.Expr 
+ebSol s i = case M.lookup i (Sol.sEbd s) of 
+  Just (Sol.EbSol p) -> Just p 
+  _                  -> Nothing 
+
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
 
 applyKVar :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> ExprInfo
 applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
-  Left cs          -> hypPred g s ksu cs
+  Left cs   -> hypPred g s ksu cs
   Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
-    msg     = "applyKVar: " ++ show (fst3 g)
+    msg     = "applyKVar: " ++ show (Misc.fst3 g)
 
 hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
@@ -335,9 +349,7 @@ isClass _       = False
 -- substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
-combinedSEnv (_, se, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
-  where
-    be                   = F.soeBinds se
+combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
 addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
@@ -349,12 +361,10 @@ delCEnv :: Sol.Sol a Sol.QBind -> F.KVar -> F.IBindEnv -> F.IBindEnv
 delCEnv s k bs  = F.diffIBindEnv bs _kbs
                                                 -- ORIG: bs'
   where
-    _kbs = safeLookup "delCEnv" k (Sol.sScp s)
+    _kbs = Misc.safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
-symSorts (_, se, _) bs = second F.sr_sort <$> F.envCs be  bs
-  where
-    be                 = F.soeBinds se
+symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
 
 _noKvars :: F.Expr -> Bool
 _noKvars = null . V.kvars
@@ -382,7 +392,7 @@ mconcatPlus :: [KInfo] -> KInfo
 mconcatPlus = foldr mplus mempty
 
 appendTags :: [Tag] -> [Tag] -> [Tag]
-appendTags ts ts' = sortNub (ts ++ ts')
+appendTags ts ts' = Misc.sortNub (ts ++ ts')
 
 extendKInfo :: KInfo -> F.Tag -> KInfo
 extendKInfo ki t = ki { kiTags  = appendTags [t] (kiTags  ki)
@@ -393,3 +403,39 @@ mrExprInfos :: (a -> (b, c)) -> ([b] -> b1) -> ([c] -> c1) -> [a] -> (b1, c1)
 mrExprInfos mF erF irF xs = (erF es, irF is)
   where
     (es, is)              = unzip $ map mF xs
+
+--------------------------------------------------------------------------------
+-- | `ebindInfo` constructs the information about the "ebind-definitions". 
+--------------------------------------------------------------------------------
+ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
+ebindInfo si = [(x, Sol.EbDef i) | (x, i) <- ebindDefs si] 
+
+ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId)]
+ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
+                            , bid      <- maybeToList (M.lookup x ebSyms)] 
+  where 
+    ebSyms   = ebindSyms si 
+    cDefs    = cstrDefs  si 
+
+ebindSyms :: F.SInfo a -> M.HashMap F.Symbol F.BindId
+ebindSyms si = M.fromList [ (xi, bi) | bi        <- ebinds si
+                                     , let (xi,_) = F.lookupBindEnv bi be ] 
+  where
+    be       = F.bs si 
+ 
+cstrDefs :: F.SInfo a -> [(F.SubcId, F.Symbol)]
+cstrDefs si = [(cid, x) | (cid, c) <- M.toList (cm si)
+                        , x <- maybeToList (cstrDef be c) ]
+  where 
+    be      = F.bs si
+
+cstrDef :: F.BindEnv -> F.SimpC a -> Maybe F.Symbol 
+cstrDef be c 
+  | Just (F.EVar x) <- e = Just x 
+  | otherwise            = Nothing 
+  where 
+    (v,_)              = F.lookupBindEnv (cbind c) be 
+    e                  = F.notracepp _msg $ F.isSingletonExpr v rhs 
+    _msg                = "cstrDef: " ++ show (stag c) ++ " crhs = " ++ F.showpp rhs 
+    rhs                = V.stripCasts (crhs c)
+

@@ -1,0 +1,28 @@
+fixpoint "--eliminate=all"
+
+bind  0 m  : {v: int | true }
+bind  1 z  : {v: int | v = m - 1 }
+ebind 2 x1 : { int }
+// bind  2 x1 : {v: int | v = m + 1 }
+
+constraint:
+  env [0; 1]
+  lhs {v : int | v = z + 2 }
+  rhs {v : int | $k         }
+  id 1 tag []
+
+constraint:
+  env [0; 2]
+  lhs {v : int | $k      }
+  rhs {v : int | v = x1 }
+  id 2 tag []
+
+constraint:
+  env [0; 2]
+  lhs {v : int | v = x1 + 1 }
+  rhs {v : int | v = m  + 2 }
+  id 3 tag []
+
+wf: 
+  env [0]
+  reft {v:int | [$k] }

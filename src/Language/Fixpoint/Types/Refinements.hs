@@ -100,25 +100,28 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Data.List                 (foldl', partition) -- , sort, sortBy)
+import           Data.List                 (foldl', partition)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
+import qualified Data.HashMap.Strict       as M
 import           Control.DeepSeq
 import           Data.Maybe                (isJust)
--- import           Text.Printf               (printf)
--- import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
--- import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
--- import           Text.Parsec.Pos
 import           Text.PrettyPrint.HughesPJ
+
+-- import           Text.Printf               (printf)
+-- import           Language.Fixpoint.Types.Config
+-- import           Language.Fixpoint.Types.Errors
+-- import           Text.Parsec.Pos
 -- import           Data.Array                hiding (indices)
-import qualified Data.HashMap.Strict       as M
 -- import qualified Data.HashSet              as S
+
+
 
 instance NFData KVar
 instance NFData SrcSpan
@@ -192,7 +195,6 @@ instance HasGradual SortedReft where
 refaConjuncts :: Expr -> [Expr]
 refaConjuncts p = [p' | p' <- conjuncts p, not $ isTautoPred p']
 
-
 --------------------------------------------------------------------------------
 -- | Kvars ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -258,7 +260,7 @@ data Brel = Eq | Ne | Gt | Ge | Lt | Le | Ueq | Une
 
 data Bop  = Plus | Minus | Times | Div | Mod | RTimes | RDiv
             deriving (Eq, Ord, Show, Data, Typeable, Generic)
-              -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
+            -- NOTE: For "Mod" 2nd expr should be a constant or a var *)
 
 data Expr = ESym !SymConst
           | ECon !Constant
@@ -824,7 +826,7 @@ instance Falseable Reft where
 -------------------------------------------------------------------------
 
 class Subable a where
-  syms   :: a -> [Symbol]
+  syms   :: a -> [Symbol]                   -- ^ free symbols of a
   substa :: (Symbol -> Symbol) -> a -> a
   -- substa f  = substf (EVar . f)
 
