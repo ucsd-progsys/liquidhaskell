@@ -34,6 +34,7 @@ module Language.Fixpoint.Types.Sorts (
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort, charSort
+
   , listFTyCon
   , isListTC
   , sizeBv
