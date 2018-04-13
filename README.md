@@ -1062,6 +1062,39 @@ The above definition
         `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
     then the auto generated singleton type is overwritten.
 
+Inlines 
+-------------------
+
+The `inline`  lets you use a Haskell function in a type specification. 
+
+```
+{-@ inline max @-}
+{-@ max :: Int -> Int -> Int @-}
+max :: Int -> Int -> Int
+max x y = if x > y then x else y
+```
+
+For example, if you write the above you can then write a function:
+
+```haskell 
+{-@ floor :: x:Int -> {v:Int | max 0 x} @-}
+floor :: Int -> Int
+floor x 
+  | x <= 0    = 0
+  | otherwise = x
+``` 
+
+That is, you can use the haskell `max` in the refinement type and 
+it will automatically get “expanded” out to the full definition. 
+This makes it useful e.g. to reuse plain Haskell code to compose 
+specifications, and to share definitions common to refinements and code.
+
+However, as they are *expanded* at compile time, `inline` functions 
+**cannot be recursive**. The can call _other_ (non-recursive) inline functions.
+
+If you want to talk about arbitrary (recursive) functions inside your types, 
+then you need to use `reflect` described [in the blog] (https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html)
+
 Self-Invariants
 ===============
 
