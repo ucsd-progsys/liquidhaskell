@@ -822,7 +822,6 @@ consE γ e'@(App e a)
        if (null αs && null πs && all (isMono . snd) xts && isMono tem)
           then do
 
-       undefined
        -- ART instantiation
        -- foldr pops ART quantifiers back on
        te0              <- instantiatePreds γ e' $ foldr RAllP tem πs
