@@ -35,10 +35,12 @@ dist-newstyle
 cabal.sandbox.config
 .ghc.environment.*
 cabal.project.local
+/tests/
 
 /.stack-work/
 /.vagrant/
 TAGS
+tags
 a.out
 *.json
 js/
