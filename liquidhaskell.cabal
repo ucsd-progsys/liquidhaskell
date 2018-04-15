@@ -338,6 +338,42 @@ test-suite liquidhaskell-parser
                ,     liquid-fixpoint >= 0.7.0.7
                ,     hpc >= 0.6
 
+  other-modules: Paths_liquidhaskell
+                 Language.Haskell.Liquid.Desugar.Check
+                 Language.Haskell.Liquid.Desugar.Coverage
+                 Language.Haskell.Liquid.Desugar.Desugar
+                 Language.Haskell.Liquid.Desugar.DsArrows
+                 Language.Haskell.Liquid.Desugar.DsBinds
+                 Language.Haskell.Liquid.Desugar.DsCCall
+                 Language.Haskell.Liquid.Desugar.DsExpr
+                 Language.Haskell.Liquid.Desugar.DsForeign
+                 Language.Haskell.Liquid.Desugar.DsGRHSs
+                 Language.Haskell.Liquid.Desugar.DsListComp
+                 Language.Haskell.Liquid.Desugar.DsMeta
+                 Language.Haskell.Liquid.Desugar.DsMonad
+                 Language.Haskell.Liquid.Desugar.DsUtils
+                 Language.Haskell.Liquid.Desugar.HscMain
+                 Language.Haskell.Liquid.Desugar.Match
+                 Language.Haskell.Liquid.Desugar.MatchCon
+                 Language.Haskell.Liquid.Desugar.MatchLit
+                 Language.Haskell.Liquid.Desugar.TmOracle
+                 Language.Haskell.Liquid.GHC.Misc
+                 Language.Haskell.Liquid.GHC.Play
+                 Language.Haskell.Liquid.GHC.TypeRep
+                 Language.Haskell.Liquid.Measure
+                 Language.Haskell.Liquid.Misc
+                 Language.Haskell.Liquid.Parse
+                 Language.Haskell.Liquid.Types
+                 Language.Haskell.Liquid.Types.Bounds
+                 Language.Haskell.Liquid.Types.Errors
+                 Language.Haskell.Liquid.Types.Names
+                 Language.Haskell.Liquid.Types.PrettyPrint
+                 Language.Haskell.Liquid.Types.RefType
+                 Language.Haskell.Liquid.Types.Variance
+                 Language.Haskell.Liquid.UX.Config
+                 Language.Haskell.Liquid.UX.Tidy
+
+
   if flag(devel)
     hs-source-dirs:   tests src
     build-depends:
