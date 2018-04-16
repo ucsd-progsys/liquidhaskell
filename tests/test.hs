@@ -77,6 +77,7 @@ unitTests
     , testGroup "todo"       <$> dirTests elimCmd   "tests/todo"   ["LH1090.fq"]  (ExitFailure 2)
    ]
 
+
 skipNativePos :: [FilePath]
 skipNativePos = ["NonLinear-pack.fq"]
 
