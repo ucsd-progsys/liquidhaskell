@@ -34,14 +34,16 @@ import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
 import qualified Data.Text                             as T
 import qualified Data.Char 
+import qualified Text.Printf as Printf 
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
 import           TysWiredIn
+import           Name                                  (getSrcSpan)
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import qualified Language.Fixpoint.Misc                as Misc 
-import           Language.Fixpoint.Types               hiding (Error, R, simplify)
+import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import           Language.Haskell.Liquid.Bare.Misc
@@ -198,13 +200,14 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e = go [] $ inlinePreds $ simplify e
+coreToDef x _ e                   = F.tracepp "CORE-TO-DEF" <$> (go [] $ inlinePreds $ simplify e)
   where
     go (z:zs) (C.Case _ y t alts) = coreAltToDef x z zs y t alts 
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
-    go (z:zs) e                   = coreAltToDef x z zs z (GM.expandVarType z) [(C.DEFAULT, [], e)]
-    go _ _                        = throw "Measure functions should have a case at the top-level"
+    -- This allows for non-case measures #1288, but deprecating in light of #1285
+    -- go (z:zs) e                   = coreAltToDef x z zs z (GM.expandVarType z) [(C.DEFAULT, [], e)]
+    go _ _                        = panic (Just (GM.fSrcSpan x)) (Printf.printf "Measure '%s' does not have a case-of at the top-level" (F.showpp x))
 
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
 
@@ -271,11 +274,6 @@ typeEqToLg (s, t) = do
   let tx = typeSort tce . expandTypeSynonyms
   return $ F.tracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
 
-  -- Pair t1 t2 <- coercionKind co
-  -- getCoVar_maybe :: Coercion -> Maybe CoVar
-  -- getTyVar_maybe :: Type -> Maybe TyVar
-  -- coVarTypes :: CoVar -> (Type, Type)
-
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
   | false == falseDataCon, true == trueDataCon
@@ -296,7 +294,7 @@ casesToLg v e alts = mapM (altToLg e) normAlts >>= go
     go ((d,p):dps) = do c <- checkDataAlt d e
                         e' <- go dps
                         return (EIte c p e' `subst1` su)
-    go []          = throw "Bah"
+    go []          = panic (Just (getSrcSpan v)) "Unexpected empty cases in casesToLg"
     su             = (symbol v, e)
 
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
