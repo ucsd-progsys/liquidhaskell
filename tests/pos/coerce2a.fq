@@ -1,0 +1,9 @@
+
+bind 1 b   : {v : int | true } 
+bind 2 pig : {v : b   | v = 10 }
+
+constraint:
+  env [1;2]
+  lhs {v : int | true }
+  rhs {v : int | pig > 5}
+  id 1 tag []
