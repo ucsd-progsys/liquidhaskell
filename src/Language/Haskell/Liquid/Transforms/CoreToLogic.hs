@@ -158,44 +158,54 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
       , lsDCMap  = dm
       }
 
+coreAltToDef :: (Reftable r) => LocSymbol -> Var -> [Var] -> Var -> Type -> [C.CoreAlt] 
+             -> LogicM [Def (Located (RRType r)) DataCon]
+coreAltToDef x z zs y t alts = do 
+  d1s <- mapM (mkAlt x cc myArgs z) dataAlts 
+  d2s <-       mkDef x cc myArgs z  defAlts defExpr 
+  return (d1s ++ d2s)
+  where 
+    myArgs   = reverse zs
+    cc       = if eqType t boolTy then P else E 
+    defAlts  = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
+    defExpr  = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
+    dataAlts =             [ a | a@(C.DataAlt _, _, _) <- alts ]
+
+    -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
+    mkAlt x ctor args dx (C.DataAlt d, xs, e)
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . ctor 
+            <$> coreToLg e
+    mkAlt _ _ _ _ alt 
+      = throw $ "Bad alternative" ++ GM.showPpr alt
+
+    mkDef x ctor args dx (Just dtss) (Just e) = do  
+      eDef   <- ctor <$> coreToLg e
+      let ys  = toArgs id args
+      let dxt = Just (varRType dx)
+      return  [ Def x ys d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
+    
+    mkDef _ _ _ _ _ _ = 
+      return [] 
+
+toArgs :: Reftable r => (Located (RRType r) -> b) -> [Var] -> [(Symbol, b)]
+toArgs f args = [(symbol x, f $ varRType x) | x <- args]
+
+defArgs :: Monoid r => LocSymbol -> [Type] -> [(Symbol, Maybe (Located (RRType r)))]
+defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..] 
+  where 
+    defArg    = tempSymbol (val x)
+    defRTyp   = Just . F.atLoc x . ofType
+
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef x _ e = go [] $ inlinePreds $ simplify e
   where
-    go args (C.Lam  x e) = go (x:args) e
-    go args (C.Tick _ e) = go args e
-    go (z:zs) (C.Case _ y t alts) = do 
-                           d1s <- mapM (mkAlt cc myArgs z) dataAlts 
-                           d2s <-       mkDef cc myArgs z  defAlts defExpr 
-                           return (d1s ++ d2s)
-      where 
-        myArgs           = reverse zs
-        cc               = if eqType t boolTy then P else E 
-        defAlts          = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
-        defExpr          = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
-        dataAlts         =             [ a | a@(C.DataAlt _, _, _) <- alts ]
+    go (z:zs) (C.Case _ y t alts) = coreAltToDef x z zs y t alts 
+    go args   (C.Lam  x e)        = go (x:args) e
+    go args   (C.Tick _ e)        = go args e
+    go (z:zs) e                   = coreAltToDef x z zs z (GM.expandVarType z) [(C.DEFAULT, [], e)]
+    go _ _                        = throw "Measure functions should have a case at the top-level"
 
-    go _ _               = throw "Measure functions should have a case at the top-level"
-
-    mkAlt ctor args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . ctor 
-        <$> coreToLg e
-    mkAlt _ _ _ alt 
-      = throw $ "Bad alternative" ++ GM.showPpr alt
-
-    mkDef ctor args dx (Just dtss) (Just e) = do  
-      eDef   <- ctor <$> coreToLg e
-      let ys  = toArgs id args
-      let dxt = Just (varRType dx)
-      return  [ Def x ys d dxt (defArgs ts) eDef | (d, ts) <- dtss ]
-
-    mkDef _ _ _ _ _ = 
-      return [] 
-
-    defArgs       = zipWith (\i t -> (defArg i, defRTyp t)) [0..] 
-    defRTyp       = Just . F.atLoc x . ofType
-    defArg        = tempSymbol (val x)
-    toArgs f args = [(symbol x, f $ varRType x) | x <- args]
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
 
 varRType :: (Reftable r) => Var -> Located (RRType r)
@@ -300,7 +310,6 @@ normalizeAlts alts      = ctorAlts ++ defAlts
   where 
     (defAlts, ctorAlts) = L.partition isDefault alts 
     isDefault (c,_,_)   = c == C.DEFAULT 
-    
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
 altToLg de (a@(C.DataAlt d), xs, e)
