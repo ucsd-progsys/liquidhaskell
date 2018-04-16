@@ -41,4 +41,5 @@ instance PersistEntity Person where
       typ ~ [Int] => PersonNums
 
   fooMeth PersonNums = 10 
+  fooMeth _          = 0
 
