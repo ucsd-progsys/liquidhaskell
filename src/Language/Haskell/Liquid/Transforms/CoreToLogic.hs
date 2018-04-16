@@ -302,7 +302,9 @@ casesToLg v e alts = mapM (altToLg e) normAlts >>= go
 checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
 checkDataAlt (C.DataAlt d) e = return $ EApp (EVar (makeDataConChecker d)) e
 checkDataAlt C.DEFAULT     _ = return PTrue
-checkDataAlt (C.LitAlt _)  _ = throw "Oops, not yet handled: checkDataAlt on Lit"
+checkDataAlt (C.LitAlt l)  e 
+  | Just le <- mkLit l       = return (F.tracepp "CHECK-DATA-ALT" $ EEq le e)  
+  | otherwise                = throw $ "Oops, not yet handled: checkDataAlt on Lit: " ++ GM.showPpr l
 
 -- | 'altsDefault' reorders the CoreAlt to ensure that 'DEFAULT' is at the end.
 normalizeAlts :: [C.CoreAlt] -> [C.CoreAlt]
@@ -312,17 +314,23 @@ normalizeAlts alts      = ctorAlts ++ defAlts
     isDefault (c,_,_)   = c == C.DEFAULT 
 
 altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
-altToLg de (a@(C.DataAlt d), xs, e)
-  = do p  <- coreToLg e
-       dm <- gets lsDCMap
-       let su = mkSubst $ concat [ f dm x i | (x, i) <- zip xs [1..]]
-       return (a, subst su p)
-  where
-    f dm x i = let t = EApp (EVar $ makeDataConSelector (Just dm) d i) de
-               in [(symbol x, t), (GM.simplesymbol x, t)]
+altToLg de (a@(C.DataAlt d), xs, e) = do 
+  p  <- coreToLg e
+  dm <- gets lsDCMap
+  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip xs [1..]]
+  return (a, subst su p)
 
 altToLg _ (a, _, e)
   = (a, ) <$> coreToLg e
+
+dataConProj :: DataConMap -> Expr -> DataCon -> Var -> Int -> [(Symbol, Expr)]
+dataConProj dm de d x i = [(symbol x, t), (GM.simplesymbol x, t)]
+  where
+    t | primDataCon  d  = de 
+      | otherwise       = EApp (EVar $ makeDataConSelector (Just dm) d i) de
+
+primDataCon :: DataCon -> Bool 
+primDataCon d = d == intDataCon
 
 coreToIte :: C.CoreExpr -> (C.CoreExpr, C.CoreExpr) -> LogicM Expr
 coreToIte e (efalse, etrue)
