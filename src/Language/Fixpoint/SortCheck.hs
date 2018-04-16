@@ -778,14 +778,15 @@ checkNumeric f s@(FObj l)
 checkNumeric _ s
   = unless (isNumeric s) (throwError $ errNonNumeric s)
 
-checkEqConstr :: Env -> Maybe Expr -> a -> Symbol -> Sort -> CheckM a
+checkEqConstr :: Env -> Maybe Expr -> TVSubst -> Symbol -> Sort -> CheckM TVSubst 
 checkEqConstr _ _  θ a (FObj b)
   | a == b
   = return θ
 checkEqConstr f e θ a t = do
   case f a of
-    Found tA -> do unless (tA == t) (throwError $ errUnifyMsg (Just "ceq1") e tA t)
-                   return θ
+    Found tA -> unify1 f e θ tA t 
+      -- do unless (tA == t) (throwError $ errUnifyMsg (Just "ceq1") e tA t)
+      --             return θ
     _        -> throwError $ errUnifyMsg (Just "ceq2") e (FObj a) t
 
 --------------------------------------------------------------------------------
