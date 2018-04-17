@@ -77,7 +77,7 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult) 
 import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
--- import Debug.Trace (trace)
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -816,39 +816,23 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
 
 consE γ e'@(App e a)
   | (e'', as) <- splitEApp e'
-  = do (αs, πs, ls, te) <- bkUniv <$> consE γ e''
+  = do (_,_,_,te) <- bkUniv <$> consE γ e''
        let (xts, tem) = splitSType te
+       traceShowM (xts, tem)
 
-       if (null αs && null πs && all (isMono . snd) xts && isMono tem)
-          then do
+       when (length xts == length as) $ do
 
-       -- ART instantiation
-       -- foldr pops ART quantifiers back on
-       te0              <- instantiatePreds γ e' $ foldr RAllP tem πs
-       te'              <- instantiateStrata ls te0
-       -- more instantiation "don't worry about it"
-       (γ', te''')      <- dropExists γ te'
-       te''             <- dropConstraints γ te'''
-
-       updateLocA (exprLoc e) te''
-       -- let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-       -- pushConsBind      $ cconsE γ' a tx
-       -- makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
-
-       mapM_ pushConsBind $ (uncurry (cconsE γ') <$> zip as (snd <$> xts))
-       let singleton (x,a) = makeSingleton γ e' <$>
-                                (addPost γ' $
-             maybe (checkUnbound γ' e' x tem a)
-                          (F.subst1 tem . (x,)) (argExpr γ a))
-       let _ = mapM singleton $ zip (fst<$>xts) as
-       return tem
-
-          else do
+           -- Fully Saturated case.
+           -- TODO: add ebinds for implicits and then just run the other case
+           return ()
 
        ([], πs, ls, te) <- bkUniv <$> consE γ e
 
+       -- ART instantiation
+       -- foldr pops ART quantifiers back on
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
        te'              <- instantiateStrata ls te0
+       -- more instantiation "don't worry about it"
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
 
@@ -901,22 +885,6 @@ consE _ e@(Coercion _)
 
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
-
-isMono :: RType a b c -> Bool
-isMono (RVar {}) = True
-isMono (RFun _ i o _) = isMono i && isMono o
-isMono (RAllT {}) = False
-isMono (RAllP {}) = False
-isMono (RAllS {}) = False
-isMono (RApp  _ _ _ _) = False
-  -- Is this right?
-isMono (RAllE _ a b) = isMono a && isMono b
-isMono (REx _ a b) = isMono a && isMono b
-isMono (RExprArg {}) = True
-isMono (RAppTy a b _) = isMono a && isMono b
-isMono (RRTy  as _ _ b) = all (isMono . snd) as && isMono b
-isMono (RHole _) = True
-
 
 splitEApp :: Expr b -> (Expr b, [Arg b])
 splitEApp = go []

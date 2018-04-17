@@ -35,7 +35,6 @@ dist-newstyle
 cabal.sandbox.config
 .ghc.environment.*
 cabal.project.local
-/tests/
 
 /.stack-work/
 /.vagrant/
