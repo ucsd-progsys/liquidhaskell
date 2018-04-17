@@ -2,11 +2,10 @@
 {-@ measure bintId @-}
 bintId :: Int -> Int
 bintId 0 = 0
-bintId x = x
+bintId x = 1
 
-{-@ zig :: n:Int -> {v:Int | v = bintId n} @-}
-zig :: Int -> Int 
-zig 0 = 0 
-zig 1 = 1 
-zig n = n 
+{-@ zig :: n:Int -> { 0 <= bintId n && bintId n <= 1} @-}
+zig :: Int -> ()  
+zig 0 = () 
+zig n = () 
 

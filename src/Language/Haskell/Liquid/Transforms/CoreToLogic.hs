@@ -166,22 +166,22 @@ coreAltToDef :: (Reftable r) => LocSymbol -> Var -> [Var] -> Var -> Type -> [C.C
 coreAltToDef x z zs y t alts  
   | not (null litAlts) = measureFail x "Cannot lift definition with literal alternatives" 
   | otherwise          = do 
-      d1s <- F.tracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
-      d2s <- F.tracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
+      d1s <- F.notracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
+      d2s <- F.notracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
       return (d1s ++ d2s)
   where 
     myArgs   = reverse zs
     cc       = if eqType t boolTy then P else E 
     defAlts  = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
     defExpr  = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
-    dataAlts = GM.tracePpr ("DATA-ALTS: " ++ show x)  [ a | a@(C.DataAlt _, _, _) <- alts ]
+    dataAlts =             [ a | a@(C.DataAlt _, _, _) <- alts ]
     litAlts  =             [ a | a@(C.LitAlt _, _, _) <- alts ]
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
     mkAlt x ctor args dx (C.DataAlt d, xs, e)
       = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) 
       . ctor 
-      . (`subst1` (F.symbol dx, F.mkEApp _fixme_d_as_locSym (F.eVar <$> xs))) 
+      . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs))) 
      <$> coreToLg e
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
@@ -206,7 +206,7 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e                   = F.tracepp "CORE-TO-DEF" <$> (go [] $ inlinePreds $ simplify e)
+coreToDef x _ e                   = F.notracepp "CORE-TO-DEF" <$> (go [] $ inlinePreds $ simplify e)
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
@@ -227,7 +227,7 @@ measureFail x msg = panic sp e
 isMeasureArg :: Var -> Maybe Type 
 isMeasureArg x 
   | Just tc <- tcMb 
-  , TyCon.isAlgTyCon tc = F.tracepp "isMeasureArg" $ Just t 
+  , TyCon.isAlgTyCon tc = F.notracepp "isMeasureArg" $ Just t 
   | otherwise           = Nothing 
   where 
     t                   = GM.expandVarType x  
@@ -287,7 +287,7 @@ coerceToLg = typeEqToLg . coercionTypeEq
 
 coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
-  | Pair.Pair s t <- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
+  | Pair.Pair s t <- -- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
                        coercionKind co
   = (s, t)
 
@@ -295,7 +295,7 @@ typeEqToLg :: (Type, Type) -> LogicM (Sort, Sort)
 typeEqToLg (s, t) = do
   tce   <- gets lsEmb
   let tx = typeSort tce . expandTypeSynonyms
-  return $ F.tracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
+  return $ F.notracepp "TYPE-EQ-TO-LOGIC" (tx s, tx t)
 
 checkBoolAlts :: [C.CoreAlt] -> LogicM (C.CoreExpr, C.CoreExpr)
 checkBoolAlts [(C.DataAlt false, [], efalse), (C.DataAlt true, [], etrue)]
@@ -324,7 +324,7 @@ checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
 checkDataAlt (C.DataAlt d) e = return $ EApp (EVar (makeDataConChecker d)) e
 checkDataAlt C.DEFAULT     _ = return PTrue
 checkDataAlt (C.LitAlt l)  e 
-  | Just le <- mkLit l       = return (F.tracepp "CHECK-DATA-ALT" $ EEq le e)  
+  | Just le <- mkLit l       = return (F.notracepp "CHECK-DATA-ALT" $ EEq le e)  
   | otherwise                = throw $ "Oops, not yet handled: checkDataAlt on Lit: " ++ GM.showPpr l
 
 -- | 'altsDefault' reorders the CoreAlt to ensure that 'DEFAULT' is at the end.
