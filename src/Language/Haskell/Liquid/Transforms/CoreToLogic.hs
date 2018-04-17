@@ -24,6 +24,7 @@ import           Prelude                               hiding (error)
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
 import qualified Var
+import qualified TyCon 
 import           Coercion
 import qualified Pair
 -- import qualified Text.Printf as Printf
@@ -163,8 +164,8 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
 coreAltToDef :: (Reftable r) => LocSymbol -> Var -> [Var] -> Var -> Type -> [C.CoreAlt] 
              -> LogicM [Def (Located (RRType r)) DataCon]
 coreAltToDef x z zs y t alts = do 
-  d1s <- mapM (mkAlt x cc myArgs z) dataAlts 
-  d2s <-       mkDef x cc myArgs z  defAlts defExpr 
+  d1s <- F.tracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
+  d2s <- F.tracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
   return (d1s ++ d2s)
   where 
     myArgs   = reverse zs
@@ -202,14 +203,30 @@ coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
 coreToDef x _ e                   = F.tracepp "CORE-TO-DEF" <$> (go [] $ inlinePreds $ simplify e)
   where
-    go (z:zs) (C.Case _ y t alts) = coreAltToDef x z zs y t alts 
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
-    -- This allows for non-case measures #1288, but deprecating in light of #1285
-    -- go (z:zs) e                   = coreAltToDef x z zs z (GM.expandVarType z) [(C.DEFAULT, [], e)]
-    go _ _                        = panic (Just (GM.fSrcSpan x)) (Printf.printf "Measure '%s' does not have a case-of at the top-level" (F.showpp x))
+    go (z:zs) (C.Case _ y t alts) = case isMeasureArg z of 
+                                      Just _ -> coreAltToDef x z zs y t alts 
+                                      Nothing -> fail "Argument is not an algebraic datatype" 
+    go (z:zs) e                   
+      | Just t <- isMeasureArg z  = coreAltToDef x z zs z t [(C.DEFAULT, [], e)]
+    go _ _                        = fail "Does not have a case-of at the top-level" 
 
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
+    fail :: String -> a
+    fail msg      = panic (Just (GM.fSrcSpan x)) (Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg) 
+    
+
+-- | 'isMeasureArg x' returns 'Just t' if 'x' is a valid argument for a measure.
+isMeasureArg :: Var -> Maybe Type 
+isMeasureArg x 
+  | Just tc <- tcMb 
+  , TyCon.isAlgTyCon tc = Just t 
+  | otherwise           = Nothing 
+  where 
+    t                   = GM.expandVarType x  
+    tcMb                = tyConAppTyCon_maybe t
+
 
 varRType :: (Reftable r) => Var -> Located (RRType r)
 varRType = GM.varLocInfo ofType
