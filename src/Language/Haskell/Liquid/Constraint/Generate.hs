@@ -815,16 +815,23 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ e'@(App e a)
-  | (e'', as) <- splitEApp e'
-  = do (_,_,_,te) <- bkUniv <$> consE γ e''
-       let (xts, tem) = splitSType te
-       traceShowM (xts, tem)
+  = do
+       let (e'', as) = splitEApp e'
+       if length as > 1              -- Avoid infinite loop
+         then do
 
-       when (length xts == length as) $ do
+         (_,_,_,te) <- bkUniv <$> consE γ e''
+         let (xts, tem) = splitSType te
+         traceShowM (xts, tem)
 
-           -- Fully Saturated case.
-           -- TODO: add ebinds for implicits and then just run the other case
-           return ()
+         when (length xts == length as) $ do
+
+             -- Fully Saturated case.
+             -- TODO: add ebinds for implicits and then just run the other case
+             return ()
+
+         -- Special case when the only argument is an implicit argument
+         else return ()
 
        ([], πs, ls, te) <- bkUniv <$> consE γ e
 
