@@ -6,5 +6,7 @@ bintId x = x
 
 {-@ zig :: n:Int -> {v:Int | v = bintId n} @-}
 zig :: Int -> Int 
-zig x = x 
+zig 0 = 0 
+zig 1 = 1 
+zig n = n 
 

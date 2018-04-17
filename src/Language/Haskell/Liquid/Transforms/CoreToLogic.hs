@@ -163,21 +163,26 @@ runToLogicWithBoolBinds xs tce lmap dm ferror m
 
 coreAltToDef :: (Reftable r) => LocSymbol -> Var -> [Var] -> Var -> Type -> [C.CoreAlt] 
              -> LogicM [Def (Located (RRType r)) DataCon]
-coreAltToDef x z zs y t alts = do 
-  d1s <- F.tracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
-  d2s <- F.tracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
-  return (d1s ++ d2s)
+coreAltToDef x z zs y t alts  
+  | not (null litAlts) = measureFail x "Cannot lift definition with literal alternatives" 
+  | otherwise          = do 
+      d1s <- F.tracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
+      d2s <- F.tracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
+      return (d1s ++ d2s)
   where 
     myArgs   = reverse zs
     cc       = if eqType t boolTy then P else E 
     defAlts  = GM.defaultDataCons (GM.expandVarType y) (Misc.fst3 <$> alts)
     defExpr  = listToMaybe [ e |   (C.DEFAULT  , _, e) <- alts ]
-    dataAlts =             [ a | a@(C.DataAlt _, _, _) <- alts ]
+    dataAlts = GM.tracePpr ("DATA-ALTS: " ++ show x)  [ a | a@(C.DataAlt _, _, _) <- alts ]
+    litAlts  =             [ a | a@(C.LitAlt _, _, _) <- alts ]
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
     mkAlt x ctor args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) . ctor 
-            <$> coreToLg e
+      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) 
+      . ctor 
+      . (`subst1` (F.symbol dx, F.mkEApp _fixme_d_as_locSym (F.eVar <$> xs))) 
+     <$> coreToLg e
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
 
@@ -205,23 +210,24 @@ coreToDef x _ e                   = F.tracepp "CORE-TO-DEF" <$> (go [] $ inlineP
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
-    go (z:zs) (C.Case _ y t alts) = case isMeasureArg z of 
-                                      Just _ -> coreAltToDef x z zs y t alts 
-                                      Nothing -> fail "Argument is not an algebraic datatype" 
+    go (z:zs) (C.Case _ y t alts) = coreAltToDef x z zs y t alts 
     go (z:zs) e                   
       | Just t <- isMeasureArg z  = coreAltToDef x z zs z t [(C.DEFAULT, [], e)]
-    go _ _                        = fail "Does not have a case-of at the top-level" 
+    go _ _                        = measureFail x "Does not have a case-of at the top-level" 
 
     inlinePreds   = inline (eqType boolTy . GM.expandVarType)
-    fail :: String -> a
-    fail msg      = panic (Just (GM.fSrcSpan x)) (Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg) 
+
+measureFail       :: LocSymbol -> String -> a
+measureFail x msg = panic sp e 
+  where sp        = Just (GM.fSrcSpan x)
+        e         = Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg
     
 
 -- | 'isMeasureArg x' returns 'Just t' if 'x' is a valid argument for a measure.
 isMeasureArg :: Var -> Maybe Type 
 isMeasureArg x 
   | Just tc <- tcMb 
-  , TyCon.isAlgTyCon tc = Just t 
+  , TyCon.isAlgTyCon tc = F.tracepp "isMeasureArg" $ Just t 
   | otherwise           = Nothing 
   where 
     t                   = GM.expandVarType x  
