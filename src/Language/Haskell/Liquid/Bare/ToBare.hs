@@ -57,6 +57,7 @@ txRType cF vF = go
     go (RAllT α t)         = RAllT (goRTV α) (go t)
     go (RAllP π t)         = RAllP (goPV  π) (go t)
     go (RAllS s t)         = RAllS s         (go t)
+    go (RImpF x t t' r)     = RImpF  x         (go t) (go t') r
     go (RFun x t t' r)     = RFun  x         (go t) (go t') r
     go (RAllE x t t')      = RAllE x         (go t) (go t')
     go (REx x t t')        = REx   x         (go t) (go t')

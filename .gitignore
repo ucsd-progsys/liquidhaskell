@@ -36,6 +36,7 @@ cabal.sandbox.config
 .ghc.environment.*
 cabal.project.local
 
+/tests/logs/
 /.stack-work/
 /.vagrant/
 TAGS

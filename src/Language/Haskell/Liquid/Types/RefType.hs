@@ -575,6 +575,10 @@ addPds ps t           = foldl' (flip rPred) t ps
 nlzP :: (OkRT c tv r) => [PVar (RType c tv ())] -> RType c tv r -> (RType c tv r, [PVar (RType c tv ())])
 nlzP ps t@(RVar _ _ )
  = (t, ps)
+nlzP ps (RImpF b t1 t2 r)
+ = (RImpF b t1' t2' r, ps ++ ps1 ++ ps2)
+  where (t1', ps1) = nlzP [] t1
+        (t2', ps2) = nlzP [] t2
 nlzP ps (RFun b t1 t2 r)
  = (RFun b t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
@@ -699,6 +703,11 @@ strengthenRefType_ f (RAppTy t1 t1' r1) (RAppTy t2 t2' r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f t1' t2'
 
+strengthenRefType_ f (RImpF x1 t1 t1' r1) (RImpF x2 t2 t2' r2)
+  = RImpF x2 t t' (r1 `meet` r2)
+    where t  = strengthenRefType_ f t1 t2
+          t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
+
 strengthenRefType_ f (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2)
   = RFun x2 t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
@@ -725,6 +734,7 @@ meets rs rs'
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
+strengthen (RImpF b t1 t2 r) r'  = RImpF b t1 t2 (r `F.meet` r')
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthen t _                  = t
@@ -846,6 +856,7 @@ freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
 freeTyVars (RAllS _ t)     = freeTyVars t
 freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
+freeTyVars (RImpF _ t t' _)= freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
 freeTyVars (RVar α _)      = [makeRTVar α]
@@ -863,6 +874,7 @@ tyClasses (RAllS _ t)     = tyClasses t
 tyClasses (RAllT _ t)     = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
+tyClasses (RImpF _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RFun _ t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RAppTy t t' _) = tyClasses t ++ tyClasses t'
 tyClasses (RApp c ts _ _)
@@ -967,6 +979,8 @@ subsFree m s z@(α, τ,_) (RAllP π t)
 subsFree m s z@(a, τ, _) (RAllT α t)
   -- subt inside the type variable instantiates the kind of the variable
   = RAllT (subt (a, τ) α) $ subsFree m (ty_var_value α `S.insert` s) z t
+subsFree m s z@(α, τ, _) (RImpF x t t' r)
+  = RImpF x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RFun x t t' r)
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RApp c ts rs r)
@@ -1319,6 +1333,8 @@ type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable
 
 -- TODO: remove toType, generalize typeSort
 toType  :: (ToTypeable r) => RRType r -> Type
+toType (RImpF x t t' r)
+ = toType (RFun x t t' r)
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
 toType (RAllT a t) | RTV α <- ty_var_value a
@@ -1382,6 +1398,9 @@ shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
       { rt_reft  = (`F.shiftVV` vv') <$> r }
+
+shiftVV (RImpF x t t' r) vv'
+ = shiftVV (RFun x t t' r) vv'
 
 shiftVV t@(RFun _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }

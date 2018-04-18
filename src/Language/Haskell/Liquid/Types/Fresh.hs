@@ -92,6 +92,9 @@ trueRefType (RAllT α t)
 trueRefType (RAllP π t)
   = RAllP π <$> true t
 
+trueRefType (RImpF _ t t' _)
+  = rImpF <$> fresh <*> true t <*> true t'
+
 trueRefType (RFun _ t t' _)
   = rFun <$> fresh <*> true t <*> true t'
 
@@ -142,6 +145,10 @@ refreshRefType (RAllT α t)
 
 refreshRefType (RAllP π t)
   = RAllP π <$> refresh t
+
+refreshRefType (RImpF b t t' _)
+  | b == F.dummySymbol = rImpF <$> fresh <*> refresh t <*> refresh t'
+  | otherwise          = rImpF     b     <$> refresh t <*> refresh t'
 
 refreshRefType (RFun b t t' _)
   | b == F.dummySymbol = rFun <$> fresh <*> refresh t <*> refresh t'
@@ -198,6 +205,10 @@ refreshVV (RAllP p t) = RAllP p <$> refreshVV t
 refreshVV (REx x t1 t2)
   = do [t1', t2'] <- mapM refreshVV [t1, t2]
        shiftVV (REx x t1' t2') <$> fresh
+
+refreshVV (RImpF x t1 t2 r)
+  = do [t1', t2'] <- mapM refreshVV [t1, t2]
+       shiftVV (RImpF x t1' t2' r) <$> fresh
 
 refreshVV (RFun x t1 t2 r)
   = do [t1', t2'] <- mapM refreshVV [t1, t2]

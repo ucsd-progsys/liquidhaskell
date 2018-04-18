@@ -67,6 +67,14 @@ splitW (WfC γ t@(RFun x t1 t2 _))
         ws'' <- splitW (WfC γ' t2)
         return $ ws ++ ws' ++ ws''
 
+splitW (WfC γ t@(RImpF x t1 t2 _))
+  =  do ws'  <- splitW (WfC γ t1)
+        γ'   <- γ += ("splitW", x, t1)
+        ws   <- bsplitW γ t
+        ws'' <- splitW (WfC γ' t2)
+        return $ ws ++ ws' ++ ws''
+
+
 splitW (WfC γ t@(RAppTy t1 t2 _))
   =  do ws   <- bsplitW γ t
         ws'  <- splitW (WfC γ t1)
@@ -175,6 +183,15 @@ splitS (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
         let r1x2' = r1' `F.subst1` (x1, F.EVar x2)
         cs''     <- splitS  (SubC γ' r1x2' r2')
         return    $ cs ++ cs' ++ cs''
+
+splitS (SubC γ t1@(RImpF x1 r1 r1' _) t2@(RImpF x2 r2 r2' _))
+  =  do cs       <- bsplitS t1 t2
+        cs'      <- splitS  (SubC γ r2 r1)
+        γ'       <- γ += ("splitS1", x2, r2)
+        let r1x2' = r1' `F.subst1` (x1, F.EVar x2)
+        cs''     <- splitS  (SubC γ' r1x2' r2')
+        return    $ cs ++ cs' ++ cs''
+
 
 splitS (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
   =  do cs    <- bsplitS t1 t2
@@ -342,6 +359,16 @@ splitC (SubC γ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2))
         cs''     <- splitC  (SubC γ' t1x2' t2')
         return    $ cs ++ cs' ++ cs''
 
+splitC (SubC γ (RImpF x1 t1 t1' r1) (RImpF x2 t2 t2' r2))
+  =  do cs'      <- splitC  (SubC γ t2 t1)
+        γ'       <- γ+= ("splitC", x2, t2)
+        cs       <- bsplitC γ (RImpF x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2)))
+                              (RImpF x2 t2 t2'  r2)
+        let t1x2' = t1' `F.subst1` (x1, F.EVar x2)
+        cs''     <- splitC  (SubC γ' t1x2' t2')
+        return    $ cs ++ cs' ++ cs''
+
+
 splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
   =  do cs    <- bsplitC γ t1 t2
         cs'   <- splitC  (SubC γ r1 r2)
@@ -416,6 +443,7 @@ traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllS _ t)     = parens ("RAllS " ++ traceTy t)
 traceTy (RAllT _ t)     = parens ("RAllT " ++ traceTy t)
+traceTy (RImpF _ t t' _) = parens ("RImpF " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RFun _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RAllE _ tx t)  = parens ("RAllE " ++ parens (traceTy tx) ++ parens (traceTy t))
 traceTy (REx _ tx t)    = parens ("REx " ++ parens (traceTy tx) ++ parens (traceTy t))

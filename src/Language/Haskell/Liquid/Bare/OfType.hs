@@ -123,6 +123,9 @@ ofBRType appRTAlias resolveReft !t
            goRApp aliases t
     go (RAppTy t1 t2 r)
       = RAppTy <$> go t1 <*> go t2 <*> resolveReft r
+    go (RImpF x t1 t2 r)
+      =  do env <- get
+            goRImpF (bounds env) x t1 t2 r
     go (RFun x t1 t2 r)
       =  do env <- get
             goRFun (bounds env) x t1 t2 r
@@ -151,6 +154,13 @@ ofBRType appRTAlias resolveReft !t
     go_syms
       = secondM ofBSort
 
+    goRImpF bounds _ (RApp c ps' _ _) t _
+      | Just bnd <- M.lookup (btc_tc c) bounds
+      = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
+           ts <- mapM go ts'
+           makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
+    goRImpF _ x t1 t2 r
+      = RImpF x <$> (rebind x <$> go t1) <*> go t2 <*> resolveReft r
 
     goRFun bounds _ (RApp c ps' _ _) t _
       | Just bnd <- M.lookup (btc_tc c) bounds

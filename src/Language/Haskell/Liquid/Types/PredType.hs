@@ -313,6 +313,15 @@ substPred msg su@(π,prop) (RFun x t t' r)
   where (r', πs)                = splitRPvar π r
 -- ps has   , pargs :: ![(t, Symbol, Expr)]
 
+-- AT: just a copy of the other case, mutatis mutandi. (is there a less hacky way?)
+substPred msg su@(π,prop) (RImpF x t t' r)
+  | null πs                     = RImpF x (substPred msg su t) (substPred msg su t') r
+  | otherwise                   =
+      let sus = (\π -> F.mkSubst (zip (fst <$> rf_args prop) (thd3 <$> pargs π))) <$> πs in
+      foldl (\t su -> t `F.meet` F.subst su (rf_body prop)) (RImpF x (substPred msg su t) (substPred msg su t') r') sus
+  where (r', πs)                = splitRPvar π r
+
+
 
 substPred msg su (RRTy e r o t) = RRTy (mapSnd (substPred msg su) <$> e) r o (substPred msg su t)
 substPred msg su (RAllE x t t') = RAllE x (substPred msg su t) (substPred msg su t')
@@ -388,6 +397,8 @@ splitRPvar pv (MkUReft x (Pr pvs) s) = (MkUReft x (Pr pvs') s, epvs)
 freeArgsPs :: PVar (RType t t1 ()) -> RType t t1 (UReft t2) -> [F.Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
+freeArgsPs p (RImpF _ t1 t2 r)
+  = nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RFun _ t1 t2 r)
   = nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAllT _ t)
