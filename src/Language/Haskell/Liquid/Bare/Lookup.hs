@@ -337,7 +337,9 @@ wiredDataCons = M.fromList
      , ("GHC.Base.Nothing", nothingDataCon)
      , ("GHC.Base.Just"   , justDataCon   )
      , ("I#"              , intDataCon    )
+     , ("C#"              , charDataCon   )
      ]
+
 
 nTupleDataCon :: Int -> (F.Symbol, DataCon) 
 nTupleDataCon n = (x, dc)  
