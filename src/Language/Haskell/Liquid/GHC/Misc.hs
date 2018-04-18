@@ -502,10 +502,10 @@ localVarSymbol v
   | otherwise             = suffixSymbol vs us
   where
     us                    = symbol $ showPpr $ getDataConVarUnique v
-    vs                    = exportedVarSymbol v -- TODO:reflect-datacons varSymbol
+    vs                    = exportedVarSymbol v 
 
 exportedVarSymbol :: Var -> Symbol
-exportedVarSymbol = symbol . getName            -- TODO:reflect-datacons varSymbol
+exportedVarSymbol = symbol . getName            
 
 qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]

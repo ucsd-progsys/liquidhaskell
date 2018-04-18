@@ -44,7 +44,7 @@ import qualified Data.HashMap.Strict              as M
 import qualified Data.Text                        as T
 import qualified Data.List                        as L
 import           Data.Function                    (on)
-import           Language.Fixpoint.Types.Names    (symbolText, isPrefixOfSym, lengthSym, symbolString)
+import qualified Language.Fixpoint.Types.Names    as Names -- (symbolText, isPrefixOfSym, lengthSym, symbolString)
 import qualified Language.Fixpoint.Types          as F
 import           Language.Fixpoint.Misc           as F
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
@@ -123,12 +123,12 @@ _filterByName x = filter (L.isSuffixOf xKey . showpp)
     xKey       = symbolicName x
 
 symbolicName :: (F.Symbolic a) => a -> String
-symbolicName = symbolString . GM.dropModuleNamesAndUnique . F.symbol
+symbolicName = F.symbolString . GM.dropModuleNamesAndUnique . F.symbol
 
  -- ghcSymbolString = symbolString . dropModuleUnique
 
 symbolicString :: F.Symbolic a => a -> String
-symbolicString = symbolString . F.symbol
+symbolicString = F.symbolString . F.symbol
 
 -- liftIOErr :: TError e -> IO a -> BareM a
 -- liftIOErr e act = liftIO (act `catchError` \_ -> throwError e)
@@ -224,7 +224,7 @@ ghcSplitModuleName x = (mkModuleName $ ghcSymbolString m, mkTcOcc $ ghcSymbolStr
     (m, s)           = GM.splitModuleName x
 
 ghcSymbolString :: F.Symbol -> String
-ghcSymbolString = T.unpack . fst . T.breakOn "##" . symbolText
+ghcSymbolString = T.unpack . fst . T.breakOn "##" . F.symbolText
 -- ghcSymbolString = symbolString . dropModuleUnique
 
 --------------------------------------------------------------------------------
@@ -303,19 +303,11 @@ lookupGhcDataCon dc = case lookupWiredDataCon (val dc) of
                         Just x  -> return x
                         Nothing -> lookupGhcDataCon' dc
 
-  {-
-  | Just n <- isTupleDC (val dc)
-  = return $ tupleDataCon Boxed n
-  | val dc == "[]"
-  = return nilDataCon
-  | val dc == ":"
-  = return consDataCon
-  | otherwise
-  = lookupGhcDataCon' dc
-  -}
-
 lookupWiredDataCon :: F.Symbol ->  Maybe DataCon
-lookupWiredDataCon dc
+lookupWiredDataCon x = M.lookup x wiredDataCons 
+
+{-                         
+lookupWiredDataCon dc 
   | Just n <- isTupleDC dc
   = Just (tupleDataCon Boxed n)
   | dc == "[]"
@@ -335,6 +327,23 @@ isTupleDC zs
   = Just $ lengthSym zs - 1
   | otherwise
   = Nothing
+-}
+
+wiredDataCons :: M.HashMap F.Symbol DataCon 
+wiredDataCons = M.fromList 
+   $ (nTupleDataCon <$> [2..10])
+  ++ [ ("[]"              , nilDataCon    )
+     , (":"               , consDataCon   )
+     , ("GHC.Base.Nothing", nothingDataCon)
+     , ("GHC.Base.Just"   , justDataCon   )
+     , ("I#"              , intDataCon    )
+     ]
+
+nTupleDataCon :: Int -> (F.Symbol, DataCon) 
+nTupleDataCon n = (x, dc)  
+  where 
+    x           = F.symbol $ "(" ++ replicate (n - 1) ',' ++  ")"
+    dc          = tupleDataCon Boxed n 
 
 lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
 lookupGhcDataCon' = lookupGhcThing "data constructor" fdc (Just dataName)

@@ -32,7 +32,7 @@ import           Var
 import           DataCon
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
-import           Data.Maybe                            (isNothing)
+import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
 
 import qualified Data.List                             as L
 import qualified Data.HashMap.Strict                   as M
@@ -51,11 +51,6 @@ import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 makeDataConChecker :: DataCon -> F.Symbol
 --------------------------------------------------------------------------------
 makeDataConChecker d
-  -- // NO-SPL-CASE | nilDataCon  == d
-  -- // NO-SPL-CASE = F.symbol "isNull"
-  -- // NO-SPL-CASE | consDataCon == d
-  -- // NO-SPL-CASE = F.symbol "notIsNull"
-  -- // NO-SPL-CASE | otherwise
   = F.testSymbol (F.symbol d)
 
 --------------------------------------------------------------------------------
@@ -65,19 +60,20 @@ makeDataConChecker d
 --   equivalent to `head` and `tail`.
 --------------------------------------------------------------------------------
 makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
-makeDataConSelector mbDm d i = case mbDm of
+makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
+  where 
+    dm                       = Mb.fromMaybe M.empty dmMb 
+    def                      = makeDataConSelector' d i
+
+ {- 
+  case mbDm of
   Nothing -> def
   Just dm -> M.lookupDefault def (F.symbol d, i) dm
   where
-    def   =  makeDataConSelector' d i
+ -} 
 
 makeDataConSelector' :: DataCon -> Int -> F.Symbol
 makeDataConSelector' d i
-  -- // NO-SPL-CASE | d == consDataCon, i == 1
-  -- // NO-SPL-CASE = F.symbol "head"
-  -- // NO-SPL-CASE | d == consDataCon,  i == 2
-  -- // NO-SPL-CASE = F.symbol "tail"
-  -- // NO-SPL-CASE | otherwise
   = symbolMeasure "$select" (dcSymbol d) (Just i)
 
 dcSymbol :: DataCon -> F.Symbol
@@ -213,7 +209,7 @@ varFunSymbol :: Id -> Located F.Symbol
 varFunSymbol = dummyLoc . F.symbol . idDataCon
 
 isFunVar :: Id -> Bool
-isFunVar v   = isDataConId v && not (null αs) && isNothing tf
+isFunVar v   = isDataConId v && not (null αs) && Mb.isNothing tf
   where
     (αs, t)  = splitForAllTys $ varType v
     tf       = splitFunTy_maybe t

@@ -2147,10 +2147,6 @@ isHole _                    = False
 hasHole :: F.Reftable r => r -> Bool
 hasHole = any isHole . F.conjuncts . F.reftPred . F.toReft
 
--- classToRApp :: SpecType -> SpecType
--- classToRApp (RCls cl ts)
---   = RApp (RTyCon (classTyCon cl) def def) ts mempty mempty
-
 instance F.Symbolic DataCon where
   symbol = F.symbol . dataConWorkId
 
