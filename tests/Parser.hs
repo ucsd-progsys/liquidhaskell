@@ -479,7 +479,7 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?=
-            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"=>\", \"/\" or end of input"
+            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"~>\", \"=>\", \"/\" or end of input"
     ]
 
 
