@@ -123,12 +123,12 @@ _filterByName x = filter (L.isSuffixOf xKey . showpp)
     xKey       = symbolicName x
 
 symbolicName :: (F.Symbolic a) => a -> String
-symbolicName = Names.symbolString . GM.dropModuleNamesAndUnique . F.symbol
+symbolicName = F.symbolString . GM.dropModuleNamesAndUnique . F.symbol
 
  -- ghcSymbolString = symbolString . dropModuleUnique
 
 symbolicString :: F.Symbolic a => a -> String
-symbolicString = Names.symbolString . F.symbol
+symbolicString = F.symbolString . F.symbol
 
 -- liftIOErr :: TError e -> IO a -> BareM a
 -- liftIOErr e act = liftIO (act `catchError` \_ -> throwError e)
@@ -224,7 +224,7 @@ ghcSplitModuleName x = (mkModuleName $ ghcSymbolString m, mkTcOcc $ ghcSymbolStr
     (m, s)           = GM.splitModuleName x
 
 ghcSymbolString :: F.Symbol -> String
-ghcSymbolString = T.unpack . fst . T.breakOn "##" . Names.symbolText
+ghcSymbolString = T.unpack . fst . T.breakOn "##" . F.symbolText
 -- ghcSymbolString = symbolString . dropModuleUnique
 
 --------------------------------------------------------------------------------
@@ -342,7 +342,7 @@ wiredDataCons = M.fromList
 nTupleDataCon :: Int -> (F.Symbol, DataCon) 
 nTupleDataCon n = (x, dc)  
   where 
-    x           = F.symbol $ "(" ++ replicate n ',' ++  ")"
+    x           = F.symbol $ "(" ++ replicate (n - 1) ',' ++  ")"
     dc          = tupleDataCon Boxed n 
 
 lookupGhcDataCon' :: (GhcLookup a) => a -> BareM DataCon
