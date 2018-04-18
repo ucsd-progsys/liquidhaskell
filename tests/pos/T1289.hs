@@ -10,3 +10,8 @@ thm1 :: Int -> ()
 {-@ thm1 :: x:Int -> {intId x = x} @-}
 thm1 x = ()
 
+
+{-@ measure charId @-}
+charId :: Char -> Char
+charId 'a' = 'a'
+charId x = x
