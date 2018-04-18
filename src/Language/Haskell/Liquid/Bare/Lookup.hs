@@ -340,6 +340,7 @@ wiredDataCons = M.fromList
      , ("C#"              , charDataCon   )
      ]
 
+
 nTupleDataCon :: Int -> (F.Symbol, DataCon) 
 nTupleDataCon n = (x, dc)  
   where 
