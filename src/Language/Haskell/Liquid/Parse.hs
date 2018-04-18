@@ -257,6 +257,11 @@ btP = do
             return (PC sb (rFun b t1 t2)))
         <|>
          (do
+            reservedOp "~>"
+            PC _ t2 <- btP
+            return (PC sb (rImpF b t1 t2)))
+        <|>
+         (do
             reservedOp "=>"
             PC _ t2 <- btP
             -- TODO:AZ return an error if s == PcExplicit
