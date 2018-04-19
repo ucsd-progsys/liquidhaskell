@@ -139,6 +139,8 @@ runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Erro
 runMapTyVars = execStateT
 
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
+mapTyVars t (RImpF _ _ t' _)
+   = mapTyVars t t'
 mapTyVars (FunTy τ τ') (RFun _ t t' _)
    = mapTyVars τ t >> mapTyVars τ' t'
 mapTyVars τ (RAllT _ t)
