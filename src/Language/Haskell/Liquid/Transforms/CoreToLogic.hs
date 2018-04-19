@@ -23,6 +23,7 @@ import           GHC                                   hiding (Located, exprType
 import           Prelude                               hiding (error)
 import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
+-- import qualified Id 
 import qualified Var
 import qualified TyCon 
 import           Coercion
@@ -244,7 +245,8 @@ coreToFun _ _v e = go [] $ normalize e
     go acc (C.Lam x e)  | isErasable x = go acc e
     go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
-    go acc e            = (reverse acc,) . Right <$> coreToLg e
+    go acc e            = (reverse acc,) . Right . F.tracepp "CORE-TO-LOGIC" <$> coreToLg e
+    
 
 instance Show C.CoreExpr where
   show = GM.showPpr
@@ -324,7 +326,7 @@ checkDataAlt :: C.AltCon -> Expr -> LogicM Expr
 checkDataAlt (C.DataAlt d) e = return $ EApp (EVar (makeDataConChecker d)) e
 checkDataAlt C.DEFAULT     _ = return PTrue
 checkDataAlt (C.LitAlt l)  e 
-  | Just le <- mkLit l       = return (F.notracepp "CHECK-DATA-ALT" $ EEq le e)  
+  | Just le <- mkLit l       = return (EEq le e)  
   | otherwise                = throw $ "Oops, not yet handled: checkDataAlt on Lit: " ++ GM.showPpr l
 
 -- | 'altsDefault' reorders the CoreAlt to ensure that 'DEFAULT' is at the end.
@@ -510,7 +512,16 @@ ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
 isErasable :: Id -> Bool
-isErasable v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+isErasable v = res -- F.tracepp ("isErasable: " ++ GM.showPpr (v, Var.idDetails v)) res  
+  where 
+    res      = isGhc v && not (isDCId v) 
+    isGhc v  = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+
+isDCId :: Id -> Bool
+isDCId v = case Var.idDetails v of 
+  DataConWorkId _ -> True 
+  DataConWrapId _ -> True 
+  _               -> False 
 
 isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
