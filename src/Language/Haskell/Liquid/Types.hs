@@ -1332,7 +1332,9 @@ bkUniv t           = ([], [], [], t)
 
 bkClass :: TyConable c
         => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
-bkClass (RImpF x t t' r)= bkClass (RFun x t t' r)
+bkClass (RImpF _ (RApp c t _ _) t' _)
+  | isClass c
+  = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass (RFun _ (RApp c t _ _) t' _)
   | isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
