@@ -6,7 +6,6 @@ module ImplicitTrivial where
 foo :: Int -> Int
 foo moo = 1 + moo
 
-{-@ bar :: m:Int -> {v:_|v=m+1} @-}
+{-@ bar :: o:Int -> {v:_|v=o+1} @-}
 bar :: Int -> Int
-bar moo = foo moo
- 
+bar goo = foo goo

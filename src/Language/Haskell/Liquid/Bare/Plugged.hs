@@ -141,7 +141,7 @@ plugHoles tce tyi x f t (Loc l l' st)
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = return v
-    go (RImpF x i o r)  t'                 = RImpF x i  <$> go o t' <*> return r
+    go t'               (RImpF x i o r)    = RImpF x i  <$> go t' o <*> return r
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x     <$> go i i' <*> go o o' <*> return r
     go (RAllT _ t)      (RAllT a t')       = RAllT a    <$> go t t'
     go (RAllT a t)      t'                 = RAllT a    <$> go t t'
