@@ -505,17 +505,18 @@ mkS                    = Just . ESym . SL  . decodeUtf8With lenientDecode
 mkC :: Char -> Maybe Expr
 mkC                    = Just . ECon . (`F.L` F.charSort)  . repr 
   where 
-    -- repr            = T.singleton 
     repr               = T.pack . show . Data.Char.ord 
 
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
 isErasable :: Id -> Bool
-isErasable v = res -- F.tracepp ("isErasable: " ++ GM.showPpr (v, Var.idDetails v)) res  
+isErasable v = F.notracepp msg $ isGhcSplId v && not (isDCId v) 
   where 
-    res      = isGhc v && not (isDCId v) 
-    isGhc v  = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+    msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
+
+isGhcSplId :: Id -> Bool
+isGhcSplId v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
 isDCId :: Id -> Bool
 isDCId v = case Var.idDetails v of 
