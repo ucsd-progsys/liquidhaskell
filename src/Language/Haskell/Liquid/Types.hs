@@ -60,6 +60,7 @@ module Language.Haskell.Liquid.Types (
   , RTAlias (..)
   , OkRT
   , lmapEAlias
+  , dropImplicits
 
   -- * Worlds
   , HSeg (..)
@@ -814,6 +815,22 @@ ignoreOblig :: RType t t1 t2 -> RType t t1 t2
 ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
+dropImplicits :: RType c tv r -> RType c tv r
+dropImplicits (RImpF _ _ o _) = o
+dropImplicits (RFun  x i o r) = RFun x (dropImplicits i) (dropImplicits o) r
+dropImplicits (RAllP p t) = RAllP p (dropImplicits t)
+dropImplicits (RAllT p t) = RAllT p (dropImplicits t)
+dropImplicits (RAllS p t) = RAllS p (dropImplicits t)
+dropImplicits (RApp c as ps r) = RApp c (dropImplicits <$> as) (dropImplicitsRP <$> ps) r
+dropImplicits (RAllE p t t') = RAllE p (dropImplicits t) (dropImplicits t')
+dropImplicits (REx s t t')   = REx   s (dropImplicits t) (dropImplicits t')
+dropImplicits (RAppTy t t' r)   = RAppTy (dropImplicits t) (dropImplicits t') r
+dropImplicits (RRTy e r o t) = RRTy (second dropImplicits <$> e) r o (dropImplicits t)
+dropImplicits t = t
+
+dropImplicitsRP :: RTProp c tv r -> RTProp c tv r
+dropImplicitsRP (RProp as b) = RProp (second dropImplicits <$> as) (dropImplicits b)
+
 
 makeRTVar :: tv -> RTVar tv s
 makeRTVar a = RTVar a RTVNoInfo
@@ -1250,6 +1267,7 @@ data RTAlias x a = RTA
   , rtPos   :: F.SourcePos        -- ^ start position
   , rtPosE  :: F.SourcePos        -- ^ end   position
   } deriving (Data, Typeable, Generic)
+-- TODO support ghosts in aliases?
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
 
@@ -1277,7 +1295,7 @@ data RTypeRep c tv r = RTypeRep
 
 fromRTypeRep :: RTypeRep c tv r -> RType c tv r
 fromRTypeRep (RTypeRep {..})
-  = mkArrow ty_vars ty_preds ty_labels arrs ty_res
+  = mkArrow ty_vars ty_preds ty_labels [] arrs ty_res
   where
     arrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_args, length ty_refts)) ty_binds ty_args ty_refts
 
@@ -1285,18 +1303,20 @@ toRTypeRep           :: RType c tv r -> RTypeRep c tv r
 toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''
   where
     (αs, πs, ls, t')  = bkUniv  t
-    (xs, ts, rs, t'') = bkArrow t'
+    ((_,_,_),(xs, ts, rs), t'') = bkArrow t'
 
 mkArrow :: [RTVar tv (RType c tv ())]
         -> [PVar (RType c tv ())]
         -> [Symbol]
         -> [(Symbol, RType c tv r, r)]
+        -> [(Symbol, RType c tv r, r)]
         -> RType c tv r
         -> RType c tv r
-mkArrow αs πs ls xts = mkUnivs αs πs ls . mkArrs xts
+mkArrow αs πs ls yts xts = mkUnivs αs πs ls . mkArrs RImpF yts. mkArrs RFun xts
   where
-    mkArrs xts t  = foldr (\(b,t1,r) t2 -> RFun b t1 t2 r) t xts
+    mkArrs f xts t  = foldr (\(b,t1,r) t2 -> f b t1 t2 r) t xts
 
+-- Do I need to keep track of implicits here too?
 bkArrowDeep :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
 bkArrowDeep (RAllT _ t)     = bkArrowDeep t
 bkArrowDeep (RAllP _ t)     = bkArrowDeep t
@@ -1305,12 +1325,27 @@ bkArrowDeep (RImpF x t t' r)= bkArrowDeep (RFun x t t' r)
 bkArrowDeep (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrowDeep t'  in (x:xs, t:ts, r:rs, t'')
 bkArrowDeep t               = ([], [], [], t)
 
-bkArrow :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
-bkArrow (RImpF x t t' r)= bkArrow (RFun x t t' r)
-bkArrow (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrow t'  in (x:xs, t:ts, r:rs, t'')
-bkArrow t               = ([], [], [], t)
 
-safeBkArrow :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+bkArrow :: RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
+                           , ([Symbol], [RType t t1 a], [a])
+                           , RType t t1 a )
+bkArrow t = ((xs,ts,rs),(xs',ts',rs'),t'')
+  where (xs, ts, rs, t') = bkImp t
+        (xs', ts', rs', t'') = bkFun t'
+
+
+bkFun :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+bkFun (RFun x t t' r) = let (xs, ts, rs, t'') = bkFun t'  in (x:xs, t:ts, r:rs, t'')
+bkFun t               = ([], [], [], t)
+
+bkImp :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+bkImp (RImpF x t t' r) = let (xs, ts, rs, t'') = bkImp t'  in (x:xs, t:ts, r:rs, t'')
+bkImp t                = ([], [], [], t)
+
+
+safeBkArrow :: RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
+                           , ([Symbol], [RType t t1 a], [a])
+                           , RType t t1 a )
 safeBkArrow (RAllT _ _) = panic Nothing "safeBkArrow on RAllT"
 safeBkArrow (RAllP _ _) = panic Nothing "safeBkArrow on RAllP"
 safeBkArrow (RAllS _ t) = safeBkArrow t

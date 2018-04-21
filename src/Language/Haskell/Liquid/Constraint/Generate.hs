@@ -382,11 +382,12 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
+addObligation o t r  = mkArrow αs πs ls yts xts $ RRTy [] r o t2
   where
     (αs, πs, ls, t1) = bkUniv t
-    (xs, ts, rs, t2) = bkArrow t1
+    ((xs',ts',rs'),(xs, ts, rs), t2) = bkArrow t1
     xts              = zip3 xs ts rs
+    yts              = zip3 xs' ts' rs'
 
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
@@ -815,25 +816,14 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ e'@(App e a)
-  = do
-       let (e'', as) = splitEApp e'
-       if length as > 1              -- Avoid infinite loop
-         then do
+  = do ([], πs, ls, te) <- bkUniv <$> consE γ e
 
-         (_,_,_,te) <- bkUniv <$> consE γ e''
-         let (xts, tem) = splitSType te
-         traceShowM (xts, tem)
+       let (yts, xts, tem) = bkImplicit te
+       traceShowM (yts, xts, tem)
+       when (not $ null yts) $ do
 
-         when (length xts == length as) $ do
-
-             -- Fully Saturated case.
-             -- TODO: add ebinds for implicits and then just run the other case
-             return ()
-
-         -- Special case when the only argument is an implicit argument
-         else return ()
-
-       ([], πs, ls, te) <- bkUniv <$> consE γ e
+           -- TODO: add ebinds for implicits and then just run the other case
+           return ()
 
        -- ART instantiation
        -- foldr pops ART quantifiers back on
@@ -845,6 +835,7 @@ consE γ e'@(App e a)
 
        updateLocA (exprLoc e) te''
 
+       let _te'''        =  dropImplicit te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
        pushConsBind      $ cconsE γ' a tx
        makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
@@ -893,17 +884,20 @@ consE _ e@(Coercion _)
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
 
-splitEApp :: Expr b -> (Expr b, [Arg b])
-splitEApp = go []
-  where
-    go acc (App f e) = go (e:acc) f
-    go acc e          = (e, acc)
+-- TODO, refactor s.t. dropImplicit and bkImplicit become uses of bkArrow?
+dropImplicit :: RType c tv r -> RType c tv r
+dropImplicit (RImpF _ _ t _) = t
+dropImplicit t = t
 
-splitSType :: RType c tv r
-              -> ([(F.Symbol, RType c tv r)], RType c tv r)
-splitSType (RFun x tx t _) = ((x,tx):acc, t')
-  where (acc,t') = splitSType t
-splitSType t = ([],t)
+bkImplicit :: RType c tv r
+           -> ( [(F.Symbol, RType c tv r)]
+              , [(F.Symbol, RType c tv r)]
+              , RType c tv r)
+bkImplicit (RImpF x tx t _) = ((x,tx):acc,bcc, t')
+  where (acc,bcc,t') = bkImplicit t
+bkImplicit (RFun x tx t _) = (acc,(x,tx):bcc, t')
+  where (acc,bcc,t') = bkImplicit t
+bkImplicit t = ([],[],t)
 
 caseKVKind ::[Alt Var] -> KVKind
 caseKVKind [(DataAlt _, _, Var _)] = ProjectE
@@ -1181,7 +1175,8 @@ unfoldR :: SpecType
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys (F.notracepp "UNFOLDR-1" td) ts) $ reverse rs
-        (ys0, yts', _, rt) = safeBkArrow $ instantiateTys tbody tvs'
+        -- TODO: if we ever want to support applying implicits explcitly, will need to rejigger
+        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow $ instantiateTys tbody tvs'
         yts''              = F.notracepp "UNFOLDR-0" $ zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
         sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])

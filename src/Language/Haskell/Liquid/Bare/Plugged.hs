@@ -113,7 +113,7 @@ plugHoles tce tyi x f t (Loc l l' st)
            st4   = mapExprReft (\_ -> F.applyCoSub coSub) st3
            ps'   = fmap (subts su') <$> ps
            su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] . makeCls cs' <$> (go rt' st4)
+       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] . makeCls cs' <$> (go rt' st4)
   where
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt

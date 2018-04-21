@@ -680,7 +680,7 @@ makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$
     where
     ts :: [ LocSpecType ]
     ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
-                               [(z, res, mempty)]
+                               [] [(z, res, mempty)]
                                (dropPreds (F.subst su t `RT.strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
            , let vv = rTypeValueVar t

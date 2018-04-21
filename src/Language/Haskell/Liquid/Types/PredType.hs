@@ -147,7 +147,7 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
 dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
-    mkArrow makeVars ps ls ts' rt'
+    mkArrow makeVars ps ls [] ts' rt'
   where
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)

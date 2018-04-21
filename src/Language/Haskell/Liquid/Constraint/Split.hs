@@ -589,7 +589,7 @@ forallExprReftLookup :: CGEnv
                      -> Maybe ([F.Symbol], [SpecType], [RReft], SpecType)
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
-    snap     = mapFourth4 ignoreOblig . bkArrow . fourth4 . bkUniv . lookup
+    snap     = mapFourth4 ignoreOblig . (\(_,(a,b,c),t)->(a,b,c,t)) . bkArrow . fourth4 . bkUniv . lookup
     lookup z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
 

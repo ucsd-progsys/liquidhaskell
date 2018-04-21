@@ -248,8 +248,9 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
 checkMismatch        :: (Var, Located SpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where
-    ok               = tyCompat x (val t)
-    err              = errTypeMismatch x t
+    ok               = tyCompat x (val t')
+    err              = errTypeMismatch x t'
+    t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
 tyCompat x t         = lhs == rhs
