@@ -5,7 +5,8 @@ module Language.Haskell.Liquid.Bare.Misc (
   , freeSymbols
   , joinVar
   , mkVarExpr
-  , MapTyVarST(..)
+  -- , MapTyVarST(..)
+  , vmap
   , initMapSt
   , runMapTyVars
   , mapTyVars
