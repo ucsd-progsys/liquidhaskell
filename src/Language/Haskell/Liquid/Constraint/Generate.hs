@@ -472,6 +472,12 @@ consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = γ `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
+
+       -- take implcits out of the function's SpecType and into the env
+       let tyr = toRTypeRep spect
+       let spect = fromRTypeRep (tyr { ty_ebinds = [], ty_eargs = [], ty_erefts = [] })
+       γπ <- foldM (+=) γπ $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
+
        cconsE γπ e (weakenResult x spect)
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
@@ -821,6 +827,11 @@ consE γ e'@(App e a)
        let (yts, xts, tem) = bkImplicit te
        traceShowM (yts, xts, tem)
        when (not $ null yts) $ do
+
+           traceShowM yts
+           -- let (ys,ts) = unzip yts
+           -- ys' <- mapM fresh ys
+           -- traceShowM (zip ys' ts)
 
            -- TODO: add ebinds for implicits and then just run the other case
            return ()

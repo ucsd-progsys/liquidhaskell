@@ -47,5 +47,5 @@ test3 m = foo (\_ -> m+1)
 {-@ test4 :: IntN 11 @-}
 test4 = foo (const (10))
 
-{-@ bar :: IntN 3 @-}
-bar = foo (\_ -> foo (\_ -> 1))
+{- bar :: IntN 3 @-}
+-- bar = foo (\_ -> foo (\_ -> 1))
