@@ -1287,6 +1287,9 @@ data RTypeRep c tv r = RTypeRep
   { ty_vars   :: [RTVar tv (RType c tv ())]
   , ty_preds  :: [PVar (RType c tv ())]
   , ty_labels :: [Symbol]
+  , ty_ebinds  :: [Symbol]
+  , ty_erefts  :: [r]
+  , ty_eargs   :: [RType c tv r]
   , ty_binds  :: [Symbol]
   , ty_refts  :: [r]
   , ty_args   :: [RType c tv r]
@@ -1295,15 +1298,16 @@ data RTypeRep c tv r = RTypeRep
 
 fromRTypeRep :: RTypeRep c tv r -> RType c tv r
 fromRTypeRep (RTypeRep {..})
-  = mkArrow ty_vars ty_preds ty_labels [] arrs ty_res
+  = mkArrow ty_vars ty_preds ty_labels earrs arrs ty_res
   where
     arrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_args, length ty_refts)) ty_binds ty_args ty_refts
+    earrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_eargs, length ty_erefts)) ty_ebinds ty_eargs ty_erefts
 
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
-toRTypeRep t         = RTypeRep αs πs ls xs rs ts t''
+toRTypeRep t         = RTypeRep αs πs ls xs' rs' ts' xs rs ts t''
   where
     (αs, πs, ls, t')  = bkUniv  t
-    ((_,_,_),(xs, ts, rs), t'') = bkArrow t'
+    ((xs',ts',rs'),(xs, ts, rs), t'') = bkArrow t'
 
 mkArrow :: [RTVar tv (RType c tv ())]
         -> [PVar (RType c tv ())]
