@@ -1,8 +1,5 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
-{-@ LIQUID "--short-names" @-}
-{-@ LIQUID "--diff"        @-}
-
 {-@ infixr ++              @-}
 
 module Fulcrum where 
@@ -10,10 +7,10 @@ module Fulcrum where
 import Prelude hiding ((++), unzip, take, drop, abs, sum, minimum, min)
 import Language.Haskell.Liquid.NewProofCombinators 
 
-fv :: [Int] -> Int -> Int 
-fulcrum :: [Int] -> (Int, Int -> ())
+fv       :: [Int] -> Int -> Int 
+fulcrum  :: [Int] -> (Int, Int -> ())
 fulcrums :: [Int] -> IMap Int 
-fv' :: [Int] -> Int -> Int -> Int -> Int 
+fv'      :: [Int] -> Int -> Int -> Int -> Int 
 
 --------------------------------------------------------------------------------
 -- | Spec: Fulcrum Value
@@ -32,22 +29,21 @@ abs n | 0 <= n    = n
 -- | Impl: Computing Fulcrum Values of a List 
 --------------------------------------------------------------------------------
 
-{-@ type Rng Lo Hi = {v:Int | Lo <= v && v < Hi} @-}
-{-@ type ListNE a  = {v:[a] | len v > 0 }        @-}
+{-@ type Rng Lo Hi = {v:Int | Lo <= v && v < Hi} @-}      -- 'Int' between Lo and Hi
+{-@ type ListNE a  = {v:[a] | len v > 0 }        @-}      -- Non-empty Lists
 
 {-@ fulcrum :: xs:(ListNE Int) -> (i :: Int, j:(Rng 0 (len xs)) -> {v:() | fv xs i <= fv xs j}) @-} 
 fulcrum xs = argMin (fv xs) (fulcrums xs)
 
-{-@ type FvMap Xs = GMap Int (fv Xs) @-}
+{-@ type FvMap Xs N = {m: GMap Int (fv Xs) | size m = N} @-}
 
-{-@ fulcrums :: xs:ListNE Int -> {m:FvMap xs | size m = len xs} @-}
+{-@ fulcrums :: xs:ListNE Int -> FvMap xs (len xs) @-}
 fulcrums xs             = go 0 0 xs Emp 
   where 
     total               = sum xs
-    {-@ go :: i:_ -> {pre:_ | pre == sum (take i xs)} 
-           -> ys:{ys == drop i xs} 
-           -> {v:FvMap xs | size v == i} 
-           -> {v:FvMap xs | size v == i + len ys} / [len ys] 
+    {-@ go :: i:_ -> {pre:_ | pre == sum (take i xs)} -> ys:{ys == drop i xs} 
+           -> FvMap xs i 
+           -> FvMap {xs} {i + len ys} / [len ys] 
       @-} 
     go _ _   [] m = m 
     go i pre ys m = go (i+1) pre' ys' (Bind i (fv' xs total i pre) m) 
@@ -55,10 +51,12 @@ fulcrums xs             = go 0 0 xs Emp
         ys'       = tail ys         `withProof` thmDrop    xs i ys
         pre'      = (pre + head ys) `withProof` thmSumTake xs i ys
 
-{-@ fv' :: xs:_ -> tot:{tot = sum xs} -> i:Nat -> pre:{pre = sum (take i xs)} -> {v:_ | v = fv xs i} @-}
-fv' xs tot i pre = abs (pre - post) `withProof` thmSumSplit xs i
+{-@ fv' :: xs:_ -> total:{total = sum xs} -> i:Nat -> pre:{pre = sum (take i xs)} 
+        -> {v:_ | v = fv xs i} 
+  @-}
+fv' xs total i pre = abs (pre - post) `withProof` thmSumSplit xs i
   where 
-    post         = tot - pre 
+    post           = total - pre 
 
 --------------------------------------------------------------------------------
 -- | Lib: Lists, Summing etc. 
@@ -144,7 +142,7 @@ thmTake (x:xs) i ys = thmTake xs (i-1) ys
 --------------------------------------------------------------------------------
 -- Theorems about suffixes
 --------------------------------------------------------------------------------
-thmSuffix :: [a] -> Int -> [a] -> () 
+thmSuffix   :: [a] -> Int -> [a] -> () 
 thmSuffixAt :: [a] -> Int -> [a] -> () 
 
 {-@ thmSuffix :: xs:[a] -> i:{i > 0} -> ys:SuffixAt _ i xs -> { ys == drop (i-1) (tail xs) } @-}
@@ -191,6 +189,6 @@ argMin g (Bind k v m) = loop g m k v  (1 + size m) (\j -> ())
          -> (i::Int, j:(Rng 0 n) -> {v:() | g i  <= g j}) 
   @-}
 loop g (Bind i v m) i0 v0 n pf 
-  | v < v0                     = loop g m i  v  n (\j -> if j == i then () else pf j) 
-  | otherwise                  = loop g m i0 v0 n (\j -> if j == i then () else pf j) 
-loop g Emp          i0 v0 n pf = (i0, pf) 
+  | v < v0             = loop g m i  v  n (\j -> if j == i then () else pf j) 
+  | otherwise          = loop g m i0 v0 n (\j -> if j == i then () else pf j) 
+loop g Emp  i0 v0 n pf = (i0, pf) 
