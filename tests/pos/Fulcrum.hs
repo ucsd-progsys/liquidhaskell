@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
+
 {-@ infixr ++              @-}
 
 module Fulcrum where 
@@ -46,8 +47,10 @@ fulcrums xs             = go 0 0 xs Emp
            -> FvMap {xs} {i + len ys} / [len ys] 
       @-} 
     go _ _   [] m = m 
-    go i pre ys m = go (i+1) pre' ys' (Bind i (fv' xs total i pre) m) 
-      where 
+    go i pre ys m = go (i + 1) pre' ys' m' 
+      where
+        m'        = Bind i fvi m
+        fvi       = fv' xs total i pre
         ys'       = tail ys         `withProof` thmDrop    xs i ys
         pre'      = (pre + head ys) `withProof` thmSumTake xs i ys
 
