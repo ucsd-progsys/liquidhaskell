@@ -30,10 +30,9 @@ abs n | 0 <= n    = n
 -- | Impl: Computing Fulcrum Values of a List 
 --------------------------------------------------------------------------------
 
-{-@ type Rng Lo Hi = {v:Int | Lo <= v && v < Hi} @-}      -- 'Int' between Lo and Hi
-{-@ type ListNE a  = {v:[a] | len v > 0 }        @-}      -- Non-empty Lists
+{-@ type ListNE a  = {v:[a] | len v > 0 } @-}      -- Non-empty Lists
 
-{-@ fulcrum :: xs:(ListNE Int) -> (i :: Int, j:(Rng 0 (len xs)) -> {v:() | fv xs i <= fv xs j}) @-} 
+{-@ fulcrum :: xs:(ListNE Int) -> (i :: Int, j:Int -> {v:() | (btwn 0 j (len xs)) => fv xs i <= fv xs j}) @-} 
 fulcrum xs = argMin (fv xs) (fulcrums xs)
 
 {-@ type FvMap Xs N = {m: GMap Int (fv Xs) | size m = N} @-}
@@ -181,17 +180,21 @@ size (Bind _ _ m) = 1 + size m
 
 {-@ argMin :: (Ord a) => g:(Nat -> a) 
            -> m:{GMap a g | size m > 0} 
-           -> (i::Int, j:(Rng 0 (size m)) -> {v:() | g i <= g j}) 
+           -> (i::Int, j:Int -> {v:() | (btwn 0 j (size m)) => g i <= g j}) 
   @-}
-argMin g (Bind k v m) = loop g m k v  (1 + size m) (\j -> ()) 
+argMin g (Bind k v m) = loop g m k v  (1 + size m) (const ()) 
 
 {-@ loop :: (Ord a) => g:(Nat -> a) 
          -> m0:(GMap a g) -> i0:Int -> v0:{a | v0 = g i0} 
          -> n:Nat 
-         -> (j:(Rng (size m0) n) -> {v:() | g i0 <= g j}) 
-         -> (i::Int, j:(Rng 0 n) -> {v:() | g i  <= g j}) 
+         -> (j:Int -> {v:() | (btwn (size m0) j n) => g i0 <= g j}) 
+         -> (i::Int, j:Int -> {v:() | (btwn 0 j n) => g i  <= g j}) 
   @-}
 loop g (Bind i v m) i0 v0 n pf 
-  | v < v0             = loop g m i  v  n (\j -> if j == i then () else pf j) 
-  | otherwise          = loop g m i0 v0 n (\j -> if j == i then () else pf j) 
+  | v < v0             = loop g m i  v  n pf 
+  | otherwise          = loop g m i0 v0 n pf 
 loop g Emp  i0 v0 n pf = (i0, pf) 
+
+{-@ inline btwn @-}
+btwn :: Int -> Int -> Int -> Bool 
+btwn lo j hi = lo <= j && j < hi
