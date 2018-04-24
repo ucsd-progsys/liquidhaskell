@@ -178,8 +178,7 @@ size (Bind _ _ m) = 1 + size m
 
 {-@ type GMap a G  = IMap<{\i v -> v = G i}> a   @-}
 
-{-@ argMin :: (Ord a) => g:(Nat -> a) 
-           -> m:{GMap a g | size m > 0} 
+{-@ argMin :: (Ord a) => g:(Nat -> a) -> m:{GMap a g | size m > 0} 
            -> (i::Int, j:Int -> {v:() | (btwn 0 j (size m)) => g i <= g j}) 
   @-}
 argMin g (Bind k v m) = loop g m k v  (1 + size m) (const ()) 
