@@ -77,7 +77,6 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult) 
 import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
-import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -475,10 +474,10 @@ consBind isRec γ (x, e, Asserted spect)
 
        -- take implcits out of the function's SpecType and into the env
        let tyr = toRTypeRep spect
-       let spect = fromRTypeRep (tyr { ty_ebinds = [], ty_eargs = [], ty_erefts = [] })
+       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_eargs = [], ty_erefts = [] })
        γπ <- foldM (+=) γπ $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
 
-       cconsE γπ e (weakenResult x spect)
+       cconsE γπ e (weakenResult x spect')
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -720,6 +719,32 @@ splitConstraints t
   = ([], t)
 
 -------------------------------------------------------------------
+-- | @instantiateGhosts@ peels away implicit argument binders,
+-- instantiates them with fresh variables, and adds those variables
+-- to the context as @ebind@s TODO: the second half
+-------------------------------------------------------------------
+instantiateGhosts :: CGEnv
+                 -> SpecType
+                 -> CG (Bool, CGEnv, SpecType)
+instantiateGhosts γ t | not (null yts)
+  = do ys' <- mapM (const fresh) ys
+       γ' <- foldM (+=) γ [("",y,t) | (y,t) <- zip ys' ts]
+
+       let su = F.mkSubst $ zip ys (F.EVar <$> ys')
+       return (True, γ', F.subst su te')
+  where (yts, te') = bkImplicit t
+        (ys, ts)   = unzip yts
+
+instantiateGhosts γ t = return (False, γ, t)
+
+bkImplicit :: RType c tv r
+           -> ( [(F.Symbol, RType c tv r)]
+              , RType c tv r)
+bkImplicit (RImpF x tx t _) = ((x,tx):acc, t')
+  where (acc,t') = bkImplicit t
+bkImplicit t = ([],t)
+
+-------------------------------------------------------------------
 -- | @instantiatePreds@ peels away the universally quantified @PVars@
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
 --   in the body.
@@ -823,33 +848,22 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
 
 consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
-
-       let (yts, xts, tem) = bkImplicit te
-       traceShowM (yts, xts, tem)
-       when (not $ null yts) $ do
-
-           traceShowM yts
-           -- let (ys,ts) = unzip yts
-           -- ys' <- mapM fresh ys
-           -- traceShowM (zip ys' ts)
-
-           -- TODO: add ebinds for implicits and then just run the other case
-           return ()
-
-       -- ART instantiation
-       -- foldr pops ART quantifiers back on
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
        te'              <- instantiateStrata ls te0
-       -- more instantiation "don't worry about it"
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
-
        updateLocA (exprLoc e) te''
-
-       let _te'''        =  dropImplicit te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-       pushConsBind      $ cconsE γ' a tx
-       makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
+       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
+       pushConsBind      $ cconsE γ'' a tx
+       tout <- makeSingleton γ'' e' <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       if hasGhost
+          then do
+           tk   <- freshTy_type ImplictE e' $ exprType e'
+           addW $ WfC γ tk
+           addC (SubC γ'' tout tk) ""
+           return tk
+          else return tout
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -894,21 +908,6 @@ consE _ e@(Coercion _)
 
 consE _ e@(Type t)
   = panic Nothing $ "consE cannot handle type " ++ GM.showPpr (e, t)
-
--- TODO, refactor s.t. dropImplicit and bkImplicit become uses of bkArrow?
-dropImplicit :: RType c tv r -> RType c tv r
-dropImplicit (RImpF _ _ t _) = t
-dropImplicit t = t
-
-bkImplicit :: RType c tv r
-           -> ( [(F.Symbol, RType c tv r)]
-              , [(F.Symbol, RType c tv r)]
-              , RType c tv r)
-bkImplicit (RImpF x tx t _) = ((x,tx):acc,bcc, t')
-  where (acc,bcc,t') = bkImplicit t
-bkImplicit (RFun x tx t _) = (acc,(x,tx):bcc, t')
-  where (acc,bcc,t') = bkImplicit t
-bkImplicit t = ([],[],t)
 
 caseKVKind ::[Alt Var] -> KVKind
 caseKVKind [(DataAlt _, _, Var _)] = ProjectE

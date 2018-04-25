@@ -1572,7 +1572,7 @@ emapExprArg f = go
     go γ (RAllT α t)        = RAllT α (go γ t)
     go γ (RAllP π t)        = RAllP π (go γ t)
     go γ (RAllS p t)        = RAllS p (go γ t)
-    go γ (RImpF x t t' r)   = RImpF  x (go γ t) (go (x:γ) t') r
+    go γ (RImpF x t t' r)   = RImpF x (go γ t) (go (x:γ) t') r
     go γ (RFun x t t' r)    = RFun  x (go γ t) (go (x:γ) t') r
     go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
@@ -2182,6 +2182,7 @@ data KVKind
   | LamE
   | CaseE       Int -- ^ Int is the number of cases
   | LetE
+  | ImplictE
   | ProjectE        -- ^ Projecting out field of
   deriving (Generic, Eq, Ord, Show, Data, Typeable)
 

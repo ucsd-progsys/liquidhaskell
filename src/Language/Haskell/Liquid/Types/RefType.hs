@@ -1399,8 +1399,8 @@ shiftVV t@(RApp _ ts rs r) vv'
       { rt_pargs = subst1 rs (rTypeValueVar t, EVar vv') }
       { rt_reft  = (`F.shiftVV` vv') <$> r }
 
-shiftVV (RImpF x t t' r) vv'
- = shiftVV (RFun x t t' r) vv'
+shiftVV t@(RImpF _ _ _ r) vv'
+  = t { rt_reft = (`F.shiftVV` vv') <$> r }
 
 shiftVV t@(RFun _ _ _ r) vv'
   = t { rt_reft = (`F.shiftVV` vv') <$> r }
