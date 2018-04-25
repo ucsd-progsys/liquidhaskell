@@ -20,8 +20,8 @@ padLeft n c xs
 -----------------------------------------------------------------------------------
 -- Properties 
 -----------------------------------------------------------------------------------
-{-@ thmPadLeft :: n:_ -> c:_ -> xs:{size xs < n} -> i:{Nat | i < n - size xs} 
-               -> { (padLeft n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
+{-@ thmPadLeft :: n:_ -> c:_ -> xs:{size xs < n} -> 
+                    i:Nat -> { (padLeft n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
   @-}
 thmPadLeft :: Int -> a -> [a] -> Int -> ()
 thmPadLeft n c xs i 
