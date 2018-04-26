@@ -728,7 +728,7 @@ instantiateGhosts :: CGEnv
                  -> CG (Bool, CGEnv, SpecType)
 instantiateGhosts γ t | not (null yts)
   = do ys' <- mapM (const fresh) ys
-       γ' <- foldM (+=) γ [("",y,t) | (y,t) <- zip ys' ts]
+       γ'  <- foldM addEEnv γ (zip ys' ts)
 
        let su = F.mkSubst $ zip ys (F.EVar <$> ys')
        return (True, γ', F.subst su te')

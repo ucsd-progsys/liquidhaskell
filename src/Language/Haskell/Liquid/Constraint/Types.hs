@@ -181,6 +181,7 @@ data CGInfo = CGInfo
   , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
   , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
   , binds      :: !F.BindEnv                   -- ^ set of environment binders
+  , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
