@@ -387,8 +387,8 @@ checkAbstractRefs t = go t
                        <+> text "is applied to"
                        <+> pprint s
                        <+> text "\n\t In" <+> pprint p
-                 | or [x == y | (_, x, EVar y) <- pargs p]
-                 = Just $ text "Missing arguments on " <+> pprint p
+                 -- | or [x == y | (_, x, EVar y) <- pargs p]
+                 -- = Just $ text "Missing arguments on " <+> pprint p
                  | otherwise
                  = Nothing
 
