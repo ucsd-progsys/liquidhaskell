@@ -862,7 +862,12 @@ type ReplaceState = ( M.HashMap Var LocSpecType
 
 type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
--- ASKNIKI: WHAT DOES THIS FUNCTION DO?!!!!
+-- GHC does a renaming step that assigns a Unique to each Id. It naturally
+-- ensures that n in n = length xs and | i >= n are the SAME n, i.e. they have
+-- the same Unique, but LH doesn't know anything about scopes when it
+-- processes the RTypes, so the n in {Nat | i <= n} gets a random Unique
+-- @replaceLocalBinds@'s job is to make sure the Uniques match see `LocalHole.hs`
+
 replaceLocalBinds :: Bool
                   -> TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
