@@ -14,13 +14,10 @@ import           Var
 import           Control.Monad.State
 import           Data.Char                           (isUpper)
 import           Text.Parsec.Pos
-
 import qualified Data.HashMap.Strict                 as M
-
--- import           Language.Fixpoint.Misc              (traceShow)
--- import qualified Language.Fixpoint.Types.Names       as F -- (prims, unconsSym)
 import qualified Language.Fixpoint.Types            as F -- (prims, unconsSym)
 import           Language.Fixpoint.Types (Expr(..), Sort(..))
+import qualified Language.Haskell.Liquid.GHC.Misc   as GM 
 import           Language.Haskell.Liquid.Misc        (secondM, third3M)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Env
@@ -82,18 +79,18 @@ resolveCtor ls = do
     Nothing  -> resolveCtorVar ls
 
 resolveCtorVar :: LocSymbol -> BareM LocSymbol
-resolveCtorVar ls = do
+resolveCtorVar ls = do 
   v <- lookupGhcVar ls
   let qs = F.symbol v
   addSym (qs, v)
-  return $ F.atLoc ls qs
-  -- Loc l l' qs
+  return (F.atLoc ls qs)
 
 isSpecialSym :: F.Symbol -> BareM Bool
 isSpecialSym s = do
   env0 <- gets (typeAliases . rtEnv)
-  return $ or [s `elem` F.prims, M.member s env0]
-
+  return $ or [s `elem` F.prims
+              , M.member s env0
+              , GM.isWorker s ]
 
 addSym :: MonadState BareEnv m => (F.Symbol, Var) -> m ()
 addSym (x, v) = modify $ \be -> be { varEnv = M.insert x v (varEnv be) } --  `L.union` [x] } -- TODO: OMG THIS IS THE SLOWEST THING IN THE WORLD!

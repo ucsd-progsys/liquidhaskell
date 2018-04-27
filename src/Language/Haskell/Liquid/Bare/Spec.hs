@@ -162,7 +162,7 @@ varSymbols f vs = concatMapM go
     locVar v    = (getSourcePos v, v)
     go (s, ns)  = case M.lookup (val s) lvs of
                     Just lvs -> return  ((, ns) <$> varsAfter f s lvs)
-                    Nothing  -> ((:[]) . (,ns)) <$> lookupGhcVar s
+                    Nothing  -> ((:[]) . (,ns)) <$> lookupGhcVar (F.tracepp "varSymbols" s)
 
 varsAfter :: ([b] -> [b]) -> Located a -> [(F.SourcePos, b)] -> [b]
 varsAfter f s lvs
@@ -263,7 +263,10 @@ lookupIds !ignoreUnknown
   = mapMaybeM lookup
   where
     lookup (s, t)
-      = (Just . (,s,t) <$> lookupGhcVar s) `catchError` handleError
+      | isWorker (val s)
+      = (Just . (,s,t) <$> lookupGhcWrkVar s) `catchError` handleError
+      | otherwise
+      = (Just . (,s,t) <$> lookupGhcVar    s) `catchError` handleError
     handleError ( ErrGhc {})
       | ignoreUnknown
       = return Nothing

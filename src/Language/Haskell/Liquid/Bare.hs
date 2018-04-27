@@ -306,8 +306,7 @@ makeLiftedSpec1 file name lSpec0 xts axs invs
   = liftIO $ saveLiftedSpec file name lSpec1
   where
     xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
-    -- xinvs  = [ (Just (varLocSym x), specToBare <$> t) | (Just x, t) <- invs ]
-    xinvs  = [ ((varLocSym <$>x), specToBare <$> t) | (x, t) <- invs ]
+    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- invs ]
     lSpec1 = lSpec0 { Ms.asmSigs    = xbs
                     , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
                     , Ms.axeqs      = axs

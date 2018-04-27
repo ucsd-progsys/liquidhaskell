@@ -18,6 +18,7 @@ module Language.Haskell.Liquid.GHC.Misc where
 
 import           Class                                      (classKey)
 import           Data.String
+import qualified Data.List as L
 import           PrelNames                                  (fractionalClassKeys)
 import           FamInstEnv
 import           Debug.Trace
@@ -495,7 +496,6 @@ symbolTyCon x i n = stringTyCon x i (symbolString n)
 symbolTyVar :: Symbol -> TyVar
 symbolTyVar n = stringTyVar (symbolString n)
 
-
 localVarSymbol ::  Var -> Symbol
 localVarSymbol v
   | us `isSuffixOfSym` vs = vs
@@ -505,7 +505,9 @@ localVarSymbol v
     vs                    = exportedVarSymbol v 
 
 exportedVarSymbol :: Var -> Symbol
-exportedVarSymbol = symbol . getName            
+exportedVarSymbol x = notracepp msg . symbol . getName $ x            
+  where 
+    msg = "exportedVarSymbol: " ++ showPpr x 
 
 qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]
@@ -675,6 +677,13 @@ isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
 
 isInternal :: Symbolic a => a -> Bool
 isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
+
+isWorker :: Symbolic a => a -> Bool 
+isWorker s = notracepp ("isWorkerSym: s = " ++ ss) $ "$W" `L.isInfixOf` ss 
+  where 
+    ss     = symbolString (symbol s)
+
+
 
 stripParens :: T.Text -> T.Text
 stripParens t = fromMaybe t (strip t)
