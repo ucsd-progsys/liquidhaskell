@@ -162,7 +162,7 @@ varSymbols f vs = concatMapM go
     locVar v    = (getSourcePos v, v)
     go (s, ns)  = case M.lookup (val s) lvs of
                     Just lvs -> return  ((, ns) <$> varsAfter f s lvs)
-                    Nothing  -> ((:[]) . (,ns)) <$> lookupGhcVar (F.tracepp "varSymbols" s)
+                    Nothing  -> ((:[]) . (,ns)) <$> lookupGhcVar s
 
 varsAfter :: ([b] -> [b]) -> Located a -> [(F.SourcePos, b)] -> [b]
 varsAfter f s lvs

@@ -167,18 +167,6 @@ safeParseIdentifier :: HscEnv -> String -> IO (SrcLoc.Located RdrName)
 safeParseIdentifier env s = hscParseIdentifier env s `Ex.catch` handle
   where
     handle = uError . head . sourceErrors ("GHC error in safeParseIdentifier: " ++ s)
-    -- s      = fixWorkId s0
-
-{- 
-fixWorkId :: String -> String 
--- fixWorkId s   = ".$W" --> "."
-fixWorkId s   = L.intercalate "." (reverse (w' : ws)) 
-  where 
-    w'        = if "$W" `L.isPrefixOf` w then drop 2 w else w
-    w:ws      = reverse (splitDots s) 
-    splitDots = words . map (\c -> if c == '.' then ' ' else c) 
--}
-
 
 symbolLookupEnvOrig :: HscEnv -> ModName -> Maybe NameSpace -> F.Symbol -> IO [Name]
 symbolLookupEnvOrig env mod namespace s
