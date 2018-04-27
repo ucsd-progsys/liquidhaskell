@@ -6,6 +6,7 @@
 module Language.Haskell.Liquid.Bare.Lookup (
     GhcLookup(..)
   , lookupGhcVar
+  , lookupGhcWrkVar
   , lookupGhcTyCon
   , lookupGhcDnTyCon
   , lookupGhcDataCon
@@ -72,13 +73,13 @@ instance GhcLookup Name where
 
 instance GhcLookup FieldLabel where
   lookupName e m ns = lookupName e m ns . flSelector
-  srcSpan           = srcSpan . flSelector
+  srcSpan           = srcSpan           . flSelector
 
 instance F.Symbolic FieldLabel where
   symbol = F.symbol . flSelector
 
 instance GhcLookup DataName where
-  lookupName e m ns = lookupName e m ns . dataNameSymbol
+  lookupName e m ns = lookupName e m ns .  dataNameSymbol
   srcSpan           = GM.fSrcSpanSrcSpan . F.srcSpan
 
 lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM b
@@ -225,7 +226,6 @@ ghcSplitModuleName x = (mkModuleName $ ghcSymbolString m, mkTcOcc $ ghcSymbolStr
 
 ghcSymbolString :: F.Symbol -> String
 ghcSymbolString = T.unpack . fst . T.breakOn "##" . F.symbolText
--- ghcSymbolString = symbolString . dropModuleUnique
 
 --------------------------------------------------------------------------------
 -- | It's possible that we have already resolved the 'Name' we are looking for,
@@ -234,7 +234,7 @@ ghcSymbolString = T.unpack . fst . T.breakOn "##" . F.symbolText
 -- (@GHC.Types.EQ@) will likely not be in scope, so we store our own mapping of
 -- fully-qualified 'Name's to 'Var's and prefer pulling 'Var's from it.
 --------------------------------------------------------------------------------
-lookupGhcVar :: GhcLookup a => a -> BareM Var
+lookupGhcVar :: (GhcLookup a) => a -> BareM Var
 lookupGhcVar x = do
   env <- gets varEnv
   case M.lookup (F.symbol x) env of
@@ -245,6 +245,31 @@ lookupGhcVar x = do
     fv (AnId x)                   = Just (0, x)
     fv (AConLike (RealDataCon x)) = Just (1, dataConWorkId x)
     fv _                          = Nothing
+
+-- | Specialized version of the above to deal with 'WorkerId' of the form 
+--   'Foo.$WCtor' which crash the GHC parser. Sigh.
+
+lookupGhcWrkVar :: F.LocSymbol -> BareM Var
+lookupGhcWrkVar wx = 
+  lookupGhcThing "variable" fv (Just varName) x `catchError` \_ ->
+  lookupGhcThing "variable or data constructor" fv (Just dataName) x
+  where
+    x                             = F.notracepp msg (fixWorkSymbol <$> wx)
+    msg                           = "lookupGhcWrkVar wx = " ++ F.showpp wx
+    fv (AnId z)                   = Just (0, z)
+    fv (AConLike (RealDataCon z)) = Just (1, dataConWorkId z)
+    fv _                          = Nothing
+
+fixWorkSymbol :: F.Symbol -> F.Symbol 
+fixWorkSymbol s   = maybe s reQual (F.stripPrefix wrkPrefix x) 
+  where
+    isQual        = F.lengthSym m > 0
+    reQual z
+      | isQual    = GM.qualifySymbol m z 
+      | otherwise = z 
+    (m, x)        = GM.splitModuleName s 
+    wrkPrefix     = "$W"
+
 
 lookupGhcDnTyCon :: String -> DataName -> BareM TyCon
 lookupGhcDnTyCon src (DnName s)
@@ -299,35 +324,12 @@ lookupGhcTyCon src s = do
     err = "type constructor or class\n " ++ src
 
 lookupGhcDataCon :: Located F.Symbol -> BareM DataCon
-lookupGhcDataCon dc = case lookupWiredDataCon (val dc) of
+lookupGhcDataCon dc = case lookupWiredDataCon (F.notracepp "lookupGhcDatacon" $ val dc) of
                         Just x  -> return x
                         Nothing -> lookupGhcDataCon' dc
 
 lookupWiredDataCon :: F.Symbol ->  Maybe DataCon
 lookupWiredDataCon x = M.lookup x wiredDataCons 
-
-{-                         
-lookupWiredDataCon dc 
-  | Just n <- isTupleDC dc
-  = Just (tupleDataCon Boxed n)
-  | dc == "[]"
-  = Just nilDataCon
-  | dc == ":"
-  = Just consDataCon
-  | dc == "GHC.Base.Nothing"
-  = Just nothingDataCon
-  | dc == "GHC.Base.Just"
-  = Just justDataCon
-  | otherwise
-  = Nothing
-
-isTupleDC :: F.Symbol -> Maybe Int
-isTupleDC zs
-  | "(," `isPrefixOfSym` zs
-  = Just $ lengthSym zs - 1
-  | otherwise
-  = Nothing
--}
 
 wiredDataCons :: M.HashMap F.Symbol DataCon 
 wiredDataCons = M.fromList 

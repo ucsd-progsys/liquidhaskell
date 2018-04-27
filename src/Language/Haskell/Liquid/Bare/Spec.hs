@@ -263,7 +263,10 @@ lookupIds !ignoreUnknown
   = mapMaybeM lookup
   where
     lookup (s, t)
-      = (Just . (,s,t) <$> lookupGhcVar s) `catchError` handleError
+      | isWorker (val s)
+      = (Just . (,s,t) <$> lookupGhcWrkVar s) `catchError` handleError
+      | otherwise
+      = (Just . (,s,t) <$> lookupGhcVar    s) `catchError` handleError
     handleError ( ErrGhc {})
       | ignoreUnknown
       = return Nothing
