@@ -21,9 +21,9 @@ dependencies:
     - ".stack-work"
   pre:
     # - curl -sSL https://get.haskellstack.org/ | sh
-    - curl -SL https://www.stackage.org/stack/linux-x86_64-static | tar zx -C /tmp
+    - curl -SL https://get.haskellstack.org/stable/linux-x86_64.tar.gz  | tar zx -C /tmp
     # - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.0.4/stack-1.0.4-linux-x86_64.tar.gz | tar zx -C /tmp
-    - sudo mv /tmp/stack-*-linux-x86_64-static/stack /usr/bin
+    - sudo mv /tmp/stack-*-linux-x86_64/stack /usr/bin
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
