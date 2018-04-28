@@ -1,0 +1,41 @@
+// This file CRASHes with --eliminate=some
+// Commenting out any one of these constraints will fix that
+
+// This file is SAFE with --eliminate=none
+// It solves both `kvar`s to `true`
+// However, commenting out either qualifier will make it UNSAFE.
+
+qualif Auto(v : int, m : int): (v = (m + 2))
+qualif Auto(v : int, x : int): (v = x)
+
+ebind 19 n    : { int }
+
+bind  16 m    : {VV##131 : int   | true        }
+bind  17 _    : {VV##132 : Tuple | $k_##133    }
+bind  18 one  : {VV##170 : int   | VV##170 = 1 }
+
+constraint:
+  env [19]
+  lhs {VV##F##3 : Tuple | true     }
+  rhs {VV##F##3 : Tuple | $k_##133 }
+  id 3 tag []
+
+constraint:
+  env [19]
+  lhs {VV##F##4 : int | $k_##137[VV##136:=VV##F##4] }
+  rhs {VV##F##4 : int | VV##F##4 = n                }
+  id 4 tag []
+
+constraint:
+  env [16; 17; 18]
+  lhs {VV##F##5 : int | VV##F##5 = m + 1          }
+  rhs {VV##F##5 : int | $k_##137[VV##136:=VV##F##5] }
+  id 5 tag []
+
+wf:
+  env []
+  reft {VV##132 : Tuple | [$k_##133]}
+
+wf:
+  env [16]
+  reft {VV##136 : int   | [$k_##137]}
