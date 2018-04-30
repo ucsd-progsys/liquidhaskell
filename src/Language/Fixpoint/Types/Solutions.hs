@@ -9,6 +9,8 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveAnyClass             #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 
@@ -179,7 +181,7 @@ instance PPrint QBind where
 data EbindSol 
   = EbDef SubcId      -- ^ The constraint whose HEAD "defines" the Ebind
   | EbSol Expr        -- ^ The solved out term that should be used at USES.
-   deriving (Eq, Show)
+   deriving (Eq, Show, Generic, NFData)
 
 instance PPrint EbindSol where 
   pprintTidy k (EbDef i) = "EbDef:" <+> pprintTidy k i 
@@ -204,7 +206,9 @@ data Sol b a = Sol
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
   , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
-  }
+  } deriving (Generic)
+
+deriving instance (NFData b, NFData a) => NFData (Sol b a)
 
 updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a
 updateGMap sol gmap = sol {gMap = gmap}
@@ -247,7 +251,7 @@ data Cube = Cube
   , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
   , cuId    :: SubcId    -- ^ Id            of   defining Cstr
   , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
-  }
+  } deriving (Generic, NFData)
 
 instance PPrint Cube where
   pprintTidy _ c = "Cube" <+> pprint (cuId c)

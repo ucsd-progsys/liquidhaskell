@@ -160,7 +160,7 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a, F.Loc a) => Config -> W.Worklist a -> Sol.Solution
+result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 result cfg wkl s = do
@@ -174,8 +174,8 @@ result cfg wkl s = do
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-result_ :: (F.Loc a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
+result_ :: (F.Loc a, NFData a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
   where
     cs       = W.unsatCandidates w
     res []   = F.Safe
@@ -207,7 +207,7 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
                               else go ps (p:acc)
 
 --------------------------------------------------------------------------------
-isUnsat :: (F.Loc a) => Sol.Solution -> F.SimpC a -> SolveM Bool
+isUnsat :: (F.Loc a, NFData a) => Sol.Solution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
