@@ -174,8 +174,8 @@ result cfg wkl s = do
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-result_  w s = res <$> filterM (isUnsat s) cs
 result_ :: (F.Loc a, NFData a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
     res []   = F.Safe
@@ -301,25 +301,54 @@ partitionInfo (i, fi)
 ---------------------------------------------------------------------------------
 solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
 --------------------------------------------------------------------------------
-solveEbinds si s0  = L.foldl' solve1 s0 ebs 
-  where 
-    solve1 s (i,c) = Sol.updateEbind s i (ebReft s (i, c))
-    ebs            = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
+solveEbinds si s0  = L.foldl' solve1 s0 ebs
+  where
+    solve1 s (i,c,x) = Sol.updateEbind s i (ebReft s (i, c, x))
+    ebs            = ([(ix, cid, x) | (ix, Sol.EbDef cid x) <- M.toList (Sol.sEbd s0)] :: [(F.BindId, F.SubcId ,F.Symbol)])
     be             = F.bs si
-    xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be] 
-    ebReft s (i,c) = exElim xEnv i (ebindReft si s c) 
+    xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be]
+    ebReft s (i,c,x) = exElim xEnv i x (ebindReft si s c)
 
 ebindReft :: F.SInfo a -> Sol.Solution -> F.SubcId -> F.Pred 
 ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]
-  where 
+  where
     be             = F.bs si
     c              = Misc.safeLookup "solveEbinds" cid (F.cm si)
 
 
-exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Pred -> F.Pred 
-exElim env xi p = F.notracepp msg (F.pExist yts p) 
-  where 
+exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Symbol -> F.Pred -> F.Pred
+exElim env xi x p = F.notracepp msg (F.pExist yts (clearExist x p))
+  where
     msg         = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
     yts         = [ (y, yt) | y        <- F.syms p
                             , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
                             , xi < yi                                        ]
+
+clearExist :: F.Symbol -> F.Expr -> F.Expr
+
+clearExist x (F.PExist ss e) = F.PExist (filter ((/=x) . fst) ss) (clearExist x e)
+
+clearExist x (F.EApp  e1 e2)      = F.EApp  (clearExist x e1) (clearExist x e2)
+clearExist x (F.ENeg  e)          = F.ENeg  (clearExist x e)
+clearExist x (F.EBin  bop e1 e2)  = F.EBin  bop (clearExist x e1)
+                                                (clearExist x e2)
+clearExist x (F.EIte  e1 e2 e3)   = F.EIte  (clearExist x e1)
+                                            (clearExist x e2)
+                                            (clearExist x e3)
+clearExist x (F.ECst  e s)        = F.ECst  (clearExist x e) s
+clearExist x (F.ELam  ss e)       = F.ELam  ss (clearExist x e)
+clearExist x (F.ETApp e s)        = F.ETApp (clearExist x e) s
+clearExist x (F.ETAbs e s)        = F.ETAbs (clearExist x e) s
+clearExist x (F.PNot  e)          = F.PNot  (clearExist x e)
+clearExist x (F.PImp  e1 e2)      = F.PImp  (clearExist x e1) (clearExist x e2)
+clearExist x (F.PIff  e1 e2)      = F.PIff  (clearExist x e1) (clearExist x e2)
+clearExist x (F.PAtom brel e1 e2) = F.PAtom brel (clearExist x e1)
+                                                 (clearExist x e2)
+clearExist x (F.PAll   ss e)      = F.PAll   ss    (clearExist x e)
+clearExist x (F.PGrad  k s g e)   = F.PGrad  k s g (clearExist x e)
+clearExist x (F.ECoerc s s' e)    = F.ECoerc s s'  (clearExist x e)
+
+clearExist x (F.PAnd  es) = F.PAnd  (clearExist x <$> es)
+clearExist x (F.POr   es) = F.POr   (clearExist x <$> es)
+
+clearExist _ e = e

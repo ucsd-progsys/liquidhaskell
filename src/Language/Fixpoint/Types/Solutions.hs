@@ -178,14 +178,15 @@ instance PPrint QBind where
 --   1. the constraint whose HEAD is a singleton that defines the binder, OR 
 --   2. the solved out TERM that we should use in place of the ebind at USES.
 --------------------------------------------------------------------------------
-data EbindSol 
-  = EbDef SubcId      -- ^ The constraint whose HEAD "defines" the Ebind
-  | EbSol Expr        -- ^ The solved out term that should be used at USES.
+data EbindSol
+  = EbDef SubcId Symbol -- ^ The constraint whose HEAD "defines" the Ebind
+                           -- and the @Symbol@ for that EBind
+  | EbSol Expr             -- ^ The solved out term that should be used at USES.
    deriving (Eq, Show, Generic, NFData)
 
 instance PPrint EbindSol where 
-  pprintTidy k (EbDef i) = "EbDef:" <+> pprintTidy k i 
-  pprintTidy k (EbSol e) = "EbSol:" <+> pprintTidy k e 
+  pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
+  pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
 
 --------------------------------------------------------------------------------
 updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 
