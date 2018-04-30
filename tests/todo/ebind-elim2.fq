@@ -1,0 +1,26 @@
+bind  1 a    : { a : int | true }
+ebind 2 c    : { int }
+
+wf:
+  env [1]
+  reft {VV##1 : Tuple | [$k_##1]}
+
+constraint:
+  env [1;2]
+  lhs {VV##F##4 : int | VV##F##4 = c }
+  rhs {VV##F##4 : int | $k_##1[VV##1 := VV##F##4] }
+  id 1 tag []
+
+constraint:
+  env [1;2]
+  lhs {VV##F##5 : int | $k_##1[VV##1:=VV##F##5] }
+  rhs {VV##F##5 : int | VV##F##5 = c }
+  id 2 tag []
+
+// The following constraint is needed only to prevent eliminate's **sharing** optimization.
+
+constraint:
+  env []
+  lhs {VV##F##6 : int | $k_##1[VV##1:=VV##F##6] }
+  rhs {VV##F##6 : int | VV##F##6 = 0 }
+  id 3 tag []
