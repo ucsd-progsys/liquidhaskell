@@ -136,8 +136,6 @@ getFamInstances env = do
   (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
   return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
 
-
-
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
   where

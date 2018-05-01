@@ -1423,12 +1423,10 @@ typeSort tce = go
     go (CastTy t _)     = go t
     go τ                = FObj $ typeUniqueSymbol τ
 
-
-
 tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
 tyConFTyCon tce c = F.notracepp _msg $ M.lookupDefault def c tce
   where
-    _msg           = "tyConFTyCon c = " ++ show c ++ "default " ++ show def
+    _msg           = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 
