@@ -816,7 +816,7 @@ ignoreOblig (RRTy _ _ _ t) = t
 ignoreOblig t              = t
 
 dropImplicits :: RType c tv r -> RType c tv r
-dropImplicits (RImpF _ _ o _) = o
+dropImplicits (RImpF _ _ o _) = dropImplicits o
 dropImplicits (RFun  x i o r) = RFun x (dropImplicits i) (dropImplicits o) r
 dropImplicits (RAllP p t) = RAllP p (dropImplicits t)
 dropImplicits (RAllT p t) = RAllT p (dropImplicits t)
