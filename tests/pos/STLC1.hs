@@ -43,10 +43,16 @@ data Result
   | Timeout
   deriving (Eq, Show) 
 
-data Env a 
-  = Bind Var a (Env a)
-  | Emp 
+data VEnv  
+  = VBind Var Val VEnv 
+  | VEmp 
   deriving (Eq, Show) 
+
+data TEnv  
+  = TBind Var Type TEnv 
+  | TEmp 
+  deriving (Eq, Show) 
+
 
 {-@ reflect seq2 @-}
 -- seq2 :: (a -> b -> Result c) -> Result a -> Result b -> Result c
@@ -63,17 +69,17 @@ seq2 f r1 r2 = case r1 of
 -- | Evaluator 
 --------------------------------------------------------------------------------
 
-{-@ reflect lookupEnv @-}
-lookupEnv :: Var -> Env a -> Maybe a 
-lookupEnv x Emp             = Nothing 
-lookupEnv x (Bind y v env)  = if x == y then Just v else lookupEnv x env
+{-@ reflect lookupVEnv @-}
+lookupVEnv :: Var -> VEnv -> Maybe Val 
+lookupVEnv x VEmp             = Nothing 
+lookupVEnv x (VBind y v env)  = if x == y then Just v else lookupVEnv x env
 
 {-@ reflect eval @-}
-eval :: Env Val -> Expr -> Result 
+eval :: VEnv -> Expr -> Result 
 eval _   (EBool b)    = Result (VBool b)
 eval _   (EInt  n)    = Result (VInt  n)
 eval s (EBin o e1 e2) = seq2 (evalOp o) (eval s e1) (eval s e2) 
-eval s (EVar x)       = case lookupEnv x s of 
+eval s (EVar x)       = case lookupVEnv x s of 
                           Nothing -> Stuck 
                           Just v  -> Result v 
 
@@ -151,6 +157,36 @@ data ValTy where
   V_Int  :: Int  -> ValTy 
 
 --------------------------------------------------------------------------------
+-- | Typing Stores 
+--------------------------------------------------------------------------------
+
+{- [ G |- S ] 
+
+   ------------------------[S_Emp]
+   TEmp |- VEmp 
+
+      |- v : t   g |- s 
+   ------------------------[S_Bind]
+   (x, t), g |- (x, v), s 
+
+ -}
+
+{-@ data StoTy where
+      S_Emp  :: Prop (StoTy TEmp VEmp) 
+    | S_Bind :: x:Var -> t:Type -> val:Val -> g:TEnv -> s:VEnv
+             -> Prop (ValTy val t) 
+             -> Prop (StoTy g   s) 
+             -> Prop (StoTy (TBind x t g) (VBind x val s)) 
+  @-}
+
+data StoTyP where 
+  StoTy  :: TEnv -> VEnv -> StoTyP 
+
+data StoTy where 
+  S_Emp  :: StoTy 
+  S_Bind :: Var -> Type -> Val -> TEnv -> VEnv -> ValTy -> StoTy -> StoTy 
+
+--------------------------------------------------------------------------------
 -- | Typing Expressions 
 --------------------------------------------------------------------------------
 
@@ -172,6 +208,12 @@ opOut Add = TInt
 opOut Leq = TBool 
 opOut And = TBool
 
+{-@ reflect lookupTEnv @-}
+lookupTEnv :: Var -> TEnv -> Maybe Type 
+lookupTEnv x TEmp             = Nothing 
+lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
+
+
 {- 
 
   --------------------------------------[E-Bool]
@@ -180,7 +222,7 @@ opOut And = TBool
   --------------------------------------[E-Int]
     G |- EInt n  : TInt 
 
-    lookupEnv x G = Just t
+    lookupTEnv x G = Just t
   --------------------------------------[E-Var]
     G |- Var x  : t 
 
@@ -191,25 +233,25 @@ opOut And = TBool
 -}
 
 {-@ data ExprTy where 
-      E_Bool :: g:(Env Type) -> b:Bool 
+      E_Bool :: g:TEnv -> b:Bool 
              -> Prop (ExprTy g (EBool b) TBool)
-    | E_Int  :: g:(Env Type) -> i:Int  
+    | E_Int  :: g:TEnv -> i:Int  
              -> Prop (ExprTy g (EInt i)  TInt)
-    | E_Bin  :: g:(Env Type) -> o:Op -> e1:Expr -> e2:Expr 
+    | E_Bin  :: g:TEnv -> o:Op -> e1:Expr -> e2:Expr 
              -> Prop (ExprTy g e1 (opIn1 o)) 
              -> Prop (ExprTy g e2 (opIn2 o))
              -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
-    | E_Var  :: g:(Env Type) -> x:Var -> t:{Type| lookupEnv x g == Just t} 
+    | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
              -> Prop (ExprTy g (EVar x) t)
   @-}
 data ExprTyP where 
-  ExprTy :: Env Type -> Expr -> Type -> ExprTyP  
+  ExprTy :: TEnv -> Expr -> Type -> ExprTyP  
 
 data ExprTy where 
-  E_Bool :: Env Type -> Bool -> ExprTy 
-  E_Int  :: Env Type -> Int  -> ExprTy 
-  E_Var  :: Env Type -> Var  -> Type -> ExprTy 
-  E_Bin  :: Env Type -> Op   -> Expr -> Expr -> ExprTy -> ExprTy -> ExprTy 
+  E_Bool :: TEnv -> Bool -> ExprTy 
+  E_Int  :: TEnv -> Int  -> ExprTy 
+  E_Var  :: TEnv -> Var  -> Type -> ExprTy 
+  E_Bin  :: TEnv -> Op   -> Expr -> Expr -> ExprTy -> ExprTy -> ExprTy 
 
 --------------------------------------------------------------------------------
 -- | Lemma 1: "evalOp_safe" 
@@ -251,24 +293,52 @@ evalOp_res_safe o _ _  _ (R_Time t2)
   = R_Time (opOut o)
 
 --------------------------------------------------------------------------------
+-- | Lemma 2: "lookup_safe"
+--------------------------------------------------------------------------------
+{-@ lookup_safe :: g:TEnv -> s:VEnv -> x:Var -> t:{Type | lookupTEnv x g == Just t} 
+                -> Prop (StoTy g s) 
+                -> (w :: Val, ({z:() | lookupVEnv x s ==  Just w} , {z:ValTy | prop z = ValTy w t} ))
+  @-}
+lookup_safe :: TEnv -> VEnv -> Var -> Type -> StoTy -> (Val, ((), ValTy)) 
+lookup_safe _ _ _ _ S_Emp 
+  = trivial () 
+lookup_safe g s x t (S_Bind y yt yv g' s' yvt gs')  
+  | x == y 
+  = (yv, ((), yvt)) 
+  | otherwise 
+  = lookup_safe g' s' x t gs' 
+
+--------------------------------------------------------------------------------
 -- | Lemma 3: "eval_safe" 
 --------------------------------------------------------------------------------
 
-{-@ eval_safe :: g:(Env Type) -> sto:(Env Val) -> e:Expr -> t:Type -> Prop (ExprTy g e t) -> Prop (ResTy (eval sto e) t) @-}
-eval_safe :: Env Type -> Env Val -> Expr -> Type -> ExprTy -> ResTy 
-eval_safe _ _ (EBool b) TBool _          = R_Res (VBool b) TBool (V_Bool b) 
-eval_safe _ _ (EBool _) _     (E_Int {}) = trivial ()  -- WHY is this needed?
+{-@ eval_safe :: g:TEnv -> s:VEnv -> e:Expr -> t:Type 
+              -> Prop (ExprTy g e t) 
+              -> Prop (StoTy  g s) 
+              -> Prop (ResTy (eval s e) t) 
+  @-}
+eval_safe :: TEnv -> VEnv -> Expr -> Type -> ExprTy -> StoTy -> ResTy 
+eval_safe _ _ (EBool b) TBool _ _          
+  = R_Res (VBool b) TBool (V_Bool b) 
+eval_safe _ _ (EBool _) _     (E_Int {}) _ 
+  = trivial ()  -- WHY is this needed?
  
-eval_safe _ _ (EInt n) TInt  _          = R_Res (VInt n) TInt (V_Int n) 
-eval_safe _ _ (EInt _) _     (E_Bool {}) = trivial ()  -- WHY is this needed?
+eval_safe _ _ (EInt n) TInt  _           _ 
+  = R_Res (VInt n) TInt (V_Int n) 
+eval_safe _ _ (EInt _) _     (E_Bool {}) _ 
+  = trivial ()  -- WHY is this needed?
 
-eval_safe g s (EBin o e1 e2) t (E_Bin _ _ _ _ et1 et2)
-                                        = evalOp_res_safe o (eval s e1) (eval s e2) rt1 rt2     
+eval_safe g s (EBin o e1 e2) t (E_Bin _ _ _ _ et1 et2) gs
+  = evalOp_res_safe o (eval s e1) (eval s e2) rt1 rt2     
   where 
-    rt1                                 = eval_safe g s e1 (opIn1 o) et1
-    rt2                                 = eval_safe g s e2 (opIn2 o) et2
+    rt1          = eval_safe g s e1 (opIn1 o) et1 gs
+    rt2          = eval_safe g s e2 (opIn2 o) et2 gs
 
-eval_safe _ _ (EVar x) _ _ = undefined
+eval_safe g s (EVar x) t (E_Var {}) gs     
+  = R_Res w t wt 
+  where 
+    (w, (_, wt)) = lookup_safe g s x t gs 
+
 --------------------------------------------------------------------------------
 -- | Boilerplate 
 --------------------------------------------------------------------------------
