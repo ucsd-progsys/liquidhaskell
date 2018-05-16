@@ -33,9 +33,32 @@ smt2SortPoly = smt2Sort True
 smt2Sort :: (PPrint a) => Bool -> a -> SymEnv -> Sort -> Builder.Builder
 smt2Sort poly _ env t = smt2 env (Thy.sortSmtSort poly (seData env) t)
 
-smt2data :: SymEnv -> DataDecl -> Builder.Builder
-smt2data env = smt2data' env . padDataDecl
+smt2data :: SymEnv -> [DataDecl] -> Builder.Builder
+smt2data env = smt2data' env . map padDataDecl
 
+smt2data' :: SymEnv -> [DataDecl] -> Builder.Builder
+smt2data' env ds = build "({}) ({})" (tvars, smt2many (smt2data1 env <$> ds)) 
+  where
+    tvars        = smt2many (smt2TV <$> [0..(n-1)])
+    smt2TV       = smt2 env . SVar
+    n            = numTyVars ds 
+
+smt2data1 :: SymEnv -> DataDecl -> Builder.Builder
+smt2data1 env (DDecl tc _ cs) = build "({} {})" (name, ctors)
+  where
+    name                      = smt2 env (symbol tc)
+    ctors                     = smt2many (smt2ctor env <$> cs)
+
+numTyVars    :: [DataDecl] -> Int 
+numTyVars ds 
+  | ok        = n 
+  | otherwise = panic ("Cannot create mutually-recursive datatypes with different number of type variables!: " ++ tcs)
+  where 
+    tcs       = show [ ddTyCon d | d <- ds ] 
+    n:ns      = [ ddVars d | d <- ds ] 
+    ok        = and [ n == n' | n' <- ns ]
+
+{- 
 smt2data' :: SymEnv -> DataDecl -> Builder.Builder
 smt2data' env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
   where
@@ -43,6 +66,12 @@ smt2data' env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
     name                     = smt2 env (symbol tc)
     ctors                    = smt2many (smt2ctor env <$> cs)
     smt2TV                   = smt2 env . SVar
+-}
+
+{- 
+    (declare-datatypes (T) ((Tree leaf (node (value T) (children TreeList)))
+    (TreeList nil (cons (car Tree) (cdr TreeList)))))
+-}
 
 smt2ctor :: SymEnv -> DataCtor -> Builder.Builder
 smt2ctor env (DCtor c [])  = smt2 env c
@@ -203,7 +232,7 @@ mkNe :: SymEnv -> Expr -> Expr -> Builder.Builder
 mkNe env e1 e2      = build "(not (= {} {}))" (smt2 env e1, smt2 env e2)
 
 instance SMTLIB2 Command where
-  smt2 env (DeclData d)        = build "(declare-datatypes {})"       (Only $ smt2data env d)
+  smt2 env (DeclData ds)       = build "(declare-datatypes {})"       (Only $ smt2data env ds)
   smt2 env (Declare x ts t)    = build "(declare-fun {} ({}) {})"     (smt2 env x, smt2many (smt2 env <$> ts), smt2 env t)
   smt2 env c@(Define t)        = build "(declare-sort {})"            (Only $ smt2SortMono c env t)
   smt2 env (Assert Nothing p)  = build "(assert {})"                  (Only $ smt2 env p)
