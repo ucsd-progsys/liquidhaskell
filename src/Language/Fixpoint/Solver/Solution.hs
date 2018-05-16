@@ -408,11 +408,11 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
-ebindInfo si = [(x, Sol.EbDef i) | (x, i) <- ebindDefs si] 
+ebindInfo si = [(bid, Sol.EbDef cid x) | (bid, cid, x) <- ebindDefs si]
 
-ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId)]
-ebindDefs si = [ (bid, cid) | (cid, x) <- cDefs
-                            , bid      <- maybeToList (M.lookup x ebSyms)] 
+ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId, F.Symbol)]
+ebindDefs si = [ (bid, cid, x) | (cid, x) <- cDefs
+                               , bid      <- maybeToList (M.lookup x ebSyms)]
   where 
     ebSyms   = ebindSyms si 
     cDefs    = cstrDefs  si 

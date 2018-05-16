@@ -9,6 +9,8 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveAnyClass             #-}
+{-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE TupleSections              #-}
 
@@ -176,14 +178,15 @@ instance PPrint QBind where
 --   1. the constraint whose HEAD is a singleton that defines the binder, OR 
 --   2. the solved out TERM that we should use in place of the ebind at USES.
 --------------------------------------------------------------------------------
-data EbindSol 
-  = EbDef SubcId      -- ^ The constraint whose HEAD "defines" the Ebind
-  | EbSol Expr        -- ^ The solved out term that should be used at USES.
-   deriving (Eq, Show)
+data EbindSol
+  = EbDef SubcId Symbol -- ^ The constraint whose HEAD "defines" the Ebind
+                           -- and the @Symbol@ for that EBind
+  | EbSol Expr             -- ^ The solved out term that should be used at USES.
+   deriving (Eq, Show, Generic, NFData)
 
 instance PPrint EbindSol where 
-  pprintTidy k (EbDef i) = "EbDef:" <+> pprintTidy k i 
-  pprintTidy k (EbSol e) = "EbSol:" <+> pprintTidy k e 
+  pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
+  pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
 
 --------------------------------------------------------------------------------
 updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 
@@ -204,7 +207,9 @@ data Sol b a = Sol
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
   , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
-  }
+  } deriving (Generic)
+
+deriving instance (NFData b, NFData a) => NFData (Sol b a)
 
 updateGMap :: Sol b a -> M.HashMap KVar b -> Sol b a
 updateGMap sol gmap = sol {gMap = gmap}
@@ -247,7 +252,7 @@ data Cube = Cube
   , cuSubst :: Subst     -- ^ Substitutions from cstrs    Rhs
   , cuId    :: SubcId    -- ^ Id            of   defining Cstr
   , cuTag   :: Tag       -- ^ Tag           of   defining Cstr (DEBUG)
-  }
+  } deriving (Generic, NFData)
 
 instance PPrint Cube where
   pprintTidy _ c = "Cube" <+> pprint (cuId c)
