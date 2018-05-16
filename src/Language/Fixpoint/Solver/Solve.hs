@@ -317,21 +317,19 @@ ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]
 
 
 exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Symbol -> F.Pred -> F.Pred
-exElim env xi x p = F.notracepp msg (F.pExist yts (clearExist x p))
+exElim env xi _ p = F.notracepp msg (F.pExist yts ({- clearExist x -} p))
   where
-    msg         = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
-    yts         = [ (y, yt) | y        <- F.syms p
-                            , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
-                            , xi < yi                                        ]
+    msg           = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
+    yts           = [ (y, yt) | y        <- F.syms p
+                              , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
+                              , xi < yi                                        ]
 
+{-
 clearExist :: F.Symbol -> F.Expr -> F.Expr
-
 clearExist x (F.PExist ss e) = F.PExist (filter ((/=x) . fst) ss) (clearExist x e)
-
 clearExist x (F.EApp  e1 e2)      = F.EApp  (clearExist x e1) (clearExist x e2)
 clearExist x (F.ENeg  e)          = F.ENeg  (clearExist x e)
 clearExist x (F.EBin  bop e1 e2)  = F.EBin  bop (clearExist x e1)
-                                                (clearExist x e2)
 clearExist x (F.EIte  e1 e2 e3)   = F.EIte  (clearExist x e1)
                                             (clearExist x e2)
                                             (clearExist x e3)
@@ -347,8 +345,8 @@ clearExist x (F.PAtom brel e1 e2) = F.PAtom brel (clearExist x e1)
 clearExist x (F.PAll   ss e)      = F.PAll   ss    (clearExist x e)
 clearExist x (F.PGrad  k s g e)   = F.PGrad  k s g (clearExist x e)
 clearExist x (F.ECoerc s s' e)    = F.ECoerc s s'  (clearExist x e)
-
 clearExist x (F.PAnd  es) = F.PAnd  (clearExist x <$> es)
 clearExist x (F.POr   es) = F.POr   (clearExist x <$> es)
-
 clearExist _ e = e
+
+-}
