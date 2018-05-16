@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.Constraint.Env (
   , extendEnvWithVV
   , addBinders
   , addSEnv
+  , addEEnv
   , (-=)
   , globalize
 
@@ -241,6 +242,21 @@ globalize γ = γ {renv = globalREnv (renv γ)}
 addSEnv :: CGEnv -> (String, F.Symbol, SpecType) -> CG CGEnv
 --------------------------------------------------------------------------------
 addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
+
+addEEnv :: CGEnv -> (F.Symbol, SpecType) -> CG CGEnv
+addEEnv γ (x,t')= do
+  idx   <- fresh
+  allowHOBinders <- allowHO <$> get
+  let t  = addRTyConInv (invs γ) $ normalize idx t'
+  let l  = getLocation γ
+  let γ' = γ { renv = insertREnv x t (renv γ) }
+  pflag <- pruneRefs <$> get
+  is    <- if allowHOBinders || isBase t
+            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind γ' l t
+            else return []
+  modify (\s -> s { ebinds = ebinds s ++ (snd <$> is)})
+  return $ γ' { fenv = insertsFEnv (fenv γ) is }
+
 
 (+++=) :: (CGEnv, String) -> (F.Symbol, CoreExpr, SpecType) -> CG CGEnv
 (γ, _) +++= (x, e, t) = (γ {lcb = M.insert x e (lcb γ) }) += ("+++=", x, t)

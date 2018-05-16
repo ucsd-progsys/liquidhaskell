@@ -248,8 +248,9 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
 checkMismatch        :: (Var, Located SpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where
-    ok               = tyCompat x (val t)
-    err              = errTypeMismatch x t
+    ok               = tyCompat x (val t')
+    err              = errTypeMismatch x t'
+    t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
 tyCompat x t         = lhs == rhs
@@ -296,6 +297,7 @@ checkAppTys = go
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
+    go (RImpF _ t1 t2 _)= go t1 <|> go t2
     go (RFun _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
@@ -347,6 +349,7 @@ checkAbstractRefs t = go t
     go (RAllP _ t)        = go t
     go (RAllS _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
+    go t@(RImpF _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RFun _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RVar _ r)       = check (toRSort t :: RSort) r
     go (RAllE _ t1 t2)    = go t1 <|> go t2

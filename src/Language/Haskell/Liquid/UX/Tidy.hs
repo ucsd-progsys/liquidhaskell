@@ -172,6 +172,7 @@ tyVars :: RType t a t1 -> [a]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllS _ t)     = tyVars t
 tyVars (RAllT α t)     = ty_var_value α : tyVars t
+tyVars (RImpF _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RFun _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RAppTy t t' _) = tyVars t ++ tyVars t'
 tyVars (RApp _ ts _ _) = concatMap tyVars ts
@@ -202,6 +203,7 @@ funBinds :: RType t t1 t2 -> [Symbol]
 funBinds (RAllT _ t)      = funBinds t
 funBinds (RAllP _ t)      = funBinds t
 funBinds (RAllS _ t)      = funBinds t
+funBinds (RImpF b t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RFun b t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RApp _ ts _ _)  = concatMap funBinds ts
 funBinds (RAllE b t1 t2)  = b : funBinds t1 ++ funBinds t2

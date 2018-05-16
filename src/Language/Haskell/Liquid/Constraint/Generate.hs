@@ -77,7 +77,6 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult) 
 import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
--- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -382,11 +381,12 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r  = mkArrow αs πs ls xts $ RRTy [] r o t2
+addObligation o t r  = mkArrow αs πs ls yts xts $ RRTy [] r o t2
   where
     (αs, πs, ls, t1) = bkUniv t
-    (xs, ts, rs, t2) = bkArrow t1
+    ((xs',ts',rs'),(xs, ts, rs), t2) = bkArrow t1
     xts              = zip3 xs ts rs
+    yts              = zip3 xs' ts' rs'
 
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
@@ -471,7 +471,13 @@ consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = γ `setBind` x
            (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
-       cconsE γπ e (weakenResult x spect)
+
+       -- take implcits out of the function's SpecType and into the env
+       let tyr = toRTypeRep spect
+       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_eargs = [], ty_erefts = [] })
+       γπ <- foldM (+=) γπ $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
+
+       cconsE γπ e (weakenResult x spect')
        when (F.symbol x `elemHEnv` holes γ) $
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
@@ -713,6 +719,32 @@ splitConstraints t
   = ([], t)
 
 -------------------------------------------------------------------
+-- | @instantiateGhosts@ peels away implicit argument binders,
+-- instantiates them with fresh variables, and adds those variables
+-- to the context as @ebind@s TODO: the second half
+-------------------------------------------------------------------
+instantiateGhosts :: CGEnv
+                 -> SpecType
+                 -> CG (Bool, CGEnv, SpecType)
+instantiateGhosts γ t | not (null yts)
+  = do ys' <- mapM (const fresh) ys
+       γ'  <- foldM addEEnv γ (zip ys' ts)
+
+       let su = F.mkSubst $ zip ys (F.EVar <$> ys')
+       return (True, γ', F.subst su te')
+  where (yts, te') = bkImplicit t
+        (ys, ts)   = unzip yts
+
+instantiateGhosts γ t = return (False, γ, t)
+
+bkImplicit :: RType c tv r
+           -> ( [(F.Symbol, RType c tv r)]
+              , RType c tv r)
+bkImplicit (RImpF x tx t _) = ((x,tx):acc, t')
+  where (acc,t') = bkImplicit t
+bkImplicit t = ([],t)
+
+-------------------------------------------------------------------
 -- | @instantiatePreds@ peels away the universally quantified @PVars@
 --   of a @RType@, generates fresh @Ref@ for them and substitutes them
 --   in the body.
@@ -814,7 +846,6 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         pushConsBind      $ cconsE γ' a tx
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
-
 consE γ e'@(App e a)
   = do ([], πs, ls, te) <- bkUniv <$> consE γ e
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
@@ -822,9 +853,17 @@ consE γ e'@(App e a)
        (γ', te''')      <- dropExists γ te'
        te''             <- dropConstraints γ te'''
        updateLocA (exprLoc e) te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-       pushConsBind      $ cconsE γ' a tx
-       makeSingleton γ e' <$>  (addPost γ' $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
+       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
+       pushConsBind      $ cconsE γ'' a tx
+       tout <- makeSingleton γ'' e' <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       if hasGhost
+          then do
+           tk   <- freshTy_type ImplictE e' $ exprType e'
+           addW $ WfC γ tk
+           addC (SubC γ'' tout tk) ""
+           return tk
+          else return tout
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -1146,7 +1185,8 @@ unfoldR :: SpecType
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys (F.notracepp "UNFOLDR-1" td) ts) $ reverse rs
-        (ys0, yts', _, rt) = safeBkArrow $ instantiateTys tbody tvs'
+        -- TODO: if we ever want to support applying implicits explcitly, will need to rejigger
+        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow $ instantiateTys tbody tvs'
         yts''              = F.notracepp "UNFOLDR-0" $ zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
         sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])

@@ -320,9 +320,10 @@ mapArgumens lc t1 t2 = go xts1' xts2'
       = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constructors cannot be merged\n"
           ++ show t1 ++ "\n" ++ show t2 )
 
+-- should constructors have implicits? probably not
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
-                     = notracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] xts t'
+                     = notracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] [] xts t'
   where
     xts              = stitchArgs (fSrcSpan f) dc (notracepp ("FIELDS-XS: " ++ showpp f) xs) (notracepp ("FIELDS-TS: " ++ showpp f ++ " tdc = " ++ showpp tdc) ts)
     t                = fromMaybe (ofType tr) mt
