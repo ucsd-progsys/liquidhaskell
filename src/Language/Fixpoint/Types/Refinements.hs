@@ -115,12 +115,6 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 
 -- import           Text.Printf               (printf)
--- import           Language.Fixpoint.Types.Config
--- import           Language.Fixpoint.Types.Errors
--- import           Text.Parsec.Pos
--- import           Data.Array                hiding (indices)
--- import qualified Data.HashSet              as S
-
 
 
 instance NFData KVar

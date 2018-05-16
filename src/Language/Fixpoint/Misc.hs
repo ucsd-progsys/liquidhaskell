@@ -346,7 +346,20 @@ topoSortWith vF xs = fst3 . f <$> G.topSort g
     (g, f, _)      = G.graphFromEdges es
     es             = [ (x, ux, vxs) | x <- xs, let (ux, vxs) = vF x ]
 
--- >>> λ> exTopo
+-- |
+-- >>> let em = M.fromList [ (1, [2, 3]), (2, [1, 3]), (3, []   ) ]
+-- >>> let ef = \v -> (v, M.lookupDefault [] v em)
+-- >>> sccsWith f [1,2,3]  
+-- [[3], [1, 2]] 
+
+sccsWith :: (Ord v) => (a -> (v, [v])) -> [a] -> [[a]]
+sccsWith vF xs     = map (fst3 . f) <$> (T.flatten <$> G.scc g)
+  where
+    (g, f, _)      = G.graphFromEdges es
+    es             = [ (x, ux, vxs) | x <- xs, let (ux, vxs) = vF x ]
+
+
+-- >>> exTopo
 -- >>> [1,2,4,6,5,3]
 exTopo  :: [Int]
 exTopo  = topoSortWith f [1,2,3,4,5,6]

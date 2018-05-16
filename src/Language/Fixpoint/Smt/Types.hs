@@ -46,8 +46,7 @@ import           System.Process
 data Command      = Push
                   | Pop
                   | CheckSat
-                  | DeclData !DataDecl
--- /                  | Declare  !Symbol [Sort] !Sort
+                  | DeclData ![DataDecl]
                   | Declare  !Symbol [SmtSort] !SmtSort
                   | Define   !Sort
                   | Assert   !(Maybe Int) !Expr

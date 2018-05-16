@@ -40,7 +40,6 @@ module Language.Fixpoint.Smt.Interface (
     , smtDecl
     , smtDecls
     , smtAssert
-    -- , smtDataDecl
     , smtFuncDecl
     , smtAssertAxiom
     , smtCheckUnsat
@@ -356,8 +355,8 @@ smtDecl me x t = interact' me (Declare x ins' out')
 smtFuncDecl :: Context -> Symbol -> ([SmtSort],  SmtSort) -> IO ()
 smtFuncDecl me x (ts, t) = interact' me (Declare x ts t)
 
-smtDataDecl :: Context -> DataDecl -> IO ()
-smtDataDecl me d = interact' me (DeclData d)
+smtDataDecl :: Context -> [DataDecl] -> IO ()
+smtDataDecl me ds = interact' me (DeclData ds)
 
 deconSort :: Sort -> ([Sort], Sort)
 deconSort t = case functionSort t of
@@ -428,7 +427,7 @@ z3_options
 declare :: Context -> IO () -- SolveM ()
 --------------------------------------------------------------------------------
 declare me = do
-  forM_ ds     $           smtDataDecl me
+  forM_ dss    $           smtDataDecl me
   forM_ thyXTs $ uncurry $ smtDecl     me
   forM_ qryXTs $ uncurry $ smtDecl     me
   forM_ ats    $ uncurry $ smtFuncDecl me
@@ -436,7 +435,7 @@ declare me = do
   forM_ axs    $           smtAssert   me
   where
     env        = ctxSymEnv me
-    ds         = dataDeclarations          env
+    dss        = dataDeclarations          env
     lts        = F.toListSEnv . F.seLits $ env
     ess        = distinctLiterals  lts
     axs        = Thy.axiomLiterals lts
@@ -453,9 +452,8 @@ symbolSorts env = [(x, tx t) | (x, t) <- F.toListSEnv env ]
   tx t@(FObj a) = fromMaybe t (F.lookupSEnv a env)
   tx t          = t
 
-dataDeclarations :: SymEnv -> [DataDecl]
-dataDeclarations = -- (if True then orderDeclarations else id) .
-                   orderDeclarations . map snd . F.toListSEnv . F.seData
+dataDeclarations :: SymEnv -> [[DataDecl]]
+dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
 funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
 funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
@@ -502,9 +500,9 @@ distinctLiterals xts = [ es | (_, es) <- tess ]
 -- | 'orderDeclarations' sorts the data declarations such that each declarations
 --   only refers to preceding ones.
 --------------------------------------------------------------------------------
-orderDeclarations :: [F.DataDecl] -> [F.DataDecl]
+orderDeclarations :: [F.DataDecl] -> [[F.DataDecl]]
 --------------------------------------------------------------------------------
-orderDeclarations ds = reverse (Misc.topoSortWith f ds)
+orderDeclarations ds = {- reverse -} (Misc.sccsWith f ds)
   where
     dM               = M.fromList [(F.ddTyCon d, d) | d <- ds]
     f d              = (F.ddTyCon d, dataDeclDeps dM d)
