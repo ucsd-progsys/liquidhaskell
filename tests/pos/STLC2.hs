@@ -24,17 +24,18 @@ data Op
   deriving (Eq, Show) 
 
 data Expr 
-  = EBool Bool 
-  | EInt  Int 
-  | EBin  Op Expr Expr       
-  | EVar  Var
+  = EBool Bool               -- ^ 'EBool b'       is 'b'
+  | EInt  Int                -- ^ 'EInt i'        is 'i'
+  | EBin  Op Expr Expr       -- ^ 'EBin o e1 e2'  is 'e1 o e2'
+  | EVar  Var                -- ^ 'EVar x'        is 'x'
+  | EFun  Var Var Type Expr  -- ^ 'EFun f x t e'  is 'fun f(x:t) e'
+  | EApp  Expr Expr          -- ^ 'EApp e1 e2'    is 'e1 e2' 
   deriving (Eq, Show) 
- 
--- | EFun Var Var Type Expr  -- ^ 'EFun f x t e' is 'fun f(x:t) e'
 
 data Val 
   = VBool Bool 
   | VInt  Int
+  | VClos Var Var Expr VEnv
   deriving (Eq, Show) 
 
 data Result 
@@ -82,6 +83,13 @@ eval s (EBin o e1 e2) = seq2 (evalOp o) (eval s e1) (eval s e2)
 eval s (EVar x)       = case lookupVEnv x s of 
                           Nothing -> Stuck 
                           Just v  -> Result v 
+eval s (EFun f x t e) = Result (VClos f x e s) 
+-- eval s (EApp e1 e2)   = seq2 evalApp (eval s e1) (eval s e2)
+
+{-@ reflect evalApp @-}
+evalApp :: Val -> Val -> Result 
+-- evalApp v1@(VClos f x e s) v2 = eval (VBind x v2 (VBind f v1 s)) e 
+evalApp _                  _  = Stuck 
 
 {-@ reflect evalOp @-}
 evalOp :: Op -> Val -> Val -> Result 
