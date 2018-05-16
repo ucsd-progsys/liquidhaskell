@@ -257,6 +257,11 @@ btP = do
             return (PC sb (rFun b t1 t2)))
         <|>
          (do
+            reservedOp "~>"
+            PC _ t2 <- btP
+            return (PC sb (rImpF b t1 t2)))
+        <|>
+         (do
             reservedOp "=>"
             PC _ t2 <- btP
             -- TODO:AZ return an error if s == PcExplicit
@@ -525,9 +530,11 @@ constraintP
        t1  <- bareTypeP
        reservedOp "<:"
        t2  <- bareTypeP
-       return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol])
-                                                 (replicate (length xts + 1) mempty)
-                                                 ((snd <$> xts) ++ [t1]) t2
+       return $ fromRTypeRep $ RTypeRep [] [] []
+                                        [] [] []
+                                        ((val . fst <$> xts) ++ [dummySymbol])
+                                        (replicate (length xts + 1) mempty)
+                                        ((snd <$> xts) ++ [t1]) t2
 
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
@@ -1253,6 +1260,7 @@ tyBodyP ty
       _         -> E <$> exprP
     where outTy (RAllT _ t)    = outTy t
           outTy (RAllP _ t)    = outTy t
+          outTy (RImpF _ _ t _)= Just t
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 

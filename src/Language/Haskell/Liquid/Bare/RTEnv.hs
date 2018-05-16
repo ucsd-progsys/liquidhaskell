@@ -138,6 +138,7 @@ buildTypeEdges table = ordNub . go
   where
     go :: BareType -> [Symbol]
     go (RApp c ts rs _) = go_alias (symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
+    go (RImpF _ t1 t2 _) = go t1 ++ go t2
     go (RFun _ t1 t2 _) = go t1 ++ go t2
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2

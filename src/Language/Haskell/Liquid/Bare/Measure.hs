@@ -262,11 +262,11 @@ makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isG
     checkT   = dataConSel dc n Check
 
 dataConSel :: DataCon -> Int -> DataConSel -> SpecType
-dataConSel dc n Check    = mkArrow as [] [] [xt] bareBool
+dataConSel dc n Check    = mkArrow as [] [] [] [xt] bareBool
   where
     (as, _, xt)          = {- traceShow ("dataConSel: " ++ show dc) $ -} bkDataCon dc n
 
-dataConSel dc n (Proj i) = mkArrow as [] [] [xt] (mempty <$> ti)
+dataConSel dc n (Proj i) = mkArrow as [] [] [] [xt] (mempty <$> ti)
   where
     ti                   = fromMaybe err $ Misc.getNth (i-1) ts
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
