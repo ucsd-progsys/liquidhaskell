@@ -240,6 +240,15 @@ lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
   --------------------------------------[E-Bin]
     G |- EBin o e1 e2 : opOut o
 
+
+    (x,t1), (f, t1->t2), G |- e : t2 
+  --------------------------------------[E-Fun]
+    G |- EFun f x t1 e : t1 -> t2 
+
+    G |- e1 : t1 -> t2   G |- e2 : t1 
+  --------------------------------------[E-App]
+    G |- EApp e1 e2 : t2 
+
 -}
 
 {-@ data ExprTy where 
@@ -253,6 +262,13 @@ lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
              -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
     | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
              -> Prop (ExprTy g (EVar x) t)
+    | E_Fun  :: g:TEnv -> f:Var -> x:Var -> t1:Type -> e:Expr -> t2:Type
+             -> Prop (ExprTy (TBind x t1 (TBind f (TFun t1 t2) g)) e t2)
+             -> Prop (ExprTy g (EFun f x t1 e) (TFun t1 t2))       
+    | E_App  :: g:TEnv -> e1:Expr -> e2:Expr -> t1:Type -> t2:Type 
+             -> Prop (ExprTy g e1 (TFun t1 t2))
+             -> Prop (ExprTy g e2 t1)
+             -> Prop (ExprTy g (EApp e1 e2) t2)
   @-}
 data ExprTyP where 
   ExprTy :: TEnv -> Expr -> Type -> ExprTyP  
@@ -262,6 +278,8 @@ data ExprTy where
   E_Int  :: TEnv -> Int  -> ExprTy 
   E_Var  :: TEnv -> Var  -> Type -> ExprTy 
   E_Bin  :: TEnv -> Op   -> Expr -> Expr -> ExprTy -> ExprTy -> ExprTy 
+  E_Fun  :: TEnv -> Var -> Var -> Type -> Expr -> Type -> ExprTy -> ExprTy 
+  E_App  :: TEnv -> Expr -> Expr -> Type -> Type -> ExprTy -> ExprTy -> ExprTy 
 
 --------------------------------------------------------------------------------
 -- | Lemma 1: "evalOp_safe" 
@@ -351,12 +369,12 @@ eval_safe g s (EVar x) t (E_Var {}) gs
   where 
     (w, (_, wt)) = lookup_safe g s x t gs 
 
-eval_safe g s (EFun _ _ _ _) _ _ _ 
+eval_safe g s (EFun f x t1 e) t (E_Fun _ _ _ _ _ t2 et2) gs 
+  = R_Res (VClos f x e s) t (V_Clos g s f x t1 t2 e gs et2)
+      
+eval_safe g s (EApp e1 e2) t2 (E_App _ _ _ t1 _ e1_t1_t2 e2_t1) gs 
   = undefined 
-
-eval_safe g s (EApp _ _ ) _ _ _ 
-  = undefined 
-
+  
 --------------------------------------------------------------------------------
 -- | Boilerplate 
 --------------------------------------------------------------------------------
