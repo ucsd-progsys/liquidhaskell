@@ -42,7 +42,7 @@ import Text.Printf (printf)
 --------------------------------------------------------------------------------
 init :: (F.Fixpoint a) => Config -> F.SInfo a -> S.HashSet F.KVar -> Sol.Solution
 --------------------------------------------------------------------------------
-init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs 
+init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs xEnv
   where
     keqs       = map (refine si qs genv) ws `using` parList rdeepseq
     qs         = F.quals si
@@ -50,6 +50,7 @@ init cfg si ks = Sol.fromList senv mempty keqs [] mempty ebs
     genv       = instConstants si
     senv       = symbolEnv cfg si
     ebs        = ebindInfo si
+    xEnv       = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList (F.bs si)]
 
 --------------------------------------------------------------------------------
 refine :: F.SInfo a -> [F.Qualifier] -> F.SEnv F.Sort -> F.WfC a -> (F.KVar, Sol.QBind)
@@ -236,14 +237,16 @@ hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
  -}
 
 elabExist :: Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
-elabExist s xts = F.pExist xts'
+elabExist s xts p = foldr (\(x,t) -> quantify x (x,t)) p xts'
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
     elab        = So.elaborate "elabExist" env
     env         = Sol.sEnv s
+    es          = [x | Sol.EbDef _ x <- M.elems (Sol.sEbd s)]
+    quantify x  = if x `elem` es then F.PAll . (:[]) else F.pExist . (:[])
 
 cubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
-cubePred g s ksu c    = (elabExist s xts (psu &.& p), kI)
+cubePred g s ksu c    = (F.tracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
   where
     ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
     bs'               = delCEnv s k bs

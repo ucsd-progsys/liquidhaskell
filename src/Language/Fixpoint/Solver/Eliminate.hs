@@ -28,7 +28,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
   where
     cD             = elimDeps     sI es nKs
     sI'            = cutSInfo     sI kI cKs
-    sHyp           = Sol.fromList sE mempty mempty kHyps kS []
+    sHyp           = Sol.fromList sE mempty mempty kHyps kS [] $ fromListSEnv [ (x, (i, sr_sort sr)) | (i,x,sr) <- bindEnvToList (bs sI)]
     kHyps          = nonCutHyps   sI kI nKs
     kI             = kIndex       sI
     (es, cKs, nKs) = kutVars cfg  sI
