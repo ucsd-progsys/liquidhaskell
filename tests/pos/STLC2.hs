@@ -14,8 +14,8 @@ type Var = String
 data Type 
   = TInt 
   | TBool 
+  | TFun Type Type 
   deriving (Eq, Show) 
- -- | TFun Type Type 
 
 data Op  
   = Add 
@@ -84,11 +84,11 @@ eval s (EVar x)       = case lookupVEnv x s of
                           Nothing -> Stuck 
                           Just v  -> Result v 
 eval s (EFun f x t e) = Result (VClos f x e s) 
--- eval s (EApp e1 e2)   = seq2 evalApp (eval s e1) (eval s e2)
+eval s (EApp e1 e2)   = seq2 evalApp (eval s e1) (eval s e2)
 
 {-@ reflect evalApp @-}
 evalApp :: Val -> Val -> Result 
--- evalApp v1@(VClos f x e s) v2 = eval (VBind x v2 (VBind f v1 s)) e 
+evalApp v1@(VClos f x e s) v2 = eval (VBind x v2 (VBind f v1 s)) e 
 evalApp _                  _  = Stuck 
 
 {-@ reflect evalOp @-}
@@ -108,7 +108,6 @@ tests  = [ e1              -- 15
          ]
   where 
     e1 = EBin Add (EInt 5) (EInt 10)
-
 
 --------------------------------------------------------------------------------
 -- | Typing Results 
@@ -149,12 +148,19 @@ data ResTy where
 
     ----------------------- [V_Int]
       |- VInt i : TInt 
-    
+   
+    g |- s  (x,t1), (f,t1->t2),g |- e : t2 
+    --------------------------------------- [V_Clos]
+      |- VClos f x e s : t1 -> t2 
  -}
 
 {-@ data ValTy where
       V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
     | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
+    | V_Clos :: g:TEnv -> s:VEnv -> f:Var -> x:Var -> t1:Type -> t2:Type -> e:Expr 
+             -> Prop (StoTy g s) 
+             -> Prop (ExprTy (TBind x t1 (TBind f (TFun t1 t2) g)) e t2)
+             -> Prop (ValTy (VClos f x e s) (TFun t1 t2)) 
   @-}
 
 data ValTyP where 
@@ -163,6 +169,8 @@ data ValTyP where
 data ValTy where 
   V_Bool :: Bool -> ValTy 
   V_Int  :: Int  -> ValTy 
+  V_Clos :: TEnv -> VEnv -> Var -> Var -> Type -> Type -> Expr -> StoTy -> ExprTy  -> ValTy 
+
 
 --------------------------------------------------------------------------------
 -- | Typing Stores 
@@ -198,17 +206,11 @@ data StoTy where
 -- | Typing Expressions 
 --------------------------------------------------------------------------------
 
-{-@ reflect opIn1 @-}
-opIn1 :: Op -> Type 
-opIn1 Add = TInt 
-opIn1 Leq = TInt 
-opIn1 And = TBool
-
-{-@ reflect opIn2 @-}
-opIn2 :: Op -> Type 
-opIn2 Add = TInt 
-opIn2 Leq = TInt 
-opIn2 And = TBool
+{-@ reflect opIn @-}
+opIn :: Op -> Type 
+opIn Add = TInt 
+opIn Leq = TInt 
+opIn And = TBool
 
 {-@ reflect opOut @-}
 opOut :: Op -> Type 
@@ -234,7 +236,7 @@ lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
   --------------------------------------[E-Var]
     G |- Var x  : t 
 
-    G |- e1 : opIn1 o  G |- e2 : opIn2 o 
+    G |- e1 : opIn o  G |- e2 : opIn o 
   --------------------------------------[E-Bin]
     G |- EBin o e1 e2 : opOut o
 
@@ -246,8 +248,8 @@ lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
     | E_Int  :: g:TEnv -> i:Int  
              -> Prop (ExprTy g (EInt i)  TInt)
     | E_Bin  :: g:TEnv -> o:Op -> e1:Expr -> e2:Expr 
-             -> Prop (ExprTy g e1 (opIn1 o)) 
-             -> Prop (ExprTy g e2 (opIn2 o))
+             -> Prop (ExprTy g e1 (opIn o)) 
+             -> Prop (ExprTy g e2 (opIn o))
              -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
     | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
              -> Prop (ExprTy g (EVar x) t)
@@ -265,35 +267,37 @@ data ExprTy where
 -- | Lemma 1: "evalOp_safe" 
 --------------------------------------------------------------------------------
 
+{-@ reflect isValTy @-}
+isValTy :: Val -> Type -> Bool 
+isValTy (VInt _)  TInt  = True 
+isValTy (VBool _) TBool = True 
+isValTy _         _     = False 
+
+{-@ propValTy :: o:Op -> w:Val -> Prop (ValTy w (opIn o)) -> { w' : Val | w = w' && isValTy w' (opIn o) } @-}
+propValTy :: Op -> Val -> ValTy -> Val 
+propValTy Add w (V_Int _) = w 
+propValTy Leq w (V_Int _)  = w 
+propValTy And w (V_Bool _) = w 
+
 {-@ evalOp_safe 
-      :: o:Op -> v1:Val -> v2:Val 
-      -> Prop (ValTy v1 (opIn1 o)) 
-      -> Prop (ValTy v2 (opIn2 o)) 
+      :: o:Op -> v1:{Val | isValTy v1 (opIn o) } -> v2:{Val | isValTy v2 (opIn o) } 
       -> (v :: Val, ( {y:() | evalOp o v1 v2 == Result v} , {z:ValTy | prop z = ValTy v (opOut o)}))
   @-}
 
-evalOp_safe :: Op -> Val -> Val -> ValTy -> ValTy -> (Val, ((), ValTy))
-evalOp_safe Add (VInt n1) (VInt n2) _ _   = (VInt n, ((), V_Int n))   where n = n1 + n2 
-evalOp_safe Add (VBool _) _ (V_Int _) _   = trivial () 
-evalOp_safe Add _ (VBool _) _ (V_Int _)   = trivial () 
-
-evalOp_safe Leq (VInt n1) (VInt n2) _ _   = (VBool b, ((), V_Bool b)) where b = n1 <= n2 
-evalOp_safe Leq (VBool _) _ (V_Int _) _   = trivial () 
-evalOp_safe Leq _ (VBool _) _ (V_Int _)   = trivial () 
-
-evalOp_safe And (VBool b1) (VBool b2) _ _ = (VBool b, ((), V_Bool b)) where b = b1 && b2 
-evalOp_safe And (VInt _) _ (V_Bool _) _   = trivial () 
-evalOp_safe And _ (VInt _) _ (V_Bool _)   = trivial () 
+evalOp_safe :: Op -> Val -> Val -> (Val, ((), ValTy))
+evalOp_safe Add (VInt n1) (VInt n2)   = (VInt n, ((), V_Int n))   where n = n1 + n2 
+evalOp_safe Leq (VInt n1) (VInt n2)   = (VBool b, ((), V_Bool b)) where b = n1 <= n2 
+evalOp_safe And (VBool b1) (VBool b2) = (VBool b, ((), V_Bool b)) where b = b1 && b2 
 
 {-@ evalOp_res_safe 
       :: o:Op -> r1:Result -> r2:Result
-      -> Prop (ResTy r1 (opIn1 o))
-      -> Prop (ResTy r2 (opIn2 o))
+      -> Prop (ResTy r1 (opIn o))
+      -> Prop (ResTy r2 (opIn o))
       -> Prop (ResTy (seq2 (evalOp o) r1 r2) (opOut o)) 
   @-}
 evalOp_res_safe :: Op -> Result -> Result -> ResTy -> ResTy -> ResTy
-evalOp_res_safe o (Result v1) (Result v2) (R_Res _ _ vt1) (R_Res _ _ vt2) 
-  = case evalOp_safe o v1 v2 vt1 vt2 of 
+evalOp_res_safe o (Result v1) (Result v2) (R_Res _ t1 vt1) (R_Res _ t2 vt2) 
+  = case evalOp_safe o (propValTy o v1 vt1) (propValTy o v2 vt2) of 
       (v, (_, vt)) -> R_Res v (opOut o) vt  
 evalOp_res_safe o _ _  (R_Time t1) _ 
   = R_Time (opOut o)
@@ -339,13 +343,19 @@ eval_safe _ _ (EInt _) _     (E_Bool {}) _
 eval_safe g s (EBin o e1 e2) t (E_Bin _ _ _ _ et1 et2) gs
   = evalOp_res_safe o (eval s e1) (eval s e2) rt1 rt2     
   where 
-    rt1          = eval_safe g s e1 (opIn1 o) et1 gs
-    rt2          = eval_safe g s e2 (opIn2 o) et2 gs
+    rt1          = eval_safe g s e1 (opIn o) et1 gs
+    rt2          = eval_safe g s e2 (opIn o) et2 gs
 
 eval_safe g s (EVar x) t (E_Var {}) gs     
   = R_Res w t wt 
   where 
     (w, (_, wt)) = lookup_safe g s x t gs 
+
+eval_safe g s (EFun _ _ _ _) _ _ _ 
+  = undefined 
+
+eval_safe g s (EApp _ _ ) _ _ _ 
+  = undefined 
 
 --------------------------------------------------------------------------------
 -- | Boilerplate 
