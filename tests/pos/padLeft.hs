@@ -3,28 +3,40 @@
 {-@ infixr ++              @-}
 {-@ infixr !!              @-}
 
-module PadLeft where 
+module LeftPad where 
 
-import Prelude hiding (replicate, (++), (!!))
+import Prelude hiding (max, replicate, (++), (!!))
 import Language.Haskell.Liquid.NewProofCombinators 
 
 -----------------------------------------------------------------------------------
--- Code 
+-- | Code 
 -----------------------------------------------------------------------------------
-{-@ reflect padLeft @-}
-padLeft :: Int -> a -> [a] -> [a]
-padLeft n c xs 
-  | size xs < n = replicate (n - size xs) c ++ xs 
-  | otherwise   = xs 
+{-@ reflect leftPad @-}
+leftPad :: Int -> a -> [a] -> [a]
+leftPad n c xs 
+  | 0 < pad   = replicate pad c ++ xs 
+  | otherwise = xs 
+  where 
+    pad       = n - size xs
+
+{-@ leftPadObvious :: n:Int -> c:a -> xs:[a] -> 
+      { leftPad n c xs = if (size xs < n) 
+                            then (replicate (n - size xs) c ++ xs) 
+                            else xs 
+      } 
+  @-}
+leftPadObvious :: Int -> a -> [a] -> () 
+leftPadObvious _ _ _ = () 
+
 
 -----------------------------------------------------------------------------------
 -- Properties 
 -----------------------------------------------------------------------------------
-{-@ thmPadLeft :: n:_ -> c:_ -> xs:{size xs < n} -> 
-                    i:Nat -> { (padLeft n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
+{-@ thmLeftPad :: n:_ -> c:_ -> xs:{size xs < n} -> 
+                    i:Nat -> { (leftPad n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
   @-}
-thmPadLeft :: Int -> a -> [a] -> Int -> ()
-thmPadLeft n c xs i 
+thmLeftPad :: Int -> a -> [a] -> Int -> ()
+thmLeftPad n c xs i 
   | i < n - size xs = thmAppLeft  (replicate (n - size xs) c) xs i &&& thmReplicate (n - size xs) c i   
   | otherwise       = thmAppRight (replicate (n - size xs) c) xs i
 
@@ -50,9 +62,7 @@ thmReplicate n c i
   | i == 0    = ()
   | otherwise = thmReplicate (n-1) c (i-1) 
 
------------------------------------------------------------------------------------
 -- Stuff from library Data.List 
------------------------------------------------------------------------------------
 
 {-@ reflect replicate @-}
 {-@ replicate :: n:Nat -> a -> {v:[a] | size v = n} @-}
