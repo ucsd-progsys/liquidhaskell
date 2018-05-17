@@ -323,7 +323,6 @@ evalOp_res_safe o _ _  (R_Time t1) _
 evalOp_res_safe o _ _  _ (R_Time t2) 
   = R_Time (opOut o)
 
-
 --------------------------------------------------------------------------------
 -- | Lemma 2: "lookup_safe"
 --------------------------------------------------------------------------------
@@ -350,7 +349,24 @@ lookup_safe g s x t (S_Bind y yt yv g' s' yvt gs')
       -> Prop (ResTy (evalApp v1 v2) t2) 
   @-}
 evalApp_safe :: Val -> Val -> Type -> Type -> ValTy -> ValTy -> ResTy 
-evalApp_safe = undefined 
+evalApp_safe v1@(VClos f x e s) v2 t1 t2 v1_t1_t2@(V_Clos g _ _ _ _ _ _ g_s gxf_e_t2) v2_t1 
+  = eval_safe gxf sxf e t2 gxf_e_t2 gxf_sxf  
+  where 
+    gf      = TBind f (TFun t1 t2) g
+    sf      = VBind f v1           s
+    gxf     = TBind x t1 gf 
+    sxf     = VBind x v2 sf  
+    gf_sf   = S_Bind f (TFun t1 t2) v1 g  s  v1_t1_t2 g_s 
+    gxf_sxf = S_Bind x t1           v2 gf sf v2_t1    gf_sf             
+    
+evalApp_safe (VInt {}) _ _ _ (V_Clos {}) _ 
+  = trivial () 
+
+evalApp_safe (VBool {}) _ _ _ (V_Clos {}) _ 
+  = trivial () 
+
+
+
 
 {-@ evalApp_res_safe 
       :: r1:Result -> r2:Result -> t1:Type -> t2:Type
@@ -367,9 +383,8 @@ evalApp_res_safe _ _ _ t2 _ (R_Time {})
   = R_Time t2 
 
 --------------------------------------------------------------------------------
--- | Lemma 4: "eval_safe" 
+-- | THEOREM: "eval_safe" 
 --------------------------------------------------------------------------------
-
 {-@ eval_safe :: g:TEnv -> s:VEnv -> e:Expr -> t:Type 
               -> Prop (ExprTy g e t) 
               -> Prop (StoTy  g s) 
