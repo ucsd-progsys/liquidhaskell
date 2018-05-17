@@ -301,11 +301,12 @@ propValTy And w (V_Bool _) = w
       :: o:Op -> v1:{Val | isValTy v1 (opIn o) } -> v2:{Val | isValTy v2 (opIn o) } 
       -> (v :: Val, ( {y:() | evalOp o v1 v2 == Result v} , {z:ValTy | prop z = ValTy v (opOut o)}))
   @-}
-
 evalOp_safe :: Op -> Val -> Val -> (Val, ((), ValTy))
 evalOp_safe Add (VInt n1) (VInt n2)   = (VInt n, ((), V_Int n))   where n = n1 + n2 
 evalOp_safe Leq (VInt n1) (VInt n2)   = (VBool b, ((), V_Bool b)) where b = n1 <= n2 
 evalOp_safe And (VBool b1) (VBool b2) = (VBool b, ((), V_Bool b)) where b = b1 && b2 
+
+
 
 {-@ evalOp_res_safe 
       :: o:Op -> r1:Result -> r2:Result
@@ -321,6 +322,7 @@ evalOp_res_safe o _ _  (R_Time t1) _
   = R_Time (opOut o)
 evalOp_res_safe o _ _  _ (R_Time t2) 
   = R_Time (opOut o)
+
 
 --------------------------------------------------------------------------------
 -- | Lemma 2: "lookup_safe"
@@ -339,7 +341,33 @@ lookup_safe g s x t (S_Bind y yt yv g' s' yvt gs')
   = lookup_safe g' s' x t gs' 
 
 --------------------------------------------------------------------------------
--- | Lemma 3: "eval_safe" 
+-- | Lemma 3: "app_safe" 
+--------------------------------------------------------------------------------
+{-@ evalApp_safe 
+      :: v1:Val -> v2:Val -> t1:Type -> t2:Type
+      -> Prop (ValTy v1 (TFun t1 t2)) 
+      -> Prop (ValTy v2 t1)
+      -> Prop (ResTy (evalApp v1 v2) t2) 
+  @-}
+evalApp_safe :: Val -> Val -> Type -> Type -> ValTy -> ValTy -> ResTy 
+evalApp_safe = undefined 
+
+{-@ evalApp_res_safe 
+      :: r1:Result -> r2:Result -> t1:Type -> t2:Type
+      -> Prop (ResTy r1 (TFun t1 t2)) 
+      -> Prop (ResTy r2 t1)
+      -> Prop (ResTy (seq2 evalApp r1 r2) t2)
+  @-}
+evalApp_res_safe :: Result -> Result -> Type -> Type -> ResTy -> ResTy -> ResTy 
+evalApp_res_safe (Result v1) (Result v2) t1 t2 (R_Res _ _ v1_t1_t2) (R_Res _ _ v2_t1)
+  = evalApp_safe v1 v2 t1 t2 v1_t1_t2 v2_t1 
+evalApp_res_safe _ _ _ t2 (R_Time {}) _ 
+  = R_Time t2 
+evalApp_res_safe _ _ _ t2 _ (R_Time {}) 
+  = R_Time t2 
+
+--------------------------------------------------------------------------------
+-- | Lemma 4: "eval_safe" 
 --------------------------------------------------------------------------------
 
 {-@ eval_safe :: g:TEnv -> s:VEnv -> e:Expr -> t:Type 
@@ -348,15 +376,12 @@ lookup_safe g s x t (S_Bind y yt yv g' s' yvt gs')
               -> Prop (ResTy (eval s e) t) 
   @-}
 eval_safe :: TEnv -> VEnv -> Expr -> Type -> ExprTy -> StoTy -> ResTy 
-eval_safe _ _ (EBool b) TBool _ _          
+
+eval_safe _ _ (EBool b) _ (E_Bool {}) _          
   = R_Res (VBool b) TBool (V_Bool b) 
-eval_safe _ _ (EBool _) _     (E_Int {}) _ 
-  = trivial ()  -- WHY is this needed?
  
-eval_safe _ _ (EInt n) TInt  _           _ 
+eval_safe _ _ (EInt n) _ (E_Int {}) _ 
   = R_Res (VInt n) TInt (V_Int n) 
-eval_safe _ _ (EInt _) _     (E_Bool {}) _ 
-  = trivial ()  -- WHY is this needed?
 
 eval_safe g s (EBin o e1 e2) t (E_Bin _ _ _ _ et1 et2) gs
   = evalOp_res_safe o (eval s e1) (eval s e2) rt1 rt2     
@@ -373,8 +398,12 @@ eval_safe g s (EFun f x t1 e) t (E_Fun _ _ _ _ _ t2 et2) gs
   = R_Res (VClos f x e s) t (V_Clos g s f x t1 t2 e gs et2)
       
 eval_safe g s (EApp e1 e2) t2 (E_App _ _ _ t1 _ e1_t1_t2 e2_t1) gs 
-  = undefined 
-  
+  = evalApp_res_safe (eval s e1) (eval s e2) t1 t2 r1_t1_t2 r2_t1 
+  where 
+    r1_t1_t2 = eval_safe g s e1 (TFun t1 t2) e1_t1_t2 gs 
+    r2_t1    = eval_safe g s e2 t1           e2_t1    gs
+ 
+
 --------------------------------------------------------------------------------
 -- | Boilerplate 
 --------------------------------------------------------------------------------
