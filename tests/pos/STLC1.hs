@@ -29,8 +29,6 @@ data Expr
   | EBin  Op Expr Expr       
   | EVar  Var
   deriving (Eq, Show) 
- 
--- | EFun Var Var Type Expr  -- ^ 'EFun f x t e' is 'fun f(x:t) e'
 
 data Val 
   = VBool Bool 
