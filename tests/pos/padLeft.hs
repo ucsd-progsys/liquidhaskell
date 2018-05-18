@@ -6,12 +6,12 @@
 module LeftPad where 
 
 import Prelude hiding (max, replicate, (++), (!!))
-import Language.Haskell.Liquid.NewProofCombinators 
 
 -----------------------------------------------------------------------------------
 -- | Code 
 -----------------------------------------------------------------------------------
 {-@ reflect leftPad @-}
+{-@ leftPad :: n:Int -> c:a -> xs:[a] -> {v:[a] | size v = max n (size xs)} @-}
 leftPad :: Int -> a -> [a] -> [a]
 leftPad n c xs 
   | 0 < pad   = replicate pad c ++ xs 
@@ -28,17 +28,23 @@ leftPad n c xs
 leftPadObvious :: Int -> a -> [a] -> () 
 leftPadObvious _ _ _ = () 
 
+{-@ reflect max @-}
+max :: Int -> Int -> Int 
+max x y = if x > y then x else y 
 
 -----------------------------------------------------------------------------------
 -- Properties 
 -----------------------------------------------------------------------------------
 {-@ thmLeftPad :: n:_ -> c:_ -> xs:{size xs < n} -> 
-                    i:Nat -> { (leftPad n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
+                    i:{Nat | i < n} -> { (leftPad n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
   @-}
 thmLeftPad :: Int -> a -> [a] -> Int -> ()
 thmLeftPad n c xs i 
-  | i < n - size xs = thmAppLeft  (replicate (n - size xs) c) xs i &&& thmReplicate (n - size xs) c i   
-  | otherwise       = thmAppRight (replicate (n - size xs) c) xs i
+  | i < k     = thmAppLeft  cs xs i `seq` thmReplicate k c i   
+  | otherwise = thmAppRight cs xs i
+  where 
+    k         = n - size xs 
+    cs        = replicate k c
 
 -----------------------------------------------------------------------------------
 -- Theorems about Lists (these are baked in as 'axioms' in the dafny prelude) 
@@ -58,7 +64,6 @@ thmAppRight (x:xs) ys i = thmAppRight xs ys (i-1)
 {-@ thmReplicate :: n:Nat -> c:a -> i:{Nat | i < n} -> { replicate n c !! i  == c } @-}
 thmReplicate :: Int -> a -> Int -> () 
 thmReplicate n c i 
-  | n == 0    = () 
   | i == 0    = ()
   | otherwise = thmReplicate (n-1) c (i-1) 
 
