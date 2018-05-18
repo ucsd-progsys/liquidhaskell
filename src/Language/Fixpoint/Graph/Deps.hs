@@ -200,10 +200,12 @@ kvGraph = edgeGraph . kvEdges
 edgeGraph :: [CEdge] -> KVGraph
 edgeGraph es = KVGraph [(v, v, vs) | (v, vs) <- groupList es ]
 
+-- need to plumb list of ebinds
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
-kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
+kvEdges fi = selfes ++ concatMap (subcEdges bs) cs ++ concatMap (ebindEdges ebs bs) cs
   where
     bs     = F.bs fi
+    ebs    = F.ebinds fi
     cs     = M.elems (F.cm fi)
     ks     = fiKVars fi
     selfes =  [(Cstr i , Cstr  i) | c <- cs, let i = F.subcId c]
@@ -212,6 +214,18 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
 
 fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
+
+ebindEdges :: (F.TaggedC c a) => [F.BindId] -> F.BindEnv -> c a -> [CEdge]
+ebindEdges ebs bs c =  [(EBind k, Cstr i ) | k  <- envEbinds xs bs c ]
+                    ++ [(Cstr i, EBind k') | k' <- rhsEbinds xs c ]
+  where
+    i          = F.subcId c
+    xs         = fst . flip F.lookupBindEnv bs <$> ebs
+
+envEbinds xs be c = [ x | x <- envBinds , x `elem` xs ]
+  where syms     = F.syms . F.sr_reft
+        envBinds = syms . snd =<< F.clhs be c
+rhsEbinds xs c = [ x | x <- F.syms (F.crhs c) , x `elem` xs ]
 
 subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
