@@ -3,30 +3,48 @@
 {-@ infixr ++              @-}
 {-@ infixr !!              @-}
 
-module PadLeft where 
+module LeftPad where 
 
-import Prelude hiding (replicate, (++), (!!))
-import Language.Haskell.Liquid.NewProofCombinators 
+import Prelude hiding (max, replicate, (++), (!!))
 
 -----------------------------------------------------------------------------------
--- Code 
+-- | Code 
 -----------------------------------------------------------------------------------
-{-@ reflect padLeft @-}
-padLeft :: Int -> a -> [a] -> [a]
-padLeft n c xs 
-  | size xs < n = replicate (n - size xs) c ++ xs 
-  | otherwise   = xs 
+{-@ reflect leftPad @-}
+{-@ leftPad :: n:Int -> c:a -> xs:[a] -> {v:[a] | size v = max n (size xs)} @-}
+leftPad :: Int -> a -> [a] -> [a]
+leftPad n c xs 
+  | 0 < pad   = replicate pad c ++ xs 
+  | otherwise = xs 
+  where 
+    pad       = n - size xs
+
+{-@ leftPadObvious :: n:Int -> c:a -> xs:[a] -> 
+      { leftPad n c xs = if (size xs < n) 
+                            then (replicate (n - size xs) c ++ xs) 
+                            else xs 
+      } 
+  @-}
+leftPadObvious :: Int -> a -> [a] -> () 
+leftPadObvious _ _ _ = () 
+
+{-@ reflect max @-}
+max :: Int -> Int -> Int 
+max x y = if x > y then x else y 
 
 -----------------------------------------------------------------------------------
 -- Properties 
 -----------------------------------------------------------------------------------
-{-@ thmPadLeft :: n:_ -> c:_ -> xs:{size xs < n} -> 
-                    i:Nat -> { (padLeft n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
+{-@ thmLeftPad :: n:_ -> c:_ -> xs:{size xs < n} -> 
+                    i:{Nat | i < n} -> { (leftPad n c xs !! i) == (if (i < n - size xs) then c else (xs !! (i - (n - size xs)))) }                               
   @-}
-thmPadLeft :: Int -> a -> [a] -> Int -> ()
-thmPadLeft n c xs i 
-  | i < n - size xs = thmAppLeft  (replicate (n - size xs) c) xs i &&& thmReplicate (n - size xs) c i   
-  | otherwise       = thmAppRight (replicate (n - size xs) c) xs i
+thmLeftPad :: Int -> a -> [a] -> Int -> ()
+thmLeftPad n c xs i 
+  | i < k     = thmAppLeft  cs xs i `seq` thmReplicate k c i   
+  | otherwise = thmAppRight cs xs i
+  where 
+    k         = n - size xs 
+    cs        = replicate k c
 
 -----------------------------------------------------------------------------------
 -- Theorems about Lists (these are baked in as 'axioms' in the dafny prelude) 
@@ -46,13 +64,10 @@ thmAppRight (x:xs) ys i = thmAppRight xs ys (i-1)
 {-@ thmReplicate :: n:Nat -> c:a -> i:{Nat | i < n} -> { replicate n c !! i  == c } @-}
 thmReplicate :: Int -> a -> Int -> () 
 thmReplicate n c i 
-  | n == 0    = () 
   | i == 0    = ()
   | otherwise = thmReplicate (n-1) c (i-1) 
 
------------------------------------------------------------------------------------
 -- Stuff from library Data.List 
------------------------------------------------------------------------------------
 
 {-@ reflect replicate @-}
 {-@ replicate :: n:Nat -> a -> {v:[a] | size v = n} @-}
