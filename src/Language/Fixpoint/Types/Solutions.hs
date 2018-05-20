@@ -180,13 +180,15 @@ instance PPrint QBind where
 --------------------------------------------------------------------------------
 data EbindSol
   = EbDef !(SimpC ()) Symbol -- ^ The constraint whose HEAD "defines" the Ebind
-                           -- and the @Symbol@ for that EBind
+                             -- and the @Symbol@ for that EBind
   | EbSol Expr             -- ^ The solved out term that should be used at USES.
+  | EbIncr                 -- ^ EBinds not to be solved for (because they're currently being solved for)
    deriving (Show, Generic, NFData)
 
 instance PPrint EbindSol where 
   pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
   pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
+  pprintTidy _ (EbIncr)    = "EbIncr"
 
 --------------------------------------------------------------------------------
 updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 

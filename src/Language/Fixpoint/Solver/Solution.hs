@@ -34,7 +34,7 @@ import           Language.Fixpoint.Solver.Sanitize
 
 -- DEBUG
 import Text.Printf (printf)
--- import           Debug.Trace (trace)
+-- import           Debug.Trace
 
 
 --------------------------------------------------------------------------------
@@ -202,12 +202,14 @@ lookupBindEnvExt g@(_,be,_) s i
       (x, sr)           = F.lookupBindEnv i be 
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
-ebSol g s i = case M.lookup i (Sol.sEbd s) of
+ebSol g s i = case  M.lookup i sebds of
   Just (Sol.EbSol p) -> Just p
   Just (Sol.EbDef c x) -> F.notracepp ("ebSol " ++ show i) $  Just $ ebReft s' (i, c, x)
   _                  -> Nothing
   where
+    sebds = Sol.sEbd s
     ebReft s (i,c,x) = exElim (Sol.sxEnv s) i x (ebindReft g s c)
+    s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
 
 ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
 ebindReft (_,be,_) s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
