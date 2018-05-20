@@ -21,7 +21,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution, GSolution
-  , Sol (gMap, sEnv, sEbd)
+  , Sol (gMap, sEnv, sEbd, sxEnv)
   , updateGMap, updateGMapWithKey
   , sScp
   , CMap
@@ -179,10 +179,10 @@ instance PPrint QBind where
 --   2. the solved out TERM that we should use in place of the ebind at USES.
 --------------------------------------------------------------------------------
 data EbindSol
-  = EbDef SubcId Symbol -- ^ The constraint whose HEAD "defines" the Ebind
+  = EbDef !(SimpC ()) Symbol -- ^ The constraint whose HEAD "defines" the Ebind
                            -- and the @Symbol@ for that EBind
   | EbSol Expr             -- ^ The solved out term that should be used at USES.
-   deriving (Eq, Show, Generic, NFData)
+   deriving (Show, Generic, NFData)
 
 instance PPrint EbindSol where 
   pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x

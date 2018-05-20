@@ -187,26 +187,41 @@ apply g s bs      = (F.pAnd (pks:ps), kI)
     (ps,  ks, _)  = envConcKVars g s bs
 
 
-envConcKVars :: CombinedEnv -> Sol.Sol a b -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
+envConcKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ([F.Expr], [F.KVSub], [F.KVSub])
 envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F.ksuKVar y) $ concat gss)
   where
     (pss, kss, gss) = unzip3 [ F.notracepp ("sortedReftConcKVars" ++ F.showpp sr) $ F.sortedReftConcKVars x sr | (x, sr) <- xrs ]
-    xrs             = lookupBindEnvExt be s <$> is
+    xrs             = lookupBindEnvExt g s <$> is
     is              = F.elemsIBindEnv bs
-    be              = Misc.snd3 g
 
-lookupBindEnvExt :: F.BindEnv -> Sol.Sol a b -> F.BindId -> (F.Symbol, F.SortedReft)
-lookupBindEnvExt be s i 
-  | Just p <- ebSol s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
-  | otherwise           = (x, sr)
+lookupBindEnvExt :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> (F.Symbol, F.SortedReft)
+lookupBindEnvExt g@(_,be,_) s i 
+  | Just p <- ebSol g s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
+  | otherwise              = (x, sr)
    where 
       (x, sr)           = F.lookupBindEnv i be 
 
-ebSol :: Sol.Sol a b -> F.BindId -> Maybe F.Expr 
-ebSol s i = case M.lookup i (Sol.sEbd s) of 
-  Just (Sol.EbSol p) -> Just p 
-  _                  -> Nothing 
+ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
+ebSol g s i = case M.lookup i (Sol.sEbd s) of
+  Just (Sol.EbSol p) -> Just p
+  Just (Sol.EbDef c x) -> F.notracepp ("ebSol " ++ show i) $  Just $ ebReft s' (i, c, x)
+  _                  -> Nothing
+  where
+    ebReft s (i,c,x) = exElim (Sol.sxEnv s) i x (ebindReft g s c)
 
+ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
+ebindReft (_,be,_) s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
+  where
+    g'             = (sid c, be, bs)
+    bs             = F.senv c
+
+exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Symbol -> F.Pred -> F.Pred
+exElim env xi _ p = F.notracepp msg (F.pExist yts p)
+  where
+    msg         = "exElim" -- printf "exElim: ix = %d, p = %s" xi (F.showpp p)
+    yts         = [ (y, yt) | y        <- F.syms p
+                            , (yi, yt) <- maybeToList (F.lookupSEnv y env)
+                            , xi < yi                                        ]
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
@@ -237,16 +252,14 @@ hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
  -}
 
 elabExist :: Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
-elabExist s xts p = foldr (\(x,t) -> quantify x (x,t)) p xts'
+elabExist s xts p = F.pExist xts' p
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
     elab        = So.elaborate "elabExist" env
     env         = Sol.sEnv s
-    es          = [x | Sol.EbDef _ x <- M.elems (Sol.sEbd s)]
-    quantify x  = if x `elem` es then F.PAll . (:[]) else F.pExist . (:[])
 
 cubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
-cubePred g s ksu c    = (F.tracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
+cubePred g s ksu c    = (F.notracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
   where
     ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
     bs'               = delCEnv s k bs
@@ -411,7 +424,9 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
-ebindInfo si = [(bid, Sol.EbDef cid x) | (bid, cid, x) <- ebindDefs si]
+ebindInfo si = [(bid, Sol.EbDef (cons cid) x) | (bid, cid, x) <- ebindDefs si]
+  where cons cid = const () <$> Misc.safeLookup "ebindInfo" cid cs
+        cs = F.cm si
 
 ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId, F.Symbol)]
 ebindDefs si = [ (bid, cid, x) | (cid, x) <- cDefs
