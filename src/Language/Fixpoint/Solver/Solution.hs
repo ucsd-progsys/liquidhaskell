@@ -204,7 +204,7 @@ lookupBindEnvExt be s i
 ebSol :: Sol.Sol a b -> F.BindId -> Maybe F.Expr 
 ebSol s i = case M.lookup i (Sol.sEbd s) of 
   Just (Sol.EbSol p)   -> Just p 
-  Just (Sol.EbDef _ x) -> F.panic ("AAARGH ebSol: " ++ show x) 
+  -- Just (Sol.EbDef _ x) -> F.panic ("AAARGH ebSol: " ++ show x) 
   _                    -> Nothing 
 
 
