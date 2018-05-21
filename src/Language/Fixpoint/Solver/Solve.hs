@@ -304,10 +304,10 @@ solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution
 solveEbinds si s0  = L.foldl' solve1 s0 ebs
   where
     solve1 s (i,c,x) = Sol.updateEbind s i (ebReft s (i, c, x))
+    ebReft s (i,c,x) = exElim xEnv i x (ebindReft si s c)
     ebs            = ([(ix, cid, x) | (ix, Sol.EbDef cid x) <- M.toList (Sol.sEbd s0)] :: [(F.BindId, F.SubcId ,F.Symbol)])
     be             = F.bs si
     xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be]
-    ebReft s (i,c,x) = exElim xEnv i x (ebindReft si s c)
 
 ebindReft :: F.SInfo a -> Sol.Solution -> F.SubcId -> F.Pred 
 ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]

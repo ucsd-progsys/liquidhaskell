@@ -168,12 +168,12 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = {- F.notracepp _msg $ -} fst $ apply g s bs
+lhsPred be s c = F.tracepp _msg $ fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
     ci         = sid c
-    _msg       = "LhsPred for id = " ++ show (sid c) ++ "with SOLUTION = " ++ F.showpp s
+    _msg       = "LhsPred for id = " ++ show (sid c) ++ " with SOLUTION = " ++ F.showpp s
 
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
@@ -203,8 +203,9 @@ lookupBindEnvExt be s i
 
 ebSol :: Sol.Sol a b -> F.BindId -> Maybe F.Expr 
 ebSol s i = case M.lookup i (Sol.sEbd s) of 
-  Just (Sol.EbSol p) -> Just p 
-  _                  -> Nothing 
+  Just (Sol.EbSol p)   -> Just p 
+  Just (Sol.EbDef _ x) -> F.panic ("AAARGH ebSol: " ++ show x) 
+  _                    -> Nothing 
 
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo

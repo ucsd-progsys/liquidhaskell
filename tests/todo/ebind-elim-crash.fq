@@ -1,11 +1,13 @@
+fixpoint "--eliminate=some"
+
 // This file is SAFE with --eliminate=none
 // but both qualifiers are needed
 
 // However, --eliminate=some marks this UNSAFE
 // but this can be fixed by removing cons 3
 
-qualif Auto(v : int, m : int): (v = (m + 2))
-qualif Auto(v : int, x : int): (v = x)
+// qualif Auto(v : int, m : int): (v = (m + 2))
+// qualif Auto(v : int, x : int): (v = x)
 
 bind  16 m    : {VV##131 : int | true }
 ebind 19 n    : { int }

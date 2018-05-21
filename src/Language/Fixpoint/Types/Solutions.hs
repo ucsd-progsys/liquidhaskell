@@ -180,8 +180,8 @@ instance PPrint QBind where
 --------------------------------------------------------------------------------
 data EbindSol
   = EbDef SubcId Symbol -- ^ The constraint whose HEAD "defines" the Ebind
-                           -- and the @Symbol@ for that EBind
-  | EbSol Expr             -- ^ The solved out term that should be used at USES.
+                        -- and the @Symbol@ for that EBind
+  | EbSol Expr          -- ^ The solved out term that should be used at USES.
    deriving (Eq, Show, Generic, NFData)
 
 instance PPrint EbindSol where 
@@ -207,6 +207,8 @@ data Sol b a = Sol
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
   , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
+  -- ADD FIELD: SOLVED KVARs 
+  -- ADD FIELD: xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be]
   } deriving (Generic)
 
 deriving instance (NFData b, NFData a) => NFData (Sol b a)
