@@ -281,6 +281,7 @@ type EvalST a = StateT EvalEnv IO a
 evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr]
          -> IO [(Expr, Expr)]
 evaluate cfg ctx facts aenv es = do 
+    SETUP_KNOWLEDGE_HERE_DONT_RESET_CONTEXT_FOREACH_QUERY_SIGH
     eqss <- mapM (evalOne γ s0) cands
     return (eqs ++ concat eqss)
   where
