@@ -386,7 +386,6 @@ smtCheckUnsat me  = respSat <$> command me CheckSat
 smtBracketAt :: SrcSpan -> Context -> String -> IO a -> IO a
 smtBracketAt sp x y z = smtBracket x y z `catch` dieAt sp
 
-
 smtBracket :: Context -> String -> IO a -> IO a
 smtBracket me _msg a   = do
   smtPush me
