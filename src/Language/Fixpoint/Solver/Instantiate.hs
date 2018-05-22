@@ -123,13 +123,14 @@ isValid :: Knowledge -> Expr -> IO Bool
 isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
 
 makeKnowledge :: Config -> SMT.Context -> AxiomEnv
-                 -> [(Symbol, SortedReft)]
-                 -> ([(Expr, Expr)], Knowledge)
-makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
-                                     { knSims   = aenvSimpl aenv
-                                     , knAms    = aenvEqs aenv
-                                     , knPreds  = \bs e c -> askSMT c bs e
-                                     }
+              -> [(Symbol, SortedReft)]
+              -> ([(Expr, Expr)], Knowledge)
+makeKnowledge cfg ctx aenv es 
+  = (simpleEqs,) $ (emptyKnowledge context)
+                      { knSims   = aenvSimpl aenv
+                      , knAms    = aenvEqs aenv
+                      , knPreds  = \bs e c -> askSMT c bs e
+                      }
   where
     senv = SMT.ctxSymEnv ctx
     context :: IO SMT.Context
@@ -145,7 +146,7 @@ makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
     -- 1. when e2 is a data con and can lead to further reductions
     -- 2. when size e2 < size e1
     simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
-               L.nub (catMaybes [getDCEquality senv e1 e2 | PAtom Eq e1 e2 <- atms])
+               L.nub (catMaybes [ getDCEquality senv e1 e2 | PAtom Eq e1 e2 <- atms ])
     atms = splitPAnd =<< (expr <$> filter isProof es)
     isProof (_, RR s _) = showpp s == "Tuple"
     toSMT bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
@@ -271,36 +272,40 @@ data EvalEnv = EvalEnv
 type EvalST a = StateT EvalEnv IO a
 
 evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv
-            -> [Expr]
-            -> IO [(Expr, Expr)]
-evaluate cfg ctx facts aenv einit
-  = (eqs ++) <$>
-    (fmap join . sequence)
-    (evalOne <$> L.nub (grepTopApps =<< einit))
+         -> [Expr]
+         -> IO [(Expr, Expr)]
+evaluate cfg ctx facts aenv es = 
+  do eqss <- mapM (evalOne γ s0) cands
+     return (eqs ++ concat eqss)
+     -- = (eqs ++) <$> (fmap join . sequence) (evalOne γ s0 <$> cands)
   where
+    cands      = Misc.hashNub (concatMap topApps es)
     (eqs, γ)   = makeKnowledge cfg ctx aenv facts
     senv       = SMT.ctxSymEnv ctx
-    initEvalSt = EvalEnv 0 [] aenv senv cfg
-    -- This adds all intermediate unfoldings into the assumptions
-    -- no test needs it
-    -- TODO: add a flag to enable it
-    evalOne :: Expr -> IO [(Expr, Expr)]
-    evalOne e = {- notracepp ("evalOne e = " ++ showpp e) <$> -} do
-      (e', st) <- runStateT (eval γ e) initEvalSt
-      if e' == e then return [] else return ((e, e') : evSequence st)
+    s0         = EvalEnv 0 [] aenv senv cfg
 
--- Don't evaluate under Lam, App, Ite, or constants
-grepTopApps :: Expr -> [Expr]
-grepTopApps (PAnd es)       = concatMap grepTopApps es
-grepTopApps (POr es)        = concatMap grepTopApps es
-grepTopApps (PAtom _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PIff e1 e2)    = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PImp e1 e2)    = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PNot e)        = grepTopApps e
-grepTopApps (EBin  _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (ENeg e)        = grepTopApps e
-grepTopApps e@(EApp _ _)    = [e]
-grepTopApps _               = []
+-- This adds all intermediate unfoldings into the assumptions
+-- no test needs it
+-- TODO: add a flag to enable it
+evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
+evalOne γ s0 e = {- notracepp ("evalOne e = " ++ showpp e) <$> -} do
+  (e', st) <- runStateT (eval γ e) s0 
+  if e' == e then return [] else return ((e, e') : evSequence st)
+
+-- Don't evaluate under Lam, App, Ite, or Constants
+topApps :: Expr -> [Expr]
+topApps = go 
+  where 
+    go (PAnd es)       = concatMap go es
+    go (POr es)        = concatMap go es
+    go (PAtom _ e1 e2) = go e1  ++ go e2
+    go (PIff e1 e2)    = go e1  ++ go e2
+    go (PImp e1 e2)    = go e1  ++ go e2
+    go (EBin  _ e1 e2) = go e1  ++ go e2
+    go (PNot e)        = go e
+    go (ENeg e)        = go e
+    go e@(EApp _ _)    = [e]
+    go _               = []
 
 -- makeLam is the adjoint of splitEApp
 makeLam :: Knowledge -> Expr -> Expr
