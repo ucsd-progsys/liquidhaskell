@@ -108,50 +108,39 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
-data Knowledge
-  = KN { knSims    :: ![Rewrite]
-       , knAms     :: ![Equation]
-       , knContext :: IO SMT.Context
-       , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-       , knLams    :: [(Symbol, Sort)]
-       }
-
-emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge ctx = KN [] [] ctx (\_ _ _ -> return False) []
+data Knowledge = KN 
+  { knSims    :: ![Rewrite]           -- ^ Measure info, asserted for each new Ctor ('assertSelectors')
+  , knAms     :: ![Equation]          -- ^ (Recursive) function definitions, used for PLE
+  , knContext :: SMT.Context
+  , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+  , knLams    :: [(Symbol, Sort)]
+  }
 
 isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = do 
-  ctx <- knContext γ
-  knPreds γ ctx (knLams γ) e
+isValid γ e = knPreds γ (knContext γ) (knLams γ) e
 
 isProof :: (a, SortedReft) -> Bool 
 isProof (_, RR s _) = showpp s == "Tuple"
 
-makeKnowledge :: Config -> SMT.Context -> AxiomEnv
-              -> [(Symbol, SortedReft)]
-              -> ([(Expr, Expr)], Knowledge)
-makeKnowledge cfg ctx aenv es 
-  = (simpleEqs, (emptyKnowledge context)
-                                     { knSims   = aenvSimpl aenv
-                                     , knAms    = aenvEqs   aenv
-                                     , knPreds  = askSMT    cfg 
-                                     } )
+knowledge :: Config -> SMT.Context -> AxiomEnv -> Knowledge
+knowledge cfg ctx aenv = KN 
+  { knSims    = aenvSimpl aenv
+  , knAms     = aenvEqs   aenv
+  , knContext = ctx 
+  , knPreds   = askSMT    cfg 
+  , knLams    = [] 
+  } 
+
+initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
+initEqualities ctx aenv es = simpleEqs
   where
-    senv = SMT.ctxSymEnv ctx
-    context :: IO SMT.Context
-    context = do
-      SMT.smtPop ctx
-      SMT.smtPush ctx
-      SMT.smtAssert ctx (pAnd ([toSMT cfg ctx [] (EEq e1 e2) | (e1, e2) <- simpleEqs]
-                               ++ filter (null . Vis.kvars) ((toSMT cfg ctx [] . expr) <$> es)
-                              ))
-      return ctx
     -- This creates the rewrite rule e1 -> e2, applied when:
     -- 1. when e2 is a DataCon and can lead to further reductions
     -- 2. when size e2 < size e1
-    simpleEqs = makeSimplifications (aenvSimpl aenv) =<<
-                L.nub (catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
-    atoms     = splitPAnd =<< (expr <$> filter isProof es)
+    simpleEqs              = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
+    dcEqs                  = Misc.hashNub (catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
+    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
+    senv                   = SMT.ctxSymEnv ctx
 
 -- AT: Non-obvious needed invariant: askSMT True is always the 
 -- totality-effecting one.
@@ -258,8 +247,8 @@ assertSelectors γ e = do
       | (EVar dc', es) <- splitEApp e
       , dc == dc'
       , length xs == length es
-      = do let e1 = (EApp (EVar f) e)
-           let e2 = (subst (mkSubst $ zip xs es) bd)
+      = do let e1 = EApp (EVar f) e
+           let e2 = subst (mkSubst $ zip xs es) bd
            addEquality γ e1 e2
            return e
     go _ e
@@ -278,16 +267,19 @@ data EvalEnv = EvalEnv
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr]
+evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr] 
          -> IO [(Expr, Expr)]
 evaluate cfg ctx facts aenv es = do 
-    -- SETUP_KNOWLEDGE_HERE_DONT_RESET_CONTEXT_FOREACH_QUERY_SIGH
-    eqss <- mapM (evalOne γ s0) cands
-    return (eqs ++ concat eqss)
-  where
-    cands    = Misc.hashNub (concatMap topApps es)
-    (eqs, γ) = makeKnowledge cfg ctx aenv facts
-    s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
+  let eqs      = initEqualities ctx aenv facts  
+  let γ        = knowledge cfg ctx aenv 
+  let cands    = Misc.hashNub (concatMap topApps es)
+  let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
+  let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
+              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
+  eqss        <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                   forM_ ctxEqs (SMT.smtAssert ctx) 
+                   mapM (evalOne γ s0) cands
+  return        $ eqs ++ concat eqss
 
 -- This adds all intermediate unfoldings into the assumptions
 -- no test needs it
