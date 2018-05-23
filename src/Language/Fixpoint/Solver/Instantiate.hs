@@ -19,7 +19,6 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
-import           Language.Fixpoint.Misc          ((<<=))
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.SortCheck
@@ -50,7 +49,7 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -276,7 +275,7 @@ evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr
 evaluate cfg ctx facts aenv es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = Misc.hashNub (concatMap topApps es)
+  let cands    = tracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
@@ -372,13 +371,17 @@ evalApp γ _ (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd               -- non-recursive equations
-  = eval γ =<< assertSelectors γ <<= substEq PopIf eq es bd
+  = do env   <- seSort <$> gets evEnv
+       let ee = substEq env PopIf eq es bd
+       assertSelectors γ ee 
+       eval γ ee 
 
 evalApp γ _e (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
-  = evalRecApplication γ (eApps (EVar f) es) =<< substEq Normal eq es bd
+  = do env      <- seSort <$> gets evEnv
+       evalRecApplication γ (eApps (EVar f) es) (substEq env Normal eq es bd)
 evalApp _ _ (f, es)
   = return $ eApps f es
 
@@ -387,8 +390,8 @@ evalApp _ _ (f, es)
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-substEq :: SubstOp -> Equation -> [Expr] -> Expr -> EvalST Expr
-substEq o eq es bd = substEqVal o eq es <$> substEqCoerce eq es bd
+substEq :: SEnv Sort -> SubstOp -> Equation -> [Expr] -> Expr -> Expr
+substEq env o eq es bd = substEqVal o eq es (substEqCoerce env eq es bd)
 
 data SubstOp = PopIf | Normal
 
@@ -400,14 +403,13 @@ substEqVal o eq es bd = case o of
     xes    =  zip xs es
     xs     =  eqArgNames eq
 
-substEqCoerce :: Equation -> [Expr] -> Expr -> EvalST Expr
-substEqCoerce eq es bd = do
-  env      <- seSort <$> gets evEnv
-  let ts    = snd    <$> eqArgs eq
-  let sp    = panicSpan "mkCoSub"
-  let eTs   = sortExpr sp env <$> es
-  let coSub = notracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
-  return    $ Vis.applyCoSub coSub bd
+substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
+substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
+  where 
+    ts    = snd    <$> eqArgs eq
+    sp    = panicSpan "mkCoSub"
+    eTs   = sortExpr sp env <$> es
+    coSub = notracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
 
 mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
@@ -462,14 +464,14 @@ evalRecApplication γ e (EIte b e1 e2) = do
               then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                    eval γ e1 >>=
-                   ((e, "App") ~>)
+                   ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
                            ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
                            eval γ e2 >>=
-                           ((e, "App") ~>)
+                           ((e, "App2: ") ~>)
                       else return e
 evalRecApplication _ _ e
   = return e
