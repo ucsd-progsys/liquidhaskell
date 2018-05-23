@@ -33,9 +33,10 @@ import           Data.Char            (isUpper)
 -- import           Text.Printf (printf)
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
-(_e, _str) ~> e' = do
-    modify (\st -> st {evId = evId st + 1})
-    return e'
+(e, _str) ~> e' = do
+  let msg = "PLE: " ++ _str ++ showpp (e, e') 
+  modify (\st -> st {evId = (tracepp msg $ evId st) + 1})
+  return e'
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
@@ -71,6 +72,13 @@ withCtx cfg file env k = do
   res <- k ctx
   _   <- SMT.cleanupContext ctx
   return res
+
+
+--------------------------------------------------------------------------------
+-- | Partition Binds into individual "owning" constraints, to not repeat PLE 
+--   for each bind, but instead, to just do PLE for that bind while at the 
+--   the "root" constraint.
+--------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- | PLE for a single 'SimpC'
@@ -131,12 +139,13 @@ knowledge cfg ctx aenv = KN
   , knLams    = [] 
   } 
 
+-- | This creates the rewrite rule e1 -> e2, applied when:
+-- 1. when e2 is a DataCon and can lead to further reductions
+-- 2. when size e2 < size e1
+
 initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
 initEqualities ctx aenv es = simpleEqs
   where
-    -- This creates the rewrite rule e1 -> e2, applied when:
-    -- 1. when e2 is a DataCon and can lead to further reductions
-    -- 2. when size e2 < size e1
     simpleEqs              = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
     dcEqs                  = Misc.hashNub (catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
     atoms                  = splitPAnd =<< (expr <$> filter isProof es)
@@ -230,11 +239,6 @@ splitPAnd e         = [e]
  -}
 
 assertSelectors :: Knowledge -> Expr -> EvalST ()
--- assertSelectors _ _ = return ()
-{- TODO: HEREHEREHEREHEREHEREHERE
-  1. DOES this kill Unification.hs? (Guard under --no-adt)
-  2. Use addEquality instead off _addSMTEquality.
--}
 assertSelectors γ e = do
     sims <- aenvSimpl <$> gets _evAEnv
     -- cfg  <- gets evCfg
@@ -281,9 +285,6 @@ evaluate cfg ctx facts aenv es = do
                    mapM (evalOne γ s0) cands
   return        $ eqs ++ concat eqss
 
--- This adds all intermediate unfoldings into the assumptions
--- no test needs it
--- TODO: add a flag to enable it
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
 evalOne γ s0 e = do
   (e', st) <- runStateT (eval γ e) s0 

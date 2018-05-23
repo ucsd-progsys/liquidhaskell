@@ -1,0 +1,13 @@
+fixpoint "--rewrite"
+
+constant sum : (func(0, [int; int]))
+
+define sum(n : int) : int = ((sum n) = if (0 < n) then (n + sum (n-1)) else 0)
+
+expand [1 : True]
+
+constraint:
+  env []
+  lhs {v : int | true }
+  rhs {v : int | (sum 3) = 6 }
+  id 1 tag []
