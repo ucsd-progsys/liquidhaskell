@@ -26,7 +26,7 @@ solverInfo :: Config -> SInfo a -> SolverInfo a b
 --------------------------------------------------------------------------------
 solverInfo cfg sI = SI sHyp sI' cD cKs
   where
-    cD             = elimDeps     sI es nKs
+    cD             = elimDeps     sI es nKs ebs
     sI'            = cutSInfo     sI kI cKs
     sHyp           = Sol.fromList sE mempty mempty kHyps kS [] $ fromListSEnv [ (x, (i, sr_sort sr)) | (i,x,sr) <- bindEnvToList (bs sI)]
     kHyps          = nonCutHyps   sI kI nKs
@@ -34,6 +34,7 @@ solverInfo cfg sI = SI sHyp sI' cD cKs
     (es, cKs, nKs) = kutVars cfg  sI
     kS             = kvScopes     sI es
     sE             = symbolEnv   cfg sI
+    ebs            = S.fromList $ fst <$> flip lookupBindEnv (bs sI) <$> (ebinds sI)
 
 
 --------------------------------------------------------------------------------
