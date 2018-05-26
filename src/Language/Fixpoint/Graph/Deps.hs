@@ -250,17 +250,19 @@ elimDeps si es nonKutVs ebs = graphDeps si es'
           ki ------------> c
 -}
 graphElim :: [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> [CEdge]
-graphElim es ks ebs = ikvgEdges $ elimKs (S.union (S.map EBind ebs) (S.map KVar ks)) $ edgesIkvg es
+graphElim es ks ebs = ikvgEdges $ elimKs (S.union (S.map KVar ks) (S.map EBind ebs)) $ edgesIkvg es
   where
     elimKs      = flip (S.foldl' elimK)
 
 elimK  :: IKVGraph -> CVertex -> IKVGraph
 elimK g kV   = (g `addLinks` es') `delNodes` (kV : cis)
   where
-   es'      = [(ki, c) | ki@(KVar _) <- kis, c@(Cstr _) <- cs]
+   es'      = [(ki, c) | ki <- filter unC kis, c@(Cstr _) <- cs]
    cs       = getSuccs g kV
    cis      = getPreds g kV
    kis      = concatMap (getPreds g) cis
+   unC (Cstr _) = False
+   unC _        = True
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
