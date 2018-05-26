@@ -1,7 +1,11 @@
 -- | http://matt.might.net/articles/implementation-of-regular-expression-matching-in-scheme-with-derivatives/ 
+
 {-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--diff"       @-}
+{-@ infixr ++             @-}
+
 {-# LANGUAGE GADTs #-}
-{-@ infixr ++  @-}
 
 module RE where
 
@@ -31,87 +35,48 @@ reSize (Alt r1 r2) = 1 + reSize r1 + reSize r2
 reSize (Star r)    = 1 + reSize r 
 
 -------------------------------------------------------------------
+-- | Kwangkeun Yi's Match 
+-- https://www.cambridge.org/core/journals/journal-of-functional-programming/article/educational-pearl-proof-directed-debugging-revisited-for-a-first-order-version/F7CC0A759398A52C35F21F13236C0E00
+-------------------------------------------------------------------
+{-@ kmatch :: cs:_ -> r:_ -> _ / [len cs, reSize r] @-}
+kmatch :: (Eq a) => [a] -> RE a -> Bool 
+kmatch _      None        = False 
+kmatch []     r           = empty r 
+kmatch cs     (Char c)    = cs == [c] 
+kmatch cs     (Alt r1 r2) = kmatch cs r1 || kmatch cs r2  
+kmatch (c:cs) (Star r)    = kmatch cs (Cat (deriv r c) r) 
+kmatch (c:cs) r           = kmatch cs (deriv r c) 
+  
+-------------------------------------------------------------------
 -- | Derivative-based Match 
 -------------------------------------------------------------------
+{-@ reflect dmatch @-}
 dmatch :: (Eq a) => [a] -> RE a -> Bool 
 dmatch xs r =  empty (derivs r xs)
 
+{-@ reflect derivs @-}
 {-@ derivs :: _ -> xs:_ -> _ / [len xs] @-}
 derivs :: (Eq a) => RE a -> [a] -> RE a 
 derivs r []     = r 
-derivs r (x:xs) = derivs (r // x) xs
+derivs r (c:cs) = derivs (deriv r c) cs
 
 -------------------------------------------------------------------
 -- | Derivative 
 -------------------------------------------------------------------
-
+{-@ reflect deriv @-}
 deriv :: (Eq a) => RE a -> a -> RE a 
-deriv None        _ = None 
-deriv Empty       _ = None 
+deriv None        _  = None 
+deriv Empty       _  = None 
 deriv (Char y)    x 
-  | x == y          = Empty 
-  | otherwise       = None 
-deriv (Alt r1 r2) x = Alt r1' r2' 
-  where 
-    r1'             = deriv r1 x 
-    r2'             = deriv r2 x
-deriv (Star r)    x = Cat r' (Star r)
-  where 
-    r'              = deriv r x
+  | x == y           = Empty 
+  | otherwise        = None 
+deriv (Alt r1 r2) x  = Alt (deriv r1 x) (deriv r2 x) 
+deriv (Star r)    x  = Cat (deriv r x) (Star r)
 deriv (Cat r1 r2) x 
-  | empty r1        = Alt (Cat r1' r2) r2'  
-  | otherwise       =     (Cat r1' r2) 
-  where 
-    r1'             = deriv r1 x 
-    r2'             = deriv r2 x
+  | empty r1         = Alt (Cat (deriv r1 x) r2) (deriv r2 x)
+  | otherwise        =     (Cat (deriv r1 x) r2) 
 
-{- 
-   lem1A :: c:_ -> cs:_  -> r:_ 
-           -> Prop (Match (c:cs) r) 
-           -> Prop (Match cs (r // c))
-  
-   lem1B :: cs:_ -> r:_ 
-           -> Prop (Match cs r) 
-           -> Prop (Match [] (derivs cr s)) 
-
-   lem2A :: c:_ -> cs:_  -> r:_ 
-          -> Prop (Match cs (r // c))
-          -> Prop (Match (c:cs) r) 
- 
-   lem2B ::  cs:_  -> r:_ 
-          -> Prop (Match cs r) 
-          -> Prop (Match [] (derivs r cs))
-
-   lem3A :: r:_ 
-           -> Prop (Match [] r)
-           -> { empty r }
-
-   lem3B :: r:_ 
-           -> { empty r }
-           -> Prop (Match [] r)
-                    
-   thmA    :: cs:_ -> r:_ 
-           -> Prop (Match cs r)
-           -> { dmatch cs r } 
-
-   thmB    :: cs:_ -> r:_ 
-           -> { dmatch cs r } 
-           -> Prop (Match cs r)
-                  
- -}
-
-(//) :: (Eq a) => RE a -> a -> RE a 
-None        // _  = None 
-Empty       // _  = None 
-Char y      // x 
-  | x == y        = Empty 
-  | otherwise     = None 
-(Alt r1 r2) // x  = Alt (r1 // x) (r2 // x) 
-(Star r)    // x  = Cat (r // x)  (Star r)
-(Cat r1 r2) // x 
-  | empty r1      = Alt (Cat (r1 // x) r2) (r2 // x)
-  | otherwise     =     (Cat (r1 // x) r2) 
-
+{-@ reflect empty @-}
 empty :: RE a -> Bool 
 empty None        = False 
 empty (Char _)    = False 
@@ -120,9 +85,6 @@ empty (Star _)    = True
 empty (Cat r1 r2) = empty r1 && empty r2
 empty (Alt r1 r2) = empty r1 || empty r2 
 
--------------------------------------------------------------------------------
--- thm1 :: r:RE a -> s:[a] -> Prop (Match r s) -> { dmatch r s } 
--- thm2 :: r:RE a -> s:[a] -> { dmatch r s } -> Prop (Match r s) 
 -------------------------------------------------------------------------------
 
 data MatchP a where
@@ -157,8 +119,80 @@ data Match a where
                 Prop (Match s2 (Star r)) ->
                 Prop (Match {s1 ++ s2} (Star r))
   @-}
-    
 
+--------------------------------------------------------------------------------
+-- | Theorem: Derivative Matching Equivalence 
+--------------------------------------------------------------------------------
+
+{-@ thm :: cs:_ -> r:_ -> Prop (Match cs r) -> { dmatch cs r } @-} 
+thm :: (Eq a) => [a] -> RE a -> Match a -> () 
+thm cs r cs_match_r = lemEmp r_cs emp_match_r_cs 
+  where
+    r_cs            = derivs r cs 
+    emp_match_r_cs  = lem1s cs r cs_match_r      
+
+{-@ thm' :: cs:_ -> r:{ dmatch cs r } -> Prop (Match cs r) @-}
+thm' :: (Eq a) => [a] -> RE a -> Match a
+thm' cs r          = lem1s' cs r emp_match_r_cs
+  where 
+    r_cs           = derivs r cs 
+    emp_match_r_cs = lemEmp' r_cs 
+
+--------------------------------------------------------------------------------
+-- | Lemma: One-char Equivalence 
+--------------------------------------------------------------------------------
+
+{-@ lem1 :: c:_ -> cs:_  -> r:_ 
+          -> Prop (Match (cons c cs) r) 
+          -> Prop (Match cs (deriv r c))
+  @-}
+lem1 :: (Eq a) => a -> [a] -> RE a -> Match a -> Match a 
+lem1 = undefined -- HARD
+
+{-@ lem1s :: cs:_ -> r:_ 
+          -> Prop (Match cs r) 
+          -> Prop (Match [] (derivs r cs)) 
+  @-}
+lem1s :: (Eq a) => [a] -> RE a -> Match a -> Match a
+lem1s []     _ m = m 
+lem1s (x:xs) r m = lem1s xs  (deriv r x) (lem1 x xs r m) 
+
+{-@ lem1' :: c:_ -> cs:_  -> r:_ 
+          -> Prop (Match cs (deriv r c))
+          -> Prop (Match (cons c cs) r) 
+  @-}
+lem1' :: (Eq a) => a -> [a] -> RE a -> Match a -> Match a 
+lem1' = undefined -- HARD
+
+{-@ lem1s' ::  cs:_  -> r:_ 
+           -> Prop (Match [] (derivs r cs))
+           -> Prop (Match cs r) 
+  @-}
+lem1s' :: (Eq a) => [a] -> RE a -> Match a -> Match a 
+lem1s' []     r m = m 
+lem1s' (x:xs) r m = lem1' x xs r (lem1s' xs (deriv r x) m)
+
+{-@ lemEmp :: r:_ -> Prop (Match [] r) -> {empty r} @-}
+lemEmp :: (Eq a) => RE a -> Match a -> () 
+lemEmp None     MEmpty                    = ()
+lemEmp Empty    _                         = ()
+lemEmp (Star _) _                         = ()
+lemEmp (Cat r1 r2) (MCat s1 _ s2 _ e1 e2) = app_nil_nil s1 s2 `seq` 
+                                            lemEmp r1 e1      `seq` 
+                                            lemEmp r2 e2
+lemEmp (Alt r1 r2) (MAltL _ _ _ e1)       = lemEmp r1 e1 
+lemEmp (Alt r1 r2) (MAltR _ _ _ e2)       = lemEmp r2 e2 
+lemEmp (Char c) (MChar _)                 = single_nil c `seq` ()
+
+{-@ lemEmp' :: r:{empty r} -> Prop (Match [] r) @-}
+lemEmp' :: RE a -> Match a 
+lemEmp' Empty       = MEmpty 
+lemEmp' (Star r)    = MStar0 r 
+lemEmp' (Cat r1 r2) = MCat [] r1 [] r2 (lemEmp' r1) (lemEmp' r2) 
+lemEmp' (Alt r1 r2) 
+  | empty r1        = MAltL [] r1 r2 (lemEmp' r1) 
+  | empty r2        = MAltR [] r1 r2 (lemEmp' r2) 
+                   
 --------------------------------------------------------------------------------
 -- | Boilerplate
 --------------------------------------------------------------------------------
@@ -171,5 +205,28 @@ data Match a where
 []     ++ ys = ys
 (x:xs) ++ ys = x : (xs ++ ys)
 
-{-@ reflect single @-}
+{-@ inline single @-}
+single :: a -> [a]
 single x = [x]
+
+{-@ inline cons @-}
+cons :: a -> [a] -> [a]
+cons x xs = x : xs
+
+
+(&&&) = seq
+
+
+--------------------------------------------------------------------------------
+-- Because GHC Lists are not encoded as ADT for some reason.
+--------------------------------------------------------------------------------
+{-@ single_nil :: c:_ -> { single c /= [] } @-}
+single_nil :: a -> () 
+single_nil _ = ()
+
+{-@ app_nil_nil :: s1:_ -> s2:{ s1 ++ s2 == [] } 
+                -> { s1 == [] && s2 == [] } 
+  @-} 
+app_nil_nil :: [a] -> [a] -> () 
+app_nil_nil [] [] = () 
+
