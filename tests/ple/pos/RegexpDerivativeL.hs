@@ -34,19 +34,7 @@ reSize (Cat r1 r2) = 1 + reSize r1 + reSize r2
 reSize (Alt r1 r2) = 1 + reSize r1 + reSize r2 
 reSize (Star r)    = 1 + reSize r 
 
--------------------------------------------------------------------
--- | Kwangkeun Yi's Match 
--- https://www.cambridge.org/core/journals/journal-of-functional-programming/article/educational-pearl-proof-directed-debugging-revisited-for-a-first-order-version/F7CC0A759398A52C35F21F13236C0E00
--------------------------------------------------------------------
-{-@ kmatch :: cs:_ -> r:_ -> _ / [size cs, reSize r] @-}
-kmatch :: (Eq a) => List a -> RE a -> Bool 
-kmatch _           None        = False 
-kmatch Nil         r           = empty r 
-kmatch cs          (Char c)    = cs == Cons c Nil 
-kmatch cs          (Alt r1 r2) = kmatch cs r1 || kmatch cs r2  
-kmatch (Cons c cs) (Star r)    = kmatch cs (Cat (deriv r c) r) 
-kmatch (Cons c cs) r           = kmatch cs (deriv r c) 
-  
+ 
 -------------------------------------------------------------------
 -- | Derivative-based Match 
 -------------------------------------------------------------------
@@ -239,12 +227,8 @@ lem1a c cs (Cat r1 r2) pf
   @-}
 lemCat :: (Eq a) => a -> List a -> RE a -> RE a -> Match a -> Match a 
 lemCat c cs r1 r2 (MCat s1 _ s2 _ m1' m2) 
-  = MCat (Cons c s1) r1 s2 r2 m1 m2  
-  where 
-    m1 = lem1a c s1 r1 m1' --     :: Match (Cons c s1) r1 
-                           -- m1' :: Match s1 r1'
-                           -- m2  :: Match s2 r2
-                           -- _   :: { cs == s1 ++ s2 }
+  = MCat (Cons c s1) r1 s2 r2 (lem1a c s1 r1 m1') m2    
+                               -- :: Match (Cons c s1) r1 
 
 {-@ lem1s' ::  cs:_  -> r:_ 
            -> Prop (Match Nil (derivs r cs))
@@ -303,8 +287,6 @@ single x = Cons x Nil
 app_nil_nil :: List a -> List a -> () 
 app_nil_nil Nil Nil = () 
 
-
-
 --------------------------------------------------------------------------------
 -- | Boilerplate
 --------------------------------------------------------------------------------
@@ -314,3 +296,16 @@ app_nil_nil Nil Nil = ()
 
 (&) = seq
 
+-------------------------------------------------------------------
+-- | Kwangkeun Yi's Match 
+-- https://www.cambridge.org/core/journals/journal-of-functional-programming/article/educational-pearl-proof-directed-debugging-revisited-for-a-first-order-version/F7CC0A759398A52C35F21F13236C0E00
+-------------------------------------------------------------------
+{-@ kmatch :: cs:_ -> r:_ -> _ / [size cs, reSize r] @-}
+kmatch :: (Eq a) => List a -> RE a -> Bool 
+kmatch _           None        = False 
+kmatch Nil         r           = empty r 
+kmatch cs          (Char c)    = cs == Cons c Nil 
+kmatch cs          (Alt r1 r2) = kmatch cs r1 || kmatch cs r2  
+kmatch (Cons c cs) (Star r)    = kmatch cs (Cat (deriv r c) r) 
+kmatch (Cons c cs) r           = kmatch cs (deriv r c) 
+ 

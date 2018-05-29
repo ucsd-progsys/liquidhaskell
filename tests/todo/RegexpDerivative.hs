@@ -48,7 +48,7 @@ kmatch (c:cs) (Star r)    = kmatch cs (Cat (deriv r c) r)
 kmatch (c:cs) r           = kmatch cs (deriv r c) 
   
 -------------------------------------------------------------------
--- | Derivative-based Match 
+-- | Derivative-based Regular Expression Matching 
 -------------------------------------------------------------------
 {-@ reflect dmatch @-}
 dmatch :: (Eq a) => [a] -> RE a -> Bool 
