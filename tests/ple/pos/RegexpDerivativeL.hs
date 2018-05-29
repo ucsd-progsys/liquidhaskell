@@ -12,21 +12,6 @@ module RE where
 import Prelude hiding ((++))
 
 -------------------------------------------------------------------
--- | Lists  
--------------------------------------------------------------------
-{-@ data List [size] @-}
-data List a 
-  = Nil 
-  | Cons a (List a)
-  deriving (Eq)
-
-{-@ measure size @-}
-{-@ size :: List a -> Nat @-} 
-size :: List a -> Int 
-size Nil         = 0 
-size (Cons _ xs) = 1 + size xs 
-
--------------------------------------------------------------------
 -- | Regular Expressions 
 -------------------------------------------------------------------
 
@@ -184,7 +169,7 @@ lem1 c cs (Alt r1 r2) (MAltL _ _ _ m1)
 lem1 c cs (Alt r1 r2) (MAltR _ _ _ m2) 
   = MAltR cs (deriv r1 c) (deriv r2 c) (lem1 c cs r2 m2) 
 lem1 c cs (Cat r1 r2) (MCat Nil _ s2 _ m1 m2)
-  = lemEmp r1 m1 &&& MAltR cs (Cat (deriv r1 c) r2) (deriv r2 c) (lem1 c cs r2 m2) 
+  = lemEmp r1 m1 & MAltR cs (Cat (deriv r1 c) r2) (deriv r2 c) (lem1 c cs r2 m2) 
 lem1 c cs (Cat r1 r2) (MCat (Cons _ s1) _ s2 _ m1 m2)
   | empty r1
   = MAltL (s1 ++ s2) r1c_r2 r2c m      -- :: Match (s1 ++ s2) (deriv r c) 
@@ -215,12 +200,51 @@ lem1s :: (Eq a) => List a -> RE a -> Match a -> Match a
 lem1s Nil         _ m = m 
 lem1s (Cons x xs) r m = lem1s xs  (deriv r x) (lem1 x xs r m) 
 
-{-@ lem1' :: c:_ -> cs:_  -> r:_ 
-          -> Prop (Match cs (deriv r c))
-          -> Prop (Match (Cons c cs) r) 
+{-@ lem1a :: c:_ -> cs:_  -> r:_ 
+          -> m: Prop (Match cs (deriv r c))
+          -> Prop (Match (Cons c cs) r) / [msize m, 1]
   @-}
-lem1' :: (Eq a) => a -> List a -> RE a -> Match a -> Match a 
-lem1' = undefined -- HARD
+lem1a :: (Eq a) => a -> List a -> RE a -> Match a -> Match a 
+lem1a _ _  None  MEmpty    
+  = MEmpty 
+lem1a _ _  Empty MEmpty    
+  = MEmpty 
+lem1a c _  (Char _) MEmpty 
+  = MChar c
+
+lem1a c cs (Alt r1 r2) (MAltL _ _ _ m1') 
+  = MAltL (Cons c cs) r1 r2 (lem1a c cs r1 m1') 
+                             -- :: Match (Cons c cs) r1 
+lem1a c cs (Alt r1 r2) (MAltR _ _ _ m2') 
+  = MAltR (Cons c cs) r1 r2 (lem1a c cs r2 m2') 
+                             -- :: Match (Cons c cs) r2
+
+lem1a c cs (Star r) (MCat s0 _ s _ m0' m) 
+  = MStar1 (Cons c s0) s r (lem1a c s0 r m0') m 
+                             -- :: Match (Cons c s0) r
+
+lem1a c cs (Cat r1 r2) pf 
+  | empty r1 
+  = case pf of 
+      MAltL _ r1c_r2 r2c m_r1c_r2 -> lemCat c cs r1 r2 m_r1c_r2 
+      MAltR _ r1c_r2 r2c m_r2c    -> MCat Nil r1 (Cons c cs) r2 
+                                        (lemEmp' r1)           -- :: Match Nil r1 
+                                        (lem1a c cs r2 m_r2c)  -- :: Match (Cons c cs) r2
+  | otherwise 
+  = lemCat c cs r1 r2 pf 
+
+{-@ lemCat :: c:_ -> cs:_ -> r1:_ -> r2:_ 
+           -> pf:Prop (Match cs (Cat (deriv r1 c) r2)) 
+           -> Prop (Match (Cons c cs) (Cat r1 r2)) / [msize pf, 0] 
+  @-}
+lemCat :: (Eq a) => a -> List a -> RE a -> RE a -> Match a -> Match a 
+lemCat c cs r1 r2 (MCat s1 _ s2 _ m1' m2) 
+  = MCat (Cons c s1) r1 s2 r2 m1 m2  
+  where 
+    m1 = lem1a c s1 r1 m1' --     :: Match (Cons c s1) r1 
+                           -- m1' :: Match s1 r1'
+                           -- m2  :: Match s2 r2
+                           -- _   :: { cs == s1 ++ s2 }
 
 {-@ lem1s' ::  cs:_  -> r:_ 
            -> Prop (Match Nil (derivs r cs))
@@ -228,16 +252,14 @@ lem1' = undefined -- HARD
   @-}
 lem1s' :: (Eq a) => List a -> RE a -> Match a -> Match a 
 lem1s' Nil     r m = m 
-lem1s' (Cons x xs) r m = lem1' x xs r (lem1s' xs (deriv r x) m)
+lem1s' (Cons x xs) r m = lem1a x xs r (lem1s' xs (deriv r x) m)
 
 {-@ lemEmp :: r:_ -> Prop (Match Nil r) -> {empty r} @-}
 lemEmp :: (Eq a) => RE a -> Match a -> () 
 lemEmp None     MEmpty                    = ()
 lemEmp Empty    _                         = ()
 lemEmp (Star _) _                         = ()
-lemEmp (Cat r1 r2) (MCat s1 _ s2 _ e1 e2) = app_nil_nil s1 s2 `seq` 
-                                            lemEmp r1 e1      `seq` 
-                                            lemEmp r2 e2
+lemEmp (Cat r1 r2) (MCat s1 _ s2 _ e1 e2) = app_nil_nil s1 s2 & lemEmp r1 e1 & lemEmp r2 e2
 lemEmp (Alt r1 r2) (MAltL _ _ _ e1)       = lemEmp r1 e1 
 lemEmp (Alt r1 r2) (MAltR _ _ _ e2)       = lemEmp r2 e2 
 lemEmp (Char c) (MChar _)                 = () 
@@ -252,30 +274,43 @@ lemEmp' (Alt r1 r2)
   | empty r2        = MAltR Nil r1 r2 (lemEmp' r2) 
                    
 --------------------------------------------------------------------------------
--- | Boilerplate
+-- | Lists  
 --------------------------------------------------------------------------------
+{-@ data List [size] @-}
+data List a 
+  = Nil 
+  | Cons a (List a)
+  deriving (Eq)
 
-{-@ measure prop :: a -> b           @-}
-{-@ type Prop E = {v:_ | prop v = E} @-}
+{-@ measure size @-}
+{-@ size :: List a -> Nat @-} 
+size :: List a -> Int 
+size Nil         = 0 
+size (Cons _ xs) = 1 + size xs 
 
 {-@ reflect ++ @-}
 (++) :: List a -> List a -> List a
 Nil         ++ ys = ys
 (Cons x xs) ++ ys = Cons x (xs ++ ys)
 
-{-@ inline single @-}
+{-@ reflect single @-}
 single :: a -> List a
 single x = Cons x Nil
 
-(&&&) = seq
-
-
---------------------------------------------------------------------------------
--- Some fun facts about lists 
---------------------------------------------------------------------------------
 {-@ app_nil_nil :: s1:_ -> s2:{ s1 ++ s2 == Nil } 
                 -> { s1 == Nil && s2 == Nil } 
   @-} 
 app_nil_nil :: List a -> List a -> () 
 app_nil_nil Nil Nil = () 
+
+
+
+--------------------------------------------------------------------------------
+-- | Boilerplate
+--------------------------------------------------------------------------------
+
+{-@ measure prop :: a -> b           @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
+
+(&) = seq
 
