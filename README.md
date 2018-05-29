@@ -899,8 +899,9 @@ Apologies for the minimal documentation; see the
 following examples for details:
 
 * [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndEven.hs)
-* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndPerm.hs)
+* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPerm.hs)
 * [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndStar.hs)
+* [Type Safety of STLC](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndStar.hs)
 
 Implicit Arguments
 ------------------
