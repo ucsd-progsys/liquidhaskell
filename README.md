@@ -218,7 +218,7 @@ use the option
 To additionally turn on _proof by logical evaluation_ use the option
 
 ```haskell
-    {-@ LIQUID "--reflection" @-}
+    {-@ LIQUID "--ple" @-}
 ```
 
 You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
