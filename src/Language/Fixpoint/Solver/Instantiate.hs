@@ -34,7 +34,7 @@ import           Data.Char            (isUpper)
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e, _str) ~> e' = do
   let msg = "PLE: " ++ _str ++ showpp (e, e') 
-  modify (\st -> st {evId = (tracepp msg $ evId st) + 1})
+  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
   return e'
 
 --------------------------------------------------------------------------------
@@ -49,11 +49,11 @@ instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
-    aenv            = {- tracepp "AXIOM-ENV" -} (ae fi)
+    aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
 sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
 sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
@@ -241,7 +241,7 @@ assertSelectors :: Knowledge -> Expr -> EvalST ()
 assertSelectors γ e = do
     sims <- aenvSimpl <$> gets _evAEnv
     -- cfg  <- gets evCfg
-    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (tracepp "assertSelector" e) sims
+    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (notracepp "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e
     return ()
   where
@@ -275,7 +275,7 @@ evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr
 evaluate cfg ctx facts aenv es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = tracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
+  let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
@@ -455,7 +455,7 @@ substPopIf xes e = L.foldl' go e xes
 
 evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ e (EIte b e1 e2) = do
-  contra <- {- tracepp ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
+  contra <- {- notracepp ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
   if contra
     then return e
     else do b' <- eval γ b
