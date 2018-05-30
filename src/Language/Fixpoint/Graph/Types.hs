@@ -66,11 +66,13 @@ import GHC.Stack
 
 data CVertex = KVar  !KVar    -- ^ real kvar vertex
              | DKVar !KVar    -- ^ dummy to ensure each kvar has a successor
+             | EBind !F.Symbol  -- ^ existentially bound "ghost paramter" to solve for
              | Cstr  !Integer -- ^ constraint-id which creates a dependency
                deriving (Eq, Ord, Show, Generic)
 
 instance PPrint CVertex where
   pprintTidy _ (KVar k)  = doubleQuotes $ pprint $ kv k
+  pprintTidy _ (EBind s)  = doubleQuotes $ pprint $ s
   pprintTidy _ (Cstr i)  = text "id_" <> pprint i
   pprintTidy _ (DKVar k) = pprint k   <> text "*"
 

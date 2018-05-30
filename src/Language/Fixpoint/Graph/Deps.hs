@@ -200,10 +200,12 @@ kvGraph = edgeGraph . kvEdges
 edgeGraph :: [CEdge] -> KVGraph
 edgeGraph es = KVGraph [(v, v, vs) | (v, vs) <- groupList es ]
 
+-- need to plumb list of ebinds
 kvEdges :: (F.TaggedC c a) => F.GInfo c a -> [CEdge]
-kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
+kvEdges fi = selfes ++ concatMap (subcEdges bs) cs ++ concatMap (ebindEdges ebs bs) cs
   where
     bs     = F.bs fi
+    ebs    = F.ebinds fi
     cs     = M.elems (F.cm fi)
     ks     = fiKVars fi
     selfes =  [(Cstr i , Cstr  i) | c <- cs, let i = F.subcId c]
@@ -212,6 +214,17 @@ kvEdges fi = selfes ++ concatMap (subcEdges bs) cs
 
 fiKVars :: F.GInfo c a -> [F.KVar]
 fiKVars = M.keys . F.ws
+
+ebindEdges :: (F.TaggedC c a) => [F.BindId] -> F.BindEnv -> c a -> [CEdge]
+ebindEdges ebs bs c =  [(EBind k, Cstr i ) | k  <- envEbinds xs bs c ]
+                    ++ [(Cstr i, EBind k') | k' <- rhsEbinds xs c ]
+  where
+    i          = F.subcId c
+    xs         = fst . flip F.lookupBindEnv bs <$> ebs
+
+envEbinds xs be c = [ x | x <- envBinds , x `elem` xs ]
+  where envBinds = fst <$> F.clhs be c
+rhsEbinds xs c = [ x | x <- F.syms (F.crhs c) , x `elem` xs ]
 
 subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
 subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
@@ -222,10 +235,10 @@ subcEdges bs c =  [(KVar k, Cstr i ) | k  <- V.envKVars bs c]
 --------------------------------------------------------------------------------
 -- | Eliminated Dependencies
 --------------------------------------------------------------------------------
-elimDeps :: (F.TaggedC c a) => F.GInfo c a -> [CEdge] -> S.HashSet F.KVar -> CDeps
-elimDeps si es nonKutVs = graphDeps si es'
+elimDeps :: (F.TaggedC c a) => F.GInfo c a -> [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> CDeps
+elimDeps si es nonKutVs ebs = graphDeps si es'
   where
-    es'                 = graphElim es nonKutVs
+    es'                 = graphElim es nonKutVs ebs
     _msg                = "graphElim: " ++ show (length es')
 
 {- | `graphElim` "eliminates" a kvar k by replacing every "path"
@@ -236,19 +249,20 @@ elimDeps si es nonKutVs = graphDeps si es'
 
           ki ------------> c
 -}
-graphElim :: [CEdge] -> S.HashSet F.KVar -> [CEdge]
-graphElim es ks = ikvgEdges $ elimKs ks $ edgesIkvg es
+graphElim :: [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> [CEdge]
+graphElim es ks ebs = ikvgEdges $ elimKs (S.union (S.map KVar ks) (S.map EBind ebs)) $ edgesIkvg es
   where
     elimKs      = flip (S.foldl' elimK)
 
-elimK  :: IKVGraph -> F.KVar -> IKVGraph
-elimK g k   = (g `addLinks` es') `delNodes` (kV : cis)
+elimK  :: IKVGraph -> CVertex -> IKVGraph
+elimK g kV   = (g `addLinks` es') `delNodes` (kV : cis)
   where
-   es'      = [(ki, c) | ki@(KVar _) <- kis, c@(Cstr _) <- cs]
+   es'      = [(ki, c) | ki <- filter unC kis, c@(Cstr _) <- cs]
    cs       = getSuccs g kV
    cis      = getPreds g kV
    kis      = concatMap (getPreds g) cis
-   kV       = KVar k
+   unC (Cstr _) = False
+   unC _        = True
 
 --------------------------------------------------------------------------------
 -- | Generic Dependencies ------------------------------------------------------
