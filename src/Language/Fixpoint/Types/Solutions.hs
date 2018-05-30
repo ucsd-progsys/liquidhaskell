@@ -21,7 +21,7 @@ module Language.Fixpoint.Types.Solutions (
 
   -- * Solution tables
     Solution, GSolution
-  , Sol (gMap, sEnv, sEbd)
+  , Sol (gMap, sEnv, sEbd, sxEnv)
   , updateGMap, updateGMapWithKey
   , sScp
   , CMap
@@ -179,14 +179,16 @@ instance PPrint QBind where
 --   2. the solved out TERM that we should use in place of the ebind at USES.
 --------------------------------------------------------------------------------
 data EbindSol
-  = EbDef SubcId Symbol -- ^ The constraint whose HEAD "defines" the Ebind
-                        -- and the @Symbol@ for that EBind
-  | EbSol Expr          -- ^ The solved out term that should be used at USES.
-   deriving (Eq, Show, Generic, NFData)
+  = EbDef !(SimpC ()) Symbol -- ^ The constraint whose HEAD "defines" the Ebind
+                             -- and the @Symbol@ for that EBind
+  | EbSol Expr             -- ^ The solved out term that should be used at USES.
+  | EbIncr                 -- ^ EBinds not to be solved for (because they're currently being solved for)
+   deriving (Show, Generic, NFData)
 
 instance PPrint EbindSol where 
   pprintTidy k (EbDef i x) = "EbDef:" <+> pprintTidy k i <+> pprintTidy k x
   pprintTidy k (EbSol e)   = "EbSol:" <+> pprintTidy k e
+  pprintTidy _ (EbIncr)    = "EbIncr"
 
 --------------------------------------------------------------------------------
 updateEbind :: Sol a b -> BindId -> Pred -> Sol a b 
@@ -207,8 +209,7 @@ data Sol b a = Sol
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
   , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
-  -- ADD FIELD: SOLVED KVARs 
-  -- ADD FIELD: xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be]
+  , sxEnv :: !(SEnv (BindId, Sort))      --   TODO: merge with sEnv? used for sorts of ebinds to solve ebinds in lhsPred
   } deriving (Generic)
 
 deriving instance (NFData b, NFData a) => NFData (Sol b a)
@@ -227,6 +228,7 @@ instance Monoid (Sol a b) where
                       , sHyp = mempty 
                       , sScp = mempty 
                       , sEbd = mempty
+                      , sxEnv = mempty
                       }
   mappend s1 s2 = Sol { sEnv = mappend (sEnv s1) (sEnv s2)
                       , sMap = mappend (sMap s1) (sMap s2)
@@ -234,10 +236,11 @@ instance Monoid (Sol a b) where
                       , sHyp = mappend (sHyp s1) (sHyp s2)
                       , sScp = mappend (sScp s1) (sScp s2)
                       , sEbd = mappend (sEbd s1) (sEbd s2) 
+                      , sxEnv = mappend (sxEnv s1) (sxEnv s2) 
                       }
 
 instance Functor (Sol a) where
-  fmap f (Sol e s m1 m2 m3 m4) = Sol e (f <$> s) m1 m2 m3 m4
+  fmap f (Sol e s m1 m2 m3 m4 m5) = Sol e (f <$> s) m1 m2 m3 m4 m5
 
 instance (PPrint a, PPrint b) => PPrint (Sol a b) where
   pprintTidy k s = vcat [ "sMap :=" <+> pprintTidy k (sMap s)
@@ -285,9 +288,10 @@ fromList :: SymEnv
          -> [(KVar, Hyp)] 
          -> M.HashMap KVar IBindEnv 
          -> [(BindId, EbindSol)]
+         -> SEnv (BindId, Sort)
          -> Sol a b
-fromList env kGs kXs kYs z ebs 
-        = Sol env kXm kGm kYm z ebm
+fromList env kGs kXs kYs z ebs xbs
+        = Sol env kXm kGm kYm z ebm xbs
   where
     kXm = M.fromList kXs
     kYm = M.fromList kYs
