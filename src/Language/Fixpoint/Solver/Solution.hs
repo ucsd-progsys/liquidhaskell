@@ -203,9 +203,11 @@ lookupBindEnvExt g@(_,be,_) s i
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
-  Just (Sol.EbSol p) -> Just p
-  Just (Sol.EbDef c x) -> F.notracepp ("ebSol " ++ show i) $  Just $ ebReft s' (i, c, x)
-  _                  -> Nothing
+  Just (Sol.EbSol p)   -> Just p
+  Just (Sol.EbDef c x) -> Just $ if sid c == (Misc.fst3 g)
+                                    then F.PFalse
+                                    else ebReft s' (i, c, x)
+  _                    -> Nothing
   where
     sebds = Sol.sEbd s
     ebReft s (i,c,x) = exElim (Sol.sxEnv s) i x (ebindReft g s c)
