@@ -164,7 +164,7 @@ too small, and the suitably padded definition otherwise.
 The code, namely `()`, is the proof. 
 LH is able to trivially check that `leftPad` 
 meets the "obviously correct" specification, 
-because, well, this case, the implementation 
+because, well, in this case, the implementation 
 _is_ the specification. (Incidentally, this 
 is also why the [Idris solution][idris-leftpad] 
 is terse.)
