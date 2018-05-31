@@ -1,0 +1,39 @@
+fixpoint "--eliminate=some"
+
+ebind 15 n    : { int }
+
+bind  16 m    : { _ : int | true  }
+bind  18 one  : { v : int | v = 1 }
+
+constraint:
+  env [15]
+  lhs {v3 : int | v3 = n       }
+  rhs {v3 : int | $k2[vk2:=v3] }
+  id 3 tag []
+
+constraint:
+  env [15]
+  lhs {v4 : int | $k1[vk1:=v4] }
+  rhs {v4 : int | v4 = n       }
+  id 4 tag []
+
+constraint:
+  env [16; 18]
+  lhs {v5 : int | v5 = m + 1   }
+  rhs {v5 : int | $k1[vk1:=v5] }
+  id 5 tag []
+
+constraint:
+  env [16; 18]
+  lhs {v6 : int | $k2[vk2:=v6]   }
+  rhs {v6 : int | v6 = m + 10000 }
+  id 6 tag []
+
+wf:
+  env [16]
+  reft {vk1 : int   | [$k1]}
+
+wf:
+  env [16]
+  reft {vk2 : int   | [$k2]}
+

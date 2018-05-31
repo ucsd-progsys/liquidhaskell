@@ -169,12 +169,12 @@ okInst env v t eq = isNothing tc
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
 lhsPred :: F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
-lhsPred be s c = {- F.notracepp _msg $ -} fst $ apply g s bs
+lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
   where
     g          = (ci, be, bs)
     bs         = F.senv c
     ci         = sid c
-    _msg       = "LhsPred for id = " ++ show (sid c) ++ "with SOLUTION = " ++ F.showpp s
+    _msg       = "LhsPred for id = " ++ show (sid c) ++ " with SOLUTION = " ++ F.showpp s
 
 type Cid         = Maybe Integer
 type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)

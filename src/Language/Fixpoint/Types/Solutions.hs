@@ -209,9 +209,7 @@ data Sol b a = Sol
   , sHyp :: !(M.HashMap KVar Hyp)        -- ^ Defining cubes  (for non-cut kvar)
   , sScp :: !(M.HashMap KVar IBindEnv)   -- ^ Set of allowed binders for kvar
   , sEbd :: !(M.HashMap BindId EbindSol) -- ^ EbindSol for each existential binder
-  , sxEnv :: !(SEnv (BindId, Sort)) -- TODO merge with sEnv?
-  --     xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be]
-  --     used for sorts of ebinds to solve ebinds in lhsPred
+  , sxEnv :: !(SEnv (BindId, Sort))      --   TODO: merge with sEnv? used for sorts of ebinds to solve ebinds in lhsPred
   } deriving (Generic)
 
 deriving instance (NFData b, NFData a) => NFData (Sol b a)

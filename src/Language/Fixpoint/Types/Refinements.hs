@@ -207,6 +207,9 @@ instance Hashable Brel
 instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
+instance Hashable GradInfo 
+instance Hashable Subst 
+instance Hashable Expr 
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------
