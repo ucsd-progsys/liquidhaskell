@@ -179,7 +179,7 @@ instance PPrint QBind where
 --   2. the solved out TERM that we should use in place of the ebind at USES.
 --------------------------------------------------------------------------------
 data EbindSol
-  = EbDef !(SimpC ()) Symbol -- ^ The constraint whose HEAD "defines" the Ebind
+  = EbDef [SimpC ()] Symbol -- ^ The constraint whose HEAD "defines" the Ebind
                              -- and the @Symbol@ for that EBind
   | EbSol Expr             -- ^ The solved out term that should be used at USES.
   | EbIncr                 -- ^ EBinds not to be solved for (because they're currently being solved for)

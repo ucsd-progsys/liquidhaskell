@@ -203,14 +203,17 @@ lookupBindEnvExt g@(_,be,_) s i
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
-  Just (Sol.EbSol p)   -> Just p
-  Just (Sol.EbDef c x) -> Just $ if sid c == (Misc.fst3 g)
-                                    then F.PFalse
-                                    else ebReft s' (i, c, x)
-  _                    -> Nothing
+  Just (Sol.EbSol p)    -> Just p
+  Just (Sol.EbDef cs x) -> Just $ F.PAnd (cSol x <$> cs)
+  _                     -> Nothing
   where
     sebds = Sol.sEbd s
+
     ebReft s (i,c,x) = exElim (Sol.sxEnv s) i x (ebindReft g s c)
+    cSol x c = if sid c == (Misc.fst3 g)
+                  then F.PFalse
+                  else ebReft s' (i, c, x)
+
     s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
 
 ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
@@ -428,9 +431,13 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
-ebindInfo si = [(bid, Sol.EbDef (cons cid) x) | (bid, cid, x) <- ebindDefs si]
+ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
   where cons cid = const () <$> Misc.safeLookup "ebindInfo" cid cs
         cs = F.cm si
+        cmpByFst x y = fst ( fst x ) == fst ( fst y )
+        group xs = (\ys -> ( (fst $ fst $ head ys)
+                           , Sol.EbDef (snd <$> ys) (snd $ fst $ head ys)))
+                    <$> L.groupBy cmpByFst xs
 
 ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId, F.Symbol)]
 ebindDefs si = [ (bid, cid, x) | (cid, x) <- cDefs
