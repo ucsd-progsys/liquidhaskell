@@ -250,9 +250,15 @@ elimDeps si es nonKutVs ebs = graphDeps si es'
           ki ------------> c
 -}
 graphElim :: [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> [CEdge]
-graphElim es ks ebs = ikvgEdges $ elimKs (S.union (S.map KVar ks) (S.map EBind ebs)) $ edgesIkvg es
+graphElim es ks _ebs = ikvgEdges $ -- elimEs (S.map EBind ebs) $
+                                  elimKs (S.map KVar ks)   $ edgesIkvg es
   where
     elimKs      = flip (S.foldl' elimK)
+    _elimEs      = flip (S.foldl' elimE)
+
+elimE  :: IKVGraph -> CVertex -> IKVGraph
+elimE g e = g `delNodes` (e : cs)
+  where cs = getPreds g e
 
 elimK  :: IKVGraph -> CVertex -> IKVGraph
 elimK g kV   = (g `addLinks` es') `delNodes` (kV : cis)
