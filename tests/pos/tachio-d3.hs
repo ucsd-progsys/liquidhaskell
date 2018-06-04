@@ -15,4 +15,4 @@ check x y = ()
 app x f = f x
 
 main :: Int -> ()
-main i = app (check i) (app i)
+main i = app3 (check i) (app i)
