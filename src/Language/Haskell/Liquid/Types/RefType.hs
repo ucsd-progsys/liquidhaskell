@@ -1333,8 +1333,8 @@ type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable
 
 -- TODO: remove toType, generalize typeSort
 toType  :: (ToTypeable r) => RRType r -> Type
-toType (RImpF x t t' r)
- = toType (RFun x t t' r)
+toType (RImpF _x _t t' _r)
+ = toType t'
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
 toType (RAllT a t) | RTV α <- ty_var_value a
