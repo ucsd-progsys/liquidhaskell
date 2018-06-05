@@ -38,5 +38,5 @@ define Language.Haskell.Liquid.ProofCombinators.cast x y = (y)
 define ProofCombinators.cast x y = (y)
 define Control.Parallel.Strategies.withStrategy s x = (x)
 
-
+define ProofCombinators.cast x y = (y)
 define Language.Haskell.Liquid.Equational.eq x y = (y)
