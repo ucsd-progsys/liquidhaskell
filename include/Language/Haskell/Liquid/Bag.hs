@@ -14,6 +14,7 @@ type Bag a = M.Map a Int
 empty :: Bag k
 empty = M.empty
 
+
 {-@ assume get :: (Ord k) => k:k -> b:Bag k -> {v:Nat | v = Map_select b k}  @-}
 get :: (Ord k) => k -> Bag k -> Int
 get k m = M.findWithDefault 0 k m
