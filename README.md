@@ -218,7 +218,7 @@ use the option
 To additionally turn on _proof by logical evaluation_ use the option
 
 ```haskell
-    {-@ LIQUID "--reflection" @-}
+    {-@ LIQUID "--ple" @-}
 ```
 
 You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
@@ -898,9 +898,11 @@ simply as plain Haskell GADTs but suitably refined.
 Apologies for the minimal documentation; see the
 following examples for details:
 
-* [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndEven.hs)
-* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndPerm.hs)
-* [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndStar.hs)
+* [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndEven.hs)
+* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPerm.hs)
+* [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndStar.hs)
+* [RegExp Derivatives](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/RegexpDerivative.hs)
+* [Type Safety of STLC](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/STLC2.hs)
 
 Implicit Arguments
 ------------------
