@@ -222,8 +222,12 @@ ebindEdges ebs bs c =  [(EBind k, Cstr i ) | k  <- envEbinds xs bs c ]
     i          = F.subcId c
     xs         = fst . flip F.lookupBindEnv bs <$> ebs
 
+envEbinds :: (F.TaggedC c a, Foldable t) =>
+             t F.Symbol -> F.BindEnv -> c a -> [F.Symbol]
 envEbinds xs be c = [ x | x <- envBinds , x `elem` xs ]
   where envBinds = fst <$> F.clhs be c
+rhsEbinds :: (Foldable t, F.TaggedC c a) =>
+             t F.Symbol -> c a -> [F.Symbol]
 rhsEbinds xs c = [ x | x <- F.syms (F.crhs c) , x `elem` xs ]
 
 subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
