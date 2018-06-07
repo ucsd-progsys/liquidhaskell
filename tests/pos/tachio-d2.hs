@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-term" @-}
 module Tachio (main) where
 
 {-@ chaos :: { True } @-}
