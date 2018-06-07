@@ -1,7 +1,8 @@
 module Tachio (main) where
 
 {-@ chaos :: { True } @-}
-chaos = undefined
+-- setting chaos = undefined makes the IF look like dead code.
+chaos = False
 
 {-@ app :: a:Int ~> (v:{v>=a} -> ()) -> {v:Int | v=a} -> () @-}
 app :: (Int -> ()) -> Int -> ()
