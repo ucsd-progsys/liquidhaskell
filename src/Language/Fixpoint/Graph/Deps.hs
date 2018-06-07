@@ -222,8 +222,12 @@ ebindEdges ebs bs c =  [(EBind k, Cstr i ) | k  <- envEbinds xs bs c ]
     i          = F.subcId c
     xs         = fst . flip F.lookupBindEnv bs <$> ebs
 
+envEbinds :: (F.TaggedC c a, Foldable t) =>
+             t F.Symbol -> F.BindEnv -> c a -> [F.Symbol]
 envEbinds xs be c = [ x | x <- envBinds , x `elem` xs ]
   where envBinds = fst <$> F.clhs be c
+rhsEbinds :: (Foldable t, F.TaggedC c a) =>
+             t F.Symbol -> c a -> [F.Symbol]
 rhsEbinds xs c = [ x | x <- F.syms (F.crhs c) , x `elem` xs ]
 
 subcEdges :: (F.TaggedC c a) => F.BindEnv -> c a -> [CEdge]
@@ -250,9 +254,15 @@ elimDeps si es nonKutVs ebs = graphDeps si es'
           ki ------------> c
 -}
 graphElim :: [CEdge] -> S.HashSet F.KVar -> S.HashSet F.Symbol -> [CEdge]
-graphElim es ks ebs = ikvgEdges $ elimKs (S.union (S.map KVar ks) (S.map EBind ebs)) $ edgesIkvg es
+graphElim es ks _ebs = ikvgEdges $ -- elimEs (S.map EBind ebs) $
+                                  elimKs (S.map KVar ks)   $ edgesIkvg es
   where
     elimKs      = flip (S.foldl' elimK)
+    _elimEs      = flip (S.foldl' elimE)
+
+elimE  :: IKVGraph -> CVertex -> IKVGraph
+elimE g e = g `delNodes` (e : cs)
+  where cs = getPreds g e
 
 elimK  :: IKVGraph -> CVertex -> IKVGraph
 elimK g kV   = (g `addLinks` es') `delNodes` (kV : cis)

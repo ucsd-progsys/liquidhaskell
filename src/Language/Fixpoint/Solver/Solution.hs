@@ -203,12 +203,17 @@ lookupBindEnvExt g@(_,be,_) s i
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
-  Just (Sol.EbSol p) -> Just p
-  Just (Sol.EbDef c x) -> F.notracepp ("ebSol " ++ show i) $  Just $ ebReft s' (i, c, x)
-  _                  -> Nothing
+  Just (Sol.EbSol p)    -> Just p
+  Just (Sol.EbDef cs _) -> Just $ F.PAnd (cSol <$> cs)
+  _                     -> Nothing
   where
     sebds = Sol.sEbd s
-    ebReft s (i,c,x) = exElim (Sol.sxEnv s) i x (ebindReft g s c)
+
+    ebReft s (i,c) = exElim (Sol.sxEnv s) (senv c) i (ebindReft g s c)
+    cSol c = if sid c == (Misc.fst3 g)
+                then F.PFalse
+                else ebReft s' (i, c)
+
     s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
 
 ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
@@ -217,13 +222,14 @@ ebindReft (_,be,_) s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
     g'             = (sid c, be, bs)
     bs             = F.senv c
 
-exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Symbol -> F.Pred -> F.Pred
-exElim env xi _ p = F.notracepp msg (F.pExist yts p)
+exElim :: F.SEnv (F.BindId, F.Sort) -> F.IBindEnv -> F.BindId -> F.Pred -> F.Pred
+exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
   where
     msg         = "exElim" -- printf "exElim: ix = %d, p = %s" xi (F.showpp p)
     yts         = [ (y, yt) | y        <- F.syms p
                             , (yi, yt) <- maybeToList (F.lookupSEnv y env)
-                            , xi < yi                                        ]
+                            , xi < yi
+                            , yi `F.memberIBindEnv` ienv                  ]
 
 applyKVars :: CombinedEnv -> Sol.Sol a Sol.QBind -> [F.KVSub] -> ExprInfo
 applyKVars g s = mrExprInfos (applyKVar g s) F.pAnd mconcat
@@ -426,9 +432,13 @@ mrExprInfos mF erF irF xs = (erF es, irF is)
 -- | `ebindInfo` constructs the information about the "ebind-definitions". 
 --------------------------------------------------------------------------------
 ebindInfo :: F.SInfo a -> [(F.BindId, Sol.EbindSol)]
-ebindInfo si = [(bid, Sol.EbDef (cons cid) x) | (bid, cid, x) <- ebindDefs si]
+ebindInfo si = group [((bid, x), cons cid) | (bid, cid, x) <- ebindDefs si]
   where cons cid = const () <$> Misc.safeLookup "ebindInfo" cid cs
         cs = F.cm si
+        cmpByFst x y = fst ( fst x ) == fst ( fst y )
+        group xs = (\ys -> ( (fst $ fst $ head ys)
+                           , Sol.EbDef (snd <$> ys) (snd $ fst $ head ys)))
+                    <$> L.groupBy cmpByFst xs
 
 ebindDefs :: F.SInfo a -> [(F.BindId, F.SubcId, F.Symbol)]
 ebindDefs si = [ (bid, cid, x) | (cid, x) <- cDefs
