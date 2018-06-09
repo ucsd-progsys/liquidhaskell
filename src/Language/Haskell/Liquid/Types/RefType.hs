@@ -105,7 +105,7 @@ import qualified Data.List as L
 
 import Control.Monad  (void)
 import Text.Printf
-import Text.PrettyPrint.HughesPJ
+import Text.PrettyPrint.HughesPJ.Compat
 
 import Language.Haskell.Liquid.Types.Errors
 import Language.Haskell.Liquid.Types.PrettyPrint
@@ -211,7 +211,18 @@ uTop r          = MkUReft r mempty mempty
 
 -- Monoid Instances ---------------------------------------------------------
 
+instance ( SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c
+         , OkRT c tv r
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) r
+         , SubsTy tv (RType c tv ()) tv
+         , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
+         )
+        => Semigroup (RType c tv r)  where
+  (<>) = strengthenRefType
 
+-- TODO: remove, use only Semigroup?
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , OkRT c tv r
@@ -233,20 +244,31 @@ instance ( SubsTy tv (RType c tv ()) c
          , SubsTy tv (RType c tv ()) tv
          , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
          )
-         => Monoid (RTProp c tv r) where
-  mempty         = panic Nothing "mempty: RTProp"
-
-  mappend (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
+         => Semigroup (RTProp c tv r) where
+  (<>) (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
     | isTauto r1 = RProp s2 (RHole r2)
     | isTauto r2 = RProp s1 (RHole r1)
     | otherwise  = RProp s1 $ RHole $ r1 `meet`
                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
 
-  mappend (RProp s1 t1) (RProp s2 t2)
+  (<>) (RProp s1 t1) (RProp s2 t2)
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
+
+-- TODO: remove and use only Semigroup?
+instance ( SubsTy tv (RType c tv ()) c
+         , OkRT c tv r
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) r
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) tv
+         , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
+         )
+         => Monoid (RTProp c tv r) where
+  mempty  = panic Nothing "mempty: RTProp"
+  mappend = (<>)
 
 {-
 NV: The following makes ghc diverge thus dublicating the code

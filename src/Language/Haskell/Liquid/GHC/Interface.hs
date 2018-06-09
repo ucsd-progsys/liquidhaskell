@@ -42,7 +42,7 @@ import IdInfo
 import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
-import Serialized
+-- import Serialized
 import TcRnTypes
 import Var
 import NameSet
@@ -184,7 +184,7 @@ configureGhcTargets tgtFiles = do
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
   _               <- setTargetModules homeNames
-  return homeModules
+  return $ mkModuleGraph homeModules
 
 setTargetModules :: [ModuleName] -> Ghc ()
 setTargetModules modNames = setTargets $ mkTarget <$> modNames
@@ -212,15 +212,16 @@ type DepGraphNode = Node Module ()
 
 reachableModules :: DepGraph -> Module -> [Module]
 reachableModules depGraph mod =
-  snd3 <$> tail (reachableG depGraph ((), mod, []))
+  undefined -- TODO GHC-8.4 snd3 <$> tail (reachableG depGraph ((), mod, []))
 
 buildDepGraph :: ModuleGraph -> Ghc DepGraph
 buildDepGraph homeModules =
-  graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode homeModules
+  graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode (mgModSummaries homeModules)
 
 mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
-mkDepGraphNode modSummary = ((), ms_mod modSummary, ) <$>
-  (filterM isHomeModule =<< modSummaryImports modSummary)
+mkDepGraphNode modSummary = undefined -- TODO GHC-8.4
+--  ((), ms_mod modSummary, ) <$>
+--     (filterM isHomeModule =<< modSummaryImports modSummary)
 
 isHomeModule :: Module -> Ghc Bool
 isHomeModule mod = do
@@ -305,8 +306,8 @@ processModules :: Config -> Either Error LogicMap -> [FilePath] -> DepGraph
                -> Ghc [GhcInfo]
 processModules cfg logicMap tgtFiles depGraph homeModules = do
   -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
-  catMaybes . snd <$> mapAccumM go emptyModuleEnv homeModules
-  where
+  catMaybes . snd <$> mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
+  where                                             
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
 processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGraph
@@ -488,10 +489,12 @@ extractSpecQuotes typechecked = mapMaybe extractSpecQuote anns
     mod = ms_mod $ pm_mod_summary $ tm_parsed_module typechecked
 
 extractSpecQuote :: AnnPayload -> Maybe BPspec
-extractSpecQuote payload =
+extractSpecQuote payload = undefined -- TODO GHC-8.4
+{-
   case fromSerialized deserializeWithData payload of
     Nothing -> Nothing
     Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
+-}
 
 refreshSymbols :: Data a => a -> a
 refreshSymbols = everywhere (mkT refreshSymbol)
@@ -586,7 +589,7 @@ moduleFiles ext paths names = catMaybes <$> mapM (moduleFile ext paths) names
 moduleFile :: Ext -> [FilePath] -> String -> Ghc (Maybe FilePath)
 moduleFile ext paths name
   | ext `elem` [Hs, LHs] = do
-    graph <- getModuleGraph
+    graph <- mgModSummaries <$> getModuleGraph
     case find (\m -> not (isBootSummary m) &&
                      name == moduleNameString (ms_mod_name m)) graph of
       Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths

@@ -716,7 +716,7 @@ symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 type Prec = TyPrec
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined) CoreDoNothing
+lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe
