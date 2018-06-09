@@ -37,13 +37,13 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
+import           Data.Semigroup            (Semigroup (..))
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes)
-import           Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format

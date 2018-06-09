@@ -77,6 +77,7 @@ import qualified Data.Maybe                 as Mb
 import qualified Data.HashMap.Strict        as M
 import qualified Data.List                  as L
 import           Data.Generics             (Data)
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc
@@ -90,7 +91,7 @@ import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.SortCheck (elaborate)
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 
 --------------------------------------------------------------------------------
 -- | Update Solution -----------------------------------------------------------
@@ -221,6 +222,15 @@ updateGMap sol gmap = sol {gMap = gmap}
 mapGMap :: Sol b a -> (b -> b) -> Sol b a
 mapGMap sol f = sol {gMap = M.map f (gMap sol)}
 
+instance Semigroup (Sol a b) where
+  s1 <> s2 = Sol { sEnv = mappend (sEnv s1) (sEnv s2)
+                 , sMap = mappend (sMap s1) (sMap s2)
+                 , gMap = mappend (gMap s1) (gMap s2)
+                 , sHyp = mappend (sHyp s1) (sHyp s2)
+                 , sScp = mappend (sScp s1) (sScp s2)
+                 , sEbd = mappend (sEbd s1) (sEbd s2) 
+                 , sxEnv = mappend (sxEnv s1) (sxEnv s2) 
+                 }
 
 instance Monoid (Sol a b) where
   mempty        = Sol { sEnv = mempty 
@@ -231,14 +241,8 @@ instance Monoid (Sol a b) where
                       , sEbd = mempty
                       , sxEnv = mempty
                       }
-  mappend s1 s2 = Sol { sEnv = mappend (sEnv s1) (sEnv s2)
-                      , sMap = mappend (sMap s1) (sMap s2)
-                      , gMap = mappend (gMap s1) (gMap s2)
-                      , sHyp = mappend (sHyp s1) (sHyp s2)
-                      , sScp = mappend (sScp s1) (sScp s2)
-                      , sEbd = mappend (sEbd s1) (sEbd s2) 
-                      , sxEnv = mappend (sxEnv s1) (sxEnv s2) 
-                      }
+  mappend = (<>)
+
 
 instance Functor (Sol a) where
   fmap f (Sol e s m1 m2 m3 m4 m5) = Sol e (f <$> s) m1 m2 m3 m4 m5

@@ -78,8 +78,8 @@ import           Control.Monad
 import           Control.Exception
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
-import           Data.Monoid
-import           Data.Maybe                  (fromMaybe)
+import           Data.Maybe              (fromMaybe)
+import           Data.Semigroup          (Semigroup (..))
 import qualified Data.Text                as T
 import           Data.Text.Format
 import qualified Data.Text.IO             as TIO

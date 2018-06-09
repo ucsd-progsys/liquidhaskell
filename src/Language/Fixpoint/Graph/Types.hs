@@ -50,7 +50,7 @@ module Language.Fixpoint.Graph.Types (
 
 import           GHC.Generics              (Generic)
 import           Data.Hashable
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 
 import           Language.Fixpoint.Misc         -- hiding (group)
 import           Language.Fixpoint.Types.PrettyPrint
@@ -73,8 +73,8 @@ data CVertex = KVar  !KVar    -- ^ real kvar vertex
 instance PPrint CVertex where
   pprintTidy _ (KVar k)  = doubleQuotes $ pprint $ kv k
   pprintTidy _ (EBind s)  = doubleQuotes $ pprint $ s
-  pprintTidy _ (Cstr i)  = text "id_" <> pprint i
-  pprintTidy _ (DKVar k) = pprint k   <> text "*"
+  pprintTidy _ (Cstr i)  = text "id_" <-> pprint i
+  pprintTidy _ (DKVar k) = pprint k   <-> text "*"
 
 
 instance Hashable CVertex

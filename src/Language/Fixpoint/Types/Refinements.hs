@@ -112,7 +112,7 @@ import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 
 -- import           Text.Printf               (printf)
 
@@ -224,7 +224,7 @@ instance Show Subst where
 instance Fixpoint Subst where
   toFix (Su m) = case hashMapToAscList m of
                    []  -> empty
-                   xys -> hcat $ map (\(x,y) -> brackets $ toFix x <> text ":=" <> toFix y) xys
+                   xys -> hcat $ map (\(x,y) -> brackets $ toFix x <-> text ":=" <-> toFix y) xys
 
 instance PPrint Subst where
   pprintTidy _ = toFix
@@ -359,7 +359,7 @@ elit l s = ECon $ L (symbolText $ val l) s
 instance Fixpoint Constant where
   toFix (I i)   = toFix i
   toFix (R i)   = toFix i
-  toFix (L s t) = parens $ text "lit" <+> text "\"" <> toFix s <> text "\"" <+> toFix t
+  toFix (L s t) = parens $ text "lit" <+> text "\"" <-> toFix s <-> text "\"" <+> toFix t
 
 --------------------------------------------------------------------------------
 -- | String Constants ----------------------------------------------------------
@@ -381,7 +381,7 @@ instance Fixpoint SymConst where
   toFix  = toFix . encodeSymConst
 
 instance Fixpoint KVar where
-  toFix (KV k) = text "$" <> toFix k
+  toFix (KV k) = text "$" <-> toFix k
 
 instance Fixpoint Brel where
   toFix Eq  = text "="
@@ -422,7 +422,7 @@ instance Fixpoint Expr where
   toFix (PAnd ps)      = text "&&" <+> toFix ps
   toFix (POr  ps)      = text "||" <+> toFix ps
   toFix (PAtom r e1 e2)  = parens $ toFix e1 <+> toFix r <+> toFix e2
-  toFix (PKVar k su)     = toFix k <> toFix su
+  toFix (PKVar k su)     = toFix k <-> toFix su
   toFix (PAll xts p)     = "forall" <+> (toFix xts
                                         $+$ ("." <+> toFix p))
   toFix (PExist xts p)   = "exists" <+> (toFix xts
@@ -507,7 +507,7 @@ instance PPrint Sort where
   pprintTidy _ = toFix
 
 instance PPrint KVar where
-  pprintTidy _ (KV x) = text "$" <> pprint x
+  pprintTidy _ (KV x) = text "$" <-> pprint x
 
 instance PPrint SymConst where
   pprintTidy _ (SL x) = doubleQuotes $ text $ T.unpack x
@@ -551,7 +551,7 @@ instance PPrint Expr where
   pprintPrec _ k (EVar s)        = pprintTidy k s
   -- pprintPrec _ (EBot)          = text "_|_"
   pprintPrec z k (ENeg e)        = parensIf (z > zn) $
-                                   "-" <> pprintPrec (zn + 1) k e
+                                   "-" <-> pprintPrec (zn + 1) k e
     where zn = 2
   pprintPrec z k (EApp f es)     = parensIf (z > za) $
                                    pprintPrec za k f <+> pprintPrec (za+1) k es

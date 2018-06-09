@@ -6,15 +6,15 @@
 module Language.Fixpoint.Types.PrettyPrint where
 
 import           Debug.Trace               (trace)
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Text.PrettyPrint.Boxes as B
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Language.Fixpoint.Misc
 import           Data.Hashable
+import           Data.Semigroup (Semigroup (..))
 import qualified Data.Text as T
-
 
 traceFix     ::  (Fixpoint a) => String -> a -> a
 traceFix s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showFix x) x
@@ -115,23 +115,23 @@ pprintKVs t = vcat . punctuate "\n" . map pp1
     pp1 (x,y) = pprintTidy t x <+> ":=" <+> pprintTidy t y
 
 instance (PPrint a, PPrint b, PPrint c) => PPrint (a, b, c) where
-  pprintTidy k (x, y, z)  = parens $ pprintTidy k x <> "," <+>
-                                     pprintTidy k y <> "," <+>
+  pprintTidy k (x, y, z)  = parens $ pprintTidy k x <-> "," <+>
+                                     pprintTidy k y <-> "," <+>
                                      pprintTidy k z
 
 
 
 instance (PPrint a, PPrint b, PPrint c, PPrint d) => PPrint (a, b, c, d) where
-  pprintTidy k (w, x, y, z)  = parens $ pprintTidy k w <> "," <+>
-                                        pprintTidy k x <> "," <+>
-                                        pprintTidy k y <> "," <+>
+  pprintTidy k (w, x, y, z)  = parens $ pprintTidy k w <-> "," <+>
+                                        pprintTidy k x <-> "," <+>
+                                        pprintTidy k y <-> "," <+>
                                         pprintTidy k z
 
 instance (PPrint a, PPrint b, PPrint c, PPrint d, PPrint e) => PPrint (a, b, c, d, e) where
-  pprintTidy k (v, w, x, y, z)  = parens $ pprintTidy k v <> "," <+>
-                                           pprintTidy k w <> "," <+>
-                                           pprintTidy k x <> "," <+>
-                                           pprintTidy k y <> "," <+>
+  pprintTidy k (v, w, x, y, z)  = parens $ pprintTidy k v <-> "," <+>
+                                           pprintTidy k w <-> "," <+>
+                                           pprintTidy k x <-> "," <+>
+                                           pprintTidy k y <-> "," <+>
                                            pprintTidy k z
 
 
@@ -164,9 +164,12 @@ instance PPrint T.Text where
 
 newtype DocTable = DocTable [(Doc, Doc)]
 
+instance Semigroup DocTable where
+  DocTable t1 <> DocTable t2 = DocTable (t1 ++ t2)
+
 instance Monoid DocTable where
-  mempty                              = DocTable []
-  mappend (DocTable t1) (DocTable t2) = DocTable (t1 ++ t2)
+  mempty  = DocTable []
+  mappend = (<>)
 
 class PTable a where
   ptable :: a -> DocTable

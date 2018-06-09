@@ -53,7 +53,7 @@ Executable fixpoint
   if flag(devel)
     ghc-options: -Werror
   hs-source-dirs: bin
-  Build-Depends: base >=4.8.1.0 && <5
+  Build-Depends: base >=4.9.1.0 && <5
                , liquid-fixpoint
 
 Library
@@ -110,9 +110,13 @@ Library
                    Language.Fixpoint.Solver.Instantiate,
                    Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
-                   Language.Fixpoint.Solver.Solve
+                   Language.Fixpoint.Solver.Solve,
 
-  Build-Depends: base >=4.8.1.0 && <5
+                   Text.PrettyPrint.HughesPJ.Compat
+
+  Other-Modules: Paths_liquid_fixpoint
+
+  Build-Depends: base >=4.9.1.0 && <5
                , array
                , async
                , attoparsec
@@ -131,7 +135,7 @@ Library
                , intern
                , mtl
                , parsec
-               , pretty
+               , pretty >=1.1.3.1
                , boxes
                , parallel
                , process
@@ -148,8 +152,9 @@ Library
                , time
                , parallel-io
 
-  if impl(ghc >= 7.10.2)
-    Build-Depends: located-base
+  -- unconditionally depend on located-base
+  Build-Depends: located-base
+
   if !os(windows)
     Build-Depends: ascii-progress >= 0.3
     hs-source-dirs: unix
@@ -164,14 +169,15 @@ test-suite test
   if flag(devel)
     ghc-options:    -Werror
   main-is:          test.hs
-  build-depends:    base >= 4.8 && < 5,
+  Other-Modules:    Paths_liquid_fixpoint
+  build-depends:    base >= 4.9.1.0 && < 5,
                     directory,
                     filepath,
                     process,
                     stm >= 2.4,
                     containers >= 0.5,
-                    mtl >= 2.1,
-                    transformers >= 0.3,
+                    mtl >= 2.2.2,
+                    transformers >= 0.5,
                     tasty >= 0.10,
                     tasty-hunit,
                     tasty-rerun >= 1.1,
@@ -187,7 +193,7 @@ test-suite testparser
   if flag(devel)
     ghc-options:    -Werror
   main-is:          testParser.hs
-  build-depends:    base >= 4.8 && < 5,
+  build-depends:    base >= 4.9.1.0 && < 5,
                     directory,
                     filepath,
                     tasty >= 0.10,
@@ -198,6 +204,28 @@ test-suite testparser
                     text
   if flag(devel)
     hs-source-dirs:   tests src
+    other-modules:
+                 Language.Fixpoint.Misc
+                 Language.Fixpoint.Parse
+                 Language.Fixpoint.Smt.Bitvector
+                 Language.Fixpoint.Smt.Types
+                 Language.Fixpoint.Types
+                 Language.Fixpoint.Types.Config
+                 Language.Fixpoint.Types.Constraints
+                 Language.Fixpoint.Types.Environments
+                 Language.Fixpoint.Types.Errors
+                 Language.Fixpoint.Types.Names
+                 Language.Fixpoint.Types.PrettyPrint
+                 Language.Fixpoint.Types.Refinements
+                 Language.Fixpoint.Types.Sorts
+                 Language.Fixpoint.Types.Spans
+                 Language.Fixpoint.Types.Substitutions
+                 Language.Fixpoint.Types.Theories
+                 Language.Fixpoint.Types.Triggers
+                 Language.Fixpoint.Types.Utils
+                 Language.Fixpoint.Utils.Files
+                 Text.PrettyPrint.HughesPJ.Compat
+
     build-depends:
                  array
                , async
