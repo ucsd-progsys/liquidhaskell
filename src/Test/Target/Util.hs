@@ -166,7 +166,7 @@ loadModule f = do target <- GHC.guessTarget f Nothing
                   GHC.setTargets [target] -- [target,lcheck]
                   _ <- GHC.load GHC.LoadAllTargets
                   modGraph <- GHC.getModuleGraph
-                  let m = fromJust $ find ((==f) . GHC.msHsFilePath) modGraph
+                  let m = fromJust $ find ((==f) . GHC.msHsFilePath) (GHC.mgModSummaries modGraph)
                   GHC.setContext [ GHC.IIModule (GHC.ms_mod_name m)
                                  --, GHC.IIDecl $ GHC.simpleImportDecl
                                  --             $ GHC.mkModuleName "Test.Target"

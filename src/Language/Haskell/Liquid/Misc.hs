@@ -19,7 +19,7 @@ import           Data.Time
 import           Data.Function (on)
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
-import           Text.PrettyPrint.HughesPJ ((<>), char, Doc)
+import           Text.PrettyPrint.HughesPJ.Compat ((<->), char, Doc)
 import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
@@ -228,7 +228,7 @@ sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
     go [] _                  = []
 
 angleBrackets :: Doc -> Doc
-angleBrackets p    = char '<' <> p <> char '>'
+angleBrackets p    = char '<' <-> p <-> char '>'
 
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group

@@ -60,7 +60,7 @@ import           SrcLoc
 import           Unify (tcUnifyTy)
 import qualified TyCon   as TC
 import qualified DataCon as DC
-import           Text.PrettyPrint.HughesPJ hiding (first)
+import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
@@ -117,7 +117,10 @@ data LConstraint = LC [[(F.Symbol, SpecType)]]
 
 instance Monoid LConstraint where
   mempty  = LC []
-  mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
+  mappend = (<>)
+
+instance Semigroup LConstraint where
+  LC cs1 <> LC cs2 = LC (cs1 ++ cs2)
 
 instance PPrint CGEnv where
   pprintTidy k = pprintTidy k . renv

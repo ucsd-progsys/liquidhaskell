@@ -68,7 +68,7 @@ Flag deterministic-profiling
 
 Executable liquid
   default-language: Haskell98
-  Build-Depends: base >=4.8.1.0 && <5
+  Build-Depends: base >=4.9.1.0 && <5
                , ghc
                , ghc-boot
                , cmdargs
@@ -108,9 +108,9 @@ Executable liquid
 
 Library
    Default-Language: Haskell98
-   Build-Depends: base >=4.8.1.0 && <5
-                , ghc == 8.2.2
-                , ghc-boot == 8.2.2
+   Build-Depends: base >=4.11.1.0 && <5
+                , ghc == 8.4.3
+                , ghc-boot == 8.4.3
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
@@ -286,7 +286,7 @@ Library
    if flag(include)
      hs-source-dirs: devel
    if flag(devel)
-     ghc-options: -Werror
+--     ghc-options: -Werror
    if flag(deterministic-profiling)
      cpp-options: -DDETERMINISTIC_PROFILING
    Default-Extensions: PatternGuards

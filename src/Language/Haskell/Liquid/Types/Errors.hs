@@ -59,7 +59,7 @@ import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import qualified Data.Binary as B
 import           Data.Maybe
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
@@ -153,7 +153,7 @@ makeContext1 l c c' s = vcat [ text " "
                              ]
   where
     lnum n            = text (show n) <+> text "|"
-    cursor            = blanks (c - 1) <> pointer (max 1 (c' - c))
+    cursor            = blanks (c - 1) <-> pointer (max 1 (c' - c))
     blanks n          = text $ replicate n ' '
     pointer n         = text $ replicate n '^'
 
@@ -445,20 +445,20 @@ pprSrcSpan (RealSrcSpan s)   = pprRealSrcSpan s
 pprRealSrcSpan :: RealSrcSpan -> Doc
 pprRealSrcSpan span
   | sline == eline && scol == ecol =
-    hcat [ pathDoc <> colon
-         , int sline <> colon
+    hcat [ pathDoc <-> colon
+         , int sline <-> colon
          , int scol
          ]
   | sline == eline =
-    hcat $ [ pathDoc <> colon
-           , int sline <> colon
+    hcat $ [ pathDoc <-> colon
+           , int sline <-> colon
            , int scol
-           ] ++ if ecol - scol <= 1 then [] else [char '-' <> int (ecol - 1)]
+           ] ++ if ecol - scol <= 1 then [] else [char '-' <-> int (ecol - 1)]
   | otherwise =
-    hcat [ pathDoc <> colon
-         , parens (int sline <> comma <> int scol)
+    hcat [ pathDoc <-> colon
+         , parens (int sline <-> comma <-> int scol)
          , char '-'
-         , parens (int eline <> comma <> int ecol')
+         , parens (int eline <-> comma <-> int ecol')
          ]
  where
    path  = srcSpanFile      span
@@ -519,7 +519,7 @@ ppError :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError k dCtx e = ppError' k dSp dCtx e
   where
-    dSp          = pprint (pos e) <> text ": Error:"
+    dSp          = pprint (pos e) <-> text ": Error:"
 
 nests :: Foldable t => Int -> t Doc -> Doc
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
@@ -883,7 +883,7 @@ ppError' _ dSp dCtx (ErrParseAnn _ msg)
         $+$ nest 4 msg
 
 ppVar :: PPrint a => a -> Doc
-ppVar v = text "`" <> pprint v <> text "`"
+ppVar v = text "`" <-> pprint v <-> text "`"
 
 ppSrcSpans :: [SrcSpan] -> Doc
 ppSrcSpans = ppList (text "Conflicting definitions at")
