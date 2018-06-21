@@ -78,6 +78,7 @@ data Spec ty bndr  = Spec
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
+  , ignores    :: !(S.HashSet LocSymbol)         -- ^ Binders to ignore during checking; that is DON't check the corebind. 
   , autosize   :: !(S.HashSet LocSymbol)         -- ^ Type Constructors that get automatically sizing info
   , pragmas    :: ![Located String]              -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
@@ -173,6 +174,7 @@ instance Monoid (Spec ty bndr) where
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
            , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
            , inlines    = S.union   (inlines  s1)  (inlines  s2)
+           , ignores    = S.union   (ignores  s1)  (ignores  s2)
            , autosize   = S.union   (autosize s1)  (autosize s2)
            , bounds     = M.union   (bounds   s1)  (bounds   s2)
            , defs       = M.union   (defs     s1)  (defs     s2)
@@ -204,6 +206,7 @@ instance Monoid (Spec ty bndr) where
            , reflects   = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
+           , ignores    = S.empty
            , autosize   = S.empty
            , pragmas    = []
            , cmeasures  = []

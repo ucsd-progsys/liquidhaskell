@@ -873,6 +873,7 @@ data Pspec ty ctor
   | HMeas   LocSymbol
   | Reflect LocSymbol
   | Inline  LocSymbol
+  | Ignore  LocSymbol
   | ASize   LocSymbol
   | HBound  LocSymbol
   | PBound  (Bound ty Expr)
@@ -956,6 +957,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
+  , Measure.ignores    = S.fromList [s | Ignore s <- xs]
   , Measure.autosize   = S.fromList [s | ASize  s <- xs]
   , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.defs       = M.fromList [d | Define d <- xs]
@@ -981,6 +983,7 @@ specP
     <|> (reserved "infixr"        >> liftM BFix    infixrP  )
     <|> (reserved "infix"         >> liftM BFix    infixP   )
     <|> (fallbackSpecP "inline"     (liftM Inline  inlineP  ))
+    <|> (fallbackSpecP "ignore"     (liftM Ignore  inlineP  ))
 
     <|> (fallbackSpecP "bound"    (((liftM PBound  boundP   )
                                 <|> (liftM HBound  hboundP  ))))

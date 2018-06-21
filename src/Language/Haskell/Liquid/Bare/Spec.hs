@@ -179,14 +179,18 @@ varsAfter f s lvs
 --------------------------------------------------------------------------------
 -- | API: Bare Refinement Types ------------------------------------------------
 --------------------------------------------------------------------------------
-
-makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
-makeTargetVars name vs ss
-  = do env   <- gets hscEnv
-       ns    <- liftIO $ concatMapM (lookupName env name (Just NS.varName) . dummyLoc . prefix) ss
-       return $ filter ((`elem` ns) . varName) vs
-    where
-       prefix s = qualifySymbol (F.symbol name) (F.symbol s)
+makeTargetVars :: ModName -> [Var] -> [String] -> S.HashSet LocSymbol -> BareM [Var]
+makeTargetVars name vars checkVars ignoreVars = do 
+  env          <- gets hscEnv
+  checkNames   <- mkNames env (dummyLoc . prefix <$> checkVars)
+  ignoreNames  <- mkNames env (S.toList ignoreVars)
+  -- checkNames  <- liftIO $ concatMapM (lookupName env name (Just NS.varName)) (dummyLoc . prefix <$> checkVars)
+  -- ignoreNames <- liftIO $ concatMapM (lookupName env name (Just NS.varName)) (S.toList ignoreVars)
+  let vars' = if null checkNames then vars else filter ((`elem` checkNames) . varName) vars 
+  return [ v | v <- vars', varName v `notElem` ignoreNames ]
+  where
+    mkNames env = liftIO . concatMapM (lookupName env name (Just NS.varName))
+    prefix s    = qualifySymbol (F.symbol name) (F.symbol s)
 
 makeAssertSpec :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
                -> BareM [(ModName, Var, LocSpecType)]

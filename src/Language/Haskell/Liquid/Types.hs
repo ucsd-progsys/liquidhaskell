@@ -332,8 +332,8 @@ type Qualifier = F.Qualifier
 -- | The following is the overall type for /specifications/ obtained from
 -- parsing the target source and dependent libraries
 
-data GhcSpec = SP {
-    gsTySigs   :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
+data GhcSpec = SP 
+  { gsTySigs   :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
   , gsAsmSigs  :: ![(Var, LocSpecType)]          -- ^ Assumed Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]          -- ^ Auto generated Signatures
   , gsCtors    :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs

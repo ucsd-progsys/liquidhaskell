@@ -430,7 +430,7 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let syms  = syms0 ++ syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
-  makeGhcSpec0 cfg defVars exports name adts (emptySpec cfg)
+  makeGhcSpec0 cfg defVars exports name adts (Ms.ignores fullSpec) (emptySpec cfg) 
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su syms
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
@@ -545,15 +545,16 @@ makeGhcSpec0 :: Config
              -> NameSet
              -> ModName
              -> [F.DataDecl]
+             -> S.HashSet LocSymbol
              -> GhcSpec
              -> BareM GhcSpec
-makeGhcSpec0 cfg defVars exports name adts sp
-  = do targetVars <- makeTargetVars name defVars $ checks cfg
-       return      $ sp { gsConfig  = cfg
-                        , gsExports = exports
-                        , gsTgtVars = targetVars
-                        , gsADTs    = adts
-                        }
+makeGhcSpec0 cfg defVars exports name adts ignoreVars sp = do
+  targetVars <- makeTargetVars name defVars (checks cfg) ignoreVars
+  return      $ sp { gsConfig  = cfg
+                   , gsExports = exports
+                   , gsTgtVars = targetVars
+                   , gsADTs    = adts
+                   }
 
 makeGhcSpec1 :: [(Symbol, Var)]
              -> [Var]
