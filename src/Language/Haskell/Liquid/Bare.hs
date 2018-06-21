@@ -519,6 +519,7 @@ emptySpec cfg = SP
   , gsQualifiers = mempty
   , gsADTs       = mempty
   , gsTgtVars    = mempty
+  , gsIgnoreVars = mempty
   , gsDecr       = mempty
   , gsTexprs     = mempty
   , gsNewTypes   = mempty
@@ -549,12 +550,15 @@ makeGhcSpec0 :: Config
              -> GhcSpec
              -> BareM GhcSpec
 makeGhcSpec0 cfg defVars exports name adts ignoreVars sp = do
-  targetVars <- makeTargetVars name defVars (checks cfg) ignoreVars
-  return      $ sp { gsConfig  = cfg
-                   , gsExports = exports
-                   , gsTgtVars = targetVars
-                   , gsADTs    = adts
-                   }
+  targetVars <- makeTargetVars name defVars (checks cfg) 
+  igVars     <- makeIgnoreVars name defVars ignoreVars 
+  return      $ sp 
+    { gsConfig     = cfg
+    , gsExports    = exports
+    , gsTgtVars    = targetVars
+    , gsADTs       = adts
+    , gsIgnoreVars = igVars 
+    }
 
 makeGhcSpec1 :: [(Symbol, Var)]
              -> [Var]

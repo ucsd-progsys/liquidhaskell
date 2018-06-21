@@ -356,6 +356,7 @@ data GhcSpec = SP
                                                  -- e.g tests/pos/qualTest.hs
   , gsADTs       :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , gsIgnoreVars :: ![Var]                       -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of 'newtype' type constructors with their refined types.
