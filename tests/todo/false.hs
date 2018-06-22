@@ -1,12 +1,8 @@
-module Foo where
 
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--native" @-}
+{-@ diverge :: Int -> {false} @-}
+{-@ lazy diverge @-}
+diverge :: Int -> Int 
+diverge n = diverge n
 
-{-@ foo :: {v:a | false} @-}
-foo  = foo
-
-
-nat :: Int
-{-@ nat :: Nat @-}
-nat = 42
+{-@ one_eq_two :: { 1 == 2 } @-}
+one_eq_two = diverge 0

@@ -192,14 +192,15 @@ makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
 makeTargetVars name vars checkVars = do 
   env          <- gets hscEnv
   checkNames   <- mkNames env name (dummyLoc . prefix <$> checkVars)
+  return        [ v | v <- vars, varName v `elem` checkNames ] 
+  where
+    prefix s    = qualifySymbol (F.symbol name) (F.symbol s)
   -- _ignoreNames <- mkNames env (S.toList ignoreVars)
   -- checkNames  <- liftIO $ concatMapM (lookupName env name (Just NS.varName)) (dummyLoc . prefix <$> checkVars)
   -- ignoreNames <- liftIO $ concatMapM (lookupName env name (Just NS.varName)) (S.toList ignoreVars)
   -- let vars' = if null checkNames then vars else filter ((`elem` checkNames) . varName) vars 
   -- return [ v | v <- vars', varName v `notElem` ignoreNames ]
-  return        [ v | v <- vars, varName v `elem` checkNames ] 
-  where
-    prefix s    = qualifySymbol (F.symbol name) (F.symbol s)
+
     
 mkNames :: HscTypes.HscEnv -> ModName -> [LocSymbol] -> BareM [Name.Name]
 mkNames env name = liftIO . concatMapM (lookupName env name (Just NS.varName))
