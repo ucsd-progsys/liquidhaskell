@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.Bare.Spec (
   , makeDefs
   , makeHMeas, makeHInlines
   , makeTExpr
+  , makeIgnoreVars
   , makeTargetVars
   , makeAssertSpec
   , makeAssumeSpec
@@ -35,6 +36,8 @@ import           Prelude                                    hiding (error)
 import           TyCon
 import           Var
 
+import qualified Name 
+import qualified HscTypes 
 import qualified OccName as NS
 import           Control.Monad.Except
 import           Control.Monad.State
@@ -179,14 +182,28 @@ varsAfter f s lvs
 --------------------------------------------------------------------------------
 -- | API: Bare Refinement Types ------------------------------------------------
 --------------------------------------------------------------------------------
+makeIgnoreVars :: ModName -> [Var] -> S.HashSet LocSymbol -> BareM [Var]
+makeIgnoreVars name vars ignores = do 
+  env         <- gets hscEnv 
+  ignoreNames <- mkNames env name (S.toList ignores)
+  return        [ v | v <- vars, varName v `elem` ignoreNames ] 
 
 makeTargetVars :: ModName -> [Var] -> [String] -> BareM [Var]
-makeTargetVars name vs ss
-  = do env   <- gets hscEnv
-       ns    <- liftIO $ concatMapM (lookupName env name (Just NS.varName) . dummyLoc . prefix) ss
-       return $ filter ((`elem` ns) . varName) vs
-    where
-       prefix s = qualifySymbol (F.symbol name) (F.symbol s)
+makeTargetVars name vars checkVars = do 
+  env          <- gets hscEnv
+  checkNames   <- mkNames env name (dummyLoc . prefix <$> checkVars)
+  return        [ v | v <- vars, varName v `elem` checkNames ] 
+  where
+    prefix s    = qualifySymbol (F.symbol name) (F.symbol s)
+  -- _ignoreNames <- mkNames env (S.toList ignoreVars)
+  -- checkNames  <- liftIO $ concatMapM (lookupName env name (Just NS.varName)) (dummyLoc . prefix <$> checkVars)
+  -- ignoreNames <- liftIO $ concatMapM (lookupName env name (Just NS.varName)) (S.toList ignoreVars)
+  -- let vars' = if null checkNames then vars else filter ((`elem` checkNames) . varName) vars 
+  -- return [ v | v <- vars', varName v `notElem` ignoreNames ]
+
+    
+mkNames :: HscTypes.HscEnv -> ModName -> [LocSymbol] -> BareM [Name.Name]
+mkNames env name = liftIO . concatMapM (lookupName env name (Just NS.varName))
 
 makeAssertSpec :: ModName -> Config -> [Var] -> [Var] -> (ModName, Ms.BareSpec)
                -> BareM [(ModName, Var, LocSpecType)]

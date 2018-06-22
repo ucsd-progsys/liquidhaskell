@@ -40,7 +40,7 @@ import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
 import           Language.Haskell.Liquid.UX.Tidy
-import           Language.Haskell.Liquid.GHC.Misc (showCBs) -- howPpr)
+import           Language.Haskell.Liquid.GHC.Misc (showCBs, ignoreCoreBinds) -- howPpr)
 import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
@@ -142,10 +142,11 @@ newPrune cfg cbs tgt info
   | not (null vs) = return . Right $ [DC.thin cbs sp vs]
   | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | v <- exportedVars info ]
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
-  | otherwise     = return  (Left cbs)
+  | otherwise     = return $ Left (ignoreCoreBinds ignores cbs)
   where
-    vs            = gsTgtVars sp
-    sp            = spec    info
+    ignores       = gsIgnoreVars sp 
+    vs            = gsTgtVars    sp
+    sp            = spec       info
 
 -- topLevelBinders :: GhcSpec -> [Var]
 -- topLevelBinders = map fst . tySigs

@@ -332,8 +332,8 @@ type Qualifier = F.Qualifier
 -- | The following is the overall type for /specifications/ obtained from
 -- parsing the target source and dependent libraries
 
-data GhcSpec = SP {
-    gsTySigs   :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
+data GhcSpec = SP 
+  { gsTySigs   :: ![(Var, LocSpecType)]          -- ^ Asserted Reftypes
   , gsAsmSigs  :: ![(Var, LocSpecType)]          -- ^ Assumed Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]          -- ^ Auto generated Signatures
   , gsCtors    :: ![(Var, LocSpecType)]          -- ^ Data Constructor Measure Sigs
@@ -356,6 +356,7 @@ data GhcSpec = SP {
                                                  -- e.g tests/pos/qualTest.hs
   , gsADTs       :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTgtVars    :: ![Var]                       -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , gsIgnoreVars :: ![Var]                       -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
   , gsDecr       :: ![(Var, [Int])]              -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]     -- ^ Lexicographically ordered expressions for termination
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of 'newtype' type constructors with their refined types.

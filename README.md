@@ -223,6 +223,22 @@ To additionally turn on _proof by logical evaluation_ use the option
 
 You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
 
+This flag is **global** and will symbolically evaluate all the terms that appear in the specifications.
+
+As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
+
+```
+{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+```
+
+will only evaluate terms appearing in the specifications
+of the function `theorem`, in the function `theorem` is
+annotated for automatic instantiation using the following
+liquid annotation
+
+```
+{-@ automatic-instances theorem @-}
+```
 
 Incremental Checking
 --------------------
@@ -333,6 +349,22 @@ By default, the inferred types will have fully qualified module names.
 To use unqualified names, much easier to read, use:
 
     --short-names
+
+Disabling Checks on Functions
+-----------------------------
+
+You can _disable_ checking of a particular function (e.g. because it is unsafe,
+or somehow not currently outside the scope of LH) by using the `ignore` directive.
+
+For example,
+
+```haskell
+{-@ ignore foo @-}
+```
+
+will _disable_ the checking of the code for the top-level binder `foo`.
+
+See `tests/pos/Ignores.hs` for an example.
 
 
 Totality Check
@@ -1080,7 +1112,7 @@ The above definition
     then the auto generated singleton type is overwritten.
 
 Inlines 
--------------------
+-------
 
 The `inline`  lets you use a Haskell function in a type specification. 
 
@@ -1432,25 +1464,3 @@ Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 
 + The `A` component shall be updated at the sole discretion of the project owners.
 
-Proof Automation
-----------------
-The `liquidinstances` automatically generates proof terms using symbolic evaluation. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/MonoidList.hs).
-
-```
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
-```
-
-This flag is **global** and will symbolically evaluation all the terms that appear in the specifications.
-
-As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
-
-```
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
-```
-
-will only evaluate terms appearing in the specifications of the function `theorem`, in the function `theorem` is annotated
-for automatic instantiation using the following liquid annotation
-
-```
-{-@ automatic-instances theorem @-}
-```
