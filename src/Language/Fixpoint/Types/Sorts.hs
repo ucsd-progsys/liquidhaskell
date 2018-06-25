@@ -1,6 +1,7 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
@@ -18,11 +19,11 @@
 
 module Language.Fixpoint.Types.Sorts (
 
-  -- * Embedding to Fixpoint Types
+  -- * Fixpoint Types
     Sort (..)
-
   , Sub (..)
-  , FTycon, TCEmb
+  , FTycon
+
   , sortFTycon
   , intFTyCon
   , boolFTyCon
@@ -60,6 +61,14 @@ module Language.Fixpoint.Types.Sorts (
   , DataCtor (..)
   , DataDecl (..)
 
+  -- * Embedding Source types as Sorts
+  , TCEmb, TCArgs (..)
+  , tceLookup 
+  , tceFromList 
+  , tceToList
+  , tceMember 
+  , tceInsert
+  , tceInsertWith
   ) where
 
 import qualified Data.Binary as B
@@ -79,9 +88,8 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 import qualified Data.HashMap.Strict       as M
 
-
+    
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
-type TCEmb a  = M.HashMap a Sort -- FTycon
 
 -- instance Show FTycon where
 --   show (TC s _) = show (val s)
@@ -152,7 +160,7 @@ symbolNumInfoFTyCon c isNum isReal
   | otherwise
   = TC c tcinfo
   where
-    tcinfo = defTcInfo{tc_isNum = isNum, tc_isReal = isReal}
+    tcinfo = defTcInfo { tc_isNum = isNum, tc_isReal = isReal}
 
 
 
@@ -333,8 +341,6 @@ newtype Sub = Sub [(Int, Sort)] deriving (Generic)
 instance Fixpoint Sort where
   toFix = toFixSort
 
-
-
 toFixSort :: Sort -> Doc
 toFixSort (FVar i)     = text "@" <> parens (toFix i)
 toFixSort FInt         = text "int"
@@ -420,7 +426,7 @@ fTyconSort c
   | otherwise       = FTC c
 
 basicSorts :: [Sort]
-basicSorts = [FInt, boolSort] -- , setSort, mapSort, bitVecSort]
+basicSorts = [FInt, boolSort] 
 
 ------------------------------------------------------------------------
 sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort
@@ -431,7 +437,8 @@ sortSubst θ (FApp t1 t2)  = FApp  (sortSubst θ t1) (sortSubst θ t2)
 sortSubst θ (FAbs i t)    = FAbs i (sortSubst θ t)
 sortSubst _  t            = t
 
-
+-- instance (B.Binary a) => B.Binary (TCEmb a) 
+instance B.Binary TCArgs 
 instance B.Binary FTycon
 instance B.Binary TCInfo
 instance B.Binary Sort
@@ -443,7 +450,8 @@ instance B.Binary Sub
 instance NFData FTycon where
   rnf (TC x i) = x `seq` i `seq` ()
 
-
+instance (NFData a) => NFData (TCEmb a) 
+instance NFData TCArgs 
 instance NFData TCInfo
 instance NFData Sort
 instance NFData DataField
@@ -458,3 +466,42 @@ instance Monoid Sort where
     | t2 == mempty  = t1
     | t1 == t2      = t1
     | otherwise     = errorstar $ "mappend-sort: conflicting sorts t1 =" ++ show t1 ++ " t2 = " ++ show t2
+
+
+-------------------------------------------------------------------------------
+-- | Embedding stuff as Sorts 
+-------------------------------------------------------------------------------
+newtype TCEmb a = TCE (M.HashMap a (Sort, TCArgs)) 
+  deriving (Eq, Show, Data, Typeable, Generic) 
+
+data TCArgs = WithArgs | NoArgs 
+  deriving (Eq, Ord, Show, Data, Typeable, Generic) 
+
+tceInsertWith :: (Eq a, Hashable a) => (Sort -> Sort -> Sort) -> a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
+tceInsertWith f k t a (TCE m) = TCE (M.insertWith ff k (t, a) m)
+  where 
+    ff (t1, a1) (t2, a2)      = (f t1 t2, mappend a1 a2)
+
+instance Monoid TCArgs where 
+  mempty                = NoArgs 
+  mappend NoArgs NoArgs = NoArgs
+  mappend _      _      = WithArgs
+
+tceInsert :: (Eq a, Hashable a) => a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
+tceInsert k t a (TCE m) = TCE (M.insert k (t, a) m)
+
+tceLookup :: (Eq a, Hashable a) => a -> TCEmb a -> Maybe (Sort, TCArgs) 
+tceLookup k (TCE m) = M.lookup k m
+
+instance (Eq a, Hashable a) => Monoid (TCEmb a) where 
+  mempty                    = TCE mempty 
+  mappend (TCE m1) (TCE m2) = TCE (mappend m1 m2)
+
+tceFromList :: (Eq a, Hashable a) => [(a, (Sort, TCArgs))] -> TCEmb a
+tceFromList = TCE . M.fromList 
+
+tceToList :: TCEmb a -> [(a, (Sort, TCArgs))]
+tceToList (TCE m) = M.toList m
+
+tceMember :: (Eq a, Hashable a) => a -> TCEmb a -> Bool 
+tceMember k (TCE m) = M.member k m
