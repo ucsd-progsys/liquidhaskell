@@ -82,7 +82,7 @@ makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
                                 , ty  <- maybeToList (famInstTyConType c) ]
-    embed embs (c, t)     = M.insert c t embs
+    embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
     cs                    = F.notracepp "famInstTcs-all" cs0
 
 famInstTyConType :: TyCon -> Maybe Type
@@ -135,9 +135,9 @@ makeNumEmbeds (Just is) x = L.foldl' makeNumericInfoOne x is
 makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
 makeNumericInfoOne m is
   | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip mappendSortFTC) tc (ftc tc True True) m
+  = F.tceInsertWith (flip mappendSortFTC) tc (ftc tc True True) F.NoArgs m
   | isNumCls  $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip mappendSortFTC) tc (ftc tc True False) m
+  = F.tceInsertWith (flip mappendSortFTC) tc (ftc tc True False) F.NoArgs m
   | otherwise
   = m
   where
@@ -650,12 +650,12 @@ qualifyField name lx
    x         = val lx
    needsQual = not (isWiredIn lx)
 
-makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
+makeTyConEmbeds :: (ModName, Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
   = inModule mod . makeTyConEmbeds' $ Ms.embeds spec
 
 makeTyConEmbeds' :: F.TCEmb LocSymbol -> BareM (F.TCEmb TyCon)
-makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
+makeTyConEmbeds' z = F.tceFromList <$> mapM tx (F.tceToList z)
   where
     tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 

@@ -840,7 +840,8 @@ appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
 isNumeric :: TCEmb TyCon -> RTyCon -> Bool
 isNumeric tce c = mySort == FTC F.intFTyCon || mySort == F.FInt
   where
-    mySort      = M.lookupDefault def rc tce
+    -- mySort      = M.lookupDefault def rc tce
+    mySort      = maybe def fst (F.tceLookup rc tce)
     def         = FTC . symbolFTycon . dummyLoc . tyConName $ rc
     rc          = rtc_tc c
 
@@ -1154,13 +1155,9 @@ instance SubsTy Symbol RSort Sort where
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
-    | -- rtyVarUniqueSymbol v == s ||
-      symbol v == s
-    = typeSort M.empty $ toType sv
-    | otherwise
-    = FObj s
-  subt _ s
-    = s
+    | symbol v == s = typeSort mempty (toType sv)
+    | otherwise     = FObj s
+  subt _ s          = s
 
 instance (SubsTy tv ty ty) => SubsTy tv ty (PVKind ty) where
   subt su (PVProp t) = PVProp (subt su t)
@@ -1436,21 +1433,25 @@ typeSort tce = go
     go :: Type -> Sort
     go t@(FunTy _ _)    = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
-    go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
+    -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
+    go (TyConApp c τs)  = tyConFTyCon tce c (go <$> τs)
     go (AppTy t1 t2)    = fApp (go t1) [go t2]
     go (TyVarTy tv)     = tyVarSort tv
     go (CastTy t _)     = go t
     go τ                = FObj (typeUniqueSymbol τ)
 
-tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
-tyConFTyCon tce c = F.notracepp _msg $ M.lookupDefault def c tce
+tyConFTyCon :: TCEmb TyCon -> TyCon -> [Sort] -> Sort
+tyConFTyCon tce c ts = case tceLookup c tce of 
+                         Nothing            -> fTyconSort niTc
+                         Just (t, WithArgs) -> t 
+                         Just (t, NoArgs)   -> fApp t ts  
   where
-    _msg          = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
-    def           = fTyconSort niTc
-    niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
+    niTc             = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
+    -- oldRes           = F.notracepp _msg $ M.lookupDefault def c tce
+    -- _msg             = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
 
 tyVarSort :: TyVar -> Sort
-tyVarSort = FObj . symbol -- tyVarUniqueSymbol
+tyVarSort = FObj . symbol 
 
 typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . GM.typeUniqueString

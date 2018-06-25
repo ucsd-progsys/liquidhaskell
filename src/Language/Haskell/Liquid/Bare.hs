@@ -275,9 +275,7 @@ reflectedTyCons cfg embs cbs spec
 --   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
 --   or its embedding, a bool?
 isEmbedded :: TCEmb TyCon -> TyCon -> Bool
-isEmbedded embs c = M.member c embs
-
-
+isEmbedded embs c = F.tceMember c embs
 
 varTyCons :: Var -> [TyCon]
 varTyCons = specTypeCons . ofType . varType
@@ -559,6 +557,7 @@ makeGhcSpec0 cfg defVars exports name adts ignoreVars sp = do
     , gsADTs       = adts
     , gsIgnoreVars = igVars 
     }
+
 
 makeGhcSpec1 :: [(Symbol, Var)]
              -> [Var]

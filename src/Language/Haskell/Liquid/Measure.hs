@@ -167,7 +167,7 @@ instance Monoid (Spec ty bndr) where
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , dvariance  =           dvariance  s1 ++ dvariance  s2
            , axeqs      =           axeqs s1      ++ axeqs s2
-           , embeds     = M.union   (embeds   s1)  (embeds   s2)
+           , embeds     = mappend   (embeds   s1)  (embeds   s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
         -- , axioms     = S.union   (axioms s1) (axioms s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
@@ -195,7 +195,7 @@ instance Monoid (Spec ty bndr) where
            , includes   = []
            , aliases    = []
            , ealiases   = []
-           , embeds     = M.empty
+           , embeds     = mempty
            , qualifiers = []
            , decr       = []
            , lvars      = []

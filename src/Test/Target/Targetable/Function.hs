@@ -123,7 +123,7 @@ evalType :: M.HashMap Symbol Val -> SpecType -> Expr -> Target Bool
 evalType m t e@(splitEApp_maybe -> Just (c, xs))
   = do dcp <- lookupCtor c t
        tyi <- gets tyconInfo
-       vts <- freshen $ applyPreds (addTyConInfo M.empty tyi t) dcp
+       vts <- freshen $ applyPreds (addTyConInfo mempty tyi t) dcp
        liftM2 (&&) (evalWith m (toReft $ rt_reft t) e) (evalTypes m vts xs)
 evalType m t e
   = evalWith m (toReft $ rt_reft t) e

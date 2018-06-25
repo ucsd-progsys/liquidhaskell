@@ -374,7 +374,7 @@ varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars
                                                 , isSimpleType $ varType v ]
 
 isSimpleType :: Type -> Bool
-isSimpleType = isFirstOrder . RT.typeSort M.empty
+isSimpleType = isFirstOrder . RT.typeSort mempty
 
 varSpecType :: (Monoid r) => Var -> Located (RRType r)
 varSpecType = fmap (RT.ofType . varType) . GM.locNamedThing
