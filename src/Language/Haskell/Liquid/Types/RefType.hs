@@ -1440,12 +1440,12 @@ typeSort tce = go
     go (AppTy t1 t2)    = fApp (go t1) [go t2]
     go (TyVarTy tv)     = tyVarSort tv
     go (CastTy t _)     = go t
-    go τ                = FObj $ typeUniqueSymbol τ
+    go τ                = FObj (typeUniqueSymbol τ)
 
 tyConFTyCon :: M.HashMap TyCon Sort -> TyCon -> Sort
 tyConFTyCon tce c = F.notracepp _msg $ M.lookupDefault def c tce
   where
-    _msg           = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
+    _msg          = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
     def           = fTyconSort niTc
     niTc          = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
 

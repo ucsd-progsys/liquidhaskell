@@ -93,16 +93,9 @@ famInstTyConType c = case tyConFamInst_maybe c of
 famInstType :: Int -> TyCon -> [Type] -> Type
 famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
 
--- famInstSort :: F.TCEmb TyCon -> TyCon -> Maybe F.Sort
--- famInstSort embs c = tcAppSort embs <$> tyConFamInst_maybe c
-
--- tcAppSort :: F.TCEmb TyCon -> (TyCon, [Type]) -> F.Sort
--- tcAppSort embs (c, ts) = RT.typeSort embs (Type.mkTyConApp c ts)
-
 {- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
      in two ways: (1) As an applied type, (2) As a special tycon.
      For example, consider `tests/pos/ExactGADT4.hs`:
-
 
         class PersistEntity record where
           data EntityField record :: * -> *
@@ -659,7 +652,7 @@ qualifyField name lx
 
 makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
-  = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
+  = inModule mod . makeTyConEmbeds' $ Ms.embeds spec
 
 makeTyConEmbeds' :: F.TCEmb LocSymbol -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
