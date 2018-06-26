@@ -118,7 +118,7 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate Expr where
-    elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
+  elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x, elaborate msg env s)
@@ -154,26 +154,24 @@ instance Elaborate BindEnv where
 instance Elaborate (SimpC a) where
   elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
 
-
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
 elabExpr :: String -> SymEnv -> Expr -> Expr
-elabExpr msg env e
-  = case runCM0 $ elab (env, f) e of
-      Left msg -> die $ err dummySpan (d msg)
-      Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
-    where
-      sEnv = seSort env
-      f    = (`lookupSEnvWithDistance` sEnv)
-      -- γ'  = γ `mappend` (Thy.tsSort <$> Thy.theorySymbols)
-      d m  = vcat [ "elaborate" <+> text msg <+> "failed on:"
-                 , nest 4 (pprint e)
-                 , "with error"
-                 , nest 4 (text m)
-                 , "in environment"
-                 , nest 4 (pprint $ subEnv sEnv e)
-                 ]
+elabExpr msg env e = 
+  case runCM0 $ elab (env, f) e of
+    Left e   -> die $ err (srcSpan e) (d (val e))
+    Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
+  where
+    sEnv = seSort env
+    f    = (`lookupSEnvWithDistance` sEnv)
+    d m  = vcat [ "elaborate" <+> text msg <+> "failed on:"
+                , nest 4 (pprint e)
+                , "with error"
+                , nest 4 (text m)
+                , "in environment"
+                , nest 4 (pprint $ subEnv sEnv e)
+                ]
 
 --------------------------------------------------------------------------------
 -- | 'elabApply' replaces all direct function calls indirect calls via `apply`
@@ -213,9 +211,9 @@ elabApply env = go
 -- | Sort Inference ------------------------------------------------------------
 --------------------------------------------------------------------------------
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
-sortExpr l γ e = case runCM0 $ checkExpr f e of
-    Left msg -> die $ err l (d msg)
-    Right s  -> s
+sortExpr l γ e = case runCM0 (checkExpr f e) of
+    Left  e -> die $ err l (d (val e))
+    Right s -> s
   where
     f   = (`lookupSEnvWithDistance` γ)
     d m = vcat [ "sortExpr failed on expression:"
@@ -247,16 +245,16 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
 
 -- | Types used throughout checker
 type CheckM   = StateT ChState (Either ChError)
-type ChError  = String
+type ChError  = Located String
 type ChState  = Int
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
 
-withError :: CheckM a -> String -> CheckM a
-act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
-
-runCM0 :: CheckM a -> Either String a
+withError :: CheckM a -> ChError -> CheckM a
+act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
+ 
+runCM0 :: CheckM a -> Either ChError a
 runCM0 act = fst <$> runStateT act initCM
   where
     initCM = 42
@@ -278,26 +276,26 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
     Reft (v,_)            = sr_reft sr
 
 checkSortedReftFull :: Checkable a => SEnv SortedReft -> a -> Maybe Doc
-checkSortedReftFull γ t
-  = case runCM0 $ check γ' t of
-      Left e  -> Just (text e)
-      Right _ -> Nothing
-    where
-      γ' = sr_sort <$> γ
+checkSortedReftFull γ t = 
+  case runCM0 (check γ' t) of
+    Left e  -> Just (text (val e))
+    Right _ -> Nothing
+  where
+    γ' = sr_sort <$> γ
 
 checkSortFull :: Checkable a => SEnv SortedReft -> Sort -> a -> Maybe Doc
-checkSortFull γ s t
-  = case runCM0 $ checkSort γ' s t of
-      Left e  -> Just (text e)
-      Right _ -> Nothing
-    where
+checkSortFull γ s t = 
+  case runCM0 (checkSort γ' s t) of
+    Left e  -> Just (text (val e))
+    Right _ -> Nothing
+  where
       γ' = sr_sort <$> γ
 
 checkSorted :: Checkable a => SEnv Sort -> a -> Maybe Doc
-checkSorted γ t
-  = case runCM0 $ check γ t of
-      Left e   -> Just (text e)
-      Right _  -> Nothing
+checkSorted γ t = 
+  case runCM0 (check γ t) of
+    Left e   -> Just (text (val e))
+    Right _  -> Nothing
 
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
 pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
