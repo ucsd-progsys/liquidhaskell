@@ -204,7 +204,7 @@ makeMeasureDefinition
   -> BareM (Measure LocSpecType DataCon)
 makeMeasureDefinition tce lmap dm cbs x = maybe err chomp $ GM.findVarDef (val x) cbs
   where
-    chomp (v, def)     = Ms.mkM vx (GM.varLocInfo logicType v) <$> coreToDef' vx v def
+    chomp (v, def)     = Ms.mkM vx (GM.varLocInfo logicType v) <$> coreToDef' vx v def <*> pure MsLifted
                          where vx = F.atLoc x (symbol v)
     coreToDef' x v def = case runToLogic tce lmap dm (errHMeas x) (coreToDef x v def) of
                            Right l -> return     l
@@ -302,16 +302,15 @@ bareBool = RApp (RTyCon boolTyCon [] def) [] [] mempty
 
 -}
 
-makeMeasureSelector :: (Show a1)
-                    => LocSymbol -> SpecType -> DataCon -> Int -> a1 -> Measure SpecType DataCon
-makeMeasureSelector x s dc n i = M {name = x, sort = s, eqns = [eqn]}
+makeMeasureSelector :: (Show a1) => LocSymbol -> SpecType -> DataCon -> Int -> a1 -> Measure SpecType DataCon
+makeMeasureSelector x s dc n i = M { msName = x, msSort = s, msEqns = [eqn], msKind = MsSelector }
   where
     eqn                        = Def x [] dc Nothing args (E (EVar $ mkx i))
     args                       = ((, Nothing) . mkx) <$> [1 .. n]
     mkx j                      = symbol ("xx" ++ show j)
 
 makeMeasureChecker :: LocSymbol -> SpecType -> DataCon -> Int -> Measure SpecType DataCon
-makeMeasureChecker x s0 dc n = M {name = x, sort = s, eqns = eqn : (eqns <$> filter (/= dc) dcs)}
+makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns <$> filter (/= dc) dcs), msKind = MsChecker }
   where
     s       = F.notracepp ("makeMeasureChecker: " ++ show x) s0
     eqn     = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
@@ -336,7 +335,7 @@ makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
   where
-    tx (M n s _) = (n, CM n (mapReft ur_reft s))
+    tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
 
 
 mkMeasureDCon :: Ms.MSpec t LocSymbol -> BareM (Ms.MSpec t DataCon)
@@ -359,7 +358,7 @@ mkMeasureSort (Ms.MSpec c mm cm im)
   = Ms.MSpec <$> forM c (mapM txDef) <*> forM mm tx <*> forM cm tx <*> forM im tx
     where
       tx :: Measure BareType ctor -> BareM (Measure SpecType ctor)
-      tx (M n s eqs) = M n <$> ofMeaSort s <*> mapM txDef eqs
+      tx (M n s eqs k) = M n <$> ofMeaSort s <*> mapM txDef eqs <*> pure k
 
       txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
       txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds})
@@ -431,9 +430,9 @@ type BareMeasure = Measure (Located BareType) LocSymbol
 
 expandMeasure :: BareMeasure -> BareM BareMeasure
 expandMeasure m = do
-  eqns <- sequence $ expandMeasureDef <$> eqns m
-  return $ m { sort = RT.generalize <$> sort m
-             , eqns = eqns }
+  eqns <- sequence $ expandMeasureDef <$> msEqns m
+  return $ m { msSort = RT.generalize <$> msSort m
+             , msEqns = eqns }
 
 expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)
 expandMeasureDef d

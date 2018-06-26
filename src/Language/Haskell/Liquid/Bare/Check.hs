@@ -427,8 +427,8 @@ checkMeasures :: TCEmb TyCon -> SEnv SortedReft -> [Measure SpecType DataCon] ->
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
 checkMeasure :: TCEmb TyCon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
-checkMeasure emb γ (M name@(Loc src _ n) sort body)
-  = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
+checkMeasure emb γ (M name@(Loc src _ n) sort body _)
+  = [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
   where
     txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
@@ -486,14 +486,14 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
 checkClassMeasures ms = mapMaybe checkOne byTyCon
   where
-  byName = L.groupBy ((==) `on` (val.name)) ms
+  byName = L.groupBy ((==) `on` (val . msName)) ms
 
-  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . eqns)))
+  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . msEqns)))
                       byName
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
   checkOne [_]    = Nothing
-  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (name m)))
-                                      (pprint (val (name m)))
-                                      (pprint ((dataConTyCon . ctor . head . eqns) m))
-                                      (map (sourcePosSrcSpan.loc.name) (m:ms)))
+  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (msName m)))
+                                      (pprint (val (msName m)))
+                                      (pprint ((dataConTyCon . ctor . head . msEqns) m))
+                                      (fSrcSpan <$> (m:ms)))

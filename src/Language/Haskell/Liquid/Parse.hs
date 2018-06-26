@@ -1171,23 +1171,22 @@ hmeasureP = do
        ty <- locParserP genBareTypeP
        whiteSpace
        eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
-       return (Meas $ Measure.mkM b ty eqns))
+       return (Meas $ Measure.mkM b ty eqns MsMeasure))
     <|> (return (HMeas b))
     )
 
 measureP :: Parser (Measure (Located BareType) LocSymbol)
-measureP
-  = do (x, ty) <- tyBindP
-       whiteSpace
-       eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
-       return   $ Measure.mkM x ty eqns
-
+measureP = do 
+  (x, ty) <- tyBindP
+  whiteSpace
+  eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
+  return   $ Measure.mkM x ty eqns MsMeasure
 
 -- | class measure
 cMeasureP :: Parser (Measure (Located BareType) ())
 cMeasureP
   = do (x, ty) <- tyBindP
-       return $ Measure.mkM x ty []
+       return $ Measure.mkM x ty [] MsClass
 
 iMeasureP :: Parser (Measure (Located BareType) LocSymbol)
 iMeasureP = measureP
