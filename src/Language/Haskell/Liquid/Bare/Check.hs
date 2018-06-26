@@ -101,7 +101,7 @@ checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
 checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
+checkQualifier env q =  mkE <$> checkSortFull (srcSpan q) γ boolSort  (qBody q)
   where 
     γ                = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qualBinds q ++ wiredSortedSyms)
     mkE              = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
@@ -116,7 +116,7 @@ checkSizeFun emb env tys = mkError <$> mapMaybe go tys
                           Nothing  -> Nothing
                           Just f   -> checkWFSize (szFun f) tc tcp
 
-    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (insertSEnv x (mkTySort tc) env) intSort (f x)
+    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (srcSpan tcp) (insertSEnv x (mkTySort tc) env) intSort (f x)
     x                    = "x" :: Symbol
     mkTySort tc          = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
 
@@ -196,13 +196,13 @@ checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
 
 checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
-            = (mkErr <$> go es) <|> (mkErr' <$> go' es)
+            = (mkErr <$> go les) <|> (mkErr' <$> go' les)
   where
-    es      = val <$> les
+    -- es      = val <$> les
     mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
     mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
-    go      = L.foldl' (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
-    go'     = L.foldl' (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
+    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (srcSpan e) env' (val e))           Nothing
+    go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (srcSpan e) env' (cmpZero e)) Nothing
     env'   = sr_sort <$> L.foldl' (\e (x,s) -> insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
@@ -211,10 +211,10 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     mkClass (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb
-    cmpZero = PAtom Le $ expr (0 :: Int) -- zero
+    cmpZero e = PAtom Le (expr (0 :: Int)) (val e)
 
 checkTy :: Bool -> (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (val $ txRefSort tcEnv emb t)
+checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (txRefSort tcEnv emb t)
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 
@@ -269,7 +269,7 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Doc
+checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> LocSpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 checkRType allowHO emb env t
   =   checkAppTys t

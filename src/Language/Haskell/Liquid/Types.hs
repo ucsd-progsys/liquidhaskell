@@ -445,6 +445,10 @@ data TyConP = TyConP
   , sizeFun      :: !(Maybe SizeFun)
   } deriving (Generic, Data, Typeable)
 
+instance F.Loc TyConP where
+  srcSpan tc = F.SS (ty_loc tc) (ty_loc tc)
+
+
 -- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
   { dc_loc     :: !F.SourcePos
@@ -474,7 +478,6 @@ data DataConP = DataConP
 --   has 'tyRes' corresponding to 'Thing Int' (resp. 'Thing Bool'),
 --   but in both cases, the 'tyData' should be 'Thing a'.
 --
-
 
 instance F.Loc DataConP where
   srcSpan d = F.SS (dc_loc d) (dc_locE d)
