@@ -86,7 +86,7 @@ makeAxioms = do
   return   $ filter (validAxiom env) (alphEqs ++ betaEqs)
 
 validAxiom :: SymEnv -> Expr -> Bool
-validAxiom env = isJust . checkSortExpr (seSort env)
+validAxiom env = isJust . checkSortExpr dummySpan (seSort env)
 
 --------------------------------------------------------------------------------
 -- | Alpha Equivalence ---------------------------------------------------------

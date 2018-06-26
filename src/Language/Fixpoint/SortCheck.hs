@@ -92,7 +92,7 @@ isMono             = null . Vis.foldSort fv []
 class Elaborate a where
   elaborate :: Located String -> SymEnv -> a -> a
 
-instance Elaborate (SInfo a) where
+instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
     { cm      = elaborate x senv <$> cm      si
     , bs      = elaborate x senv  $  bs      si
@@ -151,9 +151,9 @@ instance Elaborate BindEnv where
       z' i  x sr  = z { val = (val z) ++ msg i x sr }
       msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
 
-instance Elaborate (SimpC a) where
-  elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
-
+instance (Loc a) => Elaborate (SimpC a) where
+  elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
+    where msg'        = atLoc c (val msg)
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
