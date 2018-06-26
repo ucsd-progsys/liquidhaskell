@@ -81,6 +81,7 @@ import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Fixpoint.Types.Spans 
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Theories
@@ -303,8 +304,11 @@ qbPreds :: String -> Sol a QBind -> Subst -> QBind -> [(Pred, EQual)]
 --------------------------------------------------------------------------------
 qbPreds msg s su (QB eqs) = [ (elabPred eq, eq) | eq <- eqs ]
   where
-    elabPred          = elaborate ("qbPreds:" ++ msg) env . subst su . eqPred
-    env               = sEnv s
+    elabPred eq           = elaborate (atLoc eq $ "qbPreds:" ++ msg) env 
+                          . subst su 
+                          . eqPred 
+                          $ eq
+    env                   = sEnv s
 
 --------------------------------------------------------------------------------
 -- | Read / Write Solution at KVar ---------------------------------------------
@@ -362,10 +366,13 @@ type Cand a   = [(Expr, a)]
 -- | Instantiated Qualifiers ---------------------------------------------------
 --------------------------------------------------------------------------------
 data EQual = EQL
-  { _eqQual :: !Qualifier
+  { eqQual :: !Qualifier
   , eqPred  :: !Expr
   , _eqArgs :: ![Expr]
   } deriving (Eq, Show, Data, Typeable, Generic)
+
+instance Loc EQual where 
+  srcSpan = srcSpan . eqQual 
 
 trueEqual :: EQual
 trueEqual = EQL trueQual mempty []

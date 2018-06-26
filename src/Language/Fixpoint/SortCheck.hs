@@ -159,7 +159,7 @@ instance Elaborate (SimpC a) where
 --------------------------------------------------------------------------------
 elabExpr :: Located String -> SymEnv -> Expr -> Expr
 elabExpr msg env e = 
-  case runCM0 (srcSpan msg) $ elab (env, f) e of
+  case runCM0 (srcSpan msg) (elab (env, f) e) of
     Left e   -> die $ err (srcSpan e) (d (val e))
     Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
   where
