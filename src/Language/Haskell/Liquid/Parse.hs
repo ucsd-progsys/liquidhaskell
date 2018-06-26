@@ -864,7 +864,7 @@ data Pspec ty ctor
   | IAlias  (ty, ty)
   | Alias   (RTAlias Symbol BareType)
   | EAlias  (RTAlias Symbol Expr)
-  | Embed   (LocSymbol, FTycon)
+  | Embed   (LocSymbol, FTycon, TCArgs)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
@@ -940,7 +940,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
-  , Measure.embeds     = tceFromList [(c, (fTyconSort tc, NoArgs)) | Embed (c, tc) <- xs]
+  , Measure.embeds     = tceFromList [(c, (fTyconSort tc, a)) | Embed (c, tc, a) <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
@@ -1126,9 +1126,14 @@ invaliasP
 genBareTypeP :: Parser BareType
 genBareTypeP = bareTypeP
 
-embedP :: Parser (Located Symbol, FTycon)
-embedP
-  = xyP locUpperIdP (reserved "as") fTyConP
+embedP :: Parser (Located Symbol, FTycon, TCArgs)
+embedP = do 
+  x <- locUpperIdP 
+  a <- try (reserved "*" >> return WithArgs) <|> return NoArgs 
+  _ <- spaces >> reserved "as"
+  t <- fTyConP   
+  return (x, t, a)
+  --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 
 aliasP :: Parser (RTAlias Symbol BareType)
