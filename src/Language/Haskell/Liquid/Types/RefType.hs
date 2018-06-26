@@ -1442,9 +1442,9 @@ typeSort tce = go
 
 tyConFTyCon :: TCEmb TyCon -> TyCon -> [Sort] -> Sort
 tyConFTyCon tce c ts = case tceLookup c tce of 
-                         Nothing            -> fTyconSort niTc
                          Just (t, WithArgs) -> t 
                          Just (t, NoArgs)   -> fApp t ts  
+                         Nothing            -> fApp (fTyconSort niTc) ts 
   where
     niTc             = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
     -- oldRes           = F.notracepp _msg $ M.lookupDefault def c tce
