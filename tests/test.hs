@@ -176,6 +176,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
   , errorTest "tests/errors/EmptySig.hs"            2 "Error: Cannot parse specification"
   , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
+  -- , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
   ]
 
 unitTests :: IO TestTree
