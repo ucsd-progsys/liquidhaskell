@@ -271,14 +271,15 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> LocSpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
-checkRType allowHO emb env t
+checkRType allowHO emb env lt
   =   checkAppTys t
   <|> checkAbstractRefs t
   <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
+    t                  = val lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
-    f env me r err     = err <|> checkReft env emb me r
+    f env me r err     = err <|> checkReft (srcSpan lt) env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
@@ -400,12 +401,12 @@ checkAbstractRefs t = go t
 
 
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
-                             => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
-checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull env r
+                             => SrcSpan -> SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
+checkReft _ _   _   Nothing _   = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
+checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp env r
   where
-    r                        = rTypeSortedReft emb t
-    dr                       = text "Sort Error in Refinement:" <+> pprint r
+    r                           = rTypeSortedReft emb t
+    dr                          = text "Sort Error in Refinement:" <+> pprint r
 
 -- DONT DELETE the below till we've added pred-checking as well
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t)
@@ -438,8 +439,9 @@ checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCo
            -> SpecType
            -> Def (RRType r) DataCon
            -> Maybe Doc
-checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort' γ' body
+checkMBody γ emb _ sort (Def m as c _ bs body) = checkMBody' emb sort' γ' sp body
   where
+    sp    = srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats   = mapSnd (rTypeSortedReft emb) <$> as
     xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
@@ -461,14 +463,14 @@ checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyC
             => TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> SEnv SortedReft
+            -> SrcSpan 
             -> Body
             -> Maybe Doc
-checkMBody' emb sort γ body = case body of
-    E e   -> checkSortFull γ (rTypeSort emb sort') e
-    P p   -> checkSortFull γ boolSort  p
-    R s p -> checkSortFull (insertSEnv s sty γ) boolSort p
+checkMBody' emb sort γ sp body = case body of
+    E e   -> checkSortFull sp γ (rTypeSort emb sort') e
+    P p   -> checkSortFull sp γ boolSort  p
+    R s p -> checkSortFull sp (insertSEnv s sty γ) boolSort p
   where
-    -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
     sort' = dropNArgs 1 sort
 
