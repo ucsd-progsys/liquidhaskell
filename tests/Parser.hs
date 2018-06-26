@@ -167,7 +167,8 @@ testSpecP =
 
     , testCase "embed" $
        parseSingleSpec "embed Set as Set_Set" @?=
-          "Embed (\"Set\" (dummyLoc),TC \"Set_Set\" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))"
+          "Embed (\"Set\" (dummyLoc),TC \"Set_Set\" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}),NoArgs)"
+          -- "Embed (\"Set\" (dummyLoc),TC \"Set_Set\" (dummyLoc) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))"
 
     , testCase "qualif" $
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?=
