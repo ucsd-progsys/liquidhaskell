@@ -177,6 +177,9 @@ instance Loc SrcSpan where
 instance Loc () where
   srcSpan _ = dummySpan
 
+instance Loc SourcePos where 
+  srcSpan l = SS l l
+
 dummySpan :: SrcSpan
 dummySpan = panicSpan ""
 
