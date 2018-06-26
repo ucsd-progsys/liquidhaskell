@@ -1093,7 +1093,7 @@ errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s
                          (showpp e) (showpp t') (showpp t)
 
 errUnboundAlts :: Symbol -> [Symbol] -> String
-errUnboundAlts x xs  = printf "Unbound symbol %s --- perhaps you meant: %s"
+errUnboundAlts x xs  = printf "Unbound symbol %s --- perhaps you meant: %s ?"
                          (showpp x) (L.intercalate ", " (showpp <$> xs))
 
 errNonFunction :: Int -> Sort -> String
