@@ -112,7 +112,7 @@ import Language.Haskell.Liquid.Types.PrettyPrint
 import qualified Language.Fixpoint.Types as F
 import Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
 import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
-import Language.Haskell.Liquid.Types hiding (R, DataConP (..), sort)
+import Language.Haskell.Liquid.Types hiding (R, DataConP (..))
 
 import Language.Haskell.Liquid.Types.Variance
 

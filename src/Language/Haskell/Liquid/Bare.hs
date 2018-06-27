@@ -375,16 +375,19 @@ checkLifted :: M.HashMap Symbol Var -> LocSymbol -> Bool
 checkLifted symm x = M.member (val x) symm
 
 -- TODO: move into Check.hs
-checkShadowedSpecs :: [Measure ta ca] -> [Measure tb cb] -> [LocSymbol] -> [Var] -> BareM ()
-checkShadowedSpecs myDcs myMeas myExportSyms defVars = do
+checkShadowedSpecs :: [Measure ta ca] -> [Measure tb cb] -> [(Symbol, Var)] -> [Var] -> BareM ()
+checkShadowedSpecs myDcs myMeas myExports defVars = do
   checkDisjoint dcSyms   measSyms
   checkDisjoint dcSyms   myExportSyms
   checkDisjoint measSyms myExportSyms
-  -- checkDisjoint measSyms defSyms -- see tests/pos/T1223.hs
+  checkDisjoint cncMeas defSyms         -- Why 'cncMeas' and not 'measSyms'? see tests/pos/T1223.hs
   where
-    dcSyms   = name <$> myDcs
-    measSyms = name <$> myMeas
-    _defSyms  = varLocSimpleSym <$> defVars
+    myExportSyms = [ atLoc (GM.locNamedThing v) (symbol v) |  (_, v) <- myExports ]
+    dcSyms   = msName <$> myDcs
+    measSyms = msName <$> myMeas
+    cncMeas = [ msName m | m <- myMeas, not (isAbs m) ] 
+    defSyms = varLocSimpleSym <$> defVars
+    isAbs m  = F.notracepp ("isAbs " ++ showpp (msName m)) (null (msEqns m) && msKind m == MsMeasure)
 
 checkDisjoint :: [LocSymbol] -> [LocSymbol] -> BareM ()
 checkDisjoint xs ys
@@ -416,7 +419,8 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
 
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
-  checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
+  -- checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
+  checkShadowedSpecs dcSs (Ms.measures mySpec) syms0 defVars
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -446,7 +450,7 @@ measureSymbols :: MSpec SpecType DataCon -> [LocSymbol]
 measureSymbols measures = zs
   where
     -- msg = "MEASURE-SYMBOLS" ++ showpp [(loc v, val v) | v <- zs]
-    zs = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
+    zs = [ msName m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
@@ -597,7 +601,7 @@ qualifyDefs :: [(Symbol, Var)] -> S.HashSet (Var, Symbol) -> S.HashSet (Var, Sym
 qualifyDefs syms = S.fromList . fmap (mapSnd (qualifySymbol syms)) . S.toList
 
 qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
-qualifyMeasure syms m = m { name = qualifyLocSymbol (qualifySymbol syms) (name m) }
+qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
 
 qualifyRTyCon :: (Symbol -> Symbol) -> RTyCon -> RTyCon
 qualifyRTyCon f rtc = rtc { rtc_info = qualifyTyConInfo f (rtc_info rtc) }
