@@ -79,11 +79,11 @@ evalPredBlob1 m f es
 
 evalPredBlob2 :: Show a => M.HashMap Symbol Val -> a -> Symbol -> [Expr] -> Target Bool
 evalPredBlob2 m e f es
-  = filter ((==f) . val . name) <$> gets measEnv >>= \case
+  = filter ((==f) . val . msName) <$> gets measEnv >>= \case
       [] -> error $ "evalPred: cannot evaluate " ++ show e -- VC f <$> mapM (`evalExpr` m) es
                       --FIXME: should really extend this to multi-param measures..
       ms -> do e' <- evalExpr (head es) m
-               fromExpr <$> applyMeasure (symbolString f) (concatMap eqns ms) e' m
+               fromExpr <$> applyMeasure (symbolString f) (concatMap msEqns ms) e' m
 
 fromExpr :: Val -> Bool
 fromExpr (VB True) = True
@@ -127,10 +127,10 @@ evalExprBlob1 m f es
 
 evalExprBlob2 :: M.HashMap Symbol Val -> Symbol -> [Expr] -> Target Val
 evalExprBlob2 m f es
-  = filter ((==f) . val . name) <$> gets measEnv >>= \case
+  = filter ((==f) . val . msName) <$> gets measEnv >>= \case
       [] -> VC f <$> mapM (`evalExpr'` m) es   --FIXME: should really extend this to multi-param measures..
       ms -> do e' <- evalExpr' (head es) m
-               applyMeasure (symbolString f) (concatMap eqns ms) e' m
+               applyMeasure (symbolString f) (concatMap msEqns ms) e' m
 
 evalBrel :: Brel -> Val -> Val -> Bool
 evalBrel Eq = (==)

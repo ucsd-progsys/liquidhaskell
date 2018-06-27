@@ -61,8 +61,7 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
   where
-    errors           =  -- mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (dcons      sp) ++
-                        mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
+    errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       sp)
                      ++ condNull noPrune
                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      sp))
                      ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    sp)
@@ -101,7 +100,7 @@ checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
 checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull γ boolSort  (qBody q)
+checkQualifier env q =  mkE <$> checkSortFull (srcSpan q) γ boolSort  (qBody q)
   where 
     γ                = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qualBinds q ++ wiredSortedSyms)
     mkE              = ErrBadQual (sourcePosSrcSpan $ qPos q) (pprint $ qName q)
@@ -116,7 +115,7 @@ checkSizeFun emb env tys = mkError <$> mapMaybe go tys
                           Nothing  -> Nothing
                           Just f   -> checkWFSize (szFun f) tc tcp
 
-    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (insertSEnv x (mkTySort tc) env) intSort (f x)
+    checkWFSize f tc tcp = ((f, tc, tcp),) <$> checkSortFull (srcSpan tcp) (insertSEnv x (mkTySort tc) env) intSort (f x)
     x                    = "x" :: Symbol
     mkTySort tc          = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
 
@@ -196,13 +195,13 @@ checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
 
 checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
-            = (mkErr <$> go es) <|> (mkErr' <$> go' es)
+            = (mkErr <$> go les) <|> (mkErr' <$> go' les)
   where
-    es      = val <$> les
+    -- es      = val <$> les
     mkErr   = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
     mkErr'  = uncurry (ErrTermSpec (sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
-    go      = L.foldl' (\err e -> err <|> (e,) <$> checkSorted env' e)           Nothing
-    go'     = L.foldl' (\err e -> err <|> (e,) <$> checkSorted env' (cmpZero e)) Nothing
+    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (srcSpan e) env' (val e))           Nothing
+    go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (srcSpan e) env' (cmpZero e)) Nothing
     env'   = sr_sort <$> L.foldl' (\e (x,s) -> insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
@@ -211,10 +210,10 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     mkClass (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb
-    cmpZero = PAtom Le $ expr (0 :: Int) -- zero
+    cmpZero e = PAtom Le (expr (0 :: Int)) (val e)
 
 checkTy :: Bool -> (Doc -> Error) -> TCEmb TyCon -> TCEnv -> SEnv SortedReft -> Located SpecType -> Maybe Error
-checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (val $ txRefSort tcEnv emb t)
+checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (txRefSort tcEnv emb t)
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 
@@ -269,16 +268,17 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> SpecType -> Maybe Doc
+checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> LocSpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
-checkRType allowHO emb env t
+checkRType allowHO emb env lt
   =   checkAppTys t
   <|> checkAbstractRefs t
   <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
+    t                  = val lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
-    f env me r err     = err <|> checkReft env emb me r
+    f env me r err     = err <|> checkReft (srcSpan lt) env emb me r
     insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
@@ -400,12 +400,12 @@ checkAbstractRefs t = go t
 
 
 checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
-                             => SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
-checkReft _   _   Nothing _  = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
-checkReft env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull env r
+                             => SrcSpan -> SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
+checkReft _ _   _   Nothing _   = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
+checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp env r
   where
-    r                        = rTypeSortedReft emb t
-    dr                       = text "Sort Error in Refinement:" <+> pprint r
+    r                           = rTypeSortedReft emb t
+    dr                          = text "Sort Error in Refinement:" <+> pprint r
 
 -- DONT DELETE the below till we've added pred-checking as well
 -- checkReft env emb (Just t) _ = checkSortedReft env xs (rTypeSortedReft emb t)
@@ -426,8 +426,8 @@ checkMeasures :: TCEmb TyCon -> SEnv SortedReft -> [Measure SpecType DataCon] ->
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
 checkMeasure :: TCEmb TyCon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
-checkMeasure emb γ (M name@(Loc src _ n) sort body)
-  = [txerror e | Just e <- checkMBody γ emb name sort <$> body]
+checkMeasure emb γ (M name@(Loc src _ n) sort body _)
+  = [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
   where
     txerror = ErrMeas (sourcePosSrcSpan src) (pprint n)
 
@@ -438,8 +438,9 @@ checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCo
            -> SpecType
            -> Def (RRType r) DataCon
            -> Maybe Doc
-checkMBody γ emb _ sort (Def _ as c _ bs body) = checkMBody' emb sort' γ' body
+checkMBody γ emb _ sort (Def m as c _ bs body) = checkMBody' emb sort' γ' sp body
   where
+    sp    = srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ (ats ++ xts)
     ats   = mapSnd (rTypeSortedReft emb) <$> as
     xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
@@ -461,14 +462,14 @@ checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyC
             => TCEmb TyCon
             -> RType RTyCon RTyVar r
             -> SEnv SortedReft
+            -> SrcSpan 
             -> Body
             -> Maybe Doc
-checkMBody' emb sort γ body = case body of
-    E e   -> checkSortFull γ (rTypeSort emb sort') e
-    P p   -> checkSortFull γ boolSort  p
-    R s p -> checkSortFull (insertSEnv s sty γ) boolSort p
+checkMBody' emb sort γ sp body = case body of
+    E e   -> checkSortFull sp γ (rTypeSort emb sort') e
+    P p   -> checkSortFull sp γ boolSort  p
+    R s p -> checkSortFull sp (insertSEnv s sty γ) boolSort p
   where
-    -- psort = FApp propFTyCon []
     sty   = rTypeSortedReft emb sort'
     sort' = dropNArgs 1 sort
 
@@ -484,14 +485,14 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
 checkClassMeasures ms = mapMaybe checkOne byTyCon
   where
-  byName = L.groupBy ((==) `on` (val.name)) ms
+  byName = L.groupBy ((==) `on` (val . msName)) ms
 
-  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . eqns)))
+  byTyCon = concatMap (L.groupBy ((==) `on` (dataConTyCon . ctor . head . msEqns)))
                       byName
 
   checkOne []     = impossible Nothing "checkClassMeasures.checkOne on empty measure group"
   checkOne [_]    = Nothing
-  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (name m)))
-                                      (pprint (val (name m)))
-                                      (pprint ((dataConTyCon . ctor . head . eqns) m))
-                                      (map (sourcePosSrcSpan.loc.name) (m:ms)))
+  checkOne (m:ms) = Just (ErrDupIMeas (sourcePosSrcSpan (loc (msName m)))
+                                      (pprint (val (msName m)))
+                                      (pprint ((dataConTyCon . ctor . head . msEqns) m))
+                                      (fSrcSpan <$> (m:ms)))

@@ -108,7 +108,7 @@ instance Resolvable Sort where
   resolve _ FReal         = return FReal
   resolve _ FNum          = return FNum
   resolve _ FFrac         = return FFrac
-  resolve _ s@(FObj _)    = return s --FObj . S <$> lookupName env m s
+  resolve _ s@(FObj _)    = return s 
   resolve _ s@(FVar _)    = return s
   resolve l (FAbs i  s)   = FAbs i <$> (resolve l s)
   resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
@@ -116,8 +116,8 @@ instance Resolvable Sort where
     | tcs' `elem` F.prims = FTC <$> return c
     | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
                                emb    <- embeds <$> get
-                               let ftc = FTC $ F.symbolFTycon $ Loc l l' $ F.symbol ty
-                               return  $ M.lookupDefault ftc ty emb
+                               let ftc = FTC . F.symbolFTycon . Loc l l' $ F.symbol ty
+                               return  $ maybe ftc fst (F.tceLookup ty emb)
     where
       tcs@(Loc l l' tcs') = F.fTyconSymbol c
   resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2

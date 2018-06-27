@@ -181,6 +181,7 @@ module Language.Haskell.Liquid.Types (
 
   -- * Measures
   , Measure (..)
+  , MeasureKind (..)
   , CMeasure (..)
   , Def (..)
   , Body (..)
@@ -445,6 +446,10 @@ data TyConP = TyConP
   , sizeFun      :: !(Maybe SizeFun)
   } deriving (Generic, Data, Typeable)
 
+instance F.Loc TyConP where
+  srcSpan tc = F.SS (ty_loc tc) (ty_loc tc)
+
+
 -- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
   { dc_loc     :: !F.SourcePos
@@ -474,7 +479,6 @@ data DataConP = DataConP
 --   has 'tyRes' corresponding to 'Thing Int' (resp. 'Thing Bool'),
 --   but in both cases, the 'tyData' should be 'Thing a'.
 --
-
 
 instance F.Loc DataConP where
   srcSpan d = F.SS (dc_loc d) (dc_locE d)
@@ -2018,10 +2022,24 @@ data Def ty ctor = Def
   } deriving (Show, Data, Typeable, Generic, Eq, Functor)
 
 data Measure ty ctor = M
-  { name :: F.LocSymbol
-  , sort :: ty
-  , eqns :: [Def ty ctor]
+  { msName :: F.LocSymbol
+  , msSort :: ty
+  , msEqns :: [Def ty ctor]
+  , msKind :: !MeasureKind 
   } deriving (Data, Typeable, Generic, Functor)
+
+data MeasureKind 
+  = MsReflect     -- ^ due to `reflect foo` 
+  | MsMeasure     -- ^ due to `measure foo` with old-style (non-haskell) equations
+  | MsLifted      -- ^ due to `measure foo` with new-style haskell equations
+  | MsClass       -- ^ due to `class measure` definition 
+  | MsAbsMeasure  -- ^ due to `measure foo` without equations c.f. tests/pos/T1223.hs
+  | MsSelector    -- ^ due to selector-fields e.g. `data Foo = Foo { fld :: Int }` 
+  | MsChecker     -- ^ due to checkers  e.g. `is-F` for `data Foo = F ... | G ...` 
+  deriving (Eq, Ord, Show, Data, Typeable, Generic)
+
+instance F.Loc (Measure a b) where 
+  srcSpan = F.srcSpan . msName
 
 instance Bifunctor Def where
   first f (Def m ps c s bs b) =
@@ -2030,11 +2048,10 @@ instance Bifunctor Def where
     Def m ps (f c) s bs b
 
 instance Bifunctor Measure where
-  first f (M n s es) =
-    M n (f s) (map (first f) es)
-  second f (M n s es) =
-    M n s (map (second f) es)
+  first f (M n s es k)  = M n (f s) (first f <$> es) k
+  second f (M n s es k) = M n s (second f <$> es) k
 
+instance                             B.Binary MeasureKind 
 instance                             B.Binary Body
 instance (B.Binary t, B.Binary c) => B.Binary (Def     t c)
 instance (B.Binary t, B.Binary c) => B.Binary (Measure t c)
@@ -2061,8 +2078,8 @@ instance F.PPrint a => F.PPrint (Def t a) where
       cbsd = parens (F.pprintTidy k c <> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
 instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
-  pprintTidy k (M n s eqs) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
-                              $$ vcat (F.pprintTidy k `fmap` eqs)
+  pprintTidy k (M n s eqs _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
+                                $$ vcat (F.pprintTidy k `fmap` eqs)
 
 
 instance F.PPrint (Measure t a) => Show (Measure t a) where
@@ -2076,10 +2093,13 @@ instance F.PPrint (CMeasure t) => Show (CMeasure t) where
 
 
 instance F.Subable (Measure ty ctor) where
-  syms (M _ _ es)      = concatMap F.syms es
-  substa f  (M n s es) = M n s $ F.substa f  <$> es
-  substf f  (M n s es) = M n s $ F.substf f  <$> es
-  subst  su (M n s es) = M n s $ F.subst  su <$> es
+  syms  m     = concatMap F.syms (msEqns m) 
+  substa f m  = m { msEqns = F.substa f  <$> msEqns m }
+  substf f m  = m { msEqns = F.substf f  <$> msEqns m }
+  subst  su m = m { msEqns = F.subst  su <$> msEqns m }
+  -- substa f  (M n s es _) = M n s (F.substa f  <$> es) k
+  -- substf f  (M n s es _) = M n s $ F.substf f  <$> es
+  -- subst  su (M n s es _) = M n s $ F.subst  su <$> es
 
 instance F.Subable (Def ty ctor) where
   syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ F.syms bd
@@ -2159,12 +2179,11 @@ data Output a = O
   } deriving (Typeable, Generic, Functor)
 
 emptyOutput :: Output a
-emptyOutput = O Nothing {- [] -} mempty mempty [] mempty
+emptyOutput = O Nothing mempty mempty [] mempty
 
 instance Monoid (Output a) where
   mempty        = emptyOutput
   mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
-                    -- , o_errors = sortNub  $  mappend (o_errors o1) (o_errors o2)
                     , o_types  =             mappend (o_types  o1) (o_types  o2)
                     , o_templs =             mappend (o_templs o1) (o_templs o2)
                     , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
