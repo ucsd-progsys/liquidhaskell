@@ -30,7 +30,7 @@ import           Data.Proxy
 import qualified Data.Text                       as ST
 import qualified Data.Text.Lazy.Builder          as Builder
 import           Data.Text.Format                hiding (print)
-import           Data.Monoid
+-- import           Data.Monoid
 import           Text.Printf
 
 import           Language.Fixpoint.Smt.Interface -- hiding (SMTLIB2(..))

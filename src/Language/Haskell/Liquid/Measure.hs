@@ -26,10 +26,9 @@ import           DataCon
 import           GHC                                    hiding (Located)
 import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
-import           Text.PrettyPrint.HughesPJ.Compat
+import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 
 import           Type
 import           Var
--- import           Data.Serialize                         (Serialize)
 import           Data.Binary                            as B
 import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M

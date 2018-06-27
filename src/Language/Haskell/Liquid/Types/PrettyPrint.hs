@@ -29,13 +29,13 @@ import           ErrUtils                         (ErrMsg)
 import           GHC                              (Name, Class)
 import           HscTypes                         (SourceError)
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types          as F -- hiding (Error, SrcSpan, Predicate)
+import qualified Language.Fixpoint.Types          as F 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types    -- hiding (sort)
+import           Language.Haskell.Liquid.Types    
 import           Prelude                          hiding (error)
 import           SrcLoc
-import           Text.PrettyPrint.HughesPJ.Compat
+import           Text.PrettyPrint.HughesPJ        hiding ((<>))
 import           TyCon                            (TyCon)
 import           Language.Haskell.Liquid.GHC.TypeRep                          hiding (maybeParen)
 import           Var                              (Var)

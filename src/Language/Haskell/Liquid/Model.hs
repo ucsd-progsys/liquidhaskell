@@ -321,6 +321,8 @@ monomorphize preds t = foldM (\s tv -> monomorphizeOne preds tv s)
   where
     varSetElems _ = []
 
+thd5 (_,_,x,_,_) = x 
+
 monomorphizeOne :: [PredType] -> TyVar -> Maybe Su -> Ghc (Maybe Su)
 monomorphizeOne _preds _tv Nothing = return Nothing
 monomorphizeOne preds tv (Just su)
@@ -328,7 +330,7 @@ monomorphizeOne preds tv (Just su)
   = return (monomorphizeFree tv su)
 
   | otherwise
-  = do insts <- concatMapM (fmap (thd4 . fromJust)
+  = do insts <- concatMapM (fmap (thd5 . fromJust)
                             . getInfo False . getName)
                            clss
        if any (\ClsInst {..} -> length is_tys /= 1) insts
@@ -379,6 +381,9 @@ hscParsedStmt :: HscEnv
               -> IO ( Maybe ([Id]
                     , IO [HValue]
                     , FixityEnv))
+
+hscParsedStmt = error "TODO: deprecated in GHC-8.4" 
+{- SUPPRESSED IN GHC-8.4
 hscParsedStmt hsc_env parsed_stmt = runInteractiveHsc hsc_env $ do
 
   -- Rename and typecheck it
@@ -399,6 +404,8 @@ hscParsedStmt hsc_env parsed_stmt = runInteractiveHsc hsc_env $ do
   let hval_io = unsafeCoerce# hval :: IO [HValue]
 
   return $ Just (ids, hval_io, fix_env)
+
+ -}
 
 handleWarnings :: Hsc ()
 handleWarnings = do
@@ -429,7 +436,9 @@ logWarnings w = Hsc $ \_ w0 -> return ((), w0 `unionBags` w)
 --                      -> IO ([TyThing], InteractiveContext)
 hscParsedDecls :: HscEnv
                -> [LHsDecl RdrName] -> IO ([TyThing], InteractiveContext)
-hscParsedDecls hsc_env0 decls =
+hscParsedDecls _hsc_env0 _decls =
+  error "DEPRECATED GHC-8.4"
+  {- 
  runInteractiveHsc hsc_env0 $ do
 
     {- Rename and typecheck it -}
@@ -498,3 +507,5 @@ hscParsedDecls hsc_env0 decls =
                                             cls_insts fam_insts defaults emptyFixityEnv
     -- extendInteractiveContext :: InteractiveContext -> [TyThing] -> [ClsInst] -> [FamInst] -> Maybe [Type] -> FixityEnv -> InteractiveContext                                        
     return (tythings, ictxt)
+
+  -}

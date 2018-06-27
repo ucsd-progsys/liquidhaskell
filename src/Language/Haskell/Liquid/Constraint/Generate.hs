@@ -43,7 +43,7 @@ import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 import           Unify
 import           UniqSet (mkUniqSet)
-import           Text.PrettyPrint.HughesPJ.Compat
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
 import qualified Data.HashMap.Strict                           as M

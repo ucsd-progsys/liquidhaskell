@@ -1,10 +1,7 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Language.Haskell.Liquid.Termination.Structural (
 
-  terminationCheck
-
-  ) where
+module Language.Haskell.Liquid.Termination.Structural (terminationCheck) where
 
 import Language.Haskell.Liquid.Types hiding (terminationCheck)
 import Language.Fixpoint.Types.Errors
@@ -15,8 +12,8 @@ import Var
 import Name (getSrcSpan)
 import VarSet
 
-import Text.PrettyPrint.HughesPJ.Compat
-import qualified Data.HashSet                           as S
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
+import qualified Data.HashSet  as S
 
 
 terminationCheck :: GhcInfo -> Output Doc

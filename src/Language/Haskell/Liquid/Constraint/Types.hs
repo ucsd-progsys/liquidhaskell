@@ -60,13 +60,14 @@ import           SrcLoc
 import           Unify (tcUnifyTy)
 import qualified TyCon   as TC
 import qualified DataCon as DC
-import           Text.PrettyPrint.HughesPJ.Compat
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
+
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
 import           Language.Haskell.Liquid.Types.Strata

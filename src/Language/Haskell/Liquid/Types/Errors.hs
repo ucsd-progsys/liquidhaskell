@@ -59,12 +59,12 @@ import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
 import qualified Data.Binary as B
 import           Data.Maybe
-import           Text.PrettyPrint.HughesPJ.Compat
+import           Text.PrettyPrint.HughesPJ 
 import           Data.Aeson hiding (Result)
 import qualified Data.HashMap.Strict as M
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import qualified Language.Fixpoint.Misc     as Misc
-import           Language.Haskell.Liquid.Misc (intToString)
+import           Language.Haskell.Liquid.Misc ((<->), intToString)
 import           Text.Parsec.Error            (ParseError)
 import qualified Control.Exception as Ex
 import           System.Directory

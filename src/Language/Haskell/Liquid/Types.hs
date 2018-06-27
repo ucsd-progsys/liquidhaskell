@@ -234,11 +234,11 @@ import           GHC.Generics
 import           Module                                 (moduleNameFS)
 import           NameSet
 import           PrelInfo                               (isNumericClass)
-import Prelude                          hiding  (error)
+import           Prelude                          hiding  (error)
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
 import           Type                                   (getClassPredTys_maybe)
-import           Language.Haskell.Liquid.GHC.TypeRep                          hiding  (maybeParen, pprArrowChain)
+import           Language.Haskell.Liquid.GHC.TypeRep    hiding  (maybeParen)
 import           TysPrim                                (eqReprPrimTyCon, eqPrimTyCon)
 import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
@@ -255,20 +255,13 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Maybe                             (fromMaybe, mapMaybe)
-
 import           Data.List                              (foldl', nub)
 import           Data.Text                              (Text)
-
-
-
-import           Text.PrettyPrint.HughesPJ.Compat
+import           Text.PrettyPrint.HughesPJ hiding (first, (<>)) 
 import           Text.Printf
-
 import           Language.Fixpoint.Misc
--- import           Language.Fixpoint.Types                hiding (SmtSort (..), DataDecl, Error, SrcSpan, Result, Predicate, R)
 
 import qualified Language.Fixpoint.Types as F
-
 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Variance

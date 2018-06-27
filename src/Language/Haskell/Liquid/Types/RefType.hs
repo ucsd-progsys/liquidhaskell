@@ -95,32 +95,27 @@ import qualified TyCon  as TC
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred, isEqPred, isNomEqPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
--- import TysPrim          (eqPrimTyCon)
--- import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-
-import Control.Monad  (void)
-import Text.Printf
-import Text.PrettyPrint.HughesPJ.Compat
-
-import Language.Haskell.Liquid.Types.Errors
-import Language.Haskell.Liquid.Types.PrettyPrint
+import           Control.Monad  (void)
+import           Text.Printf
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
+import           Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
-import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
-import Language.Haskell.Liquid.Types hiding (R, DataConP (..))
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.PrettyPrint
 
-import Language.Haskell.Liquid.Types.Variance
-
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Types.Names
-import Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.Types hiding (R, DataConP (..))
+import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
+import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
 
 import Data.List (sort, foldl')
 
