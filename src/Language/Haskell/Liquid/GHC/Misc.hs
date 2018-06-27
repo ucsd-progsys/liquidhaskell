@@ -729,6 +729,19 @@ showCBs untidy
   | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
   | otherwise = showPpr
 
+
+ignoreCoreBinds :: [Var] -> [CoreBind] -> [CoreBind]
+ignoreCoreBinds vs cbs 
+  | null vs         = cbs 
+  | otherwise       = concatMap go cbs
+  where
+    go :: CoreBind -> [CoreBind]
+    go b@(NonRec x _) 
+      | x `elem` vs = [] 
+      | otherwise   = [b] 
+    go (Rec xes)    = [Rec (filter ((`notElem` vs) . fst) xes)]
+
+
 findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
 findVarDef x cbs = case xCbs of
                      (NonRec v def   : _ ) -> Just (v, def)

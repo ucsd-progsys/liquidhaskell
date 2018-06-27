@@ -207,7 +207,7 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e                   = F.notracepp "CORE-TO-DEF" <$> (go [] $ inlinePreds $ simplify e)
+coreToDef x _ e                   = {- F.notracepp "CORE-TO-DEF" <$>  -} (go [] $ inlinePreds $ simplify e)
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e

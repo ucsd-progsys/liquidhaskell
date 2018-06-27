@@ -49,8 +49,8 @@ instance ExpandAliases ty => ExpandAliases (Def ty ctor) where
           <*> expand z b
 
 instance ExpandAliases ty => ExpandAliases (Measure ty ctor) where
-  expand z (M n t ds) =
-    M n <$> expand z t <*> expand z ds
+  expand z (M n t ds k) =
+    M n <$> expand z t <*> expand z ds <*> pure k
 
 instance ExpandAliases DataConP where
   expand z d = do

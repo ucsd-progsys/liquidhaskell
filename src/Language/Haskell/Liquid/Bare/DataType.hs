@@ -82,7 +82,7 @@ makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
                                 , ty  <- maybeToList (famInstTyConType c) ]
-    embed embs (c, t)     = M.insert c t embs
+    embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
     cs                    = F.notracepp "famInstTcs-all" cs0
 
 famInstTyConType :: TyCon -> Maybe Type
@@ -93,16 +93,9 @@ famInstTyConType c = case tyConFamInst_maybe c of
 famInstType :: Int -> TyCon -> [Type] -> Type
 famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
 
--- famInstSort :: F.TCEmb TyCon -> TyCon -> Maybe F.Sort
--- famInstSort embs c = tcAppSort embs <$> tyConFamInst_maybe c
-
--- tcAppSort :: F.TCEmb TyCon -> (TyCon, [Type]) -> F.Sort
--- tcAppSort embs (c, ts) = RT.typeSort embs (Type.mkTyConApp c ts)
-
 {- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
      in two ways: (1) As an applied type, (2) As a special tycon.
      For example, consider `tests/pos/ExactGADT4.hs`:
-
 
         class PersistEntity record where
           data EntityField record :: * -> *
@@ -142,9 +135,9 @@ makeNumEmbeds (Just is) x = L.foldl' makeNumericInfoOne x is
 makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
 makeNumericInfoOne m is
   | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip mappendSortFTC) tc (ftc tc True True) m
+  = F.tceInsertWith (flip mappendSortFTC) tc (ftc tc True True) F.NoArgs m
   | isNumCls  $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
-  = M.insertWith (flip mappendSortFTC) tc (ftc tc True False) m
+  = F.tceInsertWith (flip mappendSortFTC) tc (ftc tc True False) F.NoArgs m
   | otherwise
   = m
   where
@@ -657,12 +650,12 @@ qualifyField name lx
    x         = val lx
    needsQual = not (isWiredIn lx)
 
-makeTyConEmbeds :: (ModName,Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
+makeTyConEmbeds :: (ModName, Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
 makeTyConEmbeds (mod, spec)
-  = inModule mod $ makeTyConEmbeds' $ Ms.embeds spec
+  = inModule mod . makeTyConEmbeds' $ Ms.embeds spec
 
 makeTyConEmbeds' :: F.TCEmb LocSymbol -> BareM (F.TCEmb TyCon)
-makeTyConEmbeds' z = M.fromList <$> mapM tx (M.toList z)
+makeTyConEmbeds' z = F.tceFromList <$> mapM tx (F.tceToList z)
   where
     tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 
@@ -680,7 +673,7 @@ makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$
     where
     ts :: [ LocSpecType ]
     ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
-                               [(z, res, mempty)]
+                               [] [(z, res, mempty)]
                                (dropPreds (F.subst su t `RT.strengthen` mt)))
            | (x, t) <- reverse args -- NOTE: the reverse here is correct
            , let vv = rTypeValueVar t

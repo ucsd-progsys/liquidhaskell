@@ -257,6 +257,11 @@ btP = do
             return (PC sb (rFun b t1 t2)))
         <|>
          (do
+            reservedOp "~>"
+            PC _ t2 <- btP
+            return (PC sb (rImpF b t1 t2)))
+        <|>
+         (do
             reservedOp "=>"
             PC _ t2 <- btP
             -- TODO:AZ return an error if s == PcExplicit
@@ -525,9 +530,11 @@ constraintP
        t1  <- bareTypeP
        reservedOp "<:"
        t2  <- bareTypeP
-       return $ fromRTypeRep $ RTypeRep [] [] [] ((val . fst <$> xts) ++ [dummySymbol])
-                                                 (replicate (length xts + 1) mempty)
-                                                 ((snd <$> xts) ++ [t1]) t2
+       return $ fromRTypeRep $ RTypeRep [] [] []
+                                        [] [] []
+                                        ((val . fst <$> xts) ++ [dummySymbol])
+                                        (replicate (length xts + 1) mempty)
+                                        ((snd <$> xts) ++ [t1]) t2
 
 constraintEnvP :: Parser [(LocSymbol, BareType)]
 constraintEnvP
@@ -857,7 +864,7 @@ data Pspec ty ctor
   | IAlias  (ty, ty)
   | Alias   (RTAlias Symbol BareType)
   | EAlias  (RTAlias Symbol Expr)
-  | Embed   (LocSymbol, FTycon)
+  | Embed   (LocSymbol, FTycon, TCArgs)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
   | LVars   LocSymbol
@@ -866,6 +873,7 @@ data Pspec ty ctor
   | HMeas   LocSymbol
   | Reflect LocSymbol
   | Inline  LocSymbol
+  | Ignore  LocSymbol
   | ASize   LocSymbol
   | HBound  LocSymbol
   | PBound  (Bound ty Expr)
@@ -932,7 +940,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.includes   = [q | Incl   q <- xs]
   , Measure.aliases    = [a | Alias  a <- xs]
   , Measure.ealiases   = [e | EAlias e <- xs]
-  , Measure.embeds     = M.fromList [(c, fTyconSort tc) | Embed (c, tc) <- xs]
+  , Measure.embeds     = tceFromList [(c, (fTyconSort tc, a)) | Embed (c, tc, a) <- xs]
   , Measure.qualifiers = [q | Qualif q <- xs]
   , Measure.decr       = [d | Decr d   <- xs]
   , Measure.lvars      = [d | LVars d  <- xs]
@@ -949,6 +957,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
   , Measure.inlines    = S.fromList [s | Inline s <- xs]
+  , Measure.ignores    = S.fromList [s | Ignore s <- xs]
   , Measure.autosize   = S.fromList [s | ASize  s <- xs]
   , Measure.hbounds    = S.fromList [s | HBound s <- xs]
   , Measure.defs       = M.fromList [d | Define d <- xs]
@@ -974,6 +983,7 @@ specP
     <|> (reserved "infixr"        >> liftM BFix    infixrP  )
     <|> (reserved "infix"         >> liftM BFix    infixP   )
     <|> (fallbackSpecP "inline"     (liftM Inline  inlineP  ))
+    <|> (fallbackSpecP "ignore"     (liftM Ignore  inlineP  ))
 
     <|> (fallbackSpecP "bound"    (((liftM PBound  boundP   )
                                 <|> (liftM HBound  hboundP  ))))
@@ -1116,9 +1126,14 @@ invaliasP
 genBareTypeP :: Parser BareType
 genBareTypeP = bareTypeP
 
-embedP :: Parser (Located Symbol, FTycon)
-embedP
-  = xyP locUpperIdP (reserved "as") fTyConP
+embedP :: Parser (Located Symbol, FTycon, TCArgs)
+embedP = do 
+  x <- locUpperIdP 
+  a <- try (reserved "*" >> return WithArgs) <|> return NoArgs 
+  _ <- spaces >> reserved "as"
+  t <- fTyConP   
+  return (x, t, a)
+  --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 
 aliasP :: Parser (RTAlias Symbol BareType)
@@ -1156,23 +1171,22 @@ hmeasureP = do
        ty <- locParserP genBareTypeP
        whiteSpace
        eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
-       return (Meas $ Measure.mkM b ty eqns))
+       return (Meas $ Measure.mkM b ty eqns MsMeasure))
     <|> (return (HMeas b))
     )
 
 measureP :: Parser (Measure (Located BareType) LocSymbol)
-measureP
-  = do (x, ty) <- tyBindP
-       whiteSpace
-       eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
-       return   $ Measure.mkM x ty eqns
-
+measureP = do 
+  (x, ty) <- tyBindP
+  whiteSpace
+  eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
+  return   $ Measure.mkM x ty eqns MsMeasure
 
 -- | class measure
 cMeasureP :: Parser (Measure (Located BareType) ())
 cMeasureP
   = do (x, ty) <- tyBindP
-       return $ Measure.mkM x ty []
+       return $ Measure.mkM x ty [] MsClass
 
 iMeasureP :: Parser (Measure (Located BareType) LocSymbol)
 iMeasureP = measureP
@@ -1253,6 +1267,7 @@ tyBodyP ty
       _         -> E <$> exprP
     where outTy (RAllT _ t)    = outTy t
           outTy (RAllP _ t)    = outTy t
+          outTy (RImpF _ _ t _)= Just t
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 

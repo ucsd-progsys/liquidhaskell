@@ -218,11 +218,27 @@ use the option
 To additionally turn on _proof by logical evaluation_ use the option
 
 ```haskell
-    {-@ LIQUID "--reflection" @-}
+    {-@ LIQUID "--ple" @-}
 ```
 
 You can see many examples of proofs by logical evaluation in `benchmarks/popl18/ple/pos`
 
+This flag is **global** and will symbolically evaluate all the terms that appear in the specifications.
+
+As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
+
+```
+{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+```
+
+will only evaluate terms appearing in the specifications
+of the function `theorem`, in the function `theorem` is
+annotated for automatic instantiation using the following
+liquid annotation
+
+```
+{-@ automatic-instances theorem @-}
+```
 
 Incremental Checking
 --------------------
@@ -333,6 +349,22 @@ By default, the inferred types will have fully qualified module names.
 To use unqualified names, much easier to read, use:
 
     --short-names
+
+Disabling Checks on Functions
+-----------------------------
+
+You can _disable_ checking of a particular function (e.g. because it is unsafe,
+or somehow not currently outside the scope of LH) by using the `ignore` directive.
+
+For example,
+
+```haskell
+{-@ ignore foo @-}
+```
+
+will _disable_ the checking of the code for the top-level binder `foo`.
+
+See `tests/pos/Ignores.hs` for an example.
 
 
 Totality Check
@@ -898,13 +930,30 @@ simply as plain Haskell GADTs but suitably refined.
 Apologies for the minimal documentation; see the
 following examples for details:
 
-* [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndEven.hs)
-* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndPerm.hs)
-* [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/IndStar.hs)
+* [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndEven.hs)
+* [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPerm.hs)
+* [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndStar.hs)
+* [RegExp Derivatives](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/RegexpDerivative.hs)
+* [Type Safety of STLC](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/STLC2.hs)
 
+Implicit Arguments
+------------------
 
+**Experimental**
 
+There is experimental support for implicit arguments, solved for with congruence closure. For example, consider [Implicit1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Implicit1.hs):
 
+```haskell
+{-@ type IntN N = {v:Int | v = N} @-}
+
+{-@ foo :: n:Int ~> (() -> IntN n) -> IntN {n+1} @-}
+foo f = 1 + f ()
+
+{-@ test1 :: IntN 11 @-}
+test1 = foo (\_ -> 10)
+```
+
+Here, the refinement on `(\_ -> 10) :: Int -> { v:Int | v = 10 }` allows us to solve for `n = 10`, the implicit argument to `foo`.
 
 
 Refinement Type Aliases
@@ -1063,7 +1112,7 @@ The above definition
     then the auto generated singleton type is overwritten.
 
 Inlines 
--------------------
+-------
 
 The `inline`  lets you use a Haskell function in a type specification. 
 
@@ -1415,25 +1464,3 @@ Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 
 + The `A` component shall be updated at the sole discretion of the project owners.
 
-Proof Automation
-----------------
-The `liquidinstances` automatically generates proof terms using symbolic evaluation. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/MonoidList.hs).
-
-```
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
-```
-
-This flag is **global** and will symbolically evaluation all the terms that appear in the specifications.
-
-As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
-
-```
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
-```
-
-will only evaluate terms appearing in the specifications of the function `theorem`, in the function `theorem` is annotated
-for automatic instantiation using the following liquid annotation
-
-```
-{-@ automatic-instances theorem @-}
-```

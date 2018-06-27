@@ -87,7 +87,7 @@ specAliases :: GhcInfo -> [RTAlias RTyVar SpecType]
 specAliases = M.elems . typeAliases . gsRTAliases . spec
 
 validQual :: SEnv Sort -> Qualifier -> Bool
-validQual lEnv q = isJust $ checkSortExpr env (qBody q)
+validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)
   where
     env          = unionSEnv lEnv qEnv
     qEnv         = M.fromList (qualBinds q)
@@ -192,7 +192,7 @@ refTopQuals lEnv l tce t0 γ t
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
                    , not $ isGradual pa
-                   , isNothing $ checkSorted (insertSEnv v so γ') pa
+                   , isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t

@@ -78,6 +78,7 @@ data Spec ty bndr  = Spec
   , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
   , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
   , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
+  , ignores    :: !(S.HashSet LocSymbol)         -- ^ Binders to ignore during checking; that is DON't check the corebind. 
   , autosize   :: !(S.HashSet LocSymbol)         -- ^ Type Constructors that get automatically sizing info
   , pragmas    :: ![Located String]              -- ^ Command-line configurations passed in through source
   , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
@@ -100,25 +101,25 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
   where
     tx = fmap (qualifySymbol name)
 
-mkM ::  LocSymbol -> ty -> [Def ty bndr] -> Measure ty bndr
-mkM name typ eqns
+mkM ::  LocSymbol -> ty -> [Def ty bndr] -> MeasureKind -> Measure ty bndr
+mkM name typ eqns kind
   | all ((name ==) . measure) eqns
-  = M name typ eqns
+  = M name typ eqns kind
   | otherwise
   = panic Nothing $ "invalid measure definition for " ++ show name
 
 mkMSpec' :: Symbolic ctor => [Measure ty ctor] -> MSpec ty ctor
 mkMSpec' ms = MSpec cm mm M.empty []
   where
-    cm     = groupMap (symbol . ctor) $ concatMap eqns ms
-    mm     = M.fromList [(name m, m) | m <- ms ]
+    cm     = groupMap (symbol . ctor) $ concatMap msEqns ms
+    mm     = M.fromList [(msName m, m) | m <- ms ]
 
 mkMSpec :: [Measure t LocSymbol] -> [Measure t ()] -> [Measure t LocSymbol] -> MSpec t LocSymbol
 mkMSpec ms cms ims = MSpec cm mm cmm ims
   where
-    cm     = groupMap (val . ctor) $ concatMap eqns (ms'++ims)
-    mm     = M.fromList [(name m, m) | m <- ms' ]
-    cmm    = M.fromList [(name m, m) | m <- cms ]
+    cm     = groupMap (val . ctor) $ concatMap msEqns (ms'++ims)
+    mm     = M.fromList [(msName m, m) | m <- ms' ]
+    cmm    = M.fromList [(msName m, m) | m <- cms ]
     ms'    = checkDuplicateMeasure ms
 
 
@@ -126,9 +127,9 @@ checkDuplicateMeasure :: [Measure ty ctor] -> [Measure ty ctor]
 checkDuplicateMeasure ms
   = case M.toList dups of
       []         -> ms
-      (m,ms):_   -> uError $ err m (name <$> ms)
+      (m,ms):_   -> uError $ err m (msName <$> ms)
     where
-      gms        = group [(name m , m) | m <- ms]
+      gms        = group [(msName m , m) | m <- ms]
       dups       = M.filter ((1 <) . length) gms
       err m ms   = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
@@ -166,13 +167,14 @@ instance Monoid (Spec ty bndr) where
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , dvariance  =           dvariance  s1 ++ dvariance  s2
            , axeqs      =           axeqs s1      ++ axeqs s2
-           , embeds     = M.union   (embeds   s1)  (embeds   s2)
+           , embeds     = mappend   (embeds   s1)  (embeds   s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
         -- , axioms     = S.union   (axioms s1) (axioms s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
            , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
            , inlines    = S.union   (inlines  s1)  (inlines  s2)
+           , ignores    = S.union   (ignores  s1)  (ignores  s2)
            , autosize   = S.union   (autosize s1)  (autosize s2)
            , bounds     = M.union   (bounds   s1)  (bounds   s2)
            , defs       = M.union   (defs     s1)  (defs     s2)
@@ -193,7 +195,7 @@ instance Monoid (Spec ty bndr) where
            , includes   = []
            , aliases    = []
            , ealiases   = []
-           , embeds     = M.empty
+           , embeds     = mempty
            , qualifiers = []
            , decr       = []
            , lvars      = []
@@ -204,6 +206,7 @@ instance Monoid (Spec ty bndr) where
            , reflects   = S.empty
            , hbounds    = S.empty
            , inlines    = S.empty
+           , ignores    = S.empty
            , autosize   = S.empty
            , pragmas    = []
            , cmeasures  = []
@@ -220,7 +223,7 @@ instance Monoid (Spec ty bndr) where
 dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbol, RRType Reft)])
 dataConTypes  s = (ctorTys, measTys)
   where
-    measTys     = [(name m, sort m) | m <- M.elems (measMap s) ++ imeas s]
+    measTys     = [(msName m, msSort m) | m <- M.elems (measMap s) ++ imeas s]
     ctorTys     = concatMap makeDataConType (snd <$> M.toList (ctorMap s))
 
 makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
@@ -320,9 +323,10 @@ mapArgumens lc t1 t2 = go xts1' xts2'
       = panic (Just $ sourcePosSrcSpan lc) ("The types for the wrapper and worker data constructors cannot be merged\n"
           ++ show t1 ++ "\n" ++ show t2 )
 
+-- should constructors have implicits? probably not
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f args dc mt xs body)
-                     = notracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] xts t'
+                     = notracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] [] xts t'
   where
     xts              = stitchArgs (fSrcSpan f) dc (notracepp ("FIELDS-XS: " ++ showpp f) xs) (notracepp ("FIELDS-TS: " ++ showpp f ++ " tdc = " ++ showpp tdc) ts)
     t                = fromMaybe (ofType tr) mt

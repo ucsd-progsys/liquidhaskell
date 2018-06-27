@@ -65,7 +65,7 @@ import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Types.PrettyPrint
-import Language.Haskell.Liquid.Types       hiding (name, typ)
+import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 

@@ -32,7 +32,7 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F -- hiding (Error, SrcSpan, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types    hiding (sort)
+import           Language.Haskell.Liquid.Types    -- hiding (sort)
 import           Prelude                          hiding (error)
 import           SrcLoc
 import           Text.PrettyPrint.HughesPJ
@@ -173,6 +173,8 @@ ppr_rtype bb p t@(RAllS _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = F.ppTy r $ pprint a
+ppr_rtype bb p t@(RImpF _ _ _ _)
+  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p t@(RFun _ _ _ _)
   = maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
@@ -285,6 +287,8 @@ ppr_rty_fun bb prefix t
 ppr_rty_fun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
+ppr_rty_fun' bb (RImpF b t t' r)
+  = F.ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb (text "~>") t'
 ppr_rty_fun' bb (RFun b t t' r)
   = F.ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t

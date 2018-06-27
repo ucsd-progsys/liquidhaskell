@@ -136,8 +136,6 @@ getFamInstances env = do
   (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
   return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
 
-
-
 initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
 initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
   where
@@ -190,15 +188,15 @@ postProcess cbs specEnv sp@(SP {..})
     allowHO           = higherOrderFlag gsConfig
 
 ghcSpecEnv :: GhcSpec -> [Var] -> SEnv SortedReft
-ghcSpecEnv sp defs   = res
+ghcSpecEnv sp _defs  = fromListSEnv binds
   where
-    res              = fromListSEnv binds
     emb              = gsTcEmbeds sp
     binds            =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas sp])
                      ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp,
-                                                                 isConLikeId v ]
-                     ++ [(symbol x, vSort x) |  x  <- defs]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
+
+                     -- WHY?!! ++ [(symbol x, vSort x) |  x  <- defs]
+
     rSort t          = rTypeSortedReft emb t
     vSort            = rSort . varRSort
     varRSort         :: Var -> RSort
@@ -277,9 +275,7 @@ reflectedTyCons cfg embs cbs spec
 --   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
 --   or its embedding, a bool?
 isEmbedded :: TCEmb TyCon -> TyCon -> Bool
-isEmbedded embs c = M.member c embs
-
-
+isEmbedded embs c = F.tceMember c embs
 
 varTyCons :: Var -> [TyCon]
 varTyCons = specTypeCons . ofType . varType
@@ -379,16 +375,19 @@ checkLifted :: M.HashMap Symbol Var -> LocSymbol -> Bool
 checkLifted symm x = M.member (val x) symm
 
 -- TODO: move into Check.hs
-checkShadowedSpecs :: [Measure ta ca] -> [Measure tb cb] -> [LocSymbol] -> [Var] -> BareM ()
-checkShadowedSpecs myDcs myMeas myExportSyms defVars = do
+checkShadowedSpecs :: [Measure ta ca] -> [Measure tb cb] -> [(Symbol, Var)] -> [Var] -> BareM ()
+checkShadowedSpecs myDcs myMeas myExports defVars = do
   checkDisjoint dcSyms   measSyms
   checkDisjoint dcSyms   myExportSyms
   checkDisjoint measSyms myExportSyms
-  checkDisjoint measSyms defSyms
+  checkDisjoint cncMeas defSyms         -- Why 'cncMeas' and not 'measSyms'? see tests/pos/T1223.hs
   where
-    dcSyms   = name <$> myDcs
-    measSyms = name <$> myMeas
-    defSyms  = varLocSimpleSym <$> defVars
+    myExportSyms = [ atLoc (GM.locNamedThing v) (symbol v) |  (_, v) <- myExports ]
+    dcSyms   = msName <$> myDcs
+    measSyms = msName <$> myMeas
+    cncMeas = [ msName m | m <- myMeas, not (isAbs m) ] 
+    defSyms = varLocSimpleSym <$> defVars
+    isAbs m  = F.notracepp ("isAbs " ++ showpp (msName m)) (null (msEqns m) && msKind m == MsMeasure)
 
 checkDisjoint :: [LocSymbol] -> [LocSymbol] -> BareM ()
 checkDisjoint xs ys
@@ -397,7 +396,7 @@ checkDisjoint xs ys
   where
     dups              = M.elems $ M.intersectionWith (,) (symMap xs) (symMap ys)
     symMap  zs        = M.fromList [ (val z, z) | z <- zs ]
-    err x y           = ErrDupSpecs (GM.fSrcSpan x) (pprint $ val x) [GM.fSrcSpan y]
+    err x y           = ErrDupSpecs (GM.fSrcSpan x) (pprint (val x)) [GM.fSrcSpan y]
 
 --------------------------------------------------------------------------------
 makeGhcSpec'
@@ -420,7 +419,8 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
 
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
-  checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
+  -- checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
+  checkShadowedSpecs dcSs (Ms.measures mySpec) syms0 defVars
   makeBounds embs name defVars cbs specs
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
@@ -432,7 +432,7 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
   let syms  = syms0 ++ syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
-  makeGhcSpec0 cfg defVars exports name adts (emptySpec cfg)
+  makeGhcSpec0 cfg defVars exports name adts (Ms.ignores fullSpec) (emptySpec cfg) 
     >>= makeGhcSpec1 syms vars defVars embs tyi exports name sigs (recSs ++ asms) cs'  ms' cms' su
     >>= makeGhcSpec2 invs ntys ialias measures su syms
     >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
@@ -450,7 +450,7 @@ measureSymbols :: MSpec SpecType DataCon -> [LocSymbol]
 measureSymbols measures = zs
   where
     -- msg = "MEASURE-SYMBOLS" ++ showpp [(loc v, val v) | v <- zs]
-    zs = [ name m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
+    zs = [ msName m | m <- M.elems (Ms.measMap measures) ++ Ms.imeas measures ]
 
 addRTEnv :: GhcSpec -> BareM GhcSpec
 addRTEnv spec = do
@@ -521,6 +521,7 @@ emptySpec cfg = SP
   , gsQualifiers = mempty
   , gsADTs       = mempty
   , gsTgtVars    = mempty
+  , gsIgnoreVars = mempty
   , gsDecr       = mempty
   , gsTexprs     = mempty
   , gsNewTypes   = mempty
@@ -547,15 +548,20 @@ makeGhcSpec0 :: Config
              -> NameSet
              -> ModName
              -> [F.DataDecl]
+             -> S.HashSet LocSymbol
              -> GhcSpec
              -> BareM GhcSpec
-makeGhcSpec0 cfg defVars exports name adts sp
-  = do targetVars <- makeTargetVars name defVars $ checks cfg
-       return      $ sp { gsConfig  = cfg
-                        , gsExports = exports
-                        , gsTgtVars = targetVars
-                        , gsADTs    = adts
-                        }
+makeGhcSpec0 cfg defVars exports name adts ignoreVars sp = do
+  targetVars <- makeTargetVars name defVars (checks cfg) 
+  igVars     <- makeIgnoreVars name defVars ignoreVars 
+  return      $ sp 
+    { gsConfig     = cfg
+    , gsExports    = exports
+    , gsTgtVars    = targetVars
+    , gsADTs       = adts
+    , gsIgnoreVars = igVars 
+    }
+
 
 makeGhcSpec1 :: [(Symbol, Var)]
              -> [Var]
@@ -595,7 +601,7 @@ qualifyDefs :: [(Symbol, Var)] -> S.HashSet (Var, Symbol) -> S.HashSet (Var, Sym
 qualifyDefs syms = S.fromList . fmap (mapSnd (qualifySymbol syms)) . S.toList
 
 qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
-qualifyMeasure syms m = m { name = qualifyLocSymbol (qualifySymbol syms) (name m) }
+qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
 
 qualifyRTyCon :: (Symbol -> Symbol) -> RTyCon -> RTyCon
 qualifyRTyCon f rtc = rtc { rtc_info = qualifyTyConInfo f (rtc_info rtc) }
@@ -846,9 +852,6 @@ makeGhcSpecCHOP2 specs dcSelectors datacons cls embs = do
 txRefSort' :: NamedThing a => a -> TCEnv -> TCEmb TyCon -> SpecType -> LocSpecType
 txRefSort' v tyi embs t = txRefSort tyi embs (const t <$> GM.locNamedThing v) -- (atLoc' v t)
 
--- atLoc' :: NamedThing t => t -> a -> Located a
--- atLoc' v t = Loc (getSourcePos v) (getSourcePosE v)
-
 data ReplaceEnv = RE
   { _reEnv  :: M.HashMap Symbol Symbol
   , _reFEnv :: SEnv SortedReft
@@ -862,7 +865,12 @@ type ReplaceState = ( M.HashMap Var LocSpecType
 
 type ReplaceM = ReaderT ReplaceEnv (State ReplaceState)
 
--- ASKNIKI: WHAT DOES THIS FUNCTION DO?!!!!
+-- | GHC does a renaming step that assigns a Unique to each Id. It naturally
+--   ensures that n in n = length xs and | i >= n are the SAME n, i.e. they have
+--   the same Unique, but LH doesn't know anything about scopes when it
+--   processes the RTypes, so the n in {Nat | i <= n} gets a random Unique
+--   @replaceLocalBinds@'s job is to make sure the Uniques match see `LocalHole.hs`
+
 replaceLocalBinds :: Bool
                   -> TCEmb TyCon
                   -> M.HashMap TyCon RTyCon
@@ -875,7 +883,7 @@ replaceLocalBinds allowHO emb tyi senv cbs sigs texprs
   = (M.toList s, M.toList t)
   where
     (s, t) = execState (runReaderT (mapM_ (\x -> traverseBinds allowHO x (return ())) cbs)
-                                   (RE M.empty senv emb tyi))
+                                   (RE M.empty ( F.notracepp "REPLACE-LOCAL" senv )  emb tyi))
                        (M.fromList sigs,  M.fromList texprs)
 
 traverseExprs :: Bool -> CoreSyn.Expr Var -> ReplaceM ()

@@ -54,6 +54,10 @@ myConsoleReporter = combineReporters consoleTestReporter loggingTestReporter
 
 main :: IO ()
 main = do unsetEnv "LIQUIDHASKELL_OPTS"
+          -- We don't run tests in depedency order, so having stale
+          -- .liquid/ *.hs.bspec files can causes problems.
+          system "rm -r tests/pos/.liquid/"
+          system "rm -r tests/neg/.liquid/"
           run =<< tests
   where
     run   = defaultMainWithIngredients [
@@ -103,11 +107,11 @@ errorTests = group "Error-Messages"
   [ errorTest "tests/errors/ExportMeasure0.hs"      2 "Cannot lift `llen` into refinement logic"
   , errorTest "tests/errors/ExportMeasure1.hs"      2 "Cannot lift `psnd` into refinement logic"
   , errorTest "tests/errors/ExportReflect0.hs"      2 "Cannot lift `identity` into refinement logic"
+  , errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `Range.pig`"
+  , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Error: Multiple specifications for `Range.pig`"
   , errorTest "tests/errors/MultiRecSels.hs"        2 "Duplicated definitions for field `left`"
   , errorTest "tests/errors/DupFunSigs.hs"          2 "Multiple specifications for `Main.fromWeekDayNum`"
   , errorTest "tests/errors/DupMeasure.hs"          2 "Multiple measures named `lenA`"
-  , errorTest "tests/errors/ShadowFieldInline.hs"   2 "Malformed application of type alias `Range.pig`"
-  , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Error: Illegal type specification for `Range.prop`"
   , errorTest "tests/errors/ShadowMeasure.hs"       2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/ShadowMeasureVar.hs"    2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/DupData.hs"             2 "Multiple specifications for `OVec`"
@@ -171,6 +175,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/InlineSubExp0.hs"       1 "== f B C"
   , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
   , errorTest "tests/errors/EmptySig.hs"            2 "Error: Cannot parse specification"
+  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
+  , errorTest "tests/errors/MissingReflect.hs"      2 "Error: Illegal type specification for `Main.empty_foo`" 
   ]
 
 unitTests :: IO TestTree
@@ -180,6 +186,8 @@ unitTests = group "Unit"
   , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
   , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
   , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
+  , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
+  , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)

@@ -24,8 +24,7 @@ _ ==. x = x
 -- | Specification of reverse' ------------------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ specReverse' :: xs:[a] -> ys:[a] 
-                 -> {reverse' xs ys = reverse xs ++ ys} @-}
+{-@ specReverse' :: xs:[a] -> ys:[a] -> {reverse' xs ys = reverse xs ++ ys} @-}
 specReverse' :: [a] -> [a] -> ()
 specReverse' _ _ = undefined   
 
@@ -35,7 +34,7 @@ specReverse' _ _ = undefined
 
 -- LH TODO: LH is not letting you define a measure and a Haskell function
 -- with the same name, for now...
-{- measure reverse' :: [a] -> [a] -> [a] @-}
+{-@ measure reverse' :: [a] -> [a] -> [a] @-}
 reverse' :: [a] -> [a] -> [a]
 {-@ reverse' :: xs:[a] -> ys:[a] -> { reverse' xs ys = reverse xs ++ ys } @-}
 reverse' [] ys 

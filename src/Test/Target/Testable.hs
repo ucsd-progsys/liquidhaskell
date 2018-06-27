@@ -207,9 +207,9 @@ setup = {-# SCC "setup" #-} do
    ms <- gets measEnv
    let defFun x t    = io $ smtWrite ctx $ Builder.toLazyText $ smt2 sEnv $ makeDecl (seData sEnv) x t
    forM_ ms $ \m -> do
-     let x = val (name m)
+     let x = val (msName m)
      unless (x `memberSEnv` (seTheory sEnv)) $
-       defFun x (rTypeSort emb (sort m))
+       defFun x (rTypeSort emb (msSort m))
    -- assert constraints
    cs <- gets constraints
    --mapM_ (\c -> do {i <- gets seed; modify $ \s@(GS {..}) -> s { seed = seed + 1 };
