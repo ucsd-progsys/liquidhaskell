@@ -95,6 +95,7 @@ module Language.Fixpoint.Types.Refinements (
 
   ) where
 
+import           Prelude hiding ((<>))
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)

@@ -85,9 +85,9 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import qualified Text.PrettyPrint.HughesPJ as PJ
 import qualified Data.HashMap.Strict       as M
-
     
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
@@ -106,9 +106,11 @@ data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool 
 mappendFTC :: FTycon -> FTycon -> FTycon
 mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2)
 
+instance Semigroup TCInfo where 
+  (TCInfo i1 i2 i3) <> (TCInfo i1' i2' i3') = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
+
 instance Monoid TCInfo where
-  mempty                                          = TCInfo defNumInfo defRealInfo defStrInfo
-  mappend (TCInfo i1 i2 i3)  (TCInfo i1' i2' i3') = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
+  mempty = TCInfo defNumInfo defRealInfo defStrInfo
 
 defTcInfo, numTcInfo, realTcInfo, strTcInfo :: TCInfo
 defTcInfo  = TCInfo defNumInfo defRealInfo defStrInfo
@@ -342,7 +344,7 @@ instance Fixpoint Sort where
   toFix = toFixSort
 
 toFixSort :: Sort -> Doc
-toFixSort (FVar i)     = text "@" <> parens (toFix i)
+toFixSort (FVar i)     = text "@" PJ.<> parens (toFix i)
 toFixSort FInt         = text "int"
 toFixSort FReal        = text "real"
 toFixSort FFrac        = text "frac"
@@ -354,7 +356,7 @@ toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
 
 toFixAbsApp :: Sort -> Doc
-toFixAbsApp t = text "func" <> parens (toFix n <> text ", " <> toFix ts)
+toFixAbsApp t = text "func" PJ.<> parens (toFix n <+> text "," <+> toFix ts)
   where
     Just (vs, ss, s) = functionSort t
     n                = length vs
@@ -459,13 +461,15 @@ instance NFData DataCtor
 instance NFData DataDecl
 instance NFData Sub
 
-instance Monoid Sort where
-  mempty            = FObj "any"
-  mappend t1 t2
+instance Semigroup Sort where
+  t1 <> t2
     | t1 == mempty  = t2
     | t2 == mempty  = t1
     | t1 == t2      = t1
     | otherwise     = errorstar $ "mappend-sort: conflicting sorts t1 =" ++ show t1 ++ " t2 = " ++ show t2
+
+instance Monoid Sort where
+  mempty  = FObj "any"
 
 
 -------------------------------------------------------------------------------
@@ -480,12 +484,14 @@ data TCArgs = WithArgs | NoArgs
 tceInsertWith :: (Eq a, Hashable a) => (Sort -> Sort -> Sort) -> a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsertWith f k t a (TCE m) = TCE (M.insertWith ff k (t, a) m)
   where 
-    ff (t1, a1) (t2, a2)      = (f t1 t2, mappend a1 a2)
+    ff (t1, a1) (t2, a2)      = (f t1 t2, a1 <> a2)
+
+instance Semigroup TCArgs where 
+  NoArgs <> NoArgs = NoArgs
+  _      <> _      = WithArgs
 
 instance Monoid TCArgs where 
-  mempty                = NoArgs 
-  mappend NoArgs NoArgs = NoArgs
-  mappend _      _      = WithArgs
+  mempty  = NoArgs 
 
 tceInsert :: (Eq a, Hashable a) => a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsert k t a (TCE m) = TCE (M.insert k (t, a) m)
@@ -493,9 +499,11 @@ tceInsert k t a (TCE m) = TCE (M.insert k (t, a) m)
 tceLookup :: (Eq a, Hashable a) => a -> TCEmb a -> Maybe (Sort, TCArgs) 
 tceLookup k (TCE m) = M.lookup k m
 
+instance (Eq a, Hashable a) => Semigroup (TCEmb a) where 
+  (TCE m1) <> (TCE m2) = TCE (m1 <> m2)
+
 instance (Eq a, Hashable a) => Monoid (TCEmb a) where 
   mempty                    = TCE mempty 
-  mappend (TCE m1) (TCE m2) = TCE (mappend m1 m2)
 
 tceFromList :: (Eq a, Hashable a) => [(a, (Sort, TCArgs))] -> TCEmb a
 tceFromList = TCE . M.fromList 

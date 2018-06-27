@@ -49,9 +49,11 @@ import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 
 data GSol = GSol !SymEnv !(M.HashMap KVar (Expr, GradInfo))
 
+instance Semigroup GSol where
+  (GSol e1 m1) <> (GSol e2 m2) = GSol (e1 <> e2) (m1 <> m2)
+
 instance Monoid GSol where
   mempty = GSol mempty mempty
-  mappend (GSol e1 m1) (GSol e2 m2) = GSol (mappend e1 e2) (mappend m1 m2)
 
 instance Show GSol where
   show (GSol _ m) = "GSOL = \n" ++ unlines ((\(k,(e, i)) -> showpp k ++ showInfo i ++  " |-> " ++ showpp (tx e)) <$> M.toList m)

@@ -67,7 +67,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
 import           Data.Function             (on)
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import           Control.DeepSeq
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -174,10 +174,11 @@ data SESearch a = Found a | Alts [Symbol]
 
 -- | Functions for Indexed Bind Environment
 
+instance Semigroup IBindEnv where
+  (FB e1) <> (FB e2) = FB (e1 <> e2)
 
 instance Monoid IBindEnv where
   mempty                  = emptyIBindEnv
-  mappend (FB e1) (FB e2) = FB (e1 `mappend` e2)
 
 emptyIBindEnv :: IBindEnv
 emptyIBindEnv = FB S.empty
@@ -271,15 +272,19 @@ instance (Fixpoint a) => Fixpoint (SEnv a) where
 instance Fixpoint (SEnv a) => Show (SEnv a) where
   show = render . toFix
 
+instance Semigroup (SEnv a) where
+  s1 <> s2 = SE $ M.union (seBinds s1) (seBinds s2)
+
 instance Monoid (SEnv a) where
   mempty        = SE M.empty
-  mappend s1 s2 = SE $ M.union (seBinds s1) (seBinds s2)
+
+instance Semigroup BindEnv where
+  (BE 0 _) <> b        = b
+  b        <> (BE 0 _) = b
+  _        <> _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid BindEnv where
   mempty = BE 0 M.empty
-  mappend (BE 0 _) b = b
-  mappend b (BE 0 _) = b
-  mappend _ _        = errorstar "mappend on non-trivial BindEnvs"
 
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
@@ -317,9 +322,11 @@ instance Fixpoint Packs where
 instance PPrint Packs where
   pprintTidy _ = toFix
 
+instance Semigroup Packs where
+  m1 <> m2 = Packs $ M.union (packm m1) (packm m2)
+
 instance Monoid Packs where
-  mempty        = Packs mempty
-  mappend m1 m2 = Packs $ M.union (packm m1) (packm m2)
+  mempty   = Packs mempty
 
 getPack :: KVar -> Packs -> Maybe Int
 getPack k (Packs m) = M.lookup k m

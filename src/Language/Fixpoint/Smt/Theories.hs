@@ -43,7 +43,7 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Smt.Types
 -- import qualified Data.HashMap.Strict      as M
 import           Data.Maybe (catMaybes)
-import           Data.Monoid
+-- import           Data.Monoid
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
 import           Data.Text.Format

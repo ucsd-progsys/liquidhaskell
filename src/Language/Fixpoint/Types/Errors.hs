@@ -100,7 +100,7 @@ instance Ord Error1 where
   compare = compare `on` errLoc
 
 instance PPrint Error1 where
-  pprintTidy k (Error1 l msg) = (pprintTidy k l <> ": Error")
+  pprintTidy k (Error1 l msg) = (pprintTidy k l <.> ": Error")
                                 $+$ nest 2 msg
 
 instance PPrint Error where
@@ -172,13 +172,15 @@ instance Eq a => Eq (FixResult a) where
   Safe      == Safe               = True
   _         == _                  = False
 
+instance Semigroup (FixResult a) where
+  Safe        <> x           = x
+  x           <> Safe        = x
+  _           <> c@(Crash{}) = c
+  c@(Crash{}) <> _           = c
+  (Unsafe xs) <> (Unsafe ys) = Unsafe (xs ++ ys)
+
 instance Monoid (FixResult a) where
-  mempty                          = Safe
-  mappend Safe x                  = x
-  mappend x Safe                  = x
-  mappend _ c@(Crash _ _)         = c
-  mappend c@(Crash _ _) _         = c
-  mappend (Unsafe xs) (Unsafe ys) = Unsafe (xs ++ ys)
+  mempty = Safe
 
 instance Functor FixResult where
   fmap f (Crash xs msg)   = Crash (f <$> xs) msg

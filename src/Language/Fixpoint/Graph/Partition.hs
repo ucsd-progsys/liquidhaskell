@@ -38,7 +38,7 @@ import qualified Data.HashMap.Strict                  as M
 -- import           Data.Function (on)
 import           Data.Maybe                     (fromMaybe)
 import           Data.Hashable
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ hiding ((<>))
 import           Data.List (sortBy)
 -- import qualified Data.HashSet              as S
 
@@ -55,12 +55,13 @@ data CPart c a = CPart { pws :: !(M.HashMap F.KVar (F.WfC a))
                        , pcm :: !(M.HashMap Integer (c a))
                        }
   
+instance Semigroup (CPart c a) where
+  l <> r = CPart { pws = pws l <> pws r
+                 , pcm = pcm l <> pcm r
+                 }
+
 instance Monoid (CPart c a) where
    mempty      = CPart mempty mempty
-   mappend l r = CPart { pws = pws l `mappend` pws r
-                       , pcm = pcm l `mappend` pcm r
-                       }
-
 --------------------------------------------------------------------------------
 -- | Multicore info ------------------------------------------------------------
 --------------------------------------------------------------------------------

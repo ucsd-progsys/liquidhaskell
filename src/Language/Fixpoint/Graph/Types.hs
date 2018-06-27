@@ -73,8 +73,8 @@ data CVertex = KVar  !KVar    -- ^ real kvar vertex
 instance PPrint CVertex where
   pprintTidy _ (KVar k)  = doubleQuotes $ pprint $ kv k
   pprintTidy _ (EBind s)  = doubleQuotes $ pprint $ s
-  pprintTidy _ (Cstr i)  = text "id_" <> pprint i
-  pprintTidy _ (DKVar k) = pprint k   <> text "*"
+  pprintTidy _ (Cstr i)  = "id_"      <.> pprint i
+  pprintTidy _ (DKVar k) = pprint k   <.> "*"
 
 
 instance Hashable CVertex

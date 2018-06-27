@@ -38,7 +38,7 @@ import           Control.Concurrent.Async
 
 
 #ifdef MIN_VERSION_located_base
-import Prelude hiding (error, undefined)
+import Prelude hiding ((<>), error, undefined)
 import GHC.Err.Located
 import GHC.Stack
 #endif

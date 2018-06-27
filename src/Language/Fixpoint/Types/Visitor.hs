@@ -248,9 +248,11 @@ mapKVarSubsts f          = trans kvVis () ()
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
 
+instance Semigroup MInt where
+  (MInt m) <> (MInt n) = MInt (m + n)
+
 instance Monoid MInt where
-  mempty                    = MInt 0
-  mappend (MInt m) (MInt n) = MInt (m + n)
+  mempty = MInt 0
 
 size :: Visitable t => t -> Integer
 size t    = n
