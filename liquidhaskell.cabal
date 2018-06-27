@@ -76,7 +76,7 @@ Executable liquid
                , deepseq
                , pretty
                , process
-               , liquid-fixpoint >= 0.7.0.7
+               , liquid-fixpoint >= 0.8.0.0
                , located-base
                , liquidhaskell
                , hpc >= 0.6
@@ -134,7 +134,7 @@ Library
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.7.0.5
+                , liquid-fixpoint >= 0.8.0.0
                 , located-base
                 , aeson >= 1.2 && < 1.4
                 , bytestring >= 0.10
@@ -285,7 +285,7 @@ Library
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
      hs-source-dirs: devel
-   if flag(devel)
+--   if flag(devel)
 --     ghc-options: -Werror
    if flag(deterministic-profiling)
      cpp-options: -DDETERMINISTIC_PROFILING
@@ -314,7 +314,7 @@ test-suite test
                ,     tasty-rerun >= 1.1
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.7.0.7
+               ,     liquid-fixpoint >= 0.8.0.0
                ,     hpc >= 0.6
                ,     text
 
@@ -336,7 +336,7 @@ test-suite liquidhaskell-parser
                ,     text
                ,     transformers >= 0.3
                ,     syb
-               ,     liquid-fixpoint >= 0.7.0.7
+               ,     liquid-fixpoint >= 0.8.0.0
                ,     hpc >= 0.6
 
   if flag(devel)
@@ -355,7 +355,7 @@ test-suite liquidhaskell-parser
                 , ghc
                 , ghc-boot
                 , hashable >= 1.2
-                , liquid-fixpoint >= 0.7.0.7
+                , liquid-fixpoint >= 0.8.0.0
                 , pretty
                 , syb >= 0.4.4
                 , time
