@@ -201,7 +201,7 @@ simplifyFInfo !cfg !fi0 = do
   let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
-  let si5  = {-# SCC "elaborate"  #-} elaborate "solver" (symbolEnv cfg si4) si4
+  let si5  = {-# SCC "elaborate"  #-} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
   instantiate cfg $!! si5
 

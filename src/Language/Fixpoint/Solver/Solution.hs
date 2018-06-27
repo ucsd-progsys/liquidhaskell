@@ -161,23 +161,32 @@ okInst env v t eq = isNothing tc
   where
     sr            = F.RR t (F.Reft (v, p))
     p             = Sol.eqPred eq
-    tc            = So.checkSorted env sr 
+    tc            = So.checkSorted (F.srcSpan eq) env sr 
     -- _msg          = printf "okInst: t = %s, eq = %s, env = %s" (F.showpp t) (F.showpp eq) (F.showpp env)
 
 
 --------------------------------------------------------------------------------
 -- | Predicate corresponding to LHS of constraint in current solution
 --------------------------------------------------------------------------------
-lhsPred :: F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
+lhsPred :: (F.Loc a) => F.BindEnv -> Sol.Solution -> F.SimpC a -> F.Expr
 lhsPred be s c = F.notracepp _msg $ fst $ apply g s bs
   where
-    g          = (ci, be, bs)
+    g          = CEnv ci be bs (F.srcSpan c)
     bs         = F.senv c
     ci         = sid c
     _msg       = "LhsPred for id = " ++ show (sid c) ++ " with SOLUTION = " ++ F.showpp s
 
+data CombinedEnv = CEnv 
+  { ceCid  :: !Cid
+  , ceBEnv :: !F.BindEnv
+  , ceIEnv :: !F.IBindEnv 
+  , ceSpan :: !F.SrcSpan
+  }
+
+instance F.Loc CombinedEnv where 
+  srcSpan = ceSpan
+
 type Cid         = Maybe Integer
-type CombinedEnv = (Cid, F.BindEnv, F.IBindEnv)
 type ExprInfo    = (F.Expr, KInfo)
 
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
@@ -195,11 +204,11 @@ envConcKVars g s bs = (concat pss, concat kss, L.nubBy (\x y -> F.ksuKVar x == F
     is              = F.elemsIBindEnv bs
 
 lookupBindEnvExt :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> (F.Symbol, F.SortedReft)
-lookupBindEnvExt g@(_,be,_) s i 
+lookupBindEnvExt g s i 
   | Just p <- ebSol g s i = (x, sr { F.sr_reft = F.Reft (x, p) }) 
-  | otherwise              = (x, sr)
+  | otherwise             = (x, sr)
    where 
-      (x, sr)           = F.lookupBindEnv i be 
+      (x, sr)              = F.lookupBindEnv i (ceBEnv g) 
 
 ebSol :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.BindId -> Maybe F.Expr
 ebSol g s i = case  M.lookup i sebds of
@@ -210,17 +219,17 @@ ebSol g s i = case  M.lookup i sebds of
     sebds = Sol.sEbd s
 
     ebReft s (i,c) = exElim (Sol.sxEnv s) (senv c) i (ebindReft g s c)
-    cSol c = if sid c == (Misc.fst3 g)
+    cSol c = if sid c == ceCid g 
                 then F.PFalse
                 else ebReft s' (i, c)
 
     s' = s { Sol.sEbd = M.insert i Sol.EbIncr sebds }
 
 ebindReft :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.SimpC () -> F.Pred
-ebindReft (_,be,_) s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
+ebindReft g s c = F.pAnd [ fst $ apply g' s bs, F.crhs c ]
   where
-    g'             = (sid c, be, bs)
-    bs             = F.senv c
+    g'          = g { ceCid = sid c, ceIEnv = bs } 
+    bs          = F.senv c
 
 exElim :: F.SEnv (F.BindId, F.Sort) -> F.IBindEnv -> F.BindId -> F.Pred -> F.Pred
 exElim env ienv xi p = F.notracepp msg (F.pExist yts p)
@@ -239,7 +248,7 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
   Left cs   -> hypPred g s ksu cs
   Right eqs -> (F.pAnd $ fst <$> Sol.qbPreds msg s (F.ksuSubst ksu) eqs, mempty) -- TODO: don't initialize kvars that have a hyp solution
   where
-    msg     = "applyKVar: " ++ show (Misc.fst3 g)
+    msg     = "applyKVar: " ++ show (ceCid g)
 
 hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
 hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
@@ -259,16 +268,17 @@ hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
 
  -}
 
-elabExist :: Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
-elabExist s xts p = F.pExist xts' p
+elabExist :: F.SrcSpan -> Sol.Sol a Sol.QBind -> [(F.Symbol, F.Sort)] -> F.Expr -> F.Expr
+elabExist sp s xts p = F.pExist xts' p
   where
     xts'        = [ (x, elab t) | (x, t) <- xts]
-    elab        = So.elaborate "elabExist" env
+    elab        = So.elaborate (F.atLoc sp "elabExist") env
     env         = Sol.sEnv s
 
 cubePred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> ExprInfo
-cubePred g s ksu c    = (F.notracepp "cubePred" $ elabExist s xts (psu &.& p), kI)
+cubePred g s ksu c    = (F.notracepp "cubePred" $ elabExist sp s xts (psu &.& p), kI)
   where
+    sp                = F.srcSpan g
     ((xts,psu,p), kI) = cubePredExc g s ksu c bs'
     bs'               = delCEnv s k bs
     bs                = Sol.cuBinds c
@@ -285,7 +295,8 @@ cubePredExc :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Cube -> F.IB
 
 cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
   where
-    cubeP           = (xts, psu, elabExist s yts' (p' &.& psu') )
+    cubeP           = (xts, psu, elabExist sp s yts' (p' &.& psu') )
+    sp              = F.srcSpan g
     yts'            = symSorts g bs'
     g'              = addCEnv  g bs
     (p', kI)        = apply g' s bs'
@@ -326,13 +337,14 @@ cubePredExc g s ksu c bs' = (cubeP, extendKInfo kI (Sol.cuTag c))
 substElim :: F.SymEnv -> F.SEnv F.Sort -> CombinedEnv -> F.KVar -> F.Subst -> ([(F.Symbol, F.Sort)], F.Pred)
 substElim syEnv sEnv g _ (F.Su m) = (xts, p)
   where
-    p      = F.pAnd [ mkSubst syEnv x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
+    p      = F.pAnd [ mkSubst sp syEnv x (substSort sEnv frees x t) e t | (x, e, t) <- xets  ]
     xts    = [ (x, t)    | (x, _, t) <- xets, not (S.member x frees) ]
     xets   = [ (x, e, t) | (x, e)    <- xes, t <- sortOf e, not (isClass t)]
     xes    = M.toList m
     env    = combinedSEnv g
     frees  = S.fromList (concatMap (F.syms . snd) xes)
-    sortOf = maybeToList . So.checkSortExpr env
+    sortOf = maybeToList . So.checkSortExpr sp env
+    sp     = F.srcSpan g
 
 substSort :: F.SEnv F.Sort -> S.HashSet F.Symbol -> F.Symbol -> F.Sort -> F.Sort
 substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
@@ -341,18 +353,18 @@ substSort sEnv _frees x _t = fromMaybe (err x) $ F.lookupSEnv x sEnv
 
 
 -- LH #1091
-mkSubst :: F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
-mkSubst env x tx ey ty
+mkSubst :: F.SrcSpan -> F.SymEnv -> F.Symbol -> F.Sort -> F.Expr -> F.Sort -> F.Expr
+mkSubst sp env x tx ey ty
   | tx == ty    = F.EEq ex ey
   | otherwise   = {- F.tracepp _msg -} (F.EEq ex' ey')
   where
     _msg         = "mkSubst-DIFF:" ++ F.showpp (tx, ty) ++ F.showpp (ex', ey')
     ex          = F.expr x
-    ex'         = elabToInt env ex tx
-    ey'         = elabToInt env ey ty
+    ex'         = elabToInt sp env ex tx
+    ey'         = elabToInt sp env ey ty
 
-elabToInt :: F.SymEnv -> F.Expr -> F.Sort -> F.Expr
-elabToInt env e s = So.elaborate "elabToInt" env (So.toInt env e s)
+elabToInt :: F.SrcSpan -> F.SymEnv -> F.Expr -> F.Sort -> F.Expr
+elabToInt sp env e s = So.elaborate (F.atLoc sp "elabToInt") env (So.toInt env e s)
 
 isClass :: F.Sort -> Bool
 isClass F.FNum  = True
@@ -373,22 +385,23 @@ isClass _       = False
 -- substPred (F.Su m) = F.pAnd [ F.PAtom F.Eq (F.eVar x) e | (x, e) <- M.toList m]
 
 combinedSEnv :: CombinedEnv -> F.SEnv F.Sort
-combinedSEnv (_, be, bs) = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
+combinedSEnv g = F.sr_sort <$> F.fromListSEnv (F.envCs be bs)
+  where 
+    be         = ceBEnv g 
+    bs         = ceIEnv g 
 
 addCEnv :: CombinedEnv -> F.IBindEnv -> CombinedEnv
-addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
+addCEnv g bs' = g { ceIEnv = F.unionIBindEnv (ceIEnv g) bs' }
+-- addCEnv (x, be, bs) bs' = (x, be, F.unionIBindEnv bs bs')
 
--- delCEnv :: F.IBindEnv -> CombinedEnv -> F.IBindEnv
--- delCEnv bs (_, _, bs')  = F.diffIBindEnv bs bs'
 
 delCEnv :: Sol.Sol a Sol.QBind -> F.KVar -> F.IBindEnv -> F.IBindEnv
-delCEnv s k bs  = F.diffIBindEnv bs _kbs
-                                                -- ORIG: bs'
+delCEnv s k bs = F.diffIBindEnv bs _kbs
   where
-    _kbs = Misc.safeLookup "delCEnv" k (Sol.sScp s)
+    _kbs       = Misc.safeLookup "delCEnv" k (Sol.sScp s)
 
 symSorts :: CombinedEnv -> F.IBindEnv -> [(F.Symbol, F.Sort)]
-symSorts (_, be, _) bs = second F.sr_sort <$> F.envCs be bs
+symSorts g bs = second F.sr_sort <$> F.envCs (ceBEnv g) bs
 
 _noKvars :: F.Expr -> Bool
 _noKvars = null . V.kvars

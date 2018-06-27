@@ -40,28 +40,28 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: Config -> SInfo a -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
   | rewriteAxioms cfg = instantiate' cfg fi
   | otherwise         = return fi
 
-instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
+instantiate' :: (Loc a) => Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
-sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
-sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
+sInfo :: Config -> GInfo SimpC a -> SymEnv -> [((SubcId, SrcSpan), Expr)] -> SInfo a
+sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
-    ps''             = zipWith (\i -> elaborate ("PLE1 " ++ show i) env) is ps' -- <$> ps'
-    axs'             = elaborate "PLE2" env <$> axs
+    ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
+    axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
     fi'              = fi { asserts = axs' ++ asserts fi }
 
 withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a

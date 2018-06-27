@@ -173,6 +173,9 @@ data SimpC a = SimpC
   deriving (Generic, Functor)
 
 
+instance Loc a => Loc (SimpC a) where 
+  srcSpan = srcSpan . _cinfo
+
 strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
