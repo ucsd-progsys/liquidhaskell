@@ -261,7 +261,7 @@ import           Data.Text                              (Text)
 
 
 
-import           Text.PrettyPrint.HughesPJ              hiding (first)
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf
 
 import           Language.Fixpoint.Misc
@@ -363,7 +363,7 @@ data GhcSpec = SP
   , gsNewTypes   :: ![(TyCon, LocSpecType)]      -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsLvars      :: !(S.HashSet Var)             -- ^ Variables that should be checked in the environment they are used
   , gsLazy       :: !(S.HashSet Var)             -- ^ Binders to IGNORE during termination checking
-  , gsStTerm     :: !(S.HashSet Var)             -- ^ Binders to be for structural termination 
+  , gsStTerm     :: !(S.HashSet Var)             -- ^ Binders to be for structural termination
   , gsAutosize   :: !(S.HashSet TyCon)           -- ^ Binders to IGNORE during termination checking
   , gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to expand with automatic axiom instances maybe with specified fuel
   , gsConfig     :: !Config                      -- ^ Configuration Options
@@ -398,8 +398,11 @@ data LogicMap = LM
   } deriving (Show)
 
 instance Monoid LogicMap where
-  mempty                        = LM M.empty M.empty
-  mappend (LM x1 x2) (LM y1 y2) = LM (M.union x1 y1) (M.union x2 y2)
+  mempty  = LM M.empty M.empty
+  mappend = (<>)
+
+instance Semigroup LogicMap where
+  LM x1 x2 <> LM y1 y2 = LM (M.union x1 y1) (M.union x2 y2)
 
 data LMap = LMap
   { lmVar  :: F.LocSymbol
@@ -538,12 +541,18 @@ instance NFData Predicate where
   rnf _ = ()
 
 instance Monoid Predicate where
-  mempty       = pdTrue
-  mappend p p' = pdAnd [p, p']
+  mempty  = pdTrue
+  mappend = (<>)
+
+instance Semigroup Predicate where
+  p <> p' = pdAnd [p, p']
+
+instance Semigroup a => Semigroup (UReft a) where
+  MkUReft x y z <> MkUReft x' y' z' = MkUReft (x <> x') (y <> y') (z <> z')
 
 instance (Monoid a) => Monoid (UReft a) where
-  mempty                         = MkUReft mempty mempty mempty
-  mappend (MkUReft x y z) (MkUReft x' y' z') = MkUReft (mappend x x') (mappend y y') (mappend z z')
+  mempty  = MkUReft mempty mempty mempty
+  mappend = (<>)
 
 
 pdTrue :: Predicate
@@ -1099,7 +1108,7 @@ instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
-                    deriving (Monoid, Show)
+                    deriving (Semigroup, Monoid, Show)
 
 type RDEnv = DEnv Var SpecType
 
@@ -1473,13 +1482,13 @@ ppTy_ureft u@(MkUReft r p s) d
   | otherwise         = ppr_reft r (F.ppTy p d) s
 
 ppr_reft :: (F.PPrint [t], F.Reftable r) => r -> Doc -> [t] -> Doc
-ppr_reft r d s       = braces (F.pprint v <+> colon <+> d <> ppr_str s <+> text "|" <+> F.pprint r')
+ppr_reft r d s       = braces (F.pprint v <+> colon <+> d <-> ppr_str s <+> text "|" <+> F.pprint r')
   where
     r'@(F.Reft (v, _)) = F.toReft r
 
 ppr_str :: F.PPrint [t] => [t] -> Doc
 ppr_str [] = empty
-ppr_str s  = text "^" <> F.pprint s
+ppr_str s  = text "^" <-> F.pprint s
 
 instance F.Subable r => F.Subable (UReft r) where
   syms (MkUReft r p _)     = F.syms r ++ F.syms p
@@ -1516,7 +1525,7 @@ instance F.Reftable Predicate where
   -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
   ppTy r d | F.isTauto r      = d
            | not (ppPs ppEnv) = d
-           | otherwise        = d <> (angleBrackets $ F.pprint r)
+           | otherwise        = d <-> (angleBrackets $ F.pprint r)
 
   toReft (Pr ps@(p:_))        = F.Reft (parg p, F.pAnd $ pToRef <$> ps)
   toReft _                    = mempty
@@ -1989,8 +1998,11 @@ data RTEnv = RTE
   }
 
 instance Monoid RTEnv where
-  mempty                          = RTE M.empty M.empty
-  (RTE x y) `mappend` (RTE x' y') = RTE (x `M.union` x') (y `M.union` y')
+  mempty  = RTE M.empty M.empty
+  mappend = (<>)
+
+instance Semigroup RTEnv where
+  RTE x y <> RTE x' y' = RTE (x `M.union` x') (y `M.union` y')
 
 mapRT :: (M.HashMap Symbol (RTAlias RTyVar SpecType)
        -> M.HashMap Symbol (RTAlias RTyVar SpecType))
@@ -2075,7 +2087,7 @@ instance F.PPrint a => F.PPrint (Def t a) where
   pprintTidy k (Def m p c _ bs body)
            = F.pprintTidy k m <+> F.pprintTidy k (fst <$> p) <+> cbsd <+> "=" <+> F.pprintTidy k body
     where
-      cbsd = parens (F.pprintTidy k c <> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
+      cbsd = parens (F.pprintTidy k c <-> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
 instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
   pprintTidy k (M n s eqs _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
@@ -2158,8 +2170,11 @@ data Annot t
   deriving (Data, Typeable, Generic, Functor)
 
 instance Monoid (AnnInfo a) where
-  mempty                  = AI M.empty
-  mappend (AI m1) (AI m2) = AI $ M.unionWith (++) m1 m2
+  mempty  = AI M.empty
+  mappend = (<>)
+
+instance Semigroup (AnnInfo a) where
+  AI m1 <> AI m2 = AI $ M.unionWith (++) m1 m2
 
 instance NFData a => NFData (AnnInfo a)
 
@@ -2182,13 +2197,16 @@ emptyOutput :: Output a
 emptyOutput = O Nothing mempty mempty [] mempty
 
 instance Monoid (Output a) where
-  mempty        = emptyOutput
-  mappend o1 o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
-                    , o_types  =             mappend (o_types  o1) (o_types  o2)
-                    , o_templs =             mappend (o_templs o1) (o_templs o2)
-                    , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
-                    , o_result =             mappend (o_result o1) (o_result o2)
-                    }
+  mempty  = emptyOutput
+  mappend = (<>)
+
+instance Semigroup (Output a) where
+  o1 <> o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
+               , o_types  =             mappend (o_types  o1) (o_types  o2)
+               , o_templs =             mappend (o_templs o1) (o_templs o2)
+               , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
+               , o_result =             mappend (o_result o1) (o_result o2)
+               }
 
 --------------------------------------------------------------------------------
 -- | KVar Profile --------------------------------------------------------------
@@ -2281,9 +2299,8 @@ instance (Show ty, Show ctor, F.PPrint ctor, F.PPrint ty) => Show (MSpec ty ctor
       "\nimeas:\t "    ++ show im ++
       "\n"
 
-instance Eq ctor => Monoid (MSpec ty ctor) where
-  mempty = MSpec M.empty M.empty M.empty []
-  (MSpec c1 m1 cm1 im1) `mappend` (MSpec c2 m2 cm2 im2)
+instance Eq ctor => Semigroup (MSpec ty ctor) where
+  MSpec c1 m1 cm1 im1 <> MSpec c2 m2 cm2 im2
     | (k1, k2) : _ <- dups
       -- = panic Nothing $ err (head dups)
     = uError $ err k1 k2
@@ -2293,6 +2310,10 @@ instance Eq ctor => Monoid (MSpec ty ctor) where
       dups = [(k1, k2) | k1 <- M.keys m1 , k2 <- M.keys m2, F.val k1 == F.val k2]
       err k1 k2 = ErrDupMeas (fSrcSpan k1) (F.pprint (F.val k1)) (fSrcSpan <$> [k1, k2])
 
+
+instance Eq ctor => Monoid (MSpec ty ctor) where
+  mempty = MSpec M.empty M.empty M.empty []
+  mappend = (<>)
 
 
 
@@ -2320,7 +2341,7 @@ instance (F.PPrint r, F.Reftable r, F.PPrint t, F.PPrint (RType c tv r)) => F.PP
 
 ppRefArgs :: F.Tidy -> [Symbol] -> Doc
 ppRefArgs _ [] = empty
-ppRefArgs k ss = text "\\" <> hsep (ppRefSym k <$> ss ++ [F.vv Nothing]) <+> "->"
+ppRefArgs k ss = text "\\" <-> hsep (ppRefSym k <$> ss ++ [F.vv Nothing]) <+> "->"
 
 ppRefSym :: (Eq a, IsString a, F.PPrint a) => F.Tidy -> a -> Doc
 ppRefSym _ "" = text "_"

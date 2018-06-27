@@ -14,9 +14,8 @@ import CoreSyn
 import Var
 import Name (getSrcSpan)
 import VarSet
-import Data.Monoid ((<>))
 
-import Text.PrettyPrint.HughesPJ hiding ((<>))
+import Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashSet                           as S
 
 
@@ -29,10 +28,13 @@ terminationCheck info = mconcat $ map (resultToDoc . checkBind (cbs info)) (S.to
 data Result = OK | Error [UserError]
 
 instance Monoid Result where
-  mempty = OK
-  mappend OK e = e
-  mappend e OK = e
-  mappend (Error e1) (Error e2) = Error (e1 ++ e2)
+  mempty  = OK
+  mappend = (<>)
+
+instance Semigroup Result where
+  OK <> e = e
+  e <> OK = e
+  Error e1 <> Error e2  = Error (e1 ++ e2)
 
 resultToDoc :: Result -> Output Doc
 resultToDoc OK        = mempty

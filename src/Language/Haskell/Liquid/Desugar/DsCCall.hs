@@ -130,7 +130,7 @@ unboxArg :: CoreExpr                    -- The supplied argument, not levity-pol
 -- always returns a non-levity-polymorphic expression
 
 unboxArg arg
-  -- Primtive types: nothing to unbox
+  -- Primitive types: nothing to unbox
   | isPrimitiveType arg_ty
   = return (arg, \body -> body)
 
@@ -196,7 +196,7 @@ boxResult :: Type
 
 -- Takes the result of the user-level ccall:
 --      either (IO t),
---      or maybe just t for an side-effect-free call
+--      or maybe just t for a side-effect-free call
 -- Returns a wrapper for the primitive ccall itself, along with the
 -- type of the result of the primitive ccall.  This result type
 -- will be of the form
@@ -335,7 +335,7 @@ resultWrapper result_ty
   -- Data types with a single constructor, which has a single arg
   -- This includes types like Ptr and ForeignPtr
   | Just (tycon, tycon_arg_tys) <- maybe_tc_app
-  , Just data_con <- isDataProductTyCon_maybe tycon  -- One construtor, no existentials
+  , Just data_con <- isDataProductTyCon_maybe tycon  -- One constructor, no existentials
   , [unwrapped_res_ty] <- dataConInstOrigArgTys data_con tycon_arg_tys  -- One argument
   = do { dflags <- getDynFlags
        ; (maybe_ty, wrapper) <- resultWrapper unwrapped_res_ty

@@ -26,7 +26,7 @@ import           DataCon
 import           GHC                                    hiding (Located)
 import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
-import           Text.PrettyPrint.HughesPJ              hiding (first)
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Type
 import           Var
 -- import           Data.Serialize                         (Serialize)
@@ -141,8 +141,8 @@ checkDuplicateMeasure ms
 
 
 -- MOVE TO TYPES
-instance Monoid (Spec ty bndr) where
-  mappend s1 s2
+instance Semigroup (Spec ty bndr) where
+  s1 <> s2
     = Spec { measures   =           measures   s1 ++ measures   s2
            , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
            , sigs       =           sigs       s1 ++ sigs       s2
@@ -181,6 +181,8 @@ instance Monoid (Spec ty bndr) where
            , autois     = M.union   (autois s1)      (autois s2)
            }
 
+instance Monoid (Spec ty bndr) where
+  mappend = (<>)
   mempty
     = Spec { measures   = []
            , asmSigs    = []

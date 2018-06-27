@@ -43,7 +43,7 @@ import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 import           Unify
 import           UniqSet (mkUniqSet)
-import           Text.PrettyPrint.HughesPJ                     hiding (first)
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
 import qualified Data.HashMap.Strict                           as M
@@ -75,7 +75,7 @@ import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
-import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult) 
+import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
 
 --------------------------------------------------------------------------------
@@ -170,7 +170,7 @@ checkIndex (x, vs, t, index)
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
+       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <-> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
        msg2  = ErrTermin loc [xd] "No decreasing parameter"
        xd    = F.pprint x
 
@@ -494,7 +494,7 @@ consBind isRec γ (x, e, Internal spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ F.tracepp "consBind 2" $ Internal spect 
+       return $ F.tracepp "consBind 2" $ Internal spect
   where
     explanation = "Cannot give singleton type to the function definition."
 
@@ -543,7 +543,7 @@ extender γ (x, Assumed t)
 extender γ _
   = return γ
 
-data Template a 
+data Template a
   = Asserted a
   | Assumed a
   | Internal a
@@ -552,11 +552,11 @@ data Template a
 
 deriving instance (Show a) => (Show (Template a))
 
-instance PPrint a => PPrint (Template a) where 
+instance PPrint a => PPrint (Template a) where
   pprintTidy k (Asserted t) = "Asserted" <+> pprintTidy k t
   pprintTidy k (Assumed  t) = "Assumed"  <+> pprintTidy k t
   pprintTidy k (Internal t) = "Internal" <+> pprintTidy k t
-  pprintTidy _ Unknown      = "Unknown"  
+  pprintTidy _ Unknown      = "Unknown"
 
 unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
@@ -1171,9 +1171,9 @@ projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [notDataConReft d | DataAlt d <- acs])
-  where 
+  where
     notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
-    notDataConReft d | exactDC (getConfig γ) 
+    notDataConReft d | exactDC (getConfig γ)
                      = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
                      | otherwise = mempty
 altReft _ _ _        = panic Nothing "Constraint : altReft"

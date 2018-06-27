@@ -7,6 +7,7 @@ Desugaring arrow commands
 -}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Language.Haskell.Liquid.Desugar.DsArrows ( dsProcExpr ) where
 
@@ -35,7 +36,6 @@ import MkCore
 import Language.Haskell.Liquid.Desugar.DsBinds (dsHsWrapper)
 
 import Name
-import Var
 import Id
 import ConLike
 import TysWiredIn
@@ -55,7 +55,7 @@ data DsCmdEnv = DsCmdEnv {
         arr_id, compose_id, first_id, app_id, choice_id, loop_id :: CoreExpr
     }
 
-mkCmdEnv :: CmdSyntaxTable Id -> DsM ([CoreBind], DsCmdEnv)
+mkCmdEnv :: CmdSyntaxTable GhcTc -> DsM ([CoreBind], DsCmdEnv)
 -- See Note [CmdSyntaxTable] in HsExpr
 mkCmdEnv tc_meths
   = do { (meth_binds, prs) <- mapAndUnzipM mk_bind tc_meths
@@ -293,7 +293,7 @@ matchVarStack (param_id:param_ids) stack_id body = do
     pair_id <- newSysLocalDs (mkCorePairTy (idType param_id) (idType tail_id))
     return (pair_id, coreCasePair pair_id param_id tail_id tail_code)
 
-mkHsEnvStackExpr :: [Id] -> Id -> LHsExpr Id
+mkHsEnvStackExpr :: [Id] -> Id -> LHsExpr GhcTc
 mkHsEnvStackExpr env_ids stack_id
   = mkLHsTupleExpr [mkLHsVarTuple env_ids, nlHsVar stack_id]
 
@@ -306,8 +306,8 @@ mkHsEnvStackExpr env_ids stack_id
 --              where (xs) is the tuple of variables bound by p
 
 dsProcExpr
-        :: LPat Id
-        -> LHsCmdTop Id
+        :: LPat GhcTc
+        -> LHsCmdTop GhcTc
         -> DsM CoreExpr
 dsProcExpr pat (L _ (HsCmdTop cmd _unitTy cmd_ty ids)) = do
     (meth_binds, meth_ids) <- mkCmdEnv ids
@@ -335,7 +335,7 @@ to an expression e such that
         D |- e :: a (xs, stk) t
 -}
 
-dsLCmd :: DsCmdEnv -> IdSet -> Type -> Type -> LHsCmd Id -> [Id]
+dsLCmd :: DsCmdEnv -> IdSet -> Type -> Type -> LHsCmd GhcTc -> [Id]
        -> DsM (CoreExpr, DIdSet)
 dsLCmd ids local_vars stk_ty res_ty cmd env_ids
   = dsCmd ids local_vars stk_ty res_ty (unLoc cmd) env_ids
@@ -344,8 +344,8 @@ dsCmd   :: DsCmdEnv             -- arrow combinators
         -> IdSet                -- set of local vars available to this command
         -> Type                 -- type of the stack (right-nested tuple)
         -> Type                 -- return type of the command
-        -> HsCmd Id             -- command to desugar
-        -> [Id]                 -- list of vars in the input to this command
+        -> HsCmd GhcTc           -- command to desugar
+        -> [Id]           -- list of vars in the input to this command
                                 -- This is typically fed back,
                                 -- so don't pull on it too early
         -> DsM (CoreExpr,       -- desugared expression
@@ -445,8 +445,8 @@ dsCmd ids local_vars stack_ty res_ty (HsCmdApp cmd arg) env_ids = do
 --              ---> premap (\ ((xs), (p1, ... (pk,stk)...)) -> ((ys),stk)) cmd
 
 dsCmd ids local_vars stack_ty res_ty
-        (HsCmdLam (MG { mg_alts = L _ [L _ (Match _ pats _
-                                           (GRHSs [L _ (GRHS [] body)] _ ))] }))
+        (HsCmdLam (MG { mg_alts = L _ [L _ (Match { m_pats  = pats
+                                                  , m_grhss = GRHSs [L _ (GRHS [] body)] _ })] }))
         env_ids = do
     let pat_vars = mkVarSet (collectPatsBinders pats)
     let
@@ -573,8 +573,8 @@ dsCmd ids local_vars stack_ty res_ty
     let
         left_id  = HsConLikeOut (RealDataCon left_con)
         right_id = HsConLikeOut (RealDataCon right_con)
-        left_expr  ty1 ty2 e = noLoc $ HsApp (noLoc $ HsWrap (mkWpTyApps [ty1, ty2]) left_id ) e
-        right_expr ty1 ty2 e = noLoc $ HsApp (noLoc $ HsWrap (mkWpTyApps [ty1, ty2]) right_id) e
+        left_expr  ty1 ty2 e = noLoc $ HsApp (noLoc $ mkHsWrap (mkWpTyApps [ty1, ty2]) left_id ) e
+        right_expr ty1 ty2 e = noLoc $ HsApp (noLoc $ mkHsWrap (mkWpTyApps [ty1, ty2]) right_id) e
 
         -- Prefix each tuple with a distinct series of Left's and Right's,
         -- in a balanced way, keeping track of the types.
@@ -674,8 +674,8 @@ dsCmd _ _ _ _ _ c = pprPanic "dsCmd" (ppr c)
 
 dsTrimCmdArg
         :: IdSet                -- set of local vars available to this command
-        -> [Id]                 -- list of vars in the input to this command
-        -> LHsCmdTop Id         -- command argument to desugar
+        -> [Id]           -- list of vars in the input to this command
+        -> LHsCmdTop GhcTc       -- command argument to desugar
         -> DsM (CoreExpr,       -- desugared expression
                 DIdSet)         -- subset of local vars that occur free
 dsTrimCmdArg local_vars env_ids (L _ (HsCmdTop cmd stack_ty cmd_ty ids)) = do
@@ -698,7 +698,7 @@ dsfixCmd
         -> IdSet                -- set of local vars available to this command
         -> Type                 -- type of the stack (right-nested tuple)
         -> Type                 -- return type of the command
-        -> LHsCmd Id            -- command to desugar
+        -> LHsCmd GhcTc         -- command to desugar
         -> DsM (CoreExpr,       -- desugared expression
                 DIdSet,         -- subset of local vars that occur free
                 [Id])           -- the same local vars as a list, fed back
@@ -731,7 +731,7 @@ Translation of command judgements of the form
 dsCmdDo :: DsCmdEnv             -- arrow combinators
         -> IdSet                -- set of local vars available to this statement
         -> Type                 -- return type of the statement
-        -> [CmdLStmt Id]        -- statements to desugar
+        -> [CmdLStmt GhcTc]     -- statements to desugar
         -> [Id]                 -- list of vars in the input to this statement
                                 -- This is typically fed back,
                                 -- so don't pull on it too early
@@ -780,7 +780,7 @@ as an arrow from one tuple type to another.  A statement sequence is
 translated to a composition of such arrows.
 -}
 
-dsCmdLStmt :: DsCmdEnv -> IdSet -> [Id] -> CmdLStmt Id -> [Id]
+dsCmdLStmt :: DsCmdEnv -> IdSet -> [Id] -> CmdLStmt GhcTc -> [Id]
            -> DsM (CoreExpr, DIdSet)
 dsCmdLStmt ids local_vars out_ids cmd env_ids
   = dsCmdStmt ids local_vars out_ids (unLoc cmd) env_ids
@@ -789,7 +789,7 @@ dsCmdStmt
         :: DsCmdEnv             -- arrow combinators
         -> IdSet                -- set of local vars available to this statement
         -> [Id]                 -- list of vars in the output of this statement
-        -> CmdStmt Id           -- statement to desugar
+        -> CmdStmt GhcTc        -- statement to desugar
         -> [Id]                 -- list of vars in the input to this statement
                                 -- This is typically fed back,
                                 -- so don't pull on it too early
@@ -971,11 +971,11 @@ dsCmdStmt _ _ _ _ s = pprPanic "dsCmdStmt" (ppr s)
 dsRecCmd
         :: DsCmdEnv             -- arrow combinators
         -> IdSet                -- set of local vars available to this statement
-        -> [CmdLStmt Id]        -- list of statements inside the RecCmd
+        -> [CmdLStmt GhcTc]     -- list of statements inside the RecCmd
         -> [Id]                 -- list of vars defined here and used later
-        -> [HsExpr Id]          -- expressions corresponding to later_ids
+        -> [HsExpr GhcTc]       -- expressions corresponding to later_ids
         -> [Id]                 -- list of vars fed back through the loop
-        -> [HsExpr Id]          -- expressions corresponding to rec_ids
+        -> [HsExpr GhcTc]       -- expressions corresponding to rec_ids
         -> DsM (CoreExpr,       -- desugared statement
                 DIdSet,         -- subset of local vars that occur free
                 [Id])           -- same local vars as a list
@@ -1049,7 +1049,7 @@ dsfixCmdStmts
         :: DsCmdEnv             -- arrow combinators
         -> IdSet                -- set of local vars available to this statement
         -> [Id]                 -- output vars of these statements
-        -> [CmdLStmt Id]        -- statements to desugar
+        -> [CmdLStmt GhcTc]     -- statements to desugar
         -> DsM (CoreExpr,       -- desugared expression
                 DIdSet,         -- subset of local vars that occur free
                 [Id])           -- same local vars as a list
@@ -1063,7 +1063,7 @@ dsCmdStmts
         :: DsCmdEnv             -- arrow combinators
         -> IdSet                -- set of local vars available to this statement
         -> [Id]                 -- output vars of these statements
-        -> [CmdLStmt Id]        -- statements to desugar
+        -> [CmdLStmt GhcTc]     -- statements to desugar
         -> [Id]                 -- list of vars in the input to these statements
         -> DsM (CoreExpr,       -- desugared expression
                 DIdSet)         -- subset of local vars that occur free
@@ -1090,7 +1090,7 @@ dsCmdStmts _ _ _ [] _ = panic "dsCmdStmts []"
 
 matchSimplys :: [CoreExpr]              -- Scrutinees
              -> HsMatchContext Name     -- Match kind
-             -> [LPat Id]               -- Patterns they should match
+             -> [LPat GhcTc]            -- Patterns they should match
              -> CoreExpr                -- Return this if they all match
              -> CoreExpr                -- Return this if they don't
              -> DsM CoreExpr
@@ -1102,8 +1102,9 @@ matchSimplys _ _ _ _ _ = panic "matchSimplys"
 
 -- List of leaf expressions, with set of variables bound in each
 
-leavesMatch :: LMatch Id (Located (body Id)) -> [(Located (body Id), IdSet)]
-leavesMatch (L _ (Match _ pats _ (GRHSs grhss (L _ binds))))
+leavesMatch :: LMatch GhcTc (Located (body GhcTc))
+            -> [(Located (body GhcTc), IdSet)]
+leavesMatch (L _ (Match { m_pats = pats, m_grhss = GRHSs grhss (L _ binds) }))
   = let
         defined_vars = mkVarSet (collectPatsBinders pats)
                         `unionVarSet`
@@ -1118,21 +1119,21 @@ leavesMatch (L _ (Match _ pats _ (GRHSs grhss (L _ binds))))
 
 replaceLeavesMatch
         :: Type                                 -- new result type
-        -> [Located (body' Id)]                 -- replacement leaf expressions of that type
-        -> LMatch Id (Located (body Id))        -- the matches of a case command
-        -> ([Located (body' Id)],               -- remaining leaf expressions
-            LMatch Id (Located (body' Id)))     -- updated match
-replaceLeavesMatch _res_ty leaves (L loc (Match mf pat mt (GRHSs grhss binds)))
+        -> [Located (body' GhcTc)] -- replacement leaf expressions of that type
+        -> LMatch GhcTc (Located (body GhcTc))  -- the matches of a case command
+        -> ([Located (body' GhcTc)],            -- remaining leaf expressions
+            LMatch GhcTc (Located (body' GhcTc))) -- updated match
+replaceLeavesMatch _res_ty leaves (L loc match@(Match { m_grhss = GRHSs grhss binds }))
   = let
         (leaves', grhss') = mapAccumL replaceLeavesGRHS leaves grhss
     in
-    (leaves', L loc (Match mf pat mt (GRHSs grhss' binds)))
+    (leaves', L loc (match { m_grhss = GRHSs grhss' binds }))
 
 replaceLeavesGRHS
-        :: [Located (body' Id)]                 -- replacement leaf expressions of that type
-        -> LGRHS Id (Located (body Id))         -- rhss of a case command
-        -> ([Located (body' Id)],               -- remaining leaf expressions
-            LGRHS Id (Located (body' Id)))      -- updated GRHS
+        :: [Located (body' GhcTc)]  -- replacement leaf expressions of that type
+        -> LGRHS GhcTc (Located (body GhcTc))     -- rhss of a case command
+        -> ([Located (body' GhcTc)],              -- remaining leaf expressions
+            LGRHS GhcTc (Located (body' GhcTc)))  -- updated GRHS
 replaceLeavesGRHS (leaf:leaves) (L loc (GRHS stmts _))
   = (leaves, L loc (GRHS stmts leaf))
 replaceLeavesGRHS [] _ = panic "replaceLeavesGRHS []"
@@ -1170,14 +1171,14 @@ See comments in HsUtils for why the other version does not include
 these bindings.
 -}
 
-collectPatBinders :: LPat Id -> [Id]
+collectPatBinders :: LPat GhcTc -> [Id]
 collectPatBinders pat = collectl pat []
 
-collectPatsBinders :: [LPat Id] -> [Id]
+collectPatsBinders :: [LPat GhcTc] -> [Id]
 collectPatsBinders pats = foldr collectl [] pats
 
 ---------------------
-collectl :: LPat Id -> [Id] -> [Id]
+collectl :: LPat GhcTc -> [Id] -> [Id]
 -- See Note [Dictionary binders in ConPatOut]
 collectl (L _ pat) bndrs
   = go pat
@@ -1217,12 +1218,12 @@ add_ev_bndr (EvBind { eb_lhs = b }) bs | isId b    = b:bs
                                        | otherwise = bs
   -- A worry: what about coercion variable binders??
 
-collectLStmtsBinders :: [LStmt Id body] -> [Id]
+collectLStmtsBinders :: [LStmt GhcTc body] -> [Id]
 collectLStmtsBinders = concatMap collectLStmtBinders
 
-collectLStmtBinders :: LStmt Id body -> [Id]
+collectLStmtBinders :: LStmt GhcTc body -> [Id]
 collectLStmtBinders = collectStmtBinders . unLoc
 
-collectStmtBinders :: Stmt Id body -> [Id]
+collectStmtBinders :: Stmt GhcTc body -> [Id]
 collectStmtBinders (RecStmt { recS_later_ids = later_ids }) = later_ids
 collectStmtBinders stmt = HsUtils.collectStmtBinders stmt
