@@ -4,7 +4,7 @@ import GHC.Prim
 
 measure strLen :: GHC.Base.String -> GHC.Types.Int
 
-embed GHC.Types.Char as Char
+// embed GHC.Types.Char as Char
 
 GHC.CString.unpackCString#
   :: x:GHC.Prim.Addr#

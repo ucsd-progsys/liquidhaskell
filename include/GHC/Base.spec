@@ -5,8 +5,8 @@ import GHC.Prim
 import GHC.Classes
 import GHC.Types
 
-embed GHC.Types.Int      as int
-embed GHC.Types.Bool     as bool
+// embed GHC.Types.Int      as int
+// embed GHC.Types.Bool     as bool
 
 measure autolen :: forall a. a -> GHC.Types.Int
 class measure len :: forall f a. f a -> GHC.Types.Int

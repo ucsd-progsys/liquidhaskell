@@ -83,7 +83,7 @@ instance GhcLookup DataName where
   srcSpan           = GM.fSrcSpanSrcSpan . F.srcSpan
 
 lookupGhcThing :: (GhcLookup a, PPrint b) => String -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM b
-lookupGhcThing name f ns x = lookupGhcThing' err f ns x >>= maybe (throwError err) return
+lookupGhcThing name f ns x = lookupGhcThing' f ns x >>= maybe (throwError err) return
   where
     err                 = ErrGhc (srcSpan x) (text msg)
     msg                 = unwords [ "Not in scope:", name, symbolicIdent x]
@@ -92,20 +92,18 @@ symbolicIdent :: (F.Symbolic a) => a -> String
 symbolicIdent x = "'" ++ symbolicString x ++ "'"
 
 
-lookupGhcThing' :: (GhcLookup a, PPrint b) => TError e -> (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM (Maybe b)
-lookupGhcThing' _err f ns x = do
+lookupGhcThing' :: (GhcLookup a, PPrint b) => (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM (Maybe b)
+lookupGhcThing' f ns x = do
   be     <- get
   let env = hscEnv be
   ns     <- liftIO $ lookupName env (modName be) ns x
-  ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) ns
+  ts     <- liftIO $ catMaybes <$> mapM (hscTcRcLookupName env) (GM.tracePpr ("OHO FOUND STUFF 1" ++ show (F.symbol x)) ns)
   ts'    <- map (AConLike . RealDataCon)  . lookupEnv x <$> gets famEnv
-  -- _      <- liftIO $ putStrLn ("lookupGhcThing: POST " ++ symbolicString x ++ show [(n, getSrcSpan n) | n <- ns] ++ GM.showPpr ts ++ GM.showPpr ts')
-  let kts = catMaybes (f <$> (ts ++ ts'))
-  -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
+  let kts = catMaybes (f <$> GM.tracePpr ("OHO FOUND STUFF 2" ++ show (F.symbol x)) (ts ++ ts'))
   case Misc.nubHashOn showpp (minBy kts) of
-    []  -> return Nothing
-    [z] -> return (Just z)
-    zs  -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
+    []   -> return Nothing
+    [z]  -> return (Just z)
+    zs   -> uError $ ErrDupNames (srcSpan x) (pprint (F.symbol x)) (pprint <$> zs)
 
 lookupEnv :: (GhcLookup a) => a -> M.HashMap F.Symbol b -> [b]
 lookupEnv x env = maybeToList (M.lookup (F.symbol x) env)
@@ -270,7 +268,6 @@ fixWorkSymbol s   = maybe s reQual (F.stripPrefix wrkPrefix x)
     (m, x)        = GM.splitModuleName s 
     wrkPrefix     = "$W"
 
-
 lookupGhcDnTyCon :: String -> DataName -> BareM TyCon
 lookupGhcDnTyCon src (DnName s)
                    = lookupGhcThing err ftc (Just tcName) s
@@ -306,20 +303,15 @@ lookupGhcDnTyCon src (DnCon  s)
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
   lookupGhcThing err ftc (Just tcName) s
-    -- `catchError` \_ ->
-    --  lookupGhcThing err fdc (Just tcName) s
   where
-    -- s = trace ("lookupGhcTyCon: " ++ symbolicString _s) _s
     ftc (ATyCon x)
-      = Just (0, {- GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) -} x)
-    -- ftc (AConLike (RealDataCon x))
-    --   = Just (1, dataConTyCon x)
+      = Just (0, x)
     ftc (AConLike (RealDataCon x)) | GM.showPpr x == "GHC.Types.IO"
       = Just (0, dataConTyCon x)
     ftc (AConLike (RealDataCon x))
       = Just (1, promoteDataCon x)
-    ftc _
-      = Nothing
+    ftc z
+      = GM.tracePpr ("lookupGHCTYCON -- oh no " ++ GM.showPpr z) Nothing
 
     err = "type constructor or class\n " ++ src
 
