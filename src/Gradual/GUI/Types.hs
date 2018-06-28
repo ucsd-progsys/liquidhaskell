@@ -47,7 +47,7 @@ gSpanToDeps sol gm = [(Unique i (kVarSpan $ kv k) (kv k), mapValues ks)
     mapValues ks = [(Unique i s $ kv k, lookSol k) | ((k,Just s), i) <- zip ks [1..]]
     gml          = L.sortBy (\(k1,_) (k2,_) -> compare (kVarSpan $ kv k1) (kVarSpan $ kv k2)) 
                             $ M.toList gm
-    lookSol k    = fromMaybe "NA" (pretty . snd <$> M.lookup k sol) 
+    lookSol k    = fromMaybe "false" (pretty . snd <$> M.lookup k sol) 
 
 
 

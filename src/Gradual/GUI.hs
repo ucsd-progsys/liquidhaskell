@@ -157,7 +157,7 @@ initValues sols pkeys = script $ concat $ zipWith go pkeys sols
    go' keys sol = map (\k -> renderSol $ M.lookup k sol) keys 
 
    renderSol :: Maybe (a, Expr) -> String 
-   renderSol Nothing  = "NA"
+   renderSol Nothing  = "false"
    renderSol (Just e) = filter (/= '\n') $ pretty $ snd e
 
 
