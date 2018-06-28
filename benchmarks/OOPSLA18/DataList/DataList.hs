@@ -1,3 +1,4 @@
+{-@ LIQUID "--no-termination" @-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP, NoImplicitPrelude, ScopedTypeVariables, MagicHash #-}
 
@@ -512,8 +513,7 @@ mapAccumL f s (x:xs)    =  (s'',y:ys)
 
 {-# RULES
 "mapAccumL" [~1] forall f s xs . mapAccumL f s xs = foldr (mapAccumLF f) pairWithNil xs s
-"mapAccumLList" [1] forall f s xs . foldr (mapAccumLF f) pairWithNil xs s = mapAccumL f s xs
- #-}
+"mapAccumLList" [1] forall f s xs . foldr (mapAccumLF f) pairWithNil xs s = mapAccumL f s xs #-}
 
 pairWithNil :: acc -> (acc, [y])
 {-# INLINE [0] pairWithNil #-}
@@ -594,8 +594,7 @@ genericLength (_:l)     =  1 + genericLength l
 
 {-# RULES
   "genericLengthInt"     genericLength = (strictGenericLength :: [a] -> Int);
-  "genericLengthInteger" genericLength = (strictGenericLength :: [a] -> Integer);
- #-}
+  "genericLengthInteger" genericLength = (strictGenericLength :: [a] -> Integer); #-}
 
 strictGenericLength     :: (Num i) => [b] -> i
 strictGenericLength l   =  gl l 0
@@ -603,8 +602,6 @@ strictGenericLength l   =  gl l 0
                            gl [] a     = a
                            gl (_:xs) a = let a' = a + 1 in a' `seq` gl xs a'
 
-
--- NV HERE 
 -- | The 'genericTake' function is an overloaded version of 'take', which
 -- accepts any 'Integral' value as the number of elements to take.
 genericTake             :: (Integral i) => i -> [a] -> [a]
@@ -1109,8 +1106,7 @@ words s                 =  case dropWhile {-partain:Char.-}isSpace s of
 
 {-# RULES
 "words" [~1] forall s . words s = build (\c n -> wordsFB c n s)
-"wordsList" [1] wordsFB (:) [] = words
- #-}
+"wordsList" [1] wordsFB (:) [] = words #-}
 wordsFB :: ([Char] -> b -> b) -> b -> String -> b
 {-# INLINE [0] wordsFB #-} -- See Note [Inline FB functions] in GHC.List
 wordsFB c n = go
@@ -1145,8 +1141,7 @@ unwords (w:ws)          = w ++ go ws
 "unwords" [~1] forall ws .
    unwords ws = tailUnwords (foldr unwordsFB "" ws)
 "unwordsList" [1] forall ws .
-   tailUnwords (foldr unwordsFB "" ws) = unwords ws
- #-}
+   tailUnwords (foldr unwordsFB "" ws) = unwords ws #-}
 
 {-# INLINE [0] tailUnwords #-}
 tailUnwords           :: String -> String

@@ -1,4 +1,4 @@
-{-@ assume errorWithoutStackTrace :: {i:String | false } -> a @-} 
+module MinimumBy where 
 
 {-@ minimumBy               :: (a -> a -> Ordering) -> {i:[a] | ?? } -> a @-}
 minimumBy               :: (a -> a -> Ordering) -> [a] -> a

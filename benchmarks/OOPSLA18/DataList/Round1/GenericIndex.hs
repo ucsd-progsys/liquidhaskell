@@ -1,4 +1,4 @@
-{-@ assume errorWithoutStackTrace :: {i:String | false } -> a @-} 
+module GenericIndex where 
 
 {-@ genericIndex :: (Integral i) => xs:{[a] | ?? } -> i:{i | ?? } -> a @-}
 genericIndex :: (Integral i) => [a] -> i -> a

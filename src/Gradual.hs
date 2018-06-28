@@ -40,7 +40,7 @@ import Gradual.Match
 main :: IO a
 main = do 
   cfg <- getArgs >>= getOpts
-  css <- quietly $ liquidConstraints (cfg{gradual=True})
+  css <- quietly $ liquidConstraints (cfg{gradual=True, eliminate = F.None})
   case css of 
     Left cgis -> mapM runGradual cgis >> exitSuccess 
     Right e   -> exitWith e 

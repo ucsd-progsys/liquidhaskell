@@ -1,6 +1,6 @@
 module Indexing where
 
-{- LIQUID "--gdepth=2" @-}
+{-@ LIQUID "--gdepth=2" @-}
 
 import Prelude hiding ((!!))
 

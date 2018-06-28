@@ -1,6 +1,4 @@
-{-@ assume errorWithoutStackTrace :: {i:String | false } -> a @-} 
-{-@ LIQUID "--eliminate=none" @-}
-
+module Transpose where 
 
 {-@ transpose           :: [[a]] -> {o:[[a]] | ?? } @-}
 transpose               :: [[a]] -> [[a]]
