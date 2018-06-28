@@ -26,13 +26,13 @@ logSpans gp = modifyIORef logRef $ \lg -> lg{lSpans = gp}
 
 logCand :: Pretty a => KVar -> [a] -> IO ()
 logCand k !xs = do 
-  putStrLn ("Candidates for " ++ show k ++ ":" ++ pretty xs)
+  putStrLn ("Candidates for " ++ show k ++ ":\n" ++ pretty xs)
   -- putStrLn ("Candidates for " ++ show k ++ ":" ++ show (length xs))
   modifyIORef logRef $ \lg -> lg{lCands = (k,length xs):lCands lg}
 
 logSens ::  Pretty a => KVar -> [a] -> IO () 
 logSens k !xs = do 
-  putStrLn ("Sensible for " ++ show k ++ ":" ++ pretty xs)
+  putStrLn ("Sensible for " ++ show k ++ ":\n" ++ pretty xs)
   -- putStrLn ("Sensible for " ++ show k ++ ":" ++ show (length xs))
   modifyIORef logRef $ \lg -> lg{lSense = (k,length xs):lSense lg}
 
@@ -44,7 +44,7 @@ logLocal k !xs = do
 
 logSpec :: Pretty a => KVar -> [a] -> IO () 
 logSpec k !xs = do 
-  putStrLn ("Pres for " ++ show k ++ ":" ++ pretty xs)
+  putStrLn ("Presice for " ++ show k ++ ":\n" ++ pretty xs)
   -- putStrLn ("Pres for " ++ show k ++ ":" ++ show (length xs))
   modifyIORef logRef $ \lg -> lg{lPrecise = (k,length xs):lPrecise lg}
 
@@ -128,8 +128,8 @@ printLog = do
   let spans = lSpans lg 
   let gs    = reverse $ L.sort $ M.keys spans
   let occs  = map (makeOcc spans) gs
-  putStrLn ("# Dep\t #? | Occs\t Cands\t Sense \t Local \t Prec | "
-           ++ "# Parts \t #γ \t # Sols \n")
+  putStrLn ("\nDepth\t #?  |  Occs\tCands\t Sens\t Local\t Prec  |  "
+           ++ "Parts\t #γ\t SCs \t" ++  take (length (show (toInts $ lSols lg)) -4)  (repeat ' ') ++ " Sols \n")
   putElems [ show $ lDepth lg
            , show (length gs)
            , show (map length occs) 

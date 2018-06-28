@@ -6,7 +6,6 @@ import Gradual.Misc
 import Gradual.PrettyPrinting
 
 import Language.Fixpoint.Types hiding (isNumeric)
-import Language.Fixpoint.Misc (traceShow)
 import Language.Fixpoint.Types.Config
 import Language.Fixpoint.Solver.Monad
 import Language.Fixpoint.Solver.Solve (solverInfo)
@@ -14,7 +13,7 @@ import Language.Fixpoint.Utils.Files
 
 
 import Control.Monad (filterM)
-import Control.Monad.IO.Class
+-- import Control.Monad.IO.Class
 
 import qualified Data.List as L 
 
@@ -59,9 +58,9 @@ isSensible _ ee
 isSensible _ ee
   | PAtom cmp e _ <- unPAnd ee 
   , cmp `elem` [Gt,Ge,Lt,Le]
-  , Just s <- traceShow ("exprSort for " ++ pretty e) $ exprSort e 
+  , Just s <- exprSort e 
   , not (isNumeric s)
-  = return $ traceShow ("isNumeric " ++ show s) False 
+  = return False 
 isSensible _ ee
   | PAtom _ e _ <- unPAnd ee 
   , Just s <- exprSort e
@@ -112,7 +111,7 @@ isMoreSpecific i e = do
   let (bsA,eA) = grepApps eE 
   let ee = PAll ((gsym i, gsort i):(bsE ++ bsA)) eA
   rr <- isValid ee 
-  liftIO $ putStrLn ("isMoreSpecific " ++ pretty ee ++ " = " ++ show rr)
+  -- liftIO $ putStrLn ("isMoreSpecific " ++ pretty ee ++ " = " ++ show rr)
   return rr 
 
 isValid :: Expr -> SolveM Bool
@@ -125,7 +124,7 @@ isValid e
   , e2 `elem` es    = return True    
 isValid e = do 
   r <- not <$> checkSat (PNot e)
-  liftIO $ putStrLn ("CHECK SAT FOR " ++ pretty (PNot e) ++ "RES = " ++ show r)
+  -- liftIO $ putStrLn ("CHECK SAT FOR " ++ pretty (PNot e) ++ "RES = " ++ show r)
   return r 
 
 
@@ -137,7 +136,7 @@ isValid e = do
 grepApps :: Expr -> ([(Symbol, Sort)], Expr)
 grepApps e = (L.nub bs, e')
   where
-    (bs, e') = go [] $ traceShow "grepApps" e 
+    (bs, e') = go [] e 
     go bs (PAtom a e1 e2) = 
       let (acc1, e1') = go bs e1 in
       let (acc2, e2') = go acc1 e2 in 
@@ -155,10 +154,10 @@ grepApps e = (L.nub bs, e')
     go bs (POr es)
       = let (bs', es') = unzip $ map (go bs) es in 
         (concat bs', POr es')
-    go bs e@(PImp e1 e2)
+    go bs (PImp e1 e2)
       = let (bs1, e1') = go [] e1 in 
         let (bs2, e2') = go [] e2 in 
-        (concat [bs, bs1, bs2], traceShow ("Trace Impl " ++ show e) $ PImp e1' e2')
+        (concat [bs, bs1, bs2], PImp e1' e2')
     go bs e 
       = (bs, e)
 
@@ -175,18 +174,13 @@ grepApps e = (L.nub bs, e')
 grepIApps :: Symbol -> Expr -> ([(Symbol, Sort)], Expr)
 grepIApps i e = (L.nub bs, e')
   where
-    (bs, e') = go [] $ traceShow "grepIApps" e 
+    (bs, e') = go [] e 
     go bs (PAtom a e1 e2) = 
       let (acc1, e1') = go bs e1 in
       let (acc2, e2') = go acc1 e2 in 
-      (acc2, traceShow ("HAHAHAH " ++ show (PAtom a e1' e2')) $ PAtom a e1' e2')
+      (acc2, PAtom a e1' e2')
     go bs ee@(EApp e1 e2)
-      | traceShow ("Uncast App " ++ pretty ee ++ " arg = " 
-                    ++ pretty (unCst e2)
-                    ++ " VAR = " ++ pretty (EVar i)
-                    ++ "EQ = " ++ show (unCst e2 == EVar i)
-                    ) 
-                  (unCst e2) == EVar i 
+      | (unCst e2) == EVar i 
       = let (bs', e') = getApp ee in (bs ++ bs', e')   
       | otherwise
       = (bs, EApp e1 e2)
@@ -211,7 +205,7 @@ grepIApps i e = (L.nub bs, e')
     getApp e = 
      case exprSort e of 
        Just s  -> let x = symbol (pretty e) in ([(x, s)], EVar x)
-       Nothing -> ([], traceShow ("Nothing for ") e) 
+       Nothing -> ([], e) 
 
 
 exprSort :: Expr -> Maybe Sort 

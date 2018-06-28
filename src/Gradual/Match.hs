@@ -5,7 +5,7 @@ import Gradual.PrettyPrinting
 import Gradual.Misc
 
 -- import Language.Fixpoint.Types
-import Language.Fixpoint.Misc (traceShow)
+-- import Language.Fixpoint.Misc (traceShow)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
@@ -15,7 +15,7 @@ import Data.Maybe (catMaybes, fromJust)
 matchSolutions :: GSpan -> [[GSub a]] -> [GSub ()]
 matchSolutions _ sols 
   | any null sols = []
-matchSolutions gs sols = traceShow (concatMap _prettyGSub ss) ss 
+matchSolutions gs sols = {- traceShow (concatMap _prettyGSub ss) -} ss 
   where ss = L.nub $ mergeSolutions gs sols
   -- putStrLn ("Solutions =" ++ concat (map (showPartition gs) sols))
   -- putStrLn ("MSolutions =" ++ concatMap prettyGSub (mergeSolutions gs sols))
