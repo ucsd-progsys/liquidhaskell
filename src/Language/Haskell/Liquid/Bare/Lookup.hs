@@ -19,7 +19,7 @@ import           GHC                              (HscEnv)
 import           HscMain
 import           Name
 import           PrelInfo                         (wiredInIds, ghcPrimIds)
-import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames) -- , getUnique)
+import           PrelNames                        (fromIntegerName, smallIntegerName, integerTyConName, basicKnownKeyNames, genericTyConNames) 
 import           Prelude                          hiding (error)
 import           RdrName                          (mkQual, rdrNameOcc)
 import           SrcLoc                           (SrcSpan, GenLocated(L))
@@ -142,9 +142,9 @@ symbolLookup env mod ns k
 wiredIn      :: M.HashMap F.Symbol Name
 wiredIn      = M.fromList $ special ++ wiredIns ++ wiredIns' ++ wiredTyCons ++ wiredDcCons
   where
-    wiredIns  = [ (F.symbol n, n) | thing <- (wiredInIds ++ ghcPrimIds) {- NV CHECK -}, let n = getName thing ]
-    wiredIns' = [ (F.symbol n, n) | n <- (genericTyConNames ++ basicKnownKeyNames)]
-    wiredTyCons = [(F.symbol n, n) | n <- getName <$> (primTyCons ++ wiredInTyCons) ]
+    wiredIns  = [ (F.symbol n, n) | thing <- wiredInIds ++ ghcPrimIds, let n = getName thing ]
+    wiredIns' = [ (F.symbol n, n) | n <- genericTyConNames ++ basicKnownKeyNames ]
+    wiredTyCons = F.tracepp "WIRED-TYCONS" [(F.symbol n, n) | n <- getName <$> (primTyCons ++ wiredInTyCons) ]
     wiredDcCons = [(F.symbol n, n) | n <- getName <$>
                       [ falseDataCon, trueDataCon
                       , ltDataCon, eqDataCon, gtDataCon
@@ -302,7 +302,9 @@ lookupGhcDnTyCon src (DnCon  s)
 
 lookupGhcTyCon   ::  GhcLookup a => String -> a -> BareM TyCon
 lookupGhcTyCon src s = do
-  lookupGhcThing err ftc (Just tcName) s
+  case lookupWiredTyCon (F.symbol s) of 
+    Just tc -> return tc 
+    Nothing -> lookupGhcThing err ftc (Just tcName) s
   where
     ftc (ATyCon x)
       = Just (0, x)
@@ -311,8 +313,7 @@ lookupGhcTyCon src s = do
     ftc (AConLike (RealDataCon x))
       = Just (1, promoteDataCon x)
     ftc z
-      = GM.tracePpr ("lookupGHCTYCON -- oh no " ++ GM.showPpr z) Nothing
-
+      = Nothing
     err = "type constructor or class\n " ++ src
 
 lookupGhcDataCon :: Located F.Symbol -> BareM DataCon
@@ -334,6 +335,12 @@ wiredDataCons = M.fromList
      , ("C#"              , charDataCon   )
      ]
 
+lookupWiredTyCon :: F.Symbol -> Maybe TyCon 
+lookupWiredTyCon x = M.lookup x wiredTyConEnv
+
+wiredTyConEnv :: M.HashMap F.Symbol TyCon 
+wiredTyConEnv = M.fromList [(F.symbol tc, tc) | tc <- primTyCons ++ wiredInTyCons ]
+     
 
 nTupleDataCon :: Int -> (F.Symbol, DataCon) 
 nTupleDataCon n = (x, dc)  
