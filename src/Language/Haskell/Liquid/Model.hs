@@ -22,7 +22,7 @@ import qualified Data.HashMap.Strict                   as HM
 import           Data.List                        (partition)
 import           Data.Maybe
 import           Data.Proxy
-import           GHC.Prim
+-- import           GHC.Prim
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
@@ -46,7 +46,7 @@ import           Bag
 import           GHC hiding (obtainTermFromVal)
 import qualified Outputable as GHC
 import           DynFlags
-import           HscMain hiding (hscParsedStmt, ioMsgMaybe)
+-- import           HscMain hiding (hscParsedStmt, ioMsgMaybe)
 import           InstEnv
 import           Type
 import           TysWiredIn
@@ -54,24 +54,24 @@ import           UniqSet
 import           VarSet
 import           InteractiveEval
 
-import Id
-import ByteCodeGen      ( byteCodeGen )
-import Linker
-import CoreLint         ( lintInteractiveExpr )
-import Panic
-import ConLike
-import CoreSyn
-import SrcLoc
-import TcRnDriver
+-- import Id
+-- import ByteCodeGen      ( byteCodeGen )
+-- import Linker
+-- import CoreLint         ( lintInteractiveExpr )
+-- import Panic
+-- import ConLike
+-- import CoreSyn
+-- import SrcLoc
+-- import TcRnDriver
 import TcRnMonad
-import Desugar
-import TidyPgm
-import CorePrep
-import TyCon
+-- import Desugar
+-- import TidyPgm
+-- import CorePrep
+-- import TyCon
 import ErrUtils
 import HscTypes
 import Exception
-import Util
+-- import Util
 
 {- NV: Currently Unused 
 import           Unsafe.Coerce
@@ -321,7 +321,6 @@ monomorphize preds t = foldM (\s tv -> monomorphizeOne preds tv s)
   where
     varSetElems _ = []
 
-thd5 (_,_,x,_,_) = x 
 
 monomorphizeOne :: [PredType] -> TyVar -> Maybe Su -> Ghc (Maybe Su)
 monomorphizeOne _preds _tv Nothing = return Nothing
@@ -348,11 +347,12 @@ monomorphizeOne preds tv (Just su)
            tc:_ -> return (Just ((tv, (mkTyConApp tc [])) : su))
   where
 
+  thd5 (_,_,x,_,_) = x 
   clss = map (fst.getClassPredTys)
        . filter (\p -> tv `elemVarSet` tyCoVarsOfType p)
        $ preds
 
-  thd4 (_,_,c,_) = c
+  -- thd4 (_,_,c,_) = c
 
   -- UniqSet tries to be deterministic
   uniqSetToList = nonDetFoldUniqSet (:) []

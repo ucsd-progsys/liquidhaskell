@@ -215,7 +215,6 @@ Library
                     Language.Haskell.Liquid.WiredIn,
                     Language.Haskell.Liquid.Types.Names,
                     Language.Haskell.Liquid.Liquid,
-
                     Language.Haskell.Liquid.Desugar.HscMain,
 
                     -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
@@ -280,7 +279,8 @@ Library
                     Gradual.GUI,
                     Gradual.GUI.Annotate,
                     Gradual.GUI.Types,
-                    Gradual.GUI.Misc
+                    Gradual.GUI.Misc                    
+
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)

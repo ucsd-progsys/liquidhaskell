@@ -30,7 +30,7 @@ import qualified Text.Parsec.Token                      as Token
 import qualified Data.Text                              as T
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
-import           Data.Monoid
+-- import           Data.Monoid
 import           Data.Data
 import           Data.Maybe (isNothing, fromMaybe)
 

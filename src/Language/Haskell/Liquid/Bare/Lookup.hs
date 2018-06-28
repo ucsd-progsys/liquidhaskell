@@ -92,6 +92,7 @@ symbolicIdent :: (F.Symbolic a) => a -> String
 symbolicIdent x = "'" ++ symbolicString x ++ "'"
 
 
+
 lookupGhcThing' :: (GhcLookup a, PPrint b) => (TyThing -> Maybe (Int, b)) -> Maybe NameSpace -> a -> BareM (Maybe b)
 lookupGhcThing' f ns x = do
   be     <- get
@@ -234,15 +235,19 @@ ghcSymbolString = T.unpack . fst . T.breakOn "##" . F.symbolText
 --------------------------------------------------------------------------------
 lookupGhcVar :: (GhcLookup a) => a -> BareM Var
 lookupGhcVar x = do
-  env <- gets varEnv
-  case M.lookup (F.symbol x) env of
-    Nothing -> lookupGhcThing "variable" fv (Just varName) x `catchError` \_ ->
-               lookupGhcThing "variable or data constructor" fv (Just dataName) x
-    Just v  -> return v
-  where
-    fv (AnId x)                   = Just (0, x)
-    fv (AConLike (RealDataCon x)) = Just (1, dataConWorkId x)
-    fv _                          = Nothing
+  let xSym = F.symbol x
+  case lookupWiredDataCon xSym of 
+    Just dc -> return (dataConWorkId dc)
+    Nothing -> do
+      env <- gets varEnv
+      case M.lookup xSym env of
+        Nothing -> lookupGhcThing "variable" fv (Just varName) x `catchError` \_ ->
+                   lookupGhcThing "variable or data constructor" fv (Just dataName) x
+        Just v  -> return v
+      where
+        fv (AnId x)                   = Just (0, x)
+        fv (AConLike (RealDataCon x)) = Just (1, dataConWorkId x)
+        fv _                          = Nothing
 
 -- | Specialized version of the above to deal with 'WorkerId' of the form 
 --   'Foo.$WCtor' which crash the GHC parser. Sigh.
@@ -250,7 +255,7 @@ lookupGhcVar x = do
 lookupGhcWrkVar :: F.LocSymbol -> BareM Var
 lookupGhcWrkVar wx = 
   lookupGhcThing "variable" fv (Just varName) x `catchError` \_ ->
-  lookupGhcThing "variable or data constructor" fv (Just dataName) x
+  lookupGhcThing "variable or data constructor (wrk)" fv (Just dataName) x
   where
     x                             = F.notracepp msg (fixWorkSymbol <$> wx)
     msg                           = "lookupGhcWrkVar wx = " ++ F.showpp wx
@@ -312,18 +317,20 @@ lookupGhcTyCon src s = do
       = Just (0, dataConTyCon x)
     ftc (AConLike (RealDataCon x))
       = Just (1, promoteDataCon x)
-    ftc z
+    ftc _
       = Nothing
     err = "type constructor or class\n " ++ src
 
 lookupGhcDataCon :: Located F.Symbol -> BareM DataCon
-lookupGhcDataCon dc = case lookupWiredDataCon (F.notracepp "lookupGhcDatacon" $ val dc) of
-                        Just x  -> return x
-                        Nothing -> lookupGhcDataCon' dc
+lookupGhcDataCon dc = 
+  case lookupWiredDataCon (F.tracepp "lookupGhcDatacon" $ val dc) of
+    Just x  -> return x
+    Nothing -> lookupGhcDataCon' dc
 
-lookupWiredDataCon :: F.Symbol ->  Maybe DataCon
-lookupWiredDataCon x = M.lookup x wiredDataCons 
+lookupWiredDataCon :: F.Symbol -> Maybe DataCon
+lookupWiredDataCon x = M.lookup x wiredDataConEnv
 
+{- 
 wiredDataCons :: M.HashMap F.Symbol DataCon 
 wiredDataCons = M.fromList 
    $ (nTupleDataCon <$> [2..10])
@@ -334,6 +341,20 @@ wiredDataCons = M.fromList
      , ("I#"              , intDataCon    )
      , ("C#"              , charDataCon   )
      ]
+-} 
+
+wiredDataConEnv :: M.HashMap F.Symbol DataCon 
+wiredDataConEnv = M.fromList [ (F.tracepp "WED" $ F.symbol dc, dc) | dc <- wiredInDCs ] 
+  where
+    wiredInDCs :: [DataCon]
+    wiredInDCs =  [ tupleDataCon Boxed n | n <- [2..10] ] 
+               ++ [ nilDataCon    
+                  , consDataCon   
+                  , nothingDataCon
+                  , justDataCon   
+                  , intDataCon    
+                  , charDataCon   
+                  ]
 
 lookupWiredTyCon :: F.Symbol -> Maybe TyCon 
 lookupWiredTyCon x = M.lookup x wiredTyConEnv

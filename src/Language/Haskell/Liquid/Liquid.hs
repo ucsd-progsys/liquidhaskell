@@ -52,6 +52,8 @@ import qualified Language.Haskell.Liquid.Termination.Structural as ST
 
 type MbEnv = Maybe HscEnv
 
+
+
 --------------------------------------------------------------------------------
 liquid :: [String] -> IO b
 --------------------------------------------------------------------------------

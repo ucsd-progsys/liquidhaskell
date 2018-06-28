@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
   ) where
 
 import           Prelude hiding (error)
-import           Data.Monoid
+-- import           Data.Monoid
 
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)

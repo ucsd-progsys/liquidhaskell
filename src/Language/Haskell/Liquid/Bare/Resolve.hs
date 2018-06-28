@@ -10,7 +10,6 @@ module Language.Haskell.Liquid.Bare.Resolve (
 
 import           Prelude                             hiding (error)
 import           Var
-
 import           Control.Monad.State
 import           Data.Char                           (isUpper)
 import           Text.Parsec.Pos

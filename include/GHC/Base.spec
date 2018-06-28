@@ -5,8 +5,8 @@ import GHC.Prim
 import GHC.Classes
 import GHC.Types
 
-// embed GHC.Types.Int      as int
-// embed GHC.Types.Bool     as bool
+embed GHC.Types.Int      as int
+embed GHC.Types.Bool     as bool
 
 measure autolen :: forall a. a -> GHC.Types.Int
 class measure len :: forall f a. f a -> GHC.Types.Int
@@ -37,5 +37,5 @@ map       :: (a -> b) -> xs:[a] -> {v: [b] | len v == len xs}
 ($)       :: (a -> b) -> a -> b
 id        :: x:a -> {v:a | v = x}
 
-data variance Text.ParserCombinators.ReadPrec.ReadPrec contravariant
+// data variance Text.ParserCombinators.ReadPrec.ReadPrec contravariant
 

@@ -140,14 +140,14 @@ ds_val_bind (NonRecursive, hsbinds) body
            2 (ppr bind) $$
         text "Probable fix: add a type signature"
 
-ds_val_bind (is_rec, binds) _body
+ds_val_bind (_is_rec, binds) _body
   | anyBag (isUnliftedHsBind . unLoc) binds  -- see Note [Strict binds checks] in DsBinds
   = errDsCoreExpr $
     hang (text "Recursive bindings for unlifted types aren't allowed:")
        2 (vcat (map ppr (bagToList binds)))
 
 -- Ordinary case for bindings; none should be unlifted
-ds_val_bind (is_rec, binds) body
+ds_val_bind (_is_rec, binds) body
   = do  { (force_vars,prs) <- dsLHsBinds binds
         ; let body' = foldr seqVar body force_vars
         ; case prs of
@@ -179,11 +179,11 @@ dsUnliftedBind (AbsBinds { abs_tvs = [], abs_ev_vars = []
 
 dsUnliftedBind (FunBind { fun_id = L l fun
                         , fun_matches = matches
-                        , fun_co_fn = co_fn
+                        , fun_co_fn = _co_fn
                         , fun_tick = tick }) body
                -- Can't be a bang pattern (that looks like a PatBind)
                -- so must be simply unboxed
-  = do { (args, rhs) <- matchWrapper (mkPrefixFunRhs (L l $ idName fun))
+  = do { (_args, rhs) <- matchWrapper (mkPrefixFunRhs (L l $ idName fun))
                                      Nothing matches
        ; let rhs' = mkOptTickBox tick rhs
        ; return (bindNonRec fun rhs' body) }
@@ -534,7 +534,7 @@ ds_expr _ (RecordCon { rcon_con_expr = con_expr, rcon_flds = rbinds
 
              mk_arg (arg_ty, fl)
                = case findField (rec_flds rbinds) (flSelector fl) of
-                   (rhs:rhss) -> dsLExprNoLP rhs
+                   (rhs:_rhss) -> dsLExprNoLP rhs
                    []         -> mkErrorAppDs rEC_CON_ERROR_ID arg_ty (ppr (flLabel fl))
              unlabelled_bottom arg_ty = mkErrorAppDs rEC_CON_ERROR_ID arg_ty Outputable.empty
 
@@ -582,7 +582,7 @@ So we need to cast (T a Int) to (T a b).  Sigh.
 
 -}
 
-ds_expr _ expr@(RecordUpd { rupd_expr = record_expr, rupd_flds = fields
+ds_expr _ _expr@(RecordUpd { rupd_expr = record_expr, rupd_flds = fields
                           , rupd_cons = cons_to_upd
                           , rupd_in_tys = in_inst_tys, rupd_out_tys = out_inst_tys
                           , rupd_wrap = dict_req_wrap } )
@@ -881,7 +881,7 @@ dsDo stmts
     goL [] = panic "dsDo"
     goL (L loc stmt:lstmts) = putSrcSpanDs loc (go loc stmt lstmts)
 
-    go _ (LastStmt body _ _) stmts
+    go _ (LastStmt body _ _) _stmts
       = dsLExpr body
         -- The 'return' op isn't used for 'do' expressions
 
