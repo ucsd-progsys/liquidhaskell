@@ -26,6 +26,7 @@ import qualified Outputable as O
 import GHC hiding (Target, Located, desugarModule)
 import qualified GHC
 import GHC.Paths (libdir)
+import GHC.Serialized
 
 import Annotations
 import Class
@@ -212,16 +213,15 @@ type DepGraphNode = Node Module ()
 
 reachableModules :: DepGraph -> Module -> [Module]
 reachableModules depGraph mod =
-  undefined -- TODO GHC-8.4 snd3 <$> tail (reachableG depGraph ((), mod, []))
+  node_key <$> tail (reachableG depGraph (DigraphNode () mod []))
 
 buildDepGraph :: ModuleGraph -> Ghc DepGraph
 buildDepGraph homeModules =
   graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode (mgModSummaries homeModules)
 
 mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
-mkDepGraphNode modSummary = undefined -- TODO GHC-8.4
---  ((), ms_mod modSummary, ) <$>
---     (filterM isHomeModule =<< modSummaryImports modSummary)
+mkDepGraphNode modSummary = 
+  DigraphNode () (ms_mod modSummary) <$> (filterM isHomeModule =<< modSummaryImports modSummary)
 
 isHomeModule :: Module -> Ghc Bool
 isHomeModule mod = do
@@ -489,12 +489,10 @@ extractSpecQuotes typechecked = mapMaybe extractSpecQuote anns
     mod = ms_mod $ pm_mod_summary $ tm_parsed_module typechecked
 
 extractSpecQuote :: AnnPayload -> Maybe BPspec
-extractSpecQuote payload = undefined -- TODO GHC-8.4
-{-
+extractSpecQuote payload = 
   case fromSerialized deserializeWithData payload of
     Nothing -> Nothing
     Just qt -> Just $ refreshSymbols $ liquidQuoteSpec qt
--}
 
 refreshSymbols :: Data a => a -> a
 refreshSymbols = everywhere (mkT refreshSymbol)
