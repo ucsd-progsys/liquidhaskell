@@ -83,7 +83,7 @@ makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes s
             = do let c      = btc_tc cc
                  let l      = loc  c
                  let l'     = locE c
-                 tc        <- lookupGhcTyCon "makeClasses" c
+                 tc        <- lookupGhcTyCon ("makeClasses: " ++ show mod) c
                  ss'       <- mapM mkLSpecType ss
                  let (dc:_) = tyConDataCons tc
                  let αs  = map bareRTyVar as

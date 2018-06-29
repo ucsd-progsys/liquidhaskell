@@ -14,7 +14,7 @@ import           Control.Monad.State
 import           Data.Char                           (isUpper)
 import           Text.Parsec.Pos
 import qualified Data.HashMap.Strict                 as M
-import qualified Language.Fixpoint.Types            as F -- (prims, unconsSym)
+import qualified Language.Fixpoint.Types            as F 
 import           Language.Fixpoint.Types (Expr(..), Sort(..))
 import qualified Language.Haskell.Liquid.GHC.Misc   as GM 
 import           Language.Haskell.Liquid.Misc        (secondM, third3M)

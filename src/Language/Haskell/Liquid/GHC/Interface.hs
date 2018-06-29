@@ -413,7 +413,7 @@ toGhcSpec :: GhcMonad m
 toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
-  _            <- setContext (tgtCxt : impCxt)
+  _            <- setContext ({- tracePpr "SET-CONTEXT" $ -} tgtCxt : impCxt)
   hsc          <- getSession
   let impNames  = map (getModString . fst) impSpecs
   let exports   = mgi_exports mgi
