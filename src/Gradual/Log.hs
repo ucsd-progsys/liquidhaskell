@@ -165,7 +165,7 @@ printLog = do
   let gs    = reverse $ L.sort $ M.keys spans
   let occs  = map (makeOcc spans) gs
   if (0 < length gs) then printStatic (lStatic lg) else return () 
-  putStrLn ("\nDepth\t #?  |  Occs\tCands\t Sens\t Local\t Prec  |  "
+  putStrLn ("\nDepth\t #?  |  Occs\tCands\t Sens\t Local" {- "\t Prec" -} ++ "  |  "
            ++ "Parts\t #γ\t SCs \t" ++  take (length (show (mtoInts $ lSols lg)) -4)  (repeat ' ') ++ " Sols \n")
   putElems [ show $ lDepth lg
            , show (length gs)
@@ -173,7 +173,7 @@ printLog = do
            , show (map (toInts . map (\k -> fromMaybe 0 (L.lookup k (lCands lg)))) occs) 
            , show (map (toInts . map (\k -> fromMaybe 0 (L.lookup k (lSense lg)))) occs) 
            , show (map (toInts . map (\k -> fromMaybe 0 (L.lookup k (lLocal lg)))) occs) 
-           , show (map (toInts . map (\k -> fromMaybe 0 (L.lookup k (lPrecise lg)))) occs) 
+           -- , show (map (toInts . map (\k -> fromMaybe 0 (L.lookup k (lPrecise lg)))) occs) 
            , (show $ lGParts lg) ++ "/" ++ (show $ lParts lg)
            , show (toInts $ lConcrs lg)
            , show (mtoInts $ lSols lg)
