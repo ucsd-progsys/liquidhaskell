@@ -2,7 +2,7 @@
 
 module Gradual.Log (
   logDepth, logSpans, logCand, logSens, logLocal, logSpec, logParts, logGParts
-  , logConcr, logSol, logMatches,
+  , logConcr, logSol, logMatches, logAbord,
   printLog
 ) where
 
@@ -14,7 +14,7 @@ import Gradual.PrettyPrinting
 import Data.IORef
 import System.IO.Unsafe
 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust, fromJust)
 import qualified Data.List as L 
 import qualified Data.HashMap.Strict as M
 
@@ -64,12 +64,17 @@ logConcr !xs = do
 
 
 logSol :: [a] -> IO ()
-logSol !xs = modifyIORef logRef $ \lg -> lg{lSols = (lSols lg) ++ [length xs]}
-
+logSol !xs = modifyIORef logRef $ \lg -> lg{lSols = (lSols lg) `append` [length xs]}
+  where
+    append (Just x) y = Just (x ++ y)
+    append _        _ = Nothing 
 
 
 logMatches :: [GSub ()] -> IO () 
-logMatches gm = modifyIORef logRef $ \lg -> lg{lStatic = gm}
+logMatches gm = modifyIORef logRef $ \lg -> lg{lStatic = Just gm}
+
+logAbord :: IO ()
+logAbord = modifyIORef logRef $ \lg -> lg{lSols = Nothing, lStatic = Nothing}
 
 
 data Log = Log
@@ -82,24 +87,28 @@ data Log = Log
   , lParts   :: Int     -- Number of Partitions
   , lGParts  :: Int     -- Number of Partitions
   , lConcrs  :: [Int]   -- Number of Concretizations Per Partition
-  , lSols    :: [Int]   -- Number of Solutions Per Partition
-  , lStatic  :: [GSub ()] -- Static Solutions
+  , lSols    :: Maybe [Int]   -- Number of Solutions Per Partition
+  , lStatic  :: Maybe [GSub ()] -- Static Solutions
   }
 
 defLog :: Log 
-defLog = Log 1 mempty [][][][] 1 0 [] [] mempty
+defLog = Log 1 mempty [][][][] 1 0 [] (Just []) (Just mempty)
 
 logRef :: IORef Log
 logRef = unsafePerformIO $ newIORef defLog
 
 
-data Ints = Same Int | Diff [Int]
+data Ints = Same Int | Diff [Int] | NA 
 
 toInts :: [Int] -> Ints
 toInts []  = Diff []
 toInts [x] = Diff [x]
 toInts (x:xs) = if all (==x) xs then Same x else Diff (x:xs) 
 
+
+mtoInts :: Maybe [Int] -> Ints 
+mtoInts Nothing = NA 
+mtoInts (Just x) = toInts x 
 
 newtype MInts = MInts (Int, Ints) 
 
@@ -112,13 +121,40 @@ _toMaxInts m (x:xs) = if all (==x) xs then MInts (m, Same x) else MInts (m, Diff
 instance Show Ints where
   show (Same i)  = show i ++ "*"
   show (Diff is) = show is 
+  show NA        = "N/A" 
 
 instance Show MInts where
   show (MInts (m, Same i))  = showMInt m i ++ "*"
   show (MInts (m, Diff is)) = "[" ++ L.intercalate "," (map (showMInt m) is) ++ "]"
+  show (MInts _)            = "N/A"
 
 showMInt :: Int -> Int -> String
 showMInt m i = if i > m then (">"++show m) else show i
+
+
+solutionNumber ::  Maybe [GSub ()] -> Int
+solutionNumber Nothing = 0 
+solutionNumber (Just [m]) =
+  case M.toList m of 
+    [] -> 0 
+    _  -> 1
+solutionNumber (Just m) = length m   
+  
+
+printStatic :: Maybe [GSub ()] -> IO ()
+printStatic m 
+  | n <= 0 = do 
+  putStr "\x1b[31m"  
+  putStrLn "No static solutions found!"
+  putStr "\x1b[0m"
+  | otherwise = do 
+  putStr "\x1b[32m"
+  putStrLn (show n ++ " static solution" ++ if 1 < n then "s" else "" ++ " found!\n")
+  putStrLn (pretty sols)
+  putStr "\x1b[0m"
+  where
+    n = solutionNumber m
+    sols = fromJust m 
 
 
 
@@ -128,8 +164,9 @@ printLog = do
   let spans = lSpans lg 
   let gs    = reverse $ L.sort $ M.keys spans
   let occs  = map (makeOcc spans) gs
+  if (0 < length gs) then printStatic (lStatic lg) else return () 
   putStrLn ("\nDepth\t #?  |  Occs\tCands\t Sens\t Local\t Prec  |  "
-           ++ "Parts\t #γ\t SCs \t" ++  take (length (show (toInts $ lSols lg)) -4)  (repeat ' ') ++ " Sols \n")
+           ++ "Parts\t #γ\t SCs \t" ++  take (length (show (mtoInts $ lSols lg)) -4)  (repeat ' ') ++ " Sols \n")
   putElems [ show $ lDepth lg
            , show (length gs)
            , show (map length occs) 
@@ -139,8 +176,8 @@ printLog = do
            , show (map (toInts . map (\k -> fromMaybe 0 (L.lookup k (lPrecise lg)))) occs) 
            , (show $ lGParts lg) ++ "/" ++ (show $ lParts lg)
            , show (toInts $ lConcrs lg)
-           , show (toInts $ lSols lg)
-           , show (length $ lStatic lg)
+           , show (mtoInts $ lSols lg)
+           , if isJust (lStatic lg) then show (solutionNumber (lStatic lg))  else "N/A"
            ]
 
 

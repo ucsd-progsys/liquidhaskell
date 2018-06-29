@@ -1,7 +1,9 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Gradual.PrettyPrinting where
 
 import Language.Fixpoint.Types
 import Language.Haskell.Liquid.GHC.Misc
+import qualified Data.HashMap.Strict as M
 
 
 class Pretty a where
@@ -30,6 +32,10 @@ instance Pretty Sort where
 
 instance Pretty Int where
   pretty = show
+
+instance (Pretty a, Pretty b) =>  Pretty (M.HashMap a ((), b)) where
+  pretty m = pretty [(k,v) | (k, (_,v)) <- M.toList m]
+
 
 instance (Pretty a, Pretty b, Pretty c) =>  Pretty (a, b, c) where
   pretty (x, y, z) = "(" ++ pretty x ++ "," ++ pretty y ++ "," ++ pretty z ++ ")" 

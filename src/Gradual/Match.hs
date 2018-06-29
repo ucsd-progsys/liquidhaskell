@@ -15,7 +15,7 @@ import Data.Maybe (catMaybes, fromJust)
 matchSolutions :: GSpan -> [[GSub a]] -> [GSub ()]
 matchSolutions _ sols 
   | any null sols = []
-matchSolutions gs sols = {- traceShow (concatMap _prettyGSub ss) -} ss 
+matchSolutions gs sols = {- traceShow (concatMap (showPartition gs) sols ++ "\n" ++ concatMap prettyGSub ss) -}  ss 
   where ss = L.nub $ mergeSolutions gs sols
   -- putStrLn ("Solutions =" ++ concat (map (showPartition gs) sols))
   -- putStrLn ("MSolutions =" ++ concatMap prettyGSub (mergeSolutions gs sols))
@@ -23,7 +23,9 @@ matchSolutions gs sols = {- traceShow (concatMap _prettyGSub ss) -} ss
 
 
 mergeSolutions :: GSpan -> [[GSub a]] -> [GSub ()]
-mergeSolutions gs sols = catMaybes $ map (unionSolutions . map (mergeSolution gs)) (allCombinations sols)
+mergeSolutions gs sols 
+  = catMaybes $ map (unionSolutions . map (mergeSolution gs)) 
+                (allCombinations sols)
 
 
 unionSolutions :: [Maybe (GSub ())] -> Maybe (GSub ())
@@ -40,7 +42,8 @@ unionMSol (Just x) (Just y) = unionSol x y
 unionSol :: GSub () -> GSub () -> Maybe (GSub ()) 
 unionSol x1 x2 = if (Nothing `elem` M.elems res) then Nothing else Just (M.map fromJust res) 
   where
-    res = M.intersectionWith (\e1 e2 -> if e1 == e2 then Just e1 else Nothing) x1 x2 
+    res = M.unionWith (\(Just e1) (Just e2) -> if e1 == e2 then Just e1 else Nothing) 
+                      (M.map Just x1) (M.map Just x2) 
 
 _showPartition :: GSpan -> [GSub a] -> String 
 _showPartition gs ss = "\nPartition:\n" ++ concat (map (showSolutions gs) ss) ++ "\n\n"
@@ -65,9 +68,9 @@ mergeSolution gs sub = go [] $ map (\k -> (k, mergeKey k)) (M.keys gs)
      go acc ((_, SNA):xs)    = go acc xs 
 
 
-data SSol a = SSol a | SFail | SNA 
+data SSol a = SSol a | SFail | SNA deriving (Show)
 
-listToSSol :: Eq a => [a] -> SSol a 
+listToSSol :: (Show a, Eq a) => [a] -> SSol a 
 listToSSol [] = SNA 
 listToSSol (x:xs) 
   | all (==x) xs 

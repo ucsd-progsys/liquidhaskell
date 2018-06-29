@@ -62,13 +62,15 @@ runGradual cgi = do
   let gcfg     = (makeGConfig cfg) {pNumber = length gsis}
   sol <- mconcat <$> (quietly $ mapM (solve fcfg) sis)
   let gcfgs = setPId gcfg <$> [1..(length gsis)]
-  when (not $ F.isSafe sol) $ do 
-    putStrLn "The static part cannot be satisfied: UNSAFE"
-    exitFailure
   whenLoud $ putStrLn ("\nNumber of Gradual Partitions : " ++ show (length gsis) ++"\n")
   solss <- mapMWithLog "Running Partition" (uncurry $ solveSInfo fcfg) (zip gcfgs gsis)
+  when (not $ F.isSafe sol) $ do 
+    putStrLn "The static part cannot be satisfied: UNSAFE"
+    logMatches $ matchSolutions (fst sinfo) solss
+    printLog
+    exitFailure
   GUI.render gcfg (fst sinfo) solss
-  let ssols = matchSolutions (fst sinfo) solss 
+  let ssols = matchSolutions (fst sinfo) solss
   logMatches ssols 
   printLog
   exitSuccess
@@ -80,14 +82,19 @@ solveSInfo !fcfg !gcfg !sinfo = do
   gmap     <- makeGMap gcfg fcfg sinfo $ GS.init fcfg sinfo 
   allgs    <- logConcr $ concretize gmap sinfo
   putStrLn ("Total number of concretizations: " ++ show (length $ map snd allgs))
+  when ((length $ map snd allgs) > 1000000) $ do 
+     putStrLn ("Too many concretizations found. Aborting!") 
+     logAbord
+     printLog
+     exitFailure
   res   <- solveWhile fcfg 1001 (take 1000 allgs)
   -- res   <- quietly $ mapM (solve' fcfg) (zip allgs [1..])
   case res of 
-    (x:xs) -> do putStrLn ( "["++ show (1 + length xs) ++ "/" ++ (show $ length allgs) ++ "] Solutions Found!" ++ if length xs > 0 then " e.g.," else "") 
+    (x:xs) -> do putStrLn ("[" ++ show (1 + length xs) ++ "/" ++ (show $ length allgs) ++ "] Solutions Found!" ++ if length xs > 0 then " e.g.," else "") 
                  putStrLn (pretty $ (map (mapSnd snd) $ fromGSub $ fst x))
                  logSol (x:xs)
                  return (fst <$> (x:xs))
-    _     -> do putStrLn ("[0/" ++ (show $ length allgs) ++ "] Solutions. UNSAFE!\n")  
+    _     -> do putStrLn ((show $ length allgs) ++ "] Solutions. UNSAFE!\n")  
                 whenLoud $ putStrLn ("UNSAFE PARTITION: " ++ show sinfo)  
                 logSol ([])
                 return [mempty] 
