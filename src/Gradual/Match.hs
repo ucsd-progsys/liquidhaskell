@@ -42,8 +42,11 @@ unionMSol (Just x) (Just y) = unionSol x y
 unionSol :: GSub () -> GSub () -> Maybe (GSub ()) 
 unionSol x1 x2 = if (Nothing `elem` M.elems res) then Nothing else Just (M.map fromJust res) 
   where
-    res = M.unionWith (\(Just e1) (Just e2) -> if e1 == e2 then Just e1 else Nothing) 
-                      (M.map Just x1) (M.map Just x2) 
+    res = (M.intersectionWith (\e1 e2 -> if e1 == e2 then Just e1 else Nothing) x1 x2)
+          `M.union` d1 `M.union` d2
+
+    d1 = if M.null x2 then M.empty else M.map Just x1 `M.difference` x2
+    d2 = if M.null x1 then M.empty else M.map Just x2 `M.difference` x1
 
 _showPartition :: GSpan -> [GSub a] -> String 
 _showPartition gs ss = "\nPartition:\n" ++ concat (map (showSolutions gs) ss) ++ "\n\n"
