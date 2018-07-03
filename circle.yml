@@ -6,6 +6,8 @@ machine:
     #  - sudo apt-get -y update
     - wget 'http://ppa.launchpad.net/hvr/z3/ubuntu/pool/main/z/z3/z3_4.4.0-2ubuntu1~precise_amd64.deb'
     - sudo dpkg -i z3_4.4.0-2ubu*
+    - sudo apt-get install stack
+    - stack upgrade --binary
 
 checkout:
   post:
@@ -21,9 +23,10 @@ dependencies:
     - ".stack-work"
   pre:
     # - curl -sSL https://get.haskellstack.org/ | sh
-    - curl -SL https://www.stackage.org/stack/linux-x86_64-static | tar zx -C /tmp
+    #- curl -SL https://www.stackage.org/stack/linux-x86_64-static | tar zx -C /tmp
     # - curl -L https://github.com/commercialhaskell/stack/releases/download/v1.0.4/stack-1.0.4-linux-x86_64.tar.gz | tar zx -C /tmp
-    - sudo mv /tmp/stack-*-linux-x86_64-static/stack /usr/bin
+    #- sudo mv /tmp/stack-*-linux-x86_64-static/stack /usr/bin
+    - echo "pre"
   override:
     - stack setup
     - rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
