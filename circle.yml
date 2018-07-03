@@ -2,10 +2,10 @@ machine:
   #ghc:
   #  version: 7.10.2
   pre:
-    - sudo add-apt-repository -y ppa:hvr/z3
-    # - sudo add-apt-repository -y ppa:hvr/ghc
-    - sudo apt-get -y update
-    - sudo apt-get -y install z3 # ghc-7.10.3
+    #  - sudo add-apt-repository -y ppa:hvr/z3
+    #  - sudo apt-get -y update
+    - wget 'http://ppa.launchpad.net/hvr/z3/ubuntu/pool/main/z/z3/z3_4.4.0-2ubuntu1~precise_amd64.deb'
+    - sudo dpkg -i z3_4.4.0-2ubu*
 
 checkout:
   post:
