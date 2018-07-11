@@ -10,9 +10,9 @@ jobs:
       - run: apt-get install z3
       - checkout
       # fetch fixpoint pull requests
-      - run: git submodule sync
+      - run: git submodule init
       - run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
-      - run: git submodule update --init
+      - run: git submodule update
       - restore_cache:
           keys:
             - stack-{{ .Branch }}-{{ checksum "stack.yaml" }}
