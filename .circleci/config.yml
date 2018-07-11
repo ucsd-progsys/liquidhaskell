@@ -9,9 +9,11 @@ jobs:
       - add_ssh_keys
       - run: apt-get install z3
       - checkout
+      #- run: find .git
       # fetch fixpoint pull requests
       - run: git submodule init
-      - run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
+      #- run: find .git
+      #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
       - run: git submodule update
       - restore_cache:
           keys:
