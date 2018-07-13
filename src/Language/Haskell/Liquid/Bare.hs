@@ -755,7 +755,6 @@ makeGhcSpecCHOP1 cfg specs embs syms = do
   return             (tycons, second val <$> datacons, dcSelectors, recSels, tyi, adts)
 
 
-
 makeGhcSpecCHOP3 :: Config -> [Var] -> [Var] -> [(ModName, Ms.BareSpec)]
                  -> ModName -> [(ModName, Var, LocSpecType)]
                  -> TCEmb TyCon
