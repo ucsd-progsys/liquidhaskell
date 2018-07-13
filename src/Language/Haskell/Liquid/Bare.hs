@@ -68,6 +68,7 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure            as Ms
 
+{- 
 import           Language.Haskell.Liquid.Bare.Check
 import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Env
@@ -82,6 +83,27 @@ import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
+-}
+
+
+loadLiftedSpec :: Config -> FilePath -> IO Ms.BareSpec
+loadLiftedSpec cfg srcF
+  | noLiftedImport cfg = return mempty
+  | otherwise          = do
+      let specF = extFileName BinSpec srcF
+      ex  <- doesFileExist specF
+      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
+      lSp <- if ex then B.decodeFile specF else return mempty
+      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+      return lSp
+
+saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
+saveLiftedSpec srcF _ lspec = do
+  ensurePath specF
+  B.encodeFile specF lspec
+  where
+    specF = extFileName BinSpec srcF
+
 
 -- import Debug.Trace (trace)
 --------------------------------------------------------------------------------
@@ -99,6 +121,13 @@ makeGhcSpec :: Config
             -> [(ModName, Ms.BareSpec)]
             -> IO GhcSpec
 --------------------------------------------------------------------------------
+makeGhcSpec = undefined 
+
+{- 
+
+
+
+
 makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
   (fiTcs, fie) <- makeFamInstEnv env
   let act       = makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs
@@ -318,23 +347,7 @@ varLocSym v = symbol <$> GM.locNamedThing v
 varLocSimpleSym :: Var -> LocSymbol
 varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
 
-saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
-saveLiftedSpec srcF _ lspec = do
-  ensurePath specF
-  B.encodeFile specF lspec
-  where
-    specF = extFileName BinSpec srcF
 
-loadLiftedSpec :: Config -> FilePath -> IO Ms.BareSpec
-loadLiftedSpec cfg srcF
-  | noLiftedImport cfg = return mempty
-  | otherwise          = do
-      let specF = extFileName BinSpec srcF
-      ex  <- doesFileExist specF
-      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
-      lSp <- if ex then B.decodeFile specF else return mempty
-      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
-      return lSp
 
 insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
 insert k v []              = [(k, v)]
@@ -947,3 +960,5 @@ replaceLocalBindsOne allowHO v
                case checkTerminationExpr emb fenv (v, Loc l l' t', es') of
                  Just err -> Ex.throw err
                  Nothing  -> modify (second $ M.insert v es')
+
+-}

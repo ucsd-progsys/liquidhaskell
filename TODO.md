@@ -33,10 +33,6 @@ TODO
 Prune Unsorted Refs
 -------------------
 
-* mergeDataConTypes
-* makeMeasureSpec'
-* meetDataConSpec
-
 The below gives a nice SORT error
 
 ```haskell

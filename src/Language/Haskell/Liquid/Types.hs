@@ -24,9 +24,16 @@ module Language.Haskell.Liquid.Types (
     module Language.Haskell.Liquid.UX.Config
 
   -- * Ghc Information
-  , GhcInfo (..)
-  , GhcSpec (..)
-  , TargetVars (..)
+  , GhcInfo      (..)
+  , GhcSpec      (..)
+  , GhcSpecData  (..)
+  , GhcSpecNames (..)
+  , GhcSpecQual  (..)
+  , GhcSpecSig   (..)
+  , GhcSpecRefl  (..)
+  , GhcSpecTerm  (..)
+  , GhcSpecSig   (..)
+  , TargetVars   (..)
 
   -- * F.Located Things
   , F.Located (..)
@@ -320,6 +327,7 @@ data GhcInfo = GI
   , giSpec      :: !GhcSpec        -- ^ All specification information for module
   }
 
+
 data GhcSpec = SP 
   { gsSig    :: !GhcSpecSig  
   , gsQual   :: !GhcSpecQual 
@@ -333,10 +341,9 @@ data GhcSpec = SP
 
 instance HasConfig GhcSpec where
   getConfig = gsConfig
+
 instance HasConfig GhcInfo where
   getConfig = getConfig . giSpec
-
-da
 
 data GhcSpecSig = SpSig 
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes

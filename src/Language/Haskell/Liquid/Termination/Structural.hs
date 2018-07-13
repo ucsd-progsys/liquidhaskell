@@ -17,9 +17,13 @@ import qualified Data.HashSet  as S
 
 
 terminationCheck :: GhcInfo -> Output Doc
-terminationCheck info | structuralTerm (getConfig info)
-                      = mconcat $ map (resultToDoc . checkBind (giCbs info)) (allRecBinds $ giCbs info)
-terminationCheck info = mconcat $ map (resultToDoc . checkBind (giCbs info)) (S.toList $ gsStTerm $ giSpec info)
+terminationCheck info 
+  | isStruct  = mconcat $ map (resultToDoc . checkBind cbs) (allRecBinds cbs)
+  | otherwise = mconcat $ map (resultToDoc . checkBind cbs) (S.toList $ gsStTerm $ gsTerm $ giSpec info)
+  where 
+    isStruct = structuralTerm (getConfig info)
+    cbs      = giCbs info
+
 
 
 data Result = OK | Error [UserError]

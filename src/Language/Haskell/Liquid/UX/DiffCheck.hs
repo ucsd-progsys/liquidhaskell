@@ -47,9 +47,8 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
 import           Language.Fixpoint.Types                (atLoc, PPrint (..), FixResult (..), Located (..))
--- import            Language.Fixpoint.Misc          (traceShow)
 import           Language.Fixpoint.Utils.Files
-import           Language.Haskell.Liquid.Types          (LocSpecType, ErrorResult, GhcSpec (..), AnnInfo (..),  Output (..)) --DataConP (..),)
+import           Language.Haskell.Liquid.Types          hiding (Def, D, LMap) -- (LocSpecType, ErrorResult, GhcSpecSig (..), GhcSpecData (..), GhcSpec (..), AnnInfo (..),  Output (..)) 
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Visitors
@@ -139,9 +138,10 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
 --   whose bodies have been pruned from [CoreBind] into the "assumes"
 
 assumeSpec :: M.HashMap Var LocSpecType -> GhcSpec -> GhcSpec
-assumeSpec sigm sp = sp { gsAsmSigs = M.toList $ M.union sigm assm }
+assumeSpec sigm sp = sp { gsSig = gsig { gsAsmSigs = M.toList $ M.union sigm assm } }
   where
-    assm           = M.fromList $ gsAsmSigs sp
+    assm           = M.fromList (gsAsmSigs gsig) 
+    gsig           = gsSig sp
 
 diffVars :: [Int] -> [Def] -> [Var]
 diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
@@ -161,11 +161,12 @@ sigVars srcF ls sp = M.fromList $ filter (ok . snd) $ specSigs sp
     ok             = not . isDiff srcF ls
 
 globalDiff :: FilePath -> [Int] -> GhcSpec -> Bool
-globalDiff srcF ls spec = measDiff || invsDiff || dconsDiff
+globalDiff srcF ls gspec = measDiff || invsDiff || dconsDiff
   where
     measDiff  = any (isDiff srcF ls) (snd <$> gsMeas spec)
     invsDiff  = any (isDiff srcF ls) (snd <$> gsInvariants spec)
-    dconsDiff = any (isDiff srcF ls) [ atLoc ldc () | ldc <- gsDconsP spec ]
+    dconsDiff = any (isDiff srcF ls) [ atLoc ldc () | ldc <- gsDconsP (gsName gspec) ]
+    spec      = gsData gspec
     -- (dloc . snd <$> gsDconsP spec)
     -- dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
 
@@ -257,7 +258,9 @@ specDefs srcF  = map def . filter sameFile . specSigs
     sameFile   = (srcF ==) . file . snd
 
 specSigs :: GhcSpec -> [(Var, LocSpecType)]
-specSigs sp = gsTySigs sp ++ gsAsmSigs sp ++ gsCtors sp
+specSigs sp = gsTySigs  (gsSig  sp) 
+           ++ gsAsmSigs (gsSig  sp) 
+           ++ gsCtors   (gsData sp)
 
 --------------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
