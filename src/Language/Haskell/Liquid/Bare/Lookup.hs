@@ -344,7 +344,7 @@ wiredDataCons = M.fromList
 -} 
 
 wiredDataConEnv :: M.HashMap F.Symbol DataCon 
-wiredDataConEnv = M.fromList [ (F.tracepp "WED" $ F.symbol dc, dc) | dc <- wiredInDCs ] 
+wiredDataConEnv = M.fromList [ (F.symbol dc, dc) | dc <- wiredInDCs ] 
   where
     wiredInDCs :: [DataCon]
     wiredInDCs =  [ tupleDataCon Boxed n | n <- [2..10] ] 
@@ -362,9 +362,8 @@ lookupWiredTyCon x = M.lookup x wiredTyConEnv
 wiredTyConEnv :: M.HashMap F.Symbol TyCon 
 wiredTyConEnv = M.fromList [(F.symbol tc, tc) | tc <- primTyCons ++ wiredInTyCons ]
      
-
-nTupleDataCon :: Int -> (F.Symbol, DataCon) 
-nTupleDataCon n = (x, dc)  
+_nTupleDataCon :: Int -> (F.Symbol, DataCon) 
+_nTupleDataCon n = (x, dc)  
   where 
     x           = F.symbol $ "(" ++ replicate (n - 1) ',' ++  ")"
     dc          = tupleDataCon Boxed n 

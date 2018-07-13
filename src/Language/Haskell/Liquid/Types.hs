@@ -301,19 +301,18 @@ ppEnvShort pp   = pp { ppShort = True }
 ------------------------------------------------------------------
 
 data GhcInfo = GI
-  { target   :: !FilePath       -- ^ Source file for module
-  , targetMod:: !ModuleName     -- ^ Name for module
-  , env      :: !HscEnv         -- ^ GHC Env used to resolve names for module
-  , cbs      :: ![CoreBind]     -- ^ Source Code
-  , derVars  :: ![Var]          -- ^ ?
-  , impVars  :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
-  , defVars  :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
-  , useVars  :: ![Var]          -- ^ Binders that are _read_ in module
---   , tyCons   :: ![TyCon]        -- ^ Types that are defined inside module
-  , hqFiles  :: ![FilePath]     -- ^ Imported .hqual files
-  , imports  :: ![String]       -- ^ ??? dead?
-  , includes :: ![FilePath]     -- ^ ??? dead?
-  , spec     :: !GhcSpec        -- ^ All specification information for module
+  { target    :: !FilePath       -- ^ Source file for module
+  , targetMod :: !ModuleName     -- ^ Name for module
+  , env       :: !HscEnv         -- ^ GHC Env used to resolve names for module
+  , cbs       :: ![CoreBind]     -- ^ Source Code
+  , derVars   :: ![Var]          -- ^ ?
+  , impVars   :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
+  , defVars   :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
+  , useVars   :: ![Var]          -- ^ Binders that are _read_ in module
+  , hqFiles   :: ![FilePath]     -- ^ Imported .hqual files
+  -- , imports   :: ![String]       -- ^ ??? dead?
+  -- , includes  :: ![FilePath]     -- ^ ??? dead?
+  , spec      :: !GhcSpec        -- ^ All specification information for module
   }
 
 instance HasConfig GhcInfo where

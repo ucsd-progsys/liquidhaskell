@@ -393,8 +393,8 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
             , defVars   = letVs ++ dataCons
             , useVars   = useVs
             , hqFiles   = hqualsFiles
-            , imports   = imps
-            , includes  = incs
+            -- , imports   = imps
+            -- , includes  = incs
             , spec      = spc
             }
 
@@ -644,11 +644,11 @@ instance PPrint GhcSpec where
 
 instance PPrint GhcInfo where
   pprintTidy k info = vcat
-    [ "*************** Imports *********************"
-    , intersperse comma $ text <$> imports info
-    , "*************** Includes ********************"
-    , intersperse comma $ text <$> includes info
-    , "*************** Imported Variables **********"
+    [ -- "*************** Imports *********************"
+      -- , intersperse comma $ text <$> imports info
+      -- , "*************** Includes ********************"
+      -- , intersperse comma $ text <$> includes info
+      "*************** Imported Variables **********"
     , pprDoc $ impVars info
     , "*************** Defined Variables ***********"
     , pprDoc $ defVars info
