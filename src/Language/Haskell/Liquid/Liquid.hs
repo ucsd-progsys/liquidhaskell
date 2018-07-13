@@ -150,9 +150,6 @@ newPrune cfg cbs tgt info
     vs            = gsTgtVars    sp
     sp            = giSpec       info
 
--- topLevelBinders :: GhcSpec -> [Var]
--- topLevelBinders = map fst . tySigs
-
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d
 maybeEither _ (Just x) = Right [x]
