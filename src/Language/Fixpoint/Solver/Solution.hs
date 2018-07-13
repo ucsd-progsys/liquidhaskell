@@ -182,7 +182,7 @@ type ExprInfo    = (F.Expr, KInfo)
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.pAnd (pks:ps), kI)
   where
-    (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (pks, kI)     = applyKVars g s ks  
     (ps,  ks, _)  = envConcKVars g s bs
 
 

@@ -147,7 +147,7 @@ instance Subable Expr where
           | otherwise      = errorstar "subst: PAll (without disjoint binds)"
   subst su (PExist bs p)
           | disjoint su bs = PExist bs $ subst su p --(substExcept su (fst <$> bs)) p
-          | otherwise      = errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su))
+          | otherwise      = errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su, p))
   subst _  p               = p
 
 removeSubst :: Subst -> Symbol -> Subst
