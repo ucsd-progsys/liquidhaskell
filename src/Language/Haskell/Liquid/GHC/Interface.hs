@@ -251,13 +251,13 @@ importDeclModule fromMod (pkgQual, locModName) = do
 --------------------------------------------------------------------------------
 
 exportedVars :: GhcInfo -> [Var]
-exportedVars info = filter (isExportedVar info) (defVars info)
+exportedVars info = filter (isExportedVar info) (giDefVars info)
 
 isExportedVar :: GhcInfo -> Var -> Bool
 isExportedVar info v = n `elemNameSet` ns
   where
     n                = getName v
-    ns               = gsExports (spec info)
+    ns               = gsExports (giSpec info)
 
 
 classCons :: Maybe [ClsInst] -> [Id]
@@ -384,18 +384,18 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   (spc, imps, incs) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   hqualsFiles       <- moduleHquals modGuts paths file imps incs
-  return GI { target    = file
-            , targetMod = moduleName mod
-            , env       = hscEnv
-            , cbs       = coreBinds
-            , derVars   = derVs
-            , impVars   = impVs
-            , defVars   = letVs ++ dataCons
-            , useVars   = useVs
-            , hqFiles   = hqualsFiles
+  return GI { giTarget    = file
+            , giTargetMod = moduleName mod
+            , giCbs       = coreBinds
+            , giImpVars   = impVs
+            , giDefVars   = letVs ++ dataCons
+            , giUseVars   = useVs
+            , giHqFiles   = hqualsFiles
+            , giSpec      = spc
+            , giDerVars   = derVs
+            -- , env       = hscEnv
             -- , imports   = imps
             -- , includes  = incs
-            , spec      = spc
             }
 
 toGhcSpec :: GhcMonad m
@@ -649,13 +649,13 @@ instance PPrint GhcInfo where
       -- , "*************** Includes ********************"
       -- , intersperse comma $ text <$> includes info
       "*************** Imported Variables **********"
-    , pprDoc $ impVars info
+    , pprDoc $ giImpVars info
     , "*************** Defined Variables ***********"
-    , pprDoc $ defVars info
+    , pprDoc $ giDefVars info
     , "*************** Specification ***************"
-    , pprintTidy k $ spec info
+    , pprintTidy k $ giSpec info
     , "*************** Core Bindings ***************"
-    , pprintCBs $ cbs info                          ]
+    , pprintCBs $ giCbs info                          ]
 
 -- RJ: the silly guards below are to silence the unused-var checker
 pprintCBs :: [CoreBind] -> Doc

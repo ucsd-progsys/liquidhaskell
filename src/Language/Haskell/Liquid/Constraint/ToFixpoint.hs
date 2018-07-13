@@ -59,7 +59,7 @@ fixConfig tgt cfg = def
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = do
   let tgtFI  = targetFInfo info cgi
-  impFI     <- ignoreQualifiers info <$> parseFInfo (hqFiles info)
+  impFI     <- ignoreQualifiers info <$> parseFInfo (giHqFiles info)
   return       (tgtFI <> impFI)
 
 ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
@@ -95,7 +95,7 @@ makeAxiomEnvironment info xts fcs
   where
     emb      = gsTcEmbeds sp
     cfg      = getConfig  info
-    sp       = spec       info
+    sp       = giSpec     info
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg

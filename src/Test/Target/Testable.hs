@@ -38,7 +38,7 @@ import           Language.Fixpoint.Smt.Serialize (smt2SortMono)
 -- import qualified Language.Fixpoint.Smt.Theories  as Thy
 import           Language.Fixpoint.Types         hiding (Result)
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types   hiding (env, var, Only)
+import           Language.Haskell.Liquid.Types   hiding (var, Only)
 
 import           Test.Target.Targetable          hiding (apply)
 -- import           Test.Target.Eval

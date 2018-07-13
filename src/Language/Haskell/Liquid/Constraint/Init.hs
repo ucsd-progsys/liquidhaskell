@@ -58,7 +58,7 @@ initEnv :: GhcInfo -> CG CGEnv
 --------------------------------------------------------------------------------
 initEnv info
   = do let tce   = gsTcEmbeds sp
-       let fVars = impVars info
+       let fVars = giImpVars info
        let dcs   = filter isConLikeId (snd <$> gsFreeSyms sp)
        let dcs'  = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
@@ -84,11 +84,11 @@ initEnv info
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (cbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
+       let γ0    = measEnv sp (head bs) (giCbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 (  [("initEnv", x, y) | (x, y) <- concat $ tail bs])
        return γ {invs = is (invs1 ++ invs2)}
   where
-    sp           = spec info
+    sp           = giSpec info
     ialias       = mkRTyConIAl $ gsIaliases sp
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
@@ -216,23 +216,24 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
 
 
 assm :: GhcInfo -> [(Var, SpecType)]
-assm = assmGrty impVars
+assm = assmGrty giImpVars
 
 grty :: GhcInfo -> [(Var, SpecType)]
-grty = assmGrty defVars
+grty = assmGrty giDefVars
 
 assmGrty :: (GhcInfo -> [Var]) -> GhcInfo -> [(Var, SpecType)]
 assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
   where
     xs          = S.fromList $ f info
-    sigs        = gsTySigs     $ spec info
+    sigs        = gsTySigs     $ giSpec info
 
 grtyTop :: GhcInfo -> CG [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
-    topVs        = filter isTop $ defVars info
+    topVs        = filter isTop $ giDefVars info
     isTop v      = isExportedVar info v && not (v `S.member` sigVs)
-    sigVs        = S.fromList [v | (v,_) <- gsTySigs (spec info) ++ gsAsmSigs (spec info) ++ gsInSigs (spec info)]
+    sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp]
+    sp           = giSpec info
 
 
 infoLits :: (GhcSpec -> [(F.Symbol, LocSpecType)]) -> (F.Sort -> Bool) -> GhcInfo -> F.SEnv F.Sort
@@ -240,7 +241,7 @@ infoLits litF selF info = F.fromListSEnv $ cbLits ++ measLits
   where
     cbLits    = filter (selF . snd) $ coreBindLits tce info
     measLits  = filter (selF . snd) $ mkSort <$> litF spc
-    spc       = spec info
+    spc       = giSpec info
     tce       = gsTcEmbeds spc
     mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
 
@@ -283,7 +284,7 @@ initCGI cfg info = CGInfo {
   }
   where
     tce        = gsTcEmbeds spc
-    spc        = spec info
+    spc        = giSpec info
     tyi        = gsTyconEnv spc
     notFn      = isNothing . F.functionSort
 
@@ -292,9 +293,9 @@ coreBindLits tce info
   = sortNub      $ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]    -- strings
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors
   where
-    lconsts      = literalConst tce <$> literals (cbs info)
+    lconsts      = literalConst tce <$> literals (giCbs info)
     dcons        = filter isDCon freeVs
-    freeVs       = impVars info ++ (snd <$> gsFreeSyms (spec info))
+    freeVs       = giImpVars info ++ (snd <$> gsFreeSyms (giSpec info))
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon
     isDCon x     = isDataConId x && not (hasBaseTypeVar x)

@@ -102,7 +102,7 @@ checkOne :: Config -> GhcInfo -> IO (Output Doc)
 checkOne cfg g = do
   z <- actOrDie $ liquidOne g
   case z of
-    Left  e -> exitWithResult cfg [target g] $ mempty { o_result = e }
+    Left  e -> exitWithResult cfg [giTarget g] $ mempty { o_result = e }
     Right r -> return r
 
 
@@ -123,11 +123,11 @@ liquidOne :: GhcInfo -> IO (Output Doc)
 liquidOne info = do
   whenNormal $ donePhase Loud "Extracted Core using GHC"
   let cfg   = getConfig info
-  let tgt   = target info
+  let tgt   = giTarget info
   -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
-  let cbs' = cbs info -- scopeTr (cbs info)
+  let cbs' = giCbs info -- scopeTr (cbs info)
   whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
@@ -148,7 +148,7 @@ newPrune cfg cbs tgt info
   where
     ignores       = gsIgnoreVars sp 
     vs            = gsTgtVars    sp
-    sp            = spec       info
+    sp            = giSpec       info
 
 -- topLevelBinders :: GhcSpec -> [Var]
 -- topLevelBinders = map fst . tySigs
@@ -168,15 +168,15 @@ liquidQuery cfg tgt info edc = do
   when False (dumpCs cgi)
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
-  let tout = ST.terminationCheck (info' {cbs = cbs''})
+  let tout = ST.terminationCheck (info' {giCbs = cbs''})
   out   <- timedAction names $ solveCs cfg tgt cgi info' names
   return $  mconcat [oldOut, tout, out]
   where
-    cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {cbs = cbs''}
-    cbs''  = either id              DC.newBinds                        edc
-    info'  = either (const info)    (\z -> info {spec = DC.newSpec z}) edc
-    names  = either (const Nothing) (Just . map show . DC.checkedVars) edc
-    oldOut = either (const mempty)  DC.oldOutput                       edc
+    cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {giCbs = cbs''}
+    cbs''  = either id              DC.newBinds                          edc
+    info'  = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
+    names  = either (const Nothing) (Just . map show . DC.checkedVars)   edc
+    oldOut = either (const mempty)  DC.oldOutput                         edc
 
 
 dumpCs :: CGInfo -> IO ()

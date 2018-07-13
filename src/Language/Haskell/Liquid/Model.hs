@@ -95,14 +95,14 @@ getModels info cfg fi = case fi of
                  }
     _ <- setSessionDynFlags df'
     imps <- getContext
-    setContext ( IIModule (targetMod info)
+    setContext ( IIModule (giTargetMod info)
                : IIDecl ((simpleImportDecl (mkModuleName "Test.Target.Targetable"))
                                            { ideclQualified = True })
                : imps)
     mapM (getModel info cfg) cs
   _         -> return fi
   where
-  mbenv = Just (env info)
+  mbenv = Just undefined -- (env info)
 
 getModel :: GhcInfo -> Config -> Error -> Ghc Error
 getModel info cfg err
@@ -125,11 +125,11 @@ getModel' info cfg (ErrSubType { pos, msg, ctx, tact, texp }) = do
   hsc_env <- getSession
   df <- getDynFlags
   let opts = defaultOpts
-  model <- liftIO $ withContext (toFixCfg cfg) (solver opts) (target info) $ \smt -> do
-    runTarget opts (initState (target info) (spec info) smt) $ do
+  model <- liftIO $ withContext (toFixCfg cfg) (solver opts) (giTarget info) $ \smt -> do
+    runTarget opts (initState (giTarget info) (giSpec info) smt) $ do
       free <- gets freesyms
       let dcs = [ (v, tidySymbol v)
-                | iv <- impVars info
+                | iv <- giImpVars info
                 , isDataConId iv
                 , let v = symbol iv
                 ]

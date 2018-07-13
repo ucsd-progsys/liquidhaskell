@@ -229,7 +229,7 @@ import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
 import           Data.String
 import           DataCon
-import           GHC                                    (HscEnv, ModuleName, moduleNameString)
+import           GHC                                    (ModuleName, moduleNameString)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
 import           NameSet
@@ -301,22 +301,19 @@ ppEnvShort pp   = pp { ppShort = True }
 ------------------------------------------------------------------
 
 data GhcInfo = GI
-  { target    :: !FilePath       -- ^ Source file for module
-  , targetMod :: !ModuleName     -- ^ Name for module
-  , env       :: !HscEnv         -- ^ GHC Env used to resolve names for module
-  , cbs       :: ![CoreBind]     -- ^ Source Code
-  , derVars   :: ![Var]          -- ^ ?
-  , impVars   :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
-  , defVars   :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
-  , useVars   :: ![Var]          -- ^ Binders that are _read_ in module
-  , hqFiles   :: ![FilePath]     -- ^ Imported .hqual files
-  -- , imports   :: ![String]       -- ^ ??? dead?
-  -- , includes  :: ![FilePath]     -- ^ ??? dead?
-  , spec      :: !GhcSpec        -- ^ All specification information for module
+  { giTarget    :: !FilePath       -- ^ Source file for module
+  , giTargetMod :: !ModuleName     -- ^ Name for module
+  , giCbs       :: ![CoreBind]     -- ^ Source Code
+  , giDerVars   :: ![Var]          -- ^ Binders created by GHC eg dictionaries
+  , giImpVars   :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
+  , giDefVars   :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
+  , giUseVars   :: ![Var]          -- ^ Binders that are _read_ in module
+  , giHqFiles   :: ![FilePath]     -- ^ Imported .hqual files
+  , giSpec      :: !GhcSpec        -- ^ All specification information for module
   }
 
 instance HasConfig GhcInfo where
-  getConfig = getConfig . spec
+  getConfig = getConfig . giSpec
 
 
 type Expr      = F.Expr

@@ -92,8 +92,8 @@ consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
   γ     <- initEnv      info
   sflag <- scheck   <$> get
-  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
-  foldM_ (consCBTop cfg info) γ (cbs info)
+  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs (giSpec info) ++ gsAsmSigs (giSpec info)))
+  foldM_ (consCBTop cfg info) γ (giCbs info)
   hcs   <- hsCs  <$> get
   hws   <- hsWfs <$> get
   scss  <- sCs   <$> get
@@ -286,7 +286,7 @@ trustVar :: Config -> GhcInfo -> Var -> Bool
 trustVar cfg info x = trustInternals cfg && derivedVar info x
 
 derivedVar :: GhcInfo -> Var -> Bool
-derivedVar info x = x `elem` derVars info || GM.isInternal x
+derivedVar info x = x `elem` giDerVars info || GM.isInternal x
 
 doTermCheck :: S.HashSet Var -> Bind Var -> Bool
 doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || GM.isInternal x) . bindersOf

@@ -33,7 +33,7 @@ import           Language.Haskell.Liquid.Types
 qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 qualifiers info lEnv
-  =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
+  =  condNull (useSpcQuals info) (gsQualifiers $ giSpec info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
 
@@ -79,12 +79,10 @@ alsQualifiers info lEnv
     ]
     where
       k   = maxQualParams info
-      tce = gsTcEmbeds (spec info)
-
-    -- Symbol (RTAlias RTyVar SpecType)
+      tce = gsTcEmbeds (giSpec info)
 
 specAliases :: GhcInfo -> [RTAlias RTyVar SpecType]
-specAliases = M.elems . typeAliases . gsRTAliases . spec
+specAliases = M.elems . typeAliases . gsRTAliases . giSpec
 
 validQual :: SEnv Sort -> Qualifier -> Bool
 validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)
@@ -106,13 +104,13 @@ sigQualifiers info lEnv
     ]
     where
       k   = maxQualParams info
-      tce = gsTcEmbeds (spec info)
+      tce = gsTcEmbeds (giSpec info)
       qbs = qualifyingBinders info
 
 qualifyingBinders :: GhcInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
-    sTake              = S.fromList $ defVars info ++ useVars info ++ scrapeVars info
+    sTake              = S.fromList $ giDefVars info ++ giUseVars info ++ scrapeVars info
     sDrop              = S.fromList $ specAxiomVars info
 
 -- NOTE: this mines extra, useful qualifiers but causes
@@ -120,8 +118,8 @@ qualifyingBinders info = S.difference sTake sDrop
 -- behind `--scrape-imports` and `--scrape-used-imports`
 scrapeVars :: GhcInfo -> [Var]
 scrapeVars info
-  | info `hasOpt` scrapeUsedImports = useVars info
-  | info `hasOpt` scrapeImports     = impVars info
+  | info `hasOpt` scrapeUsedImports = giUseVars info
+  | info `hasOpt` scrapeImports     = giImpVars info
   | otherwise                       = []
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
@@ -132,10 +130,10 @@ specBinders info = mconcat
   , if info `hasOpt` scrapeInternals then gsInSigs sp else []
   ]
   where
-    sp  = spec info
+    sp  = giSpec info
 
 specAxiomVars :: GhcInfo -> [Var]
-specAxiomVars =  gsReflects . spec
+specAxiomVars =  gsReflects . giSpec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
