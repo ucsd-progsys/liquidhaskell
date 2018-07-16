@@ -51,9 +51,8 @@ import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 
 
 import           Language.Haskell.Liquid.Bare.DataType 
--- import           Language.Haskell.Liquid.Bare.Misc
+import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
 -- import           Language.Haskell.Liquid.Bare.Env
-
 
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)

@@ -257,7 +257,7 @@ isExportedVar :: GhcInfo -> Var -> Bool
 isExportedVar info v = n `elemNameSet` ns
   where
     n                = getName v
-    ns               = gsExports (giSpec info)
+    ns               = gsExports info
 
 
 classCons :: Maybe [ClsInst] -> [Id]
@@ -381,18 +381,19 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   specSpecs         <- findAndParseSpecFiles cfg paths modSummary reachable
   let homeSpecs      = cachedBareSpecs specEnv reachable
   let impSpecs       = specSpecs ++ homeSpecs
-  (spc, imps, incs) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
+  (spc, imps, incs, exports) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
-  hqualsFiles       <- moduleHquals modGuts paths file imps incs
+  -- FIXME hqualsFiles       <- moduleHquals modGuts paths file imps incs
   return GI { giTarget    = file
             , giTargetMod = moduleName mod
             , giCbs       = coreBinds
             , giImpVars   = impVs
             , giDefVars   = letVs ++ dataCons
             , giUseVars   = useVs
-            , giHqFiles   = hqualsFiles
+            -- , giHqFiles   = hqualsFiles
             , giSpec      = spc
             , giDerVars   = derVs
+            , gsExports   = exports
             -- , env       = hscEnv
             -- , imports   = imps
             -- , includes  = incs
@@ -409,7 +410,7 @@ toGhcSpec :: GhcMonad m
           -> Ms.BareSpec
           -> Either Error LogicMap
           -> [(ModName, Ms.BareSpec)]
-          -> m (GhcSpec, [String], [FilePath])
+          -> m (GhcSpec, [String], [FilePath], NameSet)
 toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let tgtCxt    = IIModule $ getModName tgtMod
   let impCxt    = map (IIDecl . qualImportDecl . getModName . fst) impSpecs
@@ -420,7 +421,7 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   let specs     = (tgtMod, tgtSpec) : impSpecs
   let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
   ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_tcs mgi) (mgi_cls_inst mgi) vars letVs exports hsc logicMap specs
-  return (ghcSpec, imps, Ms.includes tgtSpec)
+  return (ghcSpec, imps, Ms.includes tgtSpec, exports)
 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
@@ -632,15 +633,15 @@ makeLogicMap = do
 instance PPrint GhcSpec where
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
-    , pprintTidy k $ gsTgtVars spec
+    , pprintTidy k $ gsTgtVars (gsVars spec)
     , "******* Type Signatures *********************"
-    , pprintLongList k (gsTySigs spec)
+    , pprintLongList k (gsTySigs (gsSig spec))
     , "******* Assumed Type Signatures *************"
-    , pprintLongList k (gsAsmSigs spec)
+    , pprintLongList k (gsAsmSigs (gsSig spec))
     , "******* DataCon Specifications (Measure) ****"
-    , pprintLongList k (gsCtors spec)
+    , pprintLongList k (gsCtors (gsData spec))
     , "******* Measure Specifications **************"
-    , pprintLongList k (gsMeas spec)                   ]
+    , pprintLongList k (gsMeas (gsData spec))       ]
 
 instance PPrint GhcInfo where
   pprintTidy k info = vcat

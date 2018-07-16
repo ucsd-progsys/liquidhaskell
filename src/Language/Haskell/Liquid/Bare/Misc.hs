@@ -1,11 +1,10 @@
 {-# LANGUAGE FlexibleContexts         #-}
 
 module Language.Haskell.Liquid.Bare.Misc (
-    makeSymbols
-  , freeSymbols
+--    makeSymbols
+    freeSymbols
   , joinVar
   , mkVarExpr
-  -- , MapTyVarST(..)
   , vmap
   , initMapSt
   , runMapTyVars
@@ -14,10 +13,10 @@ module Language.Haskell.Liquid.Bare.Misc (
   , symbolRTyVar
   , simpleSymbolVar
   , hasBoolResult
-  , symbolMeasure
   , isKind
-  , makeDataConChecker
-  , makeDataConSelector
+  -- , symbolMeasure
+  -- , makeDataConChecker
+  -- , makeDataConSelector
   ) where
 
 import           Name
@@ -42,51 +41,15 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Bare.Env
+
+-- import           Language.Haskell.Liquid.Bare.Env
+
 import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 
---------------------------------------------------------------------------------
--- | 'makeDataConChecker d' creates the measure for `is$d` which tests whether
---   a given value was created by 'd'. e.g. is$Nil or is$Cons.
---------------------------------------------------------------------------------
-makeDataConChecker :: DataCon -> F.Symbol
---------------------------------------------------------------------------------
-makeDataConChecker d
-  = F.testSymbol (F.symbol d)
-
---------------------------------------------------------------------------------
--- | 'makeDataConSelector d' creates the selector `select$d$i`
---   which projects the i-th field of a constructed value.
---   e.g. `select$Cons$1` and `select$Cons$2` are respectively
---   equivalent to `head` and `tail`.
---------------------------------------------------------------------------------
-makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
-makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
-  where 
-    dm                       = Mb.fromMaybe M.empty dmMb 
-    def                      = makeDataConSelector' d i
-
- {- 
-  case mbDm of
-  Nothing -> def
-  Just dm -> M.lookupDefault def (F.symbol d, i) dm
-  where
- -} 
-
-makeDataConSelector' :: DataCon -> Int -> F.Symbol
-makeDataConSelector' d i
-  = symbolMeasure "$select" (dcSymbol d) (Just i)
-
-dcSymbol :: DataCon -> F.Symbol
-dcSymbol = {- simpleSymbolVar -} F.symbol . dataConWorkId
-
-symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
-symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
-  where
-    rest          = maybe [] (singleton . F.symbol . show) iMb
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
+{- 
 -- WTF does this function do?
 makeSymbols :: (Id -> Bool) -> [Id] -> [F.Symbol] -> BareM [(F.Symbol, Var)]
 makeSymbols f vs xs
@@ -98,6 +61,8 @@ makeSymbols f vs xs
       hasBasicArgs (ForAllTy _ t) = hasBasicArgs t
       hasBasicArgs (FunTy tx t)   = isBaseTy tx && hasBasicArgs t
       hasBasicArgs _              = True
+
+-} 
 
 freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
             => [F.Symbol]

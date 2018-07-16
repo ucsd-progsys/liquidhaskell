@@ -6,7 +6,11 @@ module Language.Haskell.Liquid.Bare.DataType
   ( 
     DataConMap
   , dataConMap
-  
+
+  -- * Names for accessing Data Constuctors 
+  , makeDataConChecker
+  , makeDataConSelector 
+
   -- * Constructors
   -- makeDataDecls
   -- , makeConTypes
@@ -38,10 +42,11 @@ import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
+import qualified Data.Maybe                             as Mb 
 
 import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
-import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
+import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import           Language.Haskell.Liquid.Types.PredType (dataConWorkRep, dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
@@ -73,6 +78,47 @@ dataConMap ds = M.fromList $ do
   c     <- F.ddCtors d
   let fs = F.symbol <$> F.dcFields c
   zip ((F.symbol c,) <$> [1..]) fs
+
+
+--------------------------------------------------------------------------------
+-- | 'makeDataConChecker d' creates the measure for `is$d` which tests whether
+--   a given value was created by 'd'. e.g. is$Nil or is$Cons.
+--------------------------------------------------------------------------------
+makeDataConChecker :: DataCon -> F.Symbol
+--------------------------------------------------------------------------------
+makeDataConChecker d
+  = F.testSymbol (F.symbol d)
+
+--------------------------------------------------------------------------------
+-- | 'makeDataConSelector d' creates the selector `select$d$i`
+--   which projects the i-th field of a constructed value.
+--   e.g. `select$Cons$1` and `select$Cons$2` are respectively
+--   equivalent to `head` and `tail`.
+--------------------------------------------------------------------------------
+makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
+makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
+  where 
+    dm                       = Mb.fromMaybe M.empty dmMb 
+    def                      = makeDataConSelector' d i
+
+ {- 
+  case mbDm of
+  Nothing -> def
+  Just dm -> M.lookupDefault def (F.symbol d, i) dm
+  where
+ -} 
+
+makeDataConSelector' :: DataCon -> Int -> F.Symbol
+makeDataConSelector' d i
+  = symbolMeasure "$select" (dcSymbol d) (Just i)
+
+dcSymbol :: DataCon -> F.Symbol
+dcSymbol = {- simpleSymbolVar -} F.symbol . dataConWorkId
+
+symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
+symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
+  where
+    rest          = maybe [] (Misc.singleton . F.symbol . show) iMb
 
 {- BAREOLD
 
