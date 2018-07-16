@@ -173,6 +173,9 @@ data SimpC a = SimpC
   deriving (Generic, Functor)
 
 
+instance Loc a => Loc (SimpC a) where 
+  srcSpan = srcSpan . _cinfo
+
 strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
@@ -603,7 +606,7 @@ fi :: [SubC a]
 fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
   = FI { cm       = M.fromList $ addIds cs
        , ws       = M.fromListWith err [(k, w) | w <- ws, let (_, _, k) = wrft w]
-       , bs       = binds
+       , bs       = foldr (adjustBindEnv stripReft) binds ebs
        , gLits    = ls
        , dLits    = ds
        , kuts     = ks
@@ -618,6 +621,7 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
   where
     --TODO handle duplicates gracefully instead (merge envs by intersect?)
     err = errorstar "multiple WfCs with same kvar"
+    stripReft (sym, reft) = (sym, reft { sr_reft = trueReft })
 
 ------------------------------------------------------------------------
 -- | Top-level Queries
@@ -712,7 +716,7 @@ toFixpoint cfg x' =    cfgDoc   cfg
                 --   $++$ packsDoc x'
                   $++$ gConDoc   x'
                   $++$ dConDoc   x'
-                  $++$ bindsDoc x'
+                  $++$ bindsDoc
                   $++$ csDoc    x'
                   $++$ wsDoc    x'
                   $++$ binfoDoc x'
@@ -726,7 +730,9 @@ toFixpoint cfg x' =    cfgDoc   cfg
     kutsDoc       = toFix    . kuts
     -- packsDoc      = toFix    . packs
     declsDoc      = vcat     . map ((text "data" <+>) . toFix) . ddecls
-    bindsDoc      = toFix    . bs
+    (ubs, ebs)    = splitByQuantifiers (bs x') (ebinds x')
+    bindsDoc      = toFix    ubs
+               $++$ toFix    ebs
     qualsDoc      = vcat     . map toFix . quals
     aeDoc         = toFix    . ae
     metaDoc (i,d) = toFixMeta (text "bind" <+> toFix i) (toFix d)

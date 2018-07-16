@@ -1,0 +1,31 @@
+fixpoint "--eliminate=some"
+
+// This file is SAFE with --eliminate=none
+// but both qualifiers are needed
+
+bind  16 m    : {VV##131 : int | true }
+ebind 19 n    : { int }
+
+constraint:
+  env [16; 19]
+  lhs {VV##F##4 : int | $k_##137[VV##136:=VV##F##4] }
+  rhs {VV##F##4 : int | VV##F##4 = n                }
+  id 4 tag []
+
+constraint:
+  env [16]
+  lhs {VV##F##5 : int | VV##F##5 = m + 1          }
+  rhs {VV##F##5 : int | $k_##137[VV##136:=VV##F##5] }
+  id 5 tag []
+
+// Constraint 3 is only needed to prevent the *sharing* optimization
+
+constraint:
+  env [16; 19]
+  lhs {VV##F##3 : int | false     }
+  rhs {VV##F##3 : int | $k_##137[VV##136:=VV##F##3] }
+  id 3 tag []
+
+wf:
+  env [16]
+  reft {VV##136 : int   | [$k_##137]}

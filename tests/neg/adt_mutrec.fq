@@ -1,0 +1,24 @@
+
+data Val 0 = [
+  | VClos { vc1 : int, vc2 : int, vc3 : int, vc4 : VEnv}
+  | VInt  { vi1 : int } 
+  ]
+
+data VEnv 0 = [
+  | VEmp  { }
+  | VBind { vb1 : int, vb2 : Val, vb3 : VEnv}
+  ]
+
+bind 1 env  : {v : VEnv | true }
+bind 2 val  : {v : Val  | true }
+bind 3 x    : {v : int  | true } 
+bind 4 y    : {v : int  | true } 
+bind 5 envx : {v : VEnv | v = VBind x val env }
+bind 6 envy : {v : VEnv | v = VBind y val env }
+
+constraint: 
+  env [1;2;3;4;5;6]
+  lhs {v: int | true }   
+  rhs {v: int | envx = envy} 
+  id 1 tag []
+

@@ -115,12 +115,6 @@ import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ
 
 -- import           Text.Printf               (printf)
--- import           Language.Fixpoint.Types.Config
--- import           Language.Fixpoint.Types.Errors
--- import           Text.Parsec.Pos
--- import           Data.Array                hiding (indices)
--- import qualified Data.HashSet              as S
-
 
 
 instance NFData KVar
@@ -139,6 +133,7 @@ instance (Hashable k, Eq k, B.Binary k, B.Binary v) => B.Binary (M.HashMap k v) 
   put = B.put . M.toList
   get = M.fromList <$> B.get
 
+instance (Eq a, Hashable a, B.Binary a) => B.Binary (TCEmb a) 
 instance B.Binary SrcSpan
 instance B.Binary KVar
 instance B.Binary Subst
@@ -213,6 +208,9 @@ instance Hashable Brel
 instance Hashable Bop
 instance Hashable SymConst
 instance Hashable Constant
+instance Hashable GradInfo 
+instance Hashable Subst 
+instance Hashable Expr 
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------

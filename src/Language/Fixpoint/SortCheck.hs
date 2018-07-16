@@ -66,7 +66,6 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
 import qualified Language.Fixpoint.Types.Visitor  as Vis
 import qualified Language.Fixpoint.Smt.Theories   as Thy
--- import qualified Language.Fixpoint.Smt.Types      as Thy
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 
@@ -91,9 +90,9 @@ isMono             = null . Vis.foldSort fv []
 --   instantiated to `int` and `bool`.
 --------------------------------------------------------------------------------
 class Elaborate a where
-  elaborate :: String -> SymEnv -> a -> a
+  elaborate :: Located String -> SymEnv -> a -> a
 
-instance Elaborate (SInfo a) where
+instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
     { cm      = elaborate x senv <$> cm      si
     , bs      = elaborate x senv  $  bs      si
@@ -118,7 +117,7 @@ instance Elaborate Sort where
       funSort = FApp . FApp funcSort
 
 instance Elaborate Expr where
-    elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
+  elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x, elaborate msg env s)
@@ -147,33 +146,32 @@ instance Elaborate SortedReft where
       env' = insertSymEnv v s env
 
 instance Elaborate BindEnv where
-  elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z ++ msg i x sr) env sr))
+  elaborate z env = mapBindEnv (\i (x, sr) -> (x, elaborate (z' i x sr) env sr))
     where
+      z' i  x sr  = z { val = (val z) ++ msg i x sr }
       msg i x sr  = unwords [" elabBE",  show i, show x, show sr]
 
-instance Elaborate (SimpC a) where
-  elaborate x env c = c {_crhs = elaborate x env (_crhs c) }
-
-
+instance (Loc a) => Elaborate (SimpC a) where
+  elaborate msg env c = c {_crhs = elaborate msg' env (_crhs c) }
+    where msg'        = atLoc c (val msg)
 --------------------------------------------------------------------------------
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
-elabExpr :: String -> SymEnv -> Expr -> Expr
-elabExpr msg env e
-  = case runCM0 $ elab (env, f) e of
-      Left msg -> die $ err dummySpan (d msg)
-      Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
-    where
-      sEnv = seSort env
-      f    = (`lookupSEnvWithDistance` sEnv)
-      -- γ'  = γ `mappend` (Thy.tsSort <$> Thy.theorySymbols)
-      d m  = vcat [ "elaborate" <+> text msg <+> "failed on:"
-                 , nest 4 (pprint e)
-                 , "with error"
-                 , nest 4 (text m)
-                 , "in environment"
-                 , nest 4 (pprint $ subEnv sEnv e)
-                 ]
+elabExpr :: Located String -> SymEnv -> Expr -> Expr
+elabExpr msg env e = 
+  case runCM0 (srcSpan msg) (elab (env, f) e) of
+    Left e   -> die $ err (srcSpan e) (d (val e))
+    Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
+  where
+    sEnv = seSort env
+    f    = (`lookupSEnvWithDistance` sEnv)
+    d m  = vcat [ "elaborate" <+> text (val msg) <+> "failed on:"
+                , nest 4 (pprint e)
+                , "with error"
+                , nest 4 (text m)
+                , "in environment"
+                , nest 4 (pprint $ subEnv sEnv e)
+                ]
 
 --------------------------------------------------------------------------------
 -- | 'elabApply' replaces all direct function calls indirect calls via `apply`
@@ -213,9 +211,9 @@ elabApply env = go
 -- | Sort Inference ------------------------------------------------------------
 --------------------------------------------------------------------------------
 sortExpr :: SrcSpan -> SEnv Sort -> Expr -> Sort
-sortExpr l γ e = case runCM0 $ checkExpr f e of
-    Left msg -> die $ err l (d msg)
-    Right s  -> s
+sortExpr l γ e = case runCM0 l (checkExpr f e) of
+    Left  e -> die $ err l (d (val e))
+    Right s -> s
   where
     f   = (`lookupSEnvWithDistance` γ)
     d m = vcat [ "sortExpr failed on expression:"
@@ -226,8 +224,8 @@ sortExpr l γ e = case runCM0 $ checkExpr f e of
                , nest 4 (pprint γ)
                ]
 
-checkSortExpr :: SEnv Sort -> Expr -> Maybe Sort
-checkSortExpr γ e = case runCM0 $ checkExpr f e of
+checkSortExpr :: SrcSpan -> SEnv Sort -> Expr -> Maybe Sort
+checkSortExpr sp γ e = case runCM0 sp (checkExpr f e) of
     Left _   -> Nothing
     Right s  -> Just s
   where
@@ -247,24 +245,25 @@ subEnv g e = intersectWithSEnv (\t _ -> t) g g'
 
 -- | Types used throughout checker
 type CheckM   = StateT ChState (Either ChError)
-type ChError  = String
-type ChState  = Int
+type ChError  = Located String
+data ChState  = ChS { chCount :: Int, chSpan :: SrcSpan }
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
 
+-- withError :: CheckM a -> ChError -> CheckM a
+-- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
+ 
 withError :: CheckM a -> String -> CheckM a
-act `withError` e' = act `catchError` (\e -> throwError (e ++ "\n  because\n" ++ e'))
-
-runCM0 :: CheckM a -> Either String a
-runCM0 act = fst <$> runStateT act initCM
-  where
-    initCM = 42
+act `withError` msg = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ msg)))
+ 
+runCM0 :: SrcSpan -> CheckM a -> Either ChError a
+runCM0 sp act = fst <$> runStateT act (ChS 42 sp)
 
 fresh :: CheckM Int
 fresh = do
-  !n <- get
-  put (n + 1)
+  !n <- gets chCount
+  modify $ \s -> s { chCount = 1 + chCount s }
   return n
 
 --------------------------------------------------------------------------------
@@ -277,27 +276,27 @@ checkSortedReft env xs sr = applyNonNull Nothing oops unknowns
     unknowns              = [ x | x <- syms sr, x `notElem` v : xs, not (x `memberSEnv` env)]
     Reft (v,_)            = sr_reft sr
 
-checkSortedReftFull :: Checkable a => SEnv SortedReft -> a -> Maybe Doc
-checkSortedReftFull γ t
-  = case runCM0 $ check γ' t of
-      Left e  -> Just (text e)
-      Right _ -> Nothing
-    where
+checkSortedReftFull :: Checkable a => SrcSpan -> SEnv SortedReft -> a -> Maybe Doc
+checkSortedReftFull sp γ t = 
+  case runCM0 sp (check γ' t) of
+    Left e  -> Just (text (val e))
+    Right _ -> Nothing
+  where
+    γ' = sr_sort <$> γ
+
+checkSortFull :: Checkable a => SrcSpan -> SEnv SortedReft -> Sort -> a -> Maybe Doc
+checkSortFull sp γ s t = 
+  case runCM0 sp (checkSort γ' s t) of
+    Left e  -> Just (text (val e))
+    Right _ -> Nothing
+  where
       γ' = sr_sort <$> γ
 
-checkSortFull :: Checkable a => SEnv SortedReft -> Sort -> a -> Maybe Doc
-checkSortFull γ s t
-  = case runCM0 $ checkSort γ' s t of
-      Left e  -> Just (text e)
-      Right _ -> Nothing
-    where
-      γ' = sr_sort <$> γ
-
-checkSorted :: Checkable a => SEnv Sort -> a -> Maybe Doc
-checkSorted γ t
-  = case runCM0 $ check γ t of
-      Left e   -> Just (text e)
-      Right _  -> Nothing
+checkSorted :: Checkable a => SrcSpan -> SEnv Sort -> a -> Maybe Doc
+checkSorted sp γ t = 
+  case runCM0 sp (check γ t) of
+    Left e   -> Just (text (val e))
+    Right _  -> Nothing
 
 pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
 pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
@@ -310,9 +309,9 @@ pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
 checkPred' :: Env -> Expr -> Maybe Expr
 checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
-    res        = case runCM0 $ checkPred f p of
-                   Left _err   -> {- trace (_wmsg _err p) -} Nothing
-                   Right _  -> Just p
+    res        = case runCM0 dummySpan (checkPred f p) of
+                   Left _err -> {- trace (_wmsg _err p) -} Nothing
+                   Right _   -> Just p
 
 class Checkable a where
   check     :: SEnv Sort -> a -> CheckM ()
@@ -464,7 +463,7 @@ elab f (PAtom r e1 e2)
   (e2', _) <- elab f e2
   return (PAtom r e1' e2', boolSort)
 
-elab f@(env, _) (PAtom r e1 e2) = do
+elab f@(env,_) (PAtom r e1 e2) = do
   e1' <- uncurry (toInt env) <$> elab f e1
   e2' <- uncurry (toInt env) <$> elab f e2
   return (PAtom r e1' e2', boolSort)
@@ -644,11 +643,6 @@ exprSort msg e = fromMaybe (panic err) (exprSort_maybe e)
   where
     err        = printf "exprSort [%s] on unexpected expression %s" msg (show e)
 
-  -- case exprSort_maybe e of
-  --  Nothing -> errorstar ("\nexprSort [" ++ msg ++ "] on unexpected expressions " ++ show e)
-  --  Just s  -> s
-
-
 exprSort_maybe :: Expr -> Maybe Sort
 exprSort_maybe = go
   where
@@ -668,12 +662,16 @@ unite f e t1 t2 = do
   su <- unifys f (Just e) [t1] [t2]
   return (apply su t1, apply su t2)
 
+throwErrorAt :: String -> CheckM a 
+throwErrorAt err = do 
+  sp <- gets chSpan 
+  throwError (atLoc sp err)
 
 -- | Helper for checking symbol occurrences
 checkSym :: Env -> Symbol -> CheckM Sort
 checkSym f x = case f x of
   Found s -> instantiate s
-  Alts xs -> throwError (errUnboundAlts x xs)
+  Alts xs -> throwErrorAt (errUnboundAlts x xs)
 
 -- | Helper for checking if-then-else expressions
 checkIte :: Env -> Expr -> Expr -> Expr -> CheckM Sort
@@ -762,21 +760,21 @@ checkOpTy f _ t t'
   = checkNumeric f t >> return t
 
 checkOpTy _ e t t'
-  = throwError $ errOp e t t'
+  = throwErrorAt (errOp e t t')
 
 checkFractional :: Env -> Sort -> CheckM ()
 checkFractional f s@(FObj l)
   = do t <- checkSym f l
-       unless (t == FFrac) (throwError $ errNonFractional s)
+       unless (t == FFrac) $ throwErrorAt (errNonFractional s)
 checkFractional _ s
-  = unless (isReal s) (throwError $ errNonFractional s)
+  = unless (isReal s) $ throwErrorAt (errNonFractional s)
 
 checkNumeric :: Env -> Sort -> CheckM ()
 checkNumeric f s@(FObj l)
   = do t <- checkSym f l
-       unless (t `elem` [FNum, FFrac, intSort, FInt]) (throwError $ errNonNumeric s)
+       unless (t `elem` [FNum, FFrac, intSort, FInt]) (throwErrorAt $ errNonNumeric s)
 checkNumeric _ s
-  = unless (isNumeric s) (throwError $ errNonNumeric s)
+  = unless (isNumeric s) (throwErrorAt $ errNonNumeric s)
 
 checkEqConstr :: Env -> Maybe Expr -> TVSubst -> Symbol -> Sort -> CheckM TVSubst 
 checkEqConstr _ _  θ a (FObj b)
@@ -785,9 +783,7 @@ checkEqConstr _ _  θ a (FObj b)
 checkEqConstr f e θ a t = do
   case f a of
     Found tA -> unify1 f e θ tA t 
-      -- do unless (tA == t) (throwError $ errUnifyMsg (Just "ceq1") e tA t)
-      --             return θ
-    _        -> throwError $ errUnifyMsg (Just "ceq2") e (FObj a) t
+    _        -> throwErrorAt $ errUnifyMsg (Just "ceq2") e (FObj a) t
 
 --------------------------------------------------------------------------------
 -- | Checking Predicates -------------------------------------------------------
@@ -797,9 +793,8 @@ checkPred f e = checkExpr f e >>= checkBoolSort e
 
 checkBoolSort :: Expr -> Sort -> CheckM ()
 checkBoolSort e s
- | s == boolSort = return ()
- | otherwise     = throwError $ errBoolSort e s
-
+  | s == boolSort = return ()
+  | otherwise     = throwErrorAt (errBoolSort e s)
 
 -- | Checking Relations
 checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
@@ -833,8 +828,7 @@ checkRelTy f _ _ FReal s2    = checkFractional f s2 `withError` (errNonFractiona
 checkRelTy f _ _ s1    FReal = checkFractional f s1 `withError` (errNonFractional s1)
 checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
-
-checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwError $ errRel e t1 t2)
+checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
 
 
@@ -869,7 +863,7 @@ unifyExprApp f e1 e2 = do
 unify :: Env -> Maybe Expr -> Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unify f e t1 t2
-  = case runCM0 $ unify1 f e emptySubst t1 t2 of
+  = case runCM0 dummySpan (unify1 f e emptySubst t1 t2) of
       Left _   -> Nothing
       Right su -> Just su
 
@@ -901,8 +895,7 @@ unifys f e = unifyMany f e emptySubst
 unifyMany :: Env -> Maybe Expr -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
 unifyMany f e θ ts ts'
   | length ts == length ts' = foldM (uncurry . unify1 f e) θ $ zip ts ts'
-  | otherwise               = throwError $ errUnifyMany ts ts'
-
+  | otherwise               = throwErrorAt (errUnifyMany ts ts')
 
 unify1 :: Env -> Maybe Expr -> TVSubst -> Sort -> Sort -> CheckM TVSubst
 unify1 f e !θ (FVar !i) !t
@@ -948,8 +941,7 @@ unify1 _ e θ !t1 !t2
   | t1 == t2
   = return θ
   | otherwise
-  = throwError $ errUnify e t1 t2
-
+  = throwErrorAt (errUnify e t1 t2)
 
 subst :: Int -> Sort -> Sort -> Sort
 subst !j !tj !t@(FVar !i)
@@ -1035,7 +1027,7 @@ checkFunSort (FFunc t1 t2) = return (t1, t2, emptySubst)
 checkFunSort (FVar i)      = do j <- fresh
                                 k <- fresh
                                 return (FVar j, FVar k, updateVar i (FFunc (FVar j) (FVar k)) emptySubst)
-checkFunSort t             = throwError $ errNonFunction 1 t
+checkFunSort t             = throwErrorAt (errNonFunction 1 t)
 
 --------------------------------------------------------------------------------
 -- | API for manipulating Sort Substitutions -----------------------------------
@@ -1060,8 +1052,8 @@ emptySubst = Th M.empty
 -- | Error messages ------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-errElabExpr    :: Expr -> String
-errElabExpr e  = printf "Elaborate fails on %s" (showpp e)
+errElabExpr   :: Expr -> String
+errElabExpr e = printf "Elaborate fails on %s" (showpp e)
 
 errUnifyMsg :: Maybe String -> Maybe Expr -> Sort -> Sort -> String
 errUnifyMsg msgMb eo t1 t2 
@@ -1101,9 +1093,8 @@ errCast e t' t       = printf "Cannot cast %s of sort %s to incompatible sort %s
                          (showpp e) (showpp t') (showpp t)
 
 errUnboundAlts :: Symbol -> [Symbol] -> String
-errUnboundAlts x xs  = printf "Unbound Symbol %s\n Perhaps you meant: %s"
-                        (showpp x)
-                        (foldr1 (\w s -> w ++ ", " ++ s) (showpp <$> xs))
+errUnboundAlts x xs  = printf "Unbound symbol %s --- perhaps you meant: %s ?"
+                         (showpp x) (L.intercalate ", " (showpp <$> xs))
 
 errNonFunction :: Int -> Sort -> String
 errNonFunction i t   = printf "The sort %s is not a function with at least %s arguments\n" (showpp t) (showpp i)

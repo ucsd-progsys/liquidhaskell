@@ -45,6 +45,7 @@ module Language.Fixpoint.Types.Environments (
   , insertBindEnv, lookupBindEnv
   , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList, elemsBindEnv
+  , EBindEnv, splitByQuantifiers
 
   -- * Information needed to lookup and update Solutions
   -- , SolEnv (..)
@@ -93,8 +94,14 @@ data SizedEnv a    = BE { _beSize  :: !Int
 instance PPrint a => PPrint (SizedEnv a) where
   pprintTidy k (BE _ m) = pprintTidy k m
 
-type BindEnv       = SizedEnv (Symbol, SortedReft)
 -- Invariant: All BindIds in the map are less than beSize
+type BindEnv       = SizedEnv (Symbol, SortedReft)
+newtype EBindEnv   = EB BindEnv
+
+splitByQuantifiers :: BindEnv -> [BindId] -> (BindEnv, EBindEnv)
+splitByQuantifiers (BE i bs) ebs = ( BE i $ M.filterWithKey (\k _ -> not (elem k ebs)) bs
+                                   , EB $ BE i $ M.filterWithKey (\k _ -> elem k ebs) bs
+                                   )
 
 -- data SolEnv        = SolEnv { soeBinds :: !BindEnv } 
 --                     deriving (Eq, Show, Generic)
@@ -247,6 +254,11 @@ adjustBindEnv f i (BE n m) = BE n $ M.adjust f i m
 
 instance Functor SEnv where
   fmap = mapSEnv
+
+instance Fixpoint EBindEnv where
+  toFix (EB (BE _ m)) = vcat $ map toFixBind $ hashMapToAscList m
+    where
+      toFixBind (i, (x, r)) = "ebind" <+> toFix i <+> toFix x <+> ": { " <+> toFix (sr_sort r) <+> " }"
 
 instance Fixpoint BindEnv where
   toFix (BE _ m) = vcat $ map toFixBind $ hashMapToAscList m

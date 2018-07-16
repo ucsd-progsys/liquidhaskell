@@ -1,8 +1,3 @@
-{- LANGUAGE FlexibleInstances         #-}
-{- LANGUAGE FlexibleContexts          #-}
-{- LANGUAGE NoMonomorphismRestriction #-}
-{- LANGUAGE OverloadedStrings         #-}
-{- LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
@@ -51,7 +46,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
-import qualified Language.Fixpoint.Misc   as Misc -- (sortNub, errorstar) -- traceShow)
+import qualified Language.Fixpoint.Misc   as Misc 
 
 --------------------------------------------------------------------------------
 -- | 'Raw' is the low-level representation for SMT values

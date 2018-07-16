@@ -171,8 +171,14 @@ ppSrcSpan z       = text (printf "%s:%d:%d-%d:%d" f l c l' c')
 instance Hashable SrcSpan where
   hashWithSalt i z = hashWithSalt i (sp_start z, sp_stop z)
 
+instance Loc SrcSpan where 
+  srcSpan x = x 
+
 instance Loc () where
   srcSpan _ = dummySpan
+
+instance Loc SourcePos where 
+  srcSpan l = SS l l
 
 dummySpan :: SrcSpan
 dummySpan = panicSpan ""

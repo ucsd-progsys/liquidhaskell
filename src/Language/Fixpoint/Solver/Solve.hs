@@ -30,7 +30,7 @@ import           System.Console.CmdArgs.Verbosity -- (whenNormal, whenLoud)
 import           Control.DeepSeq
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
-import qualified Data.Maybe          as Mb 
+-- import qualified Data.Maybe          as Mb 
 import qualified Data.List           as L
 
 --------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ solverInfo cfg fI
   | useElim cfg = E.solverInfo cfg fI
   | otherwise   = SI mempty fI cD (siKvars fI)
   where
-    cD          = elimDeps fI (kvEdges fI) mempty
+    cD          = elimDeps fI (kvEdges fI) mempty mempty
 
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
@@ -88,8 +88,8 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
 solve_ cfg fi s0 ks wkl = do
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1 
-  let s3   = solveEbinds fi s2 
-  s       <- {-# SCC "sol-refine" #-} refine s3 wkl
+  -- let s3   = solveEbinds fi s2 
+  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
   res     <- {-# SCC "sol-result" #-} result cfg wkl s
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
@@ -160,7 +160,7 @@ predKs _              = []
 --------------------------------------------------------------------------------
 -- | Convert Solution into Result ----------------------------------------------
 --------------------------------------------------------------------------------
-result :: (F.Fixpoint a, F.Loc a) => Config -> W.Worklist a -> Sol.Solution
+result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution
        -> SolveM (F.Result (Integer, a))
 --------------------------------------------------------------------------------
 result cfg wkl s = do
@@ -174,7 +174,7 @@ result cfg wkl s = do
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-result_ :: (F.Loc a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_ :: (F.Loc a, NFData a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
 result_  w s = res <$> filterM (isUnsat s) cs
   where
     cs       = W.unsatCandidates w
@@ -207,7 +207,7 @@ minimizeConjuncts p = F.pAnd <$> go (F.conjuncts p) []
                               else go ps (p:acc)
 
 --------------------------------------------------------------------------------
-isUnsat :: (F.Loc a) => Sol.Solution -> F.SimpC a -> SolveM Bool
+isUnsat :: (F.Loc a, NFData a) => Sol.Solution -> F.SimpC a -> SolveM Bool
 --------------------------------------------------------------------------------
 isUnsat s c = do
   -- lift   $ printf "isUnsat %s" (show (F.subcId c))
@@ -297,29 +297,3 @@ partitionInfo (i, fi)
     gs   = F.wloc . snd <$> L.filter (F.isGWfc . snd) (M.toList (F.ws fi))
     defs = L.nub (F.gsrc <$> gs)
     uses = L.nub (F.gused <$> gs)
-
----------------------------------------------------------------------------------
-solveEbinds :: F.SInfo a -> Sol.Solution -> Sol.Solution 
---------------------------------------------------------------------------------
-solveEbinds si s0  = L.foldl' solve1 s0 ebs 
-  where 
-    solve1 s (i,c) = Sol.updateEbind s i (ebReft s (i, c))
-    ebs            = [(ix, cid) | (ix, Sol.EbDef cid) <- M.toList (Sol.sEbd s0)] 
-    be             = F.bs si
-    xEnv           = F.fromListSEnv [ (x, (i, F.sr_sort sr)) | (i,x,sr) <- F.bindEnvToList be] 
-    ebReft s (i,c) = exElim xEnv i (ebindReft si s c) 
-
-ebindReft :: F.SInfo a -> Sol.Solution -> F.SubcId -> F.Pred 
-ebindReft si s cid = F.pAnd [ S.lhsPred be s c, F.crhs c ]
-  where 
-    be             = F.bs si
-    c              = Misc.safeLookup "solveEbinds" cid (F.cm si)
-
-
-exElim :: F.SEnv (F.BindId, F.Sort) -> F.BindId -> F.Pred -> F.Pred 
-exElim env xi p = F.notracepp msg (F.pExist yts p) 
-  where 
-    msg         = printf "exElim: ix = %d, p = %s" xi (F.showpp p) 
-    yts         = [ (y, yt) | y        <- F.syms p
-                            , (yi, yt) <- Mb.maybeToList (F.lookupSEnv y env)
-                            , xi < yi                                        ]

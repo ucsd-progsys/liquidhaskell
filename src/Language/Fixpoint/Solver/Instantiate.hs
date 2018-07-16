@@ -19,16 +19,11 @@ import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
-import           Language.Fixpoint.Misc          ((<<=))
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
-
--- AT: I've inlined this, but we should have a more elegant solution
---     (track predicates instead of selectors!)
--- import           Language.Haskell.Liquid.GHC.Misc (dropModuleNames)
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.List            as L
@@ -37,36 +32,36 @@ import           Data.Char            (isUpper)
 -- import           Text.Printf (printf)
 
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
-(_e,_str) ~> e' = do
-    modify (\st -> st {evId = evId st + 1})
-    return (wtf e')
-
+(e, _str) ~> e' = do
+  let msg = "PLE: " ++ _str ++ showpp (e, e') 
+  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
+  return e'
 
 --------------------------------------------------------------------------------
--- | Instantiate Axioms
+-- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: Config -> SInfo a -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
   | rewriteAxioms cfg = instantiate' cfg fi
-  | otherwise = return fi
+  | otherwise         = return fi
 
-instantiate' :: Config -> GInfo SimpC a -> IO (SInfo a)
+instantiate' :: (Loc a) => Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        (i,) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = M.toList (cm fi)
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
-    aenv            = {- tracepp "AXIOM-ENV" -} (ae fi)
+    aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
-sInfo :: Config -> GInfo SimpC a -> SymEnv -> [(SubcId, Expr)] -> SInfo a
-sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip is ps'')
+sInfo :: Config -> GInfo SimpC a -> SymEnv -> [((SubcId, SrcSpan), Expr)] -> SInfo a
+sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
-    ps''             = zipWith (\i -> elaborate ("PLE1 " ++ show i) env) is ps' -- <$> ps'
-    axs'             = elaborate "PLE2" env <$> axs
+    ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
+    axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
     fi'              = fi { asserts = axs' ++ asserts fi }
 
 withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
@@ -77,30 +72,35 @@ withCtx cfg file env k = do
   _   <- SMT.cleanupContext ctx
   return res
 
-instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
-          -> Integer -> SimpC a
-          -> IO Expr
-instSimpC _ _ _ aenv sid _
-  | not (M.lookupDefault False sid (aenvExpand aenv))
-  = return PTrue
-instSimpC cfg ctx bds aenv _ sub
-  = -- tracepp ("instSimpC " ++ show sid) .
-    pAnd . (is0 ++) <$>
-    if rewriteAxioms cfg then evalEqs else return []
-  where
-    is0              = eqBody <$> L.filter (null . eqArgs) eqs
-    evalEqs          = map (uncurry (PAtom Eq)) .
-                       filter (uncurry (/=)) <$>
-                       evaluate cfg ctx binds aenv iExprs
-    eqs              = aenvEqs aenv
-    (binds, iExprs)  = cstrBindExprs bds sub
 
-cstrBindExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrBindExprs bds sub = {- tracepp "initExpressions" -} (unElab <$> binds, unElab <$> es)
+--------------------------------------------------------------------------------
+-- | Partition Binds into individual "owning" constraints, to not repeat PLE 
+--   for each bind, but instead, to just do PLE for that bind while at the 
+--   the "root" constraint.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | PLE for a single 'SimpC'
+--------------------------------------------------------------------------------
+instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
+          -> Integer -> SimpC a 
+          -> IO Expr
+--------------------------------------------------------------------------------
+instSimpC cfg ctx bds aenv sid sub 
+  | not (M.lookupDefault False sid (aenvExpand aenv)) = 
+    return PTrue
+  | otherwise                                         = do
+    let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
+    let (bs, es0) = cstrExprs bds sub
+    equalities   <- evaluate cfg ctx bs aenv es0 
+    let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
+    return        $ pAnd (is0 ++ evalEqs)  
+
+cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
+cstrExprs bds sub = (unElab <$> binds, unElab <$> es)
   where
-    es                = {- expr (slhs sub) : -} (crhs sub) : (expr <$> binds)
-    binds             = envCs bds (senv sub)
-  --   _tx e              = tracepp ("UNELAB e = " ++ showpp e) (unElab e)
+    es            = (crhs sub) : (expr <$> binds)
+    binds         = envCs bds (senv sub)
 
 unElab :: (Vis.Visitable t) => t -> t
 unElab = Vis.stripCasts . unApply
@@ -112,66 +112,61 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
       | Just _ <- unApplyAt f = EApp e1 e2
     go e                      = e
 
-
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
-data Knowledge
-  = KN { knSims    :: ![Rewrite]
-       , knAms     :: ![Equation]
-       , knContext :: IO SMT.Context
-       , knPreds   :: !([(Symbol, Sort)] -> Expr -> SMT.Context -> IO Bool)
-       , knLams    :: [(Symbol, Sort)]
-       }
-
-emptyKnowledge :: IO SMT.Context -> Knowledge
-emptyKnowledge ctx = KN [] [] ctx (\_ _ _ -> return False) []
+data Knowledge = KN 
+  { knSims    :: ![Rewrite]           -- ^ Measure info, asserted for each new Ctor ('assertSelectors')
+  , knAms     :: ![Equation]          -- ^ (Recursive) function definitions, used for PLE
+  , knContext :: SMT.Context
+  , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+  , knLams    :: [(Symbol, Sort)]
+  }
 
 isValid :: Knowledge -> Expr -> IO Bool
-isValid γ b = knPreds γ (knLams γ) b =<< knContext γ
+isValid γ e = knPreds γ (knContext γ) (knLams γ) e
 
-makeKnowledge :: Config -> SMT.Context -> AxiomEnv
-                 -> [(Symbol, SortedReft)]
-                 -> ([(Expr, Expr)], Knowledge)
-makeKnowledge cfg ctx aenv es = (simpleEqs,) $ (emptyKnowledge context)
-                                     { knSims   = aenvSimpl aenv
-                                     , knAms    = aenvEqs aenv
-                                     , knPreds  = \bs e c -> askSMT c bs e
-                                     }
+isProof :: (a, SortedReft) -> Bool 
+isProof (_, RR s _) = showpp s == "Tuple"
+
+knowledge :: Config -> SMT.Context -> AxiomEnv -> Knowledge
+knowledge cfg ctx aenv = KN 
+  { knSims    = aenvSimpl aenv
+  , knAms     = aenvEqs   aenv
+  , knContext = ctx 
+  , knPreds   = askSMT    cfg 
+  , knLams    = [] 
+  } 
+
+-- | This creates the rewrite rule e1 -> e2, applied when:
+-- 1. when e2 is a DataCon and can lead to further reductions
+-- 2. when size e2 < size e1
+
+initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
+initEqualities ctx aenv es = simpleEqs
   where
-    senv = SMT.ctxSymEnv ctx
-    context :: IO SMT.Context
-    context = do
-      SMT.smtPop ctx
-      SMT.smtPush ctx
-      -- SMT.smtDecls ctx $ L.nub [(x, toSMT [] s) | (x, s) <- fbinds, not (memberSEnv x thySyms)]
-      SMT.smtAssert ctx (pAnd ([toSMT [] (PAtom Eq e1 e2) | (e1, e2) <- simpleEqs]
-                               ++ filter (null . Vis.kvars) ((toSMT [] . expr) <$> es)
-                              ))
-      return ctx
+    simpleEqs              = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
+    dcEqs                  = Misc.hashNub (catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
+    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
+    senv                   = SMT.ctxSymEnv ctx
 
-    -- This creates the rewrite rule e1 -> e2. When should I apply it?
-    -- 1. when e2 is a data con and can lead to further reductions
-    -- 2. when size e2 < size e1
-    simpleEqs = {- tracepp "SIMPLEEQS" $ -} makeSimplifications (aenvSimpl aenv) =<<
-               L.nub (catMaybes [_getDCEquality senv e1 e2 | PAtom Eq e1 e2 <- atms])
-    atms = splitPAnd =<< (expr <$> filter isProof es)
-    isProof (_, RR s _) = showpp s == "Tuple"
-    toSMT bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
-    elabEnv  = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
+-- AT: Non-obvious needed invariant: askSMT True is always the 
+-- totality-effecting one.
+-- RJ: What does "totality effecting" mean? 
 
-    -- AT: Non-obvious needed invariant: askSMT True is always the
-    -- totality-effecting one
-    askSMT :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-    askSMT ctx bs e
-      | isTautoPred  e = return True
-    -- // Why?  | isContraPred e = return False -- Why the f?
-      | null (Vis.kvars e) = do
-          SMT.smtPush ctx
-          b <- SMT.checkValid' ctx [] PTrue (toSMT bs e)
-          SMT.smtPop ctx
-          return b
-      | otherwise      = return False
+askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+askSMT cfg ctx bs e
+  | isTautoPred  e     = return True
+  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
+  | otherwise          = return False
+  where 
+    e'                 = toSMT cfg ctx bs e 
+
+toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
+toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
+  where
+    elabEnv      = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
+    senv         = SMT.ctxSymEnv ctx
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
 makeSimplifications sis (dc, es, e)
@@ -183,19 +178,19 @@ makeSimplifications sis (dc, es, e)
    go _
      = []
 
-_getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
-_getDCEquality senv e1 e2
-    | Just dc1 <- f1
-    , Just dc2 <- f2
-    = if dc1 == dc2
-         then Nothing
-         else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
-    | Just dc1 <- f1
-    = Just (dc1, es1, e2)
-    | Just dc2 <- f2
-    = Just (dc2, es2, e1)
-    | otherwise
-    = Nothing
+getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
+getDCEquality senv e1 e2
+  | Just dc1 <- f1
+  , Just dc2 <- f2
+  = if dc1 == dc2
+      then Nothing
+      else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
+  | Just dc1 <- f1
+  = Just (dc1, es1, e2)
+  | Just dc2 <- f2
+  = Just (dc2, es2, e1)
+  | otherwise
+  = Nothing
   where
     (f1, es1) = Misc.mapFst (getDC senv) (splitEApp e1)
     (f2, es2) = Misc.mapFst (getDC senv) (splitEApp e2)
@@ -243,15 +238,10 @@ splitPAnd e         = [e]
  -}
 
 assertSelectors :: Knowledge -> Expr -> EvalST ()
--- assertSelectors _ _ = return ()
-{- TODO: HEREHEREHEREHEREHEREHERE
-  1. DOES this kill Unification.hs? (Guard under --no-adt)
-  2. Use addEquality instead off _addSMTEquality.
--}
 assertSelectors γ e = do
     sims <- aenvSimpl <$> gets _evAEnv
     -- cfg  <- gets evCfg
-    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (tracepp "assertSelector" e) sims
+    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (notracepp "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e
     return ()
   where
@@ -260,17 +250,12 @@ assertSelectors γ e = do
       | (EVar dc', es) <- splitEApp e
       , dc == dc'
       , length xs == length es
-      = do let e1 = (EApp (EVar f) e)
-           let e2 = (subst (mkSubst $ zip xs es) bd)
+      = do let e1 = EApp (EVar f) e
+           let e2 = subst (mkSubst $ zip xs es) bd
            addEquality γ e1 e2
            return e
     go _ e
       = return e
-
--- _addSMTEquality :: Knowledge -> Expr -> Expr -> IO ()
--- _addSMTEquality γ e1 e2 = do
-  -- ctx <- knContext γ
-  -- SMT.smtAssert ctx (tracepp "addSMTEQ" (PAtom Eq (makeLam γ e1) (makeLam γ e2)))
 
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
@@ -285,37 +270,39 @@ data EvalEnv = EvalEnv
 
 type EvalST a = StateT EvalEnv IO a
 
-evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv
-            -> [Expr]
-            -> IO [(Expr, Expr)]
-evaluate cfg ctx facts aenv einit
-  = (eqs ++) <$>
-    (fmap join . sequence)
-    (evalOne <$> L.nub (grepTopApps =<< einit))
-  where
-    (eqs, γ)   = makeKnowledge cfg ctx aenv facts
-    senv       = SMT.ctxSymEnv ctx
-    initEvalSt = EvalEnv 0 [] aenv senv cfg
-    -- This adds all intermediate unfoldings into the assumptions
-    -- no test needs it
-    -- TODO: add a flag to enable it
-    evalOne :: Expr -> IO [(Expr, Expr)]
-    evalOne e = {- notracepp ("evalOne e = " ++ showpp e) <$> -} do
-      (e', st) <- runStateT (eval γ e) initEvalSt
-      if e' == e then return [] else return ((e, e'):evSequence st)
+evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr] 
+         -> IO [(Expr, Expr)]
+evaluate cfg ctx facts aenv es = do 
+  let eqs      = initEqualities ctx aenv facts  
+  let γ        = knowledge cfg ctx aenv 
+  let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
+  let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
+  let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
+              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
+  eqss        <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                   forM_ ctxEqs (SMT.smtAssert ctx) 
+                   mapM (evalOne γ s0) cands
+  return        $ eqs ++ concat eqss
 
--- Don't evaluate under Lam, App, Ite, or constants
-grepTopApps :: Expr -> [Expr]
-grepTopApps (PAnd es)       = concatMap grepTopApps es
-grepTopApps (POr es)        = concatMap grepTopApps es
-grepTopApps (PAtom _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PIff e1 e2)    = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PImp e1 e2)    = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (PNot e)        = grepTopApps e
-grepTopApps (EBin  _ e1 e2) = grepTopApps e1 ++ grepTopApps e2
-grepTopApps (ENeg e)        = grepTopApps e
-grepTopApps e@(EApp _ _)    = [e]
-grepTopApps _               = []
+evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
+evalOne γ s0 e = do
+  (e', st) <- runStateT (eval γ e) s0 
+  if e' == e then return [] else return ((e, e') : evSequence st)
+
+-- Don't evaluate under Lam, App, Ite, or Constants
+topApps :: Expr -> [Expr]
+topApps = go 
+  where 
+    go (PAnd es)       = concatMap go es
+    go (POr es)        = concatMap go es
+    go (PAtom _ e1 e2) = go e1  ++ go e2
+    go (PIff e1 e2)    = go e1  ++ go e2
+    go (PImp e1 e2)    = go e1  ++ go e2
+    go (EBin  _ e1 e2) = go e1  ++ go e2
+    go (PNot e)        = go e
+    go (ENeg e)        = go e
+    go e@(EApp _ _)    = [e]
+    go _               = []
 
 -- makeLam is the adjoint of splitEApp
 makeLam :: Knowledge -> Expr -> Expr
@@ -376,21 +363,25 @@ evalApp γ e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
-  = do e'    <- eval γ $ wtf $ substPopIf (zip (smArgs simp) es) (smBody simp)
+  = do e'    <- eval γ $ substPopIf (zip (smArgs simp) es) (smBody simp)
        (e, "Rewrite -" ++ showpp f) ~> e'
 evalApp γ _ (EVar f, es)
   -- we should move the lookupKnowledge stuff here into kmAms γ
-  | Just eq <- L.find ((==f) . eqName) (knAms γ)
+  | Just eq <- L.find (( == f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
   , f `notElem` syms bd               -- non-recursive equations
-  = eval γ . wtf =<< assertSelectors γ <<= substEq PopIf eq es bd
+  = do env   <- seSort <$> gets evEnv
+       let ee = substEq env PopIf eq es bd
+       assertSelectors γ ee 
+       eval γ ee 
 
 evalApp γ _e (EVar f, es)
-  | Just eq <- L.find ((==f) . eqName) (knAms γ)
+  | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
-  = evalRecApplication γ (eApps (EVar f) es) =<< substEq Normal eq es bd
+  = do env      <- seSort <$> gets evEnv
+       evalRecApplication γ (eApps (EVar f) es) (substEq env Normal eq es bd)
 evalApp _ _ (f, es)
   = return $ eApps f es
 
@@ -399,8 +390,8 @@ evalApp _ _ (f, es)
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-substEq :: SubstOp -> Equation -> [Expr] -> Expr -> EvalST Expr
-substEq o eq es bd = substEqVal o eq es <$> substEqCoerce eq es bd
+substEq :: SEnv Sort -> SubstOp -> Equation -> [Expr] -> Expr -> Expr
+substEq env o eq es bd = substEqVal o eq es (substEqCoerce env eq es bd)
 
 data SubstOp = PopIf | Normal
 
@@ -412,14 +403,13 @@ substEqVal o eq es bd = case o of
     xes    =  zip xs es
     xs     =  eqArgNames eq
 
-substEqCoerce :: Equation -> [Expr] -> Expr -> EvalST Expr
-substEqCoerce eq es bd = do
-  env      <- seSort <$> gets evEnv
-  let ts    = snd    <$> eqArgs eq
-  let sp    = panicSpan "mkCoSub"
-  let eTs   = sortExpr sp env <$> es
-  let coSub = notracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
-  return    $ Vis.applyCoSub coSub bd
+substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
+substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
+  where 
+    ts    = snd    <$> eqArgs eq
+    sp    = panicSpan "mkCoSub"
+    eTs   = sortExpr sp env <$> es
+    coSub = notracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
 
 mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
@@ -458,14 +448,14 @@ eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
 substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = wtf $ L.foldl' go e xes
+substPopIf xes e = L.foldl' go e xes
   where
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ e (EIte b e1 e2) = do
-  contra <- {- tracepp ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
+  contra <- {- notracepp ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
   if contra
     then return e
     else do b' <- eval γ b
@@ -474,14 +464,14 @@ evalRecApplication γ e (EIte b e1 e2) = do
               then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                    eval γ e1 >>=
-                   ((e, "App") ~>)
+                   ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
                            ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
                            eval γ e2 >>=
-                           ((e, "App") ~>)
+                           ((e, "App2: ") ~>)
                       else return e
 evalRecApplication _ _ e
   = return e
@@ -511,37 +501,5 @@ evalIte' γ _ b e1 e2 _ _
        e2' <- eval γ e2
        return $ EIte b e1' e2'
 
---------------------------------------------------------------------------------
--- normalization required by ApplicativeMaybe.composition
---------------------------------------------------------------------------------
--- RJ: What on earth is this function doing?
-wtf :: Expr -> Expr
-wtf = id
-{-
-wtf = snd . go
-  where
-    go (EIte b t f)
-      | isTautoPred t && isFalse f
-      = (True, b)
-    go (EIte b e1 e2)
-      = let (fb, b') = go b
-            (f1, e1') = go e1
-            (f2, e2') = go e2
-            in
-        (fb || f1 || f2, EIte b' e1' e2')
-    go (EApp (EIte b f1 f2) e)
-      = (True, EIte b (snd $ go $ EApp f1 e) (snd $ go $ EApp f2 e))
-    go (EApp f (EIte b e1 e2))
-      = (True, EIte b (snd $ go $ EApp f e1) (snd $ go $ EApp f e2))
-    go (EApp e1 e2)
-      = let (f1, e1') = go e1
-            (f2, e2') = go e2
-            in
-        if f1 || f2
-              then go $ EApp e1' e2'
-              else (False, EApp e1' e2')
-    go e = (False, e)
-
--}
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
