@@ -102,7 +102,7 @@ checkOne :: Config -> GhcInfo -> IO (Output Doc)
 checkOne cfg g = do
   z <- actOrDie $ liquidOne g
   case z of
-    Left  e -> exitWithResult cfg [giTarget g] $ mempty { o_result = e }
+    Left  e -> exitWithResult cfg [giTarget (giSrc g)] $ mempty { o_result = e }
     Right r -> return r
 
 
@@ -123,11 +123,11 @@ liquidOne :: GhcInfo -> IO (Output Doc)
 liquidOne info = do
   whenNormal $ donePhase Loud "Extracted Core using GHC"
   let cfg   = getConfig info
-  let tgt   = giTarget info
+  let tgt   = giTarget (giSrc info)
   -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
-  let cbs' = giCbs info -- scopeTr (cbs info)
+  let cbs' = giCbs (giSrc info) 
   whenNormal $ donePhase Loud "Transformed Core"
   whenLoud  $ do donePhase Loud "transformRecExpr"
                  putStrLn "*************** Transform Rec Expr CoreBinds *****************"
@@ -142,13 +142,14 @@ liquidOne info = do
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
   | not (null vs) = return . Right $ [DC.thin cbs sp vs]
-  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | v <- exportedVars info ]
+  | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | v <- expVars]
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return $ Left (ignoreCoreBinds ignores cbs)
   where
     ignores       = gsIgnoreVars (gsVars sp) 
     vs            = gsTgtVars    (gsVars sp)
     sp            = giSpec       info
+    expVars       = exportedVars (giSrc info)
 
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d
@@ -162,19 +163,18 @@ liquidQueries cfg tgt info (Right dcs)
 
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
+  let names  = either (const Nothing) (Just . map show . DC.checkedVars)   edc
+  let oldOut = either (const mempty)  DC.oldOutput                         edc
+  let info'  = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
+  let cbs''  = either id              DC.newBinds                          edc
+  let info'' = info' { giSrc = (giSrc info') {giCbs = cbs''}}
+  let cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info'' 
   when False (dumpCs cgi)
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
-  let tout = ST.terminationCheck (info' {giCbs = cbs''})
-  out   <- timedAction names $ solveCs cfg tgt cgi info' names
-  return $  mconcat [oldOut, tout, out]
-  where
-    cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info' {giCbs = cbs''}
-    cbs''  = either id              DC.newBinds                          edc
-    info'  = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
-    names  = either (const Nothing) (Just . map show . DC.checkedVars)   edc
-    oldOut = either (const mempty)  DC.oldOutput                         edc
-
+  let tout   = ST.terminationCheck info'' 
+  out       <- timedAction names $ solveCs cfg tgt cgi info'' names
+  return     $  mconcat [oldOut, tout, out]
 
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do

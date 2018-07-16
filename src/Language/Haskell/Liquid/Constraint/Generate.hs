@@ -93,8 +93,9 @@ consAct cfg info = do
   γ       <- initEnv      info
   sflag   <- scheck   <$> get
   let sSpc = gsSig . giSpec $ info  
+  let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
-  foldM_ (consCBTop cfg info) γ (giCbs info)
+  foldM_ (consCBTop cfg info) γ (giCbs gSrc)
   hcs    <- hsCs  <$> get
   hws    <- hsWfs <$> get
   scss   <- sCs   <$> get
@@ -284,10 +285,10 @@ consCBTop _ _ γ cb
 
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
-trustVar cfg info x = trustInternals cfg && derivedVar info x
+trustVar cfg info x = trustInternals cfg && derivedVar (giSrc info) x
 
-derivedVar :: GhcInfo -> Var -> Bool
-derivedVar info x = x `elem` giDerVars info || GM.isInternal x
+derivedVar :: GhcSrc -> Var -> Bool
+derivedVar src x = x `elem` giDerVars src || GM.isInternal x
 
 doTermCheck :: S.HashSet Var -> Bind Var -> Bool
 doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || GM.isInternal x) . bindersOf
@@ -605,7 +606,7 @@ varTemplate' γ (x, eo)
 topSpecType :: Var -> SpecType -> CG SpecType
 topSpecType x t = do
   info  <- ghcI <$> get
-  return $ if derivedVar info x then topRTypeBase t else t
+  return $ if derivedVar (giSrc info) x then topRTypeBase t else t
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Checking -------------------------------------------

@@ -33,6 +33,7 @@ module Language.Haskell.Liquid.Types (
   , GhcSpecSig   (..)
   , GhcSpecRefl  (..)
   , GhcSpecTerm  (..)
+  , GhcSrc       (..)
   , TargetVars   (..)
 
   -- * F.Located Things
@@ -232,6 +233,7 @@ module Language.Haskell.Liquid.Types (
   )
   where
 
+import           InstEnv
 import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
 import           Data.String
@@ -316,17 +318,23 @@ type Qualifier = F.Qualifier
 -- parsing the target source and dependent libraries
 
 data GhcInfo = GI
-  { giTarget    :: !FilePath       -- ^ Source file for module
-  , giTargetMod :: !ModuleName     -- ^ Name for module
-  , giCbs       :: ![CoreBind]     -- ^ Source Code
-  , giDerVars   :: ![Var]          -- ^ Binders created by GHC eg dictionaries
-  , giImpVars   :: ![Var]          -- ^ Binders that are _read_ in module (but not defined?)
-  , giDefVars   :: ![Var]          -- ^ (Top-level) binders that are _defined_ in module
-  , giUseVars   :: ![Var]          -- ^ Binders that are _read_ in module
-  , gsExports   :: !NameSet       -- ^ `Name`s exported by the module being verified
+  { giSrc       :: !GhcSrc  
   , giSpec      :: !GhcSpec        -- ^ All specification information for module
   }
 
+
+data GhcSrc = Src 
+  { giTarget    :: !FilePath          -- ^ Source file for module
+  , giTargetMod :: !ModuleName        -- ^ Name for module
+  , giCbs       :: ![CoreBind]        -- ^ Source Code
+  , gsTcs       :: ![TyCon]           -- ^ All used Type constructors
+  , gsCls       :: !(Maybe [ClsInst]) -- ^ Class instances?
+  , giDerVars   :: ![Var]             -- ^ Binders created by GHC eg dictionaries
+  , giImpVars   :: ![Var]             -- ^ Binders that are _read_ in module (but not defined?)
+  , giDefVars   :: ![Var]             -- ^ (Top-level) binders that are _defined_ in module
+  , giUseVars   :: ![Var]             -- ^ Binders that are _read_ in module
+  , gsExports   :: !NameSet           -- ^ `Name`s exported by the module being verified
+  }
 
 data GhcSpec = SP 
   { gsSig    :: !GhcSpecSig  

@@ -58,7 +58,7 @@ initEnv :: GhcInfo -> CG CGEnv
 --------------------------------------------------------------------------------
 initEnv info
   = do let tce   = gsTcEmbeds (gsName sp)
-       let fVars = giImpVars info
+       let fVars = giImpVars (giSrc info)
        let dcs   = filter isConLikeId (snd <$> gsFreeSyms (gsName sp))
        let dcs'  = filter isConLikeId fVars
        defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
@@ -84,7 +84,8 @@ initEnv info
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
-       let γ0    = measEnv sp (head bs) (giCbs info) tcb lt1s lt2s (bs!!3) (bs!!5) hs info
+       let cbs   = giCbs . giSrc $ info
+       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 (  [("initEnv", x, y) | (x, y) <- concat $ tail bs])
        return γ {invs = is (invs1 ++ invs2)}
   where
@@ -216,10 +217,10 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
 
 
 assm :: GhcInfo -> [(Var, SpecType)]
-assm = assmGrty giImpVars
+assm = assmGrty (giImpVars . giSrc)
 
 grty :: GhcInfo -> [(Var, SpecType)]
-grty = assmGrty giDefVars
+grty = assmGrty (giDefVars . giSrc) 
 
 assmGrty :: (GhcInfo -> [Var]) -> GhcInfo -> [(Var, SpecType)]
 assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
@@ -230,8 +231,8 @@ assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 grtyTop :: GhcInfo -> CG [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
-    topVs        = filter isTop $ giDefVars info
-    isTop v      = isExportedVar info v && not (v `S.member` sigVs)
+    topVs        = filter isTop $ giDefVars (giSrc info)
+    isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs)
     sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp]
     sp           = gsSig . giSpec $ info
 
@@ -295,9 +296,10 @@ coreBindLits tce info
   = sortNub      $ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]    -- strings
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors
   where
-    lconsts      = literalConst tce <$> literals (giCbs info)
+    src         = giSrc info
+    lconsts      = literalConst tce <$> literals (giCbs src)
     dcons        = filter isDCon freeVs
-    freeVs       = giImpVars info ++ freeSyms
+    freeVs       = giImpVars src ++ freeSyms
     freeSyms     = fmap snd . gsFreeSyms . gsName . giSpec $ info
     dconToSort   = typeSort tce . expandTypeSynonyms . varType
     dconToSym    = F.symbol . idDataCon

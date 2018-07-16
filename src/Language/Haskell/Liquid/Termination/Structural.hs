@@ -22,7 +22,7 @@ terminationCheck info
   | otherwise = mconcat $ map (resultToDoc . checkBind cbs) (S.toList $ gsStTerm $ gsTerm $ giSpec info)
   where 
     isStruct = structuralTerm (getConfig info)
-    cbs      = giCbs info
+    cbs      = giCbs          (giSrc     info)
 
 
 

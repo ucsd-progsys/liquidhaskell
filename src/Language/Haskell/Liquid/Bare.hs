@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Bare (
 
 
 import           Prelude                                    hiding (error)
-import           CoreSyn                                    hiding (Expr)
+-- import           CoreSyn                                    hiding (Expr)
 import qualified CoreSyn
 import qualified Unique
 import           HscTypes
@@ -83,8 +83,13 @@ import           Language.Haskell.Liquid.Bare.Expand
 import           Language.Haskell.Liquid.Bare.SymSort
 import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
+-- import Debug.Trace (trace)
 -}
 
+
+--------------------------------------------------------------------------------
+-- | De/Serializing Spec files -------------------------------------------------
+--------------------------------------------------------------------------------
 
 loadLiftedSpec :: Config -> FilePath -> IO Ms.BareSpec
 loadLiftedSpec cfg srcF
@@ -105,8 +110,14 @@ saveLiftedSpec srcF _ lspec = do
     specF = extFileName BinSpec srcF
 
 
--- import Debug.Trace (trace)
 --------------------------------------------------------------------------------
+-- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
+--   constraints for a target module and packages them into a @GhcSpec@ 
+--------------------------------------------------------------------------------
+makeGhcSpec :: GhcSrc -> [(ModName, Ms.BareSpec)] -> Either Error LogicMap  -> IO GhcSpec 
+makeGhcSpec = undefined 
+
+{- 
 makeGhcSpec :: Config
             -> FilePath
             -> ModName
@@ -115,308 +126,7 @@ makeGhcSpec :: Config
             -> Maybe [ClsInst]
             -> [Var]
             -> [Var]
-            -> NameSet
-            -> HscEnv
-            -> Either Error LogicMap
-            -> [(ModName, Ms.BareSpec)]
-            -> IO GhcSpec
---------------------------------------------------------------------------------
-makeGhcSpec = undefined 
-
-{- 
-
-
-
-
-makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
-  (fiTcs, fie) <- makeFamInstEnv env
-  let act       = makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs
-  sp           <- throwLeft =<< execBare act (initEnv fie)
-  let renv      = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp defVars) wiredSortedSyms
-  throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
-  where
-    throwLeft   = either Ex.throw return
-    lmap'       = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
-    initEnv fie = BE { modName  = name
-                     , tcEnv    = mempty
-                     , rtEnv    = mempty
-                     , varEnv   = mempty
-                     , hscEnv   = env
-                     , famEnv   = fie
-                     , logicEnv = lmap'
-                     , dcEnv    = mempty
-                     , bounds   = mempty
-                     , embeds   = mempty
-                     , axSyms   = initAxSymbols name defVars specs
-                     , propSyms = initPropSymbols specs
-                     , beConfig = cfg
-                     , beIndex  = 0
-                     }
-
-makeFamInstEnv :: HscEnv -> IO ([TyCon], M.HashMap Symbol DataCon)
-makeFamInstEnv env = do
-  famInsts <- getFamInstances env
-  let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
-  let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return      (fiTcs, F.notracepp "FAM-INST-TCS" $ M.fromList fiDcs)
-
-getFamInstances :: HscEnv -> IO [FamInst]
-getFamInstances env = do
---  (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
-  (_, z) <- runTcInteractive env tcGetFamInstEnvs
-  case z of 
-    Just (pkg_fie, home_fie) -> return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
-    Nothing                  -> return [] 
-
-initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
-initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
-  where
-    locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
-    tx                = qualifySymbol' vs
-
--- | see NOTE:AUTO-INDPRED in Bare/DataType.hs
-initPropSymbols :: [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
-initPropSymbols _ = M.empty
-
-importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
-importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
-
-exportedSymbols :: Ms.BareSpec -> S.HashSet LocSymbol
-exportedSymbols spec = S.unions
-  [ Ms.reflects spec
-  , Ms.hmeas    spec
-  , Ms.inlines  spec ]
-
-
-listLMap :: LogicMap
-listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
-                       , (dummyLoc consName, [x, xs], hCons (EVar <$> [x, xs])) ]
-  where
-    x     = symbol "x"
-    xs    = symbol "xs"
-    hNil  = mkEApp (dcSym nilDataCon ) []
-    hCons = mkEApp (dcSym consDataCon)
-    dcSym = dummyLoc . GM.dropModuleUnique . symbol
-
-postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
-postProcess cbs specEnv sp@(SP {..})
-  = sp { gsTySigs     = mapSnd addTCI <$> sigs
-       , gsInSigs     = mapSnd addTCI <$> insigs
-       , gsAsmSigs    = mapSnd addTCI <$> assms
-       , gsInvariants = mapSnd addTCI <$> gsInvariants
-       , gsLits       = txSort        <$> gsLits
-       , gsMeas       = txSort        <$> gsMeas
-       , gsDicts      = dmapty addTCI'    gsDicts
-       , gsTexprs     = ts
-       }
-  where
-    (sigs,   ts')     = replaceLocBinds gsTySigs  gsTexprs
-    (assms,  ts'')    = replaceLocBinds gsAsmSigs ts'
-    (insigs, ts)      = replaceLocBinds gsInSigs  ts''
-    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
-    txSort            = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
-    addTCI            = (addTCI' <$>)
-    addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
-    allowHO           = higherOrderFlag gsConfig
-
-ghcSpecEnv :: GhcSpec -> [Var] -> SEnv SortedReft
-ghcSpecEnv sp _defs  = fromListSEnv binds
-  where
-    emb              = gsTcEmbeds sp
-    binds            =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas sp])
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
-
-                     -- WHY?!! ++ [(symbol x, vSort x) |  x  <- defs]
-
-    rSort t          = rTypeSortedReft emb t
-    vSort            = rSort . varRSort
-    varRSort         :: Var -> RSort
-    varRSort         = ofType . varType
-
-    -- TODO:AUTO-INDPRED
-    -- res               = unionSEnv' (fromListSEnv binds) env1
-    -- env1             = fromListSEnv (tracepp "PROPBINDS" propBinds)
-    -- propBinds        = [ propCtor d          | d <- gsADTs sp, isPropDecl d  ]
-
-_adtEnv     :: F.DataDecl -> [(F.Symbol, F.SortedReft)]
-_adtEnv     = map (mapSnd thySort) . Thy.dataDeclSymbols
-  where
-    thySort = F.trueSortedReft . F.tsSort
-
-_propCtor :: F.DataDecl -> (Symbol, SortedReft)
-_propCtor (F.DDecl c n [DCtor f ts]) = (F.symbol f, F.trueSortedReft t)
-  where
-    t                               = F.mkFFunc n (inTs ++ [outT])
-    inTs                            = F.dfSort <$> ts
-    outT                            = F.fTyconSelfSort c n
-_propCtor (F.DDecl c _ _)            = panic (Just (GM.fSrcSpan c)) msg
-  where
-    msg                             = "Invalid propCtor: " ++ show c
-
---------------------------------------------------------------------------------
--- | [NOTE]: REFLECT-IMPORTS
---
--- 1. MAKE the full LiftedSpec, which will eventually, contain:
---      makeHaskell{Inlines, Measures, Axioms, Bounds}
--- 2. SAVE the LiftedSpec, which will be reloaded
-
--- | This step creates the aliases and inlines etc. It must be done BEFORE
---   we compute the `SpecType` for (all, including the reflected binders),
---   as we need the inlines and aliases to properly `expand` the SpecTypes.
---------------------------------------------------------------------------------
-
-makeLiftedSpec0 :: Config -> ModName -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
-                -> BareM Ms.BareSpec
-makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
-  xils      <- makeHaskellInlines  embs cbs mySpec
-  ms        <- makeHaskellMeasures embs cbs mySpec
-  let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = uniqNub (defTcs ++ refTcs)
-  return     $ mempty
-                { Ms.ealiases  = lmapEAlias . snd <$> xils
-                , Ms.measures  = F.notracepp "MS-MEAS"     $ ms
-                , Ms.reflects  = F.notracepp "MS-REFLS"    $ Ms.reflects mySpec
-                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg name mySpec tcs
-                }
-
--- sortUniquable :: (Uniquable a) => [a] -> [a]
--- sortUniquable xs = s
--- getUnique getKey :: Unique -> Int
--- hashNub :: (Eq k, Hashable k) => [k] -> [k]
--- hashNub = M.keys . M.fromList . fmap (, ())
-
-
-uniqNub :: (Unique.Uniquable a) => [a] -> [a]
-uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
-  where
-    index  = Unique.getKey . Unique.getUnique
-
--- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
---   which are defined *outside* the current module e.g. in Base or somewhere
---   that we don't have access to the code.
-
-reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
-reflectedTyCons cfg embs cbs spec
-  | exactDCFlag cfg = filter (not . isEmbedded embs)
-                    $ concatMap varTyCons
-                    $ reflectedVars spec cbs
-  | otherwise       = []
-
--- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
---   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
---   or its embedding, a bool?
-isEmbedded :: TCEmb TyCon -> TyCon -> Bool
-isEmbedded embs c = F.tceMember c embs
-
-varTyCons :: Var -> [TyCon]
-varTyCons = specTypeCons . ofType . varType
-
-specTypeCons           :: SpecType -> [TyCon]
-specTypeCons           = foldRType tc []
-  where
-    tc acc t@(RApp {}) = (rtc_tc $ rt_tycon t) : acc
-    tc acc _           = acc
-
-reflectedVars :: Ms.BareSpec -> [CoreBind] -> [Var]
-reflectedVars spec cbs = fst <$> xDefs
-  where
-    xDefs              = mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val . S.toList . Ms.reflects $ spec
-
-makeLiftedSpec1
-  :: FilePath -> ModName -> Ms.BareSpec
-  -> [(Var, LocSpecType)]
-  -> [AxiomEq]
-  -> [(Maybe Var, LocSpecType)]
-  -> BareM ()
-makeLiftedSpec1 file name lSpec0 xts axs invs
-  = liftIO $ saveLiftedSpec file name lSpec1
-  where
-    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
-    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- invs ]
-    lSpec1 = lSpec0 { Ms.asmSigs    = xbs
-                    , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
-                    , Ms.axeqs      = axs
-                    , Ms.invariants = xinvs
-                    }
-
-varLocSym :: Var -> LocSymbol
-varLocSym v = symbol <$> GM.locNamedThing v
-
-varLocSimpleSym :: Var -> LocSymbol
-varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
-
-
-
-insert :: (Eq k) => k -> v -> [(k, v)] -> [(k, v)]
-insert k v []              = [(k, v)]
-insert k v ((k', v') : kvs)
-  | k == k'                = (k, v)   : kvs
-  | otherwise              = (k', v') : insert k v kvs
-
-_dumpSigs :: [(ModName, Ms.BareSpec)] -> IO ()
-_dumpSigs specs0 = putStrLn $ "DUMPSIGS:" ++  showpp [ (m, dump sp) | (m, sp) <- specs0 ]
-  where
-    dump sp = Ms.asmSigs sp ++ Ms.sigs sp ++ Ms.localSigs sp
-
---------------------------------------------------------------------------------
--- | symbolVarMap resolves each Symbol occuring in the spec to its Var ---------
---------------------------------------------------------------------------------
-symbolVarMap :: (Id -> Bool) -> [Id] -> [LocSymbol] -> BareM [(Symbol, Var)]
-symbolVarMap f vs xs' = do
-  let xs    = Misc.nubHashOn val [ x' | x <- xs', not (isWiredIn x), x' <- [x, GM.dropModuleNames <$> x] ]
-  syms1    <- M.fromList <$> makeSymbols f vs (val <$> xs)
-  syms2    <- lookupIds True [ (lx, ()) | lx@(Loc _ _ x) <- xs
-                                        , not (M.member x syms1)
-                                        , not (isTestSymbol x)    ]
-  return $ (M.toList syms1 ++ [ (val lx, v) | (v, lx, _) <- syms2])
-
--- `liftedVarMap` is a special case of `symbolVarMap` that checks that all
--- lifted binders are in fact exported by the given module. We cannot use
--- GHC's isExportedId because it marks things exported even when they are not;
--- see tests/error_messages/ExportReflects.hs
-
-liftedVarMap :: (Id -> Bool) -> [LocSymbol] -> BareM [(Symbol, Var)]
-liftedVarMap f xs = do
-  syms    <- symbolVarMap f [] xs
-  let symm = M.fromList syms
-  let es   = [ x | x <- xs, not (checkLifted symm x) ]
-  applyNonNull (return syms) (Ex.throw . fmap mkErr) es
-  where
-    mkErr :: LocSymbol -> Error
-    mkErr x = ErrLiftExp (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
-
-checkLifted :: M.HashMap Symbol Var -> LocSymbol -> Bool
-checkLifted symm x = M.member (val x) symm
-
--- TODO: move into Check.hs
-checkShadowedSpecs :: [Measure ta ca] -> [Measure tb cb] -> [(Symbol, Var)] -> [Var] -> BareM ()
-checkShadowedSpecs myDcs myMeas myExports defVars = do
-  checkDisjoint dcSyms   measSyms
-  checkDisjoint dcSyms   myExportSyms
-  checkDisjoint measSyms myExportSyms
-  checkDisjoint cncMeas defSyms         -- Why 'cncMeas' and not 'measSyms'? see tests/pos/T1223.hs
-  where
-    myExportSyms = [ atLoc (GM.locNamedThing v) (symbol v) |  (_, v) <- myExports ]
-    dcSyms   = msName <$> myDcs
-    measSyms = msName <$> myMeas
-    cncMeas = [ msName m | m <- myMeas, not (isAbs m) ] 
-    defSyms = varLocSimpleSym <$> defVars
-    isAbs m  = F.notracepp ("isAbs " ++ showpp (msName m)) (null (msEqns m) && msKind m == MsMeasure)
-
-checkDisjoint :: [LocSymbol] -> [LocSymbol] -> BareM ()
-checkDisjoint xs ys
-  | (x,y) : _ <- dups = uError $ err x y
-  | otherwise         = return ()
-  where
-    dups              = M.elems $ M.intersectionWith (,) (symMap xs) (symMap ys)
-    symMap  zs        = M.fromList [ (val z, z) | z <- zs ]
-    err x y           = ErrDupSpecs (GM.fSrcSpan x) (pprint (val x)) [GM.fSrcSpan y]
-
---------------------------------------------------------------------------------
-makeGhcSpec'
-  :: Config -> FilePath -> [CoreBind] -> [TyCon] -> [TyCon] -> Maybe [ClsInst] -> [Var] -> [Var]
+            -> NameSeClsInst] -> [Var] -> [Var]
   -> NameSet -> [(ModName, Ms.BareSpec)]
   -> BareM GhcSpec
 --------------------------------------------------------------------------------

@@ -110,17 +110,19 @@ sigQualifiers info lEnv
 qualifyingBinders :: GhcInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
-    sTake              = S.fromList $ giDefVars info ++ giUseVars info ++ scrapeVars info
+    sTake              = S.fromList $ giDefVars src ++ giUseVars src ++ scrapeVars cfg src 
     sDrop              = S.fromList $ specAxiomVars info
-
+    cfg                = getConfig info 
+    src                = giSrc     info 
+    
 -- NOTE: this mines extra, useful qualifiers but causes
 -- a significant increase in running time, so we hide it
 -- behind `--scrape-imports` and `--scrape-used-imports`
-scrapeVars :: GhcInfo -> [Var]
-scrapeVars info
-  | info `hasOpt` scrapeUsedImports = giUseVars info
-  | info `hasOpt` scrapeImports     = giImpVars info
-  | otherwise                       = []
+scrapeVars :: Config -> GhcSrc -> [Var]
+scrapeVars cfg src 
+  | cfg `hasOpt` scrapeUsedImports = giUseVars src 
+  | cfg `hasOpt` scrapeImports     = giImpVars src 
+  | otherwise                      = []
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
