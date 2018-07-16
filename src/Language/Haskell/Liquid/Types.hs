@@ -27,12 +27,12 @@ module Language.Haskell.Liquid.Types (
   , GhcInfo      (..)
   , GhcSpec      (..)
   , GhcSpecData  (..)
+  , GhcSpecVars  (..)
   , GhcSpecNames (..)
   , GhcSpecQual  (..)
   , GhcSpecSig   (..)
   , GhcSpecRefl  (..)
   , GhcSpecTerm  (..)
-  , GhcSpecSig   (..)
   , TargetVars   (..)
 
   -- * F.Located Things

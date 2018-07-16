@@ -48,8 +48,13 @@ import qualified Language.Fixpoint.Misc                as Misc
 import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
-import           Language.Haskell.Liquid.Bare.Misc
-import           Language.Haskell.Liquid.Bare.Env
+
+
+import           Language.Haskell.Liquid.Bare.DataType 
+-- import           Language.Haskell.Liquid.Bare.Misc
+-- import           Language.Haskell.Liquid.Bare.Env
+
+
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Types.RefType
