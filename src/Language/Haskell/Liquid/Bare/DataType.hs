@@ -22,19 +22,19 @@ module Language.Haskell.Liquid.Bare.DataType
   ) where
 
 -- import           TysWiredIn (listTyCon)
-import           TysPrim
+-- import           TysPrim
+-- import           Name                                   (getSrcSpan)
+-- import           SrcLoc                                 (SrcSpan)
 import           DataCon
-import           Name                                   (getSrcSpan)
 import           Prelude                                hiding (error)
-import           SrcLoc                                 (SrcSpan)
-import qualified Type
-import           Text.Parsec
-import           TyCon                                  hiding (tyConName)
-import           Var
-import           InstEnv
-import           Class
-import           Data.Maybe
-import           Language.Haskell.Liquid.GHC.TypeRep
+-- import qualified Type
+-- import           Text.Parsec
+-- import           TyCon                                  hiding (tyConName)
+-- import           Var
+-- import           InstEnv
+-- import           Class
+-- import           Data.Maybe
+-- import           Language.Haskell.Liquid.GHC.TypeRep
 
 import           Control.Monad                          (forM_, when) -- , (>=>))
 import           Control.Monad.State                    (gets)
