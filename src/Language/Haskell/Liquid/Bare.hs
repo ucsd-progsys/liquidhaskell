@@ -114,8 +114,18 @@ saveLiftedSpec srcF _ lspec = do
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
 --------------------------------------------------------------------------------
-makeGhcSpec :: GhcSrc -> [(ModName, Ms.BareSpec)] -> Either Error LogicMap  -> IO GhcSpec 
-makeGhcSpec = undefined 
+makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> IO GhcSpec 
+makeGhcSpec cfg src specs lmap = 
+  return $ SP 
+    { gsSig    = undefined -- :: !GhcSpecSig  
+    , gsQual   = undefined -- :: !GhcSpecQual 
+    , gsData   = undefined -- :: !GhcSpecData 
+    , gsName   = undefined -- :: !GhcSpecNames 
+    , gsVars   = undefined -- :: !GhcSpecVars 
+    , gsTerm   = undefined -- :: !GhcSpecTerm 
+    , gsRefl   = undefined -- :: !GhcSpecRefl                  
+    , gsConfig = cfg 
+    }
 
 {- 
 makeGhcSpec :: Config

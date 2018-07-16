@@ -108,9 +108,7 @@ checkFilePresent f = do
   b <- doesFileExist f
   when (not b) $ panic Nothing ("Cannot find file: " ++ f)
 
-getGhcInfos' :: Config -> Either Error LogicMap
-            -> [FilePath]
-            -> Ghc ([GhcInfo], HscEnv)
+getGhcInfos' :: Config -> LogicMap -> [FilePath] -> Ghc ([GhcInfo], HscEnv)
 getGhcInfos' cfg logicMap tgtFiles = do
   _           <- compileCFiles cfg
   homeModules <- configureGhcTargets tgtFiles
@@ -301,17 +299,14 @@ _definedVars = concatMap defs
 
 type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 
-processModules :: Config -> Either Error LogicMap -> [FilePath] -> DepGraph
-               -> ModuleGraph
-               -> Ghc [GhcInfo]
+processModules :: Config -> LogicMap -> [FilePath] -> DepGraph -> ModuleGraph -> Ghc [GhcInfo]
 processModules cfg logicMap tgtFiles depGraph homeModules = do
   -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
   where                                             
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
-processModule :: Config -> Either Error LogicMap -> S.HashSet FilePath -> DepGraph
-              -> SpecEnv -> ModSummary
+processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
@@ -355,18 +350,21 @@ loadModule' tm = loadModule tm'
     tm'  = tm { tm_parsed_module = pm' }
 
 
-processTargetModule :: Config -> Either Error LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
+processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc GhcInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
   cfg       <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
   let modSum = pm_mod_summary (tm_parsed_module typechecked)
   ghcSrc    <- makeGhcSrc cfg file typechecked modSum
   bareSpecs <- makeBareSpecs cfg depGraph specEnv modSum bareSpec
-  ghcSpec   <- liftIO $ makeGhcSpec ghcSrc bareSpecs logicMap 
+  ghcSpec   <- liftIO $ makeGhcSpec cfg ghcSrc bareSpecs logicMap 
   return     $ GI ghcSrc ghcSpec
 
-makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary 
-           -> Ghc GhcSrc 
+---------------------------------------------------------------------------------------
+-- | @makeGhcSrc@ builds all the source-related information needed for consgen 
+---------------------------------------------------------------------------------------
+
+makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
 makeGhcSrc cfg file typechecked modSum = do
   desugared         <- desugarModule typechecked
   let modGuts        = makeMGIModGuts desugared
@@ -389,7 +387,9 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsCls       = mgi_cls_inst modGuts 
     }
 
-
+---------------------------------------------------------------------------------------
+-- | @makeBareSpecs@ loads BareSpec for target and imported modules 
+---------------------------------------------------------------------------------------
 makeBareSpecs :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
               -> Ghc [(ModName, Ms.BareSpec)]
 makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do 
@@ -622,7 +622,7 @@ specIncludes ext paths reqs = do
     mfile <- getFileInDirs f paths
     case mfile of
       Just file -> return file
-      Nothing -> panic Nothing $ "cannot find " ++ f ++ " in " ++ show paths
+      Nothing   -> panic Nothing $ "cannot find " ++ f ++ " in " ++ show paths
 
 reqFile :: Ext -> FilePath -> Maybe FilePath
 reqFile ext s
@@ -639,11 +639,13 @@ makeMGIModGuts desugared = miModGuts deriv modGuts
     modGuts = coreModule desugared
     deriv = Just $ instEnvElts $ mg_inst_env modGuts
 
-makeLogicMap :: IO (Either Error LogicMap)
+makeLogicMap :: IO LogicMap
 makeLogicMap = do
   lg    <- getCoreToLogicPath
   lspec <- readFile lg
-  return $ parseSymbolToLogic lg lspec
+  case parseSymbolToLogic lg lspec of 
+    Left e   -> throw e 
+    Right lm -> return lm 
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing -----------------------------------------------------------
