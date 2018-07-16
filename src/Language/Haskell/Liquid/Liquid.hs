@@ -146,8 +146,8 @@ newPrune cfg cbs tgt info
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return $ Left (ignoreCoreBinds ignores cbs)
   where
-    ignores       = gsIgnoreVars sp 
-    vs            = gsTgtVars    sp
+    ignores       = gsIgnoreVars (gsVars sp) 
+    vs            = gsTgtVars    (gsVars sp)
     sp            = giSpec       info
 
 maybeEither :: a -> Maybe b -> Either a [b]

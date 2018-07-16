@@ -59,7 +59,8 @@ fixConfig tgt cfg = def
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = do
   let tgtFI  = targetFInfo info cgi
-  impFI     <- ignoreQualifiers info <$> parseFInfo (giHqFiles info)
+  let qFiles = giHqFiles . gsQual . giSpec $ info
+  impFI     <- ignoreQualifiers info <$> parseFInfo qFiles 
   return       (tgtFI <> impFI)
 
 ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
@@ -93,13 +94,16 @@ makeAxiomEnvironment info xts fcs
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
-    emb      = gsTcEmbeds sp
+    emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
     sp       = giSpec     info
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
-                   || (Config.allowLocalPLE cfg && maybe False (`M.member` gsAutoInst sp) (subVar sub))
+                   || (Config.allowLocalPLE cfg && maybe False isExpand (subVar sub))
+  where 
+    isExpand x      = M.member x autos 
+    autos           = gsAutoInst (gsRefl sp)  
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
@@ -138,12 +142,12 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
 
 makeEquations :: GhcSpec -> [F.Equation]
 makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
-                      | F.Equ f xts e t _ <- gsAxioms sp
+                      | F.Equ f xts e t _ <- gsAxioms (gsRefl sp)
                       , let mbT            = M.lookup f sigs
                       , let xArgs          = F.EVar . fst <$> xts
                    ]
   where
-    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs sp ]
+    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
 equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
 equationBody f xArgs e mbT

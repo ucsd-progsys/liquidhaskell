@@ -29,14 +29,14 @@ import           Kind                                  (isStarKind)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
-import           DataCon
+-- import           DataCon
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
 
 import qualified Data.List                             as L
 import qualified Data.HashMap.Strict                   as M
-import           Language.Fixpoint.Misc                (singleton, sortNub)
+import           Language.Fixpoint.Misc                as Misc -- (singleton, sortNub)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Types
 
 -- import           Language.Haskell.Liquid.Bare.Env
 
-import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
+-- import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
@@ -70,7 +70,7 @@ freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConab
             -> [(a, Located (RType c1 tv1 r1))]
             -> [(Located (RType c tv r))]
             -> [LocSymbol]
-freeSymbols xs' xts yts ivs =  [ lx | lx <- sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
+freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
   where
     knownM                  = M.fromList [ (x, ()) | x <- xs' ]
     zs                      = concatMap freeSyms (snd <$> xts)
@@ -82,7 +82,7 @@ freeSymbols xs' xts yts ivs =  [ lx | lx <- sortNub $ zs ++ zs' ++ zs'' , not (M
 freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
 freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
   where
-    tySyms     = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
+    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 

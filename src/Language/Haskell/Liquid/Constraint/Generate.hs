@@ -76,7 +76,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
-import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
+import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -90,15 +90,16 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
-  γ     <- initEnv      info
-  sflag <- scheck   <$> get
-  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs (giSpec info) ++ gsAsmSigs (giSpec info)))
+  γ       <- initEnv      info
+  sflag   <- scheck   <$> get
+  let sSpc = gsSig . giSpec $ info  
+  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   foldM_ (consCBTop cfg info) γ (giCbs info)
-  hcs   <- hsCs  <$> get
-  hws   <- hsWfs <$> get
-  scss  <- sCs   <$> get
-  annot <- annotMap <$> get
-  scs   <- if sflag then concat <$> mapM splitS (hcs ++ scss)
+  hcs    <- hsCs  <$> get
+  hws    <- hsWfs <$> get
+  scss   <- sCs   <$> get
+  annot  <- annotMap <$> get
+  scs    <- if sflag then concat <$> mapM splitS (hcs ++ scss)
                     else return []
   let smap = if sflag then solveStrata scs else []
   let hcs' = if sflag then subsS smap hcs else hcs

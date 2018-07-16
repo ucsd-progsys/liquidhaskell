@@ -33,7 +33,7 @@ import           Language.Haskell.Liquid.Types
 qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 qualifiers info lEnv
-  =  condNull (useSpcQuals info) (gsQualifiers $ giSpec info)
+  =  condNull (useSpcQuals info) (gsQualifiers . gsQual . giSpec $ info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
 
@@ -79,10 +79,10 @@ alsQualifiers info lEnv
     ]
     where
       k   = maxQualParams info
-      tce = gsTcEmbeds (giSpec info)
+      tce = gsTcEmbeds . gsName . giSpec $ info
 
 specAliases :: GhcInfo -> [RTAlias RTyVar SpecType]
-specAliases = M.elems . typeAliases . gsRTAliases . giSpec
+specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
 
 validQual :: SEnv Sort -> Qualifier -> Bool
 validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)
@@ -104,7 +104,7 @@ sigQualifiers info lEnv
     ]
     where
       k   = maxQualParams info
-      tce = gsTcEmbeds (giSpec info)
+      tce = gsTcEmbeds . gsName . giSpec $ info
       qbs = qualifyingBinders info
 
 qualifyingBinders :: GhcInfo -> S.HashSet Var
@@ -124,16 +124,16 @@ scrapeVars info
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
-  [ gsTySigs  sp
-  , gsAsmSigs sp
-  , gsCtors   sp
-  , if info `hasOpt` scrapeInternals then gsInSigs sp else []
+  [ gsTySigs  (gsSig  sp)
+  , gsAsmSigs (gsSig  sp)
+  , gsCtors   (gsData sp)
+  , if info `hasOpt` scrapeInternals then gsInSigs (gsSig sp) else []
   ]
   where
     sp  = giSpec info
 
 specAxiomVars :: GhcInfo -> [Var]
-specAxiomVars =  gsReflects . giSpec
+specAxiomVars =  gsReflects . gsRefl . giSpec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs

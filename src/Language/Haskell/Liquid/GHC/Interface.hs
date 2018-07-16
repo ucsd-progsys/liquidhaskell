@@ -381,7 +381,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   specSpecs         <- findAndParseSpecFiles cfg paths modSummary reachable
   let homeSpecs      = cachedBareSpecs specEnv reachable
   let impSpecs       = specSpecs ++ homeSpecs
-  (spc, imps, incs, exports) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
+  (spc, imps, _incs, exports) <- toGhcSpec cfg file coreBinds (impVs ++ defVs) letVs modName modGuts bareSpec logicMap impSpecs
   _                 <- liftIO $ whenLoud $ putStrLn $ "Module Imports: " ++ show imps
   -- FIXME hqualsFiles       <- moduleHquals modGuts paths file imps incs
   return GI { giTarget    = file
@@ -568,13 +568,13 @@ parseSpecFile file = either throw return . specSpecificationP file =<< readFile 
 
 -- Find Hquals Files -----------------------------------------------------------
 
-moduleHquals :: MGIModGuts
+_moduleHquals :: MGIModGuts
              -> [FilePath]
              -> FilePath
              -> [String]
              -> [FilePath]
              -> Ghc [FilePath]
-moduleHquals mgi paths target imps incs = do
+_moduleHquals mgi paths target imps incs = do
   hqs   <- specIncludes Hquals paths incs
   hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
   hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
