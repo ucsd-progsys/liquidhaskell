@@ -324,16 +324,18 @@ data GhcInfo = GI
 
 
 data GhcSrc = Src 
-  { giTarget    :: !FilePath          -- ^ Source file for module
-  , giTargetMod :: !ModName           -- ^ Name for module
-  , giCbs       :: ![CoreBind]        -- ^ Source Code
-  , gsTcs       :: ![TyCon]           -- ^ All used Type constructors
-  , gsCls       :: !(Maybe [ClsInst]) -- ^ Class instances?
-  , giDerVars   :: ![Var]             -- ^ Binders created by GHC eg dictionaries
-  , giImpVars   :: ![Var]             -- ^ Binders that are _read_ in module (but not defined?)
-  , giDefVars   :: ![Var]             -- ^ (Top-level) binders that are _defined_ in module
-  , giUseVars   :: ![Var]             -- ^ Binders that are _read_ in module
-  , gsExports   :: !NameSet           -- ^ `Name`s exported by the module being verified
+  { giTarget    :: !FilePath            -- ^ Source file for module
+  , giTargetMod :: !ModName             -- ^ Name for module
+  , giCbs       :: ![CoreBind]          -- ^ Source Code
+  , gsTcs       :: ![TyCon]             -- ^ All used Type constructors
+  , gsCls       :: !(Maybe [ClsInst])   -- ^ Class instances?
+  , giDerVars   :: ![Var]               -- ^ Binders created by GHC eg dictionaries
+  , giImpVars   :: ![Var]               -- ^ Binders that are _read_ in module (but not defined?)
+  , giDefVars   :: ![Var]               -- ^ (Top-level) binders that are _defined_ in module
+  , giUseVars   :: ![Var]               -- ^ Binders that are _read_ in module
+  , gsExports   :: !NameSet             -- ^ `Name`s exported by the module being verified
+  , gsFiTcs     :: ![TyCon]             -- ^ Family instance TyCons 
+  , gsFiDcs     :: ![(Symbol, DataCon)] -- ^ Family instance dataCons 
   }
 
 data GhcSpec = SP 

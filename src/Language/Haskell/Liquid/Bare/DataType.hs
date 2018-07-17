@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Bare.DataType
   -- * Names for accessing Data Constuctors 
   , makeDataConChecker
   , makeDataConSelector 
+  , addClassEmbeds
 
   -- * Constructors
   -- makeDataDecls
@@ -17,7 +18,6 @@ module Language.Haskell.Liquid.Bare.DataType
   -- , makeTyConEmbeds
   -- , makeRecordSelectorSigs
   -- , meetDataConSpec
-  -- , addClassEmbeds
 
   ) where
 
@@ -355,6 +355,8 @@ muSort c n  = V.mapSort tx
     ct      = F.fTyconSort c
     me      = F.fTyconSelfSort c n
     tx t    = if t == me then ct else t
+
+
 
 
 --------------------------------------------------------------------------------
@@ -704,15 +706,6 @@ qualifyField name lx
    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)
    x         = val lx
    needsQual = not (isWiredIn lx)
-
-makeTyConEmbeds :: (ModName, Ms.Spec ty bndr) -> BareM (F.TCEmb TyCon)
-makeTyConEmbeds (mod, spec)
-  = inModule mod . makeTyConEmbeds' $ Ms.embeds spec
-
-makeTyConEmbeds' :: F.TCEmb LocSymbol -> BareM (F.TCEmb TyCon)
-makeTyConEmbeds' z = F.tceFromList <$> mapM tx (F.tceToList z)
-  where
-    tx (c, y) = (, y) <$> lookupGhcTyCon "makeTyConEmbeds'" c
 
 makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, LocSpecType)]
 makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$> mapM makeOne dcs)

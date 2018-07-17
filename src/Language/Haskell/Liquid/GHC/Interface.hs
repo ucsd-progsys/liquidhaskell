@@ -48,6 +48,8 @@ import TcRnTypes
 import Var
 import NameSet
 import FastString
+import FamInstEnv
+import FamInst
 import GHC.LanguageExtensions
 
 import Control.Exception
@@ -74,7 +76,6 @@ import Text.PrettyPrint.HughesPJ hiding (first)
 
 import Language.Fixpoint.Types hiding (panic, Error, Result, Expr)
 import Language.Fixpoint.Misc
-
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
@@ -374,6 +375,7 @@ makeGhcSrc cfg file typechecked modSum = do
   _                 <- liftIO $ whenNormal $ donePhase Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   -- let defVs          = definedVars coreBinds
+  (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
   return $ Src 
     { giTarget    = file
     , giTargetMod = ModName Target (moduleName (ms_mod modSum))
@@ -385,6 +387,8 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsExports   = mgi_exports  modGuts 
     , gsTcs       = mgi_tcs      modGuts
     , gsCls       = mgi_cls_inst modGuts 
+    , gsFiTcs     = fiTcs 
+    , gsFiDcs     = fiDcs
     }
 
 ---------------------------------------------------------------------------------------
@@ -469,6 +473,21 @@ checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
       , "--c-files", "--cfiles"
       ]
 
+--------------------------------------------------------------------------------
+-- | Family instance information
+--------------------------------------------------------------------------------
+makeFamInstEnv :: HscEnv -> IO ([GHC.TyCon], [(Symbol, DataCon)])
+makeFamInstEnv env = do
+  famInsts <- getFamInstances env
+  let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
+  let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
+  return (fiTcs, notracepp "FAM-INST-TCS" fiDcs)
+
+getFamInstances :: HscEnv -> IO [FamInst]
+getFamInstances env = do
+  (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
+  return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
+ 
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------

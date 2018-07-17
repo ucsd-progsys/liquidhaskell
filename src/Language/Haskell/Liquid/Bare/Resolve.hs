@@ -16,6 +16,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
 import qualified Var    as Ghc
 import qualified Module as Ghc
+import qualified GHC    as Ghc
 
 import qualified Language.Haskell.Liquid.Types as Types 
 
@@ -41,6 +42,9 @@ class Resolve a where
 
 instance Resolve Ghc.Var where 
   resolve = error "TBD:resolve (Var)"
+
+instance Resolve Ghc.TyCon where 
+  resolve = error "TBD:resolve (TyCon)"
 
 -- | @strictResolve@ wraps the plain @resolve@ to throw an error 
 --   if the name being searched for is unknown.

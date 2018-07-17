@@ -67,7 +67,9 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
-import qualified Language.Haskell.Liquid.Bare.Resolve       as Resolve 
+import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
+import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
+import qualified Language.Haskell.Liquid.Bare.RTEnv         as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -127,21 +129,26 @@ makeGhcSpec cfg src specs lmap = SP
   , gsConfig = cfg 
   }
   where 
-    env          = Resolve.makeEnv src 
-    name         = giTargetMod src 
-    mySpec       = fromMaybe mempty (lookup name specs)
-    embs         = makeEmbeds src specs 
-    (fiTcs, fie) = makeFamInstEnv env
-
-    -- lSpec0  <- makeLiftedSpec0 cfg name embs cbs tcs mySpec
+    embs     = makeEmbeds env src specs 
+    env      = Bare.makeEnv src 
+    name     = giTargetMod src 
+    mySpec   = fromMaybe mempty (lookup name specs)
+    rtEnv    = Bare.makeRTEnv  name lSpec0 specs lmap
+    lSpec0   = makeLiftedSpec0 cfg name src embs mySpec
     -- fullSpec = mySpec `mappend` lSpec0
 
-makeEmbeds :: GhcSrc -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
-makeEmbeds src = addClassEmbeds (gsCls src) (gsTcs src) 
-               . mconcat 
-               . map makeTyConEmbeds 
+ 
 
---  embs           <- addClassEmbeds instenv fiTcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+makeEmbeds :: Bare.Env -> GhcSrc -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
+makeEmbeds env src 
+  = Bare.addClassEmbeds (gsCls src) (gsFiTcs src) 
+  . mconcat 
+  . map (makeTyConEmbeds env)
+
+makeTyConEmbeds :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> F.TCEmb Ghc.TyCon
+makeTyConEmbeds env (name, spec) 
+  = F.tceMap (Bare.strictResolve env name "TyCon") (Ms.embeds spec)
+
 --  makeRTEnv name lSpec0 specs lmap
 
 
@@ -175,7 +182,7 @@ makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
 
 -}
 ------------------------------------------------------------------------------------------
-makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Resolve.Env -> GhcSpecVars 
+makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> GhcSpecVars 
 ------------------------------------------------------------------------------------------
 makeSpecVars cfg src mySpec env = SpVar 
   { gsTgtVars    =   map (resolveStringVar    src env) (checks     cfg) 
@@ -183,7 +190,7 @@ makeSpecVars cfg src mySpec env = SpVar
   , gsLvars      = S.map (resolveLocSymbolVar src env) (Ms.lvars   mySpec)
   }
 
-resolveStringVar :: GhcSrc -> Resolve.Env -> String -> Var
+resolveStringVar :: GhcSrc -> Bare.Env -> String -> Var
 resolveStringVar src env s = resolveLocSymbolVar src env lx
   where 
     name                   = giTargetMod src
@@ -192,8 +199,8 @@ resolveStringVar src env s = resolveLocSymbolVar src env lx
 qualifySymbolic :: (F.Symbolic a) => ModName -> a -> F.Symbol 
 qualifySymbolic name s = GM.qualifySymbol (F.symbol name) (F.symbol s)
 
-resolveLocSymbolVar :: GhcSrc -> Resolve.Env -> LocSymbol -> Var
-resolveLocSymbolVar src env lx = Resolve.strictResolve env name "Var" lx 
+resolveLocSymbolVar :: GhcSrc -> Bare.Env -> LocSymbol -> Var
+resolveLocSymbolVar src env lx = Bare.strictResolve env name "Var" lx 
   where
     name                       = giTargetMod src
 
