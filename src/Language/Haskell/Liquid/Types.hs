@@ -325,7 +325,7 @@ data GhcInfo = GI
 
 data GhcSrc = Src 
   { giTarget    :: !FilePath          -- ^ Source file for module
-  , giTargetMod :: !ModuleName        -- ^ Name for module
+  , giTargetMod :: !ModName           -- ^ Name for module
   , giCbs       :: ![CoreBind]        -- ^ Source Code
   , gsTcs       :: ![TyCon]           -- ^ All used Type constructors
   , gsCls       :: !(Maybe [ClsInst]) -- ^ Class instances?
@@ -353,18 +353,24 @@ instance HasConfig GhcSpec where
 instance HasConfig GhcInfo where
   getConfig = getConfig . giSpec
 
+data GhcSpecVars = SpVar 
+  { gsTgtVars    :: ![Var]                        -- ^ Top-level Binders To Verify (empty means ALL binders)
+  , gsIgnoreVars :: !(S.HashSet Var)                        -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
+  , gsLvars      :: !(S.HashSet Var)              -- ^ Variables that should be checked "lazily" in the environment they are used
+  }
+
+data GhcSpecQual = SpQual 
+  { gsQualifiers :: ![Qualifier]                  -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
+  , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
+  , gsRTAliases  :: !RTEnv                        -- ^ Refinement type aliases (only used for qualifiers)
+  }
+
 data GhcSpecSig = SpSig 
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsDicts    :: DEnv Var SpecType               -- ^ Refined Classes 
-  }
-
-data GhcSpecQual = SpQual 
-  { gsQualifiers :: ![Qualifier]                  -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
-  , gsRTAliases  :: !RTEnv                        -- ^ Refinement type aliases (only used for qualifiers)
-  , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
   }
 
 data GhcSpecData = SpData 
@@ -385,12 +391,6 @@ data GhcSpecNames = SpNames
   , gsTyconEnv   :: M.HashMap TyCon RTyCon
   }
 
-data GhcSpecVars = SpVar 
-  { gsTgtVars    :: ![Var]                        -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , gsIgnoreVars :: ![Var]                        -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
-  , gsLvars      :: !(S.HashSet Var)              -- ^ Variables that should be checked "lazily" in the environment they are used
-  }
-
 data GhcSpecTerm = SpTerm 
   { gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographically ordered size witnesses for termination
   , gsTexprs     :: ![(Var, [F.Located Expr])]    -- ^ Lexicographically ordered expressions for termination
@@ -406,9 +406,6 @@ data GhcSpecRefl = SpRefl
   , gsLogicMap   :: LogicMap
   , gsProofType  :: Maybe Type                    -- ^ Datatype used to represent "Proofs"?
   }
-
-
-
 
 -- [NOTE:LIFTED-VAR-SYMBOLS]: Following NOTE:REFLECT-IMPORTS, by default
 -- each (lifted) `Var` is mapped to its `Symbol` via the `Symbolic Var`
@@ -1995,7 +1992,8 @@ instance F.Symbolic ModName where
 instance F.Symbolic ModuleName where
   symbol = F.symbol . moduleNameFS
 
-data ModType = Target | SrcImport | SpecImport deriving (Eq,Ord,Show)
+data ModType = Target | SrcImport | SpecImport 
+               deriving (Eq, Ord, Show)
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True

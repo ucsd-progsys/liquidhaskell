@@ -353,12 +353,12 @@ loadModule' tm = loadModule tm'
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc GhcInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
-  cfg       <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  let modSum = pm_mod_summary (tm_parsed_module typechecked)
-  ghcSrc    <- makeGhcSrc cfg file typechecked modSum
-  bareSpecs <- makeBareSpecs cfg depGraph specEnv modSum bareSpec
-  ghcSpec   <- liftIO $ makeGhcSpec cfg ghcSrc bareSpecs logicMap 
-  return     $ GI ghcSrc ghcSpec
+  cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
+  let modSum  = pm_mod_summary (tm_parsed_module typechecked)
+  ghcSrc     <- makeGhcSrc cfg file typechecked modSum
+  bareSpecs  <- makeBareSpecs cfg depGraph specEnv modSum bareSpec
+  let ghcSpec = makeGhcSpec cfg ghcSrc bareSpecs logicMap 
+  return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
@@ -376,7 +376,7 @@ makeGhcSrc cfg file typechecked modSum = do
   -- let defVs          = definedVars coreBinds
   return $ Src 
     { giTarget    = file
-    , giTargetMod = moduleName (ms_mod modSum)
+    , giTargetMod = ModName Target (moduleName (ms_mod modSum))
     , giCbs       = coreBinds
     , giImpVars   = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
     , giDefVars   = dataCons ++ letVars coreBinds

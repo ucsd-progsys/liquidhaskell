@@ -24,6 +24,7 @@ import           Prelude                                    hiding (error)
 -- import           CoreSyn                                    hiding (Expr)
 import qualified CoreSyn
 import qualified Unique
+import qualified GHC       as Ghc
 import           HscTypes
 import           Id
 import           NameSet
@@ -60,13 +61,13 @@ import qualified Language.Fixpoint.Smt.Theories             as Thy
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
-import qualified Language.Haskell.Liquid.GHC.Misc  as GM
+import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
-
 import qualified Language.Haskell.Liquid.Measure            as Ms
+import qualified Language.Haskell.Liquid.Bare.Resolve       as Resolve 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -110,22 +111,121 @@ saveLiftedSpec srcF _ lspec = do
     specF = extFileName BinSpec srcF
 
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
+-------------------------------------------------------------------------------------
+makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpec 
+makeGhcSpec cfg src specs lmap = SP 
+  { gsSig    = makeSpecSig  cfg src specs  lmap 
+  , gsQual   = makeSpecQual cfg src specs  lmap
+  , gsData   = makeSpecData cfg src specs  lmap
+  , gsName   = makeSpecName cfg src specs  lmap
+  , gsVars   = makeSpecVars cfg src mySpec env 
+  , gsTerm   = makeSpecTerm cfg src specs  lmap
+  , gsRefl   = makeSpecRefl cfg src specs  lmap
+  , gsConfig = cfg 
+  }
+  where 
+    env          = Resolve.makeEnv src 
+    name         = giTargetMod src 
+    mySpec       = fromMaybe mempty (lookup name specs)
+    embs         = makeEmbeds src specs 
+    (fiTcs, fie) = makeFamInstEnv env
+
+    -- lSpec0  <- makeLiftedSpec0 cfg name embs cbs tcs mySpec
+    -- fullSpec = mySpec `mappend` lSpec0
+
+makeEmbeds :: GhcSrc -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
+makeEmbeds src = addClassEmbeds (gsCls src) (gsTcs src) 
+               . mconcat 
+               . map makeTyConEmbeds 
+
+--  embs           <- addClassEmbeds instenv fiTcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+--  makeRTEnv name lSpec0 specs lmap
+
+
+
 --------------------------------------------------------------------------------
-makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> IO GhcSpec 
-makeGhcSpec cfg src specs lmap = 
-  return $ SP 
-    { gsSig    = undefined -- :: !GhcSpecSig  
-    , gsQual   = undefined -- :: !GhcSpecQual 
-    , gsData   = undefined -- :: !GhcSpecData 
-    , gsName   = undefined -- :: !GhcSpecNames 
-    , gsVars   = undefined -- :: !GhcSpecVars 
-    , gsTerm   = undefined -- :: !GhcSpecTerm 
-    , gsRefl   = undefined -- :: !GhcSpecRefl                  
-    , gsConfig = cfg 
-    }
+-- | [NOTE]: REFLECT-IMPORTS
+--
+-- 1. MAKE the full LiftedSpec, which will eventually, contain:
+--      makeHaskell{Inlines, Measures, Axioms, Bounds}
+-- 2. SAVE the LiftedSpec, which will be reloaded
+-- 
+--   This step creates the aliases and inlines etc. It must be done BEFORE
+--   we compute the `SpecType` for (all, including the reflected binders),
+--   as we need the inlines and aliases to properly `expand` the SpecTypes.
+--------------------------------------------------------------------------------
+
+{- 
+makeLiftedSpec0 :: Config -> ModName -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
+                -> BareM Ms.BareSpec
+makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
+  xils      <- makeHaskellInlines  embs cbs mySpec
+  ms        <- makeHaskellMeasures embs cbs mySpec
+  let refTcs = reflectedTyCons cfg embs cbs mySpec
+  let tcs    = uniqNub (defTcs ++ refTcs)
+  return     $ mempty
+                { Ms.ealiases  = lmapEAlias . snd <$> xils
+                , Ms.measures  = F.notracepp "MS-MEAS"     $ ms
+                , Ms.reflects  = F.notracepp "MS-REFLS"    $ Ms.reflects mySpec
+                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg name mySpec tcs
+                }
+
+-}
+------------------------------------------------------------------------------------------
+makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Resolve.Env -> GhcSpecVars 
+------------------------------------------------------------------------------------------
+makeSpecVars cfg src mySpec env = SpVar 
+  { gsTgtVars    =   map (resolveStringVar    src env) (checks     cfg) 
+  , gsIgnoreVars = S.map (resolveLocSymbolVar src env) (Ms.ignores mySpec) 
+  , gsLvars      = S.map (resolveLocSymbolVar src env) (Ms.lvars   mySpec)
+  }
+
+resolveStringVar :: GhcSrc -> Resolve.Env -> String -> Var
+resolveStringVar src env s = resolveLocSymbolVar src env lx
+  where 
+    name                   = giTargetMod src
+    lx                     = dummyLoc (qualifySymbolic name s)
+
+qualifySymbolic :: (F.Symbolic a) => ModName -> a -> F.Symbol 
+qualifySymbolic name s = GM.qualifySymbol (F.symbol name) (F.symbol s)
+
+resolveLocSymbolVar :: GhcSrc -> Resolve.Env -> LocSymbol -> Var
+resolveLocSymbolVar src env lx = Resolve.strictResolve env name "Var" lx 
+  where
+    name                       = giTargetMod src
+
+------------------------------------------------------------------------------------------
+makeSpecQual :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecQual 
+------------------------------------------------------------------------------------------
+makeSpecQual = undefined 
+
+----------------------------------------------------------------------------------------
+makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
+----------------------------------------------------------------------------------------
+makeSpecSig = undefined 
+
+------------------------------------------------------------------------------------------
+makeSpecData :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecData
+------------------------------------------------------------------------------------------
+makeSpecData = undefined 
+
+-------------------------------------------------------------------------------------------
+makeSpecName :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecNames
+-------------------------------------------------------------------------------------------
+makeSpecName = undefined 
+
+------------------------------------------------------------------------------------------
+makeSpecTerm :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecTerm 
+------------------------------------------------------------------------------------------
+makeSpecTerm = undefined 
+    
+------------------------------------------------------------------------------------------
+makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecRefl 
+------------------------------------------------------------------------------------------
+makeSpecRefl = undefined 
 
 {- 
 makeGhcSpec :: Config
@@ -144,9 +244,12 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   -- liftIO $ _dumpSigs specs0
   name           <- modName <$> get
   let mySpec      = fromMaybe mempty (lookup name specs0)
+  
   embs           <- addClassEmbeds instenv fiTcs <$> (mconcat <$> mapM makeTyConEmbeds specs0)
+  
   lSpec0         <- makeLiftedSpec0 cfg name embs cbs tcs mySpec
   let fullSpec    = mySpec `mappend` lSpec0
+  
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
   makeRTEnv name lSpec0 specs lmap
@@ -155,9 +258,10 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
 
   (tycons, datacons, dcSs, recSs, tyi, adts) <- makeGhcSpecCHOP1 cfg specs embs (syms0 ++ syms1)
-  -- checkShadowedSpecs dcSs (Ms.measures mySpec) expSyms defVars
+  
   checkShadowedSpecs dcSs (Ms.measures mySpec) syms0 defVars
   makeBounds embs name defVars cbs specs
+
   modify                                   $ \be -> be { tcEnv = tyi }
   (cls, mts)                              <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
   (measures, cms', ms', cs', xs')         <- makeGhcSpecCHOP2 specs dcSs datacons cls embs
@@ -680,5 +784,79 @@ replaceLocalBindsOne allowHO v
                case checkTerminationExpr emb fenv (v, Loc l l' t', es') of
                  Just err -> Ex.throw err
                  Nothing  -> modify (second $ M.insert v es')
+
+
+
+
+
+-- sortUniquable :: (Uniquable a) => [a] -> [a]
+-- sortUniquable xs = s
+-- getUnique getKey :: Unique -> Int
+-- hashNub :: (Eq k, Hashable k) => [k] -> [k]
+-- hashNub = M.keys . M.fromList . fmap (, ())
+
+
+uniqNub :: (Unique.Uniquable a) => [a] -> [a]
+uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
+  where
+    index  = Unique.getKey . Unique.getUnique
+
+-- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
+--   which are defined *outside* the current module e.g. in Base or somewhere
+--   that we don't have access to the code.
+
+reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
+reflectedTyCons cfg embs cbs spec
+  | exactDCFlag cfg = filter (not . isEmbedded embs)
+                    $ concatMap varTyCons
+                    $ reflectedVars spec cbs
+  | otherwise       = []
+
+-- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
+--   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
+--   or its embedding, a bool?
+isEmbedded :: TCEmb TyCon -> TyCon -> Bool
+isEmbedded embs c = F.tceMember c embs
+
+varTyCons :: Var -> [TyCon]
+varTyCons = specTypeCons . ofType . varType
+
+specTypeCons           :: SpecType -> [TyCon]
+specTypeCons           = foldRType tc []
+  where
+    tc acc t@(RApp {}) = (rtc_tc $ rt_tycon t) : acc
+    tc acc _           = acc
+
+reflectedVars :: Ms.BareSpec -> [CoreBind] -> [Var]
+reflectedVars spec cbs = fst <$> xDefs
+  where
+    xDefs              = mapMaybe (`GM.findVarDef` cbs) reflSyms
+    reflSyms           = fmap val . S.toList . Ms.reflects $ spec
+
+makeLiftedSpec1
+  :: FilePath -> ModName -> Ms.BareSpec
+  -> [(Var, LocSpecType)]
+  -> [AxiomEq]
+  -> [(Maybe Var, LocSpecType)]
+  -> BareM ()
+makeLiftedSpec1 file name lSpec0 xts axs invs
+  = liftIO $ saveLiftedSpec file name lSpec1
+  where
+    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
+    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- invs ]
+    lSpec1 = lSpec0 { Ms.asmSigs    = xbs
+                    , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
+                    , Ms.axeqs      = axs
+                    , Ms.invariants = xinvs
+                    }
+
+varLocSym :: Var -> LocSymbol
+varLocSym v = symbol <$> GM.locNamedThing v
+
+varLocSimpleSym :: Var -> LocSymbol
+varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
+
+
+
 
 -}

@@ -317,6 +317,10 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
+  | ErrResolve  { pos :: !SrcSpan
+                , msg :: !Doc
+                } -- ^ Name resolution error 
+
   | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
                 , var   :: !Doc
                 , msg   :: !Doc
@@ -786,9 +790,13 @@ ppError' _ dSp dCtx (ErrUnbPred _ p)
   = dSp <+> text "Cannot apply unbound abstract refinement" <+> ppVar p
         $+$ dCtx
 
-
 ppError' _ dSp dCtx (ErrGhc _ s)
   = dSp <+> text "GHC Error"
+        $+$ dCtx
+        $+$ (nest 4 $ pprint s)
+
+ppError' _ dSp dCtx (ErrResolve _ s)
+  = dSp <+> text "Name resolution error"
         $+$ dCtx
         $+$ (nest 4 $ pprint s)
 

@@ -20,6 +20,7 @@ module Language.Haskell.Liquid.Liquid (
 
 import           Prelude hiding (error)
 import           Data.Bifunctor
+-- import qualified Data.HashSet as S 
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
 -- import           Var                              (Var)
@@ -146,7 +147,7 @@ newPrune cfg cbs tgt info
   | diffcheck cfg = maybeEither cbs <$> DC.slice tgt cbs sp
   | otherwise     = return $ Left (ignoreCoreBinds ignores cbs)
   where
-    ignores       = gsIgnoreVars (gsVars sp) 
+    ignores       = gsIgnoreVars (gsVars sp)
     vs            = gsTgtVars    (gsVars sp)
     sp            = giSpec       info
     expVars       = exportedVars (giSrc info)

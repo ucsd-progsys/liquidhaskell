@@ -70,7 +70,7 @@ data Spec ty bndr  = Spec
   , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
-  , lvars      :: ![LocSymbol]                   -- ^ Variables that should be checked in the environment they are used
+  , lvars      :: !(S.HashSet LocSymbol)         -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
   , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to reflect
   , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
@@ -157,7 +157,6 @@ instance Semigroup (Spec ty bndr) where
            , ealiases   =           ealiases   s1 ++ ealiases   s2
            , qualifiers =           qualifiers s1 ++ qualifiers s2
            , decr       =           decr       s1 ++ decr       s2
-           , lvars      =           lvars      s1 ++ lvars      s2
            , pragmas    =           pragmas    s1 ++ pragmas    s2
            , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
            , imeasures  =           imeasures  s1 ++ imeasures  s2
@@ -167,6 +166,7 @@ instance Semigroup (Spec ty bndr) where
            , dvariance  =           dvariance  s1 ++ dvariance  s2
            , axeqs      =           axeqs s1      ++ axeqs s2
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
+           , lvars      = S.union   (lvars    s1)  (lvars      s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
         -- , axioms     = S.union   (axioms s1) (axioms s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
@@ -199,7 +199,7 @@ instance Monoid (Spec ty bndr) where
            , embeds     = mempty
            , qualifiers = []
            , decr       = []
-           , lvars      = []
+           , lvars      = S.empty 
            , lazy       = S.empty
            , autois     = M.empty
            , hmeas      = S.empty

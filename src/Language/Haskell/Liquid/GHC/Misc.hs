@@ -730,16 +730,16 @@ showCBs untidy
   | otherwise = showPpr
 
 
-ignoreCoreBinds :: [Var] -> [CoreBind] -> [CoreBind]
+ignoreCoreBinds :: S.HashSet Var -> [CoreBind] -> [CoreBind]
 ignoreCoreBinds vs cbs 
-  | null vs         = cbs 
-  | otherwise       = concatMap go cbs
+  | S.null vs         = cbs 
+  | otherwise         = concatMap go cbs
   where
     go :: CoreBind -> [CoreBind]
     go b@(NonRec x _) 
-      | x `elem` vs = [] 
-      | otherwise   = [b] 
-    go (Rec xes)    = [Rec (filter ((`notElem` vs) . fst) xes)]
+      | S.member x vs = [] 
+      | otherwise     = [b] 
+    go (Rec xes)      = [Rec (filter ((`notElem` vs) . fst) xes)]
 
 
 findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)

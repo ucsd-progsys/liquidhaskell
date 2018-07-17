@@ -21,18 +21,20 @@ module Language.Haskell.Liquid.Bare.DataType
 
   ) where
 
--- import           TysWiredIn (listTyCon)
 -- import           TysPrim
 -- import           Name                                   (getSrcSpan)
 -- import           SrcLoc                                 (SrcSpan)
-import           DataCon
+
 import           Prelude                                hiding (error)
--- import qualified Type
+import qualified InstEnv as Ghc 
+import qualified TyCon   as Ghc 
+import qualified DataCon as Ghc 
+import qualified Type    as Ghc 
+import qualified TyCoRep as Ghc 
+import qualified Class   as Ghc
+import qualified TysWiredIn as Ghc 
 -- import           Text.Parsec
--- import           TyCon                                  hiding (tyConName)
 -- import           Var
--- import           InstEnv
--- import           Class
 -- import           Data.Maybe
 -- import           Language.Haskell.Liquid.GHC.TypeRep
 
@@ -84,7 +86,7 @@ dataConMap ds = M.fromList $ do
 -- | 'makeDataConChecker d' creates the measure for `is$d` which tests whether
 --   a given value was created by 'd'. e.g. is$Nil or is$Cons.
 --------------------------------------------------------------------------------
-makeDataConChecker :: DataCon -> F.Symbol
+makeDataConChecker :: Ghc.DataCon -> F.Symbol
 --------------------------------------------------------------------------------
 makeDataConChecker d
   = F.testSymbol (F.symbol d)
@@ -95,7 +97,7 @@ makeDataConChecker d
 --   e.g. `select$Cons$1` and `select$Cons$2` are respectively
 --   equivalent to `head` and `tail`.
 --------------------------------------------------------------------------------
-makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
+makeDataConSelector :: Maybe DataConMap -> Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
   where 
     dm                       = Mb.fromMaybe M.empty dmMb 
@@ -108,24 +110,24 @@ makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
   where
  -} 
 
-makeDataConSelector' :: DataCon -> Int -> F.Symbol
+makeDataConSelector' :: Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector' d i
   = symbolMeasure "$select" (dcSymbol d) (Just i)
 
-dcSymbol :: DataCon -> F.Symbol
-dcSymbol = {- simpleSymbolVar -} F.symbol . dataConWorkId
+dcSymbol :: Ghc.DataCon -> F.Symbol
+dcSymbol = {- simpleSymbolVar -} F.symbol . Ghc.dataConWorkId
 
 symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
 symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
   where
     rest          = maybe [] (Misc.singleton . F.symbol . show) iMb
 
-{- BAREOLD
 
 --------------------------------------------------------------------------------
 -- | makeClassEmbeds: sort-embeddings for numeric, and family-instance tycons
 --------------------------------------------------------------------------------
-addClassEmbeds :: Maybe [ClsInst] -> [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
+addClassEmbeds :: Maybe [Ghc.ClsInst] -> [Ghc.TyCon] -> F.TCEmb Ghc.TyCon 
+               -> F.TCEmb Ghc.TyCon
 addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 
 --------------------------------------------------------------------------------
@@ -134,23 +136,23 @@ addClassEmbeds instenv fiTcs = makeFamInstEmbeds fiTcs . makeNumEmbeds instenv
 --     Query.R$58$EntityFieldBlobdog
 --   with the actual family instance  types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
-makeFamInstEmbeds :: [TyCon] -> F.TCEmb TyCon -> F.TCEmb TyCon
+makeFamInstEmbeds :: [Ghc.TyCon] -> F.TCEmb Ghc.TyCon -> F.TCEmb Ghc.TyCon
 makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
   where
     famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
-                                , ty  <- maybeToList (famInstTyConType c) ]
+                                , ty  <- Mb.maybeToList (famInstTyConType c) ]
     embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
     cs                    = F.notracepp "famInstTcs-all" cs0
 
-famInstTyConType :: TyCon -> Maybe Type
-famInstTyConType c = case tyConFamInst_maybe c of
-  Just (c', ts) -> Just (famInstType (tyConArity c) c' ts)
+famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
+famInstTyConType c = case Ghc.tyConFamInst_maybe c of
+  Just (c', ts) -> Just (famInstType (Ghc.tyConArity c) c' ts)
   Nothing       -> Nothing
 
-famInstType :: Int -> TyCon -> [Type] -> Type
-famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
+famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
+famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
 
 {- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
      in two ways: (1) As an applied type, (2) As a special tycon.
@@ -187,19 +189,20 @@ famInstType n c ts = Type.mkTyConApp c (take (length ts - n) ts)
 --------------------------------------------------------------------------------
 -- | makeNumEmbeds: embed types that have numeric instances as int [Check!]
 --------------------------------------------------------------------------------
-makeNumEmbeds :: Maybe [ClsInst] -> F.TCEmb TyCon -> F.TCEmb TyCon
+makeNumEmbeds :: Maybe [Ghc.ClsInst] -> F.TCEmb Ghc.TyCon -> F.TCEmb Ghc.TyCon
 makeNumEmbeds Nothing x   = x
 makeNumEmbeds (Just is) x = L.foldl' makeNumericInfoOne x is
 
-makeNumericInfoOne :: F.TCEmb TyCon -> ClsInst -> F.TCEmb TyCon
+makeNumericInfoOne :: F.TCEmb Ghc.TyCon -> Ghc.ClsInst -> F.TCEmb Ghc.TyCon
 makeNumericInfoOne m is
-  | isFracCls $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  | isFracCls cls, Just tc <- instanceTyCon is
   = F.tceInsertWith (flip mappendSortFTC) tc (ftc tc True True) F.NoArgs m
-  | isNumCls  $ classTyCon $ is_cls is, Just tc <- instanceTyCon is
+  | isNumCls  cls, Just tc <- instanceTyCon is
   = F.tceInsertWith (flip mappendSortFTC) tc (ftc tc True False) F.NoArgs m
   | otherwise
   = m
   where
+    cls         = Ghc.classTyCon (Ghc.is_cls is)
     ftc c f1 f2 = F.FTC (F.symbolNumInfoFTyCon (dummyLoc $ RT.tyConName c) f1 f2)
 
 mappendSortFTC :: F.Sort -> F.Sort -> F.Sort
@@ -208,11 +211,11 @@ mappendSortFTC s         (F.FTC _) = s
 mappendSortFTC (F.FTC _) s         = s
 mappendSortFTC s1        s2        = panic Nothing ("mappendSortFTC: s1 = " ++ showpp s1 ++ " s2 = " ++ showpp s2)
 
-instanceTyCon :: ClsInst -> Maybe TyCon
-instanceTyCon = go . is_tys
+instanceTyCon :: Ghc.ClsInst -> Maybe Ghc.TyCon
+instanceTyCon = go . Ghc.is_tys
   where
-    go [TyConApp c _] = Just c
-    go _              = Nothing
+    go [Ghc.TyConApp c _] = Just c
+    go _                  = Nothing
 
 --------------------------------------------------------------------------------
 -- | Create Fixpoint DataDecl from LH DataDecls --------------------------------
@@ -225,14 +228,14 @@ instanceTyCon = go . is_tys
 
 type DataPropDecl = (DataDecl, Maybe SpecType)
 
-makeDataDecls :: Config -> F.TCEmb TyCon -> ModName
-              -> [(ModName, TyCon, DataPropDecl)]
-              -> [(DataCon, Located DataConP)]
+makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
+              -> [(ModName, Ghc.TyCon, DataPropDecl)]
+              -> [(Ghc.DataCon, Located DataConP)]
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
                 | (tc, (dd, ctors)) <- groupDataCons tds' ds
-                , tc /= listTyCon
+                , tc /= Ghc.listTyCon
                 ]
   | otherwise = []
   where
@@ -267,16 +270,16 @@ makeDataDecls cfg tce name tds ds
       and hence, unsafely pass its invariants! (Feature not bug?)
 
 -}
-resolveTyCons :: ModName -> [(ModName, TyCon, DataPropDecl)]
-              -> [(TyCon, (ModName, DataPropDecl))]
+resolveTyCons :: ModName -> [(ModName, Ghc.TyCon, DataPropDecl)]
+              -> [(Ghc.TyCon, (ModName, DataPropDecl))]
 resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
-                                     , (m, d)    <- maybeToList $ resolveDecls m tc mds ]
+                                     , (m, d)    <- Mb.maybeToList $ resolveDecls m tc mds ]
   where
     tcDecls          = Misc.group [ (tc, (m, d)) | (m, tc, d) <- mtds ]
 
 -- | See [NOTE:Orphan-TyCons], the below function tells us which of (possibly many)
 --   DataDecls to use.
-resolveDecls :: ModName -> TyCon -> Misc.ListNE (ModName, DataPropDecl)
+resolveDecls :: ModName -> Ghc.TyCon -> Misc.ListNE (ModName, DataPropDecl)
              -> Maybe (ModName, DataPropDecl)
 resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
   where
@@ -285,34 +288,26 @@ resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef ,
     tcHome                 = GM.takeModuleNames (F.symbol tc)
 
 
-groupDataCons :: [(TyCon, (ModName, DataPropDecl))]
-              -> [(DataCon, Located DataConP)]
-              -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
+groupDataCons :: [(Ghc.TyCon, (ModName, DataPropDecl))]
+              -> [(Ghc.DataCon, Located DataConP)]
+              -> [(Ghc.TyCon, (DataPropDecl, [(Ghc.DataCon, DataConP)]))]
 groupDataCons tds ds = [ (tc, (d, dds')) | (tc, ((m, d), dds)) <- tcDataCons
                                          , let dds' = filter (isResolvedDataConP m . snd) dds
                        ]
   where
     tcDataCons       = M.toList $ M.intersectionWith (,) declM ctorM
     declM            = M.fromList tds
-    ctorM            = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
+    ctorM            = Misc.group [(Ghc.dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
 
 isResolvedDataConP :: ModName -> DataConP -> Bool
 isResolvedDataConP m dp = F.symbol m == dcpModule dp
 
--- _groupDataCons :: [(TyCon, DataPropDecl)]
-              -- -> [(DataCon, Located DataConP)]
-              -- -> [(TyCon, (DataPropDecl, [(DataCon, DataConP)]))]
--- _groupDataCons tds ds = M.toList $ M.intersectionWith (,) declM ctorM
-  -- where
-    -- declM             = M.fromList tds
-    -- ctorM             = Misc.group [(dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
-
-makeFDataDecls :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> [(DataCon, DataConP)]
+makeFDataDecls :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataPropDecl -> [(Ghc.DataCon, DataConP)]
                -> F.DataDecl
 makeFDataDecls tce tc dd ctors = makeDataDecl tce tc (fst dd) ctors
                                -- ++ maybeToList (makePropDecl tce tc dd) -- TODO: AUTO-INDPRED
 
-makeDataDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> [(DataCon, DataConP)]
+makeDataDecl :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataDecl -> [(Ghc.DataCon, DataConP)]
              -> F.DataDecl
 makeDataDecl tce tc dd ctors
   = F.DDecl
@@ -323,7 +318,7 @@ makeDataDecl tce tc dd ctors
   where
     ftc = F.symbolFTycon (tyConLocSymbol tc dd)
 
-tyConLocSymbol :: TyCon -> DataDecl -> LocSymbol
+tyConLocSymbol :: Ghc.TyCon -> DataDecl -> LocSymbol
 tyConLocSymbol tc dd = F.atLoc (tycName dd) (F.symbol tc)
 
 -- [NOTE:ADT] We need to POST-PROCESS the 'Sort' so that:
@@ -332,7 +327,7 @@ tyConLocSymbol tc dd = F.atLoc (tycName dd) (F.symbol tc)
 -- 2. The "self" type is replaced with just itself
 --    (i.e. without any type applications.)
 
-makeDataCtor :: F.TCEmb TyCon -> F.FTycon -> (DataCon, DataConP) -> F.DataCtor
+makeDataCtor :: F.TCEmb Ghc.TyCon -> F.FTycon -> (Ghc.DataCon, DataConP) -> F.DataCtor
 makeDataCtor tce c (d, dp) = F.DCtor
   { F.dcName    = GM.namedLocSymbol d
   , F.dcFields  = makeDataFields tce c as xts
@@ -342,12 +337,12 @@ makeDataCtor tce c (d, dp) = F.DCtor
     xts         = [ (fld x, t) | (x, t) <- reverse (tyArgs dp) ]
     fld         = Loc (dc_loc dp) (dc_locE dp) . fieldName d dp
 
-fieldName :: DataCon -> DataConP -> F.Symbol -> F.Symbol
+fieldName :: Ghc.DataCon -> DataConP -> F.Symbol -> F.Symbol
 fieldName d dp x
   | dcpIsGadt dp = F.suffixSymbol (F.symbol d) x
   | otherwise    = x
 
-makeDataFields :: F.TCEmb TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
+makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
                -> [F.DataField]
 makeDataFields tce c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
@@ -425,6 +420,7 @@ qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
 
 -}
 
+{- BAREOLD
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
