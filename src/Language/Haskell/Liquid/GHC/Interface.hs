@@ -445,6 +445,10 @@ toGhcSpec cfg file cbs vars letVs tgtMod mgi tgtSpec logicMap impSpecs = do
   ghcSpec      <- liftIO $ makeGhcSpec cfg file tgtMod cbs (mgi_tcs mgi) (mgi_cls_inst mgi) vars letVs exports hsc logicMap specs
   return (ghcSpec, imps, Ms.includes tgtSpec, exports)
 
+  -- REBARE: let impNames  = map (getModString . fst) impSpecs
+  let imps      = sortNub $ impNames ++ [ symbolString x | (_, sp) <- specs, x <- Ms.imports sp ]
+ imps, Ms.includes tgtSpec
+
 -} 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =

@@ -119,7 +119,7 @@ saveLiftedSpec srcF _ lspec = do
 makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpec 
 makeGhcSpec cfg src specs lmap = SP 
   { gsSig    = makeSpecSig  cfg src specs  lmap 
-  , gsQual   = makeSpecQual cfg src specs  env rtEnv 
+  , gsQual   = makeSpecQual cfg env specs  rtEnv 
   , gsData   = makeSpecData cfg src specs  lmap
   , gsName   = makeSpecName cfg src specs  lmap
   , gsVars   = makeSpecVars cfg src mySpec env 
@@ -237,12 +237,11 @@ resolveLocSymbolVar src env lx = Bare.strictResolveSym env name "Var" lx
     name                       = giTargetMod src
 
 ------------------------------------------------------------------------------------------
-makeSpecQual :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> SpecRTEnv 
+makeSpecQual :: Config -> Bare.Env -> [(ModName, Ms.BareSpec)] -> SpecRTEnv 
              -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
-makeSpecQual cfg src specs env rtEnv = SpQual 
+makeSpecQual cfg env specs rtEnv = SpQual 
   { gsQualifiers = concatMap (makeQualifiers env) specs 
-  -- , giHqFiles    = undefined 
   , gsRTAliases  = rtEnv 
   } 
 
@@ -251,7 +250,6 @@ makeQualifiers env (mod, spec) = tx <$> Ms.qualifiers spec
   where
     tx q                       = Bare.resolve env mod (F.qPos q) q 
 
-  -- quals    <- mconcat <$> mapM makeQualifiers specs
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
