@@ -311,3 +311,6 @@ keyDiff f x1s x2s = M.elems (M.difference (m x1s) (m x2s))
   where 
     m xs          = M.fromList [(f x, x) | x <- xs] 
 
+concatUnzip :: [([a], [b])] -> ([a], [b])
+concatUnzip xsyss = (concatMap fst xsyss, concatMap snd xsyss)
+

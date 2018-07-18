@@ -13,10 +13,10 @@ module Language.Haskell.Liquid.Bare.DataType
   , addClassEmbeds
 
   -- * Constructors
-  -- makeDataDecls
-  -- , makeConTypes
+  , makeDataDecls
+  , makeConTypes
+  , makeRecordSelectorSigs
   -- , makeTyConEmbeds
-  -- , makeRecordSelectorSigs
   -- , meetDataConSpec
 
   ) where
@@ -59,6 +59,8 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
+import           Language.Haskell.Liquid.Bare.Types 
+import           Language.Haskell.Liquid.Bare.Resolve 
 
 -- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 -- import           Language.Haskell.Liquid.Bare.Env
@@ -72,7 +74,6 @@ import           Text.PrettyPrint.HughesPJ       ((<+>))
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
 --   as SMT ADTs so we don't make up new names for them.
 --------------------------------------------------------------------------------
-type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
 
 dataConMap :: [F.DataDecl] -> DataConMap
 dataConMap ds = M.fromList $ do
@@ -422,17 +423,17 @@ qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
 
 -}
 
-{- BAREOLD
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-makeConTypes
-  :: (ModName, Ms.Spec ty bndr)
-  -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
-           , [[(DataCon, Located DataConP)]]   )
-makeConTypes (name, spec) = inModule name $
-  makeConTypes' name (Ms.dataDecls spec) (Ms.dvariance spec)
+makeConTypes :: (ModName, Ms.BareSpec) 
+             -> ( [(ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)]
+                , [[(Ghc.DataCon, Located DataConP)]]              )
+makeConTypes (name, spec) = undefined 
+-- inModule name $
+--   makeConTypes' name (Ms.dataDecls spec) (Ms.dvariance spec)
 
+{- BAREOLD
 makeConTypes' :: ModName -> [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
                        , [[(DataCon, Located DataConP)]])
@@ -707,36 +708,38 @@ qualifyField name lx
    x         = val lx
    needsQual = not (isWiredIn lx)
 
-makeRecordSelectorSigs :: [(DataCon, Located DataConP)] -> BareM [(Var, LocSpecType)]
-makeRecordSelectorSigs dcs = F.notracepp "makeRecordSelectorSigs" <$> (concat <$> mapM makeOne dcs)
+ -}
+
+makeRecordSelectorSigs :: Env -> ModName -> [(Ghc.DataCon, Located DataConP)] 
+                       -> [(Ghc.Var, LocSpecType)]
+makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
   where
   makeOne (dc, Loc l l' dcp)
-    | null (dataConFieldLabels dc)  -- no field labels OR
-      || any (isFunTy . snd) args   -- OR function-valued fields
-      || dcpIsGadt dcp              -- OR GADT style datcon
-    = return []
-    | otherwise = do
-        fs <- mapM lookupGhcVar (dataConFieldLabels dc)
-        return $ zip fs ts
+    | null fls                    --    no field labels
+    || any (isFunTy . snd) args   -- OR function-valued fields
+    || dcpIsGadt dcp              -- OR GADT style datcon
+    = []
+    | otherwise 
+    = zip fs ts
     where
-    ts :: [ LocSpecType ]
-    ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
-                               [] [(z, res, mempty)]
-                               (dropPreds (F.subst su t `RT.strengthen` mt)))
-           | (x, t) <- reverse args -- NOTE: the reverse here is correct
-           , let vv = rTypeValueVar t
-             -- the measure singleton refinement, eg `v = getBar foo`
-           , let mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
-           ]
-
-    su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
-    args = tyArgs dcp
-    z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
-    res  = dropPreds (tyRes dcp)
-
-    -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
-    -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
-    -- a malformed predicate application. Niki, help!!
-    dropPreds = fmap (\(MkUReft r _ps ss) -> MkUReft r mempty ss)
-
- -}
+      fls = Ghc.dataConFieldLabels dc
+      fs  = resolveNamedVar env name . Ghc.flSelector <$> fls 
+      ts :: [ LocSpecType ]
+      ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
+                                 [] [(z, res, mempty)]
+                                 (dropPreds (F.subst su t `RT.strengthen` mt)))
+             | (x, t) <- reverse args -- NOTE: the reverse here is correct
+             , let vv = rTypeValueVar t
+               -- the measure singleton refinement, eg `v = getBar foo`
+             , let mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
+             ]
+  
+      su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
+      args = tyArgs dcp
+      z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+      res  = dropPreds (tyRes dcp)
+  
+      -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
+      -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
+      -- a malformed predicate application. Niki, help!!
+      dropPreds = fmap (\(MkUReft r _ps ss) -> MkUReft r mempty ss)

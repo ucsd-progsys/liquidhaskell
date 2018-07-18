@@ -18,8 +18,9 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (fSrcSpan) -- , sourc
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Haskell.Liquid.Measure      as Ms
 import qualified Language.Haskell.Liquid.Bare.Resolve as Bare
+import qualified Language.Haskell.Liquid.Bare.Types   as Bare
 
 -- import           Language.Haskell.Liquid.Bare.Env
 -- import           Language.Haskell.Liquid.Bare.Expand
@@ -64,19 +65,7 @@ specREAlias env m la = F.atLoc la $ a { rtBody = F.val (ofBareExpr env m (F.atLo
   where 
     a     = val la 
 
--- MOVE INTO RESOLVE 
 
-ofBareType :: Bare.Env -> ModName -> Located BareType -> Located SpecType 
-ofBareType = undefined  
-
-ofBareExpr :: Bare.Env -> ModName -> Located Expr -> Located Expr 
-ofBareExpr = undefined 
-
-expand :: SpecRTEnv -> a -> a 
-expand = undefined 
-
-
-     
 graphExpand :: (PPrint t)
             => (AliasTable x t -> t -> [Symbol])         -- ^ dependencies
             -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
@@ -210,3 +199,18 @@ buildExprEdges table  = ordNub . go
     go (PExist _ e)    = go e
     go (PGrad _ _ _ e) = go e
     go_alias f         = [f | M.member f table ]
+
+-------------------------------------------------------------------------------
+-- MOVE INTO RESOLVE 
+-------------------------------------------------------------------------------
+
+ofBareType :: Bare.Env -> ModName -> Located BareType -> Located SpecType 
+ofBareType = undefined  
+
+ofBareExpr :: Bare.Env -> ModName -> Located Expr -> Located Expr 
+ofBareExpr = undefined 
+
+expand :: SpecRTEnv -> a -> a 
+expand = undefined 
+    
+
