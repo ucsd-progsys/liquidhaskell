@@ -403,8 +403,9 @@ data GhcSpecTerm = SpTerm
 
 data GhcSpecRefl = SpRefl 
   { gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to USE PLE 
-  , gsAxioms     :: ![AxiomEq]                     -- ^ Axioms from reflected functions
-  , gsReflects   :: ![Var]                         -- ^ Binders for reflected functions
+  , gsImpAxioms  :: ![AxiomEq]                    -- ^ Axioms from imported reflected functions
+  , gsMyAxioms   :: ![AxiomEq]                    -- ^ Axioms from my reflected functions
+  , gsReflects   :: ![Var]                        -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
   }
 

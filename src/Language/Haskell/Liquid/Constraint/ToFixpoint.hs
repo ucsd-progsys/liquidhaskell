@@ -145,11 +145,13 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
 
 makeEquations :: GhcSpec -> [F.Equation]
 makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
-                      | F.Equ f xts e t _ <- gsAxioms (gsRefl sp)
+                      | F.Equ f xts e t _ <- axioms 
                       , let mbT            = M.lookup f sigs
                       , let xArgs          = F.EVar . fst <$> xts
                    ]
   where
+    axioms       = gsMyAxioms refl ++ gsImpAxioms refl 
+    refl         = gsRefl sp
     sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
 equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr

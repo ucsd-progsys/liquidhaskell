@@ -304,11 +304,22 @@ makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> Logi
 makeSpecRefl cfg src specs env lmap name = SpRefl 
   { gsLogicMap   = lmap 
   , gsAutoInst   = makeAutoInst env name mySpec 
-  , gsAxioms     = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
+  , gsImpAxioms  = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
+  , gsMyAxioms   = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
   , gsReflects   = undefined -- :: [Var]                         -- ^ Binders for reflected functions
   }
   where
     mySpec       = fromMaybe mempty (lookup name specs)
+
+getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
+getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
+  where
+    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
+
+getAxiomEqs :: [(ModName, Ms.BareSpec)] -> [AxiomEq]
+getAxiomEqs = concatMap (Ms.axeqs . snd)
+
+
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Var (Maybe Int)
 makeAutoInst env name spec = 
@@ -354,6 +365,44 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
       
+
+-----------------------------------------------------------------------------------------
+makeLiftedSpec :: Ms.BareSpec -> GhcSpec -> Ms.BareSpec 
+makeLiftedSpec lSpec0 sp = undefined 
+{- 
+  lSpec0 { Ms.asmSigs    = xbs
+         , Ms.reflSigs   = xbs
+         , Ms.axeqs      = gsMyAxioms (gsSpecRefl sp) 
+--          , Ms.invariants = xinvs
+         }
+  where 
+    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
+    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- gsInvariants sp ]
+
+    -- HEREHEREHEREHEREHERE
+ 
+makeLiftedSpec1
+  :: FilePath -> ModName -> Ms.BareSpec
+  -> [(Var, LocSpecType)]
+  -> [AxiomEq]
+  -> [(Maybe Var, LocSpecType)]
+  -> BareM ()
+makeLiftedSpec1 file name lSpec0 xts axs invs
+  = liftIO $ saveLiftedSpec file name lSpec1
+  where
+    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
+    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- invs ]
+    lSpec1 = lSpec0 { Ms.asmSigs    = xbs
+                    , Ms.reflSigs   = xbs
+                    , Ms.axeqs      = axs
+                    , Ms.invariants = xinvs
+                    }
+
+varLocSym :: Var -> LocSymbol
+varLocSym v = symbol <$> GM.locNamedThing v
+
+
+-}
       
 {- 
 makeGhcSpec :: Config
@@ -433,13 +482,6 @@ varInModule :: (Show a, Show a1) => a -> a1 -> Bool
 varInModule n v = L.isPrefixOf (show n) $ show v
 
 
-getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
-getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
-  where
-    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
-
-getAxiomEqs :: [(ModName, Ms.BareSpec)] -> [AxiomEq]
-getAxiomEqs = concatMap (Ms.axeqs . snd)
 
 -- TODO: pull the `makeLiftedSpec1` out; a function should do ONE thing.
 makeGhcAxioms
@@ -887,25 +929,6 @@ replaceLocalBindsOne allowHO v
                  Just err -> Ex.throw err
                  Nothing  -> modify (second $ M.insert v es')
 
-makeLiftedSpec1
-  :: FilePath -> ModName -> Ms.BareSpec
-  -> [(Var, LocSpecType)]
-  -> [AxiomEq]
-  -> [(Maybe Var, LocSpecType)]
-  -> BareM ()
-makeLiftedSpec1 file name lSpec0 xts axs invs
-  = liftIO $ saveLiftedSpec file name lSpec1
-  where
-    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
-    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- invs ]
-    lSpec1 = lSpec0 { Ms.asmSigs    = xbs
-                    , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
-                    , Ms.axeqs      = axs
-                    , Ms.invariants = xinvs
-                    }
-
-varLocSym :: Var -> LocSymbol
-varLocSym v = symbol <$> GM.locNamedThing v
 
 varLocSimpleSym :: Var -> LocSymbol
 varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
