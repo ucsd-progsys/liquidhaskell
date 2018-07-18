@@ -74,6 +74,7 @@ import qualified Language.Haskell.Liquid.Bare.DataType      as Bare
 import qualified Language.Haskell.Liquid.Bare.RTEnv         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
+import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -126,11 +127,13 @@ makeGhcSpec cfg src specs lmap = SP
   , gsData   = makeSpecData cfg src specs        lmap
   , gsName   = makeSpecName cfg src specs        lmap
   , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg     mySpec env         name 
-  , gsRefl   = makeSpecRefl cfg src specs  env   lmap  name 
+  , gsTerm   = makeSpecTerm cfg     mySpec env   name 
+  , gsRefl   = makeSpecRefl cfg src specs  env   name sig embs tycEnv 
   , gsConfig = cfg 
   }
-  where 
+  where
+    sig      = makeSpecSig cfg src specs lmap 
+    tycEnv   = makeTycEnv  cfg name env embs 
     env      = Bare.makeEnv src specs lmap  
     embs     = makeEmbeds   src env
     name     = giTargetMod  src 
@@ -298,11 +301,12 @@ makeSize env name spec =
       = Nothing
 
 ------------------------------------------------------------------------------------------
-makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> LogicMap -> ModName 
+makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> ModName 
+             -> GhcSpecSig -> F.TCEmb TyCon -> Bare.TycEnv 
              -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
-makeSpecRefl cfg src specs env lmap name = SpRefl 
-  { gsLogicMap   = lmap 
+makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl 
+  { gsLogicMap   = Bare.reLMap env 
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) specs
   , gsMyAxioms   = myAxioms 
@@ -310,10 +314,8 @@ makeSpecRefl cfg src specs env lmap name = SpRefl
   }
   where
     mySpec       = fromMaybe mempty (lookup name specs)
-    xtes         = makeHaskellAxioms embs cbs sp mSpc adts
-    myAxioms     = [ qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
-
--- HEREHEREHEREHEREHERE
+    xtes         = Bare.makeHaskellAxioms src mySpec embs env tycEnv sig 
+    myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
 
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)

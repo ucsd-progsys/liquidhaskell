@@ -18,6 +18,7 @@ import Type           (expandTypeSynonyms)
 import Language.Haskell.Liquid.GHC.TypeRep
 
 import Prelude hiding (mapM)
+import qualified Control.Exception                          as Ex
 
 import           Control.Monad.Except hiding (forM, mapM)
 import           Control.Monad.State hiding (forM, mapM)
@@ -31,40 +32,45 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Bare.Env
 
---------------------------------------------------------------------------------
-makeHaskellAxioms
-  :: F.TCEmb TyCon -> [CoreBind] -> GhcSpec -> Ms.BareSpec -> [F.DataDecl]
-  -> BareM [ (Var, LocSpecType, AxiomEq)]
---------------------------------------------------------------------------------
-makeHaskellAxioms tce cbs spec sp adts = do
+import           Language.Haskell.Liquid.Bare.Types as Bare
+-----------------------------------------------------------------------------------------------
+makeHaskellAxioms :: GhcSrc -> Ms.BareSpec -> F.TCEmb TyCon -> Bare.Env -> Bare.TycEnv -> GhcSpecSig 
+                  -> [(Var, LocSpecType, F.Equation)]
+-----------------------------------------------------------------------------------------------
+makeHaskellAxioms embs cbs spec sp adts = undefined 
+{- 
+do
   xtvds <- getReflectDefs spec sp cbs
   forM_ xtvds $ \(x,_,v,_) -> updateLMapXV x v
   lmap  <- logicEnv <$> get
   let dm = dataConMap adts
-  mapM (makeAxiom tce lmap dm) xtvds
+  mapM (makeAxiom embs lmap dm) xtvds
+-}
 
+getReflectDefs :: GhcSpecSig -> Ms.BareSpec -> [CoreBind] 
+               -> [(LocSymbol, Maybe SpecType, Var, CoreExpr)]
+getReflectDefs sig sp cbs = findVarDefType cbs sigs <$> xs
+  where
+    sigs                  = gsTySigs sig 
+    xs                    = S.toList (Ms.reflects sp)
+
+findVarDefType :: [CoreBind] -> [(Var, LocSpecType)] -> LocSymbol
+               -> (LocSymbol, Maybe SpecType, Var, CoreExpr)
+findVarDefType cbs sigs x = case findVarDef (val x) cbs of
+  Just (v, e) -> if isExportedId v
+                   then (x, val <$> lookup v sigs, v, e)
+                   else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
+  Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
+
+
+
+{- 
 
 updateLMapXV :: LocSymbol -> Var -> BareM ()
 updateLMapXV x v = do
   updateLMap x x v
   updateLMap (x {val = (F.symbol . showPpr . getName) v}) x v
-
-getReflectDefs :: GhcSpec -> Ms.BareSpec -> [CoreBind] 
-               -> BareM [(LocSymbol, Maybe SpecType, Var, CoreExpr)]
-getReflectDefs spec sp cbs  = mapM (findVarDefType cbs sigs) xs
-  where
-    sigs                    = gsTySigs (gsSig spec)
-    xs                      = S.toList (Ms.reflects sp)
-
-findVarDefType :: [CoreBind] -> [(Var, LocSpecType)] -> LocSymbol
-               -> BareM (LocSymbol, Maybe SpecType, Var, CoreExpr)
-findVarDefType cbs sigs x = case findVarDef (val x) cbs of
-  Just (v, e) -> if isExportedId v
-                   then return (x, val <$> lookup v sigs, v, e)
-                   else throwError $ mkError x ("Lifted functions must be exported; please export " ++ show v)
-  Nothing     -> throwError $ mkError x "Cannot lift haskell function"
 
 --------------------------------------------------------------------------------
 makeAxiom :: F.TCEmb TyCon
@@ -80,13 +86,30 @@ makeAxiom tce lmap dm (x, mbT, v, def) = do
   let (t, e) = makeAssumeType tce lmap dm x mbT v def
   return (v, t, e)
 
+updateLMap :: LocSymbol -> LocSymbol -> Var -> BareM ()
+updateLMap x y vv
+  | val x /= val y && isFun (varType vv)
+  = insertLogicEnv ("UPDATELMAP: vv =" ++ show vv) x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
+  | otherwise
+  = return ()
+  where
+    nargs = dropWhile isClassType $ ty_args trep
+    trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
+    ys    = zipWith (\i _ -> F.symbol ("x" ++ show i)) [1..] nargs
+
+    isFun (FunTy _ _)    = True
+    isFun (ForAllTy _ t) = isFun t
+    isFun  _             = False
+
+-}
+
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 makeAssumeType
   :: F.TCEmb TyCon -> LogicMap -> DataConMap -> LocSymbol -> Maybe SpecType
   -> Var -> CoreExpr
-  -> (LocSpecType, AxiomEq)
+  -> (LocSpecType, F.Equation)
 makeAssumeType tce lmap dm x mbT v def
   = (x {val = at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts le out)
   where
@@ -127,20 +150,6 @@ strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofR
   where
     trep = toRTypeRep t
 
-updateLMap :: LocSymbol -> LocSymbol -> Var -> BareM ()
-updateLMap x y vv
-  | val x /= val y && isFun (varType vv)
-  = insertLogicEnv ("UPDATELMAP: vv =" ++ show vv) x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
-  | otherwise
-  = return ()
-  where
-    nargs = dropWhile isClassType $ ty_args trep
-    trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
-    ys    = zipWith (\i _ -> F.symbol ("x" ++ show i)) [1..] nargs
-
-    isFun (FunTy _ _)    = True
-    isFun (ForAllTy _ t) = isFun t
-    isFun  _             = False
 
 class Subable a where
   subst :: (Var, CoreExpr) -> a -> a
