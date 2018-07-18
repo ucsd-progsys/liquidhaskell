@@ -26,11 +26,11 @@ jobs:
             stack setup
             rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
             stack build liquidhaskell --only-dependencies --test --no-run-tests
-      - run:
-          name: Build
-          command: |
-            stack build liquidhaskell --flag liquidhaskell:include --flag liquidhaskell:devel
-            stack build liquidhaskell --flag liquidhaskell:include --flag liquidhaskell:devel --test --no-run-tests
+      #- run:
+      #    name: Build
+      #    command: |
+      #      stack build liquidhaskell --flag liquidhaskell:include --flag liquidhaskell:devel
+      #      stack build liquidhaskell --flag liquidhaskell:include --flag liquidhaskell:devel --test --no-run-tests
       - save_cache:
           key: stack-{{ .Branch }}-{{ checksum "stack.yaml" }}
           paths:
@@ -39,6 +39,7 @@ jobs:
       - run:
           name: Test
           command: |
+            stack clean
             mkdir -p $CIRCLE_TEST_REPORTS/junit
             stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s -j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores=1'":
             stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
