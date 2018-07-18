@@ -136,7 +136,6 @@ makeGhcSpec cfg src specs lmap = SP
     lSpec0   = makeLiftedSpec0 cfg src embs mySpec
 
     -- fullSpec = mySpec `mappend` lSpec0
-
  
 
 makeEmbeds :: Bare.Env -> GhcSrc -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
@@ -150,8 +149,6 @@ makeTyConEmbeds env (name, spec)
   = F.tceMap (Bare.strictResolveSym env name "TyCon") (Ms.embeds spec)
 
 --  makeRTEnv name lSpec0 specs lmap
-
-
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
@@ -245,7 +242,7 @@ makeSpecQual :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> Spec
 ------------------------------------------------------------------------------------------
 makeSpecQual cfg src specs env rtEnv = SpQual 
   { gsQualifiers = concatMap (makeQualifiers env) specs 
-  , giHqFiles    = undefined 
+  -- , giHqFiles    = undefined 
   , gsRTAliases  = rtEnv 
   } 
 

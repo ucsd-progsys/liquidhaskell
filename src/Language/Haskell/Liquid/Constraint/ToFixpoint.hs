@@ -57,11 +57,14 @@ fixConfig tgt cfg = def
 
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
-cgInfoFInfo info cgi = do
-  let tgtFI  = targetFInfo info cgi
-  let qFiles = giHqFiles . gsQual . giSpec $ info
-  impFI     <- ignoreQualifiers info <$> parseFInfo qFiles 
-  return       (tgtFI <> impFI)
+cgInfoFInfo info cgi = return (targetFInfo info cgi)
+
+-- REBARE: cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
+-- REBARE: cgInfoFInfo info cgi = do
+  -- REBARE: let tgtFI  = targetFInfo info cgi
+  -- REBARE: let qFiles = giHqFiles . gsQual . giSpec $ info
+  -- REBARE: impFI     <- ignoreQualifiers info <$> parseFInfo qFiles 
+  -- REBARE: return       (tgtFI <> impFI)
 
 ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
 ignoreQualifiers info fi

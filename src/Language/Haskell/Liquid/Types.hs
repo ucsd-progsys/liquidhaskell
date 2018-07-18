@@ -363,7 +363,7 @@ data GhcSpecVars = SpVar
 
 data GhcSpecQual = SpQual 
   { gsQualifiers :: ![Qualifier]                  -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
-  , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
+  -- , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
   , gsRTAliases  :: !SpecRTEnv                    -- ^ Refinement type aliases (only used for qualifiers)
   }
 
