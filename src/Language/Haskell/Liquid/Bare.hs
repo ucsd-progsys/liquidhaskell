@@ -240,7 +240,7 @@ resolveLocSymbolVar src env lx = Bare.strictResolveSym env name "Var" lx
 makeSpecQual :: Config -> Bare.Env -> [(ModName, Ms.BareSpec)] -> SpecRTEnv 
              -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
-makeSpecQual cfg env specs rtEnv = SpQual 
+makeSpecQual _cfg env specs rtEnv = SpQual 
   { gsQualifiers = concatMap (makeQualifiers env) specs 
   , gsRTAliases  = rtEnv 
   } 
@@ -249,6 +249,21 @@ makeQualifiers :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
 makeQualifiers env (mod, spec) = tx <$> Ms.qualifiers spec 
   where
     tx q                       = Bare.resolve env mod (F.qPos q) q 
+
+------------------------------------------------------------------------------------------
+makeSpecTerm :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecTerm 
+------------------------------------------------------------------------------------------
+makeSpecTerm cfg src specs lmap = SpTerm 
+  { gsTexprs   = undefined --   :: ![(Var, [F.Located Expr])]    
+  , gsStTerm   = undefined --   :: !(S.HashSet Var)              
+  , gsAutosize = undefined --   :: !(S.HashSet TyCon)            
+  , gsLazy     = undefined --   :: !(S.HashSet Var)              
+  }
+  
+------------------------------------------------------------------------------------------
+makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecRefl 
+------------------------------------------------------------------------------------------
+makeSpecRefl = undefined 
 
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
@@ -264,16 +279,6 @@ makeSpecData = undefined
 makeSpecName :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecNames
 -------------------------------------------------------------------------------------------
 makeSpecName = undefined 
-
-------------------------------------------------------------------------------------------
-makeSpecTerm :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecTerm 
-------------------------------------------------------------------------------------------
-makeSpecTerm = undefined 
-    
-------------------------------------------------------------------------------------------
-makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecRefl 
-------------------------------------------------------------------------------------------
-makeSpecRefl = undefined 
 
 {- 
 makeGhcSpec :: Config

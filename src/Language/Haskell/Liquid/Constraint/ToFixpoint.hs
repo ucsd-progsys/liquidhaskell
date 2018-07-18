@@ -13,7 +13,7 @@ import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types hiding     ( binds )
-import           Language.Fixpoint.Solver                 ( parseFInfo )
+-- REBARE: import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import Data.Maybe (fromJust)
 
@@ -66,10 +66,10 @@ cgInfoFInfo info cgi = return (targetFInfo info cgi)
   -- REBARE: impFI     <- ignoreQualifiers info <$> parseFInfo qFiles 
   -- REBARE: return       (tgtFI <> impFI)
 
-ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
-ignoreQualifiers info fi
-  | useSpcQuals info = fi
-  | otherwise        = fi { F.quals = [] }
+-- REBARE: ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
+-- REBARE: ignoreQualifiers info fi
+-- REBARE:   | useSpcQuals info = fi
+-- REBARE:   | otherwise        = fi { F.quals = [] }
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi

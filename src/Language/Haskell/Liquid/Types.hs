@@ -364,7 +364,7 @@ data GhcSpecVars = SpVar
 data GhcSpecQual = SpQual 
   { gsQualifiers :: ![Qualifier]                  -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
   , gsRTAliases  :: !SpecRTEnv                    -- ^ Refinement type aliases (only used for qualifiers)
-  -- , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
+  -- REBARE: , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
   }
 
 data GhcSpecSig = SpSig 
@@ -394,8 +394,8 @@ data GhcSpecNames = SpNames
   }
 
 data GhcSpecTerm = SpTerm 
-  { gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographically ordered size witnesses for termination
-  , gsTexprs     :: ![(Var, [F.Located Expr])]    -- ^ Lexicographically ordered expressions for termination
+  { -- REBARE: gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographically ordered size witnesses for termination
+    gsTexprs     :: ![(Var, [F.Located Expr])]    -- ^ Lexicographically ordered expressions for termination
   , gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
