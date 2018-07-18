@@ -22,7 +22,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 -- import           CoreSyn                                    hiding (Expr)
-import qualified CoreSyn
+import qualified CoreSyn   as Ghc
 import qualified Unique
 import qualified GHC       as Ghc
 import           HscTypes
@@ -119,7 +119,7 @@ saveLiftedSpec srcF _ lspec = do
 makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpec 
 makeGhcSpec cfg src specs lmap = SP 
   { gsSig    = makeSpecSig  cfg src specs  lmap 
-  , gsQual   = makeSpecQual cfg src specs  lmap
+  , gsQual   = makeSpecQual cfg src specs  lmap rtEnv
   , gsData   = makeSpecData cfg src specs  lmap
   , gsName   = makeSpecName cfg src specs  lmap
   , gsVars   = makeSpecVars cfg src mySpec env 
@@ -135,7 +135,6 @@ makeGhcSpec cfg src specs lmap = SP
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
     lSpec0   = makeLiftedSpec0 cfg src embs mySpec
 
-    -- FIXME lmap           <- lmSymDefs . logicEnv    <$> get
     -- fullSpec = mySpec `mappend` lSpec0
 
  
@@ -148,7 +147,7 @@ makeEmbeds env src
 
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec) 
-  = F.tceMap (Bare.strictResolve env name "TyCon") (Ms.embeds spec)
+  = F.tceMap (Bare.strictResolveSym env name "TyCon") (Ms.embeds spec)
 
 --  makeRTEnv name lSpec0 specs lmap
 
@@ -167,20 +166,55 @@ makeTyConEmbeds env (name, spec)
 --------------------------------------------------------------------------------
 
 makeLiftedSpec0 :: Config -> GhcSrc -> TCEmb TyCon -> Ms.BareSpec -> Ms.BareSpec
-makeLiftedSpec0 cfg src embs mySpec = undefined 
-{- do
-  xils      <- makeHaskellInlines  embs cbs mySpec
-  ms        <- makeHaskellMeasures embs cbs mySpec
-  let refTcs = reflectedTyCons cfg embs cbs mySpec
-  let tcs    = uniqNub (defTcs ++ refTcs)
-  return     $ mempty
-                { Ms.ealiases  = lmapEAlias . snd <$> xils
-                , Ms.measures  = F.notracepp "MS-MEAS"     $ ms
-                , Ms.reflects  = F.notracepp "MS-REFLS"    $ Ms.reflects mySpec
-                , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg name mySpec tcs
-                }
--}
+makeLiftedSpec0 cfg src embs mySpec = mempty
+            { Ms.ealiases  = lmapEAlias . snd <$> xils
+            , Ms.measures  = ms
+            , Ms.reflects  = Ms.reflects mySpec
+            , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs
+            }
+  where 
+    name    = giTargetMod src
+    xils    = Bare.makeHaskellInlines  src embs mySpec
+    ms      = Bare.makeHaskellMeasures src embs mySpec
+    refTcs  = reflectedTyCons cfg embs (giCbs src) mySpec
+    tcs     = uniqNub (gsTcs src ++ refTcs)
 
+uniqNub :: (Unique.Uniquable a) => [a] -> [a]
+uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
+  where
+    index  = Unique.getKey . Unique.getUnique
+
+-- | 'reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
+--   which are defined *outside* the current module e.g. in Base or somewhere
+--   that we don't have access to the code.
+
+reflectedTyCons :: Config -> TCEmb TyCon -> [Ghc.CoreBind] -> Ms.BareSpec -> [TyCon]
+reflectedTyCons cfg embs cbs spec
+  | exactDCFlag cfg = filter (not . isEmbedded embs)
+                    $ concatMap varTyCons
+                    $ reflectedVars spec cbs
+  | otherwise       = []
+
+-- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
+--   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
+--   or its embedding, a bool?
+isEmbedded :: TCEmb TyCon -> TyCon -> Bool
+isEmbedded embs c = F.tceMember c embs
+
+varTyCons :: Var -> [TyCon]
+varTyCons = specTypeCons . ofType . varType
+
+specTypeCons           :: SpecType -> [TyCon]
+specTypeCons           = foldRType tc []
+  where
+    tc acc t@(RApp {}) = (rtc_tc $ rt_tycon t) : acc
+    tc acc _           = acc
+
+reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Var]
+reflectedVars spec cbs = fst <$> xDefs
+  where
+    xDefs              = mapMaybe (`GM.findVarDef` cbs) reflSyms
+    reflSyms           = fmap val . S.toList . Ms.reflects $ spec
 
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> GhcSpecVars 
@@ -201,15 +235,27 @@ qualifySymbolic :: (F.Symbolic a) => ModName -> a -> F.Symbol
 qualifySymbolic name s = GM.qualifySymbol (F.symbol name) (F.symbol s)
 
 resolveLocSymbolVar :: GhcSrc -> Bare.Env -> LocSymbol -> Var
-resolveLocSymbolVar src env lx = Bare.strictResolve env name "Var" lx 
+resolveLocSymbolVar src env lx = Bare.strictResolveSym env name "Var" lx 
   where
     name                       = giTargetMod src
 
 ------------------------------------------------------------------------------------------
-makeSpecQual :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecQual 
+makeSpecQual :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> SpecRTEnv 
+             -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
-makeSpecQual = undefined 
+makeSpecQual cfg src specs lmap rtEnv = SpQual 
+  { gsQualifiers = undefined
+  , giHqFiles    = undefined 
+  , gsRTAliases  = rtEnv 
+  } 
 
+makeQualifiers :: Bare.Env -> ModName -> Ms.Spec ty bndr -> [F.Qualifier]
+makeQualifiers env mod spec = tx <$> Ms.qualifiers spec 
+  where
+    tx q = Bare.resolve env mod (F.qPos q) q 
+
+
+  -- quals    <- mconcat <$> mapM makeQualifiers specs
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
@@ -262,6 +308,7 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   let specs       = insert name fullSpec specs0
   makeRTEnv name lSpec0 specs lmap
   let expSyms     = S.toList (exportedSymbols mySpec)
+
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
 
@@ -278,6 +325,7 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   let fSyms =  freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
             ++ measureSymbols measures
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+
   let syms  = syms0 ++ syms1 ++ syms2
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name adts (Ms.ignores fullSpec) (emptySpec cfg) 
@@ -792,54 +840,6 @@ replaceLocalBindsOne allowHO v
                case checkTerminationExpr emb fenv (v, Loc l l' t', es') of
                  Just err -> Ex.throw err
                  Nothing  -> modify (second $ M.insert v es')
-
-
-
-
-
--- sortUniquable :: (Uniquable a) => [a] -> [a]
--- sortUniquable xs = s
--- getUnique getKey :: Unique -> Int
--- hashNub :: (Eq k, Hashable k) => [k] -> [k]
--- hashNub = M.keys . M.fromList . fmap (, ())
-
-
-uniqNub :: (Unique.Uniquable a) => [a] -> [a]
-uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
-  where
-    index  = Unique.getKey . Unique.getUnique
-
--- | '_reflectedTyCons' returns the list of `[TyCon]` that must be reflected but
---   which are defined *outside* the current module e.g. in Base or somewhere
---   that we don't have access to the code.
-
-reflectedTyCons :: Config -> TCEmb TyCon -> [CoreBind] -> Ms.BareSpec -> [TyCon]
-reflectedTyCons cfg embs cbs spec
-  | exactDCFlag cfg = filter (not . isEmbedded embs)
-                    $ concatMap varTyCons
-                    $ reflectedVars spec cbs
-  | otherwise       = []
-
--- | We cannot reflect embedded tycons (e.g. Bool) as that gives you a sort
---   conflict: e.g. what is the type of is-True? does it take a GHC.Types.Bool
---   or its embedding, a bool?
-isEmbedded :: TCEmb TyCon -> TyCon -> Bool
-isEmbedded embs c = F.tceMember c embs
-
-varTyCons :: Var -> [TyCon]
-varTyCons = specTypeCons . ofType . varType
-
-specTypeCons           :: SpecType -> [TyCon]
-specTypeCons           = foldRType tc []
-  where
-    tc acc t@(RApp {}) = (rtc_tc $ rt_tycon t) : acc
-    tc acc _           = acc
-
-reflectedVars :: Ms.BareSpec -> [CoreBind] -> [Var]
-reflectedVars spec cbs = fst <$> xDefs
-  where
-    xDefs              = mapMaybe (`GM.findVarDef` cbs) reflSyms
-    reflSyms           = fmap val . S.toList . Ms.reflects $ spec
 
 makeLiftedSpec1
   :: FilePath -> ModName -> Ms.BareSpec

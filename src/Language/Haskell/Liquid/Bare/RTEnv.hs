@@ -50,9 +50,6 @@ makeRTAliases rte lxts = graphExpand buildTypeEdges f rte lxts
   where
     f rtEnv xt         = setRTAlias rtEnv (expand rtEnv xt)
  
-expand :: SpecRTEnv -> a -> a 
-expand = undefined 
-
 specRTAlias :: Bare.Env -> ModName -> Located (RTAlias Symbol BareType) -> Located (RTAlias RTyVar SpecType) 
 specRTAlias env m la = F.atLoc la $ RTA 
   { rtName  = rtName a
@@ -67,11 +64,17 @@ specREAlias env m la = F.atLoc la $ a { rtBody = F.val (ofBareExpr env m (F.atLo
   where 
     a     = val la 
 
+-- MOVE INTO RESOLVE 
+
 ofBareType :: Bare.Env -> ModName -> Located BareType -> Located SpecType 
 ofBareType = undefined  
 
 ofBareExpr :: Bare.Env -> ModName -> Located Expr -> Located Expr 
 ofBareExpr = undefined 
+
+expand :: SpecRTEnv -> a -> a 
+expand = undefined 
+
 
      
 graphExpand :: (PPrint t)
