@@ -94,7 +94,7 @@ resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x)
 -- | @strictResolve@ wraps the plain @resolve@ to throw an error 
 --   if the name being searched for is unknown.
 strictResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> a 
-strictResolveSym env name x kind = case resolveLocSym env name x kind of 
+strictResolveSym env name kind x = case resolveLocSym env name kind x of 
   Left  err -> uError err 
   Right val -> val 
 

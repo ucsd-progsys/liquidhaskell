@@ -126,7 +126,7 @@ makeGhcSpec cfg src specs lmap = SP
   , gsData   = makeSpecData cfg src specs  lmap
   , gsName   = makeSpecName cfg src specs  lmap
   , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg src env 
+  , gsTerm   = makeSpecTerm cfg     mySpec env name 
   , gsRefl   = makeSpecRefl cfg src specs  lmap
   , gsConfig = cfg 
   }
@@ -256,16 +256,47 @@ makeQualifiers env (mod, spec) = tx <$> Ms.qualifiers spec
     tx q                       = Bare.resolve env mod (F.qPos q) q 
 
 ------------------------------------------------------------------------------------------
-makeSpecTerm :: Config -> GhcSrc -> Bare.Env -> GhcSpecTerm 
+makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
 ------------------------------------------------------------------------------------------
-makeSpecTerm cfg src env = SpTerm 
-  { gsTexprs   = undefined --   :: ![(Var, [F.Located Expr])]    
-  , gsStTerm   = undefined --   :: !(S.HashSet Var)              
-  , gsAutosize = undefined --   :: !(S.HashSet TyCon)            
-  , gsLazy     = undefined --   :: !(S.HashSet Var)              
+makeSpecTerm cfg mySpec env name = SpTerm 
+  { gsTexprs     = makeTExpr env name mySpec 
+  , gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
+  , gsStTerm     = sizes
+  , gsAutosize   = autos 
   }
+  where  
+    lazies       = makeLazy     env name mySpec
+    autos        = makeAutoSize env name mySpec
+    noStrT       = nostructuralT cfg 
+    sizes 
+     | noStrT    = mempty 
+     | otherwise = makeSize env name mySpec 
 
-  
+makeTExpr :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, [Located F.Expr])]
+makeTExpr env name spec = 
+  [ (Bare.strictResolveSym env name "Var" x, es) 
+      | (x, es) <- Ms.termexprs spec           ]
+
+makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Var
+makeLazy env name spec = 
+  S.map (Bare.strictResolveSym env name "Var") (Ms.lazy spec)
+
+makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet TyCon
+makeAutoSize env name spec =
+  S.map (Bare.strictResolveSym env name "TyCon") (Ms.autosize spec) 
+
+makeSize :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Var
+makeSize env name spec = 
+  S.map (Bare.strictResolveSym env name "Var") (S.fromList lzs)
+  where
+    lzs = catMaybes (getSizeFuns <$> Ms.dataDecls spec)
+    getSizeFuns decl
+      | Just x       <- tycSFun decl
+      , SymSizeFun f <- x
+      = Just f
+      | otherwise
+      = Nothing
+
 ------------------------------------------------------------------------------------------
 makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
