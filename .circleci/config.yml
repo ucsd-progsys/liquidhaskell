@@ -41,7 +41,7 @@ jobs:
           command: |
             stack clean
             mkdir -p $CIRCLE_TEST_REPORTS/junit
-            stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s -j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml --liquid-opts='--cores=1'":
+            stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s -j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml": #--liquid-opts='--cores=1'":
             stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
             stack sdist
             stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
