@@ -300,7 +300,14 @@ makeSize env name spec =
 ------------------------------------------------------------------------------------------
 makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
-makeSpecRefl = undefined 
+makeSpecRefl cfg src specs lmap = SpRefl 
+  { gsLogicMap   = lmap 
+  , gsAutoInst   = undefined -- :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to USE PLE 
+  , gsAxioms     = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
+  , gsReflects   = undefined -- :: [Var]                         -- ^ Binders for reflected functions
+  -- REBARE: , gsProofType  = undefined -- :: Maybe Type                    -- ^ Datatype used to represent "Proofs"?
+  }
+
 
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 

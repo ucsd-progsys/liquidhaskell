@@ -403,10 +403,10 @@ data GhcSpecTerm = SpTerm
 
 data GhcSpecRefl = SpRefl 
   { gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to USE PLE 
-  , gsAxioms     :: [AxiomEq]                     -- ^ Axioms from reflected functions
-  , gsReflects   :: [Var]                         -- ^ Binders for reflected functions
-  , gsLogicMap   :: LogicMap
-  , gsProofType  :: Maybe Type                    -- ^ Datatype used to represent "Proofs"?
+  , gsAxioms     :: ![AxiomEq]                     -- ^ Axioms from reflected functions
+  , gsReflects   :: ![Var]                         -- ^ Binders for reflected functions
+  , gsLogicMap   :: !LogicMap
+  -- REBARE: , gsProofType  :: Maybe Type                    -- ^ Datatype used to represent "Proofs"?
   }
 
 -- [NOTE:LIFTED-VAR-SYMBOLS]: Following NOTE:REFLECT-IMPORTS, by default
