@@ -185,8 +185,8 @@ firstMaybes = listToMaybe . catMaybes
 hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
 hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v))
 
-hashMapMapKeys      :: (Eq k, Hashable k) => (t -> k) -> M.HashMap t v -> M.HashMap k v
-hashMapMapKeys f    = M.fromList . fmap (first f) . M.toList
+hashMapMapKeys   :: (Eq k2, Hashable k2) => (k1 -> k2) -> M.HashMap k1 v -> M.HashMap k2 v
+hashMapMapKeys f = M.fromList . fmap (first f) . M.toList
 
 concatMapM :: (Monad f, Traversable t) => (a1 -> f [a]) -> t a1 -> f [a]
 concatMapM f = fmap concat . mapM f

@@ -121,13 +121,13 @@ saveLiftedSpec srcF _ lspec = do
 -------------------------------------------------------------------------------------
 makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpec 
 makeGhcSpec cfg src specs lmap = SP 
-  { gsSig    = makeSpecSig  cfg src specs  lmap 
+  { gsSig    = makeSpecSig  cfg src specs        lmap 
   , gsQual   = makeSpecQual cfg env specs  rtEnv 
-  , gsData   = makeSpecData cfg src specs  lmap
-  , gsName   = makeSpecName cfg src specs  lmap
+  , gsData   = makeSpecData cfg src specs        lmap
+  , gsName   = makeSpecName cfg src specs        lmap
   , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg     mySpec env name 
-  , gsRefl   = makeSpecRefl cfg src specs  lmap
+  , gsTerm   = makeSpecTerm cfg     mySpec env         name 
+  , gsRefl   = makeSpecRefl cfg src specs  env   lmap  name 
   , gsConfig = cfg 
   }
   where 
@@ -298,16 +298,21 @@ makeSize env name spec =
       = Nothing
 
 ------------------------------------------------------------------------------------------
-makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecRefl 
+makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> LogicMap -> ModName 
+             -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
-makeSpecRefl cfg src specs lmap = SpRefl 
+makeSpecRefl cfg src specs env lmap name = SpRefl 
   { gsLogicMap   = lmap 
-  , gsAutoInst   = undefined -- :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to USE PLE 
+  , gsAutoInst   = makeAutoInst env name mySpec 
   , gsAxioms     = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
   , gsReflects   = undefined -- :: [Var]                         -- ^ Binders for reflected functions
-  -- REBARE: , gsProofType  = undefined -- :: Maybe Type                    -- ^ Datatype used to represent "Proofs"?
   }
+  where
+    mySpec       = fromMaybe mempty (lookup name specs)
 
+makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Var (Maybe Int)
+makeAutoInst env name spec = 
+  Misc.hashMapMapKeys (Bare.strictResolveSym env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
