@@ -304,22 +304,21 @@ makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> Logi
 makeSpecRefl cfg src specs env lmap name = SpRefl 
   { gsLogicMap   = lmap 
   , gsAutoInst   = makeAutoInst env name mySpec 
-  , gsImpAxioms  = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
-  , gsMyAxioms   = undefined -- :: [AxiomEq]                     -- ^ Axioms from reflected functions
-  , gsReflects   = undefined -- :: [Var]                         -- ^ Binders for reflected functions
+  , gsImpAxioms  = concatMap (Ms.axeqs . snd) specs
+  , gsMyAxioms   = myAxioms 
+  , gsReflects   = undefined 
   }
   where
     mySpec       = fromMaybe mempty (lookup name specs)
+    xtes         = makeHaskellAxioms embs cbs sp mSpc adts
+    myAxioms     = [ qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
+
+-- HEREHEREHEREHEREHERE
 
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
   where
     names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
-
-getAxiomEqs :: [(ModName, Ms.BareSpec)] -> [AxiomEq]
-getAxiomEqs = concatMap (Ms.axeqs . snd)
-
-
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Var (Maybe Int)
 makeAutoInst env name spec = 
@@ -379,7 +378,6 @@ makeLiftedSpec lSpec0 sp = undefined
     xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
     xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- gsInvariants sp ]
 
-    -- HEREHEREHEREHEREHERE
  
 makeLiftedSpec1
   :: FilePath -> ModName -> Ms.BareSpec
@@ -495,8 +493,10 @@ makeGhcAxioms file name embs cbs su specs lSpec0 invs adts sp = do
   let rfls = S.fromList (getReflects specs)
   xtes    <- makeHaskellAxioms embs cbs sp mSpc adts
   let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
+
   let mAxs = [ qualifyAxiomEq x su e | (x, _, e) <- xtes ]  -- axiom-eqs in THIS module
   let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
+
   let axs  = mAxs ++ iAxs
   _       <- makeLiftedSpec1 file name lSpec0 xts mAxs invs
   let xts' = xts ++ F.notracepp "GS-ASMSIGS" (gsAsmSigs sp)
@@ -508,9 +508,6 @@ makeGhcAxioms file name embs cbs su specs lSpec0 invs adts sp = do
                 , gsReflects = vs  ++ gsReflects sp
                 , gsAxioms   = axs ++ gsAxioms   sp
                 }
-
-qualifyAxiomEq :: Var -> Subst -> AxiomEq -> AxiomEq
-qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 makeLogicMap :: GhcSpec -> BareM GhcSpec
 makeLogicMap sp = do

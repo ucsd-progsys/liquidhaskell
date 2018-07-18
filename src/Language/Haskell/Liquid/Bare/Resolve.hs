@@ -37,10 +37,17 @@ import           Language.Haskell.Liquid.Bare.Types
 class Qualify a where 
   qualify :: Env -> ModName -> a -> a 
 
+instance Qualify F.Equation where 
+  qualify env name x = undefined
+-- REBARE: qualifyAxiomEq :: Bare.Env -> Var -> Subst -> AxiomEq -> AxiomEq
+-- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
+
 instance Qualify F.Symbol where 
   qualify env name x = case resolveSym env name "Symbol" x of 
     Left  _   -> x 
     Right val -> val 
+-- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
+-- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
 
 instance Qualify LocSymbol where 
   qualify env name lx = qualify env name <$> lx 
@@ -85,9 +92,8 @@ instance ResolveSym Ghc.TyCon where
 
 instance ResolveSym F.Symbol where 
   resolveLocSym = error "TBD:resolve (Symbol)"
--- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
--- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
- 
+
+
 resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
 resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x) 
 

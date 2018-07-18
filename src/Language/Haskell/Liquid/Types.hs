@@ -226,7 +226,7 @@ module Language.Haskell.Liquid.Types (
   -- * String Literals
   , liquidBegin, liquidEnd
 
-  , Axiom(..), HAxiom, AxiomEq -- (..)
+  , Axiom(..), HAxiom
 
   -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
   , rtyVarType
@@ -403,8 +403,8 @@ data GhcSpecTerm = SpTerm
 
 data GhcSpecRefl = SpRefl 
   { gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to USE PLE 
-  , gsImpAxioms  :: ![AxiomEq]                    -- ^ Axioms from imported reflected functions
-  , gsMyAxioms   :: ![AxiomEq]                    -- ^ Axioms from my reflected functions
+  , gsImpAxioms  :: ![F.Equation]                 -- ^ Axioms from imported reflected functions
+  , gsMyAxioms   :: ![F.Equation]                 -- ^ Axioms from my reflected functions
   , gsReflects   :: ![Var]                        -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
   }
@@ -1161,7 +1161,7 @@ data Axiom b s e = Axiom
 
 type HAxiom = Axiom Var    Type CoreExpr
 
-type AxiomEq = F.Equation
+-- type AxiomEq = F.Equation
 
 instance Show (Axiom Var Type CoreExpr) where
   show (Axiom (n, c) v bs _ts lhs rhs) = "Axiom : " ++
