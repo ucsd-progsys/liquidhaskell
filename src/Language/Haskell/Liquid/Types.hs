@@ -176,8 +176,8 @@ module Language.Haskell.Liquid.Types (
   , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
-  , RTEnv (..)
-  , mapRT, mapRE
+  , RTEnv (..), BareRTEnv, SpecRTEnv
+  -- , mapRT, mapRE
 
   -- * Errors and Error Messages
   , module Language.Haskell.Liquid.Types.Errors
@@ -364,7 +364,7 @@ data GhcSpecVars = SpVar
 data GhcSpecQual = SpQual 
   { gsQualifiers :: ![Qualifier]                  -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
   , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
-  , gsRTAliases  :: !RTEnv                        -- ^ Refinement type aliases (only used for qualifiers)
+  , gsRTAliases  :: !SpecRTEnv                    -- ^ Refinement type aliases (only used for qualifiers)
   }
 
 data GhcSpecSig = SpSig 
@@ -661,6 +661,9 @@ data RTyCon = RTyCon
   , rtc_info  :: !TyConInfo    -- ^ TyConInfo
   }
   deriving (Generic, Data, Typeable)
+
+instance F.Symbolic RTyCon where
+  symbol = F.symbol . rtc_tc 
 
 instance F.Symbolic BTyCon where
   symbol = F.val . btc_tc
@@ -983,6 +986,10 @@ type BRProp r    = Ref       BSort (BRType r)
 type LocBareType = F.Located BareType
 type LocSpecType = F.Located SpecType
 
+type SpecRTEnv   = RTEnv RTyVar SpecType 
+type BareRTEnv   = RTEnv BTyVar BareType 
+
+
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
                   deriving (Generic, Data, Typeable, Eq)
 
@@ -1304,9 +1311,7 @@ data RTAlias x a = RTA
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
-  , rtPos   :: F.SourcePos        -- ^ start position
-  , rtPosE  :: F.SourcePos        -- ^ end   position
-  } deriving (Data, Typeable, Generic)
+  } deriving (Data, Typeable, Generic, Functor)
 -- TODO support ghosts in aliases?
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
@@ -1316,8 +1321,9 @@ mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
                      -- , rtVArgs = f <$> rtVArgs rt
                      }
 
-lmapEAlias :: LMap -> RTAlias Symbol Expr
-lmapEAlias (LMap v ys e) = RTA (F.val v) [] ys e (F.loc v) (F.loc v)
+
+lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
+lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc v)
 
 
 --------------------------------------------------------------------------------
@@ -2019,27 +2025,28 @@ qualifyModName n = qualifySymbol nSym
 --------------------------------------------------------------------------------
 -- | Refinement Type Aliases ---------------------------------------------------
 --------------------------------------------------------------------------------
-data RTEnv = RTE
-  { typeAliases :: M.HashMap Symbol (RTAlias RTyVar SpecType)
-  , exprAliases :: M.HashMap Symbol (RTAlias Symbol Expr)
+data RTEnv tv t = RTE
+  { typeAliases :: M.HashMap Symbol (F.Located (RTAlias tv t))
+  , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))
   }
 
-instance Monoid RTEnv where
+
+
+instance Monoid (RTEnv tv t) where
   mempty  = RTE M.empty M.empty
   mappend = (<>)
 
-instance Semigroup RTEnv where
+instance Semigroup (RTEnv tv t) where
   RTE x y <> RTE x' y' = RTE (x `M.union` x') (y `M.union` y')
 
-mapRT :: (M.HashMap Symbol (RTAlias RTyVar SpecType)
-       -> M.HashMap Symbol (RTAlias RTyVar SpecType))
-       -> RTEnv -> RTEnv
-mapRT f e = e { typeAliases = f $ typeAliases e }
+-- mapRT :: (M.HashMap Symbol (RTAlias tv t) -> M.HashMap Symbol (RTAlias tv t)) 
+--      -> RTEnv tv t -> RTEnv tv t
+-- mapRT f e = e { typeAliases = f (typeAliases e) }
 
-mapRE :: (M.HashMap Symbol (RTAlias Symbol Expr)
-       -> M.HashMap Symbol (RTAlias Symbol Expr))
-      -> RTEnv -> RTEnv
-mapRE f e = e { exprAliases = f $ exprAliases e }
+-- mapRE :: (M.HashMap Symbol (RTAlias Symbol Expr)
+--       -> M.HashMap Symbol (RTAlias Symbol Expr))
+--      -> RTEnv tv t -> RTEnv tv t
+-- mapRE f e = e { exprAliases = f $ exprAliases e }
 
 
 --------------------------------------------------------------------------------

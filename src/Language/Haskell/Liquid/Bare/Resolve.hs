@@ -14,16 +14,20 @@ module Language.Haskell.Liquid.Bare.Resolve
   , strictResolve 
   ) where 
 
-import qualified Var    as Ghc
-import qualified Module as Ghc
-import qualified GHC    as Ghc
-
-import qualified Language.Haskell.Liquid.Types as Types 
+import qualified Var                             as Ghc
+import qualified Module                          as Ghc
+import qualified GHC                             as Ghc
+import qualified Language.Fixpoint.Types         as F 
+import qualified Language.Haskell.Liquid.Types   as Types 
+import qualified Language.Haskell.Liquid.Measure as Ms
 
 -------------------------------------------------------------------------------
 -- | Name resolution environment (DO NOT EXPORT!) 
 -------------------------------------------------------------------------------
-data Env = RE {}
+data Env = RE 
+  { reLMap :: !Types.LogicMap
+  }
+
 --  { reMod  :: Types.ModName     -- ^ Name of (target)
 --  , reVars :: 
 --  } 
@@ -31,8 +35,10 @@ data Env = RE {}
 -------------------------------------------------------------------------------
 -- | Creating an environment 
 -------------------------------------------------------------------------------
-makeEnv :: Types.GhcSrc -> Env 
-makeEnv _ = RE {} 
+makeEnv :: Types.GhcSrc -> [(Types.ModName, Ms.BareSpec)] -> Types.LogicMap -> Env 
+makeEnv _src _specs lmap = RE 
+  { reLMap = lmap
+  } 
 
 -------------------------------------------------------------------------------
 -- | Using the environment 

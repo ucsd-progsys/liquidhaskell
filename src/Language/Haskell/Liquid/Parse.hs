@@ -862,8 +862,8 @@ data Pspec ty ctor
   | Incl    FilePath
   | Invt    ty
   | IAlias  (ty, ty)
-  | Alias   (RTAlias Symbol BareType)
-  | EAlias  (RTAlias Symbol Expr)
+  | Alias   (Located (RTAlias Symbol BareType))
+  | EAlias  (Located (RTAlias Symbol Expr))
   | Embed   (LocSymbol, FTycon, TCArgs)
   | Qualif  Qualifier
   | Decr    (LocSymbol, [Int])
@@ -1136,15 +1136,15 @@ embedP = do
   --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 
-aliasP :: Parser (RTAlias Symbol BareType)
+aliasP :: Parser (Located (RTAlias Symbol BareType))
 aliasP  = rtAliasP id     bareTypeP
 
-ealiasP :: Parser (RTAlias Symbol Expr)
+ealiasP :: Parser (Located (RTAlias Symbol Expr))
 ealiasP = try (rtAliasP symbol predP)
       <|> rtAliasP symbol exprP
       <?> "ealiasP"
 
-rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (RTAlias tv ty)
+rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
 rtAliasP f bodyP
   -- TODO:AZ pretty sure that all the 'spaces' can be removed below, given
   --         proper use of reserved and reservedOp now
@@ -1156,7 +1156,7 @@ rtAliasP f bodyP
        body <- bodyP
        posE <- getPosition
        let (tArgs, vArgs) = partition (isSmall . headSym) args
-       return $ RTA name (f <$> tArgs) vArgs body pos posE
+       return $ Loc pos posE (RTA name (f <$> tArgs) vArgs body)
 
 aliasIdP :: Parser Symbol
 aliasIdP = condIdP (letter <|> char '_') alphaNums (isAlpha . head)

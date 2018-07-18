@@ -83,11 +83,12 @@ mkSpecDecs (Asrts (names, (ty, _))) =
   (\t -> (`SigD` t) . symbolName <$> names)
     <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
 mkSpecDecs (Alias rta) =
-  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody rta)
+  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody (val rta))
   where
-    lsym = F.Loc (rtPos rta) (rtPosE rta) (rtName rta)
-    name = symbolName $ rtName rta
-    tvs  = PlainTV . symbolName <$> rtTArgs rta
+    lsym = F.atLoc rta n 
+    name = symbolName n 
+    n    = rtName (val rta)
+    tvs  = PlainTV . symbolName <$> rtTArgs (val rta)
 mkSpecDecs _ =
   Right []
 

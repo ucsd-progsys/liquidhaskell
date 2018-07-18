@@ -70,13 +70,13 @@ import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
 import qualified Language.Haskell.Liquid.Bare.RTEnv         as Bare 
+import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
 import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Existential
-import           Language.Haskell.Liquid.Bare.Measure
 import           Language.Haskell.Liquid.Bare.Axiom
 import           Language.Haskell.Liquid.Bare.Misc         (freeSymbols, makeSymbols, mkVarExpr, simpleSymbolVar)
 import           Language.Haskell.Liquid.Bare.Plugged
@@ -112,7 +112,6 @@ saveLiftedSpec srcF _ lspec = do
   where
     specF = extFileName BinSpec srcF
 
-
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
@@ -129,12 +128,14 @@ makeGhcSpec cfg src specs lmap = SP
   , gsConfig = cfg 
   }
   where 
+    env      = Bare.makeEnv src specs lmap  
     embs     = makeEmbeds env src specs 
-    env      = Bare.makeEnv src 
     name     = giTargetMod src 
     mySpec   = fromMaybe mempty (lookup name specs)
-    rtEnv    = Bare.makeRTEnv  name lSpec0 specs lmap
-    lSpec0   = makeLiftedSpec0 cfg name src embs mySpec
+    rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
+    lSpec0   = makeLiftedSpec0 cfg src embs mySpec
+
+    -- FIXME lmap           <- lmSymDefs . logicEnv    <$> get
     -- fullSpec = mySpec `mappend` lSpec0
 
  
@@ -165,10 +166,9 @@ makeTyConEmbeds env (name, spec)
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
 --------------------------------------------------------------------------------
 
-{- 
-makeLiftedSpec0 :: Config -> ModName -> TCEmb TyCon -> [CoreBind] -> [TyCon] -> Ms.BareSpec
-                -> BareM Ms.BareSpec
-makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
+makeLiftedSpec0 :: Config -> GhcSrc -> TCEmb TyCon -> Ms.BareSpec -> Ms.BareSpec
+makeLiftedSpec0 cfg src embs mySpec = undefined 
+{- do
   xils      <- makeHaskellInlines  embs cbs mySpec
   ms        <- makeHaskellMeasures embs cbs mySpec
   let refTcs = reflectedTyCons cfg embs cbs mySpec
@@ -179,8 +179,9 @@ makeLiftedSpec0 cfg name embs cbs defTcs mySpec = do
                 , Ms.reflects  = F.notracepp "MS-REFLS"    $ Ms.reflects mySpec
                 , Ms.dataDecls = F.notracepp "MS-DATADECL" $ makeHaskellDataDecls cfg name mySpec tcs
                 }
-
 -}
+
+
 ------------------------------------------------------------------------------------------
 makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> GhcSpecVars 
 ------------------------------------------------------------------------------------------

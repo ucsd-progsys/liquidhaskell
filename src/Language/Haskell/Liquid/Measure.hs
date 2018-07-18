@@ -65,8 +65,8 @@ data Spec ty bndr  = Spec
   , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
   , newtyDecls :: ![DataDecl]                   -- ^ Predicated new type definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
-  , aliases    :: ![RTAlias Symbol BareType]    -- ^ RefType aliases
-  , ealiases   :: ![RTAlias Symbol Expr]        -- ^ Expression aliases
+  , aliases    :: ![Located (RTAlias Symbol BareType)] -- ^ RefType aliases
+  , ealiases   :: ![Located (RTAlias Symbol Expr)]     -- ^ Expression aliases
   , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments

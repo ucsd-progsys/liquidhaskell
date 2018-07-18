@@ -11,114 +11,140 @@ import qualified Control.Exception   as Ex
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
+import qualified Language.Fixpoint.Types as F 
 import           Language.Fixpoint.Misc (fst3)
 import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
-import           Language.Haskell.Liquid.GHC.Misc (sourcePosSrcSpan)
+import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (fSrcSpan) -- , sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
-import           Language.Haskell.Liquid.Types.Fresh
+-- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Measure as Ms
-import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.Bare.Expand
-import           Language.Haskell.Liquid.Bare.OfType
-import           Language.Haskell.Liquid.Bare.Resolve
+import qualified Language.Haskell.Liquid.Bare.Resolve as Bare
+
+-- import           Language.Haskell.Liquid.Bare.Env
+-- import           Language.Haskell.Liquid.Bare.Expand
+-- import           Language.Haskell.Liquid.Bare.OfType
 
 --------------------------------------------------------------------------------
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
-makeRTEnv :: ModName
-          -> Ms.BareSpec
-          -> [(ModName, Ms.BareSpec)]
-          -> M.HashMap Symbol LMap
-          -> BareM ()
+makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> LogicMap 
+          -> SpecRTEnv 
 --------------------------------------------------------------------------------
-makeRTEnv m lfSpec specs lm = do
-  makeREAliases (eAs ++ eAs' ++ eAs'')
-  makeRTAliases tAs
+makeRTEnv env m lfSpec specs lmap = makeRTAliases (makeREAliases eAs) tAs  
   where
-    tAs   = [ (m, t) | (m, s)  <- specs,           t <- Ms.aliases   s ]
-    eAs   = [ (m, e) | (m, s)  <- specs,           e <- Ms.ealiases  s ]
-    eAs'  = [ (m, e) | e       <- Ms.ealiases lfSpec                   ]
-    eAs'' = [ (m, e) | (_, xl) <- M.toList lm, let e  = lmapEAlias  xl ]
+    tAs   = [ specRTAlias env m t | (m, s) <- specs, t <- Ms.aliases  s ]
+    eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s ]
+         ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec        ]                        
+         ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
+                                  , let e = lmapEAlias xl               ]
 
-makeRTAliases :: [(ModName, RTAlias Symbol BareType)] -> BareM ()
-makeRTAliases = graphExpand buildTypeEdges expBody
+makeREAliases :: [Located (RTAlias Symbol Expr)] -> SpecRTEnv 
+makeREAliases = graphExpand buildExprEdges f mempty 
   where
-    expBody (m, xt) = inModule m $ do
-      let l  = rtPos  xt
-      let l' = rtPosE xt
-      body  <- withVArgs l l' (rtVArgs xt) $ ofBareType l $ rtBody xt
-      body' <- refreshTy body
-      setRTAlias (rtName xt) $ mapRTAVars symbolRTyVar $ xt { rtBody = body' }
+    f rtEnv xt = setREAlias rtEnv (expand rtEnv xt)
 
-makeREAliases :: [(ModName, RTAlias Symbol Expr)] -> BareM ()
-makeREAliases = graphExpand buildExprEdges expBody
+makeRTAliases :: SpecRTEnv -> [Located (RTAlias RTyVar SpecType)] -> SpecRTEnv  
+makeRTAliases rte lxts = graphExpand buildTypeEdges f rte lxts 
   where
-    expBody (mod, xt)
-      = inModule mod $
-          do let l  = rtPos  xt
-             let l' = rtPosE xt
-             body  <- withVArgs l l' (rtVArgs xt) $ resolve l =<< expand l (rtBody xt)
-             setREAlias (rtName xt) $ xt { rtBody = body }
+    f rtEnv xt         = setRTAlias rtEnv (expand rtEnv xt)
+ 
+expand :: SpecRTEnv -> a -> a 
+expand = undefined 
 
+specRTAlias :: Bare.Env -> ModName -> Located (RTAlias Symbol BareType) -> Located (RTAlias RTyVar SpecType) 
+specRTAlias env m la = F.atLoc la $ RTA 
+  { rtName  = rtName a
+  , rtTArgs = symbolRTyVar <$> rtTArgs a
+  , rtVArgs = rtVArgs a 
+  , rtBody  = F.val (ofBareType env m (F.atLoc la (rtBody a))) 
+  } 
+  where a   = val la 
 
+specREAlias :: Bare.Env -> ModName -> Located (RTAlias Symbol Expr) -> Located (RTAlias Symbol Expr) 
+specREAlias env m la = F.atLoc la $ a { rtBody = F.val (ofBareExpr env m (F.atLoc la (rtBody a))) } 
+  where 
+    a     = val la 
+
+ofBareType :: Bare.Env -> ModName -> Located BareType -> Located SpecType 
+ofBareType = undefined  
+
+ofBareExpr :: Bare.Env -> ModName -> Located Expr -> Located Expr 
+ofBareExpr = undefined 
+
+     
 graphExpand :: (PPrint t)
-            => (AliasTable t -> t -> [Symbol])
-            -> ((ModName, RTAlias Symbol t) -> BareM b)
-            -> [(ModName, RTAlias Symbol t)]
-            -> BareM ()
-graphExpand buildEdges expBody xts
-  = do let table = buildAliasTable xts
-           graph = buildAliasGraph (buildEdges table) (map snd xts)
-       checkCyclicAliases table graph
-       mapM_ expBody $ genExpandOrder table graph
+            => (AliasTable x t -> t -> [Symbol])         -- ^ dependencies
+            -> (thing -> Located (RTAlias x t) -> thing) -- ^ update
+            -> thing                                     -- ^ initial
+            -> [Located (RTAlias x t)]                   -- ^ vertices
+            -> thing                                     -- ^ final 
+graphExpand buildEdges expBody env lxts 
+           = L.foldl' expBody env (genExpandOrder table' graph)
+  where 
+    -- xts    = val <$> lxts
+    table  = buildAliasTable lxts
+    graph  = buildAliasGraph (buildEdges table) lxts
+    table' = checkCyclicAliases table graph
+
+setRTAlias :: SpecRTEnv -> Located (RTAlias RTyVar SpecType) -> SpecRTEnv 
+setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) } 
+  where 
+    n            = rtName (val a)  
+
+
+setREAlias :: SpecRTEnv -> Located (RTAlias Symbol Expr) -> SpecRTEnv 
+setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) } 
+  where 
+    n            = rtName (val a)
+
+
 
 --------------------------------------------------------------------------------
+type AliasTable x t = M.HashMap Symbol (Located (RTAlias x t))
 
-type AliasTable t = M.HashMap Symbol (ModName, RTAlias Symbol t)
+buildAliasTable :: [Located (RTAlias x t)] -> AliasTable x t
+buildAliasTable = M.fromList . map (\rta -> (rtName (val rta), rta))
 
-buildAliasTable :: [(ModName, RTAlias Symbol t)] -> AliasTable t
-buildAliasTable
-  = M.fromList . map (\(m, rta) -> (rtName rta, (m, rta)))
-
-fromAliasSymbol :: AliasTable t -> Symbol -> (ModName, RTAlias Symbol t)
+fromAliasSymbol :: AliasTable x t -> Symbol -> Located (RTAlias x t)
 fromAliasSymbol table sym
-  = fromMaybe err $ M.lookup sym table
+  = fromMaybe err (M.lookup sym table)
   where
     err = panic Nothing $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
-
 
 type Graph t = [Node t]
 type Node  t = (t, t, [t])
 
-buildAliasGraph :: (PPrint t) => (t -> [Symbol]) -> [RTAlias Symbol t] -> Graph Symbol
-buildAliasGraph buildEdges
-  = map (buildAliasNode buildEdges)
+buildAliasGraph :: (PPrint t) => (t -> [Symbol]) -> [Located (RTAlias x t)] 
+                -> Graph Symbol
+buildAliasGraph buildEdges = map (buildAliasNode buildEdges)
 
-buildAliasNode :: (PPrint t) => (t -> [Symbol]) -> RTAlias Symbol t -> Node Symbol
-buildAliasNode buildEdges alias
-  = (rtName alias, rtName alias, buildEdges $ rtBody alias)
+buildAliasNode :: (PPrint t) => (t -> [Symbol]) -> Located (RTAlias x t) 
+               -> Node Symbol
+buildAliasNode f la = (rtName a, rtName a, f (rtBody a))
+  where 
+    a               = val la 
 
-checkCyclicAliases :: AliasTable t -> Graph Symbol -> BareM ()
+checkCyclicAliases :: AliasTable x t -> Graph Symbol -> AliasTable x t 
 checkCyclicAliases table graph
-  = case mapMaybe go $ stronglyConnComp graph of
-      []   -> return ()
+  = case mapMaybe go (stronglyConnComp graph) of
+      []   -> table 
       sccs -> Ex.throw (cycleAliasErr table <$> sccs)
     where
       go (CyclicSCC vs) = Just vs
       go (AcyclicSCC _) = Nothing
 
-cycleAliasErr :: AliasTable t -> [Symbol] -> Error
+cycleAliasErr :: AliasTable x t -> [Symbol] -> Error
 cycleAliasErr _ []          = panic Nothing "checkCyclicAliases: No type aliases in reported cycle"
 cycleAliasErr t scc@(rta:_) = ErrAliasCycle { pos    = fst (locate rta)
                                             , acycle = map locate scc }
   where
-    locate sym = ( sourcePosSrcSpan $ rtPos $ snd $ fromAliasSymbol t sym
+    locate sym = ( GM.fSrcSpan $ fromAliasSymbol t sym
                  , pprint sym )
 
 
-genExpandOrder :: AliasTable t -> Graph Symbol -> [(ModName, RTAlias Symbol t)]
+genExpandOrder :: AliasTable x t -> Graph Symbol -> [Located (RTAlias x t)]
 genExpandOrder table graph
   = map (fromAliasSymbol table) symOrder
   where
@@ -132,10 +158,10 @@ genExpandOrder table graph
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
-buildTypeEdges :: AliasTable BareType -> BareType -> [Symbol]
+buildTypeEdges :: AliasTable x SpecType -> SpecType -> [Symbol]
 buildTypeEdges table = ordNub . go
   where
-    go :: BareType -> [Symbol]
+    go :: SpecType -> [Symbol]
     go (RApp c ts rs _) = go_alias (symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RImpF _ t1 t2 _) = go t1 ++ go t2
     go (RFun _ t1 t2 _) = go t1 ++ go t2
