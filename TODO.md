@@ -1,4 +1,77 @@
-### CallStack/Error
+# TODO
+
+## Rebare
+
+- [x] Split GhcSpec
+
+- [ ] get phadej-ghc-8.4 to build
+
+- [ ] Nuke `Resolve`
+
+  - Determine TARGET [core-binders]
+  - Traverse GHC Var, Type, TyCon etc.
+  - Build your own map (c.f. FamInstEnv)
+  - Only resolve those names that appear in TARGET code
+
+- [ ] get phadej-ghc-8.4 to build
+
+## Features
+
+- [ ] asserted-sigs
+- [ ] assumed-sigs
+- [ ] importing-specs
+- [ ] measures
+- [ ] importing-specs
+- [ ] termination
+- [ ] importing-specs
+- [ ] absref
+- [ ] holes
+- [ ] classes
+
+## Issues
+
+- Termination expressions have to be renamed as the binders get substituted via fresh etc.
+
+    PROPER fix: is to make the TExpr part of the freaking type-sig.
+
+  , gsTexprs     = [ (v, subst (su `mappend` suUpdate v) es) | (v, es) <- gsTexprs' ]
+
+- `makeLiftedSpec1` saves the SPECS for the next round; just transform the above to:
+
+  saveBareSpec :: BareSpec -> GhcSpec -> IO  where we combine the "raw" BareSpec
+
+### Sigs
+
+1. GATHER `assume` and `assert` (`:: BareType`)
+2. PROCESS ( `:: BareType -> SpecType`)
+
+### Gather
+
+`assume` (all modules)
+
+- Imported (All saved)
+- "assumed" in current file
+- reflect-sigs (reflected body is assumed)
+
+`assert` (current module only)
+
+- type-sigs
+- class-sigs
+
+### Process
+
+(Var, SpecType) -> (Var, SpecType)
+
+- plugged
+- txRefSort
+- expand
+- resolve
+- strengthen-measures
+- strengthen-inline(?)
+
+
+
+## CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
 apparently even without cutvars being generated, this is

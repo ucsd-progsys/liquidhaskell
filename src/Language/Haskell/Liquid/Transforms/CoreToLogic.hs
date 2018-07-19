@@ -69,7 +69,7 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
 
 {- | [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
       CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
-     CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
+      CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
  -}
 
 strengthenResult :: Var -> SpecType

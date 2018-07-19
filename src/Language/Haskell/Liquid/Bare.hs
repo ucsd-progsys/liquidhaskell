@@ -3,6 +3,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
+{-# LANGUAGE PartialTypeSignatures     #-}
 
 -- | This module contains the functions that convert /from/ descriptions of
 --   symbols, names and types (over freshly parsed /bare/ Strings),
@@ -122,24 +123,26 @@ saveLiftedSpec srcF _ lspec = do
 -------------------------------------------------------------------------------------
 makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpec 
 makeGhcSpec cfg src specs lmap = SP 
-  { gsSig    = makeSpecSig  cfg src specs        lmap 
+  { gsSig    = sig 
   , gsQual   = makeSpecQual cfg env specs  rtEnv 
   , gsData   = makeSpecData cfg src specs        lmap
-  , gsName   = makeSpecName cfg src specs        lmap
+  , gsName   = makeSpecName env tycEnv 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name 
   , gsRefl   = makeSpecRefl cfg src specs  env   name sig embs tycEnv 
   , gsConfig = cfg 
   }
   where
-    sig      = makeSpecSig cfg src specs lmap 
-    tycEnv   = makeTycEnv  cfg name env embs 
-    env      = Bare.makeEnv src specs lmap  
-    embs     = makeEmbeds   src env
+    sig      = makeSpecSig name specs env sigEnv 
+    tyi      = Bare.tcTyConMap   tycEnv 
     name     = giTargetMod  src 
     mySpec   = fromMaybe mempty (lookup name specs)
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
+    sigEnv   = makeSigEnv embs tyi (gsExports src) 
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec 
+    tycEnv   = makeTycEnv   cfg name env embs 
+    embs     = makeEmbeds   src env
+    env      = Bare.makeEnv src specs lmap  
 
 makeEmbeds :: GhcSrc -> Bare.Env -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
@@ -331,38 +334,145 @@ makeAutoInst env name spec =
   Misc.hashMapMapKeys (Bare.strictResolveSym env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
-makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
+makeSpecSig :: ModName -> [(ModName, Ms.BareSpec)] -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
-makeSpecSig cfg src specs lmap = SpSig 
-  { gsTySigs   = undefined -- :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
-  , gsAsmSigs  = undefined -- :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
-  , gsInSigs   = undefined -- :: ![(Var, LocSpecType)]           -- ^ Auto generated signatures
-  , gsNewTypes = undefined -- :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
-  , gsDicts    = undefined -- :: !(DEnv Var SpecType)            -- ^ Refined Classes 
+makeSpecSig name specs env sigEnv = SpSig 
+  { gsTySigs   = makeTySigs env sigEnv name mySpec 
+  , gsAsmSigs  = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
+  , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
+  , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
+  , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
   }
+  where 
+    mySpec     = fromMaybe mempty (lookup name specs)
+
+makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec 
+           -> [(Var, LocSpecType)]
+makeTySigs env sigEnv name spec = 
+  [ (x, cookSpecType env sigEnv name x t) | (x, t) <- rawTySigs env name spec ] 
+
+rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)]
+rawTySigs env name spec = 
+  [ makeRawSig env name x t | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec ] 
+
+makeRawSig :: Bare.Env -> ModName -> LocSymbol -> Located BareType -> (Var, LocSpecType)
+makeRawSig env name x t = (v, tt) 
+  where 
+    v  = Bare.strictResolveSym env name "Var" x  
+    tt = Bare.ofBareType       env name       t  
+
+-- TODO-REBARE: see Cooking-SpecType
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
+cookSpecType env sigEnv name x
+  = id 
+  -- TODO-REBARE . strengthenMeasures env sigEnv      x 
+  -- TODO-REBARE . strengthenInlines  env sigEnv      x  
+  . plugHoles              sigEnv name x
+  . Bare.qualify       env name 
+
+plugHoles :: Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
+plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
+  where 
+    embs              = Bare.sigEmbs     sigEnv 
+    tyi               = Bare.sigTyRTyMap sigEnv 
+    exports           = Bare.sigExports  sigEnv 
+
+makeSigEnv :: F.TCEmb TyCon -> _ -> NameSet -> Bare.SigEnv 
+makeSigEnv embs tyi exports = Bare.SigEnv
+  { sigEmbs     = embs 
+  , sigTyRTyMap = tyi 
+  , sigExports  = exports 
+  } 
+
+{- [NOTE:Cooking-SpecType] 
+    A @SpecType@ is _raw_ when it is obtained directly from a @BareType@, i.e. 
+    just by replacing all the @BTyCon@ with @RTyCon@. Before it can be used 
+    for constraint generation, we need to _cook_ it via the following transforms:
+
+    A @SigEnv@ should contain _all_ the information needed to do the below steps.
+
+    ? expand               : resolving all type/refinement etc. aliases [Should be done INSIDE ofBareType?]
+    - plugged              : filling in any remaining "holes"
+    - txRefSort            : filling in the abstract-refinement predicates etc. (YUCK) 
+    - resolve              : renaming / qualifying symbols?
+    - strengthen-measures  : ?
+    - strengthen-inline(?) : ? 
+
+-}
+
+{- TODO-REBARE: 
+makeLocalSpec :: Config -> ModName -> [Var] -> [Var]
+              -> [(LocSymbol, Located BareType)]
+              -> [(LocSymbol, Located BareType)]
+              -> BareM [(ModName, Var, Located SpecType)]
+
+     vs = impVs ++ defVs
+  = makeLocalSpec cfg cmod vs lvs (grepClassAsserts (Ms.rinstance spec)) (Ms.sigs spec ++ Ms.localSigs spec)
+  sigs'    <- F.notracepp "MAKE-ASSERT-SPEC-1" <$> (mconcat <$> mapM (makeAssertSpec name cfg vars defVars) specs)
+  hmeas     <- mkThing' True makeHMeas
+  hinls     <- mkThing makeHInlines
+
+  (cls, mts)   <- second mconcat . unzip . mconcat <$> mapM (makeClasses name cfg vars) specs
+  let dms   = makeDefaultMethods vars mts
+  let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
+  = do tySigs  <- makePluggedSigs name embs tyi exports $ tx sigs
+       tx       = fmap . mapSnd . subst $ su
+       sp { gsTySigs   = filter (\(v,_) -> v `elem` vs) tySigs
+  isgs        <- expand' $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
+  gsTySigs'   <- expand' $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+
+makeHInlines :: [Var] -> Ms.Spec ty bndr -> BareM [(Located Var, LocSymbol)]
+makeHInlines = makeHIMeas Ms.inlines
+
+makeHMeas :: [Var] -> Ms.Spec ty bndr -> BareM [(Located Var, LocSymbol)]
+makeHMeas = makeHIMeas Ms.hmeas
+
+makeHIMeas :: (Ms.Spec ty bndr -> S.HashSet LocSymbol)
+           -> [Var]
+           -> Ms.Spec ty bndr
+           -> BareM [(Located Var, LocSymbol)]
+makeHIMeas f vs spec
+  = fmap tx <$> varSymbols id vs [(v, (loc v, locE v, v)) | v <- S.toList (f spec)]
+  where
+    tx (x, (l, l', s))  = (Loc l l' x, s)
+-}
 
 ------------------------------------------------------------------------------------------
 makeSpecData :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecData
 ------------------------------------------------------------------------------------------
-makeSpecData = undefined 
+makeSpecData _ _ _ _ = SpData 
+  { gsCtors      = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
+  , gsMeas       = mempty -- TODO-REBARE :: ![(Symbol, LocSpecType)]      -- ^ Measure Types eg.  len :: [a] -> Int
+  , gsInvariants = mempty -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
+  , gsIaliases   = mempty -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
+  , gsMeasures   = mempty -- TODO-REBARE :: ![Measure SpecType DataCon]
+  }
 
 -------------------------------------------------------------------------------------------
-makeSpecName :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecNames
+makeSpecName :: Bare.Env -> Bare.TycEnv -> GhcSpecNames
 -------------------------------------------------------------------------------------------
-makeSpecName = undefined 
-
+makeSpecName env tycEnv = SpNames 
+  { gsFreeSyms = Bare.reSyms env 
+  , gsDconsP   = mempty -- TODO-REBARE :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
+  , gsTconsP   = mempty -- TODO-REBARE :: ![(TyCon, TyConP)]            -- ^ Predicated Type-Constructors, e.g. see tests/pos/Map.hs
+  , gsLits     = undefined 
+  , gsTcEmbeds = Bare.tcEmbs     tycEnv   
+  , gsADTs     = Bare.tcAdts     tycEnv 
+  , gsTyconEnv = Bare.tcTyConMap tycEnv  
+  }
 
 -------------------------------------------------------------------------------------------
 makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb TyCon -> Bare.TycEnv 
 -------------------------------------------------------------------------------------------
 makeTycEnv cfg myName env embs = Bare.TycEnv 
-  { tcTyCons      = tycons                  -- :: ![(Ghc.TyCon, TyConP)]
-  , tcDataCons    = second val <$> datacons -- :: ![(Ghc.DataCon, DataConP)]
-  , tcSelMeasures = dcSelectors             -- :: ![Measure SpecType Ghc.DataCon]
-  , tcSelVars     = recSelectors            -- :: ![(Ghc.Var, Located SpecType)]
-  , tcTyRTyMap    = tyi                     -- :: !(M.HashMap Ghc.TyCon RTyCon)
-  , tcAdts        = adts                    -- :: ![F.DataDecl]
+  { tcTyCons      = tycons                  
+  , tcDataCons    = second val <$> datacons 
+  , tcSelMeasures = dcSelectors             
+  , tcSelVars     = recSelectors            
+  , tcTyConMap    = tyi                     
+  , tcAdts        = adts                    
   , tcDataConMap  = dm
+  , tcEmbs        = embs
   }
   where 
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes <$> Bare.reSpecs env
@@ -459,7 +569,8 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
             ++ measureSymbols measures
   syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
 
-  let syms  = syms0 ++ syms1 ++ syms2
+  let syms  = syms0 ++ syms1 ++ syms2     -- BLOB-OF-FREE-SYMBOLS 
+
 
   let su    = mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   makeGhcSpec0 cfg defVars exports name adts (Ms.ignores fullSpec) (emptySpec cfg) 
@@ -696,8 +807,10 @@ makeGhcSpec4 quals defVars specs name su syms sp = do
   mapM_ insertHMeasLogicEnv $ S.toList hmeas
   mapM_ insertHMeasLogicEnv $ S.toList hinls
   lmap'       <- logicEnv <$> get
+
   isgs        <- expand' $ strengthenHaskellInlines  (S.map fst hinls) (gsTySigs sp)
   gsTySigs'   <- expand' $ strengthenHaskellMeasures (S.map fst hmeas) isgs
+
   gsMeasures' <- expand' $ gsMeasures   sp
   gsAsmSigs'  <- expand' $ gsAsmSigs    sp
   gsInSigs'   <- expand' $ gsInSigs     sp
@@ -767,7 +880,6 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((== name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
   checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.
-  -- checkDuplicateSigs asms
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
 
 

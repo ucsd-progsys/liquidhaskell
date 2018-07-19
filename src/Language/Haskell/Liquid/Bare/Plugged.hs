@@ -2,7 +2,7 @@
 {-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Bare.Plugged (
-    makePluggedSigs
+    makePluggedSig
   , makePluggedAsmSigs
   , makePluggedDataCons
   ) where
@@ -49,6 +49,15 @@ import Language.Haskell.Liquid.Misc (zipWithDefM)
 --   this module is responsible for plugging the holes we obviously cannot
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
+makePluggedSig :: ModName -> F.TCEmb TyCon -> M.HashMap TyCon RTyCon -> NameSet
+               -> Var -> LocSpecType
+               -> LocSpecType
+
+makePluggedSig name embs tyi exports x t = 
+    plugHoles embs tyi x r τ t
+  where 
+    τ = expandTypeSynonyms (varType x)
+    r = maybeTrue x name exports
 
 makePluggedSigs :: ModName
                 -> F.TCEmb TyCon

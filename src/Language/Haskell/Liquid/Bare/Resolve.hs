@@ -1,3 +1,6 @@
+
+   
+
 -- | This module has the code that uses the GHC definitions to:
 --   1. MAKE a name-resolution environment,
 --   2. USE the environment to translate plain symbols into Var, TyCon, etc. 
@@ -21,6 +24,9 @@ module Language.Haskell.Liquid.Bare.Resolve
   -- * Misc 
   , resolveNamedVar 
 
+  -- * Conversions from Bare
+  , ofBareType
+  , ofBareExpr
   ) where 
 
 import qualified Var                             as Ghc
@@ -48,6 +54,9 @@ instance Qualify F.Symbol where
     Right val -> val 
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
+
+instance Qualify LocSpecType where 
+  qualify env name lx = undefined 
 
 instance Qualify LocSymbol where 
   qualify env name lx = qualify env name <$> lx 
@@ -109,3 +118,14 @@ class Resolvable a where
 
 instance Resolvable F.Qualifier where 
   resolve = undefined 
+
+-------------------------------------------------------------------------------
+-- MOVE INTO RESOLVE 
+-------------------------------------------------------------------------------
+
+ofBareType :: Env -> ModName -> Located BareType -> Located SpecType 
+ofBareType = undefined  
+
+ofBareExpr :: Env -> ModName -> Located F.Expr -> Located F.Expr 
+ofBareExpr = undefined 
+

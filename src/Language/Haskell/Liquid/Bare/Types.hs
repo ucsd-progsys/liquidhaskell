@@ -6,10 +6,13 @@ module Language.Haskell.Liquid.Bare.Types
   ( -- * Name resolution environment 
     Env (..)
 
-    -- * Tycon and Datacon environment
+    -- * Tycon and Datacon processing environment
   , TycEnv (..) 
-
   , DataConMap
+  , TyConMap
+
+    -- * Signature processing environment 
+  , SigEnv (..)
 
   ) where 
 
@@ -18,6 +21,7 @@ import qualified Data.HashMap.Strict             as M
 import qualified Var                             as Ghc
 import qualified Module                          as Ghc
 import qualified GHC                             as Ghc
+import qualified NameSet                         as Ghc
 
 import qualified Language.Fixpoint.Types         as F 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -33,7 +37,16 @@ data Env = RE
   }
 
 -------------------------------------------------------------------------------
--- | Type- and Data- Constructor Environment 
+-- | Information needed to process Type Signatures 
+-------------------------------------------------------------------------------
+data SigEnv = SigEnv 
+  { sigEmbs       :: !(F.TCEmb Ghc.TyCon) 
+  , sigTyRTyMap   :: !(M.HashMap Ghc.TyCon RTyCon)
+  , sigExports    :: !Ghc.NameSet
+  }
+
+-------------------------------------------------------------------------------
+-- | Information needed to process Type- and Data- Constructors 
 -------------------------------------------------------------------------------
 
 data TycEnv = TycEnv 
@@ -41,11 +54,13 @@ data TycEnv = TycEnv
   , tcDataCons    :: ![(Ghc.DataCon, DataConP)]
   , tcSelMeasures :: ![Measure SpecType Ghc.DataCon]
   , tcSelVars     :: ![(Ghc.Var, Located SpecType)]
-  , tcTyRTyMap    :: !(M.HashMap Ghc.TyCon RTyCon)
+  , tcTyConMap    :: !TyConMap 
   , tcAdts        :: ![F.DataDecl]
   , tcDataConMap  :: !DataConMap 
+  , tcEmbs        :: !(F.TCEmb Ghc.TyCon)
   }
 
+type TyConMap   = M.HashMap Ghc.TyCon RTyCon
 type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
 
 {- 

@@ -416,10 +416,7 @@ makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do
             -- , imports   = imps
             -- , includes  = incs
             }
-
-  -}
-
-{- 
+ 
 toGhcSpec :: GhcMonad m
           => Config
           -> FilePath
