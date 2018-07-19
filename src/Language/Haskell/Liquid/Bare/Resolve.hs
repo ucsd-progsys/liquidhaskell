@@ -208,11 +208,6 @@ symbolicIdent x = "'" ++ symbolicString x ++ "'"
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = F.symbolString . F.symbol
 
-
-
-
-  -- lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
-
 instance ResolveSym F.Symbol where 
   resolveLocSym env name kind lx = case resolveLocSym env name "Var" lx of 
     Left e               -> Right (val lx)
