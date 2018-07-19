@@ -54,7 +54,7 @@ import qualified Data.HashSet                               as S
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, fst3, thd3, mapFst, mapSnd)
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Smt.Theories             as Thy
@@ -310,29 +310,19 @@ makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) specs
   , gsMyAxioms   = myAxioms 
-  , gsReflects   = undefined 
+  , gsReflects   = filter (isReflectVar rflSyms) sigVars
   }
   where
     mySpec       = fromMaybe mempty (lookup name specs)
     xtes         = Bare.makeHaskellAxioms src mySpec embs env tycEnv sig 
     myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
+    rflSyms      = S.fromList (getReflects specs)
+    sigVars      = (fst3 <$> xtes) ++ (fst <$> gsAsmSigs sig)
 
-{- HEREHERERE 
-  -- , gsReflects = vs  ++ gsReflects sp
-  -- let vs   = [ v             | (v, _) <- vts ]
-  let vts  = [ (v, t)        | (v, t) <- xts', let vx = GM.dropModuleNames $ symbol v, S.member vx rfls ]
-  let rfls = S.fromList (getReflects specs)
-    xtes    <- makeHaskellAxioms embs cbs sp mSpc adts
-  let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
-
-  let mAxs = [ qualifyAxiomEq x su e | (x, _, e) <- xtes ]  -- axiom-eqs in THIS module
-  let iAxs = getAxiomEqs specs                              -- axiom-eqs from IMPORTED modules
-
-  let axs  = mAxs ++ iAxs
-  _       <- makeLiftedSpec1 file name lSpec0 xts mAxs invs
-  let xts' = xts ++ F.notracepp "GS-ASMSIGS" (gsAsmSigs sp)
-  -}
-
+isReflectVar :: S.HashSet F.Symbol -> Var -> Bool 
+isReflectVar reflSyms v = S.member vx reflSyms
+  where
+    vx                  = GM.dropModuleNames (symbol v)
 
 getReflects :: [(ModName, Ms.BareSpec)] -> [Symbol]
 getReflects  = fmap val . S.toList . S.unions . fmap (names . snd)
