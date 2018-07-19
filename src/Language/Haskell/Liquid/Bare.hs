@@ -141,9 +141,6 @@ makeGhcSpec cfg src specs lmap = SP
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec 
 
-    -- fullSpec = mySpec `mappend` lSpec0
- 
-
 makeEmbeds :: GhcSrc -> Bare.Env -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
   = Bare.addClassEmbeds (gsCls src) (gsFiTcs src) 
