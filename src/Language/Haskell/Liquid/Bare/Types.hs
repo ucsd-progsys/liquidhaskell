@@ -5,6 +5,7 @@
 module Language.Haskell.Liquid.Bare.Types 
   ( -- * Name resolution environment 
     Env (..)
+  , TyThingMap 
 
     -- * Tycon and Datacon processing environment
   , TycEnv (..) 
@@ -33,13 +34,21 @@ import           Language.Haskell.Liquid.Types
 -- | Name resolution environment 
 -------------------------------------------------------------------------------
 data Env = RE 
-  { reLMap  :: !LogicMap
-  , reSyms  :: ![(F.Symbol, Ghc.Var)]           -- ^ see "syms" in old makeGhcSpec'
-  , reSpecs :: ![(ModName, Ms.BareSpec)] 
+  { reLMap      :: !LogicMap
+  , reSyms      :: ![(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
+  , reSpecs     :: ![(ModName, Ms.BareSpec)] 
+  , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
+  , _reTyThings :: !TyThingMap 
   }
 
 -------------------------------------------------------------------------------
--- | Information needed to process Type Signatures 
+-- | A @TyThingMap@ is used to resolve symbols into GHC @TyThing@ and, 
+--   from there into Var, TyCon, DataCon, etc.
+-------------------------------------------------------------------------------
+type TyThingMap = M.HashMap F.Symbol [(F.Symbol, Ghc.TyThing)]
+
+-------------------------------------------------------------------------------
+-- | A @SigEnv@ contains the needed to process type signatures 
 -------------------------------------------------------------------------------
 data SigEnv = SigEnv 
   { sigEmbs       :: !(F.TCEmb Ghc.TyCon) 
@@ -48,9 +57,8 @@ data SigEnv = SigEnv
   }
 
 -------------------------------------------------------------------------------
--- | Information needed to process Type- and Data- Constructors 
+-- | A @TycEnv@ contains the information needed to process Type- and Data- Constructors 
 -------------------------------------------------------------------------------
-
 data TycEnv = TycEnv 
   { tcTyCons      :: ![(Ghc.TyCon, TyConP)]
   , tcDataCons    :: ![(Ghc.DataCon, DataConP)]

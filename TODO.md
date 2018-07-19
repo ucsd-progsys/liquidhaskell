@@ -20,12 +20,14 @@
 - [ ] asserted-sigs
 - [ ] assumed-sigs
 - [ ] importing-specs
+- [ ] alias
 - [ ] measures
 - [ ] importing-specs
 - [ ] termination
 - [ ] importing-specs
 - [ ] absref
 - [ ] holes
+- [ ] reflect
 - [ ] classes
 
 ## Issues

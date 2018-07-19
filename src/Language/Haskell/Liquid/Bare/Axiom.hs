@@ -38,7 +38,7 @@ import           Language.Haskell.Liquid.Bare.Types as Bare
 makeHaskellAxioms :: GhcSrc -> Ms.BareSpec -> F.TCEmb TyCon -> Bare.Env -> Bare.TycEnv -> GhcSpecSig 
                   -> [(Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms embs cbs spec sp adts = undefined 
+makeHaskellAxioms embs cbs spec sp adts = mempty -- TODO-REBARE 
 {- 
 do
   xtvds <- getReflectDefs spec sp cbs

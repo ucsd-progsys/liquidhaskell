@@ -429,11 +429,14 @@ qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
 makeConTypes :: (ModName, Ms.BareSpec) 
              -> ( [(ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)]
                 , [[(Ghc.DataCon, Located DataConP)]]              )
-makeConTypes (name, spec) = undefined 
--- inModule name $
---   makeConTypes' name (Ms.dataDecls spec) (Ms.dvariance spec)
+makeConTypes _ = (mempty, mempty) -- TODO-REBARE 
 
-{- BAREOLD
+{- BARE
+makeConTypes (name, spec) = 
+ inModule name $
+   makeConTypes' name (Ms.dataDecls spec) (Ms.dvariance spec)
+
+
 makeConTypes' :: ModName -> [DataDecl] -> [(LocSymbol, [Variance])]
               -> BareM ( [(ModName, TyCon, TyConP, Maybe DataPropDecl)]
                        , [[(DataCon, Located DataConP)]])

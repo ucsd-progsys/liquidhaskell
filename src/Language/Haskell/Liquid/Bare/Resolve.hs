@@ -7,6 +7,7 @@
 
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -29,13 +30,22 @@ module Language.Haskell.Liquid.Bare.Resolve
   , ofBareExpr
   ) where 
 
-import qualified Var                             as Ghc
-import qualified Module                          as Ghc
-import qualified GHC                             as Ghc
-import qualified Language.Fixpoint.Types         as F 
+import qualified Data.HashMap.Strict               as M
+import qualified Text.PrettyPrint.HughesPJ         as PJ 
+
+import qualified ConLike                           as Ghc
+import qualified Var                               as Ghc
+import qualified Module                            as Ghc
+import qualified GHC                               as Ghc
+import qualified DataCon                           as Ghc
+
+import qualified Language.Fixpoint.Types           as F 
+import qualified Language.Fixpoint.Misc            as Misc 
 import           Language.Haskell.Liquid.Types   
-import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
+import qualified Language.Haskell.Liquid.Measure   as Ms
 import           Language.Haskell.Liquid.Bare.Types 
+import           Language.Haskell.Liquid.Bare.Misc   
 
 -------------------------------------------------------------------------------
 -- | Qualify various names 
@@ -44,7 +54,7 @@ class Qualify a where
   qualify :: Env -> ModName -> a -> a 
 
 instance Qualify F.Equation where 
-  qualify env name x = undefined
+  qualify _env _name x = x -- TODO-REBARE 
 -- REBARE: qualifyAxiomEq :: Bare.Env -> Var -> Subst -> AxiomEq -> AxiomEq
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
@@ -56,7 +66,7 @@ instance Qualify F.Symbol where
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
 
 instance Qualify LocSpecType where 
-  qualify env name lx = undefined 
+  qualify env _ lx = F.subst (_reSubst env) <$> lx 
 
 instance Qualify LocSymbol where 
   qualify env name lx = qualify env name <$> lx 
@@ -71,21 +81,104 @@ instance Qualify TyConInfo where
 instance Qualify RTyCon where 
   qualify env name rtc = rtc { rtc_info = qualify env name $ rtc_info rtc }
 
-
 -------------------------------------------------------------------------------
 -- | Creating an environment 
 -------------------------------------------------------------------------------
 makeEnv :: GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> Env 
-makeEnv _src specs lmap = RE 
-  { reLMap  = lmap
-  , reSyms  = undefined 
-  , reSpecs = specs 
+makeEnv src specs lmap = RE 
+  { reLMap      = lmap
+  , reSyms      = syms 
+  , reSpecs     = specs 
+  , _reSubst    = F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
+  , _reTyThings = makeTyThingMap src 
   } 
+  where 
+    syms     = [ (F.symbol v, v) | v <- vars ] 
+    vars     = srcVars src
 
+makeTyThingMap :: GhcSrc -> TyThingMap 
+makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
+                                              , let (m, x) = thingNames t ] 
+  where
+    thingNames     = GM.splitModuleName . F.symbol
+
+srcThings :: GhcSrc -> [Ghc.TyThing] 
+srcThings src = [ Ghc.AnId   x | x <- vars ++ dcVars ] 
+             ++ [ Ghc.ATyCon c | c <- tcs            ] 
+             ++ [ aDataCon   d | d <- dcs            ] 
+  where 
+    dcVars    = dataConVars dcs 
+    dcs       = concatMap Ghc.tyConDataCons tcs 
+    tcs       = srcTyCons   src 
+    vars      = srcVars     src
+    aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
+
+srcTyCons :: GhcSrc -> [Ghc.TyCon]
+srcTyCons src = concat 
+  [ gsTcs   src 
+  , gsFiTcs src 
+  ]
+
+srcVars :: GhcSrc -> [Ghc.Var]
+srcVars src = concat 
+  [ giDerVars src
+  , giImpVars src 
+  , giDefVars src 
+  , giUseVars src 
+  ]
+
+dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
+dataConVars dcs = concat 
+  [ Ghc.dataConWorkId <$> dcs 
+  , Ghc.dataConWrapId <$> dcs 
+  ] 
+
+lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
+lookupTyThing env name sym = [ t | (m, t) <- M.lookupDefault [] x (_reTyThings env), m == mod ] 
+  where 
+    (mod, x)               = unQualifySymbol name sym
+ 
+-- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
+--   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).
+
+unQualifySymbol :: ModName -> F.Symbol -> (F.Symbol, F.Symbol)
+unQualifySymbol name sym 
+  | GM.isQualifiedSym sym = GM.splitModuleName sym 
+  | otherwise             = (F.symbol name, sym)
+
+-- srcDataCons :: GhcSrc -> [Ghc.DataCon]
+-- srcDataCons src = concatMap Ghc.tyConDataCons (srcTyCons src) 
+
+{- 
+  let expSyms     = S.toList (exportedSymbols mySpec)
+  syms0 <- liftedVarMap (varInModule name) expSyms
+  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
+  syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  let fSyms =  freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+            ++ measureSymbols measures
+   * Symbol :-> [(ModuleName, TyCon)]
+   * Symbol :-> [(ModuleName, Var  )]
+   * 
+ -}
+ 
+instance F.Symbolic Ghc.TyThing where 
+  symbol = tyThingSymbol 
+
+tyThingSymbol :: Ghc.TyThing -> F.Symbol 
+tyThingSymbol (Ghc.AnId     x) = F.symbol x
+tyThingSymbol (Ghc.ATyCon   c) = F.symbol c
+tyThingSymbol (Ghc.AConLike d) = conLikeSymbol d 
+tyThingSymbol (_)              = panic Nothing "TODO: tyThingSymbol" 
+
+conLikeSymbol :: Ghc.ConLike -> F.Symbol 
+conLikeSymbol (Ghc.RealDataCon d) = F.symbol d 
+conLikeSymbol _                   = panic Nothing "TODO: conLikeSymbol"
 -------------------------------------------------------------------------------
-resolveNamedVar :: (Ghc.NamedThing a) => Env -> ModName -> a -> Ghc.Var
+resolveNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
 -------------------------------------------------------------------------------
-resolveNamedVar = undefined 
+resolveNamedVar env name z = strictResolveSym env name "Var" lx 
+  where 
+    lx                     = GM.namedLocSymbol z
 
 -------------------------------------------------------------------------------
 -- | Using the environment 
@@ -94,13 +187,37 @@ class ResolveSym a where
   resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
   
 instance ResolveSym Ghc.Var where 
-  resolveLocSym = error "TBD:resolve (Var)"
+  resolveLocSym env name kind lx = undefined -- error "TBD:resolve (Var)"
 
 instance ResolveSym Ghc.TyCon where 
-  resolveLocSym = error "TBD:resolve (TyCon)"
+  resolveLocSym env name kind lx = 
+    case tcs of 
+      []  -> Left  (errResolve kind lx) 
+      c:_ -> Right c 
+    where 
+      tcs  = [ c | Ghc.ATyCon c <- lookupTyThing env name (val lx)] 
+
+errResolve :: String -> LocSymbol -> UserError 
+errResolve kind lx = ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
+  where 
+    msg            = unwords [ "Name resolution error: ", kind, symbolicIdent lx]
+
+symbolicIdent :: (F.Symbolic a) => a -> String
+symbolicIdent x = "'" ++ symbolicString x ++ "'"
+
+symbolicString :: F.Symbolic a => a -> String
+symbolicString = F.symbolString . F.symbol
+
+
+
+
+  -- lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 
 instance ResolveSym F.Symbol where 
-  resolveLocSym = error "TBD:resolve (Symbol)"
+  resolveLocSym env name kind lx = case resolveLocSym env name "Var" lx of 
+    Left e               -> Right (val lx)
+    Right (v :: Ghc.Var) -> Right (F.symbol v)
+
 
 
 resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
@@ -117,7 +234,7 @@ class Resolvable a where
   resolve :: Env -> ModName -> F.SourcePos -> a -> a  
 
 instance Resolvable F.Qualifier where 
-  resolve = undefined 
+  resolve _ _ _ q = q -- TODO-REBARE 
 
 -------------------------------------------------------------------------------
 -- MOVE INTO RESOLVE 

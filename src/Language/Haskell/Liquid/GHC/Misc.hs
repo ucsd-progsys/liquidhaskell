@@ -609,6 +609,7 @@ instance NFData Var where
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
 
+
 splitModuleName :: Symbol -> (Symbol, Symbol)
 splitModuleName x = (takeModuleNames x, dropModuleNamesAndUnique x)
 
@@ -662,6 +663,9 @@ qualifySymbol (symbolText -> m) x'@(symbolText -> x)
   | isQualified x  = x'
   | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
   | otherwise      = symbol (m `mappend` "." `mappend` x)
+
+isQualifiedSym :: Symbol -> Bool
+isQualifiedSym (symbolText -> x) = isQualified x 
 
 isQualified :: T.Text -> Bool
 isQualified y = "." `T.isInfixOf` y

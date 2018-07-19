@@ -576,8 +576,8 @@ makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs0 = do
   lmap           <- lmSymDefs . logicEnv    <$> get
   let specs       = insert name fullSpec specs0
   makeRTEnv name lSpec0 specs lmap
-  let expSyms     = S.toList (exportedSymbols mySpec)
 
+  let expSyms     = S.toList (exportedSymbols mySpec)
   syms0 <- liftedVarMap (varInModule name) expSyms
   syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
 

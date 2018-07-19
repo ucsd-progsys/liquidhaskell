@@ -78,9 +78,9 @@ import           Language.Haskell.Liquid.Bare.DataType as Bare
 makeHaskellMeasures :: GhcSrc -> F.TCEmb TyCon -> LogicMap -> Ms.BareSpec
                     -> [Measure (Located BareType) LocSymbol]
 --------------------------------------------------------------------------------
-makeHaskellMeasures src tce lmap spec = undefined 
+makeHaskellMeasures src _tce _lmap _spec = mempty -- TODO-REBARE 
   where 
-    cbs = giCbs src 
+    _cbs = giCbs src 
   {- 
   do
     lmap <- gets logicEnv
@@ -96,7 +96,7 @@ makeHaskellMeasures src tce lmap spec = undefined
 --------------------------------------------------------------------------------
 makeHaskellInlines :: GhcSrc -> F.TCEmb TyCon -> Ms.BareSpec -> [(LocSymbol, LMap)]
 --------------------------------------------------------------------------------
-makeHaskellInlines tce cbs spec = undefined
+makeHaskellInlines _tce _cbs _spec = mempty -- TODO-REBARE 
   {- 
   do
   lmap <- gets logicEnv

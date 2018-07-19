@@ -122,15 +122,16 @@ plugHoles :: (NamedThing a, PPrint a, Show a)
           -> Type
           -> LocSpecType
           -> LocSpecType
-plugHoles tce tyi x f t (Loc l l' st) = undefined 
+plugHoles _tce _tyi _x _f _t tt = tt -- TODO-REBARE
 
-{- REBARE 
+{- 
     -- NOTE: this use of toType is safe as rt' is derived from t.
+plugHoles tce tyi x f t (Loc l l' st) 
   = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
                     Left e -> throwError e
                     Right s -> return (vmap s)
-       let su    = F.notracepp ("MAKE-ASSUME-SPEC-4: " ++ show x) [(y, rTyVar x) | (x, y) <- tyvsmap]
-           coSub = F.notracepp ("MAKE-ASSUME-SPEC-5: " ++ show x) $ M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+       let su    = [(y, rTyVar x) | (x, y) <- tyvsmap]
+           coSub = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
            st3   = subts su st''
            st4   = mapExprReft (\_ -> F.applyCoSub coSub) st3
            ps'   = fmap (subts su') <$> ps
