@@ -59,6 +59,7 @@ makePluggedSig name embs tyi exports x t =
     τ = expandTypeSynonyms (varType x)
     r = maybeTrue x name exports
 
+{- 
 makePluggedSigs :: ModName
                 -> F.TCEmb TyCon
                 -> M.HashMap TyCon RTyCon
@@ -71,6 +72,7 @@ makePluggedSigs name embs tyi exports sigs
       , let τ = expandTypeSynonyms (varType x)
       , let r = maybeTrue x name exports
     ]
+-}
 
 makePluggedAsmSigs :: F.TCEmb TyCon
                    -> M.HashMap TyCon RTyCon

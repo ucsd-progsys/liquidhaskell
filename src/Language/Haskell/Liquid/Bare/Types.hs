@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.Bare.Types
     -- * Signature processing environment 
   , SigEnv (..)
 
+    -- * Measure related environment 
+  , MeasEnv (..)
   ) where 
 
 import qualified Data.HashMap.Strict             as M
@@ -62,6 +64,19 @@ data TycEnv = TycEnv
 
 type TyConMap   = M.HashMap Ghc.TyCon RTyCon
 type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
+
+-------------------------------------------------------------------------------
+-- | Intermediate representation for Measure information 
+-------------------------------------------------------------------------------
+-- REBARE: used to be output of makeGhcSpecCHOP2
+data MeasEnv = MeasEnv 
+  { meMeasureSpec :: !(MSpec SpecType Ghc.DataCon)          -- measures
+  , meClassSyms   :: ![(F.Symbol, Located (RRType F.Reft))] -- cms' 
+  , meSyms        :: ![(F.Symbol, Located (RRType F.Reft))] -- ms' 
+  , meDataCons    :: ![(Ghc.Var,  LocSpecType)]             -- cs'
+                                                            -- xs' :: [Symbol] = fst <$> meSyms
+  }
+
 
 {- 
 data BareEnv = BE

@@ -244,7 +244,7 @@ Library
                     Language.Haskell.Liquid.Bare.Misc,
                     Language.Haskell.Liquid.Bare.Resolve,
                     Language.Haskell.Liquid.Bare.Measure,
-                    Language.Haskell.Liquid.Bare.RTEnv,
+                    Language.Haskell.Liquid.Bare.Expand,
                     Language.Haskell.Liquid.Bare.Plugged,
                     Language.Haskell.Liquid.Bare.Axiom,
                     -- Language.Haskell.Liquid.Bare.Check,

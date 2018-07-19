@@ -46,7 +46,7 @@ import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
 
-import           Text.PrettyPrint.HughesPJ                  hiding (first) -- (text, (<+>))
+import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 
 import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
@@ -72,7 +72,7 @@ import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
-import qualified Language.Haskell.Liquid.Bare.RTEnv         as Bare 
+import qualified Language.Haskell.Liquid.Bare.Expand        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
@@ -453,14 +453,15 @@ makeSpecName :: Bare.Env -> Bare.TycEnv -> GhcSpecNames
 -------------------------------------------------------------------------------------------
 makeSpecName env tycEnv = SpNames 
   { gsFreeSyms = Bare.reSyms env 
-  , gsDconsP   = mempty -- TODO-REBARE :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
-  , gsTconsP   = mempty -- TODO-REBARE :: ![(TyCon, TyConP)]            -- ^ Predicated Type-Constructors, e.g. see tests/pos/Map.hs
-  , gsLits     = undefined 
+  , gsDconsP   = mempty -- TODO-REBARE 
+  , gsTconsP   = mempty -- TODO-REBARE 
+  , gsLits     = mempty -- TODO-REBARE 
   , gsTcEmbeds = Bare.tcEmbs     tycEnv   
   , gsADTs     = Bare.tcAdts     tycEnv 
   , gsTyconEnv = Bare.tcTyConMap tycEnv  
   }
 
+-- REBARE: formerly, makeGhcCHOP1
 -------------------------------------------------------------------------------------------
 makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb TyCon -> Bare.TycEnv 
 -------------------------------------------------------------------------------------------
@@ -486,6 +487,31 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
       
+-- REBARE: formerly, makeGhcCHOP2
+
+-------------------------------------------------------------------------------------------
+makeMeasEnv :: _ -> Bare.Env -> Bare.TycEnv -> Bare.MeasEnv 
+-------------------------------------------------------------------------------------------
+makeMeasEnv specs env tycEnv = Bare.MeasEnv 
+  { meMeasureSpec = mempty -- TODO-REBARE: measures 
+  , meClassSyms   = mempty -- TODO-REBARE: cms' 
+  , meSyms        = mempty -- TODO-REBARE: ms' 
+  , meDataCons    = mempty -- TODO-REBARE: cs' 
+  }
+  -- TODO-REBARE: where 
+    -- TODO-REBARE: measures      = mconcat (Ms.mkMSpec' dcSelectors : fmap makeMeasureSpec specs)
+    -- TODO-REBARE: tyi           = tcTyConMap    tycEnv 
+    -- TODO-REBARE: dcSelectors   = tcSelMeasures tycEnv 
+    -- TODO-REBARE: datacons      = tcDataCons    tycEnv 
+    -- TODO-REBARE: embs          = tcEmbs        tycEnv 
+    -- TODO-REBARE: (cs, ms)      = makeMeasureSpec' measures
+    -- TODO-REBARE: cms           = [] -- TODO-REBARE makeClassMeasureSpec measures
+    -- TODO-REBARE: cms'          = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
+    -- TODO-REBARE: ms'           = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
+    -- TODO-REBARE: cs'           = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
+    -- TODO-REBARE: -- xs'      = fst <$> ms'
+    -- TODO-REBARE: -- txRefSort' :: NamedThing a => a -> Bare.TyConMap -> TCEmb TyCon -> SpecType -> LocSpecType
+    -- TODO-REBARE: txRefSort' v t = txRefSort tyi embs (const t <$> GM.locNamedThing v) 
 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec :: Ms.BareSpec -> GhcSpec -> Ms.BareSpec 
@@ -931,31 +957,6 @@ measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
         su    = mkSubst [(v, mkEApp x [EVar v])]
         reft  = Reft (v, subst su p')
         p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
-
-makeGhcSpecCHOP2 :: [(ModName, Ms.BareSpec)]
-                 -> [Measure SpecType DataCon]
-                 -> [(DataCon, DataConP)]
-                 -> [(DataCon, DataConP)]
-                 -> TCEmb TyCon
-                 -> BareM ( MSpec SpecType DataCon
-                          , [(Symbol, Located (RRType Reft))]
-                          , [(Symbol, Located (RRType Reft))]
-                          , [(Var,    LocSpecType)]
-                          , [Symbol] )
-makeGhcSpecCHOP2 specs dcSelectors datacons cls embs = do
-  measures'   <- mconcat <$> mapM makeMeasureSpec specs
-  tyi         <- gets tcEnv
-  let measures = mconcat [ measures' , Ms.mkMSpec' dcSelectors]
-  let (cs, ms) = makeMeasureSpec' measures
-  let cms      = makeClassMeasureSpec measures
-  let cms'     = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
-  let ms'      = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-  let cs'      = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec embs cs (datacons ++ cls)]
-  let xs'      = fst <$> ms'
-  return (measures, cms', ms', cs', xs')
-
-txRefSort' :: NamedThing a => a -> TCEnv -> TCEmb TyCon -> SpecType -> LocSpecType
-txRefSort' v tyi embs t = txRefSort tyi embs (const t <$> GM.locNamedThing v) -- (atLoc' v t)
 
 data ReplaceEnv = RE
   { _reEnv  :: M.HashMap Symbol Symbol

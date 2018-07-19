@@ -388,7 +388,7 @@ data GhcSpecNames = SpNames
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![(TyCon, TyConP)]            -- ^ Predicated Type-Constructors, e.g. see tests/pos/Map.hs
   , gsLits       :: ![(Symbol, LocSpecType)]      -- ^ Literals/Constants e.g. datacons: EQ, GT, string lits: "zombie",...
-  , gsTcEmbeds   :: !(F.TCEmb TyCon)                 -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
+  , gsTcEmbeds   :: !(F.TCEmb TyCon)              -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTyconEnv   :: !(M.HashMap TyCon RTyCon)
   }
