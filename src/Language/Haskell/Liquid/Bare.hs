@@ -333,7 +333,13 @@ makeAutoInst env name spec =
 ----------------------------------------------------------------------------------------
 makeSpecSig :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
-makeSpecSig = undefined 
+makeSpecSig cfg src specs lmap = SpSig 
+  { gsTySigs   = undefined -- :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
+  , gsAsmSigs  = undefined -- :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
+  , gsInSigs   = undefined -- :: ![(Var, LocSpecType)]           -- ^ Auto generated signatures
+  , gsNewTypes = undefined -- :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
+  , gsDicts    = undefined -- :: !(DEnv Var SpecType)            -- ^ Refined Classes 
+  }
 
 ------------------------------------------------------------------------------------------
 makeSpecData :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecData

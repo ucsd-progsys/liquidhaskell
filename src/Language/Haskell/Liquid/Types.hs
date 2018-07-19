@@ -372,7 +372,7 @@ data GhcSpecSig = SpSig
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
-  , gsDicts    :: DEnv Var SpecType               -- ^ Refined Classes 
+  , gsDicts    :: !(DEnv Var SpecType)            -- ^ Refined Classes 
   }
 
 data GhcSpecData = SpData 
@@ -388,14 +388,13 @@ data GhcSpecNames = SpNames
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![(TyCon, TyConP)]            -- ^ Predicated Type-Constructors, e.g. see tests/pos/Map.hs
   , gsLits       :: ![(Symbol, LocSpecType)]      -- ^ Literals/Constants e.g. datacons: EQ, GT, string lits: "zombie",...
-  , gsTcEmbeds   :: F.TCEmb TyCon                 -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
+  , gsTcEmbeds   :: !(F.TCEmb TyCon)                 -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
-  , gsTyconEnv   :: M.HashMap TyCon RTyCon
+  , gsTyconEnv   :: !(M.HashMap TyCon RTyCon)
   }
 
 data GhcSpecTerm = SpTerm 
-  { -- REBARE: gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographically ordered size witnesses for termination
-    gsTexprs     :: ![(Var, [F.Located Expr])]    -- ^ Lexicographically ordered expressions for termination
+  { gsTexprs     :: ![(Var, [F.Located Expr])]    -- ^ Lexicographically ordered expressions for termination
   , gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
