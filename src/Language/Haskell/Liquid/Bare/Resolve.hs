@@ -1,13 +1,12 @@
-
-   
-
 -- | This module has the code that uses the GHC definitions to:
 --   1. MAKE a name-resolution environment,
 --   2. USE the environment to translate plain symbols into Var, TyCon, etc. 
 
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
+{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -30,6 +29,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , ofBareExpr
   ) where 
 
+import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
 
@@ -187,16 +187,20 @@ class ResolveSym a where
   resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
   
 instance ResolveSym Ghc.Var where 
-  resolveLocSym env name kind lx = undefined -- error "TBD:resolve (Var)"
+  resolveLocSym = resolveWith $ \case {Ghc.AnId x -> Just x; _ -> Nothing}
 
 instance ResolveSym Ghc.TyCon where 
-  resolveLocSym env name kind lx = 
-    case tcs of 
-      []  -> Left  (errResolve kind lx) 
-      c:_ -> Right c 
-    where 
-      tcs  = [ c | Ghc.ATyCon c <- lookupTyThing env name (val lx)] 
+  resolveLocSym = resolveWith $ \case {Ghc.ATyCon x -> Just x; _ -> Nothing}
 
+resolveWith :: (Ghc.TyThing -> Maybe a) -> _ -> _ -> _ -> LocSymbol 
+            -> Either UserError a 
+resolveWith f env name kind lx = 
+  case Mb.mapMaybe f things of 
+    []  -> Left  (errResolve kind lx) 
+    x:_ -> Right x 
+  where 
+    things         = lookupTyThing env name (val lx) 
+      
 errResolve :: String -> LocSymbol -> UserError 
 errResolve kind lx = ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
   where 
