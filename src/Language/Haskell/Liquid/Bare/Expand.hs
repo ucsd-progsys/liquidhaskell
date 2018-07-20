@@ -38,26 +38,28 @@ import qualified Language.Haskell.Liquid.Bare.Types   as Bare
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
 makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> LogicMap 
-          -> SpecRTEnv 
+          -> BareRTEnv 
 --------------------------------------------------------------------------------
-makeRTEnv env m lfSpec specs lmap = makeRTAliases (makeREAliases eAs) tAs  
+makeRTEnv env m lfSpec specs lmap = makeRTAliases tAs (makeREAliases eAs) 
   where
-    tAs   = [ specRTAlias env m t | (m, s) <- specs, t <- Ms.aliases  s ]
+    tAs   = [ {- specRTAlias env m -} t | (m, s) <- specs, t <- Ms.aliases  s ]
     eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s ]
          ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec        ]                        
          ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e = lmapEAlias xl               ]
 
-makeREAliases :: [Located (RTAlias Symbol Expr)] -> SpecRTEnv 
+makeREAliases :: [Located (RTAlias Symbol Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
   where
     f rtEnv xt = setREAlias rtEnv (expand rtEnv xt)
 
-makeRTAliases :: SpecRTEnv -> [Located (RTAlias RTyVar SpecType)] -> SpecRTEnv  
-makeRTAliases rte lxts = graphExpand buildTypeEdges f rte lxts 
+-- makeRTAliases :: [Located (RTAlias RTyVar SpecType)] -> SpecRTEnv -> SpecRTEnv  
+makeRTAliases :: [Located (RTAlias Symbol BareType)] -> BareRTEnv -> BareRTEnv  
+makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts 
   where
     f rtEnv xt         = setRTAlias rtEnv (expand rtEnv xt)
- 
+
+{- 
 specRTAlias :: Bare.Env -> ModName -> Located (RTAlias Symbol BareType) -> Located (RTAlias RTyVar SpecType) 
 specRTAlias env m la = F.atLoc la $ RTA 
   { rtName  = rtName a
@@ -66,12 +68,15 @@ specRTAlias env m la = F.atLoc la $ RTA
   , rtBody  = F.val (Bare.ofBareType env m (F.atLoc la (rtBody a))) 
   } 
   where a   = val la 
+-}
 
 specREAlias :: Bare.Env -> ModName -> Located (RTAlias Symbol Expr) -> Located (RTAlias Symbol Expr) 
-specREAlias env m la = F.atLoc la $ a { rtBody = F.val (Bare.ofBareExpr env m (F.atLoc la (rtBody a))) } 
+specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (rtBody a) } 
   where 
     a     = val la 
 
+
+--------------------------------------------------------------------------------------------------------------
 
 graphExpand :: (PPrint t)
             => (AliasTable x t -> t -> [Symbol])         -- ^ dependencies
@@ -87,13 +92,12 @@ graphExpand buildEdges expBody env lxts
     graph  = buildAliasGraph (buildEdges table) lxts
     table' = checkCyclicAliases table graph
 
-setRTAlias :: SpecRTEnv -> Located (RTAlias RTyVar SpecType) -> SpecRTEnv 
+setRTAlias :: RTEnv x t -> Located (RTAlias x t) -> RTEnv x t 
 setRTAlias env a = env { typeAliases =  M.insert n a (typeAliases env) } 
   where 
     n            = rtName (val a)  
 
-
-setREAlias :: SpecRTEnv -> Located (RTAlias Symbol Expr) -> SpecRTEnv 
+setREAlias :: RTEnv x t -> Located (RTAlias Symbol Expr) -> RTEnv x t 
 setREAlias env a = env { exprAliases = M.insert n a (exprAliases env) } 
   where 
     n            = rtName (val a)
@@ -157,10 +161,10 @@ genExpandOrder table graph
 ordNub :: Ord a => [a] -> [a]
 ordNub = map head . L.group . L.sort
 
-buildTypeEdges :: AliasTable x SpecType -> SpecType -> [Symbol]
+buildTypeEdges :: (F.Symbolic c) => AliasTable x t -> RType c tv r -> [Symbol]
 buildTypeEdges table = ordNub . go
   where
-    go :: SpecType -> [Symbol]
+    -- go :: t -> [Symbol]
     go (RApp c ts rs _) = go_alias (symbol c) ++ concatMap go ts ++ concatMap go (mapMaybe go_ref rs)
     go (RImpF _ t1 t2 _) = go t1 ++ go t2
     go (RFun _ t1 t2 _) = go t1 ++ go t2
@@ -211,7 +215,8 @@ buildExprEdges table  = ordNub . go
 -- | Using the `SpecRTEnv` to do alias-expansion 
 ----------------------------------------------------------------------------------
 class Expand a where 
-  expand :: SpecRTEnv -> a -> a 
+  expand :: BareRTEnv -> a -> a 
+
 ----------------------------------------------------------------------------------
 
 instance Expand a => Expand (Located a) where 
@@ -220,5 +225,5 @@ instance Expand a => Expand (Located a) where
 instance Expand (RTAlias Symbol Expr) where 
   expand _ x = x -- TODO-REBARE 
 
-instance Expand (RTAlias RTyVar SpecType) where 
+instance Expand BareRTAlias where 
   expand _ x = x -- TODO-REBARE 

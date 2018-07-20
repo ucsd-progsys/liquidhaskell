@@ -72,7 +72,7 @@ needQuals = (FC.None == ) . eliminate . getConfig
 alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 alsQualifiers info lEnv
-  = [ q | a <- specAliases info
+  = [ q | a <- gsRTAliases . gsQual . giSpec $ info
         , q <- refTypeQuals lEnv (loc a) tce (rtBody (val a))
         , length (qParams q) <= k + 1
         , validQual lEnv q
@@ -80,9 +80,6 @@ alsQualifiers info lEnv
     where
       k   = maxQualParams info
       tce = gsTcEmbeds . gsName . giSpec $ info
-
-specAliases :: GhcInfo -> [Located (RTAlias RTyVar SpecType)]
-specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
 
 validQual :: SEnv Sort -> Qualifier -> Bool
 validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)

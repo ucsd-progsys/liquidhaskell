@@ -245,13 +245,20 @@ resolveLocSymbolVar src env lx = Bare.strictResolveSym env name "Var" lx
     name                       = giTargetMod src
 
 ------------------------------------------------------------------------------------------
-makeSpecQual :: Config -> Bare.Env -> [(ModName, Ms.BareSpec)] -> SpecRTEnv 
+makeSpecQual :: Config -> Bare.Env -> [(ModName, Ms.BareSpec)] -> BareRTEnv 
              -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
 makeSpecQual _cfg env specs rtEnv = SpQual 
   { gsQualifiers = concatMap (makeQualifiers env) specs 
-  , gsRTAliases  = rtEnv 
+  , gsRTAliases  = makeSpecRTAliases env rtEnv 
   } 
+
+makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
+makeSpecRTAliases env = const [] -- TODO-REBARE 
+-- REBARE: toSpec . M.elems . typeAliases
+-- REBARE: where toSpec = BareRTAlias -> SpecRTAlias 
+-- REBARE: specAliases :: GhcInfo -> [Located BareRTAlias]
+-- REBARE: specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
 
 makeQualifiers :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
 makeQualifiers env (mod, spec) = tx <$> Ms.qualifiers spec 

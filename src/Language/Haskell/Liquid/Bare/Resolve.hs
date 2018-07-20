@@ -68,6 +68,9 @@ instance Qualify F.Symbol where
 instance Qualify LocSpecType where 
   qualify env _ lx = F.subst (_reSubst env) <$> lx 
 
+instance Qualify F.Expr where 
+  qualify env _ e = F.subst (_reSubst env) e 
+
 instance Qualify LocSymbol where 
   qualify env name lx = qualify env name <$> lx 
 

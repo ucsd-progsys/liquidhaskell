@@ -176,7 +176,7 @@ module Language.Haskell.Liquid.Types (
   , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
-  , RTEnv (..), BareRTEnv, SpecRTEnv
+  , RTEnv (..), BareRTEnv, SpecRTEnv, BareRTAlias, SpecRTAlias
   -- , mapRT, mapRE
 
   -- * Errors and Error Messages
@@ -357,14 +357,14 @@ instance HasConfig GhcInfo where
 
 data GhcSpecVars = SpVar 
   { gsTgtVars    :: ![Var]                        -- ^ Top-level Binders To Verify (empty means ALL binders)
-  , gsIgnoreVars :: !(S.HashSet Var)                        -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
+  , gsIgnoreVars :: !(S.HashSet Var)              -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
   , gsLvars      :: !(S.HashSet Var)              -- ^ Variables that should be checked "lazily" in the environment they are used
   }
 
 data GhcSpecQual = SpQual 
   { gsQualifiers :: ![Qualifier]                  -- ^ Qualifiers in Source/Spec files e.g tests/pos/qualTest.hs
-  , gsRTAliases  :: !SpecRTEnv                    -- ^ Refinement type aliases (only used for qualifiers)
-  -- REBARE: , giHqFiles   :: ![FilePath]                    -- ^ Imported .hqual files
+  , gsRTAliases  :: ![F.Located SpecRTAlias]      -- ^ Refinement type aliases (only used for qualifiers)
+  -- REBARE: , giHqFiles   :: ![FilePath]         -- ^ Imported .hqual files
   }
 
 data GhcSpecSig = SpSig 
@@ -986,7 +986,9 @@ type LocBareType = F.Located BareType
 type LocSpecType = F.Located SpecType
 
 type SpecRTEnv   = RTEnv RTyVar SpecType 
-type BareRTEnv   = RTEnv BTyVar BareType 
+type BareRTEnv   = RTEnv Symbol BareType 
+type BareRTAlias = RTAlias Symbol BareType 
+type SpecRTAlias = RTAlias RTyVar SpecType
 
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
