@@ -253,21 +253,21 @@ instance Resolvable a => Resolvable (Located a) where
 -------------------------------------------------------------------------------
 -- | HERE 
 -------------------------------------------------------------------------------
-ofBareType :: Env -> ModName -> Located BareType -> Located SpecType 
-ofBareType = undefined 
+ofBareType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType 
+ofBareType env name l t = ofBRType env name (resolve env name l) l t 
 
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
-ofBSort env name l = undefined 
+ofBSort env name l t = ofBRType env name id l t 
 
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 --------------------------------------------------------------------------------
 
-ofBRType :: (F.Reftable r) => Env -> ModName -> (Env -> ModName -> Located r -> Located r) 
-           -> Located (BRType r) -> Located (RRType r) 
-ofBRType env name f lt   = go <$> lt
+ofBRType :: (F.Reftable r) => Env -> ModName -> (r -> r) -> F.SourcePos -> BRType r 
+         -> RRType r 
+ofBRType env name f l t  = go t 
   where
-    goReft r             = val (f env name (F.atLoc lt r))
+    goReft r             = f r 
     go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) (goReft r)
     go (RApp tc ts rs r) = goRApp tc ts rs r 
     go (RImpF x t1 t2 r) = goRImpF x t1 t2 r 
@@ -276,7 +276,7 @@ ofBRType env name f lt   = go <$> lt
     go (RAllT a t)       = RAllT a' (go t) 
       where a'           = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a) 
     go (RAllP a t)       = RAllP a' (go t) 
-      where a'           = ofBPVar env name (F.loc lt) a 
+      where a'           = ofBPVar env name l a 
     go (RAllS x t)       = RAllS x (go t)
     go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
     go (REx x t1 t2)     = REx   x (go t1) (go t2)
@@ -286,7 +286,7 @@ ofBRType env name f lt   = go <$> lt
     go (RExprArg le)     = RExprArg (resolve env name (F.loc le) le) 
     goRef (RProp ss (RHole r)) = rPropP (goSyms <$> ss) (goReft r)
     goRef (RProp ss t)         = RProp  (goSyms <$> ss) (go t)
-    goSyms (x, t)              = (x, ofBSort env name (F.loc lt) t) 
+    goSyms (x, t)              = (x, ofBSort env name l t) 
     goRImpF x t1 t2 r          = RImpF x (rebind x (go t1)) (go t2) (goReft r)
     goRFun x t1 t2 r           = RFun x (rebind x (go t1)) (go t2) (goReft r)
     goRApp tc ts rs r          = bareTCApp (goReft r) lc' (goRef <$> rs) (go <$> ts)

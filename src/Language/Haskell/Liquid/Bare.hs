@@ -363,11 +363,11 @@ rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)]
 rawTySigs env name spec = 
   [ makeRawSig env name x t | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec ] 
 
-makeRawSig :: Bare.Env -> ModName -> LocSymbol -> Located BareType -> (Var, LocSpecType)
-makeRawSig env name x t = (v, tt) 
+makeRawSig :: Bare.Env -> ModName -> LocSymbol -> LocBareType -> (Var, LocSpecType)
+makeRawSig env name x (Loc l l' bt) = (v, Loc l l' st) 
   where 
     v  = Bare.strictResolveSym env name "Var" x  
-    tt = Bare.ofBareType       env name       t  
+    st = Bare.ofBareType       env name l     bt  
 
 -- TODO-REBARE: see Cooking-SpecType
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
