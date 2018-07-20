@@ -8,6 +8,7 @@
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE ConstraintKinds       #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -36,12 +37,22 @@ import qualified Text.PrettyPrint.HughesPJ         as PJ
 
 import qualified ConLike                           as Ghc
 import qualified Var                               as Ghc
-import qualified Module                            as Ghc
+-- import qualified Module                            as Ghc
 import qualified GHC                               as Ghc
 import qualified DataCon                           as Ghc
 import qualified TysWiredIn                        as Ghc 
 import qualified BasicTypes                        as Ghc 
 import qualified Type                              as Ghc 
+import qualified TyCon                             as Ghc 
+import qualified Name                              as Ghc
+
+-- import BasicTypes
+-- import Type (expandTypeSynonyms)
+-- import TysWiredIn
+
+
+
+
 
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
@@ -200,7 +211,7 @@ instance ResolveSym Ghc.Var where
 instance ResolveSym Ghc.TyCon where 
   resolveLocSym = resolveWith $ \case {Ghc.ATyCon x -> Just x; _ -> Nothing}
 
-resolveWith :: (Ghc.TyThing -> Maybe a) -> _ -> _ -> _ -> LocSymbol 
+resolveWith :: (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith f env name kind lx = 
   case Mb.mapMaybe f things of 
@@ -221,8 +232,8 @@ symbolicString :: F.Symbolic a => a -> String
 symbolicString = F.symbolString . F.symbol
 
 instance ResolveSym F.Symbol where 
-  resolveLocSym env name kind lx = case resolveLocSym env name "Var" lx of 
-    Left e               -> Right (val lx)
+  resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of 
+    Left _               -> Right (val lx)
     Right (v :: Ghc.Var) -> Right (F.symbol v)
 
 resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
@@ -262,8 +273,12 @@ ofBSort env name l t = ofBRType env name id l t
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 --------------------------------------------------------------------------------
+type Expandable r = ( PPrint r
+                    , F.Reftable r
+                    , SubsTy RTyVar (RType RTyCon RTyVar ()) r
+                    , F.Reftable (RTProp RTyCon RTyVar r))
 
-ofBRType :: (F.Reftable r) => Env -> ModName -> (r -> r) -> F.SourcePos -> BRType r 
+ofBRType :: (Expandable r) => Env -> ModName -> (r -> r) -> F.SourcePos -> BRType r 
          -> RRType r 
 ofBRType env name f l t  = go t 
   where
@@ -293,7 +308,7 @@ ofBRType env name f l t  = go t
       where
         lc'                    = F.atLoc lc (matchTyCon env name lc (length ts))
         lc                     = btc_tc tc
-    goRApp _ _ _ _             = impossible Nothing "goRApp failed through to final case"
+    -- goRApp _ _ _ _             = impossible Nothing "goRApp failed through to final case"
     rebind x t                 = F.subst1 t (x, F.EVar $ rTypeValueVar t)
 
     -- TODO-REBARE: goRImpF bounds _ (RApp c ps' _ _) t _
@@ -318,34 +333,35 @@ matchTyCon env name lc@(Loc _ _ c) arity
   | isTuple c               = Ghc.tupleTyCon Ghc.Boxed arity
   | otherwise               = strictResolveSym env name "matchTyCon" lc 
 
-bareTCApp :: r
+bareTCApp :: (Expandable r) 
+          => r
           -> Located Ghc.TyCon
           -> [RTProp RTyCon RTyVar r]
           -> [RType RTyCon RTyVar r]
           -> (RType RTyCon RTyVar r)
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
-  = undefined 
-{- 
-  = do when (kindTCArity c < length ts) (Ex.throw err)
-       return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
+  = if (GM.kindTCArity c < length ts) 
+      then uError err
+      else tyApp (RT.subsTyVars_meet su $ RT.ofType rhs) (drop nts ts) rs r
     where
-       tvs = [ v | (v, b) <- zip (tyConTyVarsDef c) (tyConBinders c), isAnonBinder b]
-       su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
+       tvs = [ v | (v, b) <- zip (GM.tyConTyVarsDef c) (Ghc.tyConBinders c), GM.isAnonBinder b]
+       su  = zipWith (\a t -> (RT.rTyVar a, toRSort t, t)) tvs ts
        nts = length tvs
 
-       err :: Error
-       err = ErrAliasApp (sourcePosSrcSpan l) (pprint c) (getSrcSpan c)
-                         (text "Expects " <+> (pprint $ realTcArity c) <+> text "arguments, but is given" <+> (pprint $ length ts))
-
+       err :: UserError
+       err = ErrAliasApp (GM.sourcePosSrcSpan l) (pprint c) (Ghc.getSrcSpan c)
+                         (PJ.hcat [ PJ.text "Expects"
+                                  , pprint (GM.realTcArity c) 
+                                  , PJ.text "arguments, but is given" 
+                                  , pprint (length ts) ] )
 -- TODO expandTypeSynonyms here to
-bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t
-  = return (expandRTypeSynonyms $ t `strengthen` r)
-  where t = rApp c ts rs mempty
+bareTCApp r (Loc _ _ c) rs ts | Ghc.isFamilyTyCon c && isTrivial t
+  = expandRTypeSynonyms (t `RT.strengthen` r)
+  where t = RT.rApp c ts rs mempty
 
 bareTCApp r (Loc _ _ c) rs ts
-  = return $ rApp c ts rs r
+  = RT.rApp c ts rs r
 
--}
 
 tyApp :: F.Reftable r => RType c tv r -> [RType c tv r] -> [RTProp c tv r] -> r 
       -> RType c tv r
@@ -353,6 +369,6 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `F.meet` r
 tyApp t                []  []  r  = t `RT.strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar r))
-                    => RRType r -> RRType r
+expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
 expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType
+                   

@@ -258,6 +258,8 @@ exprArg msg z
 
 --------------------------------------------------------------------------------
 
+type SpecRTProp r = RTProp RTyCon RTyVar r 
+
 bareTCApp :: (Monad m, PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
           => r
           -> Located TyCon
@@ -291,6 +293,8 @@ tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `F.meet` r
 tyApp t                []  []  r  = t `strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
-expandRTypeSynonyms :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar r))
-                    => RRType r -> RRType r
+
+type Expandable r = (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar r))
+
+expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
 expandRTypeSynonyms = ofType . expandTypeSynonyms . toType
