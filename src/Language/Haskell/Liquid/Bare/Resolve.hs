@@ -3,6 +3,7 @@
 --   2. USE the environment to translate plain symbols into Var, TyCon, etc. 
 
 {-# LANGUAGE TypeSynonymInstances  #-}
+{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE ScopedTypeVariables   #-}
@@ -26,7 +27,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
   -- * Conversions from Bare
   , ofBareType
-  , ofBareExpr
+  -- , ofBareExpr
   ) where 
 
 import qualified Data.Maybe                        as Mb
@@ -38,12 +39,16 @@ import qualified Var                               as Ghc
 import qualified Module                            as Ghc
 import qualified GHC                               as Ghc
 import qualified DataCon                           as Ghc
+import qualified TysWiredIn                        as Ghc 
+import qualified BasicTypes                        as Ghc 
+import qualified Type                              as Ghc 
 
-import qualified Language.Fixpoint.Types           as F 
-import qualified Language.Fixpoint.Misc            as Misc 
+import qualified Language.Fixpoint.Types               as F 
+import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Haskell.Liquid.Types   
-import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
-import qualified Language.Haskell.Liquid.Measure   as Ms
+import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
+import qualified Language.Haskell.Liquid.Measure       as Ms
+import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
 
@@ -220,8 +225,6 @@ instance ResolveSym F.Symbol where
     Left e               -> Right (val lx)
     Right (v :: Ghc.Var) -> Right (F.symbol v)
 
-
-
 resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
 resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x) 
 
@@ -238,13 +241,118 @@ class Resolvable a where
 instance Resolvable F.Qualifier where 
   resolve _ _ _ q = q -- TODO-REBARE 
 
--------------------------------------------------------------------------------
--- MOVE INTO RESOLVE 
--------------------------------------------------------------------------------
+instance Resolvable RReft where 
+  resolve _ _ _ r = r -- TODO-REBARE 
 
+instance Resolvable F.Expr where 
+  resolve _ _ _ e = e -- TODO-REBARE 
+  
+instance Resolvable a => Resolvable (Located a) where 
+  resolve env name _ lx = F.atLoc lx (resolve env name (F.loc lx) (val lx))
+
+-------------------------------------------------------------------------------
+-- | HERE 
+-------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> Located BareType -> Located SpecType 
-ofBareType = undefined  
+ofBareType = undefined 
 
-ofBareExpr :: Env -> ModName -> Located F.Expr -> Located F.Expr 
-ofBareExpr = undefined 
+ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
+ofBSort env name l = undefined 
 
+ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
+ofBPVar env name l = fmap (ofBSort env name l) 
+--------------------------------------------------------------------------------
+
+ofBRType :: (F.Reftable r) => Env -> ModName -> (Env -> ModName -> Located r -> Located r) 
+           -> Located (BRType r) -> Located (RRType r) 
+ofBRType env name f lt   = go <$> lt
+  where
+    goReft r             = val (f env name (F.atLoc lt r))
+    go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) (goReft r)
+    go (RApp tc ts rs r) = goRApp tc ts rs r 
+    go (RImpF x t1 t2 r) = goRImpF x t1 t2 r 
+    go (RFun  x t1 t2 r) = goRFun  x t1 t2 r 
+    go (RVar a r)        = RVar (RT.bareRTyVar a)   (goReft r)
+    go (RAllT a t)       = RAllT a' (go t) 
+      where a'           = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a) 
+    go (RAllP a t)       = RAllP a' (go t) 
+      where a'           = ofBPVar env name (F.loc lt) a 
+    go (RAllS x t)       = RAllS x (go t)
+    go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
+    go (REx x t1 t2)     = REx   x (go t1) (go t2)
+    go (RRTy e r o t)    = RRTy  e'  (goReft r) o (go t)
+      where e'           = Misc.mapSnd go <$> e
+    go (RHole r)         = RHole (goReft r) 
+    go (RExprArg le)     = RExprArg (resolve env name (F.loc le) le) 
+    goRef (RProp ss (RHole r)) = rPropP (goSyms <$> ss) (goReft r)
+    goRef (RProp ss t)         = RProp  (goSyms <$> ss) (go t)
+    goSyms (x, t)              = (x, ofBSort env name (F.loc lt) t) 
+    goRImpF x t1 t2 r          = RImpF x (rebind x (go t1)) (go t2) (goReft r)
+    goRFun x t1 t2 r           = RFun x (rebind x (go t1)) (go t2) (goReft r)
+    goRApp tc ts rs r          = bareTCApp (goReft r) lc' (goRef <$> rs) (go <$> ts)
+      where
+        lc'                    = F.atLoc lc (matchTyCon env name lc (length ts))
+        lc                     = btc_tc tc
+    goRApp _ _ _ _             = impossible Nothing "goRApp failed through to final case"
+    rebind x t                 = F.subst1 t (x, F.EVar $ rTypeValueVar t)
+
+    -- TODO-REBARE: goRImpF bounds _ (RApp c ps' _ _) t _
+    -- TODO-REBARE:  | Just bnd <- M.lookup (btc_tc c) bounds
+    -- TODO-REBARE:   = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
+    -- TODO-REBARE:        ts <- mapM go ts'
+    -- TODO-REBARE:        makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
+    -- TODO-REBARE: goRFun bounds _ (RApp c ps' _ _) t _
+    -- TODO-REBARE: | Just bnd <- M.lookup (btc_tc c) bounds
+    -- TODO-REBARE: = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
+    -- TODO-REBARE: ts <- mapM go ts'
+    -- TODO-REBARE: makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
+
+  -- TODO-REBARE: ofBareRApp env name t@(F.Loc _ _ !(RApp tc ts _ r))
+  -- TODO-REBARE: | Loc l _ c <- btc_tc tc
+  -- TODO-REBARE: , Just rta <- M.lookup c aliases
+  -- TODO-REBARE: = appRTAlias l rta ts =<< resolveReft r
+
+matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Ghc.TyCon
+matchTyCon env name lc@(Loc _ _ c) arity
+  | isList c && arity == 1  = Ghc.listTyCon
+  | isTuple c               = Ghc.tupleTyCon Ghc.Boxed arity
+  | otherwise               = strictResolveSym env name "matchTyCon" lc 
+
+bareTCApp :: r
+          -> Located Ghc.TyCon
+          -> [RTProp RTyCon RTyVar r]
+          -> [RType RTyCon RTyVar r]
+          -> (RType RTyCon RTyVar r)
+bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
+  = undefined 
+{- 
+  = do when (kindTCArity c < length ts) (Ex.throw err)
+       return $ tyApp (subsTyVars_meet su $ ofType rhs) (drop nts ts) rs r
+    where
+       tvs = [ v | (v, b) <- zip (tyConTyVarsDef c) (tyConBinders c), isAnonBinder b]
+       su  = zipWith (\a t -> (rTyVar a, toRSort t, t)) tvs ts
+       nts = length tvs
+
+       err :: Error
+       err = ErrAliasApp (sourcePosSrcSpan l) (pprint c) (getSrcSpan c)
+                         (text "Expects " <+> (pprint $ realTcArity c) <+> text "arguments, but is given" <+> (pprint $ length ts))
+
+-- TODO expandTypeSynonyms here to
+bareTCApp r (Loc _ _ c) rs ts | isFamilyTyCon c && isTrivial t
+  = return (expandRTypeSynonyms $ t `strengthen` r)
+  where t = rApp c ts rs mempty
+
+bareTCApp r (Loc _ _ c) rs ts
+  = return $ rApp c ts rs r
+
+-}
+
+tyApp :: F.Reftable r => RType c tv r -> [RType c tv r] -> [RTProp c tv r] -> r 
+      -> RType c tv r
+tyApp (RApp c ts rs r) ts' rs' r' = RApp c (ts ++ ts') (rs ++ rs') (r `F.meet` r')
+tyApp t                []  []  r  = t `RT.strengthen` r
+tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
+
+expandRTypeSynonyms :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar r))
+                    => RRType r -> RRType r
+expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType

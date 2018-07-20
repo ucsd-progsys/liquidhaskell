@@ -76,6 +76,7 @@ import qualified Language.Haskell.Liquid.Bare.Expand        as Bare
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
+-- import qualified Language.Haskell.Liquid.Bare.OfType        as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check

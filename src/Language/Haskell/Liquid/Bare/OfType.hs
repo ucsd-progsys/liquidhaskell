@@ -43,13 +43,13 @@ import Language.Haskell.Liquid.Types
 import Language.Haskell.Liquid.Types.Bounds
 
 -- import Language.Haskell.Liquid.Bare.Env
-import Language.Haskell.Liquid.Bare.Expand
-import Language.Haskell.Liquid.Bare.Lookup
+-- import Language.Haskell.Liquid.Bare.Expand
+-- import Language.Haskell.Liquid.Bare.Lookup
 import Language.Haskell.Liquid.Bare.Resolve
 
 -- import Data.Data (toConstr)
 
---------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 ofBareType :: SourcePos -> BareType -> BareM SpecType
 ofBareType l bt =  ofBRType expandRTAliasApp (resolve l <=< expand l) bt
 
@@ -58,6 +58,7 @@ ofMeaSort = ofBRType failRTAliasApp return
 
 ofBSort :: BSort -> BareM RSort
 ofBSort = ofBRType failRTAliasApp return
+
 --------------------------------------------------------------------------------
 ofBPVar :: BPVar -> BareM RPVar
 ofBPVar = mapMPvar ofBSort
@@ -67,12 +68,15 @@ mapMPvar f (PV x t v txys)
   = do t'    <- forM t f
        txys' <- mapM (\(t, x, y) -> liftM (, x, y) (f t)) txys
        return $ PV x t' v txys'
+
 --------------------------------------------------------------------------------
 mkLSpecType :: Located BareType -> BareM (Located SpecType)
 mkLSpecType !t = F.atLoc t <$> mkSpecType (loc t) (val t)
 
 mkSpecType :: SourcePos -> BareType -> BareM SpecType
-mkSpecType l t = mkSpecType' l (ty_preds $ toRTypeRep t) t
+mkSpecType l t = mkSpecType' l πs t
+  where 
+    πs         = ty_preds (toRTypeRep t)
 
 mkSpecType' :: SourcePos -> [PVar BSort] -> BareType -> BareM SpecType
 mkSpecType' l πs t = ofBRType expandRTAliasApp resolveReft t
