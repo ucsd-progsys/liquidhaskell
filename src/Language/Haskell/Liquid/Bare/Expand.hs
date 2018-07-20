@@ -24,8 +24,8 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (fSrcSpan) -- , sourc
 import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.Measure      as Ms
 
+import qualified Language.Haskell.Liquid.Measure      as Ms
 import qualified Language.Haskell.Liquid.Bare.Resolve as Bare
 import qualified Language.Haskell.Liquid.Bare.Types   as Bare
 
@@ -42,7 +42,7 @@ makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> L
 --------------------------------------------------------------------------------
 makeRTEnv env m lfSpec specs lmap = makeRTAliases tAs (makeREAliases eAs) 
   where
-    tAs   = [ {- specRTAlias env m -} t | (m, s) <- specs, t <- Ms.aliases  s ]
+    tAs   = [ {- specRTAlias env m -} t | (_m, s) <- specs, t <- Ms.aliases  s ]
     eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s ]
          ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec        ]                        
          ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
