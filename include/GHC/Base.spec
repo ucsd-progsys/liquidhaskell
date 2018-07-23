@@ -14,20 +14,18 @@ instance measure len :: forall a. [a] -> GHC.Types.Int
 len []     = 0
 len (y:ys) = 1 + len ys
 
-
 // measure null :: [a] -> Bool
 // null []     = true 
 // null (y:ys) = false
 
-measure fst :: (a,b) -> a
-fst (a,b) = a
+measure fst :: (a, b) -> a
+fst (a, b) = a
 
-measure snd :: (a,b) -> b
-snd (a,b) = b
+measure snd :: (a, b) -> b
+snd (a, b) = b
 
-
-qualif Fst(__v:a, __y:b): (__v = (fst __y))
-qualif Snd(__v:a, __y:b): (__v = (snd __y))
+// TODO-REBARE qualif Fst(__v:a, __y:b): (__v = (fst __y))
+// TODO-REBARE qualif Snd(__v:a, __y:b): (__v = (snd __y))
 
 
 invariant {v: [a] | len v >= 0 }

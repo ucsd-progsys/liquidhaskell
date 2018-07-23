@@ -322,7 +322,6 @@ data GhcInfo = GI
   , giSpec      :: !GhcSpec        -- ^ All specification information for module
   }
 
-
 data GhcSrc = Src 
   { giTarget    :: !FilePath            -- ^ Source file for module
   , giTargetMod :: !ModName             -- ^ Name for module
@@ -336,6 +335,7 @@ data GhcSrc = Src
   , gsExports   :: !NameSet             -- ^ `Name`s exported by the module being verified
   , gsFiTcs     :: ![TyCon]             -- ^ Family instance TyCons 
   , gsFiDcs     :: ![(Symbol, DataCon)] -- ^ Family instance dataCons 
+  , gsPrimTcs   :: ![TyCon]             -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
   }
 
 data GhcSpec = SP 

@@ -1,9 +1,9 @@
 module spec GHC.Types where
 
-// embed GHC.Prim.Int#     as int
+embed GHC.Prim.Int#     as int
 embed GHC.Prim.Addr#    as Str
 embed GHC.Prim.Char#    as Char
-// embed GHC.Types.Double#  as real
+embed GHC.Types.Double#  as real
 
 // TODO: Drop prefix below
 // GHC.Types.EQ :: {v:GHC.Types.Ordering | v = (cmp v) }
@@ -19,7 +19,7 @@ embed GHC.Prim.Char#    as Char
 GHC.Types.True  :: {v:GHC.Types.Bool | v     }
 GHC.Types.False :: {v:GHC.Types.Bool | (~ v) }
 
-GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | ((n = 1) <=> ((v)))}
+GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
 
 GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 

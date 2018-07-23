@@ -50,6 +50,7 @@ import NameSet
 import FastString
 import FamInstEnv
 import FamInst
+import qualified TysPrim
 import GHC.LanguageExtensions
 
 import Control.Exception
@@ -389,6 +390,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsCls       = mgi_cls_inst modGuts 
     , gsFiTcs     = fiTcs 
     , gsFiDcs     = fiDcs
+    , gsPrimTcs   = TysPrim.primTyCons
     }
 
 ---------------------------------------------------------------------------------------

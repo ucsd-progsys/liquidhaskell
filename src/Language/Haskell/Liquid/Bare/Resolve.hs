@@ -50,10 +50,6 @@ import qualified Name                              as Ghc
 -- import Type (expandTypeSynonyms)
 -- import TysWiredIn
 
-
-
-
-
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Haskell.Liquid.Types   
@@ -63,6 +59,72 @@ import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
 
+-------------------------------------------------------------------------------
+-- | Creating an environment 
+-------------------------------------------------------------------------------
+makeEnv :: GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> Env 
+makeEnv src specs lmap = RE 
+  { reLMap      = lmap
+  , reSyms      = syms 
+  , reSpecs     = specs 
+  , _reSubst    = F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
+  , _reTyThings = makeTyThingMap src 
+  } 
+  where 
+    syms     = [ (F.symbol v, v) | v <- vars ] 
+    vars     = srcVars src
+
+makeTyThingMap :: GhcSrc -> TyThingMap 
+makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
+                                              , let (m, x) = thingNames t ] 
+  where
+    thingNames     = GM.splitModuleName . F.symbol
+
+srcThings :: GhcSrc -> [Ghc.TyThing] 
+srcThings src = [ Ghc.AnId   x | x <- vars ++ dcVars ] 
+             ++ [ Ghc.ATyCon c | c <- tcs            ] 
+             ++ [ aDataCon   d | d <- dcs            ] 
+  where 
+    dcVars    = dataConVars dcs 
+    dcs       = concatMap Ghc.tyConDataCons tcs 
+    tcs       = F.tracepp "SRC-TYCONS" $ srcTyCons src  
+    vars      = srcVars     src
+    aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
+
+srcTyCons :: GhcSrc -> [Ghc.TyCon]
+srcTyCons src = concat 
+  [ gsTcs     src 
+  , gsFiTcs   src 
+  , gsPrimTcs src
+  , srcVarTcs src 
+  ]
+
+srcVarTcs :: GhcSrc -> [Ghc.TyCon]
+srcVarTcs = concatMap (typeTyCons . Ghc.varType) . srcVars 
+
+typeTyCons :: Ghc.Type -> [Ghc.TyCon]
+typeTyCons t = tops t ++ inners t 
+  where 
+    tops     = Mb.maybeToList . Ghc.tyConAppTyCon_maybe
+    inners   = concatMap typeTyCons . snd . Ghc.splitAppTys 
+
+-- tyConAppTyCon_maybe :: Type -> Maybe TyCon 
+-- splitAppTys :: Type -> (Type, [Type]) 
+
+
+srcVars :: GhcSrc -> [Ghc.Var]
+srcVars src = concat 
+  [ giDerVars src
+  , giImpVars src 
+  , giDefVars src 
+  , giUseVars src 
+  ]
+
+dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
+dataConVars dcs = concat 
+  [ Ghc.dataConWorkId <$> dcs 
+  , Ghc.dataConWrapId <$> dcs 
+  ] 
 -------------------------------------------------------------------------------
 -- | Qualify various names 
 -------------------------------------------------------------------------------
@@ -100,58 +162,13 @@ instance Qualify TyConInfo where
 instance Qualify RTyCon where 
   qualify env name rtc = rtc { rtc_info = qualify env name $ rtc_info rtc }
 
--------------------------------------------------------------------------------
--- | Creating an environment 
--------------------------------------------------------------------------------
-makeEnv :: GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> Env 
-makeEnv src specs lmap = RE 
-  { reLMap      = lmap
-  , reSyms      = syms 
-  , reSpecs     = specs 
-  , _reSubst    = F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
-  , _reTyThings = makeTyThingMap src 
-  } 
-  where 
-    syms     = [ (F.symbol v, v) | v <- vars ] 
-    vars     = srcVars src
 
-makeTyThingMap :: GhcSrc -> TyThingMap 
-makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
-                                              , let (m, x) = thingNames t ] 
-  where
-    thingNames     = GM.splitModuleName . F.symbol
 
-srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = [ Ghc.AnId   x | x <- vars ++ dcVars ] 
-             ++ [ Ghc.ATyCon c | c <- tcs            ] 
-             ++ [ aDataCon   d | d <- dcs            ] 
-  where 
-    dcVars    = dataConVars dcs 
-    dcs       = concatMap Ghc.tyConDataCons tcs 
-    tcs       = srcTyCons   src 
-    vars      = srcVars     src
-    aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
 
-srcTyCons :: GhcSrc -> [Ghc.TyCon]
-srcTyCons src = concat 
-  [ gsTcs   src 
-  , gsFiTcs src 
-  ]
 
-srcVars :: GhcSrc -> [Ghc.Var]
-srcVars src = concat 
-  [ giDerVars src
-  , giImpVars src 
-  , giDefVars src 
-  , giUseVars src 
-  ]
 
-dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
-dataConVars dcs = concat 
-  [ Ghc.dataConWorkId <$> dcs 
-  , Ghc.dataConWrapId <$> dcs 
-  ] 
 
+  
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 lookupTyThing env name sym = [ t | (m, t) <- M.lookupDefault [] x (_reTyThings env), m == mod ] 
   where 

@@ -45,6 +45,7 @@ import           Control.Monad.State
 import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
+import           Data.Either                                (rights)
 
 import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 
@@ -154,7 +155,10 @@ makeEmbeds src env
 
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec) 
-  = F.tceMap (Bare.strictResolveSym env name "TyCon") (Ms.embeds spec)
+  = F.tceFromList 
+      [ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec) 
+                , tc    <- rights [Bare.resolveLocSym env name "embed-TyCon" c]]
+               
 
 --  makeRTEnv name lSpec0 specs lmap
 
