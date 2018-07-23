@@ -54,6 +54,7 @@ data SigEnv = SigEnv
   { sigEmbs       :: !(F.TCEmb Ghc.TyCon) 
   , sigTyRTyMap   :: !(M.HashMap Ghc.TyCon RTyCon)
   , sigExports    :: !Ghc.NameSet
+  , sigRTEnv      :: !BareRTEnv
   }
 
 -------------------------------------------------------------------------------

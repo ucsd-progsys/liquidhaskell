@@ -138,9 +138,9 @@ makeGhcSpec cfg src specs lmap = SP
     tyi      = Bare.tcTyConMap   tycEnv 
     name     = giTargetMod  src 
     mySpec   = fromMaybe mempty (lookup name specs)
-    rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
-    sigEnv   = makeSigEnv embs tyi (gsExports src) 
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec 
+    sigEnv   = makeSigEnv embs tyi (gsExports src) rtEnv 
+    rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
     tycEnv   = makeTycEnv   cfg name env embs 
     embs     = makeEmbeds   src env
     env      = Bare.makeEnv src specs lmap  
@@ -362,12 +362,12 @@ makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Var, LocSpe
 makeTySigs env sigEnv name spec = 
   [ (x, cookSpecType env sigEnv name x t) | (x, t) <- rawTySigs env name spec ] 
 
-rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)]
+rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, LocBareType)]
 rawTySigs env name spec = 
-  [ (v, t') 
+  [ (v, t) 
       | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
       , let v   = Bare.strictResolveSym env name "Var" x 
-      , let t'  = makeRawSig env name t
+      -- , let t'  = makeRawSig env name t
   ] 
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> [(ModName, Ms.BareSpec)] -> [(Var, LocSpecType)]
@@ -378,31 +378,46 @@ makeAsmSigs env sigEnv myName specs =
 --  let asms  = F.notracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
 --        asmSigs     <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
       -- tx       = fmap . mapSnd . subst $ su
-rawAsmSigs :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocSpecType)]
+rawAsmSigs :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocBareType)]
 rawAsmSigs env specs =  
-  [ (name, v, t') 
+  [ (name, v, t) 
       | (name, spec) <- specs
       , (x   , t)    <- Ms.asmSigs spec
       , v            <- maybeToList (Bare.maybeResolveSym env name "rawAsmVar" x)
-      , let t'        = makeRawSig env name t 
+      -- , let t'        = makeRawSig env name t 
   ] 
                                
-makeRawSig :: Bare.Env -> ModName -> LocBareType -> LocSpecType
-makeRawSig env name lt = F.atLoc lt st 
-  where 
-    st                 = Bare.ofBareType       env name l     (val lt) 
-    l                  = F.loc lt
+-- makeRawSig :: Bare.Env -> ModName -> LocBareType -> LocSpecType
+-- makeRawSig env name lt = F.atLoc lt st 
+  -- where 
+    -- st                 = Bare.ofBareType env name l (val lt) 
+    -- l                  = F.loc lt
 
--- TODO-REBARE: see Cooking-SpecType
-cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
+
+
+----------------------------------------------------------------------------------------
+-- | @cookSpecType@ is the central place where a @BareType@ gets processed, 
+--   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
+--   details of each of the individual steps.
+----------------------------------------------------------------------------------------
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Var -> LocBareType -> LocSpecType 
+----------------------------------------------------------------------------------------
 cookSpecType env sigEnv name x
   = id 
   -- TODO-REBARE . strengthenMeasures env sigEnv      x 
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
   -- TODO-REBARE . fmap fixCoercions
   . fmap generalize
-  . plugHoles              sigEnv name x
+  . plugHoles          sigEnv name x
   . Bare.qualify       env name 
+  . bareSpecType       env name 
+  . bareExpandType     sigEnv
+
+bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
+bareExpandType sigEnv = Bare.expand (Bare.sigRTEnv sigEnv) 
+
+bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
+bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt
 
 {- TODO-REBARE: 
 fixCoercions :: txCoerce 
@@ -423,7 +438,6 @@ bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
     vs'        = freeTyVars    $ t
 -}
 
-
 plugHoles :: Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
 plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
   where 
@@ -431,11 +445,12 @@ plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
     tyi               = Bare.sigTyRTyMap sigEnv 
     exports           = Bare.sigExports  sigEnv 
 
-makeSigEnv :: F.TCEmb TyCon -> _ -> NameSet -> Bare.SigEnv 
-makeSigEnv embs tyi exports = Bare.SigEnv
+makeSigEnv :: F.TCEmb TyCon -> _ -> NameSet -> BareRTEnv -> Bare.SigEnv 
+makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   { sigEmbs     = embs 
   , sigTyRTyMap = tyi 
   , sigExports  = exports 
+  , sigRTEnv    = rtEnv
   } 
 
 {- [NOTE:Cooking-SpecType] 
@@ -445,10 +460,12 @@ makeSigEnv embs tyi exports = Bare.SigEnv
 
     A @SigEnv@ should contain _all_ the information needed to do the below steps.
 
-    ? expand               : resolving all type/refinement etc. aliases [Should be done INSIDE ofBareType?]
+    - expand               : resolving all type/refinement etc. aliases 
+    - ofType               : convert BareType -> SpecType
     - plugged              : filling in any remaining "holes"
     - txRefSort            : filling in the abstract-refinement predicates etc. (YUCK) 
     - resolve              : renaming / qualifying symbols?
+    - generalize           : (universally) quantify free type variables 
     - strengthen-measures  : ?
     - strengthen-inline(?) : ? 
 

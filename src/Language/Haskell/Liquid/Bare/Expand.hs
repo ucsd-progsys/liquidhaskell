@@ -227,3 +227,6 @@ instance Expand (RTAlias Symbol Expr) where
 
 instance Expand BareRTAlias where 
   expand _ x = x -- TODO-REBARE 
+
+instance Expand BareType where 
+  expand _ x = x -- TODO-REBARE

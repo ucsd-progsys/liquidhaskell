@@ -18,10 +18,10 @@
 ## Features
 
 - [x] asserted-sigs
-- [ ] unqualified imports
-- [ ] assumed-sigs
-- [ ] importing-specs
-- [ ] alias
+- [x] unqualified imports
+- [x] assumed-sigs
+- [x] importing-specs
+- [o] alias
 - [ ] measures
 - [ ] importing-specs
 - [ ] termination
