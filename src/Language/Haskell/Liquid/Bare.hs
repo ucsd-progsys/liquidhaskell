@@ -45,7 +45,6 @@ import           Control.Monad.State
 import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
-import           Data.Either                                (rights)
 
 import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 
@@ -155,9 +154,10 @@ makeEmbeds src env
 
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec) 
-  = F.tceFromList 
-      [ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec) 
-                , tc    <- rights [Bare.resolveLocSym env name "embed-TyCon" c]]
+  = F.tceFromList [ (tc, t) 
+                    | (c,t) <- F.tceToList (Ms.embeds spec) 
+                    , tc    <- maybeToList (Bare.maybeResolveSym env name "embed-TyCon" c)
+                  ]
                
 
 --  makeRTEnv name lSpec0 specs lmap
@@ -349,8 +349,8 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> [(ModName, Ms.BareSpec)] -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = makeTySigs env sigEnv name mySpec 
-  , gsAsmSigs  = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
+  { gsTySigs   = makeTySigs  env sigEnv name mySpec 
+  , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
@@ -358,20 +358,40 @@ makeSpecSig name specs env sigEnv = SpSig
   where 
     mySpec     = fromMaybe mempty (lookup name specs)
 
-makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec 
-           -> [(Var, LocSpecType)]
+makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
   [ (x, cookSpecType env sigEnv name x t) | (x, t) <- rawTySigs env name spec ] 
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)]
 rawTySigs env name spec = 
-  [ makeRawSig env name x t | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec ] 
+  [ (v, t') 
+      | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
+      , let v   = Bare.strictResolveSym env name "Var" x 
+      , let t'  = makeRawSig env name t
+  ] 
 
-makeRawSig :: Bare.Env -> ModName -> LocSymbol -> LocBareType -> (Var, LocSpecType)
-makeRawSig env name x (Loc l l' bt) = (v, Loc l l' st) 
+makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> [(ModName, Ms.BareSpec)] -> [(Var, LocSpecType)]
+makeAsmSigs env sigEnv myName specs = 
+  [ (x, cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env specs ] 
+
+--  asms'    <- F.notracepp "MAKE-ASSUME-SPEC-1" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
+--  let asms  = F.notracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
+--        asmSigs     <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
+      -- tx       = fmap . mapSnd . subst $ su
+rawAsmSigs :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocSpecType)]
+rawAsmSigs env specs =  
+  [ (name, v, t') 
+      | (name, spec) <- specs
+      , (x   , t)    <- Ms.asmSigs spec
+      , v            <- maybeToList (Bare.maybeResolveSym env name "rawAsmVar" x)
+      , let t'        = makeRawSig env name t 
+  ] 
+                               
+makeRawSig :: Bare.Env -> ModName -> LocBareType -> LocSpecType
+makeRawSig env name lt = F.atLoc lt st 
   where 
-    v  = Bare.strictResolveSym env name "Var" x  
-    st = Bare.ofBareType       env name l     bt  
+    st                 = Bare.ofBareType       env name l     (val lt) 
+    l                  = F.loc lt
 
 -- TODO-REBARE: see Cooking-SpecType
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
@@ -379,8 +399,30 @@ cookSpecType env sigEnv name x
   = id 
   -- TODO-REBARE . strengthenMeasures env sigEnv      x 
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
+  -- TODO-REBARE . fmap fixCoercions
+  . fmap generalize
   . plugHoles              sigEnv name x
   . Bare.qualify       env name 
+
+{- TODO-REBARE: 
+fixCoercions :: txCoerce 
+
+mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
+mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
+  where
+    coSub           = {- F.tracepp _msg $ -} M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
+    _msg            = "mkVarSpec v = " ++ F.showpp (v, b)
+    tvs             = bareTypeVars (val b)
+    specTvSymbol    = F.symbol . bareRTyVar
+    txCoerce        = mapExprReft (\_ -> F.applyCoSub coSub)
+
+bareTypeVars :: BareType -> [BTyVar]
+bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
+  where
+    vs         = fst4 . bkUniv $ t
+    vs'        = freeTyVars    $ t
+-}
+
 
 plugHoles :: Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
 plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
@@ -919,8 +961,6 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let minvs = makeMeasureInvariants sigs hms
   checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
-
-
 
 
 checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()

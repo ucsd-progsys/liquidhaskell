@@ -17,7 +17,8 @@
 
 ## Features
 
-- [ ] asserted-sigs
+- [x] asserted-sigs
+- [ ] unqualified imports
 - [ ] assumed-sigs
 - [ ] importing-specs
 - [ ] alias

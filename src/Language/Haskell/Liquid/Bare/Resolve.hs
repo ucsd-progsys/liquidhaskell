@@ -16,7 +16,8 @@ module Language.Haskell.Liquid.Bare.Resolve
 
     -- * Resolving symbols 
   , ResolveSym (..)
-  , strictResolveSym 
+  , strictResolveSym
+  , maybeResolveSym 
 
   , Qualify (..)
 
@@ -87,7 +88,7 @@ srcThings src = [ Ghc.AnId   x | x <- vars ++ dcVars ]
   where 
     dcVars    = dataConVars dcs 
     dcs       = concatMap Ghc.tyConDataCons tcs 
-    tcs       = F.tracepp "SRC-TYCONS" $ srcTyCons src  
+    tcs       = {- F.tracepp "SRC-TYCONS" $ -} srcTyCons src  
     vars      = srcVars     src
     aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
 
@@ -162,40 +163,6 @@ instance Qualify TyConInfo where
 instance Qualify RTyCon where 
   qualify env name rtc = rtc { rtc_info = qualify env name $ rtc_info rtc }
 
-
-
-
-
-
-
-  
-lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
-lookupTyThing env name sym = [ t | (m, t) <- M.lookupDefault [] x (_reTyThings env), m == mod ] 
-  where 
-    (mod, x)               = unQualifySymbol name sym
- 
--- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
---   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).
-
-unQualifySymbol :: ModName -> F.Symbol -> (F.Symbol, F.Symbol)
-unQualifySymbol name sym 
-  | GM.isQualifiedSym sym = GM.splitModuleName sym 
-  | otherwise             = (F.symbol name, sym)
-
--- srcDataCons :: GhcSrc -> [Ghc.DataCon]
--- srcDataCons src = concatMap Ghc.tyConDataCons (srcTyCons src) 
-
-{- 
-  let expSyms     = S.toList (exportedSymbols mySpec)
-  syms0 <- liftedVarMap (varInModule name) expSyms
-  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
-  syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
-  let fSyms =  freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
-            ++ measureSymbols measures
-   * Symbol :-> [(ModuleName, TyCon)]
-   * Symbol :-> [(ModuleName, Var  )]
-   * 
- -}
  
 instance F.Symbolic Ghc.TyThing where 
   symbol = tyThingSymbol 
@@ -236,7 +203,44 @@ resolveWith f env name kind lx =
     x:_ -> Right x 
   where 
     things         = lookupTyThing env name (val lx) 
-      
+
+-------------------------------------------------------------------------------
+-- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
+--   any @Ghc.TyThing@ that match that name.  
+-------------------------------------------------------------------------------
+lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
+-------------------------------------------------------------------------------
+lookupTyThing env _name sym = [ t | (m, t) <- M.lookupDefault [] x (_reTyThings env)
+                                  , matchMod m modMb 
+                              ] 
+  where 
+    (modMb, x)               = {- F.tracepp "lookupTyThing" $ -} unQualifySymbol sym
+    matchMod _ Nothing       = True 
+    matchMod m (Just m')     = m == m'         
+ 
+-- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
+--   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).
+unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)
+unQualifySymbol sym 
+  | GM.isQualifiedSym sym = Misc.mapFst Just (GM.splitModuleName sym) 
+  | otherwise             = (Nothing, sym) 
+
+-- srcDataCons :: GhcSrc -> [Ghc.DataCon]
+-- srcDataCons src = concatMap Ghc.tyConDataCons (srcTyCons src) 
+
+{- 
+  let expSyms     = S.toList (exportedSymbols mySpec)
+  syms0 <- liftedVarMap (varInModule name) expSyms
+  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
+  syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
+  let fSyms =  freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
+            ++ measureSymbols measures
+   * Symbol :-> [(ModuleName, TyCon)]
+   * Symbol :-> [(ModuleName, Var  )]
+   * 
+ -}   
+
+
 errResolve :: String -> LocSymbol -> UserError 
 errResolve kind lx = ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
   where 
@@ -263,6 +267,15 @@ strictResolveSym env name kind x = case resolveLocSym env name kind x of
   Left  err -> uError err 
   Right val -> val 
 
+-- | @maybeResolve@ wraps the plain @resolve@ to return @Nothing@ 
+--   if the name being searched for is unknown.
+maybeResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> Maybe a 
+maybeResolveSym env name kind x = case resolveLocSym env name kind x of 
+  Left  _   -> Nothing 
+  Right val -> Just val 
+
+
+  
 class Resolvable a where 
   resolve :: Env -> ModName -> F.SourcePos -> a -> a  
 

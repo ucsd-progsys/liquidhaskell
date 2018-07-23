@@ -21,7 +21,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Misc (fst3)
 import           Language.Fixpoint.Types (Expr(..), Symbol, symbol) -- , tracepp)
 import qualified Language.Haskell.Liquid.GHC.Misc as GM -- (fSrcSpan) -- , sourcePosSrcSpan)
-import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
+-- import           Language.Haskell.Liquid.Types.RefType (symbolRTyVar)
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Types
 
