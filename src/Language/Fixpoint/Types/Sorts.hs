@@ -69,6 +69,7 @@ module Language.Fixpoint.Types.Sorts (
   , tceMember 
   , tceInsert
   , tceInsertWith
+  , tceMap
   ) where
 
 import qualified Data.Binary as B
@@ -504,6 +505,9 @@ instance (Eq a, Hashable a) => Semigroup (TCEmb a) where
 
 instance (Eq a, Hashable a) => Monoid (TCEmb a) where 
   mempty                    = TCE mempty 
+
+tceMap :: (Eq b, Hashable b) => (a -> b) -> TCEmb a -> TCEmb b
+tceMap f = tceFromList . fmap (mapFst f) . tceToList 
 
 tceFromList :: (Eq a, Hashable a) => [(a, (Sort, TCArgs))] -> TCEmb a
 tceFromList = TCE . M.fromList 

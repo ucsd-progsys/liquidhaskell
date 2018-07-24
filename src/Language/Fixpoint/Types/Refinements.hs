@@ -569,8 +569,8 @@ instance PPrint Expr where
     where zi = 1
 
   -- RJ: DO NOT DELETE!
-  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
-  -- pprintPrec z k (ECst e _)      = pprintPrec z k e
+  --  pprintPrec _ k (ECst e so)     = parens $ pprint e <+> ":" <+> {- const (text "...") -} (pprintTidy k so)
+  pprintPrec z k (ECst e _)      = pprintPrec z k e
   pprintPrec _ _ PTrue           = trueD
   pprintPrec _ _ PFalse          = falseD
   pprintPrec z k (PNot p)        = parensIf (z > zn) $
