@@ -22,6 +22,7 @@ import qualified Data.List as L
 import           PrelNames                                  (fractionalClassKeys)
 import           FamInstEnv
 import           Debug.Trace
+import qualified ConLike                                    as Ghc
 
 import qualified CoreUtils
 import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)
@@ -210,11 +211,9 @@ unTickExpr x                  = x
 isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 
-
 --------------------------------------------------------------------------------
 -- | Pretty Printers -----------------------------------------------------------
 --------------------------------------------------------------------------------
-
 notracePpr :: Outputable a => String -> a -> a
 notracePpr _ x = x
 
@@ -606,7 +605,6 @@ instance NFData Type where
 
 instance NFData Var where
   rnf t = seq t ()
-
 
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------

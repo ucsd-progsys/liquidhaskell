@@ -233,6 +233,7 @@ module Language.Haskell.Liquid.Types (
   )
   where
 
+import qualified ConLike                                as Ghc
 import           InstEnv
 import           Class
 import           CoreSyn                                (CoreBind, CoreExpr)
@@ -264,6 +265,7 @@ import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import           Data.Maybe                             (fromMaybe, mapMaybe)
+import           Data.Function                          (on)
 import           Data.List                              (foldl', nub)
 import           Data.Text                              (Text)
 import           Text.PrettyPrint.HughesPJ hiding (first, (<>)) 
@@ -2301,8 +2303,31 @@ instance F.Symbolic DataCon where
 instance F.PPrint DataCon where
   pprintTidy _ = text . showPpr
 
+instance Ord TyCon where 
+  compare = compare `on` F.symbol 
+
+instance Ord DataCon where 
+  compare = compare `on` F.symbol 
+
+instance F.PPrint TyThing where 
+  pprintTidy _ = text . showPpr 
+
 instance Show DataCon where
   show = F.showpp
+
+instance F.Symbolic TyThing where 
+  symbol = tyThingSymbol 
+
+tyThingSymbol :: TyThing -> F.Symbol 
+tyThingSymbol (AnId     x) = F.symbol x
+tyThingSymbol (ATyCon   c) = F.symbol c
+tyThingSymbol (AConLike d) = conLikeSymbol d 
+tyThingSymbol _            = panic Nothing "TODO: tyThingSymbol" 
+
+conLikeSymbol :: Ghc.ConLike -> F.Symbol 
+conLikeSymbol (Ghc.RealDataCon d) = F.symbol d 
+conLikeSymbol _                   = panic Nothing "TODO: conLikeSymbol"
+
 
 
 liquidBegin :: String

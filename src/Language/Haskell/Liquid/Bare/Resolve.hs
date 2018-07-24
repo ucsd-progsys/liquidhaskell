@@ -77,19 +77,23 @@ makeEnv src specs lmap = RE
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
 makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
-                                              , let (m, x) = thingNames t ] 
-  where
-    thingNames     = GM.splitModuleName . F.symbol
+                                              , let (m, x) = tyThingName t ] 
+
+tyThingName :: Ghc.TyThing -> (F.Symbol, F.Symbol)
+tyThingName t = F.tracepp msg (splitModuleNameExact sym) 
+  where 
+    sym       = F.symbol t
+    msg       = "tyThingName: " ++ GM.showPpr t ++ " symbol = " ++ F.symbolString sym -- GM.showPpr t
+
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = [ Ghc.AnId   x | x <- vars ++ dcVars ] 
-             ++ [ Ghc.ATyCon c | c <- tcs            ] 
-             ++ [ aDataCon   d | d <- dcs            ] 
+srcThings src = [ Ghc.AnId   x | x <- vars ] 
+             ++ [ Ghc.ATyCon c | c <- tcs  ] 
+             ++ [ aDataCon   d | d <- dcs  ] 
   where 
-    dcVars    = dataConVars dcs 
-    dcs       = concatMap Ghc.tyConDataCons tcs 
-    tcs       = srcTyCons src  
-    vars      = srcVars     src
+    vars      = Misc.sortNub $ dataConVars dcs ++ srcVars   src
+    dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
+    tcs       = Misc.sortNub $ srcTyCons src  
     aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
 
 srcTyCons :: GhcSrc -> [Ghc.TyCon]
@@ -161,20 +165,7 @@ instance Qualify TyConInfo where
 
 instance Qualify RTyCon where 
   qualify env name rtc = rtc { rtc_info = qualify env name $ rtc_info rtc }
-
  
-instance F.Symbolic Ghc.TyThing where 
-  symbol = tyThingSymbol 
-
-tyThingSymbol :: Ghc.TyThing -> F.Symbol 
-tyThingSymbol (Ghc.AnId     x) = F.symbol x
-tyThingSymbol (Ghc.ATyCon   c) = F.symbol c
-tyThingSymbol (Ghc.AConLike d) = conLikeSymbol d 
-tyThingSymbol (_)              = panic Nothing "TODO: tyThingSymbol" 
-
-conLikeSymbol :: Ghc.ConLike -> F.Symbol 
-conLikeSymbol (Ghc.RealDataCon d) = F.symbol d 
-conLikeSymbol _                   = panic Nothing "TODO: conLikeSymbol"
 -------------------------------------------------------------------------------
 resolveNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
 -------------------------------------------------------------------------------
@@ -209,11 +200,10 @@ resolveWith f env name kind lx =
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
-lookupTyThing env _name sym = [ t | (m, t) <- M.lookupDefault [] x (_reTyThings env)
-                                  , matchMod m modMb 
-                              ] 
+lookupTyThing env _name sym = [ t | (m, t) <- things, matchMod m modMb ] 
   where 
-    (modMb, x)               = {- F.tracepp "lookupTyThing" $ -} unQualifySymbol sym
+    things                   = M.lookupDefault [] x (_reTyThings env)
+    (modMb, x)               = unQualifySymbol sym
     matchMod _ Nothing       = True 
     matchMod m (Just m')     = m == m'         
  
@@ -221,8 +211,14 @@ lookupTyThing env _name sym = [ t | (m, t) <- M.lookupDefault [] x (_reTyThings 
 --   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).
 unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)
 unQualifySymbol sym 
-  | GM.isQualifiedSym sym = Misc.mapFst Just (GM.splitModuleName sym) 
+  | GM.isQualifiedSym sym = Misc.mapFst Just (splitModuleNameExact sym) 
   | otherwise             = (Nothing, sym) 
+
+splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
+splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
+
+
+
 
 -- srcDataCons :: GhcSrc -> [Ghc.DataCon]
 -- srcDataCons src = concatMap Ghc.tyConDataCons (srcTyCons src) 
@@ -272,8 +268,6 @@ maybeResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> Ma
 maybeResolveSym env name kind x = case resolveLocSym env name kind x of 
   Left  _   -> Nothing 
   Right val -> Just val 
-
-
   
 class Resolvable a where 
   resolve :: Env -> ModName -> F.SourcePos -> a -> a  
@@ -360,7 +354,9 @@ matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
   | isList c && arity == 1  = Ghc.listTyCon
   | isTuple c               = Ghc.tupleTyCon Ghc.Boxed arity
-  | otherwise               = strictResolveSym env name "matchTyCon" lc 
+  | otherwise               = F.tracepp msg $ strictResolveSym env name "matchTyCon" lc 
+  where 
+    msg                     = "MATCH-TYCON: " ++ F.showpp c
 
 bareTCApp :: (Expandable r) 
           => r

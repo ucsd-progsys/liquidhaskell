@@ -142,7 +142,7 @@ makeGhcSpec cfg src specs lmap = SP
     sigEnv   = makeSigEnv embs tyi (gsExports src) rtEnv 
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
     tycEnv   = makeTycEnv   cfg name env embs 
-    embs     = makeEmbeds   src env
+    embs     = F.tracepp "EMBEDS" $ makeEmbeds   src env
     env      = Bare.makeEnv src specs lmap  
 
 makeEmbeds :: GhcSrc -> Bare.Env -> F.TCEmb Ghc.TyCon 
@@ -155,8 +155,9 @@ makeEmbeds src env
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec) 
   = F.tceFromList [ (tc, t) 
-                    | (c,t) <- F.tceToList (Ms.embeds spec) 
-                    , tc    <- maybeToList (Bare.maybeResolveSym env name "embed-TyCon" c)
+                    | (c,t)  <- F.tceToList (Ms.embeds spec) 
+                    , let msg = "embed-tycon " ++ F.showpp c
+                    , tc     <- maybeToList (F.tracepp msg $ Bare.maybeResolveSym env name msg c)
                   ]
                
 
