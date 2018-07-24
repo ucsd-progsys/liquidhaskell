@@ -21,7 +21,7 @@
 - [x] unqualified imports
 - [x] assumed-sigs
 - [x] importing-specs
-- [o] alias
+- [x] alias
 - [ ] measures
 - [ ] importing-specs
 - [ ] termination

@@ -193,8 +193,8 @@ unitTests = group "Unit"
   , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
   , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
   , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
-  , testGroup "rebare-pos"     <$> dirTests "tests/rebare/pos"                     []                ExitSuccess
-  , testGroup "rebare-neg"     <$> dirTests "tests/rebare/neg"                     []                (ExitFailure 1)
+  , testGroup "basic-pos"      <$> dirTests "tests/basic/pos"                       []                ExitSuccess
+  , testGroup "basic-neg"      <$> dirTests "tests/basic/neg"                       []                (ExitFailure 1)
 
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
