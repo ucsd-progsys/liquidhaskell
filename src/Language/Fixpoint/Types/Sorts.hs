@@ -506,6 +506,9 @@ instance (Eq a, Hashable a) => Semigroup (TCEmb a) where
 instance (Eq a, Hashable a) => Monoid (TCEmb a) where 
   mempty                    = TCE mempty 
 
+instance PPrint TCArgs where 
+  pprintTidy _ = text . show 
+
 tceMap :: (Eq b, Hashable b) => (a -> b) -> TCEmb a -> TCEmb b
 tceMap f = tceFromList . fmap (mapFst f) . tceToList 
 

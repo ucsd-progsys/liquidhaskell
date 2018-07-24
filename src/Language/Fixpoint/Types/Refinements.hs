@@ -507,6 +507,9 @@ instance PPrint Bop where
 instance PPrint Sort where
   pprintTidy _ = toFix
 
+instance PPrint a => PPrint (TCEmb a) where 
+  pprintTidy k = pprintTidy k . tceToList 
+
 instance PPrint KVar where
   pprintTidy _ (KV x) = text "$" <> pprint x
 
