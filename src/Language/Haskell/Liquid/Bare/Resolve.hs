@@ -88,7 +88,7 @@ srcThings src = [ Ghc.AnId   x | x <- vars ++ dcVars ]
   where 
     dcVars    = dataConVars dcs 
     dcs       = concatMap Ghc.tyConDataCons tcs 
-    tcs       = {- F.tracepp "SRC-TYCONS" $ -} srcTyCons src  
+    tcs       = srcTyCons src  
     vars      = srcVars     src
     aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
 
@@ -112,9 +112,8 @@ typeTyCons t = tops t ++ inners t
 -- tyConAppTyCon_maybe :: Type -> Maybe TyCon 
 -- splitAppTys :: Type -> (Type, [Type]) 
 
-
 srcVars :: GhcSrc -> [Ghc.Var]
-srcVars src = concat 
+srcVars src = filter Ghc.isId $ concat 
   [ giDerVars src
   , giImpVars src 
   , giDefVars src 

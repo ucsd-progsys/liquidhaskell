@@ -407,14 +407,14 @@ idDataConM :: Id -> Maybe DataCon
 idDataConM x = case idDetails x of
   DataConWorkId d -> Just d
   DataConWrapId d -> Just d
-  _               -> Nothing
+  _               -> Nothing 
 
 isDataConId :: Id -> Bool
 isDataConId = isJust . idDataConM
 
 getDataConVarUnique :: Var -> Unique
 getDataConVarUnique v
-  | isId v && isDataConId v = getUnique $ idDataCon v
+  | isId v && isDataConId v = getUnique (idDataCon v)
   | otherwise               = getUnique v
 
 isDictionaryExpression :: Core.Expr Id -> Maybe Id
