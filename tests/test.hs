@@ -186,8 +186,8 @@ errorTests = group "Error-Messages"
 
 unitTests :: IO TestTree
 unitTests = group "Unit"
-  [ testGroup "pos"            <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
-  , testGroup "neg"            <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
+  [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
+  , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
   , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
   , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
   , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
