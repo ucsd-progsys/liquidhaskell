@@ -186,15 +186,18 @@ errorTests = group "Error-Messages"
 
 unitTests :: IO TestTree
 unitTests = group "Unit"
-  [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
-  , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
-  , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
-  , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
-  , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
-  , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
-  , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
-  , testGroup "basic-pos"      <$> dirTests "tests/basic/pos"                       []                ExitSuccess
-  , testGroup "basic-neg"      <$> dirTests "tests/basic/neg"                       []                (ExitFailure 1)
+  [ 
+  -- TODO-REBARE testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
+  -- TODO-REBARE , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
+  -- TODO-REBARE , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
+  -- TODO-REBARE , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
+  -- TODO-REBARE , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
+  -- TODO-REBARE , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
+  -- TODO-REBARE , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
+    testGroup "basic-pos"      <$> dirTests "tests/basic/pos"                      []                ExitSuccess
+  , testGroup "basic-neg"      <$> dirTests "tests/basic/neg"                      []                (ExitFailure 1)
+  , testGroup "measure-pos"    <$> dirTests "tests/measure/pos"                    []                ExitSuccess
+  , testGroup "measure-neg"    <$> dirTests "tests/measure/neg"                    []                (ExitFailure 1)
 
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
