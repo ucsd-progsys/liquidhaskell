@@ -414,7 +414,7 @@ cookSpecType env sigEnv name x
   . bareExpandType     sigEnv
 
 bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
-bareExpandType sigEnv = Bare.expand (Bare.sigRTEnv sigEnv) 
+bareExpandType sigEnv = Bare.expandLoc (Bare.sigRTEnv sigEnv) 
 
 bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
 bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt

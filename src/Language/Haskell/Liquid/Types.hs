@@ -1125,6 +1125,9 @@ instance Show RTyCon where
 instance Show BTyCon where
   show = F.showpp
 
+instance F.Loc BTyCon where 
+  srcSpan = F.srcSpan . btc_tc 
+
 --------------------------------------------------------------------------------
 -- | Refined Instances ---------------------------------------------------------
 --------------------------------------------------------------------------------

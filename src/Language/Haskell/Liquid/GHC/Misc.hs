@@ -275,6 +275,9 @@ instance Hashable SrcSpan where
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 
+fSourcePos :: (F.Loc a) => a -> F.SourcePos 
+fSourcePos = F.sp_start . F.srcSpan 
+
 fSrcSpanSrcSpan :: F.SrcSpan -> SrcSpan
 fSrcSpanSrcSpan (F.SS p p') = sourcePos2SrcSpan p p'
 
