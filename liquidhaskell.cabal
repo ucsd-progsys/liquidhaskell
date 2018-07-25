@@ -195,6 +195,7 @@ Library
                     Language.Haskell.Liquid.UX.CTags,
                     Language.Haskell.Liquid.UX.Config,
                     Language.Haskell.Liquid.UX.CmdLine,
+                    Language.Haskell.Liquid.GHC.API,
                     Language.Haskell.Liquid.GHC.Misc,
                     Language.Haskell.Liquid.GHC.Play,
                     Language.Haskell.Liquid.GHC.TypeRep,

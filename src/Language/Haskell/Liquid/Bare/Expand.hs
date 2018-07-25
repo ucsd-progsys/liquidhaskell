@@ -13,6 +13,7 @@ module Language.Haskell.Liquid.Bare.Expand
 
     -- * Expand and Qualify 
   , expandQualify 
+  , cookSpecType
   ) where
 
 import Prelude hiding (error)
@@ -25,20 +26,20 @@ import qualified Data.List                 as L
 import qualified Text.Printf               as Printf 
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
+
+
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol) 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
+import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
 import           Language.Haskell.Liquid.Types
 
 import qualified Language.Haskell.Liquid.Measure      as Ms
 import qualified Language.Haskell.Liquid.Bare.Resolve as Bare
 import qualified Language.Haskell.Liquid.Bare.Types   as Bare
-
--- import           Language.Haskell.Liquid.Bare.Env
--- import           Language.Haskell.Liquid.Bare.Expand
--- import           Language.Haskell.Liquid.Bare.OfType
+import qualified Language.Haskell.Liquid.Bare.Plugged as Bare
 
 --------------------------------------------------------------------------------
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
@@ -334,3 +335,54 @@ exprArg l msg = go
     go (RAppTy t1 t2 _) = F.EApp (go t1) (go t2)
     go z                = panic sp $ Printf.printf "Unexpected expression parameter: %s in %s" (show z) msg
     sp                  = Just (GM.sourcePosSrcSpan l)
+
+
+----------------------------------------------------------------------------------------
+-- | @cookSpecType@ is the central place where a @BareType@ gets processed, 
+--   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
+--   details of each of the individual steps.
+----------------------------------------------------------------------------------------
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Ghc.Var -> LocBareType -> LocSpecType 
+----------------------------------------------------------------------------------------
+cookSpecType env sigEnv name x
+  = id 
+  -- TODO-REBARE . strengthenMeasures env sigEnv      x 
+  -- TODO-REBARE . strengthenInlines  env sigEnv      x  
+  -- TODO-REBARE . fmap fixCoercions
+  . fmap RT.generalize
+  . plugHoles       sigEnv name x
+  . Bare.qualify       env name 
+  . bareSpecType       env name 
+  . bareExpandType     sigEnv
+
+bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
+bareExpandType sigEnv = expandLoc (Bare.sigRTEnv sigEnv) 
+
+bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
+bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt
+
+plugHoles :: Bare.SigEnv -> ModName -> Ghc.Var -> LocSpecType -> LocSpecType 
+plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
+  where 
+    embs              = Bare.sigEmbs     sigEnv 
+    tyi               = Bare.sigTyRTyMap sigEnv 
+    exports           = Bare.sigExports  sigEnv 
+
+{- [NOTE:Cooking-SpecType] 
+    A @SpecType@ is _raw_ when it is obtained directly from a @BareType@, i.e. 
+    just by replacing all the @BTyCon@ with @RTyCon@. Before it can be used 
+    for constraint generation, we need to _cook_ it via the following transforms:
+
+    A @SigEnv@ should contain _all_ the information needed to do the below steps.
+
+    - expand               : resolving all type/refinement etc. aliases 
+    - ofType               : convert BareType -> SpecType
+    - plugged              : filling in any remaining "holes"
+    - txRefSort            : filling in the abstract-refinement predicates etc. (YUCK) 
+    - resolve              : renaming / qualifying symbols?
+    - generalize           : (universally) quantify free type variables 
+    - strengthen-measures  : ?
+    - strengthen-inline(?) : ? 
+
+-}
+

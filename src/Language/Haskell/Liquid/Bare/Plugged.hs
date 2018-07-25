@@ -1,8 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections #-}
 
-module Language.Haskell.Liquid.Bare.Plugged (
-    makePluggedSig
+module Language.Haskell.Liquid.Bare.Plugged 
+  (  makePluggedSig
   , makePluggedAsmSigs
   , makePluggedDataCons
   ) where

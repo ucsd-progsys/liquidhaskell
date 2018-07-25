@@ -50,6 +50,7 @@ import qualified BasicTypes                        as Ghc
 import qualified Type                              as Ghc 
 import qualified TyCon                             as Ghc 
 import qualified Name                              as Ghc
+import qualified NameSet                           as Ghc
 
 -- import BasicTypes
 -- import Type (expandTypeSynonyms)
@@ -64,6 +65,7 @@ import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
+import           Language.Haskell.Liquid.Bare.Plugged 
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -488,3 +490,4 @@ spliceArgs msg s p = go (fst <$> s) (pargs p)
     go []     ((s,x,_):as) = (x, s):go [] as
     go (x:xs) ((s,_,_):as) = (x,s):go xs as
     go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs
+

@@ -25,15 +25,8 @@ module Language.Haskell.Liquid.Bare.DataType
 -- import           Name                                   (getSrcSpan)
 
 import           Prelude                                hiding (error)
-import qualified InstEnv as Ghc 
-import qualified TyCon   as Ghc 
-import qualified DataCon as Ghc 
-import qualified Type    as Ghc 
-import qualified TyCoRep as Ghc 
-import qualified Class   as Ghc
-import qualified TysWiredIn as Ghc 
-import qualified SrcLoc     as Ghc 
-import qualified Name       as Ghc 
+
+
 -- import           Text.Parsec
 -- import           Var
 -- import           Data.Maybe
@@ -50,6 +43,7 @@ import qualified Data.Maybe                             as Mb
 import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
+import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 import           Language.Haskell.Liquid.Types.PredType (dataConWorkRep, dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types
@@ -60,8 +54,8 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
-import           Language.Haskell.Liquid.Bare.Types 
-import           Language.Haskell.Liquid.Bare.Resolve 
+import           Language.Haskell.Liquid.Bare.Types     as Bare  
+import           Language.Haskell.Liquid.Bare.Resolve   as Bare 
 
 -- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 -- import           Language.Haskell.Liquid.Bare.Env
@@ -449,10 +443,10 @@ dataConSpec' dcs = concatMap tx dcs
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-makeConTypes :: (ModName, Ms.BareSpec) 
-             -> ( [(ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)]
+makeConTypes :: Bare.Env -> (ModName, Ms.BareSpec) -> 
+                ( [(ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)]
                 , [[(Ghc.DataCon, Located DataConP)]]              )
-makeConTypes _ = undefined -- (mempty, mempty) -- TODO-REBARE 
+makeConTypes env (name, spec) = undefined -- (mempty, mempty) -- TODO-REBARE 
 
 {- BARE
 makeConTypes (name, spec) = 

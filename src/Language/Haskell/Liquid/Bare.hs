@@ -127,7 +127,7 @@ makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSp
 makeGhcSpec cfg src specs lmap = SP 
   { gsSig    = sig 
   , gsQual   = makeSpecQual cfg env specs  rtEnv 
-  , gsData   = makeSpecData cfg src specs        lmap
+  , gsData   = makeSpecData env rtEnv measEnv specs
   , gsName   = makeSpecName env tycEnv 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name 
@@ -141,8 +141,8 @@ makeGhcSpec cfg src specs lmap = SP
     mySpec   = fromMaybe mempty (lookup name specs)
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec 
     -- build up environments
+    measEnv  = makeMeasEnv    env tycEnv sigEnv specs 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
-    measEnv  = makeMeasEnv    env tycEnv rtEnv specs 
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
     tycEnv   = makeTycEnv   cfg name env embs 
     embs     = F.tracepp "EMBEDS" $ makeEmbeds   src env
@@ -364,7 +364,7 @@ makeSpecSig name specs env sigEnv = SpSig
 
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
-  [ (x, cookSpecType env sigEnv name x t) | (x, t) <- rawTySigs env name spec ] 
+  [ (x, Bare.cookSpecType env sigEnv name x t) | (x, t) <- rawTySigs env name spec ] 
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Var, LocBareType)]
 rawTySigs env name spec = 
@@ -375,7 +375,7 @@ rawTySigs env name spec =
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> [(ModName, Ms.BareSpec)] -> [(Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
-  [ (x, cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env myName specs ] 
+  [ (x, Bare.cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env myName specs ] 
 
 rawAsmSigs :: Bare.Env -> ModName -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocBareType)]
 rawAsmSigs env myName specs =  
@@ -390,29 +390,15 @@ getAsmSigs myName name spec
   | myName == name = Ms.asmSigs spec
   | otherwise      = Ms.asmSigs spec ++ Ms.sigs spec
 
-----------------------------------------------------------------------------------------
--- | @cookSpecType@ is the central place where a @BareType@ gets processed, 
---   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
---   details of each of the individual steps.
-----------------------------------------------------------------------------------------
-cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Var -> LocBareType -> LocSpecType 
-----------------------------------------------------------------------------------------
-cookSpecType env sigEnv name x
-  = id 
-  -- TODO-REBARE . strengthenMeasures env sigEnv      x 
-  -- TODO-REBARE . strengthenInlines  env sigEnv      x  
-  -- TODO-REBARE . fmap fixCoercions
-  . fmap generalize
-  . plugHoles          sigEnv name x
-  . Bare.qualify       env name 
-  . bareSpecType       env name 
-  . bareExpandType     sigEnv
+makeSigEnv :: F.TCEmb Ghc.TyCon -> _ -> NameSet -> BareRTEnv -> Bare.SigEnv 
+makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
+  { sigEmbs     = embs 
+  , sigTyRTyMap = tyi 
+  , sigExports  = exports 
+  , sigRTEnv    = rtEnv
+  } 
 
-bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
-bareExpandType sigEnv = Bare.expandLoc (Bare.sigRTEnv sigEnv) 
 
-bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
-bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt
 
 {- TODO-REBARE: 
 fixCoercions :: txCoerce 
@@ -432,40 +418,6 @@ bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
     vs         = fst4 . bkUniv $ t
     vs'        = freeTyVars    $ t
 -}
-
-plugHoles :: Bare.SigEnv -> ModName -> Var -> LocSpecType -> LocSpecType 
-plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
-  where 
-    embs              = Bare.sigEmbs     sigEnv 
-    tyi               = Bare.sigTyRTyMap sigEnv 
-    exports           = Bare.sigExports  sigEnv 
-
-makeSigEnv :: F.TCEmb TyCon -> _ -> NameSet -> BareRTEnv -> Bare.SigEnv 
-makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
-  { sigEmbs     = embs 
-  , sigTyRTyMap = tyi 
-  , sigExports  = exports 
-  , sigRTEnv    = rtEnv
-  } 
-
-{- [NOTE:Cooking-SpecType] 
-    A @SpecType@ is _raw_ when it is obtained directly from a @BareType@, i.e. 
-    just by replacing all the @BTyCon@ with @RTyCon@. Before it can be used 
-    for constraint generation, we need to _cook_ it via the following transforms:
-
-    A @SigEnv@ should contain _all_ the information needed to do the below steps.
-
-    - expand               : resolving all type/refinement etc. aliases 
-    - ofType               : convert BareType -> SpecType
-    - plugged              : filling in any remaining "holes"
-    - txRefSort            : filling in the abstract-refinement predicates etc. (YUCK) 
-    - resolve              : renaming / qualifying symbols?
-    - generalize           : (universally) quantify free type variables 
-    - strengthen-measures  : ?
-    - strengthen-inline(?) : ? 
-
--}
-
 {- TODO-REBARE: 
 makeLocalSpec :: Config -> ModName -> [Var] -> [Var]
               -> [(LocSymbol, Located BareType)]
@@ -504,20 +456,24 @@ makeHIMeas f vs spec
 -}
 
 
--- , meDataCons    = mempty -- TODO-REBARE: cs' 
--- ctors       <- F.notracepp "MAKE-CTORS-SPEC"    <$> (makePluggedAsmSigs embs tyi           $ tx cs' )
+-- , meDataCons = mempty -- TODO-REBARE: cs' 
+-- ctors       <- F.notracepp "MAKE-CTORS-SPEC"  <$> (makePluggedAsmSigs embs tyi           $ tx cs' )
 -- , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
 
 ------------------------------------------------------------------------------------------
-makeSpecData :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecData
+makeSpecData :: Bare.Env -> BareRTEnv -> Bare.MeasEnv -> [(ModName, Ms.BareSpec)] 
+             -> GhcSpecData
 ------------------------------------------------------------------------------------------
-makeSpecData _ _ _ _ = SpData 
+makeSpecData env rtEnv measEnv specs = SpData 
   { gsCtors      = undefined -- TODO-REBARE :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
   , gsMeas       = undefined -- TODO-REBARE :: ![(Symbol, LocSpecType)]      -- ^ Measure Types eg.  len :: [a] -> Int
   , gsMeasures   = undefined -- TODO-REBARE :: ![Measure SpecType DataCon]
-  , gsInvariants = mempty -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
-  , gsIaliases   = mempty -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
+  , gsInvariants = mempty    -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
+  , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
+  where 
+    cs'          = FIXME -- Bare.meDataCons measEnv 
+
 
 -------------------------------------------------------------------------------------------
 makeSpecName :: Bare.Env -> Bare.TycEnv -> GhcSpecNames
@@ -547,7 +503,7 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
   , tcEmbs        = embs
   }
   where 
-    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes <$> Bare.reSpecs env
+    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> Bare.reSpecs env
     tcs           = [(x, y) | (_, x, y, _)       <- tcDds]
     tycons        = tcs ++ wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
