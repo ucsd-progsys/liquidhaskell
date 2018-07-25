@@ -373,20 +373,24 @@ rawTySigs env name spec =
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> [(ModName, Ms.BareSpec)] -> [(Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
-  [ (x, cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env specs ] 
+  [ (x, cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env myName specs ] 
 
 --  asms'    <- F.notracepp "MAKE-ASSUME-SPEC-1" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
 --  let asms  = F.notracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
---        asmSigs     <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
-      -- tx       = fmap . mapSnd . subst $ su
-rawAsmSigs :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocBareType)]
-rawAsmSigs env specs =  
+--  asmSigs  <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
+-- tx         = fmap . mapSnd . subst $ su
+rawAsmSigs :: Bare.Env -> ModName -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocBareType)]
+rawAsmSigs env myName specs =  
   [ (name, v, t) 
       | (name, spec) <- specs
-      , (x   , t)    <- Ms.asmSigs spec
+      , (x   , t)    <- {- F.tracepp ("ASM-SIGS: " ++ show name) $ -} getAsmSigs myName name spec
       , v            <- maybeToList (Bare.maybeResolveSym env name "rawAsmVar" x)
-      -- , let t'        = makeRawSig env name t 
   ] 
+  
+getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(LocSymbol, LocBareType)]  
+getAsmSigs myName name spec 
+  | myName == name = Ms.asmSigs spec
+  | otherwise      = Ms.asmSigs spec ++ Ms.sigs spec
                                
 -- makeRawSig :: Bare.Env -> ModName -> LocBareType -> LocSpecType
 -- makeRawSig env name lt = F.atLoc lt st 

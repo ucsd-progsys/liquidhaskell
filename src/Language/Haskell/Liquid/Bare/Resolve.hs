@@ -354,7 +354,7 @@ matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
   | isList c && arity == 1  = Ghc.listTyCon
   | isTuple c               = Ghc.tupleTyCon Ghc.Boxed arity
-  | otherwise               = F.tracepp msg $ strictResolveSym env name "matchTyCon" lc 
+  | otherwise               = strictResolveSym env name "matchTyCon" lc 
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
 

@@ -1,7 +1,12 @@
 module Inc03 where 
 
-{-@ type NN = {v:Int | 0 <= v} @-}
+import Inc03Lib 
 
-{-@ inc :: NN -> NN @-} 
-inc :: Int -> Int 
-inc x = x + 1 
+{-@ incr2 :: NN -> NN @-} 
+incr2 :: Int -> Int 
+incr2 x = incr (incr x)
+
+{-@ incr3 :: NN -> NN @-} 
+incr3 :: Int -> Int 
+incr3 = incr . incr . incr 
+
