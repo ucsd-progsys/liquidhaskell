@@ -37,23 +37,9 @@ import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
 
--- import qualified ConLike                           as Ghc
--- import qualified Var                               as Ghc
--- -- import qualified Module                            as Ghc
--- import qualified GHC                               as Ghc
--- import qualified DataCon                           as Ghc
--- import qualified TysWiredIn                        as Ghc 
--- import qualified BasicTypes                        as Ghc 
--- import qualified Type                              as Ghc 
--- import qualified TyCon                             as Ghc 
--- import qualified Name                              as Ghc
--- import qualified NameSet                           as Ghc
--- import BasicTypes
--- import Type (expandTypeSynonyms)
--- import TysWiredIn
-
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
+
 import           Language.Haskell.Liquid.Types   
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 

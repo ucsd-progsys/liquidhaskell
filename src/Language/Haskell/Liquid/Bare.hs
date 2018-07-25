@@ -22,35 +22,33 @@ module Language.Haskell.Liquid.Bare (
 
 
 import           Prelude                                    hiding (error)
-import qualified Language.Haskell.Liquid.GHC.API as Ghc 
 import           Control.Monad.Reader
 import           Control.Monad.State
+import qualified Control.Exception                          as Ex
 import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import           Data.Maybe
-import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
-import qualified Control.Exception                          as Ex
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
+import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 import           System.Directory                           (doesFileExist)
 
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
-import           Language.Fixpoint.Misc                     (applyNonNull, ensurePath, fst3, thd3, mapFst, mapSnd)
+import           Language.Fixpoint.Misc                     as Misc 
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
-import qualified Language.Fixpoint.Smt.Theories             as Thy
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
 import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
 
--- import qualified Language.Haskell.Liquid.Bare.SymSort       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
@@ -58,7 +56,6 @@ import qualified Language.Haskell.Liquid.Bare.Expand        as Bare
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
--- import qualified Language.Haskell.Liquid.Bare.OfType        as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -76,9 +73,6 @@ import           Language.Haskell.Liquid.Bare.Lookup        (lookupGhcTyCon)
 import           Language.Haskell.Liquid.Bare.ToBare
 -- import Debug.Trace (trace)
 -}
-
-
-
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files -------------------------------------------------
