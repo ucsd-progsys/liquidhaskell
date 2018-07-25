@@ -515,7 +515,6 @@ makeSpecData _ _ _ _ = SpData
   { gsCtors      = undefined -- TODO-REBARE :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
   , gsMeas       = undefined -- TODO-REBARE :: ![(Symbol, LocSpecType)]      -- ^ Measure Types eg.  len :: [a] -> Int
   , gsMeasures   = undefined -- TODO-REBARE :: ![Measure SpecType DataCon]
-
   , gsInvariants = mempty -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   = mempty -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
@@ -560,7 +559,6 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
       
 -- REBARE: formerly, makeGhcCHOP2
-
 -------------------------------------------------------------------------------------------
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> BareRTEnv -> _ -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
