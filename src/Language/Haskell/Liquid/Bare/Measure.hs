@@ -14,17 +14,16 @@ module Language.Haskell.Liquid.Bare.Measure
   , strengthenHaskellInlines
   , makeMeasureSpec
   , makeMeasureSpec'
+  , varMeasures
   -- , makeHaskellBounds
   -- , makeClassMeasureSpec
-  -- , varMeasures
   ) where
 
-import CoreSyn
+-- import CoreSyn
 import DataCon
 import TyCon
 import Id
 import Type hiding (isFunTy)
--- import qualified Type
 import Var
 
 import Data.Default
@@ -236,7 +235,6 @@ errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text s
 --   the selectors and checkers that then enable reflection.
 ----------------------------------------------------------------------------------------------
 
-
 strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
 
@@ -346,26 +344,30 @@ makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns 
 ----------------------------------------------------------------------------------------------
 makeMeasureSpec' :: MSpec SpecType DataCon -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec' = Misc.mapFst (Misc.mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
-
+makeMeasureSpec' mspec0 = (ctorTys, measTys) 
+  where 
+    ctorTys             = Misc.mapSnd RT.uRType <$> ctorTys0
+    (ctorTys0, measTys) = Ms.dataConTypes mspec 
+    mspec               = first (mapReft ur_reft) mspec0
 
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec :: Bare.Env -> BareRTEnv -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
+makeMeasureSpec :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec env rtEnv (name, spec) 
-  = mkMeasureDCon env name 
-  . mkMeasureSort env name 
+makeMeasureSpec env sigEnv (name, spec) 
+  = mkMeasureDCon env        name 
+  . mkMeasureSort env sigEnv name 
   . first val 
-  . bareMSpec env name rtEnv 
+  . bareMSpec     env sigEnv name 
   $ spec 
 
-bareMSpec :: Bare.Env -> ModName -> BareRTEnv -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
-bareMSpec env name rtEnv spec = Ms.mkMSpec ms cms ims 
+bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
+bareMSpec env sigEnv name spec = Ms.mkMSpec ms cms ims 
   where
     cms     = Ms.cmeasures spec
     ms      = expMeas <$> Ms.measures  spec
     ims     = expMeas <$> Ms.imeasures spec
-    expMeas = expandMeasure env name rtEnv
+    expMeas = expandMeasure env name  rtEnv
+    rtEnv   = Bare.sigRTEnv          sigEnv
 
 mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t DataCon
 mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]
@@ -382,8 +384,9 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
 measureCtors = Misc.sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
 
-mkMeasureSort :: Bare.Env -> ModName -> Ms.MSpec BareType LocSymbol -> Ms.MSpec SpecType LocSymbol
-mkMeasureSort env name (Ms.MSpec c mm cm im) = 
+mkMeasureSort :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.MSpec BareType LocSymbol 
+              -> Ms.MSpec SpecType LocSymbol
+mkMeasureSort env sigEnv name (Ms.MSpec c mm cm im) = 
   Ms.MSpec (map txDef <$> c) (tx <$> mm) (tx <$> cm) (tx <$> im) 
     where
       ofMeaSort :: F.SourcePos -> BareType -> SpecType
@@ -408,32 +411,38 @@ expandMeasure env name rtEnv m = m
 
 expandMeasureDef :: Bare.Env -> ModName -> BareRTEnv -> Def t LocSymbol -> Def t LocSymbol
 expandMeasureDef env name rtEnv d = d 
-  { body  = expandMeasureBody env name rtEnv l (body d) 
-  }
+  { body  = Bare.expandQualify env name rtEnv l (body d) }
   where l = loc (measure d) 
 
+------------------------------------------------------------------------------
+varMeasures :: (Monoid r) => [Var] -> [(Var, Located (RRType r))]
+------------------------------------------------------------------------------
+varMeasures vars = 
+  [ (v, varSpecType v) 
+      | v <- vars
+      , GM.isDataConId v
+      , isSimpleType (varType v) ]
+
+varSpecType :: (Monoid r) => Var -> Located (RRType r)
+varSpecType = fmap (RT.ofType . varType) . GM.locNamedThing
+
+isSimpleType :: Type -> Bool
+isSimpleType = isFirstOrder . RT.typeSort mempty
+
+
+
+
+{- 
 expandMeasureBody :: Bare.Env -> ModName -> BareRTEnv -> SourcePos -> Body -> Body
 expandMeasureBody env name rtEnv l (P   p) = P   (Bare.expandQualify env name rtEnv l p) 
 expandMeasureBody env name rtEnv l (R x p) = R x (Bare.expandQualify env name rtEnv l p) 
 expandMeasureBody env name rtEnv l (E   e) = E   (Bare.expandQualify env name rtEnv l e) 
 
-{- 
 makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
   where
     tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
-
-varMeasures :: (Monoid r) => [Var] -> [(Symbol, Located (RRType r))]
-varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars
-                                                , GM.isDataConId v
-                                                , isSimpleType $ varType v ]
-
-isSimpleType :: Type -> Bool
-isSimpleType = isFirstOrder . RT.typeSort mempty
-
-varSpecType :: (Monoid r) => Var -> Located (RRType r)
-varSpecType = fmap (RT.ofType . varType) . GM.locNamedThing
 
 makeHaskellBounds :: F.TCEmb TyCon -> CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
 makeHaskellBounds tce cbs xs = do

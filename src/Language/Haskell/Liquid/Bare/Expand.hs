@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Bare.Expand
     -- * Expand and Qualify 
   , expandQualify 
   , cookSpecType
+  , plugHoles
   ) where
 
 import Prelude hiding (error)
@@ -245,6 +246,12 @@ instance Expand BareRTAlias where
 
 instance Expand BareType where 
   expand = expandBareType 
+
+instance Expand Body where 
+  expand rtEnv l (P   p) = P   (expand rtEnv l p) 
+  expand rtEnv l (E   e) = E   (expand rtEnv l e)
+  expand rtEnv l (R x p) = R x (expand rtEnv l p)
+
 
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
 expandBareType rtEnv _   = go -- HEREHEREHERE

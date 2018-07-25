@@ -18,14 +18,11 @@ module Language.Haskell.Liquid.Bare.Resolve
   , ResolveSym (..)
   , strictResolveSym
   , maybeResolveSym 
-
   , Qualify (..)
-
-    -- * Resolving types etc. 
-  , Resolvable (..)
 
   -- * Misc 
   , resolveNamedVar 
+  , srcVars 
 
   -- * Conversions from Bare
   , ofBareType
@@ -40,18 +37,17 @@ import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
 
-import qualified ConLike                           as Ghc
-import qualified Var                               as Ghc
--- import qualified Module                            as Ghc
-import qualified GHC                               as Ghc
-import qualified DataCon                           as Ghc
-import qualified TysWiredIn                        as Ghc 
-import qualified BasicTypes                        as Ghc 
-import qualified Type                              as Ghc 
-import qualified TyCon                             as Ghc 
-import qualified Name                              as Ghc
-import qualified NameSet                           as Ghc
-
+-- import qualified ConLike                           as Ghc
+-- import qualified Var                               as Ghc
+-- -- import qualified Module                            as Ghc
+-- import qualified GHC                               as Ghc
+-- import qualified DataCon                           as Ghc
+-- import qualified TysWiredIn                        as Ghc 
+-- import qualified BasicTypes                        as Ghc 
+-- import qualified Type                              as Ghc 
+-- import qualified TyCon                             as Ghc 
+-- import qualified Name                              as Ghc
+-- import qualified NameSet                           as Ghc
 -- import BasicTypes
 -- import Type (expandTypeSynonyms)
 -- import TysWiredIn
@@ -59,13 +55,13 @@ import qualified NameSet                           as Ghc
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Haskell.Liquid.Types   
+import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.Misc          as Misc 
 import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
-import           Language.Haskell.Liquid.Bare.Plugged 
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -98,7 +94,7 @@ srcThings src = [ Ghc.AnId   x | x <- vars ]
              ++ [ Ghc.ATyCon c | c <- tcs  ] 
              ++ [ aDataCon   d | d <- dcs  ] 
   where 
-    vars      = Misc.sortNub $ dataConVars dcs ++ srcVars   src
+    vars      = Misc.sortNub $ dataConVars dcs ++ srcVars  src
     dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
     tcs       = Misc.sortNub $ srcTyCons src  
     aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
@@ -154,14 +150,25 @@ instance Qualify F.Symbol where
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
 
-instance Qualify LocSpecType where 
-  qualify env _ lx = F.subst (_reSubst env) <$> lx 
+instance (Qualify a) => Qualify (Located a) where 
+  qualify env name = fmap (qualify env name) 
+
+instance Qualify SpecType where 
+  qualify env _ = substEnv env 
 
 instance Qualify F.Expr where 
-  qualify env _ e = F.subst (_reSubst env) e 
+  qualify env _ = substEnv env 
 
-instance Qualify LocSymbol where 
-  qualify env name lx = qualify env name <$> lx 
+instance Qualify Body where 
+  qualify env name (P   p) = P   (qualify env name p) 
+  qualify env name (E   e) = E   (qualify env name e)
+  qualify env name (R x p) = R x (qualify env name p)
+
+instance Qualify RReft where 
+  qualify env _ = substEnv env  -- TODO-REBARE 
+
+instance Qualify F.Qualifier where 
+  qualify env _ = substEnv env -- TODO-REBARE 
 
 instance Qualify SizeFun where 
   qualify env name (SymSizeFun lx) = SymSizeFun (qualify env name lx)
@@ -172,7 +179,38 @@ instance Qualify TyConInfo where
 
 instance Qualify RTyCon where 
   qualify env name rtc = rtc { rtc_info = qualify env name $ rtc_info rtc }
- 
+
+instance Qualify (Measure SpecType Ghc.DataCon) where 
+  qualify env name m = substEnv env $ m { msName = qualify env name (msName m)}
+
+substEnv :: (F.Subable a) => Env -> a -> a 
+substEnv env = F.subst (_reSubst env)
+
+
+-- qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
+-- qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
+
+
+{- TODO-REBARE 
+qualifyDefs :: [(Symbol, Var)] -> S.HashSet (Var, Symbol) -> S.HashSet (Var, Symbol)
+qualifyDefs syms = S.fromList . fmap (mapSnd (qualifySymbol syms)) . S.toList
+
+qualifyTyConInfo :: (Symbol -> Symbol) -> TyConInfo -> TyConInfo
+qualifyTyConInfo f tci = tci { sizeFunction = qualifySizeFun f <$> sizeFunction tci }
+
+qualifyLocSymbol :: (Symbol -> Symbol) -> LocSymbol -> LocSymbol
+qualifyLocSymbol f lx = atLoc lx (f (val lx))
+
+qualifyTyConP :: (Symbol -> Symbol) -> TyConP -> TyConP
+qualifyTyConP f tcp = tcp { sizeFun = qualifySizeFun f <$> sizeFun tcp }
+
+qualifySizeFun :: (Symbol -> Symbol) -> SizeFun -> SizeFun
+qualifySizeFun f (SymSizeFun lx) = SymSizeFun (qualifyLocSymbol f lx)
+qualifySizeFun _  sf              = sf
+
+qualifySymbol' :: [Var] -> Symbol -> Symbol
+qualifySymbol' vs x = maybe x symbol (L.find (isSymbolOfVar x) vs)
+-}
 -------------------------------------------------------------------------------
 resolveNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
 -------------------------------------------------------------------------------
@@ -280,26 +318,26 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
   Left  _   -> Nothing 
   Right val -> Just val 
   
-class Resolvable a where 
-  resolve :: Env -> ModName -> F.SourcePos -> a -> a  
-
-instance Resolvable F.Qualifier where 
-  resolve _ _ _ q = q -- TODO-REBARE 
-
-instance Resolvable RReft where 
-  resolve _ _ _ r = r -- TODO-REBARE 
-
-instance Resolvable F.Expr where 
-  resolve _ _ _ e = e -- TODO-REBARE 
-  
-instance Resolvable a => Resolvable (Located a) where 
-  resolve env name _ lx = F.atLoc lx (resolve env name (F.loc lx) (val lx))
+------ JUNK-- USE "QUALIFY"class Resolvable a where 
+  ------ JUNK-- USE "QUALIFY"resolve :: Env -> ModName -> F.SourcePos -> a -> a  
+------ JUNK-- USE "QUALIFY"
+------ JUNK-- USE "QUALIFY"instance Resolvable F.Qualifier where 
+  ------ JUNK-- USE "QUALIFY"resolve _ _ _ q = q -- TODO-REBARE 
+------ JUNK-- USE "QUALIFY"
+------ JUNK-- USE "QUALIFY"instance Resolvable RReft where 
+  ------ JUNK-- USE "QUALIFY"resolve _ _ _ r = r -- TODO-REBARE 
+------ JUNK-- USE "QUALIFY"
+------ JUNK-- USE "QUALIFY"instance Resolvable F.Expr where 
+  ------ JUNK-- USE "QUALIFY"resolve _ _ _ e = e -- TODO-REBARE 
+  ------ JUNK-- USE "QUALIFY"
+------ JUNK-- USE "QUALIFY"instance Resolvable a => Resolvable (Located a) where 
+  ------ JUNK-- USE "QUALIFY"resolve env name _ lx = F.atLoc lx (resolve env name (F.loc lx) (val lx))
 
 -------------------------------------------------------------------------------
 -- | HERE 
 -------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType 
-ofBareType env name l t = ofBRType env name (resolve env name l) l t 
+ofBareType env name l t = ofBRType env name (qualify env name) l t 
 
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
 ofBSort env name l t = ofBRType env name id l t 
@@ -332,7 +370,7 @@ ofBRType env name f l t  = go t
     go (RRTy e r o t)    = RRTy  e'  (goReft r) o (go t)
       where e'           = Misc.mapSnd go <$> e
     go (RHole r)         = RHole (goReft r) 
-    go (RExprArg le)     = RExprArg (resolve env name (F.loc le) le) 
+    go (RExprArg le)     = RExprArg (qualify env name le) 
     goRef (RProp ss (RHole r)) = rPropP (goSyms <$> ss) (goReft r)
     goRef (RProp ss t)         = RProp  (goSyms <$> ss) (go t)
     goSyms (x, t)              = (x, ofBSort env name l t) 

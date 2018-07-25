@@ -69,6 +69,7 @@ data TycEnv = TycEnv
   , tcAdts        :: ![F.DataDecl]
   , tcDataConMap  :: !DataConMap 
   , tcEmbs        :: !(F.TCEmb Ghc.TyCon)
+  , tcName        :: !ModName
   }
 
 type TyConMap   = M.HashMap Ghc.TyCon RTyCon
@@ -80,12 +81,11 @@ type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
 -- REBARE: used to be output of makeGhcSpecCHOP2
 data MeasEnv = MeasEnv 
   { meMeasureSpec :: !(MSpec SpecType Ghc.DataCon)          -- measures
-  , meClassSyms   :: ![(F.Symbol, Located (RRType F.Reft))] -- cms' 
-  , meSyms        :: ![(F.Symbol, Located (RRType F.Reft))] -- ms' 
+  , meClassSyms   :: ![(Ghc.Var, Located (RRType F.Reft))]  -- cms' [But force measures to have associated Var] 
+  , meSyms        :: ![(Ghc.Var, Located (RRType F.Reft))]  -- ms' 
   , meDataCons    :: ![(Ghc.Var,  LocSpecType)]             -- cs'
                                                             -- xs' :: [Symbol] = fst <$> meSyms
   }
-
 
 {- 
 data BareEnv = BE
