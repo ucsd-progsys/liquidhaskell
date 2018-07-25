@@ -30,8 +30,12 @@ module Language.Haskell.Liquid.Bare.Resolve
   -- * Conversions from Bare
   , ofBareType
   -- , ofBareExpr
+
+  -- * Post-processing types
+  , txRefSort
   ) where 
 
+import qualified Data.List                         as L 
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
@@ -55,6 +59,7 @@ import qualified Language.Fixpoint.Types               as F
 import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Haskell.Liquid.Types   
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
+import qualified Language.Haskell.Liquid.Misc          as Misc 
 import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Bare.Types 
@@ -401,3 +406,85 @@ tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid 
 expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
 expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType
                    
+
+
+------------------------------------------------------------------------------------------
+-- | Is this the SAME as addTyConInfo? No. `txRefSort`
+-- (1) adds the _real_ sorts to RProp,
+-- (2) gathers _extra_ RProp at turns them into refinements,
+--     e.g. tests/pos/multi-pred-app-00.hs
+------------------------------------------------------------------------------------------
+
+txRefSort :: TyConMap -> F.TCEmb Ghc.TyCon -> LocSpecType -> LocSpecType
+txRefSort tyi tce t = F.atLoc t $ mapBot (addSymSort (GM.fSrcSpan t) tce tyi) (val t)
+
+addSymSort :: (PPrint t, F.Reftable t)
+           => Ghc.SrcSpan
+           -> F.TCEmb Ghc.TyCon
+           -> M.HashMap Ghc.TyCon RTyCon
+           -> RType RTyCon RTyVar (UReft t)
+           -> RType RTyCon RTyVar (UReft t)
+addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
+  = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
+  where
+    rc'                = RT.appRTyCon tce tyi rc ts
+    pvs                = rTyConPVs rc'
+    (rargs, rrest)     = splitAt (length pvs) rs
+    r'                 = L.foldl' go r rrest
+    go r (RProp _ (RHole r')) = r' `F.meet` r
+    go r (RProp  _ t' )       = let r' = Mb.fromMaybe mempty (stripRTypeBase t') in r `F.meet` r'
+
+addSymSort _ _ _ t
+  = t
+
+addSymSortRef :: (PPrint t, PPrint a, F.Symbolic tv, F.Reftable t)
+              => Ghc.SrcSpan
+              -> a
+              -> PVar (RType c tv ())
+              -> Ref (RType c tv ()) (RType c tv (UReft t))
+              -> Int
+              -> Ref (RType c tv ()) (RType c tv (UReft t))
+addSymSortRef sp rc p r i
+  | isPropPV p
+  = addSymSortRef' sp rc i p r
+  | otherwise
+  = panic Nothing "addSymSortRef: malformed ref application"
+
+addSymSortRef' :: (PPrint t, PPrint a, F.Symbolic tv, F.Reftable t)
+               => Ghc.SrcSpan
+               -> a
+               -> Int
+               -> PVar (RType c tv ())
+               -> Ref (RType c tv ()) (RType c tv (UReft t))
+               -> Ref (RType c tv ()) (RType c tv (UReft t))
+addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
+  = RProp xs t
+    where
+      t  = ofRSort (pvType p) `RT.strengthen` r
+      xs = spliceArgs "addSymSortRef 1" s p
+
+addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
+  | length xs == length ts
+  = RProp xts (RHole r)
+  | otherwise
+  = uError $ ErrPartPred sp (pprint rc) (pprint $ pname up) i (length xs) (length ts)
+    where
+      xts = Misc.safeZipWithError "addSymSortRef'" xs ts
+      xs  = Misc.snd3 <$> pargs up
+      ts  = Misc.fst3 <$> pargs p
+
+addSymSortRef' _ _ _ _ (RProp s (RHole r))
+  = RProp s (RHole r)
+
+addSymSortRef' _ _ _ p (RProp s t)
+  = RProp xs t
+    where
+      xs = spliceArgs "addSymSortRef 2" s p
+
+spliceArgs :: String  -> [(F.Symbol, b)] -> PVar t -> [(F.Symbol, t)]
+spliceArgs msg s p = go (fst <$> s) (pargs p)
+  where
+    go []     []           = []
+    go []     ((s,x,_):as) = (x, s):go [] as
+    go (x:xs) ((s,_,_):as) = (x,s):go xs as
+    go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs

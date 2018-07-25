@@ -13,8 +13,8 @@ module Language.Haskell.Liquid.Bare.Measure
   , strengthenHaskellMeasures
   , strengthenHaskellInlines
   , makeMeasureSpec
+  , makeMeasureSpec'
   -- , makeHaskellBounds
-  -- , makeMeasureSpec'
   -- , makeClassMeasureSpec
   -- , varMeasures
   ) where
@@ -342,6 +342,13 @@ makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns 
     mkx j   = symbol ("xx" ++ show j)
     dcs     = tyConDataCons (dataConTyCon dc)
 
+
+----------------------------------------------------------------------------------------------
+makeMeasureSpec' :: MSpec SpecType DataCon -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
+----------------------------------------------------------------------------------------------
+makeMeasureSpec' = Misc.mapFst (Misc.mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
+
+
 ----------------------------------------------------------------------------------------------
 makeMeasureSpec :: Bare.Env -> BareRTEnv -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
 ----------------------------------------------------------------------------------------------
@@ -359,9 +366,6 @@ bareMSpec env name rtEnv spec = Ms.mkMSpec ms cms ims
     ms      = expMeas <$> Ms.measures  spec
     ims     = expMeas <$> Ms.imeasures spec
     expMeas = expandMeasure env name rtEnv
-
--- makeMeasureSpec' :: MSpec SpecType DataCon -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
--- makeMeasureSpec' = Misc.mapFst (Misc.mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
 mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t DataCon
 mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]

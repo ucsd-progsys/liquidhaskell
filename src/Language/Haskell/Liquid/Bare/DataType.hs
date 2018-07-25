@@ -16,14 +16,13 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeDataDecls
   , makeConTypes
   , makeRecordSelectorSigs
+  , meetDataConSpec
   -- , makeTyConEmbeds
-  -- , meetDataConSpec
 
   ) where
 
 -- import           TysPrim
 -- import           Name                                   (getSrcSpan)
--- import           SrcLoc                                 (SrcSpan)
 
 import           Prelude                                hiding (error)
 import qualified InstEnv as Ghc 
@@ -33,6 +32,8 @@ import qualified Type    as Ghc
 import qualified TyCoRep as Ghc 
 import qualified Class   as Ghc
 import qualified TysWiredIn as Ghc 
+import qualified SrcLoc     as Ghc 
+import qualified Name       as Ghc 
 -- import           Text.Parsec
 -- import           Var
 -- import           Data.Maybe
@@ -424,12 +425,34 @@ qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
 -}
 
 --------------------------------------------------------------------------------
+meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [(Ghc.DataCon, DataConP)] 
+                -> [(Ghc.Var, SpecType)]
+--------------------------------------------------------------------------------
+meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+  where
+    dcm0                     = M.fromList (dataConSpec' dcs)
+    upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
+                                where
+                                  tx' = maybe t (meetX x t) (M.lookup x dcm)
+    meetX x t (sp', t')      = meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t')
+
+dataConSpec' :: [(Ghc.DataCon, DataConP)] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
+dataConSpec' dcs = concatMap tx dcs
+  where
+    sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
+    tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
+                                         , let t  = RT.expandProductType x t0  ]
+
+
+
+
+--------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
 makeConTypes :: (ModName, Ms.BareSpec) 
              -> ( [(ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)]
                 , [[(Ghc.DataCon, Located DataConP)]]              )
-makeConTypes _ = (mempty, mempty) -- TODO-REBARE 
+makeConTypes _ = undefined -- (mempty, mempty) -- TODO-REBARE 
 
 {- BARE
 makeConTypes (name, spec) = 
@@ -479,24 +502,6 @@ groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fs
     merge ds     []         = ((,Nothing) . Just) <$> ds
     sym                     = val . fst
 
-dataConSpec' :: [(DataCon, DataConP)] -> [(Var, (SrcSpan, SpecType))]
-dataConSpec' dcs = concatMap tx dcs
-  where
-    sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
-    tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
-                                         , let t  = F.notracepp ("expandProductType" ++ showpp (x, t0)) $ RT.expandProductType x t0  ]
-
-    -- tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t) <- RT.mkDataConIdsTy dc (dataConPSpecType dc dcp) ] -- HEREHEREHEREHERE-1089
-
-
-meetDataConSpec :: F.TCEmb TyCon -> [(Var, SpecType)] -> [(DataCon, DataConP)] -> [(Var, SpecType)]
-meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec" xts)
-  where
-    dcm0                     = M.fromList $ dataConSpec' dcs
-    upd dcm (x, t)           = M.insert x (getSrcSpan x, tx') dcm
-                                where
-                                  tx' = maybe t (meetX x t) (M.lookup x dcm)
-    meetX x t (sp', t')      = meetVarTypes emb (pprint x) (getSrcSpan x, t) (sp', t')
 
 checkDataCtors :: TyCon -> [DataCtor] -> BareM ()
 checkDataCtors c ds = do

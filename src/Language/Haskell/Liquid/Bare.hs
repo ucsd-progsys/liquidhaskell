@@ -69,6 +69,7 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
 
+-- import qualified Language.Haskell.Liquid.Bare.SymSort       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
@@ -139,7 +140,9 @@ makeGhcSpec cfg src specs lmap = SP
     name     = giTargetMod  src 
     mySpec   = fromMaybe mempty (lookup name specs)
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec 
-    sigEnv   = makeSigEnv embs tyi (gsExports src) rtEnv 
+    -- build up environments
+    sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
+    measEnv  = makeMeasEnv    env tycEnv rtEnv specs 
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
     tycEnv   = makeTycEnv   cfg name env embs 
     embs     = F.tracepp "EMBEDS" $ makeEmbeds   src env
@@ -559,28 +562,27 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
 -- REBARE: formerly, makeGhcCHOP2
 
 -------------------------------------------------------------------------------------------
-makeMeasEnv :: _ -> Bare.Env -> Bare.TycEnv -> Bare.MeasEnv 
+makeMeasEnv :: Bare.Env -> Bare.TycEnv -> BareRTEnv -> _ -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
-makeMeasEnv specs env tycEnv = Bare.MeasEnv 
+makeMeasEnv env tycEnv rtEnv specs = Bare.MeasEnv 
   { meMeasureSpec = measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
   , meDataCons    = cs' 
   }
   where 
-    measures      = mconcat (Ms.mkMSpec' dcSelectors : fmap makeMeasureSpec specs)
-    tyi           = tcTyConMap    tycEnv 
-    dcSelectors   = tcSelMeasures tycEnv 
-    datacons      = tcDataCons    tycEnv 
-    embs          = tcEmbs        tycEnv 
-    (cs, ms)      = makeMeasureSpec' measures
+    measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env rtEnv <$> specs))
+    tyi           = Bare.tcTyConMap    tycEnv 
+    dcSelectors   = Bare.tcSelMeasures tycEnv 
+    datacons      = Bare.tcDataCons    tycEnv 
+    embs          = Bare.tcEmbs        tycEnv 
+    (cs, ms)      = Bare.makeMeasureSpec' measures
     cms           = [] -- TODO-REBARE makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
     ms'           = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-    cs'           = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
-    txRefSort' v t = txRefSort tyi embs (const t <$> GM.locNamedThing v) 
+    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
+    txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- TODO-REBARE: -- xs'      = fst <$> ms'
-    -- txRefSort' :: NamedThing a => a -> Bare.TyConMap -> TCEmb TyCon -> SpecType -> LocSpecType
 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec :: Ms.BareSpec -> GhcSpec -> Ms.BareSpec 
