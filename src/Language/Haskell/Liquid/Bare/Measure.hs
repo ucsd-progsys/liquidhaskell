@@ -12,8 +12,8 @@ module Language.Haskell.Liquid.Bare.Measure
   , makeMeasureSelectors
   , strengthenHaskellMeasures
   , strengthenHaskellInlines
+  , makeMeasureSpec
   -- , makeHaskellBounds
-  -- , makeMeasureSpec
   -- , makeMeasureSpec'
   -- , makeClassMeasureSpec
   -- , varMeasures
@@ -62,6 +62,9 @@ import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure       as Ms
+import           Language.Haskell.Liquid.Bare.Types    as Bare 
+import           Language.Haskell.Liquid.Bare.Resolve  as Bare 
+import           Language.Haskell.Liquid.Bare.Expand   as Bare 
 import           Language.Haskell.Liquid.Bare.DataType as Bare 
 
 -- import           Language.Haskell.Liquid.Bare.Env
@@ -228,10 +231,11 @@ errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text s
 
 -} 
 
---------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
 -- | 'makeMeasureSelectors' converts the 'DataCon's and creates the measures for
 --   the selectors and checkers that then enable reflection.
---------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+
 
 strengthenHaskellInlines  :: S.HashSet (Located Var) -> [(Var, LocSpecType)] -> [(Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
@@ -338,30 +342,31 @@ makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns 
     mkx j   = symbol ("xx" ++ show j)
     dcs     = tyConDataCons (dataConTyCon dc)
 
-{- 
-makeMeasureSpec :: (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
-makeMeasureSpec (mod, spec) = inModule mod mkSpec
+----------------------------------------------------------------------------------------------
+makeMeasureSpec :: Bare.Env -> BareRTEnv -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType DataCon
+----------------------------------------------------------------------------------------------
+makeMeasureSpec env rtEnv (name, spec) 
+  = mkMeasureDCon env name 
+  . mkMeasureSort env name 
+  . first val 
+  . bareMSpec env name rtEnv 
+  $ spec 
+
+bareMSpec :: Bare.Env -> ModName -> BareRTEnv -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
+bareMSpec env name rtEnv spec = Ms.mkMSpec ms cms ims 
   where
-    mkSpec = mkMeasureDCon =<< mkMeasureSort =<< first val <$> m
-    m      = Ms.mkMSpec <$> mapM expandMeasure (Ms.measures spec)
-                        <*> return (Ms.cmeasures spec)
-                        <*> mapM expandMeasure (Ms.imeasures spec)
+    cms     = Ms.cmeasures spec
+    ms      = expMeas <$> Ms.measures  spec
+    ims     = expMeas <$> Ms.imeasures spec
+    expMeas = expandMeasure env name rtEnv
 
-makeMeasureSpec' :: MSpec SpecType DataCon
-                 -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
-makeMeasureSpec' = Misc.mapFst (Misc.mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
+-- makeMeasureSpec' :: MSpec SpecType DataCon -> ([(Var, SpecType)], [(LocSymbol, RRType F.Reft)])
+-- makeMeasureSpec' = Misc.mapFst (Misc.mapSnd RT.uRType <$>) . Ms.dataConTypes . first (mapReft ur_reft)
 
-makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
-                     -> [(LocSymbol, CMeasure (RType c tv r2))]
-makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
-  where
-    tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
-
-
-mkMeasureDCon :: Ms.MSpec t LocSymbol -> BareM (Ms.MSpec t DataCon)
-mkMeasureDCon m
-  = mkMeasureDCon_ m <$> forM (measureCtors m)
-                           (\n -> (val n,) <$> lookupGhcDataCon n)
+mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t DataCon
+mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]
+  where 
+    symDC                = Bare.strictResolveSym env name "measure-datacon"
 
 mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(Symbol, DataCon)] -> Ms.MSpec t DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
@@ -373,19 +378,47 @@ mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
 measureCtors = Misc.sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
 
-mkMeasureSort ::  Ms.MSpec BareType LocSymbol -> BareM (Ms.MSpec SpecType LocSymbol)
-mkMeasureSort (Ms.MSpec c mm cm im)
-  = Ms.MSpec <$> forM c (mapM txDef) <*> forM mm tx <*> forM cm tx <*> forM im tx
+mkMeasureSort :: Bare.Env -> ModName -> Ms.MSpec BareType LocSymbol -> Ms.MSpec SpecType LocSymbol
+mkMeasureSort env name (Ms.MSpec c mm cm im) = 
+  Ms.MSpec (map txDef <$> c) (tx <$> mm) (tx <$> cm) (tx <$> im) 
     where
-      tx :: Measure BareType ctor -> BareM (Measure SpecType ctor)
-      tx (M n s eqs k) = M n <$> ofMeaSort s <*> mapM txDef eqs <*> pure k
+      ofMeaSort :: F.SourcePos -> BareType -> SpecType
+      ofMeaSort = Bare.ofBareType env name  
 
-      txDef :: Def BareType ctor -> BareM (Def SpecType ctor)
-      txDef def = liftM3 (\xs t bds-> def{ dparams = xs, dsort = t, binds = bds})
-                  (mapM (Misc.mapSndM ofMeaSort) (dparams def))
-                  (mapM ofMeaSort $ dsort def)
-                  (mapM (Misc.mapSndM $ mapM ofMeaSort) (binds def))
+      tx :: Measure BareType ctor -> Measure SpecType ctor
+      tx (M n s eqs k) = M n (ofMeaSort l s) (txDef <$> eqs) k     where l = GM.fSourcePos n
 
+      txDef :: Def BareType ctor -> Def SpecType ctor
+      txDef d = first (ofMeaSort l) d                              where l = GM.fSourcePos (measure d) 
+
+--------------------------------------------------------------------------------
+-- | Expand Measures -----------------------------------------------------------
+--------------------------------------------------------------------------------
+type BareMeasure = Measure (Located BareType) LocSymbol
+
+expandMeasure :: Bare.Env -> ModName -> BareRTEnv -> BareMeasure -> BareMeasure
+expandMeasure env name rtEnv m = m 
+  { msSort = RT.generalize                   <$> msSort m
+  , msEqns = expandMeasureDef env name rtEnv <$> msEqns m 
+  }
+
+expandMeasureDef :: Bare.Env -> ModName -> BareRTEnv -> Def t LocSymbol -> Def t LocSymbol
+expandMeasureDef env name rtEnv d = d 
+  { body  = expandMeasureBody env name rtEnv l (body d) 
+  }
+  where l = loc (measure d) 
+
+expandMeasureBody :: Bare.Env -> ModName -> BareRTEnv -> SourcePos -> Body -> Body
+expandMeasureBody env name rtEnv l (P   p) = P   (Bare.expandQualify env name rtEnv l p) 
+expandMeasureBody env name rtEnv l (R x p) = R x (Bare.expandQualify env name rtEnv l p) 
+expandMeasureBody env name rtEnv l (E   e) = E   (Bare.expandQualify env name rtEnv l e) 
+
+{- 
+makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
+                     -> [(LocSymbol, CMeasure (RType c tv r2))]
+makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
+  where
+    tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
 
 varMeasures :: (Monoid r) => [Var] -> [(Symbol, Located (RRType r))]
 varMeasures vars = [ (symbol v, varSpecType v)  | v <- vars
@@ -443,25 +476,5 @@ capitalizeBound = fmap (symbol . toUpperHead . symbolString)
     toUpperHead []     = []
     toUpperHead (x:xs) = toUpper x:xs
 
---------------------------------------------------------------------------------
--- | Expand Measures -----------------------------------------------------------
---------------------------------------------------------------------------------
-type BareMeasure = Measure (Located BareType) LocSymbol
-
-expandMeasure :: BareMeasure -> BareM BareMeasure
-expandMeasure m = do
-  eqns <- sequence $ expandMeasureDef <$> msEqns m
-  return $ m { msSort = RT.generalize <$> msSort m
-             , msEqns = eqns }
-
-expandMeasureDef :: Def t LocSymbol -> BareM (Def t LocSymbol)
-expandMeasureDef d
-  = do body <- expandMeasureBody (loc $ measure d) $ body d
-       return $ d { body = body }
-
-expandMeasureBody :: SourcePos -> Body -> BareM Body
-expandMeasureBody l (P p)   = P   <$> (resolve l =<< expand l p)
-expandMeasureBody l (R x p) = R x <$> (resolve l =<< expand l p)
-expandMeasureBody l (E e)   = E   <$> resolve l e
-
 -}
+

@@ -20,12 +20,13 @@
 - [x] asserted-sigs
 - [x] unqualified imports
 - [x] assumed-sigs
-- [x] importing-specs
 - [x] alias
+- [x] importing
 - [ ] measures
-- [ ] importing-specs
+- [ ] importing
+- [ ] invariants
+- [ ] importing
 - [ ] termination
-- [ ] importing-specs
 - [ ] absref
 - [ ] holes
 - [ ] reflect

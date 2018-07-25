@@ -2094,10 +2094,8 @@ instance F.Loc (Measure a b) where
   srcSpan = F.srcSpan . msName
 
 instance Bifunctor Def where
-  first f (Def m ps c s bs b) =
-    Def m (map (second f) ps) c (fmap f s) (map (second (fmap f)) bs) b
-  second f (Def m ps c s bs b) =
-    Def m ps (f c) s bs b
+  first f  (Def m ps c s bs b) = Def m (second f <$> ps) c (f <$> s) ((second (fmap f)) <$> bs) b
+  second f (Def m ps c s bs b) = Def m ps (f c) s bs b
 
 instance Bifunctor Measure where
   first f (M n s es k)  = M n (f s) (first f <$> es) k

@@ -185,6 +185,15 @@ instance ResolveSym Ghc.Var where
 instance ResolveSym Ghc.TyCon where 
   resolveLocSym = resolveWith $ \case {Ghc.ATyCon x -> Just x; _ -> Nothing}
 
+instance ResolveSym Ghc.DataCon where 
+  resolveLocSym = resolveWith $ \case {Ghc.AConLike (Ghc.RealDataCon x) -> Just x; _ -> Nothing}
+
+instance ResolveSym F.Symbol where 
+  resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of 
+    Left _               -> Right (val lx)
+    Right (v :: Ghc.Var) -> Right (F.symbol v)
+
+
 resolveWith :: (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith f env name kind lx = 
@@ -246,11 +255,6 @@ symbolicIdent x = "'" ++ symbolicString x ++ "'"
 
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = F.symbolString . F.symbol
-
-instance ResolveSym F.Symbol where 
-  resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of 
-    Left _               -> Right (val lx)
-    Right (v :: Ghc.Var) -> Right (F.symbol v)
 
 resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
 resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x) 

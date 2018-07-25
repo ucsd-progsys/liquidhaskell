@@ -11,6 +11,8 @@ module Language.Haskell.Liquid.Bare.Expand
   , Expand (..)
   , expandLoc 
 
+    -- * Expand and Qualify 
+  , expandQualify 
   ) where
 
 import Prelude hiding (error)
@@ -222,10 +224,17 @@ buildExprEdges table  = ordNub . go
 class Expand a where 
   expand :: BareRTEnv -> F.SourcePos -> a -> a 
 
+expandQualify :: (Expand a, Bare.Qualify a) => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
+expandQualify env name rtEnv l = Bare.qualify env name . expand rtEnv l
+
+
 ----------------------------------------------------------------------------------
 
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
 expandLoc rtEnv lx = expand rtEnv (F.loc lx) <$> lx 
+
+instance Expand Expr where 
+  expand _ _ x = x -- TODO-REBARE 
 
 instance Expand (RTAlias F.Symbol Expr) where 
   expand _ _ x = x -- TODO-REBARE 

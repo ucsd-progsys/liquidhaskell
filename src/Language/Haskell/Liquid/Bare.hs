@@ -368,22 +368,17 @@ rawTySigs env name spec =
   [ (v, t) 
       | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
       , let v   = Bare.strictResolveSym env name "Var" x 
-      -- , let t'  = makeRawSig env name t
   ] 
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> [(ModName, Ms.BareSpec)] -> [(Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
   [ (x, cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env myName specs ] 
 
---  asms'    <- F.notracepp "MAKE-ASSUME-SPEC-1" . Misc.fstByRank . mconcat <$> mapM (makeAssumeSpec name cfg vars defVars) specs
---  let asms  = F.notracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
---  asmSigs  <- F.notracepp "MAKE-ASSUME-SPEC-3" <$> (makePluggedAsmSigs embs tyi           $ tx asms)
--- tx         = fmap . mapSnd . subst $ su
 rawAsmSigs :: Bare.Env -> ModName -> [(ModName, Ms.BareSpec)] -> [(ModName, Var, LocBareType)]
 rawAsmSigs env myName specs =  
   [ (name, v, t) 
       | (name, spec) <- specs
-      , (x   , t)    <- {- F.tracepp ("ASM-SIGS: " ++ show name) $ -} getAsmSigs myName name spec
+      , (x   , t)    <- getAsmSigs myName name spec
       , v            <- maybeToList (Bare.maybeResolveSym env name "rawAsmVar" x)
   ] 
   
@@ -391,14 +386,6 @@ getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(LocSymbol, LocBareType)]
 getAsmSigs myName name spec 
   | myName == name = Ms.asmSigs spec
   | otherwise      = Ms.asmSigs spec ++ Ms.sigs spec
-                               
--- makeRawSig :: Bare.Env -> ModName -> LocBareType -> LocSpecType
--- makeRawSig env name lt = F.atLoc lt st 
-  -- where 
-    -- st                 = Bare.ofBareType env name l (val lt) 
-    -- l                  = F.loc lt
-
-
 
 ----------------------------------------------------------------------------------------
 -- | @cookSpecType@ is the central place where a @BareType@ gets processed, 
@@ -513,15 +500,21 @@ makeHIMeas f vs spec
     tx (x, (l, l', s))  = (Loc l l' x, s)
 -}
 
+
+-- , meDataCons    = mempty -- TODO-REBARE: cs' 
+-- ctors       <- F.notracepp "MAKE-CTORS-SPEC"    <$> (makePluggedAsmSigs embs tyi           $ tx cs' )
+-- , gsCtors    = filter (\(v,_) -> v `elem` vs) ctors
+
 ------------------------------------------------------------------------------------------
 makeSpecData :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData _ _ _ _ = SpData 
-  { gsCtors      = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
-  , gsMeas       = mempty -- TODO-REBARE :: ![(Symbol, LocSpecType)]      -- ^ Measure Types eg.  len :: [a] -> Int
+  { gsCtors      = undefined -- TODO-REBARE :: ![(Var, LocSpecType)]         -- ^ Data Constructor Measure Sigs
+  , gsMeas       = undefined -- TODO-REBARE :: ![(Symbol, LocSpecType)]      -- ^ Measure Types eg.  len :: [a] -> Int
+  , gsMeasures   = undefined -- TODO-REBARE :: ![Measure SpecType DataCon]
+
   , gsInvariants = mempty -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   = mempty -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
-  , gsMeasures   = mempty -- TODO-REBARE :: ![Measure SpecType DataCon]
   }
 
 -------------------------------------------------------------------------------------------
@@ -569,25 +562,25 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
 makeMeasEnv :: _ -> Bare.Env -> Bare.TycEnv -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
 makeMeasEnv specs env tycEnv = Bare.MeasEnv 
-  { meMeasureSpec = mempty -- TODO-REBARE: measures 
-  , meClassSyms   = mempty -- TODO-REBARE: cms' 
-  , meSyms        = mempty -- TODO-REBARE: ms' 
-  , meDataCons    = mempty -- TODO-REBARE: cs' 
+  { meMeasureSpec = measures 
+  , meClassSyms   = cms' 
+  , meSyms        = ms' 
+  , meDataCons    = cs' 
   }
-  -- TODO-REBARE: where 
-    -- TODO-REBARE: measures      = mconcat (Ms.mkMSpec' dcSelectors : fmap makeMeasureSpec specs)
-    -- TODO-REBARE: tyi           = tcTyConMap    tycEnv 
-    -- TODO-REBARE: dcSelectors   = tcSelMeasures tycEnv 
-    -- TODO-REBARE: datacons      = tcDataCons    tycEnv 
-    -- TODO-REBARE: embs          = tcEmbs        tycEnv 
-    -- TODO-REBARE: (cs, ms)      = makeMeasureSpec' measures
-    -- TODO-REBARE: cms           = [] -- TODO-REBARE makeClassMeasureSpec measures
-    -- TODO-REBARE: cms'          = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
-    -- TODO-REBARE: ms'           = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
-    -- TODO-REBARE: cs'           = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
+  where 
+    measures      = mconcat (Ms.mkMSpec' dcSelectors : fmap makeMeasureSpec specs)
+    tyi           = tcTyConMap    tycEnv 
+    dcSelectors   = tcSelMeasures tycEnv 
+    datacons      = tcDataCons    tycEnv 
+    embs          = tcEmbs        tycEnv 
+    (cs, ms)      = makeMeasureSpec' measures
+    cms           = [] -- TODO-REBARE makeClassMeasureSpec measures
+    cms'          = [ (x, Loc l l' $ cSort t) | (Loc l l' x, t) <- cms ]
+    ms'           = [ (x, Loc l l' t) | (Loc l l' x, t) <- ms, isNothing $ lookup x cms' ]
+    cs'           = [ (v, txRefSort' v tyi embs t) | (v, t) <- meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
+    txRefSort' v t = txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- TODO-REBARE: -- xs'      = fst <$> ms'
-    -- TODO-REBARE: -- txRefSort' :: NamedThing a => a -> Bare.TyConMap -> TCEmb TyCon -> SpecType -> LocSpecType
-    -- TODO-REBARE: txRefSort' v t = txRefSort tyi embs (const t <$> GM.locNamedThing v) 
+    -- txRefSort' :: NamedThing a => a -> Bare.TyConMap -> TCEmb TyCon -> SpecType -> LocSpecType
 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec :: Ms.BareSpec -> GhcSpec -> Ms.BareSpec 
