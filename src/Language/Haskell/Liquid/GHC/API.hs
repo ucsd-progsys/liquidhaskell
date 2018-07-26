@@ -23,8 +23,8 @@ import Name           as Ghc hiding (varName)
 
 -- import TyCon          as Ghc 
 -- import DataCon        as Ghc 
--- import TysWiredIn     as Ghc 
-
+import TysWiredIn     as Ghc 
+import TysPrim        as Ghc
 
 
 

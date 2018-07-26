@@ -610,7 +610,6 @@ instance NFData Var where
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-
 splitModuleName :: Symbol -> (Symbol, Symbol)
 splitModuleName x = (takeModuleNames x, dropModuleNamesAndUnique x)
 
