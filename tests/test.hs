@@ -22,6 +22,7 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
+import Data.List (sort, reverse)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import Options.Applicative
@@ -232,7 +233,11 @@ dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 --------------------------------------------------------------------------------
 dirTests root ignored code = do
   files    <- walkDirectory root
-  let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
+  let tests = [ rel | f <- reverse $ sort files
+                    , isTest f
+                    , let rel = makeRelative root f
+                    , rel `notElem` ignored
+                    ]
   return    $ mkCodeTest code root <$> tests
 
 mkCodeTest :: ExitCode -> FilePath -> FilePath -> TestTree
