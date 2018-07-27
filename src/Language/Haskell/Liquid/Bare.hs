@@ -56,6 +56,7 @@ import qualified Language.Haskell.Liquid.Bare.Expand        as Bare
 import qualified Language.Haskell.Liquid.Bare.Measure       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
+import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -100,13 +101,13 @@ saveLiftedSpec srcF _ lspec = do
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
 -------------------------------------------------------------------------------------
-makeGhcSpec :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> GhcSpec 
-makeGhcSpec cfg src specs lmap = SP 
+makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec 
+makeGhcSpec cfg src lmap specs0 = SP 
   { gsConfig = cfg 
   , gsSig    = sig 
   , gsRefl   = refl 
   , gsQual   = makeSpecQual cfg env specs  rtEnv 
-  , gsData   = makeSpecData src env sigEnv measEnv   name specs
+  , gsData   = sData 
   , gsName   = makeSpecName env tycEnv 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name 
@@ -116,19 +117,24 @@ makeGhcSpec cfg src specs lmap = SP
     refl     = makeSpecRefl cfg src specs env name sig embs tycEnv 
     sig      = makeSpecSig name specs env sigEnv 
     -- build up environments
-    measEnv  = makeMeasEnv    env tycEnv sigEnv specs 
+    sData    = makeSpecData src env sigEnv measEnv name specs
+    measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
     rtEnv    = Bare.makeRTEnv env name lSpec0 specs lmap
-
-    lSpec0   = makeLiftedSpec0 cfg src tycEnv lmap mySpec 
+    specs    = updateSpecs specs0 name mySpec specs0
+    mySpec   = mySpec0 <> lSpec0
+    lSpec0   = makeLiftedSpec0 cfg src tycEnv lmap mySpec0 
     tyi      = Bare.tcTyConMap   tycEnv 
     tycEnv   = makeTycEnv   cfg name env embs 
     embs     = F.tracepp "EMBEDS" $ makeEmbeds   src env
     env      = Bare.makeEnv cfg src specs lmap  
     -- extract my name and spec
     name     = giTargetMod  src 
-    mySpec   = Mb.fromMaybe mempty (lookup name specs)
- 
+    mySpec0  = Mb.fromMaybe mempty (lookup name specs0)
+
+updateSpecs :: ModName -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> [(ModName, Ms.BareSpec)]
+updateSpecs = undefined
+
 makeEmbeds :: GhcSrc -> Bare.Env -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
   = Bare.addClassEmbeds (gsCls src) (gsFiTcs src) 
@@ -303,6 +309,7 @@ makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) specs
   , gsMyAxioms   = myAxioms 
   , gsReflects   = filter (isReflectVar rflSyms) sigVars
+  , gsHAxioms    = xtes 
   }
   where
     mySpec       = Mb.fromMaybe mempty (lookup name specs)
@@ -439,7 +446,7 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> ModName
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv name specs = SpData 
   { gsCtors      = [ (x, Bare.plugHoles sigEnv name x t) | (x, t) <- Bare.meDataCons measEnv]
-  , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
+  , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- F.tracepp "MEAS-VARS" measVars ] 
   , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
   , gsInvariants = mempty    -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
   , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
@@ -542,19 +549,22 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec :: Ms.BareSpec -> GhcSpec -> Ms.BareSpec 
-makeLiftedSpec lSpec0 sp = lSpec0 -- TODO-REBARE
-{- 
-  lSpec0 { Ms.asmSigs    = xbs
-         , Ms.reflSigs   = xbs
-         , Ms.axeqs      = gsMyAxioms (gsSpecRefl sp) 
---          , Ms.invariants = xinvs
-         }
+makeLiftedSpec :: Ms.BareSpec -> GhcSpecRefl -> GhcSpecData -> Ms.BareSpec 
+makeLiftedSpec lSpec0 refl sData 
+  = lSpec0 { Ms.asmSigs    = xbs
+           , Ms.reflSigs   = xbs
+           , Ms.axeqs      = gsMyAxioms refl 
+--         , Ms.invariants = xinvs
+           }
   where 
-    xbs    = [ (varLocSym x       , specToBare <$> t) | (x, t) <- xts  ]
-    xinvs  = [ ((varLocSym <$> x) , specToBare <$> t) | (x, t) <- gsInvariants sp ]
+    xbs    = [ (varLocSym x       , Bare.specToBare <$> t) | (x, t, _) <- gsHAxioms refl     ]
+    xinvs  = [ ((varLocSym <$> x) , Bare.specToBare <$> t) | (x, t)    <- gsInvariants sData ]
 
- 
+varLocSym :: Ghc.Var -> LocSymbol
+varLocSym v = F.symbol <$> GM.locNamedThing v
+
+
+{- 
 makeLiftedSpec1
   :: FilePath -> ModName -> Ms.BareSpec
   -> [(Var, LocSpecType)]
@@ -572,13 +582,6 @@ makeLiftedSpec1 file name lSpec0 xts axs invs
                     , Ms.invariants = xinvs
                     }
 
-varLocSym :: Var -> LocSymbol
-varLocSym v = symbol <$> GM.locNamedThing v
-
-
--}
-      
-{- 
 makeGhcSpec :: Config
             -> FilePath
             -> ModName

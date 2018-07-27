@@ -403,10 +403,11 @@ data GhcSpecTerm = SpTerm
   }
 
 data GhcSpecRefl = SpRefl 
-  { gsAutoInst   :: !(M.HashMap Var (Maybe Int))  -- ^ Binders to USE PLE 
-  , gsImpAxioms  :: ![F.Equation]                 -- ^ Axioms from imported reflected functions
-  , gsMyAxioms   :: ![F.Equation]                 -- ^ Axioms from my reflected functions
-  , gsReflects   :: ![Var]                        -- ^ Binders for reflected functions
+  { gsAutoInst   :: !(M.HashMap Var (Maybe Int))      -- ^ Binders to USE PLE 
+  , gsHAxioms    :: ![(Var, LocSpecType, F.Equation)] -- ^ Lifted definitions 
+  , gsImpAxioms  :: ![F.Equation]                     -- ^ Axioms from imported reflected functions
+  , gsMyAxioms   :: ![F.Equation]                     -- ^ Axioms from my reflected functions
+  , gsReflects   :: ![Var]                            -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
   }
 
