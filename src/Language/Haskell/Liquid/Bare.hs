@@ -298,7 +298,7 @@ makeSpecRefl :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> Bare.Env -> ModN
              -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
 makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl 
-  { gsLogicMap   = Bare.reLMap env 
+  { gsLogicMap   = lmap 
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) specs
   , gsMyAxioms   = myAxioms 
@@ -306,10 +306,11 @@ makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl
   }
   where
     mySpec       = Mb.fromMaybe mempty (lookup name specs)
-    xtes         = Bare.makeHaskellAxioms src mySpec embs env tycEnv sig 
+    xtes         = Bare.makeHaskellAxioms src tycEnv lmap sig mySpec
     myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = (fst3 <$> xtes) ++ (fst <$> gsAsmSigs sig)
+    lmap         = Bare.reLMap env
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool 
 isReflectVar reflSyms v = S.member vx reflSyms

@@ -28,26 +28,26 @@ import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 
 import           Language.Haskell.Liquid.Bare.Types as Bare
+
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms :: GhcSrc -> Ms.BareSpec -> F.TCEmb Ghc.TyCon -> Bare.Env -> Bare.TycEnv -> GhcSpecSig 
+makeHaskellAxioms :: GhcSrc -> Bare.TycEnv -> LogicMap -> GhcSpecSig -> Ms.BareSpec 
                   -> [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms embs cbs spec sp adts = mempty -- undefined -- TODO-REBARE 
-{- 
-do
-  xtvds <- getReflectDefs spec sp cbs
-  forM_ xtvds $ \(x,_,v,_) -> updateLMapXV x v
-  lmap  <- logicEnv <$> get
-  let dm = dataConMap adts
-  mapM (makeAxiom embs lmap dm) xtvds
--}
+makeHaskellAxioms src tycEnv lmap spSig 
+  = fmap (makeAxiom tycEnv lmap) 
+  . getReflectDefs src spSig
+  -- embs  = Bare.tcEmbs       tycEnv 
+  -- dm    = Bare.tcDataConMap tycEnv
+  -- TODO-REBARE: forM_ xtvds $ \(x,_,v,_) -> updateLMapXV x v
 
-getReflectDefs :: GhcSpecSig -> Ms.BareSpec -> [Ghc.CoreBind] 
+
+getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec 
                -> [(LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)]
-getReflectDefs sig sp cbs = findVarDefType cbs sigs <$> xs
+getReflectDefs src sig spec = findVarDefType cbs sigs <$> xs
   where
-    sigs                  = gsTySigs sig 
-    xs                    = S.toList (Ms.reflects sp)
+    sigs                    = gsTySigs sig 
+    xs                      = S.toList (Ms.reflects spec)
+    cbs                     = giCbs src
 
 findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> LocSymbol
                -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
@@ -57,28 +57,27 @@ findVarDefType cbs sigs x = case findVarDef (val x) cbs of
                    else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
   Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
 
-
-
-{- 
+--------------------------------------------------------------------------------
+makeAxiom :: Bare.TycEnv 
+          -> LogicMap
+          -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
+          -> (Ghc.Var, LocSpecType, F.Equation)
+--------------------------------------------------------------------------------
+makeAxiom tycEnv lmap (x, mbT, v, def) = (v, t, e)
+  where 
+    (t, e) = makeAssumeType embs lmap dm x mbT v def
+    embs   = Bare.tcEmbs       tycEnv 
+    dm     = Bare.tcDataConMap tycEnv 
+  -- TODO-REBARE insertAxiom v Nothing
+  -- TODO-REBARE updateLMap x x v
+  -- TODO-REBARE updateLMap (x{val = (F.symbol . showPpr . getName) v}) x v
+  
+{- TODO-REBARE: updateLMapXV, updateLMap 
 
 updateLMapXV :: LocSymbol -> Var -> BareM ()
 updateLMapXV x v = do
   updateLMap x x v
   updateLMap (x {val = (F.symbol . showPpr . getName) v}) x v
-
---------------------------------------------------------------------------------
-makeAxiom :: F.TCEmb TyCon
-          -> LogicMap
-          -> DataConMap
-          -> (LocSymbol, Maybe SpecType, Var, CoreExpr)
-          -> BareM (Var, LocSpecType, AxiomEq)
---------------------------------------------------------------------------------
-makeAxiom tce lmap dm (x, mbT, v, def) = do
-  insertAxiom v Nothing
-  updateLMap x x v
-  updateLMap (x{val = (F.symbol . showPpr . getName) v}) x v
-  let (t, e) = makeAssumeType tce lmap dm x mbT v def
-  return (v, t, e)
 
 updateLMap :: LocSymbol -> LocSymbol -> Var -> BareM ()
 updateLMap x y vv
