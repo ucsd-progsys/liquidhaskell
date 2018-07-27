@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Bare.OfType
   -- , ofMeaSort
   -- , ofBPVar
   -- , mkLSpecType
-  -- , mkSpecType'
+  , mkSpecType'
   ) where
 
 import Prelude hiding (error)

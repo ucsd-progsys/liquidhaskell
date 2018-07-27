@@ -211,7 +211,7 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e                   = {- F.notracepp "CORE-TO-DEF" <$>  -} (go [] $ inlinePreds $ simplify e)
+coreToDef x _ e                   = go [] $ inlinePreds $ simplify e
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
@@ -224,8 +224,9 @@ coreToDef x _ e                   = {- F.notracepp "CORE-TO-DEF" <$>  -} (go [] 
 
 measureFail       :: LocSymbol -> String -> a
 measureFail x msg = panic sp e 
-  where sp        = Just (GM.fSrcSpan x)
-        e         = Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg
+  where 
+    sp            = Just (GM.fSrcSpan x)
+    e             = Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg
     
 
 -- | 'isMeasureArg x' returns 'Just t' if 'x' is a valid argument for a measure.

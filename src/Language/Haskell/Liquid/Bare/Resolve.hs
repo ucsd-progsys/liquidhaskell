@@ -16,16 +16,29 @@ module Language.Haskell.Liquid.Bare.Resolve
 
     -- * Resolving symbols 
   , ResolveSym (..)
-  , strictResolveSym
-  , maybeResolveSym 
   , Qualify (..)
+  
+  -- * Looking up names
+  -- , strictResolveSym
+  , maybeResolveSym 
+  , lookupGhcDataCon 
+  , lookupGhcDnTyCon 
+  , lookupGhcTyCon 
+  , lookupGhcVar 
+  , lookupGhcNamedVar 
+
+  -- * Checking if names exist
+  , knownGhcVar 
+  , knownGhcTyCon 
+  , knownGhcDataCon 
 
   -- * Misc 
-  , resolveNamedVar 
   , srcVars 
 
   -- * Conversions from Bare
   , ofBareType
+  , ofBPVar
+  , mkSpecType'
   -- , ofBareExpr
 
   -- * Post-processing types
@@ -52,27 +65,28 @@ import           Language.Haskell.Liquid.Bare.Misc
 -------------------------------------------------------------------------------
 -- | Creating an environment 
 -------------------------------------------------------------------------------
-makeEnv :: GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> Env 
-makeEnv src specs lmap = RE 
+makeEnv :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> Env 
+makeEnv cfg src specs lmap = RE 
   { reLMap      = lmap
   , reSyms      = syms 
   , reSpecs     = specs 
   , _reSubst    = F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   , _reTyThings = makeTyThingMap src 
+  , reCfg       = cfg
   } 
   where 
-    syms     = [ (F.symbol v, v) | v <- vars ] 
-    vars     = srcVars src
+    syms        = [ (F.symbol v, v) | v <- vars ] 
+    vars        = srcVars src
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
 makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
                                               , let (m, x) = tyThingName t ] 
 
 tyThingName :: Ghc.TyThing -> (F.Symbol, F.Symbol)
-tyThingName t = F.tracepp msg (splitModuleNameExact sym) 
+tyThingName t = F.notracepp msg (splitModuleNameExact sym) 
   where 
     sym       = F.symbol t
-    msg       = "tyThingName: " ++ GM.showPpr t ++ " symbol = " ++ F.symbolString sym -- GM.showPpr t
+    msg       = "tyThingName: " ++ GM.showPpr t ++ " symbol = " ++ F.symbolString sym 
 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
@@ -198,11 +212,57 @@ qualifySymbol' :: [Var] -> Symbol -> Symbol
 qualifySymbol' vs x = maybe x symbol (L.find (isSymbolOfVar x) vs)
 -}
 -------------------------------------------------------------------------------
-resolveNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
+lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
 -------------------------------------------------------------------------------
-resolveNamedVar env name z = strictResolveSym env name "Var" lx 
+lookupGhcNamedVar env name z = strictResolveSym env name "Var" lx 
   where 
-    lx                     = GM.namedLocSymbol z
+    lx                       = GM.namedLocSymbol z
+
+lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Ghc.Var 
+lookupGhcVar = strictResolveSym 
+
+lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon 
+lookupGhcDataCon = strictResolveSym 
+
+lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
+lookupGhcTyCon = strictResolveSym 
+
+lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Ghc.TyCon
+lookupGhcDnTyCon env name msg (DnCon  s) = lookupGhcDnCon env name msg s
+lookupGhcDnTyCon env name msg (DnName s) = Mb.fromMaybe dnc (maybeResolveSym env name msg s) 
+  where 
+    dnc                                  = lookupGhcDnTyCon env name msg (DnCon s) 
+
+lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
+lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
+
+-------------------------------------------------------------------------------
+-- | Checking existence of names 
+-------------------------------------------------------------------------------
+knownGhcVar :: Env -> ModName -> LocSymbol -> Bool 
+knownGhcVar env name lx = Mb.isJust v 
+  where 
+    v :: Maybe Ghc.Var 
+    v = F.tracepp ("knownGhcVar " ++ F.showpp lx) 
+      $ maybeResolveSym env name "known-var" lx 
+
+knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 
+knownGhcTyCon env name lx = Mb.isJust v 
+  where 
+    v :: Maybe Ghc.TyCon 
+    v = maybeResolveSym env name "known-var" lx 
+
+knownGhcDataCon :: Env -> ModName -> LocSymbol -> Bool 
+knownGhcDataCon env name lx = Mb.isJust v 
+  where 
+    v :: Maybe Ghc.TyCon 
+    v = maybeResolveSym env name "known-var" lx 
+
+
+
+
+
+
 
 -------------------------------------------------------------------------------
 -- | Using the environment 
@@ -232,7 +292,7 @@ resolveWith f env name kind lx =
     []  -> Left  (errResolve kind lx) 
     x:_ -> Right x 
   where 
-    things         = lookupTyThing env name (val lx) 
+    things = lookupTyThing env name (val lx) 
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
@@ -330,6 +390,35 @@ ofBSort env name l t = ofBRType env name id l t
 
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
+
+-- mkSpecType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType
+-- mkSpecType env name l t = mkSpecType' env name l πs t
+  -- where 
+    -- πs                  = ty_preds (toRTypeRep t)
+
+mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
+mkSpecType' env name l πs t = ofBRType env name resolveReft l t
+  where
+    resolveReft             = qualify env name . txParam l RT.subvUReft (RT.uPVar <$> πs) t
+
+txParam :: F.SourcePos-> ((UsedPVar -> UsedPVar) -> t) -> [UsedPVar] -> RType c tv r -> t
+txParam l f πs t = f (txPvar l (predMap πs t))
+
+txPvar :: F.SourcePos -> M.HashMap F.Symbol UsedPVar -> UsedPVar -> UsedPVar
+txPvar l m π = π { pargs = args' }
+  where
+    args' | not (null (pargs π)) = zipWith (\(_,x ,_) (t,_,y) -> (t, x, y)) (pargs π') (pargs π)
+          | otherwise            = pargs π'
+    π'    = Mb.fromMaybe err $ M.lookup (pname π) m
+    err   = uError $ ErrUnbPred sp (pprint π)
+    sp    = GM.sourcePosSrcSpan l 
+
+predMap :: [UsedPVar] -> RType c tv r -> M.HashMap F.Symbol UsedPVar
+predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
+
+rtypePredBinds :: RType c tv r -> [UsedPVar]
+rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
+
 --------------------------------------------------------------------------------
 type Expandable r = ( PPrint r
                     , F.Reftable r
@@ -389,7 +478,7 @@ matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
   | isList c && arity == 1  = Ghc.listTyCon
   | isTuple c               = Ghc.tupleTyCon Ghc.Boxed arity
-  | otherwise               = strictResolveSym env name "matchTyCon" lc 
+  | otherwise               = strictResolveSym env name msg lc 
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
 

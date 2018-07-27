@@ -39,7 +39,11 @@ data Env = RE
   , reSpecs     :: ![(ModName, Ms.BareSpec)] 
   , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
   , _reTyThings :: !TyThingMap 
+  , reCfg       :: !Config
   }
+
+instance HasConfig Env where 
+  getConfig = reCfg 
 
 -------------------------------------------------------------------------------
 -- | A @TyThingMap@ is used to resolve symbols into GHC @TyThing@ and, 

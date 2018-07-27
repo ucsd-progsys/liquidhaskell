@@ -32,6 +32,14 @@
 - [ ] reflect
 - [ ] classes
 
+
+HEREHEREHEREHERE 
+
+rjhala@borscht ~/r/s/l/src (phadej-ghc-8.4)> ack "makeHaskell" | grep "TODO"
+Language/Haskell/Liquid/Bare/Axiom.hs:35:makeHaskellAxioms embs cbs spec sp adts = mempty -- TODO-REBARE
+Language/Haskell/Liquid/Bare/Measure.hs:83:makeHaskellMeasures src _tce _lmap _spec = mempty -- TODO-REBARE
+Language/Haskell/Liquid/Bare/Measure.hs:101:makeHaskellInlines _tce _cbs _spec = mempty -- TODO-REBARE
+
 ## Issues
 
 - Termination expressions have to be renamed as the binders get substituted via fresh etc.
