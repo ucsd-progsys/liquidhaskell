@@ -1,0 +1,43 @@
+---
+version: 2.0
+
+jobs:
+  build:
+    docker:
+      - image: fpco/stack-build:lts-10.0
+    steps:
+      - add_ssh_keys
+      - run: apt-get install z3
+      - checkout
+      - run: git submodule init
+      #- run: find .git
+      #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
+      - run: git submodule update
+      - restore_cache:
+          keys:
+            - stack-{{ checksum "stack.yaml" }}
+      - run:
+          name: Dependencies
+          command: |
+            stack setup
+            # rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
+            stack build liquidhaskell --only-dependencies --test --no-run-tests
+      - save_cache:
+          key: stack-{{ checksum "stack.yaml" }}
+          paths:
+            - ~/.stack
+            - ./.stack-work
+      - run:
+          name: Test
+          command: |
+            stack clean
+            mkdir -p $CIRCLE_TEST_REPORTS/junit
+            stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s -j2 --xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=$CIRCLE_TEST_REPORTS/junit/parser-test-results.xml":
+            stack sdist
+            stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
+            mkdir -p $CIRCLE_TEST_REPORTS/tasty
+            cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
+      - run:
+          name: Dist
+          command: stack sdist
