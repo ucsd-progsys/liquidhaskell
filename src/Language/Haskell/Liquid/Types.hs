@@ -245,6 +245,7 @@ import           Module                                 (moduleNameFS)
 import           NameSet
 import           PrelInfo                               (isNumericClass)
 import           Prelude                          hiding  (error)
+import qualified Prelude
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
 import           Type                                   (getClassPredTys_maybe)
@@ -286,7 +287,7 @@ import           Data.Default
 -----------------------------------------------------------------------------
 
 data PPEnv
-  = PP { ppPs    :: Bool
+  = PP { ppPs    :: Bool -- ^ print "foralls"
        , ppTyVar :: Bool -- TODO if set to True all Bare fails
        , ppSs    :: Bool
        , ppShort :: Bool
@@ -294,7 +295,8 @@ data PPEnv
     deriving (Show)
 
 ppEnv :: PPEnv
-ppEnv = ppEnvCurrent -- { ppTyVar = True } use True TO SEE UNIQUE SUFFIX ON TYVar
+ppEnv = ppEnvCurrent -- { ppTyVar = True } -- True to see UNIQUE SUFFIX on TYVar
+          { ppPs    = True }  -- True to see forall ... on Types 
 
 ppEnvCurrent :: PPEnv
 ppEnvCurrent    = PP False False False False
@@ -1382,7 +1384,6 @@ bkArrowDeep (RImpF x t t' r)= bkArrowDeep (RFun x t t' r)
 bkArrowDeep (RFun x t t' r) = let (xs, ts, rs, t'') = bkArrowDeep t'  in (x:xs, t:ts, r:rs, t'')
 bkArrowDeep t               = ([], [], [], t)
 
-
 bkArrow :: RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
                            , ([Symbol], [RType t t1 a], [a])
                            , RType t t1 a )
@@ -1399,14 +1400,14 @@ bkImp :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
 bkImp (RImpF x t t' r) = let (xs, ts, rs, t'') = bkImp t'  in (x:xs, t:ts, r:rs, t'')
 bkImp t                = ([], [], [], t)
 
-
-safeBkArrow :: RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
-                           , ([Symbol], [RType t t1 a], [a])
-                           , RType t t1 a )
-safeBkArrow (RAllT _ _) = panic Nothing "safeBkArrow on RAllT"
-safeBkArrow (RAllP _ _) = panic Nothing "safeBkArrow on RAllP"
-safeBkArrow (RAllS _ t) = safeBkArrow t
-safeBkArrow t           = bkArrow t
+safeBkArrow ::(F.PPrint (RType t t1 a)) 
+            => RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
+                               , ([Symbol], [RType t t1 a], [a])
+                               , RType t t1 a )
+safeBkArrow t@(RAllT _ _) = Prelude.error {- panic Nothing -} $ "safeBkArrow on RAllT" ++ F.showpp t
+safeBkArrow (RAllP _ _)   = Prelude.error {- panic Nothing -} "safeBkArrow on RAllP"
+safeBkArrow (RAllS _ t)   = safeBkArrow t
+safeBkArrow t             = bkArrow t
 
 mkUnivs :: (Foldable t, Foldable t1, Foldable t2)
         => t  (RTVar tv (RType c tv ()))
@@ -1993,7 +1994,16 @@ instance NFData Cinfo
 -- | Module Names --------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-data ModName = ModName !ModType !ModuleName deriving (Eq, Ord, Show)
+data ModName = ModName !ModType !ModuleName 
+  deriving (Eq, Ord, Show, Generic)
+
+data ModType = Target | SrcImport | SpecImport 
+  deriving (Eq, Ord, Show, Generic)
+
+instance Hashable ModType 
+
+instance Hashable ModName where
+  hashWithSalt i (ModName t n) = hashWithSalt i (t, show n)
 
 instance F.PPrint ModName where
   pprintTidy _ = text . show
@@ -2006,9 +2016,6 @@ instance F.Symbolic ModName where
 
 instance F.Symbolic ModuleName where
   symbol = F.symbol . moduleNameFS
-
-data ModType = Target | SrcImport | SpecImport 
-               deriving (Eq, Ord, Show)
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True
@@ -2067,7 +2074,7 @@ data Body
 
 data Def ty ctor = Def
   { measure :: F.LocSymbol
-  , dparams :: [(Symbol, ty)]          -- measure parameters
+  -- , dparams :: [(Symbol, ty)]          -- measure parameters
   , ctor    :: ctor
   , dsort   :: Maybe ty
   , binds   :: [(Symbol, Maybe ty)]    -- measure binders: the ADT argument fields
@@ -2095,8 +2102,11 @@ instance F.Loc (Measure a b) where
   srcSpan = F.srcSpan . msName
 
 instance Bifunctor Def where
-  first f  (Def m ps c s bs b) = Def m (second f <$> ps) c (f <$> s) ((second (fmap f)) <$> bs) b
-  second f (Def m ps c s bs b) = Def m ps (f c) s bs b
+  -- first f  (Def m ps c s bs b) = Def m (second f <$> ps) c (f <$> s) ((second (fmap f)) <$> bs) b
+  -- second f (Def m ps c s bs b) = Def m ps (f c) s bs b
+  first f  (Def m c s bs b) = Def m c (f <$> s) ((second (fmap f)) <$> bs) b
+  second f (Def m c s bs b) = Def m (f c) s bs b
+
 
 instance Bifunctor Measure where
   first f (M n s es k)  = M n (f s) (first f <$> es) k
@@ -2123,8 +2133,8 @@ instance F.PPrint Body where
   pprintTidy k (R v p) = braces (F.pprintTidy k v <+> "|" <+> F.pprintTidy k p)
 
 instance F.PPrint a => F.PPrint (Def t a) where
-  pprintTidy k (Def m p c _ bs body)
-           = F.pprintTidy k m <+> F.pprintTidy k (fst <$> p) <+> cbsd <+> "=" <+> F.pprintTidy k body
+  pprintTidy k (Def m c _ bs body)
+           = F.pprintTidy k m <+> cbsd <+> "=" <+> F.pprintTidy k body
     where
       cbsd = parens (F.pprintTidy k c <-> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
@@ -2153,10 +2163,10 @@ instance F.Subable (Measure ty ctor) where
   -- subst  su (M n s es _) = M n s $ F.subst  su <$> es
 
 instance F.Subable (Def ty ctor) where
-  syms (Def _ sp _ _ sb bd)  = (fst <$> sp) ++ (fst <$> sb) ++ F.syms bd
-  substa f  (Def m p c t b bd) = Def m p c t b $ F.substa f  bd
-  substf f  (Def m p c t b bd) = Def m p c t b $ F.substf f  bd
-  subst  su (Def m p c t b bd) = Def m p c t b $ F.subst  su bd
+  syms (Def _ _ _ sb bd)  = (fst <$> sb) ++ F.syms bd
+  substa f  (Def m c t b bd) = Def m c t b $ F.substa f  bd
+  substf f  (Def m c t b bd) = Def m c t b $ F.substf f  bd
+  subst  su (Def m c t b bd) = Def m c t b $ F.subst  su bd
 
 instance F.Subable Body where
   syms (E e)       = F.syms e

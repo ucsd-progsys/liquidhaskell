@@ -6,6 +6,7 @@ module Language.Haskell.Liquid.Bare.Types
   ( -- * Name resolution environment 
     Env (..)
   , TyThingMap 
+  , ModSpecs
 
     -- * Tycon and Datacon processing environment
   , TycEnv (..) 
@@ -30,13 +31,16 @@ import qualified Language.Fixpoint.Types         as F
 import qualified Language.Haskell.Liquid.Measure as Ms
 import           Language.Haskell.Liquid.Types   
 
+
+type ModSpecs = M.HashMap ModName Ms.BareSpec
+
 -------------------------------------------------------------------------------
 -- | Name resolution environment 
 -------------------------------------------------------------------------------
 data Env = RE 
   { reLMap      :: !LogicMap
   , reSyms      :: ![(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
-  , reSpecs     :: ![(ModName, Ms.BareSpec)] 
+  , reSpecs     :: !ModSpecs 
   , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
   , _reTyThings :: !TyThingMap 
   , reCfg       :: !Config

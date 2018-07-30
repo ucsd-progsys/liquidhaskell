@@ -65,7 +65,7 @@ import           Language.Haskell.Liquid.Bare.Misc
 -------------------------------------------------------------------------------
 -- | Creating an environment 
 -------------------------------------------------------------------------------
-makeEnv :: Config -> GhcSrc -> [(ModName, Ms.BareSpec)] -> LogicMap -> Env 
+makeEnv :: Config -> GhcSrc -> ModSpecs -> LogicMap -> Env 
 makeEnv cfg src specs lmap = RE 
   { reLMap      = lmap
   , reSyms      = syms 

@@ -1322,7 +1322,7 @@ measureDefP bodyP
        body    <- bodyP
        whiteSpace
        let xs'  = (symbol . val) <$> xs
-       return   $ Def mname [] (symbol <$> c) Nothing ((, Nothing) <$> xs') body
+       return   $ Def mname (symbol <$> c) Nothing ((, Nothing) <$> xs') body
 
 measurePatP :: Parser (LocSymbol, [LocSymbol])
 measurePatP

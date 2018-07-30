@@ -225,18 +225,19 @@ dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbo
 dataConTypes  s = (ctorTys, measTys)
   where
     measTys     = [(msName m, msSort m) | m <- M.elems (measMap s) ++ imeas s]
-    ctorTys     = concatMap makeDataConType (snd <$> M.toList (ctorMap s))
+    ctorTys     = concatMap makeDataConType (tracepp "HOHOH" . snd <$> M.toList (ctorMap s))
 
 makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
 makeDataConType []
   = []
 makeDataConType ds | isNothing (dataConWrapId_maybe dc)
-  = [(woId, combineDCTypes "cdc0" t ts)]
+  = tracepp _msg [(woId, {- notracepp _msg $ -} combineDCTypes "cdc0" t ts)]
   where
     dc   = ctor (head ds)
     woId = dataConWorkId dc
     t    = varType woId
     ts   = defRefType t <$> ds
+    _msg  = "makeDataConType0" ++ showpp (woId, t, ts)
 
 makeDataConType ds
   = [(woId, extend loci woRType wrRType), (wrId, extend loci wrRType woRType)]
@@ -297,12 +298,8 @@ noDummySyms t
     xs' = zipWith (\_ i -> symbol ("x" ++ show i)) (ty_binds rep) [1..]
     su  = mkSubst $ zip (ty_binds rep) (EVar <$> xs')
 
--- combineDCTypes :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
---                => Type -> [(RType RTyCon RTyVar r)] -> RType RTyCon RTyVar r
-combineDCTypes            :: String -> Type -> [RRType Reft] -> RRType Reft
-combineDCTypes _msg t0 ts0 = L.foldl' strengthenRefTypeGen (ofType t) ts
-  where
-    (t, ts) = {- tracepp ("combineDCTypes " ++ msg) -} (t0, ts0)
+combineDCTypes :: String -> Type -> [RRType Reft] -> RRType Reft
+combineDCTypes _msg t ts = L.foldl' strengthenRefTypeGen (ofType t) ts
 
 mapArgumens :: SourcePos -> RRType Reft -> RRType Reft -> Maybe Subst
 mapArgumens lc t1 t2 = go xts1' xts2'
@@ -326,18 +323,18 @@ mapArgumens lc t1 t2 = go xts1' xts2'
 
 -- should constructors have implicits? probably not
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
-defRefType tdc (Def f args dc mt xs body)
-                     = notracepp ("defRefType: " ++ showpp f) $ generalize $ mkArrow as [] [] [] xts t'
+defRefType tdc (Def f dc mt xs body)
+                    = {- tracepp ("HEREHERE-defRefType: " ++ showpp (f, tdc, as, xts, t')) 
+                    $ -} generalize $ mkArrow as [] [] [] xts t'
   where
-    xts              = stitchArgs (fSrcSpan f) dc (notracepp ("FIELDS-XS: " ++ showpp f) xs) (notracepp ("FIELDS-TS: " ++ showpp f ++ " tdc = " ++ showpp tdc) ts)
-    t                = fromMaybe (ofType tr) mt
-    t'               = mkForAlls args $ refineWithCtorBody dc f (fst <$> args) body t
-    mkForAlls xts t  = L.foldl' (\t (x, tx) -> RAllE x tx t) t xts
-    (αs, ts, tr)     = splitType tdc
-    as                = makeRTVar . rTyVar <$> αs
-    -- (αs,ps,dcTs,_)   = dataConSig dc
-    -- (ts', tr)        = splitFunTys $ snd $ splitForAllTys tdc
-    -- ts               = Misc.takeLast (length dcTs) ts'
+    xts             = tracepp ("STITCHARGS" ++ showpp (dc, xs, ts)) 
+                    $ stitchArgs (fSrcSpan f) dc xs ts 
+
+    t               = fromMaybe (ofType tr) mt
+    t'              = {- mkForAlls args $ -} refineWithCtorBody dc f {- (fst <$> args) -} body t
+    -- mkForAlls xts t = L.foldl' (\t (x, tx) -> RAllE x tx t) t xts
+    (αs, ts, tr)    = splitType tdc
+    as              = makeRTVar . rTyVar <$> αs
 
 splitType :: Type -> ([TyVar],[Type], Type)
 splitType t  = (αs, ts, tr)
@@ -362,7 +359,6 @@ stitchArgs sp dc allXs allTs
       nTs              = length ts
       g (x, Just t) _  = (x, t, mempty)
       g (x, _)      t  = (x, t, mempty)
-
       coArg Nothing    = False
       coArg (Just t)   = isPredTy . toType $ t
 
@@ -379,14 +375,14 @@ panicDataCon sp dc d
 refineWithCtorBody :: Outputable a
                    => a
                    -> LocSymbol
-                   -> [Symbol]
+                   -- -> [Symbol]
                    -> Body
                    -> RType c tv Reft
                    -> RType c tv Reft
-refineWithCtorBody dc f as body t =
+refineWithCtorBody dc f {- as -} body t =
   case stripRTypeBase t of
     Just (Reft (v, _)) ->
-      strengthen t $ Reft (v, bodyPred (mkEApp f (eVar <$> (as ++ [v]))) body)
+      strengthen t $ Reft (v, bodyPred (mkEApp f [eVar v]) body)
     Nothing ->
       panic Nothing $ "measure mismatch " ++ showpp f ++ " on con " ++ showPpr dc
 

@@ -80,14 +80,15 @@ How to Profile
 1. Build with profiling on
 
     ```
-    $ make pdeps && make prof
+    $ stack build liquidhaskell --fast --profile
     ```
+
 
 2. Run with profiling
 
     ```
-    $ time liquid range.hs +RTS -hc -p
-    $ time liquid range.hs +RTS -hy -p
+    $ stack exec -- liquid range.hs +RTS -hc -p
+    $ stack exec -- liquid range.hs +RTS -hy -p
     ```
 
     Followed by this which shows the stats file
@@ -111,13 +112,17 @@ How to Get Stack Traces On Exceptions
 1. Build with profiling on
 
     ```
-    $ make pdeps && make prof
+    $ stack build liquidhaskell --fast --profile
     ```
 
 2. Run with backtraces
 
     ```
     $ liquid +RTS -xc -RTS foo.hs
+    ```
+
+    ```
+    stack exec -- liquid List00.hs +RTS -p -xc -RTS
     ```
 
 Working With Submodules

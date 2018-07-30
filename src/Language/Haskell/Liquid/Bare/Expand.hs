@@ -46,16 +46,16 @@ import qualified Language.Haskell.Liquid.Bare.Plugged as Bare
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
 --   that is, the below needs to be called *before* we use `Expand.expand`
 --------------------------------------------------------------------------------
-makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> [(ModName, Ms.BareSpec)] -> LogicMap 
+makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap 
           -> BareRTEnv 
 --------------------------------------------------------------------------------
 makeRTEnv env m lfSpec specs lmap = makeRTAliases tAs (makeREAliases eAs) 
   where
-    tAs   = [ {- specRTAlias env m -} t | (_m, s) <- specs, t <- Ms.aliases  s ]
-    eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s ]
-         ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec        ]                        
+    tAs   = [ t                   | s      <- M.elems specs,  t <- Ms.aliases  s]
+    eAs   = [ specREAlias env m e | (m, s) <- M.toList specs, e <- Ms.ealiases s]
+         ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec                ]                        
          ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
-                                  , let e = lmapEAlias xl               ]
+                                  , let e = lmapEAlias xl                       ]
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 

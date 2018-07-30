@@ -1130,6 +1130,16 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 
+{- 
+
+case x :: List b of 
+  Emp -> e 
+
+  Emp :: tdc          forall a. {v: List a | cons v === 0} 
+  x   :: xt           List b 
+  ys  == binders      [] 
+
+-}
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> Maybe [Int] -> CG CGEnv
 -------------------------------------------------------------------------------------
@@ -1137,7 +1147,7 @@ caseEnv γ x _   (DataAlt c) ys pIs
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
-       tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
+       tdc              <- γ ??= (dataConWorkId c) >>= refreshVV
        let (rtd,yts', _) = unfoldR tdc xt ys
        yts              <- projectTypes pIs yts'
        let r1            = dataConReft   c   ys''
@@ -1180,29 +1190,28 @@ altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [no
                      | otherwise = mempty
 altReft _ _ _        = panic Nothing "Constraint : altReft"
 
-unfoldR :: SpecType
-        -> SpecType
-        -> [Var]
-        -> (SpecType, [SpecType], SpecType)
+unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
-        tbody              = instantiatePvs (instantiateTys (F.notracepp "UNFOLDR-1" td) ts) $ reverse rs
-        -- TODO: if we ever want to support applying implicits explcitly, will need to rejigger
-        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow $ instantiateTys tbody tvs'
-        yts''              = F.notracepp "UNFOLDR-0" $ zipWith F.subst sus (yts'++[rt])
+        tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
+        -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
+        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow (F.tracepp msg $ instantiateTys tbody tvs')
+        msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs') 
+        yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
         sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
         (αs, ys')          = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
+        tvs' :: [SpecType]
         tvs'               = rVar <$> αs
         tvys               = ofType . varType <$> αs
 
 unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 
-instantiateTys :: (Foldable t)
-               => SpecType -> t (SpecType) -> SpecType
+instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
-  where go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
-        go _ _               = panic Nothing "Constraint.instanctiateTy"
+  where 
+    go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
+    go _ _               = panic Nothing "Constraint.instantiateTy"
 
 instantiatePvs :: Foldable t => SpecType -> t SpecProp -> SpecType
 instantiatePvs = L.foldl' go
@@ -1211,7 +1220,7 @@ instantiatePvs = L.foldl' go
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkTyCon _ _ t@(RApp _ _ _ _) = t
-checkTyCon x g t              = checkErr x g t
+checkTyCon x g t                = checkErr x g t
 
 checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkFun _ _ t@(RFun _ _ _ _) = t

@@ -357,9 +357,9 @@ processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> 
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
   cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
   let modSum  = pm_mod_summary (tm_parsed_module typechecked)
-  ghcSrc     <- makeGhcSrc cfg file typechecked modSum
-  bareSpecs  <- makeBareSpecs cfg depGraph specEnv modSum bareSpec
-  let ghcSpec = makeGhcSpec cfg ghcSrc bareSpecs logicMap 
+  ghcSrc     <- makeGhcSrc    cfg file     typechecked modSum
+  bareSpecs  <- makeBareSpecs cfg depGraph specEnv     modSum bareSpec
+  let ghcSpec = makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs  
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------

@@ -172,7 +172,7 @@ coreAltToDef x z zs y t alts
   | not (null litAlts) = measureFail x "Cannot lift definition with literal alternatives" 
   | otherwise          = do 
       d1s <- F.notracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
-      d2s <- F.notracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
+      d2s <- F.notracepp "coreAltDefs-2" <$>       mkDef x cc myArgs z  defAlts defExpr 
       return (d1s ++ d2s)
   where 
     myArgs   = reverse zs
@@ -184,18 +184,18 @@ coreAltToDef x z zs y t alts
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
     mkAlt x ctor args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) 
+      = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs) 
       . ctor 
       . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs))) 
      <$> coreToLg e
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
 
-    mkDef x ctor args dx (Just dtss) (Just e) = do  
+    mkDef x ctor _args dx (Just dtss) (Just e) = do  
       eDef   <- ctor <$> coreToLg e
-      let ys  = toArgs id args
+      -- let ys  = toArgs id args
       let dxt = Just (varRType dx)
-      return  [ Def x ys d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
+      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
     
     mkDef _ _ _ _ _ _ = 
       return [] 

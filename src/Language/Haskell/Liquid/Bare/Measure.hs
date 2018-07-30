@@ -343,7 +343,7 @@ bareBool = RApp (RTyCon Ghc.boolTyCon [] def) [] [] mempty
 makeMeasureSelector :: (Show a1) => LocSymbol -> SpecType -> Ghc.DataCon -> Int -> a1 -> Measure SpecType Ghc.DataCon
 makeMeasureSelector x s dc n i = M { msName = x, msSort = s, msEqns = [eqn], msKind = MsSelector }
   where
-    eqn                        = Def x [] dc Nothing args (E (EVar $ mkx i))
+    eqn                        = Def x dc Nothing args (E (EVar $ mkx i))
     args                       = ((, Nothing) . mkx) <$> [1 .. n]
     mkx j                      = symbol ("xx" ++ show j)
 
@@ -351,8 +351,8 @@ makeMeasureChecker :: LocSymbol -> SpecType -> Ghc.DataCon -> Int -> Measure Spe
 makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns <$> filter (/= dc) dcs), msKind = MsChecker }
   where
     s       = F.notracepp ("makeMeasureChecker: " ++ show x) s0
-    eqn     = Def x [] dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
-    eqns d  = Def x [] d  Nothing (((, Nothing) . mkx) <$> [1 .. nArgs d]) (P F.PFalse)
+    eqn     = Def x dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
+    eqns d  = Def x d  Nothing (((, Nothing) . mkx) <$> [1 .. nArgs d]) (P F.PFalse)
     nArgs d = length (Ghc.dataConOrigArgTys d)
     mkx j   = symbol ("xx" ++ show j)
     dcs     = Ghc.tyConDataCons (Ghc.dataConTyCon dc)
