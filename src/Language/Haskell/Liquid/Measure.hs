@@ -34,7 +34,7 @@ import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.List                              as L
-import           Data.Maybe                             (fromMaybe, isNothing)
+import qualified Data.Maybe                             as Mb -- (fromMaybe, isNothing)
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan)
@@ -225,13 +225,13 @@ dataConTypes :: MSpec (RRType Reft) DataCon -> ([(Var, RRType Reft)], [(LocSymbo
 dataConTypes  s = (ctorTys, measTys)
   where
     measTys     = [(msName m, msSort m) | m <- M.elems (measMap s) ++ imeas s]
-    ctorTys     = concatMap makeDataConType (tracepp "HOHOH" . snd <$> M.toList (ctorMap s))
+    ctorTys     = concatMap makeDataConType (notracepp "HOHOH" . snd <$> M.toList (ctorMap s))
 
 makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
 makeDataConType []
   = []
-makeDataConType ds | isNothing (dataConWrapId_maybe dc)
-  = tracepp _msg [(woId, {- notracepp _msg $ -} combineDCTypes "cdc0" t ts)]
+makeDataConType ds | Mb.isNothing (dataConWrapId_maybe dc)
+  = notracepp _msg [(woId, {- notracepp _msg $ -} combineDCTypes "cdc0" t ts)]
   where
     dc   = ctor (head ds)
     woId = dataConWorkId dc
@@ -259,7 +259,7 @@ makeDataConType ds
     isWorkerDef def
       -- types are missing for arguments, so definition came from a logical measure
       -- and it is for the worker datacon
-      | any isNothing (snd <$> binds def)
+      | any Mb.isNothing (snd <$> binds def)
       = True
       | otherwise
       = length (binds def) == length (fst $ splitFunTys $ snd $ splitForAllTys wot)
@@ -271,7 +271,7 @@ extend :: SourcePos
        -> RType RTyCon RTyVar Reft
 extend lc t1' t2
   | Just su <- mapArgumens lc t1 t2
-  = t1 `strengthenResult` subst su (fromMaybe mempty (stripRTypeBase $ resultTy t2))
+  = t1 `strengthenResult` subst su (Mb.fromMaybe mempty (stripRTypeBase $ resultTy t2))
   | otherwise
   = t1
   where
@@ -324,17 +324,14 @@ mapArgumens lc t1 t2 = go xts1' xts2'
 -- should constructors have implicits? probably not
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f dc mt xs body)
-                    = {- tracepp ("HEREHERE-defRefType: " ++ showpp (f, tdc, as, xts, t')) 
-                    $ -} generalize $ mkArrow as [] [] [] xts t'
+                    = generalize $ mkArrow as [] [] [] xts t'
   where
-    xts             = tracepp ("STITCHARGS" ++ showpp (dc, xs, ts)) 
+    xts             = notracepp ("STITCHARGS" ++ showpp (dc, xs, ts)) 
                     $ stitchArgs (fSrcSpan f) dc xs ts 
-
-    t               = fromMaybe (ofType tr) mt
-    t'              = {- mkForAlls args $ -} refineWithCtorBody dc f {- (fst <$> args) -} body t
-    -- mkForAlls xts t = L.foldl' (\t (x, tx) -> RAllE x tx t) t xts
+    t'              = refineWithCtorBody dc f body t
+    t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
-    as              = makeRTVar . rTyVar <$> αs
+    as              = if Mb.isJust mt then [] else makeRTVar . rTyVar <$> αs
 
 splitType :: Type -> ([TyVar],[Type], Type)
 splitType t  = (αs, ts, tr)
@@ -375,11 +372,10 @@ panicDataCon sp dc d
 refineWithCtorBody :: Outputable a
                    => a
                    -> LocSymbol
-                   -- -> [Symbol]
                    -> Body
                    -> RType c tv Reft
                    -> RType c tv Reft
-refineWithCtorBody dc f {- as -} body t =
+refineWithCtorBody dc f body t =
   case stripRTypeBase t of
     Just (Reft (v, _)) ->
       strengthen t $ Reft (v, bodyPred (mkEApp f [eVar v]) body)

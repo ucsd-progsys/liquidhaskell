@@ -345,7 +345,7 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = makeTySigs  env sigEnv name mySpec 
+  { gsTySigs   = F.tracepp "GS-TYSIGS" $ makeTySigs  env sigEnv name mySpec 
   , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]

@@ -70,24 +70,56 @@ makeEnv cfg src specs lmap = RE
   { reLMap      = lmap
   , reSyms      = syms 
   , reSpecs     = specs 
-  , _reSubst    = F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
+  , _reSubst    = makeVarSubst src -- F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   } 
   where 
-    syms        = [ (F.symbol v, v) | v <- vars ] 
+    syms        = F.tracepp "MAKE-ENV" [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
+
+{- 
+  v -> qualifiedSymbol (module, symbol)
+  symbol -> []
+ -}
+
+-- | @okUnqualified mod mxs@ takes @mxs@ which is a list of modulenames-var 
+--   pairs all of which have the same unqualified symbol representation. 
+--   The function returns @Just v@ if 
+--   1. that list is a singleton i.e. there is a UNIQUE unqualified version, OR
+--   2. there is a version whose module equals @me@.
+
+okUnqualified :: F.Symbol -> [(F.Symbol, a)] -> Maybe a 
+okUnqualified _ [(_, x)] = Just x 
+okUnqualified me mxs     = go mxs 
+  where 
+    go []                = Nothing 
+    go ((m,x) : rest)    
+      | me == m          = Just x 
+      | otherwise        = go rest 
+
+  
+makeVarSubst :: GhcSrc -> F.Subst -- M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
+makeVarSubst src = F.mkSubst (F.tracepp "UNQUAL-SYMS" unqualSyms) 
+  where 
+    unqualSyms   = [ (x, mkVarExpr v) 
+                       | (x, mxs) <- M.toList (makeSymMap src) 
+                       , v <- Mb.maybeToList (okUnqualified me mxs) 
+                   ] 
+    me           = F.symbol (giTargetMod src) 
+
+makeSymMap :: GhcSrc -> M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
+makeSymMap src = Misc.group [ (sym, (m, x)) 
+                                | x           <- srcVars src
+                                , let (m, sym) = qualifiedSymbol x ]
+
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
 makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
-                                              , let (m, x) = tyThingName t ] 
-
-tyThingName :: Ghc.TyThing -> (F.Symbol, F.Symbol)
-tyThingName t = F.notracepp msg (splitModuleNameExact sym) 
-  where 
-    sym       = F.symbol t
-    msg       = "tyThingName: " ++ GM.showPpr t ++ " symbol = " ++ F.symbolString sym 
-
+                                              , let (m, x) = qualifiedSymbol t ] 
+                                            
+qualifiedSymbol :: (F.Symbolic t) => t -> (F.Symbol, F.Symbol)
+qualifiedSymbol = splitModuleNameExact . F.symbol 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
 srcThings src = [ Ghc.AnId   x | x <- vars ] 

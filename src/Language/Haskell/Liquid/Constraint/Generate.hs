@@ -1195,7 +1195,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
         -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
-        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow (F.tracepp msg $ instantiateTys tbody tvs')
+        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
         msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs') 
         yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')

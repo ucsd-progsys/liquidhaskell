@@ -11,5 +11,5 @@ kons (Cons _ _) = 1
 
 {-@ foo :: l:List apple -> {v:Int | v = kons l} @-} 
 foo :: List pig -> Int 
-foo Emp        = 0 
+foo Emp        = 10 
 foo (Cons _ _) = 1
