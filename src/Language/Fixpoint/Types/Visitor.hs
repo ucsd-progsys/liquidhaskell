@@ -50,6 +50,7 @@ module Language.Fixpoint.Types.Visitor (
 
 -- import           Control.Monad.Trans.State.Strict (State, modify, runState)
 -- import           Control.DeepSeq
+import           Data.Semigroup      (Semigroup (..))
 import           Control.Monad.State.Strict
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -249,10 +250,11 @@ mapKVarSubsts f          = trans kvVis () ()
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
 
 instance Semigroup MInt where
-  (MInt m) <> (MInt n) = MInt (m + n)
+  MInt m <> MInt n = MInt (m + n)
 
 instance Monoid MInt where
-  mempty = MInt 0
+  mempty  = MInt 0
+  mappend = (<>)
 
 size :: Visitable t => t -> Integer
 size t    = n

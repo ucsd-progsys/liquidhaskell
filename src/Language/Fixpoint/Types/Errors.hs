@@ -53,6 +53,7 @@ import           Control.Exception
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
 import           Data.Typeable
+import           Data.Semigroup                (Semigroup (..))
 import           Control.DeepSeq
 -- import           Data.Hashable
 import qualified Data.Binary                   as B
@@ -60,19 +61,17 @@ import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 -- import           Text.Printf
 import           Data.Function (on)
 
 -- import           Debug.Trace
 
-#if MIN_VERSION_pretty(1,1,3)
 import qualified Text.PrettyPrint.Annotated.HughesPJ as Ann
 
 deriving instance Generic (Ann.AnnotDetails a)
 instance Serialize a => Serialize (Ann.AnnotDetails a)
 instance Serialize a => Serialize (Ann.Doc a)
-#endif
 
 instance Serialize Error1
 -- FIXME: orphans are bad...
@@ -100,7 +99,7 @@ instance Ord Error1 where
   compare = compare `on` errLoc
 
 instance PPrint Error1 where
-  pprintTidy k (Error1 l msg) = (pprintTidy k l <.> ": Error")
+  pprintTidy k (Error1 l msg) = (pprintTidy k l <-> ": Error")
                                 $+$ nest 2 msg
 
 instance PPrint Error where
@@ -180,7 +179,8 @@ instance Semigroup (FixResult a) where
   (Unsafe xs) <> (Unsafe ys) = Unsafe (xs ++ ys)
 
 instance Monoid (FixResult a) where
-  mempty = Safe
+  mempty  = Safe
+  mappend = (<>)
 
 instance Functor FixResult where
   fmap f (Crash xs msg)   = Crash (f <$> xs) msg

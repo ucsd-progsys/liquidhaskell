@@ -14,12 +14,13 @@ module Language.Fixpoint.Types.Substitutions (
 import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import           Data.Semigroup            (Semigroup (..))
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf               (printf)
 
 instance Semigroup Subst where
@@ -27,6 +28,7 @@ instance Semigroup Subst where
 
 instance Monoid Subst where
   mempty  = emptySubst
+  mappend = (<>)
 
 filterSubst :: (Symbol -> Expr -> Bool) -> Subst -> Subst
 filterSubst f (Su m) = Su (M.filterWithKey f m)
@@ -149,7 +151,7 @@ instance Subable Expr where
           | otherwise      = errorstar "subst: PAll (without disjoint binds)"
   subst su (PExist bs p)
           | disjoint su bs = PExist bs $ subst su p --(substExcept su (fst <$> bs)) p
-          | otherwise      = errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su))
+          | otherwise      = errorstar ("subst: EXISTS (without disjoint binds)" ++ show (bs, su, p))
   subst _  p               = p
 
 removeSubst :: Subst -> Symbol -> Subst
@@ -166,6 +168,7 @@ instance Semigroup Expr where
 
 instance Monoid Expr where
   mempty  = PTrue
+  mappend = (<>)
   mconcat = pAnd
 
 instance Semigroup Reft where
@@ -173,6 +176,7 @@ instance Semigroup Reft where
 
 instance Monoid Reft where
   mempty  = trueReft
+  mappend = (<>)
 
 meetReft :: Reft -> Reft -> Reft
 meetReft (Reft (v, ra)) (Reft (v', ra'))
@@ -181,10 +185,11 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
   | otherwise        = Reft (v , ra  `mappend` (ra' `subst1` (v', EVar v )))
 
 instance Semigroup SortedReft where
-  t1 <> t2 = RR ((sr_sort t1) <> (sr_sort t2)) ((sr_reft t1) <> (sr_reft t2))
+  t1 <> t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
 
 instance Monoid SortedReft where
-  mempty        = RR mempty mempty
+  mempty  = RR mempty mempty
+  mappend = (<>)
 
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras

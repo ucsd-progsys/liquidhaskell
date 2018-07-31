@@ -60,13 +60,14 @@ import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes)
+import           Data.Semigroup            (Semigroup (..))
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types hiding   (subst)
 import qualified Language.Fixpoint.Types.Visitor  as Vis
 import qualified Language.Fixpoint.Smt.Theories   as Thy
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf
 
 -- import Debug.Trace
@@ -1039,7 +1040,8 @@ instance Semigroup TVSubst where
   (Th s1) <> (Th s2) = Th (s1 <> s2)
 
 instance Monoid TVSubst where
-  mempty = Th mempty
+  mempty  = Th mempty
+  mappend = (<>)
 
 lookupVar :: Int -> TVSubst -> Maybe Sort
 lookupVar i (Th m)   = M.lookup i m

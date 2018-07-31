@@ -26,10 +26,3 @@ forall m:Int. true =>
          /\  forall v3:Int. v3 = x1 + 1 => v3 = m+2    ... (3)
 ```
 
-### Plan
-
-1. Types: + `ebinds :: S.HashSet Int` -- which subset of binders are ex.
-2. Parse: + `account for ebind`
-3. Solve:
-
-After (2) we should get UNSAT for the above.

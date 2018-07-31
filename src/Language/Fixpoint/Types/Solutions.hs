@@ -77,6 +77,7 @@ import qualified Data.Maybe                 as Mb
 import qualified Data.HashMap.Strict        as M
 import qualified Data.List                  as L
 import           Data.Generics             (Data)
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
 import           Control.Monad (filterM)
 import           Language.Fixpoint.Misc
@@ -90,7 +91,7 @@ import           Language.Fixpoint.Types.Environments
 import           Language.Fixpoint.Types.Constraints
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.SortCheck (elaborate)
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Text.PrettyPrint.HughesPJ.Compat
 
 --------------------------------------------------------------------------------
 -- | Update Solution -----------------------------------------------------------
@@ -240,6 +241,7 @@ instance Monoid (Sol a b) where
                , sEbd = mempty
                , sxEnv = mempty
                }
+  mappend = (<>)
 
 instance Functor (Sol a) where
   fmap f (Sol e s m1 m2 m3 m4 m5) = Sol e (f <$> s) m1 m2 m3 m4 m5

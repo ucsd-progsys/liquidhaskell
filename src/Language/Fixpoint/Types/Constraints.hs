@@ -83,6 +83,7 @@ module Language.Fixpoint.Types.Constraints (
 
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import qualified Data.List                 as L -- (sort, nub, delete)
@@ -102,7 +103,7 @@ import           Language.Fixpoint.Types.Environments
 import qualified Language.Fixpoint.Utils.Files as Files
 
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 
@@ -272,6 +273,7 @@ instance Semigroup (Result a) where
 
 instance Monoid (Result a) where
   mempty        = Result mempty mempty mempty
+  mappend       = (<>)
 
 unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
@@ -293,7 +295,7 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
-pprSinfos msg = map ((text msg <>) . toFix) . L.sort . fmap sinfo
+pprSinfos msg = map ((text msg <->) . toFix) . L.sort . fmap sinfo
 
 instance Fixpoint a => Show (WfC a) where
   show = showFix
@@ -348,7 +350,7 @@ instance PPrint GFixSolution where
   pprintTidy k (GSol xs) = vcat $ punctuate "\n\n" (pprintTidyGradual k <$> M.toList xs)
 
 pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
-pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <> pprint es)
+pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <-> pprint es)
 
 ppLocOfKVar :: KVar -> Doc
 ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
@@ -356,7 +358,7 @@ ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
 ppNonTauto :: Doc -> Expr -> Doc
 ppNonTauto d e
   | isTautoPred e = mempty
-  | otherwise     = pprint e <> d
+  | otherwise     = pprint e <-> d
 
 instance Show   GFixSolution where
   show = showpp
@@ -483,8 +485,8 @@ instance PPrint QualParam where
 
 instance PPrint QualPattern where 
   pprintTidy _ PatNone         = "" 
-  pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <> pprint i)
-  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <> pprint i) <+> pprintTidy k s 
+  pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <-> pprint i)
+  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <-> pprint i) <+> pprintTidy k s 
   pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s 
 
 instance Fixpoint Qualifier where
@@ -494,7 +496,7 @@ instance PPrint Qualifier where
   pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
 
 pprQual :: Qualifier -> Doc
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <.> parens args <.> colon <+> parens (toFix p) <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -579,7 +581,7 @@ newtype Kuts = KS { ksVars :: S.HashSet KVar }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Kuts where
-  toFix (KS s) = vcat $ (("cut " <.>) . toFix) <$> S.toList s
+  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> S.toList s
 
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
@@ -588,7 +590,8 @@ instance Semigroup Kuts where
   k1 <> k2 = KS $ S.union (ksVars k1) (ksVars k2)
 
 instance Monoid Kuts where
-  mempty        = KS S.empty
+  mempty  = KS S.empty
+  mappend = (<>)
 
 ------------------------------------------------------------------------
 -- | Constructing Queries
@@ -849,7 +852,8 @@ instance Semigroup AxiomEnv where
       aenvExpand' = (aenvExpand a1) <> (aenvExpand a2)
 
 instance Monoid AxiomEnv where
-  mempty           = AEnv [] [] (M.fromList [])
+  mempty          = AEnv [] [] (M.fromList [])
+  mappend         = (<>)
 
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show

@@ -60,6 +60,7 @@ module Language.Fixpoint.Types.Environments (
 import qualified Data.Binary as B
 import qualified Data.List   as L
 import           Data.Generics             (Data)
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import           Data.Hashable
@@ -67,7 +68,7 @@ import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 import           Data.Maybe
 import           Data.Function             (on)
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Control.DeepSeq
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -178,7 +179,8 @@ instance Semigroup IBindEnv where
   (FB e1) <> (FB e2) = FB (e1 <> e2)
 
 instance Monoid IBindEnv where
-  mempty                  = emptyIBindEnv
+  mempty  = emptyIBindEnv
+  mappend = (<>)
 
 emptyIBindEnv :: IBindEnv
 emptyIBindEnv = FB S.empty
@@ -284,7 +286,8 @@ instance Semigroup BindEnv where
   _        <> _        = errorstar "mappend on non-trivial BindEnvs"
 
 instance Monoid BindEnv where
-  mempty = BE 0 M.empty
+  mempty  = BE 0 M.empty
+  mappend = (<>)
 
 envCs :: BindEnv -> IBindEnv -> [(Symbol, SortedReft)]
 envCs be env = [lookupBindEnv i be | i <- elemsIBindEnv env]
@@ -326,7 +329,8 @@ instance Semigroup Packs where
   m1 <> m2 = Packs $ M.union (packm m1) (packm m2)
 
 instance Monoid Packs where
-  mempty   = Packs mempty
+  mempty  = Packs mempty
+  mappend = (<>)
 
 getPack :: KVar -> Packs -> Maybe Int
 getPack k (Packs m) = M.lookup k m

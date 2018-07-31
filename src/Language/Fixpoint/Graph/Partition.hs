@@ -38,7 +38,8 @@ import qualified Data.HashMap.Strict                  as M
 -- import           Data.Function (on)
 import           Data.Maybe                     (fromMaybe)
 import           Data.Hashable
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
+import           Data.Semigroup                 (Semigroup (..))
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Data.List (sortBy)
 -- import qualified Data.HashSet              as S
 
@@ -62,6 +63,8 @@ instance Semigroup (CPart c a) where
 
 instance Monoid (CPart c a) where
    mempty      = CPart mempty mempty
+   mappend     = (<>)
+   
 --------------------------------------------------------------------------------
 -- | Multicore info ------------------------------------------------------------
 --------------------------------------------------------------------------------

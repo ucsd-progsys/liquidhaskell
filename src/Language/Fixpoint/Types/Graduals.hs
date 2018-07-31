@@ -43,6 +43,7 @@ import qualified Data.List                 as L
 
 import Control.Monad.State.Lazy
 import Data.Maybe (fromMaybe)
+import Data.Semigroup (Semigroup (..))
 import qualified Language.Fixpoint.SortCheck       as So
 import Language.Fixpoint.Solver.Sanitize (symbolEnv)
 

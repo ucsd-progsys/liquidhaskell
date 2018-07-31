@@ -1,0 +1,23 @@
+qualif Pos(v:int)  : (0 <= v)
+qualif Neg(v:int)  : (v <= 0)
+qualif NeqZ(v:int) : (0 != v)
+qualif False(v:int) : (66 = 77)
+
+constraint:
+  env []
+  lhs {v1 : int | $k0[v0 := v1] }
+  rhs {v1 : int | 0 < v1 + 1   }
+  id 1 tag []
+
+constraint:
+  env []
+  lhs {v1 : int | v1 = 10       }
+  rhs {v1 : int | $k0[v0 := v1] }
+  id 2 tag []
+
+
+wf:
+  env []
+  reft {v0 : int | $k0}
+
+//  K0(v, b) => b <= v+1   

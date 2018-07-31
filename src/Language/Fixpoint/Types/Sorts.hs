@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveGeneric              #-}
@@ -77,7 +78,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
-import           Data.Monoid               ()
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Hashable
 import           Data.List                 (foldl')
 import           Control.DeepSeq
@@ -86,10 +87,9 @@ import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ hiding ((<>))
-import qualified Text.PrettyPrint.HughesPJ as PJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
-    
+
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
 -- instance Show FTycon where
@@ -107,11 +107,12 @@ data TCInfo = TCInfo { tc_isNum :: Bool, tc_isReal :: Bool, tc_isString :: Bool 
 mappendFTC :: FTycon -> FTycon -> FTycon
 mappendFTC (TC x i1) (TC _ i2) = TC x (mappend i1 i2)
 
-instance Semigroup TCInfo where 
-  (TCInfo i1 i2 i3) <> (TCInfo i1' i2' i3') = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
+instance Semigroup TCInfo where
+ TCInfo i1 i2 i3 <> TCInfo i1' i2' i3' = TCInfo (i1 || i1') (i2 || i2') (i3 || i3')
 
 instance Monoid TCInfo where
-  mempty = TCInfo defNumInfo defRealInfo defStrInfo
+  mempty  = TCInfo defNumInfo defRealInfo defStrInfo
+  mappend = (<>)
 
 defTcInfo, numTcInfo, realTcInfo, strTcInfo :: TCInfo
 defTcInfo  = TCInfo defNumInfo defRealInfo defStrInfo
@@ -345,7 +346,7 @@ instance Fixpoint Sort where
   toFix = toFixSort
 
 toFixSort :: Sort -> Doc
-toFixSort (FVar i)     = text "@" PJ.<> parens (toFix i)
+toFixSort (FVar i)     = text "@" <-> parens (toFix i)
 toFixSort FInt         = text "int"
 toFixSort FReal        = text "real"
 toFixSort FFrac        = text "frac"
@@ -357,7 +358,7 @@ toFixSort (FTC c)      = toFix c
 toFixSort t@(FApp _ _) = toFixFApp (unFApp t)
 
 toFixAbsApp :: Sort -> Doc
-toFixAbsApp t = text "func" PJ.<> parens (toFix n <+> text "," <+> toFix ts)
+toFixAbsApp t = text "func" <-> parens (toFix n <+> text "," <+> toFix ts)
   where
     Just (vs, ss, s) = functionSort t
     n                = length vs
@@ -471,7 +472,7 @@ instance Semigroup Sort where
 
 instance Monoid Sort where
   mempty  = FObj "any"
-
+  mappend = (<>)
 
 -------------------------------------------------------------------------------
 -- | Embedding stuff as Sorts 
@@ -492,7 +493,8 @@ instance Semigroup TCArgs where
   _      <> _      = WithArgs
 
 instance Monoid TCArgs where 
-  mempty  = NoArgs 
+  mempty = NoArgs 
+  mappend = (<>)
 
 tceInsert :: (Eq a, Hashable a) => a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsert k t a (TCE m) = TCE (M.insert k (t, a) m)
@@ -504,7 +506,8 @@ instance (Eq a, Hashable a) => Semigroup (TCEmb a) where
   (TCE m1) <> (TCE m2) = TCE (m1 <> m2)
 
 instance (Eq a, Hashable a) => Monoid (TCEmb a) where 
-  mempty                    = TCE mempty 
+  mempty  = TCE mempty 
+  mappend = (<>)
 
 instance PPrint TCArgs where 
   pprintTidy _ = text . show 

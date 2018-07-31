@@ -19,7 +19,7 @@ import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
-import           Data.Monoid                    ((<>))
+import           Data.Semigroup                 (Semigroup (..))
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So
@@ -192,7 +192,7 @@ type ExprInfo    = (F.Expr, KInfo)
 apply :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.IBindEnv -> ExprInfo
 apply g s bs      = (F.pAnd (pks:ps), kI)
   where
-    (pks, kI)     = applyKVars g s ks  -- RJ: switch to applyKVars' to revert to old behavior
+    (pks, kI)     = applyKVars g s ks  
     (ps,  ks, _)  = envConcKVars g s bs
 
 
@@ -422,7 +422,8 @@ instance Semigroup KInfo where
       s     = (*)        (kiCubes ki) (kiCubes ki')
 
 instance Monoid KInfo where
-  mempty    = KI [] 0 1
+  mempty  = KI [] 0 1
+  mappend = (<>)
 
 mplus :: KInfo -> KInfo -> KInfo
 mplus ki ki' = (mappend ki ki') { kiCubes = kiCubes ki + kiCubes ki'}
