@@ -66,11 +66,10 @@ import           Language.Haskell.Liquid.Bare.Misc
 -------------------------------------------------------------------------------
 -- | Creating an environment 
 -------------------------------------------------------------------------------
-makeEnv :: Config -> GhcSrc -> ModSpecs -> LogicMap -> Env 
-makeEnv cfg src specs lmap = RE 
+makeEnv :: Config -> GhcSrc -> LogicMap -> Env 
+makeEnv cfg src lmap = RE 
   { reLMap      = lmap
   , reSyms      = syms 
-  , reSpecs     = specs 
   , _reSubst    = makeVarSubst src 
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
@@ -79,11 +78,6 @@ makeEnv cfg src specs lmap = RE
     syms        = F.tracepp "MAKE-ENV" [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
 
-{- 
-  v -> qualifiedSymbol (module, symbol)
-  symbol -> []
- -}
-  
 makeVarSubst :: GhcSrc -> F.Subst -- M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
 makeVarSubst src = F.mkSubst (F.tracepp "UNQUAL-SYMS" unqualSyms) 
   where 

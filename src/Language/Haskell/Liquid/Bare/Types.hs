@@ -40,7 +40,7 @@ type ModSpecs = M.HashMap ModName Ms.BareSpec
 data Env = RE 
   { reLMap      :: !LogicMap
   , reSyms      :: ![(F.Symbol, Ghc.Var)]    -- ^ see "syms" in old makeGhcSpec'
-  , reSpecs     :: !ModSpecs 
+  -- , _reSpecs     :: !ModSpecs 
   , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
   , _reTyThings :: !TyThingMap 
   , reCfg       :: !Config

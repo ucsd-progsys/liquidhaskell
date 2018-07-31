@@ -110,13 +110,13 @@ makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcS
 makeGhcSpec cfg src lmap mspecs = SP 
   { gsConfig = cfg 
   , gsSig    = sig 
-  , gsRefl   = undefined -- refl 
-  , gsQual   = undefined -- makeSpecQual cfg env specs  rtEnv 
-  , gsData   = undefined -- sData 
-  , gsName   = undefined -- makeSpecName env tycEnv 
-  , gsVars   = undefined -- makeSpecVars cfg src mySpec env 
-  , gsTerm   = undefined -- makeSpecTerm cfg     mySpec env   name 
-  , gsLSpec  = undefined -- makeLiftedSpec refl sData lSpec0 
+  , gsRefl   = refl 
+  , gsQual   = makeSpecQual cfg env specs  rtEnv 
+  , gsData   = sData 
+  , gsName   = makeSpecName env tycEnv 
+  , gsVars   = makeSpecVars cfg src mySpec env 
+  , gsTerm   = makeSpecTerm cfg     mySpec env   name 
+  , gsLSpec  = makeLiftedSpec refl sData lSpec0 
   }
   where
     -- build up spec components 
@@ -125,27 +125,26 @@ makeGhcSpec cfg src lmap mspecs = SP
     sig      = makeSpecSig name specs env sigEnv 
     -- build up environments
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
-    sigEnv   = undefined -- makeSigEnv  embs tyi (gsExports src) rtEnv 
+    sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
     rtEnv    = Bare.makeRTEnv env name mySpec specs lmap
     specs    = M.insert name mySpec specs0
     mySpec   = mySpec0 <> lSpec0
     lSpec0   = makeLiftedSpec0 cfg src tycEnv lmap mySpec0 
     tyi      = Bare.tcTyConMap   tycEnv 
-    tycEnv   = makeTycEnv   cfg name env embs 
-    embs     = makeEmbeds   src env
-    env      = Bare.makeEnv cfg src specs lmap  
+    tycEnv   = makeTycEnv   cfg name env embs specs0 
+    embs     = makeEmbeds   src env specs0
+    env      = Bare.makeEnv cfg src lmap  
     -- extract my name and spec
     name     = giTargetMod  src 
     mySpec0  = M.lookupDefault mempty name specs0
     specs0   = M.fromList mspecs
 
-makeEmbeds :: GhcSrc -> Bare.Env -> F.TCEmb Ghc.TyCon 
+makeEmbeds :: GhcSrc -> Bare.Env -> Bare.ModSpecs -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
   = Bare.addClassEmbeds (gsCls src) (gsFiTcs src) 
   . mconcat 
   . map (makeTyConEmbeds env)
   . M.toList 
-  $ Bare.reSpecs env
 
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec) 
@@ -340,7 +339,7 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = mempty -- DEBUG makeTySigs  env sigEnv name mySpec 
+  { gsTySigs   = makeTySigs  env sigEnv name mySpec 
   , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
@@ -556,9 +555,9 @@ makeSpecName env tycEnv = SpNames
 
 -- REBARE: formerly, makeGhcCHOP1
 -------------------------------------------------------------------------------------------
-makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Bare.TycEnv 
+makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Bare.ModSpecs -> Bare.TycEnv 
 -------------------------------------------------------------------------------------------
-makeTycEnv cfg myName env embs = Bare.TycEnv 
+makeTycEnv cfg myName env embs specs = Bare.TycEnv 
   { tcTyCons      = tycons                  
   , tcDataCons    = second val <$> datacons 
   , tcSelMeasures = dcSelectors             
@@ -570,7 +569,7 @@ makeTycEnv cfg myName env embs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> M.toList (Bare.reSpecs env)
+    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> M.toList specs 
     tcs           = [(x, y) | (_, x, y, _)       <- tcDds]
     tycons        = tcs ++ wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
