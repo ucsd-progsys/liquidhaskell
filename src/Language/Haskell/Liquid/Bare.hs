@@ -110,7 +110,7 @@ makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcS
 makeGhcSpec cfg src lmap mspecs = SP 
   { gsConfig = cfg 
   , gsSig    = sig 
-  , gsRefl   = refl 
+  , gsRefl   = undefined -- refl 
   , gsQual   = makeSpecQual cfg env specs  rtEnv 
   , gsData   = sData 
   , gsName   = makeSpecName env tycEnv 
@@ -138,14 +138,6 @@ makeGhcSpec cfg src lmap mspecs = SP
     name     = giTargetMod  src 
     mySpec0  = M.lookupDefault mempty name specs0
     specs0   = M.fromList mspecs
-
-
-{- updateSpecs :: ModName -> Ms.BareSpec -> Bare.ModSpecs -> Bare.ModSpecs
-updateSpecs name spec m = M.add 
-updateSpecs name spec = fmap upd 
-  where 
-    upd (n, old) = (n, if n == name then spec else old)
--} 
 
 makeEmbeds :: GhcSrc -> Bare.Env -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
@@ -315,12 +307,12 @@ makeSpecRefl :: GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> 
              -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
 makeSpecRefl src specs env name sig tycEnv = SpRefl 
-  { gsLogicMap   = lmap 
-  , gsAutoInst   = makeAutoInst env name mySpec 
-  , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-  , gsMyAxioms   = myAxioms 
-  , gsReflects   = filter (isReflectVar rflSyms) sigVars
-  , gsHAxioms    = xtes 
+  { gsLogicMap   = mempty -- lmap 
+  , gsAutoInst   = mempty -- makeAutoInst env name mySpec 
+  , gsImpAxioms  = mempty -- concatMap (Ms.axeqs . snd) (M.toList specs)
+  , gsMyAxioms   = mempty -- myAxioms 
+  , gsReflects   = mempty -- filter (isReflectVar rflSyms) sigVars
+  , gsHAxioms    = mempty -- xtes 
   }
   where
     mySpec       = M.lookupDefault mempty name specs 

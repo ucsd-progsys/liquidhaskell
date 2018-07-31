@@ -59,8 +59,6 @@
 - strengthen-measures
 - strengthen-inline(?)
 
-
-
 ## CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
