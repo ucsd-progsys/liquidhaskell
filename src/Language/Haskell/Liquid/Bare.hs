@@ -87,7 +87,8 @@ loadLiftedSpec cfg srcF
       ex  <- doesFileExist specF
       putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
-      putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+      putStrLn $ "Loaded Spec: " ++ showpp (Ms.invariants lSp)
       return lSp
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
@@ -358,18 +359,21 @@ makeSpecSig name specs env sigEnv = SpSig
 
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
-  [ (x, Bare.cookSpecType env sigEnv name x t) | (x, t) <- rawTySigs env name spec ] 
+  [ (x, t) | (x, bt) <- rawTySigs env name spec 
+           , let t    = Bare.cookSpecType env sigEnv name (Just x) bt 
+  ] 
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 rawTySigs env name spec = 
-  [ (v, t) 
-      | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
-      , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
+  [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
+           , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
-  [ (x, Bare.cookSpecType env sigEnv name x t) | (name, x, t) <- rawAsmSigs env myName specs ] 
+  [ (x, t) | (name, x, bt) <- rawAsmSigs env myName specs
+           , let t = Bare.cookSpecType env sigEnv name (Just x) bt
+  ] 
 
 rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
 rawAsmSigs env myName specs =  
@@ -457,7 +461,8 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   { gsCtors      = [ (x, Bare.plugHoles sigEnv name x t) | (x, t) <- Bare.meDataCons measEnv]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
-  , gsInvariants = F.tracepp "INVARIANTS" $ makeMeasureInvariants env name sig mySpec 
+  , gsInvariants = (F.tracepp "M-INVARIANTS" $ makeMeasureInvariants env name sig mySpec) 
+                ++ (F.tracepp "D-INVARIANTS" $ concat (makeInvariants env sigEnv <$> M.toList specs))
   , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
   where
@@ -471,12 +476,16 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     mySpec       = M.lookupDefault mempty name specs
     name         = giTargetMod      src
 
- {- 
-  let minvs = makeMeasureInvariants sigs hms
-  invs     <- mconcat <$> mapM makeInvariants specs
- -} 
 
--- makeMeasureInvariants :: [(Ghc.Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Ghc.Var, LocSpecType)]
+
+makeInvariants :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(Maybe Ghc.Var, Located SpecType)]
+makeInvariants env sigEnv (name, spec) = 
+  [ (Nothing, t) 
+    | (Just lx, bt) <- Ms.invariants spec 
+    , Bare.knownGhcVar env name lx 
+    , let t = Bare.cookSpecType env sigEnv name Nothing bt
+  ]
+
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec -> [(Maybe Ghc.Var, LocSpecType)]
 makeMeasureInvariants env name sig mySpec 
   = measureTypeToInv env name <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs

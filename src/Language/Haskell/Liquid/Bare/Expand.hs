@@ -349,7 +349,7 @@ exprArg l msg = go
 --   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
 --   details of each of the individual steps.
 ----------------------------------------------------------------------------------------
-cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Ghc.Var -> LocBareType -> LocSpecType 
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType -> LocSpecType 
 ----------------------------------------------------------------------------------------
 cookSpecType env sigEnv name x
   = id 
@@ -357,10 +357,15 @@ cookSpecType env sigEnv name x
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
   -- TODO-REBARE . fmap fixCoercions
   . fmap RT.generalize
-  . plugHoles       sigEnv name x
+  . maybePlug       sigEnv name x
   . Bare.qualify       env name 
   . bareSpecType       env name 
   . bareExpandType     sigEnv
+
+maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
+maybePlug _      _     Nothing = id 
+maybePlug sigEnv name (Just x) = plugHoles sigEnv name x 
+
 
 bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
 bareExpandType sigEnv = expandLoc (Bare.sigRTEnv sigEnv) 

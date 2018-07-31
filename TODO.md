@@ -24,9 +24,9 @@
 - [x] importing
 - [x] measures
 - [x] importing
-- [-] invariants
-- [ ] importing
-- [ ] reflect
+- [x] invariants
+- [x] importing
+- [-] reflect / PLE
 - [ ] importing
 - [ ] termination
 - [ ] absref
