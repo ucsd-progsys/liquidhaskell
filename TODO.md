@@ -24,12 +24,13 @@
 - [x] importing
 - [x] measures
 - [x] importing
-- [ ] invariants
+- [-] invariants
+- [ ] importing
+- [ ] reflect
 - [ ] importing
 - [ ] termination
 - [ ] absref
 - [ ] holes
-- [ ] reflect
 - [ ] classes
 
 ## Issues

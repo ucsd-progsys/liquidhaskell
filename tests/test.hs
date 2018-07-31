@@ -189,9 +189,9 @@ unitTests = group "Unit"
   [ 
   -- TODO-REBARE testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
   -- TODO-REBARE , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
-  -- TODO-REBARE , testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
-  -- TODO-REBARE , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
-  -- TODO-REBARE , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
+  --  testGroup "parser/pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
+  -- , testGroup "import/lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
+  -- , testGroup "import/client"  <$> dirTests "tests/import/client"                  []                ExitSuccess
   -- TODO-REBARE , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
   -- TODO-REBARE , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
     testGroup "basic-pos"      <$> dirTests "tests/basic/pos"                      []                ExitSuccess

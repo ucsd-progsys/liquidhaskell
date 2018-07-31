@@ -119,10 +119,10 @@ makeGhcSpec cfg src lmap mspecs = SP
   }
   where
     -- build up spec components 
-    refl     = makeSpecRefl cfg src specs env name sig embs tycEnv 
+    sData    = makeSpecData src env sigEnv measEnv sig specs 
+    refl     = makeSpecRefl src specs env name sig tycEnv 
     sig      = makeSpecSig name specs env sigEnv 
     -- build up environments
-    sData    = makeSpecData src env sigEnv measEnv name specs
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
     rtEnv    = Bare.makeRTEnv env name mySpec specs lmap
@@ -310,11 +310,10 @@ makeSize env name spec =
       = Nothing
 
 ------------------------------------------------------------------------------------------
-makeSpecRefl :: Config -> GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName 
-             -> GhcSpecSig -> F.TCEmb Ghc.TyCon -> Bare.TycEnv 
+makeSpecRefl :: GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv 
              -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
-makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl 
+makeSpecRefl src specs env name sig tycEnv = SpRefl 
   { gsLogicMap   = lmap 
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
@@ -323,7 +322,7 @@ makeSpecRefl cfg src specs env name sig embs tycEnv = SpRefl
   , gsHAxioms    = xtes 
   }
   where
-    mySpec       = M.lookupDefault mempty name specs -- Mb.fromMaybe mempty (lookup name specs)
+    mySpec       = M.lookupDefault mempty name specs 
     xtes         = Bare.makeHaskellAxioms src tycEnv lmap sig mySpec
     myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
@@ -385,7 +384,7 @@ getAsmSigs myName name spec
   | myName == name = Ms.asmSigs spec
   | otherwise      = Ms.asmSigs spec ++ Ms.sigs spec
 
-makeSigEnv :: F.TCEmb Ghc.TyCon -> _ -> Ghc.NameSet -> BareRTEnv -> Bare.SigEnv 
+makeSigEnv :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Ghc.NameSet -> BareRTEnv -> Bare.SigEnv 
 makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   { sigEmbs     = embs 
   , sigTyRTyMap = tyi 
@@ -451,15 +450,14 @@ makeHIMeas f vs spec
 -}
 
 ------------------------------------------------------------------------------------------
-makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> ModName 
-             -> Bare.ModSpecs 
+makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig -> Bare.ModSpecs
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
-makeSpecData src env sigEnv measEnv name specs = SpData 
+makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = [ (x, Bare.plugHoles sigEnv name x t) | (x, t) <- Bare.meDataCons measEnv]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
-  , gsInvariants = mempty    -- TODO-REBARE :: ![(Maybe Var, LocSpecType)]   -- ^ Data type invariants from measure definitions, e.g forall a. {v: [a] | len(v) >= 0}
+  , gsInvariants = F.tracepp "INVARIANTS" $ makeMeasureInvariants env name sig mySpec 
   , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
   where
@@ -470,6 +468,58 @@ makeSpecData src env sigEnv measEnv name specs = SpData
     measures     = Bare.meMeasureSpec measEnv  
     ms1          = M.elems (Ms.measMap measures)
     ms2          =          Ms.imeas   measures
+    mySpec       = M.lookupDefault mempty name specs
+    name         = giTargetMod      src
+
+ {- 
+  let minvs = makeMeasureInvariants sigs hms
+  invs     <- mconcat <$> mapM makeInvariants specs
+ -} 
+
+-- makeMeasureInvariants :: [(Ghc.Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Ghc.Var, LocSpecType)]
+makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec -> [(Maybe Ghc.Var, LocSpecType)]
+makeMeasureInvariants env name sig mySpec 
+  = measureTypeToInv env name <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
+                                       , isSymbolOfVar (val x) y ]
+  where 
+    sigs = gsTySigs sig 
+    xs   = S.toList (Ms.hmeas  mySpec) 
+
+
+isSymbolOfVar :: Symbol -> Ghc.Var -> Bool
+isSymbolOfVar x v = x == symbol' v
+  where
+    symbol' :: Ghc.Var -> Symbol
+    symbol' = GM.dropModuleNames . symbol . Ghc.getName
+
+measureTypeToInv :: Bare.Env -> ModName -> (LocSymbol, (Ghc.Var, LocSpecType)) -> (Maybe Ghc.Var, LocSpecType)
+measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualify env name mtype})
+  where
+    trep = toRTypeRep $ val t
+    ts   = ty_args trep
+    mtype
+      | isBool $ ty_res trep
+      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
+                          (text "Specification of boolean measures is not allowed")
+{-
+      | [tx] <- ts, not (isTauto tx)
+      = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x)
+                          (text "Measures' types cannot have preconditions")
+-}
+      | [tx] <- ts
+      = mkInvariant (head $ ty_binds trep) tx $ ty_res trep
+      | otherwise
+      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
+                          (text "Measures has more than one arguments")
+
+
+    mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
+    mkInvariant z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
+      where
+        Reft (v, p) = toReft $ Mb.fromMaybe mempty $ stripRTypeBase tr
+        su    = mkSubst [(v, mkEApp x [EVar v])]
+        reft  = Reft (v, subst su p')
+        p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
 
 
@@ -570,7 +620,7 @@ makeLiftedSpec refl sData lSpec0
   = lSpec0 { Ms.asmSigs    = xbs
            , Ms.reflSigs   = xbs
            , Ms.axeqs      = gsMyAxioms refl 
---         , Ms.invariants = xinvs
+           , Ms.invariants = xinvs
            }
   where 
     xbs    = [ (varLocSym x       , Bare.specToBare <$> t) | (x, t, _) <- gsHAxioms refl     ]
@@ -940,46 +990,6 @@ checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
   Right _      -> return ()
   where
     symXs = [ (F.symbol x, F.loc t) | (x, t) <- xts ]
-
-makeMeasureInvariants :: [(Var, LocSpecType)] -> [LocSymbol] -> [(Maybe Var, LocSpecType)]
-makeMeasureInvariants sigs xs
-  = measureTypeToInv <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
-                                       , isSymbolOfVar (val x) y ]
-
-isSymbolOfVar :: Symbol -> Var -> Bool
-isSymbolOfVar x v = x == symbol' v
-  where
-    symbol' :: Var -> Symbol
-    symbol' = GM.dropModuleNames . symbol . getName
-
-measureTypeToInv :: (LocSymbol, (Var, LocSpecType)) -> (Maybe Var, LocSpecType)
-measureTypeToInv (x, (v, t)) = (Just v, t {val = mtype})
-  where
-    trep = toRTypeRep $ val t
-    ts   = ty_args trep
-    mtype
-      | isBool $ ty_res trep
-      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
-                          (text "Specification of boolean measures is not allowed")
-{-
-      | [tx] <- ts, not (isTauto tx)
-      = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x)
-                          (text "Measures' types cannot have preconditions")
--}
-      | [tx] <- ts
-      = mkInvariant (head $ ty_binds trep) tx $ ty_res trep
-      | otherwise
-      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
-                          (text "Measures has more than one arguments")
-
-
-    mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
-    mkInvariant z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
-      where
-        Reft (v, p) = toReft $ fromMaybe mempty $ stripRTypeBase tr
-        su    = mkSubst [(v, mkEApp x [EVar v])]
-        reft  = Reft (v, subst su p')
-        p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
 data ReplaceEnv = RE
   { _reEnv  :: M.HashMap Symbol Symbol

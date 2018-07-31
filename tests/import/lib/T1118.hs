@@ -1,12 +1,13 @@
-{-@ LIQUID "--higherorder"        @-}
-{-@ LIQUID "--exactdc"            @-}
+{-@ LIQUID "--reflection" @-}
+
 module T1118 where
 
 import T1118Lib2 
 import T1118Lib1
+
 import Language.Haskell.Liquid.ProofCombinators
 
-{-@ axiomatize leqU1 @-}
+{-@ reflect leqU1 @-}
 leqU1 :: U1 p -> U1 p -> Bool
 leqU1 _ _ = True
 
@@ -14,7 +15,7 @@ leqU1 _ _ = True
 leqU1Refl :: U1 p -> Proof
 leqU1Refl U1 = leqU1 U1 U1 ==. True *** QED
 
-{-@ axiomatize leqProd @-}
+{-@ reflect leqProd @-}
 leqProd :: Eq (f p)
         => (f p -> f p -> Bool) -> (g p -> g p -> Bool)
         -> Product f g p -> Product f g p -> Bool
