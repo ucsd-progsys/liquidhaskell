@@ -1,20 +1,5 @@
 # TODO
 
-## Rebare
-
-- [x] Split GhcSpec
-
-- [ ] get phadej-ghc-8.4 to build
-
-- [ ] Nuke `Resolve`
-
-  - Determine TARGET [core-binders]
-  - Traverse GHC Var, Type, TyCon etc.
-  - Build your own map (c.f. FamInstEnv)
-  - Only resolve those names that appear in TARGET code
-
-- [ ] get phadej-ghc-8.4 to build
-
 ## Features
 
 - [x] asserted-sigs
