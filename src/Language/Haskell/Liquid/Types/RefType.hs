@@ -110,7 +110,7 @@ import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Types.PrettyPrint
 
-import           Language.Haskell.Liquid.Types hiding (R, DataConP (..))
+import           Language.Haskell.Liquid.Types.Types hiding (R, DataConP (..))
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names

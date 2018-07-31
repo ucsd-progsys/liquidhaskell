@@ -2,13 +2,12 @@
 --   that are here so that we can throw decent error messages if
 --   they fail. The module depends on `RefType` and `UX.Tidy`.
 
-module Language.Haskell.Liquid.Types.Meet
-     ( meetVarTypes ) where
+module Language.Haskell.Liquid.Types.Meet ( meetVarTypes ) where
 
 import           SrcLoc
 import           Text.PrettyPrint.HughesPJ (text, Doc)
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Tidy
 import           TyCon                                  hiding (tyConName)

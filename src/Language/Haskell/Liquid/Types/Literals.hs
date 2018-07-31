@@ -1,19 +1,18 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Language.Haskell.Liquid.Types.Literals (
-         literalFRefType
-       , literalFReft
-       , literalConst
-
-       , mkI, mkS
-       ) where
+module Language.Haskell.Liquid.Types.Literals 
+  ( literalFRefType
+  , literalFReft
+  , literalConst
+  , mkI, mkS
+  ) where
 
 import Prelude hiding (error)
 import Language.Haskell.Liquid.GHC.TypeRep
 import Literal
 import qualified TyCon  as TC
 
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Transforms.CoreToLogic (mkLit, mkI, mkS)
 

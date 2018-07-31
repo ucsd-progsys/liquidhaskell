@@ -40,7 +40,7 @@ import qualified Data.Text                                 as T
 import qualified Control.Exception                         as Ex
 import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Data.Generics                             (everywhere, mkT)

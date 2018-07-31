@@ -1,7 +1,12 @@
 -- | This module contains the top-level structures that hold 
 --   information about specifications.
 
-module Language.Haskell.Liquid.Types.Specifications 
+{-# LANGUAGE TypeSynonymInstances       #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE DeriveGeneric              #-}
+
+module Language.Haskell.Liquid.Types.Specs 
   ( GhcInfo      (..)
   , GhcSpec      (..)
   , GhcSpecData  (..)
@@ -15,11 +20,12 @@ module Language.Haskell.Liquid.Types.Specifications
   )
   where
 
+import           GHC.Generics
 import qualified Data.Binary             as B
 import qualified Language.Fixpoint.Types as F
 import qualified Data.HashSet            as S
 import qualified Data.HashMap.Strict     as M
-import           Language.Haskell.Liquid.Types 
+import           Language.Haskell.Liquid.Types.Types 
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
 import           Language.Haskell.Liquid.GHC.API 
@@ -108,7 +114,7 @@ data GhcSpecNames = SpNames
   }
 
 data GhcSpecTerm = SpTerm 
-  { gsTexprs     :: ![(Var, [F.Located Expr])]    -- ^ Lexicographically ordered expressions for termination
+  { gsTexprs     :: ![(Var, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   , gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
@@ -122,10 +128,10 @@ data GhcSpecRefl = SpRefl
   , gsReflects   :: ![Var]                            -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
   }
+
 type BareSpec      = Spec    LocBareType F.LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol
 type SpecMeasure   = Measure LocSpecType DataCon
-
 instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
@@ -141,7 +147,7 @@ data Spec ty bndr  = Spec
   , newtyDecls :: ![DataDecl]                   -- ^ Predicated new type definitions
   , includes   :: ![FilePath]                   -- ^ Included qualifier files
   , aliases    :: ![F.Located (RTAlias F.Symbol BareType)] -- ^ RefType aliases
-  , ealiases   :: ![F.Located (RTAlias F.Symbol Expr)]     -- ^ Expression aliases
+  , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]     -- ^ Expression aliases
   , embeds     :: !(F.TCEmb F.LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
   , qualifiers :: ![F.Qualifier]                  -- ^ Qualifiers in source/spec files
   , decr       :: ![(F.LocSymbol, [Int])]          -- ^ Information on decreasing arguments
@@ -158,13 +164,13 @@ data Spec ty bndr  = Spec
   , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]             -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
-  , termexprs  :: ![(F.LocSymbol, [F.Located Expr])] -- ^ Terminating Conditions for functions
+  , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(F.LocSymbol, [Variance])]     -- ^ ? Where do these come from ?!
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap F.LocSymbol F.Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                  --   see tests/pos/NatClass.hs
-  , axeqs      :: ![Equation]                  -- ^ Equalities used for Proof-By-Evaluation
+  , axeqs      :: ![F.Equation]                  -- ^ Equalities used for Proof-By-Evaluation
   } deriving (Generic)
 
 

@@ -43,8 +43,8 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
-import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
-import           Language.Haskell.Liquid.Types.RefType
+-- import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
+-- import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
@@ -102,7 +102,8 @@ saveLiftedSpec srcF _ lspec = do
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
 -------------------------------------------------------------------------------------
-makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec 
+makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] 
+            -> (GhcSpec, Ms.BareSpec) 
 makeGhcSpec cfg src lmap mspecs = SP 
   { gsConfig = cfg 
   , gsSig    = sig 

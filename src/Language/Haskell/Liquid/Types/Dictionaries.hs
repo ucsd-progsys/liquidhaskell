@@ -22,7 +22,7 @@ import           Name                                      (getName)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNamesCorrect)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Fixpoint.Misc                (mapFst)
 import qualified Data.HashMap.Strict                       as M

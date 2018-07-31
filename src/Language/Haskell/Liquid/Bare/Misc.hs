@@ -40,7 +40,7 @@ import           Language.Fixpoint.Misc                as Misc -- (singleton, so
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 
 -- import           Language.Haskell.Liquid.Bare.Env
 

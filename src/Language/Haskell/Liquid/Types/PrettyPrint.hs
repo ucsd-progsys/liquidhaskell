@@ -32,7 +32,7 @@ import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types    
+import           Language.Haskell.Liquid.Types.Types    
 import           Prelude                          hiding (error)
 import           SrcLoc
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))

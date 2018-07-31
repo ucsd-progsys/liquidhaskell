@@ -51,7 +51,7 @@ import qualified Language.Fixpoint.Types         as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 import           Data.List                       (nub)
 import           Data.Default
 

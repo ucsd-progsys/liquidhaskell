@@ -36,7 +36,7 @@ import           Prelude                        hiding (error)
 import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.Visitor (kvars)
 import           Language.Haskell.Liquid.Misc  (single)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
 
 
