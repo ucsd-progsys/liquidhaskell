@@ -85,16 +85,19 @@ loadLiftedSpec cfg srcF
   | otherwise          = do
       let specF = extFileName BinSpec srcF
       ex  <- doesFileExist specF
-      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
+      putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
-      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+      putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
       return lSp
 
-saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
-saveLiftedSpec srcF _ lspec = do
+-- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
+saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
+saveLiftedSpec src sp = do
   ensurePath specF
   B.encodeFile specF lspec
   where
+    srcF  = giTarget src 
+    lspec = gsLSpec  sp 
     specF = extFileName BinSpec srcF
 
 

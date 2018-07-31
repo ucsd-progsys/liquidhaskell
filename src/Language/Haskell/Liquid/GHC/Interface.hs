@@ -360,6 +360,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   ghcSrc     <- makeGhcSrc    cfg file     typechecked modSum
   bareSpecs  <- makeBareSpecs cfg depGraph specEnv     modSum bareSpec
   let ghcSpec = makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs  
+  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec 
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------
