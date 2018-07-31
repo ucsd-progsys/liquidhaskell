@@ -1,15 +1,12 @@
 module List00 where 
 
-data List yy
-  = Emp 
-  | Cons yy (List yy)
+import List00Lib
 
-{-@ measure kons @-}
-kons :: List zoob -> Int 
-kons Emp        = 0 
-kons (Cons _ _) = 1 
+{-@ test :: {v:Int | v = 0 } @-}
+test :: Int 
+test = foo Emp 
 
-{-@ foo :: l:List apple -> {v:Int | v = kons l} @-} 
-foo :: List pig -> Int 
-foo Emp        = 0 
-foo (Cons _ _) = 1
+{-@ bar :: l:List apple -> {v:Int | v = kons l} @-} 
+bar :: List pig -> Int 
+bar Emp        = 0 
+bar (Cons _ _) = 1
