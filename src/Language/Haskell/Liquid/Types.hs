@@ -16,5 +16,5 @@ import Language.Haskell.Liquid.Types.Errors         as Types
 import Language.Haskell.Liquid.Types.Literals       as Types
 import Language.Haskell.Liquid.Types.Names          as Types
 import Language.Haskell.Liquid.Types.PrettyPrint    as Types
-import Language.Haskell.Liquid.Types.Specifications as Types
+import Language.Haskell.Liquid.Types.Specs          as Types
 import Language.Haskell.Liquid.Types.Visitors       as Types

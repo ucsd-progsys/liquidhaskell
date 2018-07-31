@@ -5,7 +5,7 @@
 
 
 module Language.Haskell.Liquid.Constraint.Qualifier
-  ( qualifiers
+  ( giQuals 
   , useSpcQuals
   )
   where
@@ -26,13 +26,13 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
 import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types 
 
 
 --------------------------------------------------------------------------------
-qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+giQuals :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
-qualifiers info lEnv
+giQuals info lEnv
   =  condNull (useSpcQuals info) (gsQualifiers . gsQual . giSpec $ info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)

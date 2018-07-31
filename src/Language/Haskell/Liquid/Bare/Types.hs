@@ -29,7 +29,7 @@ import qualified NameSet                         as Ghc
 
 import qualified Language.Fixpoint.Types         as F 
 import qualified Language.Haskell.Liquid.Measure as Ms
-import           Language.Haskell.Liquid.Types   
+import           Language.Haskell.Liquid.Types.Types   
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec

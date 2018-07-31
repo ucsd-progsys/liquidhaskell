@@ -378,17 +378,17 @@ instance F.Loc TyConP where
 
 -- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
-  { dc_loc     :: !F.SourcePos
-  , freeTyVars :: ![RTyVar]               -- ^ Type parameters
-  , freePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
-  , freeLabels :: ![Symbol]               -- ^ ? strata stuff
-  , tyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
-  , tyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
-  , tyRes      :: !SpecType               -- ^ Result type
+  { dc_loc        :: !F.SourcePos
+  , dc_freeTyVars :: ![RTyVar]               -- ^ Type parameters
+  , freePred      :: ![PVar RSort]           -- ^ Abstract Refinement parameters
+  , freeLabels    :: ![Symbol]               -- ^ ? strata stuff
+  , tyConstrs     :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
+  , tyArgs        :: ![(Symbol, SpecType)]   -- ^ Value parameters
+  , tyRes         :: !SpecType               -- ^ Result type
   -- , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
-  , dcpIsGadt  :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
-  , dcpModule  :: !F.Symbol               -- ^ Which module was this defined in
-  , dc_locE    :: !F.SourcePos
+  , dcpIsGadt     :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
+  , dcpModule     :: !F.Symbol               -- ^ Which module was this defined in
+  , dc_locE       :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
 -- | [NOTE:DataCon-Data] for each 'DataConP' we also

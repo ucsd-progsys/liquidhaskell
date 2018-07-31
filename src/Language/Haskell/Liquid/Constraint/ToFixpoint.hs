@@ -78,12 +78,12 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     cs               = fixCs    cgi
     ws               = fixWfs   cgi
     bs               = binds    cgi
-    ebs              = ebinds    cgi
+    ebs              = ebinds   cgi
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
     adts             = cgADTs   cgi
-    qs               = qualifiers info (fEnv cgi)
+    qs               = giQuals info (fEnv cgi)
     bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info

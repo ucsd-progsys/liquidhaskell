@@ -321,7 +321,7 @@ makeDataCtor tce c (d, dp) = F.DCtor
   , F.dcFields  = makeDataFields tce c as xts
   }
   where
-    as          = freeTyVars dp
+    as          = dc_freeTyVars dp
     xts         = [ (fld x, t) | (x, t) <- reverse (tyArgs dp) ]
     fld         = Loc (dc_loc dp) (dc_locE dp) . fieldName d dp
 
@@ -710,7 +710,7 @@ makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (makeRTVar <$> freeTyVars dcp) [] (freeLabels dcp)
+      ts = [ Loc l l' (mkArrow (makeRTVar <$> dc_freeTyVars dcp) [] (freeLabels dcp)
                                  [] [(z, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct

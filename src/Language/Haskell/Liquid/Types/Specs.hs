@@ -6,19 +6,21 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
-module Language.Haskell.Liquid.Types.Specs 
-  ( GhcInfo      (..)
-  , GhcSpec      (..)
-  , GhcSpecData  (..)
-  , GhcSpecVars  (..)
-  , GhcSpecNames (..)
-  , GhcSpecQual  (..)
-  , GhcSpecSig   (..)
-  , GhcSpecRefl  (..)
-  , GhcSpecTerm  (..)
-  , GhcSrc       (..)
-  )
-  where
+module Language.Haskell.Liquid.Types.Specs where 
+
+  -- ( GhcInfo      (..)
+  -- , GhcSpec      (..)
+  -- , GhcSpecData  (..)
+  -- , GhcSpecVars  (..)
+  -- , GhcSpecNames (..)
+  -- , GhcSpecQual  (..)
+  -- , GhcSpecSig   (..)
+  -- , GhcSpecRefl  (..)
+  -- , GhcSpecTerm  (..)
+  -- , GhcSrc       (..)
+  -- , Spec         (..)
+  -- )
+  -- where
 
 import           GHC.Generics
 import qualified Data.Binary             as B
@@ -67,6 +69,7 @@ data GhcSpec = SP
   , gsTerm   :: !GhcSpecTerm 
   , gsRefl   :: !GhcSpecRefl                  
   , gsConfig :: !Config                       
+  , gsLSpec  :: !BareSpec               -- ^ Lifted specification for the target module
   }
 
 instance HasConfig GhcSpec where
@@ -132,6 +135,7 @@ data GhcSpecRefl = SpRefl
 type BareSpec      = Spec    LocBareType F.LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol
 type SpecMeasure   = Measure LocSpecType DataCon
+    
 instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec

@@ -419,7 +419,7 @@ mkMeasureSort env sigEnv name (Ms.MSpec c mm cm im) =
 --------------------------------------------------------------------------------
 -- | Expand Measures -----------------------------------------------------------
 --------------------------------------------------------------------------------
-type BareMeasure = Measure (Located BareType) LocSymbol
+-- type BareMeasure = Measure LocBareType LocSymbol
 
 expandMeasure :: Bare.Env -> ModName -> BareRTEnv -> BareMeasure -> BareMeasure
 expandMeasure env name rtEnv m = m 

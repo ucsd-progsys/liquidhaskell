@@ -105,10 +105,10 @@ makePluggedDataCons embs tyi dcs
                    tRes       = plugHoles embs tyi (dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
                in
                   (dc, F.atLoc ldcp $ dcp 
-                        { freeTyVars = map rTyVar das
-                        , freePred   = map (subts (zip (freeTyVars dcp) (map (rVar :: TyVar -> RSort) das))) (freePred dcp)
-                        , tyArgs     = reverse tArgs
-                        , tyRes      = val tRes})
+                        { dc_freeTyVars = rTyVar <$> das
+                        , freePred      = (subts (zip (dc_freeTyVars dcp) ((rVar :: TyVar -> RSort) <$> das))) <$> (freePred dcp)
+                        , tyArgs        = reverse tArgs
+                        , tyRes         = val tRes})
 
     where
       mismatch dts dcp = length dts /= length (tyArgs dcp)

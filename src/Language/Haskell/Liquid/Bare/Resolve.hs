@@ -53,7 +53,8 @@ import qualified Text.PrettyPrint.HughesPJ         as PJ
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 
-import           Language.Haskell.Liquid.Types   
+import           Language.Haskell.Liquid.Types.Types   
+import           Language.Haskell.Liquid.Types.Specs 
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.Misc          as Misc 

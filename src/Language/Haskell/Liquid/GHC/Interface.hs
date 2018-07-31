@@ -84,7 +84,7 @@ import qualified Language.Haskell.Liquid.Measure as Ms
 import Language.Haskell.Liquid.Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
-import Language.Haskell.Liquid.Types
+import Language.Haskell.Liquid.Types hiding (Spec)
 import Language.Haskell.Liquid.Types.PrettyPrint
 import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine

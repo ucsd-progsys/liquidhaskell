@@ -16,8 +16,7 @@
 
 
 module Language.Haskell.Liquid.UX.Annotate
-  ( specAnchor
-  , mkOutput
+  ( mkOutput
   , annotate
   , tokeniseWithLoc
   , annErrors
@@ -67,7 +66,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.UX.Errors            ()
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types                hiding (Located(..), Def(..))
-import           Language.Haskell.Liquid.Types.Specifications
+-- import           Language.Haskell.Liquid.Types.Specifications
 
 
 -- | @output@ creates the pretty printed output
