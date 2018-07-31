@@ -46,53 +46,6 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.UX.Tidy
 
--- MOVE TO TYPES
-type BareSpec      = Spec    LocBareType LocSymbol
-type BareMeasure   = Measure LocBareType LocSymbol
-type SpecMeasure   = Measure LocSpecType DataCon
-
-instance B.Binary BareSpec
-
-data Spec ty bndr  = Spec
-  { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
-  , asmSigs    :: ![(LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
-  , sigs       :: ![(LocSymbol, ty)]            -- ^ Imported functions and types
-  , localSigs  :: ![(LocSymbol, ty)]            -- ^ Local type signatures
-  , reflSigs   :: ![(LocSymbol, ty)]            -- ^ Reflected type signatures
-  , invariants :: ![(Maybe LocSymbol, ty)]      -- ^ Data type invariants; the Maybe is the generating measure
-  , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
-  , imports    :: ![Symbol]                     -- ^ Loaded spec module names
-  , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
-  , newtyDecls :: ![DataDecl]                   -- ^ Predicated new type definitions
-  , includes   :: ![FilePath]                   -- ^ Included qualifier files
-  , aliases    :: ![Located (RTAlias Symbol BareType)] -- ^ RefType aliases
-  , ealiases   :: ![Located (RTAlias Symbol Expr)]     -- ^ Expression aliases
-  , embeds     :: !(TCEmb LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
-  , qualifiers :: ![Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(LocSymbol, [Int])]          -- ^ Information on decreasing arguments
-  , lvars      :: !(S.HashSet LocSymbol)         -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet LocSymbol)         -- ^ Ignore Termination Check in these Functions
-  , reflects   :: !(S.HashSet LocSymbol)         -- ^ Binders to reflect
-  , autois     :: !(M.HashMap LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
-  , hmeas      :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
-  , hbounds    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
-  , inlines    :: !(S.HashSet LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
-  , ignores    :: !(S.HashSet LocSymbol)         -- ^ Binders to ignore during checking; that is DON't check the corebind. 
-  , autosize   :: !(S.HashSet LocSymbol)         -- ^ Type Constructors that get automatically sizing info
-  , pragmas    :: ![Located String]              -- ^ Command-line configurations passed in through source
-  , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]             -- ^ Mappings from (measure,type) -> measure
-  , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
-  , termexprs  :: ![(LocSymbol, [Located Expr])] -- ^ Terminating Conditions for functions
-  , rinstance  :: ![RInstance ty]
-  , dvariance  :: ![(LocSymbol, [Variance])]     -- ^ ? Where do these come from ?!
-  , bounds     :: !(RRBEnv ty)
-  , defs       :: !(M.HashMap LocSymbol Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
-                                                 --   see tests/pos/NatClass.hs
-  , axeqs      :: ![Equation]                  -- ^ Equalities used for Proof-By-Evaluation
-  } deriving (Generic)
-
-
 qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
 qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]

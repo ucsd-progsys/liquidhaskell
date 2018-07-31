@@ -82,6 +82,15 @@ makeEnv cfg src specs lmap = RE
   v -> qualifiedSymbol (module, symbol)
   symbol -> []
  -}
+  
+makeVarSubst :: GhcSrc -> F.Subst -- M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
+makeVarSubst src = F.mkSubst (F.tracepp "UNQUAL-SYMS" unqualSyms) 
+  where 
+    unqualSyms   = [ (x, mkVarExpr v) 
+                       | (x, mxs) <- M.toList       (makeSymMap src) 
+                       , v        <- Mb.maybeToList (F.tracepp ("okUnqual " ++ F.showpp x) $ okUnqualified me mxs) 
+                   ] 
+    me           = F.symbol (giTargetMod src) 
 
 -- | @okUnqualified mod mxs@ takes @mxs@ which is a list of modulenames-var 
 --   pairs all of which have the same unqualified symbol representation. 
@@ -98,15 +107,6 @@ okUnqualified me mxs     = go mxs
       | me == m          = Just x 
       | otherwise        = go rest 
 
-  
-makeVarSubst :: GhcSrc -> F.Subst -- M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
-makeVarSubst src = F.mkSubst (F.tracepp "UNQUAL-SYMS" unqualSyms) 
-  where 
-    unqualSyms   = [ (x, mkVarExpr v) 
-                       | (x, mxs) <- M.toList (makeSymMap src) 
-                       , v <- Mb.maybeToList (okUnqualified me mxs) 
-                   ] 
-    me           = F.symbol (giTargetMod src) 
 
 makeSymMap :: GhcSrc -> M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
 makeSymMap src = Misc.group [ (sym, (m, x)) 
@@ -152,7 +152,7 @@ typeTyCons t = tops t ++ inners t
 -- splitAppTys :: Type -> (Type, [Type]) 
 
 srcVars :: GhcSrc -> [Ghc.Var]
-srcVars src = filter Ghc.isId $ concat 
+srcVars src = Misc.sortNub . filter Ghc.isId $ concat 
   [ giDerVars src
   , giImpVars src 
   , giDefVars src 

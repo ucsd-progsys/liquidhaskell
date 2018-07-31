@@ -112,6 +112,7 @@ makeGhcSpec cfg src lmap mspecs = SP
   , gsName   = makeSpecName env tycEnv 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name 
+  , gsLSpec  = makeLiftedSpec refl sData lSpec0 
   }
   where
     -- build up spec components 
@@ -155,7 +156,6 @@ makeTyConEmbeds env (name, spec)
   = F.tceFromList [ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec), tc <- symTc c ]
     where
       symTc = Mb.maybeToList . Bare.maybeResolveSym env name "embed-tycon" 
---  makeRTEnv name lSpec0 specs lmap
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
@@ -557,9 +557,13 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 -----------------------------------------------------------------------------------------
-_makeLiftedSpec :: Ms.BareSpec -> GhcSpecRefl -> GhcSpecData -> Ms.BareSpec 
+-- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 
+--   so that downstream files that import this target can access the lifted definitions, 
+--   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
-_makeLiftedSpec lSpec0 refl sData 
+makeLiftedSpec :: GhcSpecRefl -> GhcSpecData -> Ms.BareSpec -> Ms.BareSpec 
+-----------------------------------------------------------------------------------------
+makeLiftedSpec refl sData lSpec0 
   = lSpec0 { Ms.asmSigs    = xbs
            , Ms.reflSigs   = xbs
            , Ms.axeqs      = gsMyAxioms refl 

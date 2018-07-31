@@ -10,3 +10,5 @@ test = foo Emp
 bar :: List pig -> Int 
 bar Emp        = 0 
 bar (Cons _ _) = 1
+
+imports = ( kons )
