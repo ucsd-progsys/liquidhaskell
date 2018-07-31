@@ -168,13 +168,8 @@ test-suite test
   if flag(devel)
     ghc-options:    -Werror
   main-is:          test.hs
-<<<<<<< HEAD
-  other-modules:    Paths_liquid_fixpoint
-  build-depends:    base >= 4.8 && < 5,
-=======
   Other-Modules:    Paths_liquid_fixpoint
   build-depends:    base >= 4.9.1.0 && < 5,
->>>>>>> 6b31e844a0c49e7b54d2c7ab4b574cbe5eec9b43
                     directory,
                     filepath,
                     process,
@@ -198,30 +193,7 @@ test-suite testparser
   if flag(devel)
     ghc-options:    -Werror
   main-is:          testParser.hs
-<<<<<<< HEAD
-  other-modules:    Language.Fixpoint.Misc
-                    Language.Fixpoint.Parse
-                    Language.Fixpoint.Smt.Bitvector
-                    Language.Fixpoint.Smt.Types
-                    Language.Fixpoint.Types
-                    Language.Fixpoint.Types.Config
-                    Language.Fixpoint.Types.Constraints
-                    Language.Fixpoint.Types.Environments
-                    Language.Fixpoint.Types.Errors
-                    Language.Fixpoint.Types.Names
-                    Language.Fixpoint.Types.PrettyPrint
-                    Language.Fixpoint.Types.Refinements
-                    Language.Fixpoint.Types.Sorts
-                    Language.Fixpoint.Types.Spans
-                    Language.Fixpoint.Types.Substitutions
-                    Language.Fixpoint.Types.Theories
-                    Language.Fixpoint.Types.Triggers
-                    Language.Fixpoint.Types.Utils
-                    Language.Fixpoint.Utils.Files 
-  build-depends:    base >= 4.8 && < 5,
-=======
   build-depends:    base >= 4.9.1.0 && < 5,
->>>>>>> 6b31e844a0c49e7b54d2c7ab4b574cbe5eec9b43
                     directory,
                     filepath,
                     tasty >= 0.10,
