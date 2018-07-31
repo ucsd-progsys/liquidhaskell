@@ -23,7 +23,7 @@
 - [x] alias
 - [x] importing
 - [x] measures
-- [-] importing
+- [x] importing
 - [ ] invariants
 - [ ] importing
 - [ ] termination

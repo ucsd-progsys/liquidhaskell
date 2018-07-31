@@ -1,5 +1,4 @@
-
-resolver: nightly-2018-06-27
+resolver: lts-12.2
 
 packages:
 - liquid-fixpoint/
@@ -12,8 +11,7 @@ extra-deps:
 - intern-0.9.2
 - located-base-0.1.1.1
 - tasty-rerun-1.1.12
-- git: https://github.com/deepfire/text-format.git
-  commit: a1cda87c222d422816f956c7272e752ea12dbe19
+- text-format-0.3.2
 
 flags:
   liquidhaskell:
