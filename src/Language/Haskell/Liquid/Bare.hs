@@ -111,12 +111,12 @@ makeGhcSpec cfg src lmap mspecs = SP
   { gsConfig = cfg 
   , gsSig    = sig 
   , gsRefl   = undefined -- refl 
-  , gsQual   = makeSpecQual cfg env specs  rtEnv 
-  , gsData   = sData 
-  , gsName   = makeSpecName env tycEnv 
-  , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg     mySpec env   name 
-  , gsLSpec  = makeLiftedSpec refl sData lSpec0 
+  , gsQual   = undefined -- makeSpecQual cfg env specs  rtEnv 
+  , gsData   = undefined -- sData 
+  , gsName   = undefined -- makeSpecName env tycEnv 
+  , gsVars   = undefined -- makeSpecVars cfg src mySpec env 
+  , gsTerm   = undefined -- makeSpecTerm cfg     mySpec env   name 
+  , gsLSpec  = undefined -- makeLiftedSpec refl sData lSpec0 
   }
   where
     -- build up spec components 
@@ -125,7 +125,7 @@ makeGhcSpec cfg src lmap mspecs = SP
     sig      = makeSpecSig name specs env sigEnv 
     -- build up environments
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
-    sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
+    sigEnv   = undefined -- makeSigEnv  embs tyi (gsExports src) rtEnv 
     rtEnv    = Bare.makeRTEnv env name mySpec specs lmap
     specs    = M.insert name mySpec specs0
     mySpec   = mySpec0 <> lSpec0
@@ -214,7 +214,7 @@ specTypeCons           = foldRType tc []
     tc acc _           = acc
 
 reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
-reflectedVars spec cbs = fst <$> xDefs
+reflectedVars spec cbs = F.tracepp "REFL-VARS" $ (fst <$> xDefs)
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
     reflSyms           = fmap val . S.toList . Ms.reflects $ spec
@@ -340,7 +340,7 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = F.tracepp "GS-TYSIGS" $ makeTySigs  env sigEnv name mySpec 
+  { gsTySigs   = mempty -- DEBUG makeTySigs  env sigEnv name mySpec 
   , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]

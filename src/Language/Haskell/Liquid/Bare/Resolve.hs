@@ -71,7 +71,7 @@ makeEnv cfg src specs lmap = RE
   { reLMap      = lmap
   , reSyms      = syms 
   , reSpecs     = specs 
-  , _reSubst    = makeVarSubst src -- F.mkSubst [ (x, mkVarExpr v) | (x, v) <- syms ]
+  , _reSubst    = makeVarSubst src 
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   } 

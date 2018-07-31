@@ -356,22 +356,21 @@ cookSpecType env sigEnv name x
   -- TODO-REBARE . strengthenMeasures env sigEnv      x 
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
   -- TODO-REBARE . fmap fixCoercions
-  . fmap RT.generalize
-  . maybePlug       sigEnv name x
-  . Bare.qualify       env name 
+  -- DEBUG . fmap RT.generalize
+  -- DEBUG . maybePlug       sigEnv name x
+  -- DEBUG . Bare.qualify       env name 
   . bareSpecType       env name 
-  . bareExpandType     sigEnv
+  -- DEBUG . bareExpandType     sigEnv
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing = id 
 maybePlug sigEnv name (Just x) = plugHoles sigEnv name x 
 
-
 bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
 bareExpandType sigEnv = expandLoc (Bare.sigRTEnv sigEnv) 
 
 bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
-bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt
+bareSpecType env name lt = F.tracepp "BARESPECTYPE" . Bare.ofBareType env name (F.loc lt) <$> (F.tracepp "AARGH" lt)
 
 plugHoles :: Bare.SigEnv -> ModName -> Ghc.Var -> LocSpecType -> LocSpecType 
 plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
