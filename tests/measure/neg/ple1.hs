@@ -1,11 +1,13 @@
+-- this tests reflection + PLE + holes
+
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module PLE where 
+module Ple1 where 
 
-{-@ reflect adder @-}
-adder :: Int -> Int -> Int 
-adder x y = x + y 
+import Ple1Lib 
 
-{-@ prop :: { adder 5 6 == 12 } @-}
-prop = ()
+{-@ check :: { adder 10 20 == 300 } @-}
+check = ()
+
+imports = ( adder ) 

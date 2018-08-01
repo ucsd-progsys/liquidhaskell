@@ -1,7 +1,5 @@
 -- This test checks whether "invariants" are getting imported.
 
-{-@ LIQUID "--structural" @-}
-
 module List02 where 
 
 import List02Lib 

@@ -3,11 +3,11 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-module PLE where 
+module Ple1 where 
 
-{-@ reflect adder @-}
-adder :: Int -> Int -> Int 
-adder x y = x + y 
+import Ple1Lib 
 
-{-@ prop :: { adder 5 6 == 11 } @-}
-prop = ()
+{-@ check :: { adder 10 20 == 30 } @-}
+check = ()
+
+imports = ( adder ) 
