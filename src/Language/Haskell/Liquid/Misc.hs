@@ -161,7 +161,14 @@ zipWithDefM :: Monad m => (a -> a -> m a) -> [a] -> [a] -> m [a]
 zipWithDefM _ []     []     = return []
 zipWithDefM _ xs     []     = return xs
 zipWithDefM _ []     ys     = return ys
-zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
+zipWithDefM f (x:xs) (y:ys) = (:) <$> f x y <*> zipWithDefM f xs ys
+
+zipWithDef :: (a -> a -> a) -> [a] -> [a] -> [a]
+zipWithDef _ []     []     = []
+zipWithDef _ xs     []     = xs
+zipWithDef _ []     ys     = ys
+zipWithDef f (x:xs) (y:ys) = f x y : zipWithDef f xs ys
+
 
 --------------------------------------------------------------------------------
 -- Originally part of Fixpoint's Misc:

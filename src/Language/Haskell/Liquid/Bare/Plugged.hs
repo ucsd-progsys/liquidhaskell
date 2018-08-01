@@ -1,5 +1,6 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE PartialTypeSignatures #-}
 
 module Language.Haskell.Liquid.Bare.Plugged 
   (  makePluggedSig
@@ -18,30 +19,24 @@ import Var
 -- import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import Control.Monad
-import Control.Monad.Except
+-- import Control.Monad.Except
 import qualified Control.Exception                      as Ex
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
 import           Text.PrettyPrint.HughesPJ
-
 import qualified Data.HashMap.Strict as M
+import qualified Language.Fixpoint.Types           as F
+import qualified Language.Fixpoint.Types.Visitor   as F
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
+import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
+import           Language.Haskell.Liquid.Types
 
-import Language.Fixpoint.Types.Names (dummySymbol)
-import qualified Language.Fixpoint.Types         as F
-import qualified Language.Fixpoint.Types.Visitor as F
--- import Language.Fixpoint.Types (traceFix, showFix)
--- import Language.Fixpoint.Misc (traceShow)
+import qualified Language.Haskell.Liquid.Misc      as Misc -- (zipWithDefM)
 
-import qualified Language.Haskell.Liquid.GHC.Misc       as GM -- (sourcePosSrcSpan, sourcePos2SrcSpan, symbolTyVar)--
--- import Language.Haskell.Liquid.GHC.Misc      (sourcePos2SrcSpan)
-import Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
-import Language.Haskell.Liquid.Types
-
-import Language.Haskell.Liquid.Misc (zipWithDefM)
-
+import qualified Language.Haskell.Liquid.Bare.Types as Bare
+import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 -- import Language.Haskell.Liquid.Bare.Env
--- import Language.Haskell.Liquid.Bare.Misc
 
 --------------------------------------------------------------------------------
 -- | NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
@@ -116,76 +111,76 @@ makePluggedDataCons embs tyi dcs
 
 plugHoles :: (NamedThing a, PPrint a, Show a)
           => F.TCEmb TyCon
-          -> M.HashMap TyCon RTyCon
+          -> Bare.TyConMap 
           -> a
           -> (SpecType -> RReft -> RReft)
           -> Type
           -> LocSpecType
           -> LocSpecType
-plugHoles _tce _tyi _x _f _t tt = tt -- TODO-REBARE
 
-{- 
-    -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHoles tce tyi x f t (Loc l l' st) 
-  = do tyvsmap <- case runMapTyVars (mapTyVars (toType rt') st'') initvmap of
-                    Left e -> throwError e
-                    Right s -> return (vmap s)
-       let su    = [(y, rTyVar x) | (x, y) <- tyvsmap]
-           coSub = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
-           st3   = subts su st''
-           st4   = mapExprReft (\_ -> F.applyCoSub coSub) st3
-           ps'   = fmap (subts su') <$> ps
-           su'   = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-       Loc l l' . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] . makeCls cs' <$> (go rt' st4)
-  where
+-- NOTE: this use of toType is safe as rt' is derived from t.
+plugHoles tce tyi x f t zz@(Loc l l' st) 
+    = Loc l l' .  mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] . makeCls cs' $ goPlug tce tyi f rt' st4
+  where 
+    tyvsmap           = case Bare.runMapTyVars (toType rt') st'' err of
+                          Left e  -> Ex.throw e 
+                          Right s -> Bare.vmap s
+    su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
+    coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    st3               = subts su st''
+    st4               = mapExprReft (\_ -> F.applyCoSub coSub) st3
+    ps'               = fmap (subts su') <$> ps
+    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
     (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
     (cs, rt')         = bkClass rt
-
     (_, ps, ls2, st') = bkUniv st
     (_, st'')         = bkClass st'
-    cs'               = [(dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
+    cs'               = [(F.dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
+    makeCls cs t      = foldr (uncurry rFun) t cs
+    err               = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+                          (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
+                          (pprint $ expandTypeSynonyms t)
+                          (pprint $ toRSort st)
+                          (getSrcSpan x) 
 
-    initvmap          = initMapSt $ ErrMismatch lqSp (pprint x) (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
-                                                                (pprint $ expandTypeSynonyms t)
-                                                                (pprint $ toRSort st)
-                                                                hsSp
-    hsSp              = getSrcSpan x
-    lqSp              = GM.sourcePos2SrcSpan l l'
 
-    go :: SpecType -> SpecType -> BareM SpecType
-    go t                (RHole r)          = return $ (addHoles t') { rt_reft = f t r }
+goPlug :: F.TCEmb TyCon -> Bare.TyConMap
+       -> (SpecType -> RReft -> RReft)
+       -> SpecType -- RType RTyCon RTyVar RReft
+       -> SpecType -- RType RTyCon RTyVar RReft
+       -> SpecType -- RType RTyCon RTyVar RReft
+goPlug tce tyi f = go 
+  where
+    go t (RHole r) = (addHoles t') { rt_reft = f t r }
       where
-        t'       = everywhere (mkT $ addRefs tce tyi) t
-        addHoles = everywhere (mkT $ addHole)
+        t'         = everywhere (mkT $ addRefs tce tyi) t
+        addHoles   = everywhere (mkT $ addHole)
         -- NOTE: make sure we only add holes to RVar and RApp (NOT RFun)
         addHole :: SpecType -> SpecType
         addHole t@(RVar v _)       = RVar v (f t (uReft ("v", hole)))
         addHole t@(RApp c ts ps _) = RApp c ts ps (f t (uReft ("v", hole)))
         addHole t                  = t
 
-    go (RVar _ _)       v@(RVar _ _)       = return v
-    go t'               (RImpF x i o r)    = RImpF x i  <$> go t' o <*> return r
-    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x     <$> go i i' <*> go o o' <*> return r
-    go (RAllT _ t)      (RAllT a t')       = RAllT a    <$> go t t'
-    go (RAllT a t)      t'                 = RAllT a    <$> go t t'
-    go t                (RAllP p t')       = RAllP p    <$> go t t'
-    go t                (RAllS s t')       = RAllS s    <$> go t t'
-    go t                (RAllE b a t')     = RAllE b a  <$> go t t'
-    go t                (REx b x t')       = REx b x    <$> go t t'
-    go t                (RRTy e r o t')    = RRTy e r o <$> go t t'
-    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     <$> go t1 t1' <*> go t2 t2' <*> return r
+    go (RVar _ _)       v@(RVar _ _)       = v
+    go t'               (RImpF x i o r)    = RImpF x i  (go t' o)             r
+    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x     (go i i')   (go o o') r
+    go (RAllT _ t)      (RAllT a t')       = RAllT a    (go t t')
+    go (RAllT a t)      t'                 = RAllT a    (go t t')
+    go t                (RAllP p t')       = RAllP p    (go t t')
+    go t                (RAllS s t')       = RAllS s    (go t t')
+    go t                (RAllE b a t')     = RAllE b a  (go t t')
+    go t                (REx b x t')       = REx b x    (go t t')
+    go t                (RRTy e r o t')    = RRTy e r o (go t t')
+    go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     (go t1 t1') (go t2 t2') r
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
     go (RApp _ ts _ _)  (RApp c ts' p r)   --  length ts == length ts'
-                                           = RApp c <$> (zipWithDefM go ts $ matchKindArgs ts ts') <*> return p <*> return r
+                                           = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.
-    go st               _                 = return st
+    go st               _                 = st
 
-    makeCls cs t              = foldr (uncurry rFun) t cs
-
--}
 
 addRefs :: F.TCEmb TyCon -> M.HashMap TyCon RTyCon -> SpecType -> SpecType
 addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r

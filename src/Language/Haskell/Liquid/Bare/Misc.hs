@@ -6,9 +6,11 @@ module Language.Haskell.Liquid.Bare.Misc (
   , joinVar
   , mkVarExpr
   , vmap
-  , initMapSt
+  
   , runMapTyVars
-  , mapTyVars
+ -- , mapTyVars
+ -- , initMapSt
+  
   , matchKindArgs
   , symbolRTyVar
   , simpleSymbolVar
@@ -89,6 +91,12 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
+-- TODO: Maybe don't expose this; instead, roll this in with mapTyVar and export a
+--       single "clean" function as the API.
+-- runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
+-- runMapTyVars τ t = execStateT
+runMapTyVars :: Type -> SpecType -> Error -> Either Error MapTyVarST
+runMapTyVars τ t err = execStateT (mapTyVars τ t) (initMapSt err) 
 
 data MapTyVarST = MTVST
   { vmap   :: [(Var, RTyVar)]
@@ -98,10 +106,6 @@ data MapTyVarST = MTVST
 initMapSt :: Error -> MapTyVarST
 initMapSt = MTVST []
 
--- TODO: Maybe don't expose this; instead, roll this in with mapTyVar and export a
---       single "clean" function as the API.
-runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
-runMapTyVars = execStateT
 
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars t (RImpF _ _ t' _)
