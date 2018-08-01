@@ -85,6 +85,7 @@ module Language.Haskell.Liquid.Types.RefType (
 -- import           GHC.Stack
 import TyCoRep
 import Prelude hiding (error)
+import qualified Prelude
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
@@ -1377,7 +1378,7 @@ toType t@(RExprArg _)
 toType (RRTy _ _ _ t)
   = toType t
 toType t
-  = impossible Nothing $ "RefType.toType cannot handle: " ++ show t
+  = {- impossible Nothing -} Prelude.error $ "RefType.toType cannot handle: " ++ show t
 
 
 --------------------------------------------------------------------------------

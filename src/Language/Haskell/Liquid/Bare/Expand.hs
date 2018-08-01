@@ -364,7 +364,7 @@ cookSpecType env sigEnv name x
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing = id 
-maybePlug sigEnv name (Just x) = plugHoles sigEnv name x 
+maybePlug sigEnv name (Just x) = F.tracepp ("PLUGHOLE " ++ F.showpp x) . plugHoles sigEnv name x 
 
 bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
 bareExpandType sigEnv = expandLoc (Bare.sigRTEnv sigEnv) 

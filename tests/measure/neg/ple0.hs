@@ -7,5 +7,5 @@ module PLE where
 adder :: Int -> Int -> Int 
 adder x y = x + y 
 
-{-@ prop :: { adder 5 6 == 12 } @-}
+{-@ prop :: { v : () | adder 5 6 == 12 } @-}
 prop = ()

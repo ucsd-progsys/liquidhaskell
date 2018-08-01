@@ -1,4 +1,4 @@
--- tests ple+reflection
+-- this tests reflection + PLE + holes
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
@@ -9,5 +9,5 @@ module PLE where
 adder :: Int -> Int -> Int 
 adder x y = x + y 
 
-{-@ prop :: { v: () | adder 5 6 == 11 } @-}
+{-@ prop :: { adder 5 6 == 11 } @-}
 prop = ()
