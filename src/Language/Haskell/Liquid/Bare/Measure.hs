@@ -433,10 +433,10 @@ expandMeasureDef env name rtEnv d = d
   where l = loc (measure d) 
 
 ------------------------------------------------------------------------------
-varMeasures :: (Monoid r) => [Ghc.Var] -> [(Ghc.Var, Located (RRType r))]
+varMeasures :: (Monoid r) => [Ghc.Var] -> [(F.Symbol, Located (RRType r))]
 ------------------------------------------------------------------------------
 varMeasures vars = 
-  [ (v, varSpecType v) 
+  [ (F.symbol v, varSpecType v) 
       | v <- vars
       , GM.isDataConId v
       , isSimpleType (Ghc.varType v) ]

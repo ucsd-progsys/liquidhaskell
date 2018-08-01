@@ -213,7 +213,7 @@ specTypeCons           = foldRType tc []
     tc acc _           = acc
 
 reflectedVars :: Ms.BareSpec -> [Ghc.CoreBind] -> [Ghc.Var]
-reflectedVars spec cbs = F.tracepp "REFL-VARS" $ (fst <$> xDefs)
+reflectedVars spec cbs = (fst <$> xDefs)
   where
     xDefs              = Mb.mapMaybe (`GM.findVarDef` cbs) reflSyms
     reflSyms           = fmap val . S.toList . Ms.reflects $ spec
@@ -339,7 +339,7 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = F.tracepp "TYSIGS" $ makeTySigs  env sigEnv name mySpec 
+  { gsTySigs   = makeTySigs  env sigEnv name mySpec 
   , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
@@ -449,11 +449,15 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
-  { gsCtors      = [ (x, Bare.plugHoles sigEnv name x t) | (x, t) <- Bare.meDataCons measEnv]
+  { gsCtors      = [ (x, tt) 
+                       | (x, t) <- Bare.meDataCons measEnv
+                       , let tt = Bare.plugHoles sigEnv name x t 
+                   ]
+
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
-  , gsInvariants = (F.tracepp "M-INVARIANTS" $ makeMeasureInvariants env name sig mySpec) 
-                ++ (F.tracepp "D-INVARIANTS" $ concat (makeInvariants env sigEnv <$> M.toList specs))
+  , gsInvariants = makeMeasureInvariants env name sig mySpec 
+                ++ concat (makeInvariants env sigEnv <$> M.toList specs)
   , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
   where
@@ -547,7 +551,7 @@ makeSpecName env tycEnv = SpNames
   { gsFreeSyms = Bare.reSyms env 
   , gsDconsP   = mempty -- TODO-REBARE 
   , gsTconsP   = mempty -- TODO-REBARE 
-  , gsLits     = mempty -- TODO-REBARE 
+  , gsLits     = mempty -- TODO-REBARE HEREHEREHEREHEREHEREHEREHERE 
   , gsTcEmbeds = Bare.tcEmbs     tycEnv   
   , gsADTs     = Bare.tcAdts     tycEnv 
   , gsTyconEnv = Bare.tcTyConMap tycEnv  
@@ -595,12 +599,12 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     (cs, ms)      = Bare.makeMeasureSpec' measures
     cms           = [] -- TODO-REBARE makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
-    ms'           = [ (v, F.atLoc lx t)        | (lx, t) <- ms
-                                               , v       <- msVar lx 
+    ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
+                                               -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
     cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
-    msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
+    -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement
     tyi           = Bare.tcTyConMap    tycEnv 
     dcSelectors   = Bare.tcSelMeasures tycEnv 

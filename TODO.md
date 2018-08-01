@@ -18,6 +18,18 @@
 - [ ] holes
 - [ ] classes
 
+## HEREHERE 
+
+The test 
+
+    stack exec -- liquid tests/measure/pos/ple0.hs 
+
+crashes due to odd equation that comes from the overpopulated `gsCtors` field.
+
+Don't just add `wiredTyCon` and `wiredDataCon` to the current spots; instead
+mix them in IF the corresponding thing is actually used.
+
+
 ## Issues
 
 - Termination expressions have to be renamed as the binders get substituted via fresh etc.

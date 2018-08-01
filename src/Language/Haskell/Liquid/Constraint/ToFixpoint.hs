@@ -94,7 +94,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
   = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts])
-           (concatMap makeSimplify xts)
+           (concatMap makeSimplify (F.tracepp "MAKE-AXIOM-SIMPLIFY" xts))
            (doExpand sp cfg <$> fcs)
   where
     emb      = gsTcEmbeds (gsName sp)
