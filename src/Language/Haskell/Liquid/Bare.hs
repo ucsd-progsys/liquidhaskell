@@ -306,12 +306,12 @@ makeSpecRefl :: GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> 
              -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
 makeSpecRefl src specs env name sig tycEnv = SpRefl 
-  { gsLogicMap   = mempty -- lmap 
-  , gsAutoInst   = mempty -- makeAutoInst env name mySpec 
-  , gsImpAxioms  = mempty -- concatMap (Ms.axeqs . snd) (M.toList specs)
-  , gsMyAxioms   = mempty -- myAxioms 
-  , gsReflects   = mempty -- filter (isReflectVar rflSyms) sigVars
-  , gsHAxioms    = mempty -- xtes 
+  { gsLogicMap   = lmap 
+  , gsAutoInst   = makeAutoInst env name mySpec 
+  , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
+  , gsMyAxioms   = myAxioms 
+  , gsReflects   = filter (isReflectVar rflSyms) sigVars
+  , gsHAxioms    = xtes 
   }
   where
     mySpec       = M.lookupDefault mempty name specs 
@@ -452,6 +452,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt = Bare.plugHoles sigEnv name x t 
+                       -- , FALSE
                    ]
 
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
@@ -557,6 +558,7 @@ makeSpecName env tycEnv = SpNames
   , gsTyconEnv = Bare.tcTyConMap tycEnv  
   }
 
+
 -- REBARE: formerly, makeGhcCHOP1
 -------------------------------------------------------------------------------------------
 makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Bare.ModSpecs -> Bare.TycEnv 
@@ -575,9 +577,9 @@ makeTycEnv cfg myName env embs specs = Bare.TycEnv
   where 
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> M.toList specs 
     tcs           = [(x, y) | (_, x, y, _)       <- tcDds]
-    tycons        = tcs ++ wiredTyCons
+    tycons        = Misc.replaceSubset tcs wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
-    datacons      = Bare.makePluggedDataCons embs tyi (concat dcs ++ wiredDataCons)
+    datacons      = Bare.makePluggedDataCons embs tyi (Misc.replaceSubset (concat dcs) wiredDataCons)
     tds           = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts

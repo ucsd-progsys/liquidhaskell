@@ -191,6 +191,15 @@ hashMapMapKeys f = M.fromList . fmap (first f) . M.toList
 concatMapM :: (Monad f, Traversable t) => (a1 -> f [a]) -> t a1 -> f [a]
 concatMapM f = fmap concat . mapM f
 
+replaceSubset :: (Eq k, Hashable k) => [(k, a)] -> [(k, a)] -> [(k, a)]
+replaceSubset kvs kvs' = M.toList (L.foldl' upd m0 kvs')
+  where 
+    m0                = M.fromList kvs 
+    upd m (k, v') 
+      | M.member k m  = M.insert k v' m 
+      | otherwise     = m 
+
+
 firstElems ::  [(B.ByteString, B.ByteString)] -> B.ByteString -> Maybe (Int, B.ByteString, (B.ByteString, B.ByteString))
 firstElems seps str
   = case splitters seps str of

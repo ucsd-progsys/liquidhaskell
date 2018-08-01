@@ -573,6 +573,9 @@ instance Hashable Var where
 instance Hashable TyCon where
   hashWithSalt = uniqueHash
 
+instance Hashable DataCon where
+  hashWithSalt = uniqueHash
+
 instance Fixpoint Var where
   toFix = pprDoc
 

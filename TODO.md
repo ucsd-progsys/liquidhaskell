@@ -29,6 +29,10 @@ crashes due to odd equation that comes from the overpopulated `gsCtors` field.
 Don't just add `wiredTyCon` and `wiredDataCon` to the current spots; instead
 mix them in IF the corresponding thing is actually used.
 
+1. If you replace the current `FALSE` with `False` then the junk goes away and you need
+to then implement the actual core-to-logic for reflection (not happening.)
+
+2. Rejigger the 
 
 ## Issues
 
