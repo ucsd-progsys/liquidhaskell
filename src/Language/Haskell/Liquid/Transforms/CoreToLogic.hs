@@ -50,6 +50,7 @@ import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 
 
+import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.DataType 
 import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
 import           Language.Haskell.Liquid.GHC.Play

@@ -105,6 +105,9 @@ saveLiftedSpec src sp = do
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
+--   See [NOTE] LIFTING-STAGES to see why we split into lSpec0, lSpec1, etc.
+--   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
+--   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 makeGhcSpec cfg src lmap mspecs = SP 
@@ -116,35 +119,43 @@ makeGhcSpec cfg src lmap mspecs = SP
   , gsName   = makeSpecName env tycEnv 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name 
-  , gsLSpec  = makeLiftedSpec refl sData lSpec0 
+  , gsLSpec  = makeLiftedSpec refl sData lSpec1 
   }
   where
     -- build up spec components 
     sData    = makeSpecData src env sigEnv measEnv sig specs 
+    measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     refl     = makeSpecRefl src specs env name sig tycEnv 
     sig      = makeSpecSig name specs env sigEnv 
     -- build up environments
-    measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
+    specs    = M.insert name mySpec iSpecs2
+    mySpec   = mySpec2 <> lSpec1 
+    lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
-    rtEnv    = Bare.makeRTEnv env name mySpec specs lmap
-    specs    = M.insert name mySpec specs0
-    mySpec   = mySpec0 <> lSpec0
-    lSpec0   = makeLiftedSpec0 cfg src tycEnv lmap mySpec0 
     tyi      = Bare.tcTyConMap   tycEnv 
-    tycEnv   = makeTycEnv   cfg name env embs specs0 
-    embs     = makeEmbeds   src env specs0
+    tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
+    mySpec2  = Bare.expand rtEnv l mySpec1    where l = F.dummyPos "expand-mySpec2"
+    iSpecs2  = Bare.expand rtEnv l iSpecs0    where l = F.dummyPos "expand-iSpecs2"
+    rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
+    mySpec1  = mySpec0 <> lSpec0    
+    lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
+    embs     = makeEmbeds   src env ((name, mySpec0) : M.toList iSpecs0)
+    -- extract name and specs
     env      = Bare.makeEnv cfg src lmap  
-    -- extract my name and spec
+    (mySpec0, iSpecs0) = splitSpecs name mspecs 
     name     = giTargetMod  src 
-    mySpec0  = M.lookupDefault mempty name specs0
-    specs0   = M.fromList mspecs
 
-makeEmbeds :: GhcSrc -> Bare.Env -> Bare.ModSpecs -> F.TCEmb Ghc.TyCon 
+splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
+splitSpecs name specs = (mySpec, M.fromList iSpecs) 
+  where 
+    mySpec            = mconcat (snd <$> mySpecs)
+    (mySpecs, iSpecs) = L.partition ((name ==) . fst) specs 
+
+makeEmbeds :: GhcSrc -> Bare.Env -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
   = Bare.addClassEmbeds (gsCls src) (gsFiTcs src) 
   . mconcat 
   . map (makeTyConEmbeds env)
-  . M.toList 
 
 makeTyConEmbeds :: Bare.Env -> (ModName, Ms.BareSpec) -> F.TCEmb Ghc.TyCon
 makeTyConEmbeds env (name, spec) 
@@ -163,23 +174,39 @@ makeTyConEmbeds env (name, spec)
 --   we compute the `SpecType` for (all, including the reflected binders),
 --   as we need the inlines and aliases to properly `expand` the SpecTypes.
 --------------------------------------------------------------------------------
-
-makeLiftedSpec0 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec 
+makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec 
                 -> Ms.BareSpec
-makeLiftedSpec0 cfg src tycEnv lmap mySpec = mempty
-            { Ms.ealiases  = lmapEAlias . snd <$> xils
-            , Ms.measures  = ms
+makeLiftedSpec1 cfg src tycEnv lmap mySpec = mempty
+            { Ms.measures  = ms
             , Ms.reflects  = Ms.reflects mySpec
             , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs
             }
   where 
-    name    = giTargetMod src
-    xils    = Bare.makeHaskellInlines  src tycEnv lmap mySpec
     ms      = Bare.makeHaskellMeasures src tycEnv lmap mySpec
     refTcs  = reflectedTyCons cfg embs cbs             mySpec
     cbs     = giCbs src
     embs    = Bare.tcEmbs tycEnv 
     tcs     = uniqNub (gsTcs src ++ refTcs)
+    name    = giTargetMod src
+
+--------------------------------------------------------------------------------
+-- | [NOTE]: LIFTING-STAGES 
+-- 
+-- We split the lifting up into stage:
+-- 0. Where we only lift inlines,
+-- 1. Where we lift reflects and measures.
+-- 
+-- This is because we need the inlines to build the @BareRTEnv@ which then
+-- does the alias @expand@ business, that in turn, lets us build the DataConP,
+-- i.e. the refined datatypes and their associate selectors, projectors etc,
+-- that are needed for subsequent stages of the lifting.
+--------------------------------------------------------------------------------
+
+
+makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
+                -> Ms.BareSpec
+makeLiftedSpec0 cfg src embs lmap mySpec = mempty
+  { Ms.ealiases = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec }
 
 uniqNub :: (Ghc.Uniquable a) => [a] -> [a]
 uniqNub xs = M.elems $ M.fromList [ (index x, x) | x <- xs ]
@@ -452,9 +479,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt = Bare.plugHoles sigEnv name x t 
-                       -- , FALSE
                    ]
-
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
   , gsInvariants = makeMeasureInvariants env name sig mySpec 
@@ -561,9 +586,9 @@ makeSpecName env tycEnv = SpNames
 
 -- REBARE: formerly, makeGhcCHOP1
 -------------------------------------------------------------------------------------------
-makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Bare.ModSpecs -> Bare.TycEnv 
+makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs -> Bare.TycEnv 
 -------------------------------------------------------------------------------------------
-makeTycEnv cfg myName env embs specs = Bare.TycEnv 
+makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv 
   { tcTyCons      = tycons                  
   , tcDataCons    = second val <$> datacons 
   , tcSelMeasures = dcSelectors             
@@ -575,7 +600,8 @@ makeTycEnv cfg myName env embs specs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> M.toList specs 
+    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = [(x, y) | (_, x, y, _)       <- tcDds]
     tycons        = Misc.replaceSubset tcs wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons

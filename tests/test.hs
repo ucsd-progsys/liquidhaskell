@@ -198,6 +198,9 @@ unitTests = group "Unit"
   , testGroup "basic-neg"      <$> dirTests "tests/basic/neg"                      []                (ExitFailure 1)
   , testGroup "measure-pos"    <$> dirTests "tests/measure/pos"                    []                ExitSuccess
   , testGroup "measure-neg"    <$> dirTests "tests/measure/neg"                    []                (ExitFailure 1)
+  , testGroup "datacon-pos"    <$> dirTests "tests/datacon/pos"                    []                ExitSuccess
+  , testGroup "datacon-neg"    <$> dirTests "tests/datacon/neg"                    []                (ExitFailure 1)
+
 
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess

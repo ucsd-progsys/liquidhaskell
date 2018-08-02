@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Bare.Expand
     -- * Use alias expansion 
   , Expand (..)
   , expandLoc 
+  , expandDummy
 
     -- * Expand and Qualify 
   , expandQualify 
@@ -231,6 +232,8 @@ expandQualify env name rtEnv l = Bare.qualify env name . expand rtEnv l
 
 
 ----------------------------------------------------------------------------------
+expandDummy :: (Expand a) => BareRTEnv -> a -> a 
+expandDummy rtEnv = expand rtEnv (F.dummyPos "expand-dummy")
 
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
 expandLoc rtEnv lx = expand rtEnv (F.loc lx) <$> lx 
@@ -252,9 +255,41 @@ instance Expand Body where
   expand rtEnv l (E   e) = E   (expand rtEnv l e)
   expand rtEnv l (R x p) = R x (expand rtEnv l p)
 
+instance Expand DataDecl where 
+  expand = undefined
 
+instance Expand BareMeasure where 
+  expand = undefined
+
+instance Expand BareSpec where 
+  expand = expandBareSpec
+
+instance Expand a => Expand (F.Located a) where 
+  expand rtEnv _ = expandLoc rtEnv 
+
+instance Expand a => Expand (F.LocSymbol, a) where 
+  expand rtEnv l (x, y) = (x, expand rtEnv l y)
+
+instance Expand a => Expand [a] where 
+  expand rtEnv l xs = fmap (expand rtEnv l) xs 
+
+instance Expand a => Expand (M.HashMap k a) where 
+  expand rtEnv l xs = fmap (expand rtEnv l) xs 
+
+expandBareSpec :: BareRTEnv -> F.SourcePos -> BareSpec -> BareSpec
+expandBareSpec rtEnv l sp = sp 
+  { measures   = expand rtEnv l (measures   sp) 
+  , asmSigs    = expand rtEnv l (asmSigs    sp)
+  , sigs       = expand rtEnv l (sigs       sp)
+  , localSigs  = expand rtEnv l (localSigs  sp)
+  , reflSigs   = expand rtEnv l (reflSigs   sp)
+  , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
+  , dataDecls  = expand rtEnv l (dataDecls  sp)
+  , newtyDecls = expand rtEnv l (newtyDecls sp)
+  } 
+  where f      = expand rtEnv l 
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
-expandBareType rtEnv _   = go -- HEREHEREHERE
+expandBareType rtEnv _   = go 
   where
     go (RApp c ts rs r)  = case lookupRTEnv c rtEnv of 
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r 
@@ -360,14 +395,14 @@ cookSpecType env sigEnv name x
   . maybePlug       sigEnv name x
   . Bare.qualify       env name 
   . bareSpecType       env name 
-  . bareExpandType     sigEnv
+  . bareExpandType     (Bare.sigRTEnv sigEnv)
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing = id 
 maybePlug sigEnv name (Just x) = F.tracepp ("PLUGHOLE " ++ F.showpp x) . plugHoles sigEnv name x 
 
-bareExpandType :: Bare.SigEnv -> LocBareType -> LocBareType 
-bareExpandType sigEnv = expandLoc (Bare.sigRTEnv sigEnv) 
+bareExpandType :: BareRTEnv -> LocBareType -> LocBareType 
+bareExpandType = expandLoc
 
 bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
 bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt

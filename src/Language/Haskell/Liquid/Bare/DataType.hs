@@ -4,8 +4,7 @@
 
 module Language.Haskell.Liquid.Bare.DataType
   ( 
-    DataConMap
-  , dataConMap
+    dataConMap
 
   -- * Names for accessing Data Constuctors 
   , makeDataConChecker
@@ -47,8 +46,8 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
-import           Language.Haskell.Liquid.Bare.Types     as Bare  
-import           Language.Haskell.Liquid.Bare.Resolve   as Bare 
+import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
+import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare 
 
 -- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 -- import           Language.Haskell.Liquid.Bare.Env
@@ -63,7 +62,7 @@ import           Text.PrettyPrint.HughesPJ       ((<+>))
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
 --   as SMT ADTs so we don't make up new names for them.
 --------------------------------------------------------------------------------
-dataConMap :: [F.DataDecl] -> DataConMap
+dataConMap :: [F.DataDecl] -> Bare.DataConMap
 dataConMap ds = M.fromList $ do
   d     <- ds
   c     <- F.ddCtors d
@@ -85,7 +84,7 @@ makeDataConChecker = F.testSymbol . F.symbol
 --   e.g. `select$Cons$1` and `select$Cons$2` are respectively
 --   equivalent to `head` and `tail`.
 --------------------------------------------------------------------------------
-makeDataConSelector :: Maybe DataConMap -> Ghc.DataCon -> Int -> F.Symbol
+makeDataConSelector :: Maybe Bare.DataConMap -> Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
   where 
     dm                       = Mb.fromMaybe M.empty dmMb 
@@ -455,7 +454,7 @@ canonizeDecls env name ds =
     Right ds     -> ds
   where
     ks           = key <$> ds
-    key          = F.symbol . lookupGhcDnTyCon env name "canonizeDecls" . tycName
+    key          = F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
     err ds@(d:_) = uError (errDupSpecs (pprint $ tycName d)(GM.fSrcSpan <$> ds))
     err _        = impossible Nothing "canonizeDecls"
 
@@ -504,10 +503,10 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
   = ((name, tc', tcp, Just (dd { tycDCons = cts }, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
   where
     πs         = Bare.ofBPVar env name pos <$> ps
-    tc'        = lookupGhcDnTyCon env name "ofBDataDecl" tc
+    tc'        = Bare.lookupGhcDnTyCon env name "ofBDataDecl" tc
     cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
-    pd         = mkSpecType' env name lc [] <$> pt
+    pd         = Bare.mkSpecType' env name lc [] <$> pt
     tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
     initmap    = zip (RT.uPVar <$> πs) [0..]
     varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
@@ -525,7 +524,7 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
 ofBDataDecl env name Nothing (Just (tc, is))
   = ((name, tc', TyConP srcpos [] [] [] tcov tcontr Nothing, Nothing), [])
   where
-    tc'            = lookupGhcTyCon env name "ofBDataDecl" tc
+    tc'            = Bare.lookupGhcTyCon env name "ofBDataDecl" tc
     (tcov, tcontr) = (is, [])
     srcpos         = F.dummyPos "LH.DataType.Variance"
 
@@ -547,9 +546,9 @@ ofBDataCtor :: Bare.Env
 ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) 
   = (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
-    c'            = lookupGhcDataCon env name "ofBDataCtor" c
-    ts'           = mkSpecType' env name l ps <$> ts
-    res'          = mkSpecType' env name l ps <$> res
+    c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
+    ts'           = Bare.mkSpecType' env name l ps <$> ts
+    res'          = Bare.mkSpecType' env name l ps <$> res
     t0'           = dataConResultTy c' αs t0 res'
     cfg           = getConfig env 
     (yts, ot)     = qualifyDataCtor (exactDCFlag cfg && not isGadt) name dLoc (zip xs ts', t0')
@@ -574,7 +573,7 @@ checkDataCtor2 env name c dcs d
   | otherwise      = uError (errInvalidDataCon c dn)
   where 
     dn             = dcName d
-    x              = F.symbol (lookupGhcDataCon env name "checkDataCtor2" dn)
+    x              = F.symbol (Bare.lookupGhcDataCon env name "checkDataCtor2" dn)
 
 checkDataCtor1 :: DataCtor -> DataCtor 
 checkDataCtor1 d@(DataCtor lc _ xts _)
@@ -695,7 +694,7 @@ qualifyField name lx
    x         = val lx
    needsQual = not (isWiredIn lx)
 
-makeRecordSelectorSigs :: Env -> ModName -> [(Ghc.DataCon, Located DataConP)] 
+makeRecordSelectorSigs :: Bare.Env -> ModName -> [(Ghc.DataCon, Located DataConP)] 
                        -> [(Ghc.Var, LocSpecType)]
 makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
   where

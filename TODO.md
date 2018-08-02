@@ -11,12 +11,17 @@
 - [x] importing
 - [x] invariants
 - [x] importing
-- [-] reflect / PLE
-- [ ] importing
-- [ ] termination
+- [x] holes
+- [x] reflect / PLE
+- [x] importing
+- [x] datacon
+        + alias
+        + dependency
+- [x] importing
+- [ ] class/instance measures (len)
 - [ ] absref
-- [ ] holes
-- [ ] classes
+- [ ] termination
+- [ ] auto-size
 
 ## Issues
 

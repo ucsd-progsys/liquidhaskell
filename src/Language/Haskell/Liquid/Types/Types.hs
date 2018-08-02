@@ -861,16 +861,13 @@ data UReft r = MkUReft
 
 instance B.Binary r => B.Binary (UReft r)
 
-type BRType     = RType BTyCon BTyVar       -- ^ "Bare" parsed version
-type RRType     = RType RTyCon RTyVar       -- ^ "Resolved" version
-type RRep       = RTypeRep RTyCon RTyVar
-
-type BSort      = BRType    ()
-type RSort      = RRType    ()
-
-type BPVar      = PVar      BSort
-type RPVar      = PVar      RSort
-
+type BRType      = RType BTyCon BTyVar       -- ^ "Bare" parsed version
+type RRType      = RType RTyCon RTyVar       -- ^ "Resolved" version
+type RRep        = RTypeRep RTyCon RTyVar
+type BSort       = BRType    ()
+type RSort       = RRType    ()
+type BPVar       = PVar      BSort
+type RPVar       = PVar      RSort
 type RReft       = UReft     F.Reft
 type PrType      = RRType    Predicate
 type BareType    = BRType    RReft

@@ -139,42 +139,42 @@ type SpecMeasure   = Measure LocSpecType DataCon
 instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
-  { measures   :: ![Measure ty bndr]            -- ^ User-defined properties for ADTs
+  { measures   :: ![Measure ty bndr]              -- ^ User-defined properties for ADTs
   , asmSigs    :: ![(F.LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(F.LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]            -- ^ Local type signatures
   , reflSigs   :: ![(F.LocSymbol, ty)]            -- ^ Reflected type signatures
   , invariants :: ![(Maybe F.LocSymbol, ty)]      -- ^ Data type invariants; the Maybe is the generating measure
-  , ialiases   :: ![(ty, ty)]                   -- ^ Data type invariants to be checked
+  , ialiases   :: ![(ty, ty)]                     -- ^ Data type invariants to be checked
   , imports    :: ![F.Symbol]                     -- ^ Loaded spec module names
-  , dataDecls  :: ![DataDecl]                   -- ^ Predicated data definitions
-  , newtyDecls :: ![DataDecl]                   -- ^ Predicated new type definitions
-  , includes   :: ![FilePath]                   -- ^ Included qualifier files
+  , dataDecls  :: ![DataDecl]                     -- ^ Predicated data definitions
+  , newtyDecls :: ![DataDecl]                     -- ^ Predicated new type definitions
+  , includes   :: ![FilePath]                     -- ^ Included qualifier files
   , aliases    :: ![F.Located (RTAlias F.Symbol BareType)] -- ^ RefType aliases
-  , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]     -- ^ Expression aliases
-  , embeds     :: !(F.TCEmb F.LocSymbol)            -- ^ GHC-Tycon-to-fixpoint Tycon map
-  , qualifiers :: ![F.Qualifier]                  -- ^ Qualifiers in source/spec files
-  , decr       :: ![(F.LocSymbol, [Int])]          -- ^ Information on decreasing arguments
-  , lvars      :: !(S.HashSet F.LocSymbol)         -- ^ Variables that should be checked in the environment they are used
-  , lazy       :: !(S.HashSet F.LocSymbol)         -- ^ Ignore Termination Check in these Functions
-  , reflects   :: !(S.HashSet F.LocSymbol)         -- ^ Binders to reflect
+  , ealiases   :: ![F.Located (RTAlias F.Symbol F.Expr)]   -- ^ Expression aliases
+  , embeds     :: !(F.TCEmb F.LocSymbol)                   -- ^ GHC-Tycon-to-fixpoint Tycon map
+  , qualifiers :: ![F.Qualifier]                           -- ^ Qualifiers in source/spec files
+  , decr       :: ![(F.LocSymbol, [Int])]         -- ^ Information on decreasing arguments
+  , lvars      :: !(S.HashSet F.LocSymbol)        -- ^ Variables that should be checked in the environment they are used
+  , lazy       :: !(S.HashSet F.LocSymbol)        -- ^ Ignore Termination Check in these Functions
+  , reflects   :: !(S.HashSet F.LocSymbol)        -- ^ Binders to reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
-  , hmeas      :: !(S.HashSet F.LocSymbol)         -- ^ Binders to turn into measures using haskell definitions
-  , hbounds    :: !(S.HashSet F.LocSymbol)         -- ^ Binders to turn into bounds using haskell definitions
-  , inlines    :: !(S.HashSet F.LocSymbol)         -- ^ Binders to turn into logic inline using haskell definitions
-  , ignores    :: !(S.HashSet F.LocSymbol)         -- ^ Binders to ignore during checking; that is DON't check the corebind. 
-  , autosize   :: !(S.HashSet F.LocSymbol)         -- ^ Type Constructors that get automatically sizing info
-  , pragmas    :: ![F.Located String]              -- ^ Command-line configurations passed in through source
-  , cmeasures  :: ![Measure ty ()]               -- ^ Measures attached to a type-class
-  , imeasures  :: ![Measure ty bndr]             -- ^ Mappings from (measure,type) -> measure
-  , classes    :: ![RClass ty]                   -- ^ Refined Type-Classes
+  , hmeas      :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
+  , hbounds    :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into bounds using haskell definitions
+  , inlines    :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into logic inline using haskell definitions
+  , ignores    :: !(S.HashSet F.LocSymbol)        -- ^ Binders to ignore during checking; that is DON't check the corebind. 
+  , autosize   :: !(S.HashSet F.LocSymbol)        -- ^ Type Constructors that get automatically sizing info
+  , pragmas    :: ![F.Located String]             -- ^ Command-line configurations passed in through source
+  , cmeasures  :: ![Measure ty ()]                -- ^ Measures attached to a type-class
+  , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
+  , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
-  , dvariance  :: ![(F.LocSymbol, [Variance])]     -- ^ ? Where do these come from ?!
+  , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!
   , bounds     :: !(RRBEnv ty)
-  , defs       :: !(M.HashMap F.LocSymbol F.Symbol)  -- ^ Temporary (?) hack to deal with dictionaries in specifications
-                                                 --   see tests/pos/NatClass.hs
-  , axeqs      :: ![F.Equation]                  -- ^ Equalities used for Proof-By-Evaluation
+  , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications
+                                                       --   see tests/pos/NatClass.hs
+  , axeqs      :: ![F.Equation]                        -- ^ Equalities used for Proof-By-Evaluation
   } deriving (Generic)
 
 

@@ -418,6 +418,7 @@ ofBSort env name l t = ofBRType env name id l t
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 
+--------------------------------------------------------------------------------
 -- mkSpecType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType
 -- mkSpecType env name l t = mkSpecType' env name l πs t
   -- where 

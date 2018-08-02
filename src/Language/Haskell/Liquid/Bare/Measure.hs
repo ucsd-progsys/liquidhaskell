@@ -31,17 +31,11 @@ import Data.Default
 -- import Data.Either (either)
 import qualified Control.Exception as Ex
 import Prelude hiding (mapM, error)
-import Control.Monad hiding (forM, mapM)
-import Control.Monad.Except hiding (forM, mapM)
-import Control.Monad.State hiding (forM, mapM)
 import Data.Bifunctor
 import qualified Data.Maybe as Mb
-import Data.Char (toUpper)
-
-
-import Data.Traversable (forM, mapM)
+-- import Data.Char (toUpper)
 import Text.PrettyPrint.HughesPJ (text)
-import Text.Parsec.Pos (SourcePos)
+-- import Text.Parsec.Pos (SourcePos)
 import Text.Printf     (printf)
 import qualified Data.List as L
 
@@ -50,7 +44,6 @@ import qualified Data.HashSet        as S
 
 import           Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import           Language.Fixpoint.SortCheck (isFirstOrder)
-
 import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
@@ -117,34 +110,38 @@ errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 --------------------------------------------------------------------------------
-makeHaskellInlines :: GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec 
+makeHaskellInlines :: GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
                    -> [(LocSymbol, LMap)]
 --------------------------------------------------------------------------------
-makeHaskellInlines src tycEnv lmap spec 
-         = makeMeasureInline tycEnv lmap cbs <$> inls 
+makeHaskellInlines src embs lmap spec 
+         = makeMeasureInline embs lmap cbs <$> inls 
   where
     cbs  = nonRecCoreBinds (giCbs src) 
     inls = S.toList        (Ms.inlines spec)
 
-makeMeasureInline :: Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
+makeMeasureInline :: F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
                   -> (LocSymbol, LMap)
-makeMeasureInline tycEnv lmap cbs x = 
+makeMeasureInline embs lmap cbs x = 
   case GM.findVarDef (val x) cbs of 
     Nothing       -> Ex.throw $ errHMeas x "Cannot inline haskell function"
-    Just (v, def) -> (vx, coreToFun' tycEnv lmap vx v def ok)
+    Just (v, def) -> (vx, coreToFun' embs Nothing lmap vx v def ok)
                      where 
                        vx         = F.atLoc x (symbol v)
                        ok (xs, e) = LMap vx (symbol <$> xs) (either id id e)
 
-coreToFun' :: Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
+-- | @coreToFun'@ takes a @Maybe DataConMap@: we need a proper map when lifting 
+--   measures and reflects (which have case-of, and hence, need the projection symbols),
+--   but NOT when lifting inlines (which do not have case-of). 
+--   For details, see [NOTE:Lifting-Stages] 
+
+coreToFun' :: F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
            -> (([Ghc.Var], Either F.Expr F.Expr) -> a) -> a
-coreToFun' tycEnv lmap x v def ok = either Ex.throw ok act 
+coreToFun' embs dmMb lmap x v def ok = either Ex.throw ok act 
   where 
     act  = runToLogic embs lmap dm err xFun 
     xFun = coreToFun x v def  
     err  = errHMeas x  
-    dm   = Bare.tcDataConMap tycEnv 
-    embs = Bare.tcEmbs       tycEnv 
+    dm   = Mb.fromMaybe mempty dmMb 
 
 
 nonRecCoreBinds :: [Ghc.CoreBind] -> [Ghc.CoreBind]
