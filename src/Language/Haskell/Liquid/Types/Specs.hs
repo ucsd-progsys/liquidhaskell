@@ -134,6 +134,7 @@ data GhcSpecRefl = SpRefl
 
 type BareSpec      = Spec    LocBareType F.LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol
+type BareDef       = Def     LocBareType F.LocSymbol
 type SpecMeasure   = Measure LocSpecType DataCon
     
 instance B.Binary BareSpec

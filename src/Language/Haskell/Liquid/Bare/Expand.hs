@@ -255,11 +255,31 @@ instance Expand Body where
   expand rtEnv l (E   e) = E   (expand rtEnv l e)
   expand rtEnv l (R x p) = R x (expand rtEnv l p)
 
+instance Expand DataCtor where 
+  expand rtEnv l c = c
+    { dcTheta  = expand rtEnv l (dcTheta c) 
+    , dcFields = [(x, expand rtEnv l t) | (x, t) <- dcFields c ] 
+    , dcResult = expand rtEnv l (dcResult c)
+    }
+ 
 instance Expand DataDecl where 
-  expand = undefined
+  expand rtEnv l d = d 
+    { tycDCons  = expand rtEnv l (tycDCons  d)
+    , tycPropTy = expand rtEnv l (tycPropTy d) 
+    } 
 
 instance Expand BareMeasure where 
-  expand = undefined
+  expand rtEnv l m = m 
+    { msSort = expand rtEnv l (msSort m) 
+    , msEqns = expand rtEnv l (msEqns m)
+    } 
+
+instance Expand BareDef where 
+  expand rtEnv l d = d 
+    { dsort = expand rtEnv l (dsort d) 
+    , binds = [ (x, expand rtEnv l t) | (x, t) <- binds d] 
+    , body  = expand rtEnv l (body  d) 
+    } 
 
 instance Expand BareSpec where 
   expand = expandBareSpec
@@ -269,6 +289,9 @@ instance Expand a => Expand (F.Located a) where
 
 instance Expand a => Expand (F.LocSymbol, a) where 
   expand rtEnv l (x, y) = (x, expand rtEnv l y)
+
+instance Expand a => Expand (Maybe a) where 
+  expand rtEnv l xs = fmap (expand rtEnv l) xs 
 
 instance Expand a => Expand [a] where 
   expand rtEnv l xs = fmap (expand rtEnv l) xs 
