@@ -1,12 +1,10 @@
-module Data00 where 
+module Data02 where 
 
-{-@ data Pair = P { pX :: Nat, pY :: {v:Nat | pX < v} } @-}
-data Pair = P { pX :: Int, pY :: Int }
+import Data02Lib 
 
-{-@ test1 :: Pair -> TT @-}
-test1 (P a b) =  a < b 
+{-@ test3 :: Pair -> TT @-}
+test3 (P a b) =  a < b 
 
-{-@ test2 :: Nat -> Pair @-}
-test2 x = P x (x + 1)
-
+{-@ test4 :: Nat -> Pair @-}
+test4 x = P x (x + 1)
 

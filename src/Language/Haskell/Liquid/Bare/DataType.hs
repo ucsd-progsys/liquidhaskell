@@ -559,8 +559,8 @@ ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) = DataConP
     ts'           = Bare.mkSpecType' env name l ps <$> ts
     res'          = Bare.mkSpecType' env name l ps <$> res
     t0'           = dataConResultTy c' αs t0 res'
-    cfg           = getConfig env 
-    (yts, ot)     = qualifyDataCtor (exactDCFlag cfg && not isGadt) name dLoc (zip xs ts', t0')
+    _cfg          = getConfig env 
+    (yts, ot)     = qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
@@ -696,7 +696,7 @@ qualifyDataCtor qualFlag name l ct@(xts, t)
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
 qualifyField name lx
- | needsQual = (Just x, F.notracepp msg $ qualifyModName name x)
+ | needsQual = (Just x, F.notracepp msg $ qualifyModName name x) 
  | otherwise = (Nothing, x)
  where
    msg       = "QUALIFY-NAME: " ++ show x ++ " in module " ++ show (F.symbol name)

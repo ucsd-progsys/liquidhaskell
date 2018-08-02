@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 -- import qualified Control.Exception                          as Ex
-import           Data.Bifunctor
+-- import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
