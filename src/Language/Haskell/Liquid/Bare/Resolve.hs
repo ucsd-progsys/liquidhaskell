@@ -75,15 +75,15 @@ makeEnv cfg src lmap = RE
   , reCfg       = cfg
   } 
   where 
-    syms        = F.tracepp "MAKE-ENV" [ (F.symbol v, v) | v <- vars ] 
+    syms        = [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
 
-makeVarSubst :: GhcSrc -> F.Subst -- M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
+makeVarSubst :: GhcSrc -> F.Subst 
 makeVarSubst src = F.mkSubst (F.tracepp "UNQUAL-SYMS" unqualSyms) 
   where 
     unqualSyms   = [ (x, mkVarExpr v) 
                        | (x, mxs) <- M.toList       (makeSymMap src) 
-                       , v        <- Mb.maybeToList (F.tracepp ("okUnqual " ++ F.showpp x) $ okUnqualified me mxs) 
+                       , v        <- Mb.maybeToList (F.notracepp ("okUnqual " ++ F.showpp x) $ okUnqualified me mxs) 
                    ] 
     me           = F.symbol (giTargetMod src) 
 
@@ -270,7 +270,7 @@ knownGhcVar :: Env -> ModName -> LocSymbol -> Bool
 knownGhcVar env name lx = Mb.isJust v 
   where 
     v :: Maybe Ghc.Var 
-    v = F.tracepp ("knownGhcVar " ++ F.showpp lx) 
+    v = F.notracepp ("knownGhcVar " ++ F.showpp lx) 
       $ maybeResolveSym env name "known-var" lx 
 
 knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 

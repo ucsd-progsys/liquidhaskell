@@ -320,9 +320,9 @@ makeDataCtor tce c (d, dp) = F.DCtor
   , F.dcFields  = makeDataFields tce c as xts
   }
   where
-    as          = dc_freeTyVars dp
-    xts         = [ (fld x, t) | (x, t) <- reverse (tyArgs dp) ]
-    fld         = Loc (dc_loc dp) (dc_locE dp) . fieldName d dp
+    as          = dcpFreeTyVars dp
+    xts         = [ (fld x, t) | (x, t) <- reverse (dcpTyArgs dp) ]
+    fld         = F.atLoc dp . fieldName d dp
 
 fieldName :: Ghc.DataCon -> DataConP -> F.Symbol -> F.Symbol
 fieldName d dp x
@@ -333,7 +333,7 @@ makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, Sp
                -> [F.DataField]
 makeDataFields tce c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
-    su                      = zip ({- rtyVarUniqueSymbol -} F.symbol <$> as) [0..]
+    su                      = zip (F.symbol <$> as) [0..]
     fSort                   = muSort c (length as) . F.substVars su . RT.rTypeSort tce
 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
@@ -424,8 +424,8 @@ meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
 dataConSpec' :: [(Ghc.DataCon, DataConP)] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
 dataConSpec' dcs = concatMap tx dcs
   where
-    sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
-    tx (dc, dcp) = [ (x, (sspan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
+    -- sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
+    tx (dc, dcp) = [ (x, (GM.fSrcSpan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
                                          , let t  = RT.expandProductType x t0  ]
 
 --------------------------------------------------------------------------------
@@ -491,11 +491,9 @@ checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
     dN            = length (tycTyVars         d)
 
 -- FIXME: ES: why the maybes?
-ofBDataDecl :: Bare.Env 
-            -> ModName
-            -> Maybe DataDecl
-            -> (Maybe (LocSymbol, [Variance]))
-            -> ((ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl), [(Ghc.DataCon, Located DataConP)])
+ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
+            -> ( (ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)
+               , [(Ghc.DataCon, Located DataConP)])
 ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
   = uError err
@@ -507,7 +505,7 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
     cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
     pd         = Bare.mkSpecType' env name lc [] <$> pt
-    tys        = [t | (_, dcp) <- cts', (_, t) <- tyArgs dcp]
+    tys        = [t | (_, dcp) <- cts', (_, t) <- dcpTyArgs dcp]
     initmap    = zip (RT.uPVar <$> πs) [0..]
     varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
     defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
@@ -544,7 +542,7 @@ ofBDataCtor :: Bare.Env
             -> DataCtor
             -> (Ghc.DataCon, DataConP)
 ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) 
-  = (c', DataConP l αs πs ls cs zts ot isGadt (F.symbol name) l')
+  = (c', DataConP l c' αs πs ls cs zts ot isGadt (F.symbol name) l')
   where
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
     ts'           = Bare.mkSpecType' env name l ps <$> ts
@@ -709,7 +707,7 @@ makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (makeRTVar <$> dc_freeTyVars dcp) [] (freeLabels dcp)
+      ts = [ Loc l l' (mkArrow (makeRTVar <$> dcpFreeTyVars dcp) [] (dcpFreeLabels dcp)
                                  [] [(z, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
@@ -719,9 +717,9 @@ makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
              ]
   
       su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
-      args = tyArgs dcp
+      args = dcpTyArgs dcp
       z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
-      res  = dropPreds (tyRes dcp)
+      res  = dropPreds (dcpTyRes dcp)
   
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
       -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with

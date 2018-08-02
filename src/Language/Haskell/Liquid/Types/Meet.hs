@@ -5,24 +5,25 @@
 module Language.Haskell.Liquid.Types.Meet ( meetVarTypes ) where
 
 import           SrcLoc
-import           Text.PrettyPrint.HughesPJ (text, Doc)
+import           Text.PrettyPrint.HughesPJ (Doc)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.UX.Tidy
+import           Language.Haskell.Liquid.Types.RefType ()
+-- import           Language.Haskell.Liquid.UX.Tidy
 import           TyCon                                  hiding (tyConName)
 
 meetVarTypes :: F.TCEmb TyCon -> Doc -> (SrcSpan, SpecType) -> (SrcSpan, SpecType) -> SpecType
-meetVarTypes emb v hs lq = {- meetError emb err -} F.meet hsT lqT
+meetVarTypes _emb _v hs lq = {- meetError emb err -} F.meet hsT lqT
   where
-    (hsSp, hsT)      = hs
-    (lqSp, lqT)      = lq
-    err              = ErrMismatch lqSp v (text "meetVarTypes") hsD lqD hsSp
-    hsD              = F.pprint hsT
-    lqD              = F.pprint lqT
-
-meetError :: F.TCEmb TyCon -> Error -> SpecType -> SpecType -> SpecType
-meetError _emb e t t'
+    (_hsSp, hsT)      = hs
+    (_lqSp, lqT)      = lq
+    -- _err              = ErrMismatch lqSp v (text "meetVarTypes") hsD lqD hsSp
+    -- _hsD              = F.pprint hsT
+    -- _lqD              = F.pprint lqT
+{- 
+  
+_meetError :: F.TCEmb TyCon -> Error -> SpecType -> SpecType -> SpecType
+_meetError _emb _e t t'
   -- // | meetable emb t t'
   | True              = t `F.meet` t'
   -- // | otherwise         = panicError e
@@ -33,3 +34,5 @@ _meetable _emb t1 t2 = F.notracepp ("meetable: " ++  showpp (s1, t1, s2, t2)) (s
     s1              = tx t1
     s2              = tx t2
     tx              = rTypeSort _emb . toRSort
+
+-}

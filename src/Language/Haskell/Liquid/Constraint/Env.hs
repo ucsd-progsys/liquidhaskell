@@ -79,7 +79,7 @@ import           Language.Haskell.Liquid.Types.RefType
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.Constraint.Fresh
+import           Language.Haskell.Liquid.Constraint.Fresh ()
 import           Language.Haskell.Liquid.Transforms.RefSplit
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 

@@ -32,24 +32,16 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 -- import           Data.Monoid
 import           Data.Data
-import           Data.Maybe (isNothing, fromMaybe)
-
-
+import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum, isDigit)
 import           Data.List                              (foldl', partition)
-
 import           GHC                                    (ModuleName, mkModuleName)
 import           Text.PrettyPrint.HughesPJ              (text )
--- import           SrcLoc                                 (noSrcSpan)
-
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Types          -- hiding (Axiom)
-import qualified Language.Fixpoint.Misc                 as Misc           --  (mapSnd)
+import           Language.Haskell.Liquid.Types          
+import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.Variance
-import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure        as Measure
 import           Language.Fixpoint.Parse                hiding (dataDeclP, angles, refBindP, refP, refDefP)
 
@@ -803,12 +795,12 @@ bTup [(_,t)] _ r
   | isTauto r  = t
   | otherwise  = t `strengthen` (reftUReft r)
 bTup ts rs r
-  | all isNothing (fst <$> ts) || length ts < 2
+  | all Mb.isNothing (fst <$> ts) || length ts < 2
   = RApp (mkBTyCon $ dummyLoc tupConName) (snd <$> ts) rs (reftUReft r)
   | otherwise
   = RApp (mkBTyCon $ dummyLoc tupConName) ((top . snd) <$> ts) rs' (reftUReft r)
   where
-    args       = [(fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
+    args       = [(Mb.fromMaybe dummySymbol x, mapReft mempty t) | (x,t) <- ts]
     makeProp i = RProp (take i args) ((snd <$> ts)!!i)
     rs'        = makeProp <$> [1..(length ts-1)]
 

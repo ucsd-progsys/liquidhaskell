@@ -12,8 +12,8 @@ import Prelude hiding (error)
 import Prelude hiding (mapM)
 import qualified Control.Exception         as Ex
 
-import           Control.Monad.Except      hiding (forM, mapM)
-import           Control.Monad.State       hiding (forM, mapM)
+-- import           Control.Monad.Except      hiding (forM, mapM)
+-- import           Control.Monad.State       hiding (forM, mapM)
 import qualified Text.PrettyPrint.HughesPJ as PJ -- (text)
 import qualified Data.HashSet              as S
 import qualified Data.Maybe                as Mb 

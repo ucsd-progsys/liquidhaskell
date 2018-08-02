@@ -54,7 +54,7 @@ import           Language.Haskell.Liquid.Bare.Types
 import           Language.Haskell.Liquid.Bare.DataType 
 import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
 import           Language.Haskell.Liquid.GHC.Play
-import           Language.Haskell.Liquid.Types.Types        hiding (GhcInfo(..), GhcSpec (..), LM)
+import           Language.Haskell.Liquid.Types.Types   --     hiding (GhcInfo(..), GhcSpec (..), LM)
 import           Language.Haskell.Liquid.Types.RefType
 
 import qualified Data.HashMap.Strict                   as M
@@ -181,7 +181,7 @@ coreAltToDef x z zs y t alts
     litAlts  =             [ a | a@(C.LitAlt _, _, _) <- alts ]
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
-    mkAlt x ctor args dx (C.DataAlt d, xs, e)
+    mkAlt x ctor _args dx (C.DataAlt d, xs, e)
       = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs) 
       . ctor 
       . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs))) 

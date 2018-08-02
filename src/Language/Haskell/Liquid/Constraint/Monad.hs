@@ -22,7 +22,7 @@ import qualified Data.Text           as T
 import           Control.Monad
 import           Control.Monad.State (get, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)
-import           Language.Haskell.Liquid.Types.RefType
+-- import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)

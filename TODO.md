@@ -14,10 +14,8 @@
 - [x] holes
 - [x] reflect / PLE
 - [x] importing
-- [x] datacon
-        + alias
-        + dependency
-- [x] importing
+- [-] datacon
+- [-] importing
 - [ ] class/instance measures (len)
 - [ ] absref
 - [ ] termination

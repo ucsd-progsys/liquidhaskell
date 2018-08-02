@@ -225,15 +225,15 @@ module Language.Haskell.Liquid.Types.Types (
   where
 
 import qualified ConLike                                as Ghc
-import           InstEnv
+-- import           InstEnv
 import           Class
-import           CoreSyn                                (CoreBind, CoreExpr)
+import           CoreSyn                                (CoreExpr)
 import           Data.String
 import           DataCon
 import           GHC                                    (ModuleName, moduleNameString)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
-import           NameSet
+-- import           NameSet
 import           PrelInfo                               (isNumericClass)
 import           Prelude                          hiding  (error)
 import qualified Prelude
@@ -378,17 +378,18 @@ instance F.Loc TyConP where
 
 -- TODO: just use Located instead of dc_loc, dc_locE
 data DataConP = DataConP
-  { dc_loc        :: !F.SourcePos
-  , dc_freeTyVars :: ![RTyVar]               -- ^ Type parameters
-  , freePred      :: ![PVar RSort]           -- ^ Abstract Refinement parameters
-  , freeLabels    :: ![Symbol]               -- ^ ? strata stuff
-  , tyConstrs     :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
-  , tyArgs        :: ![(Symbol, SpecType)]   -- ^ Value parameters
-  , tyRes         :: !SpecType               -- ^ Result type
+  { dcpLoc        :: !F.SourcePos
+  , dcpCon        :: !DataCon                -- ^ Corresponding GHC DataCon 
+  , dcpFreeTyVars :: ![RTyVar]               -- ^ Type parameters
+  , dcpFreePred   :: ![PVar RSort]           -- ^ Abstract Refinement parameters
+  , dcpFreeLabels :: ![Symbol]               -- ^ ? strata stuff
+  , dcpTyConstrs  :: ![SpecType]             -- ^ ? Class constraints (via `dataConStupidTheta`)
+  , dcpTyArgs     :: ![(Symbol, SpecType)]   -- ^ Value parameters
+  , dcpTyRes      :: !SpecType               -- ^ Result type
   -- , tyData     :: !SpecType               -- ^ The 'generic' ADT, see [NOTE:DataCon-Data]
   , dcpIsGadt     :: !Bool                   -- ^ Was this specified in GADT style (if so, DONT use function names as fields)
   , dcpModule     :: !F.Symbol               -- ^ Which module was this defined in
-  , dc_locE       :: !F.SourcePos
+  , dcpLocE       :: !F.SourcePos
   } deriving (Generic, Data, Typeable)
 
 -- | [NOTE:DataCon-Data] for each 'DataConP' we also
@@ -407,7 +408,7 @@ data DataConP = DataConP
 --
 
 instance F.Loc DataConP where
-  srcSpan d = F.SS (dc_loc d) (dc_locE d)
+  srcSpan d = F.SS (dcpLoc d) (dcpLocE d)
 
 -- | Which Top-Level Binders Should be Verified
 data TargetVars = AllVars | Only ![Var]

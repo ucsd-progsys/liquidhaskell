@@ -304,7 +304,7 @@ expandBareSpec :: BareRTEnv -> F.SourcePos -> BareSpec -> BareSpec
 expandBareSpec rtEnv l sp = sp 
   { measures   = expand rtEnv l (measures   sp) 
   , asmSigs    = expand rtEnv l (asmSigs    sp)
-  , sigs       = F.tracepp "EXPAND-SIGS" $ expand rtEnv l (sigs       sp)
+  , sigs       = expand rtEnv l (sigs       sp)
   , localSigs  = expand rtEnv l (localSigs  sp)
   , reflSigs   = expand rtEnv l (reflSigs   sp)
   , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
@@ -424,7 +424,7 @@ cookSpecType env sigEnv name x
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing = id 
-maybePlug sigEnv name (Just x) = F.tracepp ("PLUGHOLE " ++ F.showpp x) . plugHoles sigEnv name x 
+maybePlug sigEnv name (Just x) = plugHoles sigEnv name x 
 
 bareExpandType :: BareRTEnv -> LocBareType -> LocBareType 
 bareExpandType = expandLoc

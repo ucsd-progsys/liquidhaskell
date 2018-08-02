@@ -63,14 +63,14 @@ import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, Def)
 import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
-import           Language.Haskell.Liquid.Types.Strata
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
+-- import           Language.Haskell.Liquid.Types.Strata
+-- import qualified Language.Haskell.Liquid.Types.RefType         as RT
+-- import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
+-- import           Language.Haskell.Liquid.Types.Literals
 import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint

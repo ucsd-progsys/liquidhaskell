@@ -18,7 +18,7 @@ import Type (expandTypeSynonyms, Type)
 import Var
 -- import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
-import Control.Monad
+-- import Control.Monad
 -- import Control.Monad.Except
 import qualified Control.Exception                      as Ex
 import Data.Generics.Aliases (mkT)
@@ -89,24 +89,24 @@ makePluggedDataCons :: F.TCEmb TyCon
                     -> [(DataCon, Located DataConP)]
 makePluggedDataCons embs tyi dcs
   = for dcs $ \(dc, ldcp) -> 
-       let dcp                = val ldcp 
-           (das, _, dts, dt0) = dataConSig dc
-           (dt, rest)         = (dt0, tyRes dcp)
+       let dcp               = val ldcp 
+           (das, _, dts, dt) = dataConSig dc
+           rest              = dcpTyRes dcp
        in   if mismatch dts dcp 
              then (Ex.throw $ err dc dcp)
              else 
                let plug t1 t2 = plugHoles embs tyi (dataConName dc) (const killHoles) t1 (F.atLoc ldcp t2)
-                   tArgs      = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ tyArgs dcp)
+                   tArgs      = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ dcpTyArgs dcp)
                    tRes       = plugHoles embs tyi (dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
                in
                   (dc, F.atLoc ldcp $ dcp 
-                        { dc_freeTyVars = rTyVar <$> das
-                        , freePred      = (subts (zip (dc_freeTyVars dcp) ((rVar :: TyVar -> RSort) <$> das))) <$> (freePred dcp)
-                        , tyArgs        = reverse tArgs
-                        , tyRes         = val tRes})
+                        { dcpFreeTyVars = rTyVar <$> das
+                        , dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: TyVar -> RSort) <$> das))) <$> (dcpFreePred dcp)
+                        , dcpTyArgs     = reverse tArgs
+                        , dcpTyRes      = val tRes})
 
     where
-      mismatch dts dcp = length dts /= length (tyArgs dcp)
+      mismatch dts dcp = length dts /= length (dcpTyArgs dcp)
       err dc dcp       = ErrBadData (GM.fSrcSpan dcp) (pprint dc) "GHC and Liquid specifications have different numbers of fields" :: UserError
 
 plugHoles :: (NamedThing a, PPrint a, Show a)

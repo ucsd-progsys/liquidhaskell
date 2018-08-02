@@ -145,7 +145,7 @@ strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
+dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
     mkArrow makeVars ps ls [] ts' rt'
   where
@@ -172,7 +172,7 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt mname _)
+  pprintTidy k (DataConP _ _ vs ps ls cs yts t isGadt mname _)
      =  (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))

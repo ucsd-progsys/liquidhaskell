@@ -22,9 +22,7 @@ module Language.Haskell.Liquid.Bare (
 
 
 import           Prelude                                    hiding (error)
-import           Control.Monad.Reader
-import           Control.Monad.State
-import qualified Control.Exception                          as Ex
+-- import qualified Control.Exception                          as Ex
 import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -33,13 +31,11 @@ import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 import           System.Directory                           (doesFileExist)
-
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     as Misc 
 import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
-
-import           Language.Haskell.Liquid.Types.Dictionaries
+-- import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
@@ -136,10 +132,10 @@ makeGhcSpec cfg src lmap mspecs = SP
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.expand rtEnv l mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.expand rtEnv l iSpecs0    where l = F.dummyPos "expand-iSpecs2"
-    rtEnv    = F.tracepp "RTENV" $ Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
+    rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
     mySpec1  = mySpec0 <> lSpec0    
-    lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
-    embs     = makeEmbeds   src env ((name, mySpec0) : M.toList iSpecs0)
+    lSpec0   = makeLiftedSpec0 src embs lmap mySpec0 
+    embs     = makeEmbeds      src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
@@ -203,9 +199,9 @@ makeLiftedSpec1 cfg src tycEnv lmap mySpec = mempty
 --------------------------------------------------------------------------------
 
 
-makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
+makeLiftedSpec0 :: GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
                 -> Ms.BareSpec
-makeLiftedSpec0 cfg src embs lmap mySpec = mempty
+makeLiftedSpec0 src embs lmap mySpec = mempty
   { Ms.ealiases = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec }
 
 uniqNub :: (Ghc.Uniquable a) => [a] -> [a]
@@ -277,7 +273,7 @@ makeSpecQual _cfg env specs rtEnv = SpQual
   } 
 
 makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
-makeSpecRTAliases env = const [] -- TODO-REBARE 
+makeSpecRTAliases _env = const [] -- TODO-REBARE 
 -- REBARE: toSpec . M.elems . typeAliases
 -- REBARE: where toSpec = BareRTAlias -> SpecRTAlias 
 -- REBARE: specAliases :: GhcInfo -> [Located BareRTAlias]
@@ -638,7 +634,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     dcSelectors   = Bare.tcSelMeasures tycEnv 
     datacons      = Bare.tcDataCons    tycEnv 
     embs          = Bare.tcEmbs        tycEnv 
-    name          = Bare.tcName        tycEnv
+    -- name          = Bare.tcName        tycEnv
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 -----------------------------------------------------------------------------------------

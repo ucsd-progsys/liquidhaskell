@@ -41,14 +41,14 @@ import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
-import           Language.Haskell.Liquid.Types.Names
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
-import           Language.Haskell.Liquid.Types.Meet
+-- import           Language.Haskell.Liquid.Types.Names
+-- import           Language.Haskell.Liquid.Types.RefType
+-- import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
+-- import           Language.Haskell.Liquid.Types.Meet
+-- import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
-import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.Constraint.Types
 
 -- import Debug.Trace (trace)

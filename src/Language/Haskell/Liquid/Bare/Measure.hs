@@ -42,7 +42,7 @@ import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
-import           Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
+-- import           Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import           Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
 
@@ -54,7 +54,7 @@ import qualified Language.Haskell.Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Types.Bounds
+-- import           Language.Haskell.Liquid.Types.Bounds
 import qualified Language.Haskell.Liquid.Measure       as Ms
 
 import qualified Language.Haskell.Liquid.Bare.Types    as Bare 
@@ -92,7 +92,7 @@ makeMeasureDefinition tycEnv lmap cbs x =
     Nothing       -> Ex.throw $ errHMeas x "Cannot extract measure from haskell function"
     Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted
                      where 
-                       vx           = F.atLoc x (symbol v)
+                       vx           = F.atLoc x (F.symbol v)
                        mdef         = coreToDef' tycEnv lmap vx v def
                        vinfo        = GM.varLocInfo logicType v
 
@@ -126,8 +126,8 @@ makeMeasureInline embs lmap cbs x =
     Nothing       -> Ex.throw $ errHMeas x "Cannot inline haskell function"
     Just (v, def) -> (vx, coreToFun' embs Nothing lmap vx v def ok)
                      where 
-                       vx         = F.atLoc x (symbol v)
-                       ok (xs, e) = LMap vx (symbol <$> xs) (either id id e)
+                       vx         = F.atLoc x (F.symbol v)
+                       ok (xs, e) = LMap vx (F.symbol <$> xs) (either id id e)
 
 -- | @coreToFun'@ takes a @Maybe DataConMap@: we need a proper map when lifting 
 --   measures and reflects (which have case-of, and hence, need the projection symbols),
@@ -206,7 +206,7 @@ tyConDataDecl (_, HasDecl)
 tyConDataDecl ((tc, dn), NoDecl szF)
   = Just $ D
       { tycName   = dn
-      , tycTyVars = symbol <$> GM.tyConTyVarsDef tc
+      , tycTyVars = F.symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
       , tycDCons  = F.notracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
@@ -219,13 +219,13 @@ tyConDataDecl ((tc, dn), NoDecl szF)
 
 tyConDataName :: Bool -> Ghc.TyCon -> Maybe DataName
 tyConDataName full tc
-  | vanillaTc  = Just (DnName ((post . symbol) <$> GM.locNamedThing tc))
-  | d:_ <- dcs = Just (DnCon  ((post . symbol) <$> GM.locNamedThing d ))
+  | vanillaTc  = Just (DnName ((post . F.symbol) <$> GM.locNamedThing tc))
+  | d:_ <- dcs = Just (DnCon  ((post . F.symbol) <$> GM.locNamedThing d ))
   | otherwise  = Nothing
   where
     post       = if full then id else GM.dropModuleNamesAndUnique
     vanillaTc  = Ghc.isVanillaAlgTyCon tc
-    dcs        = Misc.sortOn symbol (Ghc.tyConDataCons tc)
+    dcs        = Misc.sortOn F.symbol (Ghc.tyConDataCons tc)
 
 dataConDecl :: Ghc.DataCon -> DataCtor
 dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
@@ -234,7 +234,7 @@ dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
     isGadt        = not (Ghc.isVanillaDataCon d)
     msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
     xts           = [(Bare.makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
-    dx            = symbol <$> GM.locNamedThing d
+    dx            = F.symbol <$> GM.locNamedThing d
     its           = zip [1..] ts
     (_,_ps,ts,t)   = Ghc.dataConSig d
     _outT :: Maybe BareType
@@ -263,7 +263,7 @@ strengthenHaskell strengthen hmeas sigs
     go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
 
 meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
-meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
+meetLoc t1 t2 = t1 {val = val t1 `F.meet` val t2}
 
 --------------------------------------------------------------------------------
 -- | 'makeMeasureSelectors' converts the 'DataCon's and creates the measures for
@@ -271,10 +271,12 @@ meetLoc t1 t2 = t1 {val = val t1 `meet` val t2}
 --------------------------------------------------------------------------------
 
 makeMeasureSelectors :: Config -> Bare.DataConMap -> (Ghc.DataCon, Located DataConP) -> [Measure SpecType Ghc.DataCon]
-makeMeasureSelectors cfg dm (dc, Loc l l' (DataConP _ _vs _ps _ _ xts _resTy isGadt _ _))
+makeMeasureSelectors cfg dm (dc, Loc l l' c)
   = (Misc.condNull (exactDCFlag cfg) $ checker : Mb.catMaybes (go' <$> fields)) --  internal measures, needed for reflection
  ++ (Misc.condNull (autofields)      $           Mb.catMaybes (go  <$> fields)) --  user-visible measures.
   where
+    isGadt     = dcpIsGadt c 
+    xts        = dcpTyArgs c
     autofields = not (isGadt || noMeasureFields cfg)
     go ((x, t), i)
       -- do not make selectors for functional fields
@@ -308,8 +310,8 @@ dataConSel dc n (Proj i) = mkArrow as [] [] [] [xt] (mempty <$> ti)
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon :: (F.Reftable r) => Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (Symbol, RRType r, r))
-bkDataCon dc nFlds  = (as, ts, (dummySymbol, t, mempty))
+bkDataCon :: (F.Reftable r) => Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RRType r, r))
+bkDataCon dc nFlds  = (as, ts, (F.dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds _ts
     t                 = {- traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ -}
@@ -340,9 +342,9 @@ bareBool = RApp (RTyCon Ghc.boolTyCon [] def) [] [] mempty
 makeMeasureSelector :: (Show a1) => LocSymbol -> SpecType -> Ghc.DataCon -> Int -> a1 -> Measure SpecType Ghc.DataCon
 makeMeasureSelector x s dc n i = M { msName = x, msSort = s, msEqns = [eqn], msKind = MsSelector }
   where
-    eqn                        = Def x dc Nothing args (E (EVar $ mkx i))
+    eqn                        = Def x dc Nothing args (E (F.EVar $ mkx i))
     args                       = ((, Nothing) . mkx) <$> [1 .. n]
-    mkx j                      = symbol ("xx" ++ show j)
+    mkx j                      = F.symbol ("xx" ++ show j)
 
 makeMeasureChecker :: LocSymbol -> SpecType -> Ghc.DataCon -> Int -> Measure SpecType Ghc.DataCon
 makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns <$> filter (/= dc) dcs), msKind = MsChecker }
@@ -351,7 +353,7 @@ makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns 
     eqn     = Def x dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
     eqns d  = Def x d  Nothing (((, Nothing) . mkx) <$> [1 .. nArgs d]) (P F.PFalse)
     nArgs d = length (Ghc.dataConOrigArgTys d)
-    mkx j   = symbol ("xx" ++ show j)
+    mkx j   = F.symbol ("xx" ++ show j)
     dcs     = Ghc.tyConDataCons (Ghc.dataConTyCon dc)
 
 
@@ -369,7 +371,7 @@ makeMeasureSpec :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> Ms.MSpec
 ----------------------------------------------------------------------------------------------
 makeMeasureSpec env sigEnv (name, spec) 
   = mkMeasureDCon env        name 
-  . mkMeasureSort env sigEnv name 
+  . mkMeasureSort env        name 
   . first val 
   . bareMSpec     env sigEnv name 
   $ spec 
@@ -389,19 +391,19 @@ mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCto
   where 
     symDC                = Bare.lookupGhcDataCon env name "measure-datacon"
 
-mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(Symbol, Ghc.DataCon)] -> Ms.MSpec t Ghc.DataCon
+mkMeasureDCon_ :: Ms.MSpec t LocSymbol -> [(F.Symbol, Ghc.DataCon)] -> Ms.MSpec t Ghc.DataCon
 mkMeasureDCon_ m ndcs = m' {Ms.ctorMap = cm'}
   where
     m'                = fmap (tx.val) m
-    cm'               = Misc.hashMapMapKeys (symbol . tx) $ Ms.ctorMap m'
+    cm'               = Misc.hashMapMapKeys (F.symbol . tx) $ Ms.ctorMap m'
     tx                = Misc.mlookup (M.fromList ndcs)
 
 measureCtors ::  Ms.MSpec t LocSymbol -> [LocSymbol]
 measureCtors = Misc.sortNub . fmap ctor . concat . M.elems . Ms.ctorMap
 
-mkMeasureSort :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.MSpec BareType LocSymbol 
+mkMeasureSort :: Bare.Env -> ModName -> Ms.MSpec BareType LocSymbol 
               -> Ms.MSpec SpecType LocSymbol
-mkMeasureSort env sigEnv name (Ms.MSpec c mm cm im) = 
+mkMeasureSort env name (Ms.MSpec c mm cm im) = 
   Ms.MSpec (map txDef <$> c) (tx <$> mm) (tx <$> cm) (tx <$> im) 
     where
       ofMeaSort :: F.SourcePos -> BareType -> SpecType
