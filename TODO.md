@@ -16,7 +16,7 @@
 - [x] importing
 - [x] datacon
 - [x] importing
-- [ ] class/instance measures (len)
+- [-] class/instance measures (len)
 - [ ] absref
 - [ ] termination
 - [ ] auto-size

@@ -229,7 +229,12 @@ cssHTML css = unlines
 --   annotations.
 
 mkAnnMap :: Config -> ErrorResult -> AnnInfo Doc -> ACSS.AnnMap
-mkAnnMap cfg res ann     = ACSS.Ann (mkAnnMapTyp cfg ann) (mkAnnMapErr res) (mkStatus res)
+mkAnnMap cfg res ann     = ACSS.Ann 
+                             { ACSS.types   = mkAnnMapTyp cfg ann 
+                             , ACSS.errors  = mkAnnMapErr res 
+                             , ACSS.status  = mkStatus res 
+                             , ACSS.sptypes = mkAnnMapBinders cfg ann
+                             }
 
 mkStatus :: FixResult t -> ACSS.Status
 mkStatus (Safe)          = ACSS.Safe
@@ -254,8 +259,7 @@ cinfoErr e = case pos e of
 mkAnnMapTyp :: Config -> AnnInfo Doc -> M.HashMap Loc (String, String)
 mkAnnMapTyp cfg z = M.fromList $ map (first srcSpanStartLoc) $ mkAnnMapBinders cfg z
 
-mkAnnMapBinders :: Config
-                -> AnnInfo Doc -> [(SrcLoc.RealSrcSpan, (String, String))]
+mkAnnMapBinders :: Config -> AnnInfo Doc -> [(SrcLoc.RealSrcSpan, (String, String))]
 mkAnnMapBinders cfg (AI m)
   = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst) locBinds
@@ -422,6 +426,9 @@ instance ToJSON AnnErrors where
                                    , "message" .= toJSON (dropErrorLoc s)
                                    ]
 
+
+
+
 dropErrorLoc :: String -> String
 dropErrorLoc msg
   | null msg' = msg
@@ -435,9 +442,10 @@ instance (Show k, ToJSON a) => ToJSON (Assoc k a) where
       tshow        = T.pack . show
 
 instance ToJSON ACSS.AnnMap where
-  toJSON a = object [ "types"  .= toJSON (annTypes    a)
-                    , "errors" .= toJSON (annErrors   a)
-                    , "status" .= toJSON (ACSS.status a)
+  toJSON a = object [ "types"   .= toJSON (annTypes     a)
+                    , "errors"  .= toJSON (annErrors    a)
+                    , "status"  .= toJSON (ACSS.status  a)
+                    , "sptypes" .= toJSON (ACSS.sptypes a) 
                     ]
 
 annErrors :: ACSS.AnnMap -> AnnErrors
