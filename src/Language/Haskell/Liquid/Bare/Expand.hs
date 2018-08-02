@@ -50,13 +50,14 @@ import qualified Language.Haskell.Liquid.Bare.Plugged as Bare
 makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap 
           -> BareRTEnv 
 --------------------------------------------------------------------------------
-makeRTEnv env m lfSpec specs lmap = makeRTAliases tAs (makeREAliases eAs) 
+makeRTEnv env m mySpec iSpecs lmap = makeRTAliases tAs (makeREAliases eAs) 
   where
-    tAs   = [ t                   | s      <- M.elems specs,  t <- Ms.aliases  s]
-    eAs   = [ specREAlias env m e | (m, s) <- M.toList specs, e <- Ms.ealiases s]
-         ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec                ]                        
+    tAs   = [ t                   | (_, s) <- specs, t <- Ms.aliases  s]
+    eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s]
+         -- ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec                ]                        
          ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e = lmapEAlias xl                       ]
+    specs = (m, mySpec) : M.toList iSpecs
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
@@ -303,7 +304,7 @@ expandBareSpec :: BareRTEnv -> F.SourcePos -> BareSpec -> BareSpec
 expandBareSpec rtEnv l sp = sp 
   { measures   = expand rtEnv l (measures   sp) 
   , asmSigs    = expand rtEnv l (asmSigs    sp)
-  , sigs       = expand rtEnv l (sigs       sp)
+  , sigs       = F.tracepp "EXPAND-SIGS" $ expand rtEnv l (sigs       sp)
   , localSigs  = expand rtEnv l (localSigs  sp)
   , reflSigs   = expand rtEnv l (reflSigs   sp)
   , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
@@ -311,6 +312,7 @@ expandBareSpec rtEnv l sp = sp
   , newtyDecls = expand rtEnv l (newtyDecls sp)
   } 
   where f      = expand rtEnv l 
+  
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
 expandBareType rtEnv _   = go 
   where

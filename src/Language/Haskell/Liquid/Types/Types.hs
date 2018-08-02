@@ -1089,16 +1089,16 @@ data DataDecl   = D
 
 -- | The name of the `TyCon` corresponding to a `DataDecl`
 data DataName
-  = DnName !F.LocSymbol  -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
-  | DnCon  !F.LocSymbol  -- ^ for 'FamInst' TyCon we save some `DataCon` name
+  = DnName !F.LocSymbol                -- ^ for 'isVanillyAlgTyCon' we can directly use the `TyCon` name
+  | DnCon  !F.LocSymbol                -- ^ for 'FamInst' TyCon we save some `DataCon` name
   deriving (Eq, Ord, Data, Typeable, Generic)
 
 -- | Data Constructor
 data DataCtor = DataCtor
-  { dcName   :: F.LocSymbol               -- ^ DataCon name
-  , dcTheta  :: [BareType]                -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
-  , dcFields :: [(Symbol, BareType)]      -- ^ [(fieldName, fieldType)]
-  , dcResult :: Maybe BareType            -- ^ Possible output (if in GADT form)
+  { dcName   :: F.LocSymbol            -- ^ DataCon name
+  , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
+  , dcFields :: [(Symbol, BareType)]   -- ^ [(fieldName, fieldType)]
+  , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
 
 -- | Termination expressions
@@ -1933,7 +1933,6 @@ data RTEnv tv t = RTE
   { typeAliases :: M.HashMap Symbol (F.Located (RTAlias tv t))
   , exprAliases :: M.HashMap Symbol (F.Located (RTAlias Symbol Expr))
   }
-
 
 
 instance Monoid (RTEnv tv t) where
