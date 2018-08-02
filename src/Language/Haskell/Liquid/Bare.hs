@@ -627,7 +627,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
+    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ F.tracepp "CLASSES" cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement

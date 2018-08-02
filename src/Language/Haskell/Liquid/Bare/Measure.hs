@@ -380,12 +380,13 @@ makeMeasureSpec env sigEnv (name, spec)
 bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
 bareMSpec env sigEnv name spec = Ms.mkMSpec ms cms ims 
   where
-    cms     = filter inScope $ Ms.cmeasures spec
+    cms     = filter inScope $             Ms.cmeasures spec
     ms      = filter inScope $ expMeas <$> Ms.measures  spec
     ims     = filter inScope $ expMeas <$> Ms.imeasures spec
     expMeas = expandMeasure env name  rtEnv
     rtEnv   = Bare.sigRTEnv          sigEnv
-    inScope = Bare.knownGhcVar env name . msName 
+    inScope = Bare.knownGhcType env name . msSort 
+
 
 mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t Ghc.DataCon
 mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]

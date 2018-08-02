@@ -31,6 +31,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , knownGhcVar 
   , knownGhcTyCon 
   , knownGhcDataCon 
+  , knownGhcType 
 
   -- * Misc 
   , srcVars 
@@ -266,6 +267,18 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 -------------------------------------------------------------------------------
 -- | Checking existence of names 
 -------------------------------------------------------------------------------
+knownGhcType :: Env ->  ModName -> LocBareType -> Bool
+knownGhcType env name = all knownBtc . rTypeTyCons . val
+  where 
+    knownBtc          = knownGhcTyCon env name . btc_tc
+
+rTypeTyCons :: (Ord c) => RType c tv r -> [c]
+rTypeTyCons           = Misc.sortNub . foldRType f []   
+  where 
+    f acc t@(RApp {}) = rt_tycon t : acc 
+    f acc _           = acc
+
+
 knownGhcVar :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcVar env name lx = Mb.isJust v 
   where 

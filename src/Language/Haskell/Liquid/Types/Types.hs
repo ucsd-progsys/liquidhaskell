@@ -998,6 +998,9 @@ instance Eq RTyCon where
 instance Eq BTyCon where
   x == y = btc_tc x == btc_tc y
 
+instance Ord BTyCon where 
+  compare x y = compare (btc_tc x) (btc_tc y)
+
 instance F.Fixpoint RTyCon where
   toFix (RTyCon c _ _) = text $ showPpr c
 
@@ -1528,7 +1531,6 @@ emapExprArg f = go
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
     mo _ t@(RProp _ (RHole {})) = t
     mo γ (RProp s t)            = RProp s (go γ t)
-
 
 foldRType :: (acc -> RType c tv r -> acc) -> acc -> RType c tv r -> acc
 foldRType f = go
