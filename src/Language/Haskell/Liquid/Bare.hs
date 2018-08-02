@@ -53,6 +53,7 @@ import qualified Language.Haskell.Liquid.Bare.Measure       as Bare
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
 import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
+import qualified Language.Haskell.Liquid.Bare.Spec          as Bare 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -573,7 +574,7 @@ makeSpecName env tycEnv = SpNames
   { gsFreeSyms = Bare.reSyms env 
   , gsDconsP   = mempty -- TODO-REBARE 
   , gsTconsP   = mempty -- TODO-REBARE 
-  , gsLits     = mempty -- TODO-REBARE HEREHEREHEREHEREHEREHEREHERE 
+  , gsLits     = mempty -- TODO-REBARE 
   , gsTcEmbeds = Bare.tcEmbs     tycEnv   
   , gsADTs     = Bare.tcAdts     tycEnv 
   , gsTyconEnv = Bare.tcTyConMap tycEnv  
@@ -620,8 +621,8 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   }
   where 
     measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
-    (cs, ms)      = Bare.makeMeasureSpec' measures
-    cms           = makeClassMeasureSpec  measures
+    (cs, ms)      = Bare.makeMeasureSpec'     measures
+    cms           = Bare.makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
@@ -634,11 +635,9 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     dcSelectors   = Bare.tcSelMeasures tycEnv 
     datacons      = Bare.tcDataCons    tycEnv 
     embs          = Bare.tcEmbs        tycEnv 
-    -- name          = Bare.tcName        tycEnv
+    name          = Bare.tcName        tycEnv
+    (cls, _mts)   = Bare.makeClasses env sigEnv name specs
     -- TODO-REBARE: -- xs'      = fst <$> ms'
-
-(cls, mts)                      <- second mconcat . unzip . mconcat <$> (makeClasses name cfg vars <$> specs)
-(measures, cms', ms', cs', xs') <- makeGhcSpecCHOP2 specs dcSs datacons cls embs
 
 
 -----------------------------------------------------------------------------------------

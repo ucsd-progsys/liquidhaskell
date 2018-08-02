@@ -31,17 +31,18 @@ import qualified Text.PrettyPrint.HughesPJ as PJ
 
 
 import qualified Language.Fixpoint.Types               as F 
+import qualified Language.Fixpoint.Types.Visitor       as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol) 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
 import           Language.Haskell.Liquid.Types
-
-import qualified Language.Haskell.Liquid.Measure      as Ms
-import qualified Language.Haskell.Liquid.Bare.Resolve as Bare
-import qualified Language.Haskell.Liquid.Bare.Types   as Bare
-import qualified Language.Haskell.Liquid.Bare.Plugged as Bare
+import qualified Language.Haskell.Liquid.Misc          as Misc 
+import qualified Language.Haskell.Liquid.Measure       as Ms
+import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
+import qualified Language.Haskell.Liquid.Bare.Types    as Bare
+import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
 
 --------------------------------------------------------------------------------
 -- | `makeRTEnv` initializes the env needed to `expand` refinements and types,
@@ -411,16 +412,31 @@ exprArg l msg = go
 ----------------------------------------------------------------------------------------
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType -> LocSpecType 
 ----------------------------------------------------------------------------------------
-cookSpecType env sigEnv name x
+cookSpecType env sigEnv name x bt
   = id 
   -- TODO-REBARE . strengthenMeasures env sigEnv      x 
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
-  -- TODO-REBARE . fmap fixCoercions
+  . fixCoercions bt
   . fmap RT.generalize
   . maybePlug       sigEnv name x
   . Bare.qualify       env name 
   . bareSpecType       env name 
   . bareExpandType     (Bare.sigRTEnv sigEnv)
+  $ bt 
+
+fixCoercions :: LocBareType -> LocSpecType -> LocSpecType 
+fixCoercions bt t = txCoerce <$> t 
+  where
+    coSub         = M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
+    tvs           = bareTypeVars (val bt)
+    specTvSymbol  = F.symbol . bareRTyVar
+    txCoerce      = mapExprReft (\_ -> F.applyCoSub coSub)
+
+bareTypeVars :: BareType -> [BTyVar]
+bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
+  where
+    vs         = Misc.fst4 . bkUniv $ t
+    vs'        = freeTyVars    $ t
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing = id 

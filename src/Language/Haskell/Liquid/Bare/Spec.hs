@@ -30,21 +30,20 @@ module Language.Haskell.Liquid.Bare.Spec (
   -- TODO-REBARE , lookupIds
   ) where
 
-import           CoreSyn                                    (CoreBind)
-import           DataCon
-import           MonadUtils                                 (mapMaybeM)
-import           Prelude                                    hiding (error)
-import           TyCon
-import           Var
+-- import           CoreSyn                                    (CoreBind)
+-- import           DataCon
+-- import           MonadUtils                                 (mapMaybeM)
+-- import           Prelude                                    hiding (error)
+-- import           TyCon
+-- import           Var
 
 import qualified Name 
 import qualified HscTypes 
 import qualified OccName as NS
 import           Control.Monad.Except
 import           Control.Monad.State
-import           Data.Maybe
-
-
+import           Data.Bifunctor 
+import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashSet                               as S
 import qualified Data.HashMap.Strict                        as M
@@ -55,6 +54,7 @@ import qualified Language.Fixpoint.Types.Visitor            as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types              hiding (freeTyVars)
@@ -62,37 +62,89 @@ import           Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure            as Ms
 
-import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.Bare.Existential
-import           Language.Haskell.Liquid.Bare.Lookup
-import           Language.Haskell.Liquid.Bare.Misc          (joinVar)
-import           Language.Haskell.Liquid.Bare.OfType
-import           Language.Haskell.Liquid.Bare.Resolve
-import           Language.Haskell.Liquid.Bare.SymSort
-import           Language.Haskell.Liquid.Bare.Measure
+import           Language.Haskell.Liquid.Bare.Types         as Bare 
+import           Language.Haskell.Liquid.Bare.Resolve       as Bare
+import           Language.Haskell.Liquid.Bare.Expand        as Bare
 
-makeClasses :: Bare.Env -> ModName -> GhcSrc -> (ModName, Ms.BareSpec) 
-            -> [(DataConP, [(ModName, Var, LocSpecType)])]
-makeClasses cmod cfg vs (mod, spec) = inModule mod $ mapM mkClass $ Ms.classes spec
+-- import           Language.Haskell.Liquid.Bare.OfType        as Bare
+-- import           Language.Haskell.Liquid.Bare.Existential
+-- import           Language.Haskell.Liquid.Bare.Lookup
+-- import           Language.Haskell.Liquid.Bare.Misc          (joinVar)
+-- import           Language.Haskell.Liquid.Bare.SymSort
+-- import           Language.Haskell.Liquid.Bare.Measure
+
+makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
+            -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
+makeClasses env sigEnv myName specs = second mconcat . unzip 
+  $ [ mkClass env sigEnv myName name cls tc
+        | (name, spec) <- M.toList specs
+        , cls          <- Ms.classes spec
+        , tc           <- Mb.maybeToList (classTc cls) 
+    ]
   where
-    --FIXME: cleanup this code
-    unClass = snd . bkClass . fourth4 . bkUniv
-    mkClass (RClass cc ss as ms)
-            = do let c      = btc_tc cc
-                 let l      = loc  c
-                 let l'     = locE c
-                 tc        <- lookupGhcTyCon ("makeClasses: " ++ show mod) c
-                 ss'       <- mapM mkLSpecType ss
-                 let (dc:_) = tyConDataCons tc
-                 let αs  = map bareRTyVar as
-                 let as' = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
-                 let ms' = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-                 vts <- makeSpec (noCheckUnknown cfg || cmod /= mod) vs ms'
-                 let sts = [(val s, unClass $ val t) | (s, _)    <- ms
-                                                     | (_, _, t) <- vts]
-                 let t   = rCls tc as'
-                 let dcp = DataConP l αs [] [] (val <$> ss') (reverse sts) t False (F.symbol mod) l'
-                 return ((dc,dcp),vts)
+    classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+
+mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
+        -> (DataConP, [(ModName, Ghc.Var, LocSpecType)])
+mkClass env sigEnv myName name (RClass cc ss as ms) tc = (dcp, vts)
+  where
+    dcp    = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
+    c      = btc_tc cc
+    l      = loc  c
+    l'     = locE c
+    ss'    = Bare.cookSpecType env sigEnv name Nothing <$> ss 
+    (dc:_) = Ghc.tyConDataCons tc
+    αs     = bareRTyVar <$> as
+    as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
+    ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
+    vts    = makeSpec env sigEnv name <$> ms'
+    sts    = [(val s, unClass $ val t) | (s, _)    <- ms
+                                       | (_, _, t) <- vts]
+    t      = rCls tc as'
+
+   --FIXME: cleanup this code
+unClass :: SpecType -> SpecType 
+unClass = snd . bkClass . fourth4 . bkUniv
+
+makeSpec :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
+         -> (ModName, Ghc.Var, LocSpecType)
+makeSpec env sigEnv name (lx, bt) = (name, v, t) 
+  where 
+    v = Bare.lookupGhcVar env        name "makeSpec" lx
+    t = Bare.cookSpecType env sigEnv name (Just v)   bt 
+
+{- 
+lookupIds :: Bool -> [(LocSymbol, a)] -> BareM [(Var, LocSymbol, a)]
+lookupIds !ignoreUnknown
+  = mapMaybeM lookup
+  where
+    lookup (s, t)
+      | isWorker (val s)
+      = (Just . (,s,t) <$> lookupGhcWrkVar s) `catchError` handleError
+      | otherwise
+      = (Just . (,s,t) <$> lookupGhcVar    s) `catchError` handleError
+    handleError ( ErrGhc {})
+      | ignoreUnknown
+      = return Nothing
+    handleError err
+      = throwError err
+
+mkVarSpec :: (Var, LocSymbol, LocBareType) -> BareM (Var, LocSpecType)
+mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
+  where
+    coSub           = M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
+    tvs             = bareTypeVars (val b)
+    specTvSymbol    = F.symbol . bareRTyVar
+    txCoerce        = mapExprReft (\_ -> F.applyCoSub coSub)
+
+
+bareTypeVars :: BareType -> [BTyVar]
+bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
+  where
+    vs         = fst4 . bkUniv $ t
+    vs'        = freeTyVars    $ t
+
+-}
 
 {- TODO-REBARE 
 
@@ -256,42 +308,7 @@ makeLocalSpec cfg mod vs lvs cbs xbs
     fchoose ls          = maybe ls (:[]) $ L.find (`elem` vs) ls
     modElem n x         = takeModuleNames (val x) == F.symbol n
 
-makeSpec :: Bool -> [Var] -> [(LocSymbol, Located BareType)]
-         -> BareM [(ModName, Var, LocSpecType)]
-makeSpec _ignoreUnknown vs xbs = do
-  (BE { modName = mod}) <- get
-  vbs <- map (joinVar vs) <$> lookupIds False xbs
-  map (addFst3 mod) <$> mapM mkVarSpec vbs
 
-lookupIds :: Bool -> [(LocSymbol, a)] -> BareM [(Var, LocSymbol, a)]
-lookupIds !ignoreUnknown
-  = mapMaybeM lookup
-  where
-    lookup (s, t)
-      | isWorker (val s)
-      = (Just . (,s,t) <$> lookupGhcWrkVar s) `catchError` handleError
-      | otherwise
-      = (Just . (,s,t) <$> lookupGhcVar    s) `catchError` handleError
-    handleError ( ErrGhc {})
-      | ignoreUnknown
-      = return Nothing
-    handleError err
-      = throwError err
-
-mkVarSpec :: (Var, LocSymbol, Located BareType) -> BareM (Var, Located SpecType)
-mkVarSpec (v, _, b) = (v,) . fmap (txCoerce . generalize) <$> mkLSpecType b
-  where
-    coSub           = {- F.tracepp _msg $ -} M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
-    _msg            = "mkVarSpec v = " ++ F.showpp (v, b)
-    tvs             = bareTypeVars (val b)
-    specTvSymbol    = F.symbol . bareRTyVar
-    txCoerce        = mapExprReft (\_ -> F.applyCoSub coSub)
-
-bareTypeVars :: BareType -> [BTyVar]
-bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
-  where
-    vs         = fst4 . bkUniv $ t
-    vs'        = freeTyVars    $ t
 
 makeIAliases :: (ModName, Ms.Spec (Located BareType) bndr)
              -> BareM [(Located SpecType, Located SpecType)]
