@@ -250,6 +250,7 @@ Library
                     Language.Haskell.Liquid.Bare.Plugged,
                     Language.Haskell.Liquid.Bare.Axiom,
                     Language.Haskell.Liquid.Bare.ToBare,
+                    Language.Haskell.Liquid.Bare.Spec,
                     -- Language.Haskell.Liquid.Bare.SymSort,
                     -- Language.Haskell.Liquid.Bare.Check,
                     -- Language.Haskell.Liquid.Bare.Env,

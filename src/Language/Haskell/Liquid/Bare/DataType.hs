@@ -691,7 +691,7 @@ qualifyDataCtor qualFlag name l ct@(xts, t)
  where
    t'        = F.subst su <$> t
    xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
-   su        = F.tracepp "QUALIFY-DATACTOR" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   su        = F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
    fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)

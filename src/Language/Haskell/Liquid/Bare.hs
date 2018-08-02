@@ -621,12 +621,12 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   where 
     measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
     (cs, ms)      = Bare.makeMeasureSpec' measures
-    cms           = [] -- TODO-REBARE makeClassMeasureSpec measures
+    cms           = makeClassMeasureSpec  measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons {- TODO-REBARE ++ cls -})]
+    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement
@@ -636,6 +636,10 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     embs          = Bare.tcEmbs        tycEnv 
     -- name          = Bare.tcName        tycEnv
     -- TODO-REBARE: -- xs'      = fst <$> ms'
+
+(cls, mts)                      <- second mconcat . unzip . mconcat <$> (makeClasses name cfg vars <$> specs)
+(measures, cms', ms', cs', xs') <- makeGhcSpecCHOP2 specs dcSs datacons cls embs
+
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 

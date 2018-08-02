@@ -15,8 +15,8 @@ module Language.Haskell.Liquid.Bare.Measure
   , makeMeasureSpec
   , makeMeasureSpec'
   , varMeasures
+  , makeClassMeasureSpec
   -- , makeHaskellBounds
-  -- , makeClassMeasureSpec
   ) where
 
 -- import CoreSyn
@@ -447,18 +447,18 @@ varSpecType = fmap (RT.ofType . Ghc.varType) . GM.locNamedThing
 isSimpleType :: Ghc.Type -> Bool
 isSimpleType = isFirstOrder . RT.typeSort mempty
 
+makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
+                     -> [(LocSymbol, CMeasure (RType c tv r2))]
+makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
+  where
+    tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
+
 
 {- 
 expandMeasureBody :: Bare.Env -> ModName -> BareRTEnv -> SourcePos -> Body -> Body
 expandMeasureBody env name rtEnv l (P   p) = P   (Bare.expandQualify env name rtEnv l p) 
 expandMeasureBody env name rtEnv l (R x p) = R x (Bare.expandQualify env name rtEnv l p) 
 expandMeasureBody env name rtEnv l (E   e) = E   (Bare.expandQualify env name rtEnv l e) 
-
-makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
-                     -> [(LocSymbol, CMeasure (RType c tv r2))]
-makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
-  where
-    tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
 
 makeHaskellBounds :: F.TCEmb TyCon -> CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
 makeHaskellBounds embs cbs xs = do

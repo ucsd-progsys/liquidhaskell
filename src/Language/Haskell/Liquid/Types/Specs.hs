@@ -107,10 +107,10 @@ data GhcSpecData = SpData
   }
 
 data GhcSpecNames = SpNames 
-  { gsFreeSyms   :: ![(F.Symbol, Var)]              -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
+  { gsFreeSyms   :: ![(F.Symbol, Var)]            -- ^ List of `Symbol` free in spec and corresponding GHC var, eg. (Cons, Cons#7uz) from tests/pos/ex1.hs
   , gsDconsP     :: ![F.Located DataCon]          -- ^ Predicated Data-Constructors, e.g. see tests/pos/Map.hs
   , gsTconsP     :: ![(TyCon, TyConP)]            -- ^ Predicated Type-Constructors, e.g. see tests/pos/Map.hs
-  , gsLits       :: ![(F.Symbol, LocSpecType)]      -- ^ Literals/Constants e.g. datacons: EQ, GT, string lits: "zombie",...
+  , gsLits       :: ![(F.Symbol, LocSpecType)]    -- ^ Literals/Constants e.g. datacons: EQ, GT, string lits: "zombie",...
   , gsTcEmbeds   :: !(F.TCEmb TyCon)              -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
   , gsTyconEnv   :: !(M.HashMap TyCon RTyCon)
