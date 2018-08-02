@@ -69,8 +69,8 @@ data SigEnv = SigEnv
 -- | A @TycEnv@ contains the information needed to process Type- and Data- Constructors 
 -------------------------------------------------------------------------------
 data TycEnv = TycEnv 
-  { tcTyCons      :: ![(Ghc.TyCon, TyConP)]
-  , tcDataCons    :: ![(Ghc.DataCon, DataConP)]
+  { tcTyCons      :: ![TyConP]
+  , tcDataCons    :: ![DataConP]
   , tcSelMeasures :: ![Measure SpecType Ghc.DataCon]
   , tcSelVars     :: ![(Ghc.Var, Located SpecType)]
   , tcTyConMap    :: !TyConMap 

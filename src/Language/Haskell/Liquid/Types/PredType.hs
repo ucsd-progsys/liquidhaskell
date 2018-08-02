@@ -55,26 +55,27 @@ import           Language.Haskell.Liquid.Types.Types
 import           Data.List                       (nub)
 import           Data.Default
 
-makeTyConInfo :: [(TC.TyCon, TyConP)] -> M.HashMap TC.TyCon RTyCon
-makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
+makeTyConInfo :: [TyConP] -> M.HashMap TC.TyCon RTyCon
+makeTyConInfo tcps = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
 
-mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
+mkRTyCon ::  TyConP -> RTyCon
+mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
   = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
   where
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
     pvs' = subts (zip αs' τs) <$> ps
 
 -- TODO: duplicated with Liquid.Measure.makeDataConType
-dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
-dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType :: DataConP -> [(Var, SpecType)]
+dataConPSpecType dcp    = [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
-          | otherwise   = dcWorkSpecType dc wrapT
-    wrapT               = dcWrapSpecType dc dcp
-    workX               = dataConWorkId dc            -- this is the weird one for GADTs
-    wrapX               = dataConWrapId dc            -- this is what the user expects to see
-    isVanilla           = {- F.notracepp ("IS-Vanilla: " ++ showpp dc) $ -} isVanillaDataCon dc
+          | otherwise   = dcWorkSpecType   dc wrapT
+    wrapT               = dcWrapSpecType   dc dcp
+    workX               = dataConWorkId    dc            -- this is the weird one for GADTs
+    wrapX               = dataConWrapId    dc            -- this is what the user expects to see
+    isVanilla           = isVanillaDataCon dc
+    dc                  = dcpCon dcp
 
 dcWorkSpecType :: DataCon -> SpecType -> SpecType
 dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
@@ -163,7 +164,7 @@ dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where
-  pprintTidy k (TyConP _ vs ps ls _ _ _)
+  pprintTidy k (TyConP _ _ vs ps ls _ _ _)
     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))

@@ -217,7 +217,7 @@ type DataPropDecl = (DataDecl, Maybe SpecType)
 
 makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
               -> [(ModName, Ghc.TyCon, DataPropDecl)]
-              -> [(Ghc.DataCon, Located DataConP)]
+              -> [Located DataConP]
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
@@ -276,7 +276,7 @@ resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef ,
 
 
 groupDataCons :: [(Ghc.TyCon, (ModName, DataPropDecl))]
-              -> [(Ghc.DataCon, Located DataConP)]
+              -> [Located DataConP]
               -> [(Ghc.TyCon, (DataPropDecl, [(Ghc.DataCon, DataConP)]))]
 groupDataCons tds ds = [ (tc, (d, dds')) | (tc, ((m, d), dds)) <- tcDataCons
                                          , let dds' = filter (isResolvedDataConP m . snd) dds
@@ -284,7 +284,7 @@ groupDataCons tds ds = [ (tc, (d, dds')) | (tc, ((m, d), dds)) <- tcDataCons
   where
     tcDataCons       = M.toList $ M.intersectionWith (,) declM ctorM
     declM            = M.fromList tds
-    ctorM            = Misc.group [(Ghc.dataConTyCon d, (d, val dp)) | (d, dp) <- ds]
+    ctorM            = Misc.group [(Ghc.dataConTyCon d, (d, dcp)) | Loc _ _ dcp <- ds, let d = dcpCon dcp]
 
 isResolvedDataConP :: ModName -> DataConP -> Bool
 isResolvedDataConP m dp = F.symbol m == dcpModule dp
@@ -410,7 +410,7 @@ qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
 -}
 
 --------------------------------------------------------------------------------
-meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [(Ghc.DataCon, DataConP)] 
+meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
 meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
@@ -421,19 +421,19 @@ meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
                                   tx' = maybe t (meetX x t) (M.lookup x dcm)
     meetX x t (sp', t')      = meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t')
 
-dataConSpec' :: [(Ghc.DataCon, DataConP)] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
-dataConSpec' dcs = concatMap tx dcs
+dataConSpec' :: [DataConP] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
+dataConSpec' = concatMap tx 
   where
-    -- sspan z      = GM.sourcePos2SrcSpan (dc_loc z) (dc_locE z)
-    tx (dc, dcp) = [ (x, (GM.fSrcSpan dcp, t)) | (x, t0) <- dataConPSpecType dc dcp
-                                         , let t  = RT.expandProductType x t0  ]
-
+    tx dcp   =  [ (x, res) | (x, t0) <- dataConPSpecType dcp
+                          , let t    = RT.expandProductType x t0  
+                          , let res  = (GM.fSrcSpan dcp, t)
+                ]
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
 makeConTypes :: Bare.Env -> (ModName, Ms.BareSpec) -> 
-                ( [(ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)]
-                , [[(Ghc.DataCon, Located DataConP)]]              )
+                ( [(ModName, TyConP, Maybe DataPropDecl)]
+                , [[Located DataConP]]              )
 makeConTypes env (name, spec) = 
   unzip  [ ofBDataDecl env name x y | (x, y) <- gvs ] 
   where 
@@ -492,25 +492,24 @@ checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
-            -> ( (ModName, Ghc.TyCon, TyConP, Maybe DataPropDecl)
-               , [(Ghc.DataCon, Located DataConP)])
+            -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
 ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
   = uError err
   | otherwise
-  = ((name, tc', tcp, Just (dd { tycDCons = cts }, pd)), (Misc.mapSnd (Loc lc lc') <$> cts'))
+  = ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
   where
     πs         = Bare.ofBPVar env name pos <$> ps
     tc'        = Bare.lookupGhcDnTyCon env name "ofBDataDecl" tc
     cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
     pd         = Bare.mkSpecType' env name lc [] <$> pt
-    tys        = [t | (_, dcp) <- cts', (_, t) <- dcpTyArgs dcp]
+    tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
     initmap    = zip (RT.uPVar <$> πs) [0..]
     varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
     defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
     (tvi, pvi) = f defPs
-    tcp        = TyConP lc αs πs ls tvi pvi sfun
+    tcp          = TyConP lc tc' αs πs ls tvi pvi sfun
     err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
     αs           = RTV . GM.symbolTyVar <$> as
     n            = length αs
@@ -520,7 +519,7 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
                      Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))
 
 ofBDataDecl env name Nothing (Just (tc, is))
-  = ((name, tc', TyConP srcpos [] [] [] tcov tcontr Nothing, Nothing), [])
+  = ((name, TyConP srcpos tc' [] [] [] tcov tcontr Nothing, Nothing), [])
   where
     tc'            = Bare.lookupGhcTyCon env name "ofBDataDecl" tc
     (tcov, tcontr) = (is, [])
@@ -540,9 +539,21 @@ ofBDataCtor :: Bare.Env
             -> [F.Symbol]
             -> [PVar RSort]
             -> DataCtor
-            -> (Ghc.DataCon, DataConP)
-ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) 
-  = (c', DataConP l c' αs πs ls cs zts ot isGadt (F.symbol name) l')
+            -> DataConP
+ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) = DataConP 
+  { dcpLoc        = l                
+  , dcpCon        = c'                
+  , dcpFreeTyVars = αs                
+  , dcpFreePred   = πs                 
+  , dcpFreeLabels = ls                
+  , dcpTyConstrs  = cs                
+  , dcpTyArgs     = zts                 
+  , dcpTyRes      = ot                
+  , dcpIsGadt     = isGadt                
+  , dcpModule     = F.symbol name          
+  , dcpLocE       = l'
+  } 
+  -- = DataConP l c' αs πs ls cs zts ot isGadt (F.symbol name) l'
   where
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
     ts'           = Bare.mkSpecType' env name l ps <$> ts
@@ -680,7 +691,7 @@ qualifyDataCtor qualFlag name l ct@(xts, t)
  where
    t'        = F.subst su <$> t
    xts'      = [ (qx, F.subst su t)       | (qx, t, _) <- fields ]
-   su        = F.notracepp "F-ING subst" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
+   su        = F.tracepp "QUALIFY-DATACTOR" $ F.mkSubst [ (x, F.eVar qx) | (qx, _, Just x) <- fields ]
    fields    = [ (qx, t, mbX) | (x, t) <- xts, let (mbX, qx) = qualifyField name (F.atLoc l x) ]
 
 qualifyField :: ModName -> LocSymbol -> (Maybe F.Symbol, F.Symbol)
@@ -692,11 +703,10 @@ qualifyField name lx
    x         = val lx
    needsQual = not (isWiredIn lx)
 
-makeRecordSelectorSigs :: Bare.Env -> ModName -> [(Ghc.DataCon, Located DataConP)] 
-                       -> [(Ghc.Var, LocSpecType)]
+makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
 makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
   where
-  makeOne (dc, Loc l l' dcp)
+  makeOne (Loc l l' dcp)
     | null fls                    --    no field labels
     || any (isFunTy . snd) args   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
@@ -704,6 +714,7 @@ makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
     | otherwise 
     = zip fs ts
     where
+      dc  = dcpCon dcp
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]

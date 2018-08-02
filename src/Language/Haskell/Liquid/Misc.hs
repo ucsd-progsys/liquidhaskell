@@ -206,6 +206,14 @@ replaceSubset kvs kvs' = M.toList (L.foldl' upd m0 kvs')
       | M.member k m  = M.insert k v' m 
       | otherwise     = m 
 
+replaceWith :: (Eq a, Hashable a) => (b -> a) -> [b] -> [b] -> [b]
+replaceWith f xs ys = snd <$> replaceSubset xs' ys' 
+  where 
+    xs'             = [ (f x, x) | x <- xs ] 
+    ys'             = [ (f y, y) | y <- ys ] 
+
+
+
 
 firstElems ::  [(B.ByteString, B.ByteString)] -> B.ByteString -> Maybe (Int, B.ByteString, (B.ByteString, B.ByteString))
 firstElems seps str

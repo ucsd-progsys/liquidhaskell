@@ -586,7 +586,7 @@ makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec ->
 -------------------------------------------------------------------------------------------
 makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv 
   { tcTyCons      = tycons                  
-  , tcDataCons    = second val <$> datacons 
+  , tcDataCons    = val <$> datacons 
   , tcSelMeasures = dcSelectors             
   , tcSelVars     = recSelectors            
   , tcTyConMap    = tyi                     
@@ -598,16 +598,16 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   where 
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
-    tcs           = [(x, y) | (_, x, y, _)       <- tcDds]
-    tycons        = Misc.replaceSubset tcs wiredTyCons
+    tcs           = Misc.snd3 <$> tcDds -- [(x, y) | (_, y, _)       <- tcDds]
+    tycons        = Misc.replaceWith tcpCon tcs wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
-    datacons      = Bare.makePluggedDataCons embs tyi (Misc.replaceSubset (concat dcs) wiredDataCons)
-    tds           = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
+    datacons      = Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (concat dcs) wiredDataCons)
+    tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
-      
+    
 -- REBARE: formerly, makeGhcCHOP2
 -------------------------------------------------------------------------------------------
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 

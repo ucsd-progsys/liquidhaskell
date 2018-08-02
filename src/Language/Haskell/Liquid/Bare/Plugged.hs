@@ -85,13 +85,14 @@ for xs f = map f xs
 
 makePluggedDataCons :: F.TCEmb TyCon
                     -> M.HashMap TyCon RTyCon
-                    -> [(DataCon, Located DataConP)]
-                    -> [(DataCon, Located DataConP)]
+                    -> [Located DataConP]
+                    -> [Located DataConP]
 makePluggedDataCons embs tyi dcs
-  = for dcs $ \(dc, ldcp) -> 
-       let dcp               = val ldcp 
+  = for dcs $ \ldcp -> 
+       let dcp               = val        ldcp 
+           dc                = dcpCon     dcp
+           rest              = dcpTyRes   dcp
            (das, _, dts, dt) = dataConSig dc
-           rest              = dcpTyRes dcp
        in   if mismatch dts dcp 
              then (Ex.throw $ err dc dcp)
              else 
@@ -99,11 +100,11 @@ makePluggedDataCons embs tyi dcs
                    tArgs      = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ dcpTyArgs dcp)
                    tRes       = plugHoles embs tyi (dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
                in
-                  (dc, F.atLoc ldcp $ dcp 
-                        { dcpFreeTyVars = rTyVar <$> das
-                        , dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: TyVar -> RSort) <$> das))) <$> (dcpFreePred dcp)
-                        , dcpTyArgs     = reverse tArgs
-                        , dcpTyRes      = val tRes})
+                  (F.atLoc ldcp $ dcp 
+                    { dcpFreeTyVars = rTyVar <$> das
+                    , dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: TyVar -> RSort) <$> das))) <$> (dcpFreePred dcp)
+                    , dcpTyArgs     = reverse tArgs
+                    , dcpTyRes      = val tRes})
 
     where
       mismatch dts dcp = length dts /= length (dcpTyArgs dcp)

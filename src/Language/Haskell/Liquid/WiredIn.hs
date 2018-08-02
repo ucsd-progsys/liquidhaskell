@@ -106,21 +106,21 @@ proofTyConName = "Proof"
 maxArity :: Arity
 maxArity = 7
 
-wiredTyCons :: [(TyCon, TyConP)]
-wiredTyCons     = fst wiredTyDataCons
+wiredTyCons :: [TyConP]
+wiredTyCons  = fst wiredTyDataCons
 
-wiredDataCons :: [(DataCon, Located DataConP)]
-wiredDataCons   = snd wiredTyDataCons
+wiredDataCons :: [Located DataConP]
+wiredDataCons = snd wiredTyDataCons
 
-wiredTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, Located DataConP)])
-wiredTyDataCons = (concat tcs, mapSnd dummyLoc <$> concat dcs)
+wiredTyDataCons :: ([TyConP] , [Located DataConP])
+wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
   where
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
-listTyDataCons :: ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
-                   , [(nilDataCon , DataConP l0 nilDataCon  [RTV tyv] [p] [] [] []    lt False wiredInName l0)
-                     ,(consDataCon, DataConP l0 consDataCon [RTV tyv] [p] [] [] cargs lt False wiredInName l0)])
+listTyDataCons :: ([TyConP] , [DataConP])
+listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [p] [] [Covariant] [Covariant] (Just fsize))]
+                   , [(DataConP l0 nilDataCon  [RTV tyv] [p] [] [] []    lt False wiredInName l0)
+                     ,(DataConP l0 consDataCon [RTV tyv] [p] [] [] cargs lt False wiredInName l0)])
     where
       l0         = F.dummyPos "LH.Bare.listTyDataCons"
       c          = listTyCon
@@ -140,9 +140,9 @@ listTyDataCons   = ( [(c, TyConP l0 [RTV tyv] [p] [] [Covariant] [Covariant] (Ju
 wiredInName :: F.Symbol
 wiredInName = "WiredIn"
 
-tupleTyDataCons :: Int -> ([(TyCon, TyConP)] , [(DataCon, DataConP)])
-tupleTyDataCons n = ( [(c, TyConP l0 (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
-                    , [(dc, DataConP l0 dc (RTV <$> tyvs) ps [] []  cargs  lt False wiredInName l0)])
+tupleTyDataCons :: Int -> ([TyConP] , [DataConP])
+tupleTyDataCons n = ( [(TyConP   l0 c  (RTV <$> tyvs) ps [] tyvarinfo pdvarinfo Nothing)]
+                    , [(DataConP l0 dc (RTV <$> tyvs) ps [] []  cargs  lt False wiredInName l0)])
   where
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant

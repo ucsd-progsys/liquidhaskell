@@ -270,11 +270,12 @@ meetLoc t1 t2 = t1 {val = val t1 `F.meet` val t2}
 --   the selectors and checkers that then enable reflection.
 --------------------------------------------------------------------------------
 
-makeMeasureSelectors :: Config -> Bare.DataConMap -> (Ghc.DataCon, Located DataConP) -> [Measure SpecType Ghc.DataCon]
-makeMeasureSelectors cfg dm (dc, Loc l l' c)
+makeMeasureSelectors :: Config -> Bare.DataConMap -> Located DataConP -> [Measure SpecType Ghc.DataCon]
+makeMeasureSelectors cfg dm (Loc l l' c)
   = (Misc.condNull (exactDCFlag cfg) $ checker : Mb.catMaybes (go' <$> fields)) --  internal measures, needed for reflection
  ++ (Misc.condNull (autofields)      $           Mb.catMaybes (go  <$> fields)) --  user-visible measures.
   where
+    dc         = dcpCon    c 
     isGadt     = dcpIsGadt c 
     xts        = dcpTyArgs c
     autofields = not (isGadt || noMeasureFields cfg)

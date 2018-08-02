@@ -363,17 +363,18 @@ isApp (F.EApp e (F.EVar _))          = isApp e
 isApp _                              = False
 
 data TyConP = TyConP
-  { ty_loc       :: !F.SourcePos
-  , freeTyVarsTy :: ![RTyVar]
-  , freePredTy   :: ![PVar RSort]
-  , freeLabelTy  :: ![Symbol]
-  , varianceTs   :: !VarianceInfo
-  , variancePs   :: !VarianceInfo
-  , sizeFun      :: !(Maybe SizeFun)
+  { tcpLoc          :: !F.SourcePos
+  , tcpCon          :: !TyCon
+  , tcpFreeTyVarsTy :: ![RTyVar]
+  , tcpFreePredTy   :: ![PVar RSort]
+  , tcpFreeLabelTy  :: ![Symbol]
+  , tcpVarianceTs   :: !VarianceInfo
+  , tcpVariancePs   :: !VarianceInfo
+  , tcpSizeFun      :: !(Maybe SizeFun)
   } deriving (Generic, Data, Typeable)
 
 instance F.Loc TyConP where
-  srcSpan tc = F.SS (ty_loc tc) (ty_loc tc)
+  srcSpan tc = F.SS (tcpLoc tc) (tcpLoc tc)
 
 
 -- TODO: just use Located instead of dc_loc, dc_locE
