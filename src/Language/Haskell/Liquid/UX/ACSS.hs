@@ -26,7 +26,7 @@ import Text.Printf
 import Text.PrettyPrint.HughesPJ            (Doc) 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
-import Language.Haskell.Liquid.Types.Types  (AnnInfo) 
+import Language.Haskell.Liquid.Types        (AnnInfo) 
 
 data AnnMap  = Ann 
   { types   :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
