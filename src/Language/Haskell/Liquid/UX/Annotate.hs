@@ -445,9 +445,15 @@ instance ToJSON ACSS.AnnMap where
   toJSON a = object [ "types"   .= toJSON (annTypes     a)
                     , "errors"  .= toJSON (annErrors    a)
                     , "status"  .= toJSON (ACSS.status  a)
-                    , "sptypes" .= toJSON (ACSS.sptypes a) 
+                    , "sptypes" .= (toJ <$> ACSS.sptypes a) 
                     ]
-
+    where 
+      toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp) 
+                               , "stop"  .= toJSON (srcSpanEndLoc   sp) 
+                               , "var"   .= toJSON x 
+                               , "type"  .= toJSON t 
+                               ] 
+                      
 annErrors :: ACSS.AnnMap -> AnnErrors
 annErrors = AnnErrors . ACSS.errors
 
