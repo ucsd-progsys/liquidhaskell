@@ -23,10 +23,10 @@ import qualified Data.HashMap.Strict as M
 import Data.List   (find, isPrefixOf, findIndex, elemIndices, intercalate)
 import Data.Char   (isSpace)
 import Text.Printf
-import Text.PrettyPrint.HughesPJ            (Doc) 
+-- import Text.PrettyPrint.HughesPJ            (Doc) 
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Types.Errors (panic, impossible)
-import Language.Haskell.Liquid.Types        (AnnInfo) 
+-- import Language.Haskell.Liquid.Types        (AnnInfo) 
 
 data AnnMap  = Ann 
   { types   :: M.HashMap Loc (String, String) -- ^ Loc -> (Var, Type)
