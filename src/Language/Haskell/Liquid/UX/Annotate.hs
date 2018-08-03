@@ -448,8 +448,8 @@ instance ToJSON ACSS.AnnMap where
     where 
       toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp) 
                                , "stop"  .= toJSON (srcSpanEndLoc   sp) 
-                               , "var"   .= toJSON x 
-                               , "type"  .= toJSON t 
+                               , "ident" .= toJSON x 
+                               , "ann"  .= toJSON t 
                                ] 
                       
 annErrors :: ACSS.AnnMap -> AnnErrors
