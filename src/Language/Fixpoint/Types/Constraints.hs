@@ -477,6 +477,20 @@ instance Loc Qualifier where
     where
       l     = qPos q
 
+instance Subable Qualifier where 
+  syms   = qualFreeSymbols 
+  subst  = mapQualBody . subst
+  substf = mapQualBody . substf
+  substa = mapQualBody . substa
+
+mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
+mapQualBody f q = q { qBody = f (qBody q) }
+  
+qualFreeSymbols :: Qualifier -> [Symbol]
+qualFreeSymbols q = filter (not . isPrim) xs 
+  where
+    xs            = syms (qBody q) L.\\ syms (qpSym <$> qParams q) 
+
 instance Fixpoint QualParam where 
   toFix (QP x _ t) = toFix (x, t) 
 

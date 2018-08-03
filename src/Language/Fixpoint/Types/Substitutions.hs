@@ -54,6 +54,8 @@ isEmptySubst (Su xes) = M.null xes
 targetSubstSyms :: Subst -> [Symbol]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
+
+  
 instance Subable () where
   syms _      = []
   subst _ ()  = ()

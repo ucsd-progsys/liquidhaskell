@@ -18,12 +18,14 @@ import           Control.Arrow                    (second)
 import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
+import qualified Data.HashSet                     as S
 import           Data.Tuple                       (swap)
 import           Data.Maybe
 import           Data.Array                       hiding (indices)
 import           Data.Function                    (on)
 import qualified Data.Graph                       as G
 import qualified Data.Tree                        as T
+
 import           Data.Unique
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
@@ -412,3 +414,10 @@ revMapM f          = go []
   where
     go !acc []     = return (reverse acc)
     go !acc (x:xs) = do {!y <- f x; go (y:acc) xs}
+
+-- Null if first is a subset of second
+nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a 
+nubDiff a b = a' `S.difference` b'
+  where
+    a' = S.fromList a
+    b' = S.fromList b
