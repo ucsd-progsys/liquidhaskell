@@ -42,8 +42,8 @@ import           Language.Haskell.Liquid.GHC.Misc
 -- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.Variance
-import           Language.Haskell.Liquid.Types.Bounds
+-- import           Language.Haskell.Liquid.Types.Variance
+-- import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.Types.Specs 
 import           Language.Haskell.Liquid.UX.Tidy
 

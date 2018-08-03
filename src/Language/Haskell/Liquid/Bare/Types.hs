@@ -21,15 +21,10 @@ module Language.Haskell.Liquid.Bare.Types
   ) where 
 
 import qualified Data.HashMap.Strict             as M
-
-import qualified Var                             as Ghc
-import qualified Module                          as Ghc
-import qualified GHC                             as Ghc
-import qualified NameSet                         as Ghc
-
 import qualified Language.Fixpoint.Types         as F 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import           Language.Haskell.Liquid.Types.Types   
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding (Located) 
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec

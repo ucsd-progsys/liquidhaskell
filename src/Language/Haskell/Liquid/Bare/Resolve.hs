@@ -80,7 +80,7 @@ makeEnv cfg src lmap = RE
     vars        = srcVars src
 
 makeVarSubst :: GhcSrc -> F.Subst 
-makeVarSubst src = F.mkSubst (F.tracepp "UNQUAL-SYMS" unqualSyms) 
+makeVarSubst src = F.mkSubst (F.notracepp "UNQUAL-SYMS" unqualSyms) 
   where 
     unqualSyms   = [ (x, mkVarExpr v) 
                        | (x, mxs) <- M.toList       (makeSymMap src) 

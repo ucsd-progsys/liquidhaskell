@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.WiredIn
 import Prelude                                hiding (error)
 import Var
 
-import Language.Fixpoint.Misc           (mapSnd)
+-- import Language.Fixpoint.Misc           (mapSnd)
 import Language.Haskell.Liquid.GHC.Misc
 
 import Language.Haskell.Liquid.Types.Types
@@ -30,8 +30,8 @@ import Language.Haskell.Liquid.Types.PredType
 import qualified Language.Fixpoint.Types as F
 
 import BasicTypes
-import DataCon
-import TyCon
+-- import DataCon
+-- import TyCon
 import TysWiredIn
 
 import Language.Haskell.Liquid.GHC.TypeRep

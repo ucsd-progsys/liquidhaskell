@@ -302,8 +302,6 @@ ppEnvShort pp   = pp { ppShort = True }
 ------------------------------------------------------------------
 type Expr      = F.Expr
 type Symbol    = F.Symbol
-type Qualifier = F.Qualifier
-
 
 
 -- [NOTE:LIFTED-VAR-SYMBOLS]: Following NOTE:REFLECT-IMPORTS, by default
@@ -501,15 +499,6 @@ instance F.Subable Predicate where
   subst  s (Pr pvs) = Pr (F.subst s  <$> pvs)
   substf f (Pr pvs) = Pr (F.substf f <$> pvs)
   substa f (Pr pvs) = Pr (F.substa f <$> pvs)
-
-instance F.Subable Qualifier where
-  syms   = F.syms . F.qBody
-  subst  = mapQualBody . F.subst
-  substf = mapQualBody . F.substf
-  substa = mapQualBody . F.substa
-
-mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
-mapQualBody f q = q { F.qBody = f (F.qBody q) }
 
 instance NFData r => NFData (UReft r)
 

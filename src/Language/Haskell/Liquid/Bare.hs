@@ -111,7 +111,7 @@ makeGhcSpec cfg src lmap mspecs = SP
   { gsConfig = cfg 
   , gsSig    = sig 
   , gsRefl   = refl 
-  , gsQual   = makeSpecQual cfg env specs  rtEnv 
+  , gsQual   = makeSpecQual cfg env rtEnv measEnv specs 
   , gsData   = sData 
   , gsName   = makeSpecName env tycEnv 
   , gsVars   = makeSpecVars cfg src mySpec env 
@@ -265,16 +265,20 @@ resolveStringVar env name s = Bare.lookupGhcVar env name "resolve-string-var" lx
 
 
 ------------------------------------------------------------------------------------------
-makeSpecQual :: Config -> Bare.Env -> Bare.ModSpecs -> BareRTEnv 
+makeSpecQual :: Config -> Bare.Env -> BareRTEnv -> Bare.MeasEnv -> Bare.ModSpecs 
              -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
-makeSpecQual _cfg env specs rtEnv = SpQual 
-  { gsQualifiers = concatMap (makeQualifiers env) (M.toList specs) 
+makeSpecQual _cfg env rtEnv measEnv specs = SpQual 
+  { gsQualifiers = filter okQual quals 
   , gsRTAliases  = makeSpecRTAliases env rtEnv 
   } 
+  where 
+    quals        = concatMap (makeQualifiers env) (M.toList specs) 
+    mSyms        = F.tracepp "mSyms" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
+    okQual q     = all (`M.member` mSyms) (F.syms q)
 
 makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
-makeSpecRTAliases _env = const [] -- TODO-REBARE 
+makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
 -- REBARE: toSpec . M.elems . typeAliases
 -- REBARE: where toSpec = BareRTAlias -> SpecRTAlias 
 -- REBARE: specAliases :: GhcInfo -> [Located BareRTAlias]

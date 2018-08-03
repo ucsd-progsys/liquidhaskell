@@ -37,9 +37,10 @@ module Language.Haskell.Liquid.Bare.Spec (
 -- import           TyCon
 -- import           Var
 
-import qualified Name 
-import qualified HscTypes 
-import qualified OccName as NS
+-- import qualified Name 
+-- import qualified HscTypes 
+-- import qualified OccName as NS
+
 import           Control.Monad.Except
 import           Control.Monad.State
 import           Data.Bifunctor 
