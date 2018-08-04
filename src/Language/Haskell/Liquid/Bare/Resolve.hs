@@ -535,8 +535,8 @@ ofBRType env name f l t  = go t
 
 matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
-  | isList c && arity == 1  = Right Ghc.listTyCon
-  | isTuple c               = Right (Ghc.tupleTyCon Ghc.Boxed arity)
+  -- // | isList c && arity == 1  = Right Ghc.listTyCon
+  -- // | isTuple c               = Right (Ghc.tupleTyCon Ghc.Boxed arity)
   | otherwise               = resolveLocSym env name msg lc 
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
