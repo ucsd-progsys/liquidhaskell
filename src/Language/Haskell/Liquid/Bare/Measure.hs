@@ -411,12 +411,14 @@ mkMeasureSort env name (Ms.MSpec c mm cm im) =
       ofMeaSort :: F.SourcePos -> BareType -> SpecType
       ofMeaSort = Bare.ofBareType env name  
 
-      tx :: Measure BareType ctor -> Measure SpecType ctor
+      tx :: Measure BareType ctor -> (Measure SpecType ctor)
       tx (M n s eqs k) = M n (ofMeaSort l s) (txDef <$> eqs) k     where l = GM.fSourcePos n
 
-      txDef :: Def BareType ctor -> Def SpecType ctor
+      txDef :: Def BareType ctor -> (Def SpecType ctor)
       txDef d = first (ofMeaSort l) d                              where l = GM.fSourcePos (measure d) 
 
+
+  
 --------------------------------------------------------------------------------
 -- | Expand Measures -----------------------------------------------------------
 --------------------------------------------------------------------------------
