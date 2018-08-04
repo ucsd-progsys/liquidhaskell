@@ -1956,7 +1956,6 @@ data Body
 
 data Def ty ctor = Def
   { measure :: F.LocSymbol
-  -- , dparams :: [(Symbol, ty)]          -- measure parameters
   , ctor    :: ctor
   , dsort   :: Maybe ty
   , binds   :: [(Symbol, Maybe ty)]    -- measure binders: the ADT argument fields

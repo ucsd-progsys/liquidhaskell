@@ -1,10 +1,18 @@
+{-@ LIQUID "--reflection" @-}
+
+-- TAG: invariant 
+
 module Blank where
 
 import Data.Word
 import GHC.Ptr
 
 
-{-@ measure sizeOf :: forall a . Ptr a -> Int @-}
+{- measure sizeOf :: forall a . Ptr a -> Int @-}
+{-@ reflect sizeOf @-}
+sizeOf :: Ptr a -> Int 
+sizeOf = undefined 
+
 
 {-@ invariant {v:Ptr Word16 | sizeOf v = 2} @-}
 {-@ invariant {v:Ptr Word32 | sizeOf v = 4} @-}

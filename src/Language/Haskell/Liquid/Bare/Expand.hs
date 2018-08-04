@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.Bare.Expand
     -- * Expand and Qualify 
   , expandQualify 
   , cookSpecType
+  , cookSpecTypeE
   , plugHoles
   ) where
 
@@ -410,17 +411,23 @@ exprArg l msg = go
 --   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
 --   details of each of the individual steps.
 ----------------------------------------------------------------------------------------
-cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType -> LocSpecType 
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType 
+             -> LocSpecType 
+cookSpecType env sigEnv name x bt = either Ex.throw id (cookSpecTypeE env sigEnv name x bt)
+
+cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType 
+             -> Either UserError LocSpecType 
 ----------------------------------------------------------------------------------------
-cookSpecType env sigEnv name x bt
+cookSpecTypeE env sigEnv name x bt
   = id 
   -- TODO-REBARE . strengthenMeasures env sigEnv      x 
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
-  . fixCoercions bt
-  . fmap RT.generalize
-  . maybePlug       sigEnv name x
-  . Bare.qualify       env name 
+  . fmap (fixCoercions bt)
+  . fmap (fmap RT.generalize)
+  . fmap (maybePlug       sigEnv name x)
+  . fmap (Bare.qualify       env name) 
   . bareSpecType       env name 
+  . F.tracepp ("cookSpecType0: " ++ F.showpp (name, bt))
   . bareExpandType     (Bare.sigRTEnv sigEnv)
   $ bt 
 
@@ -445,8 +452,10 @@ maybePlug sigEnv name (Just x) = plugHoles sigEnv name x
 bareExpandType :: BareRTEnv -> LocBareType -> LocBareType 
 bareExpandType = expandLoc
 
-bareSpecType :: Bare.Env -> ModName -> LocBareType -> LocSpecType 
-bareSpecType env name lt = Bare.ofBareType env name (F.loc lt) <$> lt
+bareSpecType :: Bare.Env -> ModName -> LocBareType -> Either UserError LocSpecType 
+bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) (val bt) of 
+  Left e  -> Left e 
+  Right t -> Right (F.atLoc bt t)
 
 plugHoles :: Bare.SigEnv -> ModName -> Ghc.Var -> LocSpecType -> LocSpecType 
 plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports

@@ -1,3 +1,5 @@
+-- TAG: variance 
+
 {-@ LIQUID "--no-termination"    @-}
 {-@ LIQUID "--short-names"       @-}
 
@@ -31,26 +33,3 @@ job' p =
 {-@ bind :: Monad m => m a -> (a -> m b) -> m b @-}
 bind :: Monad m => m a -> (a -> m b) -> m b
 bind = (>>=)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

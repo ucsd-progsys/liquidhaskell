@@ -1,5 +1,6 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
+-- TAG: reflection 
+
+{-@ LIQUID "--reflection" @-}
 
 module Peano where
 

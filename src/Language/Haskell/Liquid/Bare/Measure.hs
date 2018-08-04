@@ -249,17 +249,17 @@ dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
 --   the selectors and checkers that then enable reflection.
 ----------------------------------------------------------------------------------------------
 
-strengthenHaskellInlines  :: S.HashSet (Located Ghc.Var) -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskellInlines  :: [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
 strengthenHaskellInlines  = strengthenHaskell strengthenResult
 
-strengthenHaskellMeasures :: S.HashSet (Located Ghc.Var) -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskellMeasures :: [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
 strengthenHaskellMeasures = strengthenHaskell strengthenResult'
 
-strengthenHaskell :: (Ghc.Var -> SpecType) -> S.HashSet (Located Ghc.Var) -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskell :: (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
 strengthenHaskell strengthen hmeas sigs
   = go <$> Misc.groupList (reverse sigs ++ hsigs)
   where
-    hsigs      = [(val x, x {val = strengthen $ val x}) | x <- S.toList hmeas]
+    hsigs      = [(x, lx {val = strengthen x}) | x <- hmeas, let lx = GM.locNamedThing x]
     go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
 
 meetLoc :: Located SpecType -> Located SpecType -> LocSpecType

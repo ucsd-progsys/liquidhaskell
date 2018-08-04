@@ -9,6 +9,7 @@
 {-# LANGUAGE ScopedTypeVariables   #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE ConstraintKinds       #-}
+{-# LANGUAGE TupleSections         #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -37,6 +38,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , srcVars 
 
   -- * Conversions from Bare
+  , ofBareTypeE
   , ofBareType
   , ofBPVar
   , mkSpecType'
@@ -46,6 +48,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , txRefSort
   ) where 
 
+import qualified Control.Exception as Ex 
 import qualified Data.List                         as L 
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
@@ -124,7 +127,7 @@ srcThings src = [ Ghc.AnId   x | x <- vars ]
   where 
     vars      = Misc.sortNub $ dataConVars dcs ++ srcVars  src
     dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
-    tcs       = Misc.sortNub $ srcTyCons src  
+    tcs       = F.tracepp "TYCONS" $ Misc.sortNub $ srcTyCons src  
     aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
 
 srcTyCons :: GhcSrc -> [Ghc.TyCon]
@@ -268,9 +271,14 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 -- | Checking existence of names 
 -------------------------------------------------------------------------------
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
-knownGhcType env name = all knownBtc . rTypeTyCons . val
-  where 
-    knownBtc          = knownGhcTyCon env name . btc_tc
+knownGhcType env name (F.Loc l _ t) = case ofBareTypeE env name l t of 
+  Left _  -> False 
+  Right _ -> True 
+
+--   where 
+--    tcs                  = F.tracepp ("TYCONS: " ++ F.showpp t) $ rTypeTyCons t 
+--    t                    = val lt
+--    knownBtc             = knownGhcTyCon env name . btc_tc
 
 rTypeTyCons :: (Ord c) => RType c tv r -> [c]
 rTypeTyCons           = Misc.sortNub . foldRType f []   
@@ -290,7 +298,7 @@ knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool
 knownGhcTyCon env name lx = Mb.isJust v 
   where 
     v :: Maybe Ghc.TyCon 
-    v = maybeResolveSym env name "known-var" lx 
+    v = F.tracepp "KNOWN-TC" $ maybeResolveSym env name "known-tycon" lx 
 
 knownGhcDataCon :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcDataCon env name lx = Mb.isJust v 
@@ -357,9 +365,6 @@ unQualifySymbol sym
 splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
 splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
 
-
-
-
 -- srcDataCons :: GhcSrc -> [Ghc.DataCon]
 -- srcDataCons src = concatMap Ghc.tyConDataCons (srcTyCons src) 
 
@@ -377,7 +382,7 @@ splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
 
 
 errResolve :: String -> LocSymbol -> UserError 
-errResolve kind lx = ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
+errResolve kind lx = error msg -- ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
   where 
     msg            = unwords [ "Name resolution error: ", kind, symbolicIdent lx]
 
@@ -422,12 +427,19 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -------------------------------------------------------------------------------
 -- | HERE 
 -------------------------------------------------------------------------------
+
 ofBareType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType 
-ofBareType env name l t = ofBRType env name (qualify env name) l t 
+ofBareType env name l t = either Ex.throw id (ofBareTypeE env name l t)
+
+ofBareTypeE :: Env -> ModName -> F.SourcePos -> BareType -> Either UserError SpecType 
+ofBareTypeE env name l t = ofBRType env name (qualify env name) l t 
 
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
-ofBSort env name l t = ofBRType env name id l t 
+ofBSort env name l t = either Ex.throw id (ofBSortE env name l t)
 
+ofBSortE :: Env -> ModName -> F.SourcePos -> BSort -> Either UserError RSort 
+ofBSortE env name l t = ofBRType env name id l t 
+  
 ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 
@@ -438,7 +450,9 @@ ofBPVar env name l = fmap (ofBSort env name l)
     -- πs                  = ty_preds (toRTypeRep t)
 
 mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
-mkSpecType' env name l πs t = ofBRType env name resolveReft l t
+mkSpecType' env name l πs t = case ofBRType env name resolveReft l t of 
+                                Left e -> Ex.throw e 
+                                Right v -> v 
   where
     resolveReft             = qualify env name . txParam l RT.subvUReft (RT.uPVar <$> πs) t
 
@@ -467,38 +481,39 @@ type Expandable r = ( PPrint r
                     , F.Reftable (RTProp RTyCon RTyVar r))
 
 ofBRType :: (Expandable r) => Env -> ModName -> (r -> r) -> F.SourcePos -> BRType r 
-         -> RRType r 
+         -> Either UserError (RRType r)
 ofBRType env name f l t  = go t 
   where
-    goReft r             = f r 
-    go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) (goReft r)
+    goReft r             = return (f r) 
+    goRImpF x t1 t2 r    = RImpF x <$> (rebind x <$> go t1) <*> go t2 <*> goReft r
+    goRFun x t1 t2 r     = RFun  x <$> (rebind x <$> go t1) <*> go t2 <*> goReft r
+    rebind x t           = F.subst1 t (x, F.EVar $ rTypeValueVar t)
+    go (RAppTy t1 t2 r)  = RAppTy <$> go t1 <*> go t2 <*> goReft r
     go (RApp tc ts rs r) = goRApp tc ts rs r 
     go (RImpF x t1 t2 r) = goRImpF x t1 t2 r 
     go (RFun  x t1 t2 r) = goRFun  x t1 t2 r 
-    go (RVar a r)        = RVar (RT.bareRTyVar a)   (goReft r)
-    go (RAllT a t)       = RAllT a' (go t) 
+    go (RVar a r)        = RVar (RT.bareRTyVar a) <$> goReft r
+    go (RAllT a t)       = RAllT a' <$> go t 
       where a'           = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a) 
-    go (RAllP a t)       = RAllP a' (go t) 
+    go (RAllP a t)       = RAllP a' <$> go t 
       where a'           = ofBPVar env name l a 
-    go (RAllS x t)       = RAllS x (go t)
-    go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
-    go (REx x t1 t2)     = REx   x (go t1) (go t2)
-    go (RRTy e r o t)    = RRTy  e'  (goReft r) o (go t)
-      where e'           = Misc.mapSnd go <$> e
-    go (RHole r)         = RHole (goReft r) 
-    go (RExprArg le)     = RExprArg (qualify env name le) 
-    goRef (RProp ss (RHole r)) = rPropP (goSyms <$> ss) (goReft r)
-    goRef (RProp ss t)         = RProp  (goSyms <$> ss) (go t)
-    goSyms (x, t)              = (x, ofBSort env name l t) 
-    goRImpF x t1 t2 r          = RImpF x (rebind x (go t1)) (go t2) (goReft r)
-    goRFun x t1 t2 r           = RFun x (rebind x (go t1)) (go t2) (goReft r)
-    goRApp tc ts rs r          = bareTCApp (goReft r) lc' (goRef <$> rs) (go <$> ts)
+    go (RAllS x t)       = RAllS x  <$> go t
+    go (RAllE x t1 t2)   = RAllE x  <$> go t1    <*> go t2
+    go (REx x t1 t2)     = REx   x  <$> go t1    <*> go t2
+    go (RRTy xts r o t)  = RRTy  <$> xts' <*> (goReft r) <*> (pure o) <*> go t
+      where xts'         = mapM (Misc.mapSndM go) xts
+    go (RHole r)         = RHole    <$> goReft r
+    go (RExprArg le)     = return    $ RExprArg (qualify env name le) 
+    goRef (RProp ss (RHole r)) = rPropP <$> (mapM goSyms ss) <*> goReft r
+    goRef (RProp ss t)         = RProp  <$> (mapM goSyms ss) <*> go t
+    goSyms (x, t)              = (x,) <$> ofBSortE env name l t 
+    goRApp tc ts rs r          = bareTCApp <$> goReft r <*> lc' <*> mapM goRef rs <*> mapM go ts
       where
-        lc'                    = F.atLoc lc (matchTyCon env name lc (length ts))
+        lc'                    = F.atLoc lc <$> matchTyCon env name lc (length ts)
         lc                     = btc_tc tc
     -- goRApp _ _ _ _             = impossible Nothing "goRApp failed through to final case"
-    rebind x t                 = F.subst1 t (x, F.EVar $ rTypeValueVar t)
 
+{- 
     -- TODO-REBARE: goRImpF bounds _ (RApp c ps' _ _) t _
     -- TODO-REBARE:  | Just bnd <- M.lookup (btc_tc c) bounds
     -- TODO-REBARE:   = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
@@ -515,11 +530,13 @@ ofBRType env name f l t  = go t
   -- TODO-REBARE: , Just rta <- M.lookup c aliases
   -- TODO-REBARE: = appRTAlias l rta ts =<< resolveReft r
 
-matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Ghc.TyCon
+-}
+
+matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
-  | isList c && arity == 1  = Ghc.listTyCon
-  | isTuple c               = Ghc.tupleTyCon Ghc.Boxed arity
-  | otherwise               = strictResolveSym env name msg lc 
+  | isList c && arity == 1  = Right Ghc.listTyCon
+  | isTuple c               = Right (Ghc.tupleTyCon Ghc.Boxed arity)
+  | otherwise               = resolveLocSym env name msg lc 
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
 

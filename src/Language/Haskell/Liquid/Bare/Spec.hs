@@ -76,14 +76,15 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
-makeClasses env sigEnv myName specs = second mconcat . unzip 
-  $ [ mkClass env sigEnv myName name cls tc
-        | (name, spec) <- M.toList specs
-        , cls          <- Ms.classes spec
-        , tc           <- Mb.maybeToList (classTc cls) 
-    ]
-  where
-    classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+makeClasses env sigEnv myName specs = (mempty, mempty) 
+  -- TODO-REBARE: second mconcat . unzip 
+  -- TODO-REBARE: $ [ mkClass env sigEnv myName name cls tc
+        -- TODO-REBARE: | (name, spec) <- M.toList specs
+        -- TODO-REBARE: , cls          <- Ms.classes spec
+        -- TODO-REBARE: , tc           <- Mb.maybeToList (classTc cls) 
+    -- TODO-REBARE: ]
+  -- TODO-REBARE: where
+  -- TODO-REBARE:  classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
         -> (DataConP, [(ModName, Ghc.Var, LocSpecType)])

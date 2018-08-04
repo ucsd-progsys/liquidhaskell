@@ -1,3 +1,5 @@
+{-@ LIQUID "--structural" @-}
+
 module Measures where
 
 {-@ measure lllen @-}

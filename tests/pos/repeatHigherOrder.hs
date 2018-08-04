@@ -1,5 +1,8 @@
 {-@ LIQUID "--no-termination" @-}
 
+-- TAG: bound 
+-- TAG: absref 
+
 module Repeat where
 
 import Prelude hiding (repeat, succ)

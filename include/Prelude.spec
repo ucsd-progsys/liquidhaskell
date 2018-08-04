@@ -39,6 +39,7 @@ type Odd     = {v: GHC.Types.Int | (v mod 2) = 1 }
 type BNat N  = {v: Nat           | v <= N }    
 type TT      = {v: GHC.Types.Bool | v}
 type FF      = {v: GHC.Types.Bool | not v}
+type String  = [GHC.Types.Char]
 
 predicate Max V X Y = if X > Y then V = X else V = Y
 predicate Min V X Y = if X < Y then V = X else V = Y

@@ -367,7 +367,7 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = makeTySigs  env sigEnv name mySpec 
+  { gsTySigs   = F.tracepp "TY-SIGS" tySigs 
   , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
@@ -375,6 +375,24 @@ makeSpecSig name specs env sigEnv = SpSig
   }
   where 
     mySpec     = M.lookupDefault mempty name specs
+    tySigs     = Bare.strengthenHaskellInlines  hinls 
+               . Bare.strengthenHaskellMeasures hmeas 
+               $ makeTySigs  env sigEnv name mySpec 
+    hinls      = makeHInlines env allSpecs 
+    hmeas      = makeHMeas    env allSpecs 
+    allSpecs   = M.toList specs 
+
+makeHInlines :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [Ghc.Var] 
+makeHInlines = makeFromSet "hinlines" Ms.inlines 
+
+makeHMeas    :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [Ghc.Var] 
+makeHMeas = makeFromSet "hmeas" Ms.hmeas 
+
+makeFromSet :: String -> (Ms.BareSpec -> S.HashSet LocSymbol) -> Bare.Env -> [(ModName, Ms.BareSpec)] 
+            -> [Ghc.Var] 
+makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toList (f s)] 
+  where 
+    mk name                 = Mb.mapMaybe (Bare.maybeResolveSym env name msg) 
 
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
@@ -482,7 +500,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt = Bare.plugHoles sigEnv name x t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
+  , gsMeasures   = F.tracepp "MEASURES" $ Bare.qualify env name <$> (ms1 ++ ms2)
   , gsInvariants = makeMeasureInvariants env name sig mySpec 
                 ++ concat (makeInvariants env sigEnv <$> M.toList specs)
   , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
@@ -499,14 +517,16 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     name         = giTargetMod      src
 
 
-
 makeInvariants :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(Maybe Ghc.Var, Located SpecType)]
 makeInvariants env sigEnv (name, spec) = 
   [ (Nothing, t) 
-    | (Just lx, bt) <- Ms.invariants spec 
-    , Bare.knownGhcVar env name lx 
+    | (_, bt) <- Ms.invariants spec 
+    , F.tracepp ("Known-type: " ++ F.showpp bt) $ Bare.knownGhcType env name bt
+    -- , Bare.knownGhcVar env name lx 
     , let t = Bare.cookSpecType env sigEnv name Nothing bt
   ]
+
+
 
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec -> [(Maybe Ghc.Var, LocSpecType)]
 makeMeasureInvariants env name sig mySpec 

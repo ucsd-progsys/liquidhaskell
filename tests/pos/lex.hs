@@ -1,5 +1,8 @@
-module Lex (foo) where
+-- TAG: termination
 
+{-@ LIQUID "--structural" @-}
+
+module Lex (foo) where
 
 bar = foo [1, 2, 3] [2, 3, 4]
 
