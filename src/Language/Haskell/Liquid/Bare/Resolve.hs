@@ -535,11 +535,18 @@ ofBRType env name f l t  = go t
 
 matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
-  -- // | isList c && arity == 1  = Right Ghc.listTyCon
-  -- // | isTuple c               = Right (Ghc.tupleTyCon Ghc.Boxed arity)
+  | isList c && arity == 1  = knownTC Ghc.listTyCon
+  | isTuple c               = knownTC tuplTc 
   | otherwise               = resolveLocSym env name msg lc 
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
+    tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
+    knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 
+
+-- knownTyCon :: Env -> ModName -> Ghc.TyCon -> Either UserError Ghc.TyCon 
+-- knownTyCon env name tc = 
+--  where 
+--    lx                 = GM.locNamedThing tc
 
 bareTCApp :: (Expandable r) 
           => r
