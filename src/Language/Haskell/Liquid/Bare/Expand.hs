@@ -427,7 +427,7 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (maybePlug       sigEnv name x)
   . fmap (Bare.qualify       env name) 
   . bareSpecType       env name 
-  . F.tracepp ("cookSpecType0: " ++ F.showpp (name, bt))
+  -- . F.tracepp ("cookSpecType0: " ++ F.showpp (name, bt))
   . bareExpandType     (Bare.sigRTEnv sigEnv)
   $ bt 
 

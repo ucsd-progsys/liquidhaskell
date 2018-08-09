@@ -122,8 +122,8 @@ qualifiedSymbol = splitModuleNameExact . F.symbol
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
 srcThings src = [ Ghc.AnId   x | x <- vars ] 
-             ++ F.tracepp "TYCONS"   [ Ghc.ATyCon c | c <- tcs  ] 
-             ++ F.tracepp "DATACONS" [ aDataCon   d | d <- dcs  ] 
+             ++ [ Ghc.ATyCon c | c <- tcs  ] 
+             ++ [ aDataCon   d | d <- dcs  ] 
   where 
     vars      = Misc.sortNub $ dataConVars dcs ++ srcVars  src
     dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
@@ -274,7 +274,7 @@ knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) =  
   case ofBareTypeE env name l t of 
     Left _  -> False 
-    Right v -> F.tracepp ("knownType: " ++ F.showpp (t, v)) True 
+    Right v -> True -- F.notracepp ("knownType: " ++ F.showpp (t, v)) True 
 
 --   where 
 --    tcs                  = F.tracepp ("TYCONS: " ++ F.showpp t) $ rTypeTyCons t 

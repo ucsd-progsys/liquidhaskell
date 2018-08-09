@@ -221,7 +221,7 @@ makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' ds
+                | (tc, (dd, ctors)) <- groupDataCons tds' (F.tracepp "makeDataDecls" ds)
                 , tc /= Ghc.listTyCon
                 ]
   | otherwise = []
@@ -268,12 +268,12 @@ resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
 --   DataDecls to use.
 resolveDecls :: ModName -> Ghc.TyCon -> Misc.ListNE (ModName, DataPropDecl)
              -> Maybe (ModName, DataPropDecl)
-resolveDecls mName tc mds  = Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
+resolveDecls mName tc mds  = F.tracepp msg $ Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
   where
+    msg                    = "resolveDecls" ++ F.showpp (mName, tc)
     isMyDef                = (mName ==)             . fst
     isHomeDef              = (tcHome ==) . F.symbol . fst
     tcHome                 = GM.takeModuleNames (F.symbol tc)
-
 
 groupDataCons :: [(Ghc.TyCon, (ModName, DataPropDecl))]
               -> [Located DataConP]
