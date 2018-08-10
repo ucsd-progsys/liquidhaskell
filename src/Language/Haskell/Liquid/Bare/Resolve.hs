@@ -62,10 +62,11 @@ import           Language.Haskell.Liquid.Types.Specs
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.Misc          as Misc 
-import qualified Language.Haskell.Liquid.Measure       as Ms
+-- import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
+import           Language.Haskell.Liquid.WiredIn 
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -74,20 +75,22 @@ makeEnv :: Config -> GhcSrc -> LogicMap -> Env
 makeEnv cfg src lmap = RE 
   { reLMap      = lmap
   , reSyms      = syms 
-  , _reSubst    = makeVarSubst src 
+  , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
+  , reQImps     = gsQImports     src
   } 
   where 
     syms        = [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
 
 makeVarSubst :: GhcSrc -> F.Subst 
-makeVarSubst src = F.mkSubst (F.notracepp "UNQUAL-SYMS" unqualSyms) 
+makeVarSubst src = F.mkSubst unqualSyms 
   where 
     unqualSyms   = [ (x, mkVarExpr v) 
                        | (x, mxs) <- M.toList       (makeSymMap src) 
-                       , v        <- Mb.maybeToList (F.notracepp ("okUnqual " ++ F.showpp x) $ okUnqualified me mxs) 
+                       , v        <- Mb.maybeToList (okUnqualified me mxs) 
+                       , not (isWiredInName x)
                    ] 
     me           = F.symbol (giTargetMod src) 
 
@@ -123,7 +126,7 @@ qualifiedSymbol = splitModuleNameExact . F.symbol
 srcThings :: GhcSrc -> [Ghc.TyThing] 
 srcThings src = [ Ghc.AnId   x | x <- vars ] 
              ++ [ Ghc.ATyCon c | c <- tcs  ] 
-             ++ [ aDataCon   d | d <- dcs  ] 
+             ++ F.tracepp "src-DATACONS" [ aDataCon   d | d <- dcs  ] 
   where 
     vars      = Misc.sortNub $ dataConVars dcs ++ srcVars  src
     dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
@@ -175,9 +178,11 @@ instance Qualify F.Equation where
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify env name x = case resolveSym env name "Symbol" x of 
-    Left  _   -> x 
-    Right val -> val 
+  qualify env name x 
+    | isWiredInName x = x 
+    | otherwise       = case resolveSym env name "Symbol" x of 
+                          Left  _   -> x 
+                          Right val -> val 
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
 
@@ -274,7 +279,7 @@ knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) =  
   case ofBareTypeE env name l t of 
     Left _  -> False 
-    Right v -> True -- F.notracepp ("knownType: " ++ F.showpp (t, v)) True 
+    Right _ -> True -- F.notracepp ("knownType: " ++ F.showpp (t, v)) True 
 
 --   where 
 --    tcs                  = F.tracepp ("TYCONS: " ++ F.showpp t) $ rTypeTyCons t 
@@ -349,12 +354,29 @@ resolveWith f env name kind lx =
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
+{- OLD 
 lookupTyThing env _name sym = [ t | (m, t) <- things, matchMod m modMb ] 
   where 
     things                   = M.lookupDefault [] x (_reTyThings env)
     (modMb, x)               = unQualifySymbol sym
     matchMod _ Nothing       = True 
-    matchMod m (Just m')     = m == m'         
+    matchMod m (Just m')     = m == m'        
+-}
+
+lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods] 
+  where 
+    things                 = M.lookupDefault [] x (_reTyThings env)
+    (x, mods)              = symbolModules env name sym
+    matchMod m Nothing     = True 
+    matchMod m (Just ms)   = m `elem` ms 
+
+symbolModules :: Env -> ModName -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
+symbolModules env _name s = (x, glerb <$> modMb) 
+  where 
+    (modMb, x)            = unQualifySymbol s 
+    glerb m               = M.lookupDefault [m] m (reQImps env) 
+    
+
  
 -- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
 --   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).

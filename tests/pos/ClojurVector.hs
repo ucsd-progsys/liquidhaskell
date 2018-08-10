@@ -7,7 +7,7 @@ https://github.com/clojure/clojure/blob/d5708425995e8c83157ad49007ec2f8f43d8eac8
 
 module PVec (height, arrayFor) where
 
-import Language.Haskell.Liquid.Prelude (liquidAssume)
+import qualified Language.Haskell.Liquid.Prelude as Gas
 import qualified Data.Vector as V
 
 import Data.Bits
@@ -88,7 +88,7 @@ arrayFor i (Vec l n) = loop l n
 
 {-@ mask :: x:Int -> y:Nat -> {v:Nat | v <= y}@-}
 mask :: Int -> Int -> Int
-mask x y = liquidAssume (0 <= r && r <= y) r
+mask x y = Gas.liquidAssume (0 <= r && r <= y) r
   where
      r   = x .&. y
 

@@ -28,6 +28,7 @@ import qualified GHC
 import GHC.Paths (libdir)
 import GHC.Serialized
 
+import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Annotations
 import Class
 import CoreMonad
@@ -64,19 +65,17 @@ import Data.Maybe
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
-import qualified Data.HashSet as S
-import qualified Data.Map as M
+import qualified Data.HashSet        as S
+import qualified Data.Map            as M
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
 import System.FilePath
 import System.IO.Temp
-
 import Text.Parsec.Pos
-import Text.PrettyPrint.HughesPJ hiding (first)
-
-import Language.Fixpoint.Types hiding (panic, Error, Result, Expr)
-import Language.Fixpoint.Misc
+import Text.PrettyPrint.HughesPJ        hiding (first)
+import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
+import qualified Language.Fixpoint.Misc as Misc
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
@@ -92,6 +91,8 @@ import Language.Haskell.Liquid.UX.Config (totalityCheck)
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
+
+import qualified Debug.Trace as Debug 
 
 --------------------------------------------------------------------------------
 -- | GHC Interface Pipeline ----------------------------------------------------
@@ -369,12 +370,13 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
 makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
 makeGhcSrc cfg file typechecked modSum = do
-  desugared         <- desugarModule typechecked
+  desugared         <- desugarModule  typechecked
   let modGuts        = makeMGIModGuts desugared
   let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
+  _                 <- liftIO $ dumpRdrEnv hscEnv modGuts
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
-  _                 <- liftIO $ whenNormal $ donePhase Loud "A-Normalization"
+  _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   -- let defVs          = definedVars coreBinds
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
@@ -392,8 +394,30 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsFiTcs     = fiTcs 
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
+    , gsQImports  = qualifiedImports typechecked 
     }
 
+qualifiedImports :: TypecheckedModule -> QImports 
+qualifiedImports tm = case tm_renamed_source tm of 
+  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
+  Just (_,imps,_,_) -> Misc.group [ (qn, n) | i         <- imps
+                                            , let decl   = unLoc i
+                                            , let m      = unLoc (ideclName decl)  
+                                            , qm        <- maybeToList (unLoc <$> ideclAs decl) 
+                                            , let [n,qn] = symbol <$> [m, qm] 
+                                            ]
+
+
+dumpRdrEnv :: HscEnv -> MGIModGuts -> IO () 
+dumpRdrEnv _hscEnv modGuts = do 
+  print "DUMP-RDR-ENV" 
+  print (mgNames modGuts)
+  -- print (hscNames hscEnv) 
+  -- print (mgDeps modGuts) 
+  where 
+    _mgDeps   = Ghc.dep_mods . mgi_deps 
+    _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
+    mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
@@ -465,7 +489,7 @@ cachedBareSpecs specEnv mods = lookupBareSpec <$> mods
     err m                    = impossible Nothing ("lookupBareSpec: missing module " ++ showPpr m)
 
 checkFilePragmas :: [Located String] -> Ghc ()
-checkFilePragmas = applyNonNull (return ()) throw . mapMaybe err
+checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
   where
     err pragma
       | check (val pragma) = Just (ErrFilePragma $ fSrcSpan pragma :: Error)
@@ -485,7 +509,7 @@ makeFamInstEnv env = do
   famInsts <- getFamInstances env
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
   let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return (fiTcs, notracepp "FAM-INST-TCS" fiDcs)
+  return (fiTcs, fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
@@ -620,7 +644,7 @@ _moduleHquals mgi paths target imps incs = do
   hqs   <- specIncludes Hquals paths incs
   hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
   hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
-  return $ sortNub $ hqs'' ++ hqs ++ hqs'
+  return $ Misc.sortNub $ hqs'' ++ hqs ++ hqs'
 
 -- Find Files for Modules ------------------------------------------------------
 

@@ -17,6 +17,7 @@ import Type           as Ghc hiding (typeKind)
 import TyCoRep        as Ghc 
 import Class          as Ghc
 import Unique         as Ghc
+import RdrName        as Ghc
 import SrcLoc         as Ghc 
 import Name           as Ghc hiding (varName) 
 
@@ -25,15 +26,11 @@ import Name           as Ghc hiding (varName)
 -- import DataCon        as Ghc 
 import TysWiredIn     as Ghc 
 import TysPrim        as Ghc
-
-
-
-
+import HscTypes       as Ghc
 
 -- import qualified CoreSyn   as Ghc
 -- import qualified Unique
 -- import qualified GHC       as Ghc
--- import           HscTypes
 -- import           Id
 -- import           NameSet
 -- -- import           Name

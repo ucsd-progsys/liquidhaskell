@@ -1885,6 +1885,9 @@ data ModType = Target | SrcImport | SpecImport
 
 instance Hashable ModType 
 
+instance Hashable ModuleName where
+  hashWithSalt i = hashWithSalt i . show
+
 instance Hashable ModName where
   hashWithSalt i (ModName t n) = hashWithSalt i (t, show n)
 

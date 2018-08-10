@@ -24,6 +24,7 @@ import qualified Data.HashMap.Strict             as M
 import qualified Language.Fixpoint.Types         as F 
 import qualified Language.Haskell.Liquid.Measure as Ms
 import           Language.Haskell.Liquid.Types.Types   
+import           Language.Haskell.Liquid.Types.Specs 
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding (Located) 
 
 
@@ -39,6 +40,7 @@ data Env = RE
   , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
   , _reTyThings :: !TyThingMap 
   , reCfg       :: !Config
+  , reQImps     :: !QImports                 -- ^ qualified imports
   }
 
 instance HasConfig Env where 

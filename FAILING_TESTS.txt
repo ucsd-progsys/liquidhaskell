@@ -15,9 +15,6 @@ CopyRec.hs:                                   FAIL (42.90s)
   --eliminate seems to blow up (lack of pattern-inline)?
 
 
-
-      meas3.hs:                   FAIL (0.82s)
-      meas3.hs:                   FAIL (0.73s)
       RecordSelectorError.hs:     FAIL (0.34s)
       PairMeasure.hs:             FAIL (0.54s)
       repeatHigherOrder.hs:       FAIL (0.52s)

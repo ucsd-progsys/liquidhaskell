@@ -58,7 +58,11 @@ data GhcSrc = Src
   , gsFiTcs     :: ![TyCon]             -- ^ Family instance TyCons 
   , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance dataCons 
   , gsPrimTcs   :: ![TyCon]             -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
+  , gsQImports  :: !QImports            -- ^ Map of qualified imports
   }
+
+-- | @QImports@ is a map of qualified imports.
+type QImports = M.HashMap F.Symbol [F.Symbol]
 
 data GhcSpec = SP 
   { gsSig    :: !GhcSpecSig  

@@ -174,19 +174,18 @@ makeTyConEmbeds env (name, spec)
 --------------------------------------------------------------------------------
 makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec 
                 -> Ms.BareSpec
-makeLiftedSpec1 cfg src tycEnv lmap mySpec = mempty
+makeLiftedSpec1 _cfg src tycEnv lmap mySpec = mempty
             { Ms.measures  = ms
             -- , Ms.reflects  = Ms.reflects mySpec                              [moved to makeLiftedSpec0]
             -- , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs   [moved to makeLifedtSpec0]
             }
   where 
     ms      = Bare.makeHaskellMeasures src tycEnv lmap mySpec
-
-    embs    = Bare.tcEmbs tycEnv 
-    tcs     = uniqNub (gsTcs src ++ refTcs)
-    refTcs  = reflectedTyCons cfg embs cbs             mySpec
-    cbs     = giCbs       src
-    name    = giTargetMod src
+    -- embs    = Bare.tcEmbs tycEnv 
+    -- tcs     = uniqNub (gsTcs src ++ refTcs)
+    -- refTcs  = reflectedTyCons cfg embs cbs             mySpec
+    -- cbs     = giCbs       src
+    -- name    = giTargetMod src
 
 
 
@@ -561,10 +560,11 @@ measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualify env name 
     trep = toRTypeRep $ val t
     ts   = ty_args trep
     mtype
+{-
       | isBool $ ty_res trep
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
-                          (text "Specification of boolean measures is not allowed")
-{-
+                          (text "Specification of Boolean measures is not allowed")
+
       | [tx] <- ts, not (isTauto tx)
       = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x)
                           (text "Measures' types cannot have preconditions")
@@ -619,7 +619,8 @@ makeSpecName env tycEnv = SpNames
 
 -- REBARE: formerly, makeGhcCHOP1
 -------------------------------------------------------------------------------------------
-makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs -> Bare.TycEnv 
+makeTycEnv :: Config -> ModName -> Bare.Env -> TCEmb Ghc.TyCon -> Ms.BareSpec -> Bare.ModSpecs 
+           -> Bare.TycEnv 
 -------------------------------------------------------------------------------------------
 makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv 
   { tcTyCons      = tycons                  
@@ -635,16 +636,23 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   where 
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
-    tcs           = Misc.snd3 <$> tcDds -- [(x, y) | (_, y, _)       <- tcDds]
-    tycons        = Misc.replaceWith tcpCon tcs wiredTyCons
+    tcs           = Misc.snd3 <$> tcDds 
+    tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
-    datacons      = F.tracepp "DATACONS" $ Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (concat dcs) wiredDataCons)
+    -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
+    datacons      =  Bare.makePluggedDataCons embs tyi (concat dcs ++ knownWiredDataCons env myName)
     tds           = F.tracepp "TDS"        [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
     
+knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
+knownWiredDataCons env name = filter isKnown [] -- REBARE: use `wiredDataCons` AFTER we have ABSREF
+  where 
+    isKnown                 = Bare.knownGhcDataCon env name . GM.namedLocSymbol . dcpCon . val
+
+
 -- REBARE: formerly, makeGhcCHOP2
 -------------------------------------------------------------------------------------------
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 

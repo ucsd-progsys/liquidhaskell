@@ -101,8 +101,8 @@ mkAlive x
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------
-data MGIModGuts = MI {
-    mgi_binds     :: !CoreProgram
+data MGIModGuts = MI 
+  { mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
   , mgi_deps      :: !Dependencies
   , mgi_dir_imps  :: ![ModuleName]

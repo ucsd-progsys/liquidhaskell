@@ -11,6 +11,7 @@ module Language.Haskell.Liquid.WiredIn
 
        -- | Built  in Symbols
        , isWiredIn
+       , isWiredInName
        , dcPrefix
 
        ) where
@@ -28,6 +29,7 @@ import Language.Haskell.Liquid.Types.PredType
 
 -- import Language.Fixpoint.Types hiding (panic)
 import qualified Language.Fixpoint.Types as F
+import qualified Data.HashSet as S 
 
 import BasicTypes
 -- import DataCon
@@ -44,7 +46,7 @@ import CoreSyn hiding (mkTyArg)
 --   *should not* be resolved to GHC Vars.
 
 isWiredIn :: F.LocSymbol -> Bool
-isWiredIn x = isWiredInLoc x  || isWiredInName x || isWiredInShape x
+isWiredIn x = isWiredInLoc x  || isWiredInName (val x) || isWiredInShape x
 
 isWiredInLoc :: F.LocSymbol -> Bool
 isWiredInLoc x  = l == l' && l == 0 && c == c' && c' == 0
@@ -53,11 +55,11 @@ isWiredInLoc x  = l == l' && l == 0 && c == c' && c' == 0
     (l', c') = spe (locE x)
     spe l    = (x, y) where (_, x, y) = F.sourcePosElts l
 
-isWiredInName :: F.LocSymbol -> Bool
-isWiredInName x = (val x) `elem` wiredInNames
+isWiredInName :: F.Symbol -> Bool
+isWiredInName x = x `S.member` wiredInNames
 
-wiredInNames :: [F.Symbol]
-wiredInNames = [ "head", "tail", "fst", "snd", "len" ]
+wiredInNames :: S.HashSet F.Symbol
+wiredInNames = S.fromList [ "head", "tail", "fst", "snd", "len" ]
 
 isWiredInShape :: F.LocSymbol -> Bool
 isWiredInShape x = any (`F.isPrefixOfSym` (val x)) [F.anfPrefix, F.tempPrefix, dcPrefix]

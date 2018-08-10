@@ -156,9 +156,11 @@ makeHaskellDataDecls :: Config -> ModName -> Ms.BareSpec -> [Ghc.TyCon]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg name spec tcs
   | exactDCFlag cfg = Mb.mapMaybe tyConDataDecl
-                    . F.notracepp "makeHaskellDataDecls-1"
+                    -- . F.tracepp "makeHaskellDataDecls-3"
                     . zipMap   (hasDataDecl name spec . fst)
+                    -- . F.tracepp "makeHaskellDataDecls-2"
                     . liftableTyCons
+                    -- . F.tracepp "makeHaskellDataDecls-1"
                     . filter isReflectableTyCon
                     $ tcs
   | otherwise       = []
