@@ -85,7 +85,7 @@ loadLiftedSpec cfg srcF
       putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
       -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
-      putStrLn $ "Loaded Spec: " ++ showpp (Ms.invariants lSp)
+      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.invariants lSp)
       return lSp
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
@@ -413,7 +413,7 @@ makeTySigs env sigEnv name spec =
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 rawTySigs env name spec = 
-  [ (v, t) | (x, t) <- F.tracepp "RAW-SIGS" $ Ms.sigs spec ++ Ms.localSigs spec  
+  [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
            , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 
@@ -637,11 +637,11 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
-    tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
+    tycons        = Misc.replaceWith tcpCon tcs wiredTyCons
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
-    datacons      =  Bare.makePluggedDataCons embs tyi (concat dcs ++ knownWiredDataCons env myName)
-    tds           = F.tracepp "TDS"        [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
+    datacons      = Bare.makePluggedDataCons embs tyi (concat dcs ++ knownWiredDataCons env myName)
+    tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons

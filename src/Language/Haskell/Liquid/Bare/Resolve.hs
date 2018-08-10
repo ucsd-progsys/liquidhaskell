@@ -116,9 +116,11 @@ makeSymMap src = Misc.group [ (sym, (m, x))
                                 , let (m, sym) = qualifiedSymbol x ]
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
-makeTyThingMap src = F.tracepp "makeTyThingMap"  
-                   $ Misc.group [ (x, (m, t)) | t         <- srcThings src
-                                              , let (m, x) = qualifiedSymbol t ] 
+makeTyThingMap src = -- F.tracepp "makeTyThingMap" $ 
+                     Misc.group [ (x', (m, t)) | t         <- srcThings src
+                                               , let (m, x) = qualifiedSymbol t 
+                                               , let x'     = if isEmptySymbol m then GM.dropModuleUnique x else x
+                                ] 
                                             
 qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
 -- qualifiedSymbol (Ghc.AnId x) = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ x  
@@ -313,7 +315,7 @@ knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool
 knownGhcTyCon env name lx = Mb.isJust v 
   where 
     v :: Maybe Ghc.TyCon 
-    v = F.tracepp "KNOWN-TC" $ maybeResolveSym env name "known-tycon" lx 
+    v = maybeResolveSym env name "known-tycon" lx 
 
 knownGhcDataCon :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcDataCon env name lx = Mb.isJust v 
@@ -375,7 +377,7 @@ lookupTyThing env _name sym = [ t | (m, t) <- things, matchMod m modMb ]
 lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods] 
   where 
     things                 = M.lookupDefault [] x (_reTyThings env)
-    (x, mods)              = F.tracepp ("symbolModules: " ++ F.showpp sym) $ symbolModules env name sym
+    (x, mods)              = {- F.tracepp ("symbolModules: " ++ F.showpp sym) $ -} symbolModules env name sym
     matchMod m Nothing     = True 
     matchMod m (Just ms)   
       | isEmptySymbol m    = ms == [F.symbol name]      -- ^ local variable, see tests-names-pos-local00.hs
