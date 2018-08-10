@@ -312,6 +312,10 @@ mapEither f (x:xs) = case f x of
                      where
                        (ys, zs) = mapEither f xs
 
+isRight :: Either a b -> Bool 
+isRight (Right _) = True 
+isRight _         = False
+
 componentsWith :: (Ord c) => (a -> [(b, c, [c])]) -> a -> [[b]]
 componentsWith eF x = map (fst3 . f) <$> vss
   where
