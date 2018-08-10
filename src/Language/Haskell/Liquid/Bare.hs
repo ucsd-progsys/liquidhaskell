@@ -413,7 +413,7 @@ makeTySigs env sigEnv name spec =
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 rawTySigs env name spec = 
-  [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
+  [ (v, t) | (x, t) <- F.tracepp "RAW-SIGS" $ Ms.sigs spec ++ Ms.localSigs spec  
            , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 

@@ -115,18 +115,27 @@ makeSymMap src = Misc.group [ (sym, (m, x))
                                 | x           <- srcVars src
                                 , let (m, sym) = qualifiedSymbol x ]
 
-
 makeTyThingMap :: GhcSrc -> TyThingMap 
-makeTyThingMap src = Misc.group [ (x, (m, t)) | t         <- srcThings src
+makeTyThingMap src = F.tracepp "makeTyThingMap"  
+                   $ Misc.group [ (x, (m, t)) | t         <- srcThings src
                                               , let (m, x) = qualifiedSymbol t ] 
                                             
-qualifiedSymbol :: (F.Symbolic t) => t -> (F.Symbol, F.Symbol)
-qualifiedSymbol = splitModuleNameExact . F.symbol 
+qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
+-- qualifiedSymbol (Ghc.AnId x) = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ x  
+qualifiedSymbol = dropLocalUnique . splitModuleNameExact . F.symbol 
+
+dropLocalUnique :: (F.Symbol, F.Symbol) -> (F.Symbol, F.Symbol)
+dropLocalUnique (m, x)      
+  -- | isEmptySymbol m = (m, GM.dropModuleUnique x) -- ^ to account for local-variables (see tests-names-pos-local00.hs)
+  | otherwise       = (m, x) 
+
+isEmptySymbol :: F.Symbol -> Bool 
+isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
 srcThings src = [ Ghc.AnId   x | x <- vars ] 
              ++ [ Ghc.ATyCon c | c <- tcs  ] 
-             ++ F.tracepp "src-DATACONS" [ aDataCon   d | d <- dcs  ] 
+             ++ [ aDataCon   d | d <- dcs  ] 
   where 
     vars      = Misc.sortNub $ dataConVars dcs ++ srcVars  src
     dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
@@ -142,7 +151,7 @@ srcTyCons src = concat
   ]
 
 srcVarTcs :: GhcSrc -> [Ghc.TyCon]
-srcVarTcs = concatMap (typeTyCons . Ghc.varType) . srcVars 
+srcVarTcs = concatMap (typeTyCons . Ghc.dropForAlls . Ghc.varType) . srcVars 
 
 typeTyCons :: Ghc.Type -> [Ghc.TyCon]
 typeTyCons t = tops t ++ inners t 
@@ -366,9 +375,11 @@ lookupTyThing env _name sym = [ t | (m, t) <- things, matchMod m modMb ]
 lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods] 
   where 
     things                 = M.lookupDefault [] x (_reTyThings env)
-    (x, mods)              = symbolModules env name sym
+    (x, mods)              = F.tracepp ("symbolModules: " ++ F.showpp sym) $ symbolModules env name sym
     matchMod m Nothing     = True 
-    matchMod m (Just ms)   = m `elem` ms 
+    matchMod m (Just ms)   
+      | isEmptySymbol m    = ms == [F.symbol name]      -- ^ local variable, see tests-names-pos-local00.hs
+      | otherwise          = m `elem` ms
 
 symbolModules :: Env -> ModName -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env _name s = (x, glerb <$> modMb) 

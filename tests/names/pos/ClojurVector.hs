@@ -24,7 +24,6 @@ data Tree a = Leaf a
 
 {-@ measure height @-}
 {-@ height :: Tree a -> Nat @-}
-height :: Tree a -> Int
 height (Leaf _)    = 0
 height (Node h ls) = 1 + h
 
@@ -67,16 +66,16 @@ data Vec a = Vec { vShift  :: Int    -- ^ height
 --------------------------------------------------------------------------------
 
 arrayFor :: Int -> Vec a -> Maybe a
-arrayFor i (Vec l n) = loop i l n
-
-{-@ loop :: i:Int -> level:Int -> TreeLevel a level -> Maybe a @-}
-loop :: Int -> Int -> Tree a -> Maybe a
-loop i level node
-      | level > 0 = let b      = shift i (- level) `mask` 31  -- get child index
-                        node'  = getNode node b               -- get child
+arrayFor i (Vec l n) = loop l n
+  where
+    {-@ loop :: level:Int -> TreeLevel a level -> Maybe a @-}
+    loop :: Int -> Tree a -> Maybe a
+    loop level node
+      | level > 0 = let boo      = shift i (- level) `mask` 31  -- get child index
+                        node'  = getNode node boo               -- get child
                         level' = level - 5                    -- next level
                     in
-                        loop i level' node'
+                        loop level' node'
 
       | otherwise = Just (getValue node)
 
@@ -84,9 +83,9 @@ loop i level node
 
 {-@ mask :: x:Int -> y:Nat -> {v:Nat | v <= y} @-}
 mask :: Int -> Int -> Int
-mask x y = Gas.liquidAssume (0 <= r && r <= y) r
+mask x yak = Gas.liquidAssume (0 <= r && r <= yak) r
   where
-     r   = x .&. y
+     r   = x .&. yak
 
 -- | These are the "cast" operations, except now proven safe.
 

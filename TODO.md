@@ -23,34 +23,8 @@
 
 ## HEREHEREHEREHERE
 
-- tests/pos/ClojurVector.hs
-- tests/pos/Words.hs
-
-name lookup / qualification hassles (e.g. `import qualified Data.Vector as V`)
-
-```haskell
-data ModGuts
- - mg_rdr_env :: !GlobalRdrEnv
-
-globalRdrEnvElts :: GlobalRdrEnv -> [GlobalRdrElt]  
-
-data GlobalRdrElt
-    gre_name :: Name
-```
-
--- hscTcRcLookupName
-- TcTypeEnv
-getLclTypeEnv :: TcM TcTypeEnv
-getGblEnv
-tcLookupImported_maybe
-getGblEnv :: TcRnIf gbl lcl gbl
-
-tcLookupGlobal :: Name -> TcM TyThing
-tcLookupGlobal name
-  = do  {    -- Try local envt
-          env <- getGblEnv
-        ; case lookupNameEnv (tcg_type_env env) name of {
-        tcLookupImported_maybe name
+- tests/names/pos/ClojurVector.hs   **name-resolution crash**
+- tests/names/neg/vector1.hs        **bad error span**
 
 ## Issues
 
