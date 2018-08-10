@@ -1,0 +1,39 @@
+// constant Set_empty : (func(1, [int; Set_Set @(0)]))
+constant Set_sng : (func(1, [@(0); (Set_Set  @(0))]))
+
+bind 1 m1 : {v : Set_Set Int | v = Set_empty 0}
+bind 2 m2 : {v : Set_Set Int | v = (Set_cup (Set_cup m1 (Set_sng 10)) (Set_sng 20)) } 
+bind 3 m3 : {v : Set_Set Int | v = (Set_cup (Set_cup m1 (Set_sng 20)) (Set_sng 10)) } 
+bind 4 m4 : {v : Set_Set Int | v = (Set_cup m1 (Set_sng 10)) } 
+bind 5 m5 : {v : Set_Set Int | v = (Set_cup m1 (Set_sng 20)) } 
+
+constraint:
+  env [ 1 ]
+  lhs {v : int | true }
+  rhs {v : int | not (Set_mem 100 m1)  } 
+  id 1 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | true } 
+  rhs {v : int | not (Set_mem 100 m2) }
+  id 2 tag []
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | true } 
+  rhs {v : int | Set_mem 10 m2 }
+  id 3 tag []
+
+constraint:
+  env [ 1; 2; 3 ]
+  lhs {v : int | true }
+  rhs {v : int | m2 = m3 } 
+  id 4 tag []
+
+constraint:
+  env [ 1; 2; 3; 4; 5 ]
+  lhs {v : int | true }
+  rhs {v : int | m2 = Set_cup m4 m5 } 
+  id 5 tag []
+
