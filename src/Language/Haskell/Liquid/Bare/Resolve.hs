@@ -246,8 +246,8 @@ instance Qualify (Measure SpecType Ghc.DataCon) where
   qualify env name m = substEnv env name $ m { msName = qualify env name (msName m)}
 
 substEnv :: (F.Subable a) => Env -> ModName -> a -> a 
-substEnv env _ = F.subst (_reSubst env)
--- NEW substEnv env name = F.substa (qualifySymbol env name) 
+-- substEnv env _ = F.subst (_reSubst env)
+substEnv env name = F.substa (qualifySymbol env name) 
 
 -- qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
 -- qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
@@ -396,8 +396,8 @@ lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods]
     matchMod m Nothing     = True 
     matchMod m (Just ms)   
       | isEmptySymbol m    = ms == [F.symbol name]        -- local variable, see tests-names-pos-local00.hs
-      | otherwise          = m `elem` ms
-                             -- NEW any (`F.isPrefixOfSym` m) ms -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+      | otherwise          = -- m `elem` ms
+                             any (`F.isPrefixOfSym` m) ms -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
 
 symbolModules :: Env -> ModName -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env _name s = (x, glerb <$> modMb) 
