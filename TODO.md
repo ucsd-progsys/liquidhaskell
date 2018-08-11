@@ -23,7 +23,9 @@
 
 ## HEREHEREHEREHERE
 
-- tests/names/pos/ClojurVector.hs   **name-resolution crash**
+- tests.measure.pos.ple00.hs
+- tests.names.pos.Set02.hs
+
 - tests/names/neg/vector1.hs        **bad error span**
 
 ## Issues
