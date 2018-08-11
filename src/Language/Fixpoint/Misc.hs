@@ -137,6 +137,10 @@ wrap l r s = l ++ s ++ r
 repeats :: Int -> [a] -> [a]
 repeats n  = concat . replicate n
 
+
+errorP :: String -> String -> a
+errorP p s = error (p ++ s)   
+
 errorstar :: (?callStack :: CallStack) => String -> a
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
   where
@@ -195,11 +199,15 @@ hashNub = M.keys . M.fromList . fmap (, ())
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
-  where
-    nubOrd (x:t@(y:_))
-      | x == y    = nubOrd t
-      | otherwise = x : nubOrd t
-    nubOrd xs     = xs
+
+nubOrd :: (Eq a) => [a] -> [a]
+nubOrd (x:t@(y:_))
+  | x == y    = nubOrd t
+  | otherwise = x : nubOrd t
+nubOrd xs     = xs
+
+hashNubWith :: (Eq b, Hashable b) => (a -> b) -> [a] -> [a]
+hashNubWith f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 
 duplicates :: (Eq k, Hashable k) => [k] -> [k]
 duplicates xs = [ x | (x, n) <- count xs, 1 < n ]
