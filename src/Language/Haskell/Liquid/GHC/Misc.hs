@@ -114,8 +114,8 @@ data MGIModGuts = MI
   }
 
 miModGuts :: Maybe [ClsInst] -> ModGuts -> MGIModGuts
-miModGuts cls mg  = MI {
-    mgi_binds     = mg_binds mg
+miModGuts cls mg  = MI 
+  { mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
   , mgi_deps      = mg_deps mg
   , mgi_dir_imps  = mg_dir_imps mg

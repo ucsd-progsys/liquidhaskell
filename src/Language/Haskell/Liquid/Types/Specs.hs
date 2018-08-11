@@ -59,6 +59,7 @@ data GhcSrc = Src
   , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance dataCons 
   , gsPrimTcs   :: ![TyCon]             -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
   , gsQImports  :: !QImports            -- ^ Map of qualified imports
+  , gsTyThings  :: ![TyThing]           -- ^ All the @TyThing@s known to GHC
   }
 
 -- | @QImports@ is a map of qualified imports.

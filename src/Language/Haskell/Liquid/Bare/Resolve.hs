@@ -135,14 +135,17 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = [ Ghc.AnId   x | x <- vars ] 
-             ++ [ Ghc.ATyCon c | c <- tcs  ] 
-             ++ [ aDataCon   d | d <- dcs  ] 
+srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+
+mySrcThings :: GhcSrc -> [Ghc.TyThing] 
+mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
+               ++ [ Ghc.ATyCon c | c <- tcs  ] 
+               ++ [ aDataCon   d | d <- dcs  ] 
   where 
-    vars      = Misc.sortNub $ dataConVars dcs ++ srcVars  src
-    dcs       = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
-    tcs       = Misc.sortNub $ srcTyCons src  
-    aDataCon  = Ghc.AConLike . Ghc.RealDataCon 
+    vars        = Misc.sortNub $ dataConVars dcs ++ srcVars  src
+    dcs         = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
+    tcs         = Misc.sortNub $ srcTyCons src  
+    aDataCon    = Ghc.AConLike . Ghc.RealDataCon 
 
 srcTyCons :: GhcSrc -> [Ghc.TyCon]
 srcTyCons src = concat 
@@ -153,7 +156,10 @@ srcTyCons src = concat
   ]
 
 srcVarTcs :: GhcSrc -> [Ghc.TyCon]
-srcVarTcs = concatMap (typeTyCons . Ghc.dropForAlls . Ghc.varType) . srcVars 
+srcVarTcs = varTyCons . srcVars 
+
+varTyCons :: [Ghc.Var] -> [Ghc.TyCon]
+varTyCons = concatMap (typeTyCons . Ghc.dropForAlls . Ghc.varType) 
 
 typeTyCons :: Ghc.Type -> [Ghc.TyCon]
 typeTyCons t = tops t ++ inners t 
@@ -170,6 +176,7 @@ srcVars src = Misc.sortNub . filter Ghc.isId $ concat
   , giImpVars src 
   , giDefVars src 
   , giUseVars src 
+  , [ x | Ghc.AnId x <- gsTyThings src ]
   ]
 
 dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
@@ -287,10 +294,10 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 -- | Checking existence of names 
 -------------------------------------------------------------------------------
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
-knownGhcType env name (F.Loc l _ t) =  
+knownGhcType env name (F.Loc l _ t) = -- F.tracepp ("knownType: " ++ F.showpp t) $
   case ofBareTypeE env name l t of 
-    Left _  -> False 
-    Right _ -> True -- F.notracepp ("knownType: " ++ F.showpp (t, v)) True 
+    Left e  -> F.tracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Right _ -> True 
 
 --   where 
 --    tcs                  = F.tracepp ("TYCONS: " ++ F.showpp t) $ rTypeTyCons t 
@@ -418,7 +425,7 @@ splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
 
 
 errResolve :: String -> LocSymbol -> UserError 
-errResolve kind lx = error msg -- ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
+errResolve kind lx =  ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
   where 
     msg            = unwords [ "Name resolution error: ", kind, symbolicIdent lx]
 
@@ -435,7 +442,7 @@ resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x)
 --   if the name being searched for is unknown.
 strictResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> a 
 strictResolveSym env name kind x = case resolveLocSym env name kind x of 
-  Left  err -> uError err 
+  Left  err -> Misc.errorP "error-strictResolveSym" (F.showpp err) -- uError err 
   Right val -> val 
 
 -- | @maybeResolve@ wraps the plain @resolve@ to return @Nothing@ 
@@ -465,13 +472,13 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -------------------------------------------------------------------------------
 
 ofBareType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType 
-ofBareType env name l t = either Ex.throw id (ofBareTypeE env name l t)
+ofBareType env name l t = either (Misc.errorP "error-ofBareType" . F.showpp) id (ofBareTypeE env name l t)
 
 ofBareTypeE :: Env -> ModName -> F.SourcePos -> BareType -> Either UserError SpecType 
 ofBareTypeE env name l t = ofBRType env name (qualify env name) l t 
 
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
-ofBSort env name l t = either Ex.throw id (ofBSortE env name l t)
+ofBSort env name l t = either (Misc.errorP "error-ofBSort" . F.showpp) id (ofBSortE env name l t)
 
 ofBSortE :: Env -> ModName -> F.SourcePos -> BSort -> Either UserError RSort 
 ofBSortE env name l t = ofBRType env name id l t 
@@ -487,7 +494,7 @@ ofBPVar env name l = fmap (ofBSort env name l)
 
 mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
 mkSpecType' env name l πs t = case ofBRType env name resolveReft l t of 
-                                Left e -> Ex.throw e 
+                                Left e  -> Misc.errorP "error-mkSpecType'" $ F.showpp e -- Ex.throw e 
                                 Right v -> v 
   where
     resolveReft             = qualify env name . txParam l RT.subvUReft (RT.uPVar <$> πs) t
@@ -576,7 +583,7 @@ matchTyCon env name lc@(Loc _ _ c) arity
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
-    knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 
+    knownTC                 = resolveLocSym env name "knownTyCon-ZLO" . GM.namedLocSymbol 
 
 -- knownTyCon :: Env -> ModName -> Ghc.TyCon -> Either UserError Ghc.TyCon 
 -- knownTyCon env name tc = 
@@ -591,7 +598,7 @@ bareTCApp :: (Expandable r)
           -> (RType RTyCon RTyVar r)
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
   = if (GM.kindTCArity c < length ts) 
-      then uError err
+      then error (F.showpp err)
       else tyApp (RT.subsTyVars_meet su $ RT.ofType rhs) (drop nts ts) rs r
     where
        tvs = [ v | (v, b) <- zip (GM.tyConTyVarsDef c) (Ghc.tyConBinders c), GM.isAnonBinder b]

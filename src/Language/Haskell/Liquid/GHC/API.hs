@@ -27,7 +27,7 @@ import Name           as Ghc hiding (varName)
 import TysWiredIn     as Ghc 
 import TysPrim        as Ghc
 import HscTypes       as Ghc
-
+import HscMain        as Ghc 
 -- import qualified CoreSyn   as Ghc
 -- import qualified Unique
 -- import qualified GHC       as Ghc

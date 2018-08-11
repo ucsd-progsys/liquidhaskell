@@ -413,7 +413,9 @@ exprArg l msg = go
 ----------------------------------------------------------------------------------------
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType 
              -> LocSpecType 
-cookSpecType env sigEnv name x bt = either Ex.throw id (cookSpecTypeE env sigEnv name x bt)
+cookSpecType env sigEnv name x bt = either (Misc.errorP msg . F.showpp) id (cookSpecTypeE env sigEnv name x bt)
+  where 
+    msg = "cookSpecType: " ++ GM.showPpr x
 
 cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType 
              -> Either UserError LocSpecType 

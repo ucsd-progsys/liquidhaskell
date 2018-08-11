@@ -5,6 +5,7 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE PartialTypeSignatures      #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
@@ -80,7 +81,7 @@ import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
 import qualified Language.Haskell.Liquid.Measure as Ms
-import Language.Haskell.Liquid.Misc
+import qualified Language.Haskell.Liquid.Misc    as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
@@ -121,7 +122,7 @@ getGhcInfos' cfg logicMap tgtFiles = do
   return (ghcInfos, hscEnv)
 
 createTempDirectoryIfMissing :: FilePath -> IO ()
-createTempDirectoryIfMissing tgtFile = tryIgnore "create temp directory" $
+createTempDirectoryIfMissing tgtFile = Misc.tryIgnore "create temp directory" $
   createDirectoryIfMissing False $ tempDirectory tgtFile
 
 --------------------------------------------------------------------------------
@@ -305,7 +306,7 @@ type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 processModules :: Config -> LogicMap -> [FilePath] -> DepGraph -> ModuleGraph -> Ghc [GhcInfo]
 processModules cfg logicMap tgtFiles depGraph homeModules = do
   -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
-  catMaybes . snd <$> mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
+  catMaybes . snd <$> Misc.mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
   where                                             
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
@@ -371,15 +372,18 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
 makeGhcSrc cfg file typechecked modSum = do
   desugared         <- desugarModule  typechecked
-  let modGuts        = makeMGIModGuts desugared
+  let modGuts        = makeMGIModGuts desugared   
   let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
   -- _                 <- liftIO $ dumpRdrEnv hscEnv modGuts
+  _                 <- liftIO $ dumpTypeEnv typechecked 
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   -- let defVs          = definedVars coreBinds
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
+  things            <- lookupTyThings hscEnv typechecked modGuts 
+  _                 <- liftIO $ print (showpp things)
   return $ Src 
     { giTarget    = file
     , giTargetMod = ModName Target (moduleName (ms_mod modSum))
@@ -395,6 +399,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
     , gsQImports  = qualifiedImports typechecked 
+    , gsTyThings  = [ t | (_, Just t) <- things ] 
     }
 
 qualifiedImports :: TypecheckedModule -> QImports 
@@ -407,6 +412,43 @@ qualifiedImports tm = case tm_renamed_source tm of
                                             , let [n,qn] = symbol <$> [m, qm] 
                                             ]
 
+---------------------------------------------------------------------------------------
+-- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC 
+--   for this module; we will use this to create our name-resolution environment 
+--   (see `Bare.Resolve`)                                          
+---------------------------------------------------------------------------------------
+lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
+lookupTyThings hscEnv tcm mg =
+  forM (mgNames mg) $ \n -> do 
+    tt1 <-          lookupName                   n 
+    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
+    tt3 <-          modInfoLookupName mi         n 
+    tt4 <-          lookupGlobalName             n 
+    return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+    where 
+      mi = tm_checked_module_info tcm
+
+-- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
+-- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
+-- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)  
+-- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)  
+
+
+dumpTypeEnv :: TypecheckedModule -> IO () 
+dumpTypeEnv tm = do 
+  print "DUMP-TYPE-ENV"
+  print (showpp <$> tcmTyThings tm)
+
+tcmTyThings :: TypecheckedModule -> _ -- [Ghc.TyThing]
+tcmTyThings 
+  = id 
+  -- typeEnvElts 
+  -- . tcg_type_env . fst 
+  -- . md_types . snd
+  -- . tm_internals_
+  . modInfoTopLevelScope
+  . tm_checked_module_info
+
 
 dumpRdrEnv :: HscEnv -> MGIModGuts -> IO () 
 dumpRdrEnv _hscEnv modGuts = do 
@@ -417,7 +459,10 @@ dumpRdrEnv _hscEnv modGuts = do
   where 
     _mgDeps   = Ghc.dep_mods . mgi_deps 
     _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
-    mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
+
+mgNames :: MGIModGuts -> [Ghc.Name] 
+mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
+
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
@@ -688,7 +733,7 @@ makeMGIModGuts desugared = miModGuts deriv modGuts
 
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
-  lg    <- getCoreToLogicPath
+  lg    <- Misc.getCoreToLogicPath
   lspec <- readFile lg
   case parseSymbolToLogic lg lspec of 
     Left e   -> throw e 

@@ -26,6 +26,7 @@ module ProofCombinators (
 
   ) where
 
+imports = ( True ) 
 
 -- | proof operators requiring proof terms
 infixl 3 ==:, <=:, <:, >:, ==?
