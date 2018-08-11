@@ -376,14 +376,14 @@ makeGhcSrc cfg file typechecked modSum = do
   let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
   -- _                 <- liftIO $ dumpRdrEnv hscEnv modGuts
-  _                 <- liftIO $ dumpTypeEnv typechecked 
+  -- _                 <- liftIO $ dumpTypeEnv typechecked 
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   -- let defVs          = definedVars coreBinds
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
   things            <- lookupTyThings hscEnv typechecked modGuts 
-  _                 <- liftIO $ print (showpp things)
+  -- _                 <- liftIO $ print (showpp things)
   return $ Src 
     { giTarget    = file
     , giTargetMod = ModName Target (moduleName (ms_mod modSum))

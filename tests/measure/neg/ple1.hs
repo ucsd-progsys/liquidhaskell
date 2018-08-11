@@ -7,7 +7,6 @@ module Ple1 where
 
 import Ple1Lib 
 
-{-@ check :: { adder 10 20 == 300 } @-}
-check = ()
+{-@ check :: _ -> { adder 10 20 == 300 } @-}
+check () = ()
 
-imports = ( adder ) 

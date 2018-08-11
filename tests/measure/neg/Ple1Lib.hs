@@ -7,5 +7,5 @@ module Ple1Lib where
 adder :: Int -> Int -> Int 
 adder x y = x + y 
 
-{-@ prop :: { adder 5 6 == 12 } @-}
-prop = ()
+{-@ prop :: _ -> { adder 5 6 == 12 } @-}
+prop () = ()

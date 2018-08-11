@@ -117,11 +117,14 @@ makeSymMap src = Misc.group [ (sym, (m, x))
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
 makeTyThingMap src = -- F.tracepp "makeTyThingMap" $ 
-                     Misc.group [ (x', (m, t)) | t         <- srcThings src
+                     Misc.group [ (x, (m, t))  | t         <- srcThings src
                                                , let (m, x) = qualifiedSymbol t 
-                                               , let x'     = if isEmptySymbol m then GM.dropModuleUnique x else x
+                                               , not (F.tracepp ("IS-LOCAL: " ++ F.showpp t) $ isLocal m)
+                                               -- , let x'     = if isEmptySymbol m then GM.dropModuleUnique x else x
                                 ] 
-                                            
+  where 
+    isLocal = isEmptySymbol 
+
 qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
 -- qualifiedSymbol (Ghc.AnId x) = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ x  
 qualifiedSymbol = dropLocalUnique . splitModuleNameExact . F.symbol 
@@ -196,22 +199,27 @@ instance Qualify F.Equation where
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify env name x 
-    | isWiredInName x = x 
-    | otherwise       = case resolveSym env name "Symbol" x of 
-                          Left  _   -> x 
-                          Right val -> val 
+  qualify = qualifySymbol 
+
+qualifySymbol :: Env -> ModName -> F.Symbol -> F.Symbol                                                   
+qualifySymbol env name x
+  | isWiredInName x = x 
+  | otherwise       = case resolveSym env name "Symbol" x of 
+                        Left  _ -> x 
+                        Right v -> v 
+
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
+
 
 instance (Qualify a) => Qualify (Located a) where 
   qualify env name = fmap (qualify env name) 
 
 instance Qualify SpecType where 
-  qualify env _ = substEnv env 
+  qualify = substEnv 
 
 instance Qualify F.Expr where 
-  qualify env _ = substEnv env 
+  qualify = substEnv 
 
 instance Qualify Body where 
   qualify env name (P   p) = P   (qualify env name p) 
@@ -219,10 +227,10 @@ instance Qualify Body where
   qualify env name (R x p) = R x (qualify env name p)
 
 instance Qualify RReft where 
-  qualify env _ = substEnv env  -- TODO-REBARE 
+  qualify = substEnv 
 
 instance Qualify F.Qualifier where 
-  qualify env _ = substEnv env -- TODO-REBARE 
+  qualify = substEnv 
 
 instance Qualify SizeFun where 
   qualify env name (SymSizeFun lx) = SymSizeFun (qualify env name lx)
@@ -235,11 +243,11 @@ instance Qualify RTyCon where
   qualify env name rtc = rtc { rtc_info = qualify env name $ rtc_info rtc }
 
 instance Qualify (Measure SpecType Ghc.DataCon) where 
-  qualify env name m = substEnv env $ m { msName = qualify env name (msName m)}
+  qualify env name m = substEnv env name $ m { msName = qualify env name (msName m)}
 
-substEnv :: (F.Subable a) => Env -> a -> a 
-substEnv env = F.subst (_reSubst env)
-
+substEnv :: (F.Subable a) => Env -> ModName -> a -> a 
+substEnv env _ = F.subst (_reSubst env)
+-- NEW substEnv env name = F.substa (qualifySymbol env name) 
 
 -- qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
 -- qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
@@ -384,19 +392,18 @@ lookupTyThing env _name sym = [ t | (m, t) <- things, matchMod m modMb ]
 lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods] 
   where 
     things                 = M.lookupDefault [] x (_reTyThings env)
-    (x, mods)              = {- F.tracepp ("symbolModules: " ++ F.showpp sym) $ -} symbolModules env name sym
+    (x, mods)              = symbolModules env name sym
     matchMod m Nothing     = True 
     matchMod m (Just ms)   
-      | isEmptySymbol m    = ms == [F.symbol name]      -- ^ local variable, see tests-names-pos-local00.hs
+      | isEmptySymbol m    = ms == [F.symbol name]        -- local variable, see tests-names-pos-local00.hs
       | otherwise          = m `elem` ms
+                             -- NEW any (`F.isPrefixOfSym` m) ms -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
 
 symbolModules :: Env -> ModName -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env _name s = (x, glerb <$> modMb) 
   where 
     (modMb, x)            = unQualifySymbol s 
     glerb m               = M.lookupDefault [m] m (reQImps env) 
-    
-
  
 -- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
 --   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).
