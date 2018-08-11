@@ -583,7 +583,7 @@ matchTyCon env name lc@(Loc _ _ c) arity
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
-    knownTC                 = resolveLocSym env name "knownTyCon-ZLO" . GM.namedLocSymbol 
+    knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 
 
 -- knownTyCon :: Env -> ModName -> Ghc.TyCon -> Either UserError Ghc.TyCon 
 -- knownTyCon env name tc = 

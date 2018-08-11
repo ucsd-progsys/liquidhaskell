@@ -660,11 +660,11 @@ makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.M
 makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv 
   { meMeasureSpec = measures 
   , meClassSyms   = cms' 
-  , meSyms        = ms' 
+  , meSyms        = F.tracepp "SIGH:meSyms" ms' 
   , meDataCons    = cs' 
   }
   where 
-    measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
+    measures      = F.tracepp "MEASURES" $ mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
     (cs, ms)      = Bare.makeMeasureSpec'     measures
     cms           = Bare.makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
