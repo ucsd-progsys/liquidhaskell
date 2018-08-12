@@ -79,10 +79,25 @@ makeEnv cfg src lmap = RE
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   , reQImps     = gsQImports     src
+  , reLocalVars = makeLocalVars vars
   } 
   where 
     syms        = [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
+
+makeLocalVars :: [Ghc.Var] -> LocalVars
+makeLocalVars vs = 
+  Misc.group [ (x, (i, v)) | v    <- vs
+                           , x    <- Mb.maybeToList (localKey v) 
+                           , let i = F.srcLine v 
+             ]
+
+localKey   :: Ghc.Var -> Maybe F.Symbol
+localKey v 
+  | isLocal m = Just x 
+  | otherwise = Nothing
+  where 
+    (m, x)    = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ v 
 
 makeVarSubst :: GhcSrc -> F.Subst 
 makeVarSubst src = F.mkSubst unqualSyms 
@@ -116,23 +131,24 @@ makeSymMap src = Misc.group [ (sym, (m, x))
                                 , let (m, sym) = qualifiedSymbol x ]
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
-makeTyThingMap src = -- F.tracepp "makeTyThingMap" $ 
-                     Misc.group [ (x, (m, t))  | t         <- srcThings src
-                                               , let (m, x) = qualifiedSymbol t 
-                                               , not (F.tracepp ("IS-LOCAL: " ++ F.showpp t) $ isLocal m)
-                                               -- , let x'     = if isEmptySymbol m then GM.dropModuleUnique x else x
-                                ] 
-  where 
-    isLocal = isEmptySymbol 
+makeTyThingMap src = 
+  -- F.tracepp "makeTyThingMap" $ 
+  Misc.group [ (x, (m, t))  | t         <- srcThings src
+                            , let (m, x) = qualifiedSymbol t 
+                            , not (isLocal m)
+             ] 
+
+isLocal :: F.Symbol -> Bool
+isLocal = isEmptySymbol 
 
 qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
--- qualifiedSymbol (Ghc.AnId x) = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ x  
-qualifiedSymbol = dropLocalUnique . splitModuleNameExact . F.symbol 
+qualifiedSymbol = splitModuleNameExact . F.symbol 
 
-dropLocalUnique :: (F.Symbol, F.Symbol) -> (F.Symbol, F.Symbol)
-dropLocalUnique (m, x)      
-  -- | isEmptySymbol m = (m, GM.dropModuleUnique x) -- ^ to account for local-variables (see tests-names-pos-local00.hs)
-  | otherwise       = (m, x) 
+-- qualifiedSymbol (Ghc.AnId x) = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ x  
+
+-- dropLocalUnique :: (F.Symbol, F.Symbol) -> (F.Symbol, F.Symbol)
+-- dropLocalUnique (m, x)      
+--   | otherwise  = (m, x) 
 
 isEmptySymbol :: F.Symbol -> Bool 
 isEmptySymbol x = F.lengthSym x == 0 
@@ -246,8 +262,8 @@ instance Qualify (Measure SpecType Ghc.DataCon) where
   qualify env name m = substEnv env name $ m { msName = qualify env name (msName m)}
 
 substEnv :: (F.Subable a) => Env -> ModName -> a -> a 
--- substEnv env _ = F.subst (_reSubst env)
 substEnv env name = F.substa (qualifySymbol env name) 
+-- substEnv env _ = F.subst (_reSubst env)
 
 -- qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
 -- qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
@@ -281,7 +297,20 @@ lookupGhcNamedVar env name z = strictResolveSym env name "Var" lx
     lx                       = GM.namedLocSymbol z
 
 lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Ghc.Var 
-lookupGhcVar = strictResolveSym 
+lookupGhcVar env name kind lx = 
+  case resolveLocSym env name kind lx of 
+    Right v -> v 
+    Left  e -> case lookupLocalVar env lx of 
+                 Just v  -> v 
+                 Nothing -> Misc.errorP "error-lookupGhcVar" (F.showpp e)
+
+lookupLocalVar :: Env -> LocSymbol -> Maybe Ghc.Var
+lookupLocalVar env lx = Misc.findNearest (F.srcLine lx) kvs
+  where 
+    kvs               = M.lookupDefault [] x (reLocalVars env) 
+    xn                = F.srcLine lx  
+    (_, x)            = unQualifySymbol (F.val lx)
+
 
 lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon 
 lookupGhcDataCon = strictResolveSym 
@@ -380,33 +409,24 @@ resolveWith f env name kind lx =
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
-{- OLD 
-lookupTyThing env _name sym = [ t | (m, t) <- things, matchMod m modMb ] 
-  where 
-    things                   = M.lookupDefault [] x (_reTyThings env)
-    (modMb, x)               = unQualifySymbol sym
-    matchMod _ Nothing       = True 
-    matchMod m (Just m')     = m == m'        
--}
-
 lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods] 
   where 
     things                 = M.lookupDefault [] x (_reTyThings env)
-    (x, mods)              = symbolModules env name sym
+    (x, mods)              = symbolModules env sym
     matchMod m Nothing     = True 
     matchMod m (Just ms)   
       | isEmptySymbol m    = ms == [F.symbol name]        -- local variable, see tests-names-pos-local00.hs
-      | otherwise          = -- m `elem` ms
-                             any (`F.isPrefixOfSym` m) ms -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
-
-symbolModules :: Env -> ModName -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
-symbolModules env _name s = (x, glerb <$> modMb) 
+      | otherwise          = any (`F.isPrefixOfSym` m) ms -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+                             -- m `elem` ms
+                             
+symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
+symbolModules env s = (x, glerb <$> modMb) 
   where 
-    (modMb, x)            = unQualifySymbol s 
-    glerb m               = M.lookupDefault [m] m (reQImps env) 
+    (modMb, x)      = unQualifySymbol s 
+    glerb m         = M.lookupDefault [m] m (reQImps env) 
  
 -- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
---   `mod` is the name of the module (derived from `sym` if qualified or from `name` otherwise).
+--   `mod` is the name of the module, derived from `sym` if qualified.
 unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)
 unQualifySymbol sym 
   | GM.isQualifiedSym sym = Misc.mapFst Just (splitModuleNameExact sym) 

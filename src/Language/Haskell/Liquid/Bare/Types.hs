@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.Bare.Types
     Env (..)
   , TyThingMap 
   , ModSpecs
+  , LocalVars 
 
     -- * Tycon and Datacon processing environment
   , TycEnv (..) 
@@ -41,10 +42,15 @@ data Env = RE
   , _reTyThings :: !TyThingMap 
   , reCfg       :: !Config
   , reQImps     :: !QImports                 -- ^ qualified imports
+  , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
   }
 
 instance HasConfig Env where 
   getConfig = reCfg 
+
+-- | @LocalVars@ is a map from names to lists of pairs of @Ghc.Var@ and 
+--   the lines at which they were defined. 
+type LocalVars = M.HashMap F.Symbol [(Int, Ghc.Var)]
 
 -------------------------------------------------------------------------------
 -- | A @TyThingMap@ is used to resolve symbols into GHC @TyThing@ and, 

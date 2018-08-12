@@ -352,6 +352,9 @@ locNamedThing x = F.Loc l lE x
     l          = getSourcePos  x
     lE         = getSourcePosE x
 
+instance F.Loc Var where 
+  srcSpan = srcSpanFSrcSpan . fSrcSpan 
+
 namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
 namedLocSymbol d = F.symbol <$> locNamedThing d
 
