@@ -27,14 +27,15 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types
 
-import           Language.Haskell.Liquid.Bare.Types as Bare
+import           Language.Haskell.Liquid.Bare.Resolve as Bare
+import           Language.Haskell.Liquid.Bare.Types   as Bare
 
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms :: GhcSrc -> Bare.TycEnv -> LogicMap -> GhcSpecSig -> Ms.BareSpec 
+makeHaskellAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec 
                   -> [(Ghc.Var, LocSpecType, F.Equation)]
 -----------------------------------------------------------------------------------------------
-makeHaskellAxioms src tycEnv lmap spSig 
-  = fmap (makeAxiom tycEnv lmap) 
+makeHaskellAxioms src env tycEnv name lmap spSig 
+  = fmap (makeAxiom env tycEnv name lmap) 
   . getReflectDefs src spSig
   -- embs  = Bare.tcEmbs       tycEnv 
   -- dm    = Bare.tcDataConMap tycEnv
@@ -58,16 +59,17 @@ findVarDefType cbs sigs x = case findVarDef (val x) cbs of
   Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"
 
 --------------------------------------------------------------------------------
-makeAxiom :: Bare.TycEnv 
-          -> LogicMap
+makeAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap 
           -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
           -> (Ghc.Var, LocSpecType, F.Equation)
 --------------------------------------------------------------------------------
-makeAxiom tycEnv lmap (x, mbT, v, def) = (v, t, e)
+makeAxiom env tycEnv name lmap (x, mbT, v, def) 
+            = (v, t, e)
   where 
-    (t, e) = makeAssumeType embs lmap dm x mbT v def
-    embs   = Bare.tcEmbs       tycEnv 
-    dm     = Bare.tcDataConMap tycEnv 
+    t       = Bare.qualify env name t0
+    (t0, e) = makeAssumeType embs lmap dm x mbT v def
+    embs    = Bare.tcEmbs       tycEnv 
+    dm      = Bare.tcDataConMap tycEnv 
   -- TODO-REBARE insertAxiom v Nothing
   -- TODO-REBARE updateLMap x x v
   -- TODO-REBARE updateLMap (x{val = (F.symbol . showPpr . getName) v}) x v
@@ -108,7 +110,7 @@ makeAssumeType tce lmap dm x mbT v def
   where
     t     = Mb.fromMaybe (ofType $ Ghc.varType v) mbT
     out   = rTypeSort tce (ty_res tRep)
-    at    = F.notracepp ("AXIOM-TYPE: " ++ showpp (x, toType t)) $ axiomType x t
+    at    = F.tracepp ("AXIOM-TYPE: " ++ showpp (x, toType t)) $ axiomType x t
     tRep  = toRTypeRep at
     xArgs = F.EVar <$> [x | (x, t) <- zip (ty_binds tRep) (ty_args tRep), not (isClassType t)]
     _msg  = unwords [showpp x, showpp mbT]
@@ -177,9 +179,7 @@ instance Subable Ghc.CoreAlt where
   subst su (c, xs, e) = (c, xs, subst su e)
 
 -- | Specification for Haskell function
-axiomType
-  :: (TyConable c) => LocSymbol -> RType c tv RReft
-  -> RType c tv RReft
+axiomType :: (TyConable c) => LocSymbol -> RType c tv RReft -> RType c tv RReft
 axiomType s t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
   where
     res           = strengthen (ty_res tr) (singletonApp s ys)

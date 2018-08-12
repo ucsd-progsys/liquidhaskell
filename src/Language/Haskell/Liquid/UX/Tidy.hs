@@ -15,9 +15,6 @@ module Language.Haskell.Liquid.UX.Tidy (
     tidySpecType
   , tidySymbol
 
-    -- * Tidyness tests
-  , isTmpSymbol
-
     -- * Panic and Exit
   , panicError
 
@@ -38,7 +35,8 @@ import qualified Data.HashSet                              as S
 import qualified Data.List                                 as L
 import qualified Data.Text                                 as T
 import qualified Control.Exception                         as Ex
-import           Language.Haskell.Liquid.GHC.Misc          (dropModuleNames, showPpr, stringTyVar)
+import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
+-- (dropModuleNames, showPpr, stringTyVar)
 import           Language.Fixpoint.Types                   hiding (Result, SrcSpan, Error)
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType     (rVar, subsTyVars_meet, FreeVar)
@@ -72,13 +70,7 @@ errorToUserError = fmap ppSpecTypeErr
 -- TODO: move to Types.hs
 cinfoError :: Cinfo -> Error
 cinfoError (Ci _ (Just e) _) = e
-cinfoError (Ci l _ _)        = ErrOther l (text $ "Cinfo:" ++ showPpr l)
-
--------------------------------------------------------------------------
-isTmpSymbol    :: Symbol -> Bool
--------------------------------------------------------------------------
-isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
-
+cinfoError (Ci l _ _)        = ErrOther l (text $ "Cinfo:" ++ GM.showPpr l)
 
 -------------------------------------------------------------------------
 tidySpecType :: Tidy -> SpecType -> SpecType
@@ -113,7 +105,7 @@ tidySymbols k t = substa (shortSymbol k . tidySymbol) $ mapBind dropBind t
     dropBind x  = if x `S.member` xs then tidySymbol x else nonSymbol
 
 shortSymbol :: Tidy -> Symbol -> Symbol 
-shortSymbol Lossy = dropModuleNames 
+shortSymbol Lossy = GM.dropModuleNames 
 shortSymbol _     = id 
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
@@ -150,14 +142,14 @@ tidyDSymbols t = mapBind tx $ substa tx t
 tidyFunBinds :: SpecType -> SpecType
 tidyFunBinds t = mapBind tx $ substa tx t
   where
-    tx         = bindersTx $ filter isTmpSymbol $ funBinds t
+    tx         = bindersTx $ filter GM.isTmpSymbol $ funBinds t
 
 tidyTyVars :: SpecType -> SpecType
 tidyTyVars t = subsTyVarsAll αβs t
   where
     αβs  = zipWith (\α β -> (α, toRSort β, β)) αs βs
     αs   = L.nub (tyVars t)
-    βs   = map (rVar . stringTyVar) pool
+    βs   = map (rVar . GM.stringTyVar) pool
     pool = [[c] | c <- ['a'..'z']] ++ [ "t" ++ show i | i <- [1..]]
 
 

@@ -184,6 +184,12 @@ isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType _               = False
 
+isTmpVar :: Var -> Bool 
+isTmpVar = isTmpSymbol . dropModuleNamesAndUnique . symbol 
+
+isTmpSymbol    :: Symbol -> Bool
+isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
+
 validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False

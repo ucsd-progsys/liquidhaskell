@@ -384,12 +384,13 @@ makeGhcSrc cfg file typechecked modSum = do
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
   things            <- lookupTyThings hscEnv typechecked modGuts 
   -- _                 <- liftIO $ print (showpp things)
+  let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   return $ Src 
     { giTarget    = file
     , giTargetMod = ModName Target (moduleName (ms_mod modSum))
     , giCbs       = coreBinds
-    , giImpVars   = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-    , giDefVars   = dataCons ++ letVars coreBinds
+    , giImpVars   = impVars 
+    , giDefVars   = dataCons ++ ( letVars coreBinds) 
     , giUseVars   = readVars coreBinds
     , giDerVars   = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modGuts
     , gsExports   = mgi_exports  modGuts 
@@ -399,8 +400,15 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
     , gsQImports  = qualifiedImports typechecked 
-    , gsTyThings  = [ t | (_, Just t) <- things ] 
+    , gsTyThings  = impThings impVars [ t | (_, Just t) <- things ] 
     }
+
+impThings :: [Var] -> [TyThing] -> [TyThing]
+impThings vars  = filter ok
+  where
+    vs          = S.fromList vars 
+    ok (AnId x) = S.member x vs  
+    ok _        = True 
 
 qualifiedImports :: TypecheckedModule -> QImports 
 qualifiedImports tm = case tm_renamed_source tm of 

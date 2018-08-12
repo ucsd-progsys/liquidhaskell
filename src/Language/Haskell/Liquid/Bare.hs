@@ -109,7 +109,7 @@ saveLiftedSpec src sp = do
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 makeGhcSpec cfg src lmap mspecs = SP 
   { gsConfig = cfg 
-  , gsSig    = sig 
+  , gsSig    = addReflSigs refl sig 
   , gsRefl   = refl 
   , gsQual   = makeSpecQual cfg env rtEnv measEnv specs 
   , gsData   = sData 
@@ -141,7 +141,6 @@ makeGhcSpec cfg src lmap mspecs = SP
     env      = Bare.makeEnv cfg src lmap  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
     name     = giTargetMod  src 
-
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
 splitSpecs name specs = (mySpec, M.fromList iSpecs) 
@@ -354,11 +353,26 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
   }
   where
     mySpec       = M.lookupDefault mempty name specs 
-    xtes         = Bare.makeHaskellAxioms src tycEnv lmap sig mySpec
+    xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
     myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = (fst3 <$> xtes) ++ (fst <$> gsAsmSigs sig)
     lmap         = Bare.reLMap env
+
+
+    
+------------------------------------------------------------------------------------------
+-- | @updateReflSpecSig@ uses the information about reflected functions to update the 
+--   "assumed" signatures. 
+------------------------------------------------------------------------------------------
+addReflSigs :: GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
+------------------------------------------------------------------------------------------
+addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ gsAsmSigs sig }
+  where 
+    reflSigs         = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
+    
+  -- let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
+  -- let xts' = xts ++ F.notracepp "GS-ASMSIGS" (gsAsmSigs sp)
 
 isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool 
 isReflectVar reflSyms v = S.member vx reflSyms
@@ -444,8 +458,6 @@ makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   , sigRTEnv    = rtEnv
   } 
 
-
-
 {- TODO-REBARE: 
 fixCoercions :: txCoerce 
 
@@ -463,8 +475,7 @@ bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
   where
     vs         = fst4 . bkUniv $ t
     vs'        = freeTyVars    $ t
--}
-{- TODO-REBARE: 
+
 makeLocalSpec :: Config -> ModName -> [Var] -> [Var]
               -> [(LocSymbol, Located BareType)]
               -> [(LocSymbol, Located BareType)]

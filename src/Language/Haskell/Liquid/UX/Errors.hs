@@ -19,8 +19,9 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Transforms.Simplify
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types
-import qualified Language.Haskell.Liquid.Misc as Misc 
-import qualified Language.Fixpoint.Misc       as Misc 
+import qualified Language.Haskell.Liquid.GHC.Misc    as GM 
+import qualified Language.Haskell.Liquid.Misc        as Misc 
+import qualified Language.Fixpoint.Misc              as Misc 
 
 -- import Debug.Trace
 
@@ -166,7 +167,7 @@ tidyTemps xts = (θ, [(txB x, txTy t) | (x, t) <- xts])
     m         = M.fromList yzs
     θ         = F.mkSubst [(y, F.EVar z) | (y, z) <- yzs]
     yzs       = zip ys niceTemps
-    ys        = [ x | (x,_) <- xts, isTmpSymbol x]
+    ys        = [ x | (x,_) <- xts, GM.isTmpSymbol x]
 
 niceTemps     :: [F.Symbol]
 niceTemps     = mkSymbol <$> xs ++ ys
