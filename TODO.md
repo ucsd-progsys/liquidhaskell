@@ -20,17 +20,40 @@
 - [ ] absref
 - [ ] termination
 - [ ] auto-size
+- [ ] source-spans 
 
 ## HEREHEREHEREHERE
 
-- tests.measure.pos.ple00.hs
-- tests.names.pos.Set02.hs
-
 - tests/names/neg/vector1.hs        **bad error span**
+
+Tests
+  Prover
+    with_ple
+      Solver.hs:              FAIL (1.72s)
+        ABSREF
+      NormalForm.hs:          FAIL (0.77s)
+        UNIFICATION-COERCE
+      MonoidMaybe.hs:         FAIL (0.75s)
+        DERIVED-VAR
+      MonadMaybe.hs:          FAIL (0.90s)
+        UNIFICATION-COERCE
+      MonadList.hs:           FAIL (0.99s)
+        UNIFICATION-COERCE
+      MonadId.hs:             FAIL (0.88s)
+        UNIFICATION-COERCE
+      FunctionEquality101.hs: FAIL (0.94s)
+        LAMBDA
+      Fibonacci.hs:           FAIL (10.63s)
+        ABSREF
+      BasicLambdas.hs:        FAIL (0.85s)
+        LAMBDA
+      AlphaEquivalence.hs:    FAIL (0.88s)
+        LAMBDA
 
 ## Issues
 
-- Termination expressions have to be renamed as the binders get substituted via fresh etc.
+- Termination expressions have to be renamed 
+  as the binders get substituted via fresh etc.
 
     PROPER fix: is to make the TExpr part of the freaking type-sig.
 
@@ -39,35 +62,6 @@
 - `makeLiftedSpec1` saves the SPECS for the next round; just transform the above to:
 
   saveBareSpec :: BareSpec -> GhcSpec -> IO  where we combine the "raw" BareSpec
-
-### Sigs
-
-1. GATHER `assume` and `assert` (`:: BareType`)
-2. PROCESS ( `:: BareType -> SpecType`)
-
-### Gather
-
-`assume` (all modules)
-
-- Imported (All saved)
-- "assumed" in current file
-- reflect-sigs (reflected body is assumed)
-
-`assert` (current module only)
-
-- type-sigs
-- class-sigs
-
-### Process
-
-(Var, SpecType) -> (Var, SpecType)
-
-- plugged
-- txRefSort
-- expand
-- resolve
-- strengthen-measures
-- strengthen-inline(?)
 
 ## CallStack/Error
 

@@ -71,4 +71,4 @@ mappend_assoc Nothing Nothing z
   *** QED
 
 data Maybe a = Nothing | Just a
-{-@ data Maybe a = Nothing | Just a @-}
+{- data Maybe a = Nothing | Just a @-}

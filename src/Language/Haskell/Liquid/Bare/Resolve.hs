@@ -265,30 +265,6 @@ substEnv :: (F.Subable a) => Env -> ModName -> a -> a
 substEnv env name = F.substa (qualifySymbol env name) 
 -- substEnv env _ = F.subst (_reSubst env)
 
--- qualifyMeasure :: [(Symbol, Var)] -> Measure a b -> Measure a b
--- qualifyMeasure syms m = m { msName = qualifyLocSymbol (qualifySymbol syms) (msName m) }
-
-
-{- TODO-REBARE 
-qualifyDefs :: [(Symbol, Var)] -> S.HashSet (Var, Symbol) -> S.HashSet (Var, Symbol)
-qualifyDefs syms = S.fromList . fmap (mapSnd (qualifySymbol syms)) . S.toList
-
-qualifyTyConInfo :: (Symbol -> Symbol) -> TyConInfo -> TyConInfo
-qualifyTyConInfo f tci = tci { sizeFunction = qualifySizeFun f <$> sizeFunction tci }
-
-qualifyLocSymbol :: (Symbol -> Symbol) -> LocSymbol -> LocSymbol
-qualifyLocSymbol f lx = atLoc lx (f (val lx))
-
-qualifyTyConP :: (Symbol -> Symbol) -> TyConP -> TyConP
-qualifyTyConP f tcp = tcp { sizeFun = qualifySizeFun f <$> sizeFun tcp }
-
-qualifySizeFun :: (Symbol -> Symbol) -> SizeFun -> SizeFun
-qualifySizeFun f (SymSizeFun lx) = SymSizeFun (qualifyLocSymbol f lx)
-qualifySizeFun _  sf              = sf
-
-qualifySymbol' :: [Var] -> Symbol -> Symbol
-qualifySymbol' vs x = maybe x symbol (L.find (isSymbolOfVar x) vs)
--}
 -------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
 -------------------------------------------------------------------------------

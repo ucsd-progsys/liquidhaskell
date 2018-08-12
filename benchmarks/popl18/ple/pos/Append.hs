@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--structural" @-}
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -65,12 +66,4 @@ prop_concatMap f (x ::: xs) = prop_concatMap f xs
 
 
 data L a = Emp | a ::: L a
-{-@ data L [llen] a = Emp | (:::) {x::a, xs :: L a } @-}
-
-
-{-@ measure llen @-}
-llen :: L a -> Int
-{-@ llen :: L a -> Nat @-}
-llen Emp        = 0
-llen (_ ::: xs) = 1 + llen xs
 

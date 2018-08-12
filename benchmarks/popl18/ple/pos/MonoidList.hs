@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--structural" @-}
 
 module MonoidList where
 
@@ -44,7 +45,7 @@ mappend_assoc (x ::: xs) ys zs
   =   mappend_assoc xs ys zs
 
 data L a = Emp | a ::: L a
-{-@ data L [llen] a = Emp | (:::) {x::a, xs:: (L a)} @-}
+{- data L [llen] a = Emp | (:::) {x::a, xs:: (L a)} @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int

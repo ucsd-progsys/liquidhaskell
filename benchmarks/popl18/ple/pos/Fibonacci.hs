@@ -1,6 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
+-- TAG: absref 
 
 module Fibonacci where
 import Language.Haskell.Liquid.ProofCombinators

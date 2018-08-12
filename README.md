@@ -58,21 +58,19 @@ See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
 How To Run Regression Tests
 ---------------------------
 
+You can run all the tests by
+
     $ stack test
 
-To use threads to speed up the tests
+To pass in specific parameters and run a subset of the tests 
 
-    $ make THREADS=30 test
+    $ stack test liquidhaskell --fast  --test-arguments "--liquid-opts --no-termination -p Unit"
 
 Or your favorite number of threads, depending on cores etc.
 
 You can directly extend and run the tests by modifying
 
     tests/test.hs
-
-To run the regression test *and* the benchmarks run
-
-    $ make all-test
 
 How to Profile
 --------------
