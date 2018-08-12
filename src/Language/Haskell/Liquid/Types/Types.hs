@@ -1307,8 +1307,7 @@ bkUniv (RAllP π t) = let (αs, πs, ls, t') = bkUniv t in (αs, π:πs, ls, t')
 bkUniv (RAllS s t) = let (αs, πs, ss, t') = bkUniv t in (αs, πs, s:ss, t')
 bkUniv t           = ([], [], [], t)
 
-bkClass :: TyConable c
-        => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
+bkClass :: TyConable c => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
 bkClass (RImpF _ (RApp c t _ _) t' _)
   | isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')

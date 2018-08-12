@@ -13,3 +13,4 @@ kons (Cons _ _) = 1
 foo :: List pig -> Int 
 foo Emp        = 0 
 foo (Cons _ _) = 1
+

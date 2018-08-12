@@ -4,6 +4,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
+{-# LANGUAGE OverloadedStrings         #-}
 
 -- | This module contains the functions that convert /from/ descriptions of
 --   symbols, names and types (over freshly parsed /bare/ Strings),
@@ -29,7 +30,7 @@ import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
-import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
+-- import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 import           System.Directory                           (doesFileExist)
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     as Misc 
@@ -568,9 +569,16 @@ isSymbolOfVar x v = x == symbol' v
 measureTypeToInv :: Bare.Env -> ModName -> (LocSymbol, (Ghc.Var, LocSpecType)) -> (Maybe Ghc.Var, LocSpecType)
 measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualify env name mtype})
   where
-    trep = toRTypeRep $ val t
-    ts   = ty_args trep
+    trep = toRTypeRep (val t)
+    ts   = ty_args  trep
+    args = ty_binds trep
+    res  = ty_res   trep
     mtype
+      | null ts 
+      = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x) "Measure has no arguments!"
+      | otherwise 
+      = mkInvariant x (last args) (last ts) res 
+
 {-
       | isBool $ ty_res trep
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
@@ -579,21 +587,20 @@ measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualify env name 
       | [tx] <- ts, not (isTauto tx)
       = uError $ ErrHMeas (sourcePosSrcSpan $ loc t) (pprint x)
                           (text "Measures' types cannot have preconditions")
--}
       | [tx] <- ts
-      = mkInvariant (head $ ty_binds trep) tx $ ty_res trep
+      = mkInvariant x (head $ ty_binds trep) tx $ ty_res trep
       | otherwise
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x)
-                          (text "Measures has more than one arguments")
+                          (text $ "Measure has more than one arguments: " ++ F.showpp ts)
+-}
 
-
-    mkInvariant :: Symbol -> SpecType -> SpecType -> SpecType
-    mkInvariant z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
+mkInvariant :: LocSymbol -> Symbol -> SpecType -> SpecType -> SpecType
+mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
       where
-        Reft (v, p) = toReft $ Mb.fromMaybe mempty $ stripRTypeBase tr
-        su    = mkSubst [(v, mkEApp x [EVar v])]
-        reft  = Reft (v, subst su p')
-        p'    = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
+        Reft (v, p)    = toReft $ Mb.fromMaybe mempty $ stripRTypeBase tr
+        su             = mkSubst [(v, mkEApp x [EVar v])]
+        reft           = Reft (v, subst su p')
+        p'             = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
 
 
 

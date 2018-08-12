@@ -1,5 +1,5 @@
 -- TAG: local
-module Uniques where
+module Uniques (uniques) where
 
 import qualified Data.Set as S 
 
