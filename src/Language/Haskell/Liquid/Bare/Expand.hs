@@ -450,6 +450,7 @@ cookSpecTypeE env sigEnv name x bt
   $ bt 
   where 
     rtEnv = Bare.sigRTEnv sigEnv
+
 fixCoercions :: LocBareType -> LocSpecType -> LocSpecType 
 fixCoercions bt t = txCoerce <$> t 
   where
