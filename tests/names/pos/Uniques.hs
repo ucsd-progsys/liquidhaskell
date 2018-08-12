@@ -1,3 +1,4 @@
+-- TAG: local
 module Uniques where
 
 import qualified Data.Set as S 
@@ -8,11 +9,11 @@ import qualified Data.Set as S
 {-@ uniques :: (Eq a) => xs:_ -> {v:ListE a xs | noDups v} @-}
 uniques :: (Eq a) => [a] -> [a]
 uniques xs = go xs []
-  where 
+  where
     {-@ go :: (Eq a) => xs:_ -> acc:_ -> {v:ListU a acc xs | _ } @-}
     go (x:xs) acc 
-      | x `isIn` acc = go xs acc     
-      | otherwise    = go xs (x:acc)
+          | x `isIn` acc = go xs acc     
+          | otherwise    = go xs (x:acc)
     go [] acc        = acc 
 
 {-@ isIn:: (Eq a) => x:a -> ys:[a] -> {v:Bool | v = S.member x (listElts ys)} @-}
@@ -30,4 +31,3 @@ noDups (x:xs) = noDups xs && not (S.member x (S.fromList xs))
 
 {-@ type ListE a X   = {v:[a] | listElts v = listElts X} @-}
 {-@ type ListU a X Y = {v:[a] | listElts v = S.union (listElts X) (listElts Y)} @-}
-

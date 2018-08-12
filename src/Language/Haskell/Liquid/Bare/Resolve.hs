@@ -79,7 +79,7 @@ makeEnv cfg src lmap = RE
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   , reQImps     = gsQImports     src
-  , reLocalVars = makeLocalVars vars
+  , reLocalVars = F.tracepp "LocalVars" $ makeLocalVars vars
   } 
   where 
     syms        = [ (F.symbol v, v) | v <- vars ] 
