@@ -400,11 +400,11 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
     , gsQImports  = qualifiedImports typechecked 
-    , gsTyThings  = impThings impVars [ t | (_, Just t) <- things ] 
+    , gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
     }
 
-impThings :: [Var] -> [TyThing] -> [TyThing]
-impThings vars  = filter ok
+_impThings :: [Var] -> [TyThing] -> [TyThing]
+_impThings vars  = filter ok
   where
     vs          = S.fromList vars 
     ok (AnId x) = S.member x vs  
