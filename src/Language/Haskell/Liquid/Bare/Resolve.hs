@@ -50,6 +50,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
 import qualified Control.Exception as Ex 
 import qualified Data.List                         as L 
+import qualified Data.HashSet                      as S 
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
@@ -57,13 +58,12 @@ import qualified Text.PrettyPrint.HughesPJ         as PJ
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 
-import           Language.Haskell.Liquid.Types.Types   
-import           Language.Haskell.Liquid.Types.Specs 
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.Misc          as Misc 
--- import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT
+import           Language.Haskell.Liquid.Types.Types   
+import           Language.Haskell.Liquid.Types.Specs 
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
 import           Language.Haskell.Liquid.WiredIn 
@@ -79,14 +79,35 @@ makeEnv cfg src lmap = RE
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   , reQImps     = gsQImports     src
-  , reLocalVars = F.tracepp "LocalVars" $ makeLocalVars vars
+  , reLocalVars = F.tracepp "LocalVars" $ makeLocalVars src 
   } 
   where 
     syms        = [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
 
-makeLocalVars :: [Ghc.Var] -> LocalVars
-makeLocalVars vs = 
+makeLocalVars :: GhcSrc -> LocalVars 
+makeLocalVars = localVarMap . localBinds . giCbs
+
+localBinds :: [Ghc.CoreBind] -> [Ghc.Var]
+localBinds                    = concatMap (bgo S.empty) 
+  where
+    add  x g                  = maybe g (`S.insert` g) (localKey x) 
+    adds b g                  = foldr add g (Ghc.bindersOf b) 
+    take x g                  = maybe [] (\k -> if S.member k g then [] else [x]) (localKey x)
+    pgo g (x, e)              = take x g ++ go (add x g) e
+    bgo g (Ghc.NonRec x e)    = pgo g (x, e) 
+    bgo g (Ghc.Rec xes)       = concatMap (pgo g) xes 
+    go  g (Ghc.App e a)       = concatMap (go  g) [e, a]
+    go  g (Ghc.Lam x e)       = go g e
+    go  g (Ghc.Let b e)       = bgo g b ++ go (adds b g) e 
+    go  g (Ghc.Tick _ e)      = go g e
+    go  g (Ghc.Cast e _)      = go g e
+    go  g (Ghc.Case e x _ cs) = go g e ++ concatMap (go g . Misc.thd3) cs
+    go  g (Ghc.Var _)         = []
+    go  _ _                   = []
+
+localVarMap :: [Ghc.Var] -> LocalVars
+localVarMap vs = 
   Misc.group [ (x, (i, v)) | v    <- vs
                            , x    <- Mb.maybeToList (localKey v) 
                            , let i = F.srcLine v 
