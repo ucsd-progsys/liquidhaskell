@@ -1,4 +1,8 @@
 -- TAG: local
+-- tests local-var annotations; complicated by GHC adding TWO `go` binders (nested),
+-- where picking the WRONG one to attach to the annotation yields an LH-GHC-mismatch.
+-- [NOTE:] `Resolve.makeLocalVars` 
+
 module Uniques (uniques) where
 
 import qualified Data.Set as S 
