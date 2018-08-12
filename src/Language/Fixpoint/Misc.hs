@@ -56,6 +56,15 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 
+findNearest :: (Ord i, Num i) => i -> [(i, a)] -> Maybe a 
+findNearest key kvs = argMin [ (abs (key - k), v) | (k, v) <- kvs ]
+
+argMin :: (Ord k) => [(k, v)] -> Maybe v 
+argMin = fmap snd . headMb . L.sortBy (compare `on` fst)
+
+headMb :: [a] -> Maybe a 
+headMb []    = Nothing 
+headMb (x:_) = Just x
 ---------------------------------------------------------------
 -- | Unique Int -----------------------------------------------
 ---------------------------------------------------------------

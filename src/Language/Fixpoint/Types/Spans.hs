@@ -25,6 +25,7 @@ module Language.Fixpoint.Types.Spans (
 
   -- * Destructing spans
   , sourcePosElts
+  , srcLine 
   ) where
 
 -- import           Control.Exception
@@ -111,7 +112,6 @@ instance Fixpoint a => Fixpoint (Located a) where
 instance Functor Located where
   fmap f (Loc l l' x) =  Loc l l' (f x)
 
-
 instance Foldable Located where
   foldMap f (Loc _ _ x) = f x
 
@@ -140,6 +140,8 @@ instance Hashable a => Hashable (Located a) where
 instance (IsString a) => IsString (Located a) where
   fromString = dummyLoc . fromString
 
+srcLine :: (Loc a) => a -> Int 
+srcLine = sourceLine . sp_start . srcSpan 
 
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
