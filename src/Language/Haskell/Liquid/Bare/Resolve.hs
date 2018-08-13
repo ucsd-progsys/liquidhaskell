@@ -230,6 +230,13 @@ dataConVars dcs = concat
 class Qualify a where 
   qualify :: Env -> ModName -> a -> a 
 
+instance Qualify TyConP where 
+  qualify env name tcp = tcp { tcpSizeFun = qualify env name <$> tcpSizeFun tcp }
+
+instance Qualify SizeFun where 
+  qualify env name (SymSizeFun lx) = SymSizeFun (qualify env name lx)
+  qualify _   _    sf              = sf
+
 instance Qualify F.Equation where 
   qualify _env _name x = x -- TODO-REBARE 
 -- REBARE: qualifyAxiomEq :: Bare.Env -> Var -> Subst -> AxiomEq -> AxiomEq
@@ -269,9 +276,6 @@ instance Qualify RReft where
 instance Qualify F.Qualifier where 
   qualify = substEnv 
 
-instance Qualify SizeFun where 
-  qualify env name (SymSizeFun lx) = SymSizeFun (qualify env name lx)
-  qualify _   _    sf              = sf
 
 instance Qualify TyConInfo where 
   qualify env name tci = tci { sizeFunction = qualify env name <$> sizeFunction tci }

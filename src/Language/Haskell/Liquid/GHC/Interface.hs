@@ -74,14 +74,14 @@ import System.Directory
 import System.FilePath
 import System.IO.Temp
 import Text.Parsec.Pos
-import Text.PrettyPrint.HughesPJ        hiding (first)
+import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
-import qualified Language.Haskell.Liquid.Measure as Ms
-import qualified Language.Haskell.Liquid.Misc    as Misc
+import qualified Language.Haskell.Liquid.Measure  as Ms
+import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
@@ -737,7 +737,7 @@ makeMGIModGuts :: DesugaredModule -> MGIModGuts
 makeMGIModGuts desugared = miModGuts deriv modGuts
   where
     modGuts = coreModule desugared
-    deriv = Just $ instEnvElts $ mg_inst_env modGuts
+    deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
@@ -745,7 +745,19 @@ makeLogicMap = do
   lspec <- readFile lg
   case parseSymbolToLogic lg lspec of 
     Left e   -> throw e 
-    Right lm -> return lm 
+    Right lm -> return (lm <> listLMap)
+
+listLMap :: LogicMap -- TODO-REBARE: move to wiredIn
+listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
+                       , (dummyLoc consName, [x, xs], hCons (EVar <$> [x, xs])) ]
+  where
+    x     = "x"
+    xs    = "xs"
+    hNil  = mkEApp (dcSym Ghc.nilDataCon ) []
+    hCons = mkEApp (dcSym Ghc.consDataCon)
+    dcSym = dummyLoc . dropModuleUnique . symbol
+
+
 
 --------------------------------------------------------------------------------
 -- | Pretty Printing -----------------------------------------------------------

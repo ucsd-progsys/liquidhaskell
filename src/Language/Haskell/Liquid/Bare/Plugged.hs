@@ -145,11 +145,8 @@ plugHoles tce tyi x f t zz@(Loc l l' st)
                           (getSrcSpan x) 
 
 
-goPlug :: F.TCEmb TyCon -> Bare.TyConMap
-       -> (SpecType -> RReft -> RReft)
-       -> SpecType -- RType RTyCon RTyVar RReft
-       -> SpecType -- RType RTyCon RTyVar RReft
-       -> SpecType -- RType RTyCon RTyVar RReft
+goPlug :: F.TCEmb TyCon -> Bare.TyConMap -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
+       -> SpecType
 goPlug tce tyi f = go 
   where
     go t (RHole r) = (addHoles t') { rt_reft = f t r }

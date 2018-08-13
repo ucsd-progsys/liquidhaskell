@@ -99,6 +99,10 @@ saveLiftedSpec src sp = do
     lspec = gsLSpec  sp 
     specF = extFileName BinSpec srcF
 
+-- TODO-REBARE: `postProcess`
+
+
+
 
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
@@ -114,7 +118,7 @@ makeGhcSpec cfg src lmap mspecs = SP
   , gsRefl   = refl 
   , gsQual   = makeSpecQual cfg env rtEnv measEnv specs 
   , gsData   = sData 
-  , gsName   = makeSpecName env tycEnv 
+  , gsName   = makeSpecName env tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name 
   , gsLSpec  = makeLiftedSpec refl sData lSpec1 
@@ -160,6 +164,110 @@ makeTyConEmbeds env (name, spec)
   = F.tceFromList [ (tc, t) | (c,t) <- F.tceToList (Ms.embeds spec), tc <- symTc c ]
     where
       symTc = Mb.maybeToList . Bare.maybeResolveSym env name "embed-tycon" 
+
+{- TODO-REBARE: postProcess
+
+HEREHEREHERE 
+
+--------------------------------------------------------------------------------
+makeGhcSpec :: Config
+            -> FilePath
+            -> ModName
+            -> [CoreBind]
+            -> [TyCon]
+            -> Maybe [ClsInst]
+            -> [Var]
+            -> [Var]
+            -> NameSet
+            -> HscEnv
+            -> Either Error LogicMap
+            -> [(ModName, Ms.BareSpec)]
+            -> IO GhcSpec
+--------------------------------------------------------------------------------
+makeGhcSpec cfg file name cbs tcs instenv vars defVars exports env lmap specs = do
+  (fiTcs, fie) <- makeFamInstEnv env
+  let act       = makeGhcSpec' cfg file cbs fiTcs tcs instenv vars defVars exports specs
+  sp           <- throwLeft =<< execBare act (initEnv fie)
+  let renv      = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) (ghcSpecEnv sp defVars) wiredSortedSyms
+  throwLeft . checkGhcSpec specs renv $ postProcess cbs renv sp
+  where
+    throwLeft   = either Ex.throw return
+    lmap'       = case lmap of { Left e -> Ex.throw e; Right x -> x `mappend` listLMap}
+    initEnv fie = BE { modName  = name
+                     , tcEnv    = mempty
+                     , rtEnv    = mempty
+                     , varEnv   = mempty
+                     , hscEnv   = env
+                     , famEnv   = fie
+                     , logicEnv = lmap'
+                     , dcEnv    = mempty
+                     , bounds   = mempty
+                     , embeds   = mempty
+                     , axSyms   = initAxSymbols name defVars specs
+                     , propSyms = initPropSymbols specs
+                     , beConfig = cfg
+                     , beIndex  = 0
+                     }
+
+
+initAxSymbols :: ModName -> [Var] -> [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
+initAxSymbols name vs = locMap .  Ms.reflects . fromMaybe mempty . lookup name
+  where
+    locMap xs         = M.fromList [ (val x, x) | x <- fmap tx <$> S.toList xs ]
+    tx                = qualifySymbol' vs
+
+-- | see NOTE:AUTO-INDPRED in Bare/DataType.hs
+initPropSymbols :: [(ModName, Ms.BareSpec)] -> M.HashMap Symbol LocSymbol
+initPropSymbols _ = M.empty
+
+importedSymbols :: ModName -> [(ModName, Ms.BareSpec)] -> S.HashSet LocSymbol
+importedSymbols name specs = S.unions [ exportedSymbols sp |  (m, sp) <- specs, m /= name ]
+
+exportedSymbols :: Ms.BareSpec -> S.HashSet LocSymbol
+exportedSymbols spec = S.unions
+  [ Ms.reflects spec
+  , Ms.hmeas    spec
+  , Ms.inlines  spec ]
+
+postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
+postProcess cbs specEnv sp@(SP {..})
+  = sp { gsTySigs     = mapSnd addTCI <$> sigs
+       , gsInSigs     = mapSnd addTCI <$> insigs
+       , gsAsmSigs    = mapSnd addTCI <$> assms
+       , gsInvariants = mapSnd addTCI <$> gsInvariants
+       , gsLits       = txSort        <$> gsLits
+       , gsMeas       = txSort        <$> gsMeas
+       , gsDicts      = dmapty addTCI'    gsDicts
+       , gsTexprs     = ts
+       }
+  where
+    (sigs,   ts')     = replaceLocBinds gsTySigs  gsTexprs
+    (assms,  ts'')    = replaceLocBinds gsAsmSigs ts'
+    (insigs, ts)      = replaceLocBinds gsInSigs  ts''
+    replaceLocBinds   = replaceLocalBinds allowHO gsTcEmbeds gsTyconEnv specEnv cbs
+    txSort            = mapSnd (addTCI . txRefSort gsTyconEnv gsTcEmbeds)
+    addTCI            = (addTCI' <$>)
+    addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
+    allowHO           = higherOrderFlag gsConfig
+
+ghcSpecEnv :: GhcSpec -> [Var] -> SEnv SortedReft
+ghcSpecEnv sp _defs  = fromListSEnv binds
+  where
+    emb              = gsTcEmbeds sp
+    binds            =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas sp])
+                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
+                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
+
+                     -- WHY?!! ++ [(symbol x, vSort x) |  x  <- defs]
+
+    rSort t          = rTypeSortedReft emb t
+    vSort            = rSort . varRSort
+    varRSort         :: Var -> RSort
+varRSort = ofType . varType
+
+
+ -}
+
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: REFLECT-IMPORTS
@@ -621,19 +729,29 @@ mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
   let msR  = [ (symbol v, t) | (v, t) <- vts ]
 -}
 
+-- REBARE: formerly, makeGhcSpec3
 -------------------------------------------------------------------------------------------
-makeSpecName :: Bare.Env -> Bare.TycEnv -> GhcSpecNames
+makeSpecName :: Bare.Env -> Bare.TycEnv -> Bare.MeasEnv -> ModName -> GhcSpecNames
 -------------------------------------------------------------------------------------------
-makeSpecName env tycEnv = SpNames 
+makeSpecName env tycEnv measEnv name = SpNames 
   { gsFreeSyms = Bare.reSyms env 
-  , gsDconsP   = mempty -- TODO-REBARE 
-  , gsTconsP   = mempty -- TODO-REBARE 
-  , gsLits     = mempty -- TODO-REBARE 
+  , gsDconsP   = [ F.atLoc dc (dcpCon dc) | dc <- datacons ++ cls ] -- TODO-REBARE 
+  , gsTconsP   = Bare.qualify env name <$> tycons                   -- TODO-REBARE: redundant with  
+  -- , gsLits = mempty                                              -- TODO-REBARE, redundant with gsMeas
   , gsTcEmbeds = Bare.tcEmbs     tycEnv   
   , gsADTs     = Bare.tcAdts     tycEnv 
   , gsTyconEnv = Bare.tcTyConMap tycEnv  
   }
+  where 
+    datacons, cls :: [DataConP]
+    datacons   = Bare.tcDataCons tycEnv 
+    cls        = Bare.meClasses measEnv 
+    tycons     = Bare.tcTyCons   tycEnv 
 
+--                   , gsLits     = measSyms -- RJ: we will be adding *more* things to `meas` but not `lits`
+-- >>= makeGhcSpec3 (datacons ++ cls) tycons embs syms
+-- , gsDconsP   = [ Loc (dc_loc z) (dc_locE z) dc | (dc, z) <- datacons]
+-- , gsTconsP   = [(tc, qualifyTyConP (qualifySymbol syms) tcp) | (tc, tcp) <- tycons]
 
 -- REBARE: formerly, makeGhcCHOP1
 -------------------------------------------------------------------------------------------
@@ -666,7 +784,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
     
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
-knownWiredDataCons env name = filter isKnown [] -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
+knownWiredDataCons env name = filter isKnown wiredDataCons -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
   where 
     isKnown                 = Bare.knownGhcDataCon env name . GM.namedLocSymbol . dcpCon . val
 
@@ -680,6 +798,8 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   , meClassSyms   = cms' 
   , meSyms        = F.tracepp "SIGH:meSyms" ms' 
   , meDataCons    = cs' 
+  , meClasses     = cls
+  , meMethods     = _mts
   }
   where 
     measures      = F.tracepp "MEASURES" $ mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
@@ -972,8 +1092,8 @@ makeGhcSpec3 datacons tycons embs syms sp = do
   tce    <- tcEnv    <$> get
   return  $ sp { gsTyconEnv = tce
                , gsDconsP   = [ Loc (dc_loc z) (dc_locE z) dc | (dc, z) <- datacons]
-               , gsTcEmbeds = embs
                , gsTconsP   = [(tc, qualifyTyConP (qualifySymbol syms) tcp) | (tc, tcp) <- tycons]
+               , gsTcEmbeds = embs
                , gsFreeSyms = [(symbol v, v) | (_, v) <- syms]
                }
 

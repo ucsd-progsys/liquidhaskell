@@ -76,7 +76,7 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
-makeClasses env sigEnv myName specs = (mempty, mempty) 
+makeClasses env sigEnv myName specs = (mempty, mempty) -- TODO-REBARE
   -- TODO-REBARE: second mconcat . unzip 
   -- TODO-REBARE: $ [ mkClass env sigEnv myName name cls tc
         -- TODO-REBARE: | (name, spec) <- M.toList specs

@@ -363,7 +363,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
     rvs      = foldReft (\_ r acc -> rvReft r : acc) []
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
-substRCon msg su t _ _        = panic Nothing $ msg ++ " substRCon " ++ showpp (su, t)
+substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)
 
 pad :: [Char] -> (a -> a) -> [a] -> [a] -> ([a], [a])
 pad _ f [] ys   = (f <$> ys, ys)

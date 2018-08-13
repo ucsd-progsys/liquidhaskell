@@ -96,23 +96,6 @@ data MeasEnv = MeasEnv
   , meSyms        :: ![(F.Symbol, Located (RRType F.Reft))] -- ms' 
   , meDataCons    :: ![(Ghc.Var,  LocSpecType)]             -- cs'
                                                             -- xs' :: [Symbol] = fst <$> meSyms
+  , meClasses     :: ![DataConP]                            -- cls 
+  , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]     -- mts 
   }
-
-{- 
-data BareEnv = BE
-  { modName  :: !ModName
-  , tcEnv    :: !TCEnv
-  , rtEnv    :: !RTEnv
-  , varEnv   :: !(M.HashMap F.Symbol Var)
-  , hscEnv   :: !(HscEnv)
-  , famEnv   :: !(M.HashMap F.Symbol DataCon)     -- ^ see NOTE:Family-Instance-Environment
-  , logicEnv :: !LogicMap
-  , dcEnv    :: !DataConMap
-  , bounds   :: !(RBEnv)
-  , embeds   :: !(TCEmb TyCon)
-  , axSyms   :: !(M.HashMap F.Symbol LocSymbol)
-  , propSyms :: !(M.HashMap F.Symbol LocSymbol)
-  , beConfig :: !Config
-  , beIndex  :: !Integer
-  }
--}
