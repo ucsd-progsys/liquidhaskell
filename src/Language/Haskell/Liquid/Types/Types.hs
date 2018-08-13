@@ -1444,8 +1444,6 @@ instance F.Reftable Predicate where
   isTauto (Pr ps)      = null ps
 
   bot (Pr _)           = panic Nothing "No BOT instance for Predicate"
-  -- NV: This does not print abstract refinements....
-  -- HACK: Hiding to not render types in WEB DEMO. NEED TO FIX.
   ppTy r d | F.isTauto r      = d
            | not (ppPs ppEnv) = d
            | otherwise        = d <-> (angleBrackets $ F.pprint r)

@@ -502,7 +502,7 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS" tySigs 
-  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
@@ -624,7 +624,7 @@ makeHIMeas f vs spec
 ------------------------------------------------------------------------------------------
 makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig -> Bare.ModSpecs
              -> GhcSpecData
-------------------------------------------------------------------------------------------
+--------------------------------------Trace: [MAKE-AXIOM-SIMPLIFY] : [GHC.Types.: : forall a <p :: a a -> Bool>.----------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
@@ -773,10 +773,10 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
-    tyi           = F.tracepp "TYI" $ Bare.qualify env myName <$> makeTyConInfo tycons
+    tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
-    tycons        = F.tracepp "TYCONS" $ tcs ++ knownWiredTyCons env myName 
+    tycons        = tcs ++ knownWiredTyCons env myName 
     datacons      = Bare.makePluggedDataCons embs tyi (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
@@ -804,20 +804,20 @@ makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.M
 makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv 
   { meMeasureSpec = measures 
   , meClassSyms   = cms' 
-  , meSyms        = F.tracepp "SIGH:meSyms" ms' 
+  , meSyms        = ms' 
   , meDataCons    = cs' 
   , meClasses     = cls
   , meMethods     = _mts
   }
   where 
-    measures      = F.tracepp "MEASURES" $ mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
+    measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
     (cs, ms)      = Bare.makeMeasureSpec'     measures
     cms           = Bare.makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <-  F.tracepp "GSCTORS2" $ Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
+    cs'           = [ (v, txRefs v t) | (v, t) <-  F.tracepp "GSCTORS99" $ Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement

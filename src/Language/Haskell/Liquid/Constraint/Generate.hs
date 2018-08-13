@@ -1213,10 +1213,11 @@ instantiateTys = L.foldl' go
     go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
     go _ _               = panic Nothing "Constraint.instantiateTy"
 
-instantiatePvs :: Foldable t => SpecType -> t SpecProp -> SpecType
-instantiatePvs = L.foldl' go
-  where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
-        go _ _               = panic Nothing "Constraint.instanctiatePv"
+instantiatePvs :: SpecType -> [SpecProp] -> SpecType
+instantiatePvs           = L.foldl' go
+  where 
+    go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
+    go _ _               = errorP "" {- panic Nothing -} "Constraint.instantiatePvs"
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkTyCon _ _ t@(RApp _ _ _ _) = t

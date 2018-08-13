@@ -387,7 +387,7 @@ bareMSpec env sigEnv name spec = Ms.mkMSpec ms cms ims
     ims     = filter inScope $ expMeas <$> Ms.imeasures spec
     expMeas = expandMeasure env name  rtEnv
     rtEnv   = Bare.sigRTEnv          sigEnv
-    inScope z = F.tracepp ("inScope: " ++ F.showpp (msName z)) . Bare.knownGhcType env name . msSort $ z
+    inScope z = F.notracepp ("inScope: " ++ F.showpp (msName z)) . Bare.knownGhcType env name . msSort $ z
 
 
 mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t Ghc.DataCon

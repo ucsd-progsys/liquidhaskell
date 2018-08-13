@@ -24,23 +24,11 @@
 
 ## HEREHEREHEREHERE
 
+- tests-measure-pos-GList000.hs 
+  - see "GSCTORS99" (`rebare` has junk type for `GHC.Types.:` wrt `develop` -- on goto)
+  - HYPOTHESIS: we are getting bogus stuff in `datacons` itself.
+
 - tests/names/neg/vector1.hs        **bad error span**
-
-REBARE 
-
- GHC.Tuple.(,) : forall a b <p2 :: a b -> Bool> .
-                 lq_tmp$x##195:a -> lq_tmp$x##196:{VV : b<p2 lq_tmp$x##195> | true} -> {VV : (a, b)<p2> | x_Tuple22 VV == lq_tmp$x##196
-                                                                                                          && x_Tuple21 VV == lq_tmp$x##195
-                                                                                                          && snd VV == lq_tmp$x##196
-                                                                                                          && fst VV == lq_tmp$x##195},
-
-DEVELOP 
-
-  GHC.Tuple.(,) : forall a b <p2 :: a b -> Bool>.
-                 lq_tmp$x##57:a -> lq_tmp$x##58:{VV : b<p2 lq_tmp$x##57> | true} -> {VV : (a, b)<\lq_tmp$x##59 VV -> {VV : _<p2 lq_tmp$x##59> | true}> | snd VV == lq_tmp$x##58
-                                                                                                                                                         && fst VV == lq_tmp$x##57
-                                                                                                                                                         && x_Tuple22 VV == lq_tmp$x##58
-                                                                                                                                                         && x_Tuple21 VV == lq_tmp$x##57}]
 
 
 
