@@ -6,9 +6,7 @@
 -- | Also, &&, not and rest logical operators are not in scope in the axioms
 
 {-@ LIQUID "--reflection"     @-}
-
 {-@ LIQUID "--pruneunsorted"   @-}
-
 
 module Solver where
 
@@ -32,7 +30,17 @@ type Asgn = L (P Var Bool)
 
 {-@ solve :: f:Formula -> Maybe {a:Asgn | sat a f } @-}
 solve   :: Formula -> Maybe Asgn
-solve f = find (`sat` f) (asgns f)
+solve f = -- find (`sat` f) (asgns f)
+          find1 (satMb f) (asgns f) 
+  where
+	  -- satMb :: Formula -> Asgn -> Maybe Asgn 
+   satMb f a = if sat a f then Just a else Nothing 
+
+find1 :: (a -> Maybe b) -> [a] -> Maybe b 
+find1 _ []     = Nothing 
+find1 f (x:xs) = case f x of 
+		   Just y  -> Just y 
+		   Nothing -> find1 f xs 
 
 {-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>. 
             {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
@@ -41,7 +49,6 @@ find :: (a -> Bool) -> [a] -> Maybe a
 find f [] = Nothing
 find f (x:xs) | f x       = Just x
               | otherwise = Nothing
-
 
 -- | Generate all assignments
 

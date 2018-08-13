@@ -666,7 +666,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
     
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
-knownWiredDataCons env name = filter isKnown [] -- REBARE: use `wiredDataCons` AFTER we have ABSREF
+knownWiredDataCons env name = filter isKnown [] -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
   where 
     isKnown                 = Bare.knownGhcDataCon env name . GM.namedLocSymbol . dcpCon . val
 
