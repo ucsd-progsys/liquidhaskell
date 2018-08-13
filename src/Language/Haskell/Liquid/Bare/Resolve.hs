@@ -79,7 +79,7 @@ makeEnv cfg src lmap = RE
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   , reQImps     = gsQImports     src
-  , reLocalVars = F.tracepp "LocalVars" $ makeLocalVars src 
+  , reLocalVars = makeLocalVars src 
   } 
   where 
     syms        = [ (F.symbol v, v) | v <- vars ] 
@@ -153,7 +153,6 @@ makeSymMap src = Misc.group [ (sym, (m, x))
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
 makeTyThingMap src = 
-  -- F.tracepp "makeTyThingMap" $ 
   Misc.group [ (x, (m, t))  | t         <- srcThings src
                             , let (m, x) = qualifiedSymbol t 
                             , not (isLocal m)
@@ -334,7 +333,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = -- F.tracepp ("knownType: " ++ F.showpp t) $
   case ofBareTypeE env name l t of 
-    Left e  -> F.tracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
 --   where 
@@ -348,25 +347,27 @@ rTypeTyCons           = Misc.sortNub . foldRType f []
     f acc t@(RApp {}) = rt_tycon t : acc 
     f acc _           = acc
 
+-- Aargh. Silly that each of these is the SAME code, only difference is the type.
 
 knownGhcVar :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcVar env name lx = Mb.isJust v 
   where 
-    v :: Maybe Ghc.Var 
+    v :: Maybe Ghc.Var -- This annotation is crucial
     v = F.notracepp ("knownGhcVar " ++ F.showpp lx) 
       $ maybeResolveSym env name "known-var" lx 
 
 knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcTyCon env name lx = Mb.isJust v 
   where 
-    v :: Maybe Ghc.TyCon 
+    v :: Maybe Ghc.TyCon -- This annotation is crucial
     v = maybeResolveSym env name "known-tycon" lx 
 
 knownGhcDataCon :: Env -> ModName -> LocSymbol -> Bool 
 knownGhcDataCon env name lx = Mb.isJust v 
   where 
-    v :: Maybe Ghc.TyCon 
-    v = maybeResolveSym env name "known-var" lx 
+    v :: Maybe Ghc.DataCon -- This annotation is crucial
+    v = F.notracepp ("knownGhcDataCon" ++ F.showpp lx) 
+      $ maybeResolveSym env name "known-datacon" lx 
 
 
 
@@ -395,14 +396,15 @@ instance ResolveSym F.Symbol where
     Right (v :: Ghc.Var) -> Right (F.symbol v)
 
 
-resolveWith :: (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
+resolveWith :: (F.PPrint [a]) => (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
-resolveWith f env name kind lx = 
-  case Mb.mapMaybe f things of 
+resolveWith f env name kind lx =
+  case F.notracepp msg $ Mb.mapMaybe f things of 
     []  -> Left  (errResolve kind lx) 
     x:_ -> Right x 
   where 
     things = lookupTyThing env name (val lx) 
+    msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 

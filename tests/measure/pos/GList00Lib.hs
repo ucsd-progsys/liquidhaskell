@@ -6,7 +6,7 @@ module GList00Lib where
 die :: () -> a
 die = undefined 
 
-{-@ safeHead :: {v:[Int] | llen v > 0} ->  @-} 
+{-@ safeHead :: {v:[a] | llen v > 0} -> a @-} 
 safeHead :: [a] -> a 
 safeHead (x:_) = x 
 safeHead []    = die () 

@@ -501,7 +501,7 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = F.tracepp "SIGS" tySigs 
+  { gsTySigs   = tySigs 
   , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
@@ -795,8 +795,6 @@ knownWiredTyCons env name = filter isKnown wiredTyCons -- TODO-REBARE: use `wire
     isKnown               = Bare.knownGhcTyCon env name . GM.namedLocSymbol . tcpCon 
 
 
-
-
 -- REBARE: formerly, makeGhcCHOP2
 -------------------------------------------------------------------------------------------
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 
@@ -817,7 +815,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <-  F.tracepp "GSCTORS99" $ Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
+    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement

@@ -30,9 +30,6 @@
 
 - tests/names/neg/vector1.hs        **bad error span**
 
-
-
-
 Tests
   Prover
     with_ple
