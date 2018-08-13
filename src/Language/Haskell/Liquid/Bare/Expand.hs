@@ -440,6 +440,9 @@ cookSpecTypeE env sigEnv name x bt
   = id 
   -- TODO-REBARE . strengthenMeasures env sigEnv      x 
   -- TODO-REBARE . strengthenInlines  env sigEnv      x  
+  -- TODO-REBARE : txRefSort tyi embs $ fmap txExpToBind t
+  -- TODO-REBARE : txRefSort tyi embs $ fmap txExpToBind t
+  -- TODO-REBARE : addTyConInfo gsTcEmbeds gsTyconEnv
   . fmap (specExpandType rtEnv)                         
   . fmap (fixCoercions bt)
   . fmap (fmap RT.generalize)
@@ -450,6 +453,8 @@ cookSpecTypeE env sigEnv name x bt
   $ bt 
   where 
     rtEnv = Bare.sigRTEnv sigEnv
+
+-- TODO-
 
 fixCoercions :: LocBareType -> LocSpecType -> LocSpecType 
 fixCoercions bt t = txCoerce <$> t 

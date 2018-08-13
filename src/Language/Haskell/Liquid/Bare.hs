@@ -231,13 +231,13 @@ exportedSymbols spec = S.unions
 
 postProcess :: [CoreBind] -> SEnv SortedReft -> GhcSpec -> GhcSpec
 postProcess cbs specEnv sp@(SP {..})
-  = sp { gsTySigs     = mapSnd addTCI <$> sigs
-       , gsInSigs     = mapSnd addTCI <$> insigs
-       , gsAsmSigs    = mapSnd addTCI <$> assms
-       , gsInvariants = mapSnd addTCI <$> gsInvariants
-       , gsLits       = txSort        <$> gsLits
-       , gsMeas       = txSort        <$> gsMeas
-       , gsDicts      = dmapty addTCI'    gsDicts
+  = sp { gsTySigs     = mapSnd addTCI  <$> sigs
+       , gsInSigs     = mapSnd addTCI  <$> insigs
+       , gsAsmSigs    = mapSnd addTCI  <$> assms
+       , gsInvariants = mapSnd addTCI  <$> gsInvariants
+       , gsLits       = txSort         <$> gsLits
+       , gsMeas       = txSort         <$> gsMeas
+       , gsDicts      =        addTCI' <$>   gsDicts
        , gsTexprs     = ts
        }
   where
@@ -502,7 +502,7 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS" tySigs 
-  , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
+  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
@@ -773,9 +773,10 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
-    tycons        = Misc.replaceWith tcpCon tcs wiredTyCons
-    tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
+    tyi           = F.tracepp "TYI" $ Bare.qualify env myName <$> makeTyConInfo tycons
+    -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
+    tycons        = F.tracepp "TYCONS" $ tcs ++ knownWiredTyCons env myName 
     datacons      = Bare.makePluggedDataCons embs tyi (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
@@ -787,6 +788,13 @@ knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP]
 knownWiredDataCons env name = filter isKnown wiredDataCons -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
   where 
     isKnown                 = Bare.knownGhcDataCon env name . GM.namedLocSymbol . dcpCon . val
+
+knownWiredTyCons :: Bare.Env -> ModName -> [TyConP] 
+knownWiredTyCons env name = filter isKnown wiredTyCons -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
+  where 
+    isKnown               = Bare.knownGhcTyCon env name . GM.namedLocSymbol . tcpCon 
+
+
 
 
 -- REBARE: formerly, makeGhcCHOP2
@@ -809,7 +817,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
+    cs'           = [ (v, txRefs v t) | (v, t) <-  F.tracepp "GSCTORS2" $ Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement
@@ -1190,7 +1198,7 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let dms   = makeDefaultMethods vars mts
   tyi      <- gets tcEnv
   let sigs  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- sigs' ++ mts ++ dms ]
-  let asms  = F.notracepp "MAKE-ASSUME-SPEC-2" [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
+  let asms  = [ (x, txRefSort tyi embs $ fmap txExpToBind t) | (_, x, t) <- asms' ]
   let hms   = concatMap (S.toList . Ms.hmeas . snd) (filter ((== name) . fst) specs)
   let minvs = makeMeasureInvariants sigs hms
   checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.

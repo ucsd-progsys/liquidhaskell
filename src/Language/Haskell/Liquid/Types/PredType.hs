@@ -268,7 +268,7 @@ replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> Spe
 replacePreds msg                 = foldl' go
   where
      go _ (_, RProp _ (RHole _)) = panic Nothing "replacePreds on RProp _ (RHole _)"
-     go z (π, t) = substPred msg   (π, t)     z
+     go z (π, t)                 = substPred msg   (π, t)     z
 
 
 -- TODO: replace `replacePreds` with

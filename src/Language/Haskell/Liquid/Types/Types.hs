@@ -1034,7 +1034,7 @@ instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
-                    deriving (Semigroup, Monoid, Show)
+                    deriving (Semigroup, Monoid, Show, Functor)
 
 type RDEnv = DEnv Var SpecType
 
