@@ -411,7 +411,7 @@ mkMeasureSort env name (Ms.MSpec c mm cm im) =
   Ms.MSpec (map txDef <$> c) (tx <$> mm) (tx <$> cm) (tx <$> im) 
     where
       ofMeaSort :: F.SourcePos -> BareType -> SpecType
-      ofMeaSort = Bare.ofBareType env name  
+      ofMeaSort l = Bare.ofBareType env name l Nothing 
 
       tx :: Measure BareType ctor -> (Measure SpecType ctor)
       tx (M n s eqs k) = M n (ofMeaSort l s) (txDef <$> eqs) k     where l = GM.fSourcePos n

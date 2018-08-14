@@ -134,7 +134,7 @@ makeGhcSpec cfg src lmap mspecs = SP
     mySpec   = mySpec2 <> lSpec1 
     lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
-    tyi      = Bare.tcTyConMap   tycEnv 
+    tyi      = F.tracepp "TYI" $ Bare.tcTyConMap   tycEnv 
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.expand rtEnv l mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.expand rtEnv l iSpecs0    where l = F.dummyPos "expand-iSpecs2"

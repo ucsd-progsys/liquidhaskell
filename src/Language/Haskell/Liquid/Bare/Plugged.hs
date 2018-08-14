@@ -179,7 +179,6 @@ goPlug tce tyi f = go
     -- problem to the user.
     go st               _                 = st
 
-
 addRefs :: F.TCEmb TyCon -> M.HashMap TyCon RTyCon -> SpecType -> SpecType
 addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
   where

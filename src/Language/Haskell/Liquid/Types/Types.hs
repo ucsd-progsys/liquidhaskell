@@ -276,26 +276,26 @@ import           Data.Default
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
 
-data PPEnv
-  = PP { ppPs    :: Bool -- ^ print "foralls"
-       , ppTyVar :: Bool -- TODO if set to True all Bare fails
-       , ppSs    :: Bool
-       , ppShort :: Bool
-       }
-    deriving (Show)
+data PPEnv = PP 
+  { ppPs    :: Bool -- ^ print "foralls"
+  , ppTyVar :: Bool -- TODO if set to True all Bare fails
+  , ppSs    :: Bool
+  , ppShort :: Bool
+  , ppDebug :: Bool -- ^ gross with full info
+  }
+  deriving (Show)
 
 ppEnv :: PPEnv
-ppEnv = ppEnvCurrent -- { ppTyVar = True } -- True to see UNIQUE SUFFIX on TYVar
-          { ppPs    = True }  -- True to see forall ... on Types 
+ppEnv = ppEnvDef 
+       -- { ppTyVar = True }  -- To see UNIQUE SUFFIX on TYVar
+          { ppPs    = True }  -- To see forall and predicates 
+          { ppDebug = True }
 
-ppEnvCurrent :: PPEnv
-ppEnvCurrent    = PP False False False False
-
-_ppEnvPrintPreds :: PPEnv
-_ppEnvPrintPreds = PP True False False False
+ppEnvDef :: PPEnv
+ppEnvDef = PP False False False False False
 
 ppEnvShort :: PPEnv -> PPEnv
-ppEnvShort pp   = pp { ppShort = True }
+ppEnvShort pp = pp { ppShort = True }
 
 ------------------------------------------------------------------
 -- Huh?
@@ -1000,7 +1000,12 @@ instance F.Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
 
 instance F.PPrint RTyCon where
-  pprintTidy _ = text . showPpr . rtc_tc
+  pprintTidy k c 
+    | ppDebug ppEnv = F.pprintTidy k tc  <-> (angleBrackets $ F.pprintTidy k pvs)
+    | otherwise     = text . showPpr . rtc_tc $ c
+    where 
+      tc            = F.symbol (rtc_tc c) 
+      pvs           = rtc_pvars c 
 
 instance F.PPrint BTyCon where
   pprintTidy _ = text . F.symbolString . F.val . btc_tc

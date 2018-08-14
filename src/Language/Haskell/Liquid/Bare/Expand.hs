@@ -70,17 +70,6 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
   where
     f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
 
-{- 
-specRTAlias :: Bare.Env -> ModName -> Located (RTAlias Symbol BareType) -> Located (RTAlias RTyVar SpecType) 
-specRTAlias env m la = F.atLoc la $ RTA 
-  { rtName  = rtName a
-  , rtTArgs = symbolRTyVar <$> rtTArgs a
-  , rtVArgs = rtVArgs a 
-  , rtBody  = F.val (Bare.ofBareType env m (F.atLoc la (rtBody a))) 
-  } 
-  where a   = val la 
--}
-
 specREAlias :: Bare.Env -> ModName -> Located (RTAlias F.Symbol F.Expr) -> Located (RTAlias F.Symbol F.Expr) 
 specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (rtBody a) } 
   where 
@@ -480,9 +469,8 @@ bareExpandType = expandLoc
 specExpandType :: BareRTEnv -> LocSpecType -> LocSpecType
 specExpandType = expandLoc
 
-
 bareSpecType :: Bare.Env -> ModName -> LocBareType -> Either UserError LocSpecType 
-bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) (val bt) of 
+bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (val bt) of 
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)
 

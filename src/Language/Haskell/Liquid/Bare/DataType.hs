@@ -503,7 +503,7 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
     tc'        = Bare.lookupGhcDnTyCon env name "ofBDataDecl" tc
     cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
-    pd         = Bare.mkSpecType' env name lc [] <$> pt
+    pd         = Bare.ofBareType env name lc (Just []) <$> pt
     tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
     initmap    = zip (RT.uPVar <$> πs) [0..]
     varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
@@ -556,8 +556,8 @@ ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) = DataConP
   -- = DataConP l c' αs πs ls cs zts ot isGadt (F.symbol name) l'
   where
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
-    ts'           = Bare.mkSpecType' env name l ps <$> ts
-    res'          = Bare.mkSpecType' env name l ps <$> res
+    ts'           = Bare.ofBareType env name l (Just ps) <$> ts
+    res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
     (yts, ot)     = qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')

@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Types.PredType (
   , dataConPSpecType
   , makeTyConInfo
   , replacePreds
-
   , replacePredsWithRefs
   , pVartoRConc
 
@@ -21,7 +20,6 @@ module Language.Haskell.Liquid.Types.PredType (
 
   -- * Compute @RType@ of a given @PVar@
   , pvarRType
-
   , substParg
   , pApp
   , pappSort
@@ -201,7 +199,7 @@ dataConTy _ _
   = panic Nothing "ofTypePAppTy"
 
 ----------------------------------------------------------------------------
------ Interface: Replace Predicate With Uninterprented Function Symbol -----
+-- | Interface: Replace Predicate With Uninterprented Function Symbol ------
 ----------------------------------------------------------------------------
 
 replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)

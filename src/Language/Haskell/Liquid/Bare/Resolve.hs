@@ -41,7 +41,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , ofBareTypeE
   , ofBareType
   , ofBPVar
-  , mkSpecType'
+  -- , mkSpecType'
   -- , ofBareExpr
 
   -- * Post-processing types
@@ -332,7 +332,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 -------------------------------------------------------------------------------
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = -- F.tracepp ("knownType: " ++ F.showpp t) $
-  case ofBareTypeE env name l t of 
+  case ofBareTypeE env name l Nothing t of 
     Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
@@ -498,14 +498,23 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
   ------ JUNK-- USE "QUALIFY"resolve env name _ lx = F.atLoc lx (resolve env name (F.loc lx) (val lx))
 
 -------------------------------------------------------------------------------
--- | HERE 
+-- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
 
-ofBareType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType 
-ofBareType env name l t = either (Misc.errorP "error-ofBareType" . F.showpp) id (ofBareTypeE env name l t)
+ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType 
+ofBareType env name l ps t = either (Misc.errorP "error-ofBareType" . F.showpp) id 
+                              (ofBareTypeE env name l ps t)
 
-ofBareTypeE :: Env -> ModName -> F.SourcePos -> BareType -> Either UserError SpecType 
-ofBareTypeE env name l t = ofBRType env name (qualify env name) l t 
+ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Either UserError SpecType 
+ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t 
+
+resolveReft :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> RReft -> RReft 
+resolveReft env name l ps t 
+        = qualify env name 
+        . txParam l RT.subvUReft (RT.uPVar <$> πs) t
+  where 
+    πs  = Mb.fromMaybe tπs ps  
+    tπs = ty_preds (toRTypeRep t)
 
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
 ofBSort env name l t = either (Misc.errorP "error-ofBSort" . F.showpp) id (ofBSortE env name l t)
@@ -517,19 +526,23 @@ ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 
 --------------------------------------------------------------------------------
--- mkSpecType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType
--- mkSpecType env name l t = mkSpecType' env name l πs t
-  -- where 
-    -- πs                  = ty_preds (toRTypeRep t)
-
 mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
-mkSpecType' env name l πs t = case ofBRType env name resolveReft l t of 
-                                Left e  -> Misc.errorP "error-mkSpecType'" $ F.showpp e -- Ex.throw e 
-                                Right v -> v 
-  where
-    resolveReft             = qualify env name . txParam l RT.subvUReft (RT.uPVar <$> πs) t
+mkSpecType' env name l ps t = ofBareType env name l (Just ps) t 
 
-txParam :: F.SourcePos-> ((UsedPVar -> UsedPVar) -> t) -> [UsedPVar] -> RType c tv r -> t
+
+-- REBARE mkSpecType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType
+-- REBARE mkSpecType env name l t = mkSpecType' env name l πs t
+  -- REBARE where 
+    -- REBARE πs                  = ty_preds (toRTypeRep t)
+
+-- REBARE mkSpecType' env name l πs t = case ofBRType env name resolveReft l t of 
+                                -- REBARE Left e  -> Misc.errorP "error-mkSpecType'" $ F.showpp e 
+                                -- REBARE -- Ex.throw e 
+                                -- REBARE Right v -> v 
+  -- REBARE where
+    -- REBARE resolveReft             = qualify env name . txParam l RT.subvUReft (RT.uPVar <$> πs) t
+
+txParam :: F.SourcePos -> ((UsedPVar -> UsedPVar) -> t) -> [UsedPVar] -> RType c tv r -> t
 txParam l f πs t = f (txPvar l (predMap πs t))
 
 txPvar :: F.SourcePos -> M.HashMap F.Symbol UsedPVar -> UsedPVar -> UsedPVar
@@ -720,7 +733,8 @@ addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
   | length xs == length ts
   = RProp xts (RHole r)
   | otherwise
-  = uError $ ErrPartPred sp (pprint rc) (pprint $ pname up) i (length xs) (length ts)
+  = Misc.errorP "ZONK" $ F.showpp (rc, pname up, i, length xs, length ts)
+  -- uError $ ErrPartPred sp (pprint rc) (pprint $ pname up) i (length xs) (length ts)
     where
       xts = Misc.safeZipWithError "addSymSortRef'" xs ts
       xs  = Misc.snd3 <$> pargs up
