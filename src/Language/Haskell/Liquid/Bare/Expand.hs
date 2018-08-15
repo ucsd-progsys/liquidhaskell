@@ -50,7 +50,8 @@ import qualified Language.Haskell.Liquid.Bare.Plugged  as Bare
 makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap 
           -> BareRTEnv 
 --------------------------------------------------------------------------------
-makeRTEnv env m mySpec iSpecs lmap = makeRTAliases tAs (makeREAliases eAs) 
+makeRTEnv env m mySpec iSpecs lmap 
+          = makeRTAliases tAs (makeREAliases eAs) 
   where
     tAs   = [ t                   | (_, s) <- specs, t <- Ms.aliases  s]
     eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s]
@@ -251,10 +252,10 @@ instance Expand BareType where
   expand = expandBareType 
 
 instance Expand (RTAlias F.Symbol Expr) where 
-  expand _ _ x = x -- TODO-REBARE 
+  expand rtEnv l x = x { rtBody = expand rtEnv l (rtBody x) } 
 
 instance Expand BareRTAlias where 
-  expand _ _ x = x -- TODO-REBARE 
+  expand rtEnv l x = x { rtBody = expand rtEnv l (rtBody x) } 
 
 instance Expand Body where 
   expand rtEnv l (P   p) = P   (expand rtEnv l p) 
