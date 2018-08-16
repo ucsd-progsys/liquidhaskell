@@ -2,7 +2,7 @@
 
 module BasicLambda where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 import Prelude hiding (map, id)
 
@@ -26,7 +26,7 @@ funApp _ _ = trivial
 
 
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: a -> (a -> b) ->  b
 bind x f = f x
 
@@ -38,7 +38,7 @@ helper m = bind m h
 
 
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
@@ -48,7 +48,7 @@ id x = x
   -> {v:Proof | (\r:r -> id (x r)) ==  (\r:r -> (x r) ) } @-}
 fmap_id' :: (r -> a) ->  Proof
 fmap_id' x
-   =   fun_eq (\rrr1 -> x rrr1) (\rrr2 -> id (x rrr2)) (\r -> x  r ==. id (x r) *** QED)
+   =   fun_eq (\rrr1 -> x rrr1) (\rrr2 -> id (x rrr2)) (\r -> x  r === id (x r) *** QED)
 
 
 

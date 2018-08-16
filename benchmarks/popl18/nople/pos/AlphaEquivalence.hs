@@ -1,22 +1,17 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--alphaequivalence"  @-}
 {-@ LIQUID "--betaequivalence"  @-}
 
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
 module ApplicativeReader where
 
 import Prelude hiding (fmap, id, seq, pure)
 
-import Proves
-import Helper (lambda_expand)
-{-@ axiomatize seq @-}
+import Language.Haskell.Liquid.NewProofCombinators 
+
+{-@ reflect seq @-}
 seq :: (r -> (a -> b)) -> (r -> a) ->  (Reader r b)
 seq f x =  Reader (\r -> (f r) (x r))
 
-
-{-@ data Reader r a = Reader { runIdentity :: r -> a } @-}
 data Reader r a     = Reader { runIdentity :: r -> a }
 
 
@@ -29,9 +24,6 @@ This cannot be verified, as it creates the query
 
 -}
 
-
-
-
 {-@ composition' :: x: (r -> (a -> a))
                 -> y:(r -> a)
                 -> { ((
@@ -41,12 +33,6 @@ This cannot be verified, as it creates the query
                    ((\r3:r ->  (x r3) ( y r3))
                          ) )
                    } @-}
-composition' :: Arg r => (r -> (a -> a)) -> (r-> a) -> Proof
+composition' :: (r -> (a -> a)) -> (r-> a) -> Proof
 composition' x y
-  =   simpleProof 
-
-
-
-{-@ assume (===.) :: x:a -> y:{a | x == y} -> {x == y} @-}
-(===.) :: a -> a -> Proof 
-_ ===. _ = undefined 
+  = trivial 

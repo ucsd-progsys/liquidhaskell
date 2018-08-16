@@ -1,15 +1,13 @@
 {-@ LIQUID "--reflection"      @-}
 {-@ LIQUID "--betaequivalence" @-}
 
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
-module FunctorList where
+module FunctionEquality where
 
 import Prelude hiding (id)
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
@@ -22,7 +20,7 @@ fmap_id'' x
 
 {-@ fmap_id'' ::  x:a
             -> { (\r:a -> (id r)) == (\r:a -> r) } @-}
-fmap_id'' :: Arg a => a  ->  Proof
+fmap_id'' :: a  ->  Proof
 fmap_id'' x 
    =  eq_fun (\r -> id r)
              (\r -> r) 
@@ -31,14 +29,14 @@ fmap_id'' x
 
 
 {-@ helper' :: a ->  r:a -> {(\r:a -> id r) (r)  == (\r:a -> r) (r)} @-}
-helper' :: Arg a => a -> a -> Proof
-helper' _ r = id r ==. r *** QED 
+helper' :: a -> a -> Proof
+helper' _ r = id r === r *** QED 
 
 -- | Sound example
 
 {-@ fmap_id ::  f:(r -> a) -> g:(r -> a) 
             -> { (\r:r -> (id (f r))) == (\r:r-> (f r)) } @-}
-fmap_id :: Arg r => (r -> a) -> (r -> a) ->  Proof
+fmap_id :: (r -> a) -> (r -> a) ->  Proof
 fmap_id f g 
    = eq_fun (\r -> id (f r)) (\r -> f r) (helper f)
 
@@ -55,10 +53,10 @@ fmap_id f g
       && ((\r:r -> (id (f r))) (r) == id (f r))  
       && ((\r:r-> (f r)) (r) == f r) 
       } @-} 
-helper :: Arg r => (r -> a) -> r -> Proof 
+helper :: (r -> a) -> r -> Proof 
 helper f r 
   =   id (f r)
-  ==. f r 
+  === f r 
   *** QED 
 
 -- Function equality can be decided only by the following function
@@ -66,7 +64,7 @@ helper f r
 -- otherwise because of ocntravariance it is refined to false leading to the 
 -- following unsound example
 
-eq_fun :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> Proof 
+eq_fun :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof 
 {-@ assume eq_fun :: f:(a -> b) -> g:(a -> b) 
   -> (r:a -> {f r == g r}) -> {f == g}@-}
 eq_fun = undefined 
@@ -77,7 +75,7 @@ eq_fun = undefined
             -> { (\r:r -> (id (f r))) == (\r:r-> (g r)) } @-}
 fmap_id' :: (r -> a) -> (r -> a) ->  Proof
 fmap_id' f g 
-   = eq_fun' (\r -> id (f r)) (\r -> g r) (\_ -> simpleProof)
+   = eq_fun' (\r -> id (f r)) (\r -> g r) (\_ -> trivial)
 
 
 

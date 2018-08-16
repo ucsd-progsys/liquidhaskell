@@ -1,28 +1,23 @@
-{-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons"  @-}
-
+{-@ LIQUID "--reflection"      @-}
 {-@ LIQUID "--alphaequivalence" @-}
 {-@ LIQUID "--betaequivalence"  @-}
 
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
 module MonadMaybe where
 
-import Prelude hiding (return, Maybe(..))
+import Prelude hiding (return) 
 
-import Proves
-import Helper
+import Language.Haskell.Liquid.NewProofCombinators 
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a
 -- | Right identity:	m >>= return    ≡ m
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
-{-@ axiomatize return @-}
+{-@ reflect return @-}
 return :: a -> Maybe a
 return x = Just x
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: Maybe a -> (a -> Maybe b) -> Maybe b
 bind m f
   | is_Just m  = f (from_Just m)
@@ -33,11 +28,11 @@ bind m f
 {-@ left_identity :: x:a -> f:(a -> Maybe b) -> {v:Proof | bind (return x) f == f x } @-}
 left_identity :: a -> (a -> Maybe b) -> Proof
 left_identity x f
-  = toProof $
-       bind (return x) f
-         ==. bind (Just x) f
-         ==. f (from_Just (Just x))
-         ==. f x
+  = bind (return x) f
+  === bind (Just x) f
+  === f (from_Just (Just x))
+  === f x
+  *** QED 
 
 
 
@@ -46,43 +41,40 @@ left_identity x f
 {-@ right_identity :: x:Maybe a -> {v:Proof | bind x return == x } @-}
 right_identity :: Maybe a -> Proof
 right_identity Nothing
-  = toProof $
-      bind Nothing return
-        ==. Nothing
+  =   bind Nothing return
+  === Nothing
+  *** QED 
 
 right_identity (Just x)
-  = toProof $
-       bind (Just x) return
-        ==. return x
-        ==. Just x
+  =   bind (Just x) return
+  === return x
+  === Just x
+  *** QED 
 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 {-@ associativity :: m:Maybe a -> f: (a -> Maybe b) -> g:(b -> Maybe c)
   -> {v:Proof | bind (bind m f) g == bind m (\x:a -> (bind (f x) g))} @-}
-associativity :: Arg a => Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
+associativity :: Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
 associativity Nothing f g
   =   bind (bind Nothing f) g
-  ==. bind Nothing g
-  ==. Nothing
-  ==. bind Nothing (\x -> bind (f x) g)
+  === bind Nothing g
+  === Nothing
+  === bind Nothing (\x -> bind (f x) g)
   *** QED 
 associativity (Just x) f g
   =   bind (bind (Just x) f) g
-  ==. bind (f x) g
-  ==. (\y -> bind (f y) g) x             ? beta_reduce x f g 
-  ==. bind (Just x) (\y -> bind (f y) g)
+  === bind (f x) g
+  ==? (\y -> bind (f y) g) x             
+      ? beta_reduce x f g 
+  === bind (Just x) (\y -> bind (f y) g)
   *** QED 
-
 
 
 beta_reduce :: a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof 
 {-@ beta_reduce :: x:a -> f:(a -> Maybe b) -> g:(b -> Maybe c)
                 -> {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
-
-beta_reduce x f g = simpleProof 
-
-data Maybe a = Nothing | Just a
+beta_reduce x f g = trivial 
 
 {-@ measure from_Just @-}
 from_Just :: Maybe a -> a

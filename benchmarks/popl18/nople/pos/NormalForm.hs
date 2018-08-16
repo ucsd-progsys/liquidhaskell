@@ -1,11 +1,11 @@
-{-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--exact-data-cons"  @-}
+{-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--alphaequivalence" @-}
 {-@ LIQUID "--betaequivalence"  @-}
 {-@ LIQUID "--normalform"       @-} 
 
 module MonadReader where
-import Proves
+
+import Language.Haskell.Liquid.NewProofCombinators 
 
 {-
 
@@ -16,13 +16,9 @@ instance taken from MonadReader.associativity
 
 -}
 
-
 foo :: (a -> c) -> Proof 
 {-@ foo :: f:(a ->  c) 
   -> {(\x:a -> (\y:b -> f x))  == (\x:a -> (\z:c -> (\y:b -> f x)) (f x)) } @-} 
-foo _ = simpleProof 
+foo _ = trivial 
 
-
-{- foo :: f:(a ->  c) 
-  -> {(\x:a -> (\y:a -> f y) )  == (\x:a -> (\z:c -> (\y:a -> f x))(f x) )   } @-} 
 

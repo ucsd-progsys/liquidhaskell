@@ -2,25 +2,22 @@
 {-@ LIQUID "--ple"               @-}
 {-@ LIQUID "--betaequivalence"   @-}
 
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE FlexibleContexts    #-}
 module MonadMaybe where
 
-import Prelude hiding (return, Maybe(..))
+import Prelude hiding (return)
 
-import Language.Haskell.Liquid.ProofCombinators
-import Helper
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a
 -- | Right identity:	m >>= return    ≡ m
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
-{-@ axiomatize return @-}
+{-@ reflect return @-}
 return :: a -> Maybe a
 return x = Just x
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: Maybe a -> (a -> Maybe b) -> Maybe b
 bind m f
   | is_Just m  = f (from_Just m)
@@ -48,14 +45,11 @@ right_identity (Just x)
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 {-@ associativity :: m:Maybe a -> f: (a -> Maybe b) -> g:(b -> Maybe c)
   -> {v:Proof | bind (bind m f) g == bind m (\x:a -> (bind (f x) g))} @-}
-associativity :: Arg a => Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
+associativity :: Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
 associativity Nothing f g
   =   trivial 
 associativity (Just x) f g
   =   trivial 
-
-
-data Maybe a = Nothing | Just a
 
 {-@ measure from_Just @-}
 from_Just :: Maybe a -> a
