@@ -9,8 +9,8 @@ import GHC.Word
 
 import Data.Foldable
 import Data.Maybe
+import Data.Tuple
 import GHC.Exts
-
 import GHC.Err 
 
 

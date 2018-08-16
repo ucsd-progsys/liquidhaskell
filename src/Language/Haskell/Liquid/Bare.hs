@@ -101,9 +101,6 @@ saveLiftedSpec src sp = do
 
 -- TODO-REBARE: `postProcess`
 
-
-
-
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
@@ -134,7 +131,7 @@ makeGhcSpec cfg src lmap mspecs = SP
     mySpec   = mySpec2 <> lSpec1 
     lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
-    tyi      = F.tracepp "TYI" $ Bare.tcTyConMap   tycEnv 
+    tyi      = Bare.tcTyConMap   tycEnv 
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.expand rtEnv l mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.expand rtEnv l iSpecs0    where l = F.dummyPos "expand-iSpecs2"
@@ -145,7 +142,8 @@ makeGhcSpec cfg src lmap mspecs = SP
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
-    name     = giTargetMod  src 
+    name     = F.notracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
+    zzz      = F.showpp (fst <$> mspecs)
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
 splitSpecs name specs = (mySpec, M.fromList iSpecs) 
@@ -501,8 +499,8 @@ makeAutoInst env name spec =
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
-  { gsTySigs   = tySigs 
-  , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
+  { gsTySigs   = F.notracepp "SIGS"     tySigs 
+  , gsAsmSigs  = F.notracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
@@ -552,8 +550,11 @@ rawAsmSigs env myName specs =
                   , (x   , t)    <- getAsmSigs myName name spec
                   , v            <- symVar name x 
   ] 
-  where symVar n  = Mb.maybeToList . Bare.maybeResolveSym env n "rawAsmVar" 
-  
+  where symVar n x = F.notracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
+                   . Mb.maybeToList 
+                   . Bare.maybeResolveSym env n "rawAsmVar" 
+                   $ x 
+
 getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
   | myName == name = Ms.asmSigs spec
@@ -624,7 +625,7 @@ makeHIMeas f vs spec
 ------------------------------------------------------------------------------------------
 makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig -> Bare.ModSpecs
              -> GhcSpecData
---------------------------------------Trace: [MAKE-AXIOM-SIMPLIFY] : [GHC.Types.: : forall a <p :: a a -> Bool>.----------------------------------------------------
+------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
@@ -652,12 +653,10 @@ makeInvariants :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(Maybe G
 makeInvariants env sigEnv (name, spec) = 
   [ (Nothing, t) 
     | (_, bt) <- Ms.invariants spec 
-    , {- F.tracepp ("Known-type: " ++ F.showpp bt) $ -} Bare.knownGhcType env name bt
+    , Bare.knownGhcType env name bt
     -- , Bare.knownGhcVar env name lx 
     , let t = Bare.cookSpecType env sigEnv name Nothing bt
   ]
-
-
 
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec -> [(Maybe Ghc.Var, LocSpecType)]
 makeMeasureInvariants env name sig mySpec 

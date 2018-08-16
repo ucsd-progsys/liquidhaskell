@@ -152,7 +152,7 @@ makeSymMap src = Misc.group [ (sym, (m, x))
                                 , let (m, sym) = qualifiedSymbol x ]
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
-makeTyThingMap src = 
+makeTyThingMap src =
   Misc.group [ (x, (m, t))  | t         <- srcThings src
                             , let (m, x) = qualifiedSymbol t 
                             , not (isLocal m)
@@ -331,15 +331,10 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 -- | Checking existence of names 
 -------------------------------------------------------------------------------
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
-knownGhcType env name (F.Loc l _ t) = -- F.tracepp ("knownType: " ++ F.showpp t) $
+knownGhcType env name (F.Loc l _ t) = 
   case ofBareTypeE env name l Nothing t of 
     Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
-
---   where 
---    tcs                  = F.tracepp ("TYCONS: " ++ F.showpp t) $ rTypeTyCons t 
---    t                    = val lt
---    knownBtc             = knownGhcTyCon env name . btc_tc
 
 rTypeTyCons :: (Ord c) => RType c tv r -> [c]
 rTypeTyCons           = Misc.sortNub . foldRType f []   
