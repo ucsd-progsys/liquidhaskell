@@ -33,7 +33,7 @@ module Language.Haskell.Liquid.Types.RefType (
   -- * Functions for manipulating `Predicate`s
   , pdVar
   , findPVar
-  , FreeVar, freeTyVars, tyClasses, tyConName
+  , FreeVar, allTyVars, freeTyVars, tyClasses, tyConName
 
   -- * Quantifying RTypes
   , quantifyRTy
@@ -870,6 +870,12 @@ addNumSizeFun c
 
 generalize :: (Eq tv) => RType c tv r -> RType c tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t
+
+allTyVars :: (Ord tv) => RType c tv r -> [tv]
+allTyVars t = sortNub . fmap ty_var_value $ vs ++ vs'
+  where
+    vs      = fst4 . bkUniv $ t
+    vs'     = freeTyVars    $ t
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t

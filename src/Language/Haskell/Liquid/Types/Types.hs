@@ -287,7 +287,7 @@ data PPEnv = PP
 
 ppEnv :: PPEnv
 ppEnv = ppEnvDef 
-       -- { ppTyVar = True }  -- To see UNIQUE SUFFIX on TYVar
+          { ppTyVar = True }  -- To see UNIQUE SUFFIX on TYVar
           { ppPs    = True }  -- To see forall and predicates 
           { ppDebug = True }
 

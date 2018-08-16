@@ -71,7 +71,7 @@ _ *** _ = ()
 {-@ (==>) :: p:Proof
           -> q:Proof
           -> {v:Proof |
-          (((proofBool p)) && ((proofBool p) => (proofBool q)))
+          (((proofBool p)) && (proofBool p => (proofBool q)))
           =>
           (((proofBool p) && (proofBool q)))
           } @-}

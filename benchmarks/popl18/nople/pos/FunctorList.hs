@@ -1,17 +1,10 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
+{-@ LIQUID "--reflection"     @-}
 
-
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
 module FunctorList where
 
 import Prelude hiding (fmap, id)
 
-import Proves
-import Helper
+import Language.Haskell.Liquid.NewProofCombinators 
 
 -- | Functor Laws :
 -- | fmap-id fmap id ≡ id
@@ -33,60 +26,50 @@ id x = x
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
-{-
-{- fmap_id' :: {v:Proof | fmap id == id } @-}
-fmap_id' :: Proof
-fmap_id' = abstract (fmap id) id fmap_id
--}
 
 {-@ fmap_id :: xs:L a -> { fmap id xs == id xs } @-}
 fmap_id :: L a -> Proof
 fmap_id N
-  = fmap id N ==. N
-                ==. id N *** QED 
+  =   fmap id N 
+  === N
+  === id N 
+  *** QED 
 fmap_id (C x xs)
-  = toProof $
-      fmap id (C x xs) ==. C (id x) (fmap id xs)
-                       ==. C x (fmap id xs)
-                       ==. C x (id xs)            ? fmap_id (xs)
-                       ==. C x xs
-                       ==. id (C x xs)
+  =  fmap id (C x xs) 
+  === C (id x) (fmap id xs)
+  === C x (fmap id xs)
+  ==? C x (id xs)            ? fmap_id (xs)
+  === C x xs
+  === id (C x xs)
+  *** QED 
 
 
 -- | Distribution
-{-
-{- fmap_distrib' :: f:(a -> a) -> g:(a -> a)
-               -> {v:Proof | fmap  (compose f g) == compose (fmap f) (fmap g) } @-}
-fmap_distrib' :: (a -> a) -> (a -> a) -> Proof
-fmap_distrib' f g
-  = abstract (fmap  (compose f g)) (compose (fmap f) (fmap g))
-       (fmap_distrib f g)
--}
 
 {-@ fmap_distrib :: f:(a -> a) -> g:(a -> a) -> xs:L a
                -> {v:Proof | fmap  (compose f g) xs == (compose (fmap f) (fmap g)) (xs) } @-}
 fmap_distrib :: (a -> a) -> (a -> a) -> L a -> Proof
 fmap_distrib f g N
-  = toProof $
-      (compose (fmap f) (fmap g)) N
-        ==. (fmap f) ((fmap g) N)
-        ==. fmap f (fmap g N)
-        ==. fmap f N
-        ==. N
-        ==. fmap (compose f g) N
-fmap_distrib f g (C x xs)
-  = toProof $
-      fmap (compose f g) (C x xs)
-       ==. C ((compose f g) x) (fmap (compose f g) xs)
-       ==. C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
-       ==. C ((compose f g) x) (fmap f (fmap g xs))
-       ==. C (f (g x)) (fmap f (fmap g xs))
-       ==. fmap f (C (g x) (fmap g xs))
-       ==. (fmap f) (C (g x) (fmap g xs))
-       ==. (fmap f) (fmap g (C x xs))
-       ==. (fmap f) ((fmap g) (C x xs))
-       ==. (compose (fmap f) (fmap g)) (C x xs)
+  = (compose (fmap f) (fmap g)) N
+  === (fmap f) ((fmap g) N)
+  === fmap f (fmap g N)
+  === fmap f N
+  === N
+  === fmap (compose f g) N
+  *** QED
 
+fmap_distrib f g (C x xs)
+  = fmap (compose f g) (C x xs)
+  === C ((compose f g) x) (fmap (compose f g) xs)
+  ==? C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
+  === C ((compose f g) x) (fmap f (fmap g xs))
+  === C (f (g x)) (fmap f (fmap g xs))
+  === fmap f (C (g x) (fmap g xs))
+  === (fmap f) (C (g x) (fmap g xs))
+  === (fmap f) (fmap g (C x xs))
+  === (fmap f) ((fmap g) (C x xs))
+  === (compose (fmap f) (fmap g)) (C x xs)
+  *** QED 
 
 data L a = N | C a (L a)
 {-@ data L [llen] @-}

@@ -54,6 +54,28 @@ Tests
       AlphaEquivalence.hs:    FAIL (0.88s)
         LAMBDA
 
+  Prover
+    without_ple
+      - NormalForm.hs:          FAIL (0.95s)
+      - MonoidMaybe.hs:         FAIL (1.18s)
+      - MonadMaybe.hs:          FAIL (1.30s)
+      - MonadList.hs:           FAIL (2.27s)
+      - FunctionEquality101.hs: FAIL (2.31s)
+      - BasicLambdas.hs:        FAIL (2.20s)
+      - AlphaEquivalence.hs:    FAIL (1.97s)
+      BasicLambdas0.hs:       FAIL (1.61s)
+      ApplicativeList.hs:     FAIL (20.57s)
+
+    with_ple
+      NormalForm.hs:          FAIL (0.97s)
+      MonoidMaybe.hs:         FAIL (0.78s)
+      MonadMaybe.hs:          FAIL (1.31s)
+      MonadList.hs:           FAIL (1.37s)
+      FunctionEquality101.hs: FAIL (0.99s)
+      BasicLambdas.hs:        FAIL (0.87s)
+      AlphaEquivalence.hs:    FAIL (1.03s)
+
+
 ## Issues
 
 - Termination expressions have to be renamed 
@@ -1302,3 +1324,4 @@ GHC 7.10
 
 - termination metrics are required in a few places where they were not previously
   - my guess is that ghc's behaviour for grouping functions in a `Rec` binder have changed
+

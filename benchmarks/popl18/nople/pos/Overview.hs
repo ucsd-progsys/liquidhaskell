@@ -1,9 +1,9 @@
 {-@ LIQUID "--higherorder"     @-}
 
 module FunctionAbstraction where
-import Proves
-import Helper
 
+import Language.Haskell.Liquid.NewProofCombinators
+import Helper
 
 fib :: Int -> Int
 fib n
@@ -13,10 +13,10 @@ fib n
 
 
 {-@ fib :: n:Nat -> Nat @-}
-{-@ axiomatize fib @-}
+{-@ reflect fib @-}
 
 -- | How do I teach the logic the implementation of fib?
--- | Two trents:
+-- | Two approaches:
 -- | Dafny, F*, HALO: create an SMT axiom
 -- | forall n. fib n == if n == 0 then 0 else if n == 1 == 1 else fib (n-1) + fin (n-2)
 
@@ -24,8 +24,7 @@ fib n
 -- | undefined: unpredicted behaviours + the butterfly effect
 
 -- | LiquidHaskell: logic does not know about fib:
--- | reffering to fib in the logic will lead to un sorted refinements
-
+-- | referring to fib in the logic will lead to un sorted refinements
 
 {- unsafe :: _ -> { fib 2 == 1 } @-}
 unsafe () = ()
@@ -33,7 +32,7 @@ unsafe () = ()
 {-@ safe :: () -> { fib 2 == 1 } @-}
 safe :: () -> Proof
 safe () =
-  fib 2 ==. fib 0 + fib 1
+  fib 2 === fib 0 + fib 1
   *** QED
 
 -- | fib 2 == fib 1 + fib 0
@@ -45,40 +44,36 @@ safe () =
 -- | type Proof = ()
 
 {-@ safe' :: () ->  { fib 3 == 2 } @-}
-safe' () =
-  fib 3 ==. fib 2 + fib 1 ? safe ()
-        ==. 2
-        *** QED
+safe' () 
+  =   fib 3 
+  ==? fib 2 + fib 1 ? safe ()
+  === 2
+  *** QED
 
-
-
-
-
-
+{-@ fib_incr_gen :: n:Nat -> m:Greater n -> {fib n <= fib m} @-}
 fib_incr_gen :: Int -> Int -> Proof
-{-@ fib_incr_gen :: n:Nat -> m:Greater n -> {fib n <= fib m}
-  @-}
-fib_incr_gen
-  = gen_incr fib fib_incr
+fib_incr_gen = gen_incr fib fib_incr
 
-fib_incr :: Int -> Proof
 {-@ fib_incr :: n:Nat -> {fib n <= fib (n+1)} @-}
+fib_incr :: Int -> Proof
 fib_incr n
    | n == 0
-   = fib 0 <. fib 1
+   =   fib 0 
+   =<= fib 1
    *** QED
 
    | n == 1
-   = fib 1
-       <=. fib 1 + fib 0
-       <=. fib 2
-       *** QED
+   =   fib 1
+   =<= fib 1 + fib 0
+   =<= fib 2
+   *** QED
+
    | otherwise
    = fib n
-       ==. fib (n-1) + fib (n-2)
-       <=. fib n     + fib (n-2)
+   === fib (n-1) + fib (n-2)
+   =<=? fib n     + fib (n-2)
            ? fib_incr (n-1)
-       <=. fib n     + fib (n-1)
+   =<=? fib n     + fib (n-1)
            ? fib_incr (n-2)
-       <=. fib (n+1)
-       *** QED
+   =<=? fib (n+1)
+   *** QED

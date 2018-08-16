@@ -1,13 +1,11 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
 module ListFunctors where
 
 import Prelude hiding (fmap, id, seq, pure)
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- | Applicative Laws :
 -- | identity      pure id <*> v = v
@@ -16,37 +14,37 @@ import Language.Haskell.Liquid.ProofCombinators
 -- | interchange   u <*> pure y = pure ($ y) <*> u
 
 
-{-@ axiomatize pure @-}
+{-@ reflect pure @-}
 pure :: a -> L a
 pure x = C x N
 
-{-@ axiomatize seq @-}
+{-@ reflect seq @-}
 seq :: L (a -> b) -> L a -> L b
 seq (C f fs) xs
   = append (fmap f xs) (seq fs xs)
 seq N xs
   = N
 
-{-@ axiomatize append @-}
+{-@ reflect append @-}
 append :: L a -> L a -> L a
 append N ys
   = ys
 append (C x xs) ys
   = C x (append xs ys)
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap f N        = N
 fmap f (C x xs) = C (f x) (fmap f xs)
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
-{-@ axiomatize idollar @-}
+{-@ reflect idollar @-}
 idollar :: a -> (a -> b) -> b
 idollar x f = f x
 
-{-@ axiomatize compose @-}
+{-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
@@ -97,16 +95,15 @@ interchange N y
   = seq_nill (pure (idollar y))
 
 interchange (C x xs) y
-   = prop_append_neutral (fmap (idollar y) (C x xs)) 
-            &&& seq_one' (idollar y) xs 
-            &&& interchange xs y
-            &&& seq_prop xs y 
+   =   prop_append_neutral (fmap (idollar y) (C x xs)) 
+   &&& seq_one' (idollar y) xs 
+   &&& interchange xs y
+   &&& seq_prop xs y 
 
 
 {-@ seq_prop :: xs:L (a -> a) -> y:a -> {seq xs (C y N) == seq xs (pure y)} @-}
 seq_prop :: L (a -> a) -> a -> Proof 
 seq_prop _ _ = trivial 
-
 
 
 data L a = N | C a (L a)
@@ -169,7 +166,8 @@ seq_one (C _ xs) = seq_one xs
 seq_append :: L (a -> b) -> L (a -> b) -> L a -> Proof
 seq_append N _ _ = trivial 
 seq_append (C f1 fs1) fs2 xs 
-  = append_distr (fmap f1 xs) (seq fs1 xs) (seq fs2 xs) &&& seq_append fs1 fs2 xs 
+  =   append_distr (fmap f1 xs) (seq fs1 xs) (seq fs2 xs) 
+  &&& seq_append fs1 fs2 xs 
 
 {-@ map_fusion0 :: f:(a -> a) -> g:(a -> a) -> xs:L a
     -> {v:Proof | fmap (compose f g) xs == fmap f (fmap g xs) } @-}

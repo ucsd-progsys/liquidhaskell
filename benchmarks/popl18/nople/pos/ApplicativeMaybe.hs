@@ -1,16 +1,10 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
+{-@ LIQUID "--reflection"     @-}
 
 module ApplicativeMaybe where
 
-import Prelude hiding (fmap, id, Maybe(..), seq, pure)
+import Prelude hiding (fmap, id, seq, pure)
 
-import Proves
-import Helper
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- | Applicative Laws :
 -- | identity      pure id <*> v = v
@@ -51,15 +45,16 @@ compose f g x = f (g x)
 {-@ identity :: x:Maybe a -> {v:Proof | seq (pure id) x == x } @-}
 identity :: Maybe a -> Proof
 identity Nothing
-  = toProof $
-      seq (pure id) Nothing
-         ==. Nothing
+  = seq (pure id) Nothing
+  === Nothing
+  *** QED 
+
 identity (Just x)
-  = toProof $
-      seq (pure id) (Just x)
-         ==. seq (Just id) (Just x)
-         ==. Just (id x)
-         ==. Just x
+  = seq (pure id) (Just x)
+  === seq (Just id) (Just x)
+  === Just (id x)
+  === Just x
+  *** QED 
 
 
 -- | Composition
@@ -70,40 +65,40 @@ identity (Just x)
                 -> {v:Proof | (seq (seq (seq (pure compose) x) y) z) = seq x (seq y z) } @-}
 composition :: Maybe (a -> a) -> Maybe (a -> a) -> Maybe a -> Proof
 composition Nothing y z
-   = toProof $
-       seq (seq (seq (pure compose) Nothing) y) z
-         ==. seq (seq Nothing y) z
-         ==. seq Nothing z
-         ==. Nothing
-         ==. seq Nothing (seq y z)
+  =   seq (seq (seq (pure compose) Nothing) y) z
+  === seq (seq Nothing y) z
+  === seq Nothing z
+  === Nothing
+  === seq Nothing (seq y z)
+  *** QED 
 
 composition x Nothing z
-   = toProof $
-       seq (seq (seq (pure compose) x) Nothing) z
-         ==. seq Nothing z
-         ==. Nothing
-         ==. seq Nothing z
-         ==. seq x (seq Nothing z)
+  =   seq (seq (seq (pure compose) x) Nothing) z
+  === seq Nothing z
+  === Nothing
+  === seq Nothing z
+  === seq x (seq Nothing z)
+  *** QED 
 
 composition x y Nothing
-   = toProof $
-       seq (seq (seq (pure compose) x) y) Nothing
-         ==. Nothing
-         ==. seq y Nothing
-         ==. seq x (seq y Nothing)
+  =  seq (seq (seq (pure compose) x) y) Nothing
+  === Nothing
+  === seq y Nothing
+  === seq x (seq y Nothing)
+  *** QED 
 
 
 composition (Just x) (Just y) (Just z)
-  = toProof $
-      seq (seq (seq (pure compose) (Just x)) (Just y)) (Just z)
-        ==. seq (seq (seq (Just compose) (Just x)) (Just y)) (Just z)
-        ==. seq (seq (Just (compose x)) (Just y)) (Just z)
-        ==. seq (Just (compose x y)) (Just z)
-        ==. Just (compose x y z)
-        ==. Just (x (y z))
-        ==. Just (x (select_Just_1 (Just (y z))))
-        ==. Just (x (select_Just_1 (seq (Just y) (Just z))))
-        ==. seq (Just x) (seq (Just y) (Just z))
+  =   seq (seq (seq (pure compose) (Just x)) (Just y)) (Just z)
+  === seq (seq (seq (Just compose) (Just x)) (Just y)) (Just z)
+  === seq (seq (Just (compose x)) (Just y)) (Just z)
+  === seq (Just (compose x y)) (Just z)
+  === Just (compose x y z)
+  === Just (x (y z))
+  === Just (x (select_Just_1 (Just (y z))))
+  === Just (x (select_Just_1 (seq (Just y) (Just z))))
+  === seq (Just x) (seq (Just y) (Just z))
+  *** QED 
 
 
 -- | homomorphism  pure f <*> pure x = pure (f x)
@@ -112,12 +107,11 @@ composition (Just x) (Just y) (Just z)
                  -> {v:Proof | seq (pure f) (pure x) == pure (f x) } @-}
 homomorphism :: (a -> a) -> a -> Proof
 homomorphism f x
-  = toProof $
-      seq (pure f) (pure x)
-      ==. seq (Just f) (Just x)
-      ==. Just (f x)
-      ==. pure (f x)
-
+  = seq (pure f) (pure x)
+  === seq (Just f) (Just x)
+  === Just (f x)
+  === pure (f x)
+  *** QED 
 
 -- | interchange
 
@@ -126,25 +120,22 @@ interchange :: Maybe (a -> a) -> a -> Proof
      -> {v:Proof | seq u (pure y) == seq (pure (idollar y)) u }
   @-}
 interchange Nothing y
-  = toProof $
-       seq Nothing (pure y)
-         ==. Nothing
-         ==. seq (pure (idollar y)) Nothing
-interchange (Just f) y
-  = toProof $
-      seq (Just f) (pure y)
-         ==. seq (Just f) (Just y)
-         -- ==. Just (select_Just_1 (Just f) (select_Just_1 (Just y)))
-         -- ==. Just (select_Just_1 (Just f) y)
-         -- ==. Just ((select_Just_1 (Just f)) y)
-         ==. Just (f y)
-         ==. Just (idollar y f)
-         ==. Just ((idollar y) f)
-         ==. seq (Just (idollar y)) (Just f)
-         ==. seq (pure (idollar y)) (Just f)
+  =  seq Nothing (pure y)
+  === Nothing
+  === seq (pure (idollar y)) Nothing
+  *** QED 
 
-{-@ data Maybe a = Nothing | Just a @-}
-data Maybe a = Nothing | Just a
+interchange (Just f) y
+  = seq (Just f) (pure y)
+  === seq (Just f) (Just y)
+  === Just (f y)
+  === Just (idollar y f)
+  === Just ((idollar y) f)
+  === seq (Just (idollar y)) (Just f)
+  === seq (pure (idollar y)) (Just f)
+  *** QED 
+
+-- data Maybe a = Nothing | Just a
 
 {-@ measure select_Just_1 @-}
 select_Just_1 :: Maybe a -> a

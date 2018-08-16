@@ -434,31 +434,39 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (Bare.txRefSort tyi embs)     
   -- TODO-REBARE . fmap txExpToBind t     -- What does this function DO
   . fmap (specExpandType rtEnv)                         
-  . fmap (fixCoercions bt)
+  -- . fmap (fixCoercions bt)
+  . fmap (F.tracepp (msg 5))
   . fmap (fmap RT.generalize)
+  . fmap (F.tracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
+  . fmap (F.tracepp (msg 3))
   . fmap (Bare.qualify       env name) 
+  . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
+  . F.tracepp (msg 1) 
   . bareExpandType     rtEnv
   $ bt 
   where 
+    msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
     rtEnv = Bare.sigRTEnv    sigEnv
     embs  = Bare.sigEmbs     sigEnv 
     tyi   = Bare.sigTyRTyMap sigEnv
 
-fixCoercions :: LocBareType -> LocSpecType -> LocSpecType 
-fixCoercions bt t = txCoerce <$> t 
-  where
-    coSub         = M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
-    tvs           = bareTypeVars (val bt)
-    specTvSymbol  = F.symbol . bareRTyVar
-    txCoerce      = mapExprReft (\_ -> F.applyCoSub coSub)
+-- REBARE renamed to fixReftTyVars
+-- REBARE fixCoercions :: LocBareType -> LocSpecType -> LocSpecType 
+-- REBARE fixCoercions bt t = txCoerce <$> t 
+  -- REBARE where
+    -- REBARE coSub         = M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
+    -- REBARE tvs           = allTyVars (val bt)
+    -- REBARE specTvSymbol  = F.symbol . bareRTyVar
+    -- REBARE txCoerce      = mapExprReft (\_ -> F.applyCoSub coSub)
 
-bareTypeVars :: BareType -> [BTyVar]
-bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
-  where
-    vs         = Misc.fst4 . bkUniv $ t
-    vs'        = freeTyVars    $ t
+-- renamed to 'allTyVars'
+-- bareTypeVars :: BareType -> [BTyVar]
+-- bareTypeVars t = Misc.sortNub . fmap ty_var_value $ vs ++ vs'
+  -- where
+    -- vs         = Misc.fst4 . bkUniv $ t
+    -- vs'        = freeTyVars    $ t
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing = id 

@@ -160,7 +160,7 @@ bindersTx ds   = \y -> M.lookupDefault y y m
     var        = symbol . ('x' :) . show
 
 
-tyVars :: RType t a t1 -> [a]
+tyVars :: RType c tv r -> [tv]
 tyVars (RAllP _ t)     = tyVars t
 tyVars (RAllS _ t)     = tyVars t
 tyVars (RAllT α t)     = ty_var_value α : tyVars t

@@ -56,6 +56,7 @@ import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
 
 import qualified Language.Fixpoint.Types               as F 
+import qualified Language.Fixpoint.Types.Visitor       as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
@@ -507,9 +508,25 @@ resolveReft :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -
 resolveReft env name l ps t 
         = qualify env name 
         . txParam l RT.subvUReft (RT.uPVar <$> πs) t
+        . fixReftTyVars t       -- same as fixCoercions 
   where 
     πs  = Mb.fromMaybe tπs ps  
-    tπs = ty_preds (toRTypeRep t)
+    tπs = ty_preds (toRTypeRep t) 
+    -- as  = allTyVars t 
+     
+fixReftTyVars :: BareType -> RReft -> RReft 
+fixReftTyVars bt  = coSubRReft coSub 
+  where
+    coSub         = M.fromList [ (F.symbol a, F.FObj (specTvSymbol a)) | a <- tvs ]
+    tvs           = RT.allTyVars bt
+    specTvSymbol  = F.symbol . RT.bareRTyVar
+
+coSubRReft :: F.CoSub -> RReft -> RReft 
+coSubRReft su r = r { ur_reft = coSubReft su (ur_reft r) } 
+
+coSubReft :: F.CoSub -> F.Reft -> F.Reft 
+coSubReft su (F.Reft (x, e)) = F.Reft (x, F.applyCoSub su e)
+
 
 ofBSort :: Env -> ModName -> F.SourcePos -> BSort -> RSort 
 ofBSort env name l t = either (Misc.errorP "error-ofBSort" . F.showpp) id (ofBSortE env name l t)

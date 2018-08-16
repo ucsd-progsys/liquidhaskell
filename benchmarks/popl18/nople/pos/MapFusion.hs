@@ -1,17 +1,10 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--higherorderqs" @-}
-
-
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE FlexibleContexts    #-}
-
+{-@ LIQUID "--reflection"     @-}
 
 module MapFusion where
 
 import Prelude hiding (map)
 
-import Proves
+import Language.Haskell.Liquid.NewProofCombinators 
 
 {-@ axiomatize compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c
@@ -29,23 +22,22 @@ map f xs
 map_fusion :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion f g N
   = (compose (map f) (map g)) N
-        ==. (map f) (map g N)
---         ==. map f (map g N)
-        ==. map f N
-        ==. N
-        ==. map (compose f g) N
+        === (map f) (map g N)
+        === map f N
+        === N
+        === map (compose f g) N
         *** QED
 map_fusion f g (C x xs)
   = map (compose f g) (C x xs)
-       ==. C ((compose f g) x) (map (compose f g) xs)
-       ==. C ((compose f g) x) ((compose (map f) (map g)) xs) ? map_fusion f g xs
-       ==. C ((compose f g) x) (map f (map g xs))
-       ==. C (f (g x)) (map f (map g xs))
-       ==. map f (C (g x) (map g xs))
-       ==. (map f) (C (g x) (map g xs))
-       ==. (map f) (map g (C x xs))
-       ==. (map f) ((map g) (C x xs))
-       ==. (compose (map f) (map g)) (C x xs)
+       === C ((compose f g) x) (map (compose f g) xs)
+       ==? C ((compose f g) x) ((compose (map f) (map g)) xs) ? map_fusion f g xs
+       === C ((compose f g) x) (map f (map g xs))
+       === C (f (g x)) (map f (map g xs))
+       === map f (C (g x) (map g xs))
+       === (map f) (C (g x) (map g xs))
+       === (map f) (map g (C x xs))
+       === (map f) ((map g) (C x xs))
+       === (compose (map f) (map g)) (C x xs)
        *** QED
 
 data L a = N | C a (L a)
@@ -66,7 +58,6 @@ llen (C _ xs) = 1 + llen xs
 {-@ hd :: {v:L a | llen v > 0 } -> a @-}
 hd :: L a -> a
 hd (C x _) = x
-
 
 {-@ measure tl @-}
 {-@ tl :: xs:{v:L a | llen v > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
