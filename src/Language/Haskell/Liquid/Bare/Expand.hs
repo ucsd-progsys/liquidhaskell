@@ -218,7 +218,9 @@ class Expand a where
   expand :: BareRTEnv -> F.SourcePos -> a -> a 
 
 expandQualify :: (Expand a, Bare.Qualify a) => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
-expandQualify env name rtEnv l = Bare.qualify env name . expand rtEnv l
+expandQualify env name rtEnv l 
+  = expand rtEnv l
+  . Bare.qualify env name 
 
 ----------------------------------------------------------------------------------
 expandDummy :: (Expand a) => BareRTEnv -> a -> a 
@@ -535,16 +537,6 @@ instance Expand DataConP where
     tyConsts' <- expand z (tyConstrs d)
     tyArgs'   <- expand z (tyArgs    d)
     return d { tyRes =  tyRes', tyConstrs = tyConsts', tyArgs = tyArgs' }
-
-
-instance (Expand a) => Expand (Located a) where
-  expand _ x = mapM (expand (F.loc x)) x
-
-instance (Expand a) => Expand (Maybe a) where
-  expand z = mapM (expand z)
-
-instance (Expand a) => Expand [a] where
-  expand z = mapM (expand z)
 -}
 
 --------------------------------------------------------------------------------
