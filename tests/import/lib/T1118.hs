@@ -5,7 +5,7 @@ module T1118 where
 import T1118Lib2 
 import T1118Lib1
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 {-@ reflect leqU1 @-}
 leqU1 :: U1 p -> U1 p -> Bool
@@ -13,7 +13,7 @@ leqU1 _ _ = True
 
 {-@ leqU1Refl :: x:U1 p -> { leqU1 x x } @-}
 leqU1Refl :: U1 p -> Proof
-leqU1Refl U1 = leqU1 U1 U1 ==. True *** QED
+leqU1Refl U1 = leqU1 U1 U1 === True *** QED
 
 {-@ reflect leqProd @-}
 leqProd :: Eq (f p)

@@ -1,9 +1,9 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-} 
+{-@ LIQUID "--ple"        @-} 
 
 module ReflectClient5 where
 
-import Language.Haskell.Liquid.ProofCombinators
+-- import Language.Haskell.Liquid.ProofCombinators
 
 import ReflectLib5
 

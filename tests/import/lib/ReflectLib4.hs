@@ -1,11 +1,11 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module ReflectLib4 where
 
 -- | Lists ---------------------------------------------------------------------
 
-{-@ data List [llen] @-} -- a = Nil | Cons {lHd :: a, lTl :: List a} @-}
+{-@ data List [llen] @-} 
 data List a = Nil | Cons {lHd :: a, lTl :: List a} 
 
 {-@ measure llen @-}
@@ -15,7 +15,7 @@ llen Nil        = 0
 llen (Cons h t) = 1 + llen t
 
 -- TODO: make this work WITHOUT the invariant
-{-@ invariant {v:List a | 0 <= llen v} @-}
+{- invariant {v:List a | 0 <= llen v} @-}
 
 {-@ reflect app @-}
 app :: List a -> List a -> List a

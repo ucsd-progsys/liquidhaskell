@@ -1,8 +1,8 @@
 
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1257
 
-{-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--ple"     @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module Example where
 
@@ -12,6 +12,7 @@ data Baz = E | F deriving (Eq)
 
 -- This triggers the bug
 type Alias = Bar
+
 silly :: Foo -> Alias -> Baz
 
 -- This renders the program safe

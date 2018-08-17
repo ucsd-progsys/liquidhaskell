@@ -1,8 +1,7 @@
-{-@ LIQUID "--no-adt" 	                           @-}
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--ple" @-} 
+{-@ LIQUID "--reflection"     @-} 
+{-@ LIQUID "--ple"            @-} 
+{-@ LIQUID "--no-adt" 	      @-}
+{-@ LIQUID "--no-termination" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

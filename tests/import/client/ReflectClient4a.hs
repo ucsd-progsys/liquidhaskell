@@ -1,9 +1,7 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-} 
+{-@ LIQUID "--ple"        @-} 
 
 module ReflectClient4a where
-
-import Language.Haskell.Liquid.ProofCombinators
 
 import ReflectLib4 
 
@@ -25,9 +23,3 @@ test4 = ()
 test5 = ()
 
 
--- {- thmAppLen :: xs:List a -> ys:List a ->
-      -- { llen (app xs ys) == llen xs + llen ys}
-  -- @-}
--- thmAppLen :: List a -> List a -> Proof
--- thmAppLen Nil         ys = trivial
--- thmAppLen (Cons x xs) ys = thmAppLen xs ys
