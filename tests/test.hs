@@ -69,8 +69,8 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
     tests = group "Tests" [ microTests
                           , proverTests 
                           , macroTests
-                          , errorTests
-                          , benchTests
+                          -- , errorTests TODO-REBARE
+                          -- , benchTests TODO-REBARE
                           ]
 
     -- tests = group "Tests" [ unitTests  ]
