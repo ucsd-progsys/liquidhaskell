@@ -228,11 +228,12 @@ benchTests = group "Benchmarks"
 proverTests :: IO TestTree
 proverTests = group "Prover"
   [ -- SUBSUMED-by-popl18 testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
-    testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-  , testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
-  , testGroup "foundations" <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
-  , testGroup "without_ple" <$> dirTests "benchmarks/popl18/nople/pos"          noPleIgnored              ExitSuccess
-  , testGroup "with_ple"    <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
+    -- SUBSUMED-by-popl18 testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
+    -- SUBSUMED-by-popl18 testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
+    testGroup "foundations"     <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
+  , testGroup "without_ple_pos" <$> dirTests "benchmarks/popl18/nople/pos"          noPleIgnored              ExitSuccess
+  , testGroup "without_ple_neg" <$> dirTests "benchmarks/popl18/nople/neg"          noPleIgnored             (ExitFailure 1)
+  , testGroup "with_ple"        <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
   ]
 
 selfTests :: IO TestTree
@@ -365,77 +366,87 @@ testCmd bin dir file smt (LO opts)
   = printf "cd %s && %s --smtsolver %s %s %s" dir bin (show smt) file opts
 
 noPleIgnored :: [FilePath]
-noPleIgnored = "ApplicativeList.hs"         -- TODO-REBARE: TODO BLOWUP but ple version ok
-             : autoIgnored
+noPleIgnored 
+  = "ApplicativeList.hs"         -- TODO-REBARE: TODO BLOWUP but ple version ok
+  : autoIgnored
 
-esopIgnored = [ "Base0.hs"
-              -- , "Base.hs"                -- REFLECT-IMPORTS: TODO BLOWUP
-              ]
+esopIgnored 
+  = [ "Base0.hs"
+    -- , "Base.hs"                -- REFLECT-IMPORTS: TODO BLOWUP
+    ]
 
 icfpIgnored :: [FilePath]
-icfpIgnored = [ "RIO.hs"
-              , "DataBase.hs"
-              , "FindRec.hs"
-              , "CopyRec.hs"
-              , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
-              ]
+icfpIgnored 
+  = [ "RIO.hs"
+    , "DataBase.hs"
+    , "FindRec.hs"
+    , "CopyRec.hs"
+    , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
+    ]
+
+autoIgnored 
+  = "Ackermann.hs" 
+  : proverIgnored
 
 proverIgnored  :: [FilePath]
-proverIgnored = [ "OverviewListInfix.hs"
-                , "Proves.hs"
-                , "Helper.hs"
-                , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
-                , "MonadReader.hs"        -- NOPROP: ""
-                , "ApplicativeReader.hs"  -- NOPROP: ""
-                , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
-                -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
-                ]
+proverIgnored 
+  = [ "OverviewListInfix.hs"
+    , "Proves.hs"
+    , "Helper.hs"
+    , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
+    , "MonadReader.hs"        -- NOPROP: ""
+    , "ApplicativeReader.hs"  -- NOPROP: ""
+    , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
+    -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
+    ]
 
-autoIgnored = "Ackermann.hs" : proverIgnored
 
 
 hscIgnored :: [FilePath]
-hscIgnored = [ "HsColour.hs"
-             , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
-             , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
-             , "Language/Haskell/HsColour/ACSS.hs"          -- eliminate
-             ]
+hscIgnored 
+  = [ "HsColour.hs"
+    , "Language/Haskell/HsColour/Classify.hs"      -- eliminate
+    , "Language/Haskell/HsColour/Anchors.hs"       -- eliminate
+    , "Language/Haskell/HsColour/ACSS.hs"          -- eliminate
+    ]
 
 negIgnored :: [FilePath]
-negIgnored = [ "Lib.hs"
-             , "LibSpec.hs"
-             ]
+negIgnored 
+  = [ "Lib.hs"
+    , "LibSpec.hs"
+    ]
 
 textIgnored :: [FilePath]
-textIgnored = [ "Setup.lhs"
-              , "Data/Text/Axioms.hs"
-              , "Data/Text/Encoding/Error.hs"
-              , "Data/Text/Encoding/Fusion.hs"
-              , "Data/Text/Encoding/Fusion/Common.hs"
-              , "Data/Text/Encoding/Utf16.hs"
-              , "Data/Text/Encoding/Utf32.hs"
-              , "Data/Text/Encoding/Utf8.hs"
-              , "Data/Text/Fusion/CaseMapping.hs"
-              , "Data/Text/Fusion/Common.hs"
-              , "Data/Text/Fusion/Internal.hs"
-              , "Data/Text/IO.hs"
-              , "Data/Text/IO/Internal.hs"
-              , "Data/Text/Lazy/Builder/Functions.hs"
-              , "Data/Text/Lazy/Builder/Int.hs"
-              , "Data/Text/Lazy/Builder/Int/Digits.hs"
-              , "Data/Text/Lazy/Builder/Internal.hs"
-              , "Data/Text/Lazy/Builder/RealFloat.hs"
-              , "Data/Text/Lazy/Builder/RealFloat/Functions.hs"
-              , "Data/Text/Lazy/Encoding/Fusion.hs"
-              , "Data/Text/Lazy/IO.hs"
-              , "Data/Text/Lazy/Read.hs"
-              , "Data/Text/Read.hs"
-              , "Data/Text/Unsafe/Base.hs"
-              , "Data/Text/UnsafeShift.hs"
-              , "Data/Text/Util.hs"
-              , "Data/Text/Fusion-debug.hs"
-              , "Data/Text/Encoding.hs"
-              ]
+textIgnored 
+  = [ "Setup.lhs"
+    , "Data/Text/Axioms.hs"
+    , "Data/Text/Encoding/Error.hs"
+    , "Data/Text/Encoding/Fusion.hs"
+    , "Data/Text/Encoding/Fusion/Common.hs"
+    , "Data/Text/Encoding/Utf16.hs"
+    , "Data/Text/Encoding/Utf32.hs"
+    , "Data/Text/Encoding/Utf8.hs"
+    , "Data/Text/Fusion/CaseMapping.hs"
+    , "Data/Text/Fusion/Common.hs"
+    , "Data/Text/Fusion/Internal.hs"
+    , "Data/Text/IO.hs"
+    , "Data/Text/IO/Internal.hs"
+    , "Data/Text/Lazy/Builder/Functions.hs"
+    , "Data/Text/Lazy/Builder/Int.hs"
+    , "Data/Text/Lazy/Builder/Int/Digits.hs"
+    , "Data/Text/Lazy/Builder/Internal.hs"
+    , "Data/Text/Lazy/Builder/RealFloat.hs"
+    , "Data/Text/Lazy/Builder/RealFloat/Functions.hs"
+    , "Data/Text/Lazy/Encoding/Fusion.hs"
+    , "Data/Text/Lazy/IO.hs"
+    , "Data/Text/Lazy/Read.hs"
+    , "Data/Text/Read.hs"
+    , "Data/Text/Unsafe/Base.hs"
+    , "Data/Text/UnsafeShift.hs"
+    , "Data/Text/Util.hs"
+    , "Data/Text/Fusion-debug.hs"
+    , "Data/Text/Encoding.hs"
+    ]
 
 demosIgnored :: [FilePath]
 demosIgnored = [ "Composition.hs"

@@ -1,28 +1,20 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection"     @-}
 
-
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
 module MonadMaybe where
 
-import Prelude hiding (return, Maybe(..))
-
-import Proves
-import Helper
+import Prelude hiding (return) 
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a
 -- | Right identity:	m >>= return    ≡ m
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
-{-@ axiomatize return @-}
+{-@ reflect return @-}
 return :: a -> Maybe a
 return x = Just x
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: Maybe a -> (a -> Maybe b) -> Maybe b
 bind m f
   | is_Just m  = f (from_Just m)
@@ -35,9 +27,9 @@ left_identity :: a -> (a -> Maybe b) -> Proof
 left_identity x f
   = toProof $
        bind (return x) f
-         ==. bind (Just x) f
-         ==. f (from_Just (Just x))
-         ==. f x
+         === bind (Just x) f
+         === f (from_Just (Just x))
+         === f x
 
 
 
@@ -48,13 +40,13 @@ right_identity :: Maybe a -> Proof
 right_identity Nothing
   = toProof $
       bind Nothing return
-        ==. Nothing
+        === Nothing
 
 right_identity (Just x)
   = toProof $
        bind (Just x) return
-        ==. return x
-        ==. Just x
+        === return x
+        === Just x
 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
@@ -64,25 +56,20 @@ associativity :: Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
 associativity Nothing f g
   = toProof $
        bind (bind Nothing f) g
-         ==. bind Nothing g
-         ==. Nothing
-         ==. bind Nothing (\x -> bind (f x) g)
+         === bind Nothing g
+         === Nothing
+         === bind Nothing (\x -> bind (f x) g)
 associativity (Just x) f g
   = toProof $
        bind (bind (Just x) f) g
-         ==. bind (f x) g
-         ==. (\x -> bind (f x) g) x
-         ==. bind (Just x) (\x -> bind (f x) g)
-
-
-
-data Maybe a = Nothing | Just a
+         === bind (f x) g
+         === (\x -> bind (f x) g) x
+         === bind (Just x) (\x -> bind (f x) g)
 
 {-@ measure from_Just @-}
 from_Just :: Maybe a -> a
 {-@ from_Just :: xs:{Maybe a | is_Just xs } -> a @-}
 from_Just (Just x) = x
-
 
 {-@ measure is_Just @-}
 is_Just :: Maybe a -> Bool

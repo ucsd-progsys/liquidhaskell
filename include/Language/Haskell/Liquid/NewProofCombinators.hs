@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.NewProofCombinators (
 
   -- * Proof is just a () alias
   Proof
+  , toProof 
 
   -- * Proof constructors
   , trivial, unreachable, (***), QED(..)
@@ -45,6 +46,10 @@ module Language.Haskell.Liquid.NewProofCombinators (
 -------------------------------------------------------------------------------
 
 type Proof = ()
+
+toProof :: a -> Proof
+toProof _ = ()
+
 
 -------------------------------------------------------------------------------
 -- | Proof Construction -------------------------------------------------------

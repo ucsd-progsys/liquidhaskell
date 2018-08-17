@@ -1,31 +1,21 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection"     @-}
 
-
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
 module FunctorList where
 
 import Prelude hiding (fmap, id)
-
-import Proves
-import Helper
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- | Functor Laws :
 -- | fmap-id fmap id ≡ id
 -- | fmap-distrib ∀ g h . fmap (g ◦ h) ≡ fmap g ◦ fmap h
 
-
-
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> L a -> L b
 fmap f xs
   | llen xs == 0 = N
   | otherwise    = C (f (hd xs)) (fmap f (tl xs))
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
@@ -42,15 +32,15 @@ fmap_id' = abstract (fmap id) id fmap_id
 fmap_id :: L a -> Proof
 fmap_id N
   = toProof $
-      fmap id N ==. N
-                ==. id N
+      fmap id N === N
+                === id N
 fmap_id (C x xs)
   = toProof $
-      fmap id (C x xs) ==. C (id x) (fmap id xs)
-                       ==. C x (fmap id xs)
-                       ==. C x (id xs)            ? fmap_id xs
-                       ==. C x xs
-                       ==. id (C x xs)
+      fmap id (C x xs) === C (id x) (fmap id xs)
+                       === C x (fmap id xs)
+                       ==? C x (id xs)            ? fmap_id xs
+                       === C x xs
+                       === id (C x xs)
 
 
 -- | Distribution
@@ -69,23 +59,23 @@ fmap_distrib :: (a -> a) -> (a -> a) -> L a -> Proof
 fmap_distrib f g N
   = toProof $
       (compose (fmap f) (fmap g)) N
-        ==. (fmap f) ((fmap g) N)
-        ==. fmap f (fmap g N)
-        ==. fmap f N
-        ==. N
-        ==. fmap (compose f g) N
+        === (fmap f) ((fmap g) N)
+        === fmap f (fmap g N)
+        === fmap f N
+        === N
+        === fmap (compose f g) N
 fmap_distrib f g (C x xs)
   = toProof $
       fmap (compose f g) (C x xs)
-       ==. C ((compose f g) x) (fmap (compose f g) xs)
-       ==. C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
-       ==. C ((compose f g) x) (fmap f (fmap g xs))
-       ==. C (f (g x)) (fmap f (fmap g xs))
-       ==. fmap f (C (g x) (fmap g xs))
-       ==. (fmap f) (C (g x) (fmap g xs))
-       ==. (fmap f) (fmap g (C x xs))
-       ==. (fmap f) ((fmap g) (C x xs))
-       ==. (compose (fmap f) (fmap g)) (C x xs)
+       === C ((compose f g) x) (fmap (compose f g) xs)
+       ==? C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
+       === C ((compose f g) x) (fmap f (fmap g xs))
+       === C (f (g x)) (fmap f (fmap g xs))
+       === fmap f (C (g x) (fmap g xs))
+       === (fmap f) (C (g x) (fmap g xs))
+       === (fmap f) (fmap g (C x xs))
+       === (fmap f) ((fmap g) (C x xs))
+       === (compose (fmap f) (fmap g)) (C x xs)
 
 
 data L a = N | C a (L a)
@@ -107,8 +97,12 @@ llen (C _ xs) = 1 + llen xs
 hd :: L a -> a
 hd (C x _) = x
 
-
 {-@ measure tl @-}
 {-@ tl :: xs:{L a | llen xs > 0 } -> {v:L a | llen v == llen xs - 1 } @-}
 tl :: L a -> L a
 tl (C _ xs) = xs
+
+{-@ assume abstract :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:Proof | f x == g x })
+             -> {v:Proof | f == g } @-}
+abstract :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof
+abstract _ _ _ = trivial 

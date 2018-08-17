@@ -1,12 +1,11 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 {- NOTE:
 
    1. See the TODO:trivial for cases where the instances seems to fail
 
-   2. Would be nice to have case-splitting combinatores,
+   2. Would be nice to have case-splitting combinators,
       e.g. for thmAndbCom,  thmAndbExch which are super boilerplate-y
 
    3. For @minsheng: See the rewritten signature for `thmEqBeq`;
@@ -17,25 +16,13 @@
 
 module Basics where
 
-  -- (
-    -- -- * Booleans
-    -- Bool(..)
-  -- , negb, andb, orb
---
-    -- -- * Peano numerals
-  -- , Peano(..), toNat
-  -- , plus, mult
-  -- , beq, ble, blt
-  -- )
-  -- where
-
-import           Prelude (Char, Int)
-import qualified Prelude
+-- import           Prelude (Char, Int, Bool)
+import Prelude hiding (even)
 import           Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect incr @-}
 incr :: Int -> Int
-incr x = x Prelude.+ 1
+incr x = x + 1
 
 
 --------------------------------------------------------------------------------
@@ -43,15 +30,6 @@ incr x = x Prelude.+ 1
 --------------------------------------------------------------------------------
 
 -- NOTE: clunky to have to redefine this ...
-
-{-@ data Day = Monday
-             | Tuesday
-             | Wednesday
-             | Thursday
-             | Friday
-             | Saturday
-             | Sunday
-  @-}
 
 data Day = Monday
          | Tuesday
@@ -80,8 +58,7 @@ testNextWeekDay
 -- | Booleans ------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{-@ data Bool = True | False @-}
-data Bool = True | False
+-- data Bool = True | False
 
 {-@ reflect negb @-}
 negb :: Bool -> Bool
@@ -154,14 +131,14 @@ testAnd34 = trivial
 -- | Peano ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{-@ data Peano [toNat] = O | S Peano @-}
+{-@ data Peano [toNat] @-}
 data Peano = O | S Peano
 
 {-@ measure toNat @-}
 {-@ toNat :: Peano -> Nat @-}
 toNat :: Peano -> Int
 toNat O     = 0
-toNat (S n) = 1 Prelude.+ toNat n
+toNat (S n) = 1 + toNat n
 
 {-@ reflect even @-}
 even :: Peano -> Bool

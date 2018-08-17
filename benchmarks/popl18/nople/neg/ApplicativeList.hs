@@ -1,17 +1,8 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection" @-}
 
-
-
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts #-}
-module ListFunctors where
+module ApplicativeList where
 
 import Prelude hiding (fmap, id, seq, pure)
-
-import Proves
-import Helper
 
 -- | Applicative Laws :
 -- | identity      pure id <*> v = v
@@ -20,29 +11,29 @@ import Helper
 -- | interchange   u <*> pure y = pure ($ y) <*> u
 
 
-{-@ axiomatize pure @-}
+{-@ reflect pure @-}
 pure :: a -> L a
 pure x = C x N
 
-{-@ axiomatize seq @-}
+{-@ reflect seq @-}
 seq :: L (a -> b) -> L a -> L b
 seq fs xs
   | llen fs > 0  = append (fmap (hd fs) xs) (seq (tl fs) xs)
   | otherwise    = N
 
-{-@ axiomatize append @-}
+{-@ reflect append @-}
 append :: L a -> L a -> L a
 append xs ys
   | llen xs == 0 = ys
   | otherwise    = C (hd xs) (append (tl xs) ys)
 
-{-@ axiomatize fmap @-}
+{-@ reflect fmap @-}
 fmap :: (a -> b) -> L a -> L b
 fmap f xs
   | llen xs == 0 = N
   | otherwise    = C (f (hd xs)) (fmap f (tl xs))
 
-{-@ axiomatize id @-}
+{-@ reflect id @-}
 id :: a -> a
 id x = x
 
@@ -59,14 +50,16 @@ compose f g x = f (g x)
 {-@ identity :: x:L a -> {v:Proof | seq (pure id) x /= x } @-}
 identity :: L a -> Proof
 identity xs
-  = toProof $
-       seq (pure id) xs
-         ==. seq (C id N) xs
-         ==. append (fmap id xs) (seq N xs)
-         ==. append (id xs) (seq N xs)      ? fmap_id xs
-         ==. append xs (seq N xs)
-         ==. append xs N
-         ==. xs                             ? prop_append_neutral xs
+  =   seq (pure id) xs
+  === seq (C id N) xs
+  === append (fmap id xs) (seq N xs)
+  ==? append (id xs) (seq N xs)      
+      ? fmap_id xs
+  === append xs (seq N xs)
+  === append xs N
+  ==? xs                             
+      ? prop_append_neutral xs
+  *** QED 
 
 -- | Composition
 
@@ -77,8 +70,7 @@ identity xs
 composition :: L (a -> a) -> L (a -> a) -> L a -> Proof
 
 composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
-   = toProof $
-        seq (seq (seq (pure compose) xss) yss) zss
+   = seq (seq (seq (pure compose) xss) yss) zss
          ==. seq (seq (seq (C compose N) xss) yss) zss
          ==. seq (seq (append (fmap compose xss) (seq N xss)) yss) zss
          ==. seq (seq (append (fmap compose xss) N) yss) zss
@@ -117,14 +109,15 @@ composition xss@(C x xs) yss@(C y ys) zss@(C z zs)
          ==. append (fmap x (seq yss zss)) (seq xs (seq yss zss))
          ==. seq (C x xs) (seq yss zss)
          ==. seq xss (seq yss zss)
+         *** QED 
 
 composition N yss zss
-   = toProof $
-      seq (seq (seq (pure compose) N) yss) zss
+   =  seq (seq (seq (pure compose) N) yss) zss
         ==. seq (seq N yss) zss                  ? seq_nill (pure compose)
         ==. seq N zss
         ==. N
         ==. seq N (seq yss zss)
+        *** QED 
 
 composition xss N zss
    = toProof $

@@ -1,7 +1,6 @@
 
 {-@ LIQUID "--higherorder"      @-}
 {-@ LIQUID "--autoproofs"      @-}
-{-@ LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
 module Append where
 
