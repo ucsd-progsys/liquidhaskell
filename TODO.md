@@ -24,40 +24,18 @@
 
 ## HEREHEREHEREHERE
 
-- tests-measure-pos-GList000.hs 
-  - see "GSCTORS99" (`rebare` has junk type for `GHC.Types.:` wrt `develop` -- on goto)
-  - HYPOTHESIS: we are getting bogus stuff in `datacons` itself.
-
 - tests/names/neg/vector1.hs        **bad error span**
 
-Tests
-  Prover
-    with_ple
-      Solver.hs:              FAIL (1.72s)
-        ABSREF
-      NormalForm.hs:          FAIL (0.77s)
-        UNIFICATION-COERCE
-      MonoidMaybe.hs:         FAIL (0.75s)
-        DERIVED-VAR
-      MonadMaybe.hs:          FAIL (0.90s)
-        UNIFICATION-COERCE
-      MonadList.hs:           FAIL (0.99s)
-        UNIFICATION-COERCE
-      MonadId.hs:             FAIL (0.88s)
-        UNIFICATION-COERCE
-      FunctionEquality101.hs: FAIL (0.94s)
-        LAMBDA
-      Fibonacci.hs:           FAIL (10.63s)
-        ABSREF
-      BasicLambdas.hs:        FAIL (0.85s)
-        LAMBDA
-      AlphaEquivalence.hs:    FAIL (0.88s)
-        LAMBDA
+Name resolution
+      Shadow01.hs:          FAIL (0.68s)
+      Shadow00.hs:          FAIL (0.77s)
+      Fulcrum.hs:           FAIL (2.12s)
 
-  Prover
-    with_ple
-      FunctionEquality101.hs: FAIL (0.99s)
+Class refinements
+      STClient.hs:          FAIL (1.02s)
 
+Unknown
+      ExactGADT4.hs:        FAIL (0.80s)
 
 ## Issues
 

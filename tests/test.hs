@@ -66,7 +66,13 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ unitTests, errorTests, benchTests, proverTests ]
+    tests = group "Tests" [ microTests
+                          , proverTests 
+                          , macroTests
+                          , errorTests
+                          , benchTests
+                          ]
+
     -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
     -- tests = group "Tests" [ selfTests  ]
@@ -184,12 +190,15 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingReflect.hs"      2 "Error: Illegal type specification for `Main.empty_foo`" 
   ]
 
-unitTests :: IO TestTree
-unitTests = group "Unit"
-  [ 
-  -- TODO-REBARE testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
-  -- TODO-REBARE , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
-    testGroup "parser-pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
+macroTests :: IO TestTree
+macroTests = group "Macro"
+   [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
+   , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
+   ] 
+
+microTests :: IO TestTree
+microTests = group "Micro"
+  [ testGroup "parser-pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
   , testGroup "basic-pos"      <$> dirTests "tests/basic/pos"                      []                ExitSuccess
   , testGroup "basic-neg"      <$> dirTests "tests/basic/neg"                      []                (ExitFailure 1)
   , testGroup "measure-pos"    <$> dirTests "tests/measure/pos"                    []                ExitSuccess
@@ -201,10 +210,9 @@ unitTests = group "Unit"
   , testGroup "absref-pos"     <$> dirTests "tests/absref/pos"                     []                ExitSuccess
   , testGroup "absref-neg"     <$> dirTests "tests/absref/neg"                     []                (ExitFailure 1)
   , testGroup "import-lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
-  , testGroup "import-cli"  <$> dirTests "tests/import/client"                  []                ExitSuccess
+  , testGroup "import-cli"     <$> dirTests "tests/import/client"                  []                ExitSuccess
   , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
   , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
-
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
