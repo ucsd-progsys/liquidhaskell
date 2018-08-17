@@ -1,12 +1,11 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-} 
+{-@ LIQUID "--ple"        @-} 
 
 module Lists where
 
-import qualified Prelude
-import           Prelude (Char, Int, Bool (..))
-import Language.Haskell.Liquid.ProofCombinators
+import Prelude hiding (reverse, length, filter)
+-- import           Prelude (Char, Int, Bool (..))
+import           Language.Haskell.Liquid.NewProofCombinators
 
 -- TODO: import Basics and Induction
 
@@ -18,14 +17,14 @@ safeEq x y = y
 since :: a -> b -> a
 since x reason = x
 
-{-@ data Peano [toNat] = O | S Peano @-}
+{-@ data Peano [toNat] @-}
 data Peano = O | S Peano
 
 {-@ measure toNat @-}
 {-@ toNat :: Peano -> Nat @-}
 toNat :: Peano -> Int
 toNat O     = 0
-toNat (S n) = 1 Prelude.+ toNat n
+toNat (S n) = 1 + toNat n
 
 {-@ reflect plus @-}
 plus :: Peano -> Peano -> Peano
@@ -134,7 +133,7 @@ data NatList = Nil | Cons Peano NatList
 {-@ nlen :: NatList -> Nat @-}
 nlen :: NatList -> Int
 nlen Nil        = 0
-nlen (Cons _ t) = 1 Prelude.+ nlen t
+nlen (Cons _ t) = 1 + nlen t
 
 {-@ reflect length @-}
 length :: NatList -> Peano
@@ -667,7 +666,6 @@ thmBeqNatListRefl (Cons h1 t1) =
 -- | Options -------------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-{-@ data NatOption = None | Some (natOptionPayload :: Peano)@-}
 data NatOption = None | Some Peano
 
 {-@ reflect nthError @-}
@@ -752,17 +750,14 @@ thmBeqIdRefl x'@(Id x) = beqId x' x'
                 `safeEq` (BTrue `since` thmEqBeq x x)
                      *** QED
 
-{-@
-  data PartialMap [nlen'] = Empty
-    | Record (getKey :: Id) (getVal :: Peano) (getRest :: PartialMap)
-@-}
+{-@ data PartialMap [nlen'] @-} 
 data PartialMap = Empty | Record Id Peano PartialMap
 
 {-@ measure nlen' @-}
 {-@ nlen' :: PartialMap -> Nat @-}
 nlen' :: PartialMap -> Int
 nlen' Empty          = 0
-nlen' (Record _ _ t) = 1 Prelude.+ nlen' t
+nlen' (Record _ _ t) = 1 + nlen' t
 
 {-@ reflect update @-}
 update :: PartialMap -> Id -> Peano -> PartialMap
@@ -776,23 +771,23 @@ find x (Record y v t) = case beqId x y of
   BFalse -> find x t
 
 {-@
-  thmUpdateEq :: map : PartialMap -> key : Id -> val : Peano
-              -> { find key (update map key val) = Some val }
+  thmUpdateEq :: mm : PartialMap -> key : Id -> val : Peano
+              -> { find key (update mm key val) = Some val }
 @-}
 thmUpdateEq :: PartialMap -> Id -> Peano -> Proof
-thmUpdateEq map key val = find key (update map key val)
-                 `safeEq` find key (Record key val map)
+thmUpdateEq mm key val = find key (update mm key val)
+                 `safeEq` find key (Record key val mm)
                  `safeEq` (Some val `since` thmBeqIdRefl key)
                       *** QED
 
 {-@
-  thmUpdateNeq :: map : PartialMap
+  thmUpdateNeq :: mm : PartialMap
                -> x : Id -> y : { Id | beqId y x = BFalse }
                -> val : Peano
-               -> { find y (update map x val) = find y map }
+               -> { find y (update mm x val) = find y mm }
 @-}
 thmUpdateNeq :: PartialMap -> Id -> Id -> Peano -> Proof
-thmUpdateNeq map x y val = find y (update map x val)
-                  `safeEq` find y (Record x val map)
-                  `safeEq` (find y map `since` beqId y x)
+thmUpdateNeq mm x y val = find y (update mm x val)
+                  `safeEq` find y (Record x val mm)
+                  `safeEq` (find y mm `since` beqId y x)
                       *** QED
