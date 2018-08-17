@@ -148,8 +148,11 @@ ppAlias k a = text "type" <+> pprint (rtName a)
                           <+> pprint (rtBody a)
 
 instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where 
-  pprintTidy k rte = F.pprintTidy k (typeAliases rte)
-                 $+$ F.pprintTidy k (exprAliases rte)
+  pprintTidy k rte 
+    =   text "** Type Aliaes *********************" 
+    $+$ nest 4 (F.pprintTidy k (typeAliases rte)) 
+    $+$ text "** Expr Aliases ********************" 
+    $+$ nest 4 (F.pprintTidy k (exprAliases rte))
 
 pprints :: (PPrint a) => F.Tidy -> Doc -> [a] -> Doc
 pprints k c = sep . punctuate c . map (pprintTidy k)

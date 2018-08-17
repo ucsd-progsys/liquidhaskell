@@ -1,8 +1,7 @@
-module Alias00 where 
+module Alias03 where 
 
-{-@ predicate Less X Y = X < Y @-} 
-
-{-@ data Zoo = Z { zA :: Int, zB :: {v:Int | Less zA v} } @-} 
+{-@ type Less X = {v:Int | X < v}  @-} 
+{-@ data Zoo = Z { zA :: Int, zB :: Less zA } @-} 
 
 data Zoo = Z { zA :: Int, zB :: Int }
 
