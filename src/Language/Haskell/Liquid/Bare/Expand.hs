@@ -30,7 +30,7 @@ import qualified Text.Printf               as Printf
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
 import qualified Language.Fixpoint.Types               as F 
-import qualified Language.Fixpoint.Types.Visitor       as F 
+-- import qualified Language.Fixpoint.Types.Visitor       as F 
 import qualified Language.Fixpoint.Misc                as Misc 
 import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol) 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
@@ -220,7 +220,6 @@ class Expand a where
 expandQualify :: (Expand a, Bare.Qualify a) => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
 expandQualify env name rtEnv l = Bare.qualify env name . expand rtEnv l
 
-
 ----------------------------------------------------------------------------------
 expandDummy :: (Expand a) => BareRTEnv -> a -> a 
 expandDummy rtEnv = expand rtEnv (F.dummyPos "expand-dummy")
@@ -237,19 +236,23 @@ instance Expand F.Reft where
 instance Expand RReft where
   expand rtEnv l = fmap (expand rtEnv l)
 
+expandReft :: (Expand r) => BareRTEnv -> F.SourcePos -> RType c tv r -> RType c tv r 
+expandReft rtEnv l = fmap (expand rtEnv l)
+
 -- | @expand@ on a SpecType simply expands the refinements, 
---   i.e. does not apply the type aliases, but just the 
+--   i.e. *does not* apply the type aliases, but just the 
 --   1. predicate aliases, 
 --   2. inlines,
 --   3. stuff from @LogicMap@
 
 instance Expand SpecType where
-  expand rtEnv l = fmap (expand rtEnv l)
+  expand = expandReft 
+  --  expand rtEnv l = fmap (expand rtEnv l)
 
-
--- | @expand@ on a BareType actually applies the type aliases.
+-- | @expand@ on a BareType actually applies the type- and expression- aliases.
 instance Expand BareType where 
-  expand = expandBareType 
+  expand rtEnv l = expandReft     rtEnv l     -- apply expression aliases 
+                 . expandBareType rtEnv l     -- apply type       aliases 
 
 instance Expand (RTAlias F.Symbol Expr) where 
   expand rtEnv l x = x { rtBody = expand rtEnv l (rtBody x) } 
@@ -545,9 +548,6 @@ instance (Expand a) => Expand [a] where
 -}
 
 --------------------------------------------------------------------------------
--- Expand Reft Preds & Exprs ---------------------------------------------------
---------------------------------------------------------------------------------
---------------------------------------------------------------------------------
 -- Expand Exprs ----------------------------------------------------------------
 --------------------------------------------------------------------------------
 expandExpr :: BareRTEnv -> F.SourcePos -> Expr -> Expr
@@ -595,6 +595,8 @@ expandEApp rtEnv l (EVar f, es) = case mBody of
     eAs     = exprAliases rtEnv
     mBody   = Misc.firstMaybes [M.lookup f eAs, M.lookup (GM.dropModuleUnique f) eAs]
     es'     = expandExpr rtEnv l <$> es
+    f0      = GM.dropModuleNamesAndUnique f
+
 expandEApp _ _ (f, es) = F.eApps f es
 
 --------------------------------------------------------------------------------
