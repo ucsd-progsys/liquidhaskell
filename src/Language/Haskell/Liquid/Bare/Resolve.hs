@@ -255,11 +255,19 @@ qualifySymbol env name x
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
 
-
 instance (Qualify a) => Qualify (Located a) where 
   qualify env name = fmap (qualify env name) 
 
+instance (Qualify a) => Qualify [a] where 
+  qualify env name = fmap (qualify env name) 
+
+instance (Qualify a) => Qualify (Maybe a) where 
+  qualify env name = fmap (qualify env name) 
+
 instance Qualify SpecType where 
+  qualify = substEnv 
+
+instance Qualify BareType where 
   qualify = substEnv 
 
 instance Qualify F.Expr where 
@@ -276,7 +284,6 @@ instance Qualify RReft where
 instance Qualify F.Qualifier where 
   qualify = substEnv 
 
-
 instance Qualify TyConInfo where 
   qualify env name tci = tci { sizeFunction = qualify env name <$> sizeFunction tci }
 
@@ -289,6 +296,52 @@ instance Qualify (Measure SpecType Ghc.DataCon) where
 substEnv :: (F.Subable a) => Env -> ModName -> a -> a 
 substEnv env name = F.substa (qualifySymbol env name) 
 -- substEnv env _ = F.subst (_reSubst env)
+
+instance Qualify BareDef where 
+  qualify env name d = d 
+    { body  = qualify env name (body  d) 
+    } 
+
+instance Qualify BareMeasure where 
+  qualify env name m = m 
+    { msEqns = qualify env name (msEqns m)
+    } 
+
+instance Qualify DataCtor where 
+  qualify env name c = c
+    { dcTheta  = qualify env name (dcTheta  c) 
+    , dcFields = qualify env name (dcFields c) 
+    , dcResult = qualify env name (dcResult c)
+    }
+ 
+instance Qualify DataDecl where 
+  qualify env name d = d 
+    { tycDCons  = qualify env name (tycDCons  d)
+    , tycPropTy = qualify env name (tycPropTy d) 
+    } 
+
+instance Qualify BareSpec where 
+  qualify = qualifyBareSpec 
+
+instance Qualify ModSpecs where 
+  qualify env name = Misc.hashMapMapWithKey (\_ -> qualify env name) 
+
+instance Qualify b => Qualify (a, b) where 
+  qualify env name (x, y) = (x, qualify env name y)
+
+qualifyBareSpec :: Env -> ModName -> BareSpec -> BareSpec 
+qualifyBareSpec env name sp = sp 
+  { measures   = qualify env name (measures   sp) 
+  , asmSigs    = qualify env name (asmSigs    sp)
+  , sigs       = qualify env name (sigs       sp)
+  , localSigs  = qualify env name (localSigs  sp)
+  , reflSigs   = qualify env name (reflSigs   sp)
+  , dataDecls  = qualify env name (dataDecls  sp)
+  , newtyDecls = qualify env name (newtyDecls sp)
+  , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
+  } 
+  where f      = qualify env name
+  
 
 -------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var

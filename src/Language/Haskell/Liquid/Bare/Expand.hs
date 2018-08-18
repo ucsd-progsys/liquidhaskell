@@ -1,21 +1,31 @@
+-- | This module has the code for applying refinement (and) type aliases 
+--   and the pipeline for "cooking" a @BareType@ into a @SpecType@. 
+--   TODO: _only_ export `makeRTEnv`, `cookSpecType` and maybe `qualifyExpand`...
+
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE OverloadedStrings     #-}
 
+
 module Language.Haskell.Liquid.Bare.Expand 
   ( -- * Create alias expansion environment
     makeRTEnv 
+
     -- * Use alias expansion 
   , Expand (..)
   , expandLoc 
   , expandDummy
 
     -- * Expand and Qualify 
-  , expandQualify 
+  , qualifyExpand 
+
+    -- * Converting BareType to SpecType
   , cookSpecType
   , cookSpecTypeE
+
+    -- *
   , plugHoles
   ) where
 
@@ -217,8 +227,13 @@ buildExprEdges table  = ordNub . go
 class Expand a where 
   expand :: BareRTEnv -> F.SourcePos -> a -> a 
 
-expandQualify :: (Expand a, Bare.Qualify a) => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
-expandQualify env name rtEnv l 
+----------------------------------------------------------------------------------
+-- | @qualifyExpand@ first qualifies names so that we can successfully resolve 
+--   them during expansion. 
+----------------------------------------------------------------------------------
+qualifyExpand :: (Expand a, Bare.Qualify a) => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
+----------------------------------------------------------------------------------
+qualifyExpand env name rtEnv l 
   = expand rtEnv l
   . Bare.qualify env name 
 
