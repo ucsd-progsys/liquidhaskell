@@ -840,7 +840,7 @@ dummyTyId      = ""
 --------------------------- Measures -----------------------------
 ------------------------------------------------------------------
 
-type BPspec = Pspec (Located BareType) LocSymbol
+type BPspec = Pspec LocBareType LocSymbol
 
 data Pspec ty ctor
   = Meas    (Measure ty ctor)

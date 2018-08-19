@@ -643,7 +643,7 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   -- liftIO    $ print ("moduleFiles-Paths : "  ++ show paths)
   -- liftIO    $ print ("moduleFiles-Specs : "  ++ show fs')
   patSpec  <- getPatSpec paths $ totalityCheck cfg
-  rlSpec   <- getRealSpec paths $ not $ linear cfg
+  rlSpec   <- getRealSpec paths $ not (linear cfg)
   let fs    = patSpec ++ rlSpec ++ fs'
   transParseSpecs paths mempty mempty fs
   where

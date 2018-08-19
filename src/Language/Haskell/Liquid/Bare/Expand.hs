@@ -441,7 +441,7 @@ cookSpecType env sigEnv name x bt =
   -- F.tracepp ("cookSpecType" ++ F.showpp x) $
     either (Misc.errorP msg . F.showpp) id (cookSpecTypeE env sigEnv name x bt)
   where 
-    msg = "cookSpecType: " ++ GM.showPpr x
+    msg  = "cookSpecType: " ++ GM.showPpr (x, Ghc.varType <$> x)
 
 cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType 
              -> Either UserError LocSpecType 

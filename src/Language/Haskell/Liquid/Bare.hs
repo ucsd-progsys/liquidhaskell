@@ -146,10 +146,11 @@ makeGhcSpec cfg src lmap mspecs = SP
     zzz      = F.showpp (fst <$> mspecs)
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
-splitSpecs name specs = (mySpec, M.fromList iSpecs) 
+splitSpecs name specs = (mySpec, iSpecm) 
   where 
     mySpec            = mconcat (snd <$> mySpecs)
     (mySpecs, iSpecs) = L.partition ((name ==) . fst) specs 
+    iSpecm            = fmap mconcat . Misc.group $ iSpecs
 
 makeEmbeds :: GhcSrc -> Bare.Env -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
@@ -500,7 +501,7 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS"     tySigs 
-  , gsAsmSigs  = F.notracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
@@ -550,7 +551,7 @@ rawAsmSigs env myName specs =
                   , (x   , t)    <- getAsmSigs myName name spec
                   , v            <- symVar name x 
   ] 
-  where symVar n x = F.notracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
+  where symVar n x = F.tracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
                    . Mb.maybeToList 
                    . Bare.maybeResolveSym env n "rawAsmVar" 
                    $ x 

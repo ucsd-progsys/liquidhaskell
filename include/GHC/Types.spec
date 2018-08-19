@@ -24,7 +24,7 @@ GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
 
 GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 
-assume GHC.Types.D# :: x:GHC.Types.Double# -> {v: GHC.Types.Double | v = (x :: real) }
+assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
 assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
 assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
 assume GHC.Types.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}

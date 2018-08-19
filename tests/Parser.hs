@@ -28,6 +28,9 @@ import           Test.Tasty.Runners.AntXML
 
 -- | Test suite entry point, returns exit failure if any test fails.
 main :: IO ()
+-- main = do 
+--   print $ parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>"
+--   return ()
 main =  defaultMainWithIngredients (
                 antXMLRunner:defaultIngredients
               ) tests
@@ -35,8 +38,7 @@ main =  defaultMainWithIngredients (
 tests :: TestTree
 tests =
   testGroup "ParserTests"
-    [
-      testSucceeds
+    [ testSucceeds
     , testSpecP
     , testReservedAliases
     , testFails
@@ -507,7 +509,7 @@ parseSingleSpec :: String -> String
 parseSingleSpec src =
   case LH.singleSpecP (initialPos "<test>") src of
     Left err  -> show err
-    Right res -> show $ dummyLocs res
+    Right res -> show (dummyLocs res)
 
 gadtSpec :: String
 gadtSpec = unlines

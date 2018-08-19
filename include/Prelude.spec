@@ -28,8 +28,8 @@ assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> { v:GHC.Integer.Type | v =
 assume GHC.Num.+ :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.- :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
 
-// embed GHC.Exts.Double as real
-embed Integer         as int
+embed GHC.Types.Double  as real
+embed Integer           as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
 type LeInt N = {v: GHC.Types.Int | v <= N }
