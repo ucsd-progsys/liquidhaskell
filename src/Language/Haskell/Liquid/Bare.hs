@@ -791,12 +791,12 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
  -}    
 
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
-knownWiredDataCons env name = filter isKnown wiredDataCons -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
+knownWiredDataCons env name = filter isKnown wiredDataCons 
   where 
     isKnown                 = Bare.knownGhcDataCon env name . GM.namedLocSymbol . dcpCon . val
 
 knownWiredTyCons :: Bare.Env -> ModName -> [TyConP] 
-knownWiredTyCons env name = filter isKnown wiredTyCons -- TODO-REBARE: use `wiredDataCons` AFTER we have ABSREF
+knownWiredTyCons env name = filter isKnown wiredTyCons 
   where 
     isKnown               = Bare.knownGhcTyCon env name . GM.namedLocSymbol . tcpCon 
 

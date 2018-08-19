@@ -8,6 +8,7 @@ import Data.ByteString.Unsafe
 
 {-@ extract :: ibs : { ibs : ByteString | bslen ibs >= 100 } -> { obs : ByteString | bslen obs == 4 } @-}
 extract :: ByteString -> ByteString
+extract = unsafeTake 4 . unsafeDrop 96
 
 {-@ extractETA :: ibs : { ibs : ByteString | bslen ibs >= 100 } -> { obs : ByteString | bslen obs == 4 } @-}
 extractETA :: ByteString -> ByteString

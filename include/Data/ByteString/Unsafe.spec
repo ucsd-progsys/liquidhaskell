@@ -1,22 +1,22 @@
 module spec Data.ByteString.Unsafe where
 
 unsafeHead
-    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
+    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> _ 
 
 unsafeTail
     :: bs : { v : Data.ByteString.ByteString | bslen v > 0 }
     -> { v : Data.ByteString.ByteString | bslen v = bslen bs - 1 }
 
 unsafeInit
-    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
+    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> _ 
 
 unsafeLast
-    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> Data.Word.Word8
+    :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> _ 
 
 unsafeIndex
     :: bs : Data.ByteString.ByteString
     -> { n : Int | 0 <= n && n < bslen bs }
-    -> Data.Word.Word8
+    -> _ 
 
 assume unsafeTake
     :: n : { n : Int | 0 <= n }
