@@ -76,15 +76,16 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
-makeClasses env sigEnv myName specs = (mempty, mempty) -- TODO-REBARE
-  -- TODO-REBARE: second mconcat . unzip 
-  -- TODO-REBARE: $ [ mkClass env sigEnv myName name cls tc
-        -- TODO-REBARE: | (name, spec) <- M.toList specs
-        -- TODO-REBARE: , cls          <- Ms.classes spec
-        -- TODO-REBARE: , tc           <- Mb.maybeToList (classTc cls) 
-    -- TODO-REBARE: ]
-  -- TODO-REBARE: where
-  -- TODO-REBARE:  classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+makeClasses env sigEnv myName specs = (mempty, mempty)
+-- TODO-REBARE  
+  -- TODO-REBARE  second mconcat . unzip 
+  -- TODO-REBARE  $ [ mkClass env sigEnv myName name cls tc
+        -- TODO-REBARE  | (name, spec) <- M.toList specs
+        -- TODO-REBARE  , cls          <- Ms.classes spec
+        -- TODO-REBARE  , tc           <- Mb.maybeToList (classTc cls) 
+    -- TODO-REBARE  ]
+  -- TODO-REBARE  where
+    -- TODO-REBARE  classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
         -> (DataConP, [(ModName, Ghc.Var, LocSpecType)])
@@ -94,15 +95,23 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = (dcp, vts)
     c      = btc_tc cc
     l      = loc  c
     l'     = locE c
-    ss'    = Bare.cookSpecType env sigEnv name Nothing <$> ss 
+    ss'    = F.tracepp msg $ mkConstr env sigEnv name <$> ss 
+    msg    = "MKCLASS: " ++ F.showpp (cc, as, αs) -- , as')
     (dc:_) = Ghc.tyConDataCons tc
     αs     = bareRTyVar <$> as
     as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
     vts    = makeSpec env sigEnv name <$> ms'
-    sts    = [(val s, unClass $ val t) | (s, _)    <- ms
-                                       | (_, _, t) <- vts]
+    sts    = F.tracepp "METHODS" $
+             [(val s, unClass $ val t) 
+                | (s, _)    <- ms
+                | (_, _, t) <- vts]
     t      = rCls tc as'
+
+mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> LocSpecType     
+mkConstr env sigEnv name = fmap dropUniv . Bare.cookSpecType env sigEnv name Nothing
+  where 
+    dropUniv t           = t' where (_, _, _, t') = bkUniv t
 
    --FIXME: cleanup this code
 unClass :: SpecType -> SpecType 
@@ -113,7 +122,8 @@ makeSpec :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType)
 makeSpec env sigEnv name (lx, bt) = (name, v, t) 
   where 
     v = Bare.lookupGhcVar env        name "makeSpec" lx
-    t = Bare.cookSpecType env sigEnv name (Just v)   bt 
+    t = F.tracepp msg $ Bare.cookSpecType env sigEnv name (Just v)   bt 
+    msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 {- 
 lookupIds :: Bool -> [(LocSymbol, a)] -> BareM [(Var, LocSymbol, a)]

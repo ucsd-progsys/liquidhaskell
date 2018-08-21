@@ -207,10 +207,13 @@ microTests = group "Micro"
   , testGroup "datacon-neg"    <$> dirTests "tests/datacon/neg"                    []                (ExitFailure 1)
   , testGroup "names-pos"      <$> dirTests "tests/names/pos"                      []                ExitSuccess
   , testGroup "names-neg"      <$> dirTests "tests/names/neg"                      []                (ExitFailure 1)
+  , testGroup "reflect-pos"    <$> dirTests "tests/reflect/pos"                     []                ExitSuccess
+  , testGroup "reflect-neg"    <$> dirTests "tests/reflect/neg"                  []                ExitSuccess
   , testGroup "absref-pos"     <$> dirTests "tests/absref/pos"                     []                ExitSuccess
   , testGroup "absref-neg"     <$> dirTests "tests/absref/neg"                     []                (ExitFailure 1)
   , testGroup "import-lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
   , testGroup "import-cli"     <$> dirTests "tests/import/client"                  []                ExitSuccess
+  , testGroup "class-pos"      <$> dirTests "tests/classes/pos"                        []                ExitSuccess
   , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
   , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068

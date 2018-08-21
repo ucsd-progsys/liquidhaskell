@@ -454,11 +454,11 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (Bare.txRefSort tyi embs)     
   -- TODO-REBARE . fmap txExpToBind t     -- What does this function DO
   . fmap (specExpandType rtEnv)                         
-  -- . fmap (F.tracepp (msg 5))
+  . fmap (F.tracepp (msg 5))
   . fmap (fmap RT.generalize)
-  -- . fmap (F.tracepp (msg 4))
+  . fmap (F.tracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  -- . fmap (F.tracepp (msg 3))
+  . fmap (F.tracepp (msg 3))
   . fmap (Bare.qualify       env name) 
   -- . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
@@ -466,7 +466,7 @@ cookSpecTypeE env sigEnv name x bt
   . bareExpandType     rtEnv
   $ bt 
   where 
-    _msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
+    msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
     rtEnv = Bare.sigRTEnv    sigEnv
     embs  = Bare.sigEmbs     sigEnv 
     tyi   = Bare.sigTyRTyMap sigEnv
