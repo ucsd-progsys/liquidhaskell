@@ -284,8 +284,8 @@ makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                 -> Ms.BareSpec
 makeLiftedSpec1 _cfg src tycEnv lmap mySpec = mempty
             { Ms.measures  = ms
-            -- , Ms.reflects  = Ms.reflects mySpec                              [moved to makeLiftedSpec0]
-            -- , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs   [moved to makeLifedtSpec0]
+            -- , Ms.reflects  = Ms.reflects mySpec                              [REBARE: moved to makeLiftedSpec0]
+            -- , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs   [REBARE: moved to makeLifedtSpec0]
             }
   where 
     ms      = Bare.makeHaskellMeasures src tycEnv lmap mySpec
@@ -457,7 +457,7 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
   , gsMyAxioms   = myAxioms 
-  , gsReflects   = filter (isReflectVar rflSyms) sigVars
+  , gsReflects   = F.tracepp "REFLECTS" $ filter (isReflectVar rflSyms) sigVars
   , gsHAxioms    = xtes 
   }
   where
@@ -465,10 +465,21 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
     xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
     myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
-    sigVars      = (fst3 <$> xtes) ++ (fst <$> gsAsmSigs sig)
+    sigVars      = F.tracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
+                                      ++ (fst  <$> gsAsmSigs sig)   -- assumes
+                                      ++ (fst  <$> gsTySigs  sig)
+
     lmap         = Bare.reLMap env
 
+isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool 
+isReflectVar reflSyms v = S.member vx reflSyms
+  where
+    vx                  = GM.dropModuleNames (symbol v)
 
+getReflects :: Bare.ModSpecs -> [Symbol]
+getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
+  where
+    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
     
 ------------------------------------------------------------------------------------------
 -- | @updateReflSpecSig@ uses the information about reflected functions to update the 
@@ -483,15 +494,7 @@ addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ gsAsmSigs sig }
   -- let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
   -- let xts' = xts ++ F.notracepp "GS-ASMSIGS" (gsAsmSigs sp)
 
-isReflectVar :: S.HashSet F.Symbol -> Ghc.Var -> Bool 
-isReflectVar reflSyms v = S.member vx reflSyms
-  where
-    vx                  = GM.dropModuleNames (symbol v)
 
-getReflects :: Bare.ModSpecs -> [Symbol]
-getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
-  where
-    names  z = S.unions [ Ms.reflects z, Ms.inlines z, Ms.hmeas z ]
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
 makeAutoInst env name spec = 
@@ -890,7 +893,7 @@ makeLiftedSpec :: GhcSpecRefl -> GhcSpecData -> Ms.BareSpec -> Ms.BareSpec
 -----------------------------------------------------------------------------------------
 makeLiftedSpec refl sData lSpec0 
   = lSpec0 { Ms.asmSigs    = xbs
-           , Ms.reflSigs   = xbs
+           , Ms.reflSigs   = F.tracepp "REFL-SIGS" xbs
            , Ms.axeqs      = gsMyAxioms refl 
            , Ms.invariants = xinvs
            }
