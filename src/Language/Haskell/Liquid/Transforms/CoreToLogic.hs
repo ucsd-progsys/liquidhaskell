@@ -12,8 +12,8 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , runToLogic
   , runToLogicWithBoolBinds
   , logicType
-  , strengthenResult
-  , strengthenResult'
+  , inlineSpecType  
+  , measureSpecType
   , weakenResult
   , normalize
   ) where
@@ -65,13 +65,13 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
     t            = toRTypeRep $ ofType τ
     (bs, as, rs) = unzip3 $ dropWhile (isClassType . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
-{- | [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
+{- | [NOTE:inlineSpecType type]: the refinement depends on whether the result type is a Bool or not:
       CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
-      CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
+     CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
  -}
-
-strengthenResult :: Var -> SpecType
-strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
+-- formerly: strengthenResult
+inlineSpecType :: Var -> SpecType
+inlineSpecType v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty_binds = xs}
   where
     r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty mempty
     rep            = toRTypeRep t
@@ -90,8 +90,9 @@ strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds =
 --   2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
 --   TODO: SIMPLIFY by dropping support for multi parameter measures
 
-strengthenResult' :: Var -> SpecType
-strengthenResult' v = go mkT [] [1..] t
+-- formerly: strengthenResult'
+measureSpecType :: Var -> SpecType
+measureSpecType v = go mkT [] [1..] t
   where 
     mkR | boolRes   = propReft 
         | otherwise = exprReft  
@@ -113,6 +114,7 @@ strengthenResult' v = go mkT [] [1..] t
     hasRApps (RApp {})        = True
     hasRApps _                = False
     
+   
 -- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
 --   that is added, e.g. for measures in /strengthenResult'. 
 --   This should only be used _when_ checking the body of 'foo' 

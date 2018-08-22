@@ -55,6 +55,7 @@ import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
 import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Spec          as Bare 
+import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
 
 {- 
 import           Language.Haskell.Liquid.Bare.Check
@@ -501,31 +502,77 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS"     tySigs 
-  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
   }
   where 
     mySpec     = M.lookupDefault mempty name specs
-    tySigs     = Bare.strengthenHaskellInlines  hinls 
-               . Bare.strengthenHaskellMeasures hmeas 
-               $ makeTySigs  env sigEnv name mySpec 
-    hinls      = makeHInlines env allSpecs 
-    hmeas      = makeHMeas    env allSpecs 
+    tySigs     = strengthenSigs . concat $
+                  [ makeTySigs  env sigEnv name mySpec
+                  , makeInlSigs env rtEnv allSpecs 
+                  , makeMsrSigs env rtEnv allSpecs 
+                  ]
     allSpecs   = M.toList specs 
+    rtEnv      = Bare.sigRTEnv sigEnv 
 
-makeHInlines :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [Ghc.Var] 
-makeHInlines = makeFromSet "hinlines" Ms.inlines 
+    -- tySigs     = Bare.strengthenHaskellInlines  sigEnv hinls 
+               -- . Bare.strengthenHaskellMeasures sigEnv hmeas 
+               -- $ makeTySigs  env sigEnv name mySpec 
+    -- hmeas      = makeHMeas    env allSpecs 
 
-makeHMeas    :: Bare.Env -> [(ModName, Ms.BareSpec)] -> [Ghc.Var] 
-makeHMeas = makeFromSet "hmeas" Ms.hmeas 
+strengthenSigs :: [(Ghc.Var, LocSpecType)] ->[(Ghc.Var, LocSpecType)]
+strengthenSigs sigs = go <$> Misc.groupList sigs 
+  where
+    go (v, xs)      = (v,) $ L.foldl1' (flip meetLoc) xs
+    meetLoc :: LocSpecType -> LocSpecType -> LocSpecType
+    meetLoc t1 t2   = t1 {val = val t1 `F.meet` val t2}
+
+makeInlSigs :: Bare.Env -> BareRTEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.Var, LocSpecType)] 
+makeInlSigs env rtEnv 
+  = makeLiftedSigs rtEnv CoreToLogic.inlineSpecType 
+  . makeFromSet "hinlines" Ms.inlines env 
+
+makeMsrSigs :: Bare.Env -> BareRTEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.Var, LocSpecType)] 
+makeMsrSigs env rtEnv 
+  = makeLiftedSigs rtEnv CoreToLogic.measureSpecType 
+  . makeFromSet "hmeas" Ms.hmeas env 
+
+makeLiftedSigs :: BareRTEnv -> (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)]
+makeLiftedSigs rtEnv f xs 
+  = [(x, lt) | x <- xs
+             , let lx = GM.locNamedThing x
+             , let lt = expand $ lx {val = f x}
+    ]
+  where
+    expand   = Bare.specExpandType rtEnv 
 
 makeFromSet :: String -> (Ms.BareSpec -> S.HashSet LocSymbol) -> Bare.Env -> [(ModName, Ms.BareSpec)] 
             -> [Ghc.Var] 
 makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toList (f s)] 
   where 
     mk name                 = Mb.mapMaybe (Bare.maybeResolveSym env name msg) 
+
+
+{- OLD-REBARE 
+
+strengthenHaskellInlines  :: Bare.SigEnv -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskellInlines  sigEnv = strengthenHaskell sigEnv strengthenInlineResult
+
+strengthenHaskellMeasures :: Bare.SigEnv -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskellMeasures sigEnv = strengthenHaskell sigEnv strengthenMeasureResult
+
+strengthenHaskell :: Bare.SigEnv -> (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskell sigEnv strengthen hmeas sigs
+  = go <$> Misc.groupList (reverse sigs ++ hsigs)
+  where
+    hsigs      = [(x, expand $ lx {val = strengthen x}) | x <- hmeas, let lx = GM.locNamedThing x]
+    go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
+    expand     = Bare.specExpandType rtEnv 
+    rtEnv      = Bare.sigRTEnv sigEnv
+
+-}
 
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
@@ -551,7 +598,7 @@ rawAsmSigs env myName specs =
                   , (x   , t)    <- getAsmSigs myName name spec
                   , v            <- symVar name x 
   ] 
-  where symVar n x = F.tracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
+  where symVar n x = F.notracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
                    . Mb.maybeToList 
                    . Bare.maybeResolveSym env n "rawAsmVar" 
                    $ x 
@@ -770,7 +817,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = F.tracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    (tcDds, dcs)  = F.notracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
     tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
@@ -821,7 +868,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ {- F.tracepp "CLASSES" -} cls)]
+    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement

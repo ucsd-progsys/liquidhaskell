@@ -24,6 +24,7 @@ module Language.Haskell.Liquid.Bare.Expand
     -- * Converting BareType to SpecType
   , cookSpecType
   , cookSpecTypeE
+  , specExpandType
 
     -- *
   , plugHoles
@@ -453,17 +454,19 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   -- TODO-REBARE . fmap txExpToBind t     -- What does this function DO
+  . fmap (F.tracepp (msg 6))
   . fmap (specExpandType rtEnv)                         
   . fmap (F.tracepp (msg 5))
   . fmap (fmap RT.generalize)
-  . fmap (F.tracepp (msg 4))
+  . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.tracepp (msg 3))
+  . fmap (F.notracepp (msg 3))
   . fmap (Bare.qualify       env name) 
-  -- . fmap (F.tracepp (msg 2))
+  . fmap (F.notracepp (msg 2))
   . bareSpecType       env name 
-  -- . F.tracepp (msg 1) 
+  . F.notracepp (msg 1) 
   . bareExpandType     rtEnv
+  . F.notracepp (msg 0) 
   $ bt 
   where 
     msg i = "cook-" ++ show i ++ " : " ++ F.showpp x

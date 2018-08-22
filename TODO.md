@@ -1,27 +1,5 @@
 # TODO
 
-## Features
-
-- [x] asserted-sigs
-- [x] unqualified imports
-- [x] assumed-sigs
-- [x] alias
-- [x] importing
-- [x] measures
-- [x] importing
-- [x] invariants
-- [x] importing
-- [x] holes
-- [x] reflect / PLE
-- [x] importing
-- [x] datacon
-- [x] importing
-- [x] class/instance measures (len)
-- [ ] absref
-- [ ] termination
-- [ ] auto-size
-- [ ] source-spans 
-
 ## HEREHEREHEREHERE
 
 - tests/names/neg/vector1.hs        **bad error span**
@@ -32,7 +10,9 @@ Name resolution
       Fulcrum.hs:           FAIL (2.12s)
 
 Class refinements
+      RealProps1.hs:        FAIL (0.96s)
       STClient.hs:          FAIL (1.02s)
+      DoubleLit.hs:         FAIL (2.16s)
 
 Unknown
       ExactGADT4.hs:        FAIL (0.80s)

@@ -208,7 +208,7 @@ microTests = group "Micro"
   , testGroup "names-pos"      <$> dirTests "tests/names/pos"                      []                ExitSuccess
   , testGroup "names-neg"      <$> dirTests "tests/names/neg"                      []                (ExitFailure 1)
   , testGroup "reflect-pos"    <$> dirTests "tests/reflect/pos"                     []                ExitSuccess
-  , testGroup "reflect-neg"    <$> dirTests "tests/reflect/neg"                  []                ExitSuccess
+  , testGroup "reflect-neg"    <$> dirTests "tests/reflect/neg"                  []                  (ExitFailure 1) 
   , testGroup "absref-pos"     <$> dirTests "tests/absref/pos"                     []                ExitSuccess
   , testGroup "absref-neg"     <$> dirTests "tests/absref/neg"                     []                (ExitFailure 1)
   , testGroup "import-lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess

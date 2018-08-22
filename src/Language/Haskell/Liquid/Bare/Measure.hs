@@ -10,8 +10,8 @@ module Language.Haskell.Liquid.Bare.Measure
   , makeHaskellInlines
   , makeHaskellDataDecls
   , makeMeasureSelectors
-  , strengthenHaskellMeasures
-  , strengthenHaskellInlines
+  -- , strengthenHaskellMeasures
+  -- , strengthenHaskellInlines
   , makeMeasureSpec
   , makeMeasureSpec'
   , varMeasures
@@ -246,26 +246,7 @@ dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts Nothing
 
 
 
-----------------------------------------------------------------------------------------------
--- | 'makeMeasureSelectors' converts the 'DataCon's and creates the measures for
---   the selectors and checkers that then enable reflection.
-----------------------------------------------------------------------------------------------
 
-strengthenHaskellInlines  :: [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-strengthenHaskellInlines  = strengthenHaskell strengthenResult
-
-strengthenHaskellMeasures :: [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-strengthenHaskellMeasures = strengthenHaskell strengthenResult'
-
-strengthenHaskell :: (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-strengthenHaskell strengthen hmeas sigs
-  = go <$> Misc.groupList (reverse sigs ++ hsigs)
-  where
-    hsigs      = [(x, lx {val = strengthen x}) | x <- hmeas, let lx = GM.locNamedThing x]
-    go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
-
-meetLoc :: Located SpecType -> Located SpecType -> LocSpecType
-meetLoc t1 t2 = t1 {val = val t1 `F.meet` val t2}
 
 --------------------------------------------------------------------------------
 -- | 'makeMeasureSelectors' converts the 'DataCon's and creates the measures for
