@@ -123,7 +123,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
-  , mapReft, mapReftM, mapPropM
+  , emapReft, mapReft, mapReftM, mapPropM
   , mapExprReft
   , mapBot, mapBind
   , foldRType

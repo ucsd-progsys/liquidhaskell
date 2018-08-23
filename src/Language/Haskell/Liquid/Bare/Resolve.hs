@@ -345,15 +345,6 @@ substEnv env name = F.substa (qualifySymbol env name)
 substFreeEnv :: (F.Subable a) => Env -> ModName -> a -> a 
 substFreeEnv env name = F.substf (F.EVar . qualifySymbol env name) 
 
-
--- substRType :: (F.Subable r1) => Env -> ModName -> RType c tv r1 -> RType c tv r2
--- substRType env name    = emapReft (F.substa f) []
-  -- where 
-    -- f binds x 
-      -- | x `elem` binds = x  
-      -- | otherwise      = qualifySymbol env name x 
-
-
 -------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
 -------------------------------------------------------------------------------
@@ -575,7 +566,6 @@ resolveReft env name l ps t
   where 
     πs  = Mb.fromMaybe tπs ps  
     tπs = ty_preds (toRTypeRep t) 
-    -- as  = allTyVars t 
      
 fixReftTyVars :: BareType -> RReft -> RReft 
 fixReftTyVars bt  = coSubRReft coSub 

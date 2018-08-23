@@ -14,8 +14,8 @@ module Language.Haskell.Liquid.Bare.Expand
     makeRTEnv 
 
     -- * Use alias expansion 
-  , Expand (..)
-  , expandDummy
+  -- , Expand (..)
+  -- , expandDummy
 
     -- * Expand and Qualify 
   , qualifyExpand 
@@ -231,16 +231,14 @@ class Expand a where
 -- | @qualifyExpand@ first qualifies names so that we can successfully resolve 
 --   them during expansion. 
 ----------------------------------------------------------------------------------
-qualifyExpand :: (Expand a, Bare.Qualify a) => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
+qualifyExpand :: (Expand a, Bare.Qualify a) 
+              => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
 ----------------------------------------------------------------------------------
-qualifyExpand env name rtEnv l 
-  = expand rtEnv l
+qualifyExpand env name rtEnv l
+  = expand rtEnv l 
   . Bare.qualify env name 
 
 ----------------------------------------------------------------------------------
-expandDummy :: (Expand a) => BareRTEnv -> a -> a 
-expandDummy rtEnv = expand rtEnv (F.dummyPos "expand-dummy")
-
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
 expandLoc rtEnv lx = expand rtEnv (F.loc lx) <$> lx 
 
@@ -254,7 +252,9 @@ instance Expand RReft where
   expand rtEnv l = fmap (expand rtEnv l)
 
 expandReft :: (Expand r) => BareRTEnv -> F.SourcePos -> RType c tv r -> RType c tv r 
-expandReft rtEnv l = FIX_THIS_TO_AVOID_BINDERS fmap (expand rtEnv l)
+expandReft rtEnv l = fmap (expand rtEnv l)
+-- expandReft rtEnv l = emapReft (expand rtEnv l)
+
 
 -- | @expand@ on a SpecType simply expands the refinements, 
 --   i.e. *does not* apply the type aliases, but just the 
@@ -267,8 +267,9 @@ instance Expand SpecType where
 
 -- | @expand@ on a BareType actually applies the type- and expression- aliases.
 instance Expand BareType where 
-  expand rtEnv l = expandReft     rtEnv l     -- apply expression aliases 
-                 . expandBareType rtEnv l     -- apply type       aliases 
+  expand rtEnv l 
+    = expandReft     rtEnv l -- apply expression aliases 
+    . expandBareType rtEnv l -- apply type       aliases 
 
 instance Expand (RTAlias F.Symbol Expr) where 
   expand rtEnv l x = x { rtBody = expand rtEnv l (rtBody x) } 
@@ -317,13 +318,13 @@ instance Expand a => Expand (F.LocSymbol, a) where
   expand rtEnv l (x, y) = (x, expand rtEnv l y)
 
 instance Expand a => Expand (Maybe a) where 
-  expand rtEnv l xs = fmap (expand rtEnv l) xs 
+  expand rtEnv l = fmap (expand rtEnv l) 
 
 instance Expand a => Expand [a] where 
-  expand rtEnv l xs = fmap (expand rtEnv l) xs 
+  expand rtEnv l = fmap (expand rtEnv l) 
 
 instance Expand a => Expand (M.HashMap k a) where 
-  expand rtEnv l xs = fmap (expand rtEnv l) xs 
+  expand rtEnv l = fmap (expand rtEnv l) 
 
 expandBareSpec :: BareRTEnv -> F.SourcePos -> BareSpec -> BareSpec
 expandBareSpec rtEnv l sp = sp 
@@ -339,7 +340,7 @@ expandBareSpec rtEnv l sp = sp
   where f      = expand rtEnv l 
   
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
-expandBareType rtEnv _   = go 
+expandBareType rtEnv _ = go 
   where
     go (RApp c ts rs r)  = case lookupRTEnv c rtEnv of 
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r 
@@ -493,10 +494,10 @@ maybePlug _      _     Nothing = id
 maybePlug sigEnv name (Just x) = plugHoles sigEnv name x 
 
 bareExpandType :: BareRTEnv -> LocBareType -> LocBareType 
-bareExpandType = expandLoc
+bareExpandType = expandLoc 
 
 specExpandType :: BareRTEnv -> LocSpecType -> LocSpecType
-specExpandType = expandLoc
+specExpandType = expandLoc 
 
 bareSpecType :: Bare.Env -> ModName -> LocBareType -> Either UserError LocSpecType 
 bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (val bt) of 
@@ -556,7 +557,11 @@ instance Expand DataConP where
 -}
 
 --------------------------------------------------------------------------------
--- Expand Exprs ----------------------------------------------------------------
+-- | @expandExpr@ applies the aliases and inlines in @BareRTEnv@ to its argument 
+--   @Expr@. It must first @resolve@ the symbols in the refinement to see if 
+--   they correspond to alias definitions. However, we ensure that we do not 
+--   resolve bound variables (e.g. those bound in output refinements by input 
+--   parameters), and we use the @bs@ parameter to pass in the bound symbols.
 --------------------------------------------------------------------------------
 expandExpr :: BareRTEnv -> F.SourcePos -> Expr -> Expr
 expandExpr rtEnv l      = go
@@ -585,8 +590,7 @@ expandExpr rtEnv l      = go
     go e@(ECon _)       = e
 
 expandSym :: BareRTEnv -> F.SourcePos -> F.Symbol -> Expr
-expandSym rtEnv l s' = 
-  expandEApp rtEnv l (EVar s', [])
+expandSym rtEnv l s' = expandEApp rtEnv l (EVar s', [])
 
 -- REBARE :: expandSym' :: Symbol -> BareM Symbol
 -- REBARE :: expandSym' s = do
