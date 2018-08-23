@@ -15,7 +15,6 @@ module Language.Haskell.Liquid.Bare.Expand
 
     -- * Use alias expansion 
   , Expand (..)
-  , expandLoc 
   , expandDummy
 
     -- * Expand and Qualify 
@@ -255,7 +254,7 @@ instance Expand RReft where
   expand rtEnv l = fmap (expand rtEnv l)
 
 expandReft :: (Expand r) => BareRTEnv -> F.SourcePos -> RType c tv r -> RType c tv r 
-expandReft rtEnv l = fmap (expand rtEnv l)
+expandReft rtEnv l = FIX_THIS_TO_AVOID_BINDERS fmap (expand rtEnv l)
 
 -- | @expand@ on a SpecType simply expands the refinements, 
 --   i.e. *does not* apply the type aliases, but just the 
@@ -265,7 +264,6 @@ expandReft rtEnv l = fmap (expand rtEnv l)
 
 instance Expand SpecType where
   expand = expandReft 
-  --  expand rtEnv l = fmap (expand rtEnv l)
 
 -- | @expand@ on a BareType actually applies the type- and expression- aliases.
 instance Expand BareType where 
@@ -460,13 +458,13 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap RT.generalize)
   . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.notracepp (msg 3))
+  . fmap (F.tracepp (msg 3))
   . fmap (Bare.qualify       env name) 
-  . fmap (F.notracepp (msg 2))
+  . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
-  . F.notracepp (msg 1) 
+  . F.tracepp (msg 1) 
   . bareExpandType     rtEnv
-  . F.notracepp (msg 0) 
+  . F.tracepp (msg 0) 
   $ bt 
   where 
     msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
@@ -587,8 +585,7 @@ expandExpr rtEnv l      = go
     go e@(ECon _)       = e
 
 expandSym :: BareRTEnv -> F.SourcePos -> F.Symbol -> Expr
-expandSym rtEnv l s' = -- do
-  -- s' <- expandSym' s
+expandSym rtEnv l s' = 
   expandEApp rtEnv l (EVar s', [])
 
 -- REBARE :: expandSym' :: Symbol -> BareM Symbol

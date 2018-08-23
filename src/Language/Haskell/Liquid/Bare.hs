@@ -467,7 +467,7 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = F.tracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
-                                      ++ (fst  <$> gsTySigs  sig)
+                                      -- ++ (fst  <$> gsTySigs  sig)   -- measures 
 
     lmap         = Bare.reLMap env
 

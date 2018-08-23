@@ -1438,8 +1438,10 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
-  syms        = foldReft (\_ r acc -> F.syms r ++ acc) []
+  syms        = foldReft    (\_ r acc -> F.syms r ++ acc) []
+  -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
+  -- 'substf' will NOT substitute bound vars
   substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
   subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
   subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
@@ -1517,7 +1519,7 @@ emapExprArg f = go
     go γ (RApp c ts rs r)   = RApp  c (go γ <$> ts) (mo γ <$> rs) r
     go γ (RAllE z t t')     = RAllE z (go γ t) (go γ t')
     go γ (REx z t t')       = REx   z (go γ t) (go γ t')
-    go γ (RExprArg e)       = RExprArg (f γ <$> F.notracepp "RExprArg" e)
+    go γ (RExprArg e)       = RExprArg (f γ <$> F.notracepp "RExprArg" e) -- <---- actual substitution
     go γ (RAppTy t t' r)    = RAppTy (go γ t) (go γ t') r
     go γ (RRTy e r o t)     = RRTy  (mapSnd (go γ) <$> e) r o (go γ t)
     mo _ t@(RProp _ (RHole {})) = t

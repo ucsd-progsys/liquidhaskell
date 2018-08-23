@@ -83,7 +83,6 @@ makeHaskellMeasures src tycEnv lmap spec
     ms    = makeMeasureDefinition tycEnv lmap cbs <$> mSyms 
     cbs   = nonRecCoreBinds   (giCbs src) 
     mSyms = S.toList (Ms.hmeas spec)
-
   
 makeMeasureDefinition :: Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol 
                       -> Measure LocSpecType Ghc.DataCon
@@ -446,7 +445,8 @@ expandMeasureBody env name rtEnv l (P   p) = P   (Bare.expandQualify env name rt
 expandMeasureBody env name rtEnv l (R x p) = R x (Bare.expandQualify env name rtEnv l p) 
 expandMeasureBody env name rtEnv l (E   e) = E   (Bare.expandQualify env name rtEnv l e) 
 
-makeHaskellBounds :: F.TCEmb TyCon -> CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv
+
+makeHaskellBounds :: F.TCEmb TyCon -> CoreProgram -> S.HashSet (Var, LocSymbol) -> BareM RBEnv  -- TODO-REBARE
 makeHaskellBounds embs cbs xs = do
   lmap <- gets logicEnv
   M.fromList <$> mapM (makeHaskellBound embs lmap cbs) (S.toList xs)
@@ -461,9 +461,6 @@ makeHaskellBound embs lmap  cbs (v, x) =
     (NonRec v def:_)   -> toBound v x <$> coreToFun' embs lmap x v def return
     (Rec [(v, def)]:_) -> toBound v x <$> coreToFun' embs lmap x v def return
     _                  -> throwError $ errHMeas x "Cannot make bound of haskell function"
-
-
-
 
 
 

@@ -264,12 +264,6 @@ instance (Qualify a) => Qualify [a] where
 instance (Qualify a) => Qualify (Maybe a) where 
   qualify env name = fmap (qualify env name) 
 
-instance Qualify SpecType where 
-  qualify = substEnv 
-
-instance Qualify BareType where 
-  qualify = substEnv 
-
 instance Qualify F.Expr where 
   qualify = substEnv 
 
@@ -292,10 +286,6 @@ instance Qualify RTyCon where
 
 instance Qualify (Measure SpecType Ghc.DataCon) where 
   qualify env name m = substEnv env name $ m { msName = qualify env name (msName m)}
-
-substEnv :: (F.Subable a) => Env -> ModName -> a -> a 
-substEnv env name = F.substa (qualifySymbol env name) 
--- substEnv env _ = F.subst (_reSubst env)
 
 instance Qualify BareDef where 
   qualify env name d = d 
@@ -342,6 +332,27 @@ qualifyBareSpec env name sp = sp
   } 
   where f      = qualify env name
   
+instance Qualify SpecType where 
+  qualify = substFreeEnv           
+
+instance Qualify BareType where 
+  qualify = substFreeEnv 
+
+substEnv :: (F.Subable a) => Env -> ModName -> a -> a 
+substEnv env name = F.substa (qualifySymbol env name) 
+
+-- Do not substitute variables bound e.g. by function types
+substFreeEnv :: (F.Subable a) => Env -> ModName -> a -> a 
+substFreeEnv env name = F.substf (F.EVar . qualifySymbol env name) 
+
+
+-- substRType :: (F.Subable r1) => Env -> ModName -> RType c tv r1 -> RType c tv r2
+-- substRType env name    = emapReft (F.substa f) []
+  -- where 
+    -- f binds x 
+      -- | x `elem` binds = x  
+      -- | otherwise      = qualifySymbol env name x 
+
 
 -------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
