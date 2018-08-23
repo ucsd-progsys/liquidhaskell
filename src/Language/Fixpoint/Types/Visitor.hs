@@ -332,8 +332,7 @@ stripCasts = trans (defaultVisitor { txExpr = const go }) () ()
 --   to the ty-vars that they should be substituted with. Note the
 --   domain and range are both Symbol and not the Int used for real ty-vars.
 --------------------------------------------------------------------------------
-
-type CoSub = M.HashMap Symbol Sort -- Symbol
+type CoSub = M.HashMap Symbol Sort 
 
 applyCoSub :: CoSub -> Expr -> Expr
 applyCoSub coSub      = mapExpr fE
