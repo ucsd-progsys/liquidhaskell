@@ -64,7 +64,7 @@ makeAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap
 makeAxiom env tycEnv name lmap (x, mbT, v, def) 
             = (v, t, e)
   where 
-    t       = Bare.qualify env name t0
+    t       = Bare.qualifyTop env name t0 
     (t0, e) = makeAssumeType embs lmap dm x mbT v def
     embs    = Bare.tcEmbs       tycEnv 
     dm      = Bare.tcDataConMap tycEnv 

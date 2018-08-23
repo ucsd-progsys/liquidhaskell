@@ -82,7 +82,7 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
     f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
 
 specREAlias :: Bare.Env -> ModName -> Located (RTAlias F.Symbol F.Expr) -> Located (RTAlias F.Symbol F.Expr) 
-specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (rtBody a) } 
+specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualifyTop env m (rtBody a) } 
   where 
     a     = val la 
 
@@ -235,8 +235,8 @@ qualifyExpand :: (Expand a, Bare.Qualify a)
               => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
 ----------------------------------------------------------------------------------
 qualifyExpand env name rtEnv l
-  = expand rtEnv l 
-  . Bare.qualify env name 
+  = expand rtEnv l  
+  . Bare.qualifyTop env name
 
 ----------------------------------------------------------------------------------
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
@@ -460,7 +460,7 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
   . fmap (F.tracepp (msg 3))
-  . fmap (Bare.qualify       env name) 
+  . fmap (Bare.qualifyTop    env name) 
   . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
   . F.tracepp (msg 1) 

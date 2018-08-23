@@ -404,7 +404,7 @@ makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE
 -- REBARE: specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
 
 makeQualifiers :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
-makeQualifiers env (mod, spec) = Bare.qualify env mod <$> Ms.qualifiers spec 
+makeQualifiers env (mod, spec) = Bare.qualifyTop env mod <$> Ms.qualifiers spec 
 
 ------------------------------------------------------------------------------------------
 makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
@@ -463,7 +463,7 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
   where
     mySpec       = M.lookupDefault mempty name specs 
     xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
-    myAxioms     = [ Bare.qualify env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
+    myAxioms     = [ Bare.qualifyTop env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = F.tracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                       ++ (fst  <$> gsAsmSigs sig)   -- assumes
@@ -683,7 +683,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt = Bare.plugHoles sigEnv name x t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = Bare.qualify env name <$> (ms1 ++ ms2)
+  , gsMeasures   = Bare.qualifyTop env name <$> (ms1 ++ ms2)
   , gsInvariants = makeMeasureInvariants env name sig mySpec 
                 ++ concat (makeInvariants env sigEnv <$> M.toList specs)
   , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
@@ -725,7 +725,7 @@ isSymbolOfVar x v = x == symbol' v
     symbol' = GM.dropModuleNames . symbol . Ghc.getName
 
 measureTypeToInv :: Bare.Env -> ModName -> (LocSymbol, (Ghc.Var, LocSpecType)) -> (Maybe Ghc.Var, LocSpecType)
-measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualify env name mtype})
+measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualifyTop env name mtype})
   where
     trep = toRTypeRep (val t)
     ts   = ty_args  trep
@@ -786,7 +786,7 @@ makeSpecName :: Bare.Env -> Bare.TycEnv -> Bare.MeasEnv -> ModName -> GhcSpecNam
 makeSpecName env tycEnv measEnv name = SpNames 
   { gsFreeSyms = Bare.reSyms env 
   , gsDconsP   = [ F.atLoc dc (dcpCon dc) | dc <- datacons ++ cls ] -- TODO-REBARE 
-  , gsTconsP   = Bare.qualify env name <$> tycons                   -- TODO-REBARE: redundant with  
+  , gsTconsP   = Bare.qualifyTop env name <$> tycons                -- TODO-REBARE: redundant with  
   -- , gsLits = mempty                                              -- TODO-REBARE, redundant with gsMeas
   , gsTcEmbeds = Bare.tcEmbs     tycEnv   
   , gsADTs     = Bare.tcAdts     tycEnv 
@@ -823,7 +823,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     (tcDds, dcs)  = F.notracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
-    tyi           = Bare.qualify env myName <$> makeTyConInfo tycons
+    tyi           = Bare.qualifyTop env myName <$> makeTyConInfo tycons
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
