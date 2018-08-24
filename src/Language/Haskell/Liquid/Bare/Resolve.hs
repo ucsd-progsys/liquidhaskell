@@ -470,16 +470,34 @@ resolveWith f env name kind lx =
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
-lookupTyThing env name sym = [ t | (m, t) <- things, matchMod m mods] 
+lookupTyThing env name sym = snd <$> Misc.sortOn fst matches  
   where 
-    things                 = M.lookupDefault [] x (_reTyThings env)
+    matches                = [ (k, t) | (m, t) <- things, k <- matchMod nameSym m mods] 
+    things                 = F.tracepp msg $ M.lookupDefault [] x (_reTyThings env)
+    msg                    = "lookupTyThing: " ++ F.showpp (x, mods) 
     (x, mods)              = symbolModules env sym
-    matchMod m Nothing     = True 
-    matchMod m (Just ms)   
-      | isEmptySymbol m    = ms == [F.symbol name]        -- local variable, see tests-names-pos-local00.hs
-      | otherwise          = any (`F.isPrefixOfSym` m) ms -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
-                             -- m `elem` ms
-                             
+    nameSym                = F.symbol name
+
+matchMod :: F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
+matchMod name m Nothing     
+  | m == name        = [0]      -- prioritize names defined in *this* module 
+  | otherwise        = [1]      -- over names coming from elsewhere.
+matchMod name m (Just ms)   
+  | isEmptySymbol m 
+     && ms == [name] = [0]      -- local variable, see tests-names-pos-local00.hs
+  | isExtMatch       = [1]      -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+  | otherwise        = []  
+  where 
+    isExtMatch       = any (`F.isPrefixOfSym` m) ms
+
+                            
+{- 
+  name m Nothing 
+    m == name -> 0 
+    otherwise -> 1 
+
+ -}                             
+
 symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env s = (x, glerb <$> modMb) 
   where 
