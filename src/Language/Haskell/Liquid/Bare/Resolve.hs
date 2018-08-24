@@ -483,20 +483,12 @@ matchMod name m Nothing
   | m == name        = [0]      -- prioritize names defined in *this* module 
   | otherwise        = [1]      -- over names coming from elsewhere.
 matchMod name m (Just ms)   
-  | isEmptySymbol m 
-     && ms == [name] = [0]      -- local variable, see tests-names-pos-local00.hs
+  |  isEmptySymbol m 
+  && ms == [name]    = [0]      -- local variable, see tests-names-pos-local00.hs
   | isExtMatch       = [1]      -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
   | otherwise        = []  
   where 
     isExtMatch       = any (`F.isPrefixOfSym` m) ms
-
-                            
-{- 
-  name m Nothing 
-    m == name -> 0 
-    otherwise -> 1 
-
- -}                             
 
 symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env s = (x, glerb <$> modMb) 

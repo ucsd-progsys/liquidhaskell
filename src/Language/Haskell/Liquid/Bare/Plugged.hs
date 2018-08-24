@@ -54,21 +54,6 @@ makePluggedSig name embs tyi exports x t =
     τ = expandTypeSynonyms (varType x)
     r = maybeTrue x name exports
 
-{- 
-makePluggedSigs :: ModName
-                -> F.TCEmb TyCon
-                -> M.HashMap TyCon RTyCon
-                -> NameSet
-                -> [(Var, LocSpecType)]
-                -> [(Var, LocSpecType)]
-makePluggedSigs name embs tyi exports sigs
-  = [ (x, plugHoles embs tyi x r τ t) 
-      | (x, t) <- sigs
-      , let τ = expandTypeSynonyms (varType x)
-      , let r = maybeTrue x name exports
-    ]
--}
-
 makePluggedAsmSigs :: F.TCEmb TyCon
                    -> M.HashMap TyCon RTyCon
                    -> [(Var, LocSpecType)]
@@ -119,31 +104,81 @@ plugHoles :: (NamedThing a, PPrint a, Show a)
           -> LocSpecType
           -> LocSpecType
 
+{-
 -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHoles tce tyi x f t zz@(Loc l l' st) 
-    = Loc l l' .  mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] . makeCls cs' $ goPlug tce tyi f rt' st4
+plugHoles tce tyi x f t0 zz@(Loc l l' st0) 
+    = Loc l l' 
+    . mkArrow (updateRTVar <$> αs) ps (ls1 ++ ls2) [] [] 
+    . makeCls cs' 
+    . goPlug tce tyi f (subts su rt) 
+    -- . mapExprReft (\_ -> F.applyCoSub coSub) 
+    -- . subts su 
+    $ st 
   where 
-    tyvsmap           = case Bare.runMapTyVars (toType rt') st'' err of
+    tyvsmap           = case Bare.runMapTyVars (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
-    su                = [(y, rTyVar x) | (x, y) <- tyvsmap]
-    coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
-    st3               = subts su st''
-    st4               = mapExprReft (\_ -> F.applyCoSub coSub) st3
-    ps'               = fmap (subts su') <$> ps
+      
+    su                = [(rTyVar x, y)           | (x, y) <- tyvsmap]
+    -- su                = [(y, rTyVar x)           | (x, y) <- tyvsmap]
     su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-    (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
-    (cs, rt')         = bkClass rt
-    (_, ps, ls2, st') = bkUniv st
-    (_, st'')         = bkClass st'
-    cs'               = [(F.dummySymbol, RApp c t [] mempty) | (c,t) <- cs]
+    -- coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    -- ps'               = fmap (subts su') <$> ps
+    cs'               = [(F.dummySymbol, RApp c ts' [] mempty) 
+                          | (c, ts) <- cs
+                          , let ts' = subts su <$> ts
+                        ]
+    -- αs'               = undefined -- subts su <$> αs
+    (αs,_,ls1,cs,rt)  = bkUnivClass (ofType (expandTypeSynonyms t0) :: SpecType)
+    (_,ps,ls2,_,st)   = bkUnivClass st0
+
     makeCls cs t      = foldr (uncurry rFun) t cs
     err               = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
-                          (pprint $ expandTypeSynonyms t)
-                          (pprint $ toRSort st)
+                          (pprint $ expandTypeSynonyms t0)
+                          (pprint $ toRSort st0)
                           (getSrcSpan x) 
 
+-}
+
+plugHoles tce tyi x f t0 zz@(Loc l l' st0) 
+    = Loc l l' 
+    . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] 
+    . makeCls cs' 
+    . goPlug tce tyi f rt 
+    . mapExprReft (\_ -> F.applyCoSub coSub) 
+    . subts su 
+    $ st 
+  where 
+    tyvsmap           = case Bare.runMapTyVars (toType rt) st err of
+                          Left e  -> Ex.throw e 
+                          Right s -> Bare.vmap s
+    su                = [(y, rTyVar x)           | (x, y) <- tyvsmap]
+    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+    coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    ps'               = fmap (subts su') <$> ps
+    cs'               = [(F.dummySymbol, RApp c t [] mempty) | (c, t) <- cs]
+    (αs,_,ls1,cs,rt)  = bkUnivClass (ofType (expandTypeSynonyms t0) :: SpecType)
+    (_,ps,ls2,_,st)   = bkUnivClass st0
+
+    -- (αs, _, ls1, rt)  = bkUniv (ofType (expandTypeSynonyms t) :: SpecType)
+    -- (cs, rt')         = bkClass rt
+    -- (_, ps, ls2, st') = bkUniv st
+    -- (_, st'')         = bkClass st'
+
+    makeCls cs t      = foldr (uncurry rFun) t cs
+    err               = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+                          (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
+                          (pprint $ expandTypeSynonyms t0)
+                          (pprint $ toRSort st0)
+                          (getSrcSpan x) 
+
+
+bkUnivClass :: SpecType -> (SpecRTVar,_, [F.Symbol], [(RTyCon, [SpecType])], SpecType )
+bkUnivClass t        = (as, ps, ls, cs, t2) 
+  where 
+    (as, ps, ls, t1) = bkUniv  t
+    (cs, t2)         = bkClass t1
 
 goPlug :: F.TCEmb TyCon -> Bare.TyConMap -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
        -> SpecType
