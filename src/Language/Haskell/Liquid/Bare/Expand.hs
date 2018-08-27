@@ -438,7 +438,7 @@ exprArg l msg = go
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe Ghc.Var -> LocBareType 
              -> LocSpecType 
 cookSpecType env sigEnv name x bt = 
-  -- F.tracepp ("cookSpecType" ++ F.showpp x) $
+  -- F.notracepp ("cookSpecType" ++ F.showpp x) $
     either (Misc.errorP msg . F.showpp) id (cookSpecTypeE env sigEnv name x bt)
   where 
     msg  = "cookSpecType: " ++ GM.showPpr (x, Ghc.varType <$> x)
@@ -453,19 +453,19 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   -- TODO-REBARE . fmap txExpToBind t     -- What does this function DO
-  . fmap (F.tracepp (msg 6))
+  . fmap (F.notracepp (msg 6))
   . fmap (specExpandType rtEnv)                         
-  . fmap (F.tracepp (msg 5))
+  . fmap (F.notracepp (msg 5))
   . fmap (fmap RT.generalize)
   . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.tracepp (msg 3))
+  . fmap (F.notracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
-  . fmap (F.tracepp (msg 2))
+  . fmap (F.notracepp (msg 2))
   . bareSpecType       env name 
-  . F.tracepp (msg 1) 
+  . F.notracepp (msg 1) 
   . bareExpandType     rtEnv
-  . F.tracepp (msg 0) 
+  . F.notracepp (msg 0) 
   $ bt 
   where 
     msg i = "cook-" ++ show i ++ " : " ++ F.showpp x

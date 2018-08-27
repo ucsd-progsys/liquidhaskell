@@ -473,7 +473,7 @@ lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 lookupTyThing env name sym = snd <$> Misc.sortOn fst matches  
   where 
     matches                = [ (k, t) | (m, t) <- things, k <- matchMod nameSym m mods] 
-    things                 = F.tracepp msg $ M.lookupDefault [] x (_reTyThings env)
+    things                 = F.notracepp msg $ M.lookupDefault [] x (_reTyThings env)
     msg                    = "lookupTyThing: " ++ F.showpp (x, mods) 
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name

@@ -136,7 +136,7 @@ makeGhcSpec cfg src lmap mspecs = SP
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.qualifyExpand env name rtEnv l mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l iSpecs0    where l = F.dummyPos "expand-iSpecs2"
-    rtEnv    = F.tracepp "RTENV" $ Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
+    rtEnv    = F.notracepp "RTENV" $ Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
     mySpec1  = mySpec0 <> lSpec0    
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
@@ -465,8 +465,8 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
     xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
     myAxioms     = [ Bare.qualifyTop env name (e {eqName = symbol x}) | (x,_,e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
-    sigVars      = F.tracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
-                                      ++ (fst  <$> gsAsmSigs sig)   -- assumes
+    sigVars      = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
+                                        ++ (fst  <$> gsAsmSigs sig)   -- assumes
                                       -- ++ (fst  <$> gsTySigs  sig)   -- measures 
 
     lmap         = Bare.reLMap env
@@ -490,11 +490,6 @@ addReflSigs :: GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ gsAsmSigs sig }
   where 
     reflSigs         = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
-    
-  -- let xts  = [ (x, subst su t)       | (x, t, _) <- xtes ]
-  -- let xts' = xts ++ F.notracepp "GS-ASMSIGS" (gsAsmSigs sp)
-
-
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
 makeAutoInst env name spec = 
@@ -505,7 +500,7 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS"     tySigs 
-  , gsAsmSigs  = makeAsmSigs env sigEnv name specs 
+  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    

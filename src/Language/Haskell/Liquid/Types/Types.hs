@@ -867,7 +867,7 @@ type SpecRep     = RRep      RReft
 type SpecProp    = RRProp    RReft
 type RRProp r    = Ref       RSort (RRType r)
 type BRProp r    = Ref       BSort (BRType r)
-type SpecRTVar   = RTVar RSort 
+type SpecRTVar   = RTVar     RTyVar RSort 
 
 
 
