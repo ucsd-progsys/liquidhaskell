@@ -431,11 +431,10 @@ dataConSpec' = concatMap tx
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-makeConTypes :: Bare.Env -> (ModName, Ms.BareSpec) -> 
-                ( [(ModName, TyConP, Maybe DataPropDecl)]
-                , [[Located DataConP]]              )
-makeConTypes env (name, spec) = 
-  unzip  [ ofBDataDecl env name x y | (x, y) <- gvs ] 
+makeConTypes :: Bare.Env -> (ModName, Ms.BareSpec) 
+             -> ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes env (name, spec) 
+         = unzip  [ ofBDataDecl env name x y | (x, y) <- gvs ] 
   where 
     gvs  = groupVariances dcs' vdcs
     dcs' = canonizeDecls env name dcs
@@ -540,7 +539,7 @@ ofBDataCtor :: Bare.Env
             -> [PVar RSort]
             -> DataCtor
             -> DataConP
-ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) = DataConP 
+ofBDataCtor env name l l' tc αs ps ls πs ctor@(DataCtor c _ xts res) = DataConP 
   { dcpLoc        = l                
   , dcpCon        = c'                
   , dcpFreeTyVars = αs                
@@ -553,20 +552,20 @@ ofBDataCtor env name l l' tc αs ps ls πs (DataCtor c _ xts res) = DataConP
   , dcpModule     = F.symbol name          
   , dcpLocE       = l'
   } 
-  -- = DataConP l c' αs πs ls cs zts ot isGadt (F.symbol name) l'
   where
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
     ts'           = Bare.ofBareType env name l (Just ps) <$> ts
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
-    (yts, ot)     = qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
+    (yts, ot)     = F.tracepp ("dataConTys: " ++ F.showpp ctor) $ 
+                    qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
     (xs, ts)      = unzip xts
     t0            = case famInstTyConType tc of
-                      Nothing -> RT.gApp tc αs πs
+                      Nothing -> F.tracepp "dataConResult-3: " $ RT.gApp tc αs πs
                       Just ty -> RT.ofType ty
     isGadt        = Mb.isJust res
     dLoc          = F.Loc l l' ()
@@ -647,25 +646,23 @@ dataConResultTy :: Ghc.DataCon
                 -> Maybe SpecType   -- ^ user-provided result type
                 -> SpecType
 dataConResultTy _ _ _ (Just t) = t
-dataConResultTy c αs t _
-  | Ghc.isVanillaDataCon c     = t
-  | False                      = RT.subsTyVars_meet (gadtSubst αs c) t
-dataConResultTy c _ _ _        = RT.ofType t
+dataConResultTy c _ t _
+  | Ghc.isVanillaDataCon c     = F.tracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
+  | otherwise                  = F.tracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
   where
-    (_,_,_,_,_,t)              = Ghc.dataConFullSig c
-    _tr0                       = Ghc.dataConRepType c
-    _tr1                       = Ghc.varType (Ghc.dataConWorkId c)
-    _tr2                       = Ghc.varType (Ghc.dataConWrapId c)
+    (_,_,_,_,_,ct)             = Ghc.dataConFullSig c
+    -- _tr0                    = Ghc.dataConRepType c
+    -- _tr1                    = Ghc.varType (Ghc.dataConWorkId c)
+    -- _tr2                    = Ghc.varType (Ghc.dataConWrapId c)
 
-
-gadtSubst :: [RTyVar] -> Ghc.DataCon -> [(RTyVar, RSort, SpecType)]
-gadtSubst as c  = mkSubst (Misc.join aBs bTs)
-  where
-    bTs         = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args workR ]
-    aBs         = zip as bs
-    bs          = ty_var_value <$> ty_vars workR
-    workR       = dataConWorkRep c
-    mkSubst bTs = [ (b, toRSort t, t) | (b, t) <- bTs ]
+-- REBARE gadtSubst :: [RTyVar] -> Ghc.DataCon -> [(RTyVar, RSort, SpecType)]
+-- REBARE gadtSubst as c  = mkSubst (Misc.join aBs bTs)
+  -- REBARE where
+    -- REBARE bTs         = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args workR ]
+    -- REBARE aBs         = zip as bs
+    -- REBARE bs          = ty_var_value <$> ty_vars workR
+    -- REBARE workR       = dataConWorkRep c
+    -- REBARE mkSubst bTs = [ (b, toRSort t, t) | (b, t) <- bTs ]
 
 eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
 eqSubst (RApp c [_, _, (RVar a _), t] _ _)

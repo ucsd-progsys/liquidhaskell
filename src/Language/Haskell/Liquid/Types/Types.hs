@@ -1279,9 +1279,10 @@ bkArrowDeep t               = ([], [], [], t)
 bkArrow :: RType t t1 a -> ( ([Symbol], [RType t t1 a], [a])
                            , ([Symbol], [RType t t1 a], [a])
                            , RType t t1 a )
-bkArrow t = ((xs,ts,rs),(xs',ts',rs'),t'')
-  where (xs, ts, rs, t') = bkImp t
-        (xs', ts', rs', t'') = bkFun t'
+bkArrow t                = ((xs,ts,rs),(xs',ts',rs'),t'')
+  where 
+    (xs, ts, rs, t')     = bkImp t
+    (xs', ts', rs', t'') = bkFun t'
 
 
 bkFun :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)

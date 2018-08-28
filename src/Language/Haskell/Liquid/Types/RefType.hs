@@ -1776,7 +1776,7 @@ instance PPrint DataDecl where
 
 instance PPrint DataCtor where
   pprintTidy k (DataCtor c _   xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
-  pprintTidy k (DataCtor c ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppThetas ths <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+  pprintTidy k (DataCtor c ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> pprintTidy k t
     where
       ppThetas [] = empty
       ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
