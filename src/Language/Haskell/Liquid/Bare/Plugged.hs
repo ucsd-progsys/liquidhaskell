@@ -3,9 +3,9 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 
 module Language.Haskell.Liquid.Bare.Plugged 
-  (  makePluggedSig
-  , makePluggedAsmSigs
-  , makePluggedDataCons
+  ( makePluggedSig
+  -- REBARE , makePluggedAsmSig
+  , makePluggedDataCon
   ) where
 
 import Prelude hiding (error)
@@ -17,7 +17,7 @@ import qualified Control.Exception                 as Ex
 import qualified Data.HashMap.Strict               as M
 import qualified Data.Maybe                        as Mb 
 import qualified Language.Fixpoint.Types           as F
--- import qualified Language.Fixpoint.Types.Visitor   as F
+import qualified Language.Fixpoint.Types.Visitor   as F
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
 import qualified Language.Haskell.Liquid.GHC.API   as Ghc 
 import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
@@ -44,16 +44,37 @@ makePluggedSig name embs tyi exports x t =
     τ = Ghc.expandTypeSynonyms (Ghc.varType x)
     r = maybeTrue x name exports
 
-makePluggedAsmSigs :: F.TCEmb Ghc.TyCon
-                   -> M.HashMap Ghc.TyCon RTyCon
-                   -> [(Ghc.Var, LocSpecType)]
-                   -> [(Ghc.Var, LocSpecType)]
-makePluggedAsmSigs embs tyi sigs
-  = [ (x, plugHoles embs tyi x r τ t) 
-      | (x, t) <- sigs 
-      , let τ = Ghc.expandTypeSynonyms (Ghc.varType x)
-      , let r = const killHoles 
-    ] 
+-- REBARE makePluggedAsmSig :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Ghc.Var -> LocSpecType 
+                  -- REBARE -> LocSpecType
+-- REBARE makePluggedAsmSig embs tyi x t 
+      -- REBARE = plugHoles embs tyi x r τ t 
+  -- REBARE where
+    -- REBARE τ = Ghc.expandTypeSynonyms (Ghc.varType x)
+    -- REBARE r = const killHoles 
+
+makePluggedDataCon :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
+makePluggedDataCon embs tyi ldcp 
+  | mismatchFlds      = Ex.throw (err "fields")
+  | mismatchTyVars    = Ex.throw (err "type variables")
+  | otherwise         = F.atLoc ldcp $ F.tracepp "makePluggedDataCon" $ dcp 
+                        -- PLUG-OLD { dcpFreeTyVars = rTyVar <$> das ; with plug_new, we KEEP the "liquid" tyvars...
+                        { dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: Ghc.TyVar -> RSort) <$> das))) <$> dcpFreePred dcp
+                        , dcpTyArgs     = reverse tArgs
+                        , dcpTyRes      = val tRes 
+                        }
+  where 
+    dcp               = val            ldcp 
+    dc                = dcpCon         dcp
+    rest              = dcpTyRes       dcp
+    (das, _, dts, dt) = Ghc.dataConSig dc
+    plug t1 t2        = plugHoles embs tyi (Ghc.dataConName dc) (const killHoles) t1 (F.atLoc ldcp t2)
+    tArgs             = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ dcpTyArgs dcp)
+    tRes              = plugHoles embs tyi (Ghc.dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
+    mismatchFlds      = length dts /= length (dcpTyArgs dcp)
+    mismatchTyVars    = length das /= length (dcpFreeTyVars dcp) 
+    err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
+
+{-
 
 for :: [a] -> (a -> b) -> [b]
 for xs f = map f xs
@@ -75,15 +96,17 @@ makePluggedDataCons embs tyi dcs
                    tArgs      = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ dcpTyArgs dcp)
                    tRes       = plugHoles embs tyi (Ghc.dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
                in
-                  (F.atLoc ldcp $ dcp 
+                  F.atLoc ldcp $ dcp 
                     { dcpFreeTyVars = rTyVar <$> das
                     , dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: Ghc.TyVar -> RSort) <$> das))) <$> (dcpFreePred dcp)
                     , dcpTyArgs     = reverse tArgs
-                    , dcpTyRes      = val tRes})
+                    , dcpTyRes      = val tRes 
+                    }
 
     where
       mismatch dts dcp = length dts /= length (dcpTyArgs dcp)
       err dc dcp       = ErrBadData (GM.fSrcSpan dcp) (pprint dc) "GHC and Liquid specifications have different numbers of fields" :: UserError
+-} 
 
 plugHoles, plugHoles_old, plugHoles_new 
   :: (Ghc.NamedThing a, PPrint a, Show a)
@@ -94,34 +117,28 @@ plugHoles, plugHoles_old, plugHoles_new
           -> Ghc.Type
           -> LocSpecType
           -> LocSpecType
-plugHoles = plugHoles_old 
+-- plugHoles = plugHoles_old 
+plugHoles = plugHoles_new 
 
-{- -}
 
 -- NOTE: this use of toType is safe as rt' is derived from t.
 plugHoles_old tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
-    . mkArrow (updateRTVar <$> αs) ps (ls1 ++ ls2) [] [] 
+    . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] 
     . makeCls cs' 
     . goPlug tce tyi f (subts su rt) 
-    -- . mapExprReft (\_ -> F.applyCoSub coSub) 
-    -- . subts su 
+    . mapExprReft (\_ -> F.applyCoSub coSub) 
+    . subts su 
     $ st 
   where 
     tyvsmap           = case Bare.runMapTyVars (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
-      
-    su                = [(rTyVar x, y)           | (x, y) <- tyvsmap]
-    -- su                = [(y, rTyVar x)           | (x, y) <- tyvsmap]
+    su                = [(y, rTyVar x)           | (x, y) <- tyvsmap]
     su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-    -- coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
-    -- ps'               = fmap (subts su') <$> ps
-    cs'               = [(F.dummySymbol, RApp c ts' [] mempty) 
-                          | (c, ts) <- cs
-                          , let ts' = subts su <$> ts
-                        ]
-    -- αs'               = undefined -- subts su <$> αs
+    coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    ps'               = fmap (subts su') <$> ps
+    cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
     (αs,_,ls1,cs,rt)  = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,ls2,_,st)   = bkUnivClass st0
 

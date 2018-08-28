@@ -427,12 +427,6 @@ knownGhcDataCon env name lx = Mb.isJust v
     v = F.notracepp ("knownGhcDataCon" ++ F.showpp lx) 
       $ maybeResolveSym env name "known-datacon" lx 
 
-
-
-
-
-
-
 -------------------------------------------------------------------------------
 -- | Using the environment 
 -------------------------------------------------------------------------------
@@ -453,16 +447,20 @@ instance ResolveSym F.Symbol where
     Left _               -> Right (val lx)
     Right (v :: Ghc.Var) -> Right (F.symbol v)
 
-
-resolveWith :: (F.PPrint [a]) => (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
+resolveWith :: (PPrint a) => (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith f env name kind lx =
-  case F.notracepp msg $ Mb.mapMaybe f things of 
+  case Mb.mapMaybe f things of 
     []  -> Left  (errResolve kind lx) 
-    x:_ -> Right x 
+    [x] -> Right x 
+    -- xs  -> error ("Oh-no: " ++ kind ++ ":" ++ F.showpp things)
+    -- xs  -> Left $ ErrDupNames sp (PJ.text "GOO") [] -- (pprint (F.symbol lx)) [] -- (pprint <$> xs)
+    xs  -> Left $ ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)
   where 
+    xSym   = (F.val lx)
+    sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
     things = lookupTyThing env name (val lx) 
-    msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
+    -- msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
@@ -470,11 +468,13 @@ resolveWith f env name kind lx =
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
-lookupTyThing env name sym = snd <$> Misc.sortOn fst matches  
+lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of 
+                               (k,ts):_ -> F.notracepp (msg k) ts
+                               []       -> []
   where 
     matches                = [ (k, t) | (m, t) <- things, k <- matchMod nameSym m mods] 
-    things                 = F.notracepp msg $ M.lookupDefault [] x (_reTyThings env)
-    msg                    = "lookupTyThing: " ++ F.showpp (x, mods) 
+    things                 = M.lookupDefault [] x (_reTyThings env)
+    msg k                  = "lookupTyThing: " ++ F.showpp (sym, k, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
 
@@ -485,7 +485,8 @@ matchMod name m Nothing
 matchMod name m (Just ms)   
   |  isEmptySymbol m 
   && ms == [name]    = [0]      -- local variable, see tests-names-pos-local00.hs
-  | isExtMatch       = [1]      -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+  | ms == [m]        = [1]
+  | isExtMatch       = [2]      -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
   | otherwise        = []  
   where 
     isExtMatch       = any (`F.isPrefixOfSym` m) ms

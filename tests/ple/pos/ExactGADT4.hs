@@ -22,7 +22,6 @@ data Filter record typ = Filter
     }
 @-}
 
-
 data Filter record typ = Filter
     { filterField  :: EntityField record typ
     , filterValue  :: typ

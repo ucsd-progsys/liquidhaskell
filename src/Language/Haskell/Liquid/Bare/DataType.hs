@@ -500,7 +500,7 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
   = ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
   where
     πs         = Bare.ofBPVar env name pos <$> ps
-    tc'        = Bare.lookupGhcDnTyCon env name "ofBDataDecl" tc
+    tc'        = Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" tc
     cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
     pd         = Bare.ofBareType env name lc (Just []) <$> pt
@@ -521,7 +521,7 @@ ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invarian
 ofBDataDecl env name Nothing (Just (tc, is))
   = ((name, TyConP srcpos tc' [] [] [] tcov tcontr Nothing, Nothing), [])
   where
-    tc'            = Bare.lookupGhcTyCon env name "ofBDataDecl" tc
+    tc'            = Bare.lookupGhcTyCon env name "ofBDataDecl-2" tc
     (tcov, tcontr) = (is, [])
     srcpos         = F.dummyPos "LH.DataType.Variance"
 

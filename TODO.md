@@ -5,8 +5,6 @@
 - tests/names/neg/vector1.hs        **bad error span**
 
 Name resolution
-      Shadow01.hs:          FAIL (0.68s)
-      Shadow00.hs:          FAIL (0.77s)
       Fulcrum.hs:           FAIL (2.12s)
 
 Class refinements
@@ -16,6 +14,28 @@ Class refinements
 
 Unknown
       ExactGADT4.hs:        FAIL (0.80s)
+
+     ClojurVector.hs:      FAIL (1.90s)
+
+    absref-pos
+      ListISort-LType.hs:   FAIL (3.13s)
+      deptup0.hs:           FAIL (1.52s)
+
+    import-lib
+      STLib.hs:             FAIL (1.12s)
+      ReflectLib4.hs:       FAIL (1.01s)
+    import-cli
+      STClient.hs:          FAIL (1.28s)
+      ReflectClient4a.hs:   FAIL (1.40s)
+      ReflectClient4.hs:    FAIL (1.21s)
+    class-pos
+      RealProps1.hs:        FAIL (0.85s)
+    ple-pos
+      RegexpDerivative.hs:  FAIL (7.00s)
+      IndStar.hs:           FAIL (1.07s)
+      IndPerm.hs:           FAIL (1.32s)
+      Fulcrum.hs:           FAIL (2.21s)
+      ExactGADT4.hs:        FAIL (1.01s)
 
 ## Issues
 

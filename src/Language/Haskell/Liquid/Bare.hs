@@ -457,7 +457,7 @@ makeSpecRefl src specs env name sig tycEnv = SpRefl
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
   , gsMyAxioms   = myAxioms 
-  , gsReflects   = F.tracepp "REFLECTS" $ filter (isReflectVar rflSyms) sigVars
+  , gsReflects   = F.notracepp "REFLECTS" $ filter (isReflectVar rflSyms) sigVars
   , gsHAxioms    = xtes 
   }
   where
@@ -500,7 +500,7 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS"     tySigs 
-  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  , gsAsmSigs  = F.notracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
   , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
@@ -822,7 +822,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
-    datacons      = Bare.makePluggedDataCons embs tyi (concat dcs ++ knownWiredDataCons env myName)
+    datacons      = Bare.makePluggedDataCon embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts
@@ -888,7 +888,7 @@ makeLiftedSpec :: GhcSpecRefl -> GhcSpecData -> Ms.BareSpec -> Ms.BareSpec
 -----------------------------------------------------------------------------------------
 makeLiftedSpec refl sData lSpec0 
   = lSpec0 { Ms.asmSigs    = xbs
-           , Ms.reflSigs   = F.tracepp "REFL-SIGS" xbs
+           , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
            , Ms.axeqs      = gsMyAxioms refl 
            , Ms.invariants = xinvs
            }
