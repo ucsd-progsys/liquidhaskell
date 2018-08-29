@@ -229,7 +229,7 @@ tyConDataName full tc
     dcs        = Misc.sortOn F.symbol (Ghc.tyConDataCons tc)
 
 dataConDecl :: Ghc.DataCon -> DataCtor
-dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts outT -- Nothing
+dataConDecl d     = F.notracepp msg $ DataCtor dx (F.symbol <$> as) [] xts outT -- Nothing
 -- dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
   where
     isGadt        = not (Ghc.isVanillaDataCon d)
@@ -237,7 +237,7 @@ dataConDecl d     = F.notracepp msg $ DataCtor dx [] xts outT -- Nothing
     xts           = [(Bare.makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
     dx            = F.symbol <$> GM.locNamedThing d
     its           = zip [1..] ts
-    (_,_ps,ts,t)  = Ghc.dataConSig d
+    (as,_ps,ts,t)  = Ghc.dataConSig d
     outT          = Just (RT.bareOfType t :: BareType) 
     _outT :: Maybe BareType
     _outT

@@ -539,10 +539,10 @@ ofBDataCtor :: Bare.Env
             -> [PVar RSort]
             -> DataCtor
             -> DataConP
-ofBDataCtor env name l l' tc αs ps ls πs ctor@(DataCtor c _ xts res) = DataConP 
+ofBDataCtor env name l l' tc αs ps ls πs ctor@(DataCtor c as _ xts res) = DataConP 
   { dcpLoc        = l                
   , dcpCon        = c'                
-  , dcpFreeTyVars = αs                
+  , dcpFreeTyVars = RT.symbolRTyVar <$> as 
   , dcpFreePred   = πs                 
   , dcpFreeLabels = ls                
   , dcpTyConstrs  = cs                
@@ -584,10 +584,12 @@ checkDataCtor2 env name c dcs d
     x              = F.symbol (Bare.lookupGhcDataCon env name "checkDataCtor2" dn)
 
 checkDataCtor1 :: DataCtor -> DataCtor 
-checkDataCtor1 d@(DataCtor lc _ xts _)
+checkDataCtor1 d 
   | x : _ <- dups = uError (err lc x :: UserError)
   | otherwise     = d 
     where
+      lc          = dcName   d 
+      xts         = dcFields d
       dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
       err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 

@@ -1377,19 +1377,24 @@ predTypeDDP = (,) <$> bbindP <*> bareTypeP
 bbindP   :: Parser Symbol
 bbindP   = lowerIdP <* dcolon
 
-dataConP :: Parser DataCtor
-dataConP = do
+dataConP :: [Symbol] -> Parser DataCtor
+dataConP as = do
   x   <- locParserP dataConNameP
   spaces
   xts <- dataConFieldsP
-  return $ DataCtor x [] xts Nothing
+  return $ DataCtor x as [] xts Nothing
 
-adtDataConP :: Parser DataCtor
-adtDataConP = do
+adtDataConP :: [Symbol] -> Parser DataCtor
+adtDataConP as = do
   x     <- locParserP dataConNameP
   dcolon
   tr    <- toRTypeRep <$> bareTypeP
-  return $ DataCtor x [] (tRepFields tr) (Just $ ty_res tr)
+  return $ DataCtor x (tRepVars as tr) [] (tRepFields tr) (Just $ ty_res tr)
+
+tRepVars :: Symbolic a => [Symbol] -> RTypeRep c a r -> [Symbol]
+tRepVars as tr = case ty_vars tr of 
+  [] -> as 
+  vs -> symbol . ty_var_value <$> vs 
 
 tRepFields :: RTypeRep c tv r -> [(Symbol, RType c tv r)]
 tRepFields tr = zip (ty_binds tr) (ty_args tr)
@@ -1428,12 +1433,12 @@ emptyDecl x pos _
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
   vanilla    <- null <$> sepBy locUpperIdP blanks
-  ts         <- sepBy noWhere blanks
+  as         <- sepBy noWhere blanks
   ps         <- predVarDefsP
-  (pTy, dcs) <- dataCtorsP
+  (pTy, dcs) <- dataCtorsP as
   let dn      = dataDeclName pos x vanilla dcs
   whiteSpace
-  return      $ DataDecl dn ts ps [] dcs pos fsize pTy DataUser
+  return      $ DataDecl dn as ps [] dcs pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
 dataDeclName _ x True  _     = DnName x               -- vanilla data    declaration
@@ -1442,11 +1447,11 @@ dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (
   where
     msg                  = "You should specify at least one data constructor for a family instance"
 
-dataCtorsP :: Parser (Maybe BareType, [DataCtor])
-dataCtorsP = do
-  (pTy, dcs) <-     (reservedOp "="     >> ((Nothing, ) <$>                 sepBy dataConP    (reservedOp "|")))
-                <|> (reserved   "where" >> ((Nothing, ) <$>                 sepBy adtDataConP (reservedOp "|")))
-                <|> (                      ((,)         <$> dataPropTyP <*> sepBy adtDataConP (reservedOp "|")))
+dataCtorsP :: [Symbol] -> Parser (Maybe BareType, [DataCtor])
+dataCtorsP as = do
+  (pTy, dcs) <-     (reservedOp "="     >> ((Nothing, ) <$>                 sepBy (dataConP    as) (reservedOp "|")))
+                <|> (reserved   "where" >> ((Nothing, ) <$>                 sepBy (adtDataConP as) (reservedOp "|")))
+                <|> (                      ((,)         <$> dataPropTyP <*> sepBy (adtDataConP as) (reservedOp "|")))
   return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol

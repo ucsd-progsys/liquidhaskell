@@ -1251,7 +1251,9 @@ fromRTypeRep (RTypeRep {..})
     arrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_args, length ty_refts)) ty_binds ty_args ty_refts
     earrs = safeZip3WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_eargs, length ty_erefts)) ty_ebinds ty_eargs ty_erefts
 
+--------------------------------------------------------------------------------
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r
+--------------------------------------------------------------------------------
 toRTypeRep t         = RTypeRep αs πs ls xs' rs' ts' xs rs ts t''
   where
     (αs, πs, ls, t')  = bkUniv  t

@@ -43,21 +43,13 @@ makePluggedSig name embs tyi exports x t =
     τ = Ghc.expandTypeSynonyms (Ghc.varType x)
     r = maybeTrue x name exports
 
--- REBARE makePluggedAsmSig :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Ghc.Var -> LocSpecType 
-                  -- REBARE -> LocSpecType
--- REBARE makePluggedAsmSig embs tyi x t 
-      -- REBARE = plugHoles embs tyi x r τ t 
-  -- REBARE where
-    -- REBARE τ = Ghc.expandTypeSynonyms (Ghc.varType x)
-    -- REBARE r = const killHoles 
-
 makePluggedDataCon, makePluggedDataCon_old, makePluggedDataCon_new :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
 
-makePluggedDataCon = makePluggedDataCon_old 
-plugHoles          = plugHoles_old 
+-- makePluggedDataCon = makePluggedDataCon_old 
+-- plugHoles          = plugHoles_old 
 
--- makePluggedDataCon = makePluggedDataCon_new 
--- plugHoles          = plugHoles_new 
+makePluggedDataCon = makePluggedDataCon_new 
+plugHoles          = plugHoles_new 
 
 makePluggedDataCon_old embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
@@ -91,28 +83,53 @@ makePluggedDataCon_new embs tyi ldcp
                         , dcpTyRes      = tRes 
                         }
   where 
-    (tArgs, tRes)     = plugMany       embs tyi ldcp (dts, dt) (dcArgs, dcpTyRes dcp)
+    (tArgs, tRes)     = plugMany       embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = Ghc.dataConSig dc
     dcArgs            = reverse (dcpTyArgs dcp)
-    dc                = dcpCon         dcp
-    dcp               = val            ldcp 
-    mismatchFlds      = length dts /= length (dcpTyArgs dcp)
-    mismatchTyVars    = length das /= length (dcpFreeTyVars dcp) 
+    dcVars            = dcpFreeTyVars dcp 
+    dc                = dcpCon        dcp
+    dcp               = val           ldcp 
+
+    mismatchFlds      = length dts /= length dcArgs 
+    mismatchTyVars    = length das /= length dcVars 
     err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
 
-    
-plugMany :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP 
-         -> ([Ghc.Type], Ghc.Type) -> ([(F.Symbol, SpecType)], SpecType) 
-         -> ([(F.Symbol, SpecType)], SpecType)
-plugMany embs tyi ldcp (hsArgs, hsRes) (lqArgs, lqRes) 
-                     = F.notracepp msg (zip xs ts, t) 
+
+
+-- | @plugMany@ is used to "simultaneously" plug several different types, 
+--   e.g. as arise in the fields of a data constructor. To do so we create 
+--   a single "function type" that is then passed into @plugHoles@. 
+--   We also pass in the type parameters as dummy arguments, because, e.g. 
+--   we want @plugMany@ on the two types
+--  
+--      forall a. a -> a -> Bool 
+--      forall b. _ -> _ -> _ 
+-- 
+--   to return something like 
+-- 
+--      forall b. b -> b -> Bool
+-- 
+--   and not, forall b. a -> a -> Bool.
+
+plugMany :: F.TCEmb Ghc.TyCon -> Bare.TyConMap 
+         -> Located DataConP            
+         -> ([Ghc.Var], [Ghc.Type],             Ghc.Type)   -- ^ hs type 
+         -> ([RTyVar] , [(F.Symbol, SpecType)], SpecType)   -- ^ lq type 
+         -> ([(F.Symbol, SpecType)], SpecType)              -- ^ plugged lq type
+plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes) 
+                     = F.notracepp msg (drop nTyVars (zip xs ts), t) 
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
+    pRep             = toRTypeRep (val pT)
     pT               = plugHoles embs tyi dcName (const killHoles) hsT (F.atLoc ldcp lqT)
-    hsT              = foldr Ghc.mkFunTy    hsRes hsArgs 
-    lqT              = foldr (uncurry rFun) lqRes lqArgs 
+    hsT              = foldr Ghc.mkFunTy    hsRes hsArgs' 
+    lqT              = foldr (uncurry rFun) lqRes lqArgs' 
+    hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
+    lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ lqArgs 
+    nTyVars          = length hsAs -- == length lqAs
     dcName           = Ghc.dataConName . dcpCon . val $ ldcp
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)
+
 
 plugHoles, plugHoles_old, plugHoles_new 
   :: (Ghc.NamedThing a, PPrint a, Show a)
@@ -123,8 +140,6 @@ plugHoles, plugHoles_old, plugHoles_new
           -> Ghc.Type
           -> LocSpecType
           -> LocSpecType
-
-
 
 -- NOTE: this use of toType is safe as rt' is derived from t.
 plugHoles_old tce tyi x f t0 zz@(Loc l l' st0) 
