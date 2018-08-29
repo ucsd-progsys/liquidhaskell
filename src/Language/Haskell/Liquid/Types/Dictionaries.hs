@@ -33,7 +33,7 @@ makeDictionaries = DEnv . M.fromList . map makeDictionary
 makeDictionary :: RInstance SpecType -> (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
 makeDictionary (RI c ts xts) = (makeDictionaryName (btc_tc c) ts, M.fromList (mapFst val <$> xts))
 
-makeDictionaryName :: Located F.Symbol -> [SpecType] -> F.Symbol
+makeDictionaryName :: LocSymbol -> [SpecType] -> F.Symbol
 makeDictionaryName t ts
   = F.notracepp _msg $ F.symbol ("$f" ++ F.symbolString (val t) ++ concatMap makeDicTypeName ts)
   where
