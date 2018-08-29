@@ -76,26 +76,25 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
-makeClasses env sigEnv myName specs = (mempty, mempty)
--- TODO-REBARE  
-  -- TODO-REBARE  second mconcat . unzip 
-  -- TODO-REBARE  $ [ mkClass env sigEnv myName name cls tc
-        -- TODO-REBARE  | (name, spec) <- M.toList specs
-        -- TODO-REBARE  , cls          <- Ms.classes spec
-        -- TODO-REBARE  , tc           <- Mb.maybeToList (classTc cls) 
-    -- TODO-REBARE  ]
-  -- TODO-REBARE  where
-    -- TODO-REBARE  classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+makeClasses env sigEnv myName specs = -- (mempty, mempty) -- TODO-REBARE  
+  second mconcat . unzip 
+  $ [ mkClass env sigEnv myName name cls tc
+        | (name, spec) <- M.toList specs
+        , cls          <- Ms.classes spec
+        , tc           <- Mb.maybeToList (classTc cls) 
+    ]
+  where
+    classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
         -> (DataConP, [(ModName, Ghc.Var, LocSpecType)])
-mkClass env sigEnv myName name (RClass cc ss as ms) tc = (dcp, vts)
+mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.tracepp msg (dcp, vts)
   where
     dcp    = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
     c      = btc_tc cc
     l      = loc  c
     l'     = locE c
-    ss'    = F.tracepp msg $ mkConstr env sigEnv name <$> ss 
+    ss'    = mkConstr env sigEnv name <$> ss 
     msg    = "MKCLASS: " ++ F.showpp (cc, as, αs) -- , as')
     (dc:_) = Ghc.tyConDataCons tc
     αs     = bareRTyVar <$> as
@@ -289,15 +288,15 @@ grepClassAssumes  = concatMap go
     goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RISig _)     = Nothing
 
-makeDefaultMethods :: [Var] -> [(ModName,Var,Located SpecType)] -> [(ModName, Var ,Located SpecType)]
+makeDefaultMethods :: [Var] -> [(ModName, Var, Located SpecType)] -> [(ModName, Var, Located SpecType)]
 makeDefaultMethods defVs sigs
   = [ (m,dmv,t)
     | dmv <- defVs
     , let dm = F.symbol $ showPpr dmv
     , "$dm" `F.isPrefixOfSym` dropModuleNames dm
-    , let mod = takeModuleNames dm
+    , let mod    = takeModuleNames dm
     , let method = qualifySymbol mod $ F.dropSym 3 (dropModuleNames dm)
-    , let mb = L.find ((method `F.isPrefixOfSym`) . F.symbol . Misc.snd3) sigs
+    , let mb     = L.find ((method `F.isPrefixOfSym`) . F.symbol . Misc.snd3) sigs
     , isJust mb
     , let Just (m,_,t) = mb
     ]

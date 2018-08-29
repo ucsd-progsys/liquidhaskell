@@ -124,9 +124,9 @@ makeGhcSpec cfg src lmap mspecs = SP
   where
     -- build up spec components 
     sData    = makeSpecData src env sigEnv measEnv sig specs 
-    measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     refl     = makeSpecRefl src specs env name sig tycEnv 
-    sig      = makeSpecSig name specs env sigEnv 
+    sig      = makeSpecSig name specs env sigEnv  measEnv 
+    measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
     mySpec   = mySpec2 <> lSpec1 
@@ -496,14 +496,15 @@ makeAutoInst env name spec =
   Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
-makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> GhcSpecSig 
+makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv 
+            -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
-makeSpecSig name specs env sigEnv = SpSig 
+makeSpecSig name specs env sigEnv measEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS"     tySigs 
   , gsAsmSigs  = F.notracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
-  , gsDicts    = mempty -- TODO-REBARE :: !(DEnv Var SpecType)    
+  , gsDicts    = _fixme_gsDicts -- TODO-REBARE :: !(DEnv Var SpecType)    
   }
   where 
     mySpec     = M.lookupDefault mempty name specs
@@ -511,14 +512,12 @@ makeSpecSig name specs env sigEnv = SpSig
                   [ makeTySigs  env sigEnv name mySpec
                   , makeInlSigs env rtEnv allSpecs 
                   , makeMsrSigs env rtEnv allSpecs 
+                  , makeMthSigs                    measEnv 
                   ]
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
-
-    -- tySigs     = Bare.strengthenHaskellInlines  sigEnv hinls 
-               -- . Bare.strengthenHaskellMeasures sigEnv hmeas 
-               -- $ makeTySigs  env sigEnv name mySpec 
     -- hmeas      = makeHMeas    env allSpecs 
+
 
 strengthenSigs :: [(Ghc.Var, LocSpecType)] ->[(Ghc.Var, LocSpecType)]
 strengthenSigs sigs = go <$> Misc.groupList sigs 
@@ -526,6 +525,9 @@ strengthenSigs sigs = go <$> Misc.groupList sigs
     go (v, xs)      = (v,) $ L.foldl1' (flip meetLoc) xs
     meetLoc :: LocSpecType -> LocSpecType -> LocSpecType
     meetLoc t1 t2   = t1 {val = val t1 `F.meet` val t2}
+
+makeMthSigs :: Bare.MeasEnv -> [(Ghc.Var, LocSpecType)]
+makeMthSigs measEnv = [ (v, t) | (_, v, t) <- Bare.meMethods measEnv ]
 
 makeInlSigs :: Bare.Env -> BareRTEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.Var, LocSpecType)] 
 makeInlSigs env rtEnv 
@@ -856,7 +858,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   , meSyms        = ms' 
   , meDataCons    = cs' 
   , meClasses     = cls
-  , meMethods     = _mts
+  , meMethods     = mts -- TODO-REBARE: ++  let dms = makeDefaultMethods vars mts  
   }
   where 
     measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
@@ -875,7 +877,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     datacons      = Bare.tcDataCons    tycEnv 
     embs          = Bare.tcEmbs        tycEnv 
     name          = Bare.tcName        tycEnv
-    (cls, _mts)   = Bare.makeClasses env sigEnv name specs
+    (cls, mts)    = Bare.makeClasses env sigEnv name specs
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 

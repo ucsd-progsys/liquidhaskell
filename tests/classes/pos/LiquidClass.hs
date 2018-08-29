@@ -1,7 +1,9 @@
+-- TAG: instances 
+
+-- | Typing class-instances  
+
 module LiquidClass where
 
-
--- | Typing classes
 -- | Step 1: Refine type dictionaries:
 
 class Compare a where
