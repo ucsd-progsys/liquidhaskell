@@ -205,12 +205,12 @@ tyConDataDecl :: ((Ghc.TyCon, DataName), HasDataDecl) -> Maybe DataDecl
 tyConDataDecl (_, HasDecl)
   = Nothing
 tyConDataDecl ((tc, dn), NoDecl szF)
-  = Just $ D
+  = Just $ DataDecl
       { tycName   = dn
       , tycTyVars = F.symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = F.notracepp ("tyConDataDecl-DECLS: tc = " ++ show tc) $ decls tc
+      , tycDCons  = F.tracepp ("tyConDataDecl-DECLS: " ++ F.showpp (tc, dn)) $ decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing

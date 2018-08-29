@@ -1077,7 +1077,7 @@ instance Show (Axiom Var Type CoreExpr) where
 --------------------------------------------------------------------------------
 -- | Data type refinements
 --------------------------------------------------------------------------------
-data DataDecl   = D
+data DataDecl   = DataDecl
   { tycName   :: DataName              -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
@@ -1098,8 +1098,9 @@ data DataName
 -- | Data Constructor
 data DataCtor = DataCtor
   { dcName   :: F.LocSymbol            -- ^ DataCon name
+  , dcTyVars :: [F.Symbol]             -- ^ Type parameters
   , dcTheta  :: [BareType]             -- ^ The GHC ThetaType corresponding to DataCon.dataConSig
-  , dcFields :: [(Symbol, BareType)]   -- ^ [(fieldName, fieldType)]
+  , dcFields :: [(Symbol, BareType)]   -- ^ field-name and field-Type pairs 
   , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
 

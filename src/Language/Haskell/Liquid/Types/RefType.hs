@@ -1775,12 +1775,16 @@ instance PPrint DataDecl where
                     $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
 
 instance PPrint DataCtor where
-  pprintTidy k (DataCtor c _   xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
-  pprintTidy k (DataCtor c ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> pprintTidy k t
+  -- pprintTidy k (DataCtor c as _   xts Nothing)  = pprintTidy k c <+> dcolon ppVars as <+> braces (ppFields k ", " xts)
+  -- pprintTidy k (DataCtor c as ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppVars as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> pprintTidy k t
+  pprintTidy k (DataCtor c as ths xts t) = pprintTidy k c <+> dcolon <+> ppVars k as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> res 
     where
+      res         = maybe "*" (pprintTidy k) t 
       ppThetas [] = empty
       ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
 
+ppVars :: (PPrint a) => Tidy -> [a] -> Doc
+ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "." 
 
 ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
 ppFields k sep kvs = hcat $ punctuate sep (F.pprintTidy k <$> kvs)

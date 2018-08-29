@@ -1419,7 +1419,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize@(Just _)
-  = D (DnName x) [] [] [] [] pos fsize Nothing DataUser
+  = DataDecl (DnName x) [] [] [] [] pos fsize Nothing DataUser
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
@@ -1433,7 +1433,7 @@ dataDeclBodyP pos x fsize = do
   (pTy, dcs) <- dataCtorsP
   let dn      = dataDeclName pos x vanilla dcs
   whiteSpace
-  return      $ D dn ts ps [] dcs pos fsize pTy DataUser
+  return      $ DataDecl dn ts ps [] dcs pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
 dataDeclName _ x True  _     = DnName x               -- vanilla data    declaration

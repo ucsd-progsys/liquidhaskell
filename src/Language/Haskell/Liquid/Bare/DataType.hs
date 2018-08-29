@@ -492,7 +492,7 @@ checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
             -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
-ofBDataDecl env name (Just dd@(D tc as ps ls cts0 pos sfun pt _)) maybe_invariance_info
+ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts0 pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
   = uError err
   | otherwise
@@ -558,7 +558,7 @@ ofBDataCtor env name l l' tc αs ps ls πs ctor@(DataCtor c _ xts res) = DataCon
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
-    (yts, ot)     = F.tracepp ("dataConTys: " ++ F.showpp ctor) $ 
+    (yts, ot)     = F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
                     qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
