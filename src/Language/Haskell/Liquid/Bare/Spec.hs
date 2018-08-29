@@ -6,6 +6,7 @@
 
 module Language.Haskell.Liquid.Bare.Spec (
     makeClasses
+  , makeSpecDictionaries
 
   -- TODO-REBARE , makeQualifiers
   -- TODO-REBARE , makeHints
@@ -24,7 +25,6 @@ module Language.Haskell.Liquid.Bare.Spec (
   -- TODO-REBARE , makeIAliases
   -- TODO-REBARE , makeInvariants
   -- TODO-REBARE , makeNewTypes
-  -- TODO-REBARE , makeSpecDictionaries
   -- TODO-REBARE , makeBounds
   -- TODO-REBARE , makeHBounds
   -- TODO-REBARE , lookupIds
@@ -74,8 +74,10 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 -- import           Language.Haskell.Liquid.Bare.SymSort
 -- import           Language.Haskell.Liquid.Bare.Measure
 
+-------------------------------------------------------------------------------
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
+-------------------------------------------------------------------------------
 makeClasses env sigEnv myName specs = -- (mempty, mempty) -- TODO-REBARE  
   second mconcat . unzip 
   $ [ mkClass env sigEnv myName name cls tc
@@ -100,7 +102,7 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.tracepp msg (dcp, vts
     αs     = bareRTyVar <$> as
     as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-    vts    = makeSpec env sigEnv name <$> ms'
+    vts    = makeMethod env sigEnv name <$> ms'
     sts    = F.tracepp "METHODS" $
              [(val s, unClass $ val t) 
                 | (s, _)    <- ms
@@ -116,13 +118,71 @@ mkConstr env sigEnv name = fmap dropUniv . Bare.cookSpecType env sigEnv name Not
 unClass :: SpecType -> SpecType 
 unClass = snd . bkClass . fourth4 . bkUniv
 
-makeSpec :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
+-- formerly, makeSpec
+makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
          -> (ModName, Ghc.Var, LocSpecType)
-makeSpec env sigEnv name (lx, bt) = (name, v, t) 
+makeMethod env sigEnv name (lx, bt) = (name, v, t) 
   where 
-    v = Bare.lookupGhcVar env        name "makeSpec" lx
+    v = Bare.lookupGhcVar env        name "makeMethod" lx
     t = F.tracepp msg $ Bare.cookSpecType env sigEnv name (Just v)   bt 
     msg = "MAKE-SPEC: " ++ F.showpp lx 
+
+
+-------------------------------------------------------------------------------
+makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var SpecType 
+-------------------------------------------------------------------------------
+makeSpecDictionaries env sigEnv specs
+  = dfromList 
+  . concat 
+  . fmap (makeSpecDictionary env sigEnv) 
+  $ M.toList specs
+
+makeSpecDictionary :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec)
+                   -> [(Ghc.Var, M.HashMap F.Symbol (RISig SpecType))]
+makeSpecDictionary env sigEnv (name, spec)
+  = Mb.catMaybes 
+  . resolveDictionaries env name 
+  . fmap (makeSpecDictionaryOne env sigEnv name) 
+  . Ms.rinstance 
+  $ spec
+
+makeSpecDictionaryOne :: Bare.Env -> Bare.SigEnv -> ModName 
+                      -> RInstance LocBareType 
+                      -> (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
+makeSpecDictionaryOne env sigEnv name (RI x t xts)
+         = makeDictionary $ RI x (val . mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
+  where
+    mkTy :: LocBareType -> LocSpecType
+    mkTy = Bare.cookSpecType env sigEnv name Nothing 
+
+    mkLSpecIType :: RISig LocBareType -> RISig SpecType
+    mkLSpecIType = fmap (val . mkTy)
+
+resolveDictionaries :: Bare.Env -> ModName -> [(F.Symbol, M.HashMap F.Symbol (RISig SpecType))] 
+                    -> [Maybe (Ghc.Var, M.HashMap F.Symbol (RISig SpecType))]
+resolveDictionaries env name = fmap lookupVar 
+                             . concat 
+                             . fmap addInstIndex 
+                             . Misc.groupList 
+  where
+    lookupVar (x, inst)      = (, inst) <$> Bare.maybeResolveSym env name "resolveDict" (F.dummyLoc x)
+
+    -- REBARE lookupVar (x, inst) = (, inst) <$> lookupName x
+    -- REBARE: lookupName x        = case filter ((== x) . fst) ((\v -> (dropModuleNames $ F.symbol $ show v, v)) <$> vars) of
+                            -- REBARE: [(_, v)] -> Just v
+                            -- REBARE: _        -> Nothing
+                            -- REBARE: vars --> shortSymbol
+
+-- formerly, addIndex
+-- GHC internal postfixed same name dictionaries with ints
+addInstIndex            :: (F.Symbol, [a]) -> [(F.Symbol, a)]
+addInstIndex (x, is) = go 0 (reverse is)
+  where 
+    go _ []          = []
+    go _ [i]         = [(x, i)]
+    go j (i:is)      = (F.symbol (F.symbolString x ++ show j),i) : go (j+1) is
+
+
 
 {- 
 lookupIds :: Bool -> [(LocSymbol, a)] -> BareM [(Var, LocSymbol, a)]
@@ -362,54 +422,7 @@ makeInvariants' = mapM mkI
   where
     mkI (_,t)       = (Nothing,) . fmap generalize <$> mkLSpecType t
 
-makeSpecDictionaries :: F.TCEmb TyCon -> [Var] -> [(a, Ms.BareSpec)] -> GhcSpec
-                     -> BareM GhcSpec
-makeSpecDictionaries embs vars specs sp = do 
-  ds <- (dfromList . concat)  <$>  mapM (makeSpecDictionary embs vars) specs
-  return $ sp { gsDicts = ds }
 
-makeSpecDictionary :: F.TCEmb TyCon -> [Var] -> (a, Ms.BareSpec)
-                   -> BareM [(Var, M.HashMap F.Symbol (RISig SpecType))]
-makeSpecDictionary embs vars (_, spec)
-  = (catMaybes . resolveDictionaries vars) <$> mapM (makeSpecDictionaryOne embs) (Ms.rinstance spec)
-
-
-makeSpecDictionaryOne :: F.TCEmb TyCon -> RInstance (Located BareType)
-                      -> BareM (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
-makeSpecDictionaryOne embs (RI x t xts)
-  = do t'  <- mapM mkLSpecType t
-       tyi <- gets tcEnv
-       ts' <- map (tidy tyi) <$> (mapM mkLSpecIType ts)
-       return $ makeDictionary $ RI x (val <$> t') $ zip xs ts'
-  where
-    mkTy' :: Located BareType -> BareM (Located SpecType)
-    mkTy' t  = fmap generalize <$> mkLSpecType t
-
-    (xs, ts) = unzip xts
-
-    tidy :: TCEnv -> RISig (Located SpecType) -> RISig SpecType
-    tidy tyi = fmap (val . txRefSort tyi embs . fmap txExpToBind)
-
-    mkLSpecIType :: RISig (Located BareType) -> BareM (RISig (Located SpecType))
-    mkLSpecIType (RISig     t) = RISig     <$> mkTy' t
-    mkLSpecIType (RIAssumed t) = RIAssumed <$> mkTy' t
-
-
-resolveDictionaries :: [Var] -> [(F.Symbol, M.HashMap F.Symbol (RISig SpecType))] -> [Maybe (Var, M.HashMap F.Symbol (RISig SpecType))]
-resolveDictionaries vars ds  = lookupVar <$> concat (go <$> Misc.groupList ds)
- where
-    go (x,is)           = addIndex 0 x $ reverse is
-
-    -- GHC internal postfixed same name dictionaries with ints
-    addIndex _ _ []     = []
-    addIndex _ x [i]    = [(x,i)]
-    addIndex j x (i:is) = (F.symbol (F.symbolString x ++ show j),i):addIndex (j+1) x is
-
-    lookupVar (s, i)    = (, i) <$> lookupName s
-    lookupName x
-             = case filter ((==x) . fst) ((\x -> (dropModuleNames $ F.symbol $ show x, x)) <$> vars) of
-                [(_, x)] -> Just x
-                _        -> Nothing
 
 makeBounds ::  F.TCEmb TyCon -> ModName -> [Var] -> [CoreBind] -> [(ModName, Ms.BareSpec)] -> BareM ()
 makeBounds tce name defVars cbs specs

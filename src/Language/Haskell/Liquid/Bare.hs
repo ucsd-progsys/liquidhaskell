@@ -502,9 +502,9 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.MeasE
 makeSpecSig name specs env sigEnv measEnv = SpSig 
   { gsTySigs   = F.tracepp "SIGS"     tySigs 
   , gsAsmSigs  = F.notracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
-  , gsDicts    = _fixme_gsDicts -- TODO-REBARE :: !(DEnv Var SpecType)    
   }
   where 
     mySpec     = M.lookupDefault mempty name specs

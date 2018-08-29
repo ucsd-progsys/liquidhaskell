@@ -4,7 +4,6 @@
 module Language.Haskell.Liquid.Types.Dictionaries (
     makeDictionaries
   , makeDictionary
-
   , dfromList
   , dmapty
   , dmap
