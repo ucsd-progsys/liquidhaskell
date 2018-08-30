@@ -1467,3 +1467,29 @@ Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 
 + The `A` component shall be updated at the sole discretion of the project owners.
 
+Updating GHC
+============
+
+Here's a script to generate the diff for the `desugar` modules.
+
+```
+export GHCSRC=$HOME/Documents/ghc
+
+# Checkout GHC-8.2.2
+(cd $GHCSRC && git checkout ghc-8.2.2 && git pull)
+
+# make a patch
+diff -ur $GHCSRC/compiler/deSugar src/Language/Haskell/Liquid/Desugar > liquid.patch
+
+# Checkout GHC-8.4.3
+(cd $GHCSRC && git checkout ghc-8.2.2 && git pull)
+
+# Copy GHC desugarer to temporary directory
+cp -r $GHCSRC/compiler/deSugar .
+
+# Patch
+(cd deSugar && patch -p5 --merge --ignore-whitespace < ../liquid.patch)
+
+# Copy stuff over
+for i in src/Language/Haskell/Liquid/Desugar/*.*; do j=$(basename $i); echo $j; cp deSugar/$j src/Language/Haskell/Liquid/Desugar; done
+```
