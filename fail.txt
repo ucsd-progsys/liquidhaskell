@@ -1,0 +1,952 @@
+Tests
+  Prover
+    without_ple_pos
+      Euclide.hs:                             FAIL (0.72s)
+    with_ple
+      Euclide.hs:                             FAIL (1.01s)
+      
+      - see tests-names-HiddenMethod00.hs 
+
+  Macro
+    unit-pos
+      repeatHigherOrder.hs:                   FAIL (0.77s)
+      ex1.hs:                                 FAIL (0.71s)
+      - absref [ PredType.hs:446:10-36: Non-exhaustive patterns in lambda ]
+
+      Invariants.hs:                          FAIL (0.76s)
+      contra0.hs:                             FAIL (0.72s)
+      - todo:variance 
+
+      PersistentVector.hs:                    FAIL (1.06s)
+      - todo:using 
+
+      stateInvarint.hs:                       FAIL (1.79s)
+      RelativeComplete.hs:                    FAIL (1.03s)
+      foldN.hs:                               FAIL (0.72s)
+      ex0.hs:                                 FAIL (0.87s)
+      kmpIO.hs:                               FAIL (5.00s)
+      StateConstraints.hs:                    FAIL (3.06s)
+      ResolvePred.hs:                         FAIL (1.02s)
+      * absref (fails to prove papp1, papp2 etc.)
+
+      Merge1.hs:                              FAIL (0.71s)
+      compare2.hs:                            FAIL (0.97s)
+      - EQ, LT, free-vars 
+      state00.hs:                             FAIL (0.75s)
+      - add constructors to top-level constants, or maybe DONT generate 
+        strengthened types for higher order ctors
+
+      T1089b.hs:                              FAIL (0.98s)
+      * fixpoint "Unknown func-sort:"
+
+      T1146.hs:                               FAIL (0.65s)
+      - alias variable capture
+
+      maybe00.hs:                             FAIL (0.75s)
+      maybe.hs:                               FAIL (1.21s)
+      maybe3.hs:                              FAIL (0.71s)
+      SafePartialFunctions.hs:                FAIL (0.69s)
+      - measure: fromJust, isJust 
+
+      anftest.hs:                             FAIL (0.66s)
+      - measure variable capture
+
+      RecordAccessors.hs:                     FAIL (0.84s)
+      - not strengthening record field
+
+      jeff.hs:                                FAIL (1.26s)
+      primInt0.hs:                            FAIL (3.14s)
+      T716.hs:                                FAIL (2.77s)
+      Overwrite.hs:                           FAIL (0.75s)
+      - assumes are getting dropped 
+
+      FractionalInstance.hs:                  FAIL (1.17s)
+      - todo: don't check generated dict-instances
+
+      TypeLitNat.hs:                          FAIL (1.18s)
+      - todo: type-lits
+
+      mapTvCrash.hs:                          FAIL (0.85s)
+      vector2.hs:                             FAIL (0.90s)
+      - name resolution
+
+      VerifiedMonoid.hs:                      FAIL (1.61s)
+      - wierd z3 crash
+
+      bag.hs:                                 FAIL (0.98s)
+      - todo:bag-fromList 
+
+      NewType.hs:                             FAIL (0.66s)
+      - todo:newtype
+
+-------------------------------------------------------------
+
+      maybe0.hs:                              FAIL (0.73s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      BinarySearch.hs:                        FAIL (0.98s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      kmpVec.hs:                              FAIL (1.11s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ANF.hs:                                 FAIL (1.36s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      OrdList.hs:                             FAIL (5.98s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      StreamInvariants.hs:                    FAIL (0.65s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Class.hs:                               FAIL (1.01s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      DataBase.hs:                            FAIL (1.18s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      BinarySearchOverflow.hs:                FAIL (0.91s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      ConstraintsAppend.hs:                   FAIL (2.34s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListConcat.hs:                          OK (0.77s)
+      State.hs:                               FAIL (1.90s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      T1120A.hs:                              FAIL (1.67s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      pair00.hs:                              FAIL (1.70s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      GhcSort1.hs:                            FAIL (2.71s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      vecloop.hs:                             FAIL (0.62s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      HasElem.hs:                             FAIL (0.98s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      TemplateHaskell.hs:                     FAIL (0.87s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      RefinedADTs.hs:                         FAIL (1.01s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      ListISort-bag.hs:                       FAIL (1.02s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      T595.hs:                                FAIL (1.37s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      meas10.hs:                              FAIL (1.23s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      monad1.hs:                              FAIL (0.65s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      GCD.hs:                                 FAIL (0.63s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      T819A.hs:                               FAIL (1.06s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      MergeSort-bag.hs:                       FAIL (1.21s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      take.hs:                                FAIL (3.35s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      monad0.hs:                              FAIL (0.65s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      PairMeasure0.hs:                        FAIL (0.80s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      dropwhile.hs:                           FAIL (0.65s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      NatClass.hs:                            FAIL (1.18s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      T1025.hs:                               FAIL (1.29s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Words1.hs:                              FAIL (0.66s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      test00-int.hs:                          FAIL (0.28s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      T819.hs:                                FAIL (0.59s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      StrictPair1.hs:                         FAIL (0.72s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      T1025a.hs:                              FAIL (1.21s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      TypeLitString.hs:                       FAIL (1.13s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      maybe4.hs:                              FAIL (1.00s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      Foldl.hs:                               FAIL (8.18s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      case-lambda-join.hs:                    FAIL (1.22s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      LocalTermExpr.hs:                       FAIL (0.72s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      bag1.hs:                                FAIL (1.10s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      maps1.hs:                               FAIL (0.92s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+
+      monad7.hs:                              FAIL (1.00s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+      LocalSpec.hs:                           FAIL (0.64s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      LocalHole.hs:                           FAIL (0.77s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+
+    unit-neg
+
+      RecQSort.hs:                            FAIL (1.07s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      T743-mini.hs:                           FAIL (1.29s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      qsloop.hs:                              FAIL (1.19s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      list00.hs:                              FAIL (0.80s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      mr00.hs:                                FAIL (1.27s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      Strata.hs:                              FAIL (1.23s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      T1286.hs:                               FAIL (0.64s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      nestedRecursion.hs:                     FAIL (0.76s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      TerminationNum0.hs:                     FAIL (0.77s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      Sum.hs:                                 FAIL (1.03s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      contra0.hs:                             FAIL (0.93s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      state00.hs:                             FAIL (0.76s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      bag.hs:                                 FAIL (0.92s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      CharLiterals.hs:                        FAIL (0.66s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      T743.hs:                                FAIL (0.75s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      testRec.hs:                             FAIL (1.03s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      Class5.hs:                              FAIL (1.01s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      GeneralizedTermination.hs:              FAIL (0.78s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      LiquidClass1.hs:                        FAIL (0.74s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      HasElem.hs:                             FAIL (0.75s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      monad3.hs:                              FAIL (1.01s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      TerminationNum.hs:                      FAIL (0.82s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      AutoSize.hs:                            FAIL (2.90s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      vector1a.hs:                            FAIL (1.71s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      Even.hs:                                FAIL (0.88s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      pragma0-unsafe.hs:                      FAIL (0.61s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      T745.hs:                                FAIL (0.64s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+      MaybeMonad.hs:                          FAIL (0.67s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+      AutoTerm.hs:                            FAIL (0.95s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
+
+      RecSelector.hs:                         FAIL (0.90s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      bag1.hs:                                FAIL (1.01s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      LocalSpec.hs:                           FAIL (0.74s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+
+
+
+  Error-Messages
+    ExportMeasure0.hs:                        FAIL (1.01s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    ExportMeasure1.hs:                        FAIL (0.70s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    ExportReflect0.hs:                        FAIL (0.84s)
+      tests/test.hs:297:
+      Did not match message: Cannot lift `identity` into refinement logic
+    ShadowFieldInline.hs:                     FAIL (0.89s)
+      tests/test.hs:297:
+      Did not match message: Error: Multiple specifications for `Range.pig`
+    ShadowFieldReflect.hs:                    FAIL (0.69s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    MultiRecSels.hs:                          OK (0.59s)
+    DupFunSigs.hs:                            FAIL (1.32s)
+      tests/test.hs:297:
+      Did not match message: Multiple specifications for `Main.fromWeekDayNum`
+    DupMeasure.hs:                            OK (0.60s)
+    ShadowMeasure.hs:                         FAIL (0.81s)
+      tests/test.hs:297:
+      Did not match message: Multiple specifications for `shadow`
+    ShadowMeasureVar.hs:                      FAIL (0.79s)
+      tests/test.hs:297:
+      Did not match message: Multiple specifications for `shadow`
+    DupData.hs:                               OK (0.60s)
+    EmptyData.hs:                             OK (0.57s)
+    AmbiguousReflect.hs:                      FAIL (0.75s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    AmbiguousInline.hs:                       FAIL (1.42s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    TerminationExprSort.hs:                   FAIL (0.66s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    TerminationExprNum.hs:                    FAIL (1.02s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    TerminationExprUnb.hs:                    FAIL (0.72s)
+      tests/test.hs:297:
+      Did not match message: Illegal termination specification for `go`
+    UnboundVarInSpec.hs:                      FAIL (0.62s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `Fixme.foo`
+    UnboundVarInAssume.hs:                    FAIL (0.90s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    UnboundFunInSpec.hs:                      FAIL (0.64s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `Goo.three`
+    UnboundFunInSpec1.hs:                     FAIL (0.72s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `Goo.foo`
+    UnboundFunInSpec2.hs:                     FAIL (0.77s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `Goo.foo`
+    Fractional.hs:                            FAIL (0.97s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    T773.hs:                                  FAIL (0.67s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `LiquidR.incr`
+    T774.hs:                                  FAIL (0.68s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `LiquidR.incr`
+    Inconsistent0.hs:                         FAIL (0.95s)
+      tests/test.hs:297:
+      Did not match message: Specified type does not refine Haskell type for `Ast.app` (Checked)
+    Inconsistent1.hs:                         FAIL (0.62s)
+      tests/test.hs:297:
+      Did not match message: Specified type does not refine Haskell type for `Boo.incr` (Checked)
+    Inconsistent2.hs:                         FAIL (0.61s)
+      tests/test.hs:297:
+      Did not match message: Specified type does not refine Haskell type for `Mismatch.foo` (Checked)
+    BadAliasApp.hs:                           OK (0.90s)
+    BadPragma0.hs:                            OK (0.26s)
+    BadPragma1.hs:                            OK (0.26s)
+    BadPragma2.hs:                            OK (0.29s)
+    BadSyn1.hs:                               OK (0.63s)
+    BadSyn2.hs:                               FAIL (0.85s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    BadSyn3.hs:                               FAIL (0.60s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    BadSyn4.hs:                               FAIL (0.58s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    BadAnnotation.hs:                         OK (0.40s)
+    BadAnnotation1.hs:                        OK (0.44s)
+    CyclicExprAlias0.hs:                      OK (0.55s)
+    CyclicExprAlias1.hs:                      FAIL (0.57s)
+      tests/test.hs:297:
+      Did not match message: Cyclic type alias definition for `CyclicB1`
+    CyclicExprAlias2.hs:                      OK (0.59s)
+    CyclicExprAlias3.hs:                      OK (0.76s)
+    DupAlias.hs:                              FAIL (0.74s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    DupAlias.hs:                              FAIL (0.75s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    BadDataConType.hs:                        FAIL (0.86s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    BadDataConType1.hs:                       FAIL (0.67s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    BadDataConType2.hs:                       OK (0.58s)
+    LiftMeasureCase.hs:                       OK (0.71s)
+    HigherOrderBinder.hs:                     FAIL (0.81s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `Main.foo`
+    HoleCrash1.hs:                            FAIL (0.66s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    HoleCrash2.hs:                            OK (0.57s)
+    HoleCrash3.hs:                            OK (0.88s)
+    BadPredApp.hs:                            FAIL (0.60s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    LocalHole.hs:                             FAIL (0.72s)
+      tests/test.hs:297:
+      Did not match message: Illegal type specification for `go`
+    UnboundAbsRef.hs:                         OK (0.87s)
+    BadQualifier.hs:                          FAIL (0.73s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitSuccess
+    ParseClass.hs:                            OK (0.27s)
+    ParseBind.hs:                             OK (0.27s)
+    MissingSizeFun.hs:                        FAIL (0.77s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+    MultiInstMeasures.hs:                     FAIL (0.84s)
+      tests/test.hs:297:
+      Did not match message: Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`
+    BadDataDeclTyVars.hs:                     OK (0.61s)
+    BadDataCon2.hs:                           OK (0.56s)
+    BadSig0.hs:                               FAIL (1.00s)
+      tests/test.hs:297:
+      Did not match message: Error: Illegal type specification for `Zoo.foo`
+    BadSig1.hs:                               FAIL (0.86s)
+      tests/test.hs:297:
+      Did not match message: Error: Illegal type specification for `constructor Ev.EZ`
+    BadData1.hs:                              OK (0.60s)
+    BadData2.hs:                              OK (0.71s)
+    T1140.hs:                                 OK (0.86s)
+    InlineSubExp0.hs:                         FAIL (0.79s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 1
+       but got: ExitFailure 2
+    InlineSubExp1.hs:                         FAIL (1.04s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 1
+       but got: ExitFailure 2
+    EmptySig.hs:                              OK (0.26s)
+    ElabLocation.hs:                          FAIL (0.65s)
+      tests/test.hs:297:
+      Did not match message: ElabLocation.hs:11:9-11:15: Error
+    MissingReflect.hs:                        FAIL (0.98s)
+      tests/test.hs:296:
+      Wrong exit code
+      expected: ExitFailure 2
+       but got: ExitFailure 1
+  Benchmarks
+    text
+      Data/Text.hs:                           FAIL (6.41s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Foreign.hs:                   FAIL (2.14s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/Text/Array.hs:                     FAIL (0.72s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/UnsafeChar.hs:                FAIL (1.49s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/Text/Search.hs:                    FAIL (10.54s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/Text/Fusion.hs:                    FAIL (3.16s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Lazy.hs:                      FAIL (7.00s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Private.hs:                   FAIL (1.71s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/Text/Unsafe.hs:                    FAIL (3.76s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Internal.hs:                  FAIL (10.08s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Lazy/Encoding.hs:             FAIL (10.38s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/Text/Lazy/Builder.hs:              FAIL (6.80s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Lazy/Search.hs:               FAIL (5.12s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Lazy/Fusion.hs:               FAIL (5.09s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Lazy/Internal.hs:             FAIL (5.10s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Text/Fusion/Size.hs:               FAIL (2.12s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+    bytestring
+      Data/ByteString.hs:                     FAIL (5.90s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/ByteString.T.hs:                   FAIL (5.96s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/ByteString/Char8.hs:               FAIL (5.13s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/ByteString/LazyZip.hs:             FAIL (4.65s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/ByteString/Fusion.hs:              FAIL (2.16s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/ByteString/Fusion.T.hs:            FAIL (2.00s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/ByteString/Lazy.hs:                FAIL (3.85s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/ByteString/Unsafe.hs:              FAIL (3.31s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/ByteString/Internal.hs:            FAIL (1.96s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/ByteString/Lazy/Char8.hs:          FAIL (4.39s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+    esop
+      Splay.hs:                               OK (18.86s)
+      Fib.hs:                                 FAIL (1.14s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Array.hs:                               OK (4.52s)
+      Base.hs:                                FAIL (190.50s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      ListSort.hs:                            OK (5.83s)
+      Toy.hs:                                 FAIL (0.78s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      GhcListSort.hs:                         OK (12.97s)
+    vect-algs
+      Setup.lhs:                              OK (1.74s)
+      Data/Vector/Algorithms/Insertion.hs:    FAIL (0.58s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Radix.hs:        FAIL (0.74s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Intro.hs:        FAIL (0.42s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Combinators.hs:  OK (1.22s)
+      Data/Vector/Algorithms/Heap.hs:         FAIL (0.68s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Merge.hs:        FAIL (0.47s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Search.hs:       FAIL (0.44s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.48s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Optimal.hs:      FAIL (0.71s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Common.hs:       FAIL (0.87s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+      Data/Vector/Algorithms/Termination.hs:  FAIL (0.45s)
+        tests/test.hs:293:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 1
+    icfp_pos
+      DBMovies.hs:                            FAIL (1.36s)
+      ICFP15.lhs:                             FAIL (3.20s)
+      Append.hs:                              FAIL (2.09s)
+      FoldAbs.hs:                             FAIL (4.74s)
+      dropwhile.hs:                           FAIL (0.96s)
+      Overview.lhs:                           FAIL (5.58s)
