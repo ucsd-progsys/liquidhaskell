@@ -36,7 +36,8 @@ import qualified Data.Maybe                             as Mb -- (isNothing, fro
 import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum, isDigit)
 import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
-import           Text.PrettyPrint.HughesPJ              (text )
+import qualified Text.PrettyPrint.HughesPJ              as PJ 
+import           Text.PrettyPrint.HughesPJ.Compat       ((<+>)) 
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          
@@ -61,7 +62,6 @@ hsSpecificationP :: ModuleName
                  -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
--- hsSpecificationP _ [] _ = Left [ErrParseAnn noSrcSpan (text "Malformed annotation")]
 hsSpecificationP modName specComments specQuotes =
   case go ([], []) initPStateWithList $ reverse specComments of
     ([], specs) ->
@@ -129,7 +129,7 @@ parseErrorError e = ErrParse sp msg e
   where
     pos             = errorPos e
     sp              = sourcePosSrcSpan pos
-    msg             = text $ "Error Parsing Specification from: " ++ sourceName pos
+    msg             = "Error Parsing Specification from:" <+> PJ.text (sourceName pos)
 
 ---------------------------------------------------------------------------
 remParseError       :: SourcePos -> String -> String -> ParseError
@@ -879,44 +879,75 @@ data Pspec ty ctor
   | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
   deriving (Data, Typeable)
 
-instance PPrint ty, PPrint ctor => PPrint (Pspec ty ctor) where 
+instance (PPrint ty, PPrint ctor) => PPrint (Pspec ty ctor) where 
   pprintTidy = ppPspec 
 
-ppPspec 
-ppPspec (Meas m)       -- (Measure ty ctor)
-ppPspec (Assm (x, t))  --   (LocSymbol, ty)
-ppPspec (Asrt (x, t))  --   (LocSymbol, ty)
-ppPspec (LAsrt (x, t)) -- (LocSymbol, ty)
-ppPspec (Asrts (xs, (t, mbLEs))) -- ([LocSymbol], (ty, Maybe [Located Expr]))
-ppPspec (Impt  x) --  Symbol
-ppPspec (DDecl d) --   DataDecl
-ppPspec (NTDecl d) --  DataDecl
-ppPspec (Incl    FilePath
-ppPspec (Invt    ty
-ppPspec (Using  (ty, ty)
-ppPspec (Alias   (Located (RTAlias Symbol BareType))
-ppPspec (EAlias  (Located (RTAlias Symbol Expr))
-ppPspec (Embed   (LocSymbol, FTycon, TCArgs)
-ppPspec (Qualif  Qualifier
-ppPspec (Decr    (LocSymbol, [Int])
-ppPspec (LVars   LocSymbol
-ppPspec (Lazy    LocSymbol
-ppPspec (Insts   (LocSymbol, Maybe Int)
-ppPspec (HMeas   LocSymbol
-ppPspec (Reflect LocSymbol
-ppPspec (Inline  LocSymbol
-ppPspec (Ignore  LocSymbol
-ppPspec (ASize   LocSymbol
-ppPspec (HBound  LocSymbol
-ppPspec (PBound  (Bound ty Expr)
-ppPspec (Pragma  (Located String)
-ppPspec (CMeas   (Measure ty ())
-ppPspec (IMeas   (Measure ty ctor)
-ppPspec (Class   (RClass ty)
-ppPspec (RInst   (RInstance ty)
-ppPspec (Varia   (LocSymbol, [Variance])
-ppPspec (BFix    ()
-ppPspec (Define  (LocSymbol, Symbol)
+splice :: PJ.Doc -> [PJ.Doc] -> PJ.Doc
+splice sep = PJ.hcat . PJ.punctuate sep
+
+ppAsserts :: (PPrint t) => Tidy -> [LocSymbol] -> t -> Maybe [Located Expr] -> PJ.Doc
+ppAsserts k lxs t les 
+  = PJ.hcat [ splice ", " (pprintTidy k <$> (val <$> lxs))
+            , " :: " 
+            , pprintTidy k t   
+            , ppLes les 
+            ]
+  where 
+    ppLes Nothing    = ""
+    ppLes (Just les) = "/" <+> pprintTidy k (val <$> les)
+
+ppPspec :: (PPrint t, PPrint c) => Tidy -> Pspec t c -> PJ.Doc
+ppPspec k (Meas m)        
+  = "measure" <+> pprintTidy k m 
+ppPspec k (Assm (lx, t))  
+  = "assume"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
+ppPspec k (Asrt (lx, t))  
+  = "assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
+ppPspec k (LAsrt (lx, t)) 
+  = "local assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
+ppPspec k (Asrts (lxs, (t, les))) 
+  = ppAsserts k lxs t les
+
+ppPspec k (Impt  x) 
+  = "import" <+> pprintTidy k x 
+ppPspec k (DDecl d) 
+  = "data" <+> pprintTidy k d 
+ppPspec k (NTDecl d) 
+  = "newtype" <+> pprintTidy k d 
+ppPspec k (Incl f) 
+  = "include" <+> PJ.text f
+ppPspec k (Invt t)
+  = "invariant" <+> pprintTidy k t 
+ppPspec k (Using (t1, t2)) 
+  = "using" <+> pprintTidy k t1 <+> "as" <+> pprintTidy k t2
+ppPspec k (Alias   (Loc _ _ rta)) 
+  = "type" <+> pprintTidy k rta 
+ppPspec k (EAlias  (Loc _ _ rte)) 
+  = "predicate" <+> pprintTidy k rte 
+ppPspec k (Embed   (lx, tc, args)) 
+  = "embed" <+> pprintTidy k (val lx) <+> pprintTidy k args <+> "as" <+> pprintTidy k tc 
+ppPspec k (Qualif  q)              
+  = "qualif" <+> pprintTidy k q 
+ppPspec k (Decr (lx, ns))        
+  = "decreasing" <+> pprintTidy k (val lx) <+> pprintTidy k ns
+-- REBARE ppPspec k (LVars   lx) -- LocSymbol
+-- REBARE ppPspec k (Lazy    lx) -- LocSymbol
+-- REBARE ppPspec k (Insts   (lx, mbN)) -- (LocSymbol, Maybe Int)
+-- REBARE ppPspec k (HMeas   lx) -- LocSymbol
+-- REBARE ppPspec k (Reflect lx) -- LocSymbol
+-- REBARE ppPspec k (Inline  lx) -- LocSymbol
+-- REBARE ppPspec k (Ignore  lx) -- LocSymbol
+-- REBARE ppPspec k (ASize   lx) -- LocSymbol
+-- REBARE ppPspec k (HBound  lx) -- LocSymbol
+-- REBARE ppPspec k (PBound  bnd) -- (Bound ty Expr)
+-- REBARE ppPspec k (Pragma  (Loc _ _ s)) -- (Located String)
+-- REBARE ppPspec k (CMeas   m) -- (Measure ty ())
+-- REBARE ppPspec k (IMeas   m) -- (Measure ty ctor)
+-- REBARE ppPspec k (Class   cls) -- (RClass ty)
+-- REBARE ppPspec k (RInst   inst) -- (RInstance ty)
+-- REBARE ppPspec k (Varia   (lx, vs))   -- (LocSymbol, [Variance])
+-- REBARE ppPspec k (BFix    _)           -- 
+-- REBARE ppPspec k (Define  (lx, y))     -- LocSymbol, Symbol)
 
 
 -- | For debugging
