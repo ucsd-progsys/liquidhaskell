@@ -907,15 +907,14 @@ ppPspec k (LAsrt (lx, t))
   = "local assert"  <+> pprintTidy k (val lx) <+> "::" <+> pprintTidy k t 
 ppPspec k (Asrts (lxs, (t, les))) 
   = ppAsserts k lxs t les
-
 ppPspec k (Impt  x) 
   = "import" <+> pprintTidy k x 
 ppPspec k (DDecl d) 
-  = "data" <+> pprintTidy k d 
+  = pprintTidy k d 
 ppPspec k (NTDecl d) 
   = "newtype" <+> pprintTidy k d 
-ppPspec k (Incl f) 
-  = "include" <+> PJ.text f
+ppPspec _ (Incl f) 
+  = "include" <+> "<" PJ.<> PJ.text f PJ.<> ">"
 ppPspec k (Invt t)
   = "invariant" <+> pprintTidy k t 
 ppPspec k (Using (t1, t2)) 
@@ -924,30 +923,51 @@ ppPspec k (Alias   (Loc _ _ rta))
   = "type" <+> pprintTidy k rta 
 ppPspec k (EAlias  (Loc _ _ rte)) 
   = "predicate" <+> pprintTidy k rte 
-ppPspec k (Embed   (lx, tc, args)) 
-  = "embed" <+> pprintTidy k (val lx) <+> pprintTidy k args <+> "as" <+> pprintTidy k tc 
+ppPspec k (Embed   (lx, tc, NoArgs)) 
+  = "embed" <+> pprintTidy k (val lx)         <+> "as" <+> pprintTidy k tc 
+ppPspec k (Embed   (lx, tc, WithArgs)) 
+  = "embed" <+> pprintTidy k (val lx) <+> "*" <+> "as" <+> pprintTidy k tc 
 ppPspec k (Qualif  q)              
-  = "qualif" <+> pprintTidy k q 
+  = pprintTidy k q 
 ppPspec k (Decr (lx, ns))        
   = "decreasing" <+> pprintTidy k (val lx) <+> pprintTidy k ns
--- REBARE ppPspec k (LVars   lx) -- LocSymbol
--- REBARE ppPspec k (Lazy    lx) -- LocSymbol
--- REBARE ppPspec k (Insts   (lx, mbN)) -- (LocSymbol, Maybe Int)
--- REBARE ppPspec k (HMeas   lx) -- LocSymbol
--- REBARE ppPspec k (Reflect lx) -- LocSymbol
--- REBARE ppPspec k (Inline  lx) -- LocSymbol
--- REBARE ppPspec k (Ignore  lx) -- LocSymbol
--- REBARE ppPspec k (ASize   lx) -- LocSymbol
--- REBARE ppPspec k (HBound  lx) -- LocSymbol
--- REBARE ppPspec k (PBound  bnd) -- (Bound ty Expr)
--- REBARE ppPspec k (Pragma  (Loc _ _ s)) -- (Located String)
--- REBARE ppPspec k (CMeas   m) -- (Measure ty ())
--- REBARE ppPspec k (IMeas   m) -- (Measure ty ctor)
--- REBARE ppPspec k (Class   cls) -- (RClass ty)
--- REBARE ppPspec k (RInst   inst) -- (RInstance ty)
--- REBARE ppPspec k (Varia   (lx, vs))   -- (LocSymbol, [Variance])
--- REBARE ppPspec k (BFix    _)           -- 
--- REBARE ppPspec k (Define  (lx, y))     -- LocSymbol, Symbol)
+ppPspec k (LVars   lx) 
+  = "lazyvar" <+> pprintTidy k (val lx) 
+ppPspec k (Lazy   lx) 
+  = "lazy" <+> pprintTidy k (val lx) 
+ppPspec k (Insts   (lx, mbN)) 
+  = "automatic-instances" <+> pprintTidy k (val lx) <+> maybe "" (("with" <+>) . pprintTidy k) mbN 
+ppPspec k (HMeas   lx) 
+  = "measure" <+> pprintTidy k (val lx) 
+ppPspec k (Reflect lx) 
+  = "reflect" <+> pprintTidy k (val lx) 
+ppPspec k (Inline  lx) 
+  = "inline" <+> pprintTidy k (val lx) 
+ppPspec k (Ignore  lx) 
+  = "ignore" <+> pprintTidy k (val lx) 
+ppPspec k (HBound  lx) 
+  = "bound" <+> pprintTidy k (val lx) 
+ppPspec k (ASize   lx) 
+  = "autosize" <+> pprintTidy k (val lx) 
+ppPspec k (PBound  bnd) 
+  = pprintTidy k bnd 
+ppPspec _ (Pragma  (Loc _ _ s)) 
+  = "LIQUID" <+> PJ.text s 
+ppPspec k (CMeas   m) 
+  = "class measure" <+> pprintTidy k m
+ppPspec k (IMeas   m) 
+  = "instance  measure" <+> pprintTidy k m
+ppPspec k (Class   cls) 
+  = pprintTidy k cls 
+ppPspec k (RInst   inst) 
+  = pprintTidy k inst 
+ppPspec k (Varia   (lx, vs))  
+  = "data variance" <+> pprintTidy k (val lx) <+> splice " " (pprintTidy k <$> vs) 
+ppPspec _ (BFix    _)           -- 
+  = "fixity"
+ppPspec k (Define  (lx, y))     
+  = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y 
+
 
 
 -- | For debugging

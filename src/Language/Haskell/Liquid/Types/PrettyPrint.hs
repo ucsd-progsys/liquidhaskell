@@ -141,11 +141,11 @@ instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
   pprintTidy = ppAlias
 
 ppAlias :: (PPrint tv, PPrint ty) => F.Tidy -> RTAlias tv ty -> Doc
-ppAlias k a = text "type" <+> pprint (rtName a)
-                          <+> pprints k space (rtTArgs a)
-                          <+> pprints k space (rtVArgs a)
-                          <+> text " = "
-                          <+> pprint (rtBody a)
+ppAlias k a =   pprint (rtName a)
+            <+> pprints k space (rtTArgs a)
+            <+> pprints k space (rtVArgs a)
+            <+> text " = "
+            <+> pprint (rtBody a)
 
 instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where 
   pprintTidy k rte 

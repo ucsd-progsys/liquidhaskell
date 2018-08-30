@@ -1038,6 +1038,13 @@ data RInstance t = RI
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)
 
+ppRISig :: (F.PPrint k, F.PPrint t) => F.Tidy -> k -> RISig t -> Doc
+ppRISig k x (RIAssumed t) = "assume" <+> F.pprintTidy k x <+> "::" <+> F.pprintTidy k t 
+ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintTidy k t 
+
+instance F.PPrint t => F.PPrint (RInstance t) where
+  pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts 
+
 instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
 
@@ -1045,7 +1052,6 @@ newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
 
 type RDEnv = DEnv Var SpecType
-
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------
@@ -2095,9 +2101,26 @@ data RClass ty = RClass
   } deriving (Show, Functor, Data, Typeable, Generic)
 
 
+instance F.PPrint t => F.PPrint (RClass t) where 
+  pprintTidy k (RClass n ts as mts) 
+                = ppMethods k ("class" <+> supers ts) n as [(m, RISig t) | (m, t) <- mts] 
+    where 
+      supers [] = "" 
+      supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+      tuplify   = parens . hcat . punctuate ", "
+
+ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
+          => F.Tidy -> Doc -> n -> [a] -> [(x, RISig t)] -> Doc
+ppMethods k hdr name args mts 
+  = vcat $ hdr <+> dName <+> "where" 
+         : [ nest 4 (bind m t) | (m, t) <- mts ] 
+    where 
+      dName    = parens  (F.pprintTidy k name <+> dArgs)
+      dArgs    = gaps    (F.pprintTidy k      <$> args)
+      gaps     = hcat . punctuate " "
+      bind m t = ppRISig k m t -- F.pprintTidy k m <+> "::" <+> F.pprintTidy k t 
 
 instance B.Binary ty => B.Binary (RClass ty)
-
 
 ------------------------------------------------------------------------
 -- | Annotations -------------------------------------------------------
