@@ -1,3 +1,5 @@
+{-@ LIQUID "--structural" @-}
+
 module Meas () where
 
 import Language.Haskell.Liquid.Prelude
@@ -12,11 +14,15 @@ mylen (_:xs)   = 1 + mylen xs
 mymap f []     = []
 mymap f (x:xs) = (f x) : (mymap f xs)
 
-{-@ decrease go 2 @-}
+
+{-@ myreverse :: xs:_ -> {v:_ | len v = len xs} @-} 
 myreverse = go []
-  where go acc (x:xs) = go (x:acc) xs
-        go acc []     = acc
+  where 
+    {-@ go :: acc:_ -> xs:_ -> {v:_ | len v = len acc + len xs} @-}
+    go acc (x:xs) = go (x:acc) xs
+    go acc []     = acc
     
+{-@ myapp :: xs:_ -> ys:_ -> {v:_ | len v = len xs + len ys} @-}
 myapp [] ys     = ys
 myapp (x:xs) ys = x:(myapp xs ys)
 

@@ -5,3 +5,6 @@ data Foo = F { thing :: Int }
 
 {-@ bar :: Foo -> Nat @-}
 bar = thing
+
+{-@ baz :: Foo -> Nat @-}
+baz (F n) = n

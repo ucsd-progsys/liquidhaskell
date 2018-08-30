@@ -23,12 +23,10 @@ import GHC.Word
 
 {-@ assume narrow16Word# :: Word# -> {v:Word# | undefinedOffset v = 64} @-}
 
-{-@ data Word = W# (w :: {v:Word# | undefinedOffset v >= 64}) @-}
+{-@ data Word = W# {w :: {v:Word# | undefinedOffset v >= 64}} @-}
 
 grabWord16_SAFE (Ptr ip#) = let x = byteSwap16# (indexWord16OffAddr# ip# 0#) in W# (narrow16Word# x)
 
 grabWord16_UNSAFE (Ptr ip#) = W# (narrow16Word# (byteSwap16# (indexWord16OffAddr# ip# 0#)))
 
--- mkWord :: {v:Word# | undefinedOffset v >= 64} -> Word
--- mkWord = W#
 
