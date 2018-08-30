@@ -496,6 +496,10 @@ instance Monoid TCArgs where
   mempty = NoArgs 
   mappend = (<>)
 
+instance PPrint TCArgs where 
+  pprintTidy _ WithArgs = "*"
+  pprintTidy _ NoArgs   = ""
+
 tceInsert :: (Eq a, Hashable a) => a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsert k t a (TCE m) = TCE (M.insert k (t, a) m)
 
@@ -509,8 +513,6 @@ instance (Eq a, Hashable a) => Monoid (TCEmb a) where
   mempty  = TCE mempty 
   mappend = (<>)
 
-instance PPrint TCArgs where 
-  pprintTidy _ = text . show 
 
 tceMap :: (Eq b, Hashable b) => (a -> b) -> TCEmb a -> TCEmb b
 tceMap f = tceFromList . fmap (mapFst f) . tceToList 
