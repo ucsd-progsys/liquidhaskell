@@ -843,41 +843,81 @@ dummyTyId      = ""
 type BPspec = Pspec LocBareType LocSymbol
 
 data Pspec ty ctor
-  = Meas    (Measure ty ctor)
-  | Assm    (LocSymbol, ty)
-  | Asrt    (LocSymbol, ty)
-  | LAsrt   (LocSymbol, ty)
-  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))
-  | Impt    Symbol
-  | DDecl   DataDecl
-  | NTDecl  DataDecl
-  | Incl    FilePath
-  | Invt    ty
-  | IAlias  (ty, ty)
-  | Alias   (Located (RTAlias Symbol BareType))
-  | EAlias  (Located (RTAlias Symbol Expr))
-  | Embed   (LocSymbol, FTycon, TCArgs)
-  | Qualif  Qualifier
-  | Decr    (LocSymbol, [Int])
-  | LVars   LocSymbol
-  | Lazy    LocSymbol
-  | Insts   (LocSymbol, Maybe Int)
-  | HMeas   LocSymbol
-  | Reflect LocSymbol
-  | Inline  LocSymbol
-  | Ignore  LocSymbol
-  | ASize   LocSymbol
-  | HBound  LocSymbol
-  | PBound  (Bound ty Expr)
-  | Pragma  (Located String)
-  | CMeas   (Measure ty ())
-  | IMeas   (Measure ty ctor)
-  | Class   (RClass ty)
-  | RInst   (RInstance ty)
-  | Varia   (LocSymbol, [Variance])
-  | BFix    ()
-  | Define  (LocSymbol, Symbol)
-  deriving (Data, Typeable, Show)
+  = Meas    (Measure ty ctor)                             -- ^ 'measure' definition
+  | Assm    (LocSymbol, ty)                               -- ^ 'assume' signature (unchecked)
+  | Asrt    (LocSymbol, ty)                               -- ^ 'assert' signature (checked)
+  | LAsrt   (LocSymbol, ty)                               -- ^ 'local' assertion -- RJ: what is this
+  | Asrts   ([LocSymbol], (ty, Maybe [Located Expr]))     -- ^ RJ: what is this
+  | Impt    Symbol                                        -- ^ 'import' a specification module
+  | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
+  | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
+  | Class   (RClass ty)                                   -- ^ refined 'class' definition
+  | RInst   (RInstance ty)                                -- ^ refined 'instance' definition
+  | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate 
+  | Invt    ty                                            -- ^ 'invariant' specification
+  | Using  (ty, ty)                                       -- ^ 'using' declaration (for local invariants on a type) 
+  | Alias   (Located (RTAlias Symbol BareType))           -- ^ 'type' alias declaration  
+  | EAlias  (Located (RTAlias Symbol Expr))               -- ^ 'predicate' alias declaration
+  | Embed   (LocSymbol, FTycon, TCArgs)                   -- ^ 'embed' declaration
+  | Qualif  Qualifier                                     -- ^ 'qualif' definition
+  | Decr    (LocSymbol, [Int])                            -- ^ 'decreasing' annotation -- TODO: deprecate
+  | LVars   LocSymbol                                     -- ^ 'lazyvar' annotation, defer checks to *use* sites
+  | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
+  | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder 
+  | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
+  | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
+  | Inline  LocSymbol                                     -- ^ 'inline' annotation;  inline (non-recursive) binder as an alias
+  | Ignore  LocSymbol                                     -- ^ 'ignore' annotation; skip all checks inside this binder
+  | ASize   LocSymbol                                     -- ^ 'autosize' annotation; automatically generate size metric for this type
+  | HBound  LocSymbol                                     -- ^ 'bound' annotation; lift Haskell binder as an abstract-refinement "bound"
+  | PBound  (Bound ty Expr)                               -- ^ 'bound' definition
+  | Pragma  (Located String)                              -- ^ 'LIQUID' pragma, used to save configuration options in source files
+  | CMeas   (Measure ty ())                               -- ^ 'class measure' definition
+  | IMeas   (Measure ty ctor)                             -- ^ 'instance measure' definition
+  | Varia   (LocSymbol, [Variance])                       -- ^ 'variance' annotations, marking type constructor params as co-, contra-, or in-variant
+  | BFix    ()                                            -- ^ fixity annotation
+  | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
+  deriving (Data, Typeable)
+
+instance PPrint ty, PPrint ctor => PPrint (Pspec ty ctor) where 
+  pprintTidy = ppPspec 
+
+ppPspec 
+ppPspec (Meas m)       -- (Measure ty ctor)
+ppPspec (Assm (x, t))  --   (LocSymbol, ty)
+ppPspec (Asrt (x, t))  --   (LocSymbol, ty)
+ppPspec (LAsrt (x, t)) -- (LocSymbol, ty)
+ppPspec (Asrts (xs, (t, mbLEs))) -- ([LocSymbol], (ty, Maybe [Located Expr]))
+ppPspec (Impt  x) --  Symbol
+ppPspec (DDecl d) --   DataDecl
+ppPspec (NTDecl d) --  DataDecl
+ppPspec (Incl    FilePath
+ppPspec (Invt    ty
+ppPspec (Using  (ty, ty)
+ppPspec (Alias   (Located (RTAlias Symbol BareType))
+ppPspec (EAlias  (Located (RTAlias Symbol Expr))
+ppPspec (Embed   (LocSymbol, FTycon, TCArgs)
+ppPspec (Qualif  Qualifier
+ppPspec (Decr    (LocSymbol, [Int])
+ppPspec (LVars   LocSymbol
+ppPspec (Lazy    LocSymbol
+ppPspec (Insts   (LocSymbol, Maybe Int)
+ppPspec (HMeas   LocSymbol
+ppPspec (Reflect LocSymbol
+ppPspec (Inline  LocSymbol
+ppPspec (Ignore  LocSymbol
+ppPspec (ASize   LocSymbol
+ppPspec (HBound  LocSymbol
+ppPspec (PBound  (Bound ty Expr)
+ppPspec (Pragma  (Located String)
+ppPspec (CMeas   (Measure ty ())
+ppPspec (IMeas   (Measure ty ctor)
+ppPspec (Class   (RClass ty)
+ppPspec (RInst   (RInstance ty)
+ppPspec (Varia   (LocSymbol, [Variance])
+ppPspec (BFix    ()
+ppPspec (Define  (LocSymbol, Symbol)
+
 
 -- | For debugging
 {-instance Show (Pspec a b) where
@@ -887,11 +927,11 @@ data Pspec ty ctor
   show (LAsrt  _) = "LAsrt"
   show (Asrts  _) = "Asrts"
   show (Impt   _) = "Impt"
-  show (DDecl  _) = "DDecl"
+  shcl  _) = "DDecl"
   show (NTDecl _) = "NTDecl"
   show (Incl   _) = "Incl"
   show (Invt   _) = "Invt"
-  show (IAlias _) = "IAlias"
+  show (Using _) = "Using"
   show (Alias  _) = "Alias"
   show (EAlias _) = "EAlias"
   show (Embed  _) = "Embed"
@@ -925,7 +965,7 @@ mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spe
   , Measure.localSigs  = []
   , Measure.reflSigs   = []
   , Measure.invariants = [(Nothing, t) | Invt   t <- xs]
-  , Measure.ialiases   = [t | IAlias t <- xs]
+  , Measure.ialiases   = [t | Using t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
   , Measure.dataDecls  = [d | DDecl  d <- xs] ++ [d | NTDecl d <- xs]
   , Measure.newtyDecls = [d | NTDecl d <- xs]
@@ -995,7 +1035,7 @@ specP
     <|> (reserved "newtype"       >> liftM NTDecl dataDeclP )
     <|> (reserved "include"       >> liftM Incl   filePathP )
     <|> (fallbackSpecP "invariant"  (liftM Invt   invariantP))
-    <|> (reserved "using"         >> liftM IAlias invaliasP )
+    <|> (reserved "using"         >> liftM Using invaliasP )
     <|> (reserved "type"          >> liftM Alias  aliasP    )
 
     -- TODO: Next two are basically synonyms

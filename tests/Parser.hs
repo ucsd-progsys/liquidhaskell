@@ -509,7 +509,7 @@ parseSingleSpec :: String -> String
 parseSingleSpec src =
   case LH.singleSpecP (initialPos "<test>") src of
     Left err  -> show err
-    Right res -> show (dummyLocs res)
+    Right res -> "FOO" -- show (dummyLocs res)
 
 gadtSpec :: String
 gadtSpec = unlines
