@@ -48,7 +48,7 @@ import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
 import           Language.Fixpoint.Types                (atLoc, PPrint (..), FixResult (..), Located (..))
 import           Language.Fixpoint.Utils.Files
-import           Language.Haskell.Liquid.Types          hiding (Def, D, LMap) -- (LocSpecType, ErrorResult, GhcSpecSig (..), GhcSpecData (..), GhcSpec (..), AnnInfo (..),  Output (..)) 
+import           Language.Haskell.Liquid.Types          hiding (Def, LMap) -- (LocSpecType, ErrorResult, GhcSpecSig (..), GhcSpecData (..), GhcSpec (..), AnnInfo (..),  Output (..)) 
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import           Language.Haskell.Liquid.Types.Visitors

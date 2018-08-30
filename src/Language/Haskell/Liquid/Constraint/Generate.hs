@@ -444,7 +444,7 @@ consCB _ _ γ (NonRec x def)
   , Just d      <- dlookup (denv γ) w
   = do t        <- trueTy τ
        addW      $ WfC γ t
-       let xts   = dmap (mapRISig (f t)) d
+       let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
