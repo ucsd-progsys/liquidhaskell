@@ -4,9 +4,10 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RankNTypes     #-}
+
 module Iso where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 {-@ data Iso a b = Iso { to   :: a -> b
                        , from :: b -> a
@@ -21,7 +22,7 @@ data Iso a b = Iso { to   :: a -> b
                    , fot  :: a -> Proof
                    }
 
-{-@ axiomatize identity @-}
+{-@ reflect identity @-}
 identity :: a -> a
 identity x = x
 {-# INLINE identity #-}
@@ -30,8 +31,8 @@ identity x = x
 isoRefl :: Iso a a
 isoRefl = Iso identity
               identity
-              (\x -> identity (identity x) ==. x *** QED)
-              (\x -> identity (identity x) ==. x *** QED)
+              (\x -> identity (identity x) === x *** QED)
+              (\x -> identity (identity x) === x *** QED)
 
 -- | 'Iso's are symmetric.
 isoSym :: Iso a b -> Iso b a

@@ -1,3 +1,6 @@
+-- LH issue #1146 
+
+-- tag: rebind 
 
 {-@ type Exactly N = { n:Int | n == N } @-}
 
