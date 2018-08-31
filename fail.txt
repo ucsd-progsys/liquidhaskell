@@ -1,10 +1,4 @@
 Tests
-  Prover
-    without_ple_pos
-      Euclide.hs:                             FAIL (0.72s)
-    with_ple
-      Euclide.hs:                             FAIL (1.01s)
-      - see tests-names-HiddenMethod00.hs 
 
   Macro
     unit-pos
@@ -12,7 +6,7 @@ Tests
       StreamInvariants.hs
       PersistentVector.hs:                    FAIL (1.06s)
       - todo:using 
-      
+
       NewType.hs:                             FAIL (0.66s)
       - todo:newtype
 

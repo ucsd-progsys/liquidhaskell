@@ -719,8 +719,8 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   where
     measVars     = Bare.meSyms      measEnv -- ms'
                 ++ Bare.meClassSyms measEnv -- cms' 
-                ++ Bare.varMeasures vars 
-    vars         = Bare.srcVars src
+                ++ F.tracepp "VARMEASURES" (Bare.varMeasures env)
+    -- vars         = Bare.srcVars src
     measures     = Bare.meMeasureSpec measEnv  
     ms1          = M.elems (Ms.measMap measures)
     ms2          =          Ms.imeas   measures

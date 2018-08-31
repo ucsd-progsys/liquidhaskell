@@ -421,13 +421,18 @@ expandMeasureDef env name rtEnv d = d
     bs    = fst <$> binds d 
 
 ------------------------------------------------------------------------------
-varMeasures :: (Monoid r) => [Ghc.Var] -> [(F.Symbol, Located (RRType r))]
+varMeasures :: (Monoid r) => Bare.Env -> [(F.Symbol, Located (RRType r))]
 ------------------------------------------------------------------------------
-varMeasures vars = 
+varMeasures env = 
   [ (F.symbol v, varSpecType v) 
-      | v <- vars
+      | v <- knownVars env 
       , GM.isDataConId v
       , isSimpleType (Ghc.varType v) ]
+
+knownVars :: Bare.Env -> [Ghc.Var]
+knownVars env = [ v | (_, xThings)   <- M.toList (Bare._reTyThings env) 
+                    , (_,Ghc.AnId v) <- xThings 
+                ]
 
 varSpecType :: (Monoid r) => Ghc.Var -> Located (RRType r)
 varSpecType = fmap (RT.ofType . Ghc.varType) . GM.locNamedThing
