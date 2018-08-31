@@ -241,7 +241,7 @@ instance Qualify F.Equation where
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify env name bs x = F.tracepp ("qualifySymbol: " ++ F.showpp x) $ 
+  qualify env name bs x = F.notracepp ("qualifySymbol: " ++ F.showpp x) $ 
                             qualifySymbol env name bs x 
 
 qualifySymbol :: Env -> ModName -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
@@ -314,7 +314,7 @@ instance Qualify BareSpec where
 qualifyBareSpec :: Env -> ModName -> [F.Symbol] -> BareSpec -> BareSpec 
 qualifyBareSpec env name bs sp = sp 
   { measures   = qualify env name bs (measures   sp) 
-  , asmSigs    = qualify env name bs (F.tracepp "RESOLVE-ASM-SIGS" $ asmSigs    sp)
+  , asmSigs    = qualify env name bs (asmSigs    sp)
   , sigs       = qualify env name bs (sigs       sp)
   , localSigs  = qualify env name bs (localSigs  sp)
   , reflSigs   = qualify env name bs (reflSigs   sp)
@@ -392,7 +392,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = 
   case ofBareTypeE env name l Nothing t of 
-    Left e  -> F.tracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
 rTypeTyCons :: (Ord c) => RType c tv r -> [c]

@@ -4,6 +4,8 @@ import qualified Data.Set
 
 {-@ type UList a = {v:[a] | ListUnique v} @-}
 
+{-@ assume goober :: Nat -> Nat @-} 
+
 {-@ assume reverse :: xs:(UList a) -> {v: UList a | EqElts v xs}  @-}
 
 {-@ predicate ListUnique LS = (Set_emp (listDup LS)) @-}
