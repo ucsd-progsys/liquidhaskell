@@ -9,23 +9,10 @@ Tests
   Macro
     unit-pos
 
+      StreamInvariants.hs
       PersistentVector.hs:                    FAIL (1.06s)
       - todo:using 
-
-      jeff.hs:                                FAIL (1.26s)
-      primInt0.hs:                            FAIL (3.14s)
-      T716.hs:                                FAIL (2.77s)
-      Overwrite.hs:                           FAIL (0.75s)
-      - assumes are getting dropped 
-
-
-      Invariants.hs:                          FAIL (0.76s)
-      contra0.hs:                             FAIL (0.72s)
-      - todo:variance 
-
-      bag.hs:                                 FAIL (0.98s)
-      - todo:bag-fromList 
-
+      
       NewType.hs:                             FAIL (0.66s)
       - todo:newtype
 
@@ -43,12 +30,18 @@ Tests
       Merge1.hs:                              FAIL (0.71s)
       compare2.hs:                            FAIL (0.97s)
       - EQ, LT, free-vars 
+
+
+      Invariants.hs:                          FAIL (0.76s)
+      contra0.hs:                             FAIL (0.72s)
+      - todo:variance 
+
+      bag.hs:                                 FAIL (0.98s)
+      - todo:bag-fromList 
+
       state00.hs:                             FAIL (0.75s)
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
-
-      T1089b.hs:                              FAIL (0.98s)
-      - fixpoint "Unknown func-sort:"
 
       T1146.hs:                               FAIL (0.65s)
       - alias variable capture
@@ -71,6 +64,10 @@ Tests
 
       VerifiedMonoid.hs:                      FAIL (1.61s)
       - wierd z3 crash
+
+      T1089b.hs:                              FAIL (0.98s)
+      - fixpoint "Unknown func-sort:"
+
 
 -------------------------------------------------------------
 

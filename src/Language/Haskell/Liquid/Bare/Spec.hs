@@ -102,11 +102,12 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, v
     αs     = bareRTyVar <$> as
     as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-    vts    = makeMethod env sigEnv name <$> ms'
+    vts    = [ (m, v, t) | (m, Just v, t) <- meths ]
     sts    = F.notracepp "METHODS" $
              [(val s, unClass $ val t) 
                 | (s, _)    <- ms
-                | (_, _, t) <- vts]
+                | (_, _, t) <- meths]
+    meths  = makeMethod env sigEnv name <$> ms'
     t      = rCls tc as'
 
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> LocSpecType     
@@ -120,11 +121,11 @@ unClass = snd . bkClass . fourth4 . bkUniv
 
 -- formerly, makeSpec
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
-         -> (ModName, Ghc.Var, LocSpecType)
-makeMethod env sigEnv name (lx, bt) = (name, v, t) 
+         -> (ModName, Maybe Ghc.Var, LocSpecType)
+makeMethod env sigEnv name (lx, bt) = (name, mbV, t) 
   where 
-    v = Bare.lookupGhcVar env        name "makeMethod" lx
-    t = F.notracepp msg $ Bare.cookSpecType env sigEnv name (Just v)   bt 
+    t   = F.notracepp msg $ Bare.cookSpecType env sigEnv name mbV bt
+    mbV = Bare.maybeResolveSym env name "makeMethod" lx 
     msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 

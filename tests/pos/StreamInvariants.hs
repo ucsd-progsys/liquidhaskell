@@ -1,7 +1,8 @@
+-- tag: using 
+
 module Invariant where
 
 {-@ using [a] as {v : [a] | (len v) > 0 } @-}
-
 
 xs = repeat 1
 
