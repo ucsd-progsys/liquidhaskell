@@ -86,7 +86,7 @@ loadLiftedSpec cfg srcF
       ex  <- doesFileExist specF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
       lSp <- if ex then B.decodeFile specF else return mempty
-      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
+      putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
       -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.invariants lSp)
       return lSp
 
@@ -141,7 +141,7 @@ makeGhcSpec cfg src lmap mspecs = SP
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
-    env      = Bare.makeEnv cfg src lmap  
+    env      = Bare.makeEnv cfg src lmap mspecs  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)

@@ -21,6 +21,7 @@ module Language.Haskell.Liquid.Bare.Types
   , MeasEnv (..)
   ) where 
 
+import qualified Data.HashSet                    as S
 import qualified Data.HashMap.Strict             as M
 import qualified Language.Fixpoint.Types         as F 
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -42,6 +43,7 @@ data Env = RE
   , reCfg       :: !Config
   , reQImps     :: !QImports                 -- ^ qualified imports
   , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
+  , reGlobSyms  :: !(S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
   }
 
 instance HasConfig Env where 

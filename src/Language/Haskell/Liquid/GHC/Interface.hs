@@ -325,12 +325,19 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
   liftedSpec          <- liftIO $ if isTarget then return mempty else loadLiftedSpec cfg file -- modName
-  let bareSpec         = commSpec `mappend` liftedSpec
+  let bareSpec         = updLiftedSpec commSpec liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
                      then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
                      else return Nothing
+
+updLiftedSpec :: Ms.BareSpec -> Ms.BareSpec -> Ms.BareSpec 
+updLiftedSpec s1 s2 = s1' `mappend` s2 
+  where 
+    s1'             = s1 { sigs = filter notRefl (Ms.sigs s1) }
+    notRefl         = not . (`S.member` refls) . val . fst 
+    refls           = S.fromList [ val lx | (lx, _) <- Ms.asmSigs s2 ]
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary

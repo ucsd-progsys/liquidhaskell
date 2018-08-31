@@ -1,6 +1,5 @@
 module StateMonad () where
 
-
 data ST s a = S { act :: (s -> (a, s)) } 
 
 {-@ data ST s a <p :: s -> Bool> 

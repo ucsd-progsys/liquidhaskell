@@ -73,19 +73,30 @@ import           Language.Haskell.Liquid.WiredIn
 -------------------------------------------------------------------------------
 -- | Creating an environment 
 -------------------------------------------------------------------------------
-makeEnv :: Config -> GhcSrc -> LogicMap -> Env 
-makeEnv cfg src lmap = RE 
+makeEnv :: Config -> GhcSrc -> LogicMap -> [(ModName, BareSpec)] -> Env 
+makeEnv cfg src lmap specs = RE 
   { reLMap      = lmap
   , reSyms      = syms 
   , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
   , reQImps     = gsQImports     src
-  , reLocalVars = makeLocalVars src 
+  , reLocalVars = makeLocalVars  src 
+  , reGlobSyms  = S.fromList globalSyms 
   } 
   where 
+    globalSyms  = concatMap getGlobalSyms specs
     syms        = [ (F.symbol v, v) | v <- vars ] 
     vars        = srcVars src
+
+getGlobalSyms :: (ModName, BareSpec) -> [F.Symbol]
+getGlobalSyms (_, spec) 
+  = filter (not . GM.isQualifiedSym) 
+       $ (mbName <$> measures  spec) 
+      ++ (mbName <$> cmeasures spec)
+      ++ (mbName <$> imeasures spec)
+  where 
+    mbName = F.val . msName
 
 makeLocalVars :: GhcSrc -> LocalVars 
 makeLocalVars = localVarMap . localBinds . giCbs
@@ -246,12 +257,18 @@ instance Qualify F.Symbol where
 
 qualifySymbol :: Env -> ModName -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
 qualifySymbol env name bs x
-  | isWiredInName x = x 
-  | x `elem` bs     = x
-  | otherwise       = case resolveSym env name "Symbol" x of 
-                        Left  _ -> x 
-                        Right v -> v 
-                          -- where msg = "qualify-symbol: " ++ F.showpp (x, bs)
+  | isSpl     = x 
+  | otherwise = case resolveSym env name "Symbol" x of 
+                  Left  _ -> x 
+                  Right v -> v 
+  where 
+    isSpl     = isSplSymbol env bs x
+
+isSplSymbol :: Env -> [F.Symbol] -> F.Symbol -> Bool 
+isSplSymbol env bs x 
+  =  isWiredInName x 
+  || elem x bs 
+  || S.member x (reGlobSyms env) 
 
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
