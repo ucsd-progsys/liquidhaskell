@@ -188,6 +188,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/EmptySig.hs"            2 "Error: Cannot parse specification"
   , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
   , errorTest "tests/errors/MissingReflect.hs"      2 "Error: Illegal type specification for `Main.empty_foo`" 
+  , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
   ]
 
 macroTests :: IO TestTree

@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.Bare (
 
 
 import           Prelude                                    hiding (error)
--- import qualified Control.Exception                          as Ex
+import qualified Control.Exception                          as Ex
 -- import           Data.Bifunctor
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -295,10 +295,6 @@ makeLiftedSpec1 _cfg src tycEnv lmap mySpec = mempty
     -- cbs     = giCbs       src
     -- name    = giTargetMod src
 
-
-
-
-
 --------------------------------------------------------------------------------
 -- | [NOTE]: LIFTING-STAGES 
 -- 
@@ -554,26 +550,6 @@ makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toL
   where 
     mk name                 = Mb.mapMaybe (Bare.maybeResolveSym env name msg) 
 
-
-{- OLD-REBARE 
-
-strengthenHaskellInlines  :: Bare.SigEnv -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-strengthenHaskellInlines  sigEnv = strengthenHaskell sigEnv strengthenInlineResult
-
-strengthenHaskellMeasures :: Bare.SigEnv -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-strengthenHaskellMeasures sigEnv = strengthenHaskell sigEnv strengthenMeasureResult
-
-strengthenHaskell :: Bare.SigEnv -> (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
-strengthenHaskell sigEnv strengthen hmeas sigs
-  = go <$> Misc.groupList (reverse sigs ++ hsigs)
-  where
-    hsigs      = [(x, expand $ lx {val = strengthen x}) | x <- hmeas, let lx = GM.locNamedThing x]
-    go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
-    expand     = Bare.specExpandType rtEnv 
-    rtEnv      = Bare.sigRTEnv sigEnv
-
--}
-
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
   [ (x, t) | (x, bt) <- rawTySigs env name spec 
@@ -593,20 +569,49 @@ makeAsmSigs env sigEnv myName specs =
   ] 
 
 rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
-rawAsmSigs env myName specs =  
-  [ (name, v, t)  | (name, spec) <- M.toList specs
-                  , (x   , t)    <- getAsmSigs myName name spec
-                  , v            <- symVar name x 
+rawAsmSigs env myName specs = 
+  [ (m, v, t) | (v, sigs) <- allAsmSigs env myName specs 
+              , let (m, t) = myAsmSig v sigs 
   ] 
+    
+myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
+myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp]) 
+  where 
+    mbHome      = takeUnique err sigsHome 
+    mbImp       = takeUnique err sigsImp 
+    sigsHome    = [(m, t) | (True,  m, t) <- sigs]
+    sigsImp     = [(m, t) | (False, m, t) <- sigs]
+    err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
+    errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
+
+takeUnique :: Ex.Exception e => ([a] -> e) -> [a] -> Maybe a
+takeUnique _ []  = Nothing 
+takeUnique _ [x] = Just x 
+takeUnique f xs  = Ex.throw (f xs) 
+
+allAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(Ghc.Var, [(Bool, ModName, LocBareType)])]
+allAsmSigs env myName specs = Misc.groupList
+  [ (v, (must, name, t))  
+      | (name, spec) <- M.toList specs
+      , (must, x, t) <- getAsmSigs myName name spec
+      , v            <- Mb.maybeToList (resolveAsmVar env name must x) 
+  ] 
+
+resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Maybe Ghc.Var 
+resolveAsmVar env name True  lx = Just $ Bare.lookupGhcVar env name "resolveAsmVar-True"  lx
+resolveAsmVar env name False lx = Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  
+
+{- 
   where symVar n x = F.tracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
                    . Mb.maybeToList 
                    . Bare.maybeResolveSym env n "rawAsmVar" 
                    $ x 
+-}
 
-getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(LocSymbol, LocBareType)]  
+getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(Bool, LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
-  | myName == name = Ms.asmSigs spec
-  | otherwise      = Ms.asmSigs spec ++ Ms.sigs spec
+  | myName == name = [ (True,  x, t) | (x, t) <- Ms.asmSigs spec                 ]  -- MUST    resolve, or error
+  | otherwise      = [ (False, x, t) | (x, t) <- Ms.asmSigs spec ++ Ms.sigs spec ]  -- MAY-NOT resolve
 
 -- TODO-REBARE: grepClassAssumes
 grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
@@ -624,6 +629,24 @@ makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   , sigRTEnv    = rtEnv
   } 
 
+{- OLD-REBARE 
+
+strengthenHaskellInlines  :: Bare.SigEnv -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskellInlines  sigEnv = strengthenHaskell sigEnv strengthenInlineResult
+
+strengthenHaskellMeasures :: Bare.SigEnv -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskellMeasures sigEnv = strengthenHaskell sigEnv strengthenMeasureResult
+
+strengthenHaskell :: Bare.SigEnv -> (Ghc.Var -> SpecType) -> [Ghc.Var] -> [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+strengthenHaskell sigEnv strengthen hmeas sigs
+  = go <$> Misc.groupList (reverse sigs ++ hsigs)
+  where
+    hsigs      = [(x, expand $ lx {val = strengthen x}) | x <- hmeas, let lx = GM.locNamedThing x]
+    go (v, xs) = (v,) $ L.foldl1' (flip meetLoc) xs
+    expand     = Bare.specExpandType rtEnv 
+    rtEnv      = Bare.sigRTEnv sigEnv
+
+-}
 {- TODO-REBARE: 
 fixCoercions :: txCoerce 
 
