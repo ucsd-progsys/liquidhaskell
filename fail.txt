@@ -8,12 +8,32 @@ Tests
 
   Macro
     unit-pos
+
+      PersistentVector.hs:                    FAIL (1.06s)
+      - todo:using 
+
+      maybe00.hs:                             FAIL (0.75s)
+      maybe.hs:                               FAIL (1.21s)
+      maybe3.hs:                              FAIL (0.71s)
+      SafePartialFunctions.hs:                FAIL (0.69s)
+      - measure: fromJust, isJust 
+
+      jeff.hs:                                FAIL (1.26s)
+      primInt0.hs:                            FAIL (3.14s)
+      T716.hs:                                FAIL (2.77s)
+      Overwrite.hs:                           FAIL (0.75s)
+      - assumes are getting dropped 
+
+
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
       - todo:variance 
 
-      PersistentVector.hs:                    FAIL (1.06s)
-      - todo:using 
+      bag.hs:                                 FAIL (0.98s)
+      - todo:bag-fromList 
+
+      NewType.hs:                             FAIL (0.66s)
+      - todo:newtype
 
       repeatHigherOrder.hs:                   FAIL (0.77s)
       ex1.hs:                                 FAIL (0.71s)
@@ -24,7 +44,7 @@ Tests
       kmpIO.hs:                               FAIL (5.00s)
       StateConstraints.hs:                    FAIL (3.06s)
       ResolvePred.hs:                         FAIL (1.02s)
-      * absref (fails to prove papp1, papp2 etc.)
+      - absref (fails to prove papp1, papp2 etc., see tests-absref-pos-state00.hs)
 
       Merge1.hs:                              FAIL (0.71s)
       compare2.hs:                            FAIL (0.97s)
@@ -34,28 +54,16 @@ Tests
         strengthened types for higher order ctors
 
       T1089b.hs:                              FAIL (0.98s)
-      * fixpoint "Unknown func-sort:"
+      - fixpoint "Unknown func-sort:"
 
       T1146.hs:                               FAIL (0.65s)
       - alias variable capture
-
-      maybe00.hs:                             FAIL (0.75s)
-      maybe.hs:                               FAIL (1.21s)
-      maybe3.hs:                              FAIL (0.71s)
-      SafePartialFunctions.hs:                FAIL (0.69s)
-      - measure: fromJust, isJust 
 
       anftest.hs:                             FAIL (0.66s)
       - measure variable capture
 
       RecordAccessors.hs:                     FAIL (0.84s)
       - not strengthening record field
-
-      jeff.hs:                                FAIL (1.26s)
-      primInt0.hs:                            FAIL (3.14s)
-      T716.hs:                                FAIL (2.77s)
-      Overwrite.hs:                           FAIL (0.75s)
-      - assumes are getting dropped 
 
       FractionalInstance.hs:                  FAIL (1.17s)
       - todo: don't check generated dict-instances
@@ -69,12 +77,6 @@ Tests
 
       VerifiedMonoid.hs:                      FAIL (1.61s)
       - wierd z3 crash
-
-      bag.hs:                                 FAIL (0.98s)
-      - todo:bag-fromList 
-
-      NewType.hs:                             FAIL (0.66s)
-      - todo:newtype
 
 -------------------------------------------------------------
 
