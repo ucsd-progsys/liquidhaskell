@@ -12,12 +12,6 @@ Tests
       PersistentVector.hs:                    FAIL (1.06s)
       - todo:using 
 
-      maybe00.hs:                             FAIL (0.75s)
-      maybe.hs:                               FAIL (1.21s)
-      maybe3.hs:                              FAIL (0.71s)
-      SafePartialFunctions.hs:                FAIL (0.69s)
-      - measure: fromJust, isJust 
-
       jeff.hs:                                FAIL (1.26s)
       primInt0.hs:                            FAIL (3.14s)
       T716.hs:                                FAIL (2.77s)

@@ -27,6 +27,13 @@ snd (a, b) = b
 qualif Fst(__v:a, __y:b): (__v = (fst __y))
 qualif Snd(__v:a, __y:b): (__v = (snd __y))
 
+measure mbIsJust :: Maybe a -> Bool
+mbIsJust (Just x)  = true
+mbIsJust (Nothing) = false
+
+measure mbFromJust :: Maybe a -> a
+mbFromJust (Just x) = x
+
 
 invariant {v: [a] | len v >= 0 }
 map       :: (a -> b) -> xs:[a] -> {v: [b] | len v == len xs}

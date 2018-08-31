@@ -500,8 +500,8 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.MeasE
             -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv measEnv = SpSig 
-  { gsTySigs   = F.tracepp "SIGS"     tySigs 
-  , gsAsmSigs  = F.notracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  { gsTySigs   = F.notracepp "SIGS"     tySigs 
+  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
@@ -598,7 +598,7 @@ rawAsmSigs env myName specs =
                   , (x   , t)    <- getAsmSigs myName name spec
                   , v            <- symVar name x 
   ] 
-  where symVar n x = F.notracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
+  where symVar n x = F.tracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
                    . Mb.maybeToList 
                    . Bare.maybeResolveSym env n "rawAsmVar" 
                    $ x 
@@ -607,6 +607,14 @@ getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(LocSymbol, LocBareType)]
 getAsmSigs myName name spec 
   | myName == name = Ms.asmSigs spec
   | otherwise      = Ms.asmSigs spec ++ Ms.sigs spec
+
+-- TODO-REBARE: grepClassAssumes
+grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
+grepClassAssumes  = concatMap go
+   where
+    go    xts              = Mb.catMaybes $ map goOne $ risigs xts
+    goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
+    goOne (_, RISig _)     = Nothing
 
 makeSigEnv :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Ghc.NameSet -> BareRTEnv -> Bare.SigEnv 
 makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
@@ -889,7 +897,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
 makeLiftedSpec :: GhcSpecRefl -> GhcSpecData -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec refl sData lSpec0 
-  = lSpec0 { Ms.asmSigs    = xbs
+  = lSpec0 { Ms.asmSigs    = F.tracepp "LIFTED-ASM-SIGS" xbs
            , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
            , Ms.axeqs      = gsMyAxioms refl 
            , Ms.invariants = xinvs

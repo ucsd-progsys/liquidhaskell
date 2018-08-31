@@ -166,17 +166,11 @@ isLocal = isEmptySymbol
 qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
 qualifiedSymbol = splitModuleNameExact . F.symbol 
 
--- qualifiedSymbol (Ghc.AnId x) = splitModuleNameExact . GM.dropModuleUnique . F.symbol $ x  
-
--- dropLocalUnique :: (F.Symbol, F.Symbol) -> (F.Symbol, F.Symbol)
--- dropLocalUnique (m, x)      
---   | otherwise  = (m, x) 
-
 isEmptySymbol :: F.Symbol -> Bool 
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = F.tracepp "srcThings" $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -247,7 +241,8 @@ instance Qualify F.Equation where
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify = qualifySymbol 
+  qualify env name bs x = F.tracepp ("qualifySymbol: " ++ F.showpp x) $ 
+                            qualifySymbol env name bs x 
 
 qualifySymbol :: Env -> ModName -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
 qualifySymbol env name bs x
@@ -256,6 +251,7 @@ qualifySymbol env name bs x
   | otherwise       = case resolveSym env name "Symbol" x of 
                         Left  _ -> x 
                         Right v -> v 
+                          -- where msg = "qualify-symbol: " ++ F.showpp (x, bs)
 
 -- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
 -- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
@@ -318,7 +314,7 @@ instance Qualify BareSpec where
 qualifyBareSpec :: Env -> ModName -> [F.Symbol] -> BareSpec -> BareSpec 
 qualifyBareSpec env name bs sp = sp 
   { measures   = qualify env name bs (measures   sp) 
-  , asmSigs    = qualify env name bs (asmSigs    sp)
+  , asmSigs    = qualify env name bs (F.tracepp "RESOLVE-ASM-SIGS" $ asmSigs    sp)
   , sigs       = qualify env name bs (sigs       sp)
   , localSigs  = qualify env name bs (localSigs  sp)
   , reflSigs   = qualify env name bs (reflSigs   sp)
@@ -396,7 +392,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = 
   case ofBareTypeE env name l Nothing t of 
-    Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Left e  -> F.tracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
 rTypeTyCons :: (Ord c) => RType c tv r -> [c]
@@ -415,8 +411,9 @@ knownGhcVar env name lx = Mb.isJust v
       $ maybeResolveSym env name "known-var" lx 
 
 knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 
-knownGhcTyCon env name lx = Mb.isJust v 
+knownGhcTyCon env name lx = F.tracepp  msg $ Mb.isJust v 
   where 
+    msg = ("knownGhcTyCon: "  ++ F.showpp lx)
     v :: Maybe Ghc.TyCon -- This annotation is crucial
     v = maybeResolveSym env name "known-tycon" lx 
 

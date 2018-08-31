@@ -90,7 +90,7 @@ makeClasses env sigEnv myName specs = -- (mempty, mempty) -- TODO-REBARE
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
         -> (DataConP, [(ModName, Ghc.Var, LocSpecType)])
-mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.tracepp msg (dcp, vts)
+mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, vts)
   where
     dcp    = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
     c      = btc_tc cc
@@ -103,7 +103,7 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.tracepp msg (dcp, vts
     as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
     vts    = makeMethod env sigEnv name <$> ms'
-    sts    = F.tracepp "METHODS" $
+    sts    = F.notracepp "METHODS" $
              [(val s, unClass $ val t) 
                 | (s, _)    <- ms
                 | (_, _, t) <- vts]
@@ -124,7 +124,7 @@ makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType)
 makeMethod env sigEnv name (lx, bt) = (name, v, t) 
   where 
     v = Bare.lookupGhcVar env        name "makeMethod" lx
-    t = F.tracepp msg $ Bare.cookSpecType env sigEnv name (Just v)   bt 
+    t = F.notracepp msg $ Bare.cookSpecType env sigEnv name (Just v)   bt 
     msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 

@@ -1007,10 +1007,17 @@ ppPspec k (Define  (lx, y))
   show (BFix   _) = "BFix"
   show (Define _) = "Define"-}
 
-mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec (Located BareType) LocSymbol)
-mkSpec name xs         = (name,) $ Measure.qualifySpec (symbol name) Measure.Spec
+qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
+qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
+                         -- , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
+                         }
+  where
+    tx = fmap (qualifySymbol name)
+
+mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec LocBareType LocSymbol)
+mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
-  , Measure.asmSigs    = [a | Assm   a <- xs]
+  , Measure.asmSigs    = tracepp "PARSE-ASM-SIGS" [a | Assm   a <- xs]
   , Measure.sigs       = [a | Asrt   a <- xs]
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []

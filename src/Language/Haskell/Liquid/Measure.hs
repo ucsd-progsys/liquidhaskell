@@ -17,7 +17,6 @@ module Language.Haskell.Liquid.Measure (
 
   -- * Constructors
   , mkM, mkMSpec, mkMSpec'
-  , qualifySpec
   , dataConTypes
   , defRefType
   ) where
@@ -47,12 +46,6 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types.Specs 
 import           Language.Haskell.Liquid.UX.Tidy
 
-qualifySpec :: Symbol -> Spec ty bndr -> Spec ty bndr
-qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
-                         , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
-                         }
-  where
-    tx = fmap (qualifySymbol name)
 
 mkM ::  LocSymbol -> ty -> [Def ty bndr] -> MeasureKind -> Measure ty bndr
 mkM name typ eqns kind

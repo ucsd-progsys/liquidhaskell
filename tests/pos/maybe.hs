@@ -4,7 +4,7 @@ import Language.Haskell.Liquid.Prelude (liquidAssert)
 
 {-@ type OList a = [a]<{\fld v -> (v >= fld)}> @-}
 
-{-@ filterGt :: (Ord a) => x:Maybe a -> OList a -> OList {v:a | ((isJust(x)) => (fromJust(x) <= v)) } @-}
+{-@ filterGt :: (Ord a) => x:Maybe a -> OList a -> OList {v:a | (( mbIsJust x ) => (mbFromJust x <= v)) } @-}
 
 filterGt ::  Ord a => Maybe a -> [a] -> [a]
 filterGt Nothing  xs = xs

@@ -1,8 +1,8 @@
 module Foo () where
 
-gloop = poop True
+gloop = hoop True
 
-{-@ poop :: z:a -> {v: Maybe a | fromJust v == z} @-}
-poop z = Just z
+{-@ hoop :: z:a -> {v: Maybe a | mbFromJust v == z} @-}
+hoop z = Just z
 
 

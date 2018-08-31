@@ -4,7 +4,8 @@ import Prelude hiding (fromJust, tail, head)
 
 import Data.Maybe
 
-{-@ fromJust :: {v:Maybe a | isJust v} -> a @-}
+
+{-@ fromJust :: {v:Maybe a | mbIsJust v} -> a @-}
 fromJust :: Maybe a -> a
 fromJust (Just a) = a
 

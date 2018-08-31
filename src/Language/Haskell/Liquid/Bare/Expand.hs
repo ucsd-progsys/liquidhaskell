@@ -331,7 +331,7 @@ instance Expand a => Expand (M.HashMap k a) where
 expandBareSpec :: BareRTEnv -> F.SourcePos -> BareSpec -> BareSpec
 expandBareSpec rtEnv l sp = sp 
   { measures   = expand rtEnv l (measures   sp) 
-  , asmSigs    = expand rtEnv l (asmSigs    sp)
+  , asmSigs    = expand rtEnv l (F.tracepp "EXPAND-ASM-SIGS" $ asmSigs    sp)
   , sigs       = expand rtEnv l (sigs       sp)
   , localSigs  = expand rtEnv l (localSigs  sp)
   , reflSigs   = expand rtEnv l (reflSigs   sp)

@@ -54,7 +54,7 @@ plugHoles          = plugHoles_new
 makePluggedDataCon_old embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
   | mismatchTyVars    = Ex.throw (err "type variables")
-  | otherwise         = F.atLoc ldcp $ F.tracepp "makePluggedDataCon" $ dcp 
+  | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
                         { dcpFreeTyVars = rTyVar <$> das  
                         , dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: Ghc.TyVar -> RSort) <$> das))) <$> dcpFreePred dcp
                         , dcpTyArgs     = reverse tArgs 
