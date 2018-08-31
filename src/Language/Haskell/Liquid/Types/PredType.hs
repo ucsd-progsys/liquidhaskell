@@ -200,9 +200,8 @@ dataConTy _ _
   = panic Nothing "ofTypePAppTy"
 
 ----------------------------------------------------------------------------
--- | Interface: Replace Predicate With Uninterprented Function Symbol ------
+-- | Interface: Replace Predicate With Uninterpreted Function Symbol -------
 ----------------------------------------------------------------------------
-
 replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)
                      -> UReft F.Reft -> UReft F.Reft
 replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps) s)

@@ -33,8 +33,10 @@ import Prelude hiding (error)
 import Data.Graph hiding (Graph)
 import Data.Maybe
 
+import           Control.Monad.State
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
+import qualified Data.Char                 as Char
 import qualified Data.List                 as L
 import qualified Text.Printf               as Printf 
 import qualified Text.PrettyPrint.HughesPJ as PJ
@@ -46,7 +48,7 @@ import           Language.Fixpoint.Types (Expr(..)) -- , Symbol, symbol)
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types         hiding (fresh)
 import qualified Language.Haskell.Liquid.Misc          as Misc 
 import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Bare.Resolve  as Bare
@@ -450,7 +452,7 @@ cookSpecTypeE env sigEnv name x bt
   = id 
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
-  -- TODO-REBARE . fmap txExpToBind t     -- What does this function DO
+  . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (F.notracepp (msg 6))
   . fmap (specExpandType rtEnv)                         
   . fmap (F.notracepp (msg 5))
@@ -604,7 +606,7 @@ expandEApp rtEnv l (EVar f, es) = case mBody of
     eAs     = exprAliases rtEnv
     mBody   = Misc.firstMaybes [M.lookup f eAs, M.lookup (GM.dropModuleUnique f) eAs]
     es'     = expandExpr rtEnv l <$> es
-    f0      = GM.dropModuleNamesAndUnique f
+    _f0     = GM.dropModuleNamesAndUnique f
 
 expandEApp _ _ (f, es) = F.eApps f es
 
@@ -626,3 +628,102 @@ expandApp l lre es
     msg             =  "expects" PJ.<+> pprint (length $ rtVArgs re)
                    PJ.<+> "arguments but it is given"
                    PJ.<+> pprint (length es)
+
+
+-------------------------------------------------------------------------------
+-- | Replace Predicate Arguments With Existentials ----------------------------
+-------------------------------------------------------------------------------
+txExpToBind   :: SpecType -> SpecType
+-------------------------------------------------------------------------------
+txExpToBind t = evalState (expToBindT t) (ExSt 0 M.empty πs)
+  where 
+    πs        = M.fromList [(pname p, p) | p <- ty_preds $ toRTypeRep t ]
+
+data ExSt = ExSt { fresh :: Int
+                 , emap  :: M.HashMap F.Symbol (RSort, F.Expr)
+                 , pmap  :: M.HashMap F.Symbol RPVar
+                 }
+
+-- | TODO: Niki please write more documentation for this, maybe an example?
+--   I can't really tell whats going on... (RJ)
+
+expToBindT :: SpecType -> State ExSt SpecType
+expToBindT (RVar v r)
+  = expToBindRef r >>= addExists . RVar v
+expToBindT (RFun x t1 t2 r)
+  = do t1' <- expToBindT t1
+       t2' <- expToBindT t2
+       expToBindRef r >>= addExists . RFun x t1' t2'
+expToBindT (RAllT a t)
+  = liftM (RAllT a) (expToBindT t)
+expToBindT (RAllP p t)
+  = liftM (RAllP p) (expToBindT t)
+expToBindT (RAllS s t)
+  = liftM (RAllS s) (expToBindT t)
+expToBindT (RApp c ts rs r)
+  = do ts' <- mapM expToBindT ts
+       rs' <- mapM expToBindReft rs
+       expToBindRef r >>= addExists . RApp c ts' rs'
+expToBindT (RAppTy t1 t2 r)
+  = do t1' <- expToBindT t1
+       t2' <- expToBindT t2
+       expToBindRef r >>= addExists . RAppTy t1' t2'
+expToBindT (RRTy xts r o t)
+  = do xts' <- zip xs <$> mapM expToBindT ts
+       r'   <- expToBindRef r
+       t'   <- expToBindT t
+       return $ RRTy xts' r' o t'
+  where
+     (xs, ts) = unzip xts
+expToBindT t
+  = return t
+
+expToBindReft              :: SpecProp -> State ExSt SpecProp
+expToBindReft (RProp s (RHole r)) = rPropP s <$> expToBindRef r
+expToBindReft (RProp s t)  = RProp s  <$> expToBindT t
+
+
+getBinds :: State ExSt (M.HashMap F.Symbol (RSort, F.Expr))
+getBinds
+  = do bds <- emap <$> get
+       modify $ \st -> st{emap = M.empty}
+       return bds
+
+addExists :: SpecType -> State ExSt SpecType
+addExists t = liftM (M.foldlWithKey' addExist t) getBinds
+
+addExist :: SpecType -> F.Symbol -> (RSort, F.Expr) -> SpecType
+addExist t x (tx, e) = REx x t' t
+  where 
+    t'               = (ofRSort tx) `strengthen` uTop r
+    r                = F.exprReft e
+
+expToBindRef :: UReft r -> State ExSt (UReft r)
+expToBindRef (MkUReft r (Pr p) l)
+  = mapM expToBind p >>= return . (\p -> MkUReft r p l). Pr
+
+expToBind :: UsedPVar -> State ExSt UsedPVar
+expToBind p
+  = do Just π <- liftM (M.lookup (pname p)) (pmap <$> get)
+       let pargs0 = zip (pargs p) (Misc.fst3 <$> pargs π)
+       pargs' <- mapM expToBindParg pargs0
+       return $ p{pargs = pargs'}
+
+expToBindParg :: (((), F.Symbol, F.Expr), RSort) -> State ExSt ((), F.Symbol, F.Expr)
+expToBindParg ((t, s, e), s') = liftM ((,,) t s) (expToBindExpr e s')
+
+expToBindExpr :: F.Expr ->  RSort -> State ExSt F.Expr
+expToBindExpr e@(EVar s) _ 
+  | Char.isLower $ F.headSym $ F.symbol s
+  = return e
+expToBindExpr e t
+  = do s <- freshSymbol
+       modify $ \st -> st{emap = M.insert s (t, e) (emap st)}
+       return $ EVar s
+
+freshSymbol :: State ExSt F.Symbol
+freshSymbol
+  = do n <- fresh <$> get
+       modify $ \s -> s {fresh = n+1}
+       return $ F.symbol $ "ex#" ++ show n
+

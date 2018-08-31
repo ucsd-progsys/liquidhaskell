@@ -782,8 +782,8 @@ makeSpecName :: Bare.Env -> Bare.TycEnv -> Bare.MeasEnv -> ModName -> GhcSpecNam
 -------------------------------------------------------------------------------------------
 makeSpecName env tycEnv measEnv name = SpNames 
   { gsFreeSyms = Bare.reSyms env 
-  , gsDconsP   = [ F.atLoc dc (dcpCon dc) | dc <- datacons ++ cls ] -- TODO-REBARE 
-  , gsTconsP   = Bare.qualifyTop env name <$> tycons                -- TODO-REBARE: redundant with  
+  , gsDconsP   = [ F.atLoc dc (dcpCon dc) | dc <- datacons ++ cls ] 
+  , gsTconsP   = Bare.qualifyTop env name <$> tycons                
   -- , gsLits = mempty                                              -- TODO-REBARE, redundant with gsMeas
   , gsTcEmbeds = Bare.tcEmbs     tycEnv   
   , gsADTs     = Bare.tcAdts     tycEnv 

@@ -4,15 +4,10 @@ Tests
       Euclide.hs:                             FAIL (0.72s)
     with_ple
       Euclide.hs:                             FAIL (1.01s)
-      
       - see tests-names-HiddenMethod00.hs 
 
   Macro
     unit-pos
-      repeatHigherOrder.hs:                   FAIL (0.77s)
-      ex1.hs:                                 FAIL (0.71s)
-      - absref [ PredType.hs:446:10-36: Non-exhaustive patterns in lambda ]
-
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
       - todo:variance 
@@ -20,6 +15,8 @@ Tests
       PersistentVector.hs:                    FAIL (1.06s)
       - todo:using 
 
+      repeatHigherOrder.hs:                   FAIL (0.77s)
+      ex1.hs:                                 FAIL (0.71s)
       stateInvarint.hs:                       FAIL (1.79s)
       RelativeComplete.hs:                    FAIL (1.03s)
       foldN.hs:                               FAIL (0.72s)
@@ -149,12 +146,7 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-
-      pair00.hs:                              FAIL (1.70s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+     
       GhcSort1.hs:                            FAIL (2.71s)
         tests/test.hs:293:
         Wrong exit code
