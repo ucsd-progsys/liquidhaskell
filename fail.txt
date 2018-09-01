@@ -3,10 +3,6 @@ Tests
   Macro
     unit-pos
 
-      StreamInvariants.hs
-      PersistentVector.hs:                    FAIL (1.06s)
-      - todo:using 
-
       NewType.hs:                             FAIL (0.66s)
       - todo:newtype
 

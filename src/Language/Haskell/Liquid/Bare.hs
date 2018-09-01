@@ -714,12 +714,13 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   , gsMeasures   = Bare.qualifyTop env name <$> (ms1 ++ ms2)
   , gsInvariants = makeMeasureInvariants env name sig mySpec 
                 ++ concat (makeInvariants env sigEnv <$> M.toList specs)
-  , gsIaliases   = mempty    -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
+  , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
+                   -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
   where
     measVars     = Bare.meSyms      measEnv -- ms'
                 ++ Bare.meClassSyms measEnv -- cms' 
-                ++ F.tracepp "VARMEASURES" (Bare.varMeasures env)
+                ++ Bare.varMeasures env
     -- vars         = Bare.srcVars src
     measures     = Bare.meMeasureSpec measEnv  
     ms1          = M.elems (Ms.measMap measures)
@@ -727,13 +728,19 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     mySpec       = M.lookupDefault mempty name specs
     name         = giTargetMod      src
 
+makeIAliases :: Bare.Env -> Bare.SigEnv -> (ModName, BareSpec) -> [(LocSpecType, LocSpecType)]
+makeIAliases env sigEnv (name, spec)
+  = [ z | Right z <- mkIA <$> Ms.ialiases spec ]
+  where 
+    -- mkIA :: (LocBareType, LocBareType) -> Either _ (LocSpecType, LocSpecType)
+    mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
+    mkI           = Bare.cookSpecTypeE env sigEnv name Nothing 
 
 makeInvariants :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(Maybe Ghc.Var, Located SpecType)]
 makeInvariants env sigEnv (name, spec) = 
   [ (Nothing, t) 
     | (_, bt) <- Ms.invariants spec 
     , Bare.knownGhcType env name bt
-    -- , Bare.knownGhcVar env name lx 
     , let t = Bare.cookSpecType env sigEnv name Nothing bt
   ]
 
