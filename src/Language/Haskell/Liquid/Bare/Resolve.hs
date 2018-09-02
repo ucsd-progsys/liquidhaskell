@@ -181,7 +181,7 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = F.tracepp "srcThings" $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -428,7 +428,7 @@ knownGhcVar env name lx = Mb.isJust v
       $ maybeResolveSym env name "known-var" lx 
 
 knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 
-knownGhcTyCon env name lx = F.tracepp  msg $ Mb.isJust v 
+knownGhcTyCon env name lx = F.notracepp  msg $ Mb.isJust v 
   where 
     msg = ("knownGhcTyCon: "  ++ F.showpp lx)
     v :: Maybe Ghc.TyCon -- This annotation is crucial

@@ -1017,7 +1017,7 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
 mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec LocBareType LocSymbol)
 mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]
-  , Measure.asmSigs    = tracepp "PARSE-ASM-SIGS" [a | Assm   a <- xs]
+  , Measure.asmSigs    = [a | Assm   a <- xs]
   , Measure.sigs       = [a | Asrt   a <- xs]
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []

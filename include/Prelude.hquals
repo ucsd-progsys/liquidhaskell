@@ -29,7 +29,6 @@ qualif One(v:int)     : v = 1
 qualif True1(v:GHC.Types.Bool)   : (v)
 qualif False1(v:GHC.Types.Bool)  : (~ v)
 
-
 constant papp1 : func(1, [Pred @(0); @(0); bool])
 qualif Papp(v:a,p:Pred a) : (papp1(p, v))
 

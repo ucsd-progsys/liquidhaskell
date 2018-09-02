@@ -389,8 +389,14 @@ makeSpecQual _cfg env rtEnv measEnv specs = SpQual
   } 
   where 
     quals        = concatMap (makeQualifiers env) (M.toList specs) 
-    mSyms        = M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
-    okQual q     = all (`M.member` mSyms) (F.syms q)
+    -- mSyms        = F.tracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
+    okQual q     = F.tracepp ("okQual: " ++ F.showpp q) 
+                   $ all (`S.member` mSyms) (F.syms q)
+    mSyms        = F.tracepp "MSYMS" . S.fromList 
+                   $  (fst <$> wiredSortedSyms) 
+                   ++ (fst <$> Bare.meSyms measEnv) 
+                   ++ (fst <$> Bare.meClassSyms measEnv)
+
 
 makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
 makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
@@ -496,8 +502,8 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.MeasE
             -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv measEnv = SpSig 
-  { gsTySigs   = F.notracepp "SIGS"     tySigs 
-  , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
+  { gsTySigs   = F.tracepp "gsTySigs"     tySigs 
+  , gsAsmSigs  = F.notracepp "gsAsmSigs" $ makeAsmSigs env sigEnv name specs 
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
@@ -939,7 +945,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
 makeLiftedSpec :: GhcSpecRefl -> GhcSpecData -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec refl sData lSpec0 
-  = lSpec0 { Ms.asmSigs    = F.tracepp "LIFTED-ASM-SIGS" xbs
+  = lSpec0 { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
            , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
            , Ms.axeqs      = gsMyAxioms refl 
            , Ms.invariants = xinvs

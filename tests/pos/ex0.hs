@@ -1,7 +1,7 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {-@ LIQUID "--no-termination" @-}
 
-module Ex (count) where
+module Ex  where
 
 -- Testing "existential-types"
 
@@ -18,6 +18,21 @@ foldN f n = go 0
     go i x 
       | i < n     = go (i+1) (f i x)
       | otherwise = x
+
+{-@ goo :: forall a <p :: x0:Int -> x1:a -> Bool>. 
+                (i:Int -> a<p i> -> a<p (i+1)>) 
+              -> i:{v: Int | 0 <= v}
+              -> n:{v: Int | i <= v}
+              -> a <p i> 
+              -> a <p n>
+  @-}
+
+goo :: (Int -> a -> a) -> Int -> Int -> a -> a
+goo f i n x 
+  | i < n     = goo f (i+1) n (f i x) 
+  | otherwise = x
+
+
 
 
 {-@ count :: m: {v: Int | v > 0 } -> {v: Int | v = m} @-}

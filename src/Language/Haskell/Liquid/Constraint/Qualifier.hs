@@ -33,7 +33,7 @@ import           Language.Haskell.Liquid.Types
 giQuals :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 giQuals info lEnv
-  =  notracepp "GI-QUALS"
+  =  tracepp "GI-QUALS"
   $  condNull (useSpcQuals info) (gsQualifiers . gsQual . giSpec $ info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
