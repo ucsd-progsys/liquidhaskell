@@ -30,11 +30,11 @@ import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
--- import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
+import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 import           System.Directory                           (doesFileExist)
 import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     as Misc 
-import           Language.Fixpoint.Types                    hiding (DataDecl, Error, panic)
+import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 -- import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
@@ -500,7 +500,7 @@ makeSpecSig name specs env sigEnv measEnv = SpSig
   , gsAsmSigs  = F.tracepp "ASM-SIGS" $ makeAsmSigs env sigEnv name specs 
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
-  , gsNewTypes = mempty -- TODO-REBARE :: ![(TyCon, LocSpecType)]
+  , gsNewTypes = makeNewTypes env sigEnv allSpecs 
   }
   where 
     mySpec     = M.lookupDefault mempty name specs
@@ -601,13 +601,6 @@ resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Maybe Ghc.Var
 resolveAsmVar env name True  lx = Just $ Bare.lookupGhcVar env name "resolveAsmVar-True"  lx
 resolveAsmVar env name False lx = Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  
 
-{- 
-  where symVar n x = F.tracepp ("RAW-ASM-SIGS: " ++ F.showpp x) 
-                   . Mb.maybeToList 
-                   . Bare.maybeResolveSym env n "rawAsmVar" 
-                   $ x 
--}
-
 getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(Bool, LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
   | myName == name = [ (True,  x, t) | (x, t) <- Ms.asmSigs spec                 ]  -- MUST    resolve, or error
@@ -628,6 +621,26 @@ makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   , sigExports  = exports 
   , sigRTEnv    = rtEnv
   } 
+
+makeNewTypes :: Bare.Env -> Bare.SigEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.TyCon, LocSpecType)]
+makeNewTypes env sigEnv specs = 
+  [ makeNewType env sigEnv name d 
+      | (name, spec) <- specs
+      , d            <- Ms.newtyDecls spec 
+  ] 
+
+makeNewType :: Bare.Env -> Bare.SigEnv -> ModName -> DataDecl -> (Ghc.TyCon, LocSpecType)
+makeNewType env sigEnv name d  = (c, t) 
+  where 
+    c                          = Bare.lookupGhcDnTyCon env name "makeNewType" n
+    t                          = Bare.cookSpecType env sigEnv name Nothing bt
+    bt                         = getTy n (tycSrcPos d) (tycDCons d)
+    n                          = tycName d
+    getTy _ l [c]
+      | [(_, t)] <- dcFields c = Loc l l t
+    getTy n l _                = Ex.throw (err n l) 
+    err n l                    = ErrOther (GM.sourcePosSrcSpan l) ("Bad new type declaration:" <+> F.pprint n) :: UserError
+
 
 {- OLD-REBARE 
 
@@ -721,7 +734,6 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     measVars     = Bare.meSyms      measEnv -- ms'
                 ++ Bare.meClassSyms measEnv -- cms' 
                 ++ Bare.varMeasures env
-    -- vars         = Bare.srcVars src
     measures     = Bare.meMeasureSpec measEnv  
     ms1          = M.elems (Ms.measMap measures)
     ms2          =          Ms.imeas   measures
