@@ -390,9 +390,9 @@ makeSpecQual _cfg env rtEnv measEnv specs = SpQual
   where 
     quals        = concatMap (makeQualifiers env) (M.toList specs) 
     -- mSyms        = F.tracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
-    okQual q     = F.tracepp ("okQual: " ++ F.showpp q) 
+    okQual q     = F.notracepp ("okQual: " ++ F.showpp q) 
                    $ all (`S.member` mSyms) (F.syms q)
-    mSyms        = F.tracepp "MSYMS" . S.fromList 
+    mSyms        = F.notracepp "MSYMS" . S.fromList 
                    $  (fst <$> wiredSortedSyms) 
                    ++ (fst <$> Bare.meSyms measEnv) 
                    ++ (fst <$> Bare.meClassSyms measEnv)
@@ -559,7 +559,7 @@ makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toL
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
 makeTySigs env sigEnv name spec = 
   [ (x, t) | (x, bt) <- rawTySigs env name spec 
-           , let t    = Bare.cookSpecType env sigEnv name (Just x) bt 
+           , let t    = Bare.cookSpecType env sigEnv name (Just (Bare.HsTV, x)) bt 
   ] 
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
@@ -571,7 +571,7 @@ rawTySigs env name spec =
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
   [ (x, t) | (name, x, bt) <- rawAsmSigs env myName specs
-           , let t = Bare.cookSpecType env sigEnv name (Just x) bt
+           , let t = Bare.cookSpecType env sigEnv name (Just (Bare.LqTV, x)) bt
   ] 
 
 rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
@@ -727,7 +727,7 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
 makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
-                       , let tt = Bare.plugHoles sigEnv name x t 
+                       , let tt = Bare.plugHoles sigEnv name Bare.LqTV x t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualifyTop env name <$> (ms1 ++ ms2)
@@ -922,11 +922,9 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     cms           = Bare.makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
-                                               -- , v       <- msVar lx 
                                                , Mb.isNothing (lookup (val lx) cms') ]
     cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
-    -- msVar         = Mb.maybeToList . Bare.maybeResolveSym env name "measure-var" 
     -- unpacking the environement
     tyi           = Bare.tcTyConMap    tycEnv 
     dcSelectors   = Bare.tcSelMeasures tycEnv 

@@ -27,6 +27,20 @@ import qualified Language.Haskell.Liquid.Bare.Types as Bare
 import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 -- import Language.Haskell.Liquid.Bare.Env
 
+---------------------------------------------------------------------------------------
+-- [NOTE: Plug-Holes-TyVars] We have _two_ versions of `plugHoles:
+-- * `HsTyVars` ensures that the returned signature uses the GHC type variables;
+--   We need this as these tyvars can appear in the SOURCE (as type annotations, or
+--   as the types of lambdas) and renaming them will cause problems; 
+-- * `LqTyVars` ensures that the returned signatuer uses the LIQUID type variables; 
+--   We need this e.g. for class specifications where we cannot change the tyvars 
+--   used inside method signatures as that messes up the type for the data-constructor 
+--   for the dictionary (as we need to use the same tyvars as are "bound" in the class 
+--   definition).
+-- In short, use `HsTyVars` when we also have to analyze the binder's SOURCE; and 
+-- otherwise, use `LqTyVars`.
+---------------------------------------------------------------------------------------
+
 --------------------------------------------------------------------------------
 -- | NOTE: Be *very* careful with the use functions from RType -> GHC.Type,
 --   e.g. toType, in this module as they cannot handle LH type holes. Since
@@ -34,11 +48,11 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
 makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> M.HashMap Ghc.TyCon RTyCon -> Ghc.NameSet
-               -> Ghc.Var -> LocSpecType
+               -> Bare.PlugTV -> Ghc.Var -> LocSpecType
                -> LocSpecType
 
-makePluggedSig name embs tyi exports x t = 
-    plugHoles embs tyi x r τ t
+makePluggedSig name embs tyi exports k x t = 
+    plugHoles k embs tyi x r τ t
   where 
     τ = Ghc.expandTypeSynonyms (Ghc.varType x)
     r = maybeTrue x name exports
@@ -49,7 +63,9 @@ makePluggedDataCon, makePluggedDataCon_old, makePluggedDataCon_new :: F.TCEmb Gh
 -- plugHoles          = plugHoles_old 
 
 makePluggedDataCon = makePluggedDataCon_new 
-plugHoles          = plugHoles_new 
+
+plugHoles Bare.HsTV = plugHoles_old
+plugHoles Bare.LqTV = plugHoles_new 
 
 makePluggedDataCon_old embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
@@ -66,8 +82,8 @@ makePluggedDataCon_old embs tyi ldcp
     (das, _, dts, dt) = Ghc.dataConSig dc
     rest              = dcpTyRes       dcp
     tArgs             = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ dcpTyArgs dcp)
-    tRes              = plugHoles embs tyi (Ghc.dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
-    plug t1 t2        = plugHoles embs tyi (Ghc.dataConName dc) (const killHoles) t1 (F.atLoc ldcp t2)
+    tRes              = plugHoles Bare.HsTV embs tyi (Ghc.dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
+    plug t1 t2        = plugHoles Bare.HsTV embs tyi (Ghc.dataConName dc) (const killHoles) t1 (F.atLoc ldcp t2)
 
     mismatchFlds      = length dts /= length (dcpTyArgs dcp)
     mismatchTyVars    = length das /= length (dcpFreeTyVars dcp) 
@@ -121,7 +137,7 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
     pRep             = toRTypeRep (val pT)
-    pT               = plugHoles embs tyi dcName (const killHoles) hsT (F.atLoc ldcp lqT)
+    pT               = plugHoles Bare.LqTV embs tyi dcName (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr Ghc.mkFunTy    hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
@@ -131,16 +147,16 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)
 
 
-plugHoles, plugHoles_old, plugHoles_new 
+plugHoles_old, plugHoles_new 
   :: (Ghc.NamedThing a, PPrint a, Show a)
-          => F.TCEmb Ghc.TyCon
-          -> Bare.TyConMap 
-          -> a
-          -> (SpecType -> RReft -> RReft)
-          -> Ghc.Type
-          -> LocSpecType
-          -> LocSpecType
-
+  => F.TCEmb Ghc.TyCon
+  -> Bare.TyConMap 
+  -> a
+  -> (SpecType -> RReft -> RReft)
+  -> Ghc.Type
+  -> LocSpecType
+  -> LocSpecType
+  
 -- NOTE: this use of toType is safe as rt' is derived from t.
 plugHoles_old tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
@@ -175,8 +191,6 @@ plugHoles_new tce tyi x f t0 zz@(Loc l l' st0)
     . mkArrow (updateRTVar <$> as') ps (ls1 ++ ls2) [] [] 
     . makeCls cs' 
     . goPlug tce tyi f rt' 
-    -- . mapExprReft (\_ -> F.applyCoSub coSub) 
-    -- . subts su 
     $ st 
   where 
     rt'               = tx rt

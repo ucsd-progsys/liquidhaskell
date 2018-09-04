@@ -63,6 +63,7 @@ import           Language.Haskell.Liquid.Types.Bounds
 
 import qualified Language.Haskell.Liquid.Measure            as Ms
 
+import           Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import           Language.Haskell.Liquid.Bare.Types         as Bare 
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
@@ -102,7 +103,7 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, v
     αs     = bareRTyVar <$> as
     as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-    vts    = [ (m, v, t) | (m, Just v, t) <- meths ]
+    vts    = [ (m, v, t) | (m, Just (_, v), t) <- meths ]
     sts    = F.notracepp "METHODS" $
              [(val s, unClass $ val t) 
                 | (s, _)    <- ms
@@ -121,11 +122,11 @@ unClass = snd . bkClass . fourth4 . bkUniv
 
 -- formerly, makeSpec
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
-         -> (ModName, Maybe Ghc.Var, LocSpecType)
+         -> (ModName, Maybe (Bare.PlugTV, Ghc.Var), LocSpecType)
 makeMethod env sigEnv name (lx, bt) = (name, mbV, t) 
   where 
     t   = F.notracepp msg $ Bare.cookSpecType env sigEnv name mbV bt
-    mbV = Bare.maybeResolveSym env name "makeMethod" lx 
+    mbV = (Bare.LqTV,) <$> Bare.maybeResolveSym env name "makeMethod" lx 
     msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 

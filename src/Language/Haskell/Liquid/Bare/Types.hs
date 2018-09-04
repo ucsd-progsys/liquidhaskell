@@ -19,8 +19,12 @@ module Language.Haskell.Liquid.Bare.Types
 
     -- * Measure related environment 
   , MeasEnv (..)
+
+    -- * Misc 
+  , PlugTV (..)
   ) where 
 
+import qualified Text.PrettyPrint.HughesPJ       as PJ 
 import qualified Data.HashSet                    as S
 import qualified Data.HashMap.Strict             as M
 import qualified Language.Fixpoint.Types         as F 
@@ -31,6 +35,18 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding (Located)
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec
+
+-------------------------------------------------------------------------------
+-- | See [NOTE: Plug-Holes-TyVars] for a rationale for @PlugTV@ 
+-------------------------------------------------------------------------------
+
+data PlugTV = HsTV -- ^ Use tyvars from GHC specification 
+            | LqTV -- ^ Use tyvars from Liquid specification
+            deriving (Show)
+
+instance F.PPrint PlugTV where 
+  pprintTidy _ = PJ.text . show 
+
 
 -------------------------------------------------------------------------------
 -- | Name resolution environment 
