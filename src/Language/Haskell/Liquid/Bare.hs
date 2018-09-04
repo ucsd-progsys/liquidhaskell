@@ -502,7 +502,7 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.MeasE
             -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv measEnv = SpSig 
-  { gsTySigs   = F.tracepp "gsTySigs"     tySigs 
+  { gsTySigs   = F.notracepp "gsTySigs"     tySigs 
   , gsAsmSigs  = F.notracepp "gsAsmSigs" $ makeAsmSigs env sigEnv name specs 
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
@@ -565,8 +565,10 @@ makeTySigs env sigEnv name spec =
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 rawTySigs env name spec = 
   [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
-           , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
+           , let v   = {- dump $ -} Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
+  where 
+   -- dump x = fst . F.tracepp "RAW-SIG" $ (x, ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 

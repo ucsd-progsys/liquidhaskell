@@ -64,6 +64,7 @@ makePluggedDataCon, makePluggedDataCon_old, makePluggedDataCon_new :: F.TCEmb Gh
 
 makePluggedDataCon = makePluggedDataCon_new 
 
+-- plugHoles _         = plugHoles_old
 plugHoles Bare.HsTV = plugHoles_old
 plugHoles Bare.LqTV = plugHoles_new 
 

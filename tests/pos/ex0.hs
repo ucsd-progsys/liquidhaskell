@@ -19,12 +19,12 @@ foldN f n = go 0
       | i < n     = go (i+1) (f i x)
       | otherwise = x
 
-{-@ goo :: forall a <p :: x0:Int -> x1:a -> Bool>. 
-                (i:Int -> a<p i> -> a<p (i+1)>) 
+{-@ goo :: forall a <pig :: x0:Int -> x1:a -> Bool>. 
+                (i:Int -> a<pig i> -> a<pig (i+1)>) 
               -> i:{v: Int | 0 <= v}
               -> n:{v: Int | i <= v}
-              -> a <p i> 
-              -> a <p n>
+              -> a <pig i> 
+              -> a <pig n>
   @-}
 
 goo :: (Int -> a -> a) -> Int -> Int -> a -> a

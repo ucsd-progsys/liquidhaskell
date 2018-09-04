@@ -397,7 +397,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , giTargetMod = ModName Target (moduleName (ms_mod modSum))
     , giCbs       = coreBinds
     , giImpVars   = impVars 
-    , giDefVars   = dataCons ++ ( letVars coreBinds) 
+    , giDefVars   = dataCons ++ (letVars coreBinds) 
     , giUseVars   = readVars coreBinds
     , giDerVars   = derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modGuts
     , gsExports   = mgi_exports  modGuts 
@@ -409,7 +409,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsQImports  = qualifiedImports typechecked 
     , gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
     }
-
+  
 _impThings :: [Var] -> [TyThing] -> [TyThing]
 _impThings vars  = filter ok
   where

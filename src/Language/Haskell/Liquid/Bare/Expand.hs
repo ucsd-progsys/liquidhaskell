@@ -471,6 +471,8 @@ cookSpecTypeE env sigEnv name x bt
     rtEnv = Bare.sigRTEnv    sigEnv
     embs  = Bare.sigEmbs     sigEnv 
     tyi   = Bare.sigTyRTyMap sigEnv
+    -- x     = dump <$> x0 
+    -- dump x = fst . F.tracepp "COOK-SPEC" $ (x, ofType (Ghc.expandTypeSynonyms (Ghc.varType (snd x))) :: SpecType)
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe (Bare.PlugTV, Ghc.Var) -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing      = id 

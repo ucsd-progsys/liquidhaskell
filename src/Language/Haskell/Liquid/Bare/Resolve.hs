@@ -213,17 +213,25 @@ typeTyCons t = tops t ++ inners t
     tops     = Mb.maybeToList . Ghc.tyConAppTyCon_maybe
     inners   = concatMap typeTyCons . snd . Ghc.splitAppTys 
 
--- tyConAppTyCon_maybe :: Type -> Maybe TyCon 
--- splitAppTys :: Type -> (Type, [Type]) 
+-- | We prioritize the @Ghc.Var@ in @srcVars@ because @giDefVars@ and @gsTyThings@ 
+--   have _different_ values for the same binder, with different types where the 
+--   type params are alpha-renamed. However, for absref, we need _the same_ 
+--   type parameters as used by GHC as those are used inside the lambdas and
+--   other bindings in the code. See also [NOTE: Plug-Holes-TyVars] and 
+--      tests-absref-pos-Papp00.hs 
 
 srcVars :: GhcSrc -> [Ghc.Var]
-srcVars src = Misc.sortNub . filter Ghc.isId $ concat 
-  [ giDerVars src
-  , giImpVars src 
-  , giDefVars src 
-  , giUseVars src 
-  , [ x | Ghc.AnId x <- gsTyThings src ]
+srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat 
+  [ key "SRC-VAR-DEF" 0 <$> giDefVars src 
+  , key "SRC-VAR-DER" 1 <$> giDerVars src
+  , key "SRC-VAR-IMP" 2 <$> giImpVars src 
+  , key "SRC-VAR-USE" 3 <$> giUseVars src 
+  , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- gsTyThings src ]
   ]
+  where 
+    key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
+    key s i x  = (i, F.symbol x, {- dump s -} x) 
+    _dump msg x = fst . F.notracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
 
 dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
 dataConVars dcs = concat 
