@@ -254,7 +254,7 @@ isInfixOfBS bufLen chunkSz t = not . null . indicesBS bufLen chunkSz t
 {-@ type LNat N = {v:Nat | v < N} @-}
 
 chunksOf :: Int -> [a] -> [[a]]
-chunksOf = undefined
+chunksOf =  undefined
 
 {-@ assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s] @-}
 assumeIndices :: BS.ByteString -> BS.ByteString -> [Int]

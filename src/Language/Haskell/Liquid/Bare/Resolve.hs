@@ -80,7 +80,8 @@ makeEnv cfg src lmap specs = RE
   , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
   , reCfg       = cfg
-  , reQImps     = gsQImports     src
+  , reQualImps  = gsQualImps     src
+  , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
   , reGlobSyms  = S.fromList globalSyms 
   } 
@@ -481,12 +482,15 @@ resolveWith f env name kind lx =
   where 
     xSym   = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = lookupTyThing env name (val lx) 
-    -- msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
+    things = F.tracepp msg $ lookupTyThing env name (val lx) 
+    msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
---   any @Ghc.TyThing@ that match that name.  
+--   any @Ghc.TyThing@ that match that name. The code is a bit hairy as we
+--   have various heuristics to approximiate how GHC resolves names. e.g. 
+--   see tests-names-pos-*.hs, esp. vector04.hs where we need the name `Vector` 
+--   to resolve to `Data.Vector.Vector` and not `Data.Vector.Generic.Base.Vector`... 
 -------------------------------------------------------------------------------
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
@@ -494,31 +498,43 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
                                (k,ts):_ -> F.notracepp (msg k) ts
                                []       -> []
   where 
-    matches                = [ (k, t) | (m, t) <- things, k <- matchMod nameSym m mods] 
+    matches                = [ ((k, m), t) | (m, t) <- things, k <- mm nameSym m mods]
     things                 = M.lookupDefault [] x (_reTyThings env)
     msg k                  = "lookupTyThing: " ++ F.showpp (sym, k, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
+    mm name m ms           = F.tracepp ("matchMod: " ++ F.showpp (sym, name, m, ms)) $ 
+                              matchMod env name m ms 
 
-matchMod :: F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
-matchMod name m Nothing     
-  | m == name        = [0]      -- prioritize names defined in *this* module 
-  | otherwise        = [1]      -- over names coming from elsewhere.
-matchMod name m (Just ms)   
-  |  isEmptySymbol m 
-  && ms == [name]    = [0]      -- local variable, see tests-names-pos-local00.hs
-  | ms == [m]        = [1]
-  | isExtMatch       = [2]      -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
-  | otherwise        = []  
+matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
+matchMod env tgtName defName Nothing     
+  | defName == tgtName = [0]                       -- prioritize names defined in *this* module 
+  | otherwise          = [matchImp env defName 1]  -- prioritize directly imported modules over 
+                                                   -- names coming from elsewhere, with a 
+                                                    
+
+matchMod env tgtName defName (Just ms)   
+  |  isEmptySymbol defName 
+  && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
+  | ms == [defName]    = [1]
+  | isExtMatch         = [matchImp env defName 2]  -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+  | otherwise          = []  
   where 
-    isExtMatch       = any (`F.isPrefixOfSym` m) ms
+    isExtMatch       = any (`F.isPrefixOfSym` defName) ms
 
 symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env s = (x, glerb <$> modMb) 
   where 
     (modMb, x)      = unQualifySymbol s 
-    glerb m         = M.lookupDefault [m] m (reQImps env) 
- 
+    glerb m         = M.lookupDefault [m] m (reQualImps env) 
+
+-- | @matchImp@ lets us prioritize @TyThing@ defined in directly imported modules over 
+--   those defined elsewhere.
+matchImp :: Env -> F.Symbol -> Int -> Int 
+matchImp env defName i   
+  | S.member defName (reAllImps env) = i 
+  | otherwise                       = i + 1 
+
 -- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
 --   `mod` is the name of the module, derived from `sym` if qualified.
 unQualifySymbol :: F.Symbol -> (Maybe F.Symbol, F.Symbol)

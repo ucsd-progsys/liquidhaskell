@@ -1,27 +1,8 @@
-* tests-absref-pos-state00.hs 
-  in `develop` the bind for `p` has 
+      local02.hs:           FAIL (0.68s)
+      Capture01.hs:         FAIL (0.78s)
+      Fulcrum.hs:           FAIL (1.66s)
 
-    bind 9 p : {VV##175 : (Pred s##aoq) | []}
 
-    constraint:
-      env [0; 1; 2; 3; 4; 5; 6; 7; 8; 9; 71]
-      lhs {VV##F##12 : s##aoq | [(papp1 p VV##F##12)]}
-      rhs {VV##F##12 : s##aoq | [$k_##196[lq_tmp$x##194:=VV##F##12][VV##F:=VV##F##12][VV##195:=VV##F##12][lq_tmp$x##190:=lq_anf$##7205759403792796997##dSN][lq_tmp$x##187:=VV##529]]}
-      id 12 tag [3]
-      // META constraint id 12 : ()
-
-  in `phadej` the sorts are 
-
-    bind 7 p : {VV##570 : (Pred s##xo) | []}
-
-    constraint:
-      env [0; 1; 2; 3; 4; 5; 6; 7; 69]
-      lhs {VV##F##12 : s##asC | [(papp1 p VV##F##12)]}
-      rhs {VV##F##12 : s##asC | [$k_##591[lq_tmp$x##589:=VV##F##12][VV##F:=VV##F##12][VV##590:=VV##F##12][lq_tmp$x##582:=VV##924][lq_tmp$x##585:=lq_anf$##7205759403792797288##dXu]]}
-      id 12 tag [3]
-      // META constraint id 12 : ()
-
-which is throwing the qualifiers off...
 
 Tests
 

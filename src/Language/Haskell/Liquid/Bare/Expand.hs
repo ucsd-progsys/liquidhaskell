@@ -61,17 +61,28 @@ makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap
 makeRTEnv env m mySpec iSpecs lmap 
           = makeRTAliases tAs (makeREAliases eAs) 
   where
-    tAs   = [ t                   | (_, s) <- specs, t <- Ms.aliases  s]
-    eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s]
-         -- ++ [ specREAlias env m e | e      <- Ms.ealiases lfSpec                ]                        
+    tAs   = fmap renameRTVArgs <$> tAs0 
+    eAs   = fmap renameRTVArgs <$> eAs0 
+    tAs0  = [ t                   | (_, s) <- specs, t <- Ms.aliases  s]
+    eAs0  = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s]
          ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
-                                  , let e = lmapEAlias xl                       ]
+                                  , let e    = lmapEAlias xl           ]
     specs = (m, mySpec) : M.toList iSpecs
+
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
   where
     f rtEnv xt = setREAlias rtEnv (expandLoc rtEnv xt)
+
+-- | @renameRTVArgs@ ensures that @RTAlias@ value parameters have distinct names 
+--   to avoid variable capture e.g. as in tests-names-pos-Capture01.hs
+renameRTVArgs :: (F.Subable a) => RTAlias x a -> RTAlias x a 
+renameRTVArgs rt = rt { rtBody = F.subst su (rtBody rt) } 
+  where 
+    su           = F.mkSubst (zipWith shift (rtVArgs rt) [0..])
+    shift x i    = (x, F.eVar (rtArg x i))
+    rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i) 
 
 -- makeRTAliases :: [Located (RTAlias RTyVar SpecType)] -> SpecRTEnv -> SpecRTEnv  
 makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv  

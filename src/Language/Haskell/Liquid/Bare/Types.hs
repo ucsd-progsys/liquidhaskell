@@ -57,7 +57,8 @@ data Env = RE
   , _reSubst    :: !F.Subst                  -- ^ see "su"   in old makeGhcSpec'
   , _reTyThings :: !TyThingMap 
   , reCfg       :: !Config
-  , reQImps     :: !QImports                 -- ^ qualified imports
+  , reQualImps  :: !QImports                 -- ^ qualified imports
+  , reAllImps   :: !(S.HashSet F.Symbol)     -- ^ all imported modules
   , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
   , reGlobSyms  :: !(S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
   }

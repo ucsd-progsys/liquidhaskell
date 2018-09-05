@@ -406,7 +406,8 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsFiTcs     = fiTcs 
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
-    , gsQImports  = qualifiedImports typechecked 
+    , gsQualImps  = qualifiedImports typechecked 
+    , gsAllImps   = allImports       typechecked
     , gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
     }
   
@@ -416,6 +417,11 @@ _impThings vars  = filter ok
     vs          = S.fromList vars 
     ok (AnId x) = S.member x vs  
     ok _        = True 
+
+allImports :: TypecheckedModule -> S.HashSet Symbol 
+allImports tm = case tm_renamed_source tm of 
+  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
+  Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps) 
 
 qualifiedImports :: TypecheckedModule -> QImports 
 qualifiedImports tm = case tm_renamed_source tm of 

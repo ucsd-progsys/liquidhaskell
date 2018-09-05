@@ -18,12 +18,12 @@ unsafeIndex
     -> { n : Int | 0 <= n && n < bslen bs }
     -> _ 
 
-assume unsafeTake
+unsafeTake
     :: n : { n : Int | 0 <= n }
     -> i : { i : Data.ByteString.ByteString | n <= bslen i }
     -> { o : Data.ByteString.ByteString | bslen o == n }
 
-assume unsafeDrop
+unsafeDrop
     :: n : { n : Int | 0 <= n }
     -> i : { i : Data.ByteString.ByteString | n <= bslen i }
     -> { o : Data.ByteString.ByteString | bslen o == bslen i - n }
