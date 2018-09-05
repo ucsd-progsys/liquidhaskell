@@ -79,11 +79,12 @@ makeEnv cfg src lmap specs = RE
   , reSyms      = syms 
   , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
-  , reCfg       = cfg
   , reQualImps  = gsQualImps     src
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
-  , reGlobSyms  = S.fromList globalSyms 
+  , reCbs       = giCbs          src
+  , reGlobSyms  = S.fromList     globalSyms 
+  , reCfg       = cfg
   } 
   where 
     globalSyms  = concatMap getGlobalSyms specs

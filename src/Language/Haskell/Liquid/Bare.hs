@@ -562,13 +562,59 @@ makeTySigs env sigEnv name spec =
            , let t    = Bare.cookSpecType env sigEnv name (Just (Bare.HsTV, x)) bt 
   ] 
 
-rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
-rawTySigs env name spec = 
+rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)] 
+rawTySigs env name = replaceLocalBinds env . bareTySigs env name 
+
+bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
+bareTySigs env name spec = 
   [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
-           , let v   = {- dump $ -} Bare.lookupGhcVar env name "rawTySigs" x 
+           , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
+
+-- | @replaceLocalBinds@ resolves that the "free" variables that appear in the 
+--   type-sigs for non-toplevel binders (that correspond to other locally bound)
+--   source variables that are visible at that at non-top-level scope. 
+--   e.g. tests-names-pos-local02.hs  
+
+replaceLocalBinds :: Bare.Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
+replaceLocalBinds env xts = topTs ++ replace locTs 
   where 
-   -- dump x = fst . F.tracepp "RAW-SIG" $ (x, ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
+    (locTs, topTs) = L.partition (isLocalVar . fst) xts
+    replace        = M.toList . gos M.empty (Bare.reCbs env) . M.fromList 
+
+    gos           :: SymMap -> [Ghc.CoreBind] -> SigMap -> SigMap 
+    gos env cbs m = L.foldl' (go env) m cbs 
+
+    go             :: SymMap -> SigMap -> Ghc.CoreBind ->  SigMap 
+    go env m (NonRec x e) = goB env m (x, e) 
+    go env m (Rec    xes) = L.foldl' (\(env, m)  (x, e) -> (addB env x, goB env m (x, e))) (env, m) xes 
+
+    goB :: SymMap -> SigMap -> (Ghc.Var, Ghc.CoreExpr) -> SigMap 
+    goB env m (x, e)      = undefined 
+
+    addB :: SymMap -> Ghc.Var -> SymMap 
+    addB = undefined 
+
+    goE            :: SymMap -> SigMap -> Ghc.CoreExpr ->  SigMap 
+    goE env m (Var _)         = m 
+    goE env m (App e a)       = undefined 
+    goE env m (Lam x e)       = undefined 
+    goE env m (Let b e)       = undefined 
+    goE env m (Tick _ e)      = undefined 
+    goE env m (Cast e _)      = undefined 
+    goE env m (Case e _ _ cs) = undefined 
+    goE _   m _               = undefined
+
+
+
+
+
+type SigMap = M.HashMap Ghc.Var  LocBareType 
+type SymMap = M.HashMap F.Symbol Ghc.Var 
+
+
+isLocalVar :: Ghc.Var -> Bool 
+isLocalVar = _fixme_isLocalVar 
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
@@ -1413,11 +1459,7 @@ replaceLocalBindsOne allowHO v
                  Just err -> Ex.throw err
                  Nothing  -> modify (second $ M.insert v es')
 
-
 varLocSimpleSym :: Var -> LocSymbol
 varLocSimpleSym v = simpleSymbolVar <$> GM.locNamedThing v
-
-
-
 
 -}
