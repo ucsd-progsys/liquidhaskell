@@ -1413,7 +1413,9 @@ appSolRefa s p = mapKVars f p
     f k        = Just $ M.lookupDefault PTop k s
 
 --------------------------------------------------------------------------------
-shiftVV :: SpecType -> Symbol -> SpecType
+-- shiftVV :: Int -- SpecType -> Symbol -> SpecType
+shiftVV :: (TyConable c, F.Reftable (f Reft), Functor f) 
+        => RType c tv (f Reft) -> Symbol -> RType c tv (f Reft) 
 --------------------------------------------------------------------------------
 shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
