@@ -580,38 +580,20 @@ replaceLocalBinds :: Bare.Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareT
 replaceLocalBinds env xts = topTs ++ replace locTs 
   where 
     (locTs, topTs) = L.partition (isLocalVar . fst) xts
-    replace        = M.toList . gos M.empty (Bare.reCbs env) . M.fromList 
+    replace        = M.toList . replaceSigs env . M.fromList 
 
-    gos           :: SymMap -> [Ghc.CoreBind] -> SigMap -> SigMap 
-    gos env cbs m = L.foldl' (go env) m cbs 
-
-    go             :: SymMap -> SigMap -> Ghc.CoreBind ->  SigMap 
-    go env m (NonRec x e) = goB env m (x, e) 
-    go env m (Rec    xes) = L.foldl' (\(env, m)  (x, e) -> (addB env x, goB env m (x, e))) (env, m) xes 
-
-    goB :: SymMap -> SigMap -> (Ghc.Var, Ghc.CoreExpr) -> SigMap 
-    goB env m (x, e)      = undefined 
-
-    addB :: SymMap -> Ghc.Var -> SymMap 
-    addB = undefined 
-
-    goE            :: SymMap -> SigMap -> Ghc.CoreExpr ->  SigMap 
-    goE env m (Var _)         = m 
-    goE env m (App e a)       = undefined 
-    goE env m (Lam x e)       = undefined 
-    goE env m (Let b e)       = undefined 
-    goE env m (Tick _ e)      = undefined 
-    goE env m (Cast e _)      = undefined 
-    goE env m (Case e _ _ cs) = undefined 
-    goE _   m _               = undefined
-
-
-
-
+replaceSigs :: Bare.Env -> SigMap -> SigMap 
+replaceSigs env sigm = coreVisitor repVis M.empty sigm (Bare.reCbs env) 
+  where 
+    repVis :: CoreVisitor SymMap SigMap 
+    repVis = CoreVisitor 
+      { envF  = \env x   -> M.insert (_symbol_without_suffix x) x env 
+      , bindF = \env m x -> _new_m 
+      , exprF = \_   m _ -> m 
+      }
 
 type SigMap = M.HashMap Ghc.Var  LocBareType 
 type SymMap = M.HashMap F.Symbol Ghc.Var 
-
 
 isLocalVar :: Ghc.Var -> Bool 
 isLocalVar = _fixme_isLocalVar 
