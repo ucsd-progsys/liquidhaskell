@@ -6,7 +6,7 @@
 exactly :: Int -> Int 
 exactly x = x 
 
-{-@ incr :: n:Int -> { false } @-}
+{-@ incr :: n:Int -> {v:_ | v = n + 1 } @-}
 incr :: Int -> Int
 incr n = exactly (n + 1)
 
