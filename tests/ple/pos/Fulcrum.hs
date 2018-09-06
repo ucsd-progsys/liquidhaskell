@@ -2,6 +2,7 @@
 
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
+
 {-@ infixr ++              @-}
 
 module Fulcrum where 

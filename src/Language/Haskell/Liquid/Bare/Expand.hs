@@ -59,16 +59,23 @@ makeRTEnv :: Bare.Env -> ModName -> Ms.BareSpec -> Bare.ModSpecs -> LogicMap
           -> BareRTEnv 
 --------------------------------------------------------------------------------
 makeRTEnv env m mySpec iSpecs lmap 
-          = makeRTAliases tAs (makeREAliases eAs) 
+          = renameRTArgs $ makeRTAliases tAs $ makeREAliases eAs
   where
-    tAs   = fmap (renameVV . renameRTVArgs) <$> tAs0 
-    eAs   = fmap renameRTVArgs              <$> eAs0 
-    tAs0  = [ t                   | (_, s) <- specs, t <- Ms.aliases  s]
-    eAs0  = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s]
+    tAs   = [ t                   | (_, s) <- specs, t <- Ms.aliases  s]
+    eAs   = [ specREAlias env m e | (m, s) <- specs, e <- Ms.ealiases s]
          ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e    = lmapEAlias xl           ]
     specs = (m, mySpec) : M.toList iSpecs
 
+-- | We apply @renameRTArgs@ *after* expanding each alias-definition, to 
+--   ensure that the substitutions work properly (i.e. don't miss expressions 
+--   hidden inside @RExprArg@ or as strange type parameters. 
+
+renameRTArgs :: BareRTEnv -> BareRTEnv 
+renameRTArgs rte = RTE 
+  { typeAliases = M.map (fmap (renameVV . renameRTVArgs)) (typeAliases rte) 
+  , exprAliases = M.map (fmap (           renameRTVArgs)) (exprAliases rte) 
+  } 
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
@@ -80,11 +87,12 @@ renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
 
 -- | @renameRTVArgs@ ensures that @RTAlias@ value parameters have distinct names 
 --   to avoid variable capture e.g. as in tests-names-pos-Capture01.hs
-renameRTVArgs :: (F.Subable a) => RTAlias x a -> RTAlias x a 
+renameRTVArgs :: (F.PPrint a, F.Subable a) => RTAlias x a -> RTAlias x a 
 renameRTVArgs rt = rt { rtVArgs = newArgs
-                      , rtBody  = F.subst su (rtBody rt) 
+                      , rtBody  = F.tracepp msg $ F.subst su (rtBody rt) 
                       } 
   where 
+    msg          = "renameRTVArgs: " ++ F.showpp su
     su           = F.mkSubst (zip oldArgs (F.eVar <$> newArgs)) 
     newArgs      = zipWith rtArg (rtVArgs rt) [0..]
     oldArgs      = rtVArgs rt
@@ -433,7 +441,7 @@ errRTAliasApp l la rta = Just . ErrAliasApp  sp name sp'
 --   `exprArg` converts that `BareType` into an `Expr`.
 --------------------------------------------------------------------------------
 exprArg :: F.SourcePos -> String -> BareType -> Expr
-exprArg l msg = go 
+exprArg l msg = F.tracepp ("exprArg: " ++ msg) . go 
   where 
     go :: BareType -> Expr
     go (RExprArg e)     = val e
@@ -477,11 +485,11 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (maybePlug       sigEnv name x)
   . fmap (F.notracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
-  . fmap (F.notracepp (msg 2))
+  . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
-  . F.notracepp (msg 1) 
+  . F.tracepp (msg 1) 
   . bareExpandType     rtEnv
-  . F.notracepp (msg 0) 
+  . F.tracepp (msg 0) 
   $ bt 
   where 
     msg i = "cook-" ++ show i ++ " : " ++ F.showpp x

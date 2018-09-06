@@ -21,7 +21,6 @@ module Language.Haskell.Liquid.Bare.Resolve
   , qualifyTop
   
   -- * Looking up names
-  -- , strictResolveSym
   , maybeResolveSym 
   , lookupGhcDataCon 
   , lookupGhcDnTyCon 
@@ -42,14 +41,15 @@ module Language.Haskell.Liquid.Bare.Resolve
   , ofBareTypeE
   , ofBareType
   , ofBPVar
-  -- , mkSpecType'
-  -- , ofBareExpr
 
   -- * Post-processing types
   , txRefSort
+
+  -- * Fixing local variables
+  , resolveLocalBinds 
   ) where 
 
-import qualified Control.Exception as Ex 
+-- import qualified Control.Exception as Ex 
 import qualified Data.List                         as L 
 import qualified Data.HashSet                      as S 
 import qualified Data.Maybe                        as Mb
@@ -66,6 +66,7 @@ import qualified Language.Haskell.Liquid.Misc          as Misc
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types.Types   
 import           Language.Haskell.Liquid.Types.Specs 
+import           Language.Haskell.Liquid.Types.Visitors 
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
 import           Language.Haskell.Liquid.WiredIn 
@@ -103,6 +104,7 @@ getGlobalSyms (_, spec)
 makeLocalVars :: GhcSrc -> LocalVars 
 makeLocalVars = localVarMap . localBinds . giCbs
 
+-- TODO: rewrite using CoreVisitor
 localBinds :: [Ghc.CoreBind] -> [Ghc.Var]
 localBinds                    = concatMap (bgo S.empty) 
   where
@@ -113,12 +115,12 @@ localBinds                    = concatMap (bgo S.empty)
     bgo g (Ghc.NonRec x e)    = pgo g (x, e) 
     bgo g (Ghc.Rec xes)       = concatMap (pgo g) xes 
     go  g (Ghc.App e a)       = concatMap (go  g) [e, a]
-    go  g (Ghc.Lam x e)       = go g e
+    go  g (Ghc.Lam _ e)       = go g e
     go  g (Ghc.Let b e)       = bgo g b ++ go (adds b g) e 
     go  g (Ghc.Tick _ e)      = go g e
     go  g (Ghc.Cast e _)      = go g e
-    go  g (Ghc.Case e x _ cs) = go g e ++ concatMap (go g . Misc.thd3) cs
-    go  g (Ghc.Var _)         = []
+    go  g (Ghc.Case e _ _ cs) = go g e ++ concatMap (go g . Misc.thd3) cs
+    go  _ (Ghc.Var _)         = []
     go  _ _                   = []
 
 localVarMap :: [Ghc.Var] -> LocalVars
@@ -232,7 +234,7 @@ srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat
   ]
   where 
     key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
-    key s i x  = (i, F.symbol x, {- dump s -} x) 
+    key _ i x  = (i, F.symbol x, {- dump s -} x) 
     _dump msg x = fst . F.notracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
 
 dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
@@ -394,7 +396,7 @@ lookupLocalVar :: Env -> LocSymbol -> Maybe Ghc.Var
 lookupLocalVar env lx = Misc.findNearest (F.srcLine lx) kvs
   where 
     kvs               = M.lookupDefault [] x (reLocalVars env) 
-    xn                = F.srcLine lx  
+    _xn               = F.srcLine lx  
     (_, x)            = unQualifySymbol (F.val lx)
 
 
@@ -422,8 +424,8 @@ knownGhcType env name (F.Loc l _ t) =
     Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
-rTypeTyCons :: (Ord c) => RType c tv r -> [c]
-rTypeTyCons           = Misc.sortNub . foldRType f []   
+_rTypeTyCons :: (Ord c) => RType c tv r -> [c]
+_rTypeTyCons           = Misc.sortNub . foldRType f []   
   where 
     f acc t@(RApp {}) = rt_tycon t : acc 
     f acc _           = acc
@@ -481,7 +483,7 @@ resolveWith f env name kind lx =
     -- xs  -> Left $ ErrDupNames sp (PJ.text "GOO") [] -- (pprint (F.symbol lx)) [] -- (pprint <$> xs)
     xs  -> Left $ ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)
   where 
-    xSym   = (F.val lx)
+    _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
     things = F.tracepp msg $ lookupTyThing env name (val lx) 
     msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
@@ -648,9 +650,8 @@ ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 
 --------------------------------------------------------------------------------
-mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
-mkSpecType' env name l ps t = ofBareType env name l (Just ps) t 
-
+-- REBARE mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
+-- REBARE mkSpecType' env name l ps t = ofBareType env name l (Just ps) t 
 
 -- REBARE mkSpecType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType
 -- REBARE mkSpecType env name l t = mkSpecType' env name l πs t
@@ -851,7 +852,7 @@ addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
       t  = ofRSort (pvType p) `RT.strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
 
-addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
+addSymSortRef' _sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
   | length xs == length ts
   = RProp xts (RHole r)
   | otherwise
@@ -877,4 +878,40 @@ spliceArgs msg s p = go (fst <$> s) (pargs p)
     go []     ((s,x,_):as) = (x, s):go [] as
     go (x:xs) ((s,_,_):as) = (x,s):go xs as
     go xs     []           = panic Nothing $ "spliceArgs: " ++ msg ++ "on XS=" ++ show xs
+
+---------------------------------------------------------------------------------
+-- RJ: formerly, `replaceLocalBinds` AFAICT
+-- | @resolveLocalBinds@ resolves that the "free" variables that appear in the 
+--   type-sigs for non-toplevel binders (that correspond to other locally bound)
+--   source variables that are visible at that at non-top-level scope. 
+--   e.g. tests-names-pos-local02.hs  
+---------------------------------------------------------------------------------
+resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
+---------------------------------------------------------------------------------
+resolveLocalBinds env xts = topTs ++ replace locTs 
+  where 
+    (locTs, topTs)        = L.partition isLocalSig xts
+    replace               = M.toList . replaceSigs (reCbs env) . M.fromList 
+    isLocalSig            = Mb.isJust . localKey . fst
+    -- replaceSigs :: [Ghc.CoreBind] -> SigMap -> SigMap 
+    replaceSigs cbs sigm  = coreVisitor replaceVisitor M.empty sigm cbs 
+
+replaceVisitor :: CoreVisitor SymMap SigMap 
+replaceVisitor = CoreVisitor { envF  = addBind, bindF = updSigMap, exprF = \_ m _ -> m }
+
+addBind :: SymMap -> Ghc.Var -> SymMap 
+addBind env v = case localKey v of 
+  Just vx -> M.insert vx (F.symbol v) env 
+  Nothing -> env
+    
+updSigMap :: SymMap -> SigMap -> Ghc.Var -> SigMap 
+updSigMap env m v = case M.lookup v m of 
+  Nothing -> m 
+  Just t  -> M.insert v (F.substf (F.EVar . qualifySymMap env) t) m
+
+qualifySymMap :: SymMap -> F.Symbol -> F.Symbol 
+qualifySymMap env x = M.lookupDefault x x env 
+
+type SigMap = M.HashMap Ghc.Var  LocBareType 
+type SymMap = M.HashMap F.Symbol F.Symbol
 

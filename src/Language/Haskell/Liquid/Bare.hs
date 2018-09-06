@@ -563,7 +563,7 @@ makeTySigs env sigEnv name spec =
   ] 
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)] 
-rawTySigs env name = replaceLocalBinds env . bareTySigs env name 
+rawTySigs env name = Bare.resolveLocalBinds env . bareTySigs env name 
 
 bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 bareTySigs env name spec = 
@@ -571,32 +571,7 @@ bareTySigs env name spec =
            , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 
--- | @replaceLocalBinds@ resolves that the "free" variables that appear in the 
---   type-sigs for non-toplevel binders (that correspond to other locally bound)
---   source variables that are visible at that at non-top-level scope. 
---   e.g. tests-names-pos-local02.hs  
 
-replaceLocalBinds :: Bare.Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
-replaceLocalBinds env xts = topTs ++ replace locTs 
-  where 
-    (locTs, topTs) = L.partition (isLocalVar . fst) xts
-    replace        = M.toList . replaceSigs env . M.fromList 
-
-replaceSigs :: Bare.Env -> SigMap -> SigMap 
-replaceSigs env sigm = coreVisitor repVis M.empty sigm (Bare.reCbs env) 
-  where 
-    repVis :: CoreVisitor SymMap SigMap 
-    repVis = CoreVisitor 
-      { envF  = \env x   -> M.insert (_symbol_without_suffix x) x env 
-      , bindF = \env m x -> _new_m 
-      , exprF = \_   m _ -> m 
-      }
-
-type SigMap = M.HashMap Ghc.Var  LocBareType 
-type SymMap = M.HashMap F.Symbol Ghc.Var 
-
-isLocalVar :: Ghc.Var -> Bool 
-isLocalVar = _fixme_isLocalVar 
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
