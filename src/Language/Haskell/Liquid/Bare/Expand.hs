@@ -70,7 +70,6 @@ makeRTEnv env m mySpec iSpecs lmap
 -- | We apply @renameRTArgs@ *after* expanding each alias-definition, to 
 --   ensure that the substitutions work properly (i.e. don't miss expressions 
 --   hidden inside @RExprArg@ or as strange type parameters. 
-
 renameRTArgs :: BareRTEnv -> BareRTEnv 
 renameRTArgs rte = RTE 
   { typeAliases = M.map (fmap (renameVV . renameRTVArgs)) (typeAliases rte) 
@@ -89,7 +88,7 @@ renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
 --   to avoid variable capture e.g. as in tests-names-pos-Capture01.hs
 renameRTVArgs :: (F.PPrint a, F.Subable a) => RTAlias x a -> RTAlias x a 
 renameRTVArgs rt = rt { rtVArgs = newArgs
-                      , rtBody  = F.tracepp msg $ F.subst su (rtBody rt) 
+                      , rtBody  = F.notracepp msg $ F.subst su (rtBody rt) 
                       } 
   where 
     msg          = "renameRTVArgs: " ++ F.showpp su
@@ -441,7 +440,7 @@ errRTAliasApp l la rta = Just . ErrAliasApp  sp name sp'
 --   `exprArg` converts that `BareType` into an `Expr`.
 --------------------------------------------------------------------------------
 exprArg :: F.SourcePos -> String -> BareType -> Expr
-exprArg l msg = F.tracepp ("exprArg: " ++ msg) . go 
+exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go 
   where 
     go :: BareType -> Expr
     go (RExprArg e)     = val e
@@ -485,19 +484,17 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (maybePlug       sigEnv name x)
   . fmap (F.notracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
-  . fmap (F.tracepp (msg 2))
+  . fmap (F.notracepp (msg 2))
   . bareSpecType       env name 
-  . F.tracepp (msg 1) 
+  . F.notracepp (msg 1) 
   . bareExpandType     rtEnv
-  . F.tracepp (msg 0) 
+  . F.notracepp (msg 0) 
   $ bt 
   where 
     msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
     rtEnv = Bare.sigRTEnv    sigEnv
     embs  = Bare.sigEmbs     sigEnv 
     tyi   = Bare.sigTyRTyMap sigEnv
-    -- x     = dump <$> x0 
-    -- dump x = fst . F.tracepp "COOK-SPEC" $ (x, ofType (Ghc.expandTypeSynonyms (Ghc.varType (snd x))) :: SpecType)
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe (Bare.PlugTV, Ghc.Var) -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing      = id 

@@ -485,7 +485,7 @@ resolveWith f env name kind lx =
   where 
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = F.tracepp msg $ lookupTyThing env name (val lx) 
+    things = F.notracepp msg $ lookupTyThing env name (val lx) 
     msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
@@ -506,7 +506,7 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
     msg k                  = "lookupTyThing: " ++ F.showpp (sym, k, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
-    mm name m ms           = F.tracepp ("matchMod: " ++ F.showpp (sym, name, m, ms)) $ 
+    mm name m ms           = F.notracepp ("matchMod: " ++ F.showpp (sym, name, m, ms)) $ 
                               matchMod env name m ms 
 
 matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
