@@ -1,6 +1,12 @@
-      local02.hs:           FAIL (0.68s)
-      Capture01.hs:         FAIL (0.78s)
-      Fulcrum.hs:           FAIL (1.66s)
+
+      anftest.hs:                             FAIL (0.66s)
+
+      RecordAccessors.hs:                     FAIL (0.84s)
+      - not strengthening record field
+
+      FractionalInstance.hs:                  FAIL (1.17s)
+      - todo: don't check generated dict-instances
+
 
 
 
@@ -9,33 +15,12 @@ Tests
   Macro
     unit-pos
 
-      repeatHigherOrder.hs:                   FAIL (0.77s)
-      ex1.hs:                                 FAIL (0.71s)
-      stateInvarint.hs:                       FAIL (1.79s)
-      RelativeComplete.hs:                    FAIL (1.03s)
-      foldN.hs:                               FAIL (0.72s)
-      ex0.hs:                                 FAIL (0.87s)
-      kmpIO.hs:                               FAIL (5.00s)
-      StateConstraints.hs:                    FAIL (3.06s)
-      ResolvePred.hs:                         FAIL (1.02s)
-      - absref (fails to prove papp1, papp2 etc., see tests-absref-pos-state00.hs)
-
-      Invariants.hs:                          FAIL (0.76s)
-      contra0.hs:                             FAIL (0.72s)
-      - todo:variance 
-
-      bag.hs:                                 FAIL (0.98s)
-      - todo:bag-fromList 
+      anftest.hs:                             FAIL (0.66s)
+      - measure variable capture
 
       state00.hs:                             FAIL (0.75s)
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
-
-      T1146.hs:                               FAIL (0.65s)
-      - alias variable capture
-
-      anftest.hs:                             FAIL (0.66s)
-      - measure variable capture
 
       RecordAccessors.hs:                     FAIL (0.84s)
       - not strengthening record field
@@ -43,19 +28,23 @@ Tests
       FractionalInstance.hs:                  FAIL (1.17s)
       - todo: don't check generated dict-instances
 
+-----------------------------------------------------------------------
+
       TypeLitNat.hs:                          FAIL (1.18s)
       - todo: type-lits
 
-      mapTvCrash.hs:                          FAIL (0.85s)
-      vector2.hs:                             FAIL (0.90s)
-      - name resolution
+      Invariants.hs:                          FAIL (0.76s)
+      contra0.hs:                             FAIL (0.72s)
+      - todo:variance-strata 
+
+      bag.hs:                                 FAIL (0.98s)
+      - todo:bag-fromList 
 
       VerifiedMonoid.hs:                      FAIL (1.61s)
       - wierd z3 crash
 
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
-
 
 -------------------------------------------------------------
 
