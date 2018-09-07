@@ -501,13 +501,17 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
                                (k,ts):_ -> F.notracepp (msg k) ts
                                []       -> []
   where 
-    matches                = [ ((k, m), t) | (m, t) <- things, k <- mm nameSym m mods]
-    things                 = M.lookupDefault [] x (_reTyThings env)
+    matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
+                                           , k      <- mm nameSym m mods ]
     msg k                  = "lookupTyThing: " ++ F.showpp (sym, k, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
     mm name m ms           = F.notracepp ("matchMod: " ++ F.showpp (sym, name, m, ms)) $ 
                               matchMod env name m ms 
+
+lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
+lookupThings env x = Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
+  where get z      = M.lookup z (_reTyThings env)
 
 matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
 matchMod env tgtName defName Nothing     

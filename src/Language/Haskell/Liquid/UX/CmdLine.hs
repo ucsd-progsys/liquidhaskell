@@ -175,9 +175,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Check for termination and totality, Overrides no-termination flags"
           &= name "total-Haskell"
 
- , autoproofs
-    = def &= help "Automatically construct proofs from axioms"
-          &= name "auto-proofs"
+ -- , autoproofs
+ --   = def &= help "Automatically construct proofs from axioms"
+ --          &= name "auto-proofs"
 
  , nowarnings
     = def &= help "Don't display warnings, only show errors"
@@ -187,9 +187,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Don't create intermediate annotation files"
           &= name "no-annotations"
 
- , trustInternals
-    = False &= help "Trust GHC generated code"
-            &= name "trust-internals"
+ , checkDerived
+    = def &= help "Check GHC generated binders (e.g. Read, Show instances)"
+          &= name "check-derived"
 
  , caseExpandDepth 
     = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
@@ -532,10 +532,9 @@ defConfig = Config
   , gdepth            = 1
   , ginteractive      = False
   , totalHaskell      = def
-  , autoproofs        = def
   , nowarnings        = def
   , noannotations     = def
-  , trustInternals    = False
+  , checkDerived      = False
   , caseExpandDepth   = 2 
   , strata            = def
   , notruetypes       = def

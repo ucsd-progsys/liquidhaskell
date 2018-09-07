@@ -17,7 +17,7 @@ infixl 2 :*:
 --   this program is marked as SAFE...
 data PairS a b = !a :*: !b deriving (Eq,Ord,Show)
 
-{-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) { spX ::a, spY ::b<p spX> }  @-}
+{-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) { spX :: a, spY ::b<p spX> }  @-}
 
 {-@ measure psnd @-}
 psnd :: PairS a b -> b

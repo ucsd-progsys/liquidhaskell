@@ -707,7 +707,7 @@ stripParens t = fromMaybe t (strip t)
     strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 stripParensSym :: Symbol -> Symbol
-stripParensSym (symbolText -> t) = symbol $ stripParens t
+stripParensSym (symbolText -> t) = symbol (stripParens t)
 
 desugarModule :: TypecheckedModule -> Ghc DesugaredModule
 desugarModule tcm = do

@@ -48,10 +48,10 @@ data Config = Config
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
-  , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
+  -- , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
-  , trustInternals :: Bool       -- ^ type all internal variables with true
+  , checkDerived   :: Bool       -- ^ check internal (GHC-derived) binders 
   , caseExpandDepth :: Int       -- ^ maximum case expand nesting depth. 
   , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types

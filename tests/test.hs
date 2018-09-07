@@ -115,10 +115,10 @@ instance IsOption LiquidOpts where
 
 errorTests :: IO TestTree
 errorTests = group "Error-Messages"
-  [ errorTest "tests/errors/ExportMeasure0.hs"      2 "Cannot lift `llen` into refinement logic"
-  , errorTest "tests/errors/ExportMeasure1.hs"      2 "Cannot lift `psnd` into refinement logic"
-  , errorTest "tests/errors/ExportReflect0.hs"      2 "Cannot lift `identity` into refinement logic"
-  , errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `Range.pig`"
+  [ -- errorTest "tests/errors/ExportMeasure0.hs"      2 "Cannot lift `llen` into refinement logic"
+    -- errorTest "tests/errors/ExportReflect0.hs"      2 "Cannot lift `identity` into refinement logic"
+    -- errorTest "tests/errors/ExportMeasure1.hs"      2 "Cannot lift `psnd` into refinement logic"
+    errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `Range.pig`"
   , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Error: Multiple specifications for `Range.pig`"
   , errorTest "tests/errors/MultiRecSels.hs"        2 "Duplicated definitions for field `left`"
   , errorTest "tests/errors/DupFunSigs.hs"          2 "Multiple specifications for `Main.fromWeekDayNum`"
@@ -220,8 +220,6 @@ microTests = group "Micro"
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
-  -- , testGroup "eq_pos"      <$> dirTests "tests/equationalproofs/pos"           ["Axiomatize.hs", "Equational.hs"]           ExitSuccess
-  -- , testGroup "eq_neg"      <$> dirTests "tests/equationalproofs/neg"           ["Axiomatize.hs", "Equational.hs"]           (ExitFailure 1)
   ]
 
 posIgnored = [ "mapreduce.hs" ]

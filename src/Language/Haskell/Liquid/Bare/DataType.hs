@@ -36,7 +36,7 @@ import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
-import           Language.Haskell.Liquid.Types.PredType (dataConWorkRep, dataConPSpecType)
+import           Language.Haskell.Liquid.Types.PredType (dataConPSpecType)
 import qualified Language.Haskell.Liquid.Types.RefType  as RT
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Meet
@@ -539,7 +539,7 @@ ofBDataCtor :: Bare.Env
             -> [PVar RSort]
             -> DataCtor
             -> DataConP
-ofBDataCtor env name l l' tc αs ps ls πs ctor@(DataCtor c as _ xts res) = DataConP 
+ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = DataConP 
   { dcpLoc        = l                
   , dcpCon        = c'                
   , dcpFreeTyVars = RT.symbolRTyVar <$> as 

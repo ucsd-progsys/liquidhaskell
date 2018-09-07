@@ -29,10 +29,6 @@ module Language.Haskell.Liquid.NewProofCombinators (
   -- Uncheck operator used only for proof debugging
   , (==!) -- x ==! y always succeds
 
-  -- * The below operator does not check intermediate equalities
-  --   but takes optional proof argument.
-  , (==.)
-
   -- * Combining Proofs
   , (&&&)
   , withProof 
@@ -49,7 +45,6 @@ type Proof = ()
 
 toProof :: a -> Proof
 toProof _ = ()
-
 
 -------------------------------------------------------------------------------
 -- | Proof Construction -------------------------------------------------------

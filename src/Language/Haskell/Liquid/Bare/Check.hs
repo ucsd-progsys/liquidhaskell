@@ -50,8 +50,6 @@ import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 -- import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
 
 import           Debug.Trace (trace)
-
-
 ----------------------------------------------------------------------------------------------
 -- | Checking GhcSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
@@ -74,7 +72,7 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
-                     ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
+                     -- ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
                      ++ checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
                      ++ checkRTAliases "Type Alias" env            tAliases

@@ -196,7 +196,7 @@ coreVisitor vis env acc cbs   = snd (foldl' step (env, acc) cbs)
     goE env acc (Lam x e)        = snd (stepXE (env, acc) (x, e))
     goE env acc (Let b e)        = stepE env' acc' e where (env', acc') = step (env, acc) b 
     goE env acc (Case e _ _ cs)  = foldl' (goC env) (stepE env acc e) cs
-    goE env acc _                = acc 
+    goE _   acc _                = acc 
 
     goC env acc (_, xs, e)       = stepE  env' acc' e 
       where
