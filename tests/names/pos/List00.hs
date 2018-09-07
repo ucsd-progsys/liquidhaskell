@@ -4,7 +4,7 @@ module MatchIdxs where
 
 import GHC.TypeLits
 
-{-@ zoo :: [a] @-}
-zoo :: [a] 
+{-@ zoo :: [Int] @-}
+zoo :: [Int] 
 zoo = [] 
 

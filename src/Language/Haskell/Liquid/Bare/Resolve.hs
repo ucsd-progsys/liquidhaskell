@@ -185,7 +185,7 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = F.tracepp "SRCTHINGS" $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -404,7 +404,8 @@ lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon
 lookupGhcDataCon = strictResolveSym 
 
 lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
-lookupGhcTyCon = strictResolveSym 
+lookupGhcTyCon env name k lx = F.tracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
+                             $ strictResolveSym env name k lx
 
 lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Ghc.TyCon
 lookupGhcDnTyCon env name msg (DnCon  s) = lookupGhcDnCon env name msg s
@@ -498,7 +499,7 @@ resolveWith f env name kind lx =
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
 lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of 
-                               (k,ts):_ -> F.notracepp (msg k) ts
+                               (k,ts):_ -> F.tracepp (msg k) ts
                                []       -> []
   where 
     matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
@@ -747,13 +748,14 @@ ofBRType env name f l t  = go [] t
 
 matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
-  | isList c && arity == 1  = knownTC Ghc.listTyCon
-  | isTuple c               = knownTC tuplTc 
+  | isList c && arity == 1  = {- knownTC -} Right Ghc.listTyCon
+  | isTuple c               = {- knownTC -} Right tuplTc 
   | otherwise               = resolveLocSym env name msg lc 
   where 
     msg                     = "MATCH-TYCON: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
-    knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 
+    -- knownTC :: Int
+    -- knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 
 
 -- knownTyCon :: Env -> ModName -> Ghc.TyCon -> Either UserError Ghc.TyCon 
 -- knownTyCon env name tc = 

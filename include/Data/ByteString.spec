@@ -93,8 +93,8 @@ foldr1'
   -> _
 
 concat 
-  :: is : [Data.ByteString.ByteString]
-  -> { o : Data.ByteString.ByteString | len is == 0 ==> bslen o }
+  :: is : [Data.ByteString.ByteString] 
+  -> { o : Data.ByteString.ByteString | (len is == 0) ==> (bslen o == 0) }
 
 concatMap 
   :: (_ -> Data.ByteString.ByteString)
@@ -273,12 +273,12 @@ breakSubstring
 elem
     :: _
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> not b }
+    -> { b : Bool | bslen bs == 0 ==> not b }
 
 notElem
     :: _
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> b }
+    -> { b : Bool | bslen bs == 0 ==> b }
 
 find
     :: (_ -> Bool)
