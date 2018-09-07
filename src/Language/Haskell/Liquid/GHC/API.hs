@@ -24,10 +24,13 @@ import Name           as Ghc hiding (varName)
 
 -- import TyCon          as Ghc 
 -- import DataCon        as Ghc 
+
 import TysWiredIn     as Ghc 
 import TysPrim        as Ghc
 import HscTypes       as Ghc
 import HscMain        as Ghc 
+import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported) 
+
 -- import qualified CoreSyn   as Ghc
 -- import qualified Unique
 -- import qualified GHC       as Ghc

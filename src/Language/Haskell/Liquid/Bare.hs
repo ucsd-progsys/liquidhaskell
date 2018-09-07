@@ -97,23 +97,41 @@ saveLiftedSpec src sp = do
     lspec = gsLSpec  sp 
     specF = extFileName BinSpec srcF
 
--- TODO-REBARE: `postProcess`
+-------------------------------------------------------------------------------------
+-- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then 
+--   validates it using @checkGhcSpec@. 
+-------------------------------------------------------------------------------------
+makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
+-------------------------------------------------------------------------------------
+makeGhcSpec cfg src lmap mspecs 
+         = either Ex.throw id (Bare.checkGhcSpec mspecs renv sp)
+  where 
+    sp   = makeGhcSpec0 cfg src lmap mspecs 
+    renv = L.foldl' add (ghcSpecEnv sp) wiredSortedSyms  
+    add  = \e (x, s) -> insertSEnv x (RR s mempty) e 
+
+ghcSpecEnv :: GhcSpec -> SEnv SortedReft
+ghcSpecEnv sp = fromListSEnv binds
+  where
+    emb       = gsTcEmbeds (gsName sp)
+    binds     =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)])
+              ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
+              ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
+                                                        , Ghc.isConLikeId v     ]
+    rSort t   = rTypeSortedReft emb t
+    vSort     = rSort . varRSort
+    varRSort  :: Ghc.Var -> RSort
+    varRSort  = ofType . Ghc.varType
 
 -------------------------------------------------------------------------------------
--- | @makeGhcSpec@ slurps up all the relevant information needed to generate 
+-- | @makeGhcSpec0@ slurps up all the relevant information needed to generate 
 --   constraints for a target module and packages them into a @GhcSpec@ 
 --   See [NOTE] LIFTING-STAGES to see why we split into lSpec0, lSpec1, etc.
 --   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
-makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
-makeGhcSpec cfg src lmap mspecs 
-  = either Ex.throw id 
-  . Bare.checkGhcSpec mspecs _renv 
-  . makeGhcSpec0 cfg src lmap 
-  $ mspecs 
-
 makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
+-------------------------------------------------------------------------------------
 makeGhcSpec0 cfg src lmap mspecs = SP 
   { gsConfig = cfg 
   , gsSig    = addReflSigs refl sig 
@@ -254,20 +272,8 @@ postProcess cbs specEnv sp@(SP {..})
     addTCI'           = addTyConInfo gsTcEmbeds gsTyconEnv
     allowHO           = higherOrderFlag gsConfig
 
-ghcSpecEnv :: GhcSpec -> [Var] -> SEnv SortedReft
-ghcSpecEnv sp _defs  = fromListSEnv binds
-  where
-    emb              = gsTcEmbeds sp
-    binds            =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas sp])
-                     ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors sp]
-                     ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms sp, isConLikeId v ]
 
-                     -- WHY?!! ++ [(symbol x, vSort x) |  x  <- defs]
 
-    rSort t          = rTypeSortedReft emb t
-    vSort            = rSort . varRSort
-    varRSort         :: Var -> RSort
-varRSort = ofType . varType
 
 
  -}
