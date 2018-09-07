@@ -36,12 +36,9 @@ import           Language.Fixpoint.Utils.Files              -- (extFileName)
 import           Language.Fixpoint.Misc                     as Misc 
 import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
--- import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
--- import           Language.Haskell.Liquid.Types.PredType     (makeTyConInfo)
--- import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
@@ -55,10 +52,10 @@ import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
 import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Spec          as Bare 
+import qualified Language.Haskell.Liquid.Bare.Check         as Bare 
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
 
 {- 
-import           Language.Haskell.Liquid.Bare.Check
 import           Language.Haskell.Liquid.Bare.DataType
 import           Language.Haskell.Liquid.Bare.Env
 import           Language.Haskell.Liquid.Bare.Existential
@@ -110,7 +107,14 @@ saveLiftedSpec src sp = do
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
-makeGhcSpec cfg src lmap mspecs = SP 
+makeGhcSpec cfg src lmap mspecs 
+  = either Ex.throw id 
+  . Bare.checkGhcSpec mspecs _renv 
+  . makeGhcSpec0 cfg src lmap 
+  $ mspecs 
+
+makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
+makeGhcSpec0 cfg src lmap mspecs = SP 
   { gsConfig = cfg 
   , gsSig    = addReflSigs refl sig 
   , gsRefl   = refl 
@@ -618,10 +622,10 @@ getAsmSigs myName name spec
   | otherwise      = [ (False, x, t) | (x, t) <- Ms.asmSigs spec ++ Ms.sigs spec ]  -- MAY-NOT resolve
 
 -- TODO-REBARE: grepClassAssumes
-grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
-grepClassAssumes  = concatMap go
-   where
-    go    xts              = Mb.catMaybes $ map goOne $ risigs xts
+_grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]
+_grepClassAssumes  = concatMap go
+  where
+    go    xts              = Mb.mapMaybe goOne (risigs xts)
     goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RISig _)     = Nothing
 
