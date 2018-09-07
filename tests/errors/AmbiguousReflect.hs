@@ -1,5 +1,4 @@
-{-@ LIQUID "--exact-data-cons"     @-}
-{-@ LIQUID "--higherorder"        @-}
+{-@ LIQUID "--reflection"  @-}
 
 module StringIndexing where
 

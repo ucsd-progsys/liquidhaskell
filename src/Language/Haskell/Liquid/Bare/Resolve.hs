@@ -84,7 +84,7 @@ makeEnv cfg src lmap specs = RE
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
   , reCbs       = giCbs          src
-  , reGlobSyms  = S.fromList     globalSyms 
+  , reGlobSyms  = F.tracepp "GLOBAL-SYMS" $ S.fromList     globalSyms 
   , reCfg       = cfg
   } 
   where 

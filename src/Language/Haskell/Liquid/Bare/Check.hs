@@ -7,8 +7,9 @@
 
 module Language.Haskell.Liquid.Bare.Check 
   ( checkGhcSpec
-  , checkTerminationExpr
+  , checkBareSpec
   , checkTy
+  , checkTerminationExpr
   ) where
 
 import           BasicTypes
@@ -18,6 +19,7 @@ import           Name                                      (getSrcSpan)
 import           Prelude                                   hiding (error)
 import           TyCon
 import           Var
+import qualified SrcLoc
 import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 
 import           Control.Applicative                       ((<|>))
@@ -29,11 +31,11 @@ import           Text.PrettyPrint.HughesPJ
 
 import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
-
-import           Language.Fixpoint.Misc                    (applyNonNull, group, safeHead, mapSnd)
+import qualified Data.HashSet                              as S
+import           Data.Hashable
+import qualified Language.Fixpoint.Misc                    as Misc  --(applyNonNull, group, safeHead, mapSnd)
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
-import           Language.Fixpoint.Types                   hiding (panic, Error, R)
-
+import qualified Language.Fixpoint.Types                   as F -- hiding (DataCtor, DataDecl, panic, Error, R)
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM -- (showPpr, fSrcSpan, sourcePosSrcSpan)
 import           Language.Haskell.Liquid.Misc              (condNull, snd4)
 import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
@@ -50,16 +52,64 @@ import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 -- import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
 
 import           Debug.Trace (trace)
+
+----------------------------------------------------------------------------------------------
+-- | Checking BareSpec ------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------
+checkBareSpec :: ModName -> Ms.BareSpec -> Either [Error] Ms.BareSpec 
+checkBareSpec _ sp = Misc.applyNonNull (Right sp) Left $ concat 
+  [ checkUnique   "measure"    measures 
+  , checkUnique   "field"      fields 
+  , checkDisjoints             [ inlines
+                               , hmeasures
+                               , S.fromList measures
+                               , reflects
+                               , S.fromList fields 
+                               ]  
+  ] 
+  where 
+    inlines   = Ms.inlines    sp 
+    hmeasures = Ms.hmeas      sp 
+    reflects  = Ms.reflects   sp 
+    measures  = msName    <$> Ms.measures sp 
+    fields    = concatMap dataDeclFields (Ms.dataDecls sp) 
+
+dataDeclFields :: DataDecl -> [F.LocSymbol]
+dataDeclFields = Misc.hashNubWith val . concatMap dataCtorFields . tycDCons
+
+dataCtorFields :: DataCtor -> [F.LocSymbol]
+dataCtorFields c = F.atLoc c <$> [ f | (f,_) <- dcFields c ]
+
+checkUnique :: String -> [F.LocSymbol] -> [Error]
+checkUnique _ = checkUnique' F.val GM.fSrcSpan 
+
+checkUnique' :: (PPrint a, Eq a, Hashable a) 
+             => (t -> a) -> (t -> SrcLoc.SrcSpan) -> [t] -> [Error]
+checkUnique' nameF locF ts = mkErr <$> dups
+  where
+    mkErr (n, ls@(l:_))    = ErrDupSpecs l (pprint n) ls
+    dups                   = [ z      | z@(_, _:_:_) <- Misc.groupList nts       ] 
+    nts                    = [ (n, l) | t <- ts, let n = nameF t, let l = locF t ]
+
+checkDisjoints :: [S.HashSet F.LocSymbol] -> [Error]
+checkDisjoints []     = [] 
+checkDisjoints [_]    = [] 
+checkDisjoints (s:ss) = checkDisjoint s (S.unions ss) 
+                     ++ checkDisjoints ss 
+
+checkDisjoint :: S.HashSet F.LocSymbol -> S.HashSet F.LocSymbol -> [Error]
+checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2) 
+
 ----------------------------------------------------------------------------------------------
 -- | Checking GhcSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
-             -> SEnv SortedReft
+             -> F.SEnv F.SortedReft
              -> GhcSpec
              -> Either [Error] GhcSpec
 
-checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
+checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune
@@ -96,16 +146,16 @@ checkGhcSpec specs env sp =  applyNonNull (Right sp) Left errors
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 
-checkQualifiers :: SEnv SortedReft -> [Qualifier] -> [Error]
+checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
 checkQualifiers = mapMaybe . checkQualifier
 
-checkQualifier       :: SEnv SortedReft -> Qualifier -> Maybe Error
-checkQualifier env q =  mkE <$> checkSortFull (srcSpan q) γ boolSort  (qBody q)
+checkQualifier       :: F.SEnv F.SortedReft -> F.Qualifier -> Maybe Error
+checkQualifier env q =  mkE <$> checkSortFull (F.srcSpan q) γ F.boolSort  (F.qBody q)
   where 
-    γ                = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env (qualBinds q ++ wiredSortedSyms)
-    mkE              = ErrBadQual (GM.sourcePosSrcSpan $ qPos q) (pprint $ qName q)
+    γ                = L.foldl' (\e (x, s) -> F.insertSEnv x (F.RR s mempty) e) env (F.qualBinds q ++ wiredSortedSyms)
+    mkE              = ErrBadQual (GM.fSrcSpan q) (pprint $ F.qName q)
 
-checkSizeFun :: TCEmb TyCon -> SEnv SortedReft -> [TyConP] -> [Error]
+checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> [Error]
 checkSizeFun emb env tys = mkError <$> mapMaybe go tys
   where
     mkError ((f, tcp), msg)  = ErrTyCon (GM.sourcePosSrcSpan $ tcpLoc tcp)
@@ -115,11 +165,11 @@ checkSizeFun emb env tys = mkError <$> mapMaybe go tys
                Nothing  -> Nothing
                Just f   -> checkWFSize (szFun f) tcp
 
-    checkWFSize f tcp = ((f, tcp),) <$> checkSortFull (srcSpan tcp) (insertSEnv x (mkTySort (tcpCon tcp)) env) intSort (f x)
-    x                 = "x" :: Symbol
+    checkWFSize f tcp = ((f, tcp),) <$> checkSortFull (F.srcSpan tcp) (F.insertSEnv x (mkTySort (tcpCon tcp)) env) F.intSort (f x)
+    x                 = "x" :: F.Symbol
     mkTySort tc       = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
 
-_checkRefinedClasses :: [RClass (Located BareType)] -> [RInstance (Located BareType)] -> [Error]
+_checkRefinedClasses :: [RClass LocBareType] -> [RInstance LocBareType] -> [Error]
 _checkRefinedClasses definitions instances
   = mkError <$> duplicates
   where
@@ -155,19 +205,19 @@ _firstDuplicate = go . L.sort
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
-checkInv :: Bool -> TCEmb TyCon -> Bare.TyConMap -> SEnv SortedReft -> (Maybe Var, LocSpecType) -> Maybe Error
+checkInv :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (Maybe Var, LocSpecType) -> Maybe Error
 checkInv allowHO emb tcEnv env (_, t) = checkTy allowHO err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
 
-checkIAl :: Bool -> TCEmb TyCon -> Bare.TyConMap -> SEnv SortedReft -> [(Located SpecType, Located SpecType)] -> [Error]
+checkIAl :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> [(LocSpecType, LocSpecType)] -> [Error]
 checkIAl allowHO emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO emb tcEnv env) ials
 
 checkIAlOne :: Bool
-            -> TCEmb TyCon
+            -> F.TCEmb TyCon
             -> Bare.TyConMap
-            -> SEnv SortedReft
-            -> (Located SpecType, Located SpecType)
+            -> F.SEnv F.SortedReft
+            -> (LocSpecType, LocSpecType)
             -> [Maybe (TError SpecType)]
 checkIAlOne allowHO emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where
@@ -188,21 +238,21 @@ checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
 
-checkBind :: (PPrint v) => Bool -> String -> TCEmb TyCon -> Bare.TyConMap -> SEnv SortedReft -> (v, Located SpecType) -> Maybe Error
+checkBind :: (PPrint v) => Bool -> String -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
 checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (text s <+> pprint v) (val t)
 
-checkTerminationExpr :: (Eq v, PPrint v) => TCEmb TyCon -> SEnv SortedReft -> (v, LocSpecType, [Located Expr]) -> Maybe Error
+checkTerminationExpr :: (Eq v, PPrint v) => F.TCEmb TyCon -> F.SEnv F.SortedReft -> (v, LocSpecType, [F.Located F.Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
             = (mkErr <$> go les) <|> (mkErr' <$> go' les)
   where
     -- es      = val <$> les
     mkErr   = uncurry (ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
     mkErr'  = uncurry (ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
-    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (srcSpan e) env' (val e))           Nothing
-    go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (srcSpan e) env' (cmpZero e)) Nothing
-    env'   = sr_sort <$> L.foldl' (\e (x,s) -> insertSEnv x s e) env xts
+    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (val e))           Nothing
+    go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (cmpZero e)) Nothing
+    env'    = F.sr_sort <$> L.foldl' (\e (x,s) -> F.insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
 
@@ -210,14 +260,14 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     mkClass (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb
-    cmpZero e = PAtom Le (expr (0 :: Int)) (val e)
+    cmpZero e = F.PAtom F.Le (F.expr (0 :: Int)) (val e)
 
-checkTy :: Bool -> (Doc -> Error) -> TCEmb TyCon -> Bare.TyConMap -> SEnv SortedReft -> Located SpecType -> Maybe Error
+checkTy :: Bool -> (Doc -> Error) -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Error
 checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (Bare.txRefSort tcEnv emb t)
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 
-checkDupIntersect     :: [(Var, Located SpecType)] -> [(Var, Located SpecType)] -> [Error]
+checkDupIntersect     :: [(Var, LocSpecType)] -> [(Var, LocSpecType)] -> [Error]
 checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
   where
     mkWrn (x, t)     = pprWrn x (GM.sourcePosSrcSpan $ loc t)
@@ -227,11 +277,14 @@ checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
     -- msg1             = "\nCheckd-SIGS:\n" ++ showpp (M.fromList xts)
     -- msg2             = "\nAssume-SIGS:\n" ++ showpp (M.fromList asmSigs)
 
-checkDuplicate        :: [(Var, Located SpecType)] -> [Error]
-checkDuplicate xts = mkErr <$> dups
-  where
-    mkErr (x, ts) = ErrDupSpecs (getSrcSpan x) (pprint x) (GM.fSrcSpan <$> ts)
-    dups          = [z | z@(_, _:_:_) <- M.toList $ group xts ]
+checkDuplicate :: [(Var, LocSpecType)] -> [Error]
+checkDuplicate = checkUnique' fst (GM.fSrcSpan . snd)
+
+-- checkDuplicate xts = mkErr <$> dups
+  -- where
+    -- mkErr (x, ts) = ErrDupSpecs (getSrcSpan x) (pprint x) (GM.fSrcSpan <$> ts)
+    -- dups          = [z | z@(_, _:_:_) <- M.toList $ group xts ]
+
 
 checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> [Error]
 checkDuplicateRTAlias s tas = mkErr <$> dups
@@ -268,7 +321,7 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: Bool -> TCEmb TyCon -> SEnv SortedReft -> LocSpecType -> Maybe Doc
+checkRType :: Bool -> F.TCEmb TyCon -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
 checkRType allowHO emb env lt
   =   checkAppTys t
@@ -278,11 +331,11 @@ checkRType allowHO emb env lt
     t                  = val lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
-    f env me r err     = err <|> checkReft (srcSpan lt) env emb me r
-    insertPEnv p γ     = insertsSEnv γ (mapSnd (rTypeSortedReft emb) <$> pbinds p)
+    f env me r err     = err <|> checkReft (F.srcSpan lt) env emb me r
+    insertPEnv p γ     = insertsSEnv γ (Misc.mapSnd (rTypeSortedReft emb) <$> pbinds p)
     pbinds p           = (pname p, pvarRType p :: RSort) : [(x, tx) | (tx, x, _) <- pargs p]
 
-tyToBind :: TCEmb TyCon -> RTVar RTyVar RSort  -> [(Symbol, SortedReft)]
+tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]
 tyToBind emb = go . ty_var_info
   where
     go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
@@ -339,7 +392,7 @@ checkFunRefs t = go t
 -}
 
 checkAbstractRefs
-  :: (PPrint t, Reftable t, SubsTy RTyVar RSort t, Reftable (RTProp RTyCon RTyVar (UReft t))) =>
+  :: (PPrint t, F.Reftable t, SubsTy RTyVar RSort t, F.Reftable (RTProp RTyCon RTyVar (UReft t))) =>
      RType RTyCon RTyVar (UReft t) -> Maybe Doc
 checkAbstractRefs t = go t
   where
@@ -396,11 +449,11 @@ checkAbstractRefs t = go t
     mkPEnv (RAllT _ t) = mkPEnv t
     mkPEnv (RAllP p t) = p:mkPEnv t
     mkPEnv _           = []
-    pvType' p          = safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
+    pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
 
 
-checkReft                    :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar (UReft r)))
-                             => SrcSpan -> SEnv SortedReft -> TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
+checkReft                    :: (PPrint r, F.Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, F.Reftable (RTProp RTyCon RTyVar (UReft r)))
+                             => F.SrcSpan -> F.SEnv F.SortedReft -> F.TCEmb TyCon -> Maybe (RRType (UReft r)) -> UReft r -> Maybe Doc
 checkReft _ _   _   Nothing _   = Nothing -- TODO:RPropP/Ref case, not sure how to check these yet.
 checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp env r
   where
@@ -421,27 +474,27 @@ checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp en
 ---------------------------------------------------------------------------------------------------
 -- | @checkMeasures@ determines if a measure definition is wellformed -----------------------------
 ---------------------------------------------------------------------------------------------------
-checkMeasures :: TCEmb TyCon -> SEnv SortedReft -> [Measure SpecType DataCon] -> [Error]
+checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataCon] -> [Error]
 ---------------------------------------------------------------------------------------------------
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
-checkMeasure :: TCEmb TyCon -> SEnv SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> [Error]
 checkMeasure emb γ (M name@(Loc src _ n) sort body _)
   = [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)
 
-checkMBody :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-           => SEnv SortedReft
-           -> TCEmb TyCon
+checkMBody :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
+           => F.SEnv F.SortedReft
+           -> F.TCEmb TyCon
            -> t
            -> SpecType
            -> Def (RRType r) DataCon
            -> Maybe Doc
 checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
-    sp    = srcSpan m
-    γ'    = L.foldl' (\γ (x, t) -> insertSEnv x t γ) γ xts
+    sp    = F.srcSpan m
+    γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
     xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> ty_args trep
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
@@ -456,17 +509,17 @@ checkMBodyUnify                 = go
     go t@(RApp {}) t'@(RApp {}) = concat $ zipWith go (rt_args t) (rt_args t')
     go _ _                      = []
 
-checkMBody' :: (PPrint r,Reftable r,SubsTy RTyVar RSort r, Reftable (RTProp RTyCon RTyVar r))
-            => TCEmb TyCon
+checkMBody' :: (PPrint r, F.Reftable r,SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
+            => F.TCEmb TyCon
             -> RType RTyCon RTyVar r
-            -> SEnv SortedReft
-            -> SrcSpan 
+            -> F.SEnv F.SortedReft
+            -> F.SrcSpan 
             -> Body
             -> Maybe Doc
 checkMBody' emb sort γ sp body = case body of
     E e   -> checkSortFull sp γ (rTypeSort emb sort') e
-    P p   -> checkSortFull sp γ boolSort  p
-    R s p -> checkSortFull sp (insertSEnv s sty γ) boolSort p
+    P p   -> checkSortFull sp γ F.boolSort  p
+    R s p -> checkSortFull sp (F.insertSEnv s sty γ) F.boolSort p
   where
     sty   = rTypeSortedReft emb sort'
     sort' = dropNArgs 1 sort

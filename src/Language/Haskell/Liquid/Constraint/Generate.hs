@@ -285,7 +285,7 @@ consCBTop _ _ γ cb
 
 
 trustVar :: Config -> GhcInfo -> Var -> Bool
-trustVar cfg info x = F.tracepp ("TRUST: " ++ GM.showPpr x) $ not (checkDerived cfg) && derivedVar (giSrc info) x
+trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
 derivedVar :: GhcSrc -> Var -> Bool
 derivedVar src x = x `elem` giDerVars src || GM.isInternal x

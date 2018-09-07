@@ -103,13 +103,16 @@ saveLiftedSpec src sp = do
 -------------------------------------------------------------------------------------
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap mspecs 
-         = if False then either Ex.throw id (Bare.checkGhcSpec mspecs renv sp)
-                    else sp
+makeGhcSpec cfg src lmap mspecs0  
+           = checkThrow (Bare.checkGhcSpec mspecs renv sp)
   where 
-    sp   = makeGhcSpec0 cfg src lmap mspecs 
-    renv = L.foldl' add (ghcSpecEnv sp) wiredSortedSyms  
-    add  = \e (x, s) -> insertSEnv x (RR s mempty) e 
+    mspecs = [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] 
+    sp     = makeGhcSpec0 cfg src lmap mspecs 
+    renv   = L.foldl' add (ghcSpecEnv sp) wiredSortedSyms  
+    add    = \e (x, s) -> insertSEnv x (RR s mempty) e 
+
+checkThrow :: Ex.Exception e => Either e c -> c
+checkThrow = either Ex.throw id 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds
@@ -117,6 +120,7 @@ ghcSpecEnv sp = fromListSEnv binds
     emb       = gsTcEmbeds (gsName sp)
     binds     =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)])
               ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
+              ++ [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
               ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
                                                         , Ghc.isConLikeId v     ]
     rSort t   = rTypeSortedReft emb t
@@ -166,6 +170,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecs  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
+    -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
 
@@ -525,7 +530,7 @@ makeSpecSig name specs env sigEnv measEnv = SpSig
                   [ makeTySigs  env sigEnv name mySpec
                   , makeInlSigs env rtEnv allSpecs 
                   , makeMsrSigs env rtEnv allSpecs 
-                  , makeMthSigs                    measEnv 
+                  , makeMthSigs                 measEnv 
                   ]
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
@@ -568,10 +573,17 @@ makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toL
     mk name                 = Mb.mapMaybe (Bare.maybeResolveSym env name msg) 
 
 makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
-makeTySigs env sigEnv name spec = 
+makeTySigs env sigEnv name spec = checkDuplicateSigs 
   [ (x, t) | (x, bt) <- rawTySigs env name spec 
            , let t    = Bare.cookSpecType env sigEnv name (Just (Bare.HsTV, x)) bt 
   ] 
+
+checkDuplicateSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)] 
+checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
+  Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
+  Right _      -> xts 
+  where
+    symXs = [ (F.symbol x, F.loc t) | (x, t) <- xts ]
 
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)] 
 rawTySigs env name = Bare.resolveLocalBinds env . bareTySigs env name 
@@ -889,7 +901,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = F.notracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    (tcDds, dcs)  = F.tracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
     tyi           = Bare.qualifyTop env myName <$> makeTyConInfo tycons
@@ -950,7 +962,12 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     (cls, mts)    = Bare.makeClasses env sigEnv name specs
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
-
+-- checkMeasures :: MSpec SpecType Ghc.DataCon  
+checkMeasures ms = checkMeasure <$> ms 
+checkMeasure m = F.tracepp msg m 
+  where 
+    msg         = "CHECK-MEASURES: " ++ F.showpp syms
+    syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 
 --   so that downstream files that import this target can access the lifted definitions, 
@@ -1324,14 +1341,6 @@ makeGhcSpecCHOP3 cfg vars defVars specs name mts embs = do
   let minvs = makeMeasureInvariants sigs hms
   checkDuplicateSigs sigs -- separate checks as assumes are supposed to "override" other sigs.
   return     (invs ++ minvs, ntys, ialias, sigs, asms)
-
-
-checkDuplicateSigs :: [(Var, LocSpecType)] -> BareM ()
-checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
-  Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
-  Right _      -> return ()
-  where
-    symXs = [ (F.symbol x, F.loc t) | (x, t) <- xts ]
 
 data ReplaceEnv = RE
   { _reEnv  :: M.HashMap Symbol Symbol

@@ -79,13 +79,6 @@ checkDuplicateMeasure ms
       dups       = M.filter ((1 <) . length) gms
       err m ms   = ErrDupMeas (fSrcSpan m) (pprint (val m)) (fSrcSpan <$> ms)
 
-      -- printf "\nDuplicate Measure Definitions for %s\n%s" (showpp m) (showpp $ map (loc . name) ms)
-      -- err k1 k2 = ErrDupMeas (fSrcSpan k1) (pprint (val k1)) (fSrcSpan <$> [k1, k2])
-
-
-
-
-
 -- MOVE TO TYPES
 instance Semigroup (Spec ty bndr) where
   s1 <> s2

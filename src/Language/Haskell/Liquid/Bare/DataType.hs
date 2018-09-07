@@ -489,6 +489,7 @@ checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
 
+
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
             -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
