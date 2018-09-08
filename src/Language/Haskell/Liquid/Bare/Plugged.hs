@@ -163,7 +163,7 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
     = Loc l l' 
     . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] 
     . makeCls cs' 
-    . goPlug tce tyi f (subts su rt) 
+    . goPlug tce tyi err f (subts su rt) 
     . mapExprReft (\_ -> F.applyCoSub coSub) 
     . subts su 
     $ st 
@@ -181,7 +181,7 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
 
     makeCls cs t      = foldr (uncurry rFun) t cs
     err               = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
-                          (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
+                          (text "Plugged Init types")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Ghc.getSrcSpan x) 
@@ -191,7 +191,7 @@ plugHoles_new tce tyi x f t0 zz@(Loc l l' st0)
     = Loc l l' 
     . mkArrow (updateRTVar <$> as') ps (ls1 ++ ls2) [] [] 
     . makeCls cs' 
-    . goPlug tce tyi f rt' 
+    . goPlug tce tyi err f rt' 
     $ st 
   where 
     rt'               = tx rt
@@ -206,7 +206,7 @@ plugHoles_new tce tyi x f t0 zz@(Loc l l' st0)
 
     makeCls cs t      = foldr (uncurry rFun) t cs
     err               = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
-                          (text "Plugged Init types" {- <+> pprint t <+> "\nVS\n" <+> pprint st -})
+                          (text "Plugged Init types")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Ghc.getSrcSpan x) 
@@ -222,9 +222,9 @@ bkUnivClass t        = (as, ps, ls, cs, t2)
     (as, ps, ls, t1) = bkUniv  t
     (cs, t2)         = bkClass t1
 
-goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
+goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Error -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
        -> SpecType
-goPlug tce tyi f = go 
+goPlug tce tyi err f = go 
   where
     go t (RHole r) = (addHoles t') { rt_reft = f t r }
       where
@@ -249,8 +249,9 @@ goPlug tce tyi f = go
     go (RAppTy t1 t2 _) (RAppTy t1' t2' r) = RAppTy     (go t1 t1') (go t2 t2') r
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
-    go (RApp _ ts _ _)  (RApp c ts' p r)   --  length ts == length ts'
-                                           = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
+    go (RApp _ ts _ _)  (RApp c ts' p r)   
+      | length ts == length ts'            = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
+      | otherwise                          = Ex.throw err 
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.

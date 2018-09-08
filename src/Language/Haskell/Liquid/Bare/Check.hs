@@ -145,7 +145,7 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
     tcEnv            = gsTyconEnv (gsName sp)
     ms               = gsMeasures (gsData sp)
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
-    sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp)
+    sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     allowHO          = higherOrderFlag sp
     noPrune          = not (pruneFlag sp)
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
@@ -310,10 +310,11 @@ checkMismatch (x, t) = if ok then Nothing else Just err
     t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = lhs == rhs
+tyCompat x t         = F.tracepp msg (lqT == hsT)
   where
-    lhs :: RSort     = toRSort t
-    rhs :: RSort     = ofType $ varType x
+    lqT :: RSort     = toRSort t
+    hsT :: RSort     = ofType (varType x)
+    msg              = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp

@@ -30,9 +30,6 @@ Tests
       RefinedADTs.hs:                         FAIL (0.97s)
       
       DataBase.hs:                            FAIL (1.03s)
-
-      mapTvCrash.hs:                          FAIL (0.90s)
-        unknown-plen?
       
       MeasureContains.hs:                     FAIL (0.97s)
         tests/test.hs:292:

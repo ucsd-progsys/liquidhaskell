@@ -34,3 +34,5 @@ data List2 a b where
 test :: List a -> Int
 test Nil = 1
 test (Cons x xs) = 1 + test xs
+
+zoo = Nil2

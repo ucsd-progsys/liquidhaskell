@@ -755,14 +755,13 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
 makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
-                       , let tt = Bare.plugHoles sigEnv name Bare.LqTV x t 
+                       , let tt = F.tracepp ("PLUGGED-DATACTOR: " ++ GM.showPpr x) $ Bare.plugHoles sigEnv name Bare.LqTV x t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = F.tracepp "MEASURES-2" $ Bare.qualifyTop env name <$> (F.tracepp "MEASURES-1" $ ms1 ++ ms2)
   , gsInvariants = makeMeasureInvariants env name sig mySpec 
                 ++ concat (makeInvariants env sigEnv <$> M.toList specs)
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
-                   -- TODO-REBARE :: ![(LocSpecType, LocSpecType)] -- ^ Data type invariant aliases 
   }
   where
     measVars     = Bare.meSyms      measEnv -- ms'
@@ -940,7 +939,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   { meMeasureSpec = measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
-  , meDataCons    = cs' 
+  , meDataCons    = F.tracepp "meDATACONS" cs' 
   , meClasses     = cls
   , meMethods     = mts -- TODO-REBARE: ++  let dms = makeDefaultMethods vars mts  
   }
