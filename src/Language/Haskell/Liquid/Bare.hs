@@ -115,7 +115,7 @@ checkThrow :: Ex.Exception e => Either e c -> c
 checkThrow = either Ex.throw id 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv binds
+ghcSpecEnv sp = fromListSEnv (F.tracepp "GHC-SPEC-ENV" binds)
   where
     emb       = gsTcEmbeds (gsName sp)
     binds     =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)])

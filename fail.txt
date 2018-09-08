@@ -1,37 +1,17 @@
 
-      anftest.hs:                             FAIL (0.66s)
-
       RecordAccessors.hs:                     FAIL (0.84s)
       - not strengthening record field
-
-      FractionalInstance.hs:                  FAIL (1.17s)
-      - todo: don't check generated dict-instances
-
-
-
 
 Tests
 
   Macro
     unit-pos
-
-      anftest.hs:                             FAIL (0.66s)
-      - measure variable capture
-
       state00.hs:                             FAIL (0.75s)
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
 
       RecordAccessors.hs:                     FAIL (0.84s)
       - not strengthening record field
-
-      FractionalInstance.hs:                  FAIL (1.17s)
-      - todo: don't check generated dict-instances
-
------------------------------------------------------------------------
-
-      TypeLitNat.hs:                          FAIL (1.18s)
-      - todo: type-lits
 
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
@@ -40,1430 +20,45 @@ Tests
       bag.hs:                                 FAIL (0.98s)
       - todo:bag-fromList 
 
-      VerifiedMonoid.hs:                      FAIL (1.61s)
-      - wierd z3 crash
-
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
 
 -------------------------------------------------------------
-
-      maybe0.hs:                              FAIL (0.73s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      BinarySearch.hs:                        FAIL (0.98s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      kmpVec.hs:                              FAIL (1.11s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      ANF.hs:                                 FAIL (1.36s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      OrdList.hs:                             FAIL (5.98s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      StreamInvariants.hs:                    FAIL (0.65s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Class.hs:                               FAIL (1.01s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      DataBase.hs:                            FAIL (1.18s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      BinarySearchOverflow.hs:                FAIL (0.91s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      ConstraintsAppend.hs:                   FAIL (2.34s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      ListConcat.hs:                          OK (0.77s)
-      State.hs:                               FAIL (1.90s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      T1120A.hs:                              FAIL (1.67s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-     
-      GhcSort1.hs:                            FAIL (2.71s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      vecloop.hs:                             FAIL (0.62s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      HasElem.hs:                             FAIL (0.98s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      TemplateHaskell.hs:                     FAIL (0.87s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      RefinedADTs.hs:                         FAIL (1.01s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      ListISort-bag.hs:                       FAIL (1.02s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      T595.hs:                                FAIL (1.37s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      meas10.hs:                              FAIL (1.23s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      monad1.hs:                              FAIL (0.65s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      GCD.hs:                                 FAIL (0.63s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      T819A.hs:                               FAIL (1.06s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      MergeSort-bag.hs:                       FAIL (1.21s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      take.hs:                                FAIL (3.35s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      monad0.hs:                              FAIL (0.65s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      PairMeasure0.hs:                        FAIL (0.80s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      dropwhile.hs:                           FAIL (0.65s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      NatClass.hs:                            FAIL (1.18s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      T1025.hs:                               FAIL (1.29s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Words1.hs:                              FAIL (0.66s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      test00-int.hs:                          FAIL (0.28s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T819.hs:                                FAIL (0.59s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      StrictPair1.hs:                         FAIL (0.72s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      T1025a.hs:                              FAIL (1.21s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      TypeLitString.hs:                       FAIL (1.13s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      maybe4.hs:                              FAIL (1.00s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      Foldl.hs:                               FAIL (8.18s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      case-lambda-join.hs:                    FAIL (1.22s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      LocalTermExpr.hs:                       FAIL (0.72s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      bag1.hs:                                FAIL (1.10s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      maps1.hs:                               FAIL (0.92s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
-      monad7.hs:                              FAIL (1.00s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-      LocalSpec.hs:                           FAIL (0.64s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      LocalHole.hs:                           FAIL (0.77s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
-    unit-neg
-
-      RecQSort.hs:                            FAIL (1.07s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      T743-mini.hs:                           FAIL (1.29s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      qsloop.hs:                              FAIL (1.19s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      list00.hs:                              FAIL (0.80s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      mr00.hs:                                FAIL (1.27s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      Strata.hs:                              FAIL (1.23s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      T1286.hs:                               FAIL (0.64s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      nestedRecursion.hs:                     FAIL (0.76s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      TerminationNum0.hs:                     FAIL (0.77s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      Sum.hs:                                 FAIL (1.03s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      contra0.hs:                             FAIL (0.93s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      state00.hs:                             FAIL (0.76s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      bag.hs:                                 FAIL (0.92s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      CharLiterals.hs:                        FAIL (0.66s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      T743.hs:                                FAIL (0.75s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      testRec.hs:                             FAIL (1.03s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      Class5.hs:                              FAIL (1.01s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      GeneralizedTermination.hs:              FAIL (0.78s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      LiquidClass1.hs:                        FAIL (0.74s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      HasElem.hs:                             FAIL (0.75s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      monad3.hs:                              FAIL (1.01s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      TerminationNum.hs:                      FAIL (0.82s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      AutoSize.hs:                            FAIL (2.90s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      vector1a.hs:                            FAIL (1.71s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      Even.hs:                                FAIL (0.88s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      pragma0-unsafe.hs:                      FAIL (0.61s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      T745.hs:                                FAIL (0.64s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      MaybeMonad.hs:                          FAIL (0.67s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-      AutoTerm.hs:                            FAIL (0.95s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-
-      RecSelector.hs:                         FAIL (0.90s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      bag1.hs:                                FAIL (1.01s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      LocalSpec.hs:                           FAIL (0.74s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-
-
-
-  Error-Messages
-    ExportMeasure0.hs:                        FAIL (1.01s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    ExportMeasure1.hs:                        FAIL (0.70s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    ExportReflect0.hs:                        FAIL (0.84s)
-      tests/test.hs:297:
-      Did not match message: Cannot lift `identity` into refinement logic
-    ShadowFieldInline.hs:                     FAIL (0.89s)
-      tests/test.hs:297:
-      Did not match message: Error: Multiple specifications for `Range.pig`
-    ShadowFieldReflect.hs:                    FAIL (0.69s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    MultiRecSels.hs:                          OK (0.59s)
-    DupFunSigs.hs:                            FAIL (1.32s)
-      tests/test.hs:297:
-      Did not match message: Multiple specifications for `Main.fromWeekDayNum`
-    DupMeasure.hs:                            OK (0.60s)
-    ShadowMeasure.hs:                         FAIL (0.81s)
-      tests/test.hs:297:
-      Did not match message: Multiple specifications for `shadow`
-    ShadowMeasureVar.hs:                      FAIL (0.79s)
-      tests/test.hs:297:
-      Did not match message: Multiple specifications for `shadow`
-    DupData.hs:                               OK (0.60s)
-    EmptyData.hs:                             OK (0.57s)
-    AmbiguousReflect.hs:                      FAIL (0.75s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    AmbiguousInline.hs:                       FAIL (1.42s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    TerminationExprSort.hs:                   FAIL (0.66s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    TerminationExprNum.hs:                    FAIL (1.02s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    TerminationExprUnb.hs:                    FAIL (0.72s)
-      tests/test.hs:297:
-      Did not match message: Illegal termination specification for `go`
-    UnboundVarInSpec.hs:                      FAIL (0.62s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `Fixme.foo`
-    UnboundVarInAssume.hs:                    FAIL (0.90s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    UnboundFunInSpec.hs:                      FAIL (0.64s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `Goo.three`
-    UnboundFunInSpec1.hs:                     FAIL (0.72s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `Goo.foo`
-    UnboundFunInSpec2.hs:                     FAIL (0.77s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `Goo.foo`
-    Fractional.hs:                            FAIL (0.97s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    T773.hs:                                  FAIL (0.67s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `LiquidR.incr`
-    T774.hs:                                  FAIL (0.68s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `LiquidR.incr`
-    Inconsistent0.hs:                         FAIL (0.95s)
-      tests/test.hs:297:
-      Did not match message: Specified type does not refine Haskell type for `Ast.app` (Checked)
-    Inconsistent1.hs:                         FAIL (0.62s)
-      tests/test.hs:297:
-      Did not match message: Specified type does not refine Haskell type for `Boo.incr` (Checked)
-    Inconsistent2.hs:                         FAIL (0.61s)
-      tests/test.hs:297:
-      Did not match message: Specified type does not refine Haskell type for `Mismatch.foo` (Checked)
-    BadAliasApp.hs:                           OK (0.90s)
-    BadPragma0.hs:                            OK (0.26s)
-    BadPragma1.hs:                            OK (0.26s)
-    BadPragma2.hs:                            OK (0.29s)
-    BadSyn1.hs:                               OK (0.63s)
-    BadSyn2.hs:                               FAIL (0.85s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    BadSyn3.hs:                               FAIL (0.60s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    BadSyn4.hs:                               FAIL (0.58s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    BadAnnotation.hs:                         OK (0.40s)
-    BadAnnotation1.hs:                        OK (0.44s)
-    CyclicExprAlias0.hs:                      OK (0.55s)
-    CyclicExprAlias1.hs:                      FAIL (0.57s)
-      tests/test.hs:297:
-      Did not match message: Cyclic type alias definition for `CyclicB1`
-    CyclicExprAlias2.hs:                      OK (0.59s)
-    CyclicExprAlias3.hs:                      OK (0.76s)
-    DupAlias.hs:                              FAIL (0.74s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    DupAlias.hs:                              FAIL (0.75s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    BadDataConType.hs:                        FAIL (0.86s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    BadDataConType1.hs:                       FAIL (0.67s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    BadDataConType2.hs:                       OK (0.58s)
-    LiftMeasureCase.hs:                       OK (0.71s)
-    HigherOrderBinder.hs:                     FAIL (0.81s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `Main.foo`
-    HoleCrash1.hs:                            FAIL (0.66s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    HoleCrash2.hs:                            OK (0.57s)
-    HoleCrash3.hs:                            OK (0.88s)
-    BadPredApp.hs:                            FAIL (0.60s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    LocalHole.hs:                             FAIL (0.72s)
-      tests/test.hs:297:
-      Did not match message: Illegal type specification for `go`
-    UnboundAbsRef.hs:                         OK (0.87s)
-    BadQualifier.hs:                          FAIL (0.73s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    ParseClass.hs:                            OK (0.27s)
-    ParseBind.hs:                             OK (0.27s)
-    MissingSizeFun.hs:                        FAIL (0.77s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    MultiInstMeasures.hs:                     FAIL (0.84s)
-      tests/test.hs:297:
-      Did not match message: Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`
-    BadDataDeclTyVars.hs:                     OK (0.61s)
-    BadDataCon2.hs:                           OK (0.56s)
-    BadSig0.hs:                               FAIL (1.00s)
-      tests/test.hs:297:
-      Did not match message: Error: Illegal type specification for `Zoo.foo`
-    BadSig1.hs:                               FAIL (0.86s)
-      tests/test.hs:297:
-      Did not match message: Error: Illegal type specification for `constructor Ev.EZ`
-    BadData1.hs:                              OK (0.60s)
-    BadData2.hs:                              OK (0.71s)
-    T1140.hs:                                 OK (0.86s)
-    InlineSubExp0.hs:                         FAIL (0.79s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 1
-       but got: ExitFailure 2
-    InlineSubExp1.hs:                         FAIL (1.04s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 1
-       but got: ExitFailure 2
-    EmptySig.hs:                              OK (0.26s)
-    ElabLocation.hs:                          FAIL (0.65s)
-      tests/test.hs:297:
-      Did not match message: ElabLocation.hs:11:9-11:15: Error
-    MissingReflect.hs:                        FAIL (0.98s)
-      tests/test.hs:296:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-  Benchmarks
-    text
-      Data/Text.hs:                           FAIL (6.41s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Foreign.hs:                   FAIL (2.14s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Array.hs:                     FAIL (0.72s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/UnsafeChar.hs:                FAIL (1.49s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Search.hs:                    FAIL (10.54s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Fusion.hs:                    FAIL (3.16s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy.hs:                      FAIL (7.00s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Private.hs:                   FAIL (1.71s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Unsafe.hs:                    FAIL (3.76s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Internal.hs:                  FAIL (10.08s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy/Encoding.hs:             FAIL (10.38s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Lazy/Builder.hs:              FAIL (6.80s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy/Search.hs:               FAIL (5.12s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy/Fusion.hs:               FAIL (5.09s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy/Internal.hs:             FAIL (5.10s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Fusion/Size.hs:               FAIL (2.12s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-    bytestring
-      Data/ByteString.hs:                     FAIL (5.90s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString.T.hs:                   FAIL (5.96s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Char8.hs:               FAIL (5.13s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/LazyZip.hs:             FAIL (4.65s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Fusion.hs:              FAIL (2.16s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Fusion.T.hs:            FAIL (2.00s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Lazy.hs:                FAIL (3.85s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Unsafe.hs:              FAIL (3.31s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Internal.hs:            FAIL (1.96s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Lazy/Char8.hs:          FAIL (4.39s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-    esop
-      Splay.hs:                               OK (18.86s)
-      Fib.hs:                                 FAIL (1.14s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Array.hs:                               OK (4.52s)
-      Base.hs:                                FAIL (190.50s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      ListSort.hs:                            OK (5.83s)
-      Toy.hs:                                 FAIL (0.78s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      GhcListSort.hs:                         OK (12.97s)
-    vect-algs
-      Setup.lhs:                              OK (1.74s)
-      Data/Vector/Algorithms/Insertion.hs:    FAIL (0.58s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Radix.hs:        FAIL (0.74s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Intro.hs:        FAIL (0.42s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Combinators.hs:  OK (1.22s)
-      Data/Vector/Algorithms/Heap.hs:         FAIL (0.68s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Merge.hs:        FAIL (0.47s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Search.hs:       FAIL (0.44s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.48s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Optimal.hs:      FAIL (0.71s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Common.hs:       FAIL (0.87s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Termination.hs:  FAIL (0.45s)
-        tests/test.hs:293:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-    icfp_pos
-      DBMovies.hs:                            FAIL (1.36s)
-      ICFP15.lhs:                             FAIL (3.20s)
-      Append.hs:                              FAIL (2.09s)
-      FoldAbs.hs:                             FAIL (4.74s)
-      dropwhile.hs:                           FAIL (0.96s)
-      Overview.lhs:                           FAIL (5.58s)
-rjhala@Ranjits-MacBook-Pro ~/r/liquidhaskell (phadej-ghc-8.4)> stack test liquidhaskell --fast
-liquidhaskell-0.8.4.0: test (suite: liquidhaskell-parser)
-
-ParserTests
-  Should succeed
-    x :: Int:                                                      OK (0.01s)
-    x :: a:                                                        OK
-    x :: a -> a:                                                   OK
-    x :: Int -> Int:                                               OK
-    k:Int -> Int:                                                  OK
-    type spec 1 :                                                  OK (0.02s)
-    type spec 2 :                                                  OK
-    type spec 3:                                                   OK
-    type spec 4:                                                   OK
-    type spec 5:                                                   OK
-    type spec 6 :                                                  OK
-    type spec 7:                                                   OK
-    type spec 8:                                                   OK
-    type spec 9 :                                                  OK
-    type spec 10:                                                  OK
-    type spec 11:                                                  OK
-    type spec 12:                                                  OK
-    type spec 13:                                                  OK
-    type spec 14:                                                  OK
-    type spec 15:                                                  OK
-    type spec 16:                                                  OK
-    type spec 17:                                                  OK
-    type spec 18:                                                  OK
-    type spec 19:                                                  OK
-    type spec 20:                                                  OK
-    type spec 21:                                                  OK
-    type spec 22:                                                  OK
-    type spec 23:                                                  OK
-    type spec 24:                                                  OK
-    type spec 25:                                                  OK
-    type spec 26:                                                  OK
-    type spec 27:                                                  OK
-    type spec 28:                                                  OK
-    type spec 29:                                                  OK
-    type spec 30:                                                  OK
-  specP
-    assume:                                                        OK
-    assert:                                                        OK
-    autosize:                                                      OK
-    local:                                                         OK
-    axiomatize:                                                    OK
-    reflect:                                                       OK
-    measure HMeas:                                                 OK
-    measure Meas:                                                  OK
-    define:                                                        OK
-    infixl:                                                        OK
-    infixr:                                                        OK
-    infix:                                                         OK
-    inline:                                                        OK
-    bound PBound:                                                  OK
-    bound HBound:                                                  OK
-    class measure:                                                 OK
-    instance measure:                                              OK
-    instance:                                                      OK
-    class:                                                         OK
-    import:                                                        OK
-    data variance:                                                 OK
-    data:                                                          OK
-    newtype:                                                       OK
-    include:                                                       OK
-    invariant:                                                     OK
-    using:                                                         OK
-    type:                                                          OK
-    predicate:                                                     OK
-    expression:                                                    OK
-    embed:                                                         OK
-    qualif:                                                        OK
-    decrease:                                                      OK
-    lazyvar:                                                       OK
-    lazy:                                                          OK
-    automatic-instances:                                           OK
-    LIQUID:                                                        OK
-    default parser (Asrts):                                        OK
-  reserved aliases
-    assume:                                                        OK
-    assert:                                                        OK
-    autosize:                                                      OK
-    axiomatize:                                                    OK
-    reflect:                                                       OK
-    measure:                                                       OK
-    define 1:                                                      OK
-    define 2:                                                      OK
-    defined:                                                       OK
-    inline:                                                        OK
-    bound:                                                         OK
-    invariant:                                                     OK
-    predicate:                                                     OK
-    expression:                                                    OK
-    embed:                                                         OK
-    qualif:                                                        OK
-  Does fail
-    Maybe k:Int -> Int:                                            OK
-  Error reporting
-    assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n : OK
-    Missing |:                                                     OK
-
-All 91 tests passed (0.09s)
-
-liquidhaskell-0.8.4.0: Test suite liquidhaskell-parser passed
-liquidhaskell-0.8.4.0: test (suite: test)
-
-rm: tests/pos/.liquid/: No such file or directory
-rm: tests/neg/.liquid/: No such file or directory
-Tests
-  Micro
-    parser-pos
-      TokensAsPrefixes.hs:                    OK (1.51s)
-      Parens.hs:                              OK (0.99s)
-    basic-pos
-      inc03.hs:                               OK (1.17s)
-      List00.hs:                              OK (1.14s)
-      inc02.hs:                               OK (0.91s)
-      infer00.hs:                             OK (1.04s)
-      alias04.hs:                             OK (0.99s)
-      alias00.hs:                             OK (0.90s)
-      alias01.hs:                             OK (0.86s)
-      alias05.hs:                             OK (0.93s)
-      poly00.hs:                              OK (0.86s)
-      inc01q.hs:                              OK (0.92s)
-      alias02.hs:                             OK (0.86s)
-      alias03.hs:                             OK (0.91s)
-      SkipDerived00.hs:                       OK (0.98s)
-      inc01.hs:                               OK (1.00s)
-      Inc03Lib.hs:                            OK (0.94s)
-      inc04.hs:                               OK (0.86s)
-      inc00.hs:                               OK (0.88s)
-    basic-neg
-      inc03.hs:                               OK (0.88s)
-      List00.hs:                              OK (0.91s)
-      inc02.hs:                               OK (0.89s)
-      poly00.hs:                              OK (0.85s)
-      inc01q.hs:                              OK (0.90s)
-      Inc04Lib.hs:                            OK (0.89s)
-      inc01.hs:                               OK (0.90s)
-      Inc04.hs:                               OK (0.89s)
-    measure-pos
-      GList00Lib.hs:                          OK (1.02s)
-      AbsMeasure.hs:                          OK (0.89s)
-      List00Lib.hs:                           OK (0.91s)
-      List01.hs:                              OK (0.97s)
-      ple01.hs:                               OK (0.96s)
-      List02Lib.hs:                           OK (0.98s)
-      List00.hs:                              OK (0.94s)
-      ple00.hs:                               OK (0.90s)
-      fst02.hs:                               OK (0.90s)
-      Len02.hs:                               OK (1.51s)
-      fst01.hs:                               OK (0.95s)
-      Len01.hs:                               OK (0.91s)
-      Ple1Lib.hs:                             OK (0.92s)
-      Len00.hs:                               OK (0.98s)
-      fst00.hs:                               OK (0.95s)
-      Using00.hs:                             OK (0.93s)
-      ExactFunApp.hs:                         OK (0.98s)
-      GList000.hs:                            OK (0.87s)
-      List02.hs:                              OK (0.91s)
-      ple1.hs:                                OK (0.92s)
-    measure-neg
-      GList00Lib.hs:                          OK (1.05s)
-      List01.hs:                              OK (0.93s)
-      List00.hs:                              OK (0.93s)
-      fst02.hs:                               OK (0.88s)
-      fst01.hs:                               OK (0.94s)
-      Len01.hs:                               OK (0.92s)
-      Ple1Lib.hs:                             OK (0.92s)
-      Len00.hs:                               OK (0.93s)
-      fst00.hs:                               OK (0.96s)
-      Using00.hs:                             OK (0.89s)
-      ple0.hs:                                OK (0.92s)
-      List02.hs:                              OK (0.92s)
-      ple1.hs:                                OK (0.92s)
-    datacon-pos
-      Data00.hs:                              OK (0.89s)
-      Data01.hs:                              OK (0.89s)
-      AdtPeano2.hs:                           OK (0.96s)
-      NewType.hs:                             OK (0.92s)
-      Data02Lib.hs:                           OK (0.89s)
-      Data00Lib.hs:                           OK (0.87s)
-      Data02.hs:                              OK (0.89s)
-    datacon-neg
-      Data00.hs:                              OK (0.89s)
-      Data01.hs:                              OK (0.87s)
-      NewTypes0.hs:                           OK (0.87s)
-      AdtPeano2.hs:                           OK (0.94s)
-      Data02Lib.hs:                           OK (0.92s)
-      Data00Lib.hs:                           OK (0.86s)
-      NewTypes.hs:                            OK (0.88s)
-      Data02.hs:                              OK (0.88s)
-    names-pos
-      List00.hs:                              OK (0.91s)
-      Capture02.hs:                           OK (0.89s)
-      ClojurVector.hs:                        OK (1.50s)
-      Uniques.hs:                             OK (1.49s)
-      Shadow00.hs:                            OK (1.10s)
-      local01.hs:                             OK (0.91s)
-      Set02.hs:                               OK (0.93s)
-      Shadow01.hs:                            OK (0.87s)
-      local00.hs:                             OK (0.88s)
-      vector04.hs:                            OK (1.10s)
-      Set00.hs:                               OK (0.97s)
-      HideName00.hs:                          OK (0.87s)
-      Set01.hs:                               OK (0.94s)
-      Ord.hs:                                 OK (0.87s)
-      Assume00.hs:                            OK (0.93s)
-      Capture01.hs:                           OK (0.89s)
-      vector0.hs:                             OK (1.56s)
-      BasicLambdas00.hs:                      OK (1.09s)
-      T675.hs:                                OK (1.27s)
-      BasicLambdas01.hs:                      OK (1.09s)
-      Assume01.hs:                            OK (1.10s)
-      vector1.hs:                             OK (1.56s)
-    names-neg
-      Set02.hs:                               OK (0.99s)
-      local00.hs:                             OK (0.87s)
-      Set00.hs:                               OK (0.93s)
-      Set01.hs:                               OK (0.92s)
-      Capture01.hs:                           OK (0.87s)
-      vector0.hs:                             OK (1.34s)
-      vector1.hs:                             OK (1.57s)
-    reflect-pos
-      DoubleLit.hs:                           OK (0.94s)
-    reflect-neg
-      DoubleLit.hs:                           OK (0.91s)
-    absref-pos
-      deptupW.hs:                             OK (1.04s)
-      deppair2.hs:                            OK (1.03s)
-      ListISort-LType.hs:                     OK (4.71s)
-      Papp00.hs:                              OK (1.13s)
-      state00.hs:                             OK (0.96s)
-      deptup0.hs:                             OK (1.29s)
-      AbsRef00.hs:                            OK (0.89s)
-      deppair0.hs:                            OK (1.20s)
-      ListQSort.hs:                           OK (3.23s)
-      ListISort.hs:                           OK (1.14s)
-    absref-neg
-      deptupW.hs:                             OK (1.25s)
-      ListISort-LType.hs:                     OK (1.41s)
-      deptup0.hs:                             OK (1.29s)
-      deppair0.hs:                            OK (1.18s)
-      ListQSort.hs:                           OK (2.30s)
-      ListISort.hs:                           OK (2.89s)
-    import-lib
-      T1102_LibZ.hs:                          OK (0.96s)
-      ReflectLib1.hs:                         OK (0.89s)
-      ReflectLib5.hs:                         OK (1.02s)
-      ReflectLib4.hs:                         OK (1.07s)
-      T1118.hs:                               OK (1.14s)
-      T1104Lib.hs:                            OK (0.93s)
-      ReflectLib0.hs:                         OK (0.88s)
-      ExactGADT8.hs:                          OK (1.01s)
-      T1118Lib2.hs:                           OK (0.86s)
-      T1117.hs:                               OK (1.10s)
-      T1112.hs:                               OK (1.01s)
-      Peano.hs:                               OK (1.03s)
-      T1096_Types.hs:                         OK (0.89s)
-      ListLib.hs:                             OK (1.04s)
-      T1112Lib.hs:                            OK (0.89s)
-      T1118Lib1.hs:                           OK (0.88s)
-      STLib.hs:                               OK (1.03s)
-      ReflectLib7.hs:                         OK (0.88s)
-      T1102_LibX.hs:                          OK (0.91s)
-      ReflectLib3.hs:                         OK (1.07s)
-      RL1015.hs:                              OK (0.94s)
-      T1102_LibY.hs:                          OK (0.94s)
-      ReflectLib2.hs:                         OK (0.95s)
-      ReflectLib6.hs:                         OK (0.97s)
-      T1117Lib.hs:                            OK (0.93s)
-    import-cli
-      ReflectClient6.hs:                      OK (1.07s)
-      ReflectClient4a.hs:                     OK (1.09s)
-      ReflectClient2.hs:                      OK (0.94s)
-      ReflectClient3.hs:                      OK (1.37s)
-      STClient.hs:                            OK (2.16s)
-      ReflectClient7.hs:                      OK (1.16s)
-      RC1015.hs:                              OK (0.99s)
-      ExactGADT9.hs:                          OK (0.98s)
-      T1180.hs:                               OK (0.98s)
-      T1104Client.hs:                         OK (0.95s)
-      ListClient.hs:                          OK (1.54s)
-      ReflectClient0.hs:                      OK (0.89s)
-      T1096_Foo.hs:                           OK (0.88s)
-      ReflectClient4.hs:                      OK (2.24s)
-      ReflectClient5.hs:                      OK (1.03s)
-      ReflectClient1.hs:                      OK (0.89s)
-    class-pos
-      HiddenMethod00.hs:                      OK (0.88s)
-      STMonad.hs:                             OK (2.63s)
-      Inst00.hs:                              OK (0.94s)
-      Class00.hs:                             OK (0.89s)
-      RealProps1.hs:                          OK (1.03s)
-      RealProps0.hs:                          OK (0.87s)
-    ple-pos
-      BinahQuery.hs:                          OK (2.15s)
-      ExactGADT7.hs:                          OK (1.03s)
-      T1289.hs:                               OK (0.94s)
-      STLC0.hs:                               OK (9.92s)
-      STLCB0.hs:                              OK (1.34s)
-      ReflectDefault.hs:                      OK (0.98s)
-      STLCB1.hs:                              OK (1.46s)
-      IndStar.hs:                             OK (1.21s)
-      Compiler.hs:                            OK (1.64s)
-      T1190.hs:                               OK (1.26s)
-      IndPerm.hs:                             OK (1.67s)
-      STLC1.hs:                               OK (1.70s)
-      BinahUpdate.hs:                         OK (1.04s)
-      Fulcrum.hs:                             OK (7.50s)
-      T1173.hs:                               OK (1.18s)
-      T1257.hs:                               OK (1.04s)
-      STLC2.hs:                               OK (2.02s)
-      IndStarHole.hs:                         OK (1.22s)
-      ExactGADT4.hs:                          OK (1.36s)
-      ple0.hs:                                OK (0.94s)
-      padLeft.hs:                             OK (2.33s)
-      RegexpDerivative.hs:                    OK (29.09s)
-      filterPLE.hs:                           OK (1.18s)
-      pleORM.hs:                              OK (1.42s)
-      ExactGADT5.hs:                          OK (1.68s)
-      T1302b.hs:                              OK (1.87s)
-    ple-neg
-      BinahQuery.hs:                          OK (2.14s)
-      T1289.hs:                               OK (0.93s)
-      ReflectDefault.hs:                      OK (0.46s)
-      BinahUpdate.hs:                         OK (1.08s)
-      BinahUpdateLib1.hs:                     OK (0.77s)
-      T1173.hs:                               OK (1.16s)
-      T1192.hs:                               OK (1.17s)
-      ple0.hs:                                OK (0.92s)
-      BinahUpdateLib.hs:                      OK (0.77s)
-      BinahUpdateClient.hs:                   OK (0.49s)
-      ExactGADT5.hs:                          OK (1.66s)
-  Prover
-    foundations
-      InductionRJ.hs:                         OK (2.22s)
-      Lists.hs:                               OK (57.92s)
-      Induction.hs:                           OK (2.78s)
-      Basics.hs:                              OK (11.39s)
-    without_ple_pos
-      MonadList.hs:                           OK (4.96s)
-      MonoidMaybe.hs:                         OK (1.69s)
-      FunctorMaybe.hs:                        OK (2.04s)
-      MonadMaybe.hs:                          OK (1.69s)
-      ProofCombinators.hs:                    OK (1.16s)
-      ApplicativeId.hs:                       OK (2.47s)
-      Unification.hs:                         OK (8.50s)
-      MonoidList.hs:                          OK (1.82s)
-      NatInduction.hs:                        OK (1.19s)
-      Solver.hs:                              OK (2.20s)
-      Peano.hs:                               OK (1.58s)
-      Compose.hs:                             OK (1.05s)
-      MonadId.hs:                             OK (1.51s)
-      FunctorList.hs:                         OK (4.16s)
-      ApplicativeMaybe.hs:                    OK (5.42s)
-      NaturalDeduction.hs:                    OK (1.55s)
-      Append.hs:                              OK (3.36s)
-      FoldrUniversal.hs:                      OK (3.73s)
-      FunctorId.hs:                           OK (1.57s)
-      Fibonacci.hs:                           OK (3.11s)
-      Euclide.hs:                             OK (1.11s)
-      MapFusion.hs:                           OK (3.43s)
-      FunctionEquality101.hs:                 OK (1.21s)
-      AlphaEquivalence.hs:                    OK (1.05s)
-      Overview.hs:                            OK (1.83s)
-      NormalForm.hs:                          OK (1.01s)
-      BasicLambdas.hs:                        OK (1.01s)
-    without_ple_neg
-      MonadList.hs:                           OK (7.11s)
-      FunctorMaybe.hs:                        OK (2.87s)
-      MonadMaybe.hs:                          OK (1.74s)
-      FunctorList.hs:                         OK (4.71s)
-      ApplicativeMaybe.hs:                    OK (8.54s)
-      Append.hs:                              OK (3.80s)
-      Fibonacci.hs:                           OK (3.25s)
-      MapFusion.hs:                           OK (4.66s)
-      BasicLambdas.hs:                        OK (0.59s)
-    with_ple
-      MonadList.hs:                           OK (1.62s)
-      MonoidMaybe.hs:                         OK (1.16s)
-      FunctorMaybe.hs:                        OK (1.20s)
-      MonadMaybe.hs:                          OK (1.23s)
-      Maybe.hs:                               OK (0.99s)
-      ProofCombinators.hs:                    OK (1.14s)
-      ApplicativeId.hs:                       OK (1.26s)
-      Unification.hs:                         OK (6.91s)
-      MonoidList.hs:                          OK (1.36s)
-      NatInduction.hs:                        OK (1.18s)
-      Lists.hs:                               OK (1.50s)
-      Solver.hs:                              OK (2.33s)
-      Peano.hs:                               OK (1.44s)
-      Compose.hs:                             OK (1.08s)
-      MonadId.hs:                             OK (1.12s)
-      FunctorList.hs:                         OK (1.34s)
-      ApplicativeMaybe.hs:                    OK (1.65s)
-      NaturalDeduction.hs:                    OK (1.55s)
-      Append.hs:                              OK (1.55s)
-      FoldrUniversal.hs:                      OK (1.68s)
-      FunctorId.hs:                           OK (1.16s)
-      Fibonacci.hs:                           OK (13.38s)
-      Euclide.hs:                             OK (1.18s)
-      MapFusion.hs:                           OK (1.28s)
-      FunctionEquality101.hs:                 OK (1.15s)
-      AlphaEquivalence.hs:                    OK (1.02s)
-      Overview.hs:                            OK (1.55s)
-      NormalForm.hs:                          OK (0.98s)
-      ApplicativeList.hs:                     OK (4.05s)
-      BasicLambdas.hs:                        OK (1.07s)
+  
   Macro
     unit-pos
-      ClassReg.hs:                            OK (0.91s)
-      poly4.hs:                               OK (1.00s)
-      Term.hs:                                OK (1.12s)
-      CompareConstraints.hs:                  OK (1.40s)
-      Books.hs:                               OK (1.13s)
-      BST.hs:                                 OK (16.51s)
-      CasesToLogic.hs:                        OK (0.92s)
-      elim-ex-compose.hs:                     OK (1.45s)
-      zipper000.hs:                           OK (1.18s)
-      Map2.hs:                                OK (38.96s)
       RefinedADTs.hs:                         FAIL (0.97s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T531.hs:                                OK (0.88s)
-      ResolvePred.hs:                         OK (1.04s)
-      ExactGADT2.hs:                          OK (0.90s)
-      zipper.hs:                              OK (2.59s)
-      inline1.hs:                             OK (0.91s)
-      alphaconvert-Set.hs:                    OK (1.27s)
-      exp0.hs:                                OK (0.99s)
-      elements.hs:                            OK (1.77s)
-      zipW1.hs:                               OK (1.03s)
-      jeff.hs:                                OK (5.81s)
-      ImplicitDouble.hs:                      OK (0.92s)
-      GeneralizedTermination.hs:              OK (1.10s)
-      Ignores.hs:                             OK (0.86s)
-      mapreduce-bare.hs:                      OK (16.32s)
-      meas6.hs:                               OK (1.47s)
-      RecordSelectorError.hs:                 OK (0.92s)
-      Cat.hs:                                 OK (0.90s)
-      MutualRec.hs:                           OK (10.07s)
-      elim-ex-let.hs:                         OK (4.92s)
-      test00.old.hs:                          OK (1.02s)
-      GoodHMeas.hs:                           OK (0.95s)
-      hole-app.hs:                            OK (0.91s)
-      ImplicitTrivial.hs:                     OK (0.87s)
-      Graph.hs:                               OK (1.14s)
-      niki1.hs:                               OK (1.13s)
-      poly0.hs:                               OK (1.17s)
-      top0.hs:                                OK (1.00s)
-      range.hs:                               OK (1.45s)
-      T820.hs:                                OK (1.17s)
-      T1198.3.hs:                             OK (0.88s)
+      
       DataBase.hs:                            FAIL (1.03s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      string00.hs:                            OK (1.01s)
-      GCD.hs:                                 OK (1.10s)
+
       mapTvCrash.hs:                          FAIL (0.90s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      deptup.hs:                              OK (2.19s)
-      test0.hs:                               OK (1.02s)
-      ExactGADT6.hs:                          OK (0.98s)
-      Ackermann.hs:                           OK (0.96s)
-      anfbug.hs:                              OK (1.23s)
+        unknown-plen?
+      
       MeasureContains.hs:                     FAIL (0.97s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      wrap0.hs:                               OK (1.24s)
-      RealProps.hs:                           OK (1.00s)
-      T1288.hs:                               OK (0.88s)
-      ORM.hs:                                 OK (1.90s)
-      T1289a.hs:                              OK (0.88s)
-      meas2.hs:                               OK (0.98s)
-      comprehension.hs:                       OK (0.87s)
-      vector2.hs:                             OK (2.74s)
-      failName.hs:                            OK (0.90s)
-      T1095C.hs:                              OK (0.92s)
-      repeatHigherOrder.hs:                   OK (2.08s)
-      lit.hs:                                 OK (0.85s)
-      T716.hs:                                OK (2.52s)
-      WBL.hs:                                 OK (2.91s)
-      elim-ex-map-1.hs:                       OK (3.31s)
-      ListQSort-LType.hs:                     OK (3.43s)
-      ListReverse-LType.hs:                   OK (1.04s)
-      Abs.hs:                                 OK (0.92s)
-      poly1.hs:                               OK (1.11s)
       dropwhile.hs:                           FAIL (1.07s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      maybe000.hs:                            OK (1.01s)
-      meas0a.hs:                              OK (1.20s)
       Words1.hs:                              FAIL (0.92s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      CountMonad.hs:                          OK (1.27s)
-      QQTySigTyVars.hs:                       OK (3.22s)
-      T1198.2.hs:                             OK (0.92s)
-      nats.hs:                                OK (1.08s)
-      test1.hs:                               OK (1.01s)
-      meas00a.hs:                             OK (0.97s)
-      div000.hs:                              OK (0.89s)
-      ListRange-LType.hs:                     OK (1.31s)
-      Keys.hs:                                OK (1.05s)
-      partial-tycon.hs:                       OK (0.91s)
-      wrap1.hs:                               OK (1.32s)
-      StateConstraints0.hs:                   OK (1.38s)
-      profcrasher.hs:                         OK (0.95s)
-      ClojurVector.hs:                        OK (1.51s)
-      MeasureDups.hs:                         OK (1.11s)
       T819A.hs:                               FAIL (1.05s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      listqual.hs:                            OK (1.07s)
-      deptupW.hs:                             OK (1.18s)
-      polyqual.hs:                            OK (1.87s)
-      maybe.hs:                               OK (2.09s)
-      MaskError.hs:                           OK (0.89s)
-      Mod1.hs:                                OK (0.90s)
-      RBTree-height.hs:                       OK (5.04s)
-      Even0.hs:                               OK (0.89s)
-      alphaconvert-List.hs:                   OK (1.88s)
-      LocalSpecImp.hs:                        OK (0.87s)
-      transTAG.hs:                            OK (3.22s)
-      Rebind.hs:                              OK (0.90s)
-      Termination.lhs:                        OK (1.09s)
-      T914.hs:                                OK (1.02s)
       T1095B.hs:                              FAIL (1.17s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      State1.hs:                              OK (1.08s)
-      Variance.hs:                            OK (0.99s)
-      Fractional.hs:                          OK (1.06s)
-      zipW.hs:                                OK (1.10s)
       T1295b.hs:                              FAIL (0.93s)
         tests/test.hs:292:
         Wrong exit code
@@ -1474,241 +69,82 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      DependentPairs.hs:                      OK (0.93s)
-      propmeasure1.hs:                        OK (0.87s)
-      qualTest.hs:                            OK (0.98s)
-      ex01.hs:                                OK (0.88s)
-      NoCaseExpand.hs:                        OK (1.38s)
-      rta.hs:                                 OK (0.89s)
-      Hex00.hs:                               OK (0.86s)
-      PersistentVector.hs:                    OK (1.26s)
-      dataConQuals.hs:                        OK (0.93s)
-      invlhs.hs:                              OK (0.92s)
-      Lib521.hs:                              OK (0.89s)
-      comma.hs:                               OK (0.87s)
-      stateInvarint.hs:                       OK (1.85s)
-      datacon-inv.hs:                         OK (0.88s)
-      meas7.hs:                               OK (1.01s)
-      malformed0.hs:                          OK (1.23s)
-      Merge1.hs:                              OK (1.03s)
       HasElem.hs:                             FAIL (0.89s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      tagBinder.hs:                           OK (0.89s)
-      RecQSort0.hs:                           OK (1.22s)
       PairMeasure0.hs:                        FAIL (0.83s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      extype.hs:                              OK (1.00s)
-      AutoTerm.hs:                            OK (1.02s)
-      NoExhaustiveGuardsError.hs:             OK (0.87s)
-      EvalQuery.hs:                           OK (1.39s)
-      LocalLazy.hs:                           OK (1.03s)
-      Holes.hs:                               OK (1.18s)
-      LocalSpec0.hs:                          OK (0.87s)
-      ListRange.hs:                           OK (1.30s)
-      AdtList3.hs:                            OK (0.99s)
-      MeasureSets.hs:                         OK (1.05s)
-      vector1b.hs:                            OK (2.07s)
-      hello.hs:                               OK (0.91s)
       bag.hs:                                 FAIL (0.97s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      eq-poly-measure.hs:                     OK (1.03s)
-      infix.hs:                               OK (1.01s)
-      foldr.hs:                               OK (0.99s)
-      T1286.hs:                               OK (0.87s)
-      RecSelector.hs:                         OK (0.91s)
-      reflect0.hs:                            OK (0.92s)
-      maybe0.hs:                              OK (0.98s)
-      Variance2.hs:                           OK (1.02s)
       monad1.hs:                              FAIL (0.87s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      maps.hs:                                OK (1.27s)
-      absref-crash0.hs:                       OK (1.13s)
-      foldN.hs:                               OK (1.01s)
-      grty3.hs:                               OK (0.90s)
-      csgordon_issue_296.hs:                  OK (0.89s)
+      
       OrdList.hs:                             FAIL (4.53s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      risers.hs:                              OK (1.09s)
-      RBTree-color.hs:                        OK (6.24s)
-      maps1.hs:                               OK (1.15s)
       bag1.hs:                                FAIL (1.05s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      alias00.hs:                             OK (0.89s)
-      lex.hs:                                 OK (0.92s)
-      idNat.hs:                               OK (0.88s)
-      QQTySyn.hs:                             OK (3.28s)
-      TypeLitString.hs:                       OK (0.94s)
-      mutrec.hs:                              OK (0.89s)
-      meas8.hs:                               OK (1.03s)
-      T1278.3.hs:                             OK (0.92s)
-      compare1.hs:                            OK (1.08s)
-      FibEq.hs:                               OK (1.29s)
-      deptup3.hs:                             OK (1.11s)
-      StructRec.hs:                           OK (0.96s)
-      AdtPeano0.hs:                           OK (0.98s)
-      T1245.hs:                               OK (1.07s)
-      pred.hs:                                OK (0.88s)
-      maybe4.hs:                              OK (0.91s)
-      monad5.hs:                              OK (1.38s)
-      poslist_dc.hs:                          OK (1.12s)
-      idNat0.hs:                              OK (0.89s)
-      T1220.hs:                               OK (0.93s)
-      kmpVec.hs:                              OK (2.41s)
-      Class2.hs:                              OK (1.32s)
-      pair00.hs:                              OK (3.17s)
-      recursion0.hs:                          OK (0.90s)
-      T1013.hs:                               OK (1.23s)
-      go_ugly_type.hs:                        OK (1.06s)
-      cut00.hs:                               OK (1.02s)
-      kmp.hs:                                 OK (3.25s)
       MultipleInvariants.hs:                  FAIL (0.92s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      grty2.hs:                               OK (1.00s)
       T1085.hs:                               FAIL (0.64s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      PromotedDataCons.hs:                    OK (0.91s)
-      listSet.hs:                             OK (1.29s)
-      vector00.hs:                            OK (1.15s)
-      Streams.hs:                             OK (1.16s)
-      Even.hs:                                OK (0.87s)
-      gimme.hs:                               OK (1.02s)
-      ExactGADT.hs:                           OK (0.88s)
-      alias01.hs:                             OK (0.87s)
-      range1.hs:                              OK (1.06s)
-      coretologic.hs:                         OK (0.97s)
-      lit02.hs:                               OK (1.05s)
-      duplicate-bind.hs:                      OK (1.00s)
       ANF.hs:                                 FAIL (1.09s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      listSetDemo.hs:                         OK (1.28s)
-      LambdaEvalMini.hs:                      OK (4.19s)
-      TokenType.hs:                           OK (0.89s)
-      tyvar.hs:                               OK (0.89s)
-      T1278.2.hs:                             OK (0.93s)
-      meas9.hs:                               OK (1.19s)
       Solver.hs:                              FAIL (1.08s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      LambdaEvalSuperTiny.hs:                 OK (1.49s)
-      ReflectBooleanFunctions.hs:             OK (0.90s)
-      Implicit3.hs:                           OK (0.89s)
-      bangPatterns.hs:                        OK (1.01s)
-      AdtPeano1.hs:                           OK (0.98s)
-      T1126.hs:                               OK (0.92s)
-      Resolve.hs:                             OK (0.89s)
-      Infinity.hs:                            OK (1.07s)
-      TypeAlias.hs:                           OK (0.90s)
-      TopLevel.hs:                            OK (0.96s)
-      ResolveB.hs:                            OK (0.85s)
-      Automate.hs:                            OK (1.17s)
-      AdtList2.hs:                            OK (1.02s)
-      forloop.hs:                             OK (1.59s)
-      UnboxedTuplesAndTH.hs:                  OK (2.07s)
-      TypeLitNat.hs:                          OK (0.92s)
-      T598.hs:                                OK (1.06s)
-      elim-ex-list.hs:                        OK (3.08s)
-      RBTree.hs:                              OK (21.93s)
-      SimplerNotation.hs:                     OK (0.88s)
-      VerifiedMonoid.hs:                      OK (1.09s)
-      AutoSize.hs:                            OK (0.93s)
-      bool2.hs:                               OK (0.86s)
-      Reduction.hs:                           OK (0.88s)
-      initarray.hs:                           OK (1.42s)
-      GhcSort1.hs:                            OK (6.66s)
-      pargs1.hs:                              OK (0.88s)
       RecordAccessors.hs:                     FAIL (0.89s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      maybe1.hs:                              OK (1.45s)
-      LambdaEval.hs:                          OK (5.21s)
       monad0.hs:                              FAIL (0.88s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      ExactADT6.hs:                           OK (0.93s)
       MapReduceVerified.hs:                   FAIL (0.63s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      implies.hs:                             OK (0.87s)
-      hole-fun.hs:                            OK (0.91s)
-      testRec.hs:                             OK (0.96s)
-      StateConstraints00.hs:                  OK (0.97s)
       contra0.hs:                             FAIL (0.99s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      for.hs:                                 OK (1.66s)
-      grty1.hs:                               OK (1.04s)
-      Foldl.hs:                               OK (20.46s)
-      T1024.hs:                               OK (0.97s)
-      SimplifyTup00.hs:                       OK (0.94s)
-      Constraints.hs:                         OK (1.06s)
-      AdtList5.hs:                            OK (0.89s)
-      UnboxedTuples.hs:                       OK (0.90s)
-      TerminationNum.hs:                      OK (0.91s)
-      ToyMVar.hs:                             OK (1.54s)
-      elim00.hs:                              OK (0.94s)
-      Eval.hs:                                OK (1.23s)
-      deptup1.hs:                             OK (1.55s)
-      stacks0.hs:                             OK (1.10s)
-      ReflectMutual.hs:                       OK (0.97s)
-      bounds1.hs:                             OK (0.92s)
-      ListLen-LType.hs:                       OK (2.17s)
-      T1034.hs:                               OK (0.94s)
-      ListElem.hs:                            OK (1.01s)
-      T1065.hs:                               OK (1.00s)
-      pair0.hs:                               OK (3.96s)
       monad7.hs:                              FAIL (1.07s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      test00c.hs:                             OK (1.23s)
-      Sum.hs:                                 OK (1.01s)
-      TerminationNum0.hs:                     OK (0.99s)
-      WrapUnWrap.hs:                          OK (1.05s)
-      AVLRJ.hs:                               OK (3.44s)
-      record0.hs:                             OK (1.07s)
-      T1267.hs:                               OK (0.99s)
-      ResolveA.hs:                            OK (0.93s)
-      RBTree-ord.hs:                          OK (14.53s)
-      T1045.hs:                               OK (0.87s)
-      Goo.hs:                                 OK (0.88s)
       test00-int.hs:                          FAIL (0.49s)
         tests/test.hs:292:
         Wrong exit code
@@ -1719,90 +155,36 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      ListMSort.hs:                           OK (2.04s)
-      AdtList1.hs:                            OK (0.99s)
-      DependentPairsFun.hs:                   OK (0.88s)
       TemplateHaskell.hs:                     FAIL (1.17s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      datacon0.hs:                            OK (1.33s)
-      Hutton.hs:                              OK (2.86s)
-      listAnf.hs:                             OK (1.25s)
-      test000.hs:                             OK (0.88s)
-      VerifiedNum.hs:                         OK (0.90s)
-      selfList.hs:                            OK (1.20s)
-      tyExpr.hs:                              OK (0.86s)
-      modTest.hs:                             OK (0.98s)
-      StrictPair0.hs:                         OK (0.98s)
-      Propability.hs:                         OK (1.07s)
-      PointDist.hs:                           OK (1.08s)
-      zipSO.hs:                               OK (1.09s)
-      bool1.hs:                               OK (0.86s)
-      maybe2.hs:                              OK (2.87s)
-      T385.hs:                                OK (0.97s)
-      GhcSort2.hs:                            OK (2.20s)
-      T1092.hs:                               OK (1.32s)
-      propmeasure.hs:                         OK (1.08s)
-      kmpIO.hs:                               OK (5.34s)
-      LazyWhere1.hs:                          OK (1.02s)
-      record1.hs:                             OK (0.91s)
       T1295.hs:                               FAIL (0.93s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      AdtList0.hs:                            OK (0.91s)
-      MergeSort.hs:                           OK (1.89s)
-      datacon1.hs:                            OK (0.88s)
-      Client521.hs:                           OK (0.92s)
       T819.hs:                                FAIL (0.60s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      LogicCurry1.hs:                         OK (0.90s)
-      poly3a.hs:                              OK (0.90s)
-      vector1a.hs:                            OK (2.22s)
-      lets.hs:                                OK (1.22s)
-      RecQSort.hs:                            OK (1.23s)
       case-lambda-join.hs:                    FAIL (1.13s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      primInt0.hs:                            OK (2.63s)
-      RBTree-col-height.hs:                   OK (7.82s)
-      WBL0.hs:                                OK (2.92s)
-      StrictPair1.hs:                         OK (1.11s)
       LocalTermExpr.hs:                       FAIL (0.95s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Strings.hs:                             OK (0.94s)
-      eqelems.hs:                             OK (1.01s)
-      pair.hs:                                OK (4.14s)
       Foo.hs:                                 FAIL (0.74s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      StateConstraints.hs:                    OK (16.91s)
-      T1336.hs:                               OK (0.93s)
-      bool0.hs:                               OK (0.88s)
-      tyfam0.hs:                              OK (1.16s)
-      maybe3.hs:                              OK (0.92s)
-      nullterm.hs:                            OK (1.41s)
-      tyclass0.hs:                            OK (0.91s)
-      T1060.hs:                               OK (1.26s)
-      monad2.hs:                              OK (0.89s)
-      GhcSort3.hs:                            OK (7.23s)
-      BST000.hs:                              OK (1.58s)
-      compare.hs:                             OK (1.06s)
-      FFI.hs:                                 OK (1.29s)
-      T1302.hs:                               OK (1.01s)
       T1025a.hs:                              FAIL (1.20s)
         tests/test.hs:292:
         Wrong exit code
@@ -1813,123 +195,47 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      T1100.hs:                               OK (1.07s)
-      adt0.hs:                                OK (1.06s)
-      T1074.hs:                               OK (1.09s)
-      grty0.hs:                               OK (0.88s)
       T1025.hs:                               FAIL (1.15s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      inline.hs:                              OK (1.04s)
-      State.hs:                               OK (1.52s)
       state00.hs:                             FAIL (0.90s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      BinarySearch.hs:                        OK (1.33s)
       LocalHole.hs:                           FAIL (0.99s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Chunks.hs:                              OK (1.12s)
-      AdtList4.hs:                            OK (1.17s)
-      ReflectAlias.hs:                        OK (0.91s)
-      Avg.hs:                                 OK (0.93s)
-      FractionalInstance.hs:                  OK (0.97s)
-      niki.hs:                                OK (1.19s)
-      lit00.hs:                               OK (1.00s)
-      elim01.hs:                              OK (1.00s)
-      Implicit1.hs:                           OK (0.91s)
-      compare2.hs:                            OK (1.06s)
-      DB00.hs:                                OK (0.99s)
-      monad6.hs:                              OK (1.09s)
-      test00b.hs:                             OK (1.05s)
-      deepmeas0.hs:                           OK (1.14s)
-      MapFusion.hs:                           OK (1.26s)
-      T1223.hs:                               OK (1.88s)
-      elim-ex-map-2.hs:                       OK (3.62s)
       T595.hs:                                FAIL (1.21s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      ex0.hs:                                 OK (1.30s)
-      Map.hs:                                 OK (36.18s)
-      pargs.hs:                               OK (0.85s)
-      CommentedOut.hs:                        OK (0.94s)
-      poly2.hs:                               OK (1.06s)
-      T1198.1.hs:                             OK (0.91s)
       ListISort-bag.hs:                       FAIL (0.95s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      TemplateHaskellImp.hs:                  OK (1.07s)
-      HedgeUnion.hs:                          OK (1.25s)
-      test2.hs:                               OK (1.01s)
-      term0.hs:                               OK (1.06s)
-      Coercion.hs:                            OK (1.03s)
-      spec0.hs:                               OK (1.01s)
-      ite1.hs:                                OK (0.87s)
-      LazyWhere.hs:                           OK (0.97s)
-      AssumedRecursive.hs:                    OK (0.85s)
-      ListKeys.hs:                            OK (0.97s)
-      meas0.hs:                               OK (1.16s)
-      cmptag0.hs:                             OK (1.17s)
-      Mod2.hs:                                OK (0.90s)
-      AVL.hs:                                 OK (2.45s)
-      ConstraintsAppend.hs:                   OK (2.53s)
       T1095A.hs:                              FAIL (1.15s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      pragma0.hs:                             OK (0.87s)
-      unusedtyvars.hs:                        OK (1.05s)
-      QQTySig.hs:                             OK (3.05s)
-      Moo.hs:                                 OK (0.91s)
-      Map0.hs:                                OK (36.25s)
-      ListConcat.hs:                          OK (1.01s)
-      DepTriples.hs:                          OK (1.03s)
-      absref-crash.hs:                        OK (0.90s)
-      ExactGADT0.hs:                          OK (0.94s)
-      CheckedNum.hs:                          OK (0.89s)
-      comprehensionTerm.hs:                   OK (2.29s)
-      Repeat.hs:                              OK (1.00s)
       T1120A.hs:                              FAIL (1.27s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      meas11.hs:                              OK (0.92s)
-      Measures.hs:                            OK (0.88s)
-      SingletonLists.hs:                      OK (0.89s)
-      AmortizedQueue.hs:                      OK (1.27s)
-      anish1.hs:                              OK (0.93s)
-      polyfun.hs:                             OK (1.07s)
-      SafePartialFunctions.hs:                OK (0.95s)
-      PairMeasure.hs:                         OK (0.92s)
-      scanr.hs:                               OK (1.27s)
-      transpose.hs:                           OK (2.06s)
-      meas4.hs:                               OK (1.48s)
-      Permutation.hs:                         OK (1.20s)
+     
       T1089b.hs:                              FAIL (1.13s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Fib0.hs:                                OK (1.05s)
-      T1045a.hs:                              OK (0.88s)
-      Measures1.hs:                           OK (0.89s)
-      take.hs:                                OK (3.07s)
-      ExactGADT1.hs:                          OK (0.91s)
-      LambdaDeBruijn.hs:                      OK (2.22s)
-      zipper0.hs:                             OK (1.60s)
-      T1198.4.hs:                             OK (0.91s)
       NatClass.hs:                            FAIL (1.07s)
         tests/test.hs:292:
         Wrong exit code
@@ -1945,397 +251,28 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      AutoTerm1.hs:                           OK (0.90s)
-      HaskellMeasure.hs:                      OK (0.91s)
-      meas00.hs:                              OK (1.13s)
-      Test761.hs:                             OK (1.01s)
-      anftest.hs:                             OK (0.94s)
-      ListSort.hs:                            OK (4.23s)
-      zipW2.hs:                               OK (0.89s)
-      ListISort-perm.hs:                      OK (1.71s)
-      DataKinds.hs:                           OK (0.90s)
-      data2.hs:                               OK (1.38s)
-      elems.hs:                               OK (1.05s)
-      multi-pred-app-00.hs:                   OK (0.88s)
-      Holes-Slicing.hs:                       OK (0.99s)
-      IcfpDemo.hs:                            OK (1.32s)
-      Loo.hs:                                 OK (0.92s)
-      LiquidArray.hs:                         OK (0.97s)
-      rangeAdt.hs:                            OK (4.86s)
-      LambdaEvalTiny.hs:                      OK (1.76s)
-      T866.hs:                                OK (0.91s)
-      poslist.hs:                             OK (1.37s)
-      HigherOrderRecFun.hs:                   OK (0.89s)
-      meas5.hs:                               OK (2.67s)
-      Class.hs:                               OK (1.38s)
-      elim-ex-map-3.hs:                       OK (3.31s)
-      ex1.hs:                                 OK (1.34s)
-      poly2-degenerate.hs:                    OK (1.06s)
-      StackClass.hs:                          OK (1.04s)
-      Words.hs:                               OK (0.90s)
-      ListLen.hs:                             OK (2.04s)
-      go.hs:                                  OK (0.97s)
       DepData.hs:                             FAIL (0.86s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      poly3.hs:                               OK (0.90s)
-      StateF00.hs:                            OK (1.08s)
-      RelativeComplete.hs:                    OK (1.11s)
-      CharLiterals.hs:                        OK (0.89s)
-      T1126a.hs:                              OK (0.89s)
-      ple1.hs:                                OK (1.57s)
       tupparse.hs:                            FAIL (0.94s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      trans.hs:                               OK (1.25s)
-      ite.hs:                                 OK (0.89s)
       imp0.hs:                                FAIL (0.96s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Product.hs:                             OK (1.52s)
-      filterAbs.hs:                           OK (1.39s)
-      StringLit.hs:                           OK (0.87s)
-      T1278.hs:                               OK (0.90s)
-      ListMSort-LType.hs:                     OK (6.51s)
       LocalSpec.hs:                           FAIL (0.78s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 1
-      rec_annot_go.hs:                        OK (0.99s)
-      test00.hs:                              OK (0.99s)
-      Assume.hs:                              OK (0.95s)
-      meas1.hs:                               OK (1.21s)
-      BinarySearchOverflow.hs:                OK (1.38s)
-      partialmeasure.hs:                      OK (0.92s)
-      StackMachine.hs:                        OK (1.19s)
-      T595a.hs:                               OK (0.90s)
-      tup0.hs:                                OK (0.88s)
-      GhcSort3.T.hs:                          OK (2.21s)
-      vector1.hs:                             OK (2.10s)
-    unit-neg
-      CompareConstraints.hs:                  OK (1.46s)
-      Books.hs:                               OK (1.05s)
-      T602.hs:                                OK (0.89s)
-      elim-ex-compose.hs:                     OK (1.08s)
-      MultiParamTypeClasses.hs:               OK (0.93s)
-      LetRecStack.hs:                         OK (1.02s)
-      TermReal.hs:                            OK (0.89s)
-      nestedRecursion.hs:                     FAIL (0.93s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      datacon-eq.hs:                          OK (0.88s)
-      TotalHaskell.hs:                        OK (0.91s)
-      GeneralizedTermination.hs:              FAIL (0.96s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      DependentTypes.hs:                      OK (0.99s)
-      concat1.hs:                             OK (1.95s)
-      elim-ex-let.hs:                         OK (2.92s)
-      poly0.hs:                               OK (1.13s)
-      range.hs:                               OK (1.60s)
-      T1198.3.hs:                             OK (0.92s)
-      Client.hs:                              OK (0.89s)
-      string00.hs:                            OK (1.02s)
-      NoMethodBindingError.hs:                OK (0.47s)
-      ExactGADT6.hs:                          OK (1.04s)
-      MeasureContains.hs:                     FAIL (0.97s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      tyclass0-unsafe.hs:                     OK (0.89s)
-      wrap0.hs:                               OK (1.44s)
-      T1288.hs:                               OK (0.88s)
-      meas2.hs:                               OK (1.06s)
-      vector2.hs:                             OK (2.52s)
-      T1095C.hs:                              OK (0.48s)
-      state0.hs:                              OK (0.97s)
-      lit.hs:                                 OK (0.87s)
-      list00.hs:                              OK (1.09s)
-      elim-ex-map-1.hs:                       OK (3.26s)
-      poly1.hs:                               OK (1.12s)
-      Propability0.hs:                        OK (1.08s)
-      test1.hs:                               OK (1.01s)
-      ExactGADT7.hs:                          OK (0.99s)
-      mapreduce.hs:                           OK (6.29s)
-      wrap1.hs:                               OK (1.54s)
-      StateConstraints0.hs:                   OK (29.41s)
-      MeasureDups.hs:                         OK (1.35s)
-      QQTySyn1.hs:                            OK (4.15s)
-      meas3.hs:                               OK (1.12s)
-      Rebind.hs:                              OK (0.90s)
-      ex0-unsafe.hs:                          OK (1.13s)
-      Variance.hs:                            OK (0.92s)
-      T743.hs:                                OK (0.93s)
-      T1078.hs:                               FAIL (0.99s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      listne.hs:                              OK (0.86s)
-      Hex00.hs:                               OK (0.86s)
-      Strata.hs:                              FAIL (0.94s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      meas7.hs:                               OK (0.99s)
-      errorloc.hs:                            OK (1.00s)
-      HasElem.hs:                             FAIL (0.85s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      AutoTerm.hs:                            FAIL (0.94s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      NoExhaustiveGuardsError.hs:             OK (0.88s)
-      EvalQuery.hs:                           OK (1.30s)
-      ListRange.hs:                           OK (1.15s)
-      pragma0-unsafe.hs:                      FAIL (0.86s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      bag.hs:                                 FAIL (1.05s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      prune0.hs:                              OK (0.97s)
-      T1286.hs:                               OK (0.87s)
-      RecSelector.hs:                         FAIL (0.88s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      maps.hs:                                OK (1.24s)
-      HigherOrder.hs:                         OK (0.87s)
-      foldN.hs:                               OK (1.00s)
-      grty3.hs:                               OK (0.96s)
-      foldN1.hs:                              OK (1.01s)
-      risers.hs:                              OK (1.03s)
-      bag1.hs:                                FAIL (1.05s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      alias00.hs:                             OK (0.87s)
-      AbsApp.hs:                              OK (0.87s)
-      FunctionRef.hs:                         OK (0.48s)
-      elim000.hs:                             OK (0.98s)
-      AdtPeano0.hs:                           OK (0.98s)
-      pred.hs:                                OK (0.87s)
-      test00a.hs:                             OK (1.01s)
-      monad5.hs:                              OK (1.13s)
-      FunSoundness.hs:                        OK (0.87s)
-      ass0.hs:                                OK (0.85s)
-      Class2.hs:                              FAIL (1.00s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      T1013A.hs:                              OK (2.31s)
-      MultipleInvariants.hs:                  FAIL (0.87s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      grty2.hs:                               OK (1.08s)
-      vector00.hs:                            OK (1.21s)
-      Even.hs:                                FAIL (0.89s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      Baz.hs:                                 OK (0.88s)
-      coretologic.hs:                         OK (0.97s)
-      T743-mini.hs:                           FAIL (1.00s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      meas9.hs:                               OK (0.94s)
-      Solver.hs:                              FAIL (1.08s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      AdtPeano1.hs:                           OK (0.96s)
-      T1126.hs:                               OK (0.91s)
-      truespec.hs:                            OK (0.95s)
-      monad4.hs:                              OK (1.19s)
-      Class3.hs:                              FAIL (1.00s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      qsloop.hs:                              FAIL (0.99s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      TopLevel.hs:                            OK (0.95s)
-      ex1-unsafe.hs:                          OK (1.25s)
-      Automate.hs:                            OK (0.52s)
-      TypeLitNat.hs:                          OK (0.98s)
-      concat.hs:                              OK (1.69s)
-      RG.hs:                                  OK (0.78s)
-      elim-ex-list.hs:                        OK (2.99s)
-      VerifiedMonoid.hs:                      OK (0.60s)
-      AutoSize.hs:                            FAIL (2.45s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      pargs1.hs:                              OK (0.88s)
-      ExactADT6.hs:                           OK (1.02s)
-      testRec.hs:                             FAIL (1.04s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      mr00.hs:                                OK (1.50s)
-      StateConstraints00.hs:                  OK (0.99s)
-      BigNum.hs:                              OK (0.87s)
-      contra0.hs:                             FAIL (0.96s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      HolesTop.hs:                            OK (0.96s)
-      grty1.hs:                               OK (1.08s)
-      Constraints.hs:                         OK (0.97s)
-      partial.hs:                             OK (0.93s)
-      TerminationNum.hs:                      FAIL (0.93s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      Eval.hs:                                OK (1.33s)
-      CastedTotality.hs:                      OK (0.54s)
-      ListElem.hs:                            OK (0.96s)
-      pair0.hs:                               OK (4.01s)
-      monad7.hs:                              OK (1.52s)
-      test00c.hs:                             OK (0.88s)
-      Sum.hs:                                 FAIL (1.02s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      TerminationNum0.hs:                     FAIL (0.97s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      record0.hs:                             OK (0.99s)
-      T1267.hs:                               OK (0.49s)
-      ListMSort.hs:                           OK (3.20s)
-      VerifiedNum.hs:                         OK (0.91s)
-      StrictPair0.hs:                         OK (0.90s)
-      Propability.hs:                         OK (1.30s)
-      Class4.hs:                              FAIL (0.98s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      monad3.hs:                              OK (1.21s)
-      LazyWhere1.hs:                          OK (1.01s)
-      MergeSort.hs:                           OK (1.92s)
-      vector1a.hs:                            OK (1.78s)
-      RecQSort.hs:                            FAIL (1.25s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      StrictPair1.hs:                         OK (1.08s)
-      vector0a.hs:                            OK (1.33s)
-      Strings.hs:                             OK (0.87s)
-      pair.hs:                                OK (4.16s)
-      Class5.hs:                              FAIL (0.86s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      StateConstraints.hs:                    OK (2.85s)
-      Variance1.hs:                           OK (0.78s)
-      stacks.hs:                              OK (1.19s)
-      grty0.hs:                               OK (0.87s)
-      state00.hs:                             FAIL (0.89s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      LiquidClass1.hs:                        FAIL (0.90s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      polypred.hs:                            OK (1.02s)
-      Implicit1.hs:                           OK (0.89s)
-      monad6.hs:                              OK (1.05s)
-      test00b.hs:                             OK (1.02s)
-      Class1.hs:                              OK (1.34s)
-      elim-ex-map-2.hs:                       OK (3.21s)
-      BadNats.hs:                             OK (0.89s)
-      pargs.hs:                               OK (0.89s)
-      poly2.hs:                               OK (1.07s)
-      test2.hs:                               OK (1.01s)
-      IntAbsRef.hs:                           OK (0.90s)
-      errmsg.hs:                              OK (1.06s)
-      LazyWhere.hs:                           OK (0.98s)
-      ListKeys.hs:                            OK (0.98s)
-      meas0.hs:                               OK (1.16s)
-      QQTySyn2.hs:                            OK (3.05s)
-      ConstraintsAppend.hs:                   OK (2.58s)
-      sumk.hs:                                OK (1.20s)
-      QQTySig.hs:                             OK (3.03s)
-      MaybeMonad.hs:                          FAIL (0.90s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      ListConcat.hs:                          OK (0.99s)
-      CheckedNum.hs:                          OK (0.92s)
-      SafePartialFunctions.hs:                OK (0.94s)
-      PairMeasure.hs:                         OK (0.82s)
-      inc2.hs:                                OK (0.88s)
-      AutoTerm1.hs:                           OK (0.90s)
-      mapreduce-tiny.hs:                      OK (1.10s)
-      multi-pred-app-00.hs:                   OK (0.87s)
-      sumPoly.hs:                             OK (0.92s)
-      csv.hs:                                 OK (3.12s)
-      poslist.hs:                             OK (1.39s)
-      concat2.hs:                             OK (2.10s)
-      meas5.hs:                               OK (3.56s)
-      elim-ex-map-3.hs:                       OK (3.20s)
-      Ast.hs:                                 OK (1.02s)
-      T745.hs:                                FAIL (0.86s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
-      poly2-degenerate.hs:                    OK (1.04s)
-      CharLiterals.hs:                        OK (0.88s)
-      trans.hs:                               OK (3.22s)
-      filterAbs.hs:                           OK (1.40s)
-      LocalSpec.hs:                           OK (0.77s)
-      test00.hs:                              OK (0.99s)
-      BinarySearchOverflow.hs:                OK (1.37s)
-      revshape.hs:                            OK (0.92s)
+
+
   Error-Messages
     ShadowFieldInline.hs:                     OK (0.64s)
     ShadowFieldReflect.hs:                    OK (0.65s)
@@ -2494,244 +431,4 @@ Tests
       Wrong exit code
       expected: ExitFailure 2
        but got: ExitFailure 1
-  Benchmarks
-    text
-      Data/Text.hs:                           FAIL (8.71s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Internal.hs:                  FAIL (2.11s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/UnsafeChar.hs:                FAIL (2.05s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Lazy.hs:                      FAIL (9.21s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Array.hs:                     FAIL (1.25s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Private.hs:                   FAIL (2.06s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Foreign.hs:                   FAIL (2.79s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Unsafe.hs:                    FAIL (2.43s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Fusion.hs:                    FAIL (3.40s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Search.hs:                    FAIL (2.21s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Lazy/Internal.hs:             FAIL (5.00s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy/Encoding.hs:             FAIL (12.17s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Lazy/Builder.hs:              FAIL (6.97s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Lazy/Fusion.hs:               FAIL (5.96s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Text/Lazy/Search.hs:               FAIL (6.20s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Text/Fusion/Size.hs:               FAIL (2.22s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-    bytestring
-      Data/ByteString.hs:                     FAIL (6.34s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString.T.hs:                   FAIL (5.76s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/LazyZip.hs:             FAIL (4.77s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Internal.hs:            FAIL (2.02s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Fusion.T.hs:            FAIL (2.13s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Lazy.hs:                FAIL (4.27s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Char8.hs:               FAIL (4.70s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Unsafe.hs:              FAIL (3.29s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/ByteString/Fusion.hs:              FAIL (2.03s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Lazy/Internal.hs:       FAIL (1.39s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/ByteString/Lazy/Char8.hs:          FAIL (3.78s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-    esop
-      Fib.hs:                                 FAIL (1.02s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      GhcListSort.hs:                         OK (12.61s)
-      Toy.hs:                                 OK (2.87s)
-      Array.hs:                               FAIL (1.01s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Splay.hs:                               OK (16.19s)
-      Base.hs:                                FAIL (374.89s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      ListSort.hs:                            OK (6.42s)
-    vect-algs
-      Setup.lhs:                              OK (1.89s)
-      Data/Vector/Algorithms/Termination.hs:  OK (1.22s)
-      Data/Vector/Algorithms/Merge.hs:        FAIL (26.37s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Heap.hs:         FAIL (4.59s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Vector/Algorithms/Combinators.hs:  FAIL (1.27s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Vector/Algorithms/Radix.hs:        FAIL (1.62s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (2.28s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Vector/Algorithms/Optimal.hs:      FAIL (16.21s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Intro.hs:        FAIL (12.42s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Common.hs:       FAIL (1.15s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Data/Vector/Algorithms/Insertion.hs:    FAIL (0.67s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Data/Vector/Algorithms/Search.hs:       FAIL (0.64s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-    icfp_pos
-      CompareConstraints.hs:                  OK (1.48s)
-      DBMovies.hs:                            FAIL (1.13s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      Overview.lhs:                           OK (22.79s)
-      WhileM.hs:                              OK (2.23s)
-      dropwhile.hs:                           OK (1.59s)
-      FoldAbs.hs:                             OK (22.56s)
-      Incr-elim.hs:                           OK (1.69s)
-      TestM.hs:                               OK (1.10s)
-      IfM.hs:                                 OK (15.54s)
-      RIO2.hs:                                OK (1.24s)
-      Composition.hs:                         OK (1.39s)
-      Incr.hs:                                OK (2.79s)
-      IfM2.hs:                                OK (7.52s)
-      WhileTest.hs:                           OK (1.74s)
-      Privileges.hs:                          OK (1.26s)
-      Append.hs:                              OK (2.34s)
-      ICFP15.lhs:                             OK (3.32s)
-      Filter.lhs:                             OK (1.60s)
-    icfp_neg
-      Records.hs:                             OK (1.11s)
-      DBMovies.hs:                            OK (1.29s)
-      WhileM.hs:                              OK (2.39s)
-      TestM.hs:                               OK (1.07s)
-      IfM.hs:                                 OK (16.45s)
-      Composition.hs:                         OK (1.34s)
+  
