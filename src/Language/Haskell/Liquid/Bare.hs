@@ -163,7 +163,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
-    rtEnv    = F.notracepp "RTENV" $ Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
+    rtEnv    = F.tracepp "RTENV" $ Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
     mySpec1  = mySpec0 <> lSpec0    
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)

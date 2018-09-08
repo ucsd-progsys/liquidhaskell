@@ -127,6 +127,8 @@ errorTests = group "Error-Messages"
   -- , errorTest "tests/errors/ShadowMeasureVar.hs"    2 "Multiple specifications for `shadow`"
   , errorTest "tests/errors/DupData.hs"             2 "Multiple specifications for `OVec`"
   , errorTest "tests/errors/EmptyData.hs"           2 "one or more fields in the data declaration for `A`"
+  , errorTest "tests/errors/BadGADT.hs"             2 "Error: Specified type does not refine Haskell type for `Main.Nil2`" 
+  
   -- , errorTest "tests/errors/AmbiguousReflect.hs"    2 "Ambiguous specification symbol `mappend`"
   -- , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
   , errorTest "tests/errors/TerminationExprSort.hs" 2 "Illegal termination specification for `TerminationExpr.showSep`"

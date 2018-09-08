@@ -27,8 +27,6 @@ Tests
   
   Macro
     unit-pos
-      RefinedADTs.hs:                         FAIL (0.97s)
-      
       DataBase.hs:                            FAIL (1.03s)
       
       MeasureContains.hs:                     FAIL (0.97s)
@@ -36,6 +34,7 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
+         
       dropwhile.hs:                           FAIL (1.07s)
         tests/test.hs:292:
         Wrong exit code

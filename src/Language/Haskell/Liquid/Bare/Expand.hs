@@ -104,7 +104,7 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
     f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
 
 specREAlias :: Bare.Env -> ModName -> Located (RTAlias F.Symbol F.Expr) -> Located (RTAlias F.Symbol F.Expr) 
-specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualifyTop env m (rtBody a) } 
+specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (rtVArgs a) (rtBody a) } 
   where 
     a     = val la 
 

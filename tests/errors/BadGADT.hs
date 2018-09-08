@@ -13,7 +13,7 @@
 @-}
 
 {-@ data List2 a b <p :: a -> Bool> where
-    Nil2  :: List2 a b
+    Nil2  :: List2 a
   | Cons2 :: listHead:a -> listTail:List a -> List2 a b
 @-}
 
