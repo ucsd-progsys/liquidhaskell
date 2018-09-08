@@ -251,11 +251,13 @@ goPlug tce tyi err f = go
     -- keep different types for now, as a pretty error message will be created at Bare.Check
     go (RApp _ ts _ _)  (RApp c ts' p r)   
       | length ts == length ts'            = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
-      | otherwise                          = Ex.throw err 
+    go _ _                                 = Ex.throw err
+
+    -- otherwise                          = Ex.throw err 
     -- If we reach the default case, there's probably an error, but we defer
     -- throwing it as checkGhcSpec does a much better job of reporting the
     -- problem to the user.
-    go st               _                 = st
+    -- go st               _                 = st
 
 addRefs :: F.TCEmb Ghc.TyCon -> M.HashMap Ghc.TyCon RTyCon -> SpecType -> SpecType
 addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
