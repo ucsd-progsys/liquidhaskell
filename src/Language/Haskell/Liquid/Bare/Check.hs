@@ -78,7 +78,12 @@ dataDeclFields :: DataDecl -> [F.LocSymbol]
 dataDeclFields = Misc.hashNubWith val . concatMap dataCtorFields . tycDCons
 
 dataCtorFields :: DataCtor -> [F.LocSymbol]
-dataCtorFields c = F.atLoc c <$> [ f | (f,_) <- dcFields c ]
+dataCtorFields c 
+  | isGadt c  = [] 
+  | otherwise = F.atLoc c <$> [ f | (f,_) <- dcFields c ]
+
+isGadt :: DataCtor -> Bool 
+isGadt = isJust . dcResult 
 
 checkUnique :: String -> [F.LocSymbol] -> [Error]
 checkUnique _ = checkUnique' F.val GM.fSrcSpan 
