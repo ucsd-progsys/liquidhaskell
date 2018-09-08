@@ -28,43 +28,31 @@ Tests
   Macro
     unit-pos
       DataBase.hs:                            FAIL (1.03s)
-      
-      MeasureContains.hs:                     FAIL (0.97s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-         
+
       dropwhile.hs:                           FAIL (1.07s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      Words1.hs:                              FAIL (0.92s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+
       T819A.hs:                               FAIL (1.05s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
+
       T1095B.hs:                              FAIL (1.17s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
+
       T1295b.hs:                              FAIL (0.93s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      vecloop.hs:                             FAIL (0.90s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
+  
       HasElem.hs:                             FAIL (0.89s)
         tests/test.hs:292:
         Wrong exit code

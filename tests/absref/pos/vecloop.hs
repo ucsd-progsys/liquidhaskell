@@ -1,3 +1,7 @@
+-- this tests that we EXPAND aliases INSIDE the predicate-applications, 
+-- This tests we do alias-expansion inside predicate applications, e.g. Vec <{v:Nat | v < n}, p> 
+-- as in the signatures below.
+
 module Blank where
 
 {-@ LIQUID "--no-termination" @-}
