@@ -254,11 +254,11 @@ class Expand a where
 --   them during expansion. 
 ----------------------------------------------------------------------------------
 qualifyExpand :: (Expand a, Bare.Qualify a) 
-              => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> a -> a 
+              => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> [F.Symbol] -> a -> a 
 ----------------------------------------------------------------------------------
-qualifyExpand env name rtEnv l
+qualifyExpand env name rtEnv l bs
   = expand rtEnv l  
-  . Bare.qualifyTop env name
+  . Bare.qualify env name bs
 
 ----------------------------------------------------------------------------------
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 

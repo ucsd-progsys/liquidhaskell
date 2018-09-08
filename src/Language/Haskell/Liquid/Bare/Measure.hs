@@ -415,7 +415,7 @@ expandMeasure env name rtEnv m = m
 
 expandMeasureDef :: Bare.Env -> ModName -> BareRTEnv -> Def t LocSymbol -> Def t LocSymbol
 expandMeasureDef env name rtEnv d = d 
-  { body  = Bare.qualifyExpand env name rtEnv l (body d) }
+  { body  = Bare.qualifyExpand env name rtEnv l bs (body d) }
   where 
     l     = loc (measure d) 
     bs    = fst <$> binds d 

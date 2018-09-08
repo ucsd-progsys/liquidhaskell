@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
     -- * Resolving symbols 
   , ResolveSym (..)
-  , Qualify
+  , Qualify (..)
   , qualifyTop
   
   -- * Looking up names
