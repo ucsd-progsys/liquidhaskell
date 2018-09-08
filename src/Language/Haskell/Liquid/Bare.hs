@@ -758,7 +758,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt = Bare.plugHoles sigEnv name Bare.LqTV x t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = Bare.qualifyTop env name <$> (ms1 ++ ms2)
+  , gsMeasures   = F.tracepp "MEASURES-2" $ Bare.qualifyTop env name <$> (F.tracepp "MEASURES-1" $ ms1 ++ ms2)
   , gsInvariants = makeMeasureInvariants env name sig mySpec 
                 ++ concat (makeInvariants env sigEnv <$> M.toList specs)
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
@@ -937,7 +937,7 @@ knownWiredTyCons env name = filter isKnown wiredTyCons
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
 makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv 
-  { meMeasureSpec = F.tracepp "MEASURES" measures 
+  { meMeasureSpec = measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
   , meDataCons    = cs' 

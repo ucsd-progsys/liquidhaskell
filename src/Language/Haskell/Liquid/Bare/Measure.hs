@@ -37,7 +37,7 @@ import qualified Data.Maybe as Mb
 import Text.PrettyPrint.HughesPJ (text)
 -- import Text.Parsec.Pos (SourcePos)
 import Text.Printf     (printf)
-import qualified Data.List as L
+-- import qualified Data.List as L
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -415,10 +415,11 @@ expandMeasure env name rtEnv m = m
 
 expandMeasureDef :: Bare.Env -> ModName -> BareRTEnv -> Def t LocSymbol -> Def t LocSymbol
 expandMeasureDef env name rtEnv d = d 
-  { body  = Bare.qualifyExpand env name rtEnv l bs (body d) }
+  { body  = F.tracepp msg $ Bare.qualifyExpand env name rtEnv l bs (body d) }
   where 
     l     = loc (measure d) 
     bs    = fst <$> binds d 
+    msg   = "QUALIFY-EXPAND-BODY" ++ F.showpp (bs, body d) 
 
 ------------------------------------------------------------------------------
 varMeasures :: (Monoid r) => Bare.Env -> [(F.Symbol, Located (RRType r))]

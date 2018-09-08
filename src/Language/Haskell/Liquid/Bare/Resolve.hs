@@ -306,12 +306,15 @@ instance Qualify RTyCon where
   qualify env name bs rtc = rtc { rtc_info = qualify env name bs (rtc_info rtc) }
 
 instance Qualify (Measure SpecType Ghc.DataCon) where 
-  qualify env name bs m = substEnv env name bs $ m { msName = qualify env name bs (msName m)}
+  qualify env name bs m = m -- FIXME substEnv env name bs $ 
+    { msName = qualify env name bs     (msName m) 
+    , msEqns = qualify env name bs <$> (msEqns m) }
 
-instance Qualify BareDef where 
+instance Qualify (Def ty ctor) where 
   qualify env name bs d = d 
-    { body  = qualify env name bs (body d) 
-    } 
+    { body  = qualify env name (bs ++ bs') (body d) } 
+    where 
+      bs'   = fst <$> binds d
 
 instance Qualify BareMeasure where 
   qualify env name bs m = m 
