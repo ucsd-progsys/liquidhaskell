@@ -13,6 +13,7 @@ Tests
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
 
+      T595.hs:                                FAIL (1.21s)
       RecordAccessors.hs:                     FAIL (0.84s)
       - not strengthening record field
 
@@ -34,56 +35,18 @@ Tests
       DataBase.hs:                            FAIL (1.03s)
 
       dropwhile.hs:                           FAIL (1.07s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
       T819A.hs:                               FAIL (1.05s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
       T1095B.hs:                              FAIL (1.17s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-
       T1295b.hs:                              FAIL (0.93s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-  
       PairMeasure0.hs:                        FAIL (0.83s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
       bag.hs:                                 FAIL (0.97s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       monad1.hs:                              FAIL (0.87s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      
       OrdList.hs:                             FAIL (4.53s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
       bag1.hs:                                FAIL (1.05s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-
       T1085.hs:                               FAIL (0.64s)
         tests/test.hs:292:
         Wrong exit code
@@ -144,37 +107,7 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      T819.hs:                                FAIL (0.60s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      case-lambda-join.hs:                    FAIL (1.13s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      LocalTermExpr.hs:                       FAIL (0.95s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Foo.hs:                                 FAIL (0.74s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      T1025a.hs:                              FAIL (1.20s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       Invariants.hs:                          FAIL (0.99s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T1025.hs:                               FAIL (1.15s)
         tests/test.hs:292:
         Wrong exit code
         expected: ExitSuccess
@@ -184,10 +117,6 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      LocalHole.hs:                           FAIL (0.99s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
          but got: ExitFailure 2
       T595.hs:                                FAIL (1.21s)
         tests/test.hs:292:

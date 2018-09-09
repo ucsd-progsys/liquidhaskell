@@ -1,9 +1,10 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+-- TODO-REBARE: does not support this `define` hack, which should be supported properly.
+
+{-@ LIQUID "--reflection"     @-}
 
 module Nat where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 
 {-@ data N [toInt] = Zero | Suc N @-}
@@ -34,11 +35,11 @@ eqN _ _ = False
 {-@ eqNRefl :: x:N -> { eqN x x } @-}
 eqNRefl :: N -> Proof
 eqNRefl Zero =   eqN Zero Zero
-             ==. True
+             === True
              *** QED
 eqNRefl (Suc n) =   eqN (Suc n) (Suc n)
-                ==. eqN n n
-                ==. True ? eqNRefl n
+                === eqN n n
+                ==? True ? eqNRefl n
                 *** QED
 
 instance Eq N where

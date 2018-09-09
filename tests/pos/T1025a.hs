@@ -3,7 +3,7 @@
 
 module Bug where                                                                          
                                                                                           
-import Language.Haskell.Liquid.ProofCombinators                                           
+import Language.Haskell.Liquid.NewProofCombinators                                           
 import Prelude hiding (Either (..))
 
 {-@ data Either a b = Left a | Right b @-}
@@ -27,11 +27,11 @@ eqEitherRefl :: (a -> a -> Bool) -> (a -> Proof)
              -> Either a b -> Proof
 eqEitherRefl eqA eqARefl eqB _ p@(Left x) =
       eqEither eqA eqB p p
-  ==. eqA x x
-  ==. True ? eqARefl x
+  === eqA x x
+  ==? True ? eqARefl x
   *** QED
 eqEitherRefl eqA _ eqB eqBRefl p@(Right y) =
       eqEither eqA eqB p p
-  ==. eqB y y
-  ==. True ? eqBRefl y
+  === eqB y y
+  ==? True ? eqBRefl y
   *** QED
