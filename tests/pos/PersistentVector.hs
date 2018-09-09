@@ -23,7 +23,7 @@ height (Node l _) = 1 + height l
 
 -- | A tree whose height is H
 
-{-@ type TreeH a H = {v:Tree | height v == H } @-}
+{-@ type TreeH a H = {v:Tree a | height v == H } @-}
 
 -- | Specify tree must be "balanced"
 

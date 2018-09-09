@@ -332,7 +332,16 @@ data Map k a  = Bin Size k a (Map k a) (Map k a)
 
 type Size     = Int
 
-{-@ include <Base.hquals> @-}
+{- include <Base.hquals> @-}
+
+{-@ qualif_bound1 :: x:_ -> {v:Map k a | ((isBin v) => (x < (key v))) } @-}
+{-@ qualif_bound2 :: x:_ -> {v:Map k a | ((isBin v) => (x > (key v))) } @-}
+qualif_bound1, qualif_bound2 :: k -> Map k a
+qualif_bound1 = undefined 
+qualif_bound2 = undefined 
+
+
+ 
 
 {-@ data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
          = Bin (mSize :: Size)
