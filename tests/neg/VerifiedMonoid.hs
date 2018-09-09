@@ -1,12 +1,10 @@
 module Data.Monoid where
 
-{-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exactdc" @-}
-{-@ LIQUID "--totality" @-}
+{-@ LIQUID "--reflection" @-}
 
 import Prelude hiding (Monoid (..))
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 
 class VerifiedMonoid a where
@@ -41,24 +39,24 @@ instance VerifiedMonoid (List a) where
   mappend N ys        = ys
   mappend (C x xs) ys = C x (mappend xs ys)
 
-  leftId  x           = mappend mempty x ==. mappend N x ==. x *** QED
+  leftId  x           = mappend mempty x === mappend N x === x *** QED
 
 
-  rightId N           = mappend N mempty ==. mappend N N ==. N *** QED
-  rightId (C x xs)    = mappend (C x xs) mempty ==. C x (mappend xs N ) ==. C x xs ? rightId xs *** QED
+  rightId N           = mappend N mempty === mappend N N === N *** QED
+  rightId (C x xs)    = mappend (C x xs) mempty === C x (mappend xs N ) ==? C x xs ? rightId xs *** QED
 
 
   assoc N ys zs
     =   mappend N (mappend ys zs)
-    ==. mappend ys zs
-    ==. mappend (mappend N ys) zs
+    === mappend ys zs
+    === mappend (mappend N ys) zs
     *** QED
   assoc (C x xs) ys zs
     =   mappend (C x xs) (mappend ys zs)
-    ==. C x (mappend xs (mappend ys zs))
-    ==. C x (mappend (mappend xs ys) zs)
-    ==. mappend (C x (mappend xs ys)) zs
-    ==. mappend (mappend (C x xs) ys) zs
+    === C x (mappend xs (mappend ys zs))
+    === C x (mappend (mappend xs ys) zs)
+    === mappend (C x (mappend xs ys)) zs
+    === mappend (mappend (C x xs) ys) zs
     *** QED
 
 
