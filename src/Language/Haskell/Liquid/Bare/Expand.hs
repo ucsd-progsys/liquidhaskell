@@ -559,11 +559,11 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (F.notracepp (msg 6))
   . fmap (specExpandType rtEnv)                         
-  . fmap (F.notracepp (msg 5))
-  . fmap (fmap RT.generalize)
-  . fmap (F.notracepp (msg 4))
+  . fmap (F.tracepp (msg 5))
+  . fmap (fmap (generalizeWith x))
+  . fmap (F.tracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.notracepp (msg 3))
+  . fmap (F.tracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
   . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
@@ -576,6 +576,25 @@ cookSpecTypeE env sigEnv name x bt
     rtEnv = Bare.sigRTEnv    sigEnv
     embs  = Bare.sigEmbs     sigEnv 
     tyi   = Bare.sigTyRTyMap sigEnv
+
+-- | We don't want to generalize type variables that maybe bound in the 
+--   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs 
+
+generalizeWith :: Maybe (Bare.PlugTV, Ghc.Var) -> SpecType -> SpecType 
+generalizeWith (Just (Bare.HsTV, v)) t = generalizeVar v t 
+generalizeWith _                     t = RT.generalize t 
+
+generalizeVar :: Ghc.Var -> SpecType -> SpecType 
+generalizeVar v t = mkUnivs as [] [] t 
+  where 
+    as            = filter isGen (freeTyVars t)
+    (vas,_)       = Ghc.splitForAllTys (GM.expandVarType v) 
+    isGen (RTVar (RTV a) _) = a `elem` vas 
+
+-- splitForAllTys :: Type -> ([TyVar], Type)
+-- 
+-- generalize :: (Eq tv) => RType c tv r -> RType c tv r
+-- generalize t = mkUnivs (freeTyVars t) [] [] t 
 
 maybePlug :: Bare.SigEnv -> ModName -> Maybe (Bare.PlugTV, Ghc.Var) -> LocSpecType -> LocSpecType 
 maybePlug _      _     Nothing      = id 

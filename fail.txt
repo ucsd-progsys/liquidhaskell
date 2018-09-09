@@ -1,6 +1,9 @@
+rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "OK" nohup.out  | wc
+   1039    3128   60430
+rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "FAIL" nohup.out  | wc
+    153     459    9029
 
-      RecordAccessors.hs:                     FAIL (0.84s)
-      - not strengthening record field
+
 
 Tests
 
@@ -15,6 +18,7 @@ Tests
 
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
+      MultipleInvariants.hs:                  FAIL (0.92s)
       - todo:variance-strata 
 
       bag.hs:                                 FAIL (0.98s)
@@ -53,11 +57,6 @@ Tests
         expected: ExitSuccess
          but got: ExitFailure 2
   
-      HasElem.hs:                             FAIL (0.89s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       PairMeasure0.hs:                        FAIL (0.83s)
         tests/test.hs:292:
         Wrong exit code
@@ -84,11 +83,7 @@ Tests
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
-      MultipleInvariants.hs:                  FAIL (0.92s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+
       T1085.hs:                               FAIL (0.64s)
         tests/test.hs:292:
         Wrong exit code
