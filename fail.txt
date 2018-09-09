@@ -9,7 +9,9 @@ Tests
 
   Macro
     unit-pos
+    
       state00.hs:                             FAIL (0.75s)
+      DataBase.hs:                            FAIL (1.03s)
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
 
@@ -22,41 +24,30 @@ Tests
       MultipleInvariants.hs:                  FAIL (0.92s)
       - todo:variance-strata 
 
-      bag.hs:                                 FAIL (0.98s)
+      bag.hs:                                 FAIL (0.97s)
+      bag1.hs:                                FAIL (1.05s)
+      MergeSort-bag.hs:                       FAIL (1.00s)
+      ListISort-bag.hs:                       FAIL (0.95s)
       - todo:bag-fromList 
 
       monad0.hs:                              FAIL (0.88s)
       monad7.hs:                              FAIL (1.07s)
       ANF.hs:                                 FAIL (1.09s)
+      TemplateHaskell.hs:                     FAIL (1.17s)
       - ReturnStrata 
 
+      
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
 
+      NatClass.hs 
+      - handle "define" 
+
 -------------------------------------------------------------
  
-HEREHEREHEREHERE 
-
   Macro
     unit-pos
-      DataBase.hs:                            FAIL (1.03s)
-      bag.hs:                                 FAIL (0.97s)
-      bag1.hs:                                FAIL (1.05s)
-      MergeSort-bag.hs:                       FAIL (1.00s)
-      
-      RecordAccessors.hs:                     FAIL (0.89s)
-      TemplateHaskell.hs:                     FAIL (1.17s)
-
-      ListISort-bag.hs:                       FAIL (0.95s)
-      T1095A.hs:                              FAIL (1.15s)
-      T1120A.hs:                              FAIL (1.27s)
       T1089b.hs:                              FAIL (1.13s)
-
-      NatClass.hs:                            FAIL (1.07s)
-     meas10.hs:                              FAIL (1.25s)
-     tupparse.hs:                            FAIL (0.94s)
-     imp0.hs:                                FAIL (0.96s)
-     LocalSpec.hs:                           FAIL (0.78s)
 
   Error-Messages
     ShadowFieldInline.hs:                     OK (0.64s)

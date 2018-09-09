@@ -1,5 +1,4 @@
-{-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exactdc"     @-}
+{-@ LIQUID "--reflection" @-}
 
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE NamedFieldPuns #-}
@@ -14,7 +13,7 @@ import Language.Haskell.Liquid.NewProofCombinators
                        , tof  :: y:b -> { to (from y) == y }
                        , fot  :: x:a -> { from (to x) == x }
                        }
-@-}
+  @-}
 
 data Iso a b = Iso { to   :: a -> b
                    , from :: b -> a

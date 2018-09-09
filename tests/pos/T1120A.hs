@@ -1,10 +1,9 @@
-{-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--no-adt"      @-}
-{-@ LIQUID "--exactdc"     @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--no-adt"     @-}
 
 module Bug where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 data U1 p = U1
 data M1 i c f p = M1 { unM1 :: f p }
@@ -19,11 +18,11 @@ data A
 data B
 type RepMyUnit = D1 A (C1 B U1)
 
-{-@ axiomatize fromMyUnit @-}
+{-@ reflect fromMyUnit @-}
 fromMyUnit :: MyUnit -> RepMyUnit x_at0x
 fromMyUnit MyUnit = M1 (M1 U1)
 
-{-@ axiomatize toMyUnit @-}
+{-@ reflect toMyUnit @-}
 toMyUnit :: RepMyUnit x_at0x -> MyUnit
 toMyUnit (M1 (M1 U1)) = MyUnit
 
@@ -32,15 +31,15 @@ toMyUnit (M1 (M1 U1)) = MyUnit
 @-}
 fotMyUnit :: RepMyUnit x_at0x -> Proof
 fotMyUnit z_at0y@(M1 (M1 U1))
-  = ((((fromMyUnit (toMyUnit z_at0y)) ==. (fromMyUnit MyUnit))
-      ==. z_at0y)
-     *** QED)
+  = ((((fromMyUnit (toMyUnit z_at0y)) === (fromMyUnit MyUnit))
+      === z_at0y)
+      *** QED)
 
 {-@ tofMyUnit :: a:MyUnit
               -> { toMyUnit (fromMyUnit a) == a }
 @-}
 tofMyUnit :: MyUnit -> Proof
 tofMyUnit z_at0y@MyUnit
-  = ((((toMyUnit (fromMyUnit z_at0y)) ==. (toMyUnit (M1 (M1 U1))))
-      ==. z_at0y)
-     *** QED)
+  = ((((toMyUnit (fromMyUnit z_at0y)) === (toMyUnit (M1 (M1 U1))))
+      === z_at0y)
+      *** QED)
