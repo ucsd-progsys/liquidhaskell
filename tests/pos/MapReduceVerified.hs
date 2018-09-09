@@ -3,7 +3,7 @@
 
 -- | Niki Vazou Sep 2016 
 
-{-@ LIQUID "--reflection"   @-}
+{-@ LIQUID "--reflection" @-}
 
 
 module MapReduce where 
@@ -205,27 +205,30 @@ appendTakeDrop i (C x xs)
 sumLeftId :: List Int -> Proof 
 {-@ sumLeftId :: xs:List Int -> {plus (sum xs) (sum N) == sum xs } @-}
 sumLeftId xs 
-  =  plus (sum xs) (sum N) ==. sum xs + 0 ==. sum xs *** QED 
+  =  plus (sum xs) (sum N) 
+  === sum xs + 0 
+  === sum xs 
+  *** QED 
 
 {-@ sumDistributes :: xs:List Int -> ys:List Int -> 
       {sum (append xs ys) == plus (sum xs) (sum ys)} @-}
 sumDistributes :: List Int -> List Int -> Proof 
 sumDistributes N ys 
   =   sum (append N ys)
-  ==. sum ys
-  ==. plus 0       (sum ys)
-  ==. plus (sum N) (sum ys)
+  === sum ys
+  === plus 0       (sum ys)
+  === plus (sum N) (sum ys)
   *** QED 
 sumDistributes (C x xs) ys  
   =   sum (append (C x xs) ys)
-  ==. sum (C x (append xs ys))
-  ==. x `plus` (sum (append xs ys))
+  === sum (C x (append xs ys))
+  ==? x `plus` (sum (append xs ys))
       ? sumDistributes xs ys
-  ==. x `plus` (plus (sum xs) (sum ys))
-  ==. x + (sum xs + sum ys)
-  ==. ((x + sum xs) + sum ys)
-  ==. ((x `plus` sum xs) `plus` sum ys)
-  ==. sum (C x xs) `plus` sum ys
+  === x `plus` (plus (sum xs) (sum ys))
+  === x + (sum xs + sum ys)
+  === ((x + sum xs) + sum ys)
+  === ((x `plus` sum xs) `plus` sum ys)
+  === sum (C x xs) `plus` sum ys
   *** QED 
 
 

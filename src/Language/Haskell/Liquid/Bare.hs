@@ -637,8 +637,15 @@ resolveAsmVar env name False lx = Bare.maybeResolveSym     env name "resolveAsmV
 
 getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(Bool, LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
-  | myName == name = [ (True,  x, t) | (x, t) <- Ms.asmSigs spec                 ]  -- MUST    resolve, or error
-  | otherwise      = [ (False, x, t) | (x, t) <- Ms.asmSigs spec ++ Ms.sigs spec ]  -- MAY-NOT resolve
+  | myName == name = [ (True,  x,  t) | (x, t) <- Ms.asmSigs spec ] -- MUST    resolve, or error
+  | otherwise      = [ (False, x', t) | (x, t) <- Ms.asmSigs spec 
+                                                  ++ Ms.sigs spec
+                                      , let x' = qSym x           ]  -- MAY-NOT resolve
+  where 
+    qSym           = fmap (GM.qualifySymbol ns) 
+    ns             = F.symbol name
+
+
 
 -- TODO-REBARE: grepClassAssumes
 _grepClassAssumes :: [RInstance t] -> [(Located F.Symbol, t)]

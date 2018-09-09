@@ -265,9 +265,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
- , noMeasureFields
-    = def &= help "Do not automatically lift data constructor fields into measures"
-          &= name "no-measure-fields"
+ -- REBARE , noMeasureFields
+    -- REBARE = def &= help "Do not automatically lift data constructor fields into measures"
+          -- REBARE &= name "no-measure-fields"
 
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
@@ -542,7 +542,7 @@ defConfig = Config
   , pruneUnsorted     = def
   , exactDC           = def
   , noADT             = def
-  , noMeasureFields   = def
+  -- REBARE , noMeasureFields   = def
   , cores             = def
   , minPartSize       = FC.defaultMinPartSize
   , maxPartSize       = FC.defaultMaxPartSize

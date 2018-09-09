@@ -25,6 +25,11 @@ Tests
       bag.hs:                                 FAIL (0.98s)
       - todo:bag-fromList 
 
+      monad0.hs:                              FAIL (0.88s)
+      monad7.hs:                              FAIL (1.07s)
+      ANF.hs:                                 FAIL (1.09s)
+      - ReturnStrata 
+
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
 
@@ -37,20 +42,11 @@ HEREHEREHEREHERE
       DataBase.hs:                            FAIL (1.03s)
       bag.hs:                                 FAIL (0.97s)
       bag1.hs:                                FAIL (1.05s)
-      ANF.hs:                                 FAIL (1.09s)
-      Solver.hs:                              FAIL (1.08s)
       RecordAccessors.hs:                     FAIL (0.89s)
-     monad0.hs:                              FAIL (0.88s)
-     MapReduceVerified.hs:                   FAIL (0.63s)
-     contra0.hs:                             FAIL (0.99s)
-     monad7.hs:                              FAIL (1.07s)
-     test00-int.hs:                          FAIL (0.49s)
+
      gadtEval.hs:                            FAIL (1.01s)
      TemplateHaskell.hs:                     FAIL (1.17s)
-     T1295.hs:                               FAIL (0.93s)
-     Invariants.hs:                          FAIL (0.99s)
-     state00.hs:                             FAIL (0.90s)
-     T595.hs:                                FAIL (1.21s)
+
      ListISort-bag.hs:                       FAIL (0.95s)
      T1095A.hs:                              FAIL (1.15s)
      T1120A.hs:                              FAIL (1.27s)
@@ -58,7 +54,6 @@ HEREHEREHEREHERE
      NatClass.hs:                            FAIL (1.07s)
      MergeSort-bag.hs:                       FAIL (1.00s)
      meas10.hs:                              FAIL (1.25s)
-     DepData.hs:                             FAIL (0.86s)
      tupparse.hs:                            FAIL (0.94s)
      imp0.hs:                                FAIL (0.96s)
      LocalSpec.hs:                           FAIL (0.78s)

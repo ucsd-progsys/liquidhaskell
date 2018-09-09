@@ -1,22 +1,12 @@
-module OverWrite where
+-- GOAL: get the `assume plus` in Prelude to be qualified to `assume LH.plus` ...
 
-import qualified Data.Set
+module Assume00 where 
 
-{-@ type UList a = {v:[a] | ListUnique v} @-}
+import Language.Haskell.Liquid.Prelude
 
-{- assume goober :: Nat -> Nat @-} 
+data Thing = Thing 
 
-{-@ assume reverse :: xs:(UList a) -> {v: UList a | EqElts v xs}  @-}
+{-@ plus :: Thing -> Thing -> {v:Thing | false} @-}
+plus :: Thing -> Thing -> Thing 
+plus _ _ = Thing 
 
-{-@ predicate ListUnique LS = (Set_emp (listDup LS)) @-}
-
-{-@ predicate EqElts X Y    = ((listElts X) = (listElts Y)) @-}
-
-{-@
-  measure listDup :: [a] -> (Data.Set.Set a)
-  listDup([])   = {v | Set_emp v }
-  listDup(x:xs) = {v | v = if (Set_mem x (listElts xs)) then (Set_cup (Set_sng x) (listDup xs)) else (listDup xs) }
-  @-}
-
-{-@ foo :: xs:(UList a) -> {v: UList a | EqElts v xs} @-}
-foo  = reverse 

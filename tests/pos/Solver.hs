@@ -1,9 +1,11 @@
-{-@ LIQUID "--pruneunsorted" @-}
+
+{-@ LIQUID "--reflection"     @-}
+{-@ LIQUID "--ple"            @-}
+{-@ LIQUID "--pruneunsorted"  @-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names"    @-}
 
 module MultiParams where
-
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--short-names" @-}
 
 import Data.Tuple
 import Language.Haskell.Liquid.Prelude ((==>))
@@ -21,24 +23,24 @@ type Formula = [Clause]
 
 type Asgn = [(Var, Val)]
 
-
 -- | Top-level "solver"
 
 {-@ solve :: f:Formula -> Maybe {a:Asgn | sat a f} @-}
 solve   :: Formula -> Maybe Asgn
 solve f = find (\a -> sat a f) (asgns f)
 
-
 {-@ find :: forall <p :: a -> Bool, w :: a -> Bool -> Bool>.
             {y::a, b::{v:Bool<w y> | v} |- {v:a | v == y} <: a<p>}
             (x:a -> Bool<w x>) -> [a] -> Maybe (a<p>) @-}
 find :: (a -> Bool) -> [a] -> Maybe a
-find f [] = Nothing
-find f (x:xs) | f x       = Just x
-              | otherwise = Nothing
+find f (x:xs) 
+	| f x       = Just x
+    | otherwise = Nothing
+find f [] 	    = Nothing
 
 cons x xs = (x:xs)
-nil = []
+nil       = []
+
 -- | Generate all assignments
 
 asgns :: Formula -> [Asgn] -- generates all possible T/F vectors
@@ -60,23 +62,22 @@ vars = nub . go
 
 -- | Satisfaction
 
-{-@ measure sat @-}
+{-@ reflect sat @-}
 sat :: Asgn -> Formula -> Bool
 sat a []         = True
 sat a (c:cs)     = satCls a c && sat a cs
 
-{-@ measure satCls @-}
+{-@ reflect satCls @-}
 satCls :: Asgn -> Clause -> Bool
 satCls a []      = False
 satCls a (l:ls)  = satLit a l || satCls a ls
 
-
-{-@ measure satLit @-}
+{-@ reflect satLit @-}
 satLit :: Asgn -> Lit -> Bool
 satLit a (Pos x) = isTrue x a
 satLit a (Neg x) = isFalse x a
 
-{-@ measure isTrue @-}
+{-@ reflect isTrue @-}
 isTrue          :: Var -> Asgn -> Bool
 isTrue xisT (yv:as) = if xisT == (myFst yv) then (isVFalse (mySnd yv)) else isTrue xisT as
 isTrue _ []      = False
@@ -89,15 +90,15 @@ myFst (x, y) = x
 mySnd :: (a, b) -> b
 mySnd (x, y) = y
 
+{-@ reflect isFalse @-}
+isFalse          :: Var -> Asgn -> Bool
+isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
+isFalse _ []      = False
+
 {-@ measure isVTrue @-}
 isVTrue :: Val -> Bool
 isVTrue VTrue  = True
 isVTrue VFalse = False
-
-{-@ measure isFalse @-}
-isFalse          :: Var -> Asgn -> Bool
-isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
-isFalse _ []      = False
 
 {-@ measure isVFalse @-}
 isVFalse :: Val -> Bool

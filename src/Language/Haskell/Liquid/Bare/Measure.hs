@@ -261,7 +261,7 @@ makeMeasureSelectors cfg dm (Loc l l' c)
     dc         = dcpCon    c 
     isGadt     = dcpIsGadt c 
     xts        = dcpTyArgs c
-    autofields = not (isGadt || noMeasureFields cfg)
+    autofields = not (isGadt) -- REBARE || noMeasureFields cfg)
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
