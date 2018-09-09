@@ -72,10 +72,13 @@ checkBareSpec _ sp = Misc.applyNonNull (Right sp) Left $ concat
     hmeasures = Ms.hmeas      sp 
     reflects  = Ms.reflects   sp 
     measures  = msName    <$> Ms.measures sp 
-    fields    = concatMap dataDeclFields (Ms.dataDecls sp) 
+    fields    = F.tracepp "FIELDS" $ concatMap dataDeclFields (Ms.dataDecls sp) 
 
 dataDeclFields :: DataDecl -> [F.LocSymbol]
-dataDeclFields = Misc.hashNubWith val . concatMap dataCtorFields . tycDCons
+dataDeclFields = filter (not . GM.isTmpSymbol . F.val) 
+               . Misc.hashNubWith val 
+               . concatMap dataCtorFields 
+               . tycDCons
 
 dataCtorFields :: DataCtor -> [F.LocSymbol]
 dataCtorFields c 

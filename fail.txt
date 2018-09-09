@@ -33,20 +33,9 @@ Tests
   Macro
     unit-pos
       DataBase.hs:                            FAIL (1.03s)
-
-      dropwhile.hs:                           FAIL (1.07s)
-      T819A.hs:                               FAIL (1.05s)
-      T1095B.hs:                              FAIL (1.17s)
-      T1295b.hs:                              FAIL (0.93s)
-      PairMeasure0.hs:                        FAIL (0.83s)
       bag.hs:                                 FAIL (0.97s)
-      monad1.hs:                              FAIL (0.87s)
-      OrdList.hs:                             FAIL (4.53s)
       bag1.hs:                                FAIL (1.05s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
+      
       T1085.hs:                               FAIL (0.64s)
         tests/test.hs:292:
         Wrong exit code

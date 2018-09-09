@@ -107,7 +107,10 @@ a     `appOL` b     = Two a b
 -- TODO-REBARE the below QUAL _should_ work but doesn't, but we can get it 
 -- to work with the ty-sig of `go` ... hmm.
 
-{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (len v) = (olen xs) + (len ys) @-}
+
+{-@ qualif_go :: xs:_ -> ys:_ -> {v:_ | len v = olen xs + len ys} @-}
+qualif_go :: OrdList a -> [a] -> [a]
+qualif_go = undefined 
 
 {-@ fromOL :: xs:OrdList a -> {v:[a] | len v = olen xs} @-}
 fromOL a = go a []

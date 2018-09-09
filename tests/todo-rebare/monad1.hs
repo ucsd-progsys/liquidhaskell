@@ -1,3 +1,5 @@
+-- TODO-REBARE: return-strata? 
+
 module Monad where
 
 
