@@ -29,146 +29,39 @@ Tests
       - fixpoint "Unknown func-sort:"
 
 -------------------------------------------------------------
-  
+ 
+HEREHEREHEREHERE 
+
   Macro
     unit-pos
       DataBase.hs:                            FAIL (1.03s)
       bag.hs:                                 FAIL (0.97s)
       bag1.hs:                                FAIL (1.05s)
-      
-      T1085.hs:                               FAIL (0.64s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       ANF.hs:                                 FAIL (1.09s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       Solver.hs:                              FAIL (1.08s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
       RecordAccessors.hs:                     FAIL (0.89s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      monad0.hs:                              FAIL (0.88s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      MapReduceVerified.hs:                   FAIL (0.63s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      contra0.hs:                             FAIL (0.99s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      monad7.hs:                              FAIL (1.07s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      test00-int.hs:                          FAIL (0.49s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      gadtEval.hs:                            FAIL (1.01s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      TemplateHaskell.hs:                     FAIL (1.17s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T1295.hs:                               FAIL (0.93s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Invariants.hs:                          FAIL (0.99s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      state00.hs:                             FAIL (0.90s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-         but got: ExitFailure 2
-      T595.hs:                                FAIL (1.21s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      ListISort-bag.hs:                       FAIL (0.95s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T1095A.hs:                              FAIL (1.15s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      T1120A.hs:                              FAIL (1.27s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-     
+     monad0.hs:                              FAIL (0.88s)
+     MapReduceVerified.hs:                   FAIL (0.63s)
+     contra0.hs:                             FAIL (0.99s)
+     monad7.hs:                              FAIL (1.07s)
+     test00-int.hs:                          FAIL (0.49s)
+     gadtEval.hs:                            FAIL (1.01s)
+     TemplateHaskell.hs:                     FAIL (1.17s)
+     T1295.hs:                               FAIL (0.93s)
+     Invariants.hs:                          FAIL (0.99s)
+     state00.hs:                             FAIL (0.90s)
+     T595.hs:                                FAIL (1.21s)
+     ListISort-bag.hs:                       FAIL (0.95s)
+     T1095A.hs:                              FAIL (1.15s)
+     T1120A.hs:                              FAIL (1.27s)
       T1089b.hs:                              FAIL (1.13s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      NatClass.hs:                            FAIL (1.07s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      MergeSort-bag.hs:                       FAIL (1.00s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      meas10.hs:                              FAIL (1.25s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-      DepData.hs:                             FAIL (0.86s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      tupparse.hs:                            FAIL (0.94s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      imp0.hs:                                FAIL (0.96s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      LocalSpec.hs:                           FAIL (0.78s)
-        tests/test.hs:292:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 1
-
+     NatClass.hs:                            FAIL (1.07s)
+     MergeSort-bag.hs:                       FAIL (1.00s)
+     meas10.hs:                              FAIL (1.25s)
+     DepData.hs:                             FAIL (0.86s)
+     tupparse.hs:                            FAIL (0.94s)
+     imp0.hs:                                FAIL (0.96s)
+     LocalSpec.hs:                           FAIL (0.78s)
 
   Error-Messages
     ShadowFieldInline.hs:                     OK (0.64s)
