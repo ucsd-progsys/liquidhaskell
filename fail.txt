@@ -42,17 +42,17 @@ HEREHEREHEREHERE
       DataBase.hs:                            FAIL (1.03s)
       bag.hs:                                 FAIL (0.97s)
       bag1.hs:                                FAIL (1.05s)
+      MergeSort-bag.hs:                       FAIL (1.00s)
+      
       RecordAccessors.hs:                     FAIL (0.89s)
+      TemplateHaskell.hs:                     FAIL (1.17s)
 
-     gadtEval.hs:                            FAIL (1.01s)
-     TemplateHaskell.hs:                     FAIL (1.17s)
-
-     ListISort-bag.hs:                       FAIL (0.95s)
-     T1095A.hs:                              FAIL (1.15s)
-     T1120A.hs:                              FAIL (1.27s)
+      ListISort-bag.hs:                       FAIL (0.95s)
+      T1095A.hs:                              FAIL (1.15s)
+      T1120A.hs:                              FAIL (1.27s)
       T1089b.hs:                              FAIL (1.13s)
-     NatClass.hs:                            FAIL (1.07s)
-     MergeSort-bag.hs:                       FAIL (1.00s)
+
+      NatClass.hs:                            FAIL (1.07s)
      meas10.hs:                              FAIL (1.25s)
      tupparse.hs:                            FAIL (0.94s)
      imp0.hs:                                FAIL (0.96s)
