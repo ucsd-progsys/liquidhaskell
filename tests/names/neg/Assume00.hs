@@ -6,7 +6,7 @@ import Language.Haskell.Liquid.Prelude
 
 data Thing = Thing 
 
-{-@ plus :: x:Thing -> Thing -> {v:Thing | v = x} @-}
+{-@ plus :: x:Thing -> Thing -> {v:Thing | false } @-}
 plus :: Thing -> Thing -> Thing 
 plus x _ = x
 

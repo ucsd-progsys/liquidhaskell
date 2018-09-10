@@ -80,11 +80,11 @@ makeEnv cfg src lmap specs = RE
   , reSyms      = syms 
   , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
-  , reQualImps  = F.tracepp "QUALIFED-IMPORTS" $ gsQualImps     src
+  , reQualImps  = gsQualImps     src
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
   , reCbs       = giCbs          src
-  , reGlobSyms  = F.tracepp "GLOBAL-SYMS" $ S.fromList     globalSyms 
+  , reGlobSyms  = S.fromList     globalSyms 
   , reCfg       = cfg
   } 
   where 
@@ -185,7 +185,7 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = F.tracepp "SRCTHINGS" $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -390,24 +390,29 @@ lookupGhcNamedVar env name z = strictResolveSym env name "Var" lx
 lookupGhcVar :: Env -> ModName -> String -> LocSymbol -> Ghc.Var 
 lookupGhcVar env name kind lx = 
   case resolveLocSym env name kind lx of 
-    Right v -> v 
-    Left  e -> case lookupLocalVar env lx of 
-                 Just v  -> v 
-                 Nothing -> Misc.errorP "error-lookupGhcVar" (F.showpp e)
+    Right v -> Mb.fromMaybe v       (lookupLocalVar env lx [v]) 
+    Left  e -> Mb.fromMaybe (err e) (lookupLocalVar env lx []) 
+  where
+    err e   = Misc.errorP "error-lookupGhcVar" (F.showpp e)
 
-lookupLocalVar :: Env -> LocSymbol -> Maybe Ghc.Var
-lookupLocalVar env lx = Misc.findNearest (F.srcLine lx) kvs
+-- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars 
+--   that also match the name @lx@; we then pick the "closest" definition. 
+--   See tests/names/LocalSpec.hs for a motivating example. 
+
+lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
+lookupLocalVar env lx gvs = Misc.findNearest (F.srcLine lx) kvs
   where 
-    kvs               = M.lookupDefault [] x (reLocalVars env) 
-    _xn               = F.srcLine lx  
-    (_, x)            = unQualifySymbol (F.val lx)
+    kvs                   = M.lookupDefault gs x (reLocalVars env) 
+    gs                    = [(F.srcLine v, v) | v <- gvs]
+    _xn                   = F.srcLine lx  
+    (_, x)                = unQualifySymbol (F.val lx)
 
 
 lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon 
 lookupGhcDataCon = strictResolveSym 
 
 lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
-lookupGhcTyCon env name k lx = F.tracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
+lookupGhcTyCon env name k lx = F.notracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
                              $ strictResolveSym env name k lx
 
 lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Ghc.TyCon
@@ -425,7 +430,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = 
   case ofBareTypeE env name l Nothing t of 
-    Left e  -> F.tracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
 _rTypeTyCons :: (Ord c) => RType c tv r -> [c]
@@ -489,7 +494,7 @@ resolveWith f env name kind lx =
   where 
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = F.tracepp msg $ lookupTyThing env name (val lx) 
+    things = F.notracepp msg $ lookupTyThing env name (val lx) 
     msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
@@ -506,15 +511,15 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
                                []       -> []
   where 
     matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
-                                           , k      <- F.tracepp msg $ mm nameSym m mods ]
+                                           , k      <- F.notracepp msg $ mm nameSym m mods ]
     msg                    = "lookupTyThing: " ++ F.showpp (sym, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
-    mm name m mods           = F.tracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
+    mm name m mods           = F.notracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
                               matchMod env name m mods 
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
-lookupThings env x = F.tracepp ("lookupThings: " ++ F.showpp x) 
+lookupThings env x = F.notracepp ("lookupThings: " ++ F.showpp x) 
                    $ Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
   where 
     get z          = M.lookup z (_reTyThings env)
