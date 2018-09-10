@@ -9,15 +9,10 @@ Tests
 
   Macro
     unit-pos
-
       state00.hs:                             FAIL (0.75s)
       DataBase.hs:                            FAIL (1.03s)
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
-
-      T595.hs:                                FAIL (1.21s)
-      RecordAccessors.hs:                     FAIL (0.84s)
-      - not strengthening record field
 
 Wierd Strata Stuff [todo-rebare]
 
@@ -40,166 +35,49 @@ Wierd Strata Stuff [todo-rebare]
 
 -------------------------------------------------------------
  
-  Macro
-    unit-pos
-      T1089b.hs:                              FAIL (1.13s)
-
   Error-Messages
-    ShadowFieldInline.hs:                     OK (0.64s)
-    ShadowFieldReflect.hs:                    OK (0.65s)
-    MultiRecSels.hs:                          OK (0.75s)
-    DupFunSigs.hs:                            OK (0.86s)
-    DupMeasure.hs:                            OK (0.63s)
-    ShadowMeasure.hs:                         OK (0.62s)
-    DupData.hs:                               OK (0.75s)
-    EmptyData.hs:                             OK (0.64s)
     TerminationExprSort.hs:                   FAIL (0.90s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
     TerminationExprNum.hs:                    FAIL (0.90s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
     TerminationExprUnb.hs:                    FAIL (0.97s)
-      tests/test.hs:296:
       Did not match message: Illegal termination specification for `go`
     UnboundVarInSpec.hs:                      FAIL (0.84s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `Fixme.foo`
     UnboundVarInAssume.hs:                    FAIL (0.81s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `Assume.incr`
     UnboundFunInSpec.hs:                      FAIL (0.86s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `Goo.three`
     UnboundFunInSpec1.hs:                     FAIL (0.85s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `Goo.foo`
     UnboundFunInSpec2.hs:                     FAIL (0.84s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `Goo.foo`
     Fractional.hs:                            FAIL (0.89s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
     T773.hs:                                  FAIL (0.88s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `LiquidR.incr`
     T774.hs:                                  FAIL (0.87s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `LiquidR.incr`
-    Inconsistent0.hs:                         OK (0.88s)
-    Inconsistent1.hs:                         OK (0.82s)
-    Inconsistent2.hs:                         OK (0.82s)
-    BadAliasApp.hs:                           OK (0.83s)
-    BadPragma0.hs:                            OK (0.48s)
-    BadPragma1.hs:                            OK (0.48s)
-    BadPragma2.hs:                            OK (0.47s)
-    BadSyn1.hs:                               OK (0.81s)
     BadSyn2.hs:                               FAIL (0.78s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
     BadSyn3.hs:                               FAIL (0.81s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
     BadSyn4.hs:                               FAIL (0.82s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
-    BadAnnotation.hs:                         OK (0.48s)
-    BadAnnotation1.hs:                        OK (0.46s)
-    CyclicExprAlias0.hs:                      OK (0.72s)
     CyclicExprAlias1.hs:                      FAIL (0.73s)
-      tests/test.hs:296:
       Did not match message: Cyclic type alias definition for `CyclicB1`
-    CyclicExprAlias2.hs:                      OK (0.74s)
-    CyclicExprAlias3.hs:                      OK (0.73s)
-    DupAlias.hs:                              OK (0.87s)
-    DupAlias.hs:                              OK (0.87s)
     BadDataConType.hs:                        FAIL (0.89s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
     BadDataConType1.hs:                       FAIL (0.88s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    BadDataConType2.hs:                       OK (0.73s)
-    LiftMeasureCase.hs:                       OK (0.73s)
     HigherOrderBinder.hs:                     FAIL (0.86s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `Main.foo`
     HoleCrash1.hs:                            FAIL (0.84s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `ListDemo.t`
-    HoleCrash2.hs:                            OK (0.74s)
-    HoleCrash3.hs:                            OK (0.86s)
     BadPredApp.hs:                            FAIL (0.79s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
     LocalHole.hs:                             FAIL (0.95s)
-      tests/test.hs:296:
       Did not match message: Illegal type specification for `go`
-    UnboundAbsRef.hs:                         OK (0.81s)
     BadQualifier.hs:                          FAIL (0.88s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitSuccess
-    ParseClass.hs:                            OK (0.48s)
-    ParseBind.hs:                             OK (0.47s)
-    MissingSizeFun.hs:                        FAIL (0.74s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
     MultiInstMeasures.hs:                     FAIL (0.86s)
-      tests/test.hs:296:
       Did not match message: Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`
-    BadDataDeclTyVars.hs:                     OK (0.76s)
-    BadDataCon2.hs:                           OK (0.73s)
     BadSig0.hs:                               FAIL (0.85s)
-      tests/test.hs:296:
       Did not match message: Error: Illegal type specification for `Zoo.foo`
-    BadSig1.hs:                               OK (0.90s)
-    BadData1.hs:                              OK (0.77s)
-    BadData2.hs:                              OK (0.73s)
-    T1140.hs:                                 OK (0.83s)
     InlineSubExp0.hs:                         FAIL (0.98s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 1
-       but got: ExitFailure 2
     InlineSubExp1.hs:                         FAIL (1.01s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 1
-       but got: ExitFailure 2
-    EmptySig.hs:                              OK (0.48s)
     ElabLocation.hs:                          FAIL (0.87s)
-      tests/test.hs:296:
       Did not match message: ElabLocation.hs:11:9-11:15: Error
     MissingReflect.hs:                        FAIL (1.17s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
     MissingAssume.hs:                         FAIL (0.78s)
-      tests/test.hs:295:
-      Wrong exit code
-      expected: ExitFailure 2
-       but got: ExitFailure 1
   

@@ -27,6 +27,7 @@ import           Prelude                                hiding (error)
 -- import           Data.Maybe
 -- import           Language.Haskell.Liquid.GHC.TypeRep
 
+import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
@@ -703,8 +704,15 @@ qualifyField name lx
    x         = val lx
    needsQual = not (isWiredIn lx)
 
+checkRecordSelectorSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)]
+checkRecordSelectorSigs vts = [ (v, take1 v ts) | (v, ts) <- Misc.groupList vts ] 
+  where 
+    take1 v ts              = case Misc.nubHashOn (showpp . val) ts of 
+                                [t]    -> t 
+                                (t:ts) -> Ex.throw (ErrDupSpecs (GM.fSrcSpan t) (pprint v) (GM.fSrcSpan <$> ts) :: Error)
+
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
-makeRecordSelectorSigs env name dcs = F.tracepp "MAKE-RECORD-SELECTOR-SIGS" $ concatMap makeOne dcs
+makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
     | null fls                    --    no field labels
