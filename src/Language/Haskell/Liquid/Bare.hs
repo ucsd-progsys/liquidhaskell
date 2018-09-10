@@ -155,7 +155,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     -- build up spec components 
     sData    = makeSpecData src env sigEnv measEnv sig specs 
     refl     = makeSpecRefl src specs env name sig tycEnv 
-    sig      = makeSpecSig name specs env sigEnv  measEnv 
+    sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv 
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
@@ -517,18 +517,20 @@ makeAutoInst env name spec =
   Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
-makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv 
+makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv 
             -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
-makeSpecSig name specs env sigEnv measEnv = SpSig 
-  { gsTySigs   = F.tracepp "gsTySigs"     tySigs 
-  , gsAsmSigs  = F.tracepp "gsAsmSigs" $ makeAsmSigs env sigEnv name specs 
+makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig 
+  { gsTySigs   = F.tracepp "gsTySigs"  tySigs 
+  , gsAsmSigs  = F.tracepp "gsAsmSigs" asmSigs
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
   }
   where 
     mySpec     = M.lookupDefault mempty name specs
+    asmSigs    = Bare.tcSelVars tycEnv 
+              ++ makeAsmSigs env sigEnv name specs 
     tySigs     = strengthenSigs . concat $
                   [ makeTySigs  env sigEnv name mySpec
                   , makeInlSigs env rtEnv allSpecs 

@@ -704,7 +704,7 @@ qualifyField name lx
    needsQual = not (isWiredIn lx)
 
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
-makeRecordSelectorSigs env name dcs = concatMap makeOne dcs
+makeRecordSelectorSigs env name dcs = F.tracepp "MAKE-RECORD-SELECTOR-SIGS" $ concatMap makeOne dcs
   where
   makeOne (Loc l l' dcp)
     | null fls                    --    no field labels

@@ -1,10 +1,13 @@
 module RecordAccessors where
 
-{-@ data Foo = F { thing :: Nat } @-}
+{-@ type Big = {v:Int | v > 666} @-}
+
+
+{-@ data Foo = F { thing :: Big } @-}
 data Foo = F { thing :: Int }
 
-{-@ bar :: Foo -> Nat @-}
+{-@ bar :: Foo -> Big @-}
 bar = thing
 
-{-@ baz :: Foo -> Nat @-}
+{-@ baz :: Foo -> Big @-}
 baz (F n) = n

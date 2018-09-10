@@ -94,7 +94,7 @@ data TycEnv = TycEnv
   { tcTyCons      :: ![TyConP]
   , tcDataCons    :: ![DataConP]
   , tcSelMeasures :: ![Measure SpecType Ghc.DataCon]
-  , tcSelVars     :: ![(Ghc.Var, Located SpecType)]
+  , tcSelVars     :: ![(Ghc.Var, LocSpecType)]
   , tcTyConMap    :: !TyConMap 
   , tcAdts        :: ![F.DataDecl]
   , tcDataConMap  :: !DataConMap 
