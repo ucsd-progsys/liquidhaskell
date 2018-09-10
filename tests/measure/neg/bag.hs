@@ -1,7 +1,7 @@
 module BagTest where
 
-import qualified Data.Set as S
-import Language.Haskell.Liquid.Bag as B
+import qualified Data.Set                    as S
+import           Language.Haskell.Liquid.Bag as B
 
 {-@ zorg :: {v:B.Bag Int | v = B.empty} @-}
 zorg :: B.Bag Int

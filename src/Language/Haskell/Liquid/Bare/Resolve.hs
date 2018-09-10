@@ -80,7 +80,7 @@ makeEnv cfg src lmap specs = RE
   , reSyms      = syms 
   , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
-  , reQualImps  = gsQualImps     src
+  , reQualImps  = F.tracepp "QUALIFED-IMPORTS" $ gsQualImps     src
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
   , reCbs       = giCbs          src
@@ -425,7 +425,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = 
   case ofBareTypeE env name l Nothing t of 
-    Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Left e  -> F.tracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
 _rTypeTyCons :: (Ord c) => RType c tv r -> [c]
@@ -489,7 +489,7 @@ resolveWith f env name kind lx =
   where 
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = F.notracepp msg $ lookupTyThing env name (val lx) 
+    things = F.tracepp msg $ lookupTyThing env name (val lx) 
     msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
@@ -502,20 +502,22 @@ resolveWith f env name kind lx =
 lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
 lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of 
-                               (k,ts):_ -> F.tracepp (msg k) ts
+                               (_,ts):_ -> ts
                                []       -> []
   where 
     matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
-                                           , k      <- mm nameSym m mods ]
-    msg k                  = "lookupTyThing: " ++ F.showpp (sym, k, x, mods)
+                                           , k      <- F.tracepp msg $ mm nameSym m mods ]
+    msg                    = "lookupTyThing: " ++ F.showpp (sym, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
-    mm name m ms           = F.notracepp ("matchMod: " ++ F.showpp (sym, name, m, ms)) $ 
-                              matchMod env name m ms 
+    mm name m mods           = F.tracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
+                              matchMod env name m mods 
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
-lookupThings env x = Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
-  where get z      = M.lookup z (_reTyThings env)
+lookupThings env x = F.tracepp ("lookupThings: " ++ F.showpp x) 
+                   $ Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
+  where 
+    get z          = M.lookup z (_reTyThings env)
 
 matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
 matchMod env tgtName defName Nothing     
@@ -755,7 +757,7 @@ matchTyCon env name lc@(Loc _ _ c) arity
   | isTuple c               = {- knownTC -} Right tuplTc 
   | otherwise               = resolveLocSym env name msg lc 
   where 
-    msg                     = "MATCH-TYCON: " ++ F.showpp c
+    msg                     = "matchTyCon: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
     -- knownTC :: Int
     -- knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 

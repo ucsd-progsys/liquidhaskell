@@ -108,8 +108,8 @@ makeGhcSpec cfg src lmap mspecs0
   where 
     mspecs = [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] 
     sp     = makeGhcSpec0 cfg src lmap mspecs 
-    renv   = L.foldl' add (ghcSpecEnv sp) wiredSortedSyms  
-    add    = \e (x, s) -> insertSEnv x (RR s mempty) e 
+    renv   = F.tracepp "RENV" $ ghcSpecEnv sp -- L.foldl' add (ghcSpecEnv sp) wiredSortedSyms  
+    -- add    = \e (x, s) -> insertSEnv x (RR s mempty) e 
 
 checkThrow :: Ex.Exception e => Either e c -> c
 checkThrow = either Ex.throw id 
@@ -118,11 +118,14 @@ ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv (F.tracepp "GHC-SPEC-ENV" binds)
   where
     emb       = gsTcEmbeds (gsName sp)
-    binds     =  ([(x,       rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)])
-              ++ [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
-              ++ [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
-              ++ [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
-                                                        , Ghc.isConLikeId v     ]
+    binds     = concat 
+                 [ [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)]
+                 , [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
+                 , [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
+                 , [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
+                                                          , Ghc.isConLikeId v     ]
+                 , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
+                 ]
     rSort t   = rTypeSortedReft emb t
     vSort     = rSort . varRSort
     varRSort  :: Ghc.Var -> RSort

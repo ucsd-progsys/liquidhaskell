@@ -295,9 +295,9 @@ ppr_rty_fun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
 ppr_rty_fun' bb (RImpF b t t' r)
-  = F.ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb (text "~>") t'
+  = F.ppTy r $ ppr_dbind bb FunPrec b t $+$ ppr_rty_fun bb (text "~>") t'
 ppr_rty_fun' bb (RFun b t t' r)
-  = F.ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
+  = F.ppTy r $ ppr_dbind bb FunPrec b t $+$ ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
