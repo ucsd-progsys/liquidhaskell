@@ -19,14 +19,6 @@ Tests
       RecordAccessors.hs:                     FAIL (0.84s)
       - not strengthening record field
 
-      bag.hs:                                 FAIL (0.97s)
-      bag1.hs:                                FAIL (1.05s)
-
-      ListISort-bag.hs:                       FAIL (0.95s)
-      MergeSort-bag.hs:                       FAIL (1.00s)
-      
-      - todo:bag-fromList 
-
 Wierd Strata Stuff [todo-rebare]
 
       Invariants.hs:                          FAIL (0.76s)
@@ -39,7 +31,6 @@ Wierd Strata Stuff [todo-rebare]
       ANF.hs:                                 FAIL (1.09s)
       TemplateHaskell.hs:                     FAIL (1.17s)
       - ReturnStrata 
-
       
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
