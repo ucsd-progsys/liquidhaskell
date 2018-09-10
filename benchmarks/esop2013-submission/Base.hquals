@@ -1,3 +1,3 @@
 qualif Bound1(v: Data.Map.Base.Map k a , x : k): ((isBin v) => (x < (key v)))
-qualif Bound1(v: Data.Map.Base.Map k a , x : k): ((isBin v) => (x > (key v)))
+qualif Bound2(v: Data.Map.Base.Map k a , x : k): ((isBin v) => (x > (key v)))
 

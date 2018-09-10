@@ -559,15 +559,15 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (F.notracepp (msg 6))
   . fmap (specExpandType rtEnv)                         
-  . fmap (F.tracepp (msg 5))
+  . fmap (F.notracepp (msg 5))
   . fmap (fmap (generalizeWith x))
-  . fmap (F.tracepp (msg 4))
+  . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.tracepp (msg 3))
+  . fmap (F.notracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
-  . fmap (F.tracepp (msg 2))
+  . fmap (F.notracepp (msg 2))
   . bareSpecType       env name 
-  . F.tracepp (msg 1) 
+  . F.notracepp (msg 1) 
   . bareExpandType     rtEnv
   . F.notracepp (msg 0) 
   $ bt 

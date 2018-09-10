@@ -72,7 +72,7 @@ checkBareSpec _ sp = Misc.applyNonNull (Right sp) Left $ concat
     hmeasures = Ms.hmeas      sp 
     reflects  = Ms.reflects   sp 
     measures  = msName    <$> Ms.measures sp 
-    fields    = F.tracepp "FIELDS" $ concatMap dataDeclFields (Ms.dataDecls sp) 
+    fields    = F.notracepp "FIELDS" $ concatMap dataDeclFields (Ms.dataDecls sp) 
 
 dataDeclFields :: DataDecl -> [F.LocSymbol]
 dataDeclFields = filter (not . GM.isTmpSymbol . F.val) 
@@ -313,7 +313,7 @@ checkMismatch (x, t) = if ok then Nothing else Just err
     t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = F.tracepp msg (lqT == hsT)
+tyCompat x t         = F.notracepp msg (lqT == hsT)
   where
     lqT :: RSort     = toRSort t
     hsT :: RSort     = ofType (varType x)
