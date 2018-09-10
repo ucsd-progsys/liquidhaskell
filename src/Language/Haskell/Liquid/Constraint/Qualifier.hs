@@ -33,7 +33,7 @@ import           Language.Haskell.Liquid.Types
 giQuals :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 giQuals info lEnv
-  =  notracepp "GI-QUALS"
+  =  tracepp ("GI-QUALS: " ++ showpp lEnv)
   $  condNull (useSpcQuals info) (gsQualifiers . gsQual . giSpec $ info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
@@ -190,7 +190,8 @@ refTopQuals lEnv l tce t0 γ t
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
                    , not $ isGradual pa
-                   , isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
+                   , tracepp ("refTopQuals: " ++ showpp pa) 
+                     $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
