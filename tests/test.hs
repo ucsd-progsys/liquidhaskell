@@ -176,7 +176,6 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/BadQualifier.hs"        2 "Illegal qualifier specification for `Foo`"
   , errorTest "tests/errors/ParseClass.hs"          2 "Cannot parse specification"
   , errorTest "tests/errors/ParseBind.hs"           2 "Cannot parse specification"
-  , errorTest "tests/errors/MissingSizeFun.hs"      2 "GHC Error"
   , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
   , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "Mismatch in number of type variables for `L`"
   , errorTest "tests/errors/BadDataCon2.hs"         2 "GHC and Liquid specifications have different numbers of fields for `Boo.Cuthb`"
@@ -189,8 +188,11 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
   , errorTest "tests/errors/EmptySig.hs"            2 "Error: Cannot parse specification"
   , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
+  , errorTest "tests/errors/MissingSizeFun.hs"      2 "GHC Error"
   , errorTest "tests/errors/MissingReflect.hs"      2 "Error: Illegal type specification for `Main.empty_foo`" 
   , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
+  , errorTest "tests/errors/MissingField.hs"        2 "Error: Unknown field `goober`" 
+  
   ]
 
 macroTests :: IO TestTree
