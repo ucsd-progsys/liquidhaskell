@@ -225,6 +225,7 @@ data TError t =
                 } -- ^ specification parse error
 
   | ErrTySpec   { pos :: !SrcSpan
+                , knd :: !(Maybe Doc)
                 , var :: !Doc
                 , typ :: !t
                 , msg :: !Doc
@@ -326,6 +327,7 @@ data TError t =
                 , msg   :: !Doc
                 , hs    :: !Doc
                 , lqTy  :: !Doc
+                , diff  :: !(Maybe (Doc, Doc))  -- ^ specific pair of things that mismatch
                 , lqPos :: !SrcSpan -- ^ lq type location
                 } -- ^ Mismatch between Liquid and Haskell types
 
@@ -662,6 +664,12 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
 totalityType :: PPrint a =>  Tidy -> a -> Bool 
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 
+hint :: TError a -> Doc 
+hint e = maybe empty ("HINT:" <+>) (go e) 
+  where 
+    go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go _                = Nothing 
+
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
@@ -697,12 +705,15 @@ ppError' _ dSp dCtx (ErrParse _ _ e)
         $+$ dCtx
         $+$ (nest 4 $ pprint e)
 
-ppError' _ dSp dCtx (ErrTySpec _ v t s)
-  = dSp <+> text "Illegal type specification for" <+> ppVar v
+ppError' _ dSp dCtx (ErrTySpec _ k v t s)
+  = dSp <+> ("Illegal type specification for" <+> ppVar v) --  <-> ppKind k <-> ppVar v)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
                          ])
+    where 
+      _ppKind Nothing  = empty 
+      _ppKind (Just d) = d <-> " "
 
 ppError' _ dSp dCtx (ErrLiftExp _ v)
   = dSp <+> text "Cannot lift" <+> ppVar v <+> "into refinement logic"
@@ -812,7 +823,7 @@ ppError' _ dSp dCtx (ErrPartPred _ c p i eN aN)
                         , nest 4 "https://github.com/ucsd-progsys/liquidhaskell/issues/594"
                         ])
 
-ppError' _ dSp dCtx (ErrMismatch _ x msg τ t hsSp)
+ppError' _ dSp dCtx e@(ErrMismatch _ x msg τ t cause hsSp)
   = dSp <+> "Specified type does not refine Haskell type for" <+> ppVar x <+> parens msg
         $+$ dCtx
         $+$ (sepVcat blankLine
@@ -821,7 +832,16 @@ ppError' _ dSp dCtx (ErrMismatch _ x msg τ t hsSp)
               , "is inconsistent with the Haskell type"
               , nest 4 τ
               , "defined at" <+> pprint hsSp
+              , maybe empty ppCause cause 
               ])
+    where 
+      ppCause (hsD, lqD) = sepVcat blankLine 
+              [ "Specifically, the Liquid component" 
+              , nest 4 lqD 
+              , "is inconsistent with the Haskell component" 
+              , nest 4 hsD 
+              , hint e 
+              ] 
 
 ppError' _ dSp dCtx (ErrAliasCycle _ acycle)
   = dSp <+> text "Cyclic type alias definition for" <+> ppVar n0

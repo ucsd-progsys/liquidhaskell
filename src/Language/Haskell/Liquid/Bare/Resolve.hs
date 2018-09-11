@@ -471,23 +471,46 @@ class ResolveSym a where
   resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
   
 instance ResolveSym Ghc.Var where 
-  resolveLocSym = resolveWith $ \case {Ghc.AnId x -> Just x; _ -> Nothing}
+  resolveLocSym = resolveWith $ \case 
+                    Ghc.AnId x -> Just (0, x)
+                    _          -> Nothing
 
 instance ResolveSym Ghc.TyCon where 
-  resolveLocSym = resolveWith $ \case {Ghc.ATyCon x -> Just x; _ -> Nothing}
+  resolveLocSym = resolveWith $ \case 
+                    Ghc.ATyCon x             -> Just (0, x)
+                    -- //  Ghc.AConLike (Ghc.RealDataCon x) 
+                      --  // | isIO x               -> Just (0, Ghc.dataConTyCon x)                  
+                      --  // | otherwise            -> Just (1, Ghc.promoteDataCon x)
+                    _                        -> Nothing
+    where 
+      isIO x    = GM.showPpr x == "GHC.Types.IO" 
+
+{-- TODO-REBARE 
+  TODO-REBARE resolveTyCon 
+  ftc (ATyCon x)
+= Just (0, {- GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) -} x)
+ftc (AConLike (RealDataCon x))                
+= Just (1, promoteDataCon x)                
+ftc _        
+= Nothing
+-}  
 
 instance ResolveSym Ghc.DataCon where 
-  resolveLocSym = resolveWith $ \case {Ghc.AConLike (Ghc.RealDataCon x) -> Just x; _ -> Nothing}
+  resolveLocSym = resolveWith $ \case 
+                    Ghc.AConLike (Ghc.RealDataCon x) -> Just (0, x)
+                    _                                -> Nothing
 
 instance ResolveSym F.Symbol where 
   resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of 
     Left _               -> Right (val lx)
     Right (v :: Ghc.Var) -> Right (F.symbol v)
 
-resolveWith :: (PPrint a) => (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
+
+
+resolveWith :: (PPrint a) => (Ghc.TyThing -> Maybe (Int, a)) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith f env name kind lx =
-  case Mb.mapMaybe f things of 
+  case Misc.firstGroup (Mb.mapMaybe f things) of 
     []  -> Left  (errResolve kind lx) 
     [x] -> Right x 
     -- xs  -> error ("Oh-no: " ++ kind ++ ":" ++ F.showpp things)
@@ -496,7 +519,7 @@ resolveWith f env name kind lx =
   where 
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = F.notracepp msg $ lookupTyThing env name (val lx) 
+    things = F.tracepp msg $ lookupTyThing env name (val lx) 
     msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
@@ -513,7 +536,7 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
                                []       -> []
   where 
     matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
-                                           , k      <- F.notracepp msg $ mm nameSym m mods ]
+                                           , k      <- F.tracepp msg $ mm nameSym m mods ]
     msg                    = "lookupTyThing: " ++ F.showpp (sym, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name

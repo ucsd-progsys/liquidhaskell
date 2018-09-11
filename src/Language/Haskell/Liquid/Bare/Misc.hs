@@ -1,24 +1,16 @@
 {-# LANGUAGE FlexibleContexts         #-}
 
-module Language.Haskell.Liquid.Bare.Misc (
---    makeSymbols
-    freeSymbols
+module Language.Haskell.Liquid.Bare.Misc 
+  ( freeSymbols
   , joinVar
   , mkVarExpr
   , vmap
-  
   , runMapTyVars
- -- , mapTyVars
- -- , initMapSt
-  
   , matchKindArgs
   , symbolRTyVar
   , simpleSymbolVar
   , hasBoolResult
   , isKind
-  -- , symbolMeasure
-  -- , makeDataConChecker
-  -- , makeDataConSelector
   ) where
 
 import           Name
@@ -36,6 +28,7 @@ import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
 
+import qualified Text.PrettyPrint.HughesPJ             as PJ 
 import qualified Data.List                             as L
 import qualified Data.HashMap.Strict                   as M
 import           Language.Fixpoint.Misc                as Misc -- (singleton, sortNub)
@@ -91,17 +84,13 @@ freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
-runMapTyVars :: Type -> SpecType -> Error -> Either Error MapTyVarST
-runMapTyVars τ t err = execStateT (mapTyVars τ t) (initMapSt err) 
+runMapTyVars :: Type -> SpecType -> (PJ.Doc -> PJ.Doc -> Error) -> Either Error MapTyVarST
+runMapTyVars τ t err = execStateT (mapTyVars τ t) (MTVST [] err) 
 
 data MapTyVarST = MTVST
   { vmap   :: [(Var, RTyVar)]
-  , errmsg :: Error
+  , errmsg :: PJ.Doc -> PJ.Doc -> Error
   }
-
-initMapSt :: Error -> MapTyVarST
-initMapSt = MTVST []
-
 
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars t (RImpF _ _ t' _)
@@ -137,8 +126,9 @@ mapTyVars k _ | isKind k
   = return ()
 mapTyVars (ForAllTy _ τ) t
   = mapTyVars τ t
-mapTyVars _ _
-  = throwError =<< errmsg <$> get
+mapTyVars hsT lqT
+  = do err <- errmsg <$> get
+       throwError (err (F.pprint hsT) (F.pprint lqT)) 
 
 isKind :: Kind -> Bool
 isKind k = isStarKind k --  typeKind k
@@ -149,7 +139,7 @@ mapTyRVar :: MonadError Error m
 mapTyRVar α a s@(MTVST αas err)
   = case lookup α αas of
       Just a' | a == a'   -> return s
-              | otherwise -> throwError err
+              | otherwise -> throwError (err (F.pprint a) (F.pprint a'))
       Nothing             -> return $ MTVST ((α,a):αas) err
 
 matchKindArgs' :: [Type] -> [SpecType] -> [SpecType]

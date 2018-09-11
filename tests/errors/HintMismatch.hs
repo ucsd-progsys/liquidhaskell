@@ -7,6 +7,6 @@ type OffsetN t = Offset (t 'Nothing)
 
 foo = Nothing 
 
-{-@ bar :: t _       @-}
+{-@ bar :: t 'Nothing @-}
 bar :: t 'Nothing
 bar = undefined 

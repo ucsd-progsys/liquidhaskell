@@ -122,7 +122,8 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune
                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      (gsData sp)))
-                     ++ mapMaybe (checkBind allowHO "assumed type" emb tcEnv env) (gsAsmSigs    (gsSig sp))
+                     ++ mapMaybe (checkBind allowHO "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
+                     ++ mapMaybe (checkBind allowHO empty          emb tcEnv env) (gsTySigs     (gsSig sp))
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
@@ -189,7 +190,6 @@ _checkRefinedClasses definitions instances
           conflicts -> Just (cls, conflicts)
     findConflicts cls
       = filter ((== cls) . riclass) instances
-
     mkError (cls, conflicts)
       = ErrRClass (GM.sourcePosSrcSpan $ loc $ btc_tc cls)
                   (pprint cls) (ofConflict <$> conflicts)
@@ -246,10 +246,10 @@ checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
 
-checkBind :: (PPrint v) => Bool -> String -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
+checkBind :: (PPrint v) => Bool -> Doc -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
 checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
   where
-    msg                      = ErrTySpec (GM.fSrcSpan t) (text s <+> pprint v) (val t)
+    msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
 
 checkTerminationExpr :: (Eq v, PPrint v) => F.TCEmb TyCon -> F.SEnv F.SortedReft -> (v, LocSpecType, [F.Located F.Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
@@ -320,7 +320,7 @@ tyCompat x t         = F.notracepp msg (lqT == hsT)
     msg              = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
-errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 hsSp
+errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
   where
     d1              = pprint $ varType x
     d2              = pprint $ toType $ val t

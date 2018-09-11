@@ -454,13 +454,12 @@ lookupTyThings hscEnv tcm mg =
 -- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)  
 -- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)  
 
-
-dumpTypeEnv :: TypecheckedModule -> IO () 
-dumpTypeEnv tm = do 
+_dumpTypeEnv :: TypecheckedModule -> IO () 
+_dumpTypeEnv tm = do 
   print "DUMP-TYPE-ENV"
   print (showpp <$> tcmTyThings tm)
 
-tcmTyThings :: TypecheckedModule -> _ -- [Ghc.TyThing]
+tcmTyThings :: TypecheckedModule -> Maybe [Name] 
 tcmTyThings 
   = id 
   -- typeEnvElts 

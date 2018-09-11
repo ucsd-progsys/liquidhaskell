@@ -475,8 +475,14 @@ bTyConP
  <|> mkBTyCon <$> locUpperIdP
  <?> "bTyConP"
 
+mkPromotedBTyCon :: LocSymbol -> BTyCon
+mkPromotedBTyCon x = BTyCon x False True -- (consSym '\'' <$> x) False True
+
 classBTyConP :: Parser BTyCon
 classBTyConP = mkClassBTyCon <$> locUpperIdP
+
+mkClassBTyCon :: LocSymbol -> BTyCon
+mkClassBTyCon x = BTyCon x True False
 
 stratumP :: Parser Strata
 stratumP
@@ -1109,7 +1115,7 @@ specP
     <|> (reserved "ple"           >> liftM Insts autoinstP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
-    <|> {- DEFAULT -}                liftM Asrts  tyBindsP
+    <|> {- DEFAULT -}                liftM (tracepp "OHO" . Asrts)  tyBindsP
     <?> "specP"
 
 -- | Try the given parser on the tail after matching the reserved word, and if

@@ -41,7 +41,8 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Bare Type Constructors and Variables
   , BTyCon(..)
-  , mkBTyCon, mkClassBTyCon, mkPromotedBTyCon
+  , mkBTyCon
+  -- , mkClassBTyCon, mkPromotedBTyCon
   , isClassBTyCon
   , BTyVar(..)
 
@@ -565,12 +566,6 @@ rtyVarType (RTV v) = TyVarTy v
 
 mkBTyCon :: F.LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False
-
-mkClassBTyCon :: F.LocSymbol -> BTyCon
-mkClassBTyCon x = BTyCon x True False
-
-mkPromotedBTyCon :: F.LocSymbol -> BTyCon
-mkPromotedBTyCon x = BTyCon x False True
 
 
 -- | Accessors for @RTyCon@
