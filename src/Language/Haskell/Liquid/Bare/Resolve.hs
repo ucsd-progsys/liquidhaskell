@@ -473,7 +473,7 @@ class ResolveSym a where
   resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
   
 instance ResolveSym Ghc.Var where 
-  resolveLocSym = resolveWith "identifier" $ \case 
+  resolveLocSym = resolveWith "variable" $ \case 
                     Ghc.AnId x -> Just (0, x)
                     _          -> Nothing
 
