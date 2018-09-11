@@ -474,16 +474,16 @@ class ResolveSym a where
   
 instance ResolveSym Ghc.Var where 
   resolveLocSym = resolveWith "variable" $ \case 
-                    Ghc.AnId x -> Just (0, x)
+                    Ghc.AnId x -> Just x -- (0, x)
                     _          -> Nothing
 
 instance ResolveSym Ghc.TyCon where 
   resolveLocSym = resolveWith "type constructor" $ \case 
-                    Ghc.ATyCon x             -> Just (0, x)
+                    Ghc.ATyCon x             -> Just x -- (0, x)
+                    _                        -> Nothing
                     -- //  Ghc.AConLike (Ghc.RealDataCon x) 
                       --  // | isIO x               -> Just (0, Ghc.dataConTyCon x)                  
                       --  // | otherwise            -> Just (1, Ghc.promoteDataCon x)
-                    _                        -> Nothing
     where 
       -- isIO x    = GM.showPpr x == "GHC.Types.IO" 
 
@@ -499,7 +499,7 @@ ftc _
 
 instance ResolveSym Ghc.DataCon where 
   resolveLocSym = resolveWith "data constructor" $ \case 
-                    Ghc.AConLike (Ghc.RealDataCon x) -> Just (0, x)
+                    Ghc.AConLike (Ghc.RealDataCon x) -> Just x -- (0, x)
                     _                                -> Nothing
 
 instance ResolveSym F.Symbol where 
@@ -509,10 +509,11 @@ instance ResolveSym F.Symbol where
 
 
 
-resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe (Int, a)) -> Env -> ModName -> String -> LocSymbol 
+resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe ({- Int, -} a)) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith kind f env name str lx =
-  case Misc.firstGroup (Mb.mapMaybe f things) of 
+ -- case Misc.firstGroup (Mb.mapMaybe f things) of 
+  case Mb.mapMaybe f things of 
     []  -> Left  (errResolve kind str lx) 
     [x] -> Right x 
     -- xs  -> error ("Oh-no: " ++ kind ++ ":" ++ F.showpp things)
