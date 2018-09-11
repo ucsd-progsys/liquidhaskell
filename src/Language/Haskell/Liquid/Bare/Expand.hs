@@ -565,9 +565,9 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (maybePlug       sigEnv name x)
   . fmap (F.notracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
-  . fmap (F.notracepp (msg 2))
+  . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
-  . F.notracepp (msg 1) 
+  . F.tracepp (msg 1) 
   . bareExpandType     rtEnv
   . F.notracepp (msg 0) 
   $ bt 

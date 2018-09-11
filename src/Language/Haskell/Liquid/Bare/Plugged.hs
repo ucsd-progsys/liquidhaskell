@@ -57,17 +57,18 @@ makePluggedSig name embs tyi exports k x t =
     τ = Ghc.expandTypeSynonyms (Ghc.varType x)
     r = maybeTrue x name exports
 
-makePluggedDataCon, makePluggedDataCon_old, makePluggedDataCon_new :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
 
 -- makePluggedDataCon = makePluggedDataCon_old 
 -- plugHoles          = plugHoles_old 
-
-makePluggedDataCon = makePluggedDataCon_new 
+-- makePluggedDataCon = makePluggedDataCon_new 
 
 -- plugHoles _         = plugHoles_old
 plugHoles Bare.HsTV = plugHoles_old
 plugHoles Bare.LqTV = plugHoles_new 
 
+{- 
+
+makePluggedDataCon_old :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
 makePluggedDataCon_old embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
   | mismatchTyVars    = Ex.throw (err "type variables")
@@ -89,16 +90,17 @@ makePluggedDataCon_old embs tyi ldcp
     mismatchFlds      = length dts /= length (dcpTyArgs dcp)
     mismatchTyVars    = length das /= length (dcpFreeTyVars dcp) 
     err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
+-}
 
 
-makePluggedDataCon_new embs tyi ldcp 
+makePluggedDataCon :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
+makePluggedDataCon embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
   | mismatchTyVars    = Ex.throw (err "type variables")
   | otherwise         = F.atLoc ldcp $ F.tracepp "makePluggedDataCon" $ dcp 
-                        -- { dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: Ghc.TyVar -> RSort) <$> das))) <$> dcpFreePred dcp
-                        { dcpTyArgs     = reverse tArgs 
-                        , dcpTyRes      = tRes 
-                        }
+                          { dcpTyArgs     = reverse tArgs 
+                          , dcpTyRes      = tRes 
+                          }
   where 
     (tArgs, tRes)     = plugMany       embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = Ghc.dataConSig dc
@@ -146,7 +148,6 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
     nTyVars          = length hsAs -- == length lqAs
     dcName           = Ghc.dataConName . dcpCon . val $ ldcp
     msg              = "plugMany: " ++ F.showpp (dcName, hsT, lqT)
-
 
 plugHoles_old, plugHoles_new 
   :: (Ghc.NamedThing a, PPrint a, Show a)

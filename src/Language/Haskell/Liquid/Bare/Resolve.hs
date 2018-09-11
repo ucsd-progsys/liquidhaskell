@@ -185,7 +185,8 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = F.tracepp "SRC-THINGS" $ 
+                Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -381,9 +382,10 @@ substFreeEnv :: (F.Subable a) => Env -> ModName -> [F.Symbol] -> a -> a
 substFreeEnv env name bs = F.substf (F.EVar . qualifySymbol env name bs) 
 
 -------------------------------------------------------------------------------
-lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Ghc.Var
+lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Maybe Ghc.Var
 -------------------------------------------------------------------------------
-lookupGhcNamedVar env name z = strictResolveSym env name "Var" lx 
+lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
+                               -- strictResolveSym env name "Var" lx 
   where 
     lx                       = GM.namedLocSymbol z
 

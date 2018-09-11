@@ -720,7 +720,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
     | otherwise 
-    = zip fs ts
+    = [ (v, t) | (Just v, t) <- zip fs ts ] 
     where
       dc  = dcpCon dcp
       fls = Ghc.dataConFieldLabels dc
