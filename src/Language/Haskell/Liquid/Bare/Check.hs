@@ -126,7 +126,7 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkBind allowHO empty          emb tcEnv env) (gsTySigs     (gsSig sp))
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
-                     ++ mapMaybe (checkTerminationExpr             emb       env) (varTermExprs         sp) 
+                     -- TODO-REBARE ++ mapMaybe (checkTerminationExpr             emb       env) (varTermExprs         sp) 
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))

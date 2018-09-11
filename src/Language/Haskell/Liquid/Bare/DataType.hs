@@ -601,7 +601,7 @@ errInvalidDataCon c d = ErrBadGADT sp v msg
   where
     v                 = pprint (val d)
     sp                = GM.sourcePosSrcSpan (loc d)
-    msg               = ppVar c <+> "is not the type constructed by" <+> ppVar v
+    msg               = ppTicks c <+> "is not the type constructed by" <+> ppTicks v
 
 varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance
 varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of
