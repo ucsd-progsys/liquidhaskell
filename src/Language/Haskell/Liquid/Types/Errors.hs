@@ -275,6 +275,11 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ bad data type specification (?)
 
+  | ErrBadGADT  { pos :: !SrcSpan
+                , var :: !Doc
+                , msg :: !Doc
+                } -- ^ bad data type specification (?)
+
   | ErrDataCon  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
@@ -667,9 +672,11 @@ totalityType :: PPrint a =>  Tidy -> a -> Bool
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 
 hint :: TError a -> Doc 
-hint e = maybe empty ("HINT:" <+>) (go e) 
+hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e) 
   where 
     go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go (ErrBadGADT {})  = Just "Use the hole '_' to specify the type of the constructor" 
+    go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
     go _                = Nothing 
 
 --------------------------------------------------------------------------------
@@ -680,12 +687,12 @@ ppError' td dSp dCtx (ErrAssType _ o _ c p)
         $+$ dCtx
         $+$ (ppFull td $ ppPropInContext td p c)
 
-ppError' td dSp dCtx (ErrSubType _ _ _ _ tE)
+ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
   | totalityType td tE
   = dSp <+> text "Totality Error"
         $+$ dCtx
         $+$ text "Your function is not total: not all patterns are defined." 
-        $+$ "Hint: Use \"--no-totality\" to deactivate totality checking."
+        $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
 
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
@@ -726,6 +733,12 @@ ppError' _ dSp dCtx (ErrBadData _ v s)
   = dSp <+> text "Bad Data Specification"
         $+$ dCtx
         $+$ (pprint s <+> "for" <+> ppVar v)
+
+ppError' _ dSp dCtx err@(ErrBadGADT _ v s)
+  = dSp <+> text "Bad GADT specification for" <+> ppVar v
+        $+$ dCtx
+        $+$ pprint s
+        $+$ hint err 
 
 ppError' _ dSp dCtx (ErrDataCon _ d s)
   = dSp <+> "Malformed refined data constructor" <+> ppVar d

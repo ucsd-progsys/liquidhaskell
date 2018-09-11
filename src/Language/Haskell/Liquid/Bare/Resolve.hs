@@ -898,12 +898,12 @@ addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
       t  = ofRSort (pvType p) `RT.strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
 
-addSymSortRef' _sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
+addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
   | length xs == length ts
   = RProp xts (RHole r)
   | otherwise
-  = Misc.errorP "ZONK" $ F.showpp (rc, pname up, i, length xs, length ts)
-  -- uError $ ErrPartPred sp (pprint rc) (pprint $ pname up) i (length xs) (length ts)
+  = -- Misc.errorP "ZONK" $ F.showpp (rc, pname up, i, length xs, length ts)
+    uError $ ErrPartPred sp (pprint rc) (pprint $ pname up) i (length xs) (length ts)
     where
       xts = Misc.safeZipWithError "addSymSortRef'" xs ts
       xs  = Misc.snd3 <$> pargs up

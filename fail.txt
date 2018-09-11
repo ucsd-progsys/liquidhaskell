@@ -35,18 +35,10 @@ Wierd Strata Stuff [todo-rebare]
 
 -------------------------------------------------------------
     BadPredApp.hs:          FAIL (0.83s)
-    BadDataConType1.hs:     FAIL (0.76s)
-      tests/test.hs:300:
-      Did not match message: Illegal type specification for `Boo.fldY`
+    
     CyclicExprAlias1.hs:    FAIL (0.76s)
       tests/test.hs:300:
       Did not match message: Cyclic type alias definition for `CyclicB1`
-    BadData1.hs:            FAIL (0.82s)
-      Did not match message: `Main.EntityField` is not the type constructor for `BlobXVal`
-    InlineSubExp0.hs:       FAIL (1.23s)
-    InlineSubExp1.hs:       FAIL (1.13s)
     EmptySig.hs:            OK (0.50s)
     ElabLocation.hs:        FAIL (1.00s)
       Did not match message: ElabLocation.hs:11:9-11:15: Error
-    MissingSizeFun.hs:      FAIL (0.89s)
-    MissingAssume.hs:       FAIL (0.92s)

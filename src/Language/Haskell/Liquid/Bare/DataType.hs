@@ -597,11 +597,11 @@ checkDataCtor1 d
 
 
 errInvalidDataCon :: Ghc.TyCon -> LocSymbol -> UserError
-errInvalidDataCon c d = ErrBadData sp (pprint (val d)) msg
+errInvalidDataCon c d = ErrBadGADT sp v msg
   where
+    v                 = pprint (val d)
     sp                = GM.sourcePosSrcSpan (loc d)
-    msg               = ppVar c <+> "is not the type constructor"
-
+    msg               = ppVar c <+> "is not the type constructed by" <+> ppVar v
 
 varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance
 varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of
