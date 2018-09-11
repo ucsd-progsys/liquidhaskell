@@ -33,9 +33,40 @@ Wierd Strata Stuff [todo-rebare]
       NatClass.hs 
       - handle "define" 
 
+
 -------------------------------------------------------------
     CyclicExprAlias1.hs:    FAIL (0.76s)
       tests/test.hs:300:
       Did not match message: Cyclic type alias definition for `CyclicB1`
     ElabLocation.hs:        FAIL (1.00s)
       Did not match message: ElabLocation.hs:11:9-11:15: Error
+
+
+  import-cli
+      T1096_Foo.hs:         FAIL (1.52s)
+        tests/test.hs:299:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+    ple-pos
+      IndPerm.hs:           FAIL (2.94s)
+        tests/test.hs:299:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      Fulcrum.hs:           FAIL (3.28s)
+        tests/test.hs:299:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      RegexpDerivative.hs:  FAIL (1.78s)
+        tests/test.hs:299:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+    ple-neg
+      BinahUpdate.hs:       FAIL (1.20s)
+        tests/test.hs:299:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitSuccess
