@@ -261,7 +261,7 @@ import           Data.Maybe                             (fromMaybe, mapMaybe)
 import           Data.Function                          (on)
 import           Data.List                              (foldl', nub)
 import           Data.Text                              (Text)
-import           Text.PrettyPrint.HughesPJ hiding (first, (<>)) 
+import           Text.PrettyPrint.HughesPJ              hiding (first, (<>)) 
 import           Text.Printf
 import           Language.Fixpoint.Misc
 

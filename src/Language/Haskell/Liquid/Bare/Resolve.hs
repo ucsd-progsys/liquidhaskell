@@ -2,6 +2,7 @@
 --   1. MAKE a name-resolution environment,
 --   2. USE the environment to translate plain symbols into Var, TyCon, etc. 
 
+{-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE TypeSynonymInstances  #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE FlexibleInstances     #-}
@@ -49,7 +50,7 @@ module Language.Haskell.Liquid.Bare.Resolve
   , resolveLocalBinds 
   ) where 
 
--- import qualified Control.Exception as Ex 
+import qualified Control.Exception                 as Ex 
 import qualified Data.List                         as L 
 import qualified Data.HashSet                      as S 
 import qualified Data.Maybe                        as Mb
@@ -395,7 +396,8 @@ lookupGhcVar env name kind lx =
     Right v -> Mb.fromMaybe v       (lookupLocalVar env lx [v]) 
     Left  e -> Mb.fromMaybe (err e) (lookupLocalVar env lx []) 
   where
-    err e   = Misc.errorP "error-lookupGhcVar" (F.showpp e)
+    -- err e   = Misc.errorP "error-lookupGhcVar" (F.showpp e)
+    err     = Ex.throw
 
 -- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars 
 --   that also match the name @lx@; we then pick the "closest" definition. 
@@ -471,19 +473,19 @@ class ResolveSym a where
   resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
   
 instance ResolveSym Ghc.Var where 
-  resolveLocSym = resolveWith $ \case 
+  resolveLocSym = resolveWith "identifier" $ \case 
                     Ghc.AnId x -> Just (0, x)
                     _          -> Nothing
 
 instance ResolveSym Ghc.TyCon where 
-  resolveLocSym = resolveWith $ \case 
+  resolveLocSym = resolveWith "type constructor" $ \case 
                     Ghc.ATyCon x             -> Just (0, x)
                     -- //  Ghc.AConLike (Ghc.RealDataCon x) 
                       --  // | isIO x               -> Just (0, Ghc.dataConTyCon x)                  
                       --  // | otherwise            -> Just (1, Ghc.promoteDataCon x)
                     _                        -> Nothing
     where 
-      isIO x    = GM.showPpr x == "GHC.Types.IO" 
+      -- isIO x    = GM.showPpr x == "GHC.Types.IO" 
 
 {-- TODO-REBARE 
   TODO-REBARE resolveTyCon 
@@ -496,7 +498,7 @@ ftc _
 -}  
 
 instance ResolveSym Ghc.DataCon where 
-  resolveLocSym = resolveWith $ \case 
+  resolveLocSym = resolveWith "data constructor" $ \case 
                     Ghc.AConLike (Ghc.RealDataCon x) -> Just (0, x)
                     _                                -> Nothing
 
@@ -507,11 +509,11 @@ instance ResolveSym F.Symbol where
 
 
 
-resolveWith :: (PPrint a) => (Ghc.TyThing -> Maybe (Int, a)) -> Env -> ModName -> String -> LocSymbol 
+resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe (Int, a)) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
-resolveWith f env name kind lx =
+resolveWith kind f env name str lx =
   case Misc.firstGroup (Mb.mapMaybe f things) of 
-    []  -> Left  (errResolve kind lx) 
+    []  -> Left  (errResolve kind str lx) 
     [x] -> Right x 
     -- xs  -> error ("Oh-no: " ++ kind ++ ":" ++ F.showpp things)
     -- xs  -> Left $ ErrDupNames sp (PJ.text "GOO") [] -- (pprint (F.symbol lx)) [] -- (pprint <$> xs)
@@ -520,7 +522,7 @@ resolveWith f env name kind lx =
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
     things = F.tracepp msg $ lookupTyThing env name (val lx) 
-    msg    = "resolveWith: " ++ kind ++ " " ++ F.showpp (val lx)
+    msg    = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
@@ -604,10 +606,11 @@ splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
  -}   
 
 
-errResolve :: String -> LocSymbol -> UserError 
-errResolve kind lx =  ErrResolve (GM.fSrcSpan lx) (PJ.text msg)
-  where 
-    msg            = unwords [ "Name resolution error: ", kind, symbolicIdent lx]
+errResolve :: PJ.Doc -> String -> LocSymbol -> UserError 
+errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.text msg) 
+-- (PJ.text msg)
+   -- where 
+   -- msg            = unwords [ "Name resolution error: ", kind, symbolicIdent lx]
 
 symbolicIdent :: (F.Symbolic a) => a -> String
 symbolicIdent x = "'" ++ symbolicString x ++ "'"
@@ -651,8 +654,10 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType 
-ofBareType env name l ps t = either (Misc.errorP "error-ofBareType" . F.showpp) id 
-                              (ofBareTypeE env name l ps t)
+ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
+  where 
+    -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
+    fail                   = Ex.throw 
 
 ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Either UserError SpecType 
 ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t 
@@ -805,7 +810,7 @@ bareTCApp :: (Expandable r)
           -> (RType RTyCon RTyVar r)
 bareTCApp r (Loc l _ c) rs ts | Just rhs <- Ghc.synTyConRhs_maybe c
   = if (GM.kindTCArity c < length ts) 
-      then error (F.showpp err)
+      then Ex.throw err -- error (F.showpp err)
       else tyApp (RT.subsTyVars_meet su $ RT.ofType rhs) (drop nts ts) rs r
     where
        tvs = [ v | (v, b) <- zip (GM.tyConTyVarsDef c) (Ghc.tyConBinders c), GM.isAnonBinder b]

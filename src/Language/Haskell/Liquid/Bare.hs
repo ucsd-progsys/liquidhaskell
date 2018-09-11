@@ -956,7 +956,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   , meMethods     = mts -- TODO-REBARE: ++  let dms = makeDefaultMethods vars mts  
   }
   where 
-    measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv <$> M.toList specs))
+    measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv name <$> M.toList specs))
     (cs, ms)      = Bare.makeMeasureSpec'     measures
     cms           = Bare.makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
@@ -964,7 +964,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
                                                , Mb.isNothing (lookup (val lx) cms') ]
     cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
-    -- unpacking the environement
+    -- unpacking the environment
     tyi           = Bare.tcTyConMap    tycEnv 
     dcSelectors   = Bare.tcSelMeasures tycEnv 
     datacons      = Bare.tcDataCons    tycEnv 

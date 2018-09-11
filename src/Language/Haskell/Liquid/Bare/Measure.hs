@@ -351,24 +351,26 @@ makeMeasureSpec' mspec0 = (ctorTys, measTys)
     mspec               = first (mapReft ur_reft) mspec0
 
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType Ghc.DataCon
+makeMeasureSpec :: Bare.Env -> Bare.SigEnv -> ModName -> (ModName, Ms.BareSpec) -> Ms.MSpec SpecType Ghc.DataCon
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec env sigEnv (name, spec) 
-  = mkMeasureDCon env        name 
-  . mkMeasureSort env        name 
+makeMeasureSpec env sigEnv myName (name, spec) 
+  = mkMeasureDCon env               name 
+  . mkMeasureSort env               name 
   . first val 
-  . bareMSpec     env sigEnv name 
+  . bareMSpec     env sigEnv myName name 
   $ spec 
 
-bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
-bareMSpec env sigEnv name spec = Ms.mkMSpec ms cms ims 
+bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
+bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims 
   where
-    cms     = filter inScope $             Ms.cmeasures spec
-    ms      = filter inScope $ expMeas <$> Ms.measures  spec
-    ims     = filter inScope $ expMeas <$> Ms.imeasures spec
-    expMeas = expandMeasure env name  rtEnv
-    rtEnv   = Bare.sigRTEnv          sigEnv
-    inScope z = F.tracepp ("inScope: " ++ F.showpp (msName z)) . Bare.knownGhcType env name . msSort $ z
+    cms       = filter inScope $             Ms.cmeasures spec
+    ms        = filter inScope $ expMeas <$> Ms.measures  spec
+    ims       = filter inScope $ expMeas <$> Ms.imeasures spec
+    expMeas   = expandMeasure env name  rtEnv
+    rtEnv     = Bare.sigRTEnv          sigEnv
+    force     = name == myName 
+    inScope z = F.tracepp ("inScope: " ++ F.showpp (msName z)) $ (force || okSort z)
+    okSort    = Bare.knownGhcType env name . msSort 
 
 
 mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t Ghc.DataCon

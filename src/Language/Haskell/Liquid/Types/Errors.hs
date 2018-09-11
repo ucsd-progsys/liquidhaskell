@@ -318,8 +318,10 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ GHC error: parsing or type checking
 
-  | ErrResolve  { pos :: !SrcSpan
-                , msg :: !Doc
+  | ErrResolve  { pos  :: !SrcSpan
+                , kind :: !Doc
+                , var  :: !Doc
+                , msg  :: !Doc
                 } -- ^ Name resolution error 
 
   | ErrMismatch { pos   :: !SrcSpan -- ^ haskell type location
@@ -806,10 +808,10 @@ ppError' _ dSp dCtx (ErrGhc _ s)
         $+$ dCtx
         $+$ (nest 4 $ pprint s)
 
-ppError' _ dSp dCtx (ErrResolve _ s)
-  = dSp <+> text "Name resolution error"
+ppError' _ dSp dCtx (ErrResolve _ kind v msg)
+  = dSp <+> (text "Unknown" <+> kind <+> ppVar v) 
         $+$ dCtx
-        $+$ (nest 4 $ pprint s)
+        $+$ (nest 4 msg)
 
 ppError' _ dSp dCtx (ErrPartPred _ c p i eN aN)
   = dSp <+> text "Malformed predicate application"
