@@ -8,8 +8,8 @@
 module Language.Haskell.Liquid.Bare.Check 
   ( checkGhcSpec
   , checkBareSpec
-  , checkTy
-  , checkTerminationExpr
+  -- , checkTy
+  -- , checkTerminationExpr
   ) where
 
 import           BasicTypes
@@ -126,6 +126,7 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
                      ++ mapMaybe (checkBind allowHO empty          emb tcEnv env) (gsTySigs     (gsSig sp))
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
+                     ++ mapMaybe (checkTerminationExpr             emb       env) (varTermExprs         sp) 
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
@@ -134,6 +135,7 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
                      -- ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
                      ++ checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
+                    
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
@@ -153,6 +155,13 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
     allowHO          = higherOrderFlag sp
     noPrune          = not (pruneFlag sp)
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
+
+varTermExprs :: GhcSpec -> [(Var, LocSpecType, [F.Located F.Expr])] 
+varTermExprs sp = [ (v, t, es) | (v, (t, es)) <- M.toList vSigExprs ] 
+  where 
+    vSigExprs   = M.intersectionWith (,) vSigs vExprs 
+    vSigs       = M.fromList $ gsTySigs (gsSig  sp)
+    vExprs      = M.fromList $ gsTexprs (gsTerm sp) 
 
 
 checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
@@ -250,6 +259,7 @@ checkBind :: (PPrint v) => Bool -> Doc -> F.TCEmb TyCon -> Bare.TyConMap -> F.SE
 checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
+
 
 checkTerminationExpr :: (Eq v, PPrint v) => F.TCEmb TyCon -> F.SEnv F.SortedReft -> (v, LocSpecType, [F.Located F.Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
