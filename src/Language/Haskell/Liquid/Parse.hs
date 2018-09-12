@@ -1115,7 +1115,7 @@ specP
     <|> (reserved "ple"           >> liftM Insts autoinstP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
-    <|> {- DEFAULT -}                liftM (tracepp "OHO" . Asrts)  tyBindsP
+    <|> {- DEFAULT -}                liftM Asrts  tyBindsP
     <?> "specP"
 
 -- | Try the given parser on the tail after matching the reserved word, and if

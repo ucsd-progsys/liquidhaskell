@@ -261,7 +261,7 @@ ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
-  = text "forallY" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
     where 
       (zs,  t')               = split [] t
       split zs (RAllE x t t') = split ((x,t):zs) t'
@@ -314,7 +314,7 @@ ppr_forall bb p t = maybeParen p FunPrec $ sep [
 
     ppr_foralls False _ _  _  = empty
     ppr_foralls _    [] [] [] = empty
-    ppr_foralls True αs πs ss = text "forallZ" <+> dαs αs <+> dπs (ppPs bb) πs <+> ppr_symbols ss <-> dot
+    ppr_foralls True αs πs ss = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <+> ppr_symbols ss <-> dot
 
     ppr_clss []               = empty
     ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
