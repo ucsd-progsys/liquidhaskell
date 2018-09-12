@@ -2,7 +2,7 @@ module GhcSort () where
 
 {-@ type OList a =  [a]<{\fld v -> (v >= fld)}>  @-}
 
-{-@ assert sort3 :: (Ord a) => [a] -> OList a @-}
+{-@ sort3 :: (Ord a) => [a] -> OList a @-}
 sort3 :: (Ord a) => [a] -> [a]
 sort3 ls = qsort ls 
   where d = (length ls) 
@@ -14,7 +14,7 @@ qsort []     = []
 qsort (x:xs) = qpart x xs [] [] 
 
 qpart  :: (Ord a) => a -> [a] -> [a] -> [a] -> [a]
-{-@ qpart  :: (Ord a) => x:a -> q:[a] -> r:[{v:a | ((true) && (v < x))}] -> p:[{v:a | ((true) && (v >= x))}] -> OList a / [((len r)+(len q)+(len p)), ((len q)+1)]@-}
+{-@ qpart  :: (Ord a) => x:a -> q:[a] -> r:[{v:a | v < x}] -> p:[{v:a | v >= x}] -> OList a / [((len r)+(len q)+(len p)), ((len q)+1)]@-}
 qpart x [] rlt rge =
     app x (qsort rlt) (x:qsort rge)
 qpart x (y:ys) rlt rge =
@@ -27,4 +27,3 @@ qpart x (y:ys) rlt rge =
 app :: Ord a => a -> [a] -> [a] -> [a]
 app k []     ys = ys
 app k (x:xs) ys = x : (app k xs ys)
-

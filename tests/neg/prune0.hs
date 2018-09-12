@@ -16,11 +16,11 @@ import Data.Vector.Generic.Mutable
 {-@ measure vsize :: forall a. a -> Int @-}
 
 -- | Vector Type Aliases
-{-@ type      OkIdx X     = {v:Nat | v < (vsize X)} @-}
+{-@ type      OkIdx X     = {v:Nat | v < vsize X} @-}
 
 -- | Assumed Types for Vector
 
-{-@ unsafeRead  
+{-@ assume unsafeRead  
       :: (PrimMonad m, MVector v a) 
       => xorp:(v (PrimState m) a) 
       -> (OkIdx xorp) 

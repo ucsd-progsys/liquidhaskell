@@ -1,9 +1,11 @@
-{-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--pruneunsorted"  @-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--short-names"    @-}
+{-@ LIQUID "--reflection"     @-}
+{-@ LIQUID "--ple"            @-}
 
 module MultiParams where
 
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--short-names" @-}
 
 import Data.Tuple
 import Language.Haskell.Liquid.Prelude ((==>))
@@ -61,31 +63,41 @@ vars = nub . go
 
 -- | Satisfaction
 
-{-@ measure sat @-}
+{-@ reflect sat @-}
 sat :: Asgn -> Formula -> Bool
 sat a []         = True
 sat a (c:cs)     = satCls a c && sat a cs
 
-{-@ measure satCls @-}
+{-@ reflect satCls @-}
 satCls :: Asgn -> Clause -> Bool
 satCls a []      = False
 satCls a (l:ls)  = satLit a l || satCls a ls
 
 
-{-@ measure satLit @-}
+{-@ reflect satLit @-}
 satLit :: Asgn -> Lit -> Bool
 satLit a (Pos x) = isTrue x a
 satLit a (Neg x) = isFalse x a
 
-{-@ measure isTrue @-}
+{-@ reflect isTrue @-}
 isTrue          :: Var -> Asgn -> Bool
 isTrue xisT (yv:as) = if xisT == (myFst yv) then (isVFalse (mySnd yv)) else isTrue xisT as
 isTrue _ []      = False
+
+{-@ reflect isFalse @-}
+isFalse          :: Var -> Asgn -> Bool
+isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
+isFalse _ []      = False
 
 {-@ measure isVTrue @-}
 isVTrue :: Val -> Bool
 isVTrue VTrue  = True
 isVTrue VFalse = False
+
+{-@ measure isVFalse @-}
+isVFalse :: Val -> Bool
+isVFalse VFalse = True
+isVFalse VTrue  = False
 
 {-@ measure myFst @-}
 myFst :: (a, b) -> a
@@ -94,13 +106,3 @@ myFst (x, y) = x
 {-@ measure mySnd @-}
 mySnd :: (a, b) -> b
 mySnd (x, y) = y
-
-{-@ measure isFalse @-}
-isFalse          :: Var -> Asgn -> Bool
-isFalse xisF (yv:as) = if xisF == (myFst yv) then (isVFalse (mySnd yv)) else isFalse xisF as
-isFalse _ []      = False
-
-{-@ measure isVFalse @-}
-isVFalse :: Val -> Bool
-isVFalse VFalse = True
-isVFalse VTrue  = False

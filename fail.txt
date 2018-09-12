@@ -19,6 +19,7 @@ Tests
       MultipleInvariants.hs:                  FAIL (0.92s)
       - STRATA: todo:variance-strata 
 
+
       monad0.hs:                              FAIL (0.88s)
       monad7.hs:                              FAIL (1.07s)
       ANF.hs:                                 FAIL (1.09s)
@@ -26,14 +27,20 @@ Tests
       - STRATA: ReturnStrata 
 
       Fulcrum.hs 
+      local02.hs 
+      LocalHole.hs 
       - local-environments 
-      
+
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
 
       NatClass.hs 
       - handle "define" 
 
+  unit-neg
+      T1078.hs:                               FAIL (1.05s)
+      - filter gsAsmSigs to ONLY keep USED vars.
+      
 -------------------------------------------------------------
 
   Error-Messages
