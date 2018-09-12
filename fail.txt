@@ -40,7 +40,13 @@ Tests
   unit-neg
       T1078.hs:                               FAIL (1.05s)
       - filter gsAsmSigs to ONLY keep USED vars.
-      
+  esop
+      Splay.hs:                               OK (20.38s)
+      Fib.hs:                                 FAIL (1.01s)
+        tests/test.hs:299:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
 -------------------------------------------------------------
 
   Error-Messages

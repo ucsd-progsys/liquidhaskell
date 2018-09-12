@@ -1,6 +1,8 @@
+-- TODO-REBARE: LH _should_ (?) complain: "Unknown field `fxx` in refined definition of `F`"
+
 module Invariant where
 
-data F a = F {fxx :: a, fy :: a, fzz :: a} | G {fxx :: a}
+data F a = F {fx :: a, fy :: a, fzz :: a} | G {fx :: a}
 
 {-@ data F a = F { fxx :: a, fy :: a, fz :: a}
              | G { fxx :: a } 
