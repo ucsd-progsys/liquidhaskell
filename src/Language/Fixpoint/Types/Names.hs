@@ -170,7 +170,8 @@ instance Eq Symbol where
   S i _ _ == S j _ _ = i == j
 
 instance Ord Symbol where
-  compare (S i _ _) (S j _ _) = compare i j
+  -- compare (S i _ _) (S j _ _) = compare i j
+  compare s1 s2 = compare (symbolString s1) (symbolString s2)
 
 instance Interned Symbol where
   type Uninterned Symbol = T.Text
