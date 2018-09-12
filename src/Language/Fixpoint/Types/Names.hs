@@ -171,7 +171,8 @@ instance Eq Symbol where
 
 instance Ord Symbol where
   -- compare (S i _ _) (S j _ _) = compare i j
-  compare s1 s2 = compare (symbolString s1) (symbolString s2)
+  -- compare s1 s2 = compare (symbolString s1) (symbolString s2)
+  compare s1 s2 = compare (symbolText s1) (symbolText s2)
 
 instance Interned Symbol where
   type Uninterned Symbol = T.Text
