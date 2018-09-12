@@ -14,18 +14,19 @@ Tests
       - add constructors to top-level constants, or maybe DONT generate 
         strengthened types for higher order ctors
 
-Wierd Strata Stuff [todo-rebare]
-
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
       MultipleInvariants.hs:                  FAIL (0.92s)
-      - todo:variance-strata 
+      - STRATA: todo:variance-strata 
 
       monad0.hs:                              FAIL (0.88s)
       monad7.hs:                              FAIL (1.07s)
       ANF.hs:                                 FAIL (1.09s)
       TemplateHaskell.hs:                     FAIL (1.17s)
-      - ReturnStrata 
+      - STRATA: ReturnStrata 
+
+      Fulcrum.hs 
+      - local-environments 
       
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
@@ -33,40 +34,12 @@ Wierd Strata Stuff [todo-rebare]
       NatClass.hs 
       - handle "define" 
 
-
 -------------------------------------------------------------
-    CyclicExprAlias1.hs:    FAIL (0.76s)
-      tests/test.hs:300:
-      Did not match message: Cyclic type alias definition for `CyclicB1`
+
+  Error-Messages
     ElabLocation.hs:        FAIL (1.00s)
       Did not match message: ElabLocation.hs:11:9-11:15: Error
+      - SRCSPAN
 
+-------------------------------------------------------------
 
-  import-cli
-      T1096_Foo.hs:         FAIL (1.52s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-    ple-pos
-      IndPerm.hs:           FAIL (2.94s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      Fulcrum.hs:           FAIL (3.28s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-      RegexpDerivative.hs:  FAIL (1.78s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
-    ple-neg
-      BinahUpdate.hs:       FAIL (1.20s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitSuccess
