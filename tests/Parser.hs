@@ -326,7 +326,10 @@ testSucceeds =
          , "                   , r   :: Tree {v:a | key < v }"
          , "                   }" ])
         @?==
-          "data Tree [ht] [a] =\n    | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *\n    | Nil :: forall a . -> *"
+    --      "data Tree [ht] [a] =\n    | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *\n    | Nil :: forall a . -> *"
+          "data Tree [ht] [a] = \ 
+           \     | Nil :: forall a . -> * \
+           \     | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *"    
 
     , testCase "type spec 7" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?==
@@ -354,7 +357,11 @@ testSucceeds =
           , "  | App (fn :: f) (arg :: f)"
           , "  | Paren (ast :: f)" ])
           @?==
-            "data AstF  [f] =\n    | Lit :: forall f . lq_tmp$db##2 : (Int (AstIndex <{VV : _<ix> | true}>)) -> *\n    | Paren :: forall f . ast : f -> *\n    | Var :: forall f . lq_tmp$db##5 : (String (AstIndex <{VV : _<ix> | true}>)) -> *\n    | App :: forall f . fn : f ->arg : f -> *"
+            "data AstF [f] =    \
+            \   | App :: forall f . fn : f ->arg : f -> * \
+            \   | Lit :: forall f . lq_tmp$db##2 : (Int (AstIndex <{VV : _<ix> | true}>)) -> *  \
+            \   | Paren :: forall f . ast : f -> * \
+            \   | Var :: forall f . lq_tmp$db##5 : (String (AstIndex <{VV : _<ix> | true}>)) -> *"
 
     , testCase "type spec 11" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?==
@@ -450,8 +457,10 @@ testSucceeds =
          [ "data List2 a b <p :: a -> Bool> where"
          , "    Nil2  :: List2 a "
          , "  | Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
-        @?==
-            "data List2  [a, b] =\n    | Nil2 :: forall a b . -> (List2 a)\n    | Cons2 :: forall a b . listHead : a ->listTail : (List a) -> (List2 a b)"
+        @?== 
+           "data List2  [a, b] = \ 
+            \  | Cons2 :: forall a b . listHead : a ->listTail : (List a) -> (List2 a b) \
+            \  | Nil2 :: forall a b . -> (List2 a)"
 
     , testCase "type spec 29" $
        parseSingleSpec (unlines $
