@@ -283,12 +283,12 @@ consCBTop _ _ γ cb
       topBind (Rec [(v,_)]) = Just v
       topBind _             = Nothing
 
-
 trustVar :: Config -> GhcInfo -> Var -> Bool
 trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
 derivedVar :: GhcSrc -> Var -> Bool
-derivedVar src x = x `elem` giDerVars src || GM.isInternal x
+derivedVar src x = S.member x (giDerVars src)
+  -- TODO-REBARE: x `elem` giDerVars src || GM.isInternal x
 
 doTermCheck :: S.HashSet Var -> Bind Var -> Bool
 doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || GM.isInternal x) . bindersOf

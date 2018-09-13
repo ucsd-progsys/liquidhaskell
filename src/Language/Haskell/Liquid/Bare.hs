@@ -972,7 +972,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   , meSyms        = ms' 
   , meDataCons    = F.tracepp "meDATACONS" cs' 
   , meClasses     = cls
-  , meMethods     = mts -- TODO-REBARE: ++  let dms = makeDefaultMethods vars mts  
+  , meMethods     = mts ++ dms 
   }
   where 
     measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv name <$> M.toList specs))
@@ -989,7 +989,8 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     datacons      = Bare.tcDataCons    tycEnv 
     embs          = Bare.tcEmbs        tycEnv 
     name          = Bare.tcName        tycEnv
-    (cls, mts)    = Bare.makeClasses env sigEnv name specs
+    dms           = Bare.makeDefaultMethods env mts  
+    (cls, mts)    = Bare.makeClasses        env sigEnv name specs
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 -- checkMeasures :: MSpec SpecType Ghc.DataCon  

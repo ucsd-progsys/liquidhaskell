@@ -1,4 +1,6 @@
-module Class5 where
+-- tests the "default method"
+
+module Class01 where
 
 {-@ class Foo a where
       foo :: a -> Nat
@@ -7,5 +9,3 @@ module Class5 where
 class Foo a where
   foo :: a -> Int
   foo _ = 0 - 10
-
-

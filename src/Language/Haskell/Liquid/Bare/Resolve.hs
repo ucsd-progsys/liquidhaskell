@@ -85,7 +85,6 @@ makeEnv cfg src lmap specs = RE
   , reQualImps  = gsQualImps     src
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
-  -- , reCbs       = giCbs          src
   , reSrc       = src
   , reGlobSyms  = S.fromList     globalSyms 
   , reCfg       = cfg
@@ -231,7 +230,7 @@ typeTyCons t = tops t ++ inners t
 srcVars :: GhcSrc -> [Ghc.Var]
 srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat 
   [ key "SRC-VAR-DEF" 0 <$> giDefVars src 
-  , key "SRC-VAR-DER" 1 <$> giDerVars src
+  , key "SRC-VAR-DER" 1 <$> S.toList (giDerVars src)
   , key "SRC-VAR-IMP" 2 <$> giImpVars src 
   , key "SRC-VAR-USE" 3 <$> giUseVars src 
   , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- gsTyThings src ]
@@ -388,7 +387,6 @@ substFreeEnv env name bs = F.substf (F.EVar . qualifySymbol env name bs)
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Maybe Ghc.Var
 -------------------------------------------------------------------------------
 lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
-                               -- strictResolveSym env name "Var" lx 
   where 
     lx                       = GM.namedLocSymbol z
 

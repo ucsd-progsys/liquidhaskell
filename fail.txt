@@ -4,6 +4,44 @@ rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "FAIL" nohup.out  | wc
     153     459    9029
 
 
+(ATyCon tc)
+  | isClassTyCon tc = "class"
+
+Id.isDFunId :: Id -> Bool
+
+instanceDFunId :: ClsInst -> DFunId 
+
+TODO: classInstVars :: CoreProgram -> ClsInst -> [Id]
+  using: 
+    Interface.derivedVs :: CoreProgram -> DFunId -> [Id] 
+    is_cls     :: ClsInst -> Class 
+    classTyCon :: Class -> TyCon
+
+(ATyCon tc)
+  | isClassTyCon tc = "class"
+
+
+
+[Class02.$fFooHog,    -- instance-definition: instance Foo Hog
+ $cfoo,               -- method-definition
+
+ Class02.$fFooZig,    -- insta
+ $cfoo,
+ 
+ Class02.$fEqHog,
+ $c/=,
+ $c==,
+ $c/=,
+ 
+ Class02.$fEqZig,
+ $c/=,
+ $c==,
+ $c/=
+]
+
+
+
+
 
 Tests
 

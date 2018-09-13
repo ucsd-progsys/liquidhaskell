@@ -80,6 +80,7 @@ import qualified Language.Fixpoint.Misc as Misc
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
+import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
@@ -266,13 +267,25 @@ classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []
 classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
 
-derivedVars :: CoreProgram -> Maybe [DFunId] -> [Id]
-derivedVars cbs (Just fds) = concatMap (derivedVs cbs) fds
-derivedVars _   Nothing    = []
+derivedVars :: Config -> MGIModGuts -> [Var]  
+derivedVars cfg mg  = tracepp "DERIVED-VARS" 
+                    $ concatMap (dFunIdVars cbs . is_dfun) derInsts 
+  where 
+    derInsts        
+      | checkDer    = insts 
+      | otherwise   = filter isDerivedInstance insts
+    insts           = mgClsInstances mg 
+    checkDer        = checkDerived cfg
+    cbs             = mgi_binds mg
+               
 
-derivedVs :: CoreProgram -> DFunId -> [Id]
-derivedVs cbs fd   = concatMap bindersOf cbs' ++ deps
+mgClsInstances :: MGIModGuts -> [ClsInst]
+mgClsInstances = fromMaybe [] . mgi_cls_inst 
+
+dFunIdVars :: CoreProgram -> DFunId -> [Id]
+dFunIdVars cbs fd  = tracepp msg $ concatMap bindersOf cbs' ++ deps
   where
+    msg            = "DERIVED-VARS-OF: " ++ showpp fd
     cbs'           = filter f cbs
     f (NonRec x _) = eqFd x
     f (Rec xes)    = any eqFd (fst <$> xes)
@@ -399,7 +412,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , giImpVars   = impVars 
     , giDefVars   = dataCons ++ (letVars coreBinds) 
     , giUseVars   = readVars coreBinds
-    , giDerVars   = tracepp "DERIVED-VARS" $ derivedVars coreBinds $ ((is_dfun <$>) <$>) $ mgi_cls_inst modGuts
+    , giDerVars   = S.fromList (derivedVars cfg modGuts) 
     , gsExports   = mgi_exports  modGuts 
     , gsTcs       = mgi_tcs      modGuts
     , gsCls       = mgi_cls_inst modGuts 
@@ -410,7 +423,8 @@ makeGhcSrc cfg file typechecked modSum = do
     , gsAllImps   = allImports       typechecked
     , gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
     }
-  
+
+    
 _impThings :: [Var] -> [TyThing] -> [TyThing]
 _impThings vars  = filter ok
   where
