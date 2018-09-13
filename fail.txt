@@ -11,25 +11,27 @@ Tests
     unit-pos
       state00.hs:                             FAIL (0.75s)
       DataBase.hs:                            FAIL (1.03s)
-      - add constructors to top-level constants, or maybe DONT generate 
-        strengthened types for higher order ctors
+      - add constructors to 
+        top-level constants, 
+        or maybe DONT generate 
+        strengthened types for 
+        higher order ctors
+
+      Fulcrum.hs 
+      local02.hs 
+      LocalHole.hs 
+      - local-environments 
 
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
       MultipleInvariants.hs:                  FAIL (0.92s)
       - STRATA: todo:variance-strata 
 
-
       monad0.hs:                              FAIL (0.88s)
       monad7.hs:                              FAIL (1.07s)
       ANF.hs:                                 FAIL (1.09s)
       TemplateHaskell.hs:                     FAIL (1.17s)
       - STRATA: ReturnStrata 
-
-      Fulcrum.hs 
-      local02.hs 
-      LocalHole.hs 
-      - local-environments 
 
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
@@ -38,8 +40,9 @@ Tests
       - handle "define" 
 
   unit-neg
-      T1078.hs:                               FAIL (1.05s)
+      tests/names/neg/T1078.hs:                               FAIL (1.05s)
       - filter gsAsmSigs to ONLY keep USED vars.
+
   esop
       Splay.hs:                               OK (20.38s)
       Fib.hs:                                 FAIL (1.01s)

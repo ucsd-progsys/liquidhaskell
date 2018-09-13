@@ -42,7 +42,6 @@ import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
-
 import qualified Language.Haskell.Liquid.Bare.Types         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
@@ -115,16 +114,21 @@ checkThrow :: Ex.Exception e => Either e c -> c
 checkThrow = either Ex.throw id 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv (F.tracepp "GHC-SPEC-ENV" binds)
+ghcSpecEnv sp = fromListSEnv (binds)
   where
     emb       = gsTcEmbeds (gsName sp)
     binds     = concat 
-                 [ [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)]
-                 , [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
-                 , [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
-                 , [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
+                 [ F.tracepp "GHC-SPEC-ENV-1" 
+                   [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)]
+                 , F.tracepp "GHC-SPEC-ENV-2" 
+                   [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
+                 , F.tracepp "GHC-SPEC-ENV-3" 
+                   [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
+                 , F.tracepp "GHC-SPEC-ENV-4"  
+                   [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
                                                           , Ghc.isConLikeId v     ]
-                 , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
+                 , F.tracepp "GHC-SPEC-ENV-5" 
+                   [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
                  ]
     rSort t   = rTypeSortedReft emb t
     vSort     = rSort . varRSort

@@ -1,3 +1,4 @@
+-- TODO-REBARE: filter gsAsmSigs to ONLY keep USED vars.
 
 -- needed to bring `bslen` into scope
 -- import qualified Data.ByteString
