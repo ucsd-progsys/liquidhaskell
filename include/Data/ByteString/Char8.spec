@@ -294,12 +294,12 @@ assume breakSubstring
 assume elem
     :: Char
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> not b }
+    -> { b : Bool | bslen bs == 0 ==> not b }
 
 assume notElem
     :: Char
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen b == 0 ==> b }
+    -> { b : Bool | bslen bs == 0 ==> b }
 
 assume find
     :: (Char -> Bool)

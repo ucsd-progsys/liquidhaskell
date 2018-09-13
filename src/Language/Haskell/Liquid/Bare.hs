@@ -607,13 +607,7 @@ makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var,
 makeAsmSigs env sigEnv myName specs = 
   [ (x, t) | (name, x, bt) <- rawAsmSigs env myName specs
            , let t = Bare.cookSpecType env sigEnv name (Just (Bare.LqTV, x)) bt
-           , S.member x usedVars
   ] 
-  where 
-    usedVars = S.fromList . giUseVars . Bare.reSrc $ env
-    -- isUsed v = S.member v usedVars
-
-
 
 rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
 rawAsmSigs env myName specs = 
@@ -627,7 +621,8 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
     mbHome      = takeUnique err                  sigsHome 
     mbImp       = takeUnique err (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
-    sigsImp     = [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
+    -- sigsImp     = F.tracepp ("SIGS-IMP" ++ F.showpp v) [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
+    sigsImp     = F.tracepp ("SIGS-IMP" ++ F.showpp v) [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
     err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
     vName       = GM.takeModuleNames (F.symbol v)
