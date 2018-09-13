@@ -48,6 +48,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
   -- * Fixing local variables
   , resolveLocalBinds 
+  , partitionLocalBinds 
   ) where 
 
 import qualified Control.Exception                 as Ex 
@@ -513,12 +514,9 @@ instance ResolveSym F.Symbol where
 resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe ({- Int, -} a)) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith kind f env name str lx =
- -- case Misc.firstGroup (Mb.mapMaybe f things) of 
   case Mb.mapMaybe f things of 
     []  -> Left  (errResolve kind str lx) 
     [x] -> Right x 
-    -- xs  -> error ("Oh-no: " ++ kind ++ ":" ++ F.showpp things)
-    -- xs  -> Left $ ErrDupNames sp (PJ.text "GOO") [] -- (pprint (F.symbol lx)) [] -- (pprint <$> xs)
     xs  -> Left $ ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)
   where 
     _xSym  = (F.val lx)
@@ -590,22 +588,6 @@ unQualifySymbol sym
 splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
 splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
 
--- srcDataCons :: GhcSrc -> [Ghc.DataCon]
--- srcDataCons src = concatMap Ghc.tyConDataCons (srcTyCons src) 
-
-{- 
-  let expSyms     = S.toList (exportedSymbols mySpec)
-  syms0 <- liftedVarMap (varInModule name) expSyms
-  syms1 <- symbolVarMap (varInModule name) vars (S.toList $ importedSymbols name   specs)
-  syms2    <- symbolVarMap (varInModule name) (vars ++ map fst cs') fSyms
-  let fSyms =  freeSymbols xs' (sigs ++ asms ++ cs') ms' ((snd <$> invs) ++ (snd <$> ialias))
-            ++ measureSymbols measures
-   * Symbol :-> [(ModuleName, TyCon)]
-   * Symbol :-> [(ModuleName, Var  )]
-   * 
- -}   
-
-
 errResolve :: PJ.Doc -> String -> LocSymbol -> UserError 
 errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.text msg) 
 -- (PJ.text msg)
@@ -635,29 +617,14 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
   Left  _   -> Nothing 
   Right val -> Just val 
   
------- JUNK-- USE "QUALIFY"class Resolvable a where 
-  ------ JUNK-- USE "QUALIFY"resolve :: Env -> ModName -> F.SourcePos -> a -> a  
------- JUNK-- USE "QUALIFY"
------- JUNK-- USE "QUALIFY"instance Resolvable F.Qualifier where 
-  ------ JUNK-- USE "QUALIFY"resolve _ _ _ q = q -- TODO-REBARE 
------- JUNK-- USE "QUALIFY"
------- JUNK-- USE "QUALIFY"instance Resolvable RReft where 
-  ------ JUNK-- USE "QUALIFY"resolve _ _ _ r = r -- TODO-REBARE 
------- JUNK-- USE "QUALIFY"
------- JUNK-- USE "QUALIFY"instance Resolvable F.Expr where 
-  ------ JUNK-- USE "QUALIFY"resolve _ _ _ e = e -- TODO-REBARE 
-  ------ JUNK-- USE "QUALIFY"
------- JUNK-- USE "QUALIFY"instance Resolvable a => Resolvable (Located a) where 
-  ------ JUNK-- USE "QUALIFY"resolve env name _ lx = F.atLoc lx (resolve env name (F.loc lx) (val lx))
-
 -------------------------------------------------------------------------------
 -- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType 
 ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
   where 
-    -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
     fail                   = Ex.throw 
+    -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
 
 ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Either UserError SpecType 
 ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t 
@@ -695,21 +662,6 @@ ofBPVar :: Env -> ModName -> F.SourcePos -> BPVar -> RPVar
 ofBPVar env name l = fmap (ofBSort env name l) 
 
 --------------------------------------------------------------------------------
--- REBARE mkSpecType' :: Env -> ModName -> F.SourcePos -> [PVar BSort] -> BareType -> SpecType
--- REBARE mkSpecType' env name l ps t = ofBareType env name l (Just ps) t 
-
--- REBARE mkSpecType :: Env -> ModName -> F.SourcePos -> BareType -> SpecType
--- REBARE mkSpecType env name l t = mkSpecType' env name l πs t
-  -- REBARE where 
-    -- REBARE πs                  = ty_preds (toRTypeRep t)
-
--- REBARE mkSpecType' env name l πs t = case ofBRType env name resolveReft l t of 
-                                -- REBARE Left e  -> Misc.errorP "error-mkSpecType'" $ F.showpp e 
-                                -- REBARE -- Ex.throw e 
-                                -- REBARE Right v -> v 
-  -- REBARE where
-    -- REBARE resolveReft             = qualify env name . txParam l RT.subvUReft (RT.uPVar <$> πs) t
-
 txParam :: F.SourcePos -> ((UsedPVar -> UsedPVar) -> t) -> [UsedPVar] -> RType c tv r -> t
 txParam l f πs t = f (txPvar l (predMap πs t))
 
@@ -788,19 +740,13 @@ ofBRType env name f l t  = go [] t
 
 matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
-  | isList c && arity == 1  = {- knownTC -} Right Ghc.listTyCon
-  | isTuple c               = {- knownTC -} Right tuplTc 
+  | isList c && arity == 1  = Right Ghc.listTyCon
+  | isTuple c               = Right tuplTc 
   | otherwise               = resolveLocSym env name msg lc 
   where 
     msg                     = "matchTyCon: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
-    -- knownTC :: Int
-    -- knownTC                 = resolveLocSym env name "knownTyCon" . GM.namedLocSymbol 
 
--- knownTyCon :: Env -> ModName -> Ghc.TyCon -> Either UserError Ghc.TyCon 
--- knownTyCon env name tc = 
---  where 
---    lx                 = GM.locNamedThing tc
 
 bareTCApp :: (Expandable r) 
           => r
@@ -936,14 +882,17 @@ resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
 ---------------------------------------------------------------------------------
 resolveLocalBinds env xts = topTs ++ replace locTs 
   where 
-    (locTs, topTs)        = L.partition isLocalSig xts
+    (locTs, topTs)        = partitionLocalBinds xts 
     replace               = M.toList . replaceSigs . M.fromList 
-    isLocalSig            = Mb.isJust . localKey . fst
     replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
     cbs                   = giCbs (reSrc env)
-
+  
 replaceVisitor :: CoreVisitor SymMap SigMap 
-replaceVisitor = CoreVisitor { envF  = addBind, bindF = updSigMap, exprF = \_ m _ -> m }
+replaceVisitor = CoreVisitor 
+  { envF  = addBind
+  , bindF = updSigMap
+  , exprF = \_ m _ -> m 
+  }
 
 addBind :: SymMap -> Ghc.Var -> SymMap 
 addBind env v = case localKey v of 
@@ -961,3 +910,7 @@ qualifySymMap env x = M.lookupDefault x x env
 type SigMap = M.HashMap Ghc.Var  LocBareType 
 type SymMap = M.HashMap F.Symbol F.Symbol
 
+---------------------------------------------------------------------------------
+partitionLocalBinds :: [(Ghc.Var, a)] -> ([(Ghc.Var, a)], [(Ghc.Var, a)])
+---------------------------------------------------------------------------------
+partitionLocalBinds = L.partition (Mb.isJust . localKey . fst)

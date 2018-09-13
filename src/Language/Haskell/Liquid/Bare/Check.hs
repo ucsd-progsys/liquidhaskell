@@ -12,14 +12,16 @@ module Language.Haskell.Liquid.Bare.Check
   -- , checkTerminationExpr
   ) where
 
-import           BasicTypes
-import           DataCon
-import           Id
-import           Name                                      (getSrcSpan)
-import           Prelude                                   hiding (error)
-import           TyCon
-import           Var
-import qualified SrcLoc
+-- import           BasicTypes
+-- import           DataCon
+-- import           Id
+-- import           Name                                      (getSrcSpan)
+-- import           Prelude                                   hiding (error)
+-- import           TyCon
+-- import           Var
+-- import qualified SrcLoc
+
+import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
 import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 
 import           Control.Applicative                       ((<|>))
@@ -33,10 +35,10 @@ import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
 import           Data.Hashable
-import qualified Language.Fixpoint.Misc                    as Misc  --(applyNonNull, group, safeHead, mapSnd)
+import qualified Language.Fixpoint.Misc                    as Misc  
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
-import qualified Language.Fixpoint.Types                   as F -- hiding (DataCtor, DataDecl, panic, Error, R)
-import qualified Language.Haskell.Liquid.GHC.Misc          as GM -- (showPpr, fSrcSpan, sourcePosSrcSpan)
+import qualified Language.Fixpoint.Types                   as F 
+import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
 import           Language.Haskell.Liquid.Misc              (condNull, snd4)
 import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
 import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
@@ -47,10 +49,6 @@ import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare 
-
--- import           Language.Haskell.Liquid.Bare.Env
--- import           Language.Haskell.Liquid.Bare.SymSort      (txRefSort)
-
 import           Debug.Trace (trace)
 
 ----------------------------------------------------------------------------------------------
@@ -92,7 +90,7 @@ checkUnique :: String -> [F.LocSymbol] -> [Error]
 checkUnique _ = checkUnique' F.val GM.fSrcSpan 
 
 checkUnique' :: (PPrint a, Eq a, Hashable a) 
-             => (t -> a) -> (t -> SrcLoc.SrcSpan) -> [t] -> [Error]
+             => (t -> a) -> (t -> Ghc.SrcSpan) -> [t] -> [Error]
 checkUnique' nameF locF ts = mkErr <$> dups
   where
     mkErr (n, ls@(l:_))    = ErrDupSpecs l (pprint n) ls
@@ -114,16 +112,17 @@ checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2)
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
              -> F.SEnv F.SortedReft
+             -> [CoreBind]
              -> GhcSpec
              -> Either [Error] GhcSpec
 
-checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
+checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune
                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      (gsData sp)))
                      ++ mapMaybe (checkBind allowHO "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     ++ mapMaybe (checkBind allowHO empty          emb tcEnv env) (gsTySigs     (gsSig sp))
+                     ++ checkTySigs         allowHO cbs            emb tcEnv env  (gsTySigs     (gsSig sp))
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
                      -- TODO-REBARE ++ mapMaybe (checkTerminationExpr             emb       env) (varTermExprs         sp) 
@@ -132,7 +131,7 @@ checkGhcSpec specs env sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
-                     -- ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
+                     -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
                      ++ checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
                     
@@ -162,6 +161,28 @@ varTermExprs sp = [ (v, t, es) | (v, (t, es)) <- M.toList vSigExprs ]
     vSigExprs   = M.intersectionWith (,) vSigs vExprs 
     vSigs       = M.fromList $ gsTySigs (gsSig  sp)
     vExprs      = M.fromList $ gsTexprs (gsTerm sp) 
+
+--------------------------------------------------------------------------------
+checkTySigs :: Bool -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
+            -> [(Var, LocSpecType)] -> [Error]
+--------------------------------------------------------------------------------
+checkTySigs allowHO cbs emb tcEnv env vts 
+                   =  mapMaybe   (check env)          topTs 
+                   ++ coreVisitor checkVisitor env [] cbs 
+  where 
+    check          = checkBind allowHO empty emb tcEnv  
+    (locTs, topTs) = Bare.partitionLocalBinds vts 
+    locTm          = M.fromList locTs
+    checkVisitor  :: CoreVisitor (F.SEnv F.SortedReft) [Error]
+    checkVisitor   = CoreVisitor 
+                       { envF  = \env v     -> F.insertSEnv (F.symbol v) (vSort v) env 
+                       , bindF = \env acc v -> errs env v ++ acc 
+                       , exprF = \_   acc _ -> acc 
+                       }  
+    vSort            = Bare.varSortedReft emb
+    errs env v       = case M.lookup v locTm of 
+                         Nothing -> [] 
+                         Just t  -> maybeToList (check env (v, t)) 
 
 
 checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]

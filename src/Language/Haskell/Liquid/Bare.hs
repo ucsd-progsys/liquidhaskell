@@ -103,12 +103,12 @@ saveLiftedSpec src sp = do
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap mspecs0  
-           = checkThrow (Bare.checkGhcSpec mspecs renv sp)
+           = checkThrow (Bare.checkGhcSpec mspecs renv cbs sp)
   where 
     mspecs = [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] 
     sp     = makeGhcSpec0 cfg src lmap mspecs 
-    renv   = F.tracepp "RENV" $ ghcSpecEnv sp -- L.foldl' add (ghcSpecEnv sp) wiredSortedSyms  
-    -- add    = \e (x, s) -> insertSEnv x (RR s mempty) e 
+    renv   = F.tracepp "RENV" $ ghcSpecEnv sp 
+    cbs    = giCbs src
 
 checkThrow :: Ex.Exception e => Either e c -> c
 checkThrow = either Ex.throw id 
@@ -118,22 +118,15 @@ ghcSpecEnv sp = fromListSEnv (binds)
   where
     emb       = gsTcEmbeds (gsName sp)
     binds     = concat 
-                 [ F.tracepp "GHC-SPEC-ENV-1" 
-                   [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)]
-                 , F.tracepp "GHC-SPEC-ENV-2" 
-                   [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
-                 , F.tracepp "GHC-SPEC-ENV-3" 
-                   [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
-                 , F.tracepp "GHC-SPEC-ENV-4"  
-                   [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp)
-                                                          , Ghc.isConLikeId v     ]
-                 , F.tracepp "GHC-SPEC-ENV-5" 
-                   [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
+                 [ [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas     (gsData sp)]
+                 , [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (gsData sp)]
+                 , [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
+                 , [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp), Ghc.isConLikeId v ]
+                 , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
                  ]
-    rSort t   = rTypeSortedReft emb t
-    vSort     = rSort . varRSort
-    varRSort  :: Ghc.Var -> RSort
-    varRSort  = ofType . Ghc.varType
+    vSort     = Bare.varSortedReft emb -- rSort . varRSort
+    rSort     = rTypeSortedReft    emb 
+
 
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec0@ slurps up all the relevant information needed to generate 
@@ -621,8 +614,8 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
     mbHome      = takeUnique err                  sigsHome 
     mbImp       = takeUnique err (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
-    -- sigsImp     = F.tracepp ("SIGS-IMP" ++ F.showpp v) [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
-    sigsImp     = F.tracepp ("SIGS-IMP" ++ F.showpp v) [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
+    sigsImp     = {- F.tracepp ("SIGS-IMP" ++ F.showpp v) -} 
+                  [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
     err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
     vName       = GM.takeModuleNames (F.symbol v)

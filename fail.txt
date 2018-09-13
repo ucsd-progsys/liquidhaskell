@@ -9,14 +9,6 @@ Tests
 
   Macro
     unit-pos
-      state00.hs:                             FAIL (0.75s)
-      DataBase.hs:                            FAIL (1.03s)
-      - add constructors to 
-        top-level constants, 
-        or maybe DONT generate 
-        strengthened types for 
-        higher order ctors
-
       Fulcrum.hs 
       local02.hs 
       LocalHole.hs 
@@ -40,8 +32,6 @@ Tests
       - handle "define" 
 
   unit-neg
-      tests/names/neg/T1078.hs:                               FAIL (1.05s)
-      - filter gsAsmSigs to ONLY keep USED vars.
 
   esop
       Splay.hs:                               OK (20.38s)

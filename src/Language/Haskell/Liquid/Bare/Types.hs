@@ -22,16 +22,19 @@ module Language.Haskell.Liquid.Bare.Types
 
     -- * Misc 
   , PlugTV (..)
+  , varRSort 
+  , varSortedReft
   ) where 
 
-import qualified Text.PrettyPrint.HughesPJ       as PJ 
-import qualified Data.HashSet                    as S
-import qualified Data.HashMap.Strict             as M
-import qualified Language.Fixpoint.Types         as F 
-import qualified Language.Haskell.Liquid.Measure as Ms
+import qualified Text.PrettyPrint.HughesPJ             as PJ 
+import qualified Data.HashSet                          as S
+import qualified Data.HashMap.Strict                   as M
+import qualified Language.Fixpoint.Types               as F 
+import qualified Language.Haskell.Liquid.Measure       as Ms
+import qualified Language.Haskell.Liquid.Types.RefType as RT 
 import           Language.Haskell.Liquid.Types.Types   
 import           Language.Haskell.Liquid.Types.Specs 
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding (Located) 
+import           Language.Haskell.Liquid.GHC.API       as Ghc hiding (Located) 
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec
@@ -119,3 +122,12 @@ data MeasEnv = MeasEnv
   , meClasses     :: ![DataConP]                            -- cls 
   , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]     -- mts 
   }
+
+-------------------------------------------------------------------------------
+-- | Converting @Var@ to @Sort@
+-------------------------------------------------------------------------------
+varSortedReft :: F.TCEmb Ghc.TyCon -> Ghc.Var -> F.SortedReft 
+varSortedReft emb = RT.rTypeSortedReft emb . varRSort 
+
+varRSort  :: Ghc.Var -> RSort
+varRSort  = RT.ofType . Ghc.varType
