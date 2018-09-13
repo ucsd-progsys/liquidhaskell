@@ -84,7 +84,8 @@ makeEnv cfg src lmap specs = RE
   , reQualImps  = gsQualImps     src
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
-  , reCbs       = giCbs          src
+  -- , reCbs       = giCbs          src
+  , reSrc       = src
   , reGlobSyms  = S.fromList     globalSyms 
   , reCfg       = cfg
   } 
@@ -557,8 +558,6 @@ matchMod env tgtName defName Nothing
   | defName == tgtName = [0]                       -- prioritize names defined in *this* module 
   | otherwise          = [matchImp env defName 1]  -- prioritize directly imported modules over 
                                                    -- names coming from elsewhere, with a 
-                                                    
-
 matchMod env tgtName defName (Just ms)   
   |  isEmptySymbol defName 
   && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
@@ -938,10 +937,10 @@ resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
 resolveLocalBinds env xts = topTs ++ replace locTs 
   where 
     (locTs, topTs)        = L.partition isLocalSig xts
-    replace               = M.toList . replaceSigs (reCbs env) . M.fromList 
+    replace               = M.toList . replaceSigs . M.fromList 
     isLocalSig            = Mb.isJust . localKey . fst
-    -- replaceSigs :: [Ghc.CoreBind] -> SigMap -> SigMap 
-    replaceSigs cbs sigm  = coreVisitor replaceVisitor M.empty sigm cbs 
+    replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
+    cbs                   = giCbs (reSrc env)
 
 replaceVisitor :: CoreVisitor SymMap SigMap 
 replaceVisitor = CoreVisitor { envF  = addBind, bindF = updSigMap, exprF = \_ m _ -> m }

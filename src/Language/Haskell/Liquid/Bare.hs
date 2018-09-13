@@ -603,13 +603,17 @@ bareTySigs env name spec =
            , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 
-
-
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
   [ (x, t) | (name, x, bt) <- rawAsmSigs env myName specs
            , let t = Bare.cookSpecType env sigEnv name (Just (Bare.LqTV, x)) bt
+           , S.member x usedVars
   ] 
+  where 
+    usedVars = S.fromList . giUseVars . Bare.reSrc $ env
+    -- isUsed v = S.member v usedVars
+
+
 
 rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
 rawAsmSigs env myName specs = 
@@ -620,12 +624,35 @@ rawAsmSigs env myName specs =
 myAsmSig :: Ghc.Var -> [(Bool, ModName, LocBareType)] -> (ModName, LocBareType)
 myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp]) 
   where 
-    mbHome      = takeUnique err sigsHome 
-    mbImp       = takeUnique err sigsImp 
-    sigsHome    = [(m, t) | (True,  m, t) <- sigs]
-    sigsImp     = [(m, t) | (False, m, t) <- sigs]
+    mbHome      = takeUnique err                  sigsHome 
+    mbImp       = takeUnique err (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
+    sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
+    sigsImp     = [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
     err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
+    vName       = GM.takeModuleNames (F.symbol v)
+
+----------------------------------------------------------------------------------------
+-- [NOTE:Prioritize-Home-Spec] Prioritize spec for THING defined in 
+-- `Foo.Bar.Baz.Quux.x` over any other specification, IF GHC's 
+-- fully qualified name for THING is `Foo.Bar.Baz.Quux.x`. 
+--
+-- For example, see tests/names/neg/T1078.hs for example, 
+-- which assumes a spec for `head` defined in both 
+-- 
+--   (1) Data/ByteString.spec
+--   (2) Data/ByteString/Char8.spec 
+-- 
+-- We end up resolving the `head` in (1) to the @Var@ `Data.ByteString.Char8.head` 
+-- even though there is no exact match, just to account for re-exports of "internal"
+-- modules and such (see `Resolve.matchMod`). However, we should pick the closer name
+-- if its available.
+----------------------------------------------------------------------------------------
+nameDistance :: F.Symbol -> ModName -> Int 
+nameDistance vName tName 
+  | vName == F.symbol tName = 0 
+  | otherwise               = 1
+
 
 takeUnique :: Ex.Exception e => ([a] -> e) -> [a] -> Maybe a
 takeUnique _ []  = Nothing 
