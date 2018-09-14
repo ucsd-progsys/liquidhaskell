@@ -4,6 +4,7 @@
               -> n:{v: Int | i <= v}
               -> a <pig i> 
               -> a <pig n>
+              / [n - i]
   @-}
 
 goo :: (Int -> a -> a) -> Int -> Int -> a -> a

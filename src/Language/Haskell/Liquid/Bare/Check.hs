@@ -134,7 +134,6 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
                      ++ checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
-                    
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
