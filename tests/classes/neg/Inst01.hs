@@ -1,3 +1,5 @@
+-- TODO-REBARE: should be unsafe, but is currently NOT 
+
 module LiquidClass where
 
 

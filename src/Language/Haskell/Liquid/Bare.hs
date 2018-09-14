@@ -593,7 +593,7 @@ rawTySigs env name = Bare.resolveLocalBinds env . bareTySigs env name
 bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 bareTySigs env name spec = 
   [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
-           , let v   = Bare.lookupGhcVar env name "rawTySigs" x 
+           , let v   = F.tracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]

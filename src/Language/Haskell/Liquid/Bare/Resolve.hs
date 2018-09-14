@@ -187,8 +187,8 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = F.tracepp "SRC-THINGS" $ 
-                Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = F.tracepp "SRC-THINGS"  
+              $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -404,11 +404,12 @@ lookupGhcVar env name kind lx =
 --   See tests/names/LocalSpec.hs for a motivating example. 
 
 lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
-lookupLocalVar env lx gvs = Misc.findNearest (F.srcLine lx) kvs
+lookupLocalVar env lx gvs = F.tracepp msg $ Misc.findNearest lxn kvs
   where 
-    kvs                   = M.lookupDefault gs x (reLocalVars env) 
+    msg                   = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
+    kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env) 
     gs                    = [(F.srcLine v, v) | v <- gvs]
-    _xn                   = F.srcLine lx  
+    lxn                   = F.srcLine lx  
     (_, x)                = unQualifySymbol (F.val lx)
 
 
@@ -880,9 +881,9 @@ resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
 ---------------------------------------------------------------------------------
 resolveLocalBinds env xts = topTs ++ replace locTs 
   where 
-    (locTs, topTs)        = partitionLocalBinds xts 
+    (locTs, topTs)        = F.tracepp "PARTITIONBINDS" $ partitionLocalBinds xts 
     replace               = M.toList . replaceSigs . M.fromList 
-    replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
+    replaceSigs sigm      = F.tracepp "REPLACE-SIGS" $ coreVisitor replaceVisitor M.empty sigm cbs 
     cbs                   = giCbs (reSrc env)
   
 replaceVisitor :: CoreVisitor SymMap SigMap 

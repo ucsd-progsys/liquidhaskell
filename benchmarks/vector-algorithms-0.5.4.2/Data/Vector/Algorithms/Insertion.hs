@@ -31,8 +31,12 @@ import Data.Vector.Algorithms.Common (Comparison)
 
 import qualified Data.Vector.Algorithms.Optimal as O
 
+{-@ silly :: PrimMonad m => _ @-}
+silly :: PrimMonad m => m () 
+silly = return () 
+
 -- | Sorts an entire array using the default comparison for the type
-{-@ sort :: (PrimMonad m, MVector v e, Ord e) => {v: (v (PrimState m) e) | 0 < (vsize v)} -> m () @-}
+{-@ sort :: (PrimMonad m, MVector v e, Ord e) => {v: (v (PrimState m) e) | 0 < (vsize v)} -> _ @-}
 sort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> m ()
 sort = sortBy  compare
 {-# INLINABLE sort #-}
@@ -46,8 +50,8 @@ sortBy cmp a = sortByBounds cmp a 0  (length a)
 -- | Sorts the portion of an array delimited by [l,u)
 {-@ sortByBounds :: (PrimMonad m, MVector v e)
                  => Comparison e -> vec:(v (PrimState m) e) 
-                -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))} 
-                -> m ()
+                 -> l:(OkIdx vec) -> u:{v:Nat | (InRng v l (vsize vec))} 
+                 -> _ 
   @-}
 sortByBounds :: (PrimMonad m, MVector v e)
              => Comparison e -> v (PrimState m) e -> Int -> Int -> m ()
@@ -68,7 +72,7 @@ sortByBounds cmp a l u
                 -> l:(OkIdx vec) 
                 -> m:{v:Nat | (InRng v l (vsize vec))} 
                 -> u:{v:Nat | (InRng v m (vsize vec))} 
-                -> m ()
+                -> _ 
   @-}
 sortByBounds' :: (PrimMonad m, MVector v e)
               => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()

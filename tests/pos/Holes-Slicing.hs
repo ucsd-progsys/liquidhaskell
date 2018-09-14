@@ -1,8 +1,8 @@
+-- TODO-REBARE: What the hell is noslice? 
+{- LIQUID "--noslice"     @-}
+
 module Foo () where
 
-{-@ LIQUID "--savequery"      @-}
-{-@ LIQUID "--noslice"        @-}
-{-@ LIQUID "--maxparam=3"        @-}
 
 {-@ measure isFoo :: A -> B -> Bool @-}
 {-@ isFooF :: a:A -> b:B -> {v:Bool | v <=> isFoo a b} @-}

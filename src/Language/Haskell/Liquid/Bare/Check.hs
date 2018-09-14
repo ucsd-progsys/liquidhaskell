@@ -336,7 +336,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
     dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` (rtName . val)) tas]
 
 
-checkMismatch        :: (Var, Located SpecType) -> Maybe Error
+checkMismatch        :: (Var, LocSpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where
     ok               = tyCompat x (val t')

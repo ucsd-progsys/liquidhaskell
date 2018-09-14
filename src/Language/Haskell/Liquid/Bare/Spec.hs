@@ -8,7 +8,6 @@ module Language.Haskell.Liquid.Bare.Spec (
     makeClasses
   , makeSpecDictionaries
   , makeDefaultMethods
-
   -- TODO-REBARE , makeQualifiers
   -- TODO-REBARE , makeHints
   -- TODO-REBARE , makeLVar
@@ -135,6 +134,7 @@ makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var Spec
 -------------------------------------------------------------------------------
 makeSpecDictionaries env sigEnv specs
   = dfromList 
+  . F.tracepp "makeSpecDict"
   . concat 
   . fmap (makeSpecDictionary env sigEnv) 
   $ M.toList specs

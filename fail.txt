@@ -1,62 +1,11 @@
-rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "OK" nohup.out  | wc
-   1039    3128   60430
-rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "FAIL" nohup.out  | wc
-    153     459    9029
-
-
-(ATyCon tc)
-  | isClassTyCon tc = "class"
-
-Id.isDFunId :: Id -> Bool
-
-instanceDFunId :: ClsInst -> DFunId 
-
-TODO: classInstVars :: CoreProgram -> ClsInst -> [Id]
-  using: 
-    Interface.derivedVs :: CoreProgram -> DFunId -> [Id] 
-    is_cls     :: ClsInst -> Class 
-    classTyCon :: Class -> TyCon
-
-(ATyCon tc)
-  | isClassTyCon tc = "class"
-
-
-
-[Class02.$fFooHog,    -- instance-definition: instance Foo Hog
- $cfoo,               -- method-definition
-
- Class02.$fFooZig,    -- insta
- $cfoo,
- 
- Class02.$fEqHog,
- $c/=,
- $c==,
- $c/=,
- 
- Class02.$fEqZig,
- $c/=,
- $c==,
- $c/=
-]
-
-
-
-
-
 Tests
 
   Macro
     unit-pos
-      Fulcrum.hs 
-      local02.hs 
-      LocalHole.hs 
-      - local-environments 
-
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
       MultipleInvariants.hs:                  FAIL (0.92s)
       - STRATA: todo:variance-strata 
-
       monad0.hs:                              FAIL (0.88s)
       monad7.hs:                              FAIL (1.07s)
       ANF.hs:                                 FAIL (1.09s)
@@ -67,6 +16,7 @@ Tests
       - fixpoint "Unknown func-sort:"
 
       NatClass.hs 
+      VerifiedMonoid.hs?
       - handle "define" 
 
   unit-neg
@@ -87,3 +37,67 @@ Tests
 
 -------------------------------------------------------------
 
+      T1089b.hs:                              FAIL (1.52s)
+      VerifiedMonoid.hs:                      FAIL (1.86s)
+      RecQSort.hs:                            FAIL (1.43s)
+      qsloop.hs:                              FAIL (0.92s)
+      Strata.hs:                              FAIL (1.11s)
+      nestedRecursion.hs:                     FAIL (1.18s)
+      TerminationNum0.hs:                     FAIL (1.09s)
+      Sum.hs:                                 FAIL (1.25s)
+      contra0.hs:                             FAIL (1.12s)
+      VerifiedMonoid.hs:                      FAIL (1.66s)
+      testRec.hs:                             FAIL (1.17s)
+      GeneralizedTermination.hs:              FAIL (0.98s)
+      LiquidClass1.hs:                        FAIL (0.93s)
+      TerminationNum.hs:                      FAIL (1.05s)
+      AutoSize.hs:                            FAIL (3.44s)
+      Even.hs:                                FAIL (1.30s)
+      pragma0-unsafe.hs:                      FAIL (0.79s)
+      T745.hs:                                FAIL (0.99s)
+      MaybeMonad.hs:                          FAIL (1.24s)
+      RG.hs:                                  FAIL (0.64s)
+      AutoTerm.hs:                            FAIL (1.35s)
+    TerminationExprSort.hs:                   FAIL (1.03s)
+    TerminationExprNum.hs:                    FAIL (0.83s)
+    TerminationExprUnb.hs:                    FAIL (1.00s)
+    ElabLocation.hs:                          FAIL (1.08s)
+      Data/Text.hs:                           FAIL (5.00s)
+      Data/Text/Foreign.hs:                   FAIL (2.56s)
+      Data/Text/Array.hs:                     FAIL (0.74s)
+      Data/Text/UnsafeChar.hs:                FAIL (1.93s)
+      Data/Text/Search.hs:                    FAIL (2.16s)
+      Data/Text/Fusion.hs:                    FAIL (3.23s)
+      Data/Text/Lazy.hs:                      FAIL (7.34s)
+      Data/Text/Private.hs:                   FAIL (2.17s)
+      Data/Text/Unsafe.hs:                    FAIL (2.48s)
+      Data/Text/Internal.hs:                  FAIL (2.26s)
+      Data/Text/Lazy/Encoding.hs:             FAIL (10.71s)
+      Data/Text/Lazy/Builder.hs:              FAIL (7.61s)
+      Data/Text/Lazy/Search.hs:               FAIL (5.78s)
+      Data/Text/Lazy/Fusion.hs:               FAIL (5.94s)
+      Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
+      Data/Text/Fusion/Size.hs:               FAIL (1.11s)
+      Data/ByteString.hs:                     FAIL (6.43s)
+      Data/ByteString.T.hs:                   FAIL (5.78s)
+      Data/ByteString/Char8.hs:               FAIL (5.39s)
+      Data/ByteString/LazyZip.hs:             FAIL (5.39s)
+      Data/ByteString/Fusion.hs:              FAIL (2.16s)
+      Data/ByteString/Fusion.T.hs:            FAIL (2.44s)
+      Data/ByteString/Lazy.hs:                FAIL (4.44s)
+      Data/ByteString/Internal.hs:            FAIL (2.48s)
+      Data/ByteString/Lazy/Char8.hs:          FAIL (4.01s)
+      Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
+      Fib.hs:                                 FAIL (1.21s)
+      Data/Vector/Algorithms/Insertion.hs:    FAIL (0.51s)
+      Data/Vector/Algorithms/Radix.hs:        FAIL (0.51s)
+      Data/Vector/Algorithms/Intro.hs:        FAIL (0.49s)
+      Data/Vector/Algorithms/Combinators.hs:  FAIL (1.44s)
+      Data/Vector/Algorithms/Heap.hs:         FAIL (0.44s)
+      Data/Vector/Algorithms/Merge.hs:        FAIL (0.56s)
+      Data/Vector/Algorithms/Search.hs:       FAIL (0.73s)
+      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.45s)
+      Data/Vector/Algorithms/Optimal.hs:      FAIL (0.41s)
+      Data/Vector/Algorithms/Common.hs:       FAIL (1.20s)
+      Data/Vector/Algorithms/Termination.hs:  FAIL (0.52s)
+      DBMovies.hs:                            FAIL (1.00s)
