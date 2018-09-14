@@ -15,6 +15,7 @@ Tests
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
 
+    Classes?
       NatClass.hs 
       VerifiedMonoid.hs?
       - handle "define" 
@@ -36,9 +37,7 @@ Tests
       - SRCSPAN
 
 -------------------------------------------------------------
-
-      T1089b.hs:                              FAIL (1.52s)
-      VerifiedMonoid.hs:                      FAIL (1.86s)
+      
       RecQSort.hs:                            FAIL (1.43s)
       qsloop.hs:                              FAIL (0.92s)
       Strata.hs:                              FAIL (1.11s)
@@ -46,14 +45,10 @@ Tests
       TerminationNum0.hs:                     FAIL (1.09s)
       Sum.hs:                                 FAIL (1.25s)
       contra0.hs:                             FAIL (1.12s)
-      VerifiedMonoid.hs:                      FAIL (1.66s)
       testRec.hs:                             FAIL (1.17s)
       GeneralizedTermination.hs:              FAIL (0.98s)
-      LiquidClass1.hs:                        FAIL (0.93s)
       TerminationNum.hs:                      FAIL (1.05s)
       AutoSize.hs:                            FAIL (3.44s)
-      Even.hs:                                FAIL (1.30s)
-      pragma0-unsafe.hs:                      FAIL (0.79s)
       T745.hs:                                FAIL (0.99s)
       MaybeMonad.hs:                          FAIL (1.24s)
       RG.hs:                                  FAIL (0.64s)
@@ -78,6 +73,7 @@ Tests
       Data/Text/Lazy/Fusion.hs:               FAIL (5.94s)
       Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
       Data/Text/Fusion/Size.hs:               FAIL (1.11s)
+
       Data/ByteString.hs:                     FAIL (6.43s)
       Data/ByteString.T.hs:                   FAIL (5.78s)
       Data/ByteString/Char8.hs:               FAIL (5.39s)
