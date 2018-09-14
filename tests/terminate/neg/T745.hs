@@ -1,4 +1,3 @@
-{-@ LIQUID "--diff" @-}
 
 module Foo where 
 

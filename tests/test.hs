@@ -227,7 +227,8 @@ microTests = group "Micro"
   , testGroup "class-neg"      <$> dirTests "tests/classes/neg"                    []                (ExitFailure 1) 
   , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
   , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
-  , testGroup "terminate-neg"  <$> dirTests "tests/termination/neg"                []                (ExitFailure 1)
+  , testGroup "terminate-pos"  <$> dirTests "tests/terminate/pos"                  []                ExitSuccess
+  , testGroup "terminate-neg"  <$> dirTests "tests/terminate/neg"                  []                (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
