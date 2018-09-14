@@ -123,7 +123,7 @@ data GhcSpecNames = SpNames
   }
 
 data GhcSpecTerm = SpTerm 
-  { gsTexprs     :: ![(Var, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
+  { gsTexprs     :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   , gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking

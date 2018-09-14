@@ -73,7 +73,6 @@ Tests
       Data/Text/Lazy/Fusion.hs:               FAIL (5.94s)
       Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
       Data/Text/Fusion/Size.hs:               FAIL (1.11s)
-
       Data/ByteString.hs:                     FAIL (6.43s)
       Data/ByteString.T.hs:                   FAIL (5.78s)
       Data/ByteString/Char8.hs:               FAIL (5.39s)

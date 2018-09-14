@@ -9,8 +9,8 @@ llen N        = 0
 llen (C x xs) = 1 + llen xs 
 
 rev               = go N 
-  where 
-    {-@ go :: _ -> xs:_ -> _ / [llen xs] @-}  
-    go acc N        = acc
-    go acc (C x xs) = go (C x acc) xs
+
+{-@ go :: _ -> xs:_ -> _ / [llen xs] @-}  
+go acc N        = acc
+go acc (C x xs) = go (C x acc) xs
 

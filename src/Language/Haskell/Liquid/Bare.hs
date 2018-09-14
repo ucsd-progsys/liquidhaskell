@@ -145,7 +145,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsData   = sData 
   , gsName   = makeSpecName env tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg     mySpec env   name 
+  , gsTerm   = makeSpecTerm cfg     mySpec env   name sig rtEnv  
   , gsLSpec  = makeLiftedSpec refl sData lSpec1 
   }
   where
@@ -425,10 +425,11 @@ makeQualifiers :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
 makeQualifiers env (mod, spec) = Bare.qualifyTop env mod <$> Ms.qualifiers spec 
 
 ------------------------------------------------------------------------------------------
-makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
+makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecSig -> BareRTEnv 
+             -> GhcSpecTerm 
 ------------------------------------------------------------------------------------------
-makeSpecTerm cfg mySpec env name = SpTerm 
-  { gsTexprs     = makeTExpr env name mySpec 
+makeSpecTerm cfg mySpec env name sig rtEnv = SpTerm 
+  { gsTexprs     = makeTExpr env name sig rtEnv mySpec 
   , gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
   , gsStTerm     = sizes
   , gsAutosize   = autos 
@@ -441,8 +442,28 @@ makeSpecTerm cfg mySpec env name = SpTerm
      | noStrT    = mempty 
      | otherwise = makeSize env name mySpec 
 
-makeTExpr :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Located F.Expr])]
-makeTExpr env name spec = 
+makeTExpr :: Bare.Env -> ModName -> GhcSpecSig -> BareRTEnv -> Ms.BareSpec 
+          -> [(Ghc.Var, LocSpecType ,[Located F.Expr])]
+makeTExpr env name sig rtEnv spec 
+                = F.tracepp "MAKE-TEXPRS" 
+                  [ (v, t, qual t es) | (v, (t, es)) <- M.toList vSigExprs ] 
+  where 
+    qual        = fmap . qualifyTermExpr env name rtEnv 
+    vSigExprs   = M.intersectionWith (,) vSigs vExprs 
+    vExprs      = M.fromList (makeVarTExprs env name spec) 
+    vSigs       = M.fromList (gsTySigs sig) 
+
+qualifyTermExpr :: Bare.Env -> ModName -> BareRTEnv -> LocSpecType -> Located F.Expr 
+                -> Located F.Expr 
+qualifyTermExpr env name rtEnv t le 
+        = F.atLoc le (Bare.qualifyExpand env name rtEnv l bs e)
+  where 
+    l   = F.loc le 
+    e   = F.val le 
+    bs  = ty_binds . toRTypeRep . val $ t 
+
+makeVarTExprs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Located F.Expr])]
+makeVarTExprs env name spec = 
   [ (Bare.lookupGhcVar env name "Var" x, es) 
       | (x, es) <- Ms.termexprs spec           ]
 
