@@ -132,9 +132,9 @@ makeDecrIndex _ = return []
 
 makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) [Int])
 makeDecrIndexTy x t args
-  = do -- REBARE: spDecr <- specDecr <$> get
+  = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
-       hint   <- checkHint' autosz Nothing -- REBARE (L.lookup x $ spDecr)
+       hint   <- checkHint' autosz (L.lookup x spDecr)
        case dindex autosz of
          Nothing -> return $ Left msg
          Just i  -> return $ Right $ fromMaybe [i] hint
