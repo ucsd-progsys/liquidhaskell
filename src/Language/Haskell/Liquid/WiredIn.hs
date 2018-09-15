@@ -5,15 +5,20 @@ module Language.Haskell.Liquid.WiredIn
        , wiredDataCons
        , wiredSortedSyms
 
-       -- | Constants for automatic proofs
-       , dictionaryVar, dictionaryTyVar, dictionaryBind
-       , proofTyConName, combineProofsName
+       -- * Constants for automatic proofs
+       , dictionaryVar
+       , dictionaryTyVar
+       , dictionaryBind
+       , proofTyConName
+       , combineProofsName
 
-       -- | Built  in Symbols
+       -- * Built in symbols
        , isWiredIn
        , isWiredInName
        , dcPrefix
 
+       -- * Deriving classes 
+       , isDerivedInstance 
        ) where
 
 import Prelude                                hiding (error)
@@ -21,7 +26,7 @@ import Var
 
 -- import Language.Fixpoint.Misc           (mapSnd)
 import Language.Haskell.Liquid.GHC.Misc
-
+import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
@@ -182,3 +187,28 @@ mkps_ (n:ns) (t:ts) ((f, x):xs) args ps = mkps_ ns ts xs (a:args) (p:ps)
     p                                   = PV n (PVProp t) (F.vv Nothing) args
     a                                   = (t, f, x)
 mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
+
+
+--------------------------------------------------------------------------------
+isDerivedInstance :: Ghc.ClsInst -> Bool 
+--------------------------------------------------------------------------------
+isDerivedInstance i = F.tracepp ("IS-DERIVED: " ++ F.showpp classSym) 
+                    $ S.member classSym derivingClasses 
+  where 
+    classSym        = F.symbol . Ghc.is_cls $ i
+  
+derivingClasses :: S.HashSet F.Symbol 
+derivingClasses = S.fromList 
+  [ "GHC.Classes.Eq"
+  , "GHC.Classes.Ord"
+  , "GHC.Enum.Enum"
+  , "GHC.Show.Show"
+  , "GHC.Read.Read"
+  , "GHC.Base.Monad"
+  , "GHC.Base.Applicative"
+  , "GHC.Base.Functor"
+  , "Data.Foldable.Foldable"
+  , "Data.Traversable.Traversable"
+  -- , "GHC.Enum.Bounded"
+  -- , "GHC.Base.Monoid"
+  ]

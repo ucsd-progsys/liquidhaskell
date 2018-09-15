@@ -125,7 +125,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkTySigs         allowHO cbs            emb tcEnv env  (gsTySigs     (gsSig sp))
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
-                     -- TODO-REBARE ++ mapMaybe (checkTerminationExpr             emb       env) (varTermExprs         sp) 
+                     ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsTerm sp)) 
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
@@ -134,7 +134,6 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
                      ++ checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
-                    
                      ++ checkRTAliases "Type Alias" env            tAliases
                      ++ checkRTAliases "Pred Alias" env            eAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
@@ -155,12 +154,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
     noPrune          = not (pruneFlag sp)
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
-varTermExprs :: GhcSpec -> [(Var, LocSpecType, [F.Located F.Expr])] 
-varTermExprs sp = [ (v, t, es) | (v, (t, es)) <- M.toList vSigExprs ] 
-  where 
-    vSigExprs   = M.intersectionWith (,) vSigs vExprs 
-    vSigs       = M.fromList $ gsTySigs (gsSig  sp)
-    vExprs      = M.fromList $ gsTexprs (gsTerm sp) 
+
 
 --------------------------------------------------------------------------------
 checkTySigs :: Bool -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
@@ -336,7 +330,7 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
     dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` (rtName . val)) tas]
 
 
-checkMismatch        :: (Var, Located SpecType) -> Maybe Error
+checkMismatch        :: (Var, LocSpecType) -> Maybe Error
 checkMismatch (x, t) = if ok then Nothing else Just err
   where
     ok               = tyCompat x (val t')

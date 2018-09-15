@@ -1,3 +1,5 @@
+-- TODO-REBARE: should be unsafe, but is currently NOT 
+
 module LiquidClass where
 
 
@@ -5,15 +7,14 @@ module LiquidClass where
 -- | Step 1: Refine type dictionaries:
 
 class Compare a where
-	cmax :: a -> a -> a
-	cmin :: a -> a -> a
+  cmax :: a -> a -> a
+  cmin :: a -> a -> a
 
 instance Compare Int where	
-{-@ instance Compare Int where 
+  {-@ instance Compare Int where 
 	cmax :: Odd -> Odd -> Odd ;
 	cmin :: Int -> Int -> Odd
-  @-}
-
+    @-}
 	cmax y x = if x >= y then x else y
   	cmin y x = if x >= y then x else y
 

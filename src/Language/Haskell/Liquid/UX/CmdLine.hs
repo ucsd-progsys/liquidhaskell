@@ -147,7 +147,8 @@ config = cmdArgsMode $ Config {
           &= name "prune-unsorted"
 
  , notermination
-    = def &= help "Disable Termination Check"
+    = False 
+          &= help "Disable Termination Check"
           &= name "no-termination-check"
 
  , structuralTerm
@@ -172,7 +173,7 @@ config = cmdArgsMode $ Config {
           &= name "ginteractive"
 
  , totalHaskell
-    = def &= help "Check for termination and totality, Overrides no-termination flags"
+    = def &= help "Check for termination and totality; overrides no-termination flags"
           &= name "total-Haskell"
 
  -- , autoproofs
@@ -525,13 +526,13 @@ defConfig = Config
   , saveQuery         = def
   , checks            = def
   , noCheckUnknown    = def
-  , notermination     = True -- def
+  , notermination     = False 
   , structuralTerm    = False 
   , nostructuralT     = def 
   , gradual           = False
   , gdepth            = 1
   , ginteractive      = False
-  , totalHaskell      = def
+  , totalHaskell      = def -- True 
   , nowarnings        = def
   , noannotations     = def
   , checkDerived      = False

@@ -50,7 +50,7 @@ data GhcSrc = Src
   , giCbs       :: ![CoreBind]            -- ^ Source Code
   , gsTcs       :: ![TyCon]               -- ^ All used Type constructors
   , gsCls       :: !(Maybe [ClsInst])     -- ^ Class instances?
-  , giDerVars   :: ![Var]                 -- ^ Binders created by GHC eg dictionaries
+  , giDerVars   :: !(S.HashSet Var)       -- ^ Binders created by GHC eg dictionaries
   , giImpVars   :: ![Var]                 -- ^ Binders that are _read_ in module (but not defined?)
   , giDefVars   :: ![Var]                 -- ^ (Top-level) binders that are _defined_ in module
   , giUseVars   :: ![Var]                 -- ^ Binders that are _read_ in module
@@ -123,7 +123,7 @@ data GhcSpecNames = SpNames
   }
 
 data GhcSpecTerm = SpTerm 
-  { gsTexprs     :: ![(Var, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
+  { gsTexprs     :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   , gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking

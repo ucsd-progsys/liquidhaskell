@@ -85,7 +85,6 @@ makeEnv cfg src lmap specs = RE
   , reQualImps  = gsQualImps     src
   , reAllImps   = gsAllImps      src
   , reLocalVars = makeLocalVars  src 
-  -- , reCbs       = giCbs          src
   , reSrc       = src
   , reGlobSyms  = S.fromList     globalSyms 
   , reCfg       = cfg
@@ -188,8 +187,8 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = F.tracepp "SRC-THINGS" $ 
-                Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = F.tracepp "SRC-THINGS"  
+              $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -231,7 +230,7 @@ typeTyCons t = tops t ++ inners t
 srcVars :: GhcSrc -> [Ghc.Var]
 srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat 
   [ key "SRC-VAR-DEF" 0 <$> giDefVars src 
-  , key "SRC-VAR-DER" 1 <$> giDerVars src
+  , key "SRC-VAR-DER" 1 <$> S.toList (giDerVars src)
   , key "SRC-VAR-IMP" 2 <$> giImpVars src 
   , key "SRC-VAR-USE" 3 <$> giUseVars src 
   , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- gsTyThings src ]
@@ -388,7 +387,6 @@ substFreeEnv env name bs = F.substf (F.EVar . qualifySymbol env name bs)
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Maybe Ghc.Var
 -------------------------------------------------------------------------------
 lookupGhcNamedVar env name z = maybeResolveSym  env name "Var" lx
-                               -- strictResolveSym env name "Var" lx 
   where 
     lx                       = GM.namedLocSymbol z
 
@@ -406,11 +404,12 @@ lookupGhcVar env name kind lx =
 --   See tests/names/LocalSpec.hs for a motivating example. 
 
 lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
-lookupLocalVar env lx gvs = Misc.findNearest (F.srcLine lx) kvs
+lookupLocalVar env lx gvs = F.tracepp msg $ Misc.findNearest lxn kvs
   where 
-    kvs                   = M.lookupDefault gs x (reLocalVars env) 
+    msg                   = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
+    kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env) 
     gs                    = [(F.srcLine v, v) | v <- gvs]
-    _xn                   = F.srcLine lx  
+    lxn                   = F.srcLine lx  
     (_, x)                = unQualifySymbol (F.val lx)
 
 
@@ -882,9 +881,9 @@ resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
 ---------------------------------------------------------------------------------
 resolveLocalBinds env xts = topTs ++ replace locTs 
   where 
-    (locTs, topTs)        = partitionLocalBinds xts 
+    (locTs, topTs)        = F.tracepp "PARTITIONBINDS" $ partitionLocalBinds xts 
     replace               = M.toList . replaceSigs . M.fromList 
-    replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
+    replaceSigs sigm      = F.tracepp "REPLACE-SIGS" $ coreVisitor replaceVisitor M.empty sigm cbs 
     cbs                   = giCbs (reSrc env)
   
 replaceVisitor :: CoreVisitor SymMap SigMap 

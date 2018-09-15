@@ -1033,6 +1033,9 @@ data RInstance t = RI
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)
 
+instance F.PPrint t => F.PPrint (RISig t) where
+  pprintTidy k = ppRISig k (empty :: Doc) 
+
 ppRISig :: (F.PPrint k, F.PPrint t) => F.Tidy -> k -> RISig t -> Doc
 ppRISig k x (RIAssumed t) = "assume" <+> F.pprintTidy k x <+> "::" <+> F.pprintTidy k t 
 ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintTidy k t 

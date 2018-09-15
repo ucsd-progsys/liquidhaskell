@@ -7,7 +7,7 @@
 module Language.Haskell.Liquid.Bare.Spec (
     makeClasses
   , makeSpecDictionaries
-
+  , makeDefaultMethods
   -- TODO-REBARE , makeQualifiers
   -- TODO-REBARE , makeHints
   -- TODO-REBARE , makeLVar
@@ -21,7 +21,6 @@ module Language.Haskell.Liquid.Bare.Spec (
   -- TODO-REBARE , makeTargetVars
   -- TODO-REBARE , makeAssertSpec
   -- TODO-REBARE , makeAssumeSpec
-  -- TODO-REBARE , makeDefaultMethods
   -- TODO-REBARE , makeIAliases
   -- TODO-REBARE , makeInvariants
   -- TODO-REBARE , makeNewTypes
@@ -54,7 +53,7 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Fixpoint.Types.Visitor            as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType
@@ -101,7 +100,7 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, v
     msg    = "MKCLASS: " ++ F.showpp (cc, as, αs) -- , as')
     (dc:_) = Ghc.tyConDataCons tc
     αs     = bareRTyVar <$> as
-    as'    = [rVar $ symbolTyVar $ F.symbol a | a <- as ]
+    as'    = [rVar $ GM.symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
     vts    = [ (m, v, t) | (m, Just (_, v), t) <- meths ]
     sts    = F.notracepp "METHODS" $
@@ -135,6 +134,7 @@ makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var Spec
 -------------------------------------------------------------------------------
 makeSpecDictionaries env sigEnv specs
   = dfromList 
+  . F.tracepp "makeSpecDict"
   . concat 
   . fmap (makeSpecDictionary env sigEnv) 
   $ M.toList specs
@@ -184,6 +184,35 @@ addInstIndex (x, is) = go 0 (reverse is)
     go _ [i]         = [(x, i)]
     go j (i:is)      = (F.symbol (F.symbolString x ++ show j),i) : go (j+1) is
 
+----------------------------------------------------------------------------------
+makeDefaultMethods :: Bare.Env -> [(ModName, Ghc.Var, LocSpecType)] 
+                   -> [(ModName, Ghc.Var, LocSpecType)]
+----------------------------------------------------------------------------------
+makeDefaultMethods env mts = [ (mname, dm, t) 
+                                 | (mname, m, t) <- mts
+                                 , dm            <- lookupDefaultVar env mname m ]  
+
+{- TODO-REBARE makeDefaultMethods env sigs = 
+  [ (m, dmv, t)
+    | dmv <- defVs
+    , let dm = F.symbol $ showPpr dmv
+    , "$dm" `F.isPrefixOfSym` dropModuleNames dm
+    , let mod    = takeModuleNames dm
+    , let method = qualifySymbol mod $ F.dropSym 3 (dropModuleNames dm)
+    , let mb     = L.find ((method `F.isPrefixOfSym`) . F.symbol . Misc.snd3) sigs
+    , isJust mb
+    , let Just (m,_,t) = mb
+  ]
+-} 
+
+lookupDefaultVar :: Bare.Env -> ModName -> Ghc.Var -> [Ghc.Var] 
+lookupDefaultVar env name v = Mb.maybeToList 
+                            . Bare.maybeResolveSym env name "default-method" 
+                            $ dmSym
+  where 
+    dmSym                   = F.atLoc v (GM.qualifySymbol mSym dnSym)
+    dnSym                   = F.mappendSym "$dm" nSym
+    (mSym, nSym)            = GM.splitModuleName (F.symbol v) 
 
 
 {- 
@@ -350,18 +379,7 @@ grepClassAssumes  = concatMap go
     goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RISig _)     = Nothing
 
-makeDefaultMethods :: [Var] -> [(ModName, Var, Located SpecType)] -> [(ModName, Var, Located SpecType)]
-makeDefaultMethods defVs sigs
-  = [ (m,dmv,t)
-    | dmv <- defVs
-    , let dm = F.symbol $ showPpr dmv
-    , "$dm" `F.isPrefixOfSym` dropModuleNames dm
-    , let mod    = takeModuleNames dm
-    , let method = qualifySymbol mod $ F.dropSym 3 (dropModuleNames dm)
-    , let mb     = L.find ((method `F.isPrefixOfSym`) . F.symbol . Misc.snd3) sigs
-    , isJust mb
-    , let Just (m,_,t) = mb
-    ]
+
 
 makeLocalSpec :: Config -> ModName -> [Var] -> [Var]
               -> [(LocSymbol, Located BareType)]
