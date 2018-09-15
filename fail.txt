@@ -1,24 +1,11 @@
-rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "OK" nohup.out  | wc
-   1039    3128   60430
-rjhala@goto ~/r/s/l/liquidhaskell (phadej-ghc-8.4)> ack "FAIL" nohup.out  | wc
-    153     459    9029
-
-
-
-Tests
+## FAILING TESTS for TODO-REBARE 
 
   Macro
     unit-pos
-      Fulcrum.hs 
-      local02.hs 
-      LocalHole.hs 
-      - local-environments 
-
       Invariants.hs:                          FAIL (0.76s)
       contra0.hs:                             FAIL (0.72s)
       MultipleInvariants.hs:                  FAIL (0.92s)
       - STRATA: todo:variance-strata 
-
       monad0.hs:                              FAIL (0.88s)
       monad7.hs:                              FAIL (1.07s)
       ANF.hs:                                 FAIL (1.09s)
@@ -34,18 +21,11 @@ Tests
   unit-neg
 
   esop
-      Splay.hs:                               OK (20.38s)
       Fib.hs:                                 FAIL (1.01s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
--------------------------------------------------------------
 
   Error-Messages
     ElabLocation.hs:        FAIL (1.00s)
       Did not match message: ElabLocation.hs:11:9-11:15: Error
       - SRCSPAN
 
--------------------------------------------------------------
 
