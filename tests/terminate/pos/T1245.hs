@@ -1,3 +1,6 @@
+
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/1245
+
 import qualified Data.Set as S 
 
 
