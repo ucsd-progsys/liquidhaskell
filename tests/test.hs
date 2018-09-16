@@ -229,6 +229,7 @@ microTests = group "Micro"
   , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
   , testGroup "terminate-pos"  <$> dirTests "tests/terminate/pos"                  []                ExitSuccess
   , testGroup "terminate-neg"  <$> dirTests "tests/terminate/neg"                  []                (ExitFailure 1)
+  -- TODO-REBARE: THESE WORK with --no-pattern-inline , testGroup "pattern-pos"    <$> dirTests "tests/pattern/pos"                    []                ExitSuccess
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)

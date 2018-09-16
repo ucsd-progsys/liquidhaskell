@@ -1,16 +1,12 @@
+
 Tests
+
+- tests/pattern/*.hs
+  all WORK with "--no-pattern-inline" 
+
 
   Macro
     unit-pos
-      Invariants.hs:                          FAIL (0.76s)
-      contra0.hs:                             FAIL (0.72s)
-      MultipleInvariants.hs:                  FAIL (0.92s)
-      - STRATA: todo:variance-strata 
-      monad0.hs:                              FAIL (0.88s)
-      monad7.hs:                              FAIL (1.07s)
-      ANF.hs:                                 FAIL (1.09s)
-      TemplateHaskell.hs:                     FAIL (1.17s)
-      - STRATA: ReturnStrata 
 
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
@@ -20,15 +16,23 @@ Tests
       VerifiedMonoid.hs?
       - handle "define" 
 
-  unit-neg
-
   esop
-      Splay.hs:                               OK (20.38s)
       Fib.hs:                                 FAIL (1.01s)
         tests/test.hs:299:
         Wrong exit code
         expected: ExitSuccess
          but got: ExitFailure 2
+
+TERMINATION
+
+  unit-pos 
+    GhcSort1.hs:                            FAIL (9.06s)
+    T1245.hs:                               FAIL (1.01s)
+
+  esop
+    Splay.hs
+    Base.hs 
+
 -------------------------------------------------------------
 
   Error-Messages
@@ -37,7 +41,10 @@ Tests
       - SRCSPAN
 
 -------------------------------------------------------------
-      
+
+
+
+
       RecQSort.hs:                            FAIL (1.43s)
       qsloop.hs:                              FAIL (0.92s)
       Strata.hs:                              FAIL (1.11s)
