@@ -1,5 +1,4 @@
-
-Tests
+## FAILING TESTS for TODO-REBARE 
 
 - tests/pattern/*.hs
   all WORK with "--no-pattern-inline" 
@@ -18,10 +17,6 @@ Tests
 
   esop
       Fib.hs:                                 FAIL (1.01s)
-        tests/test.hs:299:
-        Wrong exit code
-        expected: ExitSuccess
-         but got: ExitFailure 2
 
 TERMINATION
 
@@ -32,8 +27,6 @@ TERMINATION
   esop
     Splay.hs
     Base.hs 
-
--------------------------------------------------------------
 
   Error-Messages
     ElabLocation.hs:        FAIL (1.00s)

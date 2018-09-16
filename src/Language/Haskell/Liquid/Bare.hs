@@ -433,6 +433,7 @@ makeSpecTerm cfg mySpec env name sig rtEnv = SpTerm
   , gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
   , gsStTerm     = sizes
   , gsAutosize   = autos 
+  , gsDecr       = F.tracepp "MAKEDECRS" $ makeDecrs env name mySpec
   }
   where  
     lazies       = makeLazy     env name mySpec
@@ -441,6 +442,13 @@ makeSpecTerm cfg mySpec env name sig rtEnv = SpTerm
     sizes 
      | noStrT    = mempty 
      | otherwise = makeSize env name mySpec 
+
+-- formerly, makeHints
+makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Int])] 
+makeDecrs env name mySpec = 
+  [ (v, z) | (lx, z) <- Ms.decr mySpec
+           , let v    = Bare.lookupGhcVar env name "decreasing" lx
+  ]
 
 makeTExpr :: Bare.Env -> ModName -> GhcSpecSig -> BareRTEnv -> Ms.BareSpec 
           -> [(Ghc.Var, LocSpecType ,[Located F.Expr])]

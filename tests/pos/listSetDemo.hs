@@ -1,3 +1,4 @@
+{-@ LIQUID "--structural" @-}
 module ListSets () where
 
 
