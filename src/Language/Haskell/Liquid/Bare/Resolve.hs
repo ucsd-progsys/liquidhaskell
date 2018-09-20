@@ -679,6 +679,8 @@ predMap πs t = M.fromList [(pname π, π) | π <- πs ++ rtypePredBinds t]
 rtypePredBinds :: RType c tv r -> [UsedPVar]
 rtypePredBinds = map RT.uPVar . ty_preds . toRTypeRep
 
+
+
 --------------------------------------------------------------------------------
 type Expandable r = ( PPrint r
                     , F.Reftable r
@@ -693,8 +695,10 @@ ofBRType env name f l t  = go [] t
     goRImpF bs x t1 t2 r    = RImpF x <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
     goRFun  bs x t1 t2 r    = RFun  x <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
     rebind x t              = F.subst1 t (x, F.EVar $ rTypeValueVar t)
-    go bs (RAppTy t1 t2 r)  = RAppTy <$> go bs t1 <*> go bs t2 <*> goReft bs r
-    go bs (RApp tc ts rs r) = goRApp bs tc ts rs r 
+    go bs (RAppTy t1 t2 r)  = F.tracepp "OFBRTYPE-RAPP-TY" 
+                            $ RAppTy <$> go bs t1 <*> go bs t2 <*> goReft bs r
+    go bs (RApp tc ts rs r) = F.tracepp "OFBRTYPE-RAPP" 
+                            $ goRApp bs tc ts rs r 
     go bs (RImpF x t1 t2 r) = goRImpF bs x t1 t2 r 
     go bs (RFun  x t1 t2 r) = goRFun  bs x t1 t2 r 
     go bs (RVar a r)        = RVar (RT.bareRTyVar a) <$> goReft bs r

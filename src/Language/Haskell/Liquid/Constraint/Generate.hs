@@ -104,7 +104,7 @@ consAct cfg info = do
                     else return []
   let smap = if sflag then solveStrata scs else []
   let hcs' = if sflag then subsS smap hcs else hcs
-  fcs <- concat <$> mapM splitC (subsS smap hcs')
+  fcs <- concat <$> mapM ppSplitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
@@ -113,6 +113,13 @@ consAct cfg info = do
                      , fixCs    = fcs
                      , fixWfs   = fws
                      , annotMap = annot' }
+
+
+ppSplitC :: SubC -> CG [FixSubC]
+ppSplitC c = do 
+  cs <- splitC c 
+  return $ F.tracepp ("splitC: " ++ F.showpp c) cs
+
 
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
@@ -799,7 +806,7 @@ consE :: CGEnv -> CoreExpr -> CG SpecType
 consE γ e
   | patternFlag γ
   , Just p <- Rs.lift e
-  = consPattern γ p
+  = consPattern γ (F.tracepp "CONSE-PATTERN: " p) (exprType e)
 
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
@@ -887,7 +894,7 @@ consE γ e@(Let _ _)
 
 consE γ e@(Case _ _ _ [_])
   | Just p@(Rs.PatProject {}) <- Rs.lift e
-  = consPattern γ p
+  = consPattern γ p (exprType e)
 
 consE γ e@(Case _ _ _ cs)
   = cconsFreshE (caseKVKind cs) γ e
@@ -942,7 +949,7 @@ getExprDict γ           =  go
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
-consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
+consPattern :: CGEnv -> Rs.Pattern -> Type -> CG SpecType
 
 {- [NOTE] special type rule for monadic-bind application
 
@@ -951,7 +958,7 @@ consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
           G |- (e1 >>= \x -> e2) ~> m t
  -}
 
-consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
+consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) _ = do
   tx <- checkMonad (msg, e1) γ <$> consE γ e1
   γ' <- γ += ("consPattern", F.symbol x, tx)
   addIdA x (AnnDef tx)
@@ -962,14 +969,15 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
 
 {- [NOTE] special type rule for monadic-return
 
-           G |- e ~> t
+           G |- e ~> et
     ------------------------
-      G |- return e ~ m t
+      G |- return e ~ m et
  -}
-consPattern γ (Rs.PatReturn e m _ _ _) = do
-  t     <- consE γ e
+consPattern γ (Rs.PatReturn e m _ _ _) t = do
+  et    <- F.tracepp "Cons-Pattern-Ret" <$> consE γ e
   mt    <- trueTy  m
-  return $ RAppTy mt t mempty
+  tt    <- trueTy  t
+  return (mkRAppTy mt et tt) -- $ RAppTy mt et mempty
 
 {- [NOTE] special type rule for field projection, is
           t  = G(x)       ti = Proj(t, i)
@@ -977,7 +985,7 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
       G |- case x of C [y1...yn] -> yi : ti
  -}
 
-consPattern γ (Rs.PatProject xe _ τ c ys i) = do
+consPattern γ (Rs.PatProject xe _ τ c ys i) _ = do
   let yi = ys !! i
   t    <- (addW . WfC γ) <<= freshTy_type ProjectE (Var yi) τ
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
@@ -985,12 +993,16 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   addC (SubC γ' ti t) "consPattern:project"
   return t
 
-consPattern γ (Rs.PatSelfBind _ e) =
+consPattern γ (Rs.PatSelfBind _ e) _ =
   consE γ e
 
-consPattern γ p@(Rs.PatSelfRecBind {}) =
+consPattern γ p@(Rs.PatSelfRecBind {}) _ =
   cconsFreshE LetE γ (Rs.lower p)
 
+mkRAppTy :: SpecType -> SpecType -> SpecType -> SpecType 
+mkRAppTy mt et (RAppTy _ _ _)    = RAppTy mt et mempty 
+mkRAppTy _  et (RApp c [_] [] _) = RApp c [et] [] mempty 
+mkRAppTy _  _  _                 = panic Nothing $ "Unexpected return-pattern" 
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy
