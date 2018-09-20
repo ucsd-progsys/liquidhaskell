@@ -217,8 +217,8 @@ microTests = group "Micro"
   , testGroup "datacon-neg"    <$> dirTests "tests/datacon/neg"                    []                (ExitFailure 1)
   , testGroup "names-pos"      <$> dirTests "tests/names/pos"                      []                ExitSuccess
   , testGroup "names-neg"      <$> dirTests "tests/names/neg"                      []                (ExitFailure 1)
-  , testGroup "reflect-pos"    <$> dirTests "tests/reflect/pos"                     []                ExitSuccess
-  , testGroup "reflect-neg"    <$> dirTests "tests/reflect/neg"                  []                  (ExitFailure 1) 
+  , testGroup "reflect-pos"    <$> dirTests "tests/reflect/pos"                    []                ExitSuccess
+  , testGroup "reflect-neg"    <$> dirTests "tests/reflect/neg"                    []                (ExitFailure 1) 
   , testGroup "absref-pos"     <$> dirTests "tests/absref/pos"                     []                ExitSuccess
   , testGroup "absref-neg"     <$> dirTests "tests/absref/neg"                     []                (ExitFailure 1)
   , testGroup "import-lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
@@ -229,7 +229,7 @@ microTests = group "Micro"
   , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
   , testGroup "terminate-pos"  <$> dirTests "tests/terminate/pos"                  []                ExitSuccess
   , testGroup "terminate-neg"  <$> dirTests "tests/terminate/neg"                  []                (ExitFailure 1)
-  -- TODO-REBARE: THESE WORK with --no-pattern-inline , testGroup "pattern-pos"    <$> dirTests "tests/pattern/pos"                    []                ExitSuccess
+  , testGroup "pattern-pos"    <$> dirTests "tests/pattern/pos"                    []                ExitSuccess
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
