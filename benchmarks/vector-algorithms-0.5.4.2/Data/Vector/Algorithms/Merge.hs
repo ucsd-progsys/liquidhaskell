@@ -31,7 +31,11 @@ import Data.Vector.Algorithms.Common (Comparison, copyOffset, shiftRI)
 import qualified Data.Vector.Algorithms.Optimal   as O
 import qualified Data.Vector.Algorithms.Insertion as I
 
-{-@ qualif Plus(v:Int, x:Int, y:Int): v = x + y   @-}
+{- qualif Plus(v:Int, x:Int, y:Int): v = x + y   @-}
+
+{-@ qualif_plus :: x:Int -> y:Int -> {v:Int | v = x + y} @-}
+qualif_plus :: Int -> Int -> Int 
+qualif_plus = undefined 
 
 -- | Sorts an array using the default comparison.
 sort :: (PrimMonad m, MVector v e, Ord e) => v (PrimState m) e -> m ()

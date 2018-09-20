@@ -57,6 +57,7 @@ TERMINATION
     TerminationExprNum.hs:                    FAIL (0.83s)
     TerminationExprUnb.hs:                    FAIL (1.00s)
     ElabLocation.hs:                          FAIL (1.08s)
+
       Data/Text.hs:                           FAIL (5.00s)
       Data/Text/Foreign.hs:                   FAIL (2.56s)
       Data/Text/Array.hs:                     FAIL (0.74s)
@@ -73,6 +74,7 @@ TERMINATION
       Data/Text/Lazy/Fusion.hs:               FAIL (5.94s)
       Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
       Data/Text/Fusion/Size.hs:               FAIL (1.11s)
+
       Data/ByteString.hs:                     FAIL (6.43s)
       Data/ByteString.T.hs:                   FAIL (5.78s)
       Data/ByteString/Char8.hs:               FAIL (5.39s)
@@ -84,15 +86,18 @@ TERMINATION
       Data/ByteString/Lazy/Char8.hs:          FAIL (4.01s)
       Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
       Fib.hs:                                 FAIL (1.21s)
-      Data/Vector/Algorithms/Insertion.hs:    FAIL (0.51s)
-      Data/Vector/Algorithms/Radix.hs:        FAIL (0.51s)
-      Data/Vector/Algorithms/Intro.hs:        FAIL (0.49s)
-      Data/Vector/Algorithms/Combinators.hs:  FAIL (1.44s)
-      Data/Vector/Algorithms/Heap.hs:         FAIL (0.44s)
-      Data/Vector/Algorithms/Merge.hs:        FAIL (0.56s)
-      Data/Vector/Algorithms/Search.hs:       FAIL (0.73s)
-      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.45s)
-      Data/Vector/Algorithms/Optimal.hs:      FAIL (0.41s)
-      Data/Vector/Algorithms/Common.hs:       FAIL (1.20s)
-      Data/Vector/Algorithms/Termination.hs:  FAIL (0.52s)
-      DBMovies.hs:                            FAIL (1.00s)
+
+      Data/Vector/Algorithms/Radix.hs:        FAIL (1.58s)
+      Data/Vector/Algorithms/Common.hs:       FAIL (1.22s)
+      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.68s)
+      - Plugged / class / offset ?
+
+      Data/Vector/Algorithms/Merge.hs:        FAIL (17.80s)
+      - Hole left in FQ constraint? 
+
+      Data/Vector/Algorithms/Combinators.hs:  FAIL (1.19s)
+      - Illegal type specification for `Data.Vector.Generic.New.New` ?
+      - DELETING a bunch of imports solves the problem...
+
+
+

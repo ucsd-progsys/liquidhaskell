@@ -104,7 +104,7 @@ consAct cfg info = do
                     else return []
   let smap = if sflag then solveStrata scs else []
   let hcs' = if sflag then subsS smap hcs else hcs
-  fcs <- concat <$> mapM ppSplitC (subsS smap hcs')
+  fcs <- concat <$> mapM splitC (subsS smap hcs')
   fws <- concat <$> mapM splitW hws
   let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
@@ -115,8 +115,8 @@ consAct cfg info = do
                      , annotMap = annot' }
 
 
-ppSplitC :: SubC -> CG [FixSubC]
-ppSplitC c = do 
+_ppSplitC :: SubC -> CG [FixSubC]
+_ppSplitC c = do 
   cs <- splitC c 
   return $ F.tracepp ("splitC: " ++ F.showpp c) cs
 

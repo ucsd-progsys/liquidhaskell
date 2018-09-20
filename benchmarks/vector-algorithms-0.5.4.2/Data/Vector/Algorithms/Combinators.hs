@@ -26,10 +26,9 @@ import Control.Monad.ST
 
 import Data.Ord
 
-import Data.Vector.Generic
-
-import qualified Data.Vector.Generic.Mutable as M
-import qualified Data.Vector.Generic.New     as N
+-- import Data.Vector.Generic
+-- import qualified Data.Vector.Generic.Mutable as M
+-- import qualified Data.Vector.Generic.New     as N
 
 {-
 -- | Uses a function to compute a key for each element which the
