@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE PartialTypeSignatures, FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 
 -- ---------------------------------------------------------------------------
@@ -270,6 +270,9 @@ flagLoop :: (PrimMonad m, MVector v e)
 flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
+ go, go' :: Int -> _ -> Int -> Int -> _ 
+
+ {- lazy go @-}
  {-@ decrease go 3 4 @-}
   {- LIQUID WITNESS -}
  go pass v (d :: Int) (_ :: Int)
@@ -279,6 +282,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
           else go' pass v (mp-pass) 0
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
+ {- lazy go' @-}
  {-@ decrease go' 3 4 @-}
    {- LIQUID WITNESS -}
  go' pass v (d :: Int) (_ :: Int)

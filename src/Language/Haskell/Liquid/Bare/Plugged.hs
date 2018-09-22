@@ -21,11 +21,9 @@ import qualified Language.Haskell.Liquid.GHC.Misc  as GM
 import qualified Language.Haskell.Liquid.GHC.API   as Ghc 
 import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
 import           Language.Haskell.Liquid.Types
-
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import qualified Language.Haskell.Liquid.Bare.Types as Bare
 import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
--- import Language.Haskell.Liquid.Bare.Env
 
 ---------------------------------------------------------------------------------------
 -- [NOTE: Plug-Holes-TyVars] We have _two_ versions of `plugHoles:
@@ -177,12 +175,13 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
     coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'               = fmap (subts su') <$> ps
     cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
-    (αs,_,ls1,cs,rt)  = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,ls2,_,st)   = bkUnivClass st0
+    (αs,_,ls1,cs,rt)  = bkUnivClass (F.tracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,ls2,_ ,st)  = bkUnivClass (F.tracepp "lq-spec" st0)
+    msg i             = "plugHoles_old: " ++ F.showpp x ++ " " ++ i 
 
     makeCls cs t      = foldr (uncurry rFun) t cs
     err hsT lqT       = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
-                          (text "Plugged Init types")
+                          (text "Plugged Init types old")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))
@@ -208,7 +207,7 @@ plugHoles_new tce tyi x f t0 zz@(Loc l l' st0)
 
     makeCls cs t      = foldr (uncurry rFun) t cs
     err hsT lqT       = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
-                          (text "Plugged Init types")
+                          (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
                           (Just (hsT, lqT))

@@ -261,11 +261,6 @@ btP = do
          <|> return c)
 
 
--- _rFun' b t1 t2 = tracepp msg (rFun b t1 t2)
- -- where msg    = "RFUN: b = " ++ showpp b ++
-                -- " t1 = "     ++ showpp t1 ++
-                -- " t2 = "     ++ showpp t2
-
 compP :: Parser ParamComp
 compP = circleP <* whiteSpace <|> parens btP <?> "compP"
 

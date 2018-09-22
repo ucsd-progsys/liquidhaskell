@@ -187,8 +187,7 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = F.tracepp "SRC-THINGS"  
-              $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -238,7 +237,7 @@ srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat
   where 
     key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
     key _ i x  = (i, F.symbol x, {- dump s -} x) 
-    _dump msg x = fst . F.notracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
+    _dump msg x = fst . F.tracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
 
 dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
 dataConVars dcs = concat 
@@ -404,7 +403,7 @@ lookupGhcVar env name kind lx =
 --   See tests/names/LocalSpec.hs for a motivating example. 
 
 lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
-lookupLocalVar env lx gvs = F.tracepp msg $ Misc.findNearest lxn kvs
+lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
   where 
     msg                   = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
     kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env) 
@@ -417,7 +416,7 @@ lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon
 lookupGhcDataCon = strictResolveSym 
 
 lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
-lookupGhcTyCon env name k lx = F.notracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
+lookupGhcTyCon env name k lx = F.tracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
                              $ strictResolveSym env name k lx
 
 lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Ghc.TyCon
@@ -541,21 +540,22 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
     msg                    = "lookupTyThing: " ++ F.showpp (sym, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
-    mm name m mods           = F.notracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
+    mm name m mods         = F.tracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
                               matchMod env name m mods 
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
-lookupThings env x = F.notracepp ("lookupThings: " ++ F.showpp x) 
+lookupThings env x = F.tracepp ("lookupThings: " ++ F.showpp x) 
                    $ Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
   where 
     get z          = M.lookup z (_reTyThings env)
 
 matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
-matchMod env tgtName defName Nothing     
+matchMod env tgtName defName Nothing               -- Score UNQUALIFIED names 
   | defName == tgtName = [0]                       -- prioritize names defined in *this* module 
   | otherwise          = [matchImp env defName 1]  -- prioritize directly imported modules over 
                                                    -- names coming from elsewhere, with a 
-matchMod env tgtName defName (Just ms)   
+
+matchMod env tgtName defName (Just ms)             -- Score QUALIFIED names
   |  isEmptySymbol defName 
   && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
   | ms == [defName]    = [1]
@@ -568,14 +568,25 @@ symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env s = (x, glerb <$> modMb) 
   where 
     (modMb, x)      = unQualifySymbol s 
-    glerb m         = M.lookupDefault [m] m (reQualImps env) 
+    glerb m         = M.lookupDefault [m] m qImps 
+    qImps           = qiNames (reQualImps env)  
 
 -- | @matchImp@ lets us prioritize @TyThing@ defined in directly imported modules over 
---   those defined elsewhere.
+--   those defined elsewhere. Specifically, in decreasing order of priority we have 
+--   TyThings that we:
+--   * DIRECTLY     imported WITHOUT qualification 
+--   * TRANSITIVELY imported (e.g. were re-exported by SOME imported module)
+--   * QUALIFIED    imported (so qualify the symbol to get this result!) 
+ 
 matchImp :: Env -> F.Symbol -> Int -> Int 
 matchImp env defName i   
-  | S.member defName (reAllImps env) = i 
-  | otherwise                       = i + 1 
+  | isUnqualImport = i      
+  | isQualImport   = i + 2  
+  | otherwise      = i + 1  
+  where
+    isUnqualImport = S.member defName (reAllImps env) && not isQualImport 
+    isQualImport   = S.member defName (qiModules (reQualImps env))
+
 
 -- | `unQualifySymbol name sym` splits `sym` into a pair `(mod, rest)` where 
 --   `mod` is the name of the module, derived from `sym` if qualified.
@@ -883,9 +894,9 @@ resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
 ---------------------------------------------------------------------------------
 resolveLocalBinds env xts = topTs ++ replace locTs 
   where 
-    (locTs, topTs)        = F.tracepp "PARTITIONBINDS" $ partitionLocalBinds xts 
+    (locTs, topTs)        = partitionLocalBinds xts 
     replace               = M.toList . replaceSigs . M.fromList 
-    replaceSigs sigm      = F.tracepp "REPLACE-SIGS" $ coreVisitor replaceVisitor M.empty sigm cbs 
+    replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
     cbs                   = giCbs (reSrc env)
   
 replaceVisitor :: CoreVisitor SymMap SigMap 

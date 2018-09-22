@@ -439,13 +439,20 @@ allImports tm = case tm_renamed_source tm of
 
 qualifiedImports :: TypecheckedModule -> QImports 
 qualifiedImports tm = case tm_renamed_source tm of 
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
-  Just (_,imps,_,_) -> Misc.group [ (qn, n) | i         <- imps
-                                            , let decl   = unLoc i
-                                            , let m      = unLoc (ideclName decl)  
-                                            , qm        <- maybeToList (unLoc <$> ideclAs decl) 
-                                            , let [n,qn] = symbol <$> [m, qm] 
-                                            ]
+  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
+  Just (_,imps,_,_) -> qImports [ (qn, n) | i         <- imps
+                                          , let decl   = unLoc i
+                                          , let m      = unLoc (ideclName decl)  
+                                          , qm        <- maybeToList (unLoc <$> ideclAs decl) 
+                                          , let [n,qn] = symbol <$> [m, qm] 
+                                          ]
+
+qImports :: [(Symbol, Symbol)] -> QImports 
+qImports qns  = QImports 
+  { qiNames   = Misc.group qns 
+  , qiModules = S.fromList (snd <$> qns) 
+  }
+
 
 ---------------------------------------------------------------------------------------
 -- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC 

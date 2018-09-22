@@ -105,8 +105,7 @@ import qualified Data.Vector.Primitive.Mutable
   @-}
 
 {-@ Data.Vector.Primitive.Mutable.new 
-      :: (PrimMonad m, Data.Vector.Primitive.Mutable.Prim a) 
-      => nONKEY:Nat 
+      :: nONKEY:Nat 
       -> m {v: (Data.Vector.Primitive.Mutable.MVector (PrimState m) a) | (vsize v) = nONKEY}
   @-}
 

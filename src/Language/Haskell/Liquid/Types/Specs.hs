@@ -64,7 +64,10 @@ data GhcSrc = Src
   }
 
 -- | @QImports@ is a map of qualified imports.
-type QImports = M.HashMap F.Symbol [F.Symbol]
+data QImports = QImports 
+  { qiModules :: !(S.HashSet F.Symbol)            -- ^ All the modules that are imported qualified
+  , qiNames   :: !(M.HashMap F.Symbol [F.Symbol]) -- ^ Map from qualification to full module name
+  }
 
 data GhcSpec = SP 
   { gsSig    :: !GhcSpecSig  

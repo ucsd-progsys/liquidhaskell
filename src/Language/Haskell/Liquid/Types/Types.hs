@@ -1323,12 +1323,12 @@ bkUniv (RAllP π t) = let (αs, πs, ls, t') = bkUniv t in (αs, π:πs, ls, t')
 bkUniv (RAllS s t) = let (αs, πs, ss, t') = bkUniv t in (αs, πs, s:ss, t')
 bkUniv t           = ([], [], [], t)
 
-bkClass :: TyConable c => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
+bkClass :: (F.PPrint c, TyConable c) => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
 bkClass (RImpF _ (RApp c t _ _) t' _)
   | isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass (RFun _ (RApp c t _ _) t' _)
-  | isClass c
+  | F.tracepp ("IS-CLASS: " ++ F.showpp c) $ isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass (RRTy e r o t)
   = let (cs, t') = bkClass t in (cs, RRTy e r o t')
