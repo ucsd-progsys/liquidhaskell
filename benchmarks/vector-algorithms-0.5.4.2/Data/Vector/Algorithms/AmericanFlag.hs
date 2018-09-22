@@ -79,9 +79,22 @@ maxPasses :: Int
 maxPasses = undefined
 
 
-{-@ qualif MaxPasses(v:int, p:int): v = (maxPassesN - p) @-}
-{-@ qualif MaxPasses(v:int): v <= maxPassesN @-}
-{-@ qualif MaxPasses(v:int): v < maxPassesN  @-}
+{- qualif MaxPasses(v:int, p:int): v = (maxPassesN - p) @-}
+{- qualif MaxPasses(v:int): v <= maxPassesN @-}
+{- qualif MaxPasses(v:int): v < maxPassesN  @-}
+
+{-@ qualif_MaxPasses1 :: p:_ -> {v:_ | v = (maxPassesN - p) }  @-}
+qualif_MaxPasses1 :: Int -> Int
+qualif_MaxPasses1 = undefined 
+
+{-@ qualif_MaxPasses2 :: _ -> {v:_ | v <= maxPassesN }  @-}
+qualif_MaxPasses2 :: () -> Int  
+qualif_MaxPasses2 = undefined 
+
+{-@ qualif_MaxPasses3 :: _ -> {v:_ | v < maxPassesN }  @-}
+qualif_MaxPasses3 :: () -> Int  
+qualif_MaxPasses3 = undefined 
+
 
 
 instance Lexicographic Word8 where
