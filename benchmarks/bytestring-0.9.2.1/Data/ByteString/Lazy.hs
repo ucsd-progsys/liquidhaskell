@@ -383,10 +383,13 @@ instance Eq  ByteString
 instance Ord ByteString
     where compare = cmp
 
+instance Semigroup ByteString where   -- REBARE 
+  x <> y = append x y                 -- REBARE
+
 instance Monoid ByteString where
     mempty  = empty
-    mappend = append
-    mconcat = concat
+    -- REBARE mappend = append
+    -- REBARE mconcat = concat
 
 {-@ eq :: ByteString -> ByteString -> Bool @-}
 eq :: ByteString -> ByteString -> Bool

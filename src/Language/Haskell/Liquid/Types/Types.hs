@@ -1217,6 +1217,7 @@ data RTAlias x a = RTA
   , rtTArgs :: [x]                -- ^ type parameters
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
+  -- , rtMod   :: !ModName           -- ^ module where alias was defined
   } deriving (Data, Typeable, Generic, Functor)
 -- TODO support ghosts in aliases?
 
@@ -1893,10 +1894,13 @@ instance NFData Cinfo
 --------------------------------------------------------------------------------
 
 data ModName = ModName !ModType !ModuleName 
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic, Data, Typeable)
 
 data ModType = Target | SrcImport | SpecImport 
-  deriving (Eq, Ord, Show, Generic)
+  deriving (Eq, Ord, Show, Generic, Data, Typeable)
+
+-- instance B.Binary ModType 
+-- instance B.Binary ModName 
 
 instance Hashable ModType 
 

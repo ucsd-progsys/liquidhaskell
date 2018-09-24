@@ -61,7 +61,6 @@ import qualified Text.PrettyPrint.HughesPJ         as PJ
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Types.Visitor       as F 
 import qualified Language.Fixpoint.Misc                as Misc 
-
 import qualified Language.Haskell.Liquid.GHC.API       as Ghc 
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.Misc          as Misc 
@@ -72,6 +71,9 @@ import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
 import           Language.Haskell.Liquid.WiredIn 
+
+myTracepp :: (F.PPrint a) => String -> a -> a
+myTracepp = F.tracepp 
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -187,7 +189,8 @@ isEmptySymbol :: F.Symbol -> Bool
 isEmptySymbol x = F.lengthSym x == 0 
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+srcThings src = myTracepp "SRCTHINGS" 
+              $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -237,13 +240,14 @@ srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat
   where 
     key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
     key _ i x  = (i, F.symbol x, {- dump s -} x) 
-    _dump msg x = fst . F.tracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
+    _dump msg x = fst . myTracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
 
 dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
 dataConVars dcs = concat 
   [ Ghc.dataConWorkId <$> dcs 
   , Ghc.dataConWrapId <$> dcs 
   ] 
+
 -------------------------------------------------------------------------------
 -- | Qualify various names 
 -------------------------------------------------------------------------------
@@ -266,8 +270,7 @@ instance Qualify F.Equation where
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify env name bs x = F.notracepp ("qualifySymbol: " ++ F.showpp x) $ 
-                            qualifySymbol env name bs x 
+  qualify env name bs x = qualifySymbol env name bs x 
 
 qualifySymbol :: Env -> ModName -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
 qualifySymbol env name bs x
@@ -362,7 +365,7 @@ instance Qualify F.Expr where
   qualify = substEnv 
 
 instance Qualify RReft where 
-  qualify = substEnv 
+  qualify = substEnv
 
 instance Qualify F.Qualifier where 
   qualify env name bs q = q { F.qBody = qualify env name bs' (F.qBody q) } 
@@ -416,8 +419,8 @@ lookupGhcDataCon :: Env -> ModName -> String -> LocSymbol -> Ghc.DataCon
 lookupGhcDataCon = strictResolveSym 
 
 lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
-lookupGhcTyCon env name k lx = F.tracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
-                             $ strictResolveSym env name k lx
+lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
+                               $ strictResolveSym env name k lx
 
 lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Ghc.TyCon
 lookupGhcDnTyCon env name msg (DnCon  s) = lookupGhcDnCon env name msg s
@@ -434,7 +437,7 @@ lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
 knownGhcType :: Env ->  ModName -> LocBareType -> Bool
 knownGhcType env name (F.Loc l _ t) = 
   case ofBareTypeE env name l Nothing t of 
-    Left e  -> F.notracepp ("knownType: " ++ F.showpp (t, e)) $ False 
+    Left e  -> myTracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
 _rTypeTyCons :: (Ord c) => RType c tv r -> [c]
@@ -449,11 +452,11 @@ knownGhcVar :: Env -> ModName -> LocSymbol -> Bool
 knownGhcVar env name lx = Mb.isJust v 
   where 
     v :: Maybe Ghc.Var -- This annotation is crucial
-    v = F.notracepp ("knownGhcVar " ++ F.showpp lx) 
+    v = myTracepp ("knownGhcVar " ++ F.showpp lx) 
       $ maybeResolveSym env name "known-var" lx 
 
 knownGhcTyCon :: Env -> ModName -> LocSymbol -> Bool 
-knownGhcTyCon env name lx = F.notracepp  msg $ Mb.isJust v 
+knownGhcTyCon env name lx = myTracepp  msg $ Mb.isJust v 
   where 
     msg = ("knownGhcTyCon: "  ++ F.showpp lx)
     v :: Maybe Ghc.TyCon -- This annotation is crucial
@@ -463,7 +466,7 @@ knownGhcDataCon :: Env -> ModName -> LocSymbol -> Bool
 knownGhcDataCon env name lx = Mb.isJust v 
   where 
     v :: Maybe Ghc.DataCon -- This annotation is crucial
-    v = F.notracepp ("knownGhcDataCon" ++ F.showpp lx) 
+    v = myTracepp ("knownGhcDataCon" ++ F.showpp lx) 
       $ maybeResolveSym env name "known-datacon" lx 
 
 -------------------------------------------------------------------------------
@@ -519,7 +522,7 @@ resolveWith kind f env name str lx =
   where 
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = F.tracepp msg $ lookupTyThing env name (val lx) 
+    things = myTracepp msg $ lookupTyThing env name (val lx) 
     msg    = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
@@ -536,15 +539,15 @@ lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of
                                []       -> []
   where 
     matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
-                                           , k      <- F.tracepp msg $ mm nameSym m mods ]
+                                           , k      <- myTracepp msg $ mm nameSym m mods ]
     msg                    = "lookupTyThing: " ++ F.showpp (sym, x, mods)
     (x, mods)              = symbolModules env sym
     nameSym                = F.symbol name
-    mm name m mods         = F.tracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
+    mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
                               matchMod env name m mods 
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
-lookupThings env x = F.tracepp ("lookupThings: " ++ F.showpp x) 
+lookupThings env x = myTracepp ("lookupThings: " ++ F.showpp x) 
                    $ Misc.fromFirstMaybes [] (get <$> [x, GM.stripParensSym x])
   where 
     get z          = M.lookup z (_reTyThings env)
