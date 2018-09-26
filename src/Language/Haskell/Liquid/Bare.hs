@@ -74,17 +74,29 @@ import           Language.Haskell.Liquid.Bare.ToBare
 -- | De/Serializing Spec files -------------------------------------------------
 --------------------------------------------------------------------------------
 
-loadLiftedSpec :: Config -> FilePath -> IO Ms.BareSpec
+loadLiftedSpec :: Config -> FilePath -> IO (Maybe Ms.BareSpec)
 loadLiftedSpec cfg srcF
-  | noLiftedImport cfg = return mempty
+  | noLiftedImport cfg = return Nothing 
   | otherwise          = do
       let specF = extFileName BinSpec srcF
       ex  <- doesFileExist specF
-      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ show ex
-      lSp <- if ex then B.decodeFile specF else return mempty
-      putStrLn $ "Loaded Spec: " ++ showpp (Ms.asmSigs lSp)
-      -- putStrLn $ "Loaded Spec: " ++ showpp (Ms.invariants lSp)
+      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
+      lSp <- if ex 
+               then Just <$> B.decodeFile specF 
+               else Ex.throw (errMissingSpec srcF specF) 
+               -- (warnMissingLiftedSpec srcF >> return Nothing)
       return lSp
+
+errMissingSpec :: FilePath -> FilePath -> UserError 
+errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
+
+warnMissingLiftedSpec :: FilePath -> IO () 
+warnMissingLiftedSpec srcF = 
+  putStrLn . render
+  $ "WARNING:" <+> vcat 
+    [ "Cannot find .bspec file for the imported source" <+> text srcF 
+    , "Please run 'liquid' on the source first." 
+    ] 
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
@@ -146,7 +158,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsName   = makeSpecName env tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env   name sig rtEnv  
-  , gsLSpec  = makeLiftedSpec refl sData lSpec1 
+  , gsLSpec  = makeLiftedSpec   src refl sData sig lSpec1 
   }
   where
     -- build up spec components 
@@ -298,25 +310,15 @@ postProcess cbs specEnv sp@(SP {..})
 --------------------------------------------------------------------------------
 makeLiftedSpec1 :: Config -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec 
                 -> Ms.BareSpec
-makeLiftedSpec1 _cfg src tycEnv lmap mySpec = mempty
-            { Ms.measures  = ms
-            -- , Ms.reflects  = Ms.reflects mySpec                              [REBARE: moved to makeLiftedSpec0]
-            -- , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs   [REBARE: moved to makeLifedtSpec0]
-            }
-  where 
-    ms      = Bare.makeHaskellMeasures src tycEnv lmap mySpec
-    -- embs    = Bare.tcEmbs tycEnv 
-    -- tcs     = uniqNub (gsTcs src ++ refTcs)
-    -- refTcs  = reflectedTyCons cfg embs cbs             mySpec
-    -- cbs     = giCbs       src
-    -- name    = giTargetMod src
+makeLiftedSpec1 _ src tycEnv lmap mySpec = mempty
+  { Ms.measures  = Bare.makeHaskellMeasures src tycEnv lmap mySpec }
 
 --------------------------------------------------------------------------------
 -- | [NOTE]: LIFTING-STAGES 
 -- 
 -- We split the lifting up into stage:
 -- 0. Where we only lift inlines,
--- 1. Where we lift reflects and measures.
+-- 1. Where we lift reflects, measures, and normalized tySigs
 -- 
 -- This is because we need the inlines to build the @BareRTEnv@ which then
 -- does the alias @expand@ business, that in turn, lets us build the DataConP,
@@ -1028,23 +1030,32 @@ checkMeasure m = F.tracepp msg m
   where 
     msg         = "CHECK-MEASURES: " ++ F.showpp syms
     syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
+
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 
 --   so that downstream files that import this target can access the lifted definitions, 
 --   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
-makeLiftedSpec :: GhcSpecRefl -> GhcSpecData -> Ms.BareSpec -> Ms.BareSpec 
+makeLiftedSpec :: GhcSrc -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec refl sData lSpec0 
-  = lSpec0 { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
-           , Ms.reflSigs   = F.notracepp "REFL-SIGS" xbs
-           , Ms.axeqs      = gsMyAxioms refl 
-           , Ms.invariants = xinvs
-           }
+makeLiftedSpec src refl sData sig lSpec0 = lSpec0 
+  { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
+  , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
+  , Ms.sigs       = F.tracepp   "LIFTED-SIGS" 
+                    [ (varLocSym x, Bare.specToBare <$> t) 
+                       | (x, t) <- gsTySigs sig
+                       , S.member x defVars 
+                    ] 
+  , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
+                       | (x, t) <- gsInvariants sData 
+                    ]
+  , Ms.axeqs      = gsMyAxioms refl 
+  }
   where 
-    xbs    = [ (varLocSym x       , Bare.specToBare <$> t) | (x, t, _) <- gsHAxioms refl     ]
-    xinvs  = [ ((varLocSym <$> x) , Bare.specToBare <$> t) | (x, t)    <- gsInvariants sData ]
+    xbs           = [ (varLocSym x       , Bare.specToBare <$> t) | (x, t, _) <- gsHAxioms    refl  ]
+    defVars       = S.fromList (giDefVars src)
 
+             
 varLocSym :: Ghc.Var -> LocSymbol
 varLocSym v = F.symbol <$> GM.locNamedThing v
 

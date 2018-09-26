@@ -15,8 +15,8 @@ instance Compare Int where
 	cmax :: Odd -> Odd -> Odd ;
 	cmin :: Int -> Int -> Odd
     @-}
-	cmax y x = if x >= y then x else y
-  	cmin y x = if x >= y then x else y
+  cmax y x = if x >= y then x else y
+  cmin y x = if x >= y then x else y
 
 -- | creates dictionary environment:
 -- | * add the following environment

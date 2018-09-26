@@ -1931,7 +1931,7 @@ sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
 -- | /O(n) construction/ Use a @ByteString@ with a function requiring a
 -- null-terminated @CString@.  The @CString@ will be freed
 -- automatically. This is a memcpy(3).
-{-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
+{-@ useAsCString :: p:_ -> ({v:_ | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
 useAsCString :: ByteString -> (CString -> IO a) -> IO a
 useAsCString (PS fp o l) action = do
  allocaBytes (l+1) $ \buf ->
@@ -1942,7 +1942,7 @@ useAsCString (PS fp o l) action = do
 
 -- | /O(n) construction/ Use a @ByteString@ with a function requiring a @CStringLen@.
 -- As for @useAsCString@ this function makes a copy of the original @ByteString@.
-{-@ useAsCStringLen :: b:ByteString -> ({v:CStringLen | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
+{-@ useAsCStringLen :: b:_ -> ({v:_ | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
 useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
 useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
 
@@ -1953,7 +1953,7 @@ useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
 -- @CString@, and is managed on the Haskell heap. The original
 -- @CString@ must be null terminated.
 
-{-@ packCString :: c:CString -> IO {v:ByteString | (bLength v) = (plen c)} @-}
+{-@ packCString :: c:_ -> IO {v:_ | (bLength v) = (plen c)} @-}
 packCString :: CString -> IO ByteString
 packCString cstr = do
     len <- c_strlen cstr
@@ -1963,7 +1963,7 @@ packCString cstr = do
 -- resulting @ByteString@ is an immutable copy of the original @CStringLen@.
 -- The @ByteString@ is a normal Haskell value and will be managed on the
 -- Haskell heap.
-{-@ packCStringLen :: c:CStringLen -> (IO {v:ByteString | (bLength v) = (cStringLen c)}) @-}
+{-@ packCStringLen :: c:_ -> (IO {v:_ | (bLength v) = (cStringLen c)}) @-}
 packCStringLen :: CStringLen -> IO ByteString
 packCStringLen (cstr, len) = create len $ \p ->
     memcpy p (castPtr cstr) (fromIntegral len)

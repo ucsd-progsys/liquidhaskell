@@ -1,3 +1,35 @@
+
+## NameClash 
+
+```
+module LibRed where 
+
+data Thing = ThingRed Int 
+
+{-@ foo :: Int -> Thing @-}
+foo :: Int -> Thing 
+foo = ThingRed 
+
+module LibBlue where 
+
+data Thing = ThingBlue Int 
+
+{-@ foo :: Int -> Thing @-}
+foo :: Int -> Thing 
+foo = ThingBlue 
+
+module Client where 
+
+import           ThingBlue 
+import qualified ThingRed as R 
+
+bar = R.foo
+```
+
+
+
+
+
 ## FAILING TESTS for TODO-REBARE 
 
 - tests/pattern/*.hs
@@ -96,6 +128,3 @@ TERMINATION
       Data/Vector/Algorithms/Combinators.hs:  FAIL (1.19s)
       - Illegal type specification for `Data.Vector.Generic.New.New` ?
       - DELETING a bunch of imports solves the problem...
-
-
-

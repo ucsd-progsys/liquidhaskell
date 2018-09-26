@@ -460,14 +460,14 @@ unpack cs = L.concat $ mapINLINE $ toChunks cs
 --TODO: we can do better here by integrating the concat with the unpack
 
 -- | /O(c)/ Convert a list of strict 'ByteString' into a lazy 'ByteString'
-{-@ fromChunks :: bs:[S.ByteString] -> {v:ByteString | (lbLength v) = (bLengths bs)} @-}
+{-@ fromChunks :: bs:_ -> {v:_ | (lbLength v) = (bLengths bs)} @-}
 fromChunks :: [S.ByteString] -> ByteString
 --LIQUID INLINE fromChunks cs = L.foldr chunk Empty cs
 fromChunks []     = Empty
 fromChunks (c:cs) = chunk c (fromChunks cs)
 
 -- | /O(n)/ Convert a lazy 'ByteString' into a list of strict 'ByteString'
-{-@ toChunks :: b:ByteString -> {v:[S.ByteString] | (bLengths v) = (lbLength b)} @-}
+{-@ toChunks :: b:_ -> {v:_ | (bLengths v) = (lbLength b)} @-}
 toChunks :: ByteString -> [S.ByteString]
 --LIQUID GHOST toChunks cs = foldrChunks (:) [] cs
 toChunks cs = foldrChunks (const (:)) [] cs
@@ -1666,7 +1666,7 @@ revNonEmptyChunks cs = go Empty cs
           go acc (c:cs) = go (Chunk c acc) cs
 
 -- reverse a list of possibly-empty chunks into a lazy ByteString
-{-@ revChunks :: bs:[S.ByteString] -> {v:ByteString | (lbLength v) = (bLengths bs)} @-}
+{-@ revChunks :: bs:_ -> {v:_ | (lbLength v) = (bLengths bs)} @-}
 revChunks :: [S.ByteString] -> ByteString
 --LIQUID INLINE revChunks cs = L.foldl' (flip chunk) Empty cs
 revChunks cs = go Empty cs

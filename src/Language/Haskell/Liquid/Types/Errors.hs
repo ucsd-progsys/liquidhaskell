@@ -402,10 +402,15 @@ data TError t =
                 , msg :: !Doc
                 }
 
+  | ErrNoSpec   { pos  :: !SrcSpan 
+                , srcF :: !Doc 
+                , bspF :: !Doc
+                }
+
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
-
+  
   deriving (Typeable, Generic , Functor )
 
 errDupSpecs :: Doc -> Misc.ListNE SrcSpan -> TError t
@@ -677,6 +682,7 @@ hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
     go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
     go (ErrBadGADT {})  = Just "Use the hole '_' to specify the type of the constructor" 
     go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
+    go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
     go _                = Nothing 
 
 --------------------------------------------------------------------------------
@@ -714,7 +720,7 @@ ppError' _ dSp dCtx (ErrParse _ _ e)
         $+$ dCtx
         $+$ (nest 4 $ pprint e)
 
-ppError' _ dSp dCtx (ErrTySpec _ k v t s)
+ppError' _ dSp dCtx (ErrTySpec _ _k v t s)
   = dSp <+> ("Illegal type specification for" <+> ppTicks v) --  <-> ppKind k <-> ppTicks v)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
@@ -888,6 +894,14 @@ ppError' _ dSp dCtx (ErrFilePragma _)
   = dSp <+> text "Illegal pragma"
         $+$ dCtx
         $+$ text "--idirs, --c-files, and --ghc-option cannot be used in file-level pragmas"
+
+ppError' _ _ _ err@(ErrNoSpec _ srcF bspecF)
+  =   vcat [ text "Cannot find .bspec file "
+           , nest 4 bspecF 
+           , text "for the source file "
+           , nest 4 srcF 
+           , hint err 
+           ]
 
 ppError' _ dSp dCtx (ErrOther _ s)
   = dSp <+> text "Uh oh."
