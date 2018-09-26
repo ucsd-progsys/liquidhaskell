@@ -83,8 +83,8 @@ loadLiftedSpec cfg srcF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
-               else Ex.throw (errMissingSpec srcF specF) 
-               -- (warnMissingLiftedSpec srcF >> return Nothing)
+               else (warnMissingLiftedSpec srcF >> return Nothing)
+               -- Ex.throw (errMissingSpec srcF specF) 
       return lSp
 
 errMissingSpec :: FilePath -> FilePath -> UserError 
