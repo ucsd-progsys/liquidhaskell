@@ -122,10 +122,10 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ condNull noPrune
                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      (gsData sp)))
                      ++ mapMaybe (checkBind allowHO "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     ++ checkTySigs         allowHO cbs            emb tcEnv env  (gsTySigs     (gsSig sp))
+                     ++ checkTySigs         allowHO cbs            emb tcEnv env                (gsSig sp)
+                     -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
-                     ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
@@ -158,15 +158,21 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
 
 --------------------------------------------------------------------------------
 checkTySigs :: Bool -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
-            -> [(Var, LocSpecType)] -> [Error]
+            -> GhcSpecSig
+            -> [Error]
 --------------------------------------------------------------------------------
-checkTySigs allowHO cbs emb tcEnv env vts 
-                   =  mapMaybe   (check env)          topTs 
-                   ++ coreVisitor checkVisitor env [] cbs 
+checkTySigs allowHO cbs emb tcEnv env sig
+                   = concatMap (check env) topTs
+                   -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
+                   -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
+                   -- ++ (coreVisitor checkVisitor env [] cbs) 
   where 
-    check          = checkBind allowHO empty emb tcEnv  
-    (locTs, topTs) = Bare.partitionLocalBinds vts 
+    check          = checkSigTExpr allowHO emb tcEnv
     locTm          = M.fromList locTs
+    (locTs, topTs) = Bare.partitionLocalBinds vtes 
+    vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
+    vExprs         = M.fromList  [ (x, es) | (x, _, es) <- gsTexprs sig ] 
+
     checkVisitor  :: CoreVisitor (F.SEnv F.SortedReft) [Error]
     checkVisitor   = CoreVisitor 
                        { envF  = \env v     -> F.insertSEnv (F.symbol v) (vSort v) env 
@@ -176,7 +182,16 @@ checkTySigs allowHO cbs emb tcEnv env vts
     vSort            = Bare.varSortedReft emb
     errs env v       = case M.lookup v locTm of 
                          Nothing -> [] 
-                         Just t  -> maybeToList (check env (v, t)) 
+                         Just t  -> check env (v, t) 
+
+checkSigTExpr :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
+              -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
+              -> [Error]
+checkSigTExpr allowHO emb tcEnv env (x, (t, es)) 
+           = catMaybes [mbErr1, mbErr2] 
+   where 
+    mbErr1 = checkBind allowHO empty emb tcEnv env (x, t) 
+    mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
 
 
 checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
@@ -278,12 +293,14 @@ checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
 
 checkTerminationExpr :: (Eq v, PPrint v) => F.TCEmb TyCon -> F.SEnv F.SortedReft -> (v, LocSpecType, [F.Located F.Expr]) -> Maybe Error
 checkTerminationExpr emb env (v, Loc l _ t, les)
-            = (mkErr <$> go les) <|> (mkErr' <$> go' les)
+            = (mkErr "ill-sorted" <$> go les) <|> (mkErr "non-numeric" <$> go' les)
   where
     -- es      = val <$> les
-    mkErr   = uncurry (ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ))
-    mkErr'  = uncurry (ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric"))
-    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (val e))           Nothing
+    mkErr k = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e t d)
+    -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
+    -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
+
+    go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (val e))     Nothing
     go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (cmpZero e)) Nothing
     env'    = F.sr_sort <$> L.foldl' (\e (x,s) -> F.insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)

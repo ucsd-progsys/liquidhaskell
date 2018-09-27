@@ -424,21 +424,22 @@ makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig
     asmSigs    = Bare.tcSelVars tycEnv 
               ++ makeAsmSigs env sigEnv name specs 
     tySigs     = strengthenSigs . concat $
-                  [ [(v, t) | (v, t,_) <- mySigs ]
-                  , makeInlSigs env rtEnv allSpecs 
-                  , makeMsrSigs env rtEnv allSpecs 
-                  , makeMthSigs                 measEnv 
-                  ]
+                  [ [(v, (0, t)) | (v, t,_) <- mySigs                         ]   -- NOTE: these weights are to priortize 
+                  , [(v, (1, t)) | (v, t  ) <- makeMthSigs measEnv            ]   -- user defined sigs OVER auto-generated 
+                  , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP 
+                  , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs 
+                  ]                                                               -- as they appear in termination metrics
     mySigs     = makeTySigs  env sigEnv name mySpec
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
     -- hmeas      = makeHMeas    env allSpecs 
 
-strengthenSigs :: [(Ghc.Var, LocSpecType)] ->[(Ghc.Var, LocSpecType)]
+strengthenSigs :: [(Ghc.Var, (Int, LocSpecType))] ->[(Ghc.Var, LocSpecType)]
 strengthenSigs sigs = go <$> Misc.groupList sigs 
   where
-    go (v, xs)      = (v,) $ L.foldl1' (flip meetLoc) xs
-    meetLoc :: LocSpecType -> LocSpecType -> LocSpecType
+    go (v, ixs)     = (v,) $ L.foldl1' (flip meetLoc) (F.tracepp ("STRENGTHEN-SIGS: " ++ F.showpp v) (prio ixs))
+    prio            = fmap snd . Misc.sortOn fst 
+    meetLoc         :: LocSpecType -> LocSpecType -> LocSpecType
     meetLoc t1 t2   = t1 {val = val t1 `F.meet` val t2}
 
 makeMthSigs :: Bare.MeasEnv -> [(Ghc.Var, LocSpecType)]

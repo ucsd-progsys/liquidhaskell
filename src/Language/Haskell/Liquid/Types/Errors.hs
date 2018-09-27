@@ -235,6 +235,7 @@ data TError t =
                 , var  :: !Doc
                 , msg  :: !Doc
                 , exp  :: !Expr
+                , typ  :: !t
                 , msg' :: !Doc
                 } -- ^ sort error in specification
 
@@ -756,10 +757,11 @@ ppError' _ dSp dCtx (ErrBadQual _ n d)
         $+$ dCtx
         $+$ pprint d
 
-ppError' _ dSp dCtx (ErrTermSpec _ v msg e s)
+ppError' _ dSp dCtx (ErrTermSpec _ v msg e t s)
   = dSp <+> text "Illegal termination specification for" <+> ppTicks v
         $+$ dCtx
-        $+$ (nest 4 $ ((text "Termination metric" <+> ppTicks e <+> text "is" <+> msg)
+        $+$ (nest 4 $ ((text "Termination metric" <+> ppTicks e <+> text "is" <+> msg <+> "in type signature")
+                        $+$ nest 4 (pprint t)
                         $+$ pprint s))
 
 ppError' _ dSp _ (ErrInvt _ t s)
