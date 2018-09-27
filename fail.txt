@@ -1,35 +1,4 @@
 
-## NameClash 
-
-```
-module LibRed where 
-
-data Thing = ThingRed Int 
-
-{-@ foo :: Int -> Thing @-}
-foo :: Int -> Thing 
-foo = ThingRed 
-
-module LibBlue where 
-
-data Thing = ThingBlue Int 
-
-{-@ foo :: Int -> Thing @-}
-foo :: Int -> Thing 
-foo = ThingBlue 
-
-module Client where 
-
-import           ThingBlue 
-import qualified ThingRed as R 
-
-bar = R.foo
-```
-
-
-
-
-
 ## FAILING TESTS for TODO-REBARE 
 
 - tests/pattern/*.hs
@@ -107,6 +76,8 @@ TERMINATION
       Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
       Data/Text/Fusion/Size.hs:               FAIL (1.11s)
 
+      + Data/ByteString/Internal.hs:            FAIL (2.48s)
+      + Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
       Data/ByteString.hs:                     FAIL (6.43s)
       Data/ByteString.T.hs:                   FAIL (5.78s)
       Data/ByteString/Char8.hs:               FAIL (5.39s)
@@ -114,9 +85,9 @@ TERMINATION
       Data/ByteString/Fusion.hs:              FAIL (2.16s)
       Data/ByteString/Fusion.T.hs:            FAIL (2.44s)
       Data/ByteString/Lazy.hs:                FAIL (4.44s)
-      Data/ByteString/Internal.hs:            FAIL (2.48s)
       Data/ByteString/Lazy/Char8.hs:          FAIL (4.01s)
-      -- Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
+        ? Error: Unknown data constructor `Chunk` from imported D.B.L.Internal 
+
       Fib.hs:                                 FAIL (1.21s)
 
       Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.68s)

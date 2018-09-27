@@ -66,20 +66,27 @@ loadLiftedSpec cfg srcF
       -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
-               else (warnMissingLiftedSpec srcF >> return Nothing)
-               -- Ex.throw (errMissingSpec srcF specF) 
+               else (warnMissingLiftedSpec srcF specF >> return Nothing)
       return lSp
 
 errMissingSpec :: FilePath -> FilePath -> UserError 
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
 
-warnMissingLiftedSpec :: FilePath -> IO () 
-warnMissingLiftedSpec srcF = 
-  putStrLn . render
-  $ "WARNING:" <+> vcat 
-    [ "Cannot find .bspec file for the imported source" <+> text srcF 
-    , "Please run 'liquid' on the source first." 
-    ] 
+warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
+warnMissingLiftedSpec srcF specF = do 
+  inc <- Misc.isIncludeFile srcF 
+  if inc
+    then return () 
+    else Ex.throw (errMissingSpec srcF specF) 
+{- 
+      putStrLn . render
+         $ "WARNING:" <+> vcat 
+           [ "Cannot find .bspec file for the imported source" <+> text srcF 
+           , "Please run 'liquid' on the source first." 
+           ] 
+-}
+
+
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
@@ -140,13 +147,14 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsData   = sData 
   , gsName   = makeSpecName env tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg     mySpec env   name sig rtEnv  
-  , gsLSpec  = makeLiftedSpec   src refl sData sig lSpec1 
+  , gsTerm   = makeSpecTerm cfg     mySpec env   name    
+  , gsLSpec  = makeLiftedSpec   src env refl sData sig myRTE lSpec1 
   }
   where
     -- build up spec components 
-    sData    = makeSpecData src env sigEnv measEnv sig specs 
-    refl     = makeSpecRefl src specs env name sig tycEnv 
+    myRTE    = myRTEnv       src env sigEnv rtEnv  
+    sData    = makeSpecData  src env sigEnv measEnv sig specs 
+    refl     = makeSpecRefl  src specs env name sig tycEnv 
     sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv 
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     -- build up environments
@@ -290,7 +298,7 @@ makeSpecQual :: Config -> Bare.Env -> BareRTEnv -> Bare.MeasEnv -> Bare.ModSpecs
 ------------------------------------------------------------------------------------------
 makeSpecQual _cfg env rtEnv measEnv specs = SpQual 
   { gsQualifiers = filter okQual quals 
-  , gsRTAliases  = makeSpecRTAliases env rtEnv 
+  , gsRTAliases  = makeSpecRTAliases env rtEnv -- TODO-REBARE
   } 
   where 
     quals        = concatMap (makeQualifiers env) (M.toList specs) 
@@ -303,21 +311,14 @@ makeSpecQual _cfg env rtEnv measEnv specs = SpQual
                    ++ (fst <$> Bare.meClassSyms measEnv)
 
 
-makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
-makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
--- REBARE: toSpec . M.elems . typeAliases
--- REBARE: where toSpec = BareRTAlias -> SpecRTAlias 
--- REBARE: specAliases :: GhcInfo -> [Located BareRTAlias]
--- REBARE: specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
 
 makeQualifiers :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
 makeQualifiers env (mod, spec) = Bare.qualifyTop env mod <$> Ms.qualifiers spec 
 
 ------------------------------------------------------------------------------------------
-makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecSig -> BareRTEnv 
-             -> GhcSpecTerm 
+makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
 ------------------------------------------------------------------------------------------
-makeSpecTerm cfg mySpec env name sig rtEnv = SpTerm 
+makeSpecTerm cfg mySpec env name = SpTerm 
   { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
   , gsStTerm     = sizes
   , gsAutosize   = autos 
@@ -827,9 +828,10 @@ checkMeasure m = F.tracepp msg m
 --   so that downstream files that import this target can access the lifted definitions, 
 --   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
-makeLiftedSpec :: GhcSrc -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> Ms.BareSpec -> Ms.BareSpec 
+makeLiftedSpec :: GhcSrc -> Bare.Env -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> BareRTEnv 
+               -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec src refl sData sig lSpec0 = lSpec0 
+makeLiftedSpec src env refl sData sig myRTE lSpec0 = lSpec0 
   { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
   , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   [ toBare (x, t) | (x, t) <- gsTySigs sig
@@ -839,6 +841,8 @@ makeLiftedSpec src refl sData sig lSpec0 = lSpec0
                        | (x, t) <- gsInvariants sData 
                     ]
   , Ms.axeqs      = gsMyAxioms refl 
+  , Ms.aliases    = F.tracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
+  , Ms.ealiases   = M.elems . exprAliases $ myRTE 
   }
   where
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
@@ -847,8 +851,59 @@ makeLiftedSpec src refl sData sig lSpec0 = lSpec0
     defVars       = S.fromList (giDefVars src)
     reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl]
     reflVars      = S.fromList (fst <$> reflTySigs)
-             
+    myAliases fld = M.elems . fld $ myRTE 
+    srcF          = giTarget src 
+
+isLocInFile :: FilePath -> F.Located a ->  Bool 
+isLocInFile f lx = f == lf 
+  where 
+    (lf, _, _)   = F.sourcePosElts (F.loc lx) 
+
 varLocSym :: Ghc.Var -> LocSymbol
 varLocSym v = F.symbol <$> GM.locNamedThing v
+
+
+makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
+makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
+-- REBARE: toSpec . M.elems . typeAliases
+-- REBARE: where toSpec = BareRTAlias -> SpecRTAlias 
+-- REBARE: specAliases :: GhcInfo -> [Located BareRTAlias]
+-- REBARE: specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
+
+--------------------------------------------------------------------------------
+-- | @myRTEnv@ slices out the part of RTEnv that was generated by aliases defined 
+--   in the _target_ file, "cooks" the aliases (by conversion to SpecType), and 
+--   then saves them back as BareType.
+--------------------------------------------------------------------------------
+myRTEnv :: GhcSrc -> Bare.Env -> Bare.SigEnv -> BareRTEnv -> BareRTEnv 
+myRTEnv src env sigEnv rtEnv = mkRTE tAs' eAs 
+  where 
+    tAs'                     = normalizeBareAlias env sigEnv name <$> tAs
+    tAs                      = myAliases typeAliases 
+    eAs                      = myAliases exprAliases 
+    myAliases fld            = filter (isLocInFile srcF) . M.elems . fld $ rtEnv 
+    srcF                     = giTarget    src
+    name                     = giTargetMod src
+  
+mkRTE :: [Located (RTAlias x a)] -> [Located (RTAlias F.Symbol F.Expr)] -> RTEnv x a 
+mkRTE tAs eAs   = RTE 
+  { typeAliases = M.fromList [ (aName a, a) | a <- tAs ] 
+  , exprAliases = M.fromList [ (aName a, a) | a <- eAs ] 
+  } 
+  where aName   = rtName . F.val  
+
+normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> Located BareRTAlias 
+                   -> Located BareRTAlias 
+normalizeBareAlias env sigEnv name lx 
+              = fmap (fmap normalize) lx 
+  where 
+    normalize :: BareType -> BareType 
+    normalize = Bare.specToBare 
+              . F.val 
+              . Bare.cookSpecType env sigEnv name Nothing 
+              . F.atLoc lx
+
+    -- name = giTargetMod src 
+    -- cook x bt = Bare.cookSpecType env sigEnv name (Just (Bare.HsTV, x)) bt 
 
 

@@ -347,7 +347,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
 
 updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
 updLiftedSpec s1 Nothing   = s1 
-updLiftedSpec s1 (Just s2) = (s1 { sigs = [] } ) `mappend` s2 
+updLiftedSpec s1 (Just s2) = (s1 { sigs = [], aliases = [], ealiases = [] } ) `mappend` s2 
 -- REBARE get all SIGS from lifted-spec
 -- REBARE updLiftedSpec s1 s2 = s1' `mappend` s2 
   -- REBARE where 

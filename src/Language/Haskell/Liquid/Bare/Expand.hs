@@ -97,7 +97,6 @@ renameRTVArgs rt = rt { rtVArgs = newArgs
     oldArgs      = rtVArgs rt
     rtArg x i    = F.suffixSymbol x (F.intSymbol "rta" i) 
 
--- makeRTAliases :: [Located (RTAlias RTyVar SpecType)] -> SpecRTEnv -> SpecRTEnv  
 makeRTAliases :: [Located (RTAlias F.Symbol BareType)] -> BareRTEnv -> BareRTEnv  
 makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts 
   where
@@ -244,7 +243,7 @@ buildExprEdges table  = ordNub . go
 
 
 ----------------------------------------------------------------------------------
--- | Using the `SpecRTEnv` to do alias-expansion 
+-- | Using the `BareRTEnv` to do alias-expansion 
 ----------------------------------------------------------------------------------
 class Expand a where 
   expand :: BareRTEnv -> F.SourcePos -> a -> a 
