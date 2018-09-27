@@ -69,10 +69,17 @@ instance (Subable a, Subable b) => Subable (a,b) where
 
 instance Subable a => Subable [a] where
   syms   = concatMap syms
-  subst  = map . subst
-  substf = map . substf
-  substa = map . substa
+  subst  = fmap . subst
+  substf = fmap . substf
+  substa = fmap . substa
 
+instance Subable a => Subable (Maybe a) where
+  syms   = concatMap syms . maybeToList
+  subst  = fmap . subst
+  substf = fmap . substf
+  substa = fmap . substa
+
+ 
 instance Subable a => Subable (M.HashMap k a) where
   syms   = syms . M.elems
   subst  = M.map . subst
