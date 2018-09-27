@@ -105,6 +105,7 @@ data GhcSpecSig = SpSig
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsDicts    :: !(DEnv Var SpecType)            -- ^ Refined Classes 
+  , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   }
 
 data GhcSpecData = SpData 
@@ -126,8 +127,7 @@ data GhcSpecNames = SpNames
   }
 
 data GhcSpecTerm = SpTerm 
-  { gsTexprs     :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
-  , gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
+  { gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
   , gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographic order of decreasing args (DEPRECATED) 

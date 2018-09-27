@@ -125,7 +125,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkTySigs         allowHO cbs            emb tcEnv env  (gsTySigs     (gsSig sp))
                      ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
-                     ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsTerm sp)) 
+                     ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))

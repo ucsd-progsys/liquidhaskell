@@ -318,8 +318,7 @@ makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecSig -> Ba
              -> GhcSpecTerm 
 ------------------------------------------------------------------------------------------
 makeSpecTerm cfg mySpec env name sig rtEnv = SpTerm 
-  { gsTexprs     = makeTExpr env name sig rtEnv mySpec 
-  , gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
+  { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
   , gsStTerm     = sizes
   , gsAutosize   = autos 
   , gsDecr       = F.tracepp "MAKEDECRS" $ makeDecrs env name mySpec
@@ -339,30 +338,7 @@ makeDecrs env name mySpec =
            , let v    = Bare.lookupGhcVar env name "decreasing" lx
   ]
 
-makeTExpr :: Bare.Env -> ModName -> GhcSpecSig -> BareRTEnv -> Ms.BareSpec 
-          -> [(Ghc.Var, LocSpecType ,[Located F.Expr])]
-makeTExpr env name sig rtEnv spec 
-                = F.tracepp "MAKE-TEXPRS" 
-                  [ (v, t, qual t es) | (v, (t, es)) <- M.toList vSigExprs ] 
-  where 
-    qual        = fmap . qualifyTermExpr env name rtEnv 
-    vSigExprs   = M.intersectionWith (,) vSigs vExprs 
-    vExprs      = M.fromList (makeVarTExprs env name spec) 
-    vSigs       = M.fromList (gsTySigs sig) 
 
-qualifyTermExpr :: Bare.Env -> ModName -> BareRTEnv -> LocSpecType -> Located F.Expr 
-                -> Located F.Expr 
-qualifyTermExpr env name rtEnv t le 
-        = F.atLoc le (Bare.qualifyExpand env name rtEnv l bs e)
-  where 
-    l   = F.loc le 
-    e   = F.val le 
-    bs  = ty_binds . toRTypeRep . val $ t 
-
-makeVarTExprs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Located F.Expr])]
-makeVarTExprs env name spec = 
-  [ (Bare.lookupGhcVar env name "Var" x, es) 
-      | (x, es) <- Ms.termexprs spec           ]
 
 makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
 makeLazy env name spec = 
@@ -441,21 +417,22 @@ makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
+  , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
   }
   where 
     mySpec     = M.lookupDefault mempty name specs
     asmSigs    = Bare.tcSelVars tycEnv 
               ++ makeAsmSigs env sigEnv name specs 
     tySigs     = strengthenSigs . concat $
-                  [ makeTySigs  env sigEnv name mySpec
+                  [ [(v, t) | (v, t,_) <- mySigs ]
                   , makeInlSigs env rtEnv allSpecs 
                   , makeMsrSigs env rtEnv allSpecs 
                   , makeMthSigs                 measEnv 
                   ]
+    mySigs     = makeTySigs  env sigEnv name mySpec
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
     -- hmeas      = makeHMeas    env allSpecs 
-
 
 strengthenSigs :: [(Ghc.Var, LocSpecType)] ->[(Ghc.Var, LocSpecType)]
 strengthenSigs sigs = go <$> Misc.groupList sigs 
@@ -492,27 +469,41 @@ makeFromSet msg f env specs = concat [ mk n xs | (n, s) <- specs, let xs = S.toL
   where 
     mk name                 = Mb.mapMaybe (Bare.maybeResolveSym env name msg) 
 
-makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocSpecType)]
-makeTySigs env sigEnv name spec = checkDuplicateSigs 
+makeTySigs :: Bare.Env -> Bare.SigEnv -> ModName -> Ms.BareSpec 
+           -> [(Ghc.Var, LocSpecType, Maybe [Located F.Expr])]
+makeTySigs env sigEnv name spec 
+              = checkDuplicateSigs 
+                [ (x, cook x bt, z) | (x, bt, z) <- rawSigs ]
+  where 
+    rawSigs   = Bare.resolveLocalBinds env expSigs 
+    expSigs   = makeTExpr  env name bareSigs rtEnv spec 
+    bareSigs  = bareTySigs env name                spec 
+    rtEnv     = Bare.sigRTEnv sigEnv 
+    cook x bt = Bare.cookSpecType env sigEnv name (Just (Bare.HsTV, x)) bt 
+
+{- 
+checkDuplicateSigs 
   [ (x, t) | (x, bt) <- rawTySigs env name spec 
            , let t    = Bare.cookSpecType env sigEnv name (Just (Bare.HsTV, x)) bt 
   ] 
-
-checkDuplicateSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)] 
-checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
-  Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
-  Right _      -> xts 
-  where
-    symXs = [ (F.symbol x, F.loc t) | (x, t) <- xts ]
-
+makeTExpr env name sig rtEnv mySpec
 rawTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)] 
 rawTySigs env name = Bare.resolveLocalBinds env . bareTySigs env name 
+-}
 
 bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 bareTySigs env name spec = 
   [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
            , let v   = F.tracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
+
+checkDuplicateSigs :: [(Ghc.Var, LocSpecType, a)] -> [(Ghc.Var, LocSpecType, a)] 
+checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
+  Left (k, ls) -> uError (errDupSpecs (pprint k) (GM.sourcePosSrcSpan <$> ls))
+  Right _      -> xts 
+  where
+    symXs = [ (F.symbol x, F.loc t) | (x, t, _) <- xts ]
+
 
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
@@ -538,6 +529,30 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
     vName       = GM.takeModuleNames (F.symbol v)
 
+makeTExpr :: Bare.Env -> ModName -> [(Ghc.Var, LocBareType)] -> BareRTEnv -> Ms.BareSpec 
+          -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])]
+makeTExpr env name tySigs rtEnv spec 
+                = F.tracepp "MAKE-TEXPRS" 
+                  [ (v, t, qual t <$> es) | (v, (t, es)) <- M.toList vSigExprs ] 
+  where 
+    qual t es   = qualifyTermExpr env name rtEnv t <$> es
+    vSigExprs   = Misc.hashMapMapWithKey (\v t -> (t, M.lookup v vExprs)) vSigs 
+    vExprs      = M.fromList (makeVarTExprs env name spec) 
+    vSigs       = M.fromList tySigs 
+                    
+qualifyTermExpr :: Bare.Env -> ModName -> BareRTEnv -> LocBareType -> Located F.Expr 
+                -> Located F.Expr 
+qualifyTermExpr env name rtEnv t le 
+        = F.atLoc le (Bare.qualifyExpand env name rtEnv l bs e)
+  where 
+    l   = F.loc le 
+    e   = F.val le 
+    bs  = ty_binds . toRTypeRep . val $ t 
+
+makeVarTExprs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Located F.Expr])]
+makeVarTExprs env name spec = 
+  [ (Bare.lookupGhcVar env name "Var" x, es) 
+      | (x, es) <- Ms.termexprs spec           ]
 ----------------------------------------------------------------------------------------
 -- [NOTE:Prioritize-Home-Spec] Prioritize spec for THING defined in 
 -- `Foo.Bar.Baz.Quux.x` over any other specification, IF GHC's 

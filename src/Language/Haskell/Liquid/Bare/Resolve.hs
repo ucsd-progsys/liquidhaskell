@@ -893,15 +893,19 @@ spliceArgs msg s p = go (fst <$> s) (pargs p)
 --   source variables that are visible at that at non-top-level scope. 
 --   e.g. tests-names-pos-local02.hs  
 ---------------------------------------------------------------------------------
-resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType)] -> [(Ghc.Var, LocBareType)]
+resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])] 
+                  -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])]
 ---------------------------------------------------------------------------------
-resolveLocalBinds env xts = topTs ++ replace locTs 
+resolveLocalBinds env xts = _fixme 
+{- 
+  topTs ++ replace locTs 
   where 
     (locTs, topTs)        = partitionLocalBinds xts 
     replace               = M.toList . replaceSigs . M.fromList 
     replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
     cbs                   = giCbs (reSrc env)
-  
+-}
+
 replaceVisitor :: CoreVisitor SymMap SigMap 
 replaceVisitor = CoreVisitor 
   { envF  = addBind
