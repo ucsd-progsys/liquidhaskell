@@ -274,6 +274,7 @@ selfTests
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 --------------------------------------------------------------------------------
 dirTests root ignored code = do
+  -- DELETE the ".liquid"
   files    <- walkDirectory root
   let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
   return    $ mkCodeTest code root <$> tests
@@ -522,12 +523,18 @@ headerDelim = replicate 80 '-'
 ----------------------------------------------------------------------------------------
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
-walkDirectory root
-  = do -- RJ: delete root </> ".liquid"
-       (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
-       (fs ++) <$> concatMapM walkDirectory ds
-    where
-       candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+walkDirectory root = do 
+  -- RJ: delete root </> ".liquid"
+  nukeIfThere (root </> ".liquid")
+  (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
+  (fs ++) <$> concatMapM walkDirectory ds
+  where
+    candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
+
+nukeIfThere :: FilePath -> IO () 
+nukeIfThere dir = do 
+  ex <- doesDirectoryExist dir 
+  if ex then removeDirectoryRecursive dir else return () 
 
 partitionM :: Monad m => (a -> m Bool) -> [a] -> m ([a],[a])
 partitionM f = go [] []
