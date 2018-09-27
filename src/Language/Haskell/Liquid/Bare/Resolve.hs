@@ -896,15 +896,12 @@ spliceArgs msg s p = go (fst <$> s) (pargs p)
 resolveLocalBinds :: Env -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])] 
                   -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])]
 ---------------------------------------------------------------------------------
-resolveLocalBinds env xts = _fixme 
-{- 
-  topTs ++ replace locTs 
+resolveLocalBinds env xtes = [ (x,t,es) | (x, (t, es)) <- topTs ++ replace locTs ]
   where 
-    (locTs, topTs)        = partitionLocalBinds xts 
-    replace               = M.toList . replaceSigs . M.fromList 
-    replaceSigs sigm      = coreVisitor replaceVisitor M.empty sigm cbs 
-    cbs                   = giCbs (reSrc env)
--}
+    (locTs, topTs)         = partitionLocalBinds [ (x, (t, es)) | (x, t, es) <- xtes] 
+    replace                = M.toList . replaceSigs . M.fromList 
+    replaceSigs sigm       = coreVisitor replaceVisitor M.empty sigm cbs 
+    cbs                    = giCbs (reSrc env)
 
 replaceVisitor :: CoreVisitor SymMap SigMap 
 replaceVisitor = CoreVisitor 
@@ -926,7 +923,7 @@ updSigMap env m v = case M.lookup v m of
 qualifySymMap :: SymMap -> F.Symbol -> F.Symbol 
 qualifySymMap env x = M.lookupDefault x x env 
 
-type SigMap = M.HashMap Ghc.Var  LocBareType 
+type SigMap = M.HashMap Ghc.Var  (LocBareType, Maybe [Located F.Expr])
 type SymMap = M.HashMap F.Symbol F.Symbol
 
 ---------------------------------------------------------------------------------
