@@ -2244,20 +2244,8 @@ instance F.PPrint TyThing where
 instance Show DataCon where
   show = F.showpp
 
-instance F.Symbolic TyThing where 
-  symbol = tyThingSymbol 
-
-tyThingSymbol :: TyThing -> F.Symbol 
-tyThingSymbol (AnId     x) = F.symbol x
-tyThingSymbol (ATyCon   c) = F.symbol c
-tyThingSymbol (AConLike d) = conLikeSymbol d 
-tyThingSymbol _            = panic Nothing "TODO: tyThingSymbol" 
-
-conLikeSymbol :: Ghc.ConLike -> F.Symbol 
-conLikeSymbol (Ghc.RealDataCon d) = F.symbol d 
-conLikeSymbol _                   = panic Nothing "TODO: conLikeSymbol"
-
-
+-- instance F.Symbolic TyThing where 
+--  symbol = tyThingSymbol 
 
 liquidBegin :: String
 liquidBegin = ['{', '-', '@']

@@ -175,9 +175,24 @@ makeSymMap src = Misc.group [ (sym, (m, x))
 makeTyThingMap :: GhcSrc -> TyThingMap 
 makeTyThingMap src =
   Misc.group [ (x, (m, t))  | t         <- srcThings src
-                            , let (m, x) = qualifiedSymbol t 
+                            , tSym      <- Mb.maybeToList (tyThingSymbol t)
+                            , let (m, x) = qualifiedSymbol tSym 
                             , not (isLocal m)
              ] 
+
+tyThingSymbol :: Ghc.TyThing -> Maybe F.Symbol 
+tyThingSymbol (Ghc.AnId     x) = Just (F.symbol x)
+tyThingSymbol (Ghc.ATyCon   c) = Just (F.symbol c)
+tyThingSymbol (Ghc.AConLike d) = conLikeSymbol d 
+tyThingSymbol _tt              = Nothing -- panic Nothing ("TODO: tyThingSymbol" ++ showPpr tt)
+
+
+conLikeSymbol :: Ghc.ConLike -> Maybe F.Symbol 
+conLikeSymbol (Ghc.RealDataCon d) = Just (F.symbol d) 
+conLikeSymbol _z                   = Nothing -- panic Nothing ("TODO: conLikeSymbol -- " ++ showPpr z)
+
+
+
 
 isLocal :: F.Symbol -> Bool
 isLocal = isEmptySymbol 

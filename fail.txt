@@ -76,17 +76,16 @@ TERMINATION
       Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
       Data/Text/Fusion/Size.hs:               FAIL (1.11s)
 
-      + Data/ByteString/Internal.hs:            FAIL (2.48s)
-      + Data/ByteString/Lazy/Internal.hs:       FAIL (1.70s)
       Data/ByteString.hs:                     FAIL (6.43s)
       Data/ByteString.T.hs:                   FAIL (5.78s)
+
       Data/ByteString/Char8.hs:               FAIL (5.39s)
+        ? Error: Unknown data constructor `Chunk` from imported D.B.L.Internal 
+
+
       Data/ByteString/LazyZip.hs:             FAIL (5.39s)
-      Data/ByteString/Fusion.hs:              FAIL (2.16s)
-      Data/ByteString/Fusion.T.hs:            FAIL (2.44s)
       Data/ByteString/Lazy.hs:                FAIL (4.44s)
       Data/ByteString/Lazy/Char8.hs:          FAIL (4.01s)
-        ? Error: Unknown data constructor `Chunk` from imported D.B.L.Internal 
 
       Fib.hs:                                 FAIL (1.21s)
 
@@ -99,3 +98,298 @@ TERMINATION
       Data/Vector/Algorithms/Combinators.hs:  FAIL (1.19s)
       - Illegal type specification for `Data.Vector.Generic.New.New` ?
       - DELETING a bunch of imports solves the problem...
+
+
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Internal.hs 
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy/Internal.hs 
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion.hs 
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Fusion.T.hs 
+
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Unsafe.hs 
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString.hs 
+
+--
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:517:1-6: Error: Liquid Type Mismatch
+  
+ 517 | unpack ps  = unpackFoldrINLINED ps
+       ^^^^^^
+  
+   Inferred type
+     VV : {v : [Word8] | len v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : [Word8] | len VV == bLength ps}
+  
+   In Context
+     ps : {ps : ByteString | 0 <= bLength ps}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:545:1-10: Error: Liquid Type Mismatch
+  
+ 545 | unpackList (PS fp off len) = withPtr fp $ \p -> do
+       ^^^^^^^^^^
+  
+   Inferred type
+     VV : {v : [Word8] | len v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : [Word8] | len VV == bLength ?a}
+  
+   In Context
+     ?a : {?a : ByteString | 0 <= bLength ?a}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:838:9-10: Error: Liquid Type Mismatch
+  
+ 838 |         go []            _   = return ()
+               ^^
+  
+   Inferred type
+     VV : {v : Int | v >= 0
+                     && s + v <= fplen p
+                     && v == l}
+  
+   not a subtype of Required type
+     VV : {VV : Int | VV <= plen b}
+  
+   In Context
+     l : {l : Int | l >= 0
+                    && s + l <= fplen p}
+      
+     p : (ForeignPtr Word8)
+      
+     b : {b : (Ptr Word8) | 0 <= plen b}
+      
+     s : {s : Int | s >= 0
+                    && s <= fplen p}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1044:9-10: Error: Liquid Type Mismatch
+  
+ 1044 |         {-@ decrease go 4 @-}
+                ^^
+  
+   Inferred type
+     VV : {v : Int | v == 1}
+  
+   not a subtype of Required type
+     VV : {VV : Int | VV <= plen a}
+  
+   In Context
+     a : {a : (Ptr Word8) | 0 <= plen a}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1175:5-6: Error: Liquid Type Mismatch
+  
+ 1175 |            | otherwise = do c' <- peekByteOff p i
+            ^^
+  
+   Inferred type
+     VV : {v : Int | 0 <= v
+                     && v <= bLength ps
+                     && v + s <= fplen x
+                     && s + v <= fplen x
+                     && v <= fplen x
+                     && v <= l + 1
+                     && 0 <= v + 1
+                     && v <= l
+                     && v >= 0
+                     && v == b}
+  
+   not a subtype of Required type
+     VV : {VV : Int | 0 <= VV
+                      && VV < plen a}
+  
+   In Context
+     l : {l : Int | l >= 0
+                    && s + l <= fplen x}
+      
+     a : {a : (Ptr a##xo) | 0 <= plen a}
+      
+     b : {b : Int | 0 <= b
+                    && b <= bLength ps
+                    && b + s <= fplen x
+                    && s + b <= fplen x
+                    && b <= fplen x
+                    && b <= l + 1
+                    && 0 <= b + 1
+                    && b <= l
+                    && b >= 0}
+      
+     x : (ForeignPtr Word8)
+      
+     s : {s : Int | s >= 0
+                    && s <= fplen x}
+      
+     ps : {ps : ByteString | 0 <= bLength ps}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1219:1-9: Error: Liquid Type Mismatch
+  
+ 1219 | 
+        ^^^^^^^^^
+  
+   Inferred type
+     VV : {v : [ByteString] | len v >= 0
+                              && len v > 0}
+  
+   not a subtype of Required type
+     VV : {VV : [ByteString] | (bLengths VV + len VV) - 1 == bLength ?a}
+  
+   In Context
+     ?a : {?a : ByteString | bLength ?a > 0
+                             && 0 <= bLength ?a}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1537:5-6: Error: Liquid Type Mismatch
+  
+ 1537 |     go ptr n | n >= l    = return Nothing
+            ^^
+  
+   Inferred type
+     VV : {v : Int | v == 1}
+  
+   not a subtype of Required type
+     VV : {VV : Int | VV <= plen a}
+  
+   In Context
+     a : {a : (Ptr Word8) | 0 <= plen a}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1583:7-8: Error: Liquid Type Mismatch
+  
+ 1583 |       go f' t end | f' == end = return t
+              ^^
+  
+   Inferred type
+     VV : {v : (Ptr Word8) | 0 <= plen v
+                             && v == b}
+  
+   not a subtype of Required type
+     VV : {VV : (Ptr Word8) | 0 < plen VV}
+  
+   In Context
+     b : {b : (Ptr Word8) | 0 <= plen b}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1858:1-5: Error: Liquid Type Mismatch
+  
+ 1858 |                   | otherwise = a : rng (a+1) b
+        ^^^^^
+  
+   Inferred type
+     VV : {v : ByteString | 0 <= bLength v}
+  
+   not a subtype of Required type
+     VV : {VV : ByteString | bLength ?a < bLength VV}
+  
+   In Context
+     ?a : {?a : ByteString | 0 <= bLength ?a}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1972:1-14: Error: Liquid Type Mismatch
+  
+ 1972 | 
+        ^^^^^^^^^^^^^^
+  
+   Inferred type
+     VV : {v : Int | v == len}
+  
+   not a subtype of Required type
+     VV : {VV : Int | VV >= 0}
+  
+   In Context
+     len : Int
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:2269:5-6: Error: Liquid Type Mismatch
+  
+ 2269 |                                 then return n
+            ^^
+  
+   Inferred type
+     VV : {v : (Ptr Word8) | 0 <= plen v
+                             && v == a}
+  
+   not a subtype of Required type
+     VV : {VV : (Ptr Word8) | 0 < plen VV}
+  
+   In Context
+     a : {a : (Ptr Word8) | 0 <= plen a}
+
+
+-------
+
+
+rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4) [2]> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs
+
+**** RESULT: ERROR *************************************************************
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:372:11-43: Error: Specified type does not refine Haskell type for `Data.ByteString.Lazy.eq` (Checked)
+  
+ 372 | {-@ eq :: ByteString -> ByteString -> Bool @-}
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+  
+ The Liquid type
+  
+     Data.ByteString.Internal.ByteString
+-> Data.ByteString.Internal.ByteString -> GHC.Types.Bool
+  
+ is inconsistent with the Haskell type
+  
+     Data.ByteString.Lazy.Internal.ByteString
+-> Data.ByteString.Lazy.Internal.ByteString -> GHC.Types.Bool
+  
+ defined at /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:396:1-2
+  
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1605:19-87: Error: Specified type does not refine Haskell type for `Data.ByteString.Lazy.filterByte` (Checked)
+  
+ 1605 | filterByte :: Word8 -> ByteString -> ByteString
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+  
+ The Liquid type
+  
+     GHC.Word.Word8
+-> Data.ByteString.Internal.ByteString
+-> Data.ByteString.Internal.ByteString
+  
+ is inconsistent with the Haskell type
+  
+     GHC.Word.Word8
+-> Data.ByteString.Lazy.Internal.ByteString
+-> Data.ByteString.Lazy.Internal.ByteString
+  
+ defined at /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1361:1-10
+  
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1949:24-85: Error: Illegal type specification for `Data.ByteString.useAsCStringLen`
+  
+ 1949 | ------------------------------------------------------------------------
+                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+     Data.ByteString.useAsCStringLen :: forall a##xo .
+                                        b:ByteString
+                                        -> (v:{v : ((Ptr CChar), Int) | cStringLen v == bLength b}
+                                            -> (IO a##xo))
+                                           -> (IO a##xo)
+     Sort Error in Refinement: {v : (Tuple (GHC.Ptr.Ptr Foreign.C.Types.CChar) int) | cStringLen v == bLength b}
+     Unbound symbol cStringLen --- perhaps you meant: strLen ?
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1970:23-71: Error: Illegal type specification for `Data.ByteString.packCStringLen`
+  
+ 1970 | 
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  
+     Data.ByteString.packCStringLen :: c:((Ptr CChar), Int)
+                                       -> (IO {v : ByteString | bLength v == cStringLen c})
+     Sort Error in Refinement: {v : Data.ByteString.Internal.ByteString | bLength v == cStringLen c}
+     Unbound symbol cStringLen --- perhaps you meant: strLen ?

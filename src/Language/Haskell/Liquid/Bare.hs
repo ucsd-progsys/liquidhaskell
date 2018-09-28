@@ -303,7 +303,7 @@ makeSpecQual _cfg env rtEnv measEnv specs = SpQual
   where 
     quals        = concatMap (makeQualifiers env) (M.toList specs) 
     -- mSyms        = F.tracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
-    okQual q     = F.notracepp ("okQual: " ++ F.showpp q) 
+    okQual q     = F.tracepp ("okQual: " ++ F.showpp q) 
                    $ all (`S.member` mSyms) (F.syms q)
     mSyms        = F.notracepp "MSYMS" . S.fromList 
                    $  (fst <$> wiredSortedSyms) 
