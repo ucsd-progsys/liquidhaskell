@@ -3,9 +3,8 @@
 #- "c:\\sr" # stack root, short paths == fewer problems
 
 init:
-  - git --version
-  - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/install-git-2.12.1.ps1'))
-
+- git --version
+  
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
 - set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
