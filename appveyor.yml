@@ -3,7 +3,8 @@
 #- "c:\\sr" # stack root, short paths == fewer problems
 
 init:
-- ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/install-git-2.12.1.ps1'))
+  - git --version
+  - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/install-git-2.12.1.ps1'))
 
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
