@@ -3,6 +3,7 @@
 
 
 [![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquidhaskell.svg)](http://packdeps.haskellers.com/feed?needle=liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
+[![Windows build status](https://ci.appveyor.com/api/projects/status/2f90w294a87h2wpt?svg=true)](https://github.com/varosi/liquidhaskell)
 
 Main Web site
 -------------
