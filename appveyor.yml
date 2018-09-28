@@ -4,6 +4,9 @@
 
 init:
 - git --version
+- git config core.sparseCheckout true
+- echo -e "/*\n!tests" >> .git/info/sparse-checkout
+
   
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
