@@ -4,7 +4,7 @@
 
 init:
 - git --version
-- del /q tests\logs\*.*
+- del /q c:\lh\tests\logs\*.*
   
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
