@@ -22,7 +22,8 @@ install:
 
 # Install Microsoft Z3 from NuGet
 - nuget install Microsoft.Z3 -Version 4.4.1	
-- dir Microsoft.Z3.4.4.1\
+- dir Microsoft.Z3.4.4.1\lib\
+- z3 --version
 
 # Update GIT submodule
 - git submodule update --init --recursive
