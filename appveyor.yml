@@ -35,20 +35,16 @@ build_script:
 - echo "" | stack --no-terminal build --jobs 1
 - dir /s .stack-work\\
 
-before_test:
-# http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
-#- set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
-
-# - curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
-# - 7z x stack.zip stack.exe
+# ZIP execturable
+- 7z a liquidhaskell.zip %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll
 
 test_script:
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
 # descriptor
-- echo "" | stack --no-terminal test --jobs 1
+- echo "" | stack --no-terminal test --jobs 1 --verbose
 
 artifacts:
 - path: "C:\\lh\\.stack-work\\logs\\"
   name: Logs
-- path: "C:\\lh\\z3x64win.4.5.0.1\\tools\\"
-  name: Z3
+- path: liquidhaskell.zip
+  name: LiquidHaskell
