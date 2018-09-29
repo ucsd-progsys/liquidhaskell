@@ -21,8 +21,7 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
-# - nuget restore
-- nuget install Microsoft.Z3
+- nuget install Microsoft.Z3 -Version 4.4.1	
 
 # Update GIT submodule
 - git submodule update --init --recursive
