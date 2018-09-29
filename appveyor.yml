@@ -2,6 +2,12 @@
 #cache:
 #- "c:\\sr" # stack root, short paths == fewer problems
 
+clone_folder: "c:\\lh"
+environment:
+  global:
+    STACK_ROOT: "c:\\sr"
+    TMP: "c:\\tmp"
+
 init:
 - git --version
   
@@ -15,12 +21,14 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
-- ps: Install-Package Microsoft.Z3 -Version 4.4.1
+- ps: Install-Package Microsoft.Z3
 
 # Update GIT submodule
 - git submodule update --init --recursive
 
-build: off
+build_script:
+- stack setup > nul
+- echo "" | stack --no-terminal build --jobs 1
 
 before_test:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
@@ -29,14 +37,7 @@ before_test:
 # - curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
 # - 7z x stack.zip stack.exe
 
-clone_folder: "c:\\lh"
-environment:
-  global:
-    STACK_ROOT: "c:\\sr"
-    TMP: "c:\\tmp"
-
 test_script:
-- stack setup > nul
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
 # descriptor
 - echo "" | stack --no-terminal test --jobs 1
