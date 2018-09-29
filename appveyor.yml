@@ -35,9 +35,10 @@ build_script:
 - dir /s .stack-work\\
 
 # ZIP execturable
-- for /f %%i in ('stack exec -- which liquidhaskell.exe') do set LH_EXECUTABLE=%%i
-- echo %LH_EXECUTABLE%
-- 7z a liquidhaskell.zip %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll %LH_EXECUTABLE%
+- for /f %%i in ('stack exec -- which liquid.exe') do set LH_EXECUTABLE=%%i
+- for /f %%i in ('stack exec -- which fixpoint.exe') do set FP_EXECUTABLE=%%i
+- echo %LH_EXECUTABLE% %FP_EXECUTABLE%
+- 7z a liquidhaskell.zip %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll %LH_EXECUTABLE% %FP_EXECUTABLE%
 
 test_script:
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
