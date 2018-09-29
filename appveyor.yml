@@ -22,7 +22,6 @@ install:
 
 # Install Microsoft Z3 from NuGet
 - nuget install z3x64win -Version 4.5.0.1	
-- dir /s z3x64win.4.5.0.1\
 
 - set PATH=z3x64win.4.5.0.1\tools;%PATH%
 - z3 --version
@@ -36,7 +35,9 @@ build_script:
 - dir /s .stack-work\\
 
 # ZIP execturable
-- 7z a liquidhaskell.zip %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll
+- for /f %%i in ('stack exec -- which liquidhaskell.exe') do set LH_EXECUTABLE=%%i
+- echo %LH_EXECUTABLE%
+- 7z a liquidhaskell.zip %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll %LH_EXECUTABLE%
 
 test_script:
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
