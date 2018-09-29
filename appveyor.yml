@@ -11,6 +11,7 @@ install:
 
 - curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
 - 7z x stack.zip stack.exe
+- stack --version
 
 build: off
 
@@ -31,4 +32,4 @@ test_script:
 - stack setup > nul
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
 # descriptor
-#- echo "" | stack --no-terminal test --jobs 1
+- echo "" | stack --no-terminal test --jobs 1
