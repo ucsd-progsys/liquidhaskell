@@ -21,10 +21,10 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
-- nuget install z3x86win -Version 4.5.0.1	
-- dir /s z3x86win.4.5.0.1\
+- nuget install z3x64win -Version 4.5.0.1	
+- dir /s z3x64win.4.5.0.1\
 
-- set PATH=z3x86win.4.5.0.1\tools;%PATH%
+- set PATH=z3x64win.4.5.0.1\tools;%PATH%
 - z3 --version
 
 # Update GIT submodule
@@ -50,5 +50,5 @@ test_script:
 artifacts:
 - path: "C:\\lh\\.stack-work\\logs\\"
   name: Logs
-- path: "C:\\lh\\z3x86win.4.5.0.1\\tools\\"
+- path: "C:\\lh\\z3x64win.4.5.0.1\\tools\\"
   name: Z3
