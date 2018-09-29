@@ -21,6 +21,7 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
+- nuget restore
 - ps: Install-Package Microsoft.Z3
 
 # Update GIT submodule
