@@ -4,6 +4,7 @@
 
 init:
 - git --version
+- del /q tests\logs\*.*
   
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
@@ -26,7 +27,7 @@ before_test:
 # - curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
 # - 7z x stack.zip stack.exe
 
-#clone_folder: "c:\\lh"
+clone_folder: "c:\\lh"
 environment:
   global:
     STACK_ROOT: "c:\\sr"
