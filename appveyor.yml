@@ -30,12 +30,6 @@ install:
 # Update GIT submodule
 - git submodule update --init --recursive
 
-artifacts:
-- path: "C:\\lh\\.stack-work\\logs\\"
-  name: Logs
-- path: "C:\\lh\\z3x86win.4.5.0.1\\tools\\"
-  name: Z3
-
 build_script:
 - stack setup > nul
 - echo "" | stack --no-terminal build --jobs 1
@@ -55,4 +49,6 @@ test_script:
 
 artifacts:
 - path: "C:\\lh\\.stack-work\\logs\\"
-  name: Logs2
+  name: Logs
+- path: "C:\\lh\\z3x86win.4.5.0.1\\tools\\"
+  name: Z3
