@@ -22,6 +22,7 @@ install:
 
 # Install Microsoft Z3 from NuGet
 - nuget install Microsoft.Z3 -Version 4.4.1	
+- dir
 
 # Update GIT submodule
 - git submodule update --init --recursive
@@ -29,6 +30,7 @@ install:
 build_script:
 - stack setup > nul
 - echo "" | stack --no-terminal build --jobs 1
+- dir
 
 before_test:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
