@@ -39,7 +39,7 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
+-- import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
 -- import           Language.Haskell.Liquid.Types.Names
 -- import           Language.Haskell.Liquid.Types.RefType

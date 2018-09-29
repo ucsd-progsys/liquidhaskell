@@ -78,14 +78,17 @@ TERMINATION
 
       Data/ByteString.hs:                     FAIL (6.43s)
       Data/ByteString.T.hs:                   FAIL (5.78s)
+      - QUALIF issues?
 
       Data/ByteString/Char8.hs:               FAIL (5.39s)
         ? Error: Unknown data constructor `Chunk` from imported D.B.L.Internal 
 
-
       Data/ByteString/LazyZip.hs:             FAIL (5.39s)
       Data/ByteString/Lazy.hs:                FAIL (4.44s)
+      - QUALIF issues?
+      
       Data/ByteString/Lazy/Char8.hs:          FAIL (4.01s)
+      - QUALIF issues?
 
       Fib.hs:                                 FAIL (1.21s)
 
@@ -325,71 +328,337 @@ rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4)> stack exec -- liquid -i ben
 
 rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4) [2]> stack exec -- liquid -i benchmarks/bytestring-0.9.2.1/ benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs
 
-**** RESULT: ERROR *************************************************************
+
+**** RESULT: UNSAFE ************************************************************
 
 
- /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:372:11-43: Error: Specified type does not refine Haskell type for `Data.ByteString.Lazy.eq` (Checked)
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:441:1-4: Error: Liquid Type Mismatch
   
- 372 | {-@ eq :: ByteString -> ByteString -> Bool @-}
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 441 | pack ws = go Empty (chunks defaultChunkSize ws)
+       ^^^^
   
+   Inferred type
+     VV : {v : ByteString | (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (lbLength Data.ByteString.Lazy.empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.empty - 1)
+                            && (lbLength Data.ByteString.Lazy.Internal.Empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.Internal.Empty - 1)
+                            && lbLength v >= 0}
   
- The Liquid type
+   not a subtype of Required type
+     VV : {VV : ByteString | lbLength VV == len ws}
   
-     Data.ByteString.Internal.ByteString
--> Data.ByteString.Internal.ByteString -> GHC.Types.Bool
-  
- is inconsistent with the Haskell type
-  
-     Data.ByteString.Lazy.Internal.ByteString
--> Data.ByteString.Lazy.Internal.ByteString -> GHC.Types.Bool
-  
- defined at /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:396:1-2
-  
+   In Context
+     ws : {ws : [Word8] | len ws >= 0}
+      
+     Data.ByteString.Lazy.empty : {Data.ByteString.Lazy.empty : ByteString | lbLength Data.ByteString.Lazy.empty == 0
+                                                                             && lbLength Data.ByteString.Lazy.empty >= 0}
 
 
- /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1605:19-87: Error: Specified type does not refine Haskell type for `Data.ByteString.Lazy.filterByte` (Checked)
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:592:1-4: Error: Liquid Type Mismatch
   
- 1605 | filterByte :: Word8 -> ByteString -> ByteString
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 592 | init Empty          = errorEmptyList "init"
+       ^^^^
   
+   Inferred type
+     VV : {v : ByteString | (lbLength Data.ByteString.Lazy.Internal.Empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.Internal.Empty - 1)
+                            && (lbLength Data.ByteString.Lazy.empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.empty - 1)
+                            && (not (lbLength ?b > 0) => lbLength v == 0)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && lbLength v >= 0}
   
- The Liquid type
+   not a subtype of Required type
+     VV : {VV : ByteString | lbLength VV == lbLength ?b - 1}
   
-     GHC.Word.Word8
--> Data.ByteString.Internal.ByteString
--> Data.ByteString.Internal.ByteString
-  
- is inconsistent with the Haskell type
-  
-     GHC.Word.Word8
--> Data.ByteString.Lazy.Internal.ByteString
--> Data.ByteString.Lazy.Internal.ByteString
-  
- defined at /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1361:1-10
-  
+   In Context
+     c0 : {c0 : ByteString | bLength c0 > 0
+                             && 0 <= bLength c0}
+      
+     Data.ByteString.Lazy.empty : {Data.ByteString.Lazy.empty : ByteString | lbLength Data.ByteString.Lazy.empty == 0
+                                                                             && lbLength Data.ByteString.Lazy.empty >= 0}
+      
+     ?b : {?b : ByteString | lbLength ?b > 0
+                             && lbLength ?b >= 0}
+      
+     cs0 : {cs0 : ByteString | lbLength cs0 >= 0}
 
 
- /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1949:24-85: Error: Illegal type specification for `Data.ByteString.useAsCStringLen`
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:641:1-11: Error: Liquid Type Mismatch
   
- 1949 | ------------------------------------------------------------------------
-                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 641 | intersperse _ Empty        = Empty
+       ^^^^^^^^^^^
   
-     Data.ByteString.useAsCStringLen :: forall a##xo .
-                                        b:ByteString
-                                        -> (v:{v : ((Ptr CChar), Int) | cStringLen v == bLength b}
-                                            -> (IO a##xo))
-                                           -> (IO a##xo)
-     Sort Error in Refinement: {v : (Tuple (GHC.Ptr.Ptr Foreign.C.Types.CChar) int) | cStringLen v == bLength b}
-     Unbound symbol cStringLen --- perhaps you meant: strLen ?
+   Inferred type
+     VV : {v : ByteString | Data.ByteString.Lazy.Internal.lbiRest v == ?c
+                            && Data.ByteString.Lazy.Internal.lbiHead v == ?a
+                            && lbLength v == bLength ?a + lbLength ?c
+                            && lbLength v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : ByteString | (lbLength ?d > 0 => lbLength VV == 2 * lbLength ?d - 1)
+                             && (not (lbLength ?d > 0) => lbLength VV == 0)}
+  
+   In Context
+     ?c : {?c : ByteString | (lbLength Data.ByteString.Lazy.Internal.Empty > 0 => lbLength ?c == 2 * lbLength Data.ByteString.Lazy.Internal.Empty - 1)
+                             && (lbLength Data.ByteString.Lazy.empty > 0 => lbLength ?c == 2 * lbLength Data.ByteString.Lazy.empty - 1)
+                             && (not (lbLength ?d > 0) => lbLength ?c == 0)
+                             && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength ?c == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                             && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength ?c == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                             && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength ?c == Data.ByteString.Lazy.Internal.chunkOverhead)
+                             && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength ?c == Data.ByteString.Lazy.Internal.chunkOverhead)
+                             && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength ?c == Data.ByteString.Lazy.Internal.smallChunkSize)
+                             && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength ?c == Data.ByteString.Lazy.Internal.smallChunkSize)
+                             && (not (lbLength cs > 0) => lbLength ?c == 0)
+                             && lbLength ?c >= 0}
+      
+     Data.ByteString.Lazy.empty : {Data.ByteString.Lazy.empty : ByteString | lbLength Data.ByteString.Lazy.empty == 0
+                                                                             && lbLength Data.ByteString.Lazy.empty >= 0}
+      
+     cs : {cs : ByteString | lbLength cs >= 0}
+      
+     c : {c : ByteString | bLength c > 0
+                           && 0 <= bLength c}
+      
+     ?d : {?d : ByteString | lbLength ?d >= 0}
+      
+     ?a : {?a : ByteString | bLength ?a == (if bLength c > 0 then 2 * bLength c - 1 else 0)
+                             && 0 <= bLength ?a}
 
 
- /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1970:23-71: Error: Illegal type specification for `Data.ByteString.packCStringLen`
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:654:1-9: Error: Liquid Type Mismatch
   
- 1970 | 
-                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 654 | transpose css = L.map (\ss -> Chunk (S.pack ss) Empty)
+       ^^^^^^^^^
   
-     Data.ByteString.packCStringLen :: c:((Ptr CChar), Int)
-                                       -> (IO {v : ByteString | bLength v == cStringLen c})
-     Sort Error in Refinement: {v : Data.ByteString.Internal.ByteString | bLength v == cStringLen c}
-     Unbound symbol cStringLen --- perhaps you meant: strLen ?
+   Inferred type
+     VV : {v : ByteString | bLength v == len ss
+                            && 0 <= bLength v
+                            && v == ?a}
+  
+   not a subtype of Required type
+     VV : {VV : ByteString | bLength VV > 0}
+  
+   In Context
+     ss : {ss : [Word8] | len ss >= 0}
+      
+     ?a : {?a : ByteString | bLength ?a == len ss
+                             && 0 <= bLength ?a}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:729:1-6: Error: Liquid Type Mismatch
+  
+ 729 | concat css0 = to css0
+       ^^^^^^
+  
+   Inferred type
+     VV : {v : ByteString | (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (lbLength Data.ByteString.Lazy.empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.empty - 1)
+                            && (lbLength Data.ByteString.Lazy.Internal.Empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.Internal.Empty - 1)
+                            && lbLength v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : ByteString | lbLength VV == lbLengths css0}
+  
+   In Context
+     Data.ByteString.Lazy.empty : {Data.ByteString.Lazy.empty : ByteString | lbLength Data.ByteString.Lazy.empty == 0
+                                                                             && lbLength Data.ByteString.Lazy.empty >= 0}
+      
+     css0 : {css0 : [ByteString] | len css0 >= 0
+                                   && lbLengths css0 >= 0}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1064:1-9: Error: Liquid Type Mismatch
+  
+ 1064 | splitWith _ Empty     = []
+        ^^^^^^^^^
+  
+   Inferred type
+     VV : {v : [ByteString] | len v >= 0
+                              && len v > 0
+                              && len v >= len ?a
+                              && (not (Data.ByteString.Lazy.Internal.defaultChunkSize >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.chunkOverhead >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.smallChunkSize >= 0) => len v == 0)
+                              && lbLengths v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : [ByteString] | (lbLengths VV + len VV) - 1 == lbLength ?b}
+  
+   In Context
+     c0 : {c0 : ByteString | bLength c0 > 0
+                             && 0 <= bLength c0}
+      
+     ?b : {?b : ByteString | lbLength ?b > 0
+                             && lbLength ?b >= 0}
+      
+     ?a : {?a : [ByteString] | (bLengths ?a + len ?a) - 1 == bLength c0
+                               && len ?a >= 0}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1097:1-5: Error: Liquid Type Mismatch
+  
+ 1097 | split _ Empty     = []
+        ^^^^^
+  
+   Inferred type
+     VV : {v : [ByteString] | len v >= 0
+                              && len v > 0
+                              && len v >= len ?b
+                              && (not (Data.ByteString.Lazy.Internal.defaultChunkSize >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.chunkOverhead >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.smallChunkSize >= 0) => len v == 0)
+                              && lbLengths v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : [ByteString] | (lbLengths VV + len VV) - 1 == lbLength ?a}
+  
+   In Context
+     c0 : {c0 : ByteString | bLength c0 > 0
+                             && 0 <= bLength c0}
+      
+     ?b : {?b : [ByteString] | (bLengths ?b + len ?b) - 1 == bLength c0
+                               && len ?b >= 0}
+      
+     ?a : {?a : ByteString | lbLength ?a > 0
+                             && lbLength ?a >= 0}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1132:1-5: Error: Liquid Type Mismatch
+  
+ 1132 | group Empty          = []
+        ^^^^^
+  
+   Inferred type
+     VV : {v : [ByteString] | len v >= 0
+                              && len v > 0
+                              && len v >= len ?b
+                              && (not (Data.ByteString.Lazy.Internal.defaultChunkSize >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.chunkOverhead >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.smallChunkSize >= 0) => len v == 0)
+                              && lbLengths v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : [ByteString] | lbLengths VV == lbLength ?a}
+  
+   In Context
+     c0 : {c0 : ByteString | bLength c0 > 0
+                             && 0 <= bLength c0}
+      
+     ?b : {?b : [ByteString] | bLengths ?b == bLength c0
+                               && len ?b >= 0}
+      
+     ?a : {?a : ByteString | lbLength ?a >= 0}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1168:1-7: Error: Liquid Type Mismatch
+  
+ 1168 | groupBy _ Empty          = []
+        ^^^^^^^
+  
+   Inferred type
+     VV : {v : [ByteString] | len v >= 0
+                              && len v > 0
+                              && len v >= len ?b
+                              && (not (Data.ByteString.Lazy.Internal.defaultChunkSize >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.chunkOverhead >= 0) => len v == 0)
+                              && (not (Data.ByteString.Lazy.Internal.smallChunkSize >= 0) => len v == 0)
+                              && lbLengths v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : [ByteString] | lbLengths VV == lbLength ?a}
+  
+   In Context
+     c0 : {c0 : ByteString | bLength c0 > 0
+                             && 0 <= bLength c0}
+      
+     ?b : {?b : [ByteString] | bLengths ?b == bLength c0
+                               && len ?b >= 0}
+      
+     ?a : {?a : ByteString | lbLength ?a >= 0}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1665:1-17: Error: Liquid Type Mismatch
+  
+ 1665 |     where go acc []     = acc
+        ^^^^^^^^^^^^^^^^^
+  
+   Inferred type
+     VV : {v : ByteString | (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (lbLength Data.ByteString.Lazy.empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.empty - 1)
+                            && (lbLength Data.ByteString.Lazy.Internal.Empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.Internal.Empty - 1)
+                            && lbLength v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : ByteString | lbLength VV == bLengths cs}
+  
+   In Context
+     Data.ByteString.Lazy.empty : {Data.ByteString.Lazy.empty : ByteString | lbLength Data.ByteString.Lazy.empty == 0
+                                                                             && lbLength Data.ByteString.Lazy.empty >= 0}
+      
+     cs : {cs : [ByteString] | len cs >= 0}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1674:1-9: Error: Liquid Type Mismatch
+  
+ 1674 |     where go acc []     = acc
+        ^^^^^^^^^
+  
+   Inferred type
+     VV : {v : ByteString | (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.smallChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.smallChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.chunkOverhead) => lbLength v == Data.ByteString.Lazy.Internal.chunkOverhead)
+                            && (not (lbLength Data.ByteString.Lazy.Internal.Empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (not (lbLength Data.ByteString.Lazy.empty < Data.ByteString.Lazy.Internal.defaultChunkSize) => lbLength v == Data.ByteString.Lazy.Internal.defaultChunkSize)
+                            && (lbLength Data.ByteString.Lazy.Internal.Empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.Internal.Empty - 1)
+                            && (lbLength Data.ByteString.Lazy.empty > 0 => lbLength v == 2 * lbLength Data.ByteString.Lazy.empty - 1)
+                            && lbLength v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : ByteString | lbLength VV == bLengths cs}
+  
+   In Context
+     Data.ByteString.Lazy.empty : {Data.ByteString.Lazy.empty : ByteString | lbLength Data.ByteString.Lazy.empty == 0
+                                                                             && lbLength Data.ByteString.Lazy.empty >= 0}
+      
+     cs : {cs : [ByteString] | len cs >= 0
+                               && len cs > 0
+                               && (not (Data.ByteString.Lazy.Internal.defaultChunkSize >= 0) => len cs == 0)
+                               && (not (Data.ByteString.Lazy.Internal.chunkOverhead >= 0) => len cs == 0)
+                               && (not (Data.ByteString.Lazy.Internal.smallChunkSize >= 0) => len cs == 0)}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString/Lazy.hs:1687:5-6: Error: Liquid Type Mismatch
+  
+ 1687 |     go (d::Int) ptr n
+            ^^
+  
+   Inferred type
+     VV : {v : (Ptr Word8) | 0 <= plen v
+                             && v == b}
+  
+   not a subtype of Required type
+     VV : {VV : (Ptr Word8) | 0 < plen VV}
+  
+   In Context
+     b : {b : (Ptr Word8) | 0 <= plen b}
+
+

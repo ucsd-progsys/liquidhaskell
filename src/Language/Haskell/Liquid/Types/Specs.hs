@@ -189,3 +189,9 @@ data Spec ty bndr  = Spec
   } deriving (Generic)
 
 
+
+isExportedVar :: GhcSrc -> Var -> Bool
+isExportedVar info v = n `elemNameSet` ns
+  where
+    n                = getName v
+    ns               = gsExports info

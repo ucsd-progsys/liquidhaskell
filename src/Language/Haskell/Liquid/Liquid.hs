@@ -23,7 +23,7 @@ import           Data.Bifunctor
 -- import qualified Data.HashSet as S 
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
--- import           Var                              (Var)
+import           Var                              (Var)
 import           CoreSyn
 import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
@@ -151,6 +151,9 @@ newPrune cfg cbs tgt info
     vs            = gsTgtVars    (gsVars sp)
     sp            = giSpec       info
     expVars       = exportedVars (giSrc info)
+
+exportedVars :: GhcSrc -> [Var]
+exportedVars src = filter (isExportedVar src) (giDefVars src)
 
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d

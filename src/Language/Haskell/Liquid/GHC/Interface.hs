@@ -17,8 +17,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   , pprintCBs
 
   -- * predicates
-  , isExportedVar
-  , exportedVars
+  -- , isExportedVar
+  -- , exportedVars
   ) where
 
 import Prelude hiding (error)
@@ -48,7 +48,7 @@ import Panic (throwGhcExceptionIO)
 -- import Serialized
 import TcRnTypes
 import Var
-import NameSet
+-- import NameSet
 import FastString
 import FamInstEnv
 import FamInst
@@ -252,16 +252,6 @@ importDeclModule fromMod (pkgQual, locModName) = do
 --------------------------------------------------------------------------------
 -- | Extract Ids ---------------------------------------------------------------
 --------------------------------------------------------------------------------
-
-exportedVars :: GhcSrc -> [Var]
-exportedVars src = filter (isExportedVar src) (giDefVars src)
-
-isExportedVar :: GhcSrc -> Var -> Bool
-isExportedVar info v = n `elemNameSet` ns
-  where
-    n                = getName v
-    ns               = gsExports info
-
 
 classCons :: Maybe [ClsInst] -> [Id]
 classCons Nothing   = []

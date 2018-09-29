@@ -45,7 +45,7 @@
 -- Lazy variant by Duncan Coutts and Don Stewart.
 --
 
-module Data.ByteString.Lazy (
+module Data.ByteString.LazyZip (
         -- * Zipping and unzipping ByteStrings
         zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
         zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
@@ -151,8 +151,8 @@ go f x xs y ys d (z :: Int64)
   : to f (S.unsafeTail x) xs (S.unsafeTail y) ys (sz (S.unsafeTail x) xs (S.unsafeTail y) ys) 1
 
 {-@ to :: (Word8 -> Word8 -> a)
-       -> x:S.ByteString -> xs:ByteString
-       -> y:S.ByteString -> ys:ByteString
+       -> x:_ -> xs:ByteString
+       -> y:_ -> ys:ByteString
        -> {v:Nat64 | v = (bLength x) + (lbLength xs) + (bLength y) + (lbLength ys)}
        -> {v:Nat64 | v = 1}
        -> {v:[a] | (len v)
@@ -175,8 +175,8 @@ to f x (Chunk x' xs) y (Chunk y' ys) d _ | S.null x
                                         && S.null y       = go f x' xs y' ys (sz x' xs y' ys) 0
 
 
-{-@ sz :: x:S.ByteString -> xs:ByteString
-       -> y:S.ByteString -> ys:ByteString
+{-@ sz :: x:_ -> xs:_ 
+       -> y:_ -> ys:_
        -> {v:Nat64 | v = ((bLength x) + (lbLength xs) + (bLength y) + (lbLength ys))}
    @-}
 sz x xs y ys = fromIntegral (S.length x) + length xs

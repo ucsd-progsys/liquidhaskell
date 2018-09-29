@@ -835,7 +835,8 @@ makeLiftedSpec src env refl sData sig myRTE lSpec0 = lSpec0
   { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
   , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   [ toBare (x, t) | (x, t) <- gsTySigs sig
-                                                                , S.member x sigVars 
+                                                                ,  S.member x sigVars 
+                                                                && F.tracepp ("is-exported: " ++ GM.showPpr x)  (isExportedVar src x) --(Ghc.isExportedId x) 
                                                                 ] 
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
