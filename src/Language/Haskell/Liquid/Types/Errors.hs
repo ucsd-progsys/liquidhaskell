@@ -6,6 +6,7 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DeriveLift          #-}
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -72,6 +73,7 @@ import           System.FilePath
 import Data.List    (intersperse )
 import           Text.Parsec.Error (errorMessages, showErrorMessages)
 
+import Language.Haskell.TH.Syntax (Lift)
 
 
 instance PPrint ParseError where
@@ -165,7 +167,7 @@ data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
   | OCons -- ^ Obligation that proves subtyping constraints
-  deriving (Generic, Data, Typeable)
+  deriving (Generic, Data, Typeable, Lift)
 
 instance B.Binary Oblig
 instance Show Oblig where

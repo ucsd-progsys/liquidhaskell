@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving         #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -276,6 +277,8 @@ import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
 import           Data.Default
+
+import Language.Haskell.TH.Syntax (Lift)
 
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
@@ -580,7 +583,7 @@ mapQualBody f q = q { F.qBody = f (F.qBody q) }
 instance NFData r => NFData (UReft r)
 
 
-newtype BTyVar = BTV Symbol deriving (Show, Generic, Data, Typeable)
+newtype BTyVar = BTV Symbol deriving (Show, Generic, Data, Typeable, Lift)
 
 newtype RTyVar = RTV TyVar deriving (Generic, Data, Typeable)
 
@@ -616,7 +619,7 @@ data BTyCon = BTyCon
   , btc_class :: !Bool           -- ^ Is this a class type constructor?
   , btc_prom  :: !Bool           -- ^ Is Promoted Data Con?
   }
-  deriving (Generic, Data, Typeable)
+  deriving (Generic, Data, Typeable, Lift)
 
 instance B.Binary BTyCon
 
@@ -811,7 +814,7 @@ data RType c tv r
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
-  deriving (Generic, Data, Typeable, Functor)
+  deriving (Generic, Data, Typeable, Functor, Lift)
 
 instance (B.Binary c, B.Binary tv, B.Binary r) => B.Binary (RType c tv r)
 instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
@@ -846,7 +849,7 @@ instance (Eq tv) => Eq (RTVar tv s) where
 data RTVar tv s = RTVar
   { ty_var_value :: tv
   , ty_var_info  :: RTVInfo s
-  } deriving (Generic, Data, Typeable)
+  } deriving (Generic, Data, Typeable, Lift)
 
 mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
 mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
@@ -859,7 +862,7 @@ data RTVInfo s
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
             , rtv_is_val :: Bool
-            } deriving (Generic, Data, Typeable, Functor)
+            } deriving (Generic, Data, Typeable, Functor, Lift)
 
 
 rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
@@ -892,7 +895,7 @@ instance (B.Binary s)              => B.Binary (RTVInfo s)
 data Ref τ t = RProp
   { rf_args :: [(Symbol, τ)]
   , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`
-  } deriving (Generic, Data, Typeable, Functor)
+  } deriving (Generic, Data, Typeable, Functor, Lift)
 
 instance (B.Binary τ, B.Binary t) => B.Binary (Ref τ t)
 instance (NFData τ,   NFData t)   => NFData   (Ref τ t)
@@ -917,12 +920,22 @@ data    HSeg  t = HBind {hs_addr :: !Symbol, hs_val :: t}
                 | HVar UsedPVar
                 deriving (Generic, Data, Typeable)
 
+
+-- deriving instance Lift F.Bop
+-- deriving instance Lift F.Brel
+-- deriving instance Lift F.KVar
+-- deriving instance Lift F.Subst
+-- deriving instance Lift F.Expr
+deriving instance Lift a => Lift (PVKind a)
+deriving instance Lift a => Lift (PVar a)
+deriving instance Lift Predicate
+
 data UReft r = MkUReft
   { ur_reft   :: !r
   , ur_pred   :: !Predicate
   , ur_strata :: !Strata
   }
-  deriving (Generic, Data, Typeable, Functor, Foldable, Traversable)
+  deriving (Generic, Data, Typeable, Functor, Foldable, Traversable, Lift)
 
 instance B.Binary r => B.Binary (UReft r)
 
@@ -949,7 +962,7 @@ type LocBareType = F.Located BareType
 type LocSpecType = F.Located SpecType
 
 data Stratum    = SVar Symbol | SDiv | SWhnf | SFin
-                  deriving (Generic, Data, Typeable, Eq)
+                  deriving (Generic, Data, Typeable, Eq, Lift)
 
 instance NFData   Stratum
 instance B.Binary Stratum

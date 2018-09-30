@@ -280,7 +280,9 @@ Library
                     Gradual.GUI,
                     Gradual.GUI.Annotate,
                     Gradual.GUI.Types,
-                    Gradual.GUI.Misc
+                    Gradual.GUI.Misc,
+
+                    Language.Haskell.Liquid.Quasi
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
