@@ -8,6 +8,7 @@
 
 module Main where
 
+import Data.Function (on)
 import Control.Applicative
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.State as State
@@ -16,6 +17,7 @@ import Data.Char
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
+import qualified Data.List as L 
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..), (<>))
 import Data.Proxy
@@ -243,20 +245,35 @@ gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroup "text"        <$> dirTests "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
-  , testGroup "bytestring"  <$> dirTests "benchmarks/bytestring-0.9.2.1"        []                        ExitSuccess
-  , testGroup "esop"        <$> dirTests "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
-  , testGroup "vect-algs"   <$> dirTests "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-  , testGroup "icfp_pos"    <$> dirTests "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
-  , testGroup "icfp_neg"    <$> dirTests "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+  [ testGroup "text"        <$> dirTests  "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
+  , bytestringTests
+  -- , testGroup "bytestring"  <$> odirTests "benchmarks/bytestring-0.9.2.1"        []            bsOrder     ExitSuccess
+  , testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
+  , testGroup "vect-algs"   <$> dirTests  "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
+  , testGroup "icfp_pos"    <$> dirTests  "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
+  , testGroup "icfp_neg"    <$> dirTests  "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
   ]
+
+
+bytestringTests :: IO TestTree 
+bytestringTests = testGroup "bytestring" <$> odirTests bsPath [] (Just bsOrder) ExitSuccess 
+  where 
+    bsPath      = "benchmarks/bytestring-0.9.2.1" 
+    bsOrder     = mkOrder 
+                    [ "Data/ByteString/Internal.hs" 
+                    , "Data/ByteString/Lazy/Internal.hs" 
+                    , "Data/ByteString/Fusion.hs" 
+                    , "Data/ByteString/Fusion.T.hs" 
+                    , "Data/ByteString/Unsafe.hs" 
+                    , "Data/ByteString.T.hs"
+                    , "Data/ByteString.hs"
+                    , "Data/ByteString/Lazy.hs"
+                    , "Data/ByteString/LazyZip.hs"
+                    ]
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ -- SUBSUMED-by-popl18 testGroup "pldi17_pos"  <$> dirTests "benchmarks/pldi17/pos"                proverIgnored             ExitSuccess
-    -- SUBSUMED-by-popl18 testGroup "pldi17_neg"  <$> dirTests "benchmarks/pldi17/neg"                proverIgnored             (ExitFailure 1)
-    -- SUBSUMED-by-popl18 testGroup "instances"   <$> dirTests "benchmarks/proofautomation/pos"       autoIgnored               ExitSuccess
-    testGroup "foundations"     <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
+  [ testGroup "foundations"     <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
   , testGroup "without_ple_pos" <$> dirTests "benchmarks/popl18/nople/pos"          noPleIgnored              ExitSuccess
   , testGroup "without_ple_neg" <$> dirTests "benchmarks/popl18/nople/neg"          noPleIgnored             (ExitFailure 1)
   , testGroup "with_ple"        <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
@@ -273,11 +290,21 @@ selfTests
 --------------------------------------------------------------------------------
 dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 --------------------------------------------------------------------------------
-dirTests root ignored code = do
-  -- DELETE the ".liquid"
-  files    <- walkDirectory root
-  let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
-  return    $ mkCodeTest code root <$> tests
+dirTests root ignored ecode = odirTests root ignored Nothing ecode 
+
+--------------------------------------------------------------------------------
+odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> IO [TestTree]
+--------------------------------------------------------------------------------
+odirTests root ignored fo ecode = do 
+  files     <- walkDirectory root
+  print (show files)
+  let tests  = sortOrder fo [ rel | f <- files
+                                  , isTest f
+                                  , let rel = makeRelative root f
+                                  , rel `notElem` ignored 
+                            ]
+  print (show tests)
+  return     $ mkCodeTest ecode root <$> tests
 
 mkCodeTest :: ExitCode -> FilePath -> FilePath -> TestTree
 mkCodeTest code dir file = mkTest (EC file code Nothing) dir file
@@ -285,6 +312,24 @@ mkCodeTest code dir file = mkTest (EC file code Nothing) dir file
 isTest   :: FilePath -> Bool
 isTest f =  takeExtension f == ".hs"
          || takeExtension f == ".lhs"
+
+--------------------------------------------------------------------------------
+-- | @FileOrder@ is a hack to impose a "build" order on the paths in a given directory
+--------------------------------------------------------------------------------
+type FileOrder = Map.Map FilePath Int 
+
+getOrder :: FileOrder -> FilePath -> Int 
+getOrder m f = Map.findWithDefault (1 + Map.size m) f m 
+
+mkOrder :: [FilePath] -> FileOrder 
+mkOrder fs = Map.fromList (zip fs [0..])
+
+sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
+sortOrder Nothing   fs = fs 
+sortOrder (Just fo) fs = sortOn (getOrder fo) fs 
+
+sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
+sortOn f = L.sortBy (compare `on` f)
 
 --------------------------------------------------------------------------------
 -- | Check that we get the given `err` text and `ExitFailure status` for the given `path`.
@@ -524,7 +569,6 @@ headerDelim = replicate 80 '-'
 walkDirectory :: FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
 walkDirectory root = do 
-  -- RJ: delete root </> ".liquid"
   nukeIfThere (root </> ".liquid")
   (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
   (fs ++) <$> concatMapM walkDirectory ds
