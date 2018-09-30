@@ -10,8 +10,8 @@ environment:
 
 init:
 - git --version
-- for /f %%i in ("stack exec -- 'which liquid.exe | sed \"s|^/c/|c:\\|;s|/|\\|g\"'") do set LH_EXECUTABLE=%%i
-- for /f %%i in ("stack exec -- 'which fixpoint.exe | sed \"s|^/c/|c:\\|;s|/|\\|g\"'") do set FP_EXECUTABLE=%%i
+- for /f %%i in ("stack exec -- 'which liquid.exe | sed \"s@^/c/@c:\\@;s@/@\\@g\"'") do set LH_EXECUTABLE=%%i
+- for /f %%i in ("stack exec -- 'which fixpoint.exe | sed \"s@^/c/@c:\\@;s@/@\\@g\"'") do set FP_EXECUTABLE=%%i
 - echo %LH_EXECUTABLE% %FP_EXECUTABLE%
   
 install:
