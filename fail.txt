@@ -87,9 +87,6 @@ TERMINATION
       Data/ByteString/Lazy.hs:                FAIL (4.44s)
       - QUALIF issues?
       
-      Data/ByteString/Lazy/Char8.hs:          FAIL (4.01s)
-      - QUALIF issues?
-
       Fib.hs:                                 FAIL (1.21s)
 
       Data/Vector/Algorithms/AmericanFlag.hs: FAIL (0.68s)
@@ -662,3 +659,88 @@ rjhala@borscht ~/r/s/liquidhaskell (phadej-ghc-8.4) [2]> stack exec -- liquid -i
      b : {b : (Ptr Word8) | 0 <= plen b}
 
 
+
+----
+
+Data/ByteString.hs
+
+
+**** RESULT: UNSAFE ************************************************************
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1175:5-6: Error: Liquid Type Mismatch
+  
+ 1175 |            | otherwise = do c' <- peekByteOff p i
+            ^^
+  
+   Inferred type
+     VV : {v : Int | 0 <= v
+                     && v <= bLength ps
+                     && s + v <= fplen x
+                     && v <= fplen x
+                     && v <= l + 1
+                     && 0 <= v + 1
+                     && v + s <= fplen x
+                     && l - v <= plen a
+                     && v <= l
+                     && v >= 0
+                     && v == b}
+  
+   not a subtype of Required type
+     VV : {VV : Int | 0 <= VV
+                      && VV < plen a}
+  
+   In Context
+     l : {l : Int | l >= 0
+                    && s + l <= fplen x}
+      
+     a : {a : (Ptr a##xo) | 0 <= plen a}
+      
+     b : {b : Int | 0 <= b
+                    && b <= bLength ps
+                    && s + b <= fplen x
+                    && b <= fplen x
+                    && b <= l + 1
+                    && 0 <= b + 1
+                    && b + s <= fplen x
+                    && l - b <= plen a
+                    && b <= l
+                    && b >= 0}
+      
+     x : (ForeignPtr Word8)
+      
+     s : {s : Int | s >= 0
+                    && s <= fplen x}
+      
+     ps : {ps : ByteString | 0 <= bLength ps}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1583:7-8: Error: Liquid Type Mismatch
+  
+ 1583 |       go f' t end | f' == end = return t
+              ^^
+  
+   Inferred type
+     VV : {v : (Ptr Word8) | 0 <= plen v
+                             && v == b}
+  
+   not a subtype of Required type
+     VV : {VV : (Ptr Word8) | 0 < plen VV}
+  
+   In Context
+     b : {b : (Ptr Word8) | 0 <= plen b}
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/bytestring-0.9.2.1/Data/ByteString.hs:1972:1-14: Error: Liquid Type Mismatch
+  
+ 1972 | 
+        ^^^^^^^^^^^^^^
+  
+   Inferred type
+     VV : {v : Int | v == len}
+  
+   not a subtype of Required type
+     VV : {VV : Int | VV >= 0}
+  
+   In Context
+     len : Int

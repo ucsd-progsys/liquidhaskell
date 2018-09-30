@@ -400,6 +400,12 @@ instance Qualify BareType where
 substFreeEnv :: (F.Subable a) => Env -> ModName -> [F.Symbol] -> a -> a 
 substFreeEnv env name bs = F.substf (F.EVar . qualifySymbol env name bs) 
 
+
+
+
+
+
+
 -------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Maybe Ghc.Var
 -------------------------------------------------------------------------------

@@ -143,11 +143,11 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   { gsConfig = cfg 
   , gsSig    = addReflSigs refl sig 
   , gsRefl   = refl 
-  , gsQual   = makeSpecQual cfg env rtEnv measEnv specs 
   , gsData   = sData 
-  , gsName   = makeSpecName env tycEnv measEnv   name 
+  , gsQual   = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
+  , gsName   = makeSpecName env     tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
-  , gsTerm   = makeSpecTerm cfg     mySpec env   name    
+  , gsTerm   = makeSpecTerm cfg     mySpec env       name    
   , gsLSpec  = makeLiftedSpec   src env refl sData sig myRTE lSpec1 
   }
   where
@@ -293,15 +293,15 @@ resolveStringVar env name s = Bare.lookupGhcVar env name "resolve-string-var" lx
     lx                      = dummyLoc (qualifySymbolic name s)
 
 ------------------------------------------------------------------------------------------
-makeSpecQual :: Config -> Bare.Env -> BareRTEnv -> Bare.MeasEnv -> Bare.ModSpecs 
+makeSpecQual :: Config -> Bare.Env -> Bare.TycEnv -> Bare.MeasEnv -> BareRTEnv -> Bare.ModSpecs 
              -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
-makeSpecQual _cfg env rtEnv measEnv specs = SpQual 
+makeSpecQual _cfg env tycEnv measEnv rtEnv specs = SpQual 
   { gsQualifiers = filter okQual quals 
   , gsRTAliases  = makeSpecRTAliases env rtEnv -- TODO-REBARE
   } 
   where 
-    quals        = concatMap (makeQualifiers env) (M.toList specs) 
+    quals        = concatMap (makeQualifiers env tycEnv) (M.toList specs) 
     -- mSyms        = F.tracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
     okQual q     = F.tracepp ("okQual: " ++ F.showpp q) 
                    $ all (`S.member` mSyms) (F.syms q)
@@ -312,8 +312,99 @@ makeSpecQual _cfg env rtEnv measEnv specs = SpQual
 
 
 
-makeQualifiers :: Bare.Env -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
-makeQualifiers env (mod, spec) = Bare.qualifyTop env mod <$> Ms.qualifiers spec 
+makeQualifiers :: Bare.Env -> Bare.TycEnv -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
+makeQualifiers env tycEnv (mod, spec) 
+  = tx <$> Ms.qualifiers spec 
+  where 
+    tx = Bare.qualifyTop env mod 
+       . resolveQParams env tycEnv mod 
+
+-- @resolveQualParams@ converts the sorts of parameters from, e.g. 
+--   'Int' ===> 'GHC.Types.Int' or 
+--   'Ptr' ===> 'GHC.Ptr.Ptr'  
+-- It would not be required if _all_ qualifiers are scraped from 
+-- function specs, but we're keeping it around for backwards compatibility.
+
+resolveQParams :: Bare.Env -> Bare.TycEnv -> ModName -> F.Qualifier -> F.Qualifier 
+resolveQParams env tycEnv name q = q  { F.qParams = goQP <$> F.qParams q } 
+  where 
+    goQP qp                      = qp { F.qpSort  = go (F.qpSort qp) }
+    go :: F.Sort -> F.Sort   
+    go (FAbs i s)                = FAbs i (go s)
+    go (FFunc s1 s2)             = FFunc  (go s1) (go s2)
+    go (FApp  s1 s2)             = FApp   (go s1) (go s2)
+    go (FTC c)                   = qualifyFTycon env tycEnv name c 
+    go s                         = s 
+
+qualifyFTycon :: Bare.Env -> Bare.TycEnv -> ModName -> F.FTycon -> F.Sort 
+qualifyFTycon env tycEnv name c 
+  | isPrimFTC           = FTC c 
+  | otherwise           = tyConSort embs (F.atLoc tcs ty) 
+  where       
+    ty                  = Bare.lookupGhcTyCon env name "qualify-FTycon" tcs                
+    isPrimFTC           = (F.val tcs) `elem` F.prims 
+    tcs                 = F.fTyconSymbol c
+    embs                = Bare.tcEmbs tycEnv 
+
+tyConSort :: F.TCEmb Ghc.TyCon -> F.Located Ghc.TyCon -> F.Sort 
+tyConSort embs lc = Mb.maybe s0 fst (F.tceLookup c embs)
+  where 
+    c             = F.val lc
+    s0            = tyConSortRaw lc
+
+tyConSortRaw :: F.Located Ghc.TyCon -> F.Sort 
+tyConSortRaw = FTC . F.symbolFTycon . fmap F.symbol 
+
+
+
+    -- REBARE go F.FInt        = FInt
+    -- REBARE go F.FReal       = FReal
+    -- REBARE go F.FNum        = FNum
+    -- REBARE go F.FFrac       = FFrac
+    -- REBARE go s@(FObj _)    = s
+    -- REBARE go s@(FVar _)    = s
+
+{-
+
+
+makeQualifiers :: (ModName, Ms.Spec ty bndr)
+               -> BareM [F.Qualifier]
+makeQualifiers (mod,spec) = inModule mod mkQuals
+  where          
+    mkQuals = mapM (\q -> resolve (F.qPos q) q) $ Ms.qualifiers spec
+
+instance Resolvable F.Qualifier where
+  resolve _ (F.Q n ps b l) = F.Q n <$> mapM (resolve l) ps <*> resolve l b <*> return l
+  
+instance Resolvable F.QualParam where 
+  resolve l qp = do            
+    t <- resolve l (F.qpSort qp)
+    return (qp {F.qpSort = t}) 
+
+instance Resolvable Sort where
+  resolve _ FInt          = return FInt
+  resolve _ FReal         = return FReal
+  resolve _ FNum          = return FNum
+  resolve _ FFrac         = return FFrac
+  resolve _ s@(FObj _)    = return s
+  resolve _ s@(FVar _)    = return s
+  resolve l (FAbs i  s)   = FAbs i <$> (resolve l s)
+  resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
+  resolve _ (FTC c)
+    | tcs' `elem` F.prims = FTC <$> return c
+    | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
+                               emb    <- embeds <$> get
+                               let ftc = FTC . F.symbolFTycon . Loc l l' $ F.symbol ty
+                               return  $ maybe ftc fst (F.tceLookup ty emb)
+    where                      
+      tcs@(Loc l l' tcs') = F.fTyconSymbol c
+  resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
+
+
+
+
+ -}
+
 
 ------------------------------------------------------------------------------------------
 makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
@@ -817,8 +908,8 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 -- checkMeasures :: MSpec SpecType Ghc.DataCon  
-checkMeasures ms = checkMeasure <$> ms 
-checkMeasure m = F.tracepp msg m 
+_checkMeasures ms = checkMeasure <$> ms 
+_checkMeasure m = F.tracepp msg m 
   where 
     msg         = "CHECK-MEASURES: " ++ F.showpp syms
     syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
