@@ -144,15 +144,16 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsSig    = addReflSigs refl sig 
   , gsRefl   = refl 
   , gsData   = sData 
-  , gsQual   = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
+  , gsQual   = qual 
   , gsName   = makeSpecName env     tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , gsLSpec  = makeLiftedSpec   src env refl sData sig myRTE lSpec1 
+  , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 
   }
   where
     -- build up spec components 
     myRTE    = myRTEnv       src env sigEnv rtEnv  
+    qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
     sData    = makeSpecData  src env sigEnv measEnv sig specs 
     refl     = makeSpecRefl  src specs env name sig tycEnv 
     sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv 
@@ -909,7 +910,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
 
 -- checkMeasures :: MSpec SpecType Ghc.DataCon  
 _checkMeasures ms = checkMeasure <$> ms 
-_checkMeasure m = F.tracepp msg m 
+checkMeasure m    = F.tracepp msg m 
   where 
     msg         = "CHECK-MEASURES: " ++ F.showpp syms
     syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
@@ -919,10 +920,11 @@ _checkMeasure m = F.tracepp msg m
 --   so that downstream files that import this target can access the lifted definitions, 
 --   e.g. for measures, reflected functions etc.
 -----------------------------------------------------------------------------------------
-makeLiftedSpec :: GhcSrc -> Bare.Env -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> BareRTEnv 
+makeLiftedSpec :: GhcSrc -> Bare.Env 
+               -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> GhcSpecQual -> BareRTEnv 
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec src env refl sData sig myRTE lSpec0 = lSpec0 
+makeLiftedSpec src env refl sData sig _qual myRTE lSpec0 = lSpec0 
   { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
   , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   [ toBare (x, t) | (x, t) <- gsTySigs sig
@@ -935,6 +937,7 @@ makeLiftedSpec src env refl sData sig myRTE lSpec0 = lSpec0
   , Ms.axeqs      = gsMyAxioms refl 
   , Ms.aliases    = F.tracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
   , Ms.ealiases   = M.elems . exprAliases $ myRTE 
+  -- TODO-REBARE , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
@@ -946,10 +949,11 @@ makeLiftedSpec src env refl sData sig myRTE lSpec0 = lSpec0
     myAliases fld = M.elems . fld $ myRTE 
     srcF          = giTarget src 
 
-isLocInFile :: FilePath -> F.Located a ->  Bool 
-isLocInFile f lx = f == lf 
-  where 
-    (lf, _, _)   = F.sourcePosElts (F.loc lx) 
+isLocInFile :: (F.Loc a) => FilePath -> a ->  Bool 
+isLocInFile f lx = f == (locFile lx) 
+
+locFile :: (F.Loc a) => a -> FilePath 
+locFile = Misc.fst3 . F.sourcePosElts . F.sp_start . F.srcSpan
 
 varLocSym :: Ghc.Var -> LocSymbol
 varLocSym v = F.symbol <$> GM.locNamedThing v
