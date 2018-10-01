@@ -37,10 +37,10 @@ build_script:
 # ZIP execturable
 - stack exec -- which liquid.exe
 
-- for /f %%i in ("stack exec -- which liquid.exe") do set LH_EXECUTABLE=%%i
+- for /f %%i in ('stack exec -- which liquid.exe') do set LH_EXECUTABLE=%%i
 - echo %LH_EXECUTABLE% %FP_EXECUTABLE%
 
-- for /f %%i in ("stack exec -- which fixpoint.exe") do set FP_EXECUTABLE=%%i
+- for /f %%i in ('stack exec -- which fixpoint.exe') do set FP_EXECUTABLE=%%i
 - echo %LH_EXECUTABLE% %FP_EXECUTABLE%
 
 - ps: $LH_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"
