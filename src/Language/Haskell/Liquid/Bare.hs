@@ -59,11 +59,11 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 
 loadLiftedSpec :: Config -> FilePath -> IO (Maybe Ms.BareSpec)
 loadLiftedSpec cfg srcF
-  | noLiftedImport cfg = return Nothing 
+  | noLiftedImport cfg = putStrLn "No LIFTED Import" >> return Nothing 
   | otherwise          = do
       let specF = extFileName BinSpec srcF
       ex  <- doesFileExist specF
-      -- putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
+      putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
@@ -924,7 +924,7 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
                -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> GhcSpecQual -> BareRTEnv 
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec src env refl sData sig _qual myRTE lSpec0 = lSpec0 
+makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0 
   { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
   , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   [ toBare (x, t) | (x, t) <- gsTySigs sig
@@ -937,7 +937,7 @@ makeLiftedSpec src env refl sData sig _qual myRTE lSpec0 = lSpec0
   , Ms.axeqs      = gsMyAxioms refl 
   , Ms.aliases    = F.tracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
   , Ms.ealiases   = M.elems . exprAliases $ myRTE 
-  -- TODO-REBARE , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
+  , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)

@@ -339,7 +339,7 @@ updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec
 updLiftedSpec s1 Nothing   = s1 
 updLiftedSpec s1 (Just s2) = (clear s1) `mappend` s2 
   where 
-    clear s                = s { sigs = [], aliases = [], ealiases = [] } -- , qualifiers = [] }
+    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [] }
 
 -- REBARE get all SIGS from lifted-spec
 -- REBARE updLiftedSpec s1 s2 = s1' `mappend` s2 
