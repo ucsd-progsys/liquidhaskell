@@ -10,11 +10,6 @@ environment:
 
 init:
 - git --version
-- for /f %%i in ("stack exec -- which liquid.exe") do set LH_EXECUTABLE=%%i
-- for /f %%i in ("stack exec -- which fixpoint.exe") do set FP_EXECUTABLE=%%i
-- ps: $LH_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"
-- ps: $FP_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"
-- echo %LH_EXECUTABLE% %FP_EXECUTABLE%
   
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
@@ -35,6 +30,12 @@ install:
 - git submodule update --init --recursive
 
 build_script:
+- for /f %%i in ("stack exec -- which liquid.exe") do set LH_EXECUTABLE=%%i
+- for /f %%i in ("stack exec -- which fixpoint.exe") do set FP_EXECUTABLE=%%i
+- ps: $LH_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"
+- ps: $FP_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"
+- echo %LH_EXECUTABLE% %FP_EXECUTABLE%
+
 - stack setup > nul
 - echo "" | stack --no-terminal build --jobs 1
 - dir /s .stack-work\\
