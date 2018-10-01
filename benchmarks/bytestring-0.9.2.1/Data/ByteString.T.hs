@@ -468,11 +468,11 @@ pack str = unsafeCreate (P.length str) $ \p -> go p str
 
 #else /* hack away */
 
-pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (goz p 0# str)
+pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (goz str p 0# )
     where
-        {-@ goz :: _ -> _ -> cs:_ -> _ / [len cs] @-}
-        goz _ _ []        = return ()
-        goz p i (W8# c:cs) = writeByte p i c >> goz p (i +# 1#) cs
+        {- goz :: _ -> _ -> cs:_ -> _ / [len cs] -}
+        goz []         _ _  = return ()
+        goz (W8# c:cs) p i  = writeByte p i c >> goz cs p (i +# 1#) 
 
         writeByte p i c = ST $ \s# ->
             case writeWord8OffAddr# p i c s# of s2# -> (# s2#, () #)
