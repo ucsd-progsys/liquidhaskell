@@ -35,16 +35,8 @@ build_script:
 - dir /s .stack-work\\
 
 # ZIP execturable
-- stack exec -- which liquid.exe
-
-- for /f %%i in ('stack exec -- which liquid.exe') do set LH_EXECUTABLE=%%i
-- echo %LH_EXECUTABLE% %FP_EXECUTABLE%
-
-- for /f %%i in ('stack exec -- which fixpoint.exe') do set FP_EXECUTABLE=%%i
-- echo %LH_EXECUTABLE% %FP_EXECUTABLE%
-
-- ps: 7z a `$LH_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"` 
-- ps: 7z a `$FP_EXECUTABLE -replace "^/c/", "c:\" -replace "/", "\"`
+- ps: 7z a ((stack exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\")
+- ps: 7z a ((stack exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\")
 
 - 7z a liquidhaskell.zip LICENSE %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
 
