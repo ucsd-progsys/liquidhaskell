@@ -231,6 +231,8 @@ import qualified Data.ByteString as B
 import qualified Data.ByteString.Internal as B
 import qualified Data.ByteString.Unsafe as B
 
+import qualified Data.ByteString.Lazy.Internal as LI -- REBARE; this exposes `Chunk` and friends
+
 -- Listy functions transparently exported
 import Data.ByteString (empty,null,length,tail,init,append
                        ,inits,tails,reverse,transpose
