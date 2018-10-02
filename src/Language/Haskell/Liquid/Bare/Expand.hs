@@ -539,9 +539,11 @@ exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
 ----------------------------------------------------------------------------------------
 cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
              -> LocSpecType 
-cookSpecType env sigEnv name x bt = 
-  -- F.notracepp ("cookSpecType" ++ F.showpp x) $
-    either (Misc.errorP msg . F.showpp) id (cookSpecTypeE env sigEnv name x bt)
+cookSpecType env sigEnv name x bt
+  = either 
+      Ex.throw      -- (Misc.errorP msg . F.showpp) 
+      id 
+      (cookSpecTypeE env sigEnv name x bt)
   where 
     msg  = "cookSpecType: " ++ GM.showPpr (z, Ghc.varType <$> z)
     z    = Bare.plugSrc x -- snd <$> x

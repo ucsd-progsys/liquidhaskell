@@ -289,11 +289,13 @@ textTests = testGroup "text" <$> odirTests path textIgnored (Just order) ExitSuc
               , "Data/Text/UnsafeChar.hs"
               , "Data/Text/Internal.hs"
               , "Data/Text/Search.hs"
-              , "Data/Text/Axioms.hs"
+              , "Data/Text/Axioms.hs"               
               , "Data/Text/Unsafe.hs"
               , "Data/Text/Private.hs"
+              , "Data/Text/Fusion/Common.hs"
               , "Data/Text/Fusion.hs"
               , "Data/Text/Foreign.hs"
+
               , "Data/Text.hs"
               , "Data/Text/Lazy/Internal.hs"
               , "Data/Text/Lazy/Search.hs"
@@ -528,7 +530,7 @@ negIgnored
 textIgnored :: [FilePath]
 textIgnored 
   = [ "Setup.lhs"
-    , "Data/Text/Axioms.hs"
+    -- , "Data/Text/Axioms.hs"
     , "Data/Text/Encoding/Error.hs"
     , "Data/Text/Encoding/Fusion.hs"
     , "Data/Text/Encoding/Fusion/Common.hs"
@@ -536,7 +538,6 @@ textIgnored
     , "Data/Text/Encoding/Utf32.hs"
     , "Data/Text/Encoding/Utf8.hs"
     , "Data/Text/Fusion/CaseMapping.hs"
-    , "Data/Text/Fusion/Common.hs"
     , "Data/Text/Fusion/Internal.hs"
     , "Data/Text/IO.hs"
     , "Data/Text/IO/Internal.hs"

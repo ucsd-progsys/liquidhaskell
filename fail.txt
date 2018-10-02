@@ -82,6 +82,7 @@ TERMINATION
       , "Data/Text/Search.hs"
       , "Data/Text/Axioms.hs"
       , "Data/Text/Unsafe.hs"
+      
       , "Data/Text/Private.hs"
       , "Data/Text/Fusion.hs"
       , "Data/Text/Foreign.hs"

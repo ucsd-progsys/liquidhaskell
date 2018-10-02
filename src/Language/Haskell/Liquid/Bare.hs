@@ -315,10 +315,9 @@ makeSpecQual _cfg env tycEnv measEnv rtEnv specs = SpQual
 
 makeQualifiers :: Bare.Env -> Bare.TycEnv -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
 makeQualifiers env tycEnv (mod, spec) 
-  = tx <$> Ms.qualifiers spec 
-  where 
-    tx = Bare.qualifyTop env mod 
-       . resolveQParams env tycEnv mod 
+  = fmap        (Bare.qualifyTop env        mod) 
+  . Mb.mapMaybe (resolveQParams  env tycEnv mod)
+  $ Ms.qualifiers spec 
 
 -- @resolveQualParams@ converts the sorts of parameters from, e.g. 
 --   'Int' ===> 'GHC.Types.Int' or 
@@ -326,26 +325,31 @@ makeQualifiers env tycEnv (mod, spec)
 -- It would not be required if _all_ qualifiers are scraped from 
 -- function specs, but we're keeping it around for backwards compatibility.
 
-resolveQParams :: Bare.Env -> Bare.TycEnv -> ModName -> F.Qualifier -> F.Qualifier 
-resolveQParams env tycEnv name q = q  { F.qParams = goQP <$> F.qParams q } 
-  where 
-    goQP qp                      = qp { F.qpSort  = go (F.qpSort qp) }
-    go :: F.Sort -> F.Sort   
-    go (FAbs i s)                = FAbs i (go s)
-    go (FFunc s1 s2)             = FFunc  (go s1) (go s2)
-    go (FApp  s1 s2)             = FApp   (go s1) (go s2)
-    go (FTC c)                   = qualifyFTycon env tycEnv name c 
-    go s                         = s 
 
-qualifyFTycon :: Bare.Env -> Bare.TycEnv -> ModName -> F.FTycon -> F.Sort 
+resolveQParams :: Bare.Env -> Bare.TycEnv -> ModName -> F.Qualifier -> Maybe F.Qualifier 
+resolveQParams env tycEnv name q = do 
+     qps   <- mapM goQP (F.qParams q) 
+     return $ q { F.qParams = qps } 
+  where 
+    goQP qp          = do { s <- go (F.qpSort qp) ; return qp { F.qpSort = s } } 
+    go               :: F.Sort -> Maybe F.Sort   
+    go (FAbs i s)    = FAbs i <$> go s
+    go (FFunc s1 s2) = FFunc  <$> go s1 <*> go s2
+    go (FApp  s1 s2) = FApp   <$> go s1 <*> go s2
+    go (FTC c)       = qualifyFTycon env tycEnv name c 
+    go s             = Just s 
+
+qualifyFTycon :: Bare.Env -> Bare.TycEnv -> ModName -> F.FTycon -> Maybe F.Sort 
 qualifyFTycon env tycEnv name c 
-  | isPrimFTC           = FTC c 
-  | otherwise           = tyConSort embs (F.atLoc tcs ty) 
+  | isPrimFTC           = Just (FTC c) 
+  | otherwise           = tyConSort embs . F.atLoc tcs <$> ty 
   where       
-    ty                  = Bare.lookupGhcTyCon env name "qualify-FTycon" tcs                
+    ty                  = Bare.maybeResolveSym env name "qualify-FTycon" tcs                
     isPrimFTC           = (F.val tcs) `elem` F.prims 
     tcs                 = F.fTyconSymbol c
     embs                = Bare.tcEmbs tycEnv 
+
+
 
 tyConSort :: F.TCEmb Ghc.TyCon -> F.Located Ghc.TyCon -> F.Sort 
 tyConSort embs lc = Mb.maybe s0 fst (F.tceLookup c embs)

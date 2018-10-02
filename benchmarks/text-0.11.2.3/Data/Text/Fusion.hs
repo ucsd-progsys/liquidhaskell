@@ -1,4 +1,4 @@
-{- LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--prune-unsorted" @-}
 
 {-# LANGUAGE BangPatterns, MagicHash #-}
 
@@ -50,9 +50,8 @@ module Data.Text.Fusion
     , countChar
     ) where
 
-import Prelude (Bool(..), Char, Maybe(..), Monad(..), Int,
-                Num(..), Ord(..), ($), (&&),
-                fromIntegral, otherwise)
+-- REBARE import Prelude (undefined, Bool(..), Char, Maybe(..), Monad(..), Int, Num(..), Ord(..), ($), (&&), fromIntegral, otherwise)
+import Prelude hiding (reverse, length)
 import Data.Bits ((.&.))
 import Data.Text.Internal (Text(..))
 import Data.Text.Private (runText)
@@ -68,8 +67,6 @@ import qualified Data.Text.Encoding.Utf16 as U16
 --LIQUID
 import GHC.ST (runST)
 import Language.Haskell.Liquid.Prelude
-import Prelude (undefined)
-
 
 default(Int)
 
@@ -106,13 +103,13 @@ qualOrd3 _ _ = ()
 {-@ qualif ALenLE(v:int, a:A.Array): v <= (alen a) @-}
 
 
-qFoo1 :: Num b => A.MArray a -> (Int, b)
-{-@ qFoo1 :: Num b => a:A.MArray a -> {v:(Int, b) | snd v <= malen a} @-}
-qFoo1 = undefined
+{-@ qualif_Foo1 :: Num b => a:A.MArray a -> {v:(Int, b) | snd v <= maLen a} @-}
+qualif_Foo1 :: Num b => A.MArray a -> (Int, b)
+qualif_Foo1 = undefined
 
-qFoo2 :: Num b => A.Array -> (Int, b)
-{-@ qFoo2 :: Num b => a:A.Array -> {v:(Int, b) | snd v <= alen a} @-}
-qFoo2 = undefined
+{-@ qualif_Foo2 :: Num b => a:A.Array -> {v:(Int, b) | snd v <= aLen a} @-}
+qualif_Foo2 :: Num b => A.Array -> (Int, b)
+qualif_Foo2 = undefined
 
 
 {-@ qualif Foo(v:int): v >= -1 @-}
@@ -314,13 +311,13 @@ countChar = S.countCharI
 -- function to each element of a 'Text', passing an accumulating
 -- parameter from left to right, and returns a final 'Text'.
 
-{-@ fst :: (a, b) -> a @-}
-fst :: (a, b) -> a
-fst = undefined
+{- fst :: (a, b) -> a @-}
+-- fst :: (a, b) -> a
+-- fst = undefined
 
-{-@ snd :: (a, b) -> b @-}
-snd :: (a, b) -> b
-snd = undefined
+{- snd :: (a, b) -> b @-}
+-- snd :: (a, b) -> b
+-- snd = undefined
 
 {-@ assume mapAccumL
       :: (a -> GHC.Types.Char -> (a,GHC.Types.Char))

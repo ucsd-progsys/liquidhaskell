@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality"    @-}
+
 {-# LANGUAGE BangPatterns, MagicHash, Rank2Types #-}
 -- |
 -- Module      : Data.Text.Fusion.Common

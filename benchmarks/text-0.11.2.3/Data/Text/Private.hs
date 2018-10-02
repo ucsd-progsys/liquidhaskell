@@ -1,6 +1,8 @@
 {-# LANGUAGE BangPatterns, Rank2Types, UnboxedTuples #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
+{-@ LIQUID "--prune-unsorted" @-}
+
 -- |
 -- Module      : Data.Text.Private
 -- Copyright   : (c) 2011 Bryan O'Sullivan
