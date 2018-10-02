@@ -299,13 +299,13 @@ odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> IO [TestTr
 --------------------------------------------------------------------------------
 odirTests root ignored fo ecode = do 
   files     <- walkDirectory root
-  print (show files)
+  -- print (show files)
   let tests  = sortOrder fo [ rel | f <- files
                                   , isTest f
                                   , let rel = makeRelative root f
                                   , rel `notElem` ignored 
                             ]
-  print (show tests)
+  -- print (show tests)
   return     $ mkCodeTest ecode root <$> tests
 
 mkCodeTest :: ExitCode -> FilePath -> FilePath -> TestTree

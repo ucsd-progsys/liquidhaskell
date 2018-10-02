@@ -522,7 +522,7 @@ makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig
                   , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP 
                   , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs 
                   ]                                                               -- as they appear in termination metrics
-    mySigs     = makeTySigs  env sigEnv name mySpec
+    mySigs     = F.tracepp "MAKE-TYSIGS" $ makeTySigs  env sigEnv name mySpec
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
     -- hmeas      = makeHMeas    env allSpecs 
