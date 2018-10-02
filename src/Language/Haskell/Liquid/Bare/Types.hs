@@ -22,6 +22,7 @@ module Language.Haskell.Liquid.Bare.Types
 
     -- * Misc 
   , PlugTV (..)
+  , plugSrc
   , varRSort 
   , varSortedReft
   ) where 
@@ -43,13 +44,21 @@ type ModSpecs = M.HashMap ModName Ms.BareSpec
 -- | See [NOTE: Plug-Holes-TyVars] for a rationale for @PlugTV@ 
 -------------------------------------------------------------------------------
 
-data PlugTV = HsTV -- ^ Use tyvars from GHC specification 
-            | LqTV -- ^ Use tyvars from Liquid specification
-            deriving (Show)
+data PlugTV v 
+  = HsTV v  -- ^ Use tyvars from GHC specification (in the `v`) 
+  | LqTV v  -- ^ Use tyvars from Liquid specification
+  | GenTV   -- ^ Generalize ty-vars 
+  | RawTV   -- ^ Do NOT generalize ty-vars (e.g. for type-aliases)
+  deriving (Show)
 
-instance F.PPrint PlugTV where 
+
+instance (Show v, F.PPrint v) => F.PPrint (PlugTV v) where 
   pprintTidy _ = PJ.text . show 
-
+   
+plugSrc ::  PlugTV v -> Maybe v 
+plugSrc (HsTV v) = Just v 
+plugSrc (LqTV v) = Just v 
+plugSrc _        = Nothing
 
 -------------------------------------------------------------------------------
 -- | Name resolution environment 

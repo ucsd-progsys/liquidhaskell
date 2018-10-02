@@ -505,7 +505,7 @@ symbolTyCon :: Char -> Int -> Symbol -> TyCon
 symbolTyCon x i n = stringTyCon x i (symbolString n)
 
 symbolTyVar :: Symbol -> TyVar
-symbolTyVar n = stringTyVar (symbolString n)
+symbolTyVar = stringTyVar . symbolString
 
 localVarSymbol ::  Var -> Symbol
 localVarSymbol v

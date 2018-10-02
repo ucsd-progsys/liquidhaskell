@@ -102,7 +102,7 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, v
     αs     = bareRTyVar <$> as
     as'    = [rVar $ GM.symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-    vts    = [ (m, v, t) | (m, Just (_, v), t) <- meths ]
+    vts    = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
     sts    = F.notracepp "METHODS" $
              [(val s, unClass $ val t) 
                 | (s, _)    <- ms
@@ -111,7 +111,7 @@ mkClass env sigEnv myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, v
     t      = rCls tc as'
 
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> LocSpecType     
-mkConstr env sigEnv name = fmap dropUniv . Bare.cookSpecType env sigEnv name Nothing
+mkConstr env sigEnv name = fmap dropUniv . Bare.cookSpecType env sigEnv name Bare.GenTV -- Nothing
   where 
     dropUniv t           = t' where (_, _, _, t') = bkUniv t
 
@@ -121,11 +121,13 @@ unClass = snd . bkClass . fourth4 . bkUniv
 
 -- formerly, makeSpec
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
-         -> (ModName, Maybe (Bare.PlugTV, Ghc.Var), LocSpecType)
+         -> (ModName, PlugTV Ghc.Var, LocSpecType)
 makeMethod env sigEnv name (lx, bt) = (name, mbV, t) 
   where 
     t   = F.notracepp msg $ Bare.cookSpecType env sigEnv name mbV bt
-    mbV = (Bare.LqTV,) <$> Bare.maybeResolveSym env name "makeMethod" lx 
+    mbV = case Bare.maybeResolveSym env name "makeMethod" lx of 
+            Just v  -> Bare.LqTV v 
+            Nothing -> Bare.GenTV 
     msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 
@@ -155,7 +157,7 @@ makeSpecDictionaryOne env sigEnv name (RI x t xts)
          = makeDictionary $ RI x (val . mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
   where
     mkTy :: LocBareType -> LocSpecType
-    mkTy = Bare.cookSpecType env sigEnv name Nothing 
+    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV 
 
     mkLSpecIType :: RISig LocBareType -> RISig SpecType
     mkLSpecIType = fmap (val . mkTy)

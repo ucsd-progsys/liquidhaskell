@@ -537,17 +537,17 @@ exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
 --   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
 --   details of each of the individual steps.
 ----------------------------------------------------------------------------------------
-cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe (Bare.PlugTV, Ghc.Var) 
-             -> LocBareType 
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
              -> LocSpecType 
 cookSpecType env sigEnv name x bt = 
   -- F.notracepp ("cookSpecType" ++ F.showpp x) $
     either (Misc.errorP msg . F.showpp) id (cookSpecTypeE env sigEnv name x bt)
   where 
     msg  = "cookSpecType: " ++ GM.showPpr (z, Ghc.varType <$> z)
-    z    = snd <$> x
+    z    = Bare.plugSrc x -- snd <$> x
 
-cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Maybe (Bare.PlugTV, Ghc.Var) 
+
+cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var
               -> LocBareType 
               -> Either UserError LocSpecType 
 ----------------------------------------------------------------------------------------
@@ -579,9 +579,10 @@ cookSpecTypeE env sigEnv name x bt
 -- | We don't want to generalize type variables that maybe bound in the 
 --   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs 
 
-generalizeWith :: Maybe (Bare.PlugTV, Ghc.Var) -> SpecType -> SpecType 
-generalizeWith (Just (Bare.HsTV, v)) t = generalizeVar v t 
-generalizeWith _                     t = RT.generalize t 
+generalizeWith :: Bare.PlugTV Ghc.Var -> SpecType -> SpecType 
+generalizeWith (Bare.HsTV v) t = generalizeVar v t 
+generalizeWith  Bare.RawTV   t = t 
+generalizeWith _             t = RT.generalize t 
 
 generalizeVar :: Ghc.Var -> SpecType -> SpecType 
 generalizeVar v t = mkUnivs as [] [] t 
@@ -595,9 +596,6 @@ generalizeVar v t = mkUnivs as [] [] t
 -- generalize :: (Eq tv) => RType c tv r -> RType c tv r
 -- generalize t = mkUnivs (freeTyVars t) [] [] t 
 
-maybePlug :: Bare.SigEnv -> ModName -> Maybe (Bare.PlugTV, Ghc.Var) -> LocSpecType -> LocSpecType 
-maybePlug _      _     Nothing      = id 
-maybePlug sigEnv name (Just (k, x)) = plugHoles sigEnv name k x 
 
 bareExpandType :: BareRTEnv -> LocBareType -> LocBareType 
 bareExpandType = expandLoc 
@@ -610,7 +608,12 @@ bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (va
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)
 
-plugHoles :: Bare.SigEnv -> ModName -> Bare.PlugTV -> Ghc.Var -> LocSpecType -> LocSpecType 
+maybePlug :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
+maybePlug sigEnv name kx = case Bare.plugSrc kx of 
+                             Nothing -> id 
+                             Just _  -> plugHoles sigEnv name kx 
+
+plugHoles :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
 plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
   where 
     embs              = Bare.sigEmbs     sigEnv 

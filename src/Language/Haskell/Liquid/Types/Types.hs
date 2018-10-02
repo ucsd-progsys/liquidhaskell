@@ -1223,11 +1223,8 @@ data RTAlias x a = RTA
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
 
-mapRTAVars :: (a -> tv) -> RTAlias a ty -> RTAlias tv ty
-mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt
-                     -- , rtVArgs = f <$> rtVArgs rt
-                     }
-
+mapRTAVars :: (a -> b) -> RTAlias a ty -> RTAlias b ty
+mapRTAVars f rt = rt { rtTArgs = f <$> rtTArgs rt }
 
 lmapEAlias :: LMap -> F.Located (RTAlias Symbol Expr)
 lmapEAlias (LMap v ys e) = F.atLoc v (RTA (F.val v) [] ys e) -- (F.loc v) (F.loc v)

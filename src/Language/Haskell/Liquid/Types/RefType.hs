@@ -539,7 +539,7 @@ bTyVar :: Symbol -> BTyVar
 bTyVar      = BTV
 
 symbolRTyVar :: Symbol -> RTyVar
-symbolRTyVar = rTyVar . GM.stringTyVar . symbolString
+symbolRTyVar = rTyVar . GM.symbolTyVar 
 
 bareRTyVar :: BTyVar -> RTyVar
 bareRTyVar (BTV tv) = symbolRTyVar tv

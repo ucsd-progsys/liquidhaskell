@@ -46,14 +46,15 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
 makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> M.HashMap Ghc.TyCon RTyCon -> Ghc.NameSet
-               -> Bare.PlugTV -> Ghc.Var -> LocSpecType
+               -> Bare.PlugTV Ghc.Var -> LocSpecType
                -> LocSpecType
 
-makePluggedSig name embs tyi exports k x t = 
-    plugHoles k embs tyi x r τ t
+makePluggedSig name embs tyi exports kx t 
+      = plugHoles kx embs tyi  r τ t
   where 
     τ = Ghc.expandTypeSynonyms (Ghc.varType x)
     r = maybeTrue x name exports
+    x = case kx of { Bare.HsTV x -> x ; Bare.LqTV x -> x }
 
 
 -- makePluggedDataCon = makePluggedDataCon_old 
@@ -61,34 +62,8 @@ makePluggedSig name embs tyi exports k x t =
 -- makePluggedDataCon = makePluggedDataCon_new 
 
 -- plugHoles _         = plugHoles_old
-plugHoles Bare.HsTV = plugHoles_old
-plugHoles Bare.LqTV = plugHoles_new 
-
-{- 
-
-makePluggedDataCon_old :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
-makePluggedDataCon_old embs tyi ldcp 
-  | mismatchFlds      = Ex.throw (err "fields")
-  | mismatchTyVars    = Ex.throw (err "type variables")
-  | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
-                        { dcpFreeTyVars = rTyVar <$> das  
-                        , dcpFreePred   = (subts (zip (dcpFreeTyVars dcp) ((rVar :: Ghc.TyVar -> RSort) <$> das))) <$> dcpFreePred dcp
-                        , dcpTyArgs     = reverse tArgs 
-                        , dcpTyRes      = val tRes 
-                        }
-  where 
-    dcp               = val            ldcp 
-    dc                = dcpCon         dcp
-    (das, _, dts, dt) = Ghc.dataConSig dc
-    rest              = dcpTyRes       dcp
-    tArgs             = zipWith (\t1 (x, t2) -> (x, val (plug t1 t2))) dts (reverse $ dcpTyArgs dcp)
-    tRes              = plugHoles Bare.HsTV embs tyi (Ghc.dataConName dc) (const killHoles) dt (F.atLoc ldcp rest)
-    plug t1 t2        = plugHoles Bare.HsTV embs tyi (Ghc.dataConName dc) (const killHoles) t1 (F.atLoc ldcp t2)
-
-    mismatchFlds      = length dts /= length (dcpTyArgs dcp)
-    mismatchTyVars    = length das /= length (dcpFreeTyVars dcp) 
-    err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
--}
+plugHoles (Bare.HsTV x) a b = plugHoles_old a b x 
+plugHoles (Bare.LqTV x) a b = plugHoles_new a b x 
 
 
 makePluggedDataCon :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
@@ -138,7 +113,7 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
     pRep             = toRTypeRep (val pT)
-    pT               = plugHoles Bare.LqTV embs tyi dcName (const killHoles) hsT (F.atLoc ldcp lqT)
+    pT               = plugHoles (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr Ghc.mkFunTy    hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
