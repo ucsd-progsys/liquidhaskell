@@ -617,7 +617,7 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
     mbHome      = takeUnique err                  sigsHome 
     mbImp       = takeUnique err (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
-    sigsImp     = {- F.tracepp ("SIGS-IMP" ++ F.showpp v) -} 
+    sigsImp     = F.tracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
     err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
@@ -925,11 +925,11 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0 
-  { Ms.asmSigs    = F.notracepp "LIFTED-ASM-SIGS" xbs
+  { Ms.asmSigs    = F.tracepp   "LIFTED-ASM-SIGS" xbs
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
   , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   [ toBare (x, t) | (x, t) <- gsTySigs sig
                                                                 ,  S.member x sigVars 
-                                                                && F.tracepp ("is-exported: " ++ GM.showPpr x)  (isExportedVar src x) --(Ghc.isExportedId x) 
+                                                                && F.tracepp ("is-exported: " ++ GM.showPpr x)  (isExportedVar src x) 
                                                                 ] 
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 

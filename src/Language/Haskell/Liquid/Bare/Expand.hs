@@ -562,13 +562,13 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap (generalizeWith x))
   . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.notracepp (msg 3))
+  . fmap (F.tracepp (msg 3))
   . fmap (Bare.qualifyTop    env name) 
   . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
   . F.tracepp (msg 1) 
   . bareExpandType     rtEnv
-  . F.notracepp (msg 0) 
+  . F.tracepp (msg 0) 
   $ bt 
   where 
     msg i = "cook-" ++ show i ++ " : " ++ F.showpp x

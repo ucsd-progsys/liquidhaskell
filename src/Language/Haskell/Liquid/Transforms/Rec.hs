@@ -45,14 +45,15 @@ import qualified Data.List                            as L
 
 
 transformRecExpr :: CoreProgram -> CoreProgram
-transformRecExpr cbs
-  | isEmptyBag $ filterBag isTypeError e
-  =  {-trace "new cbs"-} pg
-  | otherwise
-  = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
-  where pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
-        (_, e) = lintCoreBindings [] pg
-        pg     = inlineFailCases pg0
+transformRecExpr cbs = pg
+  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs | isEmptyBag $ filterBag isTypeError e
+  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs = pg
+  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs | otherwise
+  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
+  where 
+    pg     = inlineFailCases pg0
+    pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv
+    -- (_, e) = lintCoreBindings [] pg
 
 
 

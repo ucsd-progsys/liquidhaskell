@@ -245,9 +245,10 @@ gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroup "text"        <$> dirTests  "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
-  , bytestringTests
-  -- , testGroup "bytestring"  <$> odirTests "benchmarks/bytestring-0.9.2.1"        []            bsOrder     ExitSuccess
+  [ bytestringTests
+  , textTests
+  -- , testGroup "text"        <$> dirTests  "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
+  -- , testGroup "bytestring"  <$> odirTests "benchmarks/bytestring-0.9.2.1"     []            bsOrder     ExitSuccess
   , testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
   , testGroup "vect-algs"   <$> dirTests  "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
   , testGroup "icfp_pos"    <$> dirTests  "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
@@ -256,10 +257,10 @@ benchTests = group "Benchmarks"
 
 
 bytestringTests :: IO TestTree 
-bytestringTests = testGroup "bytestring" <$> odirTests bsPath [] (Just bsOrder) ExitSuccess 
+bytestringTests = testGroup "bytestring" <$> odirTests path [] (Just order) ExitSuccess 
   where 
-    bsPath      = "benchmarks/bytestring-0.9.2.1" 
-    bsOrder     = mkOrder 
+    path        = "benchmarks/bytestring-0.9.2.1" 
+    order       = mkOrder 
                     [ "Data/ByteString/Internal.hs" 
                     , "Data/ByteString/Lazy/Internal.hs" 
                     , "Data/ByteString/Fusion.hs" 
@@ -270,6 +271,37 @@ bytestringTests = testGroup "bytestring" <$> odirTests bsPath [] (Just bsOrder) 
                     , "Data/ByteString/Lazy.hs"
                     , "Data/ByteString/LazyZip.hs"
                     ]
+
+textTests :: IO TestTree 
+textTests = testGroup "text" <$> odirTests path textIgnored (Just order) ExitSuccess 
+  where 
+    path  = "benchmarks/text-0.11.2.3" 
+    order = mkOrder 
+              [ "Data/Text/Encoding/Utf16.hs"       -- skip
+              , "Data/Text/Unsafe/Base.hs"          -- skip
+              , "Data/Text/UnsafeShift.hs"          -- skip
+              , "Data/Text/Util.hs"
+              , "Data/Text/Fusion/Size.hs"
+              , "Data/Text/Fusion/Internal.hs"      -- skip
+              , "Data/Text/Fusion/CaseMapping.hs"   -- skip
+              , "Data/Text/Fusion/Common.hs"        -- skip
+              , "Data/Text/Array.hs"
+              , "Data/Text/UnsafeChar.hs"
+              , "Data/Text/Internal.hs"
+              , "Data/Text/Search.hs"
+              , "Data/Text/Axioms.hs"
+              , "Data/Text/Unsafe.hs"
+              , "Data/Text/Private.hs"
+              , "Data/Text/Fusion.hs"
+              , "Data/Text/Foreign.hs"
+              , "Data/Text.hs"
+              , "Data/Text/Lazy/Internal.hs"
+              , "Data/Text/Lazy/Search.hs"
+              , "Data/Text/Lazy/Fusion.hs"
+              , "Data/Text/Lazy.hs"
+              , "Data/Text/Lazy/Encoding.hs"
+              , "Data/Text/Lazy/Builder.hs"
+              ]
 
 -- errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
 
@@ -416,7 +448,8 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
         , "-iinclude --c-files=cbits/fpstring.c"
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "--no-lifted-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        -- , "--no-lifted-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."
@@ -519,7 +552,7 @@ textIgnored
     , "Data/Text/Read.hs"
     , "Data/Text/Unsafe/Base.hs"
     , "Data/Text/UnsafeShift.hs"
-    , "Data/Text/Util.hs"
+    -- , "Data/Text/Util.hs"
     , "Data/Text/Fusion-debug.hs"
     , "Data/Text/Encoding.hs"
     ]

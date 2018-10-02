@@ -188,6 +188,7 @@ configureGhcTargets tgtFiles = do
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
   _               <- setTargetModules homeNames
+  liftIO $ print    ("Module Dependencies", homeNames)
   return $ mkModuleGraph homeModules
 
 setTargetModules :: [ModuleName] -> Ghc ()
@@ -327,7 +328,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  liftedSpec          <- liftIO $ if isTarget then return Nothing else loadLiftedSpec cfg file 
+  liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
   let bareSpec         = updLiftedSpec commSpec liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)

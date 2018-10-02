@@ -5,6 +5,7 @@
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE RecordWildCards            #-}
 
 module Language.Haskell.Liquid.Types.Specs where 
 
@@ -187,8 +188,6 @@ data Spec ty bndr  = Spec
                                                        --   see tests/pos/NatClass.hs
   , axeqs      :: ![F.Equation]                        -- ^ Equalities used for Proof-By-Evaluation
   } deriving (Generic)
-
-
 
 isExportedVar :: GhcSrc -> Var -> Bool
 isExportedVar info v = n `elemNameSet` ns
