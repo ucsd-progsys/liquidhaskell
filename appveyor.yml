@@ -35,10 +35,10 @@ build_script:
 - dir /s .stack-work\\
 
 # ZIP execturable
-- ps: 7z a ((stack exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\")
-- ps: 7z a ((stack exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\")
+- ps: ((stack exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | 7z a
+- ps: ((stack exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\") | 7z a
 
-- 7z a liquidhaskell.zip LICENSE %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
+- 7z a liquidhaskell.zip LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
 
 test_script:
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
