@@ -241,7 +241,7 @@ import Data.Int (Int64)
 import Data.Text.Axioms
 import Language.Haskell.Liquid.Prelude
 import GHC.ST (ST)
-
+import qualified Data.Text.Fusion.Size   as TODO_REBARE  -- TODO-REBARE
 
 -- $strict
 --
@@ -773,7 +773,7 @@ toUpper t = unstream (S.toUpper (stream t))
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
 {-@ justifyLeft :: i:Int -> Char -> t:Text
-                -> {v:Text | (Max (tlength v) i (tlength t))}
+                -> {v:Text | (MyMax (tlength v) i (tlength t))}
   @-}
 justifyLeft :: Int -> Char -> Text -> Text
 justifyLeft k c t
@@ -798,7 +798,7 @@ justifyLeft k c t
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
 {-@ justifyRight :: i:Int -> Char -> t:Text
-                 -> {v:Text | (Max (tlength v) i (tlength t))}
+                 -> {v:Text | (MyMax (tlength v) i (tlength t))}
   @-}
 justifyRight :: Int -> Char -> Text -> Text
 justifyRight k c t
@@ -815,7 +815,7 @@ justifyRight k c t
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
 {-@ center :: i:Int -> Char -> t:Text
-           -> {v:Text | (Max (tlength v) i (tlength t))}
+           -> {v:Text | (MyMax (tlength v) i (tlength t))}
   @-}
 center :: Int -> Char -> Text -> Text
 center k c t
@@ -905,10 +905,10 @@ concat ts = case ts' of
     --LIQUID INLINE         let !j = i + l in A.copyI arr i a o j >> return j
     --LIQUID INLINE   foldM step 0 ts' >> return arr
 
-{-@ concat_step :: ma:{v:A.MArray s | (malen v) > 0}
-                -> ts:{v:[{v0:Text | (BtwnE (tlen v0) 0 (malen ma))}] |
-                       (BtwnI (sum_tlens v) 0 (malen ma))}
-                -> i:{v:Int | (v = ((malen ma) - (sum_tlens ts)))}
+{-@ concat_step :: ma:{v:A.MArray s | (maLen v) > 0}
+                -> ts:{v:[{v0:Text | (BtwnE (tlen v0) 0 (maLen ma))}] |
+                       (BtwnI (sum_tlens v) 0 (maLen ma))}
+                -> i:{v:Int | (v = ((maLen ma) - (sum_tlens ts)))}
                 -> ST s Int
   @-}
 concat_step :: A.MArray s -> [Text] -> Int -> ST s Int
@@ -1105,9 +1105,9 @@ axiom_mul = P.undefined
 
 --LIQUID FIXME: figure out which quals from this are needed for replicate
 {-@ replicate_quals :: d:Nat -> n:Nat -> ma:A.MArray s
-                    -> t:{v:Text | (BtwnE (tlen v) 0 (malen ma))}
-                    -> len0:{v:Nat | ((v = (malen ma)) && (v = (mul (tlen t) n)))}
-                    -> d0:{v:Nat | (BtwnI v 0 (malen ma))}
+                    -> t:{v:Text | (BtwnE (tlen v) 0 (maLen ma))}
+                    -> len0:{v:Nat | ((v = (maLen ma)) && (v = (mul (tlen t) n)))}
+                    -> d0:{v:Nat | (BtwnI v 0 (maLen ma))}
                     -> {v:Nat | d0 = (mul (tlen t) v)}
                     -> ST s (A.MArray s)
   @-}
@@ -1493,7 +1493,7 @@ splitOn pat@(Text _ _ l) src@(Text arr off len)
 
 {-@ splitOn_go :: pat:{v:Text | (tlength v) > 1}
                -> t:Text
-               -> s:{v:Int | ((v >= 0) && ((v+(toff t)) <= (alen (tarr t))) && (v <= (tlen t)))}
+               -> s:{v:Int | ((v >= 0) && ((v+(toff t)) <= (aLen (tarr t))) && (v <= (tlen t)))}
                -> xs:[{v:Int | (BtwnI (v) (s) ((tlen t) - (tlen pat)))}]<{\ix iy -> (ix+(tlen pat)) <= iy}>
                -> [Text]
   @-}

@@ -52,10 +52,10 @@ import Data.Typeable (Typeable)
 --LIQUID
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Text [tlen] = Text
-            (ttarr :: A.Array)
-            (ttoff :: AValidO ttarr)
-            (ttlen :: (AValidL ttoff ttarr))
+{-@ data Text [tlen] = Text { ttarr :: Data.Text.Array.Array
+                            , ttoff :: AValidO ttarr
+                            , ttlen :: AValidL ttoff ttarr
+                            }
   @-}
 
 {-@ measure tarr :: Text -> A.Array

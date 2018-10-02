@@ -667,11 +667,11 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
-  -- liftIO    $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
-  -- liftIO    $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
-  -- liftIO    $ print ("moduleFiles-imps  : "  ++ show imps)
-  -- liftIO    $ print ("moduleFiles-Paths : "  ++ show paths)
-  -- liftIO    $ print ("moduleFiles-Specs : "  ++ show fs')
+  liftIO    $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
+  liftIO    $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
+  liftIO    $ print ("moduleFiles-imps  : "  ++ show imps)
+  liftIO    $ print ("moduleFiles-Paths : "  ++ show paths)
+  liftIO    $ print ("moduleFiles-Specs : "  ++ show fs')
   patSpec  <- getPatSpec paths  $ totalityCheck cfg
   rlSpec   <- getRealSpec paths $ not (linear cfg)
   let fs    = patSpec ++ rlSpec ++ fs'
@@ -695,11 +695,13 @@ getRealSpec paths freal
     notRealSpecName = "NotReal"
 
 transParseSpecs :: [FilePath]
-                -> S.HashSet FilePath -> [(ModName, Ms.BareSpec)]
+                -> S.HashSet FilePath 
+                -> [(ModName, Ms.BareSpec)]
                 -> [FilePath]
                 -> Ghc [(ModName, Ms.BareSpec)]
 transParseSpecs _ _ specs [] = return specs
 transParseSpecs paths seenFiles specs newFiles = do
+  liftIO $ print ("TRANS-PARSE-SPECS", seenFiles, newFiles)
   newSpecs      <- liftIO $ mapM parseSpecFile newFiles
   impFiles      <- moduleFiles Spec paths $ specsImports newSpecs
   let seenFiles' = seenFiles `S.union` S.fromList newFiles
@@ -713,7 +715,7 @@ noTerm :: Ms.BareSpec -> Ms.BareSpec
 noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
 
 parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
-parseSpecFile file = either throw return . specSpecificationP file =<< readFile file
+parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayReadFile file
 
 -- Find Hquals Files -----------------------------------------------------------
 
@@ -772,7 +774,7 @@ makeMGIModGuts desugared = miModGuts deriv modGuts
 makeLogicMap :: IO LogicMap
 makeLogicMap = do
   lg    <- Misc.getCoreToLogicPath
-  lspec <- readFile lg
+  lspec <- Misc.sayReadFile lg
   case parseSymbolToLogic lg lspec of 
     Left e   -> throw e 
     Right lm -> return (lm <> listLMap)

@@ -67,7 +67,7 @@ loadLiftedSpec cfg srcF
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
-      return lSp
+      Ex.evaluate lSp
 
 errMissingSpec :: FilePath -> FilePath -> UserError 
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
@@ -93,6 +93,7 @@ saveLiftedSpec :: GhcSrc -> GhcSpec -> IO ()
 saveLiftedSpec src sp = do
   ensurePath specF
   B.encodeFile specF lspec
+  -- print (errorP "DIE" "HERE" :: String) 
   where
     srcF  = giTarget src 
     lspec = gsLSpec  sp 

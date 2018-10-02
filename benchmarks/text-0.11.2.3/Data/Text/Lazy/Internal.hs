@@ -51,7 +51,9 @@ import qualified Data.Text.Internal as T
 
 --LIQUID
 import Language.Haskell.Liquid.Prelude
-
+import qualified Data.Text.Fusion.Size as TODO_REBARE
+import qualified Data.Text.Array       as TODO_REBARE
+import qualified Data.Text             as TODO_REBARE
 
 data Text = Empty
           | Chunk {-# UNPACK #-} !T.Text Text

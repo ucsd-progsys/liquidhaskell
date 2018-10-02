@@ -53,6 +53,7 @@ import qualified Data.Vector                                  as V
 import qualified Data.ByteString.Lazy                         as B
 import qualified Data.Text                                    as T
 import qualified Data.HashMap.Strict                          as M
+import qualified Language.Haskell.Liquid.Misc                 as Misc 
 import qualified Language.Haskell.Liquid.UX.ACSS              as ACSS
 import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
@@ -127,7 +128,7 @@ writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appe
 
 generateHtml :: FilePath -> FilePath -> ACSS.AnnMap -> IO ()
 generateHtml srcF htmlF annm
-  = do src     <- readFile srcF
+  = do src     <- Misc.sayReadFile srcF
        let lhs  = isExtFile LHs srcF
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
        cssFile <- getCssPath

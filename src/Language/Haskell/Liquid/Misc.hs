@@ -352,3 +352,9 @@ keyDiff f x1s x2s = M.elems (M.difference (m x1s) (m x2s))
 concatUnzip :: [([a], [b])] -> ([a], [b])
 concatUnzip xsyss = (concatMap fst xsyss, concatMap snd xsyss)
 
+
+sayReadFile :: FilePath -> IO String 
+sayReadFile f = do 
+  print ("SAY-READ-FILE: " ++ f)
+  readFile f 
+
