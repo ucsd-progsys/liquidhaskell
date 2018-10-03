@@ -58,7 +58,7 @@ import Language.Haskell.Liquid.Prelude
                             }
   @-}
 
-{-@ measure tarr :: Text -> A.Array
+{-@ measure tarr :: Text -> Data.Text.Array.Array
     tarr (Text a o l) = a
   @-}
 

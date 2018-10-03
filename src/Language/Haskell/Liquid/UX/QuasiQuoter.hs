@@ -63,7 +63,7 @@ lqDec src = do
 
 throwErrorInQ :: UserError -> Q a
 throwErrorInQ err =
-  fail . showpp =<< runIO (errorWithContext err)
+  fail . showpp =<< runIO (errorsWithContext [err])
 
 --------------------------------------------------------------------------------
 -- Liquid Haskell to Template Haskell ------------------------------------------

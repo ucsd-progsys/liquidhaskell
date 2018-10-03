@@ -73,44 +73,24 @@ TERMINATION
       , "Data/Text/Search.hs"
       , "Data/Text/Axioms.hs"
       , "Data/Text/Unsafe.hs"
-
       , "Data/Text/Private.hs"
       , "Data/Text/Fusion.hs"
       , "Data/Text/Foreign.hs"
       , "Data/Text.hs"
       , "Data/Text/Lazy/Internal.hs"
       , "Data/Text/Lazy/Search.hs"
+
       , "Data/Text/Lazy/Fusion.hs"
       , "Data/Text/Lazy.hs"
       , "Data/Text/Lazy/Encoding.hs"
       , "Data/Text/Lazy/Builder.hs"
       ]
 
-("Module Dependencies",[Data.Text.Encoding.Error, Data.Text.Encoding.Utf16,Data.Text.Encoding.Utf32,Data.Text.Unsafe.Base,Data.Text.UnsafeShift,Data.Text.Util,Language.Haskell.Liquid.Foreign,Language.Haskell.Liquid.Prelude,
+      , "Data/Text/Lazy/Fusion.hs"
+      , "Data/Text/Lazy.hs"
+      , "Data/Text/Lazy/Encoding.hs"
+      , "Data/Text/Lazy/Builder.hs"
 
-
-Data.Text.Fusion.Size
-,Data.Text.Fusion.Internal
-,Data.Text.Fusion.CaseMapping
-,Data.Text.Fusion.Common,
-Data.Text.Array,Data.Text.UnsafeChar,
-
-Data.Text.Encoding.Utf8,Data.Text.Internal,Data.Text.Search,Data.Text.Axioms,Data.Text.Unsafe,Data.Text.Private,
-Data.Text.Fusion,Data.Text.Encoding.Fusion.Common,Data.Text,Data.Text.Lazy.Internal,Data.Text.Lazy.Fusion,
-
-Data.ByteString.Internal,Data.ByteString.Unsafe,Data.ByteString.Lazy.Internal,Data.ByteString.Fusion,Data.ByteString, 
-
-Data.Text.Lazy.Encoding.Fusion,Data.Text.Encoding.Fusion,Data.Text.Encoding,Data.ByteString.Lazy,Data.Text.Lazy.Encoding])
-
-
-
-
-
-
-
-
-      Data/ByteString/Char8.hs:               FAIL (5.39s)
-        ? Error: Unknown data constructor `Chunk` from imported D.B.L.Internal 
      
       Fib.hs:                                 FAIL (1.21s)
 
@@ -123,3 +103,26 @@ Data.Text.Lazy.Encoding.Fusion,Data.Text.Encoding.Fusion,Data.Text.Encoding,Data
       Data/Vector/Algorithms/Combinators.hs:  FAIL (1.19s)
       - Illegal type specification for `Data.Vector.Generic.New.New` ?
       - DELETING a bunch of imports solves the problem...
+
+
+
+module FunClashLibLib where 
+
+{-@ incr :: Nat -> Nat @-} 
+incr :: Int -> Int 
+incr = x + 1 
+  
+module FunClashLib where
+
+import FunClashLibLib 
+
+{-@ blob :: Nat -> Nat @-} 
+blob :: Int -> Int 
+blob = incr 
+
+module FunClash where  
+
+import FunClashLib
+
+incr :: Bool -> Bool
+incr = not 

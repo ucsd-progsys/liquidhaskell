@@ -607,8 +607,10 @@ consoleResultJson _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . annErrors $ annm
 
-resultWithContext :: FixResult UserError -> IO (FixResult CError)
-resultWithContext = mapM errorWithContext
+resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
+resultWithContext (F.Unsafe es)   = F.Unsafe      <$> errorsWithContext es
+resultWithContext (F.Crash  es s) = (`F.Crash` s) <$> errorsWithContext es
+resultWithContext (F.Safe)        = return F.Safe 
 
 instance Show (CtxError Doc) where
   show = showpp

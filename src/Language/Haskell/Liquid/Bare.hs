@@ -746,9 +746,8 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt = F.tracepp ("PLUGGED-DATACTOR: " ++ GM.showPpr x) $ Bare.plugHoles sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = F.tracepp "MEASURES-2" $ Bare.qualifyTop env name <$> (F.tracepp "MEASURES-1" $ ms1 ++ ms2)
-  , gsInvariants = makeMeasureInvariants env name sig mySpec 
-                ++ concat (makeInvariants env sigEnv <$> M.toList specs)
+  , gsMeasures   = F.tracepp "MEASURES-2"    $ Bare.qualifyTop env name <$> (F.tracepp "MEASURES-1" $ ms1 ++ ms2)
+  , gsInvariants = F.tracepp "GS-INVARIANTS" $ Misc.nubHashOn (F.loc . snd) invs 
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
   }
   where
@@ -760,6 +759,8 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
     ms2          =          Ms.imeas   measures
     mySpec       = M.lookupDefault mempty name specs
     name         = giTargetMod      src
+    invs         = makeMeasureInvariants env name sig mySpec
+                ++ concat (makeInvariants env sigEnv <$> M.toList specs)
 
 makeIAliases :: Bare.Env -> Bare.SigEnv -> (ModName, BareSpec) -> [(LocSpecType, LocSpecType)]
 makeIAliases env sigEnv (name, spec)
@@ -932,12 +933,14 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
 makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0 
   { Ms.asmSigs    = F.tracepp   "LIFTED-ASM-SIGS" xbs
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
-  , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   [ toBare (x, t) | (x, t) <- gsTySigs sig
-                                                                ,  S.member x sigVars 
-                                                                && F.tracepp ("is-exported: " ++ GM.showPpr x)  (isExportedVar src x) 
-                                                                ] 
+  , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   
+                    [ toBare (x, t) | (x, t) <- gsTySigs sig
+                                    ,  S.member x sigVars 
+                                    && F.tracepp ("is-exported: " ++ GM.showPpr x)  (isExportedVar src x) 
+                    ] 
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
+                       , isLocInFile srcF t
                     ]
   , Ms.axeqs      = gsMyAxioms refl 
   , Ms.aliases    = F.tracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE

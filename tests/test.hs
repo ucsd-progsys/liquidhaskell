@@ -295,11 +295,12 @@ textTests = testGroup "text" <$> odirTests path (textIgnored ++ text_TODO_REBARE
               , "Data/Text/Fusion/Common.hs"
               , "Data/Text/Fusion.hs"
               , "Data/Text/Foreign.hs"
+              , "Data/Text.hs"
+              , "Data/Text/Lazy/Internal.hs"
+              , "Data/Text/Lazy/Search.hs"
               ] ++ text_TODO_REBARE 
     text_TODO_REBARE =
-      [ "Data/Text.hs"
-      , "Data/Text/Lazy/Internal.hs"
-      , "Data/Text/Lazy/Search.hs"
+      [ 
       , "Data/Text/Lazy/Fusion.hs"
       , "Data/Text/Lazy.hs"
       , "Data/Text/Lazy/Encoding.hs"

@@ -17,7 +17,7 @@ module Language.Haskell.Liquid.Types.Errors (
 
   -- * Error with Source Context
   , CtxError (..)
-  , errorWithContext
+  , errorsWithContext
 
   -- * Subtyping Obligation Type
   , Oblig (..)
@@ -46,33 +46,32 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
-import           SrcLoc                      -- (SrcSpan (..), noSrcSpan)
+import           SrcLoc                      
 import           FastString
-
 import           HscTypes (srcErrorMessages, SourceError)
 import           ErrUtils
 import           Bag
 
 import           GHC.Generics
 import           Control.DeepSeq
+import qualified Control.Exception            as Ex
 import           Data.Typeable                (Typeable)
 import           Data.Generics                (Data)
-import qualified Data.Binary as B
-import           Data.Maybe
-import           Text.PrettyPrint.HughesPJ 
-import           Data.Aeson hiding (Result)
-import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
-import qualified Language.Fixpoint.Misc     as Misc
-import           Language.Haskell.Liquid.Misc ((<->), intToString)
-import           Text.Parsec.Error            (ParseError)
-import qualified Control.Exception as Ex
+import qualified Data.Binary                  as B
+import qualified Data.Maybe                   as Mb
+import           Data.Aeson                   hiding (Result)
+import qualified Data.HashMap.Strict          as M
+import qualified Data.List                    as L 
 import           System.Directory
 import           System.FilePath
-import Data.List    (intersperse )
-import           Text.Parsec.Error (errorMessages, showErrorMessages)
+import           Text.PrettyPrint.HughesPJ 
+import           Text.Parsec.Error            (ParseError)
+import           Text.Parsec.Error            (errorMessages, showErrorMessages)
 
-
+import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
+import qualified Language.Fixpoint.Misc       as Misc
+import qualified Language.Haskell.Liquid.Misc as Misc 
+import           Language.Haskell.Liquid.Misc ((<->))
 
 instance PPrint ParseError where
   pprintTidy _ e = vcat $ tail $ text <$> ls
@@ -96,41 +95,56 @@ instance Ord (CtxError t) where
   e1 <= e2 = ctErr e1 <= ctErr e2
 
 --------------------------------------------------------------------------------
-errorWithContext :: TError Doc -> IO (CtxError Doc)
+errorsWithContext :: [TError Doc] -> IO [CtxError Doc]
 --------------------------------------------------------------------------------
-errorWithContext e = CtxError e <$> srcSpanContext (pos e)
+errorsWithContext es 
+  = Misc.concatMapM fileErrors 
+  $ Misc.groupList [ (srcSpanFileMb (pos e), e) | e <- es ]
 
-srcSpanContext :: SrcSpan -> IO Doc
-srcSpanContext sp
-  | Just (f, l, c, l', c') <- srcSpanInfo sp
-  = makeContext l c c' <$> getFileLines f l l'
+fileErrors :: (Maybe FilePath, [TError Doc]) -> IO [CtxError Doc]
+fileErrors (fp, errs) = do 
+  fb  <- getFileBody fp 
+  return (errorWithContext fb <$> errs) 
+
+errorWithContext :: FileBody -> TError Doc -> CtxError Doc
+errorWithContext fb e = CtxError e (srcSpanContext fb (pos e))
+
+srcSpanContext :: FileBody -> SrcSpan -> Doc
+srcSpanContext fb sp
+  | Just (l, c, l', c') <- srcSpanInfo sp
+  = makeContext l c c' (getFileLines fb l l')
   | otherwise
-  = return empty
+  = empty
 
-srcSpanInfo :: SrcSpan -> Maybe (FilePath, Int, Int, Int, Int)
-srcSpanInfo (RealSrcSpan s) = Just (f, l, c, l', c')
+srcSpanFileMb :: SrcSpan -> Maybe FilePath
+srcSpanFileMb (RealSrcSpan s) = Just $ unpackFS $ srcSpanFile s
+srcSpanFileMb _               = Nothing 
+
+srcSpanInfo :: SrcSpan -> Maybe (Int, Int, Int, Int)
+srcSpanInfo (RealSrcSpan s) 
+              = Just (l, c, l', c')
   where
-     f        = unpackFS $ srcSpanFile s
      l        = srcSpanStartLine s
      c        = srcSpanStartCol  s
      l'       = srcSpanEndLine   s
      c'       = srcSpanEndCol    s
 srcSpanInfo _ = Nothing
 
-getFileLines :: FilePath -> Int -> Int -> IO [String]
-getFileLines f i j = do
-  b <- doesFileExist f
-  if b
-    then slice (i - 1) (j - 1) . lines <$> readFile f
-    else return []
+getFileLines :: FileBody -> Int -> Int -> [String]
+getFileLines fb i j = slice (i - 1) (j - 1) fb 
+
+getFileBody :: Maybe FilePath -> IO FileBody
+getFileBody Nothing  = 
+  return []
+getFileBody (Just f) = do 
+  b <- doesFileExist f 
+  if b then lines <$> Misc.sayReadFile f 
+       else return []
+
+type FileBody = [String]
 
 slice :: Int -> Int -> [a] -> [a]
 slice i j xs = take (j - i + 1) (drop i xs)
-
--- getNth :: Int -> [a] -> Maybe a
--- getNth i xs
--- /  | i < length xs = Just (xs !! i)
--- /  | otherwise     = Nothing
 
 makeContext :: Int -> Int -> Int -> [String] -> Doc
 makeContext _ _ _  []  = empty
@@ -506,7 +520,7 @@ panicDoc sp d = Ex.throw (ErrOther sp d :: UserError)
 panic :: {- (?callStack :: CallStack) => -} Maybe SrcSpan -> String -> a
 panic sp d = panicDoc (sspan sp) (text d)
   where
-    sspan  = fromMaybe noSrcSpan
+    sspan  = Mb.fromMaybe noSrcSpan
 
 -- | Construct and show an Error with an optional SrcSpan, then crash
 --   This function should be used to mark unimplemented functionality
@@ -544,7 +558,7 @@ nests :: Foldable t => Int -> t Doc -> Doc
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
 
 sepVcat :: Doc -> [Doc] -> Doc
-sepVcat d ds = vcat $ intersperse d ds
+sepVcat d ds = vcat $ L.intersperse d ds
 
 blankLine :: Doc
 blankLine    = sizedText 5 " "
@@ -589,7 +603,7 @@ ppReqModelInContext td tA tE c
       ]
 
 vsep :: [Doc] -> Doc
-vsep = vcat . intersperse (char ' ')
+vsep = vcat . L.intersperse (char ' ')
 
 pprintModel :: PPrint t => Tidy -> Symbol -> WithModel t -> Doc
 pprintModel td v wm = case wm of
@@ -838,7 +852,7 @@ ppError' _ dSp dCtx (ErrPartPred _ c p i eN aN)
   = dSp <+> text "Malformed predicate application"
         $+$ dCtx
         $+$ (nest 4 $ vcat
-                        [ "The" <+> text (intToString i) <+> "argument of" <+> c <+> "is predicate" <+> ppTicks p
+                        [ "The" <+> text (Misc.intToString i) <+> "argument of" <+> c <+> "is predicate" <+> ppTicks p
                         , "which expects" <+> pprint eN <+> "arguments" <+> "but is given only" <+> pprint aN
                         , " "
                         , "Abstract predicates cannot be partially applied; for a possible fix see:"
@@ -913,7 +927,7 @@ ppError' _ dSp dCtx (ErrOther _ s)
 ppError' _ dSp dCtx (ErrTermin _ xs s)
   = dSp <+> text "Termination Error"
         $+$ dCtx
-        <+> (hsep $ intersperse comma xs) $+$ s
+        <+> (hsep $ L.intersperse comma xs) $+$ s
 
 ppError' _ dSp dCtx (ErrStTerm _ x s)
   = dSp <+> text "Structural Termination Error"

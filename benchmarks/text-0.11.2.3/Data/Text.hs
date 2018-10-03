@@ -407,6 +407,9 @@ unpack :: Text -> String
 unpack t = S.unstreamList $ stream t
 {-# INLINE [1] unpack #-}
 
+todo_rebare :: Int -> Int
+todo_rebare x = x + 1 
+
 -- | /O(n)/ Convert a literal string into a Text.
 --LIQUID unpackCString# :: Addr# -> Text
 --LIQUID unpackCString# addr# = unstream (S.streamCString# addr#)

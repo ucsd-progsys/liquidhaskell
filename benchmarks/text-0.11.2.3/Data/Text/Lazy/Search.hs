@@ -40,6 +40,9 @@ import Data.Text.UnsafeShift (shiftL)
 -- import qualified Data.Text.Search
 -- import qualified Data.Text.Unsafe
 import Data.Text.Lazy.Internal (foldrChunks)
+import qualified Data.Text.Fusion.Size as TODO_REBARE 
+import qualified Data.Text             as TODO_REBARE 
+
 -- import qualified Data.Word
 -- import Data.Int (Int32)
 import Language.Haskell.Liquid.Prelude
