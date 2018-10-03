@@ -50,15 +50,6 @@ TERMINATION
     ElabLocation.hs:                          FAIL (1.08s)
 
       Data/Text.hs:                           FAIL (5.00s)
-      Data/Text/Foreign.hs:                   FAIL (2.56s)
-      Data/Text/Array.hs:                     FAIL (0.74s)
-      Data/Text/UnsafeChar.hs:                FAIL (1.93s)
-      Data/Text/Search.hs:                    FAIL (2.16s)
-      Data/Text/Fusion.hs:                    FAIL (3.23s)
-      Data/Text/Private.hs:                   FAIL (2.17s)
-      Data/Text/Unsafe.hs:                    FAIL (2.48s)
-      Data/Text/Internal.hs:                  FAIL (2.26s)
-      Data/Text/Fusion/Size.hs:               FAIL (1.11s)
       Data/Text/Lazy/Search.hs:               FAIL (5.78s)
       Data/Text/Lazy/Fusion.hs:               FAIL (5.94s)
       Data/Text/Lazy/Internal.hs:             FAIL (5.06s)
@@ -82,7 +73,7 @@ TERMINATION
       , "Data/Text/Search.hs"
       , "Data/Text/Axioms.hs"
       , "Data/Text/Unsafe.hs"
-      
+
       , "Data/Text/Private.hs"
       , "Data/Text/Fusion.hs"
       , "Data/Text/Foreign.hs"

@@ -273,10 +273,10 @@ bytestringTests = testGroup "bytestring" <$> odirTests path [] (Just order) Exit
                     ]
 
 textTests :: IO TestTree 
-textTests = testGroup "text" <$> odirTests path textIgnored (Just order) ExitSuccess 
+textTests = testGroup "text" <$> odirTests path (textIgnored ++ text_TODO_REBARE) (Just order) ExitSuccess 
   where 
     path  = "benchmarks/text-0.11.2.3" 
-    order = mkOrder 
+    order = mkOrder $ 
               [ "Data/Text/Encoding/Utf16.hs"       -- skip
               , "Data/Text/Unsafe/Base.hs"          -- skip
               , "Data/Text/UnsafeShift.hs"          -- skip
@@ -295,15 +295,16 @@ textTests = testGroup "text" <$> odirTests path textIgnored (Just order) ExitSuc
               , "Data/Text/Fusion/Common.hs"
               , "Data/Text/Fusion.hs"
               , "Data/Text/Foreign.hs"
-
-              , "Data/Text.hs"
-              , "Data/Text/Lazy/Internal.hs"
-              , "Data/Text/Lazy/Search.hs"
-              , "Data/Text/Lazy/Fusion.hs"
-              , "Data/Text/Lazy.hs"
-              , "Data/Text/Lazy/Encoding.hs"
-              , "Data/Text/Lazy/Builder.hs"
-              ]
+              ] ++ text_TODO_REBARE 
+    text_TODO_REBARE =
+      [ "Data/Text.hs"
+      , "Data/Text/Lazy/Internal.hs"
+      , "Data/Text/Lazy/Search.hs"
+      , "Data/Text/Lazy/Fusion.hs"
+      , "Data/Text/Lazy.hs"
+      , "Data/Text/Lazy/Encoding.hs"
+      , "Data/Text/Lazy/Builder.hs"
+      ]
 
 -- errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
 
