@@ -362,7 +362,7 @@ mkOrder :: [FilePath] -> FileOrder
 mkOrder fs = Map.fromList (zip fs [0..])
 
 sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
-sortOrder Nothing   fs = L.sort fs 
+sortOrder Nothing   fs = L.reverse   (L.sort fs) 
 sortOrder (Just fo) fs = sortOn (getOrder fo) fs 
 
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
