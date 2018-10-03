@@ -126,3 +126,21 @@ import FunClashLib
 
 incr :: Bool -> Bool
 incr = not 
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/text-0.11.2.3/Data/Text/Lazy.hs:773:1-9: Error: Liquid Type Mismatch
+  
+ 773 |     rev :: Text -> Text -> Text 
+       ^^^^^^^^^
+  
+   Inferred type
+     VV : {v : Data.Text.Lazy.Internal.Text | ltlength v >= 0
+                                              && (ltlength v == 0 <=> ltlen v == 0)
+                                              && ltlen v >= 0}
+  
+   not a subtype of Required type
+     VV : {VV : Data.Text.Lazy.Internal.Text | ltlen VV > 0
+                                               && ltlength VV > 0}
+  
+
+
