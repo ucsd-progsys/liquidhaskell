@@ -59,8 +59,8 @@ main :: IO ()
 main = do unsetEnv "LIQUIDHASKELL_OPTS"
           -- We don't run tests in depedency order, so having stale
           -- .liquid/ *.hs.bspec files can causes problems.
-          system "rm -r tests/pos/.liquid/"
-          system "rm -r tests/neg/.liquid/"
+          -- system "rm -r tests/pos/.liquid/"
+          -- system "rm -r tests/neg/.liquid/"
           run =<< tests
   where
     run   = defaultMainWithIngredients [
@@ -69,12 +69,13 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                                  , Option (Proxy :: Proxy LiquidOpts)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
-    tests = group "Tests" [ microTests
-                          , proverTests 
-                          , macroTests
-                          , errorTests
-                          , benchTests
-                          ]
+    tests = group "Tests" $ microTests  :
+                            errorTests  : 
+                            macroTests  :
+                            proverTests :
+                            benchTests  : 
+                            []
+                           
 
     -- tests = group "Tests" [ unitTests  ]
     -- tests = group "Tests" [ benchTests ]
