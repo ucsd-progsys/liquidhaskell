@@ -1,3 +1,5 @@
+-- SHOULD BE UNSAFE; disabled due to TODO-REBARE-CLASS 
+
 module Data.Monoid where
 
 {-@ LIQUID "--reflection" @-}
@@ -9,7 +11,9 @@ import Language.Haskell.Liquid.NewProofCombinators
 
 class VerifiedMonoid a where
   mempty  :: a
+
   mappend :: a -> a -> a
+
   leftId  :: a -> Proof
   rightId :: a -> Proof
   assoc   :: a -> a -> a -> Proof
@@ -26,8 +30,9 @@ class VerifiedMonoid a where
 -- The above should change to explicitely reflect mappend and mempty.
 -- Then, each instance should generate the code at the end of this file.
 
+
 {-@ data List a = N | C {hd :: a, tl :: List a} @-}
-data List a = N | C {hd :: a, tl :: (List a)}
+data List a = N | C a (List a)
 
 
 
@@ -36,21 +41,11 @@ instance VerifiedMonoid (List a) where
   mappend N ys        = ys
   mappend (C x xs) ys = C x (mappend xs ys)
 
-  leftId  x           = mappend mempty x 
-                      === mappend N x 
-                      === x 
-                      *** QED
+  leftId  x           = mappend mempty x === mappend N x === x *** QED
 
 
-  rightId N           = mappend N mempty 
-                      === mappend N N 
-                      === N 
-                      *** QED
-
-  rightId (C x xs)    = mappend (C x xs) mempty 
-                      === C x (mappend xs N ) 
-                      ==? C x xs ? rightId xs 
-                      *** QED
+  rightId N           = mappend N mempty === mappend N N === N *** QED
+  rightId (C x xs)    = mappend (C x xs) mempty === C x (mappend xs N ) ==? C x xs ? rightId xs *** QED
 
 
   assoc N ys zs
@@ -61,8 +56,7 @@ instance VerifiedMonoid (List a) where
   assoc (C x xs) ys zs
     =   mappend (C x xs) (mappend ys zs)
     === C x (mappend xs (mappend ys zs))
-    ==? C x (mappend (mappend xs ys) zs)
-        ? assoc xs ys zs
+    === C x (mappend (mappend xs ys) zs)
     === mappend (C x (mappend xs ys)) zs
     === mappend (mappend (C x xs) ys) zs
     *** QED
@@ -77,20 +71,20 @@ instance VerifiedMonoid (List a) where
 {-@ measure mappend :: a -> a -> a @-}
 {-@ measure mempty  :: a @-}
 
--- | 2. One uninterpreted function is generated for each reflected function
+-- | 1. One uninterpreted function is generated for each reflected function
 
 
 {-@ measure mappendList :: List a -> List a -> List a @-}
 {-@ measure memptyList  :: List a @-}
 
 
--- | 3. The reflected methods are reflected in the result type as assumed types,
--- |    and the proof obligations are coppied to the proof methods.
+-- | 2. The reflected methods are reflected in the result type as assumed types,
+-- |    and the proof obligations are copied to the proof methods.
 
 {-@ instance VerifiedMonoid (List a) where
   assume mempty  :: {v:List a | (v = N) && (v = memptyList) };
   assume mappend :: {v:(x:List a -> y:List a
-                 -> {v:List a | (v = mappendList x y) && (if (is$Data.Monoid.N x) then (v == y) else (v == C (Data.Monoid.hd x) (mappendList (Data.Monoid.tl x) y) )) })  | v == mappendList};
+                 -> {v:List a | (v = mappendList x y) && (if (is$Data.Monoid.N x) then (v == y) else (v == C (lqdc##select##C##1 x) (mappendList (lqdc##select##C##2 x) y) )) })  | v == mappendList};
   leftId  :: x:List a -> {v:Proof | mappendList memptyList x = x } ;
   rightId :: x:List a -> {v:Proof | mappendList x memptyList = x } ;
   assoc   :: x:List a -> y:List a -> z:List a -> {v:Proof | mappendList x (mappendList y z) = mappendList (mappendList x y) z}
