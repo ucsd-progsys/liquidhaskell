@@ -1,17 +1,13 @@
 {-@ LIQUID "--pruneunsorted" @-}
 
 module MovieClient where
+
 import DataBase
-
-
 import GHC.CString  -- This import interprets Strings as constants!
-
 import Data.Maybe (catMaybes)
-
 import Prelude hiding (product, elem)
-
 import Control.Applicative ((<$>))
-
+import qualified Data.Set as S
 
 type Tag = String
 

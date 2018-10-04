@@ -246,84 +246,79 @@ gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ vectorAlgsTests
-  , bytestringTests
-  , textTests
-  -- , testGroup "vect-algs"   <$> dirTests  "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
-  -- , testGroup "text"        <$> dirTests  "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
-  -- , testGroup "bytestring"  <$> odirTests "benchmarks/bytestring-0.9.2.1"     []            bsOrder     ExitSuccess
-  , testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
-  , testGroup "icfp_pos"    <$> dirTests  "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
-  , testGroup "icfp_neg"    <$> dirTests  "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
+  [ testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess
+  , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess
+  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        []            bsOrder     ExitSuccess
+  , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess
+  , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess
+  , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
   ]
 
-vectorAlgsTests :: IO TestTree 
-vectorAlgsTests = testGroup "vect-algs" <$> odirTests path [] (Just order) ExitSuccess 
-  where 
-    path      = "benchmarks/vector-algorithms-0.5.4.2"
-    order     = mkOrder 
-                  [ "Data/Vector/Algorithms/Common.hs"
-                  , "Data/Vector/Algorithms/Search.hs"
-                  , "Data/Vector/Algorithms/Radix.hs"
-                  , "Data/Vector/Algorithms/Termination.hs"
-                  , "Data/Vector/Algorithms/Optimal.hs"
-                  , "Data/Vector/Algorithms/Insertion.hs"
-                  , "Data/Vector/Algorithms/Merge.hs"
-                  , "Data/Vector/Algorithms/Heap.hs"
-                  , "Data/Vector/Algorithms/Intro.hs"
-                  , "Data/Vector/Algorithms/AmericanFlag.hs" 
-                  ]  
+icfpOrder :: Maybe FileOrder 
+icfpOrder = Just . mkOrder $ 
+  [ "RIO.hs" 
+  , "RIO2.hs"
+  , "WhileM.hs" 
+  , "DataBase.hs"
+  ]
+
+vectOrder :: Maybe FileOrder 
+vectOrder = Just . mkOrder $ 
+  [ "Data/Vector/Algorithms/Common.hs"
+  , "Data/Vector/Algorithms/Search.hs"
+  , "Data/Vector/Algorithms/Radix.hs"
+  , "Data/Vector/Algorithms/Termination.hs"
+  , "Data/Vector/Algorithms/Optimal.hs"
+  , "Data/Vector/Algorithms/Insertion.hs"
+  , "Data/Vector/Algorithms/Merge.hs"
+  , "Data/Vector/Algorithms/Heap.hs"
+  , "Data/Vector/Algorithms/Intro.hs"
+  , "Data/Vector/Algorithms/AmericanFlag.hs" 
+  ]  
  
-bytestringTests :: IO TestTree 
-bytestringTests = testGroup "bytestring" <$> odirTests path [] (Just order) ExitSuccess 
-  where 
-    path        = "benchmarks/bytestring-0.9.2.1" 
-    order       = mkOrder 
-                    [ "Data/ByteString/Internal.hs" 
-                    , "Data/ByteString/Lazy/Internal.hs" 
-                    , "Data/ByteString/Fusion.hs" 
-                    , "Data/ByteString/Fusion.T.hs" 
-                    , "Data/ByteString/Unsafe.hs" 
-                    , "Data/ByteString.T.hs"
-                    , "Data/ByteString.hs"
-                    , "Data/ByteString/Lazy.hs"
-                    , "Data/ByteString/LazyZip.hs"
-                    ]
+bsOrder :: Maybe FileOrder 
+bsOrder = Just . mkOrder $ 
+  [ "Data/ByteString/Internal.hs" 
+  , "Data/ByteString/Lazy/Internal.hs" 
+  , "Data/ByteString/Fusion.hs" 
+  , "Data/ByteString/Fusion.T.hs" 
+  , "Data/ByteString/Unsafe.hs" 
+  , "Data/ByteString.T.hs"
+  , "Data/ByteString.hs"
+  , "Data/ByteString/Lazy.hs"
+  , "Data/ByteString/LazyZip.hs"
+  ]
 
-textTests :: IO TestTree 
-textTests = testGroup "text" <$> odirTests path (textIgnored {- ++ text_TODO_REBARE -}) (Just order) ExitSuccess 
-  where 
-    path  = "benchmarks/text-0.11.2.3" 
-    order = mkOrder $ 
-              [ "Data/Text/Encoding/Utf16.hs"       -- skip
-              , "Data/Text/Unsafe/Base.hs"          -- skip
-              , "Data/Text/UnsafeShift.hs"          -- skip
-              , "Data/Text/Util.hs"
-              , "Data/Text/Fusion/Size.hs"
-              , "Data/Text/Fusion/Internal.hs"      -- skip
-              , "Data/Text/Fusion/CaseMapping.hs"   -- skip
-              , "Data/Text/Fusion/Common.hs"        -- skip
-              , "Data/Text/Array.hs"
-              , "Data/Text/UnsafeChar.hs"
-              , "Data/Text/Internal.hs"
-              , "Data/Text/Search.hs"
-              , "Data/Text/Axioms.hs"               
-              , "Data/Text/Unsafe.hs"
-              , "Data/Text/Private.hs"
-              , "Data/Text/Fusion/Common.hs"
-              , "Data/Text/Fusion.hs"
-              , "Data/Text/Foreign.hs"
-              , "Data/Text.hs"
-              , "Data/Text/Lazy/Internal.hs"
-              , "Data/Text/Lazy/Search.hs"
-              , "Data/Text/Lazy/Fusion.hs"
-              , "Data/Text/Lazy.hs"
-              , "Data/Text/Lazy/Builder.hs"
-              , "Data/Text/Encoding.hs"
-              , "Data/Text/Lazy/Encoding.hs"
-              ] -- ++ text_TODO_REBARE 
-    -- text_TODO_REBARE = [ ]
-
+textOrder :: Maybe FileOrder 
+textOrder = Just . mkOrder $ 
+  [ "Data/Text/Encoding/Utf16.hs"       -- skip
+  , "Data/Text/Unsafe/Base.hs"          -- skip
+  , "Data/Text/UnsafeShift.hs"          -- skip
+  , "Data/Text/Util.hs"
+  , "Data/Text/Fusion/Size.hs"
+  , "Data/Text/Fusion/Internal.hs"      -- skip
+  , "Data/Text/Fusion/CaseMapping.hs"   -- skip
+  , "Data/Text/Fusion/Common.hs"        -- skip
+  , "Data/Text/Array.hs"
+  , "Data/Text/UnsafeChar.hs"
+  , "Data/Text/Internal.hs"
+  , "Data/Text/Search.hs"
+  , "Data/Text/Axioms.hs"               
+  , "Data/Text/Unsafe.hs"
+  , "Data/Text/Private.hs"
+  , "Data/Text/Fusion/Common.hs"
+  , "Data/Text/Fusion.hs"
+  , "Data/Text/Foreign.hs"
+  , "Data/Text.hs"
+  , "Data/Text/Lazy/Internal.hs"
+  , "Data/Text/Lazy/Search.hs"
+  , "Data/Text/Lazy/Fusion.hs"
+  , "Data/Text/Lazy.hs"
+  , "Data/Text/Lazy/Builder.hs"
+  , "Data/Text/Encoding.hs"
+  , "Data/Text/Lazy/Encoding.hs"
+  ] 
+  
 -- errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
 
 proverTests :: IO TestTree
@@ -507,9 +502,7 @@ esopIgnored
 
 icfpIgnored :: [FilePath]
 icfpIgnored 
-  = [ "RIO.hs"
-    , "DataBase.hs"
-    , "FindRec.hs"
+  = [ "FindRec.hs"
     , "CopyRec.hs"
     , "TwiceM.hs"                -- TODO: BLOWUP: using 2.7GB RAM
     ]
@@ -628,7 +621,7 @@ walkDirectory :: Bool -> FilePath -> IO [FilePath]
 walkDirectory del root = do 
   when del (nukeIfThere (root </> ".liquid"))
   (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
-  (fs ++) <$> concatMapM walkDirectory ds
+  (fs ++) <$> concatMapM (walkDirectory del) ds
   where
     candidates fs = [root </> f | f <- fs, not (isExtSeparator (head f))]
 

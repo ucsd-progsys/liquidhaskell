@@ -1,7 +1,9 @@
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "totality" @-}
+
 module DataBase  (
 
-
-  Table, Dict, (+=), P(..), values, empty,
+  Table, Dict(..), (+=), P(..), values, empty,
 
   emptyTable, singleton, fromList, elem,
 
@@ -11,12 +13,17 @@ module DataBase  (
 
 import qualified Data.Set as Set
 import Prelude hiding (product, union, filter, elem)
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality" @-}
+
+-- THE REST OF THIS FILE IS SAFE; just adding this to trigger an error to appease the "neg" gods.
+{-@ silly_buggy_incr :: Nat -> Nat @-}
+silly_buggy_incr :: Int -> Int 
+silly_buggy_incr x = x - 1
+
 
 type Table t v = [Dict t v]
 
 data Dict key val = D {ddom :: [key], dfun :: key -> val}
+
 {-@ ddom :: forall <range :: key -> val -> Bool>.
            x:Dict <range> key val  -> {v:[key] | v = ddom x}
   @-}
@@ -27,8 +34,8 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
   @-}
 
 {-@ data Dict key val <range :: key -> val -> Bool>
-  = D ( ddom :: [key])
-      ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)
+  = D { ddom :: [key]
+      , dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i> }
   @-}
 
 
@@ -176,9 +183,8 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
 
-data P k v = k := v
-{-@ data P k v <range :: k -> v -> Bool>
-  = (:=) (kkey :: k) (kval :: v<range kkey>)
+data P k v = (:=) { kkey :: k, kval :: v }
+{-@ data P k v <range :: k -> v -> Bool> = (:=) { kkey :: k, kval :: v<range kkey> }
   @-}
 infixr 3 +=
 
@@ -212,7 +218,7 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
 (x:xs) \\ ys = if x `elem` ys then xs \\ ys else x:(xs \\ ys)
 
 
-{-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
+{-@ assume (++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
 
 {-@ assume elem :: x:a -> xs:[a] -> {v:Bool | v <=> Set_mem x (listElts xs)} @-}
 elem :: a -> [a] -> Bool

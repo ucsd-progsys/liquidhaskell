@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "totality"         @-}
+
 module DataBase  (
 
   Table, Dict(..), (+=), P(..), values, empty,
@@ -9,8 +12,6 @@ module DataBase  (
 
 import qualified Data.Set as Set
 import Prelude hiding (product, union, filter, elem)
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality" @-}
 
 type Table t v = [Dict t v]
 

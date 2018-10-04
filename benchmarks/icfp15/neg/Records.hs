@@ -1,7 +1,7 @@
 module Records where
 
+import qualified Data.Set as S
 import GHC.CString  -- This import interprets Strings as constants!
-
 import DataBase
 
 data Value = I Int
