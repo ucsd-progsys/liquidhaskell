@@ -1,10 +1,10 @@
-{-@ LIQUID "--higherorder"     @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-} 
 
 module FunctionAbstraction where
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 import Helper
 
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
 
 
 fib :: Int -> Int
