@@ -200,7 +200,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
   , errorTest "tests/errors/HintMismatch.hs"        2 "HINT: Use the hole"
   , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error (TODO-REBARE after you fix TickSrcSpans)"
-  , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
+  -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
@@ -214,36 +214,39 @@ macroTests = group "Macro"
 
 microTests :: IO TestTree
 microTests = group "Micro"
-  [ testGroup "parser-pos"     <$> dirTests "tests/parser/pos"                     []                ExitSuccess
-  , testGroup "basic-pos"      <$> dirTests "tests/basic/pos"                      []                ExitSuccess
-  , testGroup "basic-neg"      <$> dirTests "tests/basic/neg"                      []                (ExitFailure 1)
-  , testGroup "measure-pos"    <$> dirTests "tests/measure/pos"                    []                ExitSuccess
-  , testGroup "measure-neg"    <$> dirTests "tests/measure/neg"                    []                (ExitFailure 1)
-  , testGroup "datacon-pos"    <$> dirTests "tests/datacon/pos"                    []                ExitSuccess
-  , testGroup "datacon-neg"    <$> dirTests "tests/datacon/neg"                    []                (ExitFailure 1)
-  , testGroup "names-pos"      <$> dirTests "tests/names/pos"                      []                ExitSuccess
-  , testGroup "names-neg"      <$> dirTests "tests/names/neg"                      []                (ExitFailure 1)
-  , testGroup "reflect-pos"    <$> dirTests "tests/reflect/pos"                    []                ExitSuccess
-  , testGroup "reflect-neg"    <$> dirTests "tests/reflect/neg"                    []                (ExitFailure 1) 
-  , testGroup "absref-pos"     <$> dirTests "tests/absref/pos"                     []                ExitSuccess
-  , testGroup "absref-neg"     <$> dirTests "tests/absref/neg"                     []                (ExitFailure 1)
-  , testGroup "import-lib"     <$> dirTests "tests/import/lib"                     []                ExitSuccess
-  , testGroup "import-cli"     <$> dirTests "tests/import/client"                  []                ExitSuccess
-  , testGroup "class-pos"      <$> dirTests "tests/classes/pos"                    []                ExitSuccess
-  , testGroup "class-neg"      <$> dirTests "tests/classes/neg"                    ["Inst01.hs"]     (ExitFailure 1)        -- TODO-REBARE 
-  , testGroup "ple-pos"        <$> dirTests "tests/ple/pos"                        []                ExitSuccess
-  , testGroup "ple-neg"        <$> dirTests "tests/ple/neg"                        []                (ExitFailure 1)
-  , testGroup "terminate-pos"  <$> dirTests "tests/terminate/pos"                  []                ExitSuccess
-  , testGroup "terminate-neg"  <$> dirTests "tests/terminate/neg"                  []                (ExitFailure 1)
-  , testGroup "pattern-pos"    <$> dirTests "tests/pattern/pos"                    []                ExitSuccess
+  [ mkMicro "parser-pos"     "tests/parser/pos"      ExitSuccess
+  , mkMicro "basic-pos"      "tests/basic/pos"       ExitSuccess
+  , mkMicro "basic-neg"      "tests/basic/neg"       (ExitFailure 1)
+  , mkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess
+  , mkMicro "measure-neg"    "tests/measure/neg"     (ExitFailure 1)
+  , mkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess
+  , mkMicro "datacon-neg"    "tests/datacon/neg"     (ExitFailure 1)
+  , mkMicro "names-pos"      "tests/names/pos"       ExitSuccess
+  , mkMicro "names-neg"      "tests/names/neg"       (ExitFailure 1)
+  , mkMicro "reflect-pos"    "tests/reflect/pos"     ExitSuccess
+  , mkMicro "reflect-neg"    "tests/reflect/neg"     (ExitFailure 1) 
+  , mkMicro "absref-pos"     "tests/absref/pos"      ExitSuccess
+  , mkMicro "absref-neg"     "tests/absref/neg"      (ExitFailure 1)
+  , mkMicro "import-lib"     "tests/import/lib"      ExitSuccess
+  , mkMicro "import-cli"     "tests/import/client"   ExitSuccess
+  , mkMicro "class-pos"      "tests/classes/pos"     ExitSuccess
+  , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
+  , mkMicro "ple-pos"        "tests/ple/pos"         ExitSuccess
+  , mkMicro "ple-neg"        "tests/ple/neg"         (ExitFailure 1)
+  , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
+  , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
+  , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   ]
+  where 
+    mkMicro name dir expected = testGroup name <$> dirTests dir microIgnored expected -- TODO-REBARE: microIgnored = [] 
+    microIgnored              = [ "Inst01.hs", "PruneHO.hs", "HiddenData.hs", "HidePrelude.hs", "FunClashLibLibClient.hs"] 
 
-posIgnored = [ "mapreduce.hs" ]
-gPosIgnored = ["Intro.hs"]
-gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
+posIgnored    = [ "mapreduce.hs" ]
+gPosIgnored   = ["Intro.hs"]
+gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"

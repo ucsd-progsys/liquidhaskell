@@ -1,31 +1,45 @@
 ## FAILING TESTS for TODO-REBARE 
-  Macro
+
+    unit-neg 
+      VerifiedMonoid.hs
+      Client.hs 
+    
     unit-pos
+      VerifiedMonoid.hs
+      Termination.lhs 
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
+      State1.hs 
+      nullterm.hs:                
+      Mod2.hs 
+      GhcSort1.hs 
 
     Classes?
       NatClass.hs 
       VerifiedMonoid.hs?
       - handle "define" 
 
-  esop
-      Fib.hs:                                 FAIL (1.01s)
-
-TERMINATION
-
-  unit-pos 
-    GhcSort1.hs:                            FAIL (9.06s)
-    T1245.hs:                               FAIL (1.01s)
-
-  esop
-    Splay.hs
-    Base.hs 
-
   Error-Messages
-    ElabLocation.hs:        FAIL (1.00s)
-      Did not match message: ElabLocation.hs:11:9-11:15: Error
-      - SRCSPAN
+
+    ElabLocation.hs:        FAIL (0.91s)
+      tests/test.hs:422:
+      Did not match message: ElabLocation.hs:11:9-11:15: Error (TODO-REBARE after you fix TickSrcSpans)
+
+    LocalHole.hs:           FAIL (0.97s)
+      tests/test.hs:422:
+      Did not match message: Illegal type specification for `go`
+
+    UnboundVarInLocSig.hs:  FAIL (0.88s)
+      tests/test.hs:422:
+      Did not match message: Illegal type specification for `bar`
+
+    TerminationExprUnb.hs:  FAIL (1.08s)
+      tests/test.hs:422:
+      Did not match message: Illegal termination specification for `go`
+
+    DupFunSigs.hs:          FAIL (1.14s)
+      tests/test.hs:422:
+      Did not match message: Multiple specifications for `Main.fromWeekDayNum`
 
 -------------------------------------------------------------
 

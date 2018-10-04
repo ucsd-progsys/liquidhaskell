@@ -13,6 +13,7 @@ weekdays :: [WeekDay]
 weekdays = [Mon, Tue, Wed, Thu, Fri, Sat, Sun]
 
 {-@ fromWeekDayNum :: WeekDayNum -> WeekDay @-}
+{- fromWeekDayNum :: WeekDayNum -> {v:WeekDay | false} @-}
 fromWeekDayNum :: WeekDayNum -> WeekDay
 fromWeekDayNum i = weekdays !! (i-1)
 
