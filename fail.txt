@@ -2,15 +2,7 @@
 
     
     unit-pos
-      T1089b.hs:                              FAIL (0.98s)
-      - fixpoint "Unknown func-sort:"
-      Mod2.hs 
       GhcSort1.hs 
-
-    Classes?
-      NatClass.hs 
-      VerifiedMonoid.hs?
-      - handle "define" 
 
   Error-Messages
 

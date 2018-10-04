@@ -1,7 +1,10 @@
+-- TODO-REBARE: get this to work with "--structural" to check termination of the gnarly mutually-rec stuff; 
+-- and plain metrics to do "merge1"
+
+{-@ LIQUID "--structural" @-}
+
 {-# Language ScopedTypeVariables   #-}
 {-# Language PartialTypeSignatures #-}
-
-{-@ LIQUID "--no-termination" @-}
 
 module ListSort () where
 
@@ -12,6 +15,11 @@ import Language.Haskell.Liquid.Prelude
 sort1 :: (Ord a) => [a] -> [a]
 sort1 xs = mergeAll  (sequences xs 0)
   where
+    {- decrease sequences  2 3 @-}
+    {- decrease descending 4 5 @-}
+    {- decrease ascending  4 5 @-}
+
+    {- sequences :: _ -> as:[_] -> n:Nat -> [[_]] / [len as, n] @-}
     sequences :: [_] -> Int -> [[_]]
     sequences (a:b:xs) (_::Int)
       | a `compare` b == GT = descending b [a]  xs 1
@@ -19,11 +27,13 @@ sort1 xs = mergeAll  (sequences xs 0)
     sequences [x] _ = [[x]]
     sequences []  _ = [[]]
 
+    {- descending :: _ -> _ -> _ -> bs:[_] -> m:Nat -> [[_]] / [len bs, m] @-}
     descending :: _ -> _ -> [_] -> Int -> [[_]]
     descending a as (b:bs) (_::Int)
       | a `compare` b == GT = descending b (a:as) bs 1
     descending a as bs _    = (a:as): sequences bs 0
 
+    {- ascending :: _ -> _ -> _ -> bs:[_] -> m:Nat -> [[_]] / [len bs, m] @-}
     ascending :: _ -> _ -> [_] -> Int -> [[_]]
     ascending a as (b:bs) (_ :: Int)
       | a `compare` b /= GT = ascending b (\ys -> as (a:ys)) bs 1
@@ -44,6 +54,9 @@ mergePairs []       = []
 
 -- merge1 needs to be toplevel,
 -- to get applied transformRec tx
+
+
+{-@ lazy merge1 @-}  -- TODO-REBARE: this is a hack; we should use plain metrics for when STRUCTURAL can't deal with it. 
 
 {-@ merge1 :: Ord a
            => xs:OList a
