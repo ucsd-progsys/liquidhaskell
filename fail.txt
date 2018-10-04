@@ -4,7 +4,6 @@
     unit-pos
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
-      nullterm.hs:                
       Mod2.hs 
       GhcSort1.hs 
 

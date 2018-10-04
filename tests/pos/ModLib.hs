@@ -1,9 +1,9 @@
-module Mod1 where
+module ModLib where
 
 data Goo = G Int
 
-{-@ measure myg :: Mod1.Goo -> Int 
-    myg (Mod1.G n) = n
+{-@ measure myg :: ModLib.Goo -> Int 
+    myg (ModLib.G n) = n
   @-}
  
 {-@ inc :: x:Goo -> {v: Goo | (myg v) > (myg x)} @-}
