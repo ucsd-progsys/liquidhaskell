@@ -20,6 +20,9 @@
 -- To gain access to a much larger family of encodings, use the
 -- @text-icu@ package: <http://hackage.haskell.org/package/text-icu>
 
+{-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--checks=plen"    @-}
+
 module Data.Text.Encoding
     (
     -- * Decoding ByteStrings to Text
@@ -86,9 +89,12 @@ import qualified Data.Text.Encoding.Error as E
 import Foreign.ForeignPtr (ForeignPtr)
 import Language.Haskell.Liquid.Prelude
 import Language.Haskell.Liquid.Foreign
+import qualified Data.ByteString.Lazy.Internal as TODO_REBARE 
+import qualified Data.ByteString.Fusion        as TODO_REBARE 
+import qualified Data.Text.Fusion.Size         as TODO_REBARE 
 
 {-@ qualif PValid(v:Ptr int, a:A.MArray s):
-        (((deref v) >= 0) && ((deref v) < (malen a)))
+        (((deref v) >= 0) && ((deref v) < (maLen a)))
   @-}
 {-@ qualif PLenCmp(v:Ptr a, p:Ptr b): (plen v) >= (plen p) @-}
 {-@ qualif PLenCmp(v:Ptr a, p:Ptr b): (plen p) >= (plen v) @-}
@@ -104,7 +110,7 @@ import Language.Haskell.Liquid.Foreign
 --LIQUID FIXME: this is a hacky, specialized type
 {-@ withLIQUID :: z:CSize
                -> a:A.MArray s
-               -> ({v:Ptr CSize | (Btwn (deref v) z (malen a)) && plen v > 0} -> IO b)
+               -> ({v:Ptr CSize | (Btwn (deref v) z (maLen a)) && plen v > 0} -> IO b)
                -> IO b
   @-}
 withLIQUID :: CSize -> A.MArray s -> (Ptr CSize -> IO b) -> IO b
@@ -363,7 +369,7 @@ c_decode_utf8 :: A.MArray s -> Ptr CSize -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Wo
 c_decode_utf8 ma = c_decode_utf8' (A.maBA ma)
 {-@ assume
     c_decode_utf8 :: a:A.MArray s
-                  -> d:{v:PtrV CSize | (BtwnI (deref v) 0 (malen a))}
+                  -> d:{v:PtrV CSize | (BtwnI (deref v) 0 (maLen a))}
                   -> c:PtrV Word8
                   -> end:{v:PtrV Word8 | (((plen v) <= (plen c))
                                        && ((pbase v) = (pbase c)))}

@@ -13,6 +13,7 @@ import Control.Applicative
 import qualified Control.Concurrent.STM as STM
 import qualified Control.Monad.State as State
 import Control.Monad.Trans.Class (lift)
+import Control.Monad (when)
 import Data.Char
 import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
@@ -245,17 +246,34 @@ gNegIgnored = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ bytestringTests
+  [ vectorAlgsTests
+  , bytestringTests
   , textTests
+  -- , testGroup "vect-algs"   <$> dirTests  "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
   -- , testGroup "text"        <$> dirTests  "benchmarks/text-0.11.2.3"             textIgnored               ExitSuccess
   -- , testGroup "bytestring"  <$> odirTests "benchmarks/bytestring-0.9.2.1"     []            bsOrder     ExitSuccess
   , testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
-  , testGroup "vect-algs"   <$> dirTests  "benchmarks/vector-algorithms-0.5.4.2" []                        ExitSuccess
   , testGroup "icfp_pos"    <$> dirTests  "benchmarks/icfp15/pos"                icfpIgnored               ExitSuccess
   , testGroup "icfp_neg"    <$> dirTests  "benchmarks/icfp15/neg"                icfpIgnored               (ExitFailure 1)
   ]
 
-
+vectorAlgsTests :: IO TestTree 
+vectorAlgsTests = testGroup "vect-algs" <$> odirTests path [] (Just order) ExitSuccess 
+  where 
+    path      = "benchmarks/vector-algorithms-0.5.4.2"
+    order     = mkOrder 
+                  [ "Data/Vector/Algorithms/Common.hs"
+                  , "Data/Vector/Algorithms/Search.hs"
+                  , "Data/Vector/Algorithms/Radix.hs"
+                  , "Data/Vector/Algorithms/Termination.hs"
+                  , "Data/Vector/Algorithms/Optimal.hs"
+                  , "Data/Vector/Algorithms/Insertion.hs"
+                  , "Data/Vector/Algorithms/Merge.hs"
+                  , "Data/Vector/Algorithms/Heap.hs"
+                  , "Data/Vector/Algorithms/Intro.hs"
+                  , "Data/Vector/Algorithms/AmericanFlag.hs" 
+                  ]  
+ 
 bytestringTests :: IO TestTree 
 bytestringTests = testGroup "bytestring" <$> odirTests path [] (Just order) ExitSuccess 
   where 
@@ -273,7 +291,7 @@ bytestringTests = testGroup "bytestring" <$> odirTests path [] (Just order) Exit
                     ]
 
 textTests :: IO TestTree 
-textTests = testGroup "text" <$> odirTests path (textIgnored ++ text_TODO_REBARE) (Just order) ExitSuccess 
+textTests = testGroup "text" <$> odirTests path (textIgnored {- ++ text_TODO_REBARE -}) (Just order) ExitSuccess 
   where 
     path  = "benchmarks/text-0.11.2.3" 
     order = mkOrder $ 
@@ -300,12 +318,11 @@ textTests = testGroup "text" <$> odirTests path (textIgnored ++ text_TODO_REBARE
               , "Data/Text/Lazy/Search.hs"
               , "Data/Text/Lazy/Fusion.hs"
               , "Data/Text/Lazy.hs"
-              ] ++ text_TODO_REBARE 
-    text_TODO_REBARE =
-      [ 
-      , "Data/Text/Lazy/Encoding.hs"
-      , "Data/Text/Lazy/Builder.hs"
-      ]
+              , "Data/Text/Lazy/Builder.hs"
+              , "Data/Text/Encoding.hs"
+              , "Data/Text/Lazy/Encoding.hs"
+              ] -- ++ text_TODO_REBARE 
+    -- text_TODO_REBARE = [ ]
 
 -- errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
 
@@ -334,7 +351,7 @@ dirTests root ignored ecode = odirTests root ignored Nothing ecode
 odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> IO [TestTree]
 --------------------------------------------------------------------------------
 odirTests root ignored fo ecode = do 
-  files     <- walkDirectory root
+  files     <- walkDirectory False root
   -- print (show files)
   let tests  = sortOrder fo [ rel | f <- files
                                   , isTest f
@@ -557,7 +574,7 @@ textIgnored
     , "Data/Text/UnsafeShift.hs"
     -- , "Data/Text/Util.hs"
     , "Data/Text/Fusion-debug.hs"
-    , "Data/Text/Encoding.hs"
+    -- , "Data/Text/Encoding.hs"
     ]
 
 demosIgnored :: [FilePath]
@@ -606,10 +623,10 @@ headerDelim :: String
 headerDelim = replicate 80 '-'
 
 ----------------------------------------------------------------------------------------
-walkDirectory :: FilePath -> IO [FilePath]
+walkDirectory :: Bool -> FilePath -> IO [FilePath]
 ----------------------------------------------------------------------------------------
-walkDirectory root = do 
-  nukeIfThere (root </> ".liquid")
+walkDirectory del root = do 
+  when del (nukeIfThere (root </> ".liquid"))
   (ds,fs) <- partitionM doesDirectoryExist . candidates =<< (getDirectoryContents root `catchIOError` const (return []))
   (fs ++) <$> concatMapM walkDirectory ds
   where

@@ -63,6 +63,10 @@ import qualified Data.Text.Array as A
 import qualified Data.Text.Lazy as L
 import          Data.Text.Lazy (isNull)
 
+-- LIQUID TODO-REBARE
+import qualified Data.Text.Fusion.Size as TODO_REBARE 
+import qualified Data.Text.Lazy.Fusion as TODO_REBARE 
+
 ------------------------------------------------------------------------
 
 -- | A @Builder@ is an efficient way to build lazy @Text@ values.
@@ -208,13 +212,14 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
                        {-# UNPACK #-} !Int  -- length left
 
 {-@ data Buffer s = Buffer
-        (lbbMarr :: A.MArray s)
-        (lbbOff  :: {v:Nat | v <= (malen lbbMarr)})
-        (lbbUsed :: {v:Nat | (lbbOff + v) <= (malen lbbMarr)})
-        (lbbLeft :: {v:Nat | v = ((malen lbbMarr) - lbbOff - lbbUsed)})
+        { lbbMarr :: A.MArray s 
+        , lbbOff  :: {v:Nat | v <= (maLen lbbMarr)}
+        , lbbUsed :: {v:Nat | (lbbOff + v) <= (maLen lbbMarr)}
+        , lbbLeft :: {v:Nat | v = ((maLen lbbMarr) - lbbOff - lbbUsed)}
+        }
   @-}
 
-{-@ qualif MArrayNE(v:A.MArray s): (malen v) >= 2 @-}
+{-@ qualif MArrayNE(v:A.MArray s): (maLen v) >= 2 @-}
 
 {- measure bufUsed :: Buffer s -> Int
     bufUsed (Buffer m o u l) = u
@@ -225,10 +230,10 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
   @-}
 
 {-@ qualif BufLeft (v:int, a:A.MArray s, o:int, u:int)
-                  : v = (malen(a) - o  - u)
+                  : v = (maLen(a) - o  - u)
   @-}
 {- qualif BufUsed (v:int, a:A.MArray s, o:int, b:Buffer s)
-                  : (o + (bufUsed b) + v) <= (malen a)
+                  : (o + (bufUsed b) + v) <= (maLen a)
   @-}
 
 ------------------------------------------------------------------------
@@ -291,7 +296,7 @@ ensureFree !n = withSize $ \ l ->
 
 {-@ writeAtMost :: n:Nat
                 -> (forall s. ma:A.MArray s
-                    -> i:{v:Nat | (v+n) <= (malen ma)}
+                    -> i:{v:Nat | (v+n) <= (maLen ma)}
                     -> ST s {v:Nat | v <= n})
                 -> Builder
   @-}
@@ -315,7 +320,7 @@ writeAtMost n f = Builder $ \ k buf@(Buffer p o u l) ->
 -- write some elements into the memory.
 {-@ writeN :: n:Nat
            -> (forall s. ma:A.MArray s
-               -> i:{v:Nat | (v+n) <= (malen ma)}
+               -> i:{v:Nat | (v+n) <= (maLen ma)}
                -> ST s ())
            -> Builder
   @-}
@@ -330,7 +335,7 @@ writeN n f = writeAtMost n (\ p o -> f p o >> return n)
 {-@ writeBuffer :: b:Buffer s
                 -> n:{v:Nat | v <= (bufLeft b)}
                 -> (ma:A.MArray s
-                    -> i:{v:Nat | (v+n) <= (malen ma)}
+                    -> i:{v:Nat | (v+n) <= (maLen ma)}
                     -> ST s {v:Nat | v <= n})
                 -> ST s (Buffer s)
   @-}
