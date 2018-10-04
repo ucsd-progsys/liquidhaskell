@@ -938,8 +938,16 @@ addBind env v = case localKey v of
     
 updSigMap :: SymMap -> SigMap -> Ghc.Var -> SigMap 
 updSigMap env m v = case M.lookup v m of 
-  Nothing -> m 
-  Just t  -> M.insert v (F.substf (F.EVar . qualifySymMap env) t) m
+  Nothing  -> m 
+  Just tes -> M.insert v (F.tracepp ("UPD-LOCAL-SIG " ++ GM.showPpr v) $ renameLocalSig env tes) m
+
+renameLocalSig :: SymMap -> (LocBareType, Maybe [Located F.Expr]) 
+               -> (LocBareType, Maybe [Located F.Expr])  
+renameLocalSig env (t, es) = (F.substf tSub t, F.substf esSub es) 
+  where 
+    tSub                   = F.EVar . qualifySymMap env 
+    esSub                  = tSub `F.substfExcept` xs
+    xs                     = ty_binds (toRTypeRep (F.val t)) 
 
 qualifySymMap :: SymMap -> F.Symbol -> F.Symbol 
 qualifySymMap env x = M.lookupDefault x x env 

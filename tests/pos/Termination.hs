@@ -1,5 +1,5 @@
-\begin{code}
 module Termination where
+
 import Prelude hiding (sum)
 type Value = Int
 
@@ -31,7 +31,19 @@ sum2D a n m = go n m
 sumFromTo :: Vec -> Int -> Int ->  Value
 sumFromTo a lo hi = go lo hi
   where
-       {-@ go :: lo:Nat -> hi:{v:Nat|v>=lo} -> Value / [hi-lo] @-}
-        go lo hi | lo == hi  =  a lo
-                 | otherwise =  a lo + go (lo+1) hi
-\end{code}
+    {-@ go :: lo:Nat -> hi:{v:Nat | v >= lo} -> Value / [hi-lo] @-}
+    go :: Int -> Int -> Value
+    go lo hi 
+      | lo == hi  =  a lo
+      | otherwise =  a lo + go (lo + 1) hi
+
+{-@ sumFrom2 :: Vec -> lo:Nat -> hi:{v:Nat | lo <= v } -> Value @-}
+sumFrom2 :: Vec -> Int -> Int ->  Value
+sumFrom2 a lo hi = go lo
+  where
+    {-@ go :: lo:_ -> _ / [hi - lo] @-}
+    go :: Int -> Value
+    go lo
+      | lo == hi  =  a lo
+      | otherwise =  a lo + go (lo + 1)
+

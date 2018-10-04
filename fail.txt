@@ -1,10 +1,7 @@
 ## FAILING TESTS for TODO-REBARE 
 
-    unit-neg 
-      VerifiedMonoid.hs
     
     unit-pos
-      VerifiedMonoid.hs
       Termination.lhs 
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
