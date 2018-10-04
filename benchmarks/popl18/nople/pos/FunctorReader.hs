@@ -49,7 +49,7 @@ fmap_id (Reader x)
 fmap_id_helper :: (Arg r) => (r -> a) ->  Proof
 fmap_id_helper f
    =    ((\r -> id (f r)) 
-   =*=. (\r -> f r)) (fmap_id_helper_body f)
+   =*=: (\r -> f r)) (fmap_id_helper_body f)
    *** QED 
 
 
@@ -88,7 +88,7 @@ fmap_distrib_helper :: Arg r => (a -> a) -> (a -> a) -> (r -> a) -> Proof
   -> {(\r:r -> (compose f g) (x r)) == (\r:r -> (f (g (x r))) ) } @-}
 fmap_distrib_helper f g x 
   =   ((\r -> (compose f g) (x r)) 
-  =*=. (\r -> f (g (x r)))) (fmap_distrib_helper' f g x)
+  =*=: (\r -> f (g (x r)))) (fmap_distrib_helper' f g x)
   *** QED 
 
 

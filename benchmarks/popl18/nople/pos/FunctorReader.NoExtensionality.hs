@@ -52,7 +52,7 @@ fmap_id x@(Reader f)
 fmap_id_helper2 :: (Arg r) => Reader r a ->  Proof
 fmap_id_helper2 x@(Reader f) 
    =   ((fromReader x) 
-   =*=. (\r -> fromReader x r)) (helper2 x)
+   =*=: (\r -> fromReader x r)) (helper2 x)
    *** QED 
 
 {-@ helper2 :: x:Reader r a  
@@ -68,7 +68,7 @@ helper2 _ _ = simpleProof
 fmap_id_helper1 :: (Arg r) => Reader r a ->  Proof
 fmap_id_helper1 x@(Reader f) 
    =    ((\r -> id (fromReader x r)) 
-   =*=. (\r -> fromReader x r)) (helper x)
+   =*=: (\r -> fromReader x r)) (helper x)
    *** QED 
 
 

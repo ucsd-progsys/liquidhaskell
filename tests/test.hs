@@ -256,8 +256,8 @@ benchTests = group "Benchmarks"
 
 proverOrder :: Maybe FileOrder 
 proverOrder = Just . mkOrder $ 
-  [ "Helper.hs" 
-  , "Proves.hs"
+  [ "Proves.hs"
+  , "Helper.hs" 
   ]
 
 icfpOrder :: Maybe FileOrder 
@@ -330,6 +330,7 @@ textOrder = Just . mkOrder $
 proverTests :: IO TestTree
 proverTests = group "Prover"
   [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess
+  , testGroup "prover_lib"      <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess
   , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess
   , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1)
   , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess
@@ -483,6 +484,15 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
       , ( "tests/import/client"
         , "-i../lib"
         )
+      , ( "benchmarks/popl18/nople/pos"
+        , "-i../../lib"
+        )
+      , ( "benchmarks/popl18/nople/neg"
+        , "-i../../lib"
+        )
+      , ( "benchmarks/popl18/ple/pos"
+        , "-i../../lib"
+        )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "tests/pos/Class2.hs"
@@ -524,8 +534,8 @@ autoIgnored
 proverIgnored  :: [FilePath]
 proverIgnored 
   = [ "OverviewListInfix.hs"
-    , "Proves.hs"
-    , "Helper.hs"
+    -- , "Proves.hs"
+    -- , "Helper.hs"
     , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
     , "MonadReader.hs"        -- NOPROP: ""
     , "ApplicativeReader.hs"  -- NOPROP: ""

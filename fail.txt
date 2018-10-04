@@ -48,3 +48,79 @@ TERMINATION
     TerminationExprNum.hs:                    FAIL (0.83s)
     TerminationExprUnb.hs:                    FAIL (1.00s)
     ElabLocation.hs:                          FAIL (1.08s)
+
+
+    -----
+
+    without_ple_pos
+      Proves.hs 
+      Helper.hs
+
+      Unification.hs:         FAIL (0.49s)
+         but got: ExitFailure 2
+      Overview.hs:            FAIL (0.51s)
+         but got: ExitFailure 2
+      MonadId.hs:             FAIL (0.59s)
+         but got: ExitFailure 2
+      Fibonacci.hs:           FAIL (0.48s)
+         but got: ExitFailure 2
+      Euclide.hs:             OK (1.11s)
+      Compose.hs:             OK (1.06s)
+      BasicLambdas.hs:        OK (1.07s)
+      ApplicativeMaybe.hs:    OK (5.60s)
+      ApplicativeId.hs:       OK (2.63s)
+      Append.hs:              OK (3.59s)
+      AlphaEquivalence.hs:    OK (1.11s)
+    without_ple_neg
+      MonadMaybe.hs:          OK (1.80s)
+      MonadList.hs:           OK (8.01s)
+      MapFusion.hs:           OK (5.62s)
+      FunctorMaybe.hs:        OK (3.61s)
+      FunctorList.hs:         OK (4.70s)
+      Fibonacci.hs:           FAIL (0.43s)
+        tests/test.hs:413:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      BasicLambdas.hs:        FAIL (0.53s)
+        tests/test.hs:413:
+        Wrong exit code
+        expected: ExitFailure 1
+         but got: ExitFailure 2
+      ApplicativeMaybe.hs:    OK (8.54s)
+      Append.hs:              OK (4.59s)
+    with_ple
+      Unification.hs:         OK (8.30s)
+      Solver.hs:              OK (4.62s)
+      ProofCombinators.hs:    OK (2.55s)
+      Peano.hs:               OK (1.80s)
+      Overview.hs:            FAIL (0.55s)
+        tests/test.hs:413:
+        Wrong exit code
+        expected: ExitSuccess
+         but got: ExitFailure 2
+      NormalForm.hs:          OK (1.01s)
+      NaturalDeduction.hs:    OK (1.79s)
+      NatInduction.hs:        OK (1.50s)
+      MonoidMaybe.hs:         OK (1.31s)
+      MonoidList.hs:          OK (1.69s)
+      MonadMaybe.hs:          OK (1.44s)
+      MonadList.hs:           OK (2.09s)
+      MonadId.hs:             OK (1.25s)
+      Maybe.hs:               OK (1.04s)
+      MapFusion.hs:           OK (1.40s)
+      Lists.hs:               OK (1.66s)
+      FunctorMaybe.hs:        OK (1.35s)
+      FunctorList.hs:         OK (1.60s)
+      FunctorId.hs:           OK (1.29s)
+      FunctionEquality101.hs: OK (1.24s)
+      FoldrUniversal.hs:      OK (1.94s)
+      Fibonacci.hs:           OK (14.38s)
+      Euclide.hs:             OK (1.35s)
+      Compose.hs:             OK (1.09s)
+      BasicLambdas.hs:        OK (1.10s)
+      ApplicativeMaybe.hs:    OK (1.78s)
+      ApplicativeList.hs:     OK (4.56s)
+      ApplicativeId.hs:       OK (1.32s)
+      Append.hs:              OK (1.61s)
+      AlphaEquivalence.hs:    OK (1.09s)

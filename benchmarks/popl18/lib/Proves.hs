@@ -1,3 +1,5 @@
+{-@ LIQUID "--higherorder"     @-}
+
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -11,7 +13,12 @@ module Proves (
 
   , (==.), (<=.), (<.), (>.), (>=.)
 
-  , (?), (***)
+  -- Function Equality 
+  , Arg
+
+  , (=*=:)
+
+  , (?), (∵), (***)
 
   , (==>), (&&&)
 
@@ -30,10 +37,11 @@ module Proves (
 infixl 3 ==:, <=:, <:, >:, ==?
 
 -- | proof operators with optional proof terms
-infixl 3 ==., <=., <., >., >=.
+infixl 3 ==., <=., <., >., >=., =*=:
 
 -- provide the proof terms after ?
 infixl 3 ?
+infixl 3 ∵
 
 infixl 2 ***
 
@@ -44,9 +52,13 @@ type Proof = ()
 byTheorem :: a -> Proof -> a
 byTheorem a _ = a
 
-
 (?) :: (Proof -> a) -> Proof -> a
 f ? y = f y
+
+(∵) :: (Proof -> a) -> Proof -> a
+f ∵ y = f y
+
+
 
 data QED = QED
 
@@ -59,7 +71,7 @@ _ *** _ = ()
 {-@ (==>) :: p:Proof
           -> q:Proof
           -> {v:Proof |
-          (((proofBool p)) && ((proofBool p) => (proofBool q)))
+          (((proofBool p)) && (proofBool p => (proofBool q)))
           =>
           (((proofBool p) && (proofBool q)))
           } @-}
@@ -108,6 +120,10 @@ simpleProof = ()
 
 -- | Comparison operators requiring proof terms optionally
 
+
+-- | ToProve is undefined and is only used to assume some equalities in
+-- | the proof proccess. It is a cut, a la Coq
+
 class ToProve a r where
   (==?) :: a -> a -> r
 
@@ -123,7 +139,6 @@ instance (a~b) => ToProve a (Proof -> b) where
   ==? :: x:a -> y:a -> Proof -> {v:b | v ~~ x  }
   @-}
   (==?) = undefined
-
 
 
 class OptEq a r where
@@ -204,3 +219,14 @@ instance (a~b) => OptGt a b where
   >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ x  }
   @-}
   (>.) x y = x
+
+
+
+-- | Function Equality 
+
+class Arg a where 
+
+
+{-@ assume (=*=:) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
+(=*=:) :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> (a -> b)
+(=*=:) f g p = f
