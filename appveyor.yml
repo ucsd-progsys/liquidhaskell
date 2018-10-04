@@ -10,6 +10,7 @@ environment:
 
 init:
 - git --version
+- ps: powershell.exe /?
   
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
@@ -35,8 +36,8 @@ build_script:
 #- dir /s .stack-work\\
 
 # ZIP execturable
-- ps: ((.\stack.exe exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | 7z a
-- ps: ((.\stack.exe exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\") | 7z a
+- ps: ((.\stack.exe exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | ${7z.exe a liquidhaskell.zip $_}
+- ps: ((.\stack.exe exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\") | ${7z.exe a liquidhaskell.zip $_}
 
 - 7z a liquidhaskell.zip LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
 
