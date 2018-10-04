@@ -1,6 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 
-module Array () where
+module LiquidArrayInit () where
 
 import Language.Haskell.Liquid.Prelude
 import LiquidArray

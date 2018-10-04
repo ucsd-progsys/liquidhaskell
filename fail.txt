@@ -2,10 +2,8 @@
 
     
     unit-pos
-      Termination.lhs 
       T1089b.hs:                              FAIL (0.98s)
       - fixpoint "Unknown func-sort:"
-      State1.hs 
       nullterm.hs:                
       Mod2.hs 
       GhcSort1.hs 

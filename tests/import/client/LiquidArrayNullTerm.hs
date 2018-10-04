@@ -1,8 +1,9 @@
 {-@ LIQUID "--no-termination" @-}
 
-module NullTerm () where
+module LiquidArrayNullTerm () where
 
 import Language.Haskell.Liquid.Prelude
+
 import LiquidArray
 
 upperCaseString' :: Int -> Int -> (Int -> Int) -> (Int -> Int)
