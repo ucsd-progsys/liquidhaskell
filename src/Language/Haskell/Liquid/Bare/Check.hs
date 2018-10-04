@@ -165,9 +165,9 @@ checkTySigs allowHO cbs emb tcEnv env sig
                    = concatMap (check env) topTs
                    -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
                    -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
-                   -- ++ (coreVisitor checkVisitor env [] cbs) 
+                   ++ coreVisitor checkVisitor env [] cbs 
   where 
-    check          = checkSigTExpr allowHO emb tcEnv
+    check env      = checkSigTExpr allowHO emb tcEnv env
     locTm          = M.fromList locTs
     (locTs, topTs) = Bare.partitionLocalBinds vtes 
     vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
@@ -180,9 +180,9 @@ checkTySigs allowHO cbs emb tcEnv env sig
                        , exprF = \_   acc _ -> acc 
                        }  
     vSort            = Bare.varSortedReft emb
-    errs env v       = case M.lookup v locTm of 
+    errs env v       = case F.tracepp ("LOCAL-CHECK-1: " ++ F.showpp v) $ M.lookup v locTm of 
                          Nothing -> [] 
-                         Just t  -> check env (v, t) 
+                         Just t  -> F.tracepp ("LOCAL-CHECK-2: " ++ F.showpp (v,t)) $ check env (v, t) 
 
 checkSigTExpr :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
               -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
