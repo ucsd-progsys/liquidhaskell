@@ -1,6 +1,6 @@
 # Disabled cache in hope of improving reliability of AppVeyor builds
 #cache:
-#- "c:\\sr" # stack root, short paths == fewer problems under Windows, because of Windows long paths problems with GHC
+#- "c:\\sr" # stack root, short paths == fewer problems
 
 clone_folder: "c:\\lh"
 environment:
@@ -32,14 +32,11 @@ install:
 build_script:
 - stack setup > nul
 - echo "" | stack --no-terminal build --jobs 1
+#- dir /s .stack-work\\
 
 # ZIP execturable
-- ps: >-
-    $LIQUID_PATH   = .\stack.exe exec -- which liquid.exe
-    $FIXPOINT_PATH = .\stack.exe exec -- which fixpoint.exe
-    $LIQUID_PATH   = $LIQUID_PATH -replace "^/c/", "c:\" -replace "/", "\"
-    $FIXPOINT_PATH = $FIXPOINT_PATH -replace "^/c/", "c:\" -replace "/", "\"
-    7z.exe a liquidhaskell.zip $LIQUID_PATH $FIXPOINT_PATH
+- ps: ((.\stack.exe exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
+- ps: ((.\stack.exe exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
 
 - 7z a liquidhaskell.zip LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
 
@@ -49,5 +46,7 @@ test_script:
 #- echo "" | stack --no-terminal test --jobs 1 --verbose
 
 artifacts:
+- path: ".stack-work\\logs\\"
+  name: Logs
 - path: liquidhaskell.zip
   name: LiquidHaskell
