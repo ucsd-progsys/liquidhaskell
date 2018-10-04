@@ -199,7 +199,7 @@ testSpecP =
 
     , testCase "default parser (Asrts)" $
        parseSingleSpec " assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s]" @?==
-            "assumeIndices :: t:ByteStringNE -> s:ByteString -> [(OkPos t s)]"
+            "assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [(OkPos t s)]"
     ]
 
 -- ---------------------------------------------------------------------
@@ -438,7 +438,7 @@ testSucceeds =
 
     , testCase "type spec 25" $
        parseSingleSpec "assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}" @?==
-         "assume GHC.Prim.+# :: x:Int# -> y:Int# -> {v : Int# | v == x + y}"
+         "assume GHC.Prim.+# :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v : GHC.Prim.Int# | v == x + y}"
 
     , testCase "type spec 26" $
        parseSingleSpec " measure isEVar " @?==

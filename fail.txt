@@ -48,21 +48,3 @@ TERMINATION
     TerminationExprNum.hs:                    FAIL (0.83s)
     TerminationExprUnb.hs:                    FAIL (1.00s)
     ElabLocation.hs:                          FAIL (1.08s)
-     
-
-
-RIO.hs 
-RIO2.hs
-WhileM.hs
-
- Benchmarks
-    icfp_neg
-      DBMovies.hs:    FAIL (1.19s)
-        tests/test.hs:403:
-        Wrong exit code
-        expected: ExitFailure 1
-         but got: ExitFailure 2
-      Composition.hs: OK (1.29s)
-
-
-https://icfp17.hotcrp.com/paper/57

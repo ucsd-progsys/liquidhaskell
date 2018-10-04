@@ -931,13 +931,9 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0 
-  { Ms.asmSigs    = F.tracepp   "LIFTED-ASM-SIGS" xbs
-  , Ms.reflSigs   = F.notracepp "REFL-SIGS"       xbs
-  , Ms.sigs       = F.tracepp   "LIFTED-SIGS"   
-                    [ toBare (x, t) | (x, t) <- gsTySigs sig
-                                    ,  S.member x sigVars 
-                                    && F.tracepp ("is-exported: " ++ GM.showPpr x)  (isExportedVar src x) 
-                    ] 
+  { Ms.asmSigs    = F.tracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
+  , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
+  , Ms.sigs       = F.tracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
                        , isLocInFile srcF t
@@ -948,6 +944,7 @@ makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
+    mkSigs xts    = [ toBare (x, t) | (x, t) <- xts,  S.member x sigVars && (isExportedVar src x) ] 
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs 
     sigVars       = S.difference defVars reflVars

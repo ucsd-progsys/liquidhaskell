@@ -66,6 +66,10 @@ import qualified Data.Text.Lazy.Fusion as F
 --LIQUID
 import Data.Word (Word8)
 import Language.Haskell.Liquid.Prelude
+import qualified Data.ByteString.Fusion as TODO_REBARE
+import qualified Data.Text.Array        as TODO_REBARE
+import qualified Data.Text.Fusion.Size  as TODO_REBARE
+import qualified Foreign.ForeignPtr     as TODO_REBARE
 
 -- $strict
 --

@@ -375,11 +375,14 @@ mkOrder :: [FilePath] -> FileOrder
 mkOrder fs = Map.fromList (zip fs [0..])
 
 sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
-sortOrder Nothing   fs = L.reverse   (L.sort fs) 
+sortOrder Nothing   fs = L.reverse   (sortOn stringLower fs) 
 sortOrder (Just fo) fs = sortOn (getOrder fo) fs 
 
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)
+
+stringLower :: FilePath -> FilePath 
+stringLower = fmap toLower
 
 --------------------------------------------------------------------------------
 -- | Check that we get the given `err` text and `ExitFailure status` for the given `path`.
