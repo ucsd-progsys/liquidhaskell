@@ -254,6 +254,12 @@ benchTests = group "Benchmarks"
   , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
   ]
 
+proverOrder :: Maybe FileOrder 
+proverOrder = Just . mkOrder $ 
+  [ "Helper.hs" 
+  , "Proves.hs"
+  ]
+
 icfpOrder :: Maybe FileOrder 
 icfpOrder = Just . mkOrder $ 
   [ "RIO.hs" 
@@ -323,11 +329,12 @@ textOrder = Just . mkOrder $
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ testGroup "foundations"     <$> dirTests "benchmarks/sf"                        []                        ExitSuccess
-  , testGroup "without_ple_pos" <$> dirTests "benchmarks/popl18/nople/pos"          noPleIgnored              ExitSuccess
-  , testGroup "without_ple_neg" <$> dirTests "benchmarks/popl18/nople/neg"          noPleIgnored             (ExitFailure 1)
-  , testGroup "with_ple"        <$> dirTests "benchmarks/popl18/ple/pos"            autoIgnored               ExitSuccess
+  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess
+  , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess
+  , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1)
+  , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess
   ]
+
 
 selfTests :: IO TestTree
 selfTests
