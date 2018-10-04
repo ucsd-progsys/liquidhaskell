@@ -46,7 +46,7 @@ test_script:
 #- echo "" | stack --no-terminal test --jobs 1 --verbose
 
 artifacts:
-- path: "C:\\lh\\.stack-work\\logs\\"
+- path: ".stack-work\\logs\\"
   name: Logs
 - path: liquidhaskell.zip
   name: LiquidHaskell
