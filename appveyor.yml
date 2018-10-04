@@ -1,7 +1,3 @@
-# Disabled cache in hope of improving reliability of AppVeyor builds
-#cache:
-#- "c:\\sr" # stack root, short paths == fewer problems
-
 clone_folder: "c:\\lh"
 environment:
   global:
@@ -32,7 +28,6 @@ install:
 build_script:
 - stack setup > nul
 - echo "" | stack --no-terminal build --jobs 1
-#- dir /s .stack-work\\
 
 # ZIP execturable
 - ps: ((.\stack.exe exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
@@ -46,7 +41,5 @@ test_script:
 #- echo "" | stack --no-terminal test --jobs 1 --verbose
 
 artifacts:
-- path: ".stack-work\\logs\\"
-  name: Logs
 - path: liquidhaskell.zip
   name: LiquidHaskell
