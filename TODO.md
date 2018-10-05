@@ -1,54 +1,13 @@
 # TODO
 
-## HEREHEREHEREHERE
+- [] Fix termination tests in fail.txt 
+- [] Fix resolve     tests in fail.txt 
+- [] Fix eq-repr     tests in fail.txt 
+- [] Remove trace 
+- [] Remove warnings 
+- [] fix circle
+- [] merge PR
 
-- tests/names/neg/vector1.hs        **bad error span**
-
-Name resolution
-      Fulcrum.hs:           FAIL (2.12s)
-
-Class refinements
-      RealProps1.hs:        FAIL (0.96s)
-      STClient.hs:          FAIL (1.02s)
-      DoubleLit.hs:         FAIL (2.16s)
-
-Unknown
-      ExactGADT4.hs:        FAIL (0.80s)
-
-     ClojurVector.hs:      FAIL (1.90s)
-
-    absref-pos
-      ListISort-LType.hs:   FAIL (3.13s)
-      deptup0.hs:           FAIL (1.52s)
-
-    import-lib
-      STLib.hs:             FAIL (1.12s)
-      ReflectLib4.hs:       FAIL (1.01s)
-    import-cli
-      STClient.hs:          FAIL (1.28s)
-      ReflectClient4a.hs:   FAIL (1.40s)
-      ReflectClient4.hs:    FAIL (1.21s)
-    class-pos
-      RealProps1.hs:        FAIL (0.85s)
-    ple-pos
-      RegexpDerivative.hs:  FAIL (7.00s)
-      IndStar.hs:           FAIL (1.07s)
-      IndPerm.hs:           FAIL (1.32s)
-      Fulcrum.hs:           FAIL (2.21s)
-      ExactGADT4.hs:        FAIL (1.01s)
-
-## Issues
-
-- Termination expressions have to be renamed 
-  as the binders get substituted via fresh etc.
-
-    PROPER fix: is to make the TExpr part of the freaking type-sig.
-
-  , gsTexprs     = [ (v, subst (su `mappend` suUpdate v) es) | (v, es) <- gsTexprs' ]
-
-- `makeLiftedSpec1` saves the SPECS for the next round; just transform the above to:
-
-  saveBareSpec :: BareSpec -> GhcSpec -> IO  where we combine the "raw" BareSpec
 
 ## CallStack/Error
 
