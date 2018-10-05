@@ -78,15 +78,6 @@ warnMissingLiftedSpec srcF specF = do
   if inc
     then return () 
     else Ex.throw (errMissingSpec srcF specF) 
-{- 
-      putStrLn . render
-         $ "WARNING:" <+> vcat 
-           [ "Cannot find .bspec file for the imported source" <+> text srcF 
-           , "Please run 'liquid' on the source first." 
-           ] 
--}
-
-
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
@@ -298,9 +289,9 @@ resolveStringVar env name s = Bare.lookupGhcVar env name "resolve-string-var" lx
 makeSpecQual :: Config -> Bare.Env -> Bare.TycEnv -> Bare.MeasEnv -> BareRTEnv -> Bare.ModSpecs 
              -> GhcSpecQual 
 ------------------------------------------------------------------------------------------
-makeSpecQual _cfg env tycEnv measEnv rtEnv specs = SpQual 
+makeSpecQual _cfg env tycEnv measEnv _rtEnv specs = SpQual 
   { gsQualifiers = filter okQual quals 
-  , gsRTAliases  = makeSpecRTAliases env rtEnv -- TODO-REBARE
+  , gsRTAliases  = [] -- makeSpecRTAliases env rtEnv -- TODO-REBARE
   } 
   where 
     quals        = concatMap (makeQualifiers env tycEnv) (M.toList specs) 
@@ -312,20 +303,17 @@ makeSpecQual _cfg env tycEnv measEnv rtEnv specs = SpQual
                    ++ (fst <$> Bare.meSyms measEnv) 
                    ++ (fst <$> Bare.meClassSyms measEnv)
 
-
-
 makeQualifiers :: Bare.Env -> Bare.TycEnv -> (ModName, Ms.Spec ty bndr) -> [F.Qualifier]
 makeQualifiers env tycEnv (mod, spec) 
   = fmap        (Bare.qualifyTop env        mod) 
   . Mb.mapMaybe (resolveQParams  env tycEnv mod)
   $ Ms.qualifiers spec 
 
--- @resolveQualParams@ converts the sorts of parameters from, e.g. 
---   'Int' ===> 'GHC.Types.Int' or 
---   'Ptr' ===> 'GHC.Ptr.Ptr'  
--- It would not be required if _all_ qualifiers are scraped from 
--- function specs, but we're keeping it around for backwards compatibility.
-
+-- | @resolveQualParams@ converts the sorts of parameters from, e.g. 
+--     'Int' ===> 'GHC.Types.Int' or 
+--     'Ptr' ===> 'GHC.Ptr.Ptr'  
+--   It would not be required if _all_ qualifiers are scraped from 
+--   function specs, but we're keeping it around for backwards compatibility.
 
 resolveQParams :: Bare.Env -> Bare.TycEnv -> ModName -> F.Qualifier -> Maybe F.Qualifier 
 resolveQParams env tycEnv name q = do 
@@ -350,8 +338,6 @@ qualifyFTycon env tycEnv name c
     tcs                 = F.fTyconSymbol c
     embs                = Bare.tcEmbs tycEnv 
 
-
-
 tyConSort :: F.TCEmb Ghc.TyCon -> F.Located Ghc.TyCon -> F.Sort 
 tyConSort embs lc = Mb.maybe s0 fst (F.tceLookup c embs)
   where 
@@ -360,57 +346,6 @@ tyConSort embs lc = Mb.maybe s0 fst (F.tceLookup c embs)
 
 tyConSortRaw :: F.Located Ghc.TyCon -> F.Sort 
 tyConSortRaw = FTC . F.symbolFTycon . fmap F.symbol 
-
-
-
-    -- REBARE go F.FInt        = FInt
-    -- REBARE go F.FReal       = FReal
-    -- REBARE go F.FNum        = FNum
-    -- REBARE go F.FFrac       = FFrac
-    -- REBARE go s@(FObj _)    = s
-    -- REBARE go s@(FVar _)    = s
-
-{-
-
-
-makeQualifiers :: (ModName, Ms.Spec ty bndr)
-               -> BareM [F.Qualifier]
-makeQualifiers (mod,spec) = inModule mod mkQuals
-  where          
-    mkQuals = mapM (\q -> resolve (F.qPos q) q) $ Ms.qualifiers spec
-
-instance Resolvable F.Qualifier where
-  resolve _ (F.Q n ps b l) = F.Q n <$> mapM (resolve l) ps <*> resolve l b <*> return l
-  
-instance Resolvable F.QualParam where 
-  resolve l qp = do            
-    t <- resolve l (F.qpSort qp)
-    return (qp {F.qpSort = t}) 
-
-instance Resolvable Sort where
-  resolve _ FInt          = return FInt
-  resolve _ FReal         = return FReal
-  resolve _ FNum          = return FNum
-  resolve _ FFrac         = return FFrac
-  resolve _ s@(FObj _)    = return s
-  resolve _ s@(FVar _)    = return s
-  resolve l (FAbs i  s)   = FAbs i <$> (resolve l s)
-  resolve l (FFunc s1 s2) = FFunc <$> (resolve l s1) <*> (resolve l s2)
-  resolve _ (FTC c)
-    | tcs' `elem` F.prims = FTC <$> return c
-    | otherwise           = do ty     <- lookupGhcTyCon "resolve1" tcs
-                               emb    <- embeds <$> get
-                               let ftc = FTC . F.symbolFTycon . Loc l l' $ F.symbol ty
-                               return  $ maybe ftc fst (F.tceLookup ty emb)
-    where                      
-      tcs@(Loc l l' tcs') = F.fTyconSymbol c
-  resolve l (FApp t1 t2) = FApp <$> resolve l t1 <*> resolve l t2
-
-
-
-
- -}
-
 
 ------------------------------------------------------------------------------------------
 makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm 
@@ -435,8 +370,6 @@ makeDecrs env name mySpec =
   [ (v, z) | (lx, z) <- Ms.decr mySpec
            , let v    = Bare.lookupGhcVar env name "decreasing" lx
   ]
-
-
 
 makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
 makeLazy env name spec = 
@@ -856,12 +789,6 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
    
-{- 
-
-  DataCons --> tyi -->  
-
- -}    
-
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
 knownWiredDataCons env name = filter isKnown wiredDataCons 
   where 
@@ -905,11 +832,11 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     -- TODO-REBARE: -- xs'      = fst <$> ms'
 
 -- checkMeasures :: MSpec SpecType Ghc.DataCon  
-_checkMeasures ms = checkMeasure <$> ms 
-checkMeasure m    = F.tracepp msg m 
-  where 
-    msg         = "CHECK-MEASURES: " ++ F.showpp syms
-    syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
+-- _checkMeasures ms = checkMeasure <$> ms 
+-- checkMeasure m    = F.tracepp msg m 
+  -- where 
+    -- msg         = "CHECK-MEASURES: " ++ F.showpp syms
+    -- syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 
@@ -920,7 +847,7 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
                -> GhcSpecRefl -> GhcSpecData -> GhcSpecSig -> GhcSpecQual -> BareRTEnv 
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
-makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0 
+makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0 
   { Ms.asmSigs    = F.tracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
   , Ms.sigs       = F.tracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
@@ -941,7 +868,7 @@ makeLiftedSpec src env refl sData sig qual myRTE lSpec0 = lSpec0
     defVars       = S.fromList (giDefVars src)
     reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl]
     reflVars      = S.fromList (fst <$> reflTySigs)
-    myAliases fld = M.elems . fld $ myRTE 
+    -- myAliases fld = M.elems . fld $ myRTE 
     srcF          = giTarget src 
 
 isLocInFile :: (F.Loc a) => FilePath -> a ->  Bool 
@@ -953,13 +880,9 @@ locFile = Misc.fst3 . F.sourcePosElts . F.sp_start . F.srcSpan
 varLocSym :: Ghc.Var -> LocSymbol
 varLocSym v = F.symbol <$> GM.locNamedThing v
 
+-- makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
+-- makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
 
-makeSpecRTAliases :: Bare.Env -> BareRTEnv -> [Located SpecRTAlias]
-makeSpecRTAliases _env _rtEnv = [] -- TODO-REBARE 
--- REBARE: toSpec . M.elems . typeAliases
--- REBARE: where toSpec = BareRTAlias -> SpecRTAlias 
--- REBARE: specAliases :: GhcInfo -> [Located BareRTAlias]
--- REBARE: specAliases = M.elems . typeAliases . gsRTAliases . gsQual . giSpec
 
 --------------------------------------------------------------------------------
 -- | @myRTEnv@ slices out the part of RTEnv that was generated by aliases defined 

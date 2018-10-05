@@ -1,15 +1,5 @@
 ## FAILING TESTS for TODO-REBARE 
 
-  Error-Messages
-
-    ElabLocation.hs:        FAIL (0.91s)
-      tests/test.hs:422:
-      Did not match message: ElabLocation.hs:11:9-11:15: Error (TODO-REBARE after you fix TickSrcSpans)
-
-
-
-
-
 - tests/todo-rebare/DataKinds.hs
 - tests/todo-rebare/GhcSort1.hs 
 - tests/todo-rebare/NatClass.hs
