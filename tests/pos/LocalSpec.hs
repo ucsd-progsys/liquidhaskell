@@ -1,6 +1,6 @@
-module LocalSpecImp where
+module LocalSpec where
 
-import LocalSpec0
+import LocalSpecLib
 
 {-@ bar :: {x:Int | x > 99} -> {v:Int | v > 100 } @-}
 bar :: Int -> Int

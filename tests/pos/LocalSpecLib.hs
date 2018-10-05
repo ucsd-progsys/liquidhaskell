@@ -1,5 +1,4 @@
-module LocalSpec0 (foo) where
-
+module LocalSpecLib (foo) where
 
 {-@ foo :: x:Int -> {v:Int | v > x } @-}
 foo :: Int -> Int
