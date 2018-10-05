@@ -240,8 +240,8 @@ microTests = group "Micro"
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   ]
   where 
-    mkMicro name dir expected = testGroup name <$> dirTests dir microIgnored expected -- TODO-REBARE: microIgnored = [] 
-    microIgnored              = [ "Inst01.hs", "PruneHO.hs", "HiddenData.hs", "HidePrelude.hs", "FunClashLibLibClient.hs"] 
+    mkMicro name dir expected = testGroup name <$> dirTests dir _TODO_REBARE expected 
+    _TODO_REBARE              = [ "Inst01.hs", "PruneHO.hs", "HiddenData.hs", "HidePrelude.hs", "FunClashLibLibClient.hs"] 
 
 posIgnored    = [ "mapreduce.hs" ]
 gPosIgnored   = ["Intro.hs"]

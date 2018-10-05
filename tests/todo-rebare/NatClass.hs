@@ -1,4 +1,4 @@
--- TODO-REBARE: does not support this `define` hack, which should be supported properly.
+-- TODO-REBARE-CLASS: does not support this `define` hack, which should be supported properly.
 
 {-@ LIQUID "--reflection"     @-}
 

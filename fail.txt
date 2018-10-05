@@ -7,3 +7,21 @@
       Did not match message: ElabLocation.hs:11:9-11:15: Error (TODO-REBARE after you fix TickSrcSpans)
 
 
+
+
+
+- tests/todo-rebare/DataKinds.hs
+- tests/todo-rebare/GhcSort1.hs 
+- tests/todo-rebare/NatClass.hs
+- tests/todo-rebare/T1089b.hs
+- tests/todo-rebare/T1295.hs  
+- tests/todo-rebare/T1295B.hs 
+- tests/todo-rebare/VerifiedMonoid_NEG.hs 
+- tests/todo-rebare/VerifiedMonoid_POS.hs
+
+- tests.hs : microTests._TODO_REBARE
+  - Inst01.hs
+  - PruneHO.hs
+  - HiddenData.hs
+  - HidePrelude.hs
+  - FunClashLibLibClient.hs

@@ -1,3 +1,5 @@
+-- TODO-REBARE-EQ-REPR: GHC shifts the representation of the ~ to something new with 8.4.3 maybe?
+
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1295
 
 {-# LANGUAGE EmptyDataDecls             #-}
