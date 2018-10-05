@@ -1493,3 +1493,10 @@ cp -r $GHCSRC/compiler/deSugar .
 # Copy stuff over
 for i in src/Language/Haskell/Liquid/Desugar/*.*; do j=$(basename $i); echo $j; cp deSugar/$j src/Language/Haskell/Liquid/Desugar; done
 ```
+
+
+Here's the magic diff that we did at some point that we keep bumping up to new GHC versions:
+
+https://github.com/ucsd-progsys/liquidhaskell/commit/d380018850297b8f1878c33d0e4c586a1fddc2b8#diff-3644b76a8e6b3405f5492d8194da3874R224 
+
+

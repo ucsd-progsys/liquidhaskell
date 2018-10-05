@@ -201,7 +201,6 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/HintMismatch.hs"        2 "HINT: Use the hole"
   , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error (TODO-REBARE after you fix TickSrcSpans)"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
-  
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
   ]
