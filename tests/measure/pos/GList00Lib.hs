@@ -1,5 +1,3 @@
-{-@ LIQUID "--structural" @-}
-
 module GList00Lib where 
 
 {-@ die :: {v: () | false} -> a @-}
