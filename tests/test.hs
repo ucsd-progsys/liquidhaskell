@@ -251,7 +251,7 @@ benchTests :: IO TestTree
 benchTests = group "Benchmarks"
   [ testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess
   , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess
-  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        []            bsOrder     ExitSuccess
+  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess
   , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess
   , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess
   , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
@@ -561,6 +561,11 @@ negIgnored
   = [ "Lib.hs"
     , "LibSpec.hs"
     ]
+
+bsIgnored :: [FilePath]
+bsIgnored 
+  = [ "Data/ByteString.T.hs" ]                    -- TODO-REBARE
+
 
 textIgnored :: [FilePath]
 textIgnored 
