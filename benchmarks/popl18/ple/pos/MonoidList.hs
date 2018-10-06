@@ -1,6 +1,5 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--structural" @-}
 
 module MonoidList where
 

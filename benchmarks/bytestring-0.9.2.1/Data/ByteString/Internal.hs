@@ -1,5 +1,5 @@
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--trust-sizes"   @-}
+{- LIQUID "--trust-sizes"   @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
