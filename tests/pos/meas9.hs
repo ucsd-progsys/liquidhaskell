@@ -1,4 +1,3 @@
-{-@ LIQUID "--structural" @-}
 module Meas () where
 
 import Data.Set (Set(..))

@@ -1,6 +1,4 @@
-{-@ LIQUID "--structural" @-}
-
-{-@ decrease go 2 @-}
+{- decrease go 2 @-}
 
 {-@ rev :: xs:[a] -> {v: [a] | len v = len xs} @-}
 rev = go [] 

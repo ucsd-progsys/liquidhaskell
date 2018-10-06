@@ -1,5 +1,3 @@
-{-@ LIQUID "--structural" @-}
-
 data L a = N | C a (L a)
 
 mapL f N = N

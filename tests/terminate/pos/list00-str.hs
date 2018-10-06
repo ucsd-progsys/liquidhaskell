@@ -1,4 +1,3 @@
-{-@ LIQUID "--structural" @-} 
 
 lmap f []     = []
 lmap f (x:xs) = f x : lmap f xs

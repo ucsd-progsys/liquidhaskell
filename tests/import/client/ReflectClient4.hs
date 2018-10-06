@@ -1,7 +1,6 @@
 
 {-@ LIQUID "--reflection" @-} 
 {-@ LIQUID "--ple"        @-} 
-{-@ LIQUID "--structural" @-} 
 
 module ReflectClient4 where
 

@@ -1,6 +1,4 @@
-{-@ LIQUID "--structural" @-}
 module ListSets () where
-
 
 -------------------------------------------------------------------------
 -- | Encoding Sets of Values With Liquid Types --------------------------

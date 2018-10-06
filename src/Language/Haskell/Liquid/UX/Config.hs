@@ -44,7 +44,7 @@ data Config = Config
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
   -- , structuralTerm :: Bool       -- ^ use structural termination checker
-  , nostructuralTerm :: !Bool    -- ^ disable structural termination check
+  , noStructuralTerm :: !Bool    -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving
@@ -167,5 +167,5 @@ terminationCheck' :: Config -> Bool
 terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) -- && (not (structuralTerm cfg))
 
 structuralTerm :: (HasConfig a) => a -> Bool 
-structuralTerm = not . nostructuralTerm . getConfig
+structuralTerm = not . noStructuralTerm . getConfig
 

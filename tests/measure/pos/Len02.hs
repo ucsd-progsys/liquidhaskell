@@ -1,5 +1,3 @@
-{-@ LIQUID "--structural" @-}
-
 module Meas () where
 
 import Language.Haskell.Liquid.Prelude

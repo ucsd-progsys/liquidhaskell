@@ -1,7 +1,5 @@
 -- This test checks whether "invariants" are working.
 
-{-@ LIQUID "--structural" @-}
-
 module List02Lib where 
 
 data List yy

@@ -1,5 +1,3 @@
-{-@ LIQUID "--structural" @-}
-
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module MutualRec where

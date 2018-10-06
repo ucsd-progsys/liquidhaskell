@@ -4,7 +4,6 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--structural" @-}
 
 module Induction where
 

@@ -1,8 +1,6 @@
 {-# Language ScopedTypeVariables   #-}
 {-# Language PartialTypeSignatures #-}
 
-{-@ LIQUID "--no-termination" @-}
-
 module ListSort () where
 
 import Language.Haskell.Liquid.Prelude 

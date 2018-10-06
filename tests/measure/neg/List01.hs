@@ -1,5 +1,3 @@
-{-@ LIQUID "--structural" @-}
-
 module List00Lib where 
 
 data List yy

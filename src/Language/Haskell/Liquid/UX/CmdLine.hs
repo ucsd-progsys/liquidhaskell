@@ -151,13 +151,10 @@ config = cmdArgsMode $ Config {
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
- -- , structuralTerm
-    -- = def &= help "Structural Termination Check"
-          -- &= name "structural-termination"
-
- , nostructuralTerm
-    = def &= help "Disable structural termination check" 
+ , noStructuralTerm
+    = False 
           &= name "no-structural-termination" 
+          &= help "Disable structural termination check" 
 
  , gradual
     = def &= help "Enable gradual refinement type checking"
@@ -525,10 +522,9 @@ defConfig = Config
   , diffcheck         = def
   , saveQuery         = def
   , checks            = def
+  , noStructuralTerm  = False   -- def 
   , noCheckUnknown    = def
   , notermination     = False 
-  -- , structuralTerm    = True -- False 
-  , nostructuralTerm  = False   -- def 
   , gradual           = False
   , gdepth            = 1
   , ginteractive      = False
