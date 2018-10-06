@@ -180,12 +180,12 @@ addCGEnv tx γ (eMsg, x, RAllE yy tyy tyx)
 
 addCGEnv tx γ (_, x, t') = do
   idx   <- fresh
-  allowHOBinders <- allowHO <$> get
+  -- allowHOBinders <- allowHO <$> get
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
   pflag <- pruneRefs <$> get
-  is    <- if allowHOBinders || isBase t
+  is    <- if True -- // || allowHOBinders || isBase t
             then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind γ' l t
             else return []
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
@@ -246,12 +246,12 @@ addSEnv γ = addCGEnv (addRTyConInv (invs γ)) γ
 addEEnv :: CGEnv -> (F.Symbol, SpecType) -> CG CGEnv
 addEEnv γ (x,t')= do
   idx   <- fresh
-  allowHOBinders <- allowHO <$> get
+  -- allowHOBinders <- allowHO <$> get
   let t  = addRTyConInv (invs γ) $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
   pflag <- pruneRefs <$> get
-  is    <- if allowHOBinders || isBase t
+  is    <- if True -- // allowHOBinders || isBase t
             then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind γ' l t
             else return []
   modify (\s -> s { ebinds = ebinds s ++ (snd <$> is)})
