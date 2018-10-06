@@ -625,8 +625,8 @@ splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
 errResolve :: PJ.Doc -> String -> LocSymbol -> UserError 
 errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.text msg) 
 
-symbolicString :: F.Symbolic a => a -> String
-symbolicString = F.symbolString . F.symbol
+-- symbolicString :: F.Symbolic a => a -> String
+-- symbolicString = F.symbolString . F.symbol
 
 resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
 resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x) 

@@ -22,7 +22,7 @@ import qualified Data.List as L
 import           PrelNames                                  (fractionalClassKeys)
 import           FamInstEnv
 import           Debug.Trace
-import qualified ConLike                                    as Ghc
+-- import qualified ConLike                                    as Ghc
 
 import qualified CoreUtils
 import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)

@@ -91,9 +91,10 @@ checkUnique _ = checkUnique' F.val GM.fSrcSpan
 
 checkUnique' :: (PPrint a, Eq a, Hashable a) 
              => (t -> a) -> (t -> Ghc.SrcSpan) -> [t] -> [Error]
-checkUnique' nameF locF ts = mkErr <$> dups
+checkUnique' nameF locF ts = [ErrDupSpecs l (pprint n) ls | (n, ls@(l:_)) <- dups] 
+-- mkErr <$> dups
   where
-    mkErr (n, ls@(l:_))    = ErrDupSpecs l (pprint n) ls
+    -- mkErr (n, ls@(l:_))    = ErrDupSpecs l (pprint n) ls
     dups                   = [ z      | z@(_, _:_:_) <- Misc.groupList nts       ] 
     nts                    = [ (n, l) | t <- ts, let n = nameF t, let l = locF t ]
 
@@ -193,9 +194,8 @@ checkSigTExpr allowHO emb tcEnv env (x, (t, es))
     mbErr1 = checkBind allowHO empty emb tcEnv env (x, t) 
     mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
 
-
-checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
-checkQualifiers = mapMaybe . checkQualifier
+_checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
+_checkQualifiers = mapMaybe . checkQualifier
 
 checkQualifier       :: F.SEnv F.SortedReft -> F.Qualifier -> Maybe Error
 checkQualifier env q =  mkE <$> checkSortFull (F.srcSpan q) γ F.boolSort  (F.qBody q)

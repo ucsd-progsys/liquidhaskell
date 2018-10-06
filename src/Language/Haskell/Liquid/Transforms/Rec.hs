@@ -12,7 +12,8 @@ module Language.Haskell.Liquid.Transforms.Rec (
      , isIdTRecBound, setIdTRecBound
      ) where
 
-import           Bag
+-- import           Bag
+-- import           ErrUtils
 import           Coercion
 import           Control.Arrow                        (second)
 import           Control.Monad.State
@@ -20,7 +21,6 @@ import           CoreSyn
 import           CoreUtils
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
-import           ErrUtils
 import           Id
 import           IdInfo
 import           Language.Haskell.Liquid.GHC.Misc
@@ -30,7 +30,7 @@ import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
 import           Name                                 (isSystemName)
-import           Outputable                           (SDoc)
+-- import           Outputable                           (SDoc)
 import           Prelude                              hiding (error)
 import           SrcLoc
 import           Type                                 (mkForAllTys, splitForAllTys)
@@ -38,8 +38,7 @@ import           TyCoRep
 import           Unique                               hiding (deriveUnique)
 import           Var
 
-import           Data.List                            (foldl', isInfixOf)
-
+-- import qualified Data.List                            (foldl', isInfixOf)
 
 import qualified Data.List                            as L
 
@@ -64,7 +63,7 @@ inlineLoopBreaker (NonRec x e) | Just (lbx, lbe) <- hasLoopBreaker be
   where
     (αs, as, be) = collectTyAndValBinders e
 
-    e' = foldl' App (foldl' App (Var x) ((Type . TyVarTy) <$> αs)) (Var <$> as)
+    e' = L.foldl' App (L.foldl' App (Var x) ((Type . TyVarTy) <$> αs)) (Var <$> as)
 
     hasLoopBreaker (Let (Rec [(x1, e1)]) (Var x2)) | isLoopBreaker x1 && x1 == x2 = Just (x1, e1)
     hasLoopBreaker _                               = Nothing
@@ -99,9 +98,9 @@ inlineFailCases = (go [] <$>)
     addFailExpr x (Lam _ e) su = (x, e):su
     addFailExpr _ _         _  = impossible Nothing "internal error" -- this cannot happen
 
-isTypeError :: SDoc -> Bool
-isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
-isTypeError _ = True
+-- isTypeError :: SDoc -> Bool
+-- isTypeError s | isInfixOf "Non term variable" (showSDoc s) = False
+-- isTypeError _ = True
 
 -- No need for this transformation after ghc-8!!!
 transformScope :: [Bind Id] -> [Bind Id]
@@ -208,7 +207,7 @@ makeTrans vs ids (Let (Rec xes) e)
 makeTrans _ _ _ = panic Nothing "TransformRec.makeTrans called with invalid input"
 
 mkRecBinds :: [(b, Expr b)] -> Bind b -> Expr b -> Expr b
-mkRecBinds xes rs e = Let rs (foldl' f e xes)
+mkRecBinds xes rs e = Let rs (L.foldl' f e xes)
   where f e (x, xe) = Let (NonRec x xe) e
 
 mkSubs :: (Eq k, Hashable k)
