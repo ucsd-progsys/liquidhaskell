@@ -355,14 +355,15 @@ makeSpecTerm cfg mySpec env name = SpTerm
   , gsStTerm     = sizes
   , gsAutosize   = autos 
   , gsDecr       = F.tracepp "MAKEDECRS" $ makeDecrs env name mySpec
+  , gsNonStTerm  = mempty 
   }
   where  
     lazies       = makeLazy     env name mySpec
     autos        = makeAutoSize env name mySpec
-    noStrT       = nostructuralT cfg 
+    strT         = not (structuralTerm cfg) 
     sizes 
-     | noStrT    = mempty 
-     | otherwise = makeSize env name mySpec 
+     | strT      = makeSize env name mySpec 
+     | otherwise = mempty 
 
 -- formerly, makeHints
 makeDecrs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, [Int])] 

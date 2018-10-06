@@ -34,7 +34,7 @@ import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.GHC.API 
 
 -------------------------------------------------------------------------
--- | GHC Information:  Code & Spec -------------------------------------
+-- | GHC Information:  Code & Spec --------------------------------------
 -------------------------------------------------------------------------
 
 -- | The following is the overall type for /specifications/ obtained from
@@ -132,6 +132,7 @@ data GhcSpecTerm = SpTerm
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
   , gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographic order of decreasing args (DEPRECATED) 
+  , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics 
   }
 
 data GhcSpecRefl = SpRefl 

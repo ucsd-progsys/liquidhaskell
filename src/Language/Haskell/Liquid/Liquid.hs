@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Liquid (
 
 import           Prelude hiding (error)
 import           Data.Bifunctor
--- import qualified Data.HashSet as S 
+import qualified Data.HashSet as S 
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
 import           Var                              (Var)
@@ -167,18 +167,27 @@ liquidQueries cfg tgt info (Right dcs)
 
 liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
-  let names  = either (const Nothing) (Just . map show . DC.checkedVars)   edc
-  let oldOut = either (const mempty)  DC.oldOutput                         edc
-  let info'  = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
-  let cbs''  = either id              DC.newBinds                          edc
-  let info'' = info' { giSrc = (giSrc info') {giCbs = cbs''}}
-  let cgi    = {-# SCC "generateConstraints" #-} generateConstraints $! info'' 
+  let names   = either (const Nothing) (Just . map show . DC.checkedVars)   edc
+  let oldOut  = either (const mempty)  DC.oldOutput                         edc
+  let info'   = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
+  let cbs''   = either id              DC.newBinds                          edc
+  let info''  = info' { giSrc = (giSrc info') {giCbs = cbs''}}
+  let cgi     = {-# SCC "generateConstraints" #-} generateConstraints $! info'' 
   when False (dumpCs cgi)
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
-  let tout   = ST.terminationCheck info'' 
-  out       <- timedAction names $ solveCs cfg tgt cgi info'' names
-  return     $  mconcat [oldOut, tout, out]
+  let tVars   = ST.terminationVars info''
+  let info''' = updGhcInfoTermVars info'' tVars
+  out        <- timedAction names $ solveCs cfg tgt cgi info''' names
+  return      $ mconcat [oldOut, out]
+
+updGhcInfoTermVars    :: GhcInfo -> [Var] -> GhcInfo 
+updGhcInfoTermVars    = updInfo 
+  where 
+    updInfo   info vs = info { giSpec = updSpec   (giSpec info) vs }
+    updSpec   sp   vs = sp   { gsTerm = updSpTerm (gsTerm sp)   vs }
+    updSpTerm gsT  vs = gsT  { gsNonStTerm = S.fromList vs         } 
+      
 
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do

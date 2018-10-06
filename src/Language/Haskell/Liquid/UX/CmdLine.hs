@@ -151,13 +151,13 @@ config = cmdArgsMode $ Config {
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
- , structuralTerm
-    = def &= help "Structural Termination Check"
-          &= name "structural-termination"
+ -- , structuralTerm
+    -- = def &= help "Structural Termination Check"
+          -- &= name "structural-termination"
 
- , nostructuralT
-    = def &= help "Trust that size functions are inductive"
-          &= name "trust-sizes"
+ , nostructuralTerm
+    = def &= help "Disable structural termination check" 
+          &= name "no-structural-termination" 
 
  , gradual
     = def &= help "Enable gradual refinement type checking"
@@ -527,8 +527,8 @@ defConfig = Config
   , checks            = def
   , noCheckUnknown    = def
   , notermination     = False 
-  , structuralTerm    = False 
-  , nostructuralT     = def 
+  -- , structuralTerm    = True -- False 
+  , nostructuralTerm  = False   -- def 
   , gradual           = False
   , gdepth            = 1
   , ginteractive      = False

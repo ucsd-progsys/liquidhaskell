@@ -193,6 +193,7 @@ data CGInfo = CGInfo
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ "Lazy binders", skip termination checking
+  , specTmVars :: !(S.HashSet Var)             -- ^ Binders that FAILED struct termination check that MUST be checked 
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)

@@ -273,6 +273,7 @@ initCGI cfg info = CGInfo {
   , specDecr   = gsDecr  tspc
   , specLVars  = gsLvars (gsVars spc)
   , specLazy   = dictionaryVar `S.insert` (gsLazy tspc)
+  , specTmVars = gsNonStTerm tspc
   , tcheck     = terminationCheck cfg
   , scheck     = strata cfg
   , pruneRefs  = pruneUnsorted cfg

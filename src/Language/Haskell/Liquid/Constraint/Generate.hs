@@ -254,8 +254,8 @@ consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBLet γ cb = do
   oldtcheck <- tcheck <$> get
-  lazyVars  <- specLazy <$> get
-  let isStr  = doTermCheck lazyVars cb
+  -- REBARE lazyVars  <- specLazy <$> get
+  isStr     <- doTermCheck (getConfig γ) cb
   -- TODO: yuck.
   modify $ \s -> s { tcheck = oldtcheck && isStr }
   γ' <- consCB (oldtcheck && isStr) isStr γ cb
@@ -277,8 +277,8 @@ consCBTop cfg info γ cb
 
 consCBTop _ _ γ cb
   = do oldtcheck <- tcheck <$> get
-       lazyVars  <- specLazy <$> get
-       let isStr  = doTermCheck lazyVars cb
+       -- lazyVars  <- specLazy <$> get
+       isStr     <- doTermCheck (getConfig γ) cb
        modify $ \s -> s { tcheck = oldtcheck && isStr}
        -- remove invariants that came from the cb definition
        let (γ', i) = removeInvariant γ cb                 --- DIFF
@@ -297,8 +297,17 @@ derivedVar :: GhcSrc -> Var -> Bool
 derivedVar src x = S.member x (giDerVars src)
   -- TODO-REBARE: x `elem` giDerVars src || GM.isInternal x
 
-doTermCheck :: S.HashSet Var -> Bind Var -> Bool
-doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || GM.isInternal x) . bindersOf
+doTermCheck :: Config -> Bind Var -> CG Bool
+doTermCheck cfg bind = do 
+  lazyVs    <- specLazy   <$> get 
+  termVs    <- specTmVars <$> get
+  let skip   = any (\x -> S.member x lazyVs || GM.isInternal x) xs
+  let chk    = not (structuralTerm cfg) || any (\x -> S.member x termVs) xs
+  return     $ chk && not skip
+  where 
+    xs       = bindersOf bind
+
+-- nonStructTerm && not skip
 
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv

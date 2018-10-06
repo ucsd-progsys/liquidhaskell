@@ -15,6 +15,7 @@ module Language.Haskell.Liquid.UX.Config (
    , hasOpt
    , totalityCheck
    , terminationCheck 
+   , structuralTerm
    ) where
 
 import Prelude hiding (error)
@@ -42,8 +43,8 @@ data Config = Config
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
-  , structuralTerm :: Bool       -- ^ use only structural termination checker
-  , nostructuralT  :: Bool       -- ^ disable structural termination check
+  -- , structuralTerm :: Bool       -- ^ use structural termination checker
+  , nostructuralTerm :: !Bool    -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving
@@ -163,4 +164,8 @@ totalityCheck' :: Config -> Bool
 totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
 
 terminationCheck' :: Config -> Bool
-terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) && (not (structuralTerm cfg))
+terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) -- && (not (structuralTerm cfg))
+
+structuralTerm :: (HasConfig a) => a -> Bool 
+structuralTerm = not . nostructuralTerm . getConfig
+
