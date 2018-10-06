@@ -325,6 +325,7 @@ srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
 srcSpanEndLoc :: RealSrcSpan -> Loc
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 
+
 oneLine :: RealSrcSpan -> Bool
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
 

@@ -43,6 +43,7 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * SrcSpan Helpers
   , realSrcSpan
   , unpackRealSrcSpan
+  , srcSpanFileMb
   ) where
 
 import           Prelude                      hiding (error)
@@ -70,7 +71,7 @@ import           Text.Parsec.Error            (errorMessages, showErrorMessages)
 
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import qualified Language.Fixpoint.Misc       as Misc
-import qualified Language.Haskell.Liquid.Misc as Misc 
+import qualified Language.Haskell.Liquid.Misc     as Misc 
 import           Language.Haskell.Liquid.Misc ((<->))
 
 instance PPrint ParseError where
@@ -115,10 +116,6 @@ srcSpanContext fb sp
   = makeContext l c c' (getFileLines fb l l')
   | otherwise
   = empty
-
-srcSpanFileMb :: SrcSpan -> Maybe FilePath
-srcSpanFileMb (RealSrcSpan s) = Just $ unpackFS $ srcSpanFile s
-srcSpanFileMb _               = Nothing 
 
 srcSpanInfo :: SrcSpan -> Maybe (Int, Int, Int, Int)
 srcSpanInfo (RealSrcSpan s) 
@@ -656,6 +653,11 @@ realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
   where
     loc1                  = mkRealSrcLoc (fsLit f) l1 c1
     loc2                  = mkRealSrcLoc (fsLit f) l2 c2
+
+srcSpanFileMb :: SrcSpan -> Maybe FilePath
+srcSpanFileMb (RealSrcSpan s) = Just $ unpackFS $ srcSpanFile s
+srcSpanFileMb _               = Nothing 
+
 
 instance ToJSON SrcSpan where
   toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]

@@ -402,8 +402,10 @@ makeGhcSrc cfg file typechecked modSum = do
   things            <- lookupTyThings hscEnv typechecked modGuts 
   -- _                 <- liftIO $ print (showpp things)
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
+  incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src 
-    { giTarget    = file
+    { giIncDir    = incDir 
+    , giTarget    = file
     , giTargetMod = ModName Target (moduleName (ms_mod modSum))
     , giCbs       = coreBinds
     , giImpVars   = impVars 

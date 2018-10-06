@@ -402,7 +402,7 @@ sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
 sortOrder Nothing   fs = defaultFileOrder fs 
 sortOrder (Just fo) fs = sortOn (getOrder fo) ordFs ++ defaultFileOrder otherFs 
   where 
-    (ordFs, otherFs)   = L.partition (`M.member` fo) fs 
+    (ordFs, otherFs)   = L.partition (`Map.member` fo) fs 
 
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)

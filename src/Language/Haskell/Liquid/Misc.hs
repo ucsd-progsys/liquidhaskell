@@ -119,11 +119,11 @@ zip4 :: [t] -> [t1] -> [t2] -> [t3] -> [(t, t1, t2, t3)]
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
 
-
-isIncludeFile :: FilePath -> IO Bool 
-isIncludeFile src = do 
-  incDir <- getIncludeDir 
-  return (incDir `L.isPrefixOf` src)
+isIncludeFile :: FilePath -> FilePath -> Bool 
+isIncludeFile incDir src = -- do 
+  -- incDir <- getIncludeDir 
+  -- return 
+  (incDir `L.isPrefixOf` src)
 
 getIncludeDir :: IO FilePath
 getIncludeDir      = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")

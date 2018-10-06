@@ -74,8 +74,8 @@ errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
 
 warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
 warnMissingLiftedSpec srcF specF = do 
-  inc <- Misc.isIncludeFile srcF 
-  if inc
+  incDir <- Misc.getIncludeDir 
+  if Misc.isIncludeFile incDir srcF 
     then return () 
     else Ex.throw (errMissingSpec srcF specF) 
 

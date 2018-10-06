@@ -65,6 +65,7 @@ import qualified Language.Haskell.Liquid.GHC.API       as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM 
 import qualified Language.Haskell.Liquid.Misc          as Misc 
 import qualified Language.Haskell.Liquid.Types.RefType as RT
+import qualified Language.Haskell.Liquid.Types.Errors  as Errors 
 import           Language.Haskell.Liquid.Types.Types   
 import           Language.Haskell.Liquid.Types.Specs 
 import           Language.Haskell.Liquid.Types.Visitors 
@@ -498,7 +499,7 @@ class ResolveSym a where
   
 instance ResolveSym Ghc.Var where 
   resolveLocSym = resolveWith "variable" $ \case 
-                    Ghc.AnId x -> Just x -- (0, x)
+                    Ghc.AnId x -> Just x 
                     _          -> Nothing
 
 instance ResolveSym Ghc.TyCon where 
@@ -533,7 +534,7 @@ instance ResolveSym F.Symbol where
 
 
 
-resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe ({- Int, -} a)) -> Env -> ModName -> String -> LocSymbol 
+resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith kind f env name str lx =
   case Mb.mapMaybe f things of 
@@ -543,7 +544,7 @@ resolveWith kind f env name str lx =
   where 
     _xSym  = (F.val lx)
     sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = myTracepp msg $ lookupTyThing env name (val lx) 
+    things = myTracepp msg $ lookupTyThing env name lx 
     msg    = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
 
 -------------------------------------------------------------------------------
@@ -553,19 +554,37 @@ resolveWith kind f env name str lx =
 --   see tests-names-pos-*.hs, esp. vector04.hs where we need the name `Vector` 
 --   to resolve to `Data.Vector.Vector` and not `Data.Vector.Generic.Base.Vector`... 
 -------------------------------------------------------------------------------
-lookupTyThing :: Env -> ModName -> F.Symbol -> [Ghc.TyThing]
+lookupTyThing :: Env -> ModName -> LocSymbol -> [Ghc.TyThing]
 -------------------------------------------------------------------------------
-lookupTyThing env name sym = case Misc.sortOn fst (Misc.groupList matches) of 
+lookupTyThing env name lsym = case Misc.sortOn fst (Misc.groupList matches) of 
                                (_,ts):_ -> ts
                                []       -> []
   where 
     matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
                                            , k      <- myTracepp msg $ mm nameSym m mods ]
-    msg                    = "lookupTyThing: " ++ F.showpp (sym, x, mods)
-    (x, mods)              = symbolModules env sym
+    msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mods)
+    (x, mods)              = symbolModules env (F.val lsym)
     nameSym                = F.symbol name
-    mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (sym, name, m, mods)) $ 
-                              matchMod env name m mods 
+    allowExt               = allowExtResolution env lsym 
+    mm name m mods         = myTracepp ("matchMod: " ++ F.showpp (lsym, name, m, mods, allowExt)) $ 
+                               matchMod env name m allowExt mods 
+
+-- | [NOTE:External-Resolution] @allowExtResolution@ determines whether a @LocSymbol@ 
+--   can be resolved by a @TyThing@ that is _outside_ the module corresponding to @LocSymbol@. 
+--   We need to allow this, e.g. to resolve names like @Data.Set.Set@ with @Data.Set.Internal.Set@, 
+--   but should do so ONLY when the LocSymbol comes from a "hand-written" .spec file or 
+--   something from the LH prelude. Other names, e.g. from "machine-generated" .bspec files 
+--   should already be FULLY-qualified to to their actual definition (e.g. Data.Set.Internal.Set) 
+--   and so we should DISALLOW external-resolution in such cases.
+
+allowExtResolution :: Env -> LocSymbol -> Bool 
+allowExtResolution env lx = case fileMb of 
+  Nothing -> True 
+  Just f  -> f == tgtFile || Misc.isIncludeFile incDir f  
+  where 
+    tgtFile = giTarget (reSrc env)
+    incDir  = giIncDir (reSrc env)
+    fileMb  = Errors.srcSpanFileMb (GM.fSrcSpan lx) 
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
 lookupThings env x = myTracepp ("lookupThings: " ++ F.showpp x) 
@@ -573,20 +592,22 @@ lookupThings env x = myTracepp ("lookupThings: " ++ F.showpp x)
   where 
     get z          = M.lookup z (_reTyThings env)
 
-matchMod :: Env -> F.Symbol -> F.Symbol -> Maybe [F.Symbol] -> [Int]
-matchMod env tgtName defName Nothing               -- Score UNQUALIFIED names 
-  | defName == tgtName = [0]                       -- prioritize names defined in *this* module 
-  | otherwise          = [matchImp env defName 1]  -- prioritize directly imported modules over 
-                                                   -- names coming from elsewhere, with a 
-
-matchMod env tgtName defName (Just ms)             -- Score QUALIFIED names
-  |  isEmptySymbol defName 
-  && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
-  | ms == [defName]    = [1]
-  | isExtMatch         = [matchImp env defName 2]  -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
-  | otherwise          = []  
+matchMod :: Env -> F.Symbol -> F.Symbol -> Bool -> Maybe [F.Symbol] -> [Int]
+matchMod env tgtName defName allowExt = go 
   where 
-    isExtMatch       = any (`F.isPrefixOfSym` defName) ms
+    go Nothing               -- Score UNQUALIFIED names 
+     | defName == tgtName = [0]                       -- prioritize names defined in *this* module 
+     | otherwise          = [matchImp env defName 1]  -- prioritize directly imported modules over 
+                                                      -- names coming from elsewhere, with a 
+
+    go (Just ms)             -- Score QUALIFIED names
+     |  isEmptySymbol defName 
+     && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
+     | ms == [defName]    = [1]
+     | allowExt && isExt  = [matchImp env defName 2]  -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
+     | otherwise          = []  
+     where 
+       isExt              = allowExt && any (`F.isPrefixOfSym` defName) ms
 
 symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env s = (x, glerb <$> modMb) 

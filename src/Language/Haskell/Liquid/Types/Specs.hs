@@ -46,7 +46,8 @@ data GhcInfo = GI
   }
 
 data GhcSrc = Src 
-  { giTarget    :: !FilePath              -- ^ Source file for module
+  { giIncDir    :: !FilePath              -- ^ Path for LH include/prelude directory
+  , giTarget    :: !FilePath              -- ^ Source file for module
   , giTargetMod :: !ModName               -- ^ Name for module
   , giCbs       :: ![CoreBind]            -- ^ Source Code
   , gsTcs       :: ![TyCon]               -- ^ All used Type constructors
