@@ -986,7 +986,7 @@ consPattern γ (Rs.PatReturn e m _ _ _) t = do
   et    <- F.tracepp "Cons-Pattern-Ret" <$> consE γ e
   mt    <- trueTy  m
   tt    <- trueTy  t
-  return (mkRAppTy mt et tt) -- $ RAppTy mt et mempty
+  return (mkRAppTy mt et tt) -- /// {-    $ RAppTy mt et mempty -}
 
 {- [NOTE] special type rule for field projection, is
           t  = G(x)       ti = Proj(t, i)
