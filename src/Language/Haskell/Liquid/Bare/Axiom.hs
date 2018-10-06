@@ -64,37 +64,10 @@ makeAxiom :: Bare.Env -> Bare.TycEnv -> ModName -> LogicMap
 makeAxiom env tycEnv name lmap (x, mbT, v, def) 
             = (v, t, e)
   where 
-    t       = Bare.qualifyTop env name t0 
+    t       = Bare.qualifyTop env name (F.loc t0) t0 
     (t0, e) = makeAssumeType embs lmap dm x mbT v def
     embs    = Bare.tcEmbs       tycEnv 
     dm      = Bare.tcDataConMap tycEnv 
-  -- TODO-REBARE insertAxiom v Nothing
-  -- TODO-REBARE updateLMap x x v
-  -- TODO-REBARE updateLMap (x{val = (F.symbol . showPpr . getName) v}) x v
-  
-{- TODO-REBARE: updateLMapXV, updateLMap 
-
-updateLMapXV :: LocSymbol -> Var -> BareM ()
-updateLMapXV x v = do
-  updateLMap x x v
-  updateLMap (x {val = (F.symbol . showPpr . getName) v}) x v
-
-updateLMap :: LocSymbol -> LocSymbol -> Var -> BareM ()
-updateLMap x y vv
-  | val x /= val y && isFun (varType vv)
-  = insertLogicEnv ("UPDATELMAP: vv =" ++ show vv) x ys (F.eApps (F.EVar $ val y) (F.EVar <$> ys))
-  | otherwise
-  = return ()
-  where
-    nargs = dropWhile isClassType $ ty_args trep
-    trep  = toRTypeRep ((ofType $ varType vv) :: RRType ())
-    ys    = zipWith (\i _ -> F.symbol ("x" ++ show i)) [1..] nargs
-
-    isFun (FunTy _ _)    = True
-    isFun (ForAllTy _ t) = isFun t
-    isFun  _             = False
-
--}
 
 mkError :: LocSymbol -> String -> Error
 mkError x str = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text str)

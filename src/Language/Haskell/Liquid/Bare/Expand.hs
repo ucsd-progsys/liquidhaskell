@@ -103,7 +103,7 @@ makeRTAliases lxts rte = graphExpand buildTypeEdges f rte lxts
     f rtEnv xt         = setRTAlias rtEnv (expandLoc rtEnv xt)
 
 specREAlias :: Bare.Env -> ModName -> Located (RTAlias F.Symbol F.Expr) -> Located (RTAlias F.Symbol F.Expr) 
-specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (rtVArgs a) (rtBody a) } 
+specREAlias env m la = F.atLoc la $ a { rtBody = Bare.qualify env m (loc la) (rtVArgs a) (rtBody a) } 
   where 
     a     = val la 
 
@@ -257,7 +257,7 @@ qualifyExpand :: (Expand a, Bare.Qualify a)
 ----------------------------------------------------------------------------------
 qualifyExpand env name rtEnv l bs
   = expand rtEnv l  
-  . Bare.qualify env name bs
+  . Bare.qualify env name l bs
 
 ----------------------------------------------------------------------------------
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
@@ -562,7 +562,7 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
   . fmap (F.tracepp (msg 3))
-  . fmap (Bare.qualifyTop    env name) 
+  . fmap (Bare.qualifyTop    env name l) 
   . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
   . F.tracepp (msg 1) 
@@ -574,6 +574,7 @@ cookSpecTypeE env sigEnv name x bt
     rtEnv = Bare.sigRTEnv    sigEnv
     embs  = Bare.sigEmbs     sigEnv 
     tyi   = Bare.sigTyRTyMap sigEnv
+    l     = F.loc bt
 
 -- | We don't want to generalize type variables that maybe bound in the 
 --   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs 

@@ -218,7 +218,7 @@ microTests = group "Micro"
   , mkMicro "basic-neg"      "tests/basic/neg"       (ExitFailure 1)
   , mkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess          -- measPosOrder
   , mkMicro "measure-neg"    "tests/measure/neg"     (ExitFailure 1)
-  , dkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          -- dconPosOrder 
+  , mkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          -- dconPosOrder 
   , mkMicro "datacon-neg"    "tests/datacon/neg"     (ExitFailure 1)
   , mkMicro "names-pos"      "tests/names/pos"       ExitSuccess
   , mkMicro "names-neg"      "tests/names/neg"       (ExitFailure 1)
@@ -226,7 +226,7 @@ microTests = group "Micro"
   , mkMicro "reflect-neg"    "tests/reflect/neg"     (ExitFailure 1) 
   , mkMicro "absref-pos"     "tests/absref/pos"      ExitSuccess
   , mkMicro "absref-neg"     "tests/absref/neg"      (ExitFailure 1)
-  , dkMicro "import-lib"     "tests/import/lib"      ExitSuccess          -- impLibOrder 
+  , mkMicro "import-lib"     "tests/import/lib"      ExitSuccess          -- impLibOrder 
   , mkMicro "import-cli"     "tests/import/client"   ExitSuccess
   , mkMicro "class-pos"      "tests/classes/pos"     ExitSuccess
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        

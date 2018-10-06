@@ -19,7 +19,7 @@ module Language.Haskell.Liquid.Bare.Resolve
     -- * Resolving symbols 
   , ResolveSym (..)
   , Qualify (..)
-  , qualifyTop
+  , qualifyTop, qualifyTopDummy
   
   -- * Looking up names
   , maybeResolveSym 
@@ -267,35 +267,44 @@ dataConVars dcs = concat
 -------------------------------------------------------------------------------
 -- | Qualify various names 
 -------------------------------------------------------------------------------
-qualifyTop :: (Qualify a) => Env -> ModName -> a -> a 
-qualifyTop env name = qualify env name []
+qualifyTop :: (Qualify a) => Env -> ModName -> F.SourcePos -> a -> a 
+qualifyTop env name l = qualify env name l []
+
+qualifyTopDummy :: (Qualify a) => Env -> ModName -> a -> a 
+qualifyTopDummy env name = qualifyTop env name dummySourcePos
+
+dummySourcePos :: F.SourcePos 
+dummySourcePos = F.loc (F.dummyLoc ())
 
 class Qualify a where 
-  qualify :: Env -> ModName -> [F.Symbol] -> a -> a 
+  qualify :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 
 instance Qualify TyConP where 
-  qualify env name bs tcp = tcp { tcpSizeFun = qualify env name bs <$> tcpSizeFun tcp }
+  qualify env name _ bs tcp = tcp { tcpSizeFun = qualify env name (tcpLoc tcp) bs <$> tcpSizeFun tcp }
 
 instance Qualify SizeFun where 
-  qualify env name bs (SymSizeFun lx) = SymSizeFun (qualify env name bs lx)
-  qualify _   _    _ sf              = sf
+  qualify env name _ bs (SymSizeFun lx) = SymSizeFun (qualify env name (F.loc lx) bs lx)
+  qualify _   _    _ _  sf              = sf
 
 instance Qualify F.Equation where 
-  qualify _env _name _bs x = x -- TODO-REBARE 
+  qualify _env _name _l _bs x = x -- TODO-REBARE 
 -- REBARE: qualifyAxiomEq :: Bare.Env -> Var -> Subst -> AxiomEq -> AxiomEq
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify env name bs x = qualifySymbol env name bs x 
+  qualify env name l bs x = qualifySymbol env name l bs x 
 
-qualifySymbol :: Env -> ModName -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
-qualifySymbol env name bs x
+qualifySymbol :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
+qualifySymbol env name l bs x
   | isSpl     = x 
-  | otherwise = case resolveSym env name "Symbol" x of 
+  | otherwise = case resolveLocSym env name "Symbol" (F.Loc l l x) of 
                   Left  _ -> x 
                   Right v -> v 
   where 
     isSpl     = isSplSymbol env bs x
+
+-- resolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> Either UserError a 
+-- resolveSym env name kind lx = resolveLocSym env name kind lx 
 
 isSplSymbol :: Env -> [F.Symbol] -> F.Symbol -> Bool 
 isSplSymbol env bs x 
@@ -303,79 +312,81 @@ isSplSymbol env bs x
   || elem x bs 
   || S.member x (reGlobSyms env) 
 
--- REBARE: qualifySymbol :: Env -> F.Symbol -> F.Symbol
--- REBARE: qualifySymbol env x = maybe x F.symbol (M.lookup x syms)
-
 instance (Qualify a) => Qualify (Located a) where 
-  qualify env name bs = fmap (qualify env name bs) 
+  qualify env name l bs = fmap (qualify env name l bs) 
 
-instance (Qualify a) => Qualify [a] where 
-  qualify env name bs = fmap (qualify env name bs) 
+instance (Qualify a) => Qualify [a] where
+  qualify env name l bs = fmap (qualify env name l bs)
 
 instance (Qualify a) => Qualify (Maybe a) where 
-  qualify env name bs = fmap (qualify env name bs) 
+  qualify env name l bs = fmap (qualify env name l bs) 
 
 instance Qualify Body where 
-  qualify env name bs (P   p) = P   (qualify env name bs p) 
-  qualify env name bs (E   e) = E   (qualify env name bs e)
-  qualify env name bs (R x p) = R x (qualify env name bs p)
+  qualify env name l bs (P   p) = P   (qualify env name l bs p) 
+  qualify env name l bs (E   e) = E   (qualify env name l bs e)
+  qualify env name l bs (R x p) = R x (qualify env name l bs p)
 
 instance Qualify TyConInfo where 
-  qualify env name bs tci = tci { sizeFunction = qualify env name bs <$> sizeFunction tci }
+  qualify env name l bs tci = tci { sizeFunction = qualify env name l bs <$> sizeFunction tci }
 
 instance Qualify RTyCon where 
-  qualify env name bs rtc = rtc { rtc_info = qualify env name bs (rtc_info rtc) }
+  qualify env name l bs rtc = rtc { rtc_info = qualify env name l bs (rtc_info rtc) }
 
 instance Qualify (Measure SpecType Ghc.DataCon) where 
-  qualify env name bs m = m -- FIXME substEnv env name bs $ 
-    { msName = qualify env name bs     (msName m) 
-    , msEqns = qualify env name bs <$> (msEqns m) }
+  qualify env name _ bs m = m -- FIXME substEnv env name bs $ 
+    { msName = qualify env name l bs     lname 
+    , msEqns = qualify env name l bs <$> msEqns m 
+    }
+    where 
+      l      = F.loc  lname
+      lname  = msName m
+
 
 instance Qualify (Def ty ctor) where 
-  qualify env name bs d = d 
-    { body  = qualify env name (bs ++ bs') (body d) } 
+  qualify env name l bs d = d 
+    { body  = qualify env name l (bs ++ bs') (body d) } 
     where 
       bs'   = fst <$> binds d
 
 instance Qualify BareMeasure where 
-  qualify env name bs m = m 
-    { msEqns = qualify env name bs (msEqns m)
+  qualify env name l bs m = m 
+    { msEqns = qualify env name l bs (msEqns m)
     } 
 
 instance Qualify DataCtor where 
-  qualify env name bs c = c
-    { dcTheta  = qualify env name bs (dcTheta  c) 
-    , dcFields = qualify env name bs (dcFields c) 
-    , dcResult = qualify env name bs (dcResult c)
+  qualify env name l bs c = c
+    { dcTheta  = qualify env name l bs (dcTheta  c) 
+    , dcFields = qualify env name l bs (dcFields c) 
+    , dcResult = qualify env name l bs (dcResult c)
     }
  
 instance Qualify DataDecl where 
-  qualify env name bs d = d 
-    { tycDCons  = qualify env name bs (tycDCons  d)
-    , tycPropTy = qualify env name bs (tycPropTy d) 
+  qualify env name l bs d = d 
+    { tycDCons  = qualify env name l bs (tycDCons  d)
+    , tycPropTy = qualify env name l bs (tycPropTy d) 
     } 
 
 instance Qualify ModSpecs where 
-  qualify env name bs = Misc.hashMapMapWithKey (\_ -> qualify env name bs) 
+  qualify env name l bs = Misc.hashMapMapWithKey (\_ -> qualify env name l bs) 
 
 instance Qualify b => Qualify (a, b) where 
-  qualify env name bs (x, y) = (x, qualify env name bs y)
+  qualify env name l bs (x, y) = (x, qualify env name l bs y)
 
 instance Qualify BareSpec where 
   qualify = qualifyBareSpec 
 
-qualifyBareSpec :: Env -> ModName -> [F.Symbol] -> BareSpec -> BareSpec 
-qualifyBareSpec env name bs sp = sp 
-  { measures   = qualify env name bs (measures   sp) 
-  , asmSigs    = qualify env name bs (asmSigs    sp)
-  , sigs       = qualify env name bs (sigs       sp)
-  , localSigs  = qualify env name bs (localSigs  sp)
-  , reflSigs   = qualify env name bs (reflSigs   sp)
-  , dataDecls  = qualify env name bs (dataDecls  sp)
-  , newtyDecls = qualify env name bs (newtyDecls sp)
+qualifyBareSpec :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> BareSpec -> BareSpec 
+qualifyBareSpec env name l bs sp = sp 
+  { measures   = qualify env name l bs (measures   sp) 
+  , asmSigs    = qualify env name l bs (asmSigs    sp)
+  , sigs       = qualify env name l bs (sigs       sp)
+  , localSigs  = qualify env name l bs (localSigs  sp)
+  , reflSigs   = qualify env name l bs (reflSigs   sp)
+  , dataDecls  = qualify env name l bs (dataDecls  sp)
+  , newtyDecls = qualify env name l bs (newtyDecls sp)
   , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
   } 
-  where f      = qualify env name bs 
+  where f      = qualify env name l bs 
 
 instance Qualify F.Expr where 
   qualify = substEnv 
@@ -384,12 +395,12 @@ instance Qualify RReft where
   qualify = substEnv
 
 instance Qualify F.Qualifier where 
-  qualify env name bs q = q { F.qBody = qualify env name bs' (F.qBody q) } 
+  qualify env name _ bs q = q { F.qBody = qualify env name (F.qPos q) bs' (F.qBody q) } 
     where 
-      bs'               = bs ++ (F.qpSym <$> F.qParams q)
+      bs'                 = bs ++ (F.qpSym <$> F.qParams q)
 
-substEnv :: (F.Subable a) => Env -> ModName -> [F.Symbol] -> a -> a 
-substEnv env name bs = F.substa (qualifySymbol env name bs) 
+substEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
+substEnv env name l bs = F.substa (qualifySymbol env name l bs) 
 
 instance Qualify SpecType where 
   qualify = substFreeEnv           
@@ -398,8 +409,8 @@ instance Qualify BareType where
   qualify = substFreeEnv 
 
 -- Do not substitute variables bound e.g. by function types
-substFreeEnv :: (F.Subable a) => Env -> ModName -> [F.Symbol] -> a -> a 
-substFreeEnv env name bs = F.substf (F.EVar . qualifySymbol env name bs) 
+substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
+substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 
 
 
 
@@ -579,8 +590,9 @@ lookupTyThing env name lsym = case Misc.sortOn fst (Misc.groupList matches) of
 
 allowExtResolution :: Env -> LocSymbol -> Bool 
 allowExtResolution env lx = case fileMb of 
-  Nothing -> True 
-  Just f  -> f == tgtFile || Misc.isIncludeFile incDir f  
+  Nothing   -> True 
+  Just f    -> F.tracepp ("allowExt: " ++ show (f, tgtFile)) 
+                 $ f == tgtFile || Misc.isIncludeFile incDir f  
   where 
     tgtFile = giTarget (reSrc env)
     incDir  = giIncDir (reSrc env)
@@ -649,9 +661,6 @@ errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.te
 -- symbolicString :: F.Symbolic a => a -> String
 -- symbolicString = F.symbolString . F.symbol
 
-resolveSym :: (ResolveSym a) => Env -> ModName -> String -> F.Symbol -> Either UserError a 
-resolveSym env name kind x = resolveLocSym env name kind (F.dummyLoc x) 
-
 -- | @strictResolve@ wraps the plain @resolve@ to throw an error 
 --   if the name being searched for is unknown.
 strictResolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> a 
@@ -680,7 +689,7 @@ ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l 
 
 resolveReft :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> [F.Symbol] -> RReft -> RReft 
 resolveReft env name l ps t bs
-        = qualify env name bs 
+        = qualify env name l bs 
         . txParam l RT.subvUReft (RT.uPVar <$> πs) t
         . fixReftTyVars t       -- same as fixCoercions 
   where 
@@ -760,7 +769,7 @@ ofBRType env name f l t  = go [] t
     go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> (goReft bs r) <*> (pure o) <*> go bs t
       where xts'            = mapM (Misc.mapSndM (go bs)) xts
     go bs (RHole r)         = RHole    <$> goReft bs r
-    go bs (RExprArg le)     = return    $ RExprArg (qualify env name bs le) 
+    go bs (RExprArg le)     = return    $ RExprArg (qualify env name l bs le) 
     goRef bs (RProp ss (RHole r)) = rPropP <$> (mapM goSyms ss) <*> goReft bs r
     goRef bs (RProp ss t)         = RProp  <$> (mapM goSyms ss) <*> go bs t
     goSyms (x, t)                 = (x,) <$> ofBSortE env name l t 
