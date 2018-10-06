@@ -17,10 +17,11 @@ import           Data.Data
 import           Data.Char (isSpace) 
 import           Data.Generics.Aliases
 import           Data.Generics.Schemes
+
 import           Language.Fixpoint.Types.Spans
 import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Fixpoint.Types       as F 
--- import qualified Language.Haskell.Liquid.Types as LH
+
 import           Text.Parsec.Pos
 import           Test.Tasty
 import           Test.Tasty.HUnit

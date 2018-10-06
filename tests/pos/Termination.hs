@@ -1,6 +1,7 @@
 module Termination where
 
 import Prelude hiding (sum)
+
 type Value = Int
 
 type Vec = Int -> Value

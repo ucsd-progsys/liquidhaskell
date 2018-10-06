@@ -32,15 +32,14 @@ jobs:
           command: |
             stack clean
             mkdir -p /tmp/junit
-            stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-j2 -t 1200s --xml=/tmp/junit/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack test liquidhaskell:liquidhaskell-parser --test-arguments="-j2 --xml=/tmp/junit/parser-test-results.xml":
+            stack test liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s --xml=/tmp/junit/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack test liquidhaskell:liquidhaskell-parser --test-arguments="--xml=/tmp/junit/parser-test-results.xml":
             stack sdist
             stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
       - store_test_results:
           path: /tmp/junit
-      # if you want to store logs
-      # - store_artifacts:
-      #    path: tests/logs/cur
+      - store_artifacts:
+          path: tests/logs/cur
       - run:
           name: Dist
           command: stack sdist

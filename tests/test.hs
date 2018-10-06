@@ -216,9 +216,9 @@ microTests = group "Micro"
   [ mkMicro "parser-pos"     "tests/parser/pos"      ExitSuccess
   , mkMicro "basic-pos"      "tests/basic/pos"       ExitSuccess
   , mkMicro "basic-neg"      "tests/basic/neg"       (ExitFailure 1)
-  , dkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess          measPosOrder
+  , mkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess          -- measPosOrder
   , mkMicro "measure-neg"    "tests/measure/neg"     (ExitFailure 1)
-  , dkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          dconPosOrder 
+  , dkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          -- dconPosOrder 
   , mkMicro "datacon-neg"    "tests/datacon/neg"     (ExitFailure 1)
   , mkMicro "names-pos"      "tests/names/pos"       ExitSuccess
   , mkMicro "names-neg"      "tests/names/neg"       (ExitFailure 1)
@@ -226,7 +226,7 @@ microTests = group "Micro"
   , mkMicro "reflect-neg"    "tests/reflect/neg"     (ExitFailure 1) 
   , mkMicro "absref-pos"     "tests/absref/pos"      ExitSuccess
   , mkMicro "absref-neg"     "tests/absref/neg"      (ExitFailure 1)
-  , dkMicro "import-lib"     "tests/import/lib"      ExitSuccess          impLibOrder 
+  , dkMicro "import-lib"     "tests/import/lib"      ExitSuccess          -- impLibOrder 
   , mkMicro "import-cli"     "tests/import/client"   ExitSuccess
   , mkMicro "class-pos"      "tests/classes/pos"     ExitSuccess
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
@@ -240,7 +240,7 @@ microTests = group "Micro"
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   ]
   where 
-    dkMicro name dir res o  = testGroup name <$> odirTests dir _TODO_REBARE o res 
+    -- dkMicro name dir res o  = testGroup name <$> odirTests dir _TODO_REBARE o res 
     mkMicro name dir res    = testGroup name <$> dirTests  dir _TODO_REBARE   res 
     _TODO_REBARE            = [ "Inst01.hs", "PruneHO.hs", "HiddenData.hs", "HidePrelude.hs", "FunClashLibLibClient.hs"] 
 
@@ -258,14 +258,14 @@ benchTests = group "Benchmarks"
   , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
   ]
 
-impLibOrder :: Maybe FileOrder 
-impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
+_impLibOrder :: Maybe FileOrder 
+_impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
 
-dconPosOrder :: Maybe FileOrder 
-dconPosOrder = Just . mkOrder $ [ "Data02Lib.hs" ]
+_dconPosOrder :: Maybe FileOrder 
+_dconPosOrder = Just . mkOrder $ [ "Data02Lib.hs" ]
 
-measPosOrder :: Maybe FileOrder 
-measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
+_measPosOrder :: Maybe FileOrder 
+_measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
 proverOrder :: Maybe FileOrder 
 proverOrder = Just . mkOrder $ 
