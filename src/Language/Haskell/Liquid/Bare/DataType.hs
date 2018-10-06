@@ -710,6 +710,7 @@ checkRecordSelectorSigs vts = [ (v, take1 v ts) | (v, ts) <- Misc.groupList vts 
     take1 v ts              = case Misc.nubHashOn (showpp . val) ts of 
                                 [t]    -> t 
                                 (t:ts) -> Ex.throw (ErrDupSpecs (GM.fSrcSpan t) (pprint v) (GM.fSrcSpan <$> ts) :: Error)
+                                _      -> impossible Nothing "checkRecordSelectorSigs"
 
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
 makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne

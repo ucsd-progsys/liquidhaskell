@@ -429,7 +429,7 @@ lookupGhcVar env name kind lx =
 lookupLocalVar :: Env -> LocSymbol -> [Ghc.Var] -> Maybe Ghc.Var
 lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
   where 
-    msg                   = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
+    _msg                  = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
     kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env) 
     gs                    = [(F.srcLine v, v) | v <- gvs]
     lxn                   = F.srcLine lx  
@@ -624,12 +624,6 @@ splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
 
 errResolve :: PJ.Doc -> String -> LocSymbol -> UserError 
 errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.text msg) 
--- (PJ.text msg)
-   -- where 
-   -- msg            = unwords [ "Name resolution error: ", kind, symbolicIdent lx]
-
-symbolicIdent :: (F.Symbolic a) => a -> String
-symbolicIdent x = "'" ++ symbolicString x ++ "'"
 
 symbolicString :: F.Symbolic a => a -> String
 symbolicString = F.symbolString . F.symbol

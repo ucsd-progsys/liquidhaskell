@@ -4,9 +4,8 @@
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
 import Language.Haskell.Liquid.Types hiding (terminationCheck)
-import Language.Fixpoint.Types.Errors
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
-import Language.Haskell.Liquid.UX.Config hiding (terminationCheck)
+-- import Language.Haskell.Liquid.UX.Config hiding (terminationCheck)
 
 import CoreSyn
 import Var

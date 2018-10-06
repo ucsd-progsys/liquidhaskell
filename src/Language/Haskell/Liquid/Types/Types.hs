@@ -225,7 +225,7 @@ module Language.Haskell.Liquid.Types.Types (
   )
   where
 
-import qualified ConLike                                as Ghc
+-- import qualified ConLike                                as Ghc
 -- import           InstEnv
 import           Class
 import           CoreSyn                                (CoreExpr)

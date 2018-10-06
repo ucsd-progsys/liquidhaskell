@@ -49,7 +49,7 @@ import qualified Language.Haskell.Liquid.Bare.Measure       as Bare
 import qualified Language.Haskell.Liquid.Bare.Plugged       as Bare 
 import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare 
 import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
-import qualified Language.Haskell.Liquid.Bare.Spec          as Bare 
+import qualified Language.Haskell.Liquid.Bare.Class         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Check         as Bare 
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
 

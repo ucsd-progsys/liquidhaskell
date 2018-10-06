@@ -19,7 +19,7 @@ import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Visitor   as F
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
 import qualified Language.Haskell.Liquid.GHC.API   as Ghc 
-import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rVar, rTyVar, subts, toType, uReft)
+import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rTyVar, subts, toType, uReft)
 import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import qualified Language.Haskell.Liquid.Bare.Types as Bare
@@ -50,11 +50,15 @@ makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> M.HashMap Ghc.TyCon RTyCon -> 
                -> LocSpecType
 
 makePluggedSig name embs tyi exports kx t 
-      = plugHoles kx embs tyi  r τ t
+  | Just x <- kxv = mkPlug x 
+  | otherwise     = t
   where 
-    τ = Ghc.expandTypeSynonyms (Ghc.varType x)
-    r = maybeTrue x name exports
-    x = case kx of { Bare.HsTV x -> x ; Bare.LqTV x -> x }
+    kxv           = Bare.plugSrc kx
+    mkPlug x      = plugHoles kx embs tyi  r τ t
+      where
+        τ         = Ghc.expandTypeSynonyms (Ghc.varType x)
+        r         = maybeTrue x name exports
+    -- x = case kx of { Bare.HsTV x -> x ; Bare.LqTV x -> x }
 
 
 -- makePluggedDataCon = makePluggedDataCon_old 
@@ -62,8 +66,18 @@ makePluggedSig name embs tyi exports kx t
 -- makePluggedDataCon = makePluggedDataCon_new 
 
 -- plugHoles _         = plugHoles_old
+
+plugHoles :: (Ghc.NamedThing a, PPrint a, Show a) 
+          => Bare.PlugTV a
+          -> F.TCEmb Ghc.TyCon
+          -> Bare.TyConMap
+          -> (SpecType -> RReft -> RReft)
+          -> Ghc.Type
+          -> LocSpecType
+          -> LocSpecType
 plugHoles (Bare.HsTV x) a b = plugHoles_old a b x 
 plugHoles (Bare.LqTV x) a b = plugHoles_new a b x 
+plugHoles _             _ _ = \_ _ t -> t
 
 
 makePluggedDataCon :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
@@ -112,7 +126,7 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
                      = F.notracepp msg (drop nTyVars (zip xs ts), t) 
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
-    pRep             = toRTypeRep (val pT)
+    -- pRep             = toRTypeRep (val pT)
     pT               = plugHoles (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr Ghc.mkFunTy    hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
@@ -152,7 +166,7 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
     cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
     (αs,_,ls1,cs,rt)  = bkUnivClass (F.tracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,ls2,_ ,st)  = bkUnivClass (F.tracepp "lq-spec" st0)
-    msg i             = "plugHoles_old: " ++ F.showpp x ++ " " ++ i 
+    -- msg i             = "plugHoles_old: " ++ F.showpp x ++ " " ++ i 
 
     makeCls cs t      = foldr (uncurry rFun) t cs
     err hsT lqT       = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
