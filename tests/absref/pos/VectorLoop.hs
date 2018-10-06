@@ -2,7 +2,7 @@
 -- This tests we do alias-expansion inside predicate applications, e.g. Vec <{v:Nat | v < n}, p> 
 -- as in the signatures below.
 
-module Blank where
+module VectorLoop where
 
 {-@ LIQUID "--no-termination" @-}
 

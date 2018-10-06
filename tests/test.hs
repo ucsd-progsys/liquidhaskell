@@ -216,9 +216,9 @@ microTests = group "Micro"
   [ mkMicro "parser-pos"     "tests/parser/pos"      ExitSuccess
   , mkMicro "basic-pos"      "tests/basic/pos"       ExitSuccess
   , mkMicro "basic-neg"      "tests/basic/neg"       (ExitFailure 1)
-  , mkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess
+  , dkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess          measPosOrder
   , mkMicro "measure-neg"    "tests/measure/neg"     (ExitFailure 1)
-  , mkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess
+  , dkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          dconPosOrder 
   , mkMicro "datacon-neg"    "tests/datacon/neg"     (ExitFailure 1)
   , mkMicro "names-pos"      "tests/names/pos"       ExitSuccess
   , mkMicro "names-neg"      "tests/names/neg"       (ExitFailure 1)
@@ -240,8 +240,9 @@ microTests = group "Micro"
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   ]
   where 
-    mkMicro name dir expected = testGroup name <$> dirTests dir _TODO_REBARE expected 
-    _TODO_REBARE              = [ "Inst01.hs", "PruneHO.hs", "HiddenData.hs", "HidePrelude.hs", "FunClashLibLibClient.hs"] 
+    dkMicro name dir res o  = testGroup name <$> odirTests dir _TODO_REBARE o res 
+    mkMicro name dir res    = testGroup name <$> dirTests  dir _TODO_REBARE   res 
+    _TODO_REBARE            = [ "Inst01.hs", "PruneHO.hs", "HiddenData.hs", "HidePrelude.hs", "FunClashLibLibClient.hs"] 
 
 posIgnored    = [ "mapreduce.hs" ]
 gPosIgnored   = ["Intro.hs"]
@@ -256,6 +257,12 @@ benchTests = group "Benchmarks"
   , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess
   , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
   ]
+
+dconPosOrder :: Maybe FileOrder 
+dconPosOrder = Just . mkOrder $ [ "Data02Lib.hs" ]
+
+measPosOrder :: Maybe FileOrder 
+measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
 proverOrder :: Maybe FileOrder 
 proverOrder = Just . mkOrder $ 
