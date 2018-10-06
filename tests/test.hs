@@ -226,7 +226,7 @@ microTests = group "Micro"
   , mkMicro "reflect-neg"    "tests/reflect/neg"     (ExitFailure 1) 
   , mkMicro "absref-pos"     "tests/absref/pos"      ExitSuccess
   , mkMicro "absref-neg"     "tests/absref/neg"      (ExitFailure 1)
-  , mkMicro "import-lib"     "tests/import/lib"      ExitSuccess
+  , dkMicro "import-lib"     "tests/import/lib"      ExitSuccess          impLibOrder 
   , mkMicro "import-cli"     "tests/import/client"   ExitSuccess
   , mkMicro "class-pos"      "tests/classes/pos"     ExitSuccess
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
@@ -257,6 +257,9 @@ benchTests = group "Benchmarks"
   , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess
   , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
   ]
+
+impLibOrder :: Maybe FileOrder 
+impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
 
 dconPosOrder :: Maybe FileOrder 
 dconPosOrder = Just . mkOrder $ [ "Data02Lib.hs" ]
@@ -392,9 +395,14 @@ getOrder m f = Map.findWithDefault (1 + Map.size m) f m
 mkOrder :: [FilePath] -> FileOrder 
 mkOrder fs = Map.fromList (zip fs [0..])
 
+defaultFileOrder :: [FilePath] -> [FilePath]
+defaultFileOrder = L.reverse . sortOn stringLower 
+
 sortOrder :: Maybe FileOrder -> [FilePath] -> [FilePath]
-sortOrder Nothing   fs = L.reverse   (sortOn stringLower fs) 
-sortOrder (Just fo) fs = sortOn (getOrder fo) fs 
+sortOrder Nothing   fs = defaultFileOrder fs 
+sortOrder (Just fo) fs = sortOn (getOrder fo) ordFs ++ defaultFileOrder otherFs 
+  where 
+    (ordFs, otherFs)   = L.partition (`M.member` fo) fs 
 
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)
