@@ -449,14 +449,16 @@ makeConTypes env (name, spec)
 
 canonizeDecls :: Bare.Env -> ModName -> [DataDecl] -> [DataDecl]
 canonizeDecls env name ds =
-  case Misc.uniqueByKey' selectDD (zip ks ds) of
-    Left  ds     -> err    ds
-    Right ds     -> ds
+  case Misc.uniqueByKey' selectDD kds of
+    Left  decls  -> err    decls
+    Right decls  -> decls
   where
-    ks           = key <$> ds
-    key          = F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
+    kds          = [ (k, d) | d <- ds, k <- Mb.maybeToList (dataDeclKey env name d) ] 
     err ds@(d:_) = uError (errDupSpecs (pprint $ tycName d)(GM.fSrcSpan <$> ds))
     err _        = impossible Nothing "canonizeDecls"
+
+dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Maybe F.Symbol 
+dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
 
 selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
 selectDD (_,[d]) = Right d
@@ -490,6 +492,10 @@ checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
 
+getDnTyCon :: Bare.Env -> ModName -> DataName -> Ghc.TyCon
+getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn)
+  where 
+    ugh                = impossible Nothing "getDnTyCon"
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
@@ -501,7 +507,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts0 pos sfun pt _)) maybe_i
   = ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
   where
     πs         = Bare.ofBPVar env name pos <$> ps
-    tc'        = Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" tc
+    tc'        = getDnTyCon env name tc
     cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
     pd         = Bare.ofBareType env name lc (Just []) <$> pt

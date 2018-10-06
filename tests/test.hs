@@ -242,7 +242,7 @@ microTests = group "Micro"
   where 
     -- dkMicro name dir res o  = testGroup name <$> odirTests dir _TODO_REBARE o res 
     mkMicro name dir res    = testGroup name <$> dirTests  dir _TODO_REBARE   res 
-    _TODO_REBARE            = [ "Inst01.hs", "HiddenData.hs", "HidePrelude.hs" ] 
+    _TODO_REBARE            = [ "Inst01.hs", "HidePrelude.hs" ] 
 
 posIgnored    = [ "mapreduce.hs" ]
 gPosIgnored   = ["Intro.hs"]

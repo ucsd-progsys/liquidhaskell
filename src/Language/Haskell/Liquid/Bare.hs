@@ -644,18 +644,20 @@ makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
 
 makeNewTypes :: Bare.Env -> Bare.SigEnv -> [(ModName, Ms.BareSpec)] -> [(Ghc.TyCon, LocSpecType)]
 makeNewTypes env sigEnv specs = 
-  [ makeNewType env sigEnv name d 
-      | (name, spec) <- specs
-      , d            <- Ms.newtyDecls spec 
+  [ ct | (name, spec) <- specs
+       , d            <- Ms.newtyDecls spec
+       , ct           <- makeNewType env sigEnv name d 
   ] 
 
-makeNewType :: Bare.Env -> Bare.SigEnv -> ModName -> DataDecl -> (Ghc.TyCon, LocSpecType)
-makeNewType env sigEnv name d  = (c, t) 
+makeNewType :: Bare.Env -> Bare.SigEnv -> ModName -> DataDecl -> [(Ghc.TyCon, LocSpecType)]
+makeNewType env sigEnv name d 
+ | Just tc <- tcMb            = [(tc, t)] 
+ | otherwise                  = []
   where 
-    c                          = Bare.lookupGhcDnTyCon env name "makeNewType" n
-    t                          = Bare.cookSpecType env sigEnv name Bare.GenTV bt
-    bt                         = getTy n (tycSrcPos d) (tycDCons d)
-    n                          = tycName d
+    tcMb                      = Bare.lookupGhcDnTyCon env name "makeNewType" tcName
+    tcName                    = tycName d
+    t                         = Bare.cookSpecType env sigEnv name Bare.GenTV bt
+    bt                        = getTy tcName (tycSrcPos d) (tycDCons d)
     getTy _ l [c]
       | [(_, t)] <- dcFields c = Loc l l t
     getTy n l _                = Ex.throw (err n l) 

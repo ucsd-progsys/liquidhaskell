@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.Bare.Resolve
 
   -- * Post-processing types
   , txRefSort
+  , errResolve
 
   -- * Fixing local variables
   , resolveLocalBinds 
@@ -456,14 +457,28 @@ lookupGhcTyCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon
 lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx)) 
                                $ strictResolveSym env name k lx
 
-lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Ghc.TyCon
-lookupGhcDnTyCon env name msg (DnCon  s) = lookupGhcDnCon env name msg s
-lookupGhcDnTyCon env name msg (DnName s) = Mb.fromMaybe dnc (maybeResolveSym env name msg s) 
-  where 
-    dnc                                  = lookupGhcDnTyCon env name msg (DnCon s) 
+lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Maybe Ghc.TyCon
+lookupGhcDnTyCon env name msg z = case lookupGhcDnTyConE env name msg z of 
+  Right r -> Just r 
+  Left  e -> if isTargetModName env name 
+               then Ex.throw e
+               else Nothing 
 
-lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Ghc.TyCon 
-lookupGhcDnCon env name msg = Ghc.dataConTyCon . lookupGhcDataCon env name msg
+isTargetModName :: Env -> ModName -> Bool 
+isTargetModName env name = name == giTargetMod (reSrc env) 
+
+lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Either UserError Ghc.TyCon
+lookupGhcDnTyConE env name msg (DnCon  s) 
+  = lookupGhcDnCon env name msg s
+lookupGhcDnTyConE env name msg (DnName s) 
+  = case resolveLocSym env name msg s of 
+      Right r -> Right r 
+      Left  e -> case lookupGhcDnCon  env name msg s of 
+                   Right r -> Right r 
+                   Left  _ -> Left  e
+
+lookupGhcDnCon :: Env -> ModName -> String -> LocSymbol -> Either UserError Ghc.TyCon 
+lookupGhcDnCon env name msg = fmap Ghc.dataConTyCon . resolveLocSym env name msg
 
 -------------------------------------------------------------------------------
 -- | Checking existence of names 
@@ -518,33 +533,16 @@ instance ResolveSym Ghc.TyCon where
   resolveLocSym = resolveWith "type constructor" $ \case 
                     Ghc.ATyCon x             -> Just x -- (0, x)
                     _                        -> Nothing
-                    -- //  Ghc.AConLike (Ghc.RealDataCon x) 
-                      --  // | isIO x               -> Just (0, Ghc.dataConTyCon x)                  
-                      --  // | otherwise            -> Just (1, Ghc.promoteDataCon x)
-    where 
-      -- isIO x    = GM.showPpr x == "GHC.Types.IO" 
-
-{-- TODO-REBARE 
-  TODO-REBARE resolveTyCon 
-  ftc (ATyCon x)
-= Just (0, {- GM.tracePpr ("lookupGHCTC2 s =" ++ symbolicIdent s) -} x)
-ftc (AConLike (RealDataCon x))                
-= Just (1, promoteDataCon x)                
-ftc _        
-= Nothing
--}  
 
 instance ResolveSym Ghc.DataCon where 
   resolveLocSym = resolveWith "data constructor" $ \case 
-                    Ghc.AConLike (Ghc.RealDataCon x) -> Just x -- (0, x)
+                    Ghc.AConLike (Ghc.RealDataCon x) -> Just x 
                     _                                -> Nothing
 
 instance ResolveSym F.Symbol where 
   resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of 
     Left _               -> Right (val lx)
     Right (v :: Ghc.Var) -> Right (F.symbol v)
-
-
 
 resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
