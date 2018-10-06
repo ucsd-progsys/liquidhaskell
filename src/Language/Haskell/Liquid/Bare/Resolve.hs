@@ -58,6 +58,7 @@ import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
 
+import qualified Language.Fixpoint.Utils.Files         as F 
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Fixpoint.Types.Visitor       as F 
 import qualified Language.Fixpoint.Misc                as Misc 
@@ -592,7 +593,7 @@ allowExtResolution :: Env -> LocSymbol -> Bool
 allowExtResolution env lx = case fileMb of 
   Nothing   -> True 
   Just f    -> F.tracepp ("allowExt: " ++ show (f, tgtFile)) 
-                 $ f == tgtFile || Misc.isIncludeFile incDir f  
+                 $ f == tgtFile || Misc.isIncludeFile incDir f || F.isExtFile F.Spec f 
   where 
     tgtFile = giTarget (reSrc env)
     incDir  = giIncDir (reSrc env)
