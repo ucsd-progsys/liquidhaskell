@@ -309,7 +309,8 @@ symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
     defs            = F.toListSEnv . F.gLits $ fi
-    txFun
+    txFun           
+      | True        = id
       | allowHO cfg = id
       | otherwise   = defuncSort
 
