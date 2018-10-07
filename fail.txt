@@ -1,5 +1,23 @@
 ## FAILING TESTS for TODO-REBARE 
 
+goto-develop 
+    --no-pattern-inline 
+    
+    bytestring
+      Data/ByteString/Unsafe.hs:        OK (2.29s)
+      Data/ByteString/LazyZip.hs:       OK (13.08s)
+      Data/ByteString/Lazy/Internal.hs: OK (2.02s)
+      Data/ByteString/Lazy/Char8.hs:    OK (16.52s)
+      Data/ByteString/Lazy.hs:          OK (50.20s)
+      Data/ByteString/Internal.hs:      OK (13.98s)
+      Data/ByteString/Fusion.hs:        OK (27.10s)
+      Data/ByteString/Fusion.T.hs:      OK (46.77s)
+      Data/ByteString/Char8.hs:         OK (14.10s)
+      Data/ByteString.hs:               OK (121.86s)
+      Data/ByteString.T.hs:             OK (167.98s)
+
+
+
 - tests/todo-rebare/DataKinds.hs
 - tests/todo-rebare/GhcSort1.hs 
 - tests/todo-rebare/NatClass.hs
