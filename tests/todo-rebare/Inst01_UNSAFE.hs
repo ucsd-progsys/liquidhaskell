@@ -1,4 +1,4 @@
--- TODO-REBARE: should be unsafe, but is currently NOT 
+-- TODO-REBARE: should be UNSAFE, but is currently NOT 
 
 module LiquidClass where
 
