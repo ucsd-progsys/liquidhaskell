@@ -25,8 +25,10 @@ module Language.Haskell.Liquid.Bare.Types
   , plugSrc
   , varRSort 
   , varSortedReft
+  , failMaybe
   ) where 
 
+import qualified Control.Exception                     as Ex 
 import qualified Text.PrettyPrint.HughesPJ             as PJ 
 import qualified Data.HashSet                          as S
 import qualified Data.HashMap.Strict                   as M
@@ -140,3 +142,16 @@ varSortedReft emb = RT.rTypeSortedReft emb . varRSort
 
 varRSort  :: Ghc.Var -> RSort
 varRSort  = RT.ofType . Ghc.varType
+
+-------------------------------------------------------------------------------
+-- | Handling failed resolution 
+-------------------------------------------------------------------------------
+failMaybe :: Env -> ModName -> Either UserError r -> Maybe r
+failMaybe env name res = case res of 
+  Right r -> Just r 
+  Left  e -> if isTargetModName env name 
+              then Ex.throw e
+              else Nothing 
+
+isTargetModName :: Env -> ModName -> Bool 
+isTargetModName env name = name == giTargetMod (reSrc env) 

@@ -363,15 +363,16 @@ makeMeasureSpec env sigEnv myName (name, spec)
 bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
 bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims 
   where
-    cms       = filter inScope $             Ms.cmeasures spec
-    ms        = filter inScope $ expMeas <$> Ms.measures  spec
-    ims       = filter inScope $ expMeas <$> Ms.imeasures spec
-    expMeas   = expandMeasure env name  rtEnv
-    rtEnv     = Bare.sigRTEnv          sigEnv
-    force     = name == myName 
-    inScope z = F.tracepp ("inScope: " ++ F.showpp (msName z)) $ (force || okSort z)
-    okSort    = Bare.knownGhcType env name . msSort 
-
+    cms        = filter inScope1 $             Ms.cmeasures spec
+    ms         = filter inScope2 $ expMeas <$> Ms.measures  spec
+    ims        = filter inScope2 $ expMeas <$> Ms.imeasures spec
+    expMeas    = expandMeasure env name  rtEnv
+    rtEnv      = Bare.sigRTEnv          sigEnv
+    force      = name == myName 
+    inScope1 z = F.tracepp ("inScope1: " ++ F.showpp (msName z)) $ (force ||  okSort z)
+    inScope2 z = F.tracepp ("inScope2: " ++ F.showpp (msName z)) $ (force || (okSort z && okCtors z))
+    okSort     = Bare.knownGhcType env name . msSort 
+    okCtors    = all (Bare.knownGhcDataCon env name . ctor) . msEqns 
 
 mkMeasureDCon :: Bare.Env -> ModName -> Ms.MSpec t LocSymbol -> Ms.MSpec t Ghc.DataCon
 mkMeasureDCon env name m = mkMeasureDCon_ m [ (val n, symDC n) | n <- measureCtors m ]

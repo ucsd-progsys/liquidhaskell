@@ -35,40 +35,45 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
             -> ([DataConP], [(ModName, Ghc.Var, LocSpecType)])
 -------------------------------------------------------------------------------
-makeClasses env sigEnv myName specs = -- (mempty, mempty) -- TODO-REBARE  
+makeClasses env sigEnv myName specs = 
   second mconcat . unzip 
-  $ [ mkClass env sigEnv myName name cls tc
-        | (name, spec) <- M.toList specs
-        , cls          <- Ms.classes spec
-        , tc           <- Mb.maybeToList (classTc cls) 
+  $ [ cls | (name, spec) <- M.toList specs
+          , cls          <- Ms.classes spec
+          , tc           <- Mb.maybeToList (classTc cls) 
+          , cls          <- Mb.maybeToList (mkClass env sigEnv myName name cls tc)
     ]
   where
     classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
 
 mkClass :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
-        -> (DataConP, [(ModName, Ghc.Var, LocSpecType)])
-mkClass env sigEnv _myName name (RClass cc ss as ms) tc = F.notracepp msg (dcp, vts)
+        -> Maybe (DataConP, [(ModName, Ghc.Var, LocSpecType)])
+mkClass env sigEnv _myName name (RClass cc ss as ms) 
+  = Bare.failMaybe env name 
+  . mkClassE env sigEnv _myName name (RClass cc ss as ms) 
+
+mkClassE :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> RClass LocBareType -> Ghc.TyCon 
+         -> Either UserError (DataConP, [(ModName, Ghc.Var, LocSpecType)])
+mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do 
+    ss'    <- mapM (mkConstr   env sigEnv name) ss 
+    meths  <- mapM (makeMethod env sigEnv name) ms'
+    let vts = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
+    let sts = [(val s, unClass $ val t) | (s, _) <- ms | (_, _, t) <- meths]
+    let dcp = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
+    return  $ F.notracepp msg (dcp, vts)
   where
-    dcp    = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
     c      = btc_tc cc
     l      = loc  c
     l'     = locE c
-    ss'    = mkConstr env sigEnv name <$> ss 
-    msg    = "MKCLASS: " ++ F.showpp (cc, as, αs) -- , as')
+    msg    = "MKCLASS: " ++ F.showpp (cc, as, αs) 
     (dc:_) = Ghc.tyConDataCons tc
     αs     = bareRTyVar <$> as
     as'    = [rVar $ GM.symbolTyVar $ F.symbol a | a <- as ]
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
-    vts    = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
-    sts    = F.notracepp "METHODS" $
-             [(val s, unClass $ val t) 
-                | (s, _)    <- ms
-                | (_, _, t) <- meths]
-    meths  = makeMethod env sigEnv name <$> ms'
     t      = rCls tc as'
 
-mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> LocSpecType     
-mkConstr env sigEnv name = fmap dropUniv . Bare.cookSpecType env sigEnv name Bare.GenTV -- Nothing
+
+mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Either UserError LocSpecType     
+mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
   where 
     dropUniv t           = t' where (_, _, _, t') = bkUniv t
 
@@ -78,14 +83,13 @@ unClass = snd . bkClass . fourth4 . bkUniv
 
 -- formerly, makeSpec
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
-         -> (ModName, PlugTV Ghc.Var, LocSpecType)
-makeMethod env sigEnv name (lx, bt) = (name, mbV, t) 
+         -> Either UserError (ModName, PlugTV Ghc.Var, LocSpecType)
+makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env sigEnv name mbV bt
   where 
-    t   = F.notracepp msg $ Bare.cookSpecType env sigEnv name mbV bt
     mbV = case Bare.maybeResolveSym env name "makeMethod" lx of 
             Just v  -> Bare.LqTV v 
             Nothing -> Bare.GenTV 
-    msg = "MAKE-SPEC: " ++ F.showpp lx 
+    _msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 
 -------------------------------------------------------------------------------

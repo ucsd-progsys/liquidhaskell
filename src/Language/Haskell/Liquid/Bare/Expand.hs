@@ -546,10 +546,10 @@ cookSpecType env sigEnv name x bt
     z    = Bare.plugSrc x 
 
 
-cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var
-              -> LocBareType 
+-----------------------------------------------------------------------------------------
+cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
               -> Either UserError LocSpecType 
-----------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name x bt
   = id 
   . fmap (fmap (addTyConInfo   embs tyi))

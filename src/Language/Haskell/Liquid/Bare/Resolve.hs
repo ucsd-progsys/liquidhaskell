@@ -458,14 +458,7 @@ lookupGhcTyCon env name k lx = myTracepp ("LOOKUP-TYCON: " ++ F.showpp (val lx))
                                $ strictResolveSym env name k lx
 
 lookupGhcDnTyCon :: Env -> ModName -> String -> DataName -> Maybe Ghc.TyCon
-lookupGhcDnTyCon env name msg z = case lookupGhcDnTyConE env name msg z of 
-  Right r -> Just r 
-  Left  e -> if isTargetModName env name 
-               then Ex.throw e
-               else Nothing 
-
-isTargetModName :: Env -> ModName -> Bool 
-isTargetModName env name = name == giTargetMod (reSrc env) 
+lookupGhcDnTyCon env name msg = failMaybe env name . lookupGhcDnTyConE env name msg
 
 lookupGhcDnTyConE :: Env -> ModName -> String -> DataName -> Either UserError Ghc.TyCon
 lookupGhcDnTyConE env name msg (DnCon  s) 
