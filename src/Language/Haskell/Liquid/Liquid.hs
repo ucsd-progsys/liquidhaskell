@@ -83,11 +83,11 @@ runLiquid mE cfg = do
     Left e -> do
       exitWithResult cfg (files cfg) $ mempty { o_result = e }
       return (resultExit e, mE)
-    Right (gs, mE') 
-      | compileSpec cfg -> return (ExitSuccess, mE')
-      | otherwise       -> do
-          d <- checkMany cfg mempty gs
-          return (ec d, mE')
+    Right (gs, mE') -> do
+-- //       | compileSpec cfg -> return (ExitSuccess, mE')
+-- //       | otherwise       
+      d <- checkMany cfg mempty gs
+      return (ec d, mE')
   where
     ec = resultExit . o_result
 
@@ -125,24 +125,29 @@ handle = return . Left . result
 --------------------------------------------------------------------------------
 liquidOne :: GhcInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-liquidOne info = do
-  whenNormal $ donePhase Loud "Extracted Core using GHC"
-  let cfg   = getConfig info
-  let tgt   = giTarget (giSrc info)
-  -- whenLoud  $ do putStrLn $ showpp info
+liquidOne info
+  | compileSpec cfg = do 
+    donePhase Loud "Only compiling specifications [skipping verification]"
+    exitWithResult cfg [tgt] (mempty { o_result = F.Safe })
+  | otherwise = do
+    whenNormal $ donePhase Loud "Extracted Core using GHC"
+    -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
-  let cbs' = giCbs (giSrc info) 
-  whenNormal $ donePhase Loud "Transformed Core"
-  whenLoud  $ do donePhase Loud "transformRecExpr"
-                 putStrLn "*************** Transform Rec Expr CoreBinds *****************"
-                 putStrLn $ showCBs (untidyCore cfg) cbs'
-                 -- putStrLn $ render $ pprintCBs cbs'
-                 -- putStrLn $ showPpr cbs'
-  edcs <- newPrune      cfg cbs' tgt info
-  out' <- liquidQueries cfg      tgt info edcs
-  DC.saveResult       tgt  out'
-  exitWithResult cfg [tgt] out'
+    whenNormal $ donePhase Loud "Transformed Core"
+    whenLoud  $ do donePhase Loud "transformRecExpr"
+                   putStrLn "*************** Transform Rec Expr CoreBinds *****************"
+                   putStrLn $ showCBs (untidyCore cfg) cbs'
+                   -- putStrLn $ render $ pprintCBs cbs'
+                   -- putStrLn $ showPpr cbs'
+    edcs <- newPrune      cfg cbs' tgt info
+    out' <- liquidQueries cfg      tgt info edcs
+    DC.saveResult       tgt  out'
+    exitWithResult cfg [tgt] out'
+  where 
+    cfg  = getConfig info
+    tgt  = giTarget (giSrc info)
+    cbs' = giCbs (giSrc info) 
 
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info

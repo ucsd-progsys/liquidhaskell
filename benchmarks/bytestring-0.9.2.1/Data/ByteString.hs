@@ -1,7 +1,7 @@
+{-@ LIQUID "--compilespec"   @-}
 {-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--notermination" @-}
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--compilespec"   @-}
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
