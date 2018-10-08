@@ -147,15 +147,14 @@ config = cmdArgsMode $ Config {
           &= name "prune-unsorted"
 
  , notermination
-    = False 
+    = def 
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
- , noStructuralTerm
-    = False 
-          &= name "no-structural-termination" 
+ , nostructuralterm
+    = def &= name "no-structural-termination"
           &= help "Disable structural termination check" 
-
+          
  , gradual
     = def &= help "Enable gradual refinement type checking"
           &= name "gradual"
@@ -172,10 +171,6 @@ config = cmdArgsMode $ Config {
  , totalHaskell
     = def &= help "Check for termination and totality; overrides no-termination flags"
           &= name "total-Haskell"
-
- -- , autoproofs
- --   = def &= help "Automatically construct proofs from axioms"
- --          &= name "auto-proofs"
 
  , nowarnings
     = def &= help "Don't display warnings, only show errors"
@@ -263,10 +258,6 @@ config = cmdArgsMode $ Config {
     = def &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
- -- REBARE , noMeasureFields
-    -- REBARE = def &= help "Do not automatically lift data constructor fields into measures"
-          -- REBARE &= name "no-measure-fields"
-
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
@@ -330,47 +321,35 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
---  , nonLinCuts
---   = True  &= name "non-linear-cuts"
---            &= help "(TRUE) Treat non-linear kvars as cuts"
-
   , autoInstantiate
     = def
           &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
           &= name "automatic-instances"
 
-  -- , proofMethod
-    -- = def
-          -- &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
-          -- &= name "proof-method"
-  -- , fuel
-    -- = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
-        -- &= name "fuel"
-
- -- , debugInstantionation
- --   = False &= help "Debug Progress in liquid instantiation"
- --      &= name "debug-instantiation"
-
   , proofLogicEval
-    = False &= help "Enable Proof-by-Logical-Evaluation"
+    = def  
+        &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
   , reflection 
-    = False &= help "Enable reflection of Haskell functions and theorem proving" 
+    = def 
+        &= help "Enable reflection of Haskell functions and theorem proving" 
         &= name "reflection"
 
   , compileSpec 
-    = False &= help "Only compile specifications (into .bspec file); skip verification" 
+    = def 
         &= name "compile-spec"
- } &= verbosity
-   &= program "liquid"
-   &= help    "Refinement Types for Haskell"
-   &= summary copyright
-   &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
-              , ""
-              , "To check a Haskell file foo.hs, type:"
-              , "  liquid foo.hs "
-              ]
+        &= help "Only compile specifications (into .bspec file); skip verification" 
+
+  } &= verbosity
+    &= program "liquid"
+    &= help    "Refinement Types for Haskell"
+    &= summary copyright
+    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
+               , ""
+               , "To check a Haskell file foo.hs, type:"
+               , "  liquid foo.hs "
+               ]
 
 defaultPort :: Int
 defaultPort = 3000
@@ -526,7 +505,7 @@ defConfig = Config
   , diffcheck         = def
   , saveQuery         = def
   , checks            = def
-  , noStructuralTerm  = False   -- def 
+  , nostructuralterm  = def 
   , noCheckUnknown    = def
   , notermination     = False 
   , gradual           = False
@@ -543,7 +522,6 @@ defConfig = Config
   , pruneUnsorted     = def
   , exactDC           = def
   , noADT             = def
-  -- REBARE , noMeasureFields   = def
   , cores             = def
   , minPartSize       = FC.defaultMinPartSize
   , maxPartSize       = FC.defaultMaxPartSize
@@ -567,9 +545,7 @@ defConfig = Config
   , eliminate         = FC.Some
   , noPatternInline   = False
   , noSimplifyCore    = False
-  -- , nonLinCuts        = True
   , autoInstantiate   = def
-  -- , debugInstantiate  = False
   , noslice           = False
   , noLiftedImport    = False
   , proofLogicEval    = False

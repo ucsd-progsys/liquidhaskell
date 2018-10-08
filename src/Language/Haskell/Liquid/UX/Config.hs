@@ -44,12 +44,11 @@ data Config = Config
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
   -- , structuralTerm :: Bool       -- ^ use structural termination checker
-  , noStructuralTerm :: !Bool    -- ^ disable structural termination check
+  , nostructuralterm :: Bool    -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
-  -- , autoproofs     :: Bool       -- ^ automatically construct proofs from axioms
   , nowarnings     :: Bool       -- ^ disable warnings output (only show errors)
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
   , checkDerived   :: Bool       -- ^ check internal (GHC-derived) binders 
@@ -72,7 +71,6 @@ data Config = Config
   , port           :: Int        -- ^ port at which lhi should listen
   , exactDC        :: Bool       -- ^ Automatically generate singleton types for data constructors
   , noADT           :: Bool      -- ^ Disable ADTs (only used with exactDC)
-  -- , noMeasureFields :: Bool      -- ^ Do not automatically lift data constructor fields into measures
   , scrapeImports   :: Bool      -- ^ scrape qualifiers from imported specifications
   , scrapeInternals :: Bool      -- ^ scrape qualifiers from auto specifications
   , scrapeUsedImports  :: Bool   -- ^ scrape qualifiers from used, imported specifications
@@ -84,14 +82,12 @@ data Config = Config
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
-  -- , nonLinCuts      :: Bool       -- ^ treat non-linear kvars as cuts
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
-  -- , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
-  , noLiftedImport  :: !Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
-  , proofLogicEval  :: !Bool        -- ^ Enable proof-by-logical-evaluation
-  , reflection      :: !Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
-  , compileSpec     :: !Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
+  , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
+  , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
+  , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
+  , compileSpec     :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize Instantiate
@@ -168,5 +164,5 @@ terminationCheck' :: Config -> Bool
 terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) -- && (not (structuralTerm cfg))
 
 structuralTerm :: (HasConfig a) => a -> Bool 
-structuralTerm = not . noStructuralTerm . getConfig
+structuralTerm = not . nostructuralterm . getConfig
 
