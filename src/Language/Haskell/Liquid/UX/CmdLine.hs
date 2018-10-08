@@ -358,6 +358,10 @@ config = cmdArgsMode $ Config {
   , reflection 
     = False &= help "Enable reflection of Haskell functions and theorem proving" 
         &= name "reflection"
+
+  , compileSpec 
+    = False &= help "Only compile specifications (into .bspec file); skip verification" 
+        &= name "compile-spec"
  } &= verbosity
    &= program "liquid"
    &= help    "Refinement Types for Haskell"
@@ -570,6 +574,7 @@ defConfig = Config
   , noLiftedImport    = False
   , proofLogicEval    = False
   , reflection        = False
+  , compileSpec       = False
   }
 
 ------------------------------------------------------------------------

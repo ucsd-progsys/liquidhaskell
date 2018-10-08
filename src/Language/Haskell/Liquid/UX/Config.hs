@@ -88,9 +88,10 @@ data Config = Config
   , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
   -- , debugInstantionation :: Bool   -- ^ Debug Instantiation
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
-  , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
-  , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
-  , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
+  , noLiftedImport  :: !Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
+  , proofLogicEval  :: !Bool        -- ^ Enable proof-by-logical-evaluation
+  , reflection      :: !Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
+  , compileSpec     :: !Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize Instantiate

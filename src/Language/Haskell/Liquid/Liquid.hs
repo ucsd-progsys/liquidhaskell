@@ -60,7 +60,9 @@ liquid :: [String] -> IO b
 --------------------------------------------------------------------------------
 liquid args = getOpts args >>= runLiquid Nothing >>= exitWith . fst
 
+--------------------------------------------------------------------------------
 liquidConstraints :: Config -> IO (Either [CGInfo] ExitCode) 
+--------------------------------------------------------------------------------
 liquidConstraints cfg = do 
   z <- actOrDie $ second Just <$> getGhcInfos Nothing cfg (files cfg)
   case z of
@@ -81,9 +83,11 @@ runLiquid mE cfg = do
     Left e -> do
       exitWithResult cfg (files cfg) $ mempty { o_result = e }
       return (resultExit e, mE)
-    Right (gs, mE') -> do
-      d <- checkMany cfg mempty gs
-      return (ec d, mE')
+    Right (gs, mE') 
+      | compileSpec cfg -> return (ExitSuccess, mE')
+      | otherwise       -> do
+          d <- checkMany cfg mempty gs
+          return (ec d, mE')
   where
     ec = resultExit . o_result
 
