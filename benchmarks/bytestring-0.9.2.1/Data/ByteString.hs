@@ -1,4 +1,4 @@
-{-@ LIQUID "--compilespec"   @-}
+{-@ LIQUID "--compile-spec"  @-}
 {-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--notermination" @-}
 {-@ LIQUID "--pruneunsorted" @-}

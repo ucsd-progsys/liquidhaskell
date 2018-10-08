@@ -458,7 +458,38 @@ canonizeDecls env name ds =
     err _        = impossible Nothing "canonizeDecls"
 
 dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Maybe F.Symbol 
-dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
+-- dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
+dataDeclKey env name d = do 
+  tc     <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
+  _      <- checkDataCtors env name tc (tycDCons d)   
+  return (F.symbol tc)
+
+checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> [DataCtor] -> Maybe [DataCtor] 
+checkDataCtors env name c = mapM (checkDataCtor2 env name c dcs . checkDataCtor1) 
+  where 
+    dcs                   = S.fromList . fmap F.symbol $ Ghc.tyConDataCons c
+
+checkDataCtor2 :: Bare.Env -> ModName -> Ghc.TyCon -> S.HashSet F.Symbol -> DataCtor 
+               -> Maybe DataCtor 
+checkDataCtor2 env name c dcs d = do
+  let dn = dcName d
+  ctor  <- Bare.failMaybe env name (Bare.resolveLocSym env name "checkDataCtor2" dn :: Either UserError Ghc.DataCon) 
+  let x  = F.symbol ctor 
+  if S.member x dcs 
+    then Just d
+    else Ex.throw (errInvalidDataCon c dn)
+
+checkDataCtor1 :: DataCtor -> DataCtor 
+checkDataCtor1 d 
+  | x : _ <- dups = uError (err lc x :: UserError)
+  | otherwise     = d 
+    where
+      lc          = dcName   d 
+      xts         = dcFields d
+      dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
+      err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
+
+
 
 selectDD :: (a, [DataDecl]) -> Either [DataDecl] DataDecl
 selectDD (_,[d]) = Right d
@@ -500,7 +531,7 @@ getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDa
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
             -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
-ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts0 pos sfun pt _)) maybe_invariance_info
+ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
   = uError err
   | otherwise
@@ -508,7 +539,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts0 pos sfun pt _)) maybe_i
   where
     πs         = Bare.ofBPVar env name pos <$> ps
     tc'        = getDnTyCon env name tc
-    cts        = checkDataCtors env name tc' cts0
+    -- cts        = checkDataCtors env name tc' cts0
     cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
     pd         = Bare.ofBareType env name lc (Just []) <$> pt
     tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
@@ -578,28 +609,7 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     isGadt        = Mb.isJust res
     dLoc          = F.Loc l l' ()
 
-checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> [DataCtor] -> [DataCtor] 
-checkDataCtors env name c = fmap (checkDataCtor2 env name c dcs . checkDataCtor1)
-  where 
-    dcs                   = S.fromList . fmap F.symbol $ Ghc.tyConDataCons c
 
-checkDataCtor2 :: Bare.Env -> ModName -> Ghc.TyCon -> S.HashSet F.Symbol -> DataCtor -> DataCtor 
-checkDataCtor2 env name c dcs d 
-  | S.member x dcs = d 
-  | otherwise      = uError (errInvalidDataCon c dn)
-  where 
-    dn             = dcName d
-    x              = F.symbol (Bare.lookupGhcDataCon env name "checkDataCtor2" dn)
-
-checkDataCtor1 :: DataCtor -> DataCtor 
-checkDataCtor1 d 
-  | x : _ <- dups = uError (err lc x :: UserError)
-  | otherwise     = d 
-    where
-      lc          = dcName   d 
-      xts         = dcFields d
-      dups        = [ x | (x, ts) <- Misc.groupList xts, 2 <= length ts ]
-      err lc x    = ErrDupField (GM.sourcePosSrcSpan $ loc lc) (pprint $ val lc) (pprint x)
 
 
 errInvalidDataCon :: Ghc.TyCon -> LocSymbol -> UserError

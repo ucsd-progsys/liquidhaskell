@@ -490,12 +490,10 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-        -- , "--no-lifted-imports -iinclude --c-files=cbits/fpstring.c"
-        , "-iinclude --c-files=cbits/fpstring.c"
+        , "--compile-spec -iinclude --c-files=cbits/fpstring.c"
         )
       , ( "benchmarks/text-0.11.2.3"
-        -- , "--no-lifted-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
-        , "-i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        , "--compile-spec -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."
