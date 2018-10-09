@@ -115,12 +115,6 @@ consAct cfg info = do
                      , annotMap = annot' }
 
 
-_ppSplitC :: SubC -> CG [FixSubC]
-_ppSplitC c = do 
-  cs <- splitC c 
-  return $ F.tracepp ("splitC: " ++ F.showpp c) cs
-
-
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -504,7 +498,7 @@ consBind isRec γ (x, e, Asserted spect)
 
 consBind isRec γ (x, e, Internal spect)
   = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv (F.tracepp "consBind 3" spect)
+           (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
        let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
        cconsE γπ' e spect
@@ -512,7 +506,7 @@ consBind isRec γ (x, e, Internal spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ F.tracepp "consBind 2" $ Internal spect
+       return $ Internal spect
   where
     explanation = "Cannot give singleton type to the function definition."
 
@@ -815,7 +809,7 @@ consE :: CGEnv -> CoreExpr -> CG SpecType
 consE γ e
   | patternFlag γ
   , Just p <- Rs.lift e
-  = consPattern γ (F.tracepp "CONSE-PATTERN: " p) (exprType e)
+  = consPattern γ (F.notracepp "CONSE-PATTERN: " p) (exprType e)
 
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
@@ -983,7 +977,7 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) _ = do
       G |- return e ~ m et
  -}
 consPattern γ (Rs.PatReturn e m _ _ _) t = do
-  et    <- F.tracepp "Cons-Pattern-Ret" <$> consE γ e
+  et    <- F.notracepp "Cons-Pattern-Ret" <$> consE γ e
   mt    <- trueTy  m
   tt    <- trueTy  t
   return (mkRAppTy mt et tt) -- /// {-    $ RAppTy mt et mempty -}

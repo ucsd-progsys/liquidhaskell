@@ -76,7 +76,7 @@ import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.WiredIn 
 
 myTracepp :: (F.PPrint a) => String -> a -> a
-myTracepp = F.tracepp 
+myTracepp = F.notracepp 
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -583,7 +583,7 @@ lookupTyThing env name lsym = case Misc.sortOn fst (Misc.groupList matches) of
 allowExtResolution :: Env -> LocSymbol -> Bool 
 allowExtResolution env lx = case fileMb of 
   Nothing   -> True 
-  Just f    -> F.tracepp ("allowExt: " ++ show (f, tgtFile)) 
+  Just f    -> myTracepp ("allowExt: " ++ show (f, tgtFile)) 
                  $ f == tgtFile || Misc.isIncludeFile incDir f || F.isExtFile F.Spec f 
   where 
     tgtFile = giTarget (reSrc env)
@@ -955,7 +955,7 @@ addBind env v = case localKey v of
 updSigMap :: SymMap -> SigMap -> Ghc.Var -> SigMap 
 updSigMap env m v = case M.lookup v m of 
   Nothing  -> m 
-  Just tes -> M.insert v (F.tracepp ("UPD-LOCAL-SIG " ++ GM.showPpr v) $ renameLocalSig env tes) m
+  Just tes -> M.insert v (myTracepp ("UPD-LOCAL-SIG " ++ GM.showPpr v) $ renameLocalSig env tes) m
 
 renameLocalSig :: SymMap -> (LocBareType, Maybe [Located F.Expr]) 
                -> (LocBareType, Maybe [Located F.Expr])  

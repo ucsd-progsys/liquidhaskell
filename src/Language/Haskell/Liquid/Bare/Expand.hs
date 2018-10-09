@@ -555,26 +555,19 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
-  . fmap (F.notracepp (msg 6))
   . fmap (specExpandType rtEnv)                         
-  . fmap (F.notracepp (msg 5))
   . fmap (fmap (generalizeWith x))
-  . fmap (F.notracepp (msg 4))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (F.tracepp (msg 3))
   . fmap (Bare.qualifyTop    env name l) 
-  . fmap (F.tracepp (msg 2))
   . bareSpecType       env name 
-  . F.tracepp (msg 1) 
   . bareExpandType     rtEnv
-  . F.tracepp (msg 0) 
   $ bt 
   where 
-    msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
-    rtEnv = Bare.sigRTEnv    sigEnv
-    embs  = Bare.sigEmbs     sigEnv 
-    tyi   = Bare.sigTyRTyMap sigEnv
-    l     = F.loc bt
+    _msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
+    rtEnv  = Bare.sigRTEnv    sigEnv
+    embs   = Bare.sigEmbs     sigEnv 
+    tyi    = Bare.sigTyRTyMap sigEnv
+    l      = F.loc bt
 
 -- | We don't want to generalize type variables that maybe bound in the 
 --   outer scope, e.g. see tests/basic/pos/LocalPlug00.hs 

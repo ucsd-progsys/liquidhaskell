@@ -70,7 +70,7 @@ checkBareSpec _ sp = Misc.applyNonNull (Right sp) Left $ concat
     hmeasures = Ms.hmeas      sp 
     reflects  = Ms.reflects   sp 
     measures  = msName    <$> Ms.measures sp 
-    fields    = F.tracepp "FIELDS" $ concatMap dataDeclFields (Ms.dataDecls sp) 
+    fields    = concatMap dataDeclFields (Ms.dataDecls sp) 
 
 dataDeclFields :: DataDecl -> [F.LocSymbol]
 dataDeclFields = filter (not . GM.isTmpSymbol . F.val) 
@@ -181,9 +181,9 @@ checkTySigs allowHO cbs emb tcEnv env sig
                        , exprF = \_   acc _ -> acc 
                        }  
     vSort            = Bare.varSortedReft emb
-    errs env v       = case F.tracepp ("LOCAL-CHECK-1: " ++ F.showpp v) $ M.lookup v locTm of 
+    errs env v       = case M.lookup v locTm of 
                          Nothing -> [] 
-                         Just t  -> F.tracepp ("LOCAL-CHECK-2: " ++ F.showpp (v,t)) $ check env (v, t) 
+                         Just t  -> check env (v, t) 
 
 checkSigTExpr :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
               -> (Var, (LocSpecType, Maybe [Located F.Expr])) 

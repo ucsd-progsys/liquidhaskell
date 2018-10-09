@@ -250,7 +250,7 @@ coreToFun _ _v e = go [] $ normalize e
     go acc (C.Lam x e)  | isErasable x = go acc e
     go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
-    go acc e            = (reverse acc,) . Right . F.tracepp "CORE-TO-LOGIC" <$> coreToLg e
+    go acc e            = (reverse acc,) . Right <$> coreToLg e
     
 
 instance Show C.CoreExpr where

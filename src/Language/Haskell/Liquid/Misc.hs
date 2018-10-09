@@ -356,6 +356,6 @@ concatUnzip xsyss = (concatMap fst xsyss, concatMap snd xsyss)
 
 sayReadFile :: FilePath -> IO String 
 sayReadFile f = do 
-  print ("SAY-READ-FILE: " ++ f)
+  -- print ("SAY-READ-FILE: " ++ f)
   res <- readFile f 
   Ex.evaluate res

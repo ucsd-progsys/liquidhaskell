@@ -68,7 +68,7 @@ initEnv info
        f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ F.tracepp "MAKE-DATACON-TYPES-2" $ makeExactDc dcsty                       -- data constructors
+       f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
        f3       <- refreshArgs' $ vals gsAsmSigs (gsSig sp)                  -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
@@ -93,9 +93,7 @@ initEnv info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
-    makeExactDc dcs = F.tracepp ("MAKE-EXACT-DCS: " ++ F.showpp (exactDCFlag info))
-                    $ if exactDCFlag info then map strengthenDataConType dcs else dcs
-    -- makedcs      = map strengthenDataConType
+    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
 
 makeDataConTypes :: Var -> CG (Var, SpecType)

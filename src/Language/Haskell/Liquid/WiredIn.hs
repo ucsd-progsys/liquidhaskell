@@ -192,7 +192,7 @@ mkps_ _     _       _          _    _ = panic Nothing "Bare : mkps_"
 --------------------------------------------------------------------------------
 isDerivedInstance :: Ghc.ClsInst -> Bool 
 --------------------------------------------------------------------------------
-isDerivedInstance i = F.tracepp ("IS-DERIVED: " ++ F.showpp classSym) 
+isDerivedInstance i = F.notracepp ("IS-DERIVED: " ++ F.showpp classSym) 
                     $ S.member classSym derivingClasses 
   where 
     classSym        = F.symbol . Ghc.is_cls $ i

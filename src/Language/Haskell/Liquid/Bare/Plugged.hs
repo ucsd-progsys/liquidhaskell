@@ -84,7 +84,7 @@ makePluggedDataCon :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> 
 makePluggedDataCon embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
   | mismatchTyVars    = Ex.throw (err "type variables")
-  | otherwise         = F.atLoc ldcp $ F.tracepp "makePluggedDataCon" $ dcp 
+  | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
                           { dcpTyArgs     = reverse tArgs 
                           , dcpTyRes      = tRes 
                           }
@@ -164,8 +164,8 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
     coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'               = fmap (subts su') <$> ps
     cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
-    (αs,_,ls1,cs,rt)  = bkUnivClass (F.tracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,ls2,_ ,st)  = bkUnivClass (F.tracepp "lq-spec" st0)
+    (αs,_,ls1,cs,rt)  = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,ls2,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
     -- msg i             = "plugHoles_old: " ++ F.showpp x ++ " " ++ i 
 
     makeCls cs t      = foldr (uncurry rFun) t cs

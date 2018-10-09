@@ -222,7 +222,7 @@ makeDataDecls :: Config -> F.TCEmb Ghc.TyCon -> ModName
               -> [F.DataDecl]
 makeDataDecls cfg tce name tds ds
   | makeDecls = [ makeFDataDecls tce tc dd ctors
-                | (tc, (dd, ctors)) <- groupDataCons tds' (F.tracepp "makeDataDecls" ds)
+                | (tc, (dd, ctors)) <- groupDataCons tds' (F.notracepp "makeDataDecls" ds)
                 , tc /= Ghc.listTyCon
                 ]
   | otherwise = []
@@ -269,7 +269,7 @@ resolveTyCons m mtds = [(tc, (m, d)) | (tc, mds) <- M.toList tcDecls
 --   DataDecls to use.
 resolveDecls :: ModName -> Ghc.TyCon -> Misc.ListNE (ModName, DataPropDecl)
              -> Maybe (ModName, DataPropDecl)
-resolveDecls mName tc mds  = F.tracepp msg $ Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
+resolveDecls mName tc mds  = F.notracepp msg $ Misc.firstMaybes $ (`L.find` mds) <$> [ isHomeDef , isMyDef]
   where
     msg                    = "resolveDecls" ++ F.showpp (mName, tc)
     isMyDef                = (mName ==)             . fst
@@ -597,14 +597,14 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
-    (yts, ot)     = F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
+    (yts, ot)     = F.notracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
                     qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
     (xs, ts)      = unzip xts
     t0            = case famInstTyConType tc of
-                      Nothing -> F.tracepp "dataConResult-3: " $ RT.gApp tc αs πs
+                      Nothing -> F.notracepp "dataConResult-3: " $ RT.gApp tc αs πs
                       Just ty -> RT.ofType ty
     isGadt        = Mb.isJust res
     dLoc          = F.Loc l l' ()
@@ -667,8 +667,8 @@ dataConResultTy :: Ghc.DataCon
                 -> SpecType
 dataConResultTy _ _ _ (Just t) = t
 dataConResultTy c _ t _
-  | Ghc.isVanillaDataCon c     = F.tracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
-  | otherwise                  = F.tracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
+  | Ghc.isVanillaDataCon c     = F.notracepp ("dataConResultTy-1 : " ++ F.showpp c) $ t
+  | otherwise                  = F.notracepp ("dataConResultTy-2 : " ++ F.showpp c) $ RT.ofType ct
   where
     (_,_,_,_,_,ct)             = Ghc.dataConFullSig c
     -- _tr0                    = Ghc.dataConRepType c

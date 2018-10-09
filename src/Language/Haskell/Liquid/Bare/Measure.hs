@@ -210,7 +210,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       , tycTyVars = F.symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
       , tycTyLabs = []
-      , tycDCons  = F.tracepp ("tyConDataDecl-DECLS: " ++ F.showpp (tc, dn)) $ decls tc
+      , tycDCons  = decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
@@ -369,8 +369,8 @@ bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims
     expMeas    = expandMeasure env name  rtEnv
     rtEnv      = Bare.sigRTEnv          sigEnv
     force      = name == myName 
-    inScope1 z = F.tracepp ("inScope1: " ++ F.showpp (msName z)) $ (force ||  okSort z)
-    inScope2 z = F.tracepp ("inScope2: " ++ F.showpp (msName z)) $ (force || (okSort z && okCtors z))
+    inScope1 z = F.notracepp ("inScope1: " ++ F.showpp (msName z)) $ (force ||  okSort z)
+    inScope2 z = F.notracepp ("inScope2: " ++ F.showpp (msName z)) $ (force || (okSort z && okCtors z))
     okSort     = Bare.knownGhcType env name . msSort 
     okCtors    = all (Bare.knownGhcDataCon env name . ctor) . msEqns 
 
@@ -418,7 +418,7 @@ expandMeasure env name rtEnv m = m
 
 expandMeasureDef :: Bare.Env -> ModName -> BareRTEnv -> Def t LocSymbol -> Def t LocSymbol
 expandMeasureDef env name rtEnv d = d 
-  { body  = F.tracepp msg $ Bare.qualifyExpand env name rtEnv l bs (body d) }
+  { body  = F.notracepp msg $ Bare.qualifyExpand env name rtEnv l bs (body d) }
   where 
     l     = loc (measure d) 
     bs    = fst <$> binds d 

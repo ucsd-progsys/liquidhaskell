@@ -1326,7 +1326,7 @@ bkClass (RImpF _ (RApp c t _ _) t' _)
   | isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass (RFun _ (RApp c t _ _) t' _)
-  | F.tracepp ("IS-CLASS: " ++ F.showpp c) $ isClass c
+  | F.notracepp ("IS-CLASS: " ++ F.showpp c) $ isClass c
   = let (cs, t'') = bkClass t' in ((c, t):cs, t'')
 bkClass (RRTy e r o t)
   = let (cs, t') = bkClass t in (cs, RRTy e r o t')
@@ -2152,7 +2152,6 @@ instance NFData a => NFData (Annot a)
 
 data Output a = O
   { o_vars   :: Maybe [String]
-  -- , o_errors :: ![UserError]
   , o_types  :: !(AnnInfo a)
   , o_templs :: !(AnnInfo a)
   , o_bots   :: ![SrcSpan]

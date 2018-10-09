@@ -89,7 +89,6 @@ makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env si
     mbV = case Bare.maybeResolveSym env name "makeMethod" lx of 
             Just v  -> Bare.LqTV v 
             Nothing -> Bare.GenTV 
-    _msg = "MAKE-SPEC: " ++ F.showpp lx 
 
 
 -------------------------------------------------------------------------------
@@ -97,7 +96,6 @@ makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var Spec
 -------------------------------------------------------------------------------
 makeSpecDictionaries env sigEnv specs
   = dfromList 
-  . F.tracepp "makeSpecDict"
   . concat 
   . fmap (makeSpecDictionary env sigEnv) 
   $ M.toList specs

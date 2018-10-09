@@ -101,7 +101,7 @@ makeGhcSpec cfg src lmap mspecs0
   where 
     mspecs = [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] 
     sp     = makeGhcSpec0 cfg src lmap mspecs 
-    renv   = F.tracepp "RENV" $ ghcSpecEnv sp 
+    renv   = ghcSpecEnv sp 
     cbs    = giCbs src
 
 checkThrow :: Ex.Exception e => Either e c -> c
@@ -159,7 +159,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
-    rtEnv    = F.tracepp "RTENV" $ Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
+    rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
     mySpec1  = mySpec0 <> lSpec0    
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
@@ -296,7 +296,7 @@ makeSpecQual _cfg env tycEnv measEnv _rtEnv specs = SpQual
   where 
     quals        = concatMap (makeQualifiers env tycEnv) (M.toList specs) 
     -- mSyms        = F.tracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
-    okQual q     = F.tracepp ("okQual: " ++ F.showpp q) 
+    okQual q     = F.notracepp ("okQual: " ++ F.showpp q) 
                    $ all (`S.member` mSyms) (F.syms q)
     mSyms        = F.notracepp "MSYMS" . S.fromList 
                    $  (fst <$> wiredSortedSyms) 
@@ -355,7 +355,7 @@ makeSpecTerm cfg mySpec env name = SpTerm
   { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
   , gsStTerm     = sizes
   , gsAutosize   = autos 
-  , gsDecr       = F.tracepp "MAKEDECRS" $ makeDecrs env name mySpec
+  , gsDecr       = makeDecrs env name mySpec
   , gsNonStTerm  = mempty 
   }
   where  
@@ -445,8 +445,8 @@ makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEn
             -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
 makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig 
-  { gsTySigs   = F.tracepp "gsTySigs"  tySigs 
-  , gsAsmSigs  = F.tracepp "gsAsmSigs" asmSigs
+  { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
+  , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
   , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
@@ -462,7 +462,7 @@ makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig
                   , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP 
                   , [(v, (3, t)) | (v, t  ) <- makeMsrSigs env rtEnv allSpecs ]   -- the binders used in USER-defined sigs 
                   ]                                                               -- as they appear in termination metrics
-    mySigs     = F.tracepp "MAKE-TYSIGS" $ makeTySigs  env sigEnv name mySpec
+    mySigs     = F.notracepp "MAKE-TYSIGS" $ makeTySigs  env sigEnv name mySpec
     allSpecs   = M.toList specs 
     rtEnv      = Bare.sigRTEnv sigEnv 
     -- hmeas      = makeHMeas    env allSpecs 
@@ -470,7 +470,7 @@ makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig
 strengthenSigs :: [(Ghc.Var, (Int, LocSpecType))] ->[(Ghc.Var, LocSpecType)]
 strengthenSigs sigs = go <$> Misc.groupList sigs 
   where
-    go (v, ixs)     = (v,) $ L.foldl1' (flip meetLoc) (F.tracepp ("STRENGTHEN-SIGS: " ++ F.showpp v) (prio ixs))
+    go (v, ixs)     = (v,) $ L.foldl1' (flip meetLoc) (F.notracepp ("STRENGTHEN-SIGS: " ++ F.showpp v) (prio ixs))
     prio            = fmap snd . Misc.sortOn fst 
     meetLoc         :: LocSpecType -> LocSpecType -> LocSpecType
     meetLoc t1 t2   = t1 {val = val t1 `F.meet` val t2}
@@ -517,7 +517,7 @@ makeTySigs env sigEnv name spec
 bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 bareTySigs env name spec = checkDuplicateSigs 
   [ (v, t) | (x, t) <- Ms.sigs spec ++ Ms.localSigs spec  
-           , let v   = F.tracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x 
+           , let v   = F.notracepp "LOOKUP-GHC-VAR" $ Bare.lookupGhcVar env name "rawTySigs" x 
   ] 
 
 -- checkDuplicateSigs :: [(Ghc.Var, LocSpecType)] -> [(Ghc.Var, LocSpecType)] 
@@ -547,7 +547,7 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
     mbHome      = takeUnique err                  sigsHome 
     mbImp       = takeUnique err (Misc.firstGroup sigsImp) -- see [NOTE:Prioritize-Home-Spec] 
     sigsHome    = [(m, t)      | (True,  m, t) <- sigs ]
-    sigsImp     = F.tracepp ("SIGS-IMP: " ++ F.showpp v)
+    sigsImp     = F.notracepp ("SIGS-IMP: " ++ F.showpp v)
                   [(d, (m, t)) | (False, m, t) <- sigs, let d = nameDistance vName m]
     err ts      = ErrDupSpecs (Ghc.getSrcSpan v) (F.pprint v) (GM.sourcePosSrcSpan . F.loc . snd <$> ts) :: UserError
     errImp      = impossible Nothing "myAsmSig: cannot happen as sigs is non-null"
@@ -556,7 +556,7 @@ myAsmSig v sigs = Mb.fromMaybe errImp (Misc.firstMaybes [mbHome, mbImp])
 makeTExpr :: Bare.Env -> ModName -> [(Ghc.Var, LocBareType)] -> BareRTEnv -> Ms.BareSpec 
           -> [(Ghc.Var, LocBareType, Maybe [Located F.Expr])]
 makeTExpr env name tySigs rtEnv spec 
-                = F.tracepp "MAKE-TEXPRS" 
+                = F.notracepp "MAKE-TEXPRS" 
                   [ (v, t, qual t <$> es) | (v, (t, es)) <- M.toList vSigExprs ] 
   where 
     qual t es   = qualifyTermExpr env name rtEnv t <$> es
@@ -673,7 +673,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = Bare.qualifyTopDummy env name <$> (F.tracepp "MEASURES-1" $ ms1 ++ ms2)
+  , gsMeasures   = Bare.qualifyTopDummy env name <$> (F.notracepp "MEASURES-1" $ ms1 ++ ms2)
   , gsInvariants = Misc.nubHashOn (F.loc . snd) invs 
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
   }
@@ -779,7 +779,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = F.tracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    (tcDds, dcs)  = F.notracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
     tyi           = Bare.qualifyTopDummy env myName <$> makeTyConInfo tycons
@@ -812,7 +812,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   { meMeasureSpec = measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
-  , meDataCons    = F.tracepp "meDATACONS" cs' 
+  , meDataCons    = F.notracepp "meDATACONS" cs' 
   , meClasses     = cls
   , meMethods     = mts ++ dms 
   }
@@ -852,15 +852,15 @@ makeLiftedSpec :: GhcSrc -> Bare.Env
                -> Ms.BareSpec -> Ms.BareSpec 
 -----------------------------------------------------------------------------------------
 makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0 
-  { Ms.asmSigs    = F.tracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
+  { Ms.asmSigs    = F.notracepp   "LIFTED-ASM-SIGS" $ xbs -- ++ mkSigs (gsAsmSigs sig)
   , Ms.reflSigs   = F.notracepp "REFL-SIGS"         xbs
-  , Ms.sigs       = F.tracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
+  , Ms.sigs       = F.notracepp   "LIFTED-SIGS"     $        mkSigs (gsTySigs sig)  
   , Ms.invariants = [ ((varLocSym <$> x), Bare.specToBare <$> t) 
                        | (x, t) <- gsInvariants sData 
                        , isLocInFile srcF t
                     ]
   , Ms.axeqs      = gsMyAxioms refl 
-  , Ms.aliases    = F.tracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
+  , Ms.aliases    = F.notracepp "MY-ALIASES" $ M.elems . typeAliases $ myRTE
   , Ms.ealiases   = M.elems . exprAliases $ myRTE 
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
