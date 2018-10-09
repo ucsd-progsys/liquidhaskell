@@ -1554,10 +1554,12 @@ classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
   | isEqual c
   = [(symbol a, rTypeSortedReft emb t)]
 classBinds  emb (RApp c [_, (RVar a _), t] _ _)
-  | showpp c == "Data.Type.Equality.~"  -- see [NOTE:type-equality-hack]
+  | showpp c == "Data.Type.Equality.~<[]>"  -- see [NOTE:type-equality-hack]
   = [(symbol a, rTypeSortedReft emb t)]
+  | otherwise 
+  = tracepp ("CLASSBINDS-0: " ++ showpp c) [] 
 classBinds _ t
-  = notracepp ("CLASSBINDS: " ++ showpp (toType t, isEqualityConstr t)) []
+  = tracepp ("CLASSBINDS-1: " ++ showpp (toType t, isEqualityConstr t)) []
 
 {- | [NOTE:type-equality-hack]
 

@@ -460,8 +460,8 @@ canonizeDecls env name ds =
 dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Maybe F.Symbol 
 -- dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
 dataDeclKey env name d = do 
-  tc     <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
-  _      <- checkDataCtors env name tc (tycDCons d)   
+  tc    <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
+  _     <- checkDataCtors env name tc (tycDCons d)   
   return (F.symbol tc)
 
 checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> [DataCtor] -> Maybe [DataCtor] 

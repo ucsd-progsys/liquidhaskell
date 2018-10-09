@@ -1,4 +1,4 @@
-{- TODO-REBARE-EQ-REPR: GHC shifts the representation of the ~ to something new with 8.4.3 maybe?
+{-  see [NOTE:type-equality-hack] TODO-REBARE-EQ-REPR: GHC shifts the representation of the ~ to something new with 8.4.3 maybe?
 
  /Users/rjhala/research/liquidhaskell/tests/pos/T1295b.hs:10:5-29: Error: Illegal type specification for `constructor Main.PersonNums`
   
