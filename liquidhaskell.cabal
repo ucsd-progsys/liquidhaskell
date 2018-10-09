@@ -278,6 +278,8 @@ Library
                     Gradual.GUI.Types,
                     Gradual.GUI.Misc                    
 
+   other-modules:   Language.Haskell.Liquid.Desugar.DsExpr,
+                    Language.Haskell.Liquid.Desugar.Match
 
    ghc-options: -W -fwarn-missing-signatures
    if flag(include)
