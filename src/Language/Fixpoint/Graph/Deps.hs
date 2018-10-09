@@ -555,7 +555,7 @@ instance PTable Stats where
 
 graphStats :: F.TaggedC c a => Config -> F.GInfo c a -> Stats
 graphStats cfg si = Stats {
-    stNumKVCuts   = S.size $ F.tracepp "CUTS:" (depCuts d)
+    stNumKVCuts   = S.size (depCuts d)
   , stNumKVNonLin = S.size  nlks
   , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
   , stIsReducible = isReducible si
