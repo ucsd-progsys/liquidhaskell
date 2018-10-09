@@ -5,7 +5,6 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleInstances          #-}
 
-{- LIQUID "--diffcheck" @-}
 
 ---------------------------------------------------------------------------
 -- | This module contains the code that uses the inferred types to generate
@@ -13,7 +12,6 @@
 -- 2. Annotations files (e.g. for vim/emacs)
 -- 3. JSON files for the web-demo etc.
 ---------------------------------------------------------------------------
-
 
 module Language.Haskell.Liquid.UX.Annotate
   ( mkOutput
@@ -451,8 +449,8 @@ instance ToJSON ACSS.AnnMap where
     where 
       toJ (sp, (x,t)) = object [ "start" .= toJSON (srcSpanStartLoc sp) 
                                , "stop"  .= toJSON (srcSpanEndLoc   sp) 
-                               , "var"   .= toJSON x 
-                               , "type"  .= toJSON t 
+                               , "ident" .= toJSON x 
+                               , "ann"  .= toJSON t 
                                ] 
                       
 annErrors :: ACSS.AnnMap -> AnnErrors
@@ -493,10 +491,10 @@ tokeniseWithLoc = ACSS.tokeniseWithLoc (Just tokAnnot)
 
 _anns :: AnnTypes
 _anns = i [(5,   i [( 14, A1 { ident = "foo"
-                            , ann   = "int -> int"
-                            , row   = 5
-                            , col   = 14
-                            })
+                             , ann   = "int -> int"
+                             , row   = 5
+                             , col   = 14
+                             })
                   ]
           )
          ,(9,   i [( 22, A1 { ident = "map"
