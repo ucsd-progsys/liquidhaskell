@@ -139,3 +139,12 @@ False ==> False = True
 False ==> True  = True
 True  ==> True  = True
 True  ==> False = False
+
+-- {- measure fst @-}
+-- fst :: (a, b) -> a 
+-- fst (x, _) = x 
+-- 
+-- {- measure snd @-}
+-- snd :: (a, b) -> b 
+-- snd (_, y) = y 
+

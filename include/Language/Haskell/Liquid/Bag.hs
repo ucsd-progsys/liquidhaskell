@@ -2,12 +2,13 @@ module Language.Haskell.Liquid.Bag where
 
 import qualified Data.Map      as M
 
-{-@ embed   M.Map as Map_t                                  @-}
-{-@ measure Map_default :: Int -> Bag a                     @-}
-{-@ measure Map_union   :: Bag a -> Bag a -> Bag a          @-}
-{-@ measure Map_select  :: M.Map k v -> k -> v              @-}
-{-@ measure Map_store   :: M.Map k v -> k -> v -> M.Map k v @-}
-{-@ measure bagSize :: Bag k -> Int  @-}
+{-@ embed   Data.Map.Map as Map_t                                         @-}
+
+{-@ measure Map_default :: Int -> Bag a                                   @-}
+{-@ measure Map_union   :: Bag a -> Bag a -> Bag a                        @-}
+{-@ measure Map_select  :: Data.Map.Map k v -> k -> v                     @-}
+{-@ measure Map_store   :: Data.Map.Map k v -> k -> v -> Data.Map.Map k v @-}
+{-@ measure bagSize     :: Bag k -> Int                                   @-}
 
 -- if I just write measure fromList the measure definition is not imported
 {-@ measure fromList :: [k] -> Bag k
@@ -43,11 +44,9 @@ put k m = M.insert k (1 + get k m) m
 union :: (Ord k) => Bag k -> Bag k -> Bag k
 union m1 m2 = M.union m1 m2
 
-
-{-@ thm_emp :: x:k -> xs:Bag k ->  { empty /= put x xs }  @-}
+{-@ thm_emp :: x:k -> xs:Bag k ->  { Language.Haskell.Liquid.Bag.empty /= put x xs }  @-}
 thm_emp :: (Ord k) => k -> Bag k -> ()  
 thm_emp x xs = const () (get x xs)
-
 
 {-@ assume thm_size :: xs:[k] ->  { bagSize (fromList xs) == len xs }  @-}
 thm_size :: (Ord k) => [k] -> ()  

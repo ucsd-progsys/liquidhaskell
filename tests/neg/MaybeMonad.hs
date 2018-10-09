@@ -1,3 +1,4 @@
+-- TODO-REBARE: STRATA
 module MaybeMonad where
 
 import Prelude hiding (take)

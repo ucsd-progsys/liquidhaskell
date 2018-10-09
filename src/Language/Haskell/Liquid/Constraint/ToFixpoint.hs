@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
   ) where
 
 import           Prelude hiding (error)
-import           Data.Monoid
+-- import           Data.Monoid
 
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
@@ -13,7 +13,7 @@ import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types hiding     ( binds )
-import           Language.Fixpoint.Solver                 ( parseFInfo )
+-- REBARE: import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import Data.Maybe (fromJust)
 
@@ -57,15 +57,19 @@ fixConfig tgt cfg = def
 
 
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
-cgInfoFInfo info cgi = do
-  let tgtFI  = targetFInfo info cgi
-  impFI     <- ignoreQualifiers info <$> parseFInfo (hqFiles info)
-  return       (tgtFI <> impFI)
+cgInfoFInfo info cgi = return (targetFInfo info cgi)
 
-ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
-ignoreQualifiers info fi
-  | useSpcQuals info = fi
-  | otherwise        = fi { F.quals = [] }
+-- REBARE: cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
+-- REBARE: cgInfoFInfo info cgi = do
+  -- REBARE: let tgtFI  = targetFInfo info cgi
+  -- REBARE: let qFiles = giHqFiles . gsQual . giSpec $ info
+  -- REBARE: impFI     <- ignoreQualifiers info <$> parseFInfo qFiles 
+  -- REBARE: return       (tgtFI <> impFI)
+
+-- REBARE: ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
+-- REBARE: ignoreQualifiers info fi
+-- REBARE:   | useSpcQuals info = fi
+-- REBARE:   | otherwise        = fi { F.quals = [] }
 
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
@@ -74,12 +78,12 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     cs               = fixCs    cgi
     ws               = fixWfs   cgi
     bs               = binds    cgi
-    ebs              = ebinds    cgi
+    ebs              = ebinds   cgi
     ls               = fEnv     cgi
     consts           = cgConsts cgi
     ks               = kuts     cgi
     adts             = cgADTs   cgi
-    qs               = qualifiers info (fEnv cgi)
+    qs               = giQuals info (fEnv cgi)
     bi               = (\x -> Ci x Nothing Nothing) <$> bindSpans cgi
     aHO              = allowHO cgi
     aHOqs            = higherOrderFlag info
@@ -93,13 +97,16 @@ makeAxiomEnvironment info xts fcs
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
-    emb      = gsTcEmbeds sp
+    emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
-    sp       = spec       info
+    sp       = giSpec     info
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
-                   || (Config.allowLocalPLE cfg && maybe False (`M.member` gsAutoInst sp) (subVar sub))
+                   || (Config.allowLocalPLE cfg && maybe False isExpand (subVar sub))
+  where 
+    isExpand x      = M.member x autos 
+    autos           = gsAutoInst (gsRefl sp)  
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
@@ -138,12 +145,14 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
 
 makeEquations :: GhcSpec -> [F.Equation]
 makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
-                      | F.Equ f xts e t _ <- gsAxioms sp
+                      | F.Equ f xts e t _ <- axioms 
                       , let mbT            = M.lookup f sigs
                       , let xArgs          = F.EVar . fst <$> xts
                    ]
   where
-    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs sp ]
+    axioms       = gsMyAxioms refl ++ gsImpAxioms refl 
+    refl         = gsRefl sp
+    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
 equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
 equationBody f xArgs e mbT

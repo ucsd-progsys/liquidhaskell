@@ -1,10 +1,12 @@
 module HasElem where
 
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--no-termination" @-}
 
 data L a = Nil | Cons a (L a)
 
-{-@ measure hasElem @-}
+{-@ reflect hasElem @-}
 hasElem :: Eq a => a -> L a -> Bool
 hasElem x Nil = False
 hasElem x (Cons y ys) = x == y || hasElem x ys

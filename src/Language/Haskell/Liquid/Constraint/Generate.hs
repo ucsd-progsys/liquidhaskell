@@ -43,7 +43,7 @@ import           Name        hiding (varName)
 import           FastString (fastStringToByteString)
 import           Unify
 import           UniqSet (mkUniqSet)
-import           Text.PrettyPrint.HughesPJ                     hiding (first)
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
 import qualified Data.HashMap.Strict                           as M
@@ -63,20 +63,20 @@ import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
+import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, Def)
 import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
-import           Language.Haskell.Liquid.Types.Strata
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
+-- import           Language.Haskell.Liquid.Types.Strata
+-- import qualified Language.Haskell.Liquid.Types.RefType         as RT
+-- import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
+-- import           Language.Haskell.Liquid.Types.Literals
 import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types.Literals
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
-import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult) 
-import           Language.Haskell.Liquid.Bare.Misc (makeDataConChecker)
+import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
+import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -90,15 +90,17 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
-  γ     <- initEnv      info
-  sflag <- scheck   <$> get
-  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs (spec info) ++ gsAsmSigs (spec info)))
-  foldM_ (consCBTop cfg info) γ (cbs info)
-  hcs   <- hsCs  <$> get
-  hws   <- hsWfs <$> get
-  scss  <- sCs   <$> get
-  annot <- annotMap <$> get
-  scs   <- if sflag then concat <$> mapM splitS (hcs ++ scss)
+  γ       <- initEnv      info
+  sflag   <- scheck   <$> get
+  let sSpc = gsSig . giSpec $ info  
+  let gSrc = giSrc info
+  when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
+  foldM_ (consCBTop cfg info) γ (giCbs gSrc)
+  hcs    <- hsCs  <$> get
+  hws    <- hsWfs <$> get
+  scss   <- sCs   <$> get
+  annot  <- annotMap <$> get
+  scs    <- if sflag then concat <$> mapM splitS (hcs ++ scss)
                     else return []
   let smap = if sflag then solveStrata scs else []
   let hcs' = if sflag then subsS smap hcs else hcs
@@ -111,6 +113,7 @@ consAct cfg info = do
                      , fixCs    = fcs
                      , fixWfs   = fws
                      , annotMap = annot' }
+
 
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------
@@ -132,7 +135,7 @@ makeDecrIndexTy :: Var -> SpecType -> [Var] -> CG (Either (TError t) [Int])
 makeDecrIndexTy x t args
   = do spDecr <- specDecr <$> get
        autosz <- autoSize <$> get
-       hint   <- checkHint' autosz (L.lookup x $ spDecr)
+       hint   <- checkHint' autosz (L.lookup x spDecr)
        case dindex autosz of
          Nothing -> return $ Left msg
          Just i  -> return $ Right $ fromMaybe [i] hint
@@ -170,7 +173,7 @@ checkIndex (x, vs, t, index)
     where
        loc   = getSrcSpan x
        ts    = ty_args $ toRTypeRep $ unOCons $ unTemplate t
-       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
+       msg1  = ErrTermin loc [xd] ("No decreasing" <+> F.pprint index <-> "-th argument on" <+> xd <+> "with" <+> (F.pprint vs))
        msg2  = ErrTermin loc [xd] "No decreasing parameter"
        xd    = F.pprint x
 
@@ -245,8 +248,8 @@ consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBLet γ cb = do
   oldtcheck <- tcheck <$> get
-  lazyVars  <- specLazy <$> get
-  let isStr  = doTermCheck lazyVars cb
+  -- REBARE lazyVars  <- specLazy <$> get
+  isStr     <- doTermCheck (getConfig γ) cb
   -- TODO: yuck.
   modify $ \s -> s { tcheck = oldtcheck && isStr }
   γ' <- consCB (oldtcheck && isStr) isStr γ cb
@@ -268,8 +271,8 @@ consCBTop cfg info γ cb
 
 consCBTop _ _ γ cb
   = do oldtcheck <- tcheck <$> get
-       lazyVars  <- specLazy <$> get
-       let isStr  = doTermCheck lazyVars cb
+       -- lazyVars  <- specLazy <$> get
+       isStr     <- doTermCheck (getConfig γ) cb
        modify $ \s -> s { tcheck = oldtcheck && isStr}
        -- remove invariants that came from the cb definition
        let (γ', i) = removeInvariant γ cb                 --- DIFF
@@ -281,15 +284,24 @@ consCBTop _ _ γ cb
       topBind (Rec [(v,_)]) = Just v
       topBind _             = Nothing
 
-
 trustVar :: Config -> GhcInfo -> Var -> Bool
-trustVar cfg info x = trustInternals cfg && derivedVar info x
+trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
-derivedVar :: GhcInfo -> Var -> Bool
-derivedVar info x = x `elem` derVars info || GM.isInternal x
+derivedVar :: GhcSrc -> Var -> Bool
+derivedVar src x = S.member x (giDerVars src)
+  -- TODO-REBARE: x `elem` giDerVars src || GM.isInternal x
 
-doTermCheck :: S.HashSet Var -> Bind Var -> Bool
-doTermCheck lazyVs = not . any (\x -> S.member x lazyVs || GM.isInternal x) . bindersOf
+doTermCheck :: Config -> Bind Var -> CG Bool
+doTermCheck cfg bind = do 
+  lazyVs    <- specLazy   <$> get 
+  termVs    <- specTmVars <$> get
+  let skip   = any (\x -> S.member x lazyVs || GM.isInternal x) xs
+  let chk    = not (structuralTerm cfg) || any (\x -> S.member x termVs) xs
+  return     $ chk && not skip
+  where 
+    xs       = bindersOf bind
+
+-- nonStructTerm && not skip
 
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
@@ -442,7 +454,7 @@ consCB _ _ γ (NonRec x def)
   , Just d      <- dlookup (denv γ) w
   = do t        <- trueTy τ
        addW      $ WfC γ t
-       let xts   = dmap (mapRISig (f t)) d
+       let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
@@ -486,7 +498,7 @@ consBind isRec γ (x, e, Asserted spect)
 
 consBind isRec γ (x, e, Internal spect)
   = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv (F.tracepp "consBind 3" spect)
+           (_,πs,_,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
        let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
        cconsE γπ' e spect
@@ -494,7 +506,7 @@ consBind isRec γ (x, e, Internal spect)
          -- have to add the wf constraint here for HOLEs so we have the proper env
          addW $ WfC γπ $ fmap killSubst spect
        addIdA x (defAnn isRec spect)
-       return $ F.tracepp "consBind 2" $ Internal spect 
+       return $ Internal spect
   where
     explanation = "Cannot give singleton type to the function definition."
 
@@ -543,7 +555,7 @@ extender γ (x, Assumed t)
 extender γ _
   = return γ
 
-data Template a 
+data Template a
   = Asserted a
   | Assumed a
   | Internal a
@@ -552,11 +564,11 @@ data Template a
 
 deriving instance (Show a) => (Show (Template a))
 
-instance PPrint a => PPrint (Template a) where 
+instance PPrint a => PPrint (Template a) where
   pprintTidy k (Asserted t) = "Asserted" <+> pprintTidy k t
   pprintTidy k (Assumed  t) = "Assumed"  <+> pprintTidy k t
   pprintTidy k (Internal t) = "Internal" <+> pprintTidy k t
-  pprintTidy _ Unknown      = "Unknown"  
+  pprintTidy _ Unknown      = "Unknown"
 
 unTemplate :: Template t -> t
 unTemplate (Asserted t) = t
@@ -604,7 +616,7 @@ varTemplate' γ (x, eo)
 topSpecType :: Var -> SpecType -> CG SpecType
 topSpecType x t = do
   info  <- ghcI <$> get
-  return $ if derivedVar info x then topRTypeBase t else t
+  return $ if derivedVar (giSrc info) x then topRTypeBase t else t
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Checking -------------------------------------------
@@ -797,7 +809,7 @@ consE :: CGEnv -> CoreExpr -> CG SpecType
 consE γ e
   | patternFlag γ
   , Just p <- Rs.lift e
-  = consPattern γ p
+  = consPattern γ (F.notracepp "CONSE-PATTERN: " p) (exprType e)
 
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
@@ -885,7 +897,7 @@ consE γ e@(Let _ _)
 
 consE γ e@(Case _ _ _ [_])
   | Just p@(Rs.PatProject {}) <- Rs.lift e
-  = consPattern γ p
+  = consPattern γ p (exprType e)
 
 consE γ e@(Case _ _ _ cs)
   = cconsFreshE (caseKVKind cs) γ e
@@ -940,7 +952,7 @@ getExprDict γ           =  go
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
 --------------------------------------------------------------------------------
-consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
+consPattern :: CGEnv -> Rs.Pattern -> Type -> CG SpecType
 
 {- [NOTE] special type rule for monadic-bind application
 
@@ -949,7 +961,7 @@ consPattern :: CGEnv -> Rs.Pattern -> CG SpecType
           G |- (e1 >>= \x -> e2) ~> m t
  -}
 
-consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
+consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) _ = do
   tx <- checkMonad (msg, e1) γ <$> consE γ e1
   γ' <- γ += ("consPattern", F.symbol x, tx)
   addIdA x (AnnDef tx)
@@ -960,14 +972,15 @@ consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) = do
 
 {- [NOTE] special type rule for monadic-return
 
-           G |- e ~> t
+           G |- e ~> et
     ------------------------
-      G |- return e ~ m t
+      G |- return e ~ m et
  -}
-consPattern γ (Rs.PatReturn e m _ _ _) = do
-  t     <- consE γ e
+consPattern γ (Rs.PatReturn e m _ _ _) t = do
+  et    <- F.notracepp "Cons-Pattern-Ret" <$> consE γ e
   mt    <- trueTy  m
-  return $ RAppTy mt t mempty
+  tt    <- trueTy  t
+  return (mkRAppTy mt et tt) -- /// {-    $ RAppTy mt et mempty -}
 
 {- [NOTE] special type rule for field projection, is
           t  = G(x)       ti = Proj(t, i)
@@ -975,7 +988,7 @@ consPattern γ (Rs.PatReturn e m _ _ _) = do
       G |- case x of C [y1...yn] -> yi : ti
  -}
 
-consPattern γ (Rs.PatProject xe _ τ c ys i) = do
+consPattern γ (Rs.PatProject xe _ τ c ys i) _ = do
   let yi = ys !! i
   t    <- (addW . WfC γ) <<= freshTy_type ProjectE (Var yi) τ
   γ'   <- caseEnv γ xe [] (DataAlt c) ys (Just [i])
@@ -983,12 +996,16 @@ consPattern γ (Rs.PatProject xe _ τ c ys i) = do
   addC (SubC γ' ti t) "consPattern:project"
   return t
 
-consPattern γ (Rs.PatSelfBind _ e) =
+consPattern γ (Rs.PatSelfBind _ e) _ =
   consE γ e
 
-consPattern γ p@(Rs.PatSelfRecBind {}) =
+consPattern γ p@(Rs.PatSelfRecBind {}) _ =
   cconsFreshE LetE γ (Rs.lower p)
 
+mkRAppTy :: SpecType -> SpecType -> SpecType -> SpecType 
+mkRAppTy mt et (RAppTy _ _ _)    = RAppTy mt et mempty 
+mkRAppTy _  et (RApp c [_] [] _) = RApp c [et] [] mempty 
+mkRAppTy _  _  _                 = panic Nothing $ "Unexpected return-pattern" 
 
 checkMonad :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkMonad x g = go . unRRTy
@@ -1128,6 +1145,16 @@ cconsCase γ x t acs (ac, ys, ce)
   = do cγ <- caseEnv γ x acs ac ys mempty
        cconsE cγ ce t
 
+{- 
+
+case x :: List b of 
+  Emp -> e 
+
+  Emp :: tdc          forall a. {v: List a | cons v === 0} 
+  x   :: xt           List b 
+  ys  == binders      [] 
+
+-}
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> Maybe [Int] -> CG CGEnv
 -------------------------------------------------------------------------------------
@@ -1135,7 +1162,7 @@ caseEnv γ x _   (DataAlt c) ys pIs
   = do let (x' : ys')    = F.symbol <$> (x:ys)
        xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
        let xt            = shiftVV xt0 x'
-       tdc              <- γ ??= ({- F.symbol -} dataConWorkId c) >>= refreshVV
+       tdc              <- γ ??= (dataConWorkId c) >>= refreshVV
        let (rtd,yts', _) = unfoldR tdc xt ys
        yts              <- projectTypes pIs yts'
        let r1            = dataConReft   c   ys''
@@ -1171,45 +1198,45 @@ projectTypes (Just is) ts = mapM (projT is) (zip [0..] ts)
 altReft :: CGEnv -> [AltCon] -> AltCon -> F.Reft
 altReft _ _ (LitAlt l)   = literalFReft l
 altReft γ acs DEFAULT    = mconcat ([notLiteralReft l | LitAlt l <- acs] ++ [notDataConReft d | DataAlt d <- acs])
-  where 
+  where
     notLiteralReft   = maybe mempty F.notExprReft . snd . literalConst (emb γ)
-    notDataConReft d | exactDC (getConfig γ) 
+    notDataConReft d | exactDC (getConfig γ)
                      = F.Reft (F.vv_, F.PNot (F.EApp (F.EVar $ makeDataConChecker d) (F.EVar F.vv_)))
                      | otherwise = mempty
 altReft _ _ _        = panic Nothing "Constraint : altReft"
 
-unfoldR :: SpecType
-        -> SpecType
-        -> [Var]
-        -> (SpecType, [SpecType], SpecType)
+unfoldR :: SpecType -> SpecType -> [Var] -> (SpecType, [SpecType], SpecType)
 unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
-        tbody              = instantiatePvs (instantiateTys (F.notracepp "UNFOLDR-1" td) ts) $ reverse rs
-        -- TODO: if we ever want to support applying implicits explcitly, will need to rejigger
-        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow $ instantiateTys tbody tvs'
-        yts''              = F.notracepp "UNFOLDR-0" $ zipWith F.subst sus (yts'++[rt])
+        tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
+        -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
+        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs') 
+        yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
         sus                = F.mkSubst <$> (L.inits [(x, F.EVar y) | (x, y) <- zip ys0 ys'])
         (αs, ys')          = mapSnd (F.symbol <$>) $ L.partition isTyVar ys
+        tvs' :: [SpecType]
         tvs'               = rVar <$> αs
         tvys               = ofType . varType <$> αs
 
 unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 
-instantiateTys :: (Foldable t)
-               => SpecType -> t (SpecType) -> SpecType
+instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
-  where go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
-        go _ _               = panic Nothing "Constraint.instanctiateTy"
+  where 
+    go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
+    go _ _               = panic Nothing "Constraint.instantiateTy"
 
-instantiatePvs :: Foldable t => SpecType -> t SpecProp -> SpecType
-instantiatePvs = L.foldl' go
-  where go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
-        go _ _               = panic Nothing "Constraint.instanctiatePv"
+instantiatePvs :: SpecType -> [SpecProp] -> SpecType
+instantiatePvs           = L.foldl' go
+  where 
+    go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
+    go _ _               = errorP "" {- panic Nothing -} "Constraint.instantiatePvs"
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkTyCon _ _ t@(RApp _ _ _ _) = t
-checkTyCon x g t              = checkErr x g t
+checkTyCon x g t                = checkErr x g t
 
 checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkFun _ _ t@(RFun _ _ _ _) = t

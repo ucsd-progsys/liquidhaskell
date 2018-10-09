@@ -1,3 +1,5 @@
+-- TAG: localbinds (xorgs)
+
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
 
@@ -37,21 +39,21 @@ fulcrum xs = argMin (fv xs) (fulcrums xs)
 
 {-@ type FvMap Xs N = {m: GMap Int (fv Xs) | size m = N} @-}
 
-{-@ fulcrums :: xs:ListNE Int -> FvMap xs (len xs) @-}
-fulcrums xs             = go 0 0 xs Emp 
+{-@ fulcrums :: xorgs:ListNE Int -> FvMap xorgs (len xorgs) @-}
+fulcrums xorgs          = go 0 0 xorgs Emp 
   where 
-    total               = sum xs
-    {-@ go :: i:_ -> {pre:_ | pre == sum (take i xs)} -> ys:{ys == drop i xs} 
-           -> FvMap xs i 
-           -> FvMap {xs} {i + len ys} / [len ys] 
+    total               = sum xorgs
+    {-@ go :: i:_ -> {pre:_ | pre == sum (take i xorgs)} -> ys:{ys == drop i xorgs} 
+           -> FvMap xorgs i 
+           -> FvMap {xorgs} {i + len ys} / [len ys] 
       @-} 
     go _ _   [] m = m 
     go i pre ys m = go (i + 1) pre' ys' m' 
       where
         m'        = Bind i fvi m
-        fvi       = fv' xs total i pre
-        ys'       = tail ys         `withProof` thmDrop    xs i ys
-        pre'      = (pre + head ys) `withProof` thmSumTake xs i ys
+        fvi       = fv' xorgs total i pre
+        ys'       = tail ys         `withProof` thmDrop    xorgs i ys
+        pre'      = (pre + head ys) `withProof` thmSumTake xorgs i ys
 
 {-@ fv' :: xs:_ -> total:{total = sum xs} -> i:Nat -> pre:{pre = sum (take i xs)} 
         -> {v:_ | v = fv xs i} 

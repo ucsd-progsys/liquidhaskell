@@ -8,7 +8,7 @@ import Control.Monad.State
 import Control.Arrow (first)
 import System.FilePath
 
-import           Control.Exception     (catch, IOException)
+import qualified Control.Exception     as Ex --(evaluate, catch, IOException)
 import qualified Data.HashSet          as S
 import qualified Data.HashMap.Strict   as M
 import qualified Data.List             as L
@@ -19,7 +19,7 @@ import           Data.Time
 import           Data.Function (on)
 import qualified Data.ByteString       as B
 import           Data.ByteString.Char8 (pack, unpack)
-import           Text.PrettyPrint.HughesPJ ((<>), char, Doc)
+import qualified Text.PrettyPrint.HughesPJ as PJ -- (char, Doc)
 import           Text.Printf
 import           Language.Fixpoint.Misc
 import           Paths_liquidhaskell
@@ -119,6 +119,11 @@ zip4 :: [t] -> [t1] -> [t2] -> [t3] -> [(t, t1, t2, t3)]
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
 
+isIncludeFile :: FilePath -> FilePath -> Bool 
+isIncludeFile incDir src = -- do 
+  -- incDir <- getIncludeDir 
+  -- return 
+  (incDir `L.isPrefixOf` src)
 
 getIncludeDir :: IO FilePath
 getIncludeDir      = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")
@@ -161,7 +166,14 @@ zipWithDefM :: Monad m => (a -> a -> m a) -> [a] -> [a] -> m [a]
 zipWithDefM _ []     []     = return []
 zipWithDefM _ xs     []     = return xs
 zipWithDefM _ []     ys     = return ys
-zipWithDefM f (x:xs) (y:ys) = liftM2 (:) (f x y) (zipWithDefM f xs ys)
+zipWithDefM f (x:xs) (y:ys) = (:) <$> f x y <*> zipWithDefM f xs ys
+
+zipWithDef :: (a -> a -> a) -> [a] -> [a] -> [a]
+zipWithDef _ []     []     = []
+zipWithDef _ xs     []     = xs
+zipWithDef _ []     ys     = ys
+zipWithDef f (x:xs) (y:ys) = f x y : zipWithDef f xs ys
+
 
 --------------------------------------------------------------------------------
 -- Originally part of Fixpoint's Misc:
@@ -182,14 +194,35 @@ mapThd3 f (x, y, z) = (x, y, f z)
 firstMaybes :: [Maybe a] -> Maybe a
 firstMaybes = listToMaybe . catMaybes
 
+fromFirstMaybes :: a -> [Maybe a] -> a
+fromFirstMaybes x = fromMaybe x . firstMaybes 
+-- fromFirstMaybes x = fromMaybe x . listToMaybe . catMaybes
+
 hashMapMapWithKey   :: (k -> v1 -> v2) -> M.HashMap k v1 -> M.HashMap k v2
 hashMapMapWithKey f = fromJust . M.traverseWithKey (\k v -> Just (f k v))
 
-hashMapMapKeys      :: (Eq k, Hashable k) => (t -> k) -> M.HashMap t v -> M.HashMap k v
-hashMapMapKeys f    = M.fromList . fmap (first f) . M.toList
+hashMapMapKeys   :: (Eq k2, Hashable k2) => (k1 -> k2) -> M.HashMap k1 v -> M.HashMap k2 v
+hashMapMapKeys f = M.fromList . fmap (first f) . M.toList
 
-concatMapM :: (Monad f, Traversable t) => (a1 -> f [a]) -> t a1 -> f [a]
+concatMapM :: (Monad m, Traversable t) => (a -> m [b]) -> t a -> m [b]
 concatMapM f = fmap concat . mapM f
+
+replaceSubset :: (Eq k, Hashable k) => [(k, a)] -> [(k, a)] -> [(k, a)]
+replaceSubset kvs kvs' = M.toList (L.foldl' upd m0 kvs')
+  where 
+    m0                = M.fromList kvs 
+    upd m (k, v') 
+      | M.member k m  = M.insert k v' m 
+      | otherwise     = m 
+
+replaceWith :: (Eq a, Hashable a) => (b -> a) -> [b] -> [b] -> [b]
+replaceWith f xs ys = snd <$> replaceSubset xs' ys' 
+  where 
+    xs'             = [ (f x, x) | x <- xs ] 
+    ys'             = [ (f y, y) | y <- ys ] 
+
+
+
 
 firstElems ::  [(B.ByteString, B.ByteString)] -> B.ByteString -> Maybe (Int, B.ByteString, (B.ByteString, B.ByteString))
 firstElems seps str
@@ -227,17 +260,21 @@ sortDiff x1s x2s             = go (sortNub x1s) (sortNub x2s)
     go xs []                 = xs
     go [] _                  = []
 
-angleBrackets :: Doc -> Doc
-angleBrackets p    = char '<' <> p <> char '>'
+(<->) :: PJ.Doc -> PJ.Doc -> PJ.Doc
+x <-> y = x PJ.<> y
+
+angleBrackets :: PJ.Doc -> PJ.Doc
+angleBrackets p = PJ.char '<' <-> p <-> PJ.char '>'
 
 mkGraph :: (Eq a, Eq b, Hashable a, Hashable b) => [(a, b)] -> M.HashMap a (S.HashSet b)
 mkGraph = fmap S.fromList . group
 
 tryIgnore :: String -> IO () -> IO ()
-tryIgnore s a = catch a $ \e ->
-                do let err = show (e :: IOException)
-                   writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
-                   return ()
+tryIgnore s a = 
+  Ex.catch a $ \e -> do
+    let err = show (e :: Ex.IOException)
+    writeLoud ("Warning: Couldn't do " ++ s ++ ": " ++ err)
+    return ()
 
 
 condNull :: Bool -> [a] -> [a]
@@ -294,6 +331,11 @@ fstByRank rkvs = [ (r, k, v) | (k, rvs) <- krvss, let (r, v) = getFst rvs ]
 sortOn :: (Ord b) => (a -> b) -> [a] -> [a]
 sortOn f = L.sortBy (compare `on` f)
 
+firstGroup :: (Eq k, Ord k, Hashable k) => [(k, a)] -> [a] 
+firstGroup kvs = case groupList kvs of 
+  []   -> [] 
+  kvss -> snd . head . sortOn fst $ kvss 
+
 {- mapEither :: (a -> Either b c) -> [a] -> ([b], [c])
 mapEither f []     = ([], [])
 mapEither f (x:xs) = case f x of 
@@ -308,3 +350,12 @@ keyDiff f x1s x2s = M.elems (M.difference (m x1s) (m x2s))
   where 
     m xs          = M.fromList [(f x, x) | x <- xs] 
 
+concatUnzip :: [([a], [b])] -> ([a], [b])
+concatUnzip xsyss = (concatMap fst xsyss, concatMap snd xsyss)
+
+
+sayReadFile :: FilePath -> IO String 
+sayReadFile f = do 
+  -- print ("SAY-READ-FILE: " ++ f)
+  res <- readFile f 
+  Ex.evaluate res

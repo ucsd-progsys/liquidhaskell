@@ -3,9 +3,9 @@
 
 module MonoidMaybe where
 
-import Prelude hiding (Maybe(..), mappend, mempty)
+import Prelude hiding (mappend, mempty)
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- | Monoid
 -- | mempty-left ∀ x . mappend mempty  x ≡ x
@@ -13,12 +13,12 @@ import Language.Haskell.Liquid.ProofCombinators
 -- | mappend-assoc ∀ x y z . mappend (mappend x  y) z ≡ mappend x (mappend y z)
 
 
-{-@ axiomatize mempty @-}
+{-@ reflect mempty @-}
 mempty :: Maybe a
 mempty = Nothing
 
 
-{-@ axiomatize mappend @-}
+{-@ reflect mappend @-}
 mappend :: Maybe a -> Maybe a -> Maybe a
 mappend Nothing y
   = y
@@ -47,5 +47,3 @@ mappend_assoc Nothing (Just y) z
 mappend_assoc Nothing Nothing z
   =   trivial
 
-data Maybe a = Nothing | Just a
-{-@ data Maybe a = Nothing | Just a @-}

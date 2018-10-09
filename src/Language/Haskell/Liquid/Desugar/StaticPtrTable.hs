@@ -42,6 +42,8 @@
 --
 module Language.Haskell.Liquid.Desugar.StaticPtrTable (sptInitCode) where
 
+import Prelude hiding ((<>))
+
 import CoreSyn
 import Module
 import Outputable

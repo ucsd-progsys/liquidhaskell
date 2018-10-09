@@ -1,45 +1,3 @@
-{-
-
-This code implements a Monoid for string matching; i.e. a data
-structure, MatchIdxs, which has the result of a string match function
-plus a little extra information for monoidally combining things
-together; the purpose of course is to parallelize string matching
-computations. This is the original version I wrote which uses type
-level strings to guarantee that only computations done with the same
-target string are combinable.
-
-The invariants I'd like to prove are in the comments on the MatchIdxs
-constructors. I'd be interested in a way to do it directly with this
-code (though it seems that would require extending LH), or doing it in
-a version of this code where the constructors have an extra argument
-with the value of the target-- however that formulation seems to raise
-issues about forcing those values to be the same.
-
-I have a version of the code lying around which tries this approach,
-but I couldn't get it to work. I chose to send this version first so
-you have the chance to see where I started; I could send you my version
-with the explicit terms if you like.
-
-If this goes well, then there are a couple of further things to think
-about:
-
-  1) I have another Monoid construction for actual splitting, but
-     I don't think LH can handle the invariants as they require an
-     isInfixOf operation; but I could be wrong about what LH can do.
-
-  2) It would be interesting to think about whether one can encode
-     correctness, rather than just some invariants. By correctness
-     I mean both that the monoid laws are satisfied, and that there
-     is a homomorphic-like property to the effect of:
-
-     match (x <> y) == match x <> match y
-
-Let me know if you have any questions about the code, or need more
-comments/explanation.
--}
-
-
-{- LIQUID "--diff" @-}
 {-@ LIQUID "--scrape-used-imports" @-}
 {-@ LIQUID "--short-names" @-}
 
@@ -182,7 +140,7 @@ myIndices alg t bs
 {-@ assume BS.append  :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
 {-@ assume BS.null    :: b:BS.ByteString -> {v:Bool | v <=> (bLength b == 0)} @-}
 {-@ assume BS.splitAt :: n:Nat -> b:BS.ByteString -> (ByteStringN {min n (bLength b)}, ByteStringN {max 0 (bLength b - n)}) @-}
-{-@ assume BS.head    :: BS.ByteString -> Data.Word.Word8 @-}
+{-@ assume BS.head    :: BS.ByteString -> _ @-}
 
 {-@ measure target @-}
 target :: MatchIdxs -> BS.ByteString

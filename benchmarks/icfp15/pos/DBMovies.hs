@@ -9,6 +9,7 @@ import Prelude hiding (product, elem)
 
 import Control.Applicative ((<$>))
 
+import qualified Data.Set as Set -- TODO-REBARE: This is to resolve the specs in 'Database'
 
 type Tag = String
 

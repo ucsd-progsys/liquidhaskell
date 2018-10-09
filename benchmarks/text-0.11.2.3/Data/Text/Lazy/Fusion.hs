@@ -1,6 +1,5 @@
-{- LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--trust-sizes" @-}
+{- LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE BangPatterns #-}
 -- |
@@ -43,6 +42,7 @@ import Data.Int (Int64)
 
 --LIQUID
 import Language.Haskell.Liquid.Prelude
+import qualified Data.Text as TODO_REBARE 
 
 default(Int64)
 

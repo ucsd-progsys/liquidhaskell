@@ -9,9 +9,8 @@ module Language.Haskell.Liquid.Types.Strata (
 
 import Prelude hiding (error)
 
-
 import Language.Fixpoint.Types (Symbol)
-import Language.Haskell.Liquid.Types hiding (Def, Loc)
+import Language.Haskell.Liquid.Types.Types hiding (Def, Loc)
 
 (<:=) :: (Foldable t, Foldable t1) => t Stratum -> t1 Stratum -> Bool
 s1 <:= s2

@@ -119,7 +119,6 @@ data IOArr a = IOA { size :: Int
             }
   @-}
 
-
 {-@ newIO :: forall <p :: Int -> a -> Bool>.
                n:Nat -> (i:Upto n -> a<p i>) -> IO ({v: IOArr<p> a | size v = n})
   @-}

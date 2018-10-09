@@ -1,4 +1,15 @@
-### CallStack/Error
+# TODO
+
+- [] Fix termination tests in fail.txt 
+- [] Fix resolve     tests in fail.txt 
+- [] Fix eq-repr     tests in fail.txt 
+- [] Remove trace 
+- [] Remove warnings 
+- [] fix circle
+- [] merge PR
+
+
+## CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
 apparently even without cutvars being generated, this is
@@ -32,10 +43,6 @@ TODO
 
 Prune Unsorted Refs
 -------------------
-
-* mergeDataConTypes
-* makeMeasureSpec'
-* meetDataConSpec
 
 The below gives a nice SORT error
 
@@ -1237,3 +1244,4 @@ GHC 7.10
 
 - termination metrics are required in a few places where they were not previously
   - my guess is that ghc's behaviour for grouping functions in a `Rec` binder have changed
+

@@ -1,23 +1,16 @@
 {-# LANGUAGE FlexibleContexts         #-}
 
-module Language.Haskell.Liquid.Bare.Misc (
-    makeSymbols
-  , freeSymbols
+module Language.Haskell.Liquid.Bare.Misc 
+  ( freeSymbols
   , joinVar
   , mkVarExpr
-  -- , MapTyVarST(..)
   , vmap
-  , initMapSt
   , runMapTyVars
-  , mapTyVars
   , matchKindArgs
   , symbolRTyVar
   , simpleSymbolVar
   , hasBoolResult
-  , symbolMeasure
   , isKind
-  , makeDataConChecker
-  , makeDataConSelector
   ) where
 
 import           Name
@@ -30,63 +23,28 @@ import           Kind                                  (isStarKind)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
-import           DataCon
+-- import           DataCon
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
 
+import qualified Text.PrettyPrint.HughesPJ             as PJ 
 import qualified Data.List                             as L
 import qualified Data.HashMap.Strict                   as M
-import           Language.Fixpoint.Misc                (singleton, sortNub)
+import           Language.Fixpoint.Misc                as Misc -- (singleton, sortNub)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
+import           Language.Haskell.Liquid.Types.Types
 
---------------------------------------------------------------------------------
--- | 'makeDataConChecker d' creates the measure for `is$d` which tests whether
---   a given value was created by 'd'. e.g. is$Nil or is$Cons.
---------------------------------------------------------------------------------
-makeDataConChecker :: DataCon -> F.Symbol
---------------------------------------------------------------------------------
-makeDataConChecker d
-  = F.testSymbol (F.symbol d)
+-- import           Language.Haskell.Liquid.Bare.Env
 
---------------------------------------------------------------------------------
--- | 'makeDataConSelector d' creates the selector `select$d$i`
---   which projects the i-th field of a constructed value.
---   e.g. `select$Cons$1` and `select$Cons$2` are respectively
---   equivalent to `head` and `tail`.
---------------------------------------------------------------------------------
-makeDataConSelector :: Maybe DataConMap -> DataCon -> Int -> F.Symbol
-makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
-  where 
-    dm                       = Mb.fromMaybe M.empty dmMb 
-    def                      = makeDataConSelector' d i
+-- import           Language.Haskell.Liquid.WiredIn       (dcPrefix)
 
- {- 
-  case mbDm of
-  Nothing -> def
-  Just dm -> M.lookupDefault def (F.symbol d, i) dm
-  where
- -} 
-
-makeDataConSelector' :: DataCon -> Int -> F.Symbol
-makeDataConSelector' d i
-  = symbolMeasure "$select" (dcSymbol d) (Just i)
-
-dcSymbol :: DataCon -> F.Symbol
-dcSymbol = {- simpleSymbolVar -} F.symbol . dataConWorkId
-
-symbolMeasure :: String -> F.Symbol -> Maybe Int -> F.Symbol
-symbolMeasure f d iMb = foldr1 F.suffixSymbol (dcPrefix : F.symbol f : d : rest)
-  where
-    rest          = maybe [] (singleton . F.symbol . show) iMb
 
 -- TODO: This is where unsorted stuff is for now. Find proper places for what follows.
 
+{- 
 -- WTF does this function do?
 makeSymbols :: (Id -> Bool) -> [Id] -> [F.Symbol] -> BareM [(F.Symbol, Var)]
 makeSymbols f vs xs
@@ -99,13 +57,15 @@ makeSymbols f vs xs
       hasBasicArgs (FunTy tx t)   = isBaseTy tx && hasBasicArgs t
       hasBasicArgs _              = True
 
+-} 
+
 freeSymbols :: (F.Reftable r, F.Reftable r1, F.Reftable r2, TyConable c, TyConable c1, TyConable c2)
             => [F.Symbol]
             -> [(a1, Located (RType c2 tv2 r2))]
             -> [(a, Located (RType c1 tv1 r1))]
             -> [(Located (RType c tv r))]
             -> [LocSymbol]
-freeSymbols xs' xts yts ivs =  [ lx | lx <- sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
+freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , not (M.member (val lx) knownM) ]
   where
     knownM                  = M.fromList [ (x, ()) | x <- xs' ]
     zs                      = concatMap freeSyms (snd <$> xts)
@@ -117,26 +77,20 @@ freeSymbols xs' xts yts ivs =  [ lx | lx <- sortNub $ zs ++ zs' ++ zs'' , not (M
 freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
 freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
   where
-    tySyms     = sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
+    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 
 -------------------------------------------------------------------------------
 -- Renaming Type Variables in Haskell Signatures ------------------------------
 -------------------------------------------------------------------------------
+runMapTyVars :: Type -> SpecType -> (PJ.Doc -> PJ.Doc -> Error) -> Either Error MapTyVarST
+runMapTyVars τ t err = execStateT (mapTyVars τ t) (MTVST [] err) 
 
 data MapTyVarST = MTVST
   { vmap   :: [(Var, RTyVar)]
-  , errmsg :: Error
+  , errmsg :: PJ.Doc -> PJ.Doc -> Error
   }
-
-initMapSt :: Error -> MapTyVarST
-initMapSt = MTVST []
-
--- TODO: Maybe don't expose this; instead, roll this in with mapTyVar and export a
---       single "clean" function as the API.
-runMapTyVars :: StateT MapTyVarST (Either Error) () -> MapTyVarST -> Either Error MapTyVarST
-runMapTyVars = execStateT
 
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars t (RImpF _ _ t' _)
@@ -172,8 +126,9 @@ mapTyVars k _ | isKind k
   = return ()
 mapTyVars (ForAllTy _ τ) t
   = mapTyVars τ t
-mapTyVars _ _
-  = throwError =<< errmsg <$> get
+mapTyVars hsT lqT
+  = do err <- errmsg <$> get
+       throwError (err (F.pprint hsT) (F.pprint lqT)) 
 
 isKind :: Kind -> Bool
 isKind k = isStarKind k --  typeKind k
@@ -184,7 +139,7 @@ mapTyRVar :: MonadError Error m
 mapTyRVar α a s@(MTVST αas err)
   = case lookup α αas of
       Just a' | a == a'   -> return s
-              | otherwise -> throwError err
+              | otherwise -> throwError (err (F.pprint a) (F.pprint a'))
       Nothing             -> return $ MTVST ((α,a):αas) err
 
 matchKindArgs' :: [Type] -> [SpecType] -> [SpecType]

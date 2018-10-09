@@ -29,7 +29,6 @@ insert key value ((k,_):kvs)
 insert key value (kv:kvs)
   = kv : insert key value kvs  
 
-{-@ decrease findWithDefault 3 @-}
 findWithDefault r _ ([]) 
   = r
 findWithDefault r k ((key,value):_) 

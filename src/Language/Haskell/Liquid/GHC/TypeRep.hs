@@ -38,8 +38,6 @@ mkTyArg v = TvBndr v Required
 instance Eq Type where
   t1 == t2 = eqType' t1 t2
 
-
-
 eqType' :: Type -> Type -> Bool 
 eqType' (LitTy l1) (LitTy l2) 
   = l1 == l2  
@@ -161,7 +159,8 @@ substCoercion x tx (KindCo c)
   = KindCo (subst x tx c)
 substCoercion x tx (SubCo c)
   = SubCo (subst x tx c)
-
+substCoercion _ _ (HoleCo _)
+  = error "substCoercion: TODO handle HoleCo"
 
 instance SubstTy Role where
 instance SubstTy (CoAxiom Branched) where

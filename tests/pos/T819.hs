@@ -1,10 +1,9 @@
-{-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--exactdc"     @-}
+{-@ LIQUID "--reflection" @-}
+
 module Data.Foo where
 
-
-import Language.Haskell.Liquid.ProofCombinators
-
+import Language.Haskell.Liquid.NewProofCombinators
+import Prelude hiding ((<>))
 
 data L a = N 
 {-@ infixl 9 <> @-}
@@ -12,7 +11,7 @@ data L a = N
 
 {-@ foo :: xs:L a -> {xs <> N == N } @-}
 foo :: L a -> Proof
-foo N = N <> N ==. N *** QED 
+foo N = N <> N === N *** QED 
 
 
 {-@ reflect <> @-}
@@ -30,5 +29,5 @@ n +++ m = n
 
 {-@ lemma :: { v:() | Zero +++ Zero == Zero } @-}
 lemma :: ()
-lemma = Zero +++ Zero ==. Zero *** QED
+lemma = Zero +++ Zero === Zero *** QED
 

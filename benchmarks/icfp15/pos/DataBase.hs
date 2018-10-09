@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "totality"         @-}
+
 module DataBase  (
 
   Table, Dict(..), (+=), P(..), values, empty,
@@ -9,8 +12,6 @@ module DataBase  (
 
 import qualified Data.Set as Set
 import Prelude hiding (product, union, filter, elem)
-{-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "totality" @-}
 
 type Table t v = [Dict t v]
 
@@ -170,9 +171,9 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 
 
-data P k v = k := v
+data P k v = (:=) { kkey :: k, kval :: v }
 {-@ data P k v <range :: k -> v -> Bool>
-  = (:=) (kkey :: k) (kval :: v<range kkey>)
+  = (:=) { kkey :: k, kval :: v<range kkey> }
   @-}
 infixr 3 +=
 
@@ -181,7 +182,6 @@ infixr 3 +=
            -> x:Dict <range> key val
            -> {v:Dict <range> key val | (listElts (ddom v)) = (Set_cup (listElts (ddom x)) (Set_sng (kkey pp)))} @-}
 (+=) :: Eq key => P key val -> Dict key val -> Dict key val
-
 (t := v) += c = extend t v c
 
 
@@ -206,7 +206,7 @@ ensuredomain _ _                  = liquidError "ensuredomain on empty list"
 (x:xs) \\ ys = if x `elem` ys then xs \\ ys else x:(xs \\ ys)
 
 
-{-@ assume (Prelude.++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
+{-@ assume (++) :: xs:[a] -> ys:[a] -> {v:[a] | listElts v = Set_cup (listElts xs) (listElts ys)} @-}
 
 {-@ assume elem :: x:a -> xs:[a] -> {v:Bool | v <=> Set_mem x (listElts xs)} @-}
 elem :: a -> [a] -> Bool

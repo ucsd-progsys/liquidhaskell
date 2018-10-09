@@ -7,7 +7,7 @@ https://github.com/clojure/clojure/blob/d5708425995e8c83157ad49007ec2f8f43d8eac8
 
 module PVec (height, arrayFor) where
 
-import Language.Haskell.Liquid.Prelude (liquidAssume)
+import qualified Language.Haskell.Liquid.Prelude as Gas
 import qualified Data.Vector as V
 
 import Data.Bits
@@ -23,6 +23,7 @@ data Tree a = Leaf a
 -- | Specify "height" of a tree
 
 {-@ measure height @-}
+{-@ height :: Tree a -> Nat @-}
 height :: Tree a -> Int
 height (Leaf _)    = 0
 height (Node h ls) = 1 + h
@@ -42,10 +43,6 @@ height (Node h ls) = 1 + h
 -- | TreeH is a tree of given height H
 
 {-@ type TreeH     a H = {v:Tree a | height v = H}       @-}
-
--- | Specify tree height is non-negative
-
-{-@ using (Tree a) as  {v:Tree a   | 0 <= height v} @-}
 
 -- | Nodes and Leaves are simply trees with non-zero and zero heights resp.
 
@@ -70,25 +67,24 @@ data Vec a = Vec { vShift  :: Int    -- ^ height
 --------------------------------------------------------------------------------
 
 arrayFor :: Int -> Vec a -> Maybe a
-arrayFor i (Vec l n) = loop l n
-  where
+arrayFor i (Vec l n) = loop i l n
 
-    {-@ loop :: level:Int -> TreeLevel a level -> Maybe a @-}
-    loop :: Int -> Tree a -> Maybe a
-    loop level node
+{-@ loop :: i:Int -> level:Int -> TreeLevel a level -> Maybe a @-}
+loop :: Int -> Int -> Tree a -> Maybe a
+loop i level node
       | level > 0 = let b      = shift i (- level) `mask` 31  -- get child index
                         node'  = getNode node b               -- get child
                         level' = level - 5                    -- next level
                     in
-                        loop level' node'
+                        loop i level' node'
 
       | otherwise = Just (getValue node)
 
 -- TODO: refine types of bit-ops, currently use an "assume"
 
-{-@ mask :: x:Int -> y:Nat -> {v:Nat | v <= y}@-}
+{-@ mask :: x:Int -> y:Nat -> {v:Nat | v <= y} @-}
 mask :: Int -> Int -> Int
-mask x y = liquidAssume (0 <= r && r <= y) r
+mask x y = Gas.liquidAssume (0 <= r && r <= y) r
   where
      r   = x .&. y
 

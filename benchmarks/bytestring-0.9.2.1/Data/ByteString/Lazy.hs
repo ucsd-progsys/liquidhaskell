@@ -245,6 +245,7 @@ import Data.Int
 import Data.Word                (Word, Word8, Word16, Word32, Word64)
 import Foreign.ForeignPtr       (ForeignPtr)
 
+
 {-@ measure sumLens :: [[a]] -> Int
     sumLens ([])   = 0
     sumLens (x:xs) = len x + (sumLens xs)
@@ -261,30 +262,30 @@ import Foreign.ForeignPtr       (ForeignPtr)
         lbLength(v) = lbLengths(bs) + lbLength(b)
   @-}
 
-{-@ qualif ByteStringNE(v:S.ByteString): (bLength v) > 0 @-}
-{-@ qualif BLengthsAcc(v:List S.ByteString,
-                       c:S.ByteString,
-                       cs:List S.ByteString):
+{-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
+{-@ qualif BLengthsAcc(v:List Data.ByteString.Internal.ByteString,
+                       c:Data.ByteString.Internal.ByteString,
+                       cs:List Data.ByteString.Internal.ByteString):
         (bLengths v) = (bLength c) + (bLengths cs)
   @-}
 
-{-@ qualif BLengthsSum(v:List (List a), bs:List S.ByteString):
+{-@ qualif BLengthsSum(v:List (List a), bs:List Data.ByteString.Internal.ByteString):
        (sumLens v) = (bLengths bs)
   @-}
 
-{-@ qualif BLenLE(v:S.ByteString, n:int): (bLength v) <= n @-}
-{-@ qualif BLenEq(v:S.ByteString,
-                  b:S.ByteString):
+{-@ qualif BLenLE(v:Data.ByteString.Internal.ByteString, n:int): (bLength v) <= n @-}
+{-@ qualif BLenEq(v:Data.ByteString.Internal.ByteString,
+                  b:Data.ByteString.Internal.ByteString):
        (bLength v) = (bLength b)
   @-}
 
 {-@ qualif BLenAcc(v:int,
-                   b1:S.ByteString,
-                   b2:S.ByteString):
+                   b1:Data.ByteString.Internal.ByteString,
+                   b2:Data.ByteString.Internal.ByteString):
        v = (bLength b1) + (bLength b2)
   @-}
 {-@ qualif BLenAcc(v:int,
-                   b:S.ByteString,
+                   b:Data.ByteString.Internal.ByteString,
                    n:int):
        v = (bLength b) + n
   @-}
@@ -310,34 +311,34 @@ import Foreign.ForeignPtr       (ForeignPtr)
   @-}
 
 {-@ qualif Chunk(v:ByteString,
-                 sb:S.ByteString,
+                 sb:Data.ByteString.Internal.ByteString,
                  lb:ByteString):
        (lbLength v) = (bLength sb) + (lbLength lb)
   @-}
 
 --LIQUID for the myriad `comb` inner functions
 {-@ qualif LBComb(v:List ByteString,
-                  acc:List S.ByteString,
-                  ss:List S.ByteString,
+                  acc:List Data.ByteString.Internal.ByteString,
+                  ss:List Data.ByteString.Internal.ByteString,
                   cs:ByteString):
         ((lbLengths v) + (len v) - 1) = ((bLengths acc) + ((bLengths ss) + (len ss) - 1) + (lbLength cs))
   @-}
 
 {-@ qualif LBGroup(v:List ByteString,
-                   acc:List S.ByteString,
-                   ss:List S.ByteString,
+                   acc:List Data.ByteString.Internal.ByteString,
+                   ss:List Data.ByteString.Internal.ByteString,
                    cs:ByteString):
         (lbLengths v) = ((bLengths acc) + (bLengths ss) + (lbLength cs))
   @-}
 
 {-@ qualif LBLenIntersperse(v:ByteString,
-                            sb:S.ByteString,
+                            sb:Data.ByteString.Internal.ByteString,
                             lb:ByteString):
         (lbLength v) = ((bLength sb) * 2) + (lbLength lb)
  @-}
 
-{-@ qualif BLenDouble(v:S.ByteString,
-                      b:S.ByteString):
+{-@ qualif BLenDouble(v:Data.ByteString.Internal.ByteString,
+                      b:Data.ByteString.Internal.ByteString):
         (bLength v) = (bLength b) * 2
  @-}
 
@@ -348,7 +349,7 @@ import Foreign.ForeignPtr       (ForeignPtr)
 
 {-@ qualif RevChunksAcc(v:ByteString,
                         acc:ByteString,
-                        cs:List S.ByteString):
+                        cs:List Data.ByteString.Internal.ByteString):
         (lbLength v) = (lbLength acc) + (bLengths cs)
   @-}
 
@@ -358,7 +359,7 @@ import Foreign.ForeignPtr       (ForeignPtr)
         (lbLength v) = (lbLength z) + (sumLens cs)
   @-}
 {-@ qualif LBCountAcc(v:int,
-                     c:S.ByteString,
+                     c:Data.ByteString.Internal.ByteString,
                      cs:ByteString):
        v <= (bLength c) + (lbLength cs)
   @-}
@@ -383,10 +384,13 @@ instance Eq  ByteString
 instance Ord ByteString
     where compare = cmp
 
+instance Semigroup ByteString where   -- REBARE 
+  x <> y = append x y                 -- REBARE
+
 instance Monoid ByteString where
     mempty  = empty
-    mappend = append
-    mconcat = concat
+    -- REBARE mappend = append
+    -- REBARE mconcat = concat
 
 {-@ eq :: ByteString -> ByteString -> Bool @-}
 eq :: ByteString -> ByteString -> Bool
@@ -448,7 +452,7 @@ pack ws = go Empty (chunks defaultChunkSize ws)
 
 -- | /O(n)/ Converts a 'ByteString' to a '[Word8]'.
 -- TODO: disabled because type of `concat` changed between ghc 7.8 and 7.10
-{- unpack :: b:ByteString -> {v:[Word8] | (len v) = (lbLength b)} @-}
+{-@ assume unpack :: b:_ -> {v:[_] | (len v) = (lbLength b)} @-}
 unpack :: ByteString -> [Word8]
 --LIQUID INLINE unpack cs = L.concatMap S.unpack (toChunks cs)
 unpack cs = L.concat $ mapINLINE $ toChunks cs
@@ -457,14 +461,14 @@ unpack cs = L.concat $ mapINLINE $ toChunks cs
 --TODO: we can do better here by integrating the concat with the unpack
 
 -- | /O(c)/ Convert a list of strict 'ByteString' into a lazy 'ByteString'
-{-@ fromChunks :: bs:[S.ByteString] -> {v:ByteString | (lbLength v) = (bLengths bs)} @-}
+{-@ fromChunks :: bs:_ -> {v:_ | (lbLength v) = (bLengths bs)} @-}
 fromChunks :: [S.ByteString] -> ByteString
 --LIQUID INLINE fromChunks cs = L.foldr chunk Empty cs
 fromChunks []     = Empty
 fromChunks (c:cs) = chunk c (fromChunks cs)
 
 -- | /O(n)/ Convert a lazy 'ByteString' into a list of strict 'ByteString'
-{-@ toChunks :: b:ByteString -> {v:[S.ByteString] | (bLengths v) = (lbLength b)} @-}
+{-@ toChunks :: b:_ -> {v:_ | (bLengths v) = (lbLength b)} @-}
 toChunks :: ByteString -> [S.ByteString]
 --LIQUID GHOST toChunks cs = foldrChunks (:) [] cs
 toChunks cs = foldrChunks (const (:)) [] cs
@@ -586,12 +590,15 @@ last (Chunk c0 cs0) = go c0 cs0
 -- | /O(n\/c)/ Return all the elements of a 'ByteString' except the last one.
 {-@ init :: b:LByteStringNE -> {v:ByteString | (lbLength v) = ((lbLength b) - 1)} @-}
 init :: ByteString -> ByteString
-init Empty          = errorEmptyList "init"
-init (Chunk c0 cs0) = go c0 cs0
-        {-@ decrease go 2 @-}
-  where go c Empty | S.length c == 1 = Empty
-                   | otherwise       = Chunk (S.init c) Empty
-        go c (Chunk c' cs)           = Chunk c (go c' cs)
+-- init Empty          = errorEmptyList "init"
+init (Chunk c0 cs0) = goInit c0 cs0
+  
+{-@ goInit :: c:{Data.ByteString.Internal.ByteString | bLength c > 0} -> cs:ByteString -> {v:ByteString | lbLength v = bLength c + lbLength cs - 1} / [lbLength cs] @-}
+goInit :: S.ByteString -> ByteString -> ByteString
+goInit c Empty | S.length c == 1 = Empty
+            | otherwise       = Chunk (S.init c) Empty
+goInit c (Chunk c' cs)           = Chunk c (goInit c' cs)
+
 
 -- | /O(n\/c)/ Append two ByteStrings
 {-@ append :: b1:ByteString -> b2:ByteString
@@ -651,6 +658,10 @@ transpose :: [ByteString] -> [ByteString]
 transpose css = L.map (\ss -> Chunk (S.pack ss) Empty)
                       (L.transpose (L.map unpack css))
 --TODO: make this fast
+
+-- REBARE: somehow with GHC 8.4 importing Data.List actually ends up importing Data.OldList ... 
+{-@ assume Data.OldList.transpose :: [[a]] -> [{v:[a] | (len v) > 0}] @-}
+
 
 -- ---------------------------------------------------------------------
 -- Reducing 'ByteString's
@@ -1663,7 +1674,7 @@ revNonEmptyChunks cs = go Empty cs
           go acc (c:cs) = go (Chunk c acc) cs
 
 -- reverse a list of possibly-empty chunks into a lazy ByteString
-{-@ revChunks :: bs:[S.ByteString] -> {v:ByteString | (lbLength v) = (bLengths bs)} @-}
+{-@ revChunks :: bs:_ -> {v:_ | (lbLength v) = (bLengths bs)} @-}
 revChunks :: [S.ByteString] -> ByteString
 --LIQUID INLINE revChunks cs = L.foldl' (flip chunk) Empty cs
 revChunks cs = go Empty cs

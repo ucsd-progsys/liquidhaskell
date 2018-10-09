@@ -10,8 +10,9 @@
 {-# LANGUAGE ConstraintKinds       #-}
 
 module Language.Haskell.Liquid.Constraint.Fresh
-  ( module Language.Haskell.Liquid.Types.Fresh
-  , refreshArgsTop
+  ( -- module Language.Haskell.Liquid.Types.Fresh
+    -- , 
+    refreshArgsTop
   , freshTy_type
   , freshTy_expr
   , trueTy
@@ -38,8 +39,8 @@ import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.Visitor (kvars)
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Types.RefType
-import           Language.Haskell.Liquid.Types.Fresh
+-- import           Language.Haskell.Liquid.Types.RefType
+-- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
 
 --------------------------------------------------------------------------------

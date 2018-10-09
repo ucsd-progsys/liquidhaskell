@@ -113,7 +113,8 @@ data EntityField Creditcard typ where
  | Field.CreditCardHolder :: EntityField CreditCard {v:_ | True}
 @-}
 
-{-@ assume Prelude.error :: [Char] -> a @-} 
+{-@ assume error :: [Char] -> a @-} 
+
 data EntityField a b where
   CreditCardNumber :: EntityField CreditCard Int
   CreditCardHolder :: EntityField CreditCard [Char]

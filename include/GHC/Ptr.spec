@@ -1,8 +1,8 @@
 module spec GHC.Ptr where
 
-measure pbase     :: Foreign.Ptr.Ptr a -> GHC.Types.Int
-measure plen      :: Foreign.Ptr.Ptr a -> GHC.Types.Int
-measure isNullPtr :: Foreign.Ptr.Ptr a -> Bool 
+measure pbase     :: GHC.Ptr.Ptr a -> GHC.Types.Int
+measure plen      :: GHC.Ptr.Ptr a -> GHC.Types.Int
+measure isNullPtr :: GHC.Ptr.Ptr a -> Bool 
 
 invariant {v:Foreign.Ptr.Ptr a | 0 <= plen  v }
 invariant {v:Foreign.Ptr.Ptr a | 0 <= pbase v }

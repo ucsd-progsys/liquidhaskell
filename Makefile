@@ -110,5 +110,3 @@ tags:
 	# hasktags -c src/
 	# hasktags -e src/
 
-ghcid:
-	ghcid --command "stack ghci --main-is liquidhaskell:exe:liquid"

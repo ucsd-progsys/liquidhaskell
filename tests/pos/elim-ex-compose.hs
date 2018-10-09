@@ -1,3 +1,5 @@
+-- TAG: absref 
+
 module ElimExCompose (prop) where
 
 {-@ prop :: x:Nat -> {v:Int | v = x + 5} @-}

@@ -50,7 +50,7 @@ qualTwoC _ = ()
 
 {-@ predicate Room MA I C = (((One C) => (MAValidIN MA I 1))
                           && ((Two C) => (MAValidIN MA I 2))) @-}
-{-@ predicate MAValidIN  MA I N = (BtwnI I 0 ((malen MA) - N)) @-}
+{-@ predicate MAValidIN  MA I N = (BtwnI I 0 ((maLen MA) - N)) @-}
 
 {- predicate RoomFront MA I N = (BtwnI I N (malen MA)) @-}
 

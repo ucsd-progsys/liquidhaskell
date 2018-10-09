@@ -57,8 +57,7 @@ freeVars TBot = S.empty
 freeVars (TFun t1 t2) = S.union (freeVars t1) (freeVars t2)
 freeVars (TVar i)     = S.singleton i
 
-
-{-@ axiomatize apply @-}
+{-@ reflect apply @-}
 apply :: Substitution -> Term -> Term
 apply Emp t
   = t
@@ -66,7 +65,7 @@ apply (C s ss) t
   = applyOne s (apply ss t)
 
 
-{-@ axiomatize applyOne @-}
+{-@ reflect applyOne @-}
 applyOne :: (P Int Term) -> Term -> Term
 applyOne su (TFun tx t)
   = TFun (applyOne su tx) (applyOne su t)
@@ -185,7 +184,7 @@ tsize (TFun t1 t2) = 1 + (tsize t1) + (tsize t2)
 
 
 -- | List Helpers
-{-@ axiomatize append @-}
+{-@ reflect append @-}
 {-@ append :: xs:L a -> ys:L a -> {v:L a | llen v == llen xs + llen ys } @-}
 append :: L a -> L a -> L a
 append Emp ys = ys 

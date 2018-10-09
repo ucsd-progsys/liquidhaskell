@@ -55,6 +55,8 @@ import Language.Haskell.Liquid.Prelude (liquidAssert, liquidAssume)
 
 import Foreign.Storable
 
+
+
 class Radix e where
   -- | The number of passes necessary to sort an array of es
   passes  :: e -> Int
@@ -206,6 +208,8 @@ sort arr = sortBy (passes e) (size e) radix arr
  e = undefined
 {-# INLINABLE sort #-}
 
+
+
 -- | Radix sorts an array using custom radix information
 -- requires the number of passes to fully sort the array,
 -- the size of of auxiliary arrays necessary (should be
@@ -293,4 +297,3 @@ moveLoop k src dst prefix rdx = go len 0
                      go (twit-1) (i+1)
    | otherwise  = return ()
 {-# INLINE moveLoop #-}
-

@@ -250,6 +250,8 @@ import GHC.Prim (Addr#)
 -- import qualified Data.Text.Search
 -- import qualified Data.Text.Unsafe
 import Language.Haskell.Liquid.Prelude
+import qualified Data.Text.Array       as TODO_REBARE
+import qualified Data.Text.Fusion.Size as TODO_REBARE
 
 {-@ qualif LTLenDiff(v:Text,
                      t:Text,
@@ -432,25 +434,25 @@ singleton c = Chunk (T.singleton c) Empty
   #-}
 
 -- | /O(c)/ Convert a list of strict 'T.Text's into a lazy 'Text'.
-{-@ fromChunks :: ts:[T.Text] -> {v:Text | (ltlength v) = (sum_tlengths ts)} @-}
+{-@ fromChunks :: ts:[_] -> {v:Text | (ltlength v) = (sum_tlengths ts)} @-}
 fromChunks :: [T.Text] -> Text
 --LIQUID fromChunks cs = L.foldr chunk Empty cs
 fromChunks []     = Empty
 fromChunks (t:ts) = chunk t $ fromChunks ts
 
 -- | /O(n)/ Convert a lazy 'Text' into a list of strict 'T.Text's.
-{-@ toChunks :: t:Text -> {v:[T.Text] | (sum_tlengths v) = (ltlength t)} @-}
+{-@ toChunks :: t:Text -> {v:[_] | (sum_tlengths v) = (ltlength t)} @-}
 toChunks :: Text -> [T.Text]
 toChunks cs = foldrChunks (\_ c cs -> c:cs) [] cs
 
 -- | /O(n)/ Convert a lazy 'Text' into a strict 'T.Text'.
-{-@ toStrict :: t:Text -> {v:T.Text | (tlength v) = (ltlength t)} @-}
+{-@ toStrict :: t:Text -> {v:_ | (tlength v) = (ltlength t)} @-}
 toStrict :: Text -> T.Text
 toStrict t = T.concat (toChunks t)
 {-# INLINE [1] toStrict #-}
 
 -- | /O(c)/ Convert a strict 'T.Text' into a lazy 'Text'.
-{-@ fromStrict :: t:T.Text -> {v:Text | (ltlength v) = (tlength t)} @-}
+{-@ fromStrict :: t:_ -> {v:Text | (ltlength v) = (tlength t)} @-}
 fromStrict :: T.Text -> Text
 fromStrict t = chunk t Empty
 {-# INLINE [1] fromStrict #-}
@@ -635,7 +637,7 @@ length = foldrChunks go 0
 -- of 'length', but can short circuit if the count of characters is
 -- greater than the number, and hence be more efficient.
 {-@ compareLength :: t:Text -> n:Nat64
-                  -> {v:Ordering | ((v = P.EQ) <=> ((ltlength t) = n))}
+                  -> {v:Ordering | ((v = EQ) <=> ((ltlength t) = n))}
   @-}
 compareLength :: Text -> Int64 -> Ordering
 --LIQUID compareLength t n = S.compareLengthI (stream t) n
@@ -695,7 +697,7 @@ intersperse c t = unstream (S.intersperse (safe c) (stream t))
 -- > justifyLeft 7 'x' "foo"    == "fooxxxx"
 -- > justifyLeft 3 'x' "foobar" == "foobar"
 {-@ justifyLeft :: i:Nat64 -> Char -> t:Text
-                -> {v:Text | (Max (ltlength v) i (ltlength t))}
+                -> {v:Text | (MyMax (ltlength v) i (ltlength t))}
   @-}
 justifyLeft :: Int64 -> Char -> Text -> Text
 justifyLeft k c t
@@ -720,7 +722,7 @@ justifyLeft k c t
 -- > justifyRight 7 'x' "bar"    == "xxxxbar"
 -- > justifyRight 3 'x' "foobar" == "foobar"
 {-@ justifyRight :: i:Nat64 -> Char -> t:Text
-                 -> {v:Text | (Max (ltlength v) i (ltlength t))}
+                 -> {v:Text | (MyMax (ltlength v) i (ltlength t))}
   @-}
 justifyRight :: Int64 -> Char -> Text -> Text
 justifyRight k c t
@@ -737,7 +739,7 @@ justifyRight k c t
 --
 -- > center 8 'x' "HS" = "xxxHSxxx"
 {-@ center :: i:Nat64 -> Char -> t:Text
-           -> {v:Text | (Max (ltlength v) i (ltlength t))}
+           -> {v:Text | (MyMax (ltlength v) i (ltlength t))}
   @-}
 center :: Int64 -> Char -> Text -> Text
 center k c t
@@ -762,13 +764,17 @@ transpose ts = L.map (\ss -> Chunk (T.pack ss) Empty)
                      (L.transpose (L.map unpack ts))
 -- TODO: make this fast
 
+{-@ assume Data.OldList.transpose :: [[a]] -> [{v:[a] | (len v) > 0}] @-}
+
 -- | /O(n)/ 'reverse' @t@ returns the elements of @t@ in reverse order.
 {-@ reverse :: t:Text -> {v:Text | (ltlength v) = (ltlength t)} @-}
 reverse :: Text -> Text
-reverse = rev Empty
-        {-@ decrease rev 2 @-}
-  where rev a Empty        = a
-        rev a (Chunk t ts) = rev (Chunk (T.reverse t) a) ts
+reverse = revLoop Empty
+  where 
+    {-@ decrease revLoop 2 @-}
+    revLoop :: Text -> Text -> Text 
+    revLoop a Empty        = a
+    revLoop a (Chunk t ts) = revLoop (Chunk (T.reverse t) a) ts
 
 -- | /O(m+n)/ Replace every occurrence of one substring with another.
 --
@@ -1328,6 +1334,7 @@ breakOnAll pat src
     | otherwise = breakOnAll_go (ltlen pat) 0 empty src (indices pat src)
   where
     {-@ decrease breakOnAll_go 5 @-}
+    breakOnAll_go :: Int64 -> Int64 -> Text -> Text -> [Int64] -> [(Text, Text)] 
     breakOnAll_go l !n p s (x:xs) = let h :*: t = splitAtWord (x-n) s
                                         h'      = append p h
                                     in (h',t) : breakOnAll_go l x h' t xs
@@ -1339,11 +1346,11 @@ breakOnAll pat src
 {-@ predicate SumLTLen T X Y = (ltlen T) = (ltlen X) + (ltlen Y) @-}
 {-@ break :: (Char -> Bool) -> t:Text -> (Text, Text)<{\x y -> ((SumLTLength t x y) && (SumLTLen t x y))}> @-}
 break :: (Char -> Bool) -> Text -> (Text, Text)
-break p t0 = break' t0
-  where break' Empty          = (empty, empty)
-        break' c@(Chunk t ts) =
+break p t0 = breakL t0
+  where breakL Empty          = (empty, empty)
+        breakL c@(Chunk t ts) =
           case T.findIndex p t of
-            Nothing      -> let (ts', ts'') = break' ts
+            Nothing      -> let (ts', ts'') = breakL ts
                             in (Chunk t ts', ts'')
             Just n | n == 0    -> (Empty, c)
                    | otherwise -> let (a,b) = T.splitAt n t
@@ -1403,8 +1410,8 @@ inits' t0@(Chunk t ts) = let (t':ts') = T.inits t
                              lts' = inits_map2 t0 t (inits' ts)
                          in inits_app t lts t0 lts'
 
-{-@ inits_map1 :: t0:TextNE -> t:T.Text
-        -> ts:[{v:T.Text | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
+{-@ inits_map1 :: t0:TextNE -> t:_ 
+        -> ts:[{v:_ | (BtwnEI (tlength v) (tlength t) (tlength t0))}]<{\xx xy -> ((tlength xx) < (tlength xy))}>
         -> [{v:Text | (BtwnEI (ltlength v) (tlength t) (tlength t0))}]<{\lx ly -> ((ltlength lx) < (ltlength ly))}>
   @-}
 {-@ decrease inits_map1 3 @-}

@@ -95,7 +95,7 @@ right_identity_helper1 :: Arg r => (r -> a) -> Proof
 {-@ right_identity_helper1 :: Arg r => x:(r -> a) 
   -> {(\r:r -> fromReader (reader (\r':r ->  (x r))) (r)) == (\r:r -> (\r':r ->  (x r)) (r))} @-}
 right_identity_helper1 x =
-  ((\r -> (\r' ->  (x r)) (r)) =*=. (\r -> fromReader (reader (\r' ->  (x r))) (r)))
+  ((\r -> (\r' ->  (x r)) (r)) =*=: (\r -> fromReader (reader (\r' ->  (x r))) (r)))
     (right_identity_helper1_body x) *** QED 
 
 
@@ -123,7 +123,7 @@ right_identity_helper :: Arg r => (r -> a) -> Proof
 right_identity_helper x
   =  (
      (\r -> fromReader (return (x r)) r)
-     =*=. 
+     =*=: 
      (\r -> fromReader (reader (\r' ->  (x r))) (r))
      )  (right_identity_helper_body x) *** QED 
 
@@ -180,7 +180,7 @@ associativity (Reader x) f g
 associativity_helper0 :: Arg r => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
 associativity_helper0 x f g
   =    ((\r2 -> (\r3 -> fromReader (g (fromReader (f ( x r2)) r3)) (r3)) (r2)) 
-  =*=.  (\r2 -> fromReader (reader (\r3 -> fromReader (g (fromReader (f (x r2)) r3)) (r3))) (r2)))
+  =*=:  (\r2 -> fromReader (reader (\r3 -> fromReader (g (fromReader (f (x r2)) r3)) (r3))) (r2)))
          (associativity_helper0_body x f g) *** QED 
           
 associativity_helper0_body :: (r -> a) -> (a -> Reader r b) -> (b -> Reader r c)-> r  -> Proof
@@ -218,7 +218,7 @@ associativity_helper2 x f g = simpleProof
 associativity_helper1 :: (Arg r, Arg a) => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> Proof
 associativity_helper1 x f g
   = ((\r2 -> fromReader ( (\r4 -> ( reader (\r3 -> fromReader (g (fromReader (f r4 ) r3)) (r3))))  (x r2)) (r2))  
-      =*=.    (\r2 -> fromReader ( (\r4 -> ( bind (f r4) g))  (x r2)) (r2))  
+      =*=:    (\r2 -> fromReader ( (\r4 -> ( bind (f r4) g))  (x r2)) (r2))  
     ) (associativity_helper1_body x f g)  *** QED 
 
 {-@ associativity_helper1_body :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) -> r2:r
@@ -246,7 +246,7 @@ associativity_helper1_body x f g r2
 helper_of_helper :: (Arg r, Arg a) => (r -> a) -> (a -> Reader r b) -> (b -> Reader r c) -> r -> Proof
 helper_of_helper x f g r2 
   =  ( (\r4 -> (reader (\r3 -> fromReader (g (fromReader (f r4 ) r3)) (r3))))
-      =*=. (\r4 -> (bind (f r4) g))) (helper_of_helper_body x f g r2) *** QED 
+      =*=: (\r4 -> (bind (f r4) g))) (helper_of_helper_body x f g r2) *** QED 
 
 {-@ helper_of_helper_body :: x:(r -> a) -> f:(a -> Reader r b) -> g:(b -> Reader r c) -> r2:r -> r4:a
   -> {   (reader (\r3:r -> fromReader (g (fromReader (f r4 ) r3)) (r3)))

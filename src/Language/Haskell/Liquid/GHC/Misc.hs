@@ -22,6 +22,7 @@ import qualified Data.List as L
 import           PrelNames                                  (fractionalClassKeys)
 import           FamInstEnv
 import           Debug.Trace
+-- import qualified ConLike                                    as Ghc
 
 import qualified CoreUtils
 import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)
@@ -100,8 +101,8 @@ mkAlive x
 --------------------------------------------------------------------------------
 -- | Datatype For Holding GHC ModGuts ------------------------------------------
 --------------------------------------------------------------------------------
-data MGIModGuts = MI {
-    mgi_binds     :: !CoreProgram
+data MGIModGuts = MI 
+  { mgi_binds     :: !CoreProgram
   , mgi_module    :: !Module
   , mgi_deps      :: !Dependencies
   , mgi_dir_imps  :: ![ModuleName]
@@ -113,8 +114,8 @@ data MGIModGuts = MI {
   }
 
 miModGuts :: Maybe [ClsInst] -> ModGuts -> MGIModGuts
-miModGuts cls mg  = MI {
-    mgi_binds     = mg_binds mg
+miModGuts cls mg  = MI 
+  { mgi_binds     = mg_binds mg
   , mgi_module    = mg_module mg
   , mgi_deps      = mg_deps mg
   , mgi_dir_imps  = mg_dir_imps mg
@@ -183,6 +184,12 @@ isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
 isBaseType _               = False
 
+isTmpVar :: Var -> Bool 
+isTmpVar = isTmpSymbol . dropModuleNamesAndUnique . symbol 
+
+isTmpSymbol    :: Symbol -> Bool
+isTmpSymbol x  = any (`isPrefixOfSym` x) [anfPrefix, tempPrefix, "ds_"]
+
 validTyVar :: String -> Bool
 validTyVar s@(c:_) = isLower c && all (not . isSpace) s
 validTyVar _       = False
@@ -210,11 +217,9 @@ unTickExpr x                  = x
 isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
 
-
 --------------------------------------------------------------------------------
 -- | Pretty Printers -----------------------------------------------------------
 --------------------------------------------------------------------------------
-
 notracePpr :: Outputable a => String -> a -> a
 notracePpr _ x = x
 
@@ -275,6 +280,9 @@ instance Hashable SrcSpan where
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
 
+fSourcePos :: (F.Loc a) => a -> F.SourcePos 
+fSourcePos = F.sp_start . F.srcSpan 
+
 fSrcSpanSrcSpan :: F.SrcSpan -> SrcSpan
 fSrcSpanSrcSpan (F.SS p p') = sourcePos2SrcSpan p p'
 
@@ -317,6 +325,7 @@ srcSpanStartLoc l  = L (srcSpanStartLine l, srcSpanStartCol l)
 srcSpanEndLoc :: RealSrcSpan -> Loc
 srcSpanEndLoc l    = L (srcSpanEndLine l, srcSpanEndCol l)
 
+
 oneLine :: RealSrcSpan -> Bool
 oneLine l          = srcSpanStartLine l == srcSpanEndLine l
 
@@ -349,6 +358,9 @@ locNamedThing x = F.Loc l lE x
   where
     l          = getSourcePos  x
     lE         = getSourcePosE x
+
+instance F.Loc Var where 
+  srcSpan v = SS (getSourcePos v) (getSourcePosE v) 
 
 namedLocSymbol :: (F.Symbolic a, NamedThing a) => a -> F.Located F.Symbol
 namedLocSymbol d = F.symbol <$> locNamedThing d
@@ -404,14 +416,14 @@ idDataConM :: Id -> Maybe DataCon
 idDataConM x = case idDetails x of
   DataConWorkId d -> Just d
   DataConWrapId d -> Just d
-  _               -> Nothing
+  _               -> Nothing 
 
 isDataConId :: Id -> Bool
 isDataConId = isJust . idDataConM
 
 getDataConVarUnique :: Var -> Unique
 getDataConVarUnique v
-  | isId v && isDataConId v = getUnique $ idDataCon v
+  | isId v && isDataConId v = getUnique (idDataCon v)
   | otherwise               = getUnique v
 
 isDictionaryExpression :: Core.Expr Id -> Maybe Id
@@ -494,7 +506,7 @@ symbolTyCon :: Char -> Int -> Symbol -> TyCon
 symbolTyCon x i n = stringTyCon x i (symbolString n)
 
 symbolTyVar :: Symbol -> TyVar
-symbolTyVar n = stringTyVar (symbolString n)
+symbolTyVar = stringTyVar . symbolString
 
 localVarSymbol ::  Var -> Symbol
 localVarSymbol v
@@ -571,6 +583,9 @@ instance Hashable Var where
 instance Hashable TyCon where
   hashWithSalt = uniqueHash
 
+instance Hashable DataCon where
+  hashWithSalt = uniqueHash
+
 instance Fixpoint Var where
   toFix = pprDoc
 
@@ -603,7 +618,6 @@ instance NFData Type where
 
 instance NFData Var where
   rnf t = seq t ()
-
 
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------
@@ -663,6 +677,9 @@ qualifySymbol (symbolText -> m) x'@(symbolText -> x)
   | isParened x    = symbol (wrapParens (m `mappend` "." `mappend` stripParens x))
   | otherwise      = symbol (m `mappend` "." `mappend` x)
 
+isQualifiedSym :: Symbol -> Bool
+isQualifiedSym (symbolText -> x) = isQualified x 
+
 isQualified :: T.Text -> Bool
 isQualified y = "." `T.isInfixOf` y
 
@@ -691,7 +708,7 @@ stripParens t = fromMaybe t (strip t)
     strip = T.stripPrefix "(" >=> T.stripSuffix ")"
 
 stripParensSym :: Symbol -> Symbol
-stripParensSym (symbolText -> t) = symbol $ stripParens t
+stripParensSym (symbolText -> t) = symbol (stripParens t)
 
 desugarModule :: TypecheckedModule -> Ghc DesugaredModule
 desugarModule tcm = do
@@ -716,7 +733,7 @@ symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 type Prec = TyPrec
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined) CoreDoNothing
+lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe
@@ -730,16 +747,16 @@ showCBs untidy
   | otherwise = showPpr
 
 
-ignoreCoreBinds :: [Var] -> [CoreBind] -> [CoreBind]
+ignoreCoreBinds :: S.HashSet Var -> [CoreBind] -> [CoreBind]
 ignoreCoreBinds vs cbs 
-  | null vs         = cbs 
-  | otherwise       = concatMap go cbs
+  | S.null vs         = cbs 
+  | otherwise         = concatMap go cbs
   where
     go :: CoreBind -> [CoreBind]
     go b@(NonRec x _) 
-      | x `elem` vs = [] 
-      | otherwise   = [b] 
-    go (Rec xes)    = [Rec (filter ((`notElem` vs) . fst) xes)]
+      | S.member x vs = [] 
+      | otherwise     = [b] 
+    go (Rec xes)      = [Rec (filter ((`notElem` vs) . fst) xes)]
 
 
 findVarDef :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)

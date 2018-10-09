@@ -1,5 +1,5 @@
 {-@ LIQUID "--pruneunsorted" @-}
-{-@ LIQUID "--trust-sizes"   @-}
+{- LIQUID "--trust-sizes"   @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
@@ -216,10 +216,10 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
   @-}
 
 
-{-@ type ByteStringN N  = {v: ByteString | (bLength v) = N}              @-}
-{-@ type ByteStringNE   = {v:ByteString | (bLength v) > 0}               @-}
-{-@ type ByteStringSZ B = {v:ByteString | (bLength v) = (bLength B)}     @-}
-{-@ type ByteStringLE B = {v:ByteString | (bLength v) <= (bLength B)}    @-}
+{-@ type ByteStringN N  = {v : Data.ByteString.Internal.ByteString | (bLength v) = N}              @-}
+{-@ type ByteStringNE   = {v : Data.ByteString.Internal.ByteString | (bLength v) > 0}               @-}
+{-@ type ByteStringSZ B = {v : Data.ByteString.Internal.ByteString | (bLength v) = (bLength B)}     @-}
+{-@ type ByteStringLE B = {v : Data.ByteString.Internal.ByteString | (bLength v) <= (bLength B)}    @-}
 
 {-@ predicate SuffixPtr V N P = ((isNullPtr V) || ((NNLen V N P) && (NNBase V P)))    @-}
 {-@ predicate NNLen V N P     = ((((plen P) - N) < (plen V)) && (plen V) <= (plen P)) @-}
@@ -544,7 +544,7 @@ inlinePerformIO = unsafePerformIO
 -- LIQUID
 foreign import ccall unsafe "string.h strlen" c_strlen
     :: CString -> IO CSize
-{-@ assume c_strlen ::  s:CString -> IO {v: CSize | ((0 <= v) && (v = (plen s)))} @-}
+{-@ assume c_strlen ::  s:_ -> IO {v: CSize | (0 <= v && v = plen s) }  @-}
 
 -- LIQUID: for some reason this foreign import causes an infinite loop...
 -- foreign import ccall unsafe "static stdlib.h &free" c_free_finalizer

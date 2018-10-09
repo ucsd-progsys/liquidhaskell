@@ -1,3 +1,5 @@
+-- TAG: absref
+
 module State (
    returnST -- :: a -> ST a s
 --  , bindST   -- :: ST a s -> (a -> ST b s) -> ST b s

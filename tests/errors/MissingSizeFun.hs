@@ -1,4 +1,6 @@
-module MapReduce where
+{-@ LIQUID "--nostruct" @-}
+
+module MissingSizeFun where
 
 {-@ data List [llen] a = N | C {lhead :: a, ltail :: List a} @-}
 data List a = N | C a (List a)

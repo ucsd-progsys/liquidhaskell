@@ -1,14 +1,12 @@
 module Automate where
-
-{- LIQUID "--automatic-instances=smtinstances" @-}
    
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
-import Language.Haskell.Liquid.ProofCombinators 
-
+import Language.Haskell.Liquid.NewProofCombinators 
 
 fibA :: Int -> Int 
-{-@ axiomatize fibA @-}
+{-@ reflect fibA @-}
 {-@ fibA :: Nat -> Nat @-}
 fibA i | i <= 1 = i
       | otherwise = fibA (i-1) + fibA (i-2)

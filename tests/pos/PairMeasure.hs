@@ -1,3 +1,6 @@
+-- TAG: absref
+-- TAG: measure
+
 module Foo () where
 
 {-@ measure getfst :: (a, b) -> a

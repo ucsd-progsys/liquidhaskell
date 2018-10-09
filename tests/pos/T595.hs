@@ -9,18 +9,17 @@ data Test = Test
 
 type Thing = [()] -- Vector ()
 
-{-@
-data Test = Test
-    { vec  :: Thing
-    , x0   :: { v : Bool | ((len vec) < 1) ==> v }
-    }
-@-}
+{-@ data Test = Test
+      { vec  :: Thing
+      , x0   :: { v : Bool | ((len vec) < 1) ==> v }
+      }
+  @-}
 
 -- The above data declaration should give us the following refined types
 -- for the record selectors
 
-{- vec :: x:Test -> {v:Thing | v = vec x} -}
-{- x0  :: x:Test -> {v:Bool  | v = x0 x  && ((len (vec x) < 1) => v) } -}
+{- assume vec :: x:Test -> {v:Thing | v = vec x} @-}
+{- assume x0  :: x:Test -> {v:Bool  | v = x0 x  && ((len (vec x) < 1) => v) } @-}
 
 example :: Test -> ()
 example t =

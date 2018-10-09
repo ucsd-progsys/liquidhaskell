@@ -60,18 +60,19 @@ import           SrcLoc
 import           Unify (tcUnifyTy)
 import qualified TyCon   as TC
 import qualified DataCon as DC
-import           Text.PrettyPrint.HughesPJ hiding (first)
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
+
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
-import           Language.Haskell.Liquid.Types.Strata
+-- import           Language.Haskell.Liquid.Types.Strata
 import           Language.Haskell.Liquid.Misc           (fourth4)
-import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
+-- import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 import Language.Fixpoint.Misc
@@ -117,7 +118,10 @@ data LConstraint = LC [[(F.Symbol, SpecType)]]
 
 instance Monoid LConstraint where
   mempty  = LC []
-  mappend (LC cs1) (LC cs2) = LC (cs1 ++ cs2)
+  mappend = (<>)
+
+instance Semigroup LConstraint where
+  LC cs1 <> LC cs2 = LC (cs1 ++ cs2)
 
 instance PPrint CGEnv where
   pprintTidy k = pprintTidy k . renv
@@ -184,11 +188,12 @@ data CGInfo = CGInfo
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
-  , specDecr   :: ![(Var, [Int])]              -- ^ ? FIX THIS
+  , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED) 
   , newTyEnv   :: !(M.HashMap TC.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ "Lazy binders", skip termination checking
+  , specTmVars :: !(S.HashSet Var)             -- ^ Binders that FAILED struct termination check that MUST be checked 
   , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
   , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)

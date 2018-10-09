@@ -5,7 +5,7 @@
 
 
 module Language.Haskell.Liquid.Constraint.Qualifier
-  ( qualifiers
+  ( giQuals 
   , useSpcQuals
   )
   where
@@ -26,14 +26,15 @@ import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
 import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types 
 
 
 --------------------------------------------------------------------------------
-qualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+giQuals :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
-qualifiers info lEnv
-  =  condNull (useSpcQuals info) (gsQualifiers $ spec info)
+giQuals info lEnv
+  =  notracepp ("GI-QUALS: " ++ showpp lEnv)
+  $  condNull (useSpcQuals info) (gsQualifiers . gsQual . giSpec $ info)
   ++ condNull (useSigQuals info) (sigQualifiers  info lEnv)
   ++ condNull (useAlsQuals info) (alsQualifiers  info lEnv)
 
@@ -72,19 +73,14 @@ needQuals = (FC.None == ) . eliminate . getConfig
 alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 alsQualifiers info lEnv
-  = [ q | a <- specAliases info
-        , q <- refTypeQuals lEnv (rtPos a) tce (rtBody a)
+  = [ q | a <- gsRTAliases . gsQual . giSpec $ info
+        , q <- refTypeQuals lEnv (loc a) tce (rtBody (val a))
         , length (qParams q) <= k + 1
         , validQual lEnv q
     ]
     where
       k   = maxQualParams info
-      tce = gsTcEmbeds (spec info)
-
-    -- Symbol (RTAlias RTyVar SpecType)
-
-specAliases :: GhcInfo -> [RTAlias RTyVar SpecType]
-specAliases = M.elems . typeAliases . gsRTAliases . spec
+      tce = gsTcEmbeds . gsName . giSpec $ info
 
 validQual :: SEnv Sort -> Qualifier -> Bool
 validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)
@@ -106,36 +102,38 @@ sigQualifiers info lEnv
     ]
     where
       k   = maxQualParams info
-      tce = gsTcEmbeds (spec info)
+      tce = gsTcEmbeds . gsName . giSpec $ info
       qbs = qualifyingBinders info
 
 qualifyingBinders :: GhcInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
-    sTake              = S.fromList $ defVars info ++ useVars info ++ scrapeVars info
+    sTake              = S.fromList $ giDefVars src ++ giUseVars src ++ scrapeVars cfg src 
     sDrop              = S.fromList $ specAxiomVars info
-
+    cfg                = getConfig info 
+    src                = giSrc     info 
+    
 -- NOTE: this mines extra, useful qualifiers but causes
 -- a significant increase in running time, so we hide it
 -- behind `--scrape-imports` and `--scrape-used-imports`
-scrapeVars :: GhcInfo -> [Var]
-scrapeVars info
-  | info `hasOpt` scrapeUsedImports = useVars info
-  | info `hasOpt` scrapeImports     = impVars info
-  | otherwise                       = []
+scrapeVars :: Config -> GhcSrc -> [Var]
+scrapeVars cfg src 
+  | cfg `hasOpt` scrapeUsedImports = giUseVars src 
+  | cfg `hasOpt` scrapeImports     = giImpVars src 
+  | otherwise                      = []
 
 specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
-  [ gsTySigs  sp
-  , gsAsmSigs sp
-  , gsCtors   sp
-  , if info `hasOpt` scrapeInternals then gsInSigs sp else []
+  [ gsTySigs  (gsSig  sp)
+  , gsAsmSigs (gsSig  sp)
+  , gsCtors   (gsData sp)
+  , if info `hasOpt` scrapeInternals then gsInSigs (gsSig sp) else []
   ]
   where
-    sp  = spec info
+    sp  = giSpec info
 
 specAxiomVars :: GhcInfo -> [Var]
-specAxiomVars =  gsReflects . spec
+specAxiomVars =  gsReflects . gsRefl . giSpec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap
 -- specificationQualifiers info = {- filter okQual -} qs
@@ -192,7 +190,8 @@ refTopQuals lEnv l tce t0 γ t
                    , pa                        <- conjuncts ra
                    , not $ isHole    pa
                    , not $ isGradual pa
-                   , isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
+                   , notracepp ("refTopQuals: " ++ showpp pa) 
+                     $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++
     [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t

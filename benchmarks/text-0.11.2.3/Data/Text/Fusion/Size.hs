@@ -39,13 +39,14 @@ data Size = Exact {-# UNPACK #-} !Int -- ^ Exact size.
             deriving (Eq, Show)
 
 {-@
-data Size = Exact (getExact::{v:Int | v >= 0})
-          | Max (getMax::{v:Int | v >= 0})
+data Size = Exact { getExact :: Nat }
+          | Max   { getMax   :: Nat } 
           | Unknown
 @-}
 
 {-@ type SizeN N = {v:Size | (((getSize v) = n) && (not (isUnknown v)))} @-}
-{-@ measure getSize :: Data.Text.Fusion.Size.Size -> Int
+
+{-@ measure getSize :: Data.Text.Fusion.Size.Size -> Nat 
     getSize (Data.Text.Fusion.Size.Exact n) = n
     getSize (Data.Text.Fusion.Size.Max   n) = n
   @-}
@@ -163,10 +164,12 @@ smaller   Unknown   (Max   n) = Max   n
 smaller   Unknown   Unknown   = Unknown
 {-# INLINE smaller #-}
 
+
+{-@ predicate MyMax V X Y = if X > Y then V = X else V = Y @-}
+
 -- | Maximum of two size hints.
-{-@ larger :: s1:Size -> s2:Size
-           -> {v:Size | ((not ((isUnknown s1) || (isUnknown s2)))
-                     => (Max (getSize v) (getSize s1) (getSize s2)))}
+{-@ larger :: s1:Size -> s2:Size 
+           -> {v:Size | ((not ((isUnknown s1) || (isUnknown s2))) => (MyMax (getSize v) (getSize s1) (getSize s2)))}
   @-}
 
 larger :: Size -> Size -> Size

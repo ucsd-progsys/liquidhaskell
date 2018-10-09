@@ -54,59 +54,58 @@ import qualified Data.Vector.Primitive.Mutable
 
 -- | Assumed Types for Vector
 
-{-@ Data.Vector.Generic.Mutable.length      
-      :: (Data.Vector.Generic.Mutable.MVector v a) 
+{-@ assume Data.Vector.Generic.Mutable.length      
+      :: (Data.Vector.Generic.Mutable.Base.MVector v a) 
       => x:(v s a) 
       -> {v:Nat | v = (vsize x)} 
   @-}
 
-{-@ Data.Vector.Generic.Mutable.unsafeRead  
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+{-@ assume Data.Vector.Generic.Mutable.unsafeRead  
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> m a       
   @-}
 
-{-@ Data.Vector.Generic.Mutable.unsafeWrite 
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+{-@ assume Data.Vector.Generic.Mutable.unsafeWrite 
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> a 
       -> m () 
   @-}
 
-{-@ Data.Vector.Generic.Mutable.unsafeSwap
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+{-@ assume Data.Vector.Generic.Mutable.unsafeSwap
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
       => x:(v (PrimState m) a) 
       -> (OkIdx x) 
       -> (OkIdx x) 
       -> m () 
   @-}
 
-{-@ Data.Vector.Generic.Mutable.unsafeSlice 
-      :: Data.Vector.Generic.Mutable.MVector v a 
+{-@ assume Data.Vector.Generic.Mutable.unsafeSlice 
+      :: (Data.Vector.Generic.Mutable.Base.MVector v a) 
       => i:Nat 
       -> n:Nat 
       -> {v:(v s a) | (OkOff v i n)} 
       -> {v:(v s a) | (vsize v) = n}  
   @-}
 
-{-@ Data.Vector.Generic.Mutable.unsafeCopy  
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+{-@ assume Data.Vector.Generic.Mutable.unsafeCopy  
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
       => src:(v (PrimState m) a) 
       -> {dst:(v (PrimState m) a) | (EqSiz src dst)} 
       -> m () 
   @-}
 
-{-@ Data.Vector.Generic.Mutable.new 
-      :: (PrimMonad m, Data.Vector.Generic.Mutable.MVector v a) 
+{-@ assume Data.Vector.Generic.Mutable.new 
+      :: (PrimMonad m, Data.Vector.Generic.Mutable.Base.MVector v a) 
       => nINTENDO:Nat 
       -> m {v: (v (PrimState m) a) | (vsize v) = nINTENDO}
   @-}
 
-{-@ Data.Vector.Primitive.Mutable.new 
-      :: (PrimMonad m, Data.Vector.Primitive.Mutable.Prim a) 
-      => nONKEY:Nat 
+{-@ assume Data.Vector.Primitive.Mutable.new 
+      :: nONKEY:Nat 
       -> m {v: (Data.Vector.Primitive.Mutable.MVector (PrimState m) a) | (vsize v) = nONKEY}
   @-}
 

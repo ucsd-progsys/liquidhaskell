@@ -110,22 +110,25 @@ data Array = Array {
 --LIQUID #endif
     }
 
-{-@ data Array
-         = Array
-            (aBA :: ByteArray#)
-            (alen :: Nat)
+{-@ data Array = Array { aBA  :: ByteArray#
+                       , aLen :: Nat }
   @-}
 
-{-@ type ArrayN N = {v:Array | (alen v) = N} @-}
+{- measure alen :: Array  -> Nat 
+    alen (Array ba n) = n
+  -}
 
-{-@ type AValidI A   = {v:Nat | v     <  (alen A)} @-}
-{-@ type AValidO A   = {v:Nat | v     <= (alen A)} @-}
-{-@ type AValidL O A = {v:Nat | (v+O) <= (alen A)} @-}
 
-{-@ qualif ALen(v:Int, a:Array): v = alen(a) @-}
-{-@ qualif ALen(v:Array, i:Int): i = alen(v) @-}
+{-@ type ArrayN N = {v:Array | (aLen v) = N} @-}
 
-{-@ invariant {v:Array | (alen v) >= 0} @-}
+{-@ type AValidI A   = {v:Nat | v     <  (aLen A)} @-}
+{-@ type AValidO A   = {v:Nat | v     <= (aLen A)} @-}
+{-@ type AValidL O A = {v:Nat | (v+O) <= (aLen A)} @-}
+
+{-@ qualif ALen(v:Int, a:Array): v = aLen(a) @-}
+{-@ qualif ALen(v:Array, i:Int): i = aLen(v) @-}
+
+{-@ invariant {v:Array | (aLen v) >= 0} @-}
 
 {-@ measure numchars :: Array -> Int -> Int -> Int @-}
 
@@ -137,24 +140,29 @@ data MArray s = MArray {
 --LIQUID #endif
     }
 
-{-@ data MArray s = MArray
-            (maBA :: MutableByteArray# s)
-            (malen :: Nat)
+{-@ data MArray s = MArray { maBA  :: MutableByteArray# s
+                           , maLen :: Nat
+                           }
   @-}
 
-{-@ type MArrayN s N = {v:MArray s | (malen v) = N} @-}
 
-{-@ type MAValidI A   = {v:Nat | v     <  (malen A)} @-}
-{-@ type MAValidO A   = {v:Nat | v     <= (malen A)} @-}
-{-@ type MAValidL O A = {v:Nat | (v+O) <= (malen A)} @-}
+{- measure malen :: MArray s -> Nat 
+    malen (MArray ba n) = n
+  -}
 
-{-@ qualif MALen(v:Int, a:MArray s): v = malen(a) @-}
-{-@ qualif MALen(v:MArray s, i:Int): i = malen(v) @-}
+{-@ type MArrayN s N = {v:MArray s | (maLen v) = N} @-}
 
-{-@ invariant {v:MArray s | (malen v) >= 0} @-}
+{-@ type MAValidI A   = {v:Nat | v     <  (maLen A)} @-}
+{-@ type MAValidO A   = {v:Nat | v     <= (maLen A)} @-}
+{-@ type MAValidL O A = {v:Nat | (v+O) <= (maLen A)} @-}
+
+{-@ qualif MALen(v:Int, a:MArray s): v = maLen(a) @-}
+{-@ qualif MALen(v:MArray s, i:Int): i = maLen(v) @-}
+
+{-@ invariant {v:MArray s | (maLen v) >= 0} @-}
 
 {-@ qualif FreezeMArr(v:Array, ma:MArray s):
-        alen(v) = malen(ma)
+        aLen(v) = maLen(ma)
   @-}
 
 --LIQUID #if defined(ASSERTS)
@@ -173,9 +181,9 @@ instance IArray (MArray s) where
 --LIQUID #endif
 
 -- | Create an uninitialized mutable array.
-{-@ assume new :: forall s. n:Nat -> ST s (MArrayN s n) @-}
+{-@ assume new :: n:Nat -> ST s (MArrayN s n) @-}
 -- TODO: losing information in cast
-new :: forall s. Int -> ST s (MArray s)
+new :: Int -> ST s (MArray s)
 new n
   | n < 0 || n .&. highBit /= 0 = error $ "Data.Text.Array.new: size overflow"
   | otherwise = ST $ \s1# ->
@@ -190,7 +198,7 @@ new n
 {-# INLINE new #-}
 
 -- | Freeze a mutable array. Do not mutate the 'MArray' afterwards!
-{-@ assume unsafeFreeze :: ma:MArray s -> (ST s (ArrayN (malen ma))) @-}
+{-@ assume unsafeFreeze :: ma:MArray s -> (ST s (ArrayN (maLen ma))) @-}
 -- TODO: losing information in cast
 unsafeFreeze :: MArray s -> ST s Array
 unsafeFreeze MArray{..} = ST $ \s# ->
@@ -289,7 +297,7 @@ toList ary off len = loop len 0
               | otherwise = []
 
 -- | An empty immutable array.
-{-@ empty :: {v:Array | (alen v) = 0}  @-}
+{-@ empty :: {v:Array | (aLen v) = 0}  @-}
 empty :: Array
 empty = runST (new 0 >>= unsafeFreeze)
 
@@ -302,7 +310,7 @@ run :: forall <p :: Int -> Bool>.
      -> exists[z:Int<p>]. Data.Text.Array.Array<p>
 @-}
 {- run :: (forall s. GHC.ST.ST s ma:(Data.Text.Array.MArray s))
-        -> {v:Data.Text.Array.Array | (alen v) = (len ma)}
+        -> {v:Data.Text.Array.Array | (aLen v) = (len ma)}
   @-}
 run :: (forall s. ST s (MArray s)) -> Array
 run k = runST (k >>= unsafeFreeze)
@@ -310,7 +318,7 @@ run k = runST (k >>= unsafeFreeze)
 -- | Run an action in the ST monad and return an immutable array of
 -- its result paired with whatever else the action returns.
 {- run2 :: (forall s. GHC.ST.ST s (ma:Data.Text.Array.MArray s, a:a))
-         -> ({v:Data.Text.Array.Array | (alen v) = (malen ma)}, {v:a | v = a})
+         -> ({v:Data.Text.Array.Array | (aLen v) = (maLen ma)}, {v:a | v = a})
   @-}
 run2 :: (forall s. ST s (MArray s, a)) -> (Array, a)
 run2 k = runST (do
@@ -321,8 +329,8 @@ run2 k = runST (do
 -- | Copy some elements of a mutable array.
 {-@ copyM :: dest:MArray s -> didx:MAValidO dest
           -> src:MArray s  -> sidx:MAValidO src
-          -> {v:Nat | (((v + didx) <= (malen dest))
-                    && ((v + sidx) <= (malen src)))}
+          -> {v:Nat | (((v + didx) <= (maLen dest))
+                    && ((v + sidx) <= (maLen src)))}
           -> ST s ()
   @-}
 copyM :: MArray s               -- ^ Destination
@@ -348,7 +356,7 @@ copyM dest didx src sidx count
 -- | Copy some elements of an immutable array.
 {-@ copyI :: dest:MArray s -> i0:MAValidO dest
           -> src:Array     -> j0:AValidO src
-          -> top:{v:MAValidO dest | ((v-i0)+j0) <= (alen src)}
+          -> top:{v:MAValidO dest | ((v-i0)+j0) <= (aLen src)}
           -> GHC.ST.ST s ()
   @-}
 copyI :: MArray s               -- ^ Destination
@@ -370,10 +378,10 @@ copyI dest i0 src j0 top
 -- is performed.
 --LIQUID TODO: this is not correct because we're just comparing sub-arrays
 {- equal :: a1:Data.Text.Array.Array
-          -> o1:{v:Int | ((v >= 0) && (v < (alen a1)))}
+          -> o1:{v:Int | ((v >= 0) && (v < (aLen a1)))}
           -> a2:Data.Text.Array.Array
-          -> o2:{v:Int | ((v >= 0) && (v < (alen a2)))}
-          -> cnt:{v:Int | ((v >= 0) && ((v+o1) < (alen a1)) && ((v+o2) < (alen a2)))}
+          -> o2:{v:Int | ((v >= 0) && (v < (aLen a2)))}
+          -> cnt:{v:Int | ((v >= 0) && ((v+o1) < (aLen a1)) && ((v+o2) < (aLen a2)))}
           -> {v:Bool | (v <=> (a1 = a2))}
   @-}
 equal :: Array                  -- ^ First

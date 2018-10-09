@@ -1,5 +1,7 @@
 -- Issue overload-div-int-real #579
 
+-- TAG: class
+
 module Div where
 
 {-@ type Valid = {v:Bool | v } @-}
@@ -27,3 +29,9 @@ divId x = x / 1.0 == x
 {-@ inverse :: {v:Double | v != 0.0} -> Valid @-}
 inverse :: Double -> Bool
 inverse x = 1.0 == x * (1.0 / x)
+
+
+imports = ( recip, fromRational )
+
+-- poop :: Ratio Integer 
+-- poop = undefined 

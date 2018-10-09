@@ -1,4 +1,5 @@
-{-@ LIQUID "--no-totality" @-}
+{-@ LIQUID "--compile-spec"  @-}
+{-@ LIQUID "--no-totality"   @-}
 {-@ LIQUID "--notermination" @-}
 {-@ LIQUID "--pruneunsorted" @-}
 
@@ -658,13 +659,13 @@ append xs ys | null xs   = ys
 -- element of @xs@. This function is subject to array fusion.
 {-@ map :: (Word8 -> Word8) -> b:ByteString -> (ByteStringSZ b) @-}
 map :: (Word8 -> Word8) -> ByteString -> ByteString
-map f (PS fp s len) = inlinePerformIO $ withForeignPtr fp $ \a ->
-    create len $ map_ 0 (a `plusPtr` s)
+map f (PS fp s lenYYY) = inlinePerformIO $ withForeignPtr fp $ \a ->
+    create lenYYY $ map_ 0 (a `plusPtr` s)
   where
     map_ :: Int -> Ptr Word8 -> Ptr Word8 -> IO ()
     STRICT3(map_)
     map_ n p1 p2
-       | n >= len = return ()
+       | n >= lenYYY = return ()
        | otherwise = do
             x <- peekByteOff p1 n
             pokeByteOff p2 n (f x)
@@ -832,8 +833,8 @@ foldr1' f ps
 concat :: [ByteString] -> ByteString
 concat []     = empty
 concat [ps]   = ps
-concat xs     = unsafeCreate len $ \ptr -> go xs ptr
-  where len = {- LIQUID P.sum . P.map length $ -} lengths xs
+concat xs     = unsafeCreate lenZZZ $ \ptr -> go xs ptr
+  where lenZZZ = {- LIQUID P.sum . P.map length $ -} lengths xs
         STRICT2(go)
         go []            _   = return ()
         go (PS p s l:ps) ptr = do
@@ -1214,7 +1215,7 @@ splitWith :: (Word8 -> Bool) -> ByteString -> [ByteString]
 
 #if defined(__GLASGOW_HASKELL__)
 splitWith _pred (PS _  _   0) = []
-splitWith pred_ (PS fp off len) = splitWith0 pred# off len fp
+splitWith pred_ (PS fp off lenAAA) = splitWith0 pred# off lenAAA fp
   where pred# c# = pred_ (W8# c#)
 
         STRICT4(splitWith0)
@@ -1411,14 +1412,14 @@ join = intercalate
 
 {-@ intercalateWithByte :: Word8 -> f:ByteString -> g:ByteString -> {v:ByteString | (bLength v) = (bLength f) + (bLength g) + 1} @-}
 intercalateWithByte :: Word8 -> ByteString -> ByteString -> ByteString
-intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate len $ \ptr ->
+intercalateWithByte c f@(PS ffp s l) g@(PS fgp t m) = unsafeCreate lenBBB $ \ptr ->
     withForeignPtr ffp $ \fp ->
     withForeignPtr fgp $ \gp -> do
         memcpy ptr (fp `plusPtr` s) (fromIntegral l)
         poke (ptr `plusPtr` l) c
         memcpy (ptr `plusPtr` (l + 1)) (gp `plusPtr` t) (fromIntegral m)
     where
-      len = length f + length g + 1
+      lenBBB = length f + length g + 1
 {-# INLINE intercalateWithByte #-}
 
 -- ---------------------------------------------------------------------
@@ -1815,19 +1816,19 @@ zipWith' :: (Word8 -> Word8 -> Word8) -> ByteString -> ByteString -> ByteString
 zipWith' f (PS fp s l) (PS fq t m) = inlinePerformIO $
     withForeignPtr fp $ \a ->
     withForeignPtr fq $ \b ->
-    create len $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
+    create lenCCC $ zipWith_ 0 (a `plusPtr` s) (b `plusPtr` t)
   where
     zipWith_ :: Int -> Ptr Word8 -> Ptr Word8 -> Ptr Word8 -> IO ()
     STRICT4(zipWith_)
     zipWith_ n p1 p2 r
-       | n >= len = return ()
+       | n >= lenCCC = return ()
        | otherwise = do
             x <- peekByteOff p1 n
             y <- peekByteOff p2 n
             pokeByteOff r n (f x y)
             zipWith_ (n+1) p1 p2 r
 
-    len = min l m
+    lenCCC = min l m
 {-# INLINE zipWith' #-}
 
 {-# RULES
@@ -1901,10 +1902,10 @@ sort (PS input s l) = unsafeCreate l $ \p -> allocaArray 256 $ \arr -> do
     --
     countOccurrences :: Ptr CSize -> Ptr Word8 -> Int -> IO ()
     STRICT3(countOccurrences)
-    countOccurrences counts str len = go 0
+    countOccurrences counts str lenDDD = go 0
      where
         STRICT1(go)
-        go i | i == len    = return ()
+        go i | i == lenDDD = return ()
              | otherwise = do k <- fromIntegral `fmap` peekElemOff str i
                               x <- peekElemOff counts k
                               pokeElemOff counts k (x + 1)
@@ -1931,7 +1932,7 @@ sort (PS x s l) = unsafeCreate l $ \p -> withForeignPtr x $ \f -> do
 -- | /O(n) construction/ Use a @ByteString@ with a function requiring a
 -- null-terminated @CString@.  The @CString@ will be freed
 -- automatically. This is a memcpy(3).
-{-@ useAsCString :: p:ByteString -> ({v:CString | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
+{-@ useAsCString :: p:_ -> ({v:_ | (bLength p) + 1 = (plen v)} -> IO a) -> IO a @-}
 useAsCString :: ByteString -> (CString -> IO a) -> IO a
 useAsCString (PS fp o l) action = do
  allocaBytes (l+1) $ \buf ->
@@ -1942,7 +1943,7 @@ useAsCString (PS fp o l) action = do
 
 -- | /O(n) construction/ Use a @ByteString@ with a function requiring a @CStringLen@.
 -- As for @useAsCString@ this function makes a copy of the original @ByteString@.
-{-@ useAsCStringLen :: b:ByteString -> ({v:CStringLen | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
+{-@ useAsCStringLen :: b:_ -> ({v:_ | (cStringLen v) = (bLength b)} -> IO a) -> IO a @-}
 useAsCStringLen :: ByteString -> (CStringLen -> IO a) -> IO a
 useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
 
@@ -1953,20 +1954,21 @@ useAsCStringLen p@(PS _ _ l) f = useAsCString p $ \cstr -> f (cstr,l)
 -- @CString@, and is managed on the Haskell heap. The original
 -- @CString@ must be null terminated.
 
-{-@ packCString :: c:CString -> IO {v:ByteString | (bLength v) = (plen c)} @-}
+{-@ packCString :: c:_ -> IO {v:_ | (bLength v) = (plen c)} @-}
 packCString :: CString -> IO ByteString
 packCString cstr = do
-    len <- c_strlen cstr
-    packCStringLen (cstr, fromIntegral len)
+    lenEEE <- c_strlen cstr
+    packCStringLen (cstr, fromIntegral lenEEE)
 
 -- | /O(n)./ Construct a new @ByteString@ from a @CStringLen@. The
 -- resulting @ByteString@ is an immutable copy of the original @CStringLen@.
 -- The @ByteString@ is a normal Haskell value and will be managed on the
 -- Haskell heap.
+{- packCStringLen :: c:_ -> (IO {v:_ | (bLength v) = (cStringLen c)}) @-}
 {-@ packCStringLen :: c:CStringLen -> (IO {v:ByteString | (bLength v) = (cStringLen c)}) @-}
 packCStringLen :: CStringLen -> IO ByteString
-packCStringLen (cstr, len) = create len $ \p ->
-    memcpy p (castPtr cstr) (fromIntegral len)
+packCStringLen (cstr, lenFFF) = create lenFFF $ \p ->
+    memcpy p (castPtr cstr) (fromIntegral lenFFF)
 
 ------------------------------------------------------------------------
 
@@ -2024,10 +2026,10 @@ hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -
         hGetLineBufferedLoop handle_ ref buf 0 []
 
     hGetLineBufferedLoop handle_ ref
-            buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } len xss =
-        len `seq` do
+            buf@Buffer{ bufL=r, bufR=w, bufRaw=raw } lenGGG xss =
+        lenGGG `seq` do
         off <- findEOL r w raw
-        let new_len = len + off - r
+        let new_len = lenGGG + off - r
         xs <- mkPS raw r off
 
       -- if eol == True, then off is the offset of the '\n'
@@ -2070,9 +2072,9 @@ hGetLine h = wantReadableHandleLIQUID "Data.ByteString.hGetLine" h $ \ handle_ -
 -- TODO, rewrite to use normal memcpy
 mkPS :: RawBuffer Char -> Int -> Int -> IO ByteString
 mkPS buf start end =
-    let len = end - start
-    in create len $ \p -> do
-        memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize len)
+    let lenXXX = end - start
+    in create lenXXX $ \p -> do
+        memcpy_ptr_baoff p buf (fromIntegral start) ({- LIQUID fromIntegral-} intCSize lenXXX)
         return ()
 
 
@@ -2296,3 +2298,38 @@ findFromEndUntil f ps@(PS x s l) =
          else findFromEndUntil f (PS x s (l-1))
 
 
+
+-- // for unfoldrN 
+{-@ qualif PLenNat(v:GHC.Ptr.Ptr a): (0 <= plen v) 
+  @-}
+
+-- // for UnpackFoldrINLINED
+{-@ qualif UnpackFoldrINLINED(v:List a, n:int, acc:List a): (len v = n + 1 + (len acc))
+  @-}
+
+-- // for ByteString.inits
+{-@ qualif BLenGt(v:Data.ByteString.Internal.ByteString, n:int): ((bLength v) > n)
+  @-}
+
+-- // for ByteString.concat
+{-@ qualif BLens(v:List Data.ByteString.Internal.ByteString) : (0 <= bLengths v)
+  @-}
+
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:List Data.ByteString.Internal.ByteString): (bLengths bs <= plen v) 
+  @-}
+
+-- // for ByteString.splitWith
+{-@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:int): ((bLengths v) + (len v) - 1 = l)
+  @-}
+
+-- // for ByteString.unfoldrN
+{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v <= plen p)
+  @-}
+
+-- // for ByteString.split
+{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): (v + l <= fplen p) 
+  @-}
+
+
+{-@ qualif SplitLoop(v:List Data.ByteString.Internal.ByteString, l:int, n:int): ((bLengths v) + (len v) - 1 = l - n)
+  @-}

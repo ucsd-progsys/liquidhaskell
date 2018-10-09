@@ -8,13 +8,11 @@ import qualified Prelude as P
 
 {-@ qualif Sz(v:int, xs:a): v = (sz xs) @-}
 
-{-@ data List a = Nil | Cons (hd::a) (tl::(List a)) @-}
 data List a = Nil | Cons a (List a)
-
 
 {-@ class measure sz :: forall a. a -> Int @-}
 {-@ class Sized s where
-      size :: forall a. x:s a -> {v:Nat | v = (sz x)}
+      size :: forall a. x:s a -> {v:Nat | v = 23 + sz x}
   @-}
 class Sized s where
   size :: s a -> Int
@@ -26,6 +24,3 @@ instance Sized List where
     @-}
   size Nil         = 0
   size (Cons x xs) = size xs
-
-
-

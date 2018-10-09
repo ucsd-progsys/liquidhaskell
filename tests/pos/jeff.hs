@@ -181,7 +181,7 @@ myIndices alg t bs
 {-@ assume BS.append  :: b1:BS.ByteString -> b2:BS.ByteString -> ByteStringN {bLength b1 + bLength b2} @-}
 {-@ assume BS.null    :: b:BS.ByteString -> {v:Bool | v <=> (bLength b == 0)} @-}
 {-@ assume BS.splitAt :: n:Nat -> b:BS.ByteString -> (ByteStringN {min n (bLength b)}, ByteStringN {max 0 (bLength b - n)}) @-}
-{-@ assume BS.head    :: BS.ByteString -> Data.Word.Word8 @-}
+{-@ assume BS.head    :: BS.ByteString -> _ @-}
 
 {-@ measure target @-}
 target :: MatchIdxs -> BS.ByteString
@@ -254,7 +254,7 @@ isInfixOfBS bufLen chunkSz t = not . null . indicesBS bufLen chunkSz t
 {-@ type LNat N = {v:Nat | v < N} @-}
 
 chunksOf :: Int -> [a] -> [[a]]
-chunksOf = undefined
+chunksOf =  undefined
 
 {-@ assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s] @-}
 assumeIndices :: BS.ByteString -> BS.ByteString -> [Int]

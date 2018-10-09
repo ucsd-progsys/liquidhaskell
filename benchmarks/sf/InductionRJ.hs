@@ -1,16 +1,15 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module Induction where
 
 import qualified Prelude
 import           Prelude (Char, Int, Bool (..))
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 -- TODO:import Basics
 
-{-@ data Peano [toNat] = O | S Peano @-}
+{-@ data Peano [toNat] @-}
 data Peano = O | S Peano
 
 {-@ measure toNat @-}
@@ -30,7 +29,6 @@ mult n m = case n of
   O    -> O
   S n' -> plus m (mult n' m)
 
-{-@ data BBool = BTrue | BFalse @-}
 data BBool = BTrue | BFalse
 
 {-@ reflect negb @-}
@@ -38,11 +36,11 @@ negb :: BBool -> BBool
 negb BTrue  = BFalse
 negb BFalse = BTrue
 
-{-@ reflect even @-}
-even :: Peano -> BBool
-even O         = BTrue
-even (S O)     = BFalse
-even (S (S n)) = even n
+{-@ reflect myEven @-}
+myEven :: Peano -> BBool
+myEven O         = BTrue
+myEven (S O)     = BFalse
+myEven (S (S n)) = myEven n
 
 --------------------------------------------------------------------------------
 -- | Exercise : basic_induction ------------------------------------------------
@@ -119,16 +117,11 @@ thmDoublePlus (S n) = [ -- double (S n)
                         -- ==. plus (S n) (S n)
                       ] *** QED
 
-{-@ thmEvenS :: n:Peano -> { even (S n) == negb (even n) } @-}
+{-@ thmEvenS :: n:Peano -> { myEven (S n) == negb (myEven n) } @-}
 thmEvenS :: Peano -> Proof
 thmEvenS O         = trivial
 thmEvenS (S O)     = trivial
 thmEvenS (S (S n)) = thmEvenS n
-
-                   -- =   negb (even (S (S n)))
-                   -- ==. negb (even n)
-                   -- ==. even (S n)       ? thmEvenS n
-                   -- *** QED
 
 {- NOTE: An interesting example of `trivial`: the following
 

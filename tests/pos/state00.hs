@@ -1,10 +1,10 @@
 module StateMonad () where
 
-type State = Int
-data ST a b = S (b -> (a, b)) | F a | G (b -> a)
+type State  = Int
+data ST a b = Superb (b -> (a, b)) 
 
-{-@ fresh :: ST {v:Int|v>=0} {v:Int|v>=0} @-}
+{-@ fresh :: ST {v:Int | v >= 0} {v:Int | v >= 0} @-}
 fresh :: ST Int Int
-fresh = S $ \n -> (n, n+1)
+fresh = Superb (\n -> (n, n+1))
 
 

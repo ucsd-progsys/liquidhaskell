@@ -6,6 +6,9 @@ absN x = if x > 0 then x else (-x)
 absI ::  Int -> Int
 absI x = if x > 0 then x else (-x)
 
+absL :: [Int] -> [Int]
+absL xs = (0 : xs) ++ [] 
+
 --incI ::  Int -> Int
 --incI = (+) 1
 

@@ -3,25 +3,24 @@
 
 -- | Niki Vazou Sep 2016 
 
-{-@ LIQUID "--higherorder"   @-}
-{-@ LIQUID "--exactdc"       @-}
+{-@ LIQUID "--reflection" @-}
 
 
 module MapReduce where 
 
 import Prelude hiding (mconcat, map, split, take, drop, sum)
-import Language.Haskell.Liquid.ProofCombinators 
+import Language.Haskell.Liquid.NewProofCombinators 
 
 -------------------------------------------------------------------------------
 ------------  Map Reduce Definition  ------------------------------------------
 -------------------------------------------------------------------------------
 
 
-{-@ axiomatize mapReduce @-}
+{-@ reflect mapReduce @-}
 mapReduce :: Int -> (List a -> b) -> (b -> b -> b) -> List a -> b 
 mapReduce n f op is = reduce op (f N) (map f (chunk n is))
 
-{-@ axiomatize reduce @-}
+{-@ reflect reduce @-}
 reduce :: (a -> a -> a) -> a -> List a -> a 
 reduce op b N        = b 
 reduce op b (C x xs) = op x (reduce op b xs) 
@@ -36,7 +35,7 @@ chunk :: Int -> List a -> List (List a)
 sum  :: List Int -> Int 
 plus :: Int -> Int -> Int 
 
-{-@ axiomatize msum @-}
+{-@ reflect msum @-}
 msum :: Int -> List Int -> Int 
 msum n is = mapReduce n sum plus is 
 
@@ -45,8 +44,8 @@ mapReduceSum :: Int -> List Int -> Proof
 {-@ mapReduceSum :: n:Int -> is:List Int -> { sum is == mapReduce n sum plus is} @-}
 mapReduceSum n is 
   =   msum n is 
-  ==. mapReduce n sum plus is 
-  ==. sum is  ? mapReduceTheorem n sum plus sumLeftId sumDistributes is 
+  === mapReduce n sum plus is 
+  ==? sum is  ? mapReduceTheorem n sum plus sumLeftId sumDistributes is 
   *** QED 
 
 -------------------------------------------------------------------------------
@@ -64,38 +63,39 @@ mapReduceTheorem :: Int -> (List a -> b) -> (b -> b -> b) -> (List a -> Proof) -
   @-}
 mapReduceTheorem n f op left_id _ N 
   =   mapReduce n f op N 
-  ==. reduce op (f N) (map f (chunk n N))
-  ==. reduce op (f N) (map f (C N N))
-  ==. reduce op (f N) (f N `C` map f N )
-  ==. reduce op (f N) (f N `C` N)
-  ==. op (f N) (reduce op (f N) N)
-  ==. op (f N) (f N)
+  === reduce op (f N) (map f (chunk n N))
+  === reduce op (f N) (map f (C N N))
+  === reduce op (f N) (f N `C` map f N )
+  === reduce op (f N) (f N `C` N)
+  === op (f N) (reduce op (f N) N)
+  ==? op (f N) (f N)
        ? left_id N
-  ==. f N 
+  === f N 
   *** QED 
+
 mapReduceTheorem n f op left_id _ is@(C x xs)
   | n <= 1 || llen is <= n 
   =   mapReduce n f op is 
-  ==. reduce op (f N) (map f (chunk n is))
-  ==. reduce op (f N) (map f (C is N))
-  ==. reduce op (f N) (f is `C` map f N)
-  ==. reduce op (f N) (f is `C` N)
-  ==. op (f is) (reduce op (f N) N)
-  ==. op (f is) (f N)
-  ==. f is  ? left_id is
+  === reduce op (f N) (map f (chunk n is))
+  === reduce op (f N) (map f (C is N))
+  === reduce op (f N) (f is `C` map f N)
+  === reduce op (f N) (f is `C` N)
+  === op (f is) (reduce op (f N) N)
+  === op (f is) (f N)
+  ==? f is  ? left_id is
   *** QED 
 mapReduceTheorem n f op left_id distributionTheorem is 
   =   mapReduce n f op is 
-  ==. reduce op (f N) (map f (chunk n is)) 
-  ==. reduce op (f N) (map f (C (take n is) (chunk n (drop n is)))) 
-  ==. reduce op (f N) (C (f (take n is)) (map f (chunk n (drop n is)))) 
-  ==. op (f (take n is)) (reduce op (f N) (map f (chunk n (drop n is))))  
-  ==. op (f (take n is)) (mapReduce n f op (drop n is)) 
+  === reduce op (f N) (map f (chunk n is)) 
+  === reduce op (f N) (map f (C (take n is) (chunk n (drop n is)))) 
+  === reduce op (f N) (C (f (take n is)) (map f (chunk n (drop n is)))) 
+  === op (f (take n is)) (reduce op (f N) (map f (chunk n (drop n is))))  
+  ==? op (f (take n is)) (mapReduce n f op (drop n is)) 
       ? mapReduceTheorem n f op left_id distributionTheorem (drop n is)
-  ==. op (f (take n is)) (f (drop n is)) 
-  ==. f (append (take n is) (drop n is))
+  === op (f (take n is)) (f (drop n is)) 
+  ==? f (append (take n is) (drop n is))
       ? distributionTheorem (take n is) (drop n is)
-  ==. f is 
+  ==? f is 
       ? appendTakeDrop n is 
   *** QED  
 
@@ -178,20 +178,21 @@ append (C x xs) ys = x `C` (append xs ys)
 appendTakeDrop :: Int -> List a -> Proof 
 appendTakeDrop i N 
   =   append (take i N) (drop i N)
-  ==. append N N 
-  ==. N 
+  === append N N 
+  === N 
   *** QED 
 appendTakeDrop i (C x xs)
   | i == 0 
   =   append (take 0 (C x xs)) (drop 0 (C x xs))
-  ==. append N (C x xs)
-  ==. C x xs 
+  === append N (C x xs)
+  === C x xs 
   *** QED 
   | otherwise
   =   append (take i (C x xs)) (drop i (C x xs))
-  ==. append (C x (take (i-1) xs)) (drop (i-1) xs)
-  ==. C x (append (take (i-1) xs) (drop (i-1) xs))
-  ==. C x xs ? appendTakeDrop (i-1) xs 
+  === append (C x (take (i-1) xs)) (drop (i-1) xs)
+  === C x (append (take (i-1) xs) (drop (i-1) xs))
+  ==? C x xs 
+      ? appendTakeDrop (i-1) xs 
   *** QED 
 
 
@@ -204,34 +205,37 @@ appendTakeDrop i (C x xs)
 sumLeftId :: List Int -> Proof 
 {-@ sumLeftId :: xs:List Int -> {plus (sum xs) (sum N) == sum xs } @-}
 sumLeftId xs 
-  =  plus (sum xs) (sum N) ==. sum xs + 0 ==. sum xs *** QED 
+  =  plus (sum xs) (sum N) 
+  === sum xs + 0 
+  === sum xs 
+  *** QED 
 
 {-@ sumDistributes :: xs:List Int -> ys:List Int -> 
       {sum (append xs ys) == plus (sum xs) (sum ys)} @-}
 sumDistributes :: List Int -> List Int -> Proof 
 sumDistributes N ys 
   =   sum (append N ys)
-  ==. sum ys
-  ==. plus 0       (sum ys)
-  ==. plus (sum N) (sum ys)
+  === sum ys
+  === plus 0       (sum ys)
+  === plus (sum N) (sum ys)
   *** QED 
 sumDistributes (C x xs) ys  
   =   sum (append (C x xs) ys)
-  ==. sum (C x (append xs ys))
-  ==. x `plus` (sum (append xs ys))
+  === sum (C x (append xs ys))
+  ==? x `plus` (sum (append xs ys))
       ? sumDistributes xs ys
-  ==. x `plus` (plus (sum xs) (sum ys))
-  ==. x + (sum xs + sum ys)
-  ==. ((x + sum xs) + sum ys)
-  ==. ((x `plus` sum xs) `plus` sum ys)
-  ==. sum (C x xs) `plus` sum ys
+  === x `plus` (plus (sum xs) (sum ys))
+  === x + (sum xs + sum ys)
+  === ((x + sum xs) + sum ys)
+  === ((x `plus` sum xs) `plus` sum ys)
+  === sum (C x xs) `plus` sum ys
   *** QED 
 
 
-{-@ axiomatize plus @-}
+{-@ reflect plus @-}
 plus x y = x + y 
 
-{-@ axiomatize sum @-}
+{-@ reflect sum @-}
 sum N        = 0 
 sum (C x xs) = x `plus` sum xs
 

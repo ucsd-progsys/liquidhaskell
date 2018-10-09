@@ -29,15 +29,15 @@ import           ErrUtils                         (ErrMsg)
 import           GHC                              (Name, Class)
 import           HscTypes                         (SourceError)
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types          as F -- hiding (Error, SrcSpan, Predicate)
+import qualified Language.Fixpoint.Types          as F 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types    -- hiding (sort)
+import           Language.Haskell.Liquid.Types.Types    
 import           Prelude                          hiding (error)
 import           SrcLoc
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ        hiding ((<>))
 import           TyCon                            (TyCon)
-import           Language.Haskell.Liquid.GHC.TypeRep                          hiding (maybeParen)
+import           Language.Haskell.Liquid.GHC.TypeRep  hiding (maybeParen)
 import           Var                              (Var)
 
 --------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ pprintLongList k = brackets . vcat . map (pprintTidy k)
 --------------------------------------------------------------------------------
 pprintSymbol :: F.Symbol -> Doc
 --------------------------------------------------------------------------------
-pprintSymbol x = char '‘' <> pprint x <> char '’'
+pprintSymbol x = char '‘' <-> pprint x <-> char '’'
 
 
 --------------------------------------------------------------------------------
@@ -141,11 +141,18 @@ instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
   pprintTidy = ppAlias
 
 ppAlias :: (PPrint tv, PPrint ty) => F.Tidy -> RTAlias tv ty -> Doc
-ppAlias k a = text "type" <+> pprint (rtName a)
-                          <+> pprints k space (rtTArgs a)
-                          <+> pprints k space (rtVArgs a)
-                          <+> text " = "
-                          <+> pprint (rtBody a)
+ppAlias k a =   pprint (rtName a)
+            <+> pprints k space (rtTArgs a)
+            <+> pprints k space (rtVArgs a)
+            <+> text " = "
+            <+> pprint (rtBody a)
+
+instance (F.PPrint tv, F.PPrint t) => F.PPrint (RTEnv tv t) where 
+  pprintTidy k rte 
+    =   text "** Type Aliaes *********************" 
+    $+$ nest 4 (F.pprintTidy k (typeAliases rte)) 
+    $+$ text "** Expr Aliases ********************" 
+    $+$ nest 4 (F.pprintTidy k (exprAliases rte))
 
 pprints :: (PPrint a) => F.Tidy -> Doc -> [a] -> Doc
 pprints k c = sep . punctuate c . map (pprintTidy k)
@@ -179,10 +186,10 @@ ppr_rtype bb p t@(RFun _ _ _ _)
   = maybeParen p FunPrec $ ppr_rty_fun bb empty t
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
-  = F.ppTy r $ brackets (ppr_rtype bb p t) <> ppReftPs bb p rs
+  = F.ppTy r $ brackets (ppr_rtype bb p t) <-> ppReftPs bb p rs
 ppr_rtype bb p (RApp c ts rs r)
   | isTuple c
-  = F.ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <> ppReftPs bb p rs
+  = F.ppTy r $ parens (intersperse comma (ppr_rtype bb p <$> ts)) <-> ppReftPs bb p rs
 ppr_rtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
   = F.ppTy r $ ppT c
@@ -214,7 +221,7 @@ ppr_rtype _ _ (RHole r)
 
 ppTyConB :: TyConable c => PPEnv -> c -> Doc
 ppTyConB bb
-  | ppShort bb = shortModules . ppTycon
+  | ppShort bb = {- shortModules . -} ppTycon
   | otherwise  = ppTycon
 
 shortModules :: Doc -> Doc
@@ -230,7 +237,7 @@ ppr_rsubtype bb p e
     (env, l) = (init el, last el)
     tr   = snd $ r
     tl   = snd $ l
-    pprint_bind (x, t) = pprint x <+> colon <> colon <+> ppr_rtype bb p t
+    pprint_bind (x, t) = pprint x <+> colon <-> colon <+> ppr_rtype bb p t
     pprint_env         = hsep $ punctuate comma (pprint_bind <$> env)
 
 -- | From GHC: TypeRep
@@ -245,7 +252,7 @@ ppExists
       F.Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p t
-  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
+  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
@@ -254,10 +261,11 @@ ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
-  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <> dot <> ppr_rtype bb p t'
-    where (zs,  t')               = split [] t
-          split zs (RAllE x t t') = split ((x,t):zs) t'
-          split zs t                = (reverse zs, t)
+  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+    where 
+      (zs,  t')               = split [] t
+      split zs (RAllE x t t') = split ((x,t):zs) t'
+      split zs t              = (reverse zs, t)
 
 ppReftPs
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()),
@@ -275,7 +283,7 @@ ppr_dbind bb p x t
   | F.isNonSymbol x || (x == F.dummySymbol)
   = ppr_rtype bb p t
   | otherwise
-  = pprint x <> colon <> ppr_rtype bb p t
+  = pprint x <-> colon <-> ppr_rtype bb p t
 
 
 ppr_rty_fun
@@ -288,9 +296,9 @@ ppr_rty_fun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
 ppr_rty_fun' bb (RImpF b t t' r)
-  = F.ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb (text "~>") t'
+  = F.ppTy r $ ppr_dbind bb FunPrec b t $+$ ppr_rty_fun bb (text "~>") t'
 ppr_rty_fun' bb (RFun b t t' r)
-  = F.ppTy r $ ppr_dbind bb FunPrec b t <+> ppr_rty_fun bb arrow t'
+  = F.ppTy r $ ppr_dbind bb FunPrec b t $+$ ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
   = ppr_rtype bb TopPrec t
 
@@ -306,7 +314,7 @@ ppr_forall bb p t = maybeParen p FunPrec $ sep [
 
     ppr_foralls False _ _  _  = empty
     ppr_foralls _    [] [] [] = empty
-    ppr_foralls True αs πs ss = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <+> ppr_symbols ss <> dot
+    ppr_foralls True αs πs ss = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <+> ppr_symbols ss <-> dot
 
     ppr_clss []               = empty
     ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
@@ -359,7 +367,7 @@ ppr_ref  (RProp ss s) = ppRefArgs (fst <$> ss) <+> pprint s
 
 ppRefArgs :: [F.Symbol] -> Doc
 ppRefArgs [] = empty
-ppRefArgs ss = text "\\" <> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> text "->"
+ppRefArgs ss = text "\\" <-> hsep (ppRefSym <$> ss ++ [F.vv Nothing]) <+> arrow 
 
 ppRefSym :: (Eq a, IsString a, PPrint a) => a -> Doc
 ppRefSym "" = text "_"
@@ -372,6 +380,6 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
   pprintTidy k (MkUReft r p _)
     | F.isTauto r  = pprintTidy k p
     | F.isTauto p  = pprintTidy k r
-    | otherwise  = pprintTidy k p <> text " & " <> pprintTidy k r
+    | otherwise  = pprintTidy k p <-> text " & " <-> pprintTidy k r
 
 --------------------------------------------------------------------------------

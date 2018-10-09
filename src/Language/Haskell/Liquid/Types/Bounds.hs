@@ -28,8 +28,8 @@ import qualified Data.Binary         as B
 import qualified Data.HashMap.Strict as M
 
 import qualified Language.Fixpoint.Types as F
-import Language.Haskell.Liquid.Types
-import Language.Fixpoint.Misc  (mapFst, mapSnd)
+import qualified Language.Fixpoint.Misc  as Misc -- (mapFst, mapSnd)
+import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 
 
@@ -45,7 +45,6 @@ instance (B.Binary t, B.Binary e) => B.Binary (Bound t e)
 
 type RBound        = RRBound RSort
 type RRBound tv    = Bound tv F.Expr
-
 type RBEnv         = M.HashMap LocSymbol RBound
 type RRBEnv tv     = M.HashMap LocSymbol (RRBound tv)
 
@@ -70,7 +69,7 @@ instance (PPrint e, PPrint t) => (PPrint (Bound t e)) where
       ppBsyms k xs = "\\" <+> pprintTidy k xs <+> "->"
 
 instance Bifunctor Bound where
-  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (mapSnd f <$> ps) (mapSnd f <$> xs) e
+  first  f (Bound s vs ps xs e) = Bound s (f <$> vs) (Misc.mapSnd f <$> ps) (Misc.mapSnd f <$> xs) e
   second f (Bound s vs ps xs e) = Bound s vs ps xs (f e)
 
 makeBound :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r)
@@ -117,7 +116,7 @@ makeBoundType _ _ _           = panic Nothing "Bound with empty predicates"
 
 
 partitionPs :: [(F.Symbol, F.Symbol)] -> [F.Expr] -> (M.HashMap F.Symbol [UsedPVar], [F.Expr])
-partitionPs penv qs = mapFst makeAR $ partition (isPApp penv) qs
+partitionPs penv qs = Misc.mapFst makeAR $ partition (isPApp penv) qs
   where
     makeAR ps       = M.fromListWith (++) $ map (toUsedPVars penv) ps
 

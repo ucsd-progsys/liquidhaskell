@@ -5,7 +5,7 @@
 
 module Bug (foo, zogbert) where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 {-@ reflect identity @-}
 identity :: a -> a
@@ -21,7 +21,7 @@ identity3 x = x
 
 {-@ foo :: x:a -> { identity x == x } @-}
 foo :: a -> Proof
-foo x = identity x ==. x *** QED
+foo x = identity x === x *** QED
 
 {-@ reflect zogbert @-}
 zogbert :: a -> a

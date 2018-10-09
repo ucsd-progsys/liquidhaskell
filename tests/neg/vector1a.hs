@@ -9,7 +9,7 @@ foo = (Data.Vector.!)
 
 for :: Int -> Int -> a -> (Int -> a -> a) -> a
 for lo hi acc f 
-  | lo < hi   = for (lo + 1) hi (f lo acc) f
+  | lo <= hi   = for (lo + 1) hi (f lo acc) f
   | otherwise = acc 
 
 dotProd       :: Vector Int -> Vector Int -> Int

@@ -33,7 +33,7 @@ mergeSort xs   = merge (mergeSort xs1) (mergeSort xs2)
   where 
     (xs1, xs2) = split xs
 
-{-@ type Half a Xs  = {v:[a] | (len v > 1) => (len v < len Xs)} @-}
+{-@ type Half a Ys  = {v:[a] | (len v > 1) => (len v < len Ys)} @-}
 
 {-@ type Halves a Xs = {v: (Half a Xs, Half a Xs) | len (fst v) + len (snd v) == len Xs} @-}
  

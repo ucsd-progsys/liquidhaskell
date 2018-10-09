@@ -327,12 +327,26 @@ m1 \\ m2 = difference m1 m2
 -- | A Map from keys @k@ to values @a@.
 
 -- See Note: Order of constructors
-data Map k a  = Bin Size k a (Map k a) (Map k a)
+data Map k a  = Bin { mSize :: Size
+                    , key   :: k 
+                    , value :: a
+                    , left  :: (Map k a) 
+                    , right :: (Map k a)
+                    }
               | Tip
 
 type Size     = Int
 
-{-@ include <Base.hquals> @-}
+{- include <Base.hquals> @-}
+
+{-@ qualif_bound1 :: x:k -> {v:Map k a | ((isBin v) => (x < (key v))) } @-}
+{-@ qualif_bound2 :: x:k -> {v:Map k a | ((isBin v) => (x > (key v))) } @-}
+qualif_bound1, qualif_bound2 :: k -> Map k a
+qualif_bound1 = undefined 
+qualif_bound2 = undefined 
+
+
+ 
 
 {-@ data Map [mlen] k a <l :: root:k -> k -> Bool, r :: root:k -> k -> Bool>
          = Bin (mSize :: Size)

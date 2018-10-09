@@ -72,7 +72,7 @@ binarySearch = binarySearchBy compare
 -- preserving the vector's sortedness.
 binarySearchBy :: (PrimMonad m, MVector v e)
                => Comparison e -> v (PrimState m) e -> e -> m Int
-binarySearchBy cmp vec e = binarySearchByBounds cmp vec e 0 (length vec)
+binarySearchBy cmp veck e = binarySearchByBounds cmp veck e 0 (length veck)
 {-# INLINE binarySearchBy #-}
 
 -- | Given a vector sorted with respect to a given comparison function in indices

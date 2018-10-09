@@ -1,11 +1,10 @@
 {-@ LIQUID "--reflection"      @-}
-
 {-@ LIQUID "--alphaequivalence" @-}
 {-@ LIQUID "--betaequivalence"  @-}
 {-@ LIQUID "--normalform"       @-} 
 
 module NormalForm where
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 {-
 
@@ -15,7 +14,6 @@ form equality axioms.
 instance taken from MonadReader.associativity
 
 -}
-
 
 foo :: (a -> c) -> Proof 
 {-@ foo :: f:(a ->  c) 

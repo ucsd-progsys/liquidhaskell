@@ -104,12 +104,18 @@ One a `appOL` b     = Cons a b
 a     `appOL` One b = Snoc a b
 a     `appOL` b     = Two a b
 
-{-@ qualif Go(v:[a], xs:OrdList a, ys:[a]): (len v) = (olen xs) + (len ys) @-}
+-- TODO-REBARE the below QUAL _should_ work but doesn't, but we can get it 
+-- to work with the ty-sig of `go` ... hmm.
+
+
+{-@ qualif_go :: xs:_ -> ys:_ -> {v:_ | len v = olen xs + len ys} @-}
+qualif_go :: OrdList a -> [a] -> [a]
+qualif_go = undefined 
 
 {-@ fromOL :: xs:OrdList a -> {v:[a] | len v = olen xs} @-}
 fromOL a = go a []
   where
-    {- go :: xs:_ -> acc:_ -> {v:[a] | llen v = olen xs + len acc } -}
+    {- go :: xs:_ -> acc:_ -> {v:[a] | len v = olen xs + len acc } @-}
     go None       acc = acc
     go (One a)    acc = a : acc
     go (Cons a b) acc = a : go b acc
@@ -128,7 +134,7 @@ mapOL f (Many xs) = Many (map f xs)
 instance Functor OrdList where
   fmap = mapOL
 
-foldrOL :: (a->b->b) -> b -> OrdList a -> b
+foldrOL :: (a -> b -> b) -> b -> OrdList a -> b
 foldrOL _ z None        = z
 foldrOL k z (One x)     = k x z
 foldrOL k z (Cons x xs) = k x (foldrOL k z xs)
@@ -136,7 +142,7 @@ foldrOL k z (Snoc xs x) = foldrOL k (k x z) xs
 foldrOL k z (Two b1 b2) = foldrOL k (foldrOL k z b2) b1
 foldrOL k z (Many xs)   = foldr k z xs
 
-foldlOL :: (b->a->b) -> b -> OrdList a -> b
+foldlOL :: (b -> a -> b) -> b -> OrdList a -> b
 foldlOL _ z None        = z
 foldlOL k z (One x)     = k z x
 foldlOL k z (Cons x xs) = foldlOL k (k z x) xs

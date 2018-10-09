@@ -58,11 +58,13 @@ See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
 How To Run Regression Tests
 ---------------------------
 
+You can run all the tests by
+
     $ stack test
 
-To use threads to speed up the tests
+To pass in specific parameters and run a subset of the tests 
 
-    $ make THREADS=30 test
+    $ stack test liquidhaskell --fast  --test-arguments "--liquid-opts --no-termination -p Unit"
 
 Or your favorite number of threads, depending on cores etc.
 
@@ -70,24 +72,21 @@ You can directly extend and run the tests by modifying
 
     tests/test.hs
 
-To run the regression test *and* the benchmarks run
-
-    $ make all-test
-
 How to Profile
 --------------
 
 1. Build with profiling on
 
     ```
-    $ make pdeps && make prof
+    $ stack build liquidhaskell --fast --profile
     ```
+
 
 2. Run with profiling
 
     ```
-    $ time liquid range.hs +RTS -hc -p
-    $ time liquid range.hs +RTS -hy -p
+    $ stack exec -- liquid range.hs +RTS -hc -p
+    $ stack exec -- liquid range.hs +RTS -hy -p
     ```
 
     Followed by this which shows the stats file
@@ -111,13 +110,17 @@ How to Get Stack Traces On Exceptions
 1. Build with profiling on
 
     ```
-    $ make pdeps && make prof
+    $ stack build liquidhaskell --fast --profile
     ```
 
 2. Run with backtraces
 
     ```
     $ liquid +RTS -xc -RTS foo.hs
+    ```
+
+    ```
+    stack exec -- liquid List00.hs +RTS -p -xc -RTS
     ```
 
 Working With Submodules
@@ -1463,4 +1466,37 @@ Suppose that the current version of Liquid Haskell is `A.B.C.D`:
 + The first time the signature of an exported function or type is changed, or an exported function or type is removed (this includes functions or types that Liquid Haskell re-exports from its own dependencies), if the `B` component is missing, it shall be added and set to `0`. Then the `B` component shall be incremented by `1`, and the `C` and `D` components shall be stripped. The version of Liquid Haskell is now `A.(B + 1)`
 
 + The `A` component shall be updated at the sole discretion of the project owners.
+
+Updating GHC
+============
+
+Here's a script to generate the diff for the `desugar` modules.
+
+```
+export GHCSRC=$HOME/Documents/ghc
+
+# Checkout GHC-8.2.2
+(cd $GHCSRC && git checkout ghc-8.2.2 && git pull)
+
+# make a patch
+diff -ur $GHCSRC/compiler/deSugar src/Language/Haskell/Liquid/Desugar > liquid.patch
+
+# Checkout GHC-8.4.3
+(cd $GHCSRC && git checkout ghc-8.2.2 && git pull)
+
+# Copy GHC desugarer to temporary directory
+cp -r $GHCSRC/compiler/deSugar .
+
+# Patch
+(cd deSugar && patch -p5 --merge --ignore-whitespace < ../liquid.patch)
+
+# Copy stuff over
+for i in src/Language/Haskell/Liquid/Desugar/*.*; do j=$(basename $i); echo $j; cp deSugar/$j src/Language/Haskell/Liquid/Desugar; done
+```
+
+
+Here's the magic diff that we did at some point that we keep bumping up to new GHC versions:
+
+https://github.com/ucsd-progsys/liquidhaskell/commit/d380018850297b8f1878c33d0e4c586a1fddc2b8#diff-3644b76a8e6b3405f5492d8194da3874R224 
+
 

@@ -1,9 +1,9 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{- LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-} 
+{-@ LIQUID "--ple"        @-} 
 
 module ReflectClient3 where
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 import ReflectLib3
 
@@ -14,10 +14,10 @@ forceImports = [ undefined next
 
 -- THIS WORKS
 {-@ test2 :: { next Mon == Tue } @-}
-test2 = next Mon ==. Tue *** QED
+test2 = next Mon === Tue *** QED
 
 -- THIS DOES NOT WORK, but it DOES work if we remove the
 -- type parameter from `List`. However it DOES work if we
 -- put this back into ReflectLib3.hs
 {-@ test4 :: { lDay Nil == Mon } @-}
-test4 = lDay Nil ==. Mon *** QED
+test4 = lDay Nil === Mon *** QED

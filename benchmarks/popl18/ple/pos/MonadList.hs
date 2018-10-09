@@ -2,16 +2,11 @@
 {-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--betaequivalence"  @-}
 
+module MonadList where
 
+import Prelude hiding (return, (>>=))
 
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts      #-}
-
-module MonadMaybe where
-
-import Prelude hiding (return, Maybe(..), (>>=))
-
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 
 -- | Monad Laws :
@@ -19,17 +14,17 @@ import Language.Haskell.Liquid.ProofCombinators
 -- | Right identity:	m >>= return    ≡ m
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
-{-@ axiomatize return @-}
+{-@ reflect return @-}
 return :: a -> L a
 return x = C x Emp
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: L a -> (a -> L b) -> L b
 bind Emp f = Emp
 bind (C x xs) f = append (f x) (bind xs f)
 
 
-{-@ axiomatize append @-}
+{-@ reflect append @-}
 append :: L a -> L a -> L a
 append Emp ys = ys 
 append (C x xs) ys = C x (append xs ys)
@@ -76,10 +71,8 @@ bind_append (C x  xs) ys f
   =   bind_append xs ys f
   &&& prop_assoc (f x) (bind xs f) (bind ys f)
 
-
-
+{-@ data L [llen] @-} 
 data L a = Emp | C a  (L a)
-{-@ data L [llen] a = Emp | C  {x::a, xs :: L a} @-}
 
 {-@ measure llen @-}
 llen :: L a -> Int

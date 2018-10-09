@@ -468,11 +468,11 @@ pack str = unsafeCreate (P.length str) $ \p -> go p str
 
 #else /* hack away */
 
-pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (go p 0# str)
+pack str = unsafeCreate (P.length str) $ \(Ptr p) -> stToIO (goz str p 0# )
     where
-        {-@ decrease go 3 @-}
-        go _ _ []        = return ()
-        go p i (W8# c:cs) = writeByte p i c >> go p (i +# 1#) cs
+        {- goz :: _ -> _ -> cs:_ -> _ / [len cs] -}
+        goz []         _ _  = return ()
+        goz (W8# c:cs) p i  = writeByte p i c >> goz cs p (i +# 1#) 
 
         writeByte p i c = ST $ \s# ->
             case writeWord8OffAddr# p i c s# of s2# -> (# s2#, () #)
@@ -2343,3 +2343,38 @@ findFromEndUntil f ps@(PS x s l) =
          else findFromEndUntil f (PS x s (l-1))
 
 
+
+-- // for unfoldrN 
+{-@ qualif PLenNat(v:GHC.Ptr.Ptr a): (0 <= plen v) 
+  @-}
+
+-- // for UnpackFoldrINLINED
+{-@ qualif UnpackFoldrINLINED(v:List a, n:int, acc:List a): (len v = n + 1 + (len acc))
+  @-}
+
+-- // for ByteString.inits
+{-@ qualif BLenGt(v:Data.ByteString.Internal.ByteString, n:int): ((bLength v) > n)
+  @-}
+
+-- // for ByteString.concat
+{-@ qualif BLens(v:List Data.ByteString.Internal.ByteString) : (0 <= bLengths v)
+  @-}
+
+{-@ qualif BLenLE(v:GHC.Ptr.Ptr a, bs:List Data.ByteString.Internal.ByteString): (bLengths bs <= plen v) 
+  @-}
+
+-- // for ByteString.splitWith
+{-@ qualif SplitWith(v:List Data.ByteString.Internal.ByteString, l:int): ((bLengths v) + (len v) - 1 = l)
+  @-}
+
+-- // for ByteString.unfoldrN
+{-@ qualif PtrDiff(v:int, i:int, p:GHC.Ptr.Ptr a): (i - v <= plen p)
+  @-}
+
+-- // for ByteString.split
+{-@ qualif BSValidOff(v:int,l:int,p:GHC.ForeignPtr.ForeignPtr a): (v + l <= fplen p) 
+  @-}
+
+
+{-@ qualif SplitLoop(v:List Data.ByteString.Internal.ByteString, l:int, n:int): ((bLengths v) + (len v) - 1 = l - n)
+  @-}

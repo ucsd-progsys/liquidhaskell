@@ -1,9 +1,7 @@
 import Data.Binary
 
 
-{-@
-error :: { x : String | false } -> a
-@-}
+{-@ assume error :: { x : String | false } -> a @-}
 
 example :: Get ()
 example = do

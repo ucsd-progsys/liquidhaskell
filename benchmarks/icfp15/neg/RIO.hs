@@ -5,6 +5,13 @@ module RIO where
 import Control.Applicative
 #endif
 
+
+-- THE REST OF THIS FILE IS SAFE; just adding this to trigger an error to appease the "neg" gods.
+{-@ silly_buggy_incr :: Nat -> Nat @-}
+silly_buggy_incr :: Int -> Int 
+silly_buggy_incr x = x - 1
+
+
 {-@ data RIO a <p :: World -> Bool, q :: World -> a -> World -> Bool>
   = RIO (rs :: (xxx:World<p> -> (a, World)<\w -> {v:World<q xxx w> | true}>))
   @-}

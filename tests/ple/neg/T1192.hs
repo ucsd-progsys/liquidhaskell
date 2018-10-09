@@ -1,6 +1,6 @@
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--no-adt"         @-}
-{-@ LIQUID "--ple"            @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--no-adt"     @-}
+{-@ LIQUID "--ple"        @-}
 
 module RangeSet where
 

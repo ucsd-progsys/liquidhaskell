@@ -33,7 +33,7 @@ module Language.Haskell.Liquid.Types.RefType (
   -- * Functions for manipulating `Predicate`s
   , pdVar
   , findPVar
-  , FreeVar, freeTyVars, tyClasses, tyConName
+  , FreeVar, allTyVars, freeTyVars, tyClasses, tyConName
 
   -- * Quantifying RTypes
   , quantifyRTy
@@ -85,6 +85,7 @@ module Language.Haskell.Liquid.Types.RefType (
 -- import           GHC.Stack
 import TyCoRep
 import Prelude hiding (error)
+import qualified Prelude
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
@@ -95,32 +96,27 @@ import qualified TyCon  as TC
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred, isEqPred, isNomEqPred)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
--- import TysPrim          (eqPrimTyCon)
--- import           Data.Monoid      hiding ((<>))
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List as L
-
-import Control.Monad  (void)
-import Text.Printf
-import Text.PrettyPrint.HughesPJ
-
-import Language.Haskell.Liquid.Types.Errors
-import Language.Haskell.Liquid.Types.PrettyPrint
+import           Control.Monad  (void)
+import           Text.Printf
+import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
+import           Language.Fixpoint.Misc
+import           Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
+import           Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
 import qualified Language.Fixpoint.Types as F
-import Language.Fixpoint.Types hiding (DataDecl (..), DataCtor (..), panic, shiftVV, Predicate, isNumeric)
-import Language.Fixpoint.Types.Visitor (mapKVars, Visitable)
-import Language.Haskell.Liquid.Types hiding (R, DataConP (..))
+import           Language.Haskell.Liquid.Types.Errors
+import           Language.Haskell.Liquid.Types.PrettyPrint
 
-import Language.Haskell.Liquid.Types.Variance
-
-import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Types.Names
-import Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.Types.Types hiding (R, DataConP (..))
+import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.Misc
+import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
+import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
 
 import Data.List (sort, foldl')
 
@@ -211,7 +207,18 @@ uTop r          = MkUReft r mempty mempty
 
 -- Monoid Instances ---------------------------------------------------------
 
+instance ( SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) c
+         , OkRT c tv r
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) r
+         , SubsTy tv (RType c tv ()) tv
+         , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
+         )
+        => Semigroup (RType c tv r)  where
+  (<>) = strengthenRefType
 
+-- TODO: remove, use only Semigroup?
 instance ( SubsTy tv (RType c tv ()) (RType c tv ())
          , SubsTy tv (RType c tv ()) c
          , OkRT c tv r
@@ -233,20 +240,31 @@ instance ( SubsTy tv (RType c tv ()) c
          , SubsTy tv (RType c tv ()) tv
          , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
          )
-         => Monoid (RTProp c tv r) where
-  mempty         = panic Nothing "mempty: RTProp"
-
-  mappend (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
+         => Semigroup (RTProp c tv r) where
+  (<>) (RProp s1 (RHole r1)) (RProp s2 (RHole r2))
     | isTauto r1 = RProp s2 (RHole r2)
     | isTauto r2 = RProp s1 (RHole r1)
     | otherwise  = RProp s1 $ RHole $ r1 `meet`
                                (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) r2)
 
-  mappend (RProp s1 t1) (RProp s2 t2)
+  (<>) (RProp s1 t1) (RProp s2 t2)
     | isTrivial t1 = RProp s2 t2
     | isTrivial t2 = RProp s1 t1
     | otherwise    = RProp s1 $ t1  `strengthenRefType`
                                 (subst (mkSubst $ zip (fst <$> s2) (EVar . fst <$> s1)) t2)
+
+-- TODO: remove and use only Semigroup?
+instance ( SubsTy tv (RType c tv ()) c
+         , OkRT c tv r
+         , FreeVar c tv
+         , SubsTy tv (RType c tv ()) r
+         , SubsTy tv (RType c tv ()) (RType c tv ())
+         , SubsTy tv (RType c tv ()) tv
+         , SubsTy tv (RType c tv ()) (RTVar tv (RType c tv ()))
+         )
+         => Monoid (RTProp c tv r) where
+  mempty  = panic Nothing "mempty: RTProp"
+  mappend = (<>)
 
 {-
 NV: The following makes ghc diverge thus dublicating the code
@@ -521,7 +539,7 @@ bTyVar :: Symbol -> BTyVar
 bTyVar      = BTV
 
 symbolRTyVar :: Symbol -> RTyVar
-symbolRTyVar = rTyVar . GM.stringTyVar . symbolString
+symbolRTyVar = rTyVar . GM.symbolTyVar 
 
 bareRTyVar :: BTyVar -> RTyVar
 bareRTyVar (BTV tv) = symbolRTyVar tv
@@ -852,6 +870,12 @@ addNumSizeFun c
 
 generalize :: (Eq tv) => RType c tv r -> RType c tv r
 generalize t = mkUnivs (freeTyVars t) [] [] t
+
+allTyVars :: (Ord tv) => RType c tv r -> [tv]
+allTyVars t = sortNub . fmap ty_var_value $ vs ++ vs'
+  where
+    vs      = fst4 . bkUniv $ t
+    vs'     = freeTyVars    $ t
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -1360,7 +1384,7 @@ toType t@(RExprArg _)
 toType (RRTy _ _ _ t)
   = toType t
 toType t
-  = impossible Nothing $ "RefType.toType cannot handle: " ++ show t
+  = {- impossible Nothing -} Prelude.error $ "RefType.toType cannot handle: " ++ show t
 
 
 --------------------------------------------------------------------------------
@@ -1389,7 +1413,9 @@ appSolRefa s p = mapKVars f p
     f k        = Just $ M.lookupDefault PTop k s
 
 --------------------------------------------------------------------------------
-shiftVV :: SpecType -> Symbol -> SpecType
+-- shiftVV :: Int -- SpecType -> Symbol -> SpecType
+shiftVV :: (TyConable c, F.Reftable (f Reft), Functor f) 
+        => RType c tv (f Reft) -> Symbol -> RType c tv (f Reft) 
 --------------------------------------------------------------------------------
 shiftVV t@(RApp _ ts rs r) vv'
   = t { rt_args  = subst1 ts (rTypeValueVar t, EVar vv') }
@@ -1418,11 +1444,11 @@ shiftVV t _
 
 -- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
-  show (RTA n as xs t p _) =
+  show (RTA n as xs t) =
     printf "type %s %s %s = %s -- defined at %s" (symbolString n)
       (unwords (show <$> as))
       (unwords (show <$> xs))
-      (show t) (show p)
+      (show t) 
 
 --------------------------------------------------------------------------------
 -- | From Old Fixpoint ---------------------------------------------------------
@@ -1528,10 +1554,12 @@ classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
   | isEqual c
   = [(symbol a, rTypeSortedReft emb t)]
 classBinds  emb (RApp c [_, (RVar a _), t] _ _)
-  | showpp c == "Data.Type.Equality.~"  -- see [NOTE:type-equality-hack]
+  | showpp c == "Data.Type.Equality.~<[]>"  -- see [NOTE:type-equality-hack]
   = [(symbol a, rTypeSortedReft emb t)]
+  | otherwise 
+  = notracepp ("CLASSBINDS-0: " ++ showpp c) [] 
 classBinds _ t
-  = notracepp ("CLASSBINDS: " ++ showpp (toType t, isEqualityConstr t)) []
+  = notracepp ("CLASSBINDS-1: " ++ showpp (toType t, isEqualityConstr t)) []
 
 {- | [NOTE:type-equality-hack]
 
@@ -1751,12 +1779,16 @@ instance PPrint DataDecl where
                     $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
 
 instance PPrint DataCtor where
-  pprintTidy k (DataCtor c _   xts Nothing)  = pprintTidy k c <+> braces (ppFields k ", " xts)
-  pprintTidy k (DataCtor c ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppThetas ths <+> (ppFields k "->" xts) <+> "->" <+> pprintTidy k t
+  -- pprintTidy k (DataCtor c as _   xts Nothing)  = pprintTidy k c <+> dcolon ppVars as <+> braces (ppFields k ", " xts)
+  -- pprintTidy k (DataCtor c as ths xts (Just t)) = pprintTidy k c <+> dcolon <+> ppVars as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> pprintTidy k t
+  pprintTidy k (DataCtor c as ths xts t) = pprintTidy k c <+> dcolon <+> ppVars k as <+> ppThetas ths <+> (ppFields k " ->" xts) <+> "->" <+> res 
     where
+      res         = maybe "*" (pprintTidy k) t 
       ppThetas [] = empty
       ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
 
+ppVars :: (PPrint a) => Tidy -> [a] -> Doc
+ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "." 
 
 ppFields :: (PPrint k, PPrint v) => Tidy -> Doc -> [(k, v)] -> Doc
 ppFields k sep kvs = hcat $ punctuate sep (F.pprintTidy k <$> kvs)

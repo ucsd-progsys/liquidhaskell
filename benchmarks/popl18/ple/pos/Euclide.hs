@@ -7,7 +7,7 @@ import Language.Haskell.Liquid.ProofCombinators
 
 import Prelude hiding (mod, gcd)
 
-{-@ axiomatize gcd @-}
+{-@ reflect gcd @-}
 {-@ gcd :: a:Nat -> b:{Nat | b < a } -> Int @-}
 gcd :: Int -> Int -> Int 
 gcd a b 
@@ -16,7 +16,7 @@ gcd a b
   | otherwise 
   = gcd b (a `modr` b)
 
-{-@ axiomatize modr @-}
+{-@ reflect modr @-}
 {-@ modr :: a:Nat -> b:{Int | 0 < b} -> {v:Nat | v < b } @-}
 modr :: Int -> Int -> Int 
 modr a b 

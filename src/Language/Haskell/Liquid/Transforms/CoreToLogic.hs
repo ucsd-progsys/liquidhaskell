@@ -12,8 +12,8 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   , runToLogic
   , runToLogicWithBoolBinds
   , logicType
-  , strengthenResult
-  , strengthenResult'
+  , inlineSpecType  
+  , measureSpecType
   , weakenResult
   , normalize
   ) where
@@ -48,12 +48,14 @@ import qualified Language.Fixpoint.Misc                as Misc
 import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
-import           Language.Haskell.Liquid.Bare.Misc
-import           Language.Haskell.Liquid.Bare.Env
-import           Language.Haskell.Liquid.GHC.Play
-import           Language.Haskell.Liquid.Types         hiding (GhcInfo(..), GhcSpec (..), LM)
-import           Language.Haskell.Liquid.Types.RefType
 
+
+import           Language.Haskell.Liquid.Bare.Types 
+import           Language.Haskell.Liquid.Bare.DataType 
+import           Language.Haskell.Liquid.Bare.Misc     (simpleSymbolVar)
+import           Language.Haskell.Liquid.GHC.Play
+import           Language.Haskell.Liquid.Types.Types   --     hiding (GhcInfo(..), GhcSpec (..), LM)
+import           Language.Haskell.Liquid.Types.RefType
 
 import qualified Data.HashMap.Strict                   as M
 
@@ -63,13 +65,13 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
     t            = toRTypeRep $ ofType τ
     (bs, as, rs) = unzip3 $ dropWhile (isClassType . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
-{- | [NOTE:strengthenResult type]: the refinement depends on whether the result type is a Bool or not:
+{- | [NOTE:inlineSpecType type]: the refinement depends on whether the result type is a Bool or not:
       CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
      CASE2: measure f@logic :: X -> Y    <=> f@haskell :: x:X -> {v:Y    | v = (f@logic x)}
  -}
-
-strengthenResult :: Var -> SpecType
-strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds = xs}
+-- formerly: strengthenResult
+inlineSpecType :: Var -> SpecType
+inlineSpecType v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty_binds = xs}
   where
     r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty mempty
     rep            = toRTypeRep t
@@ -88,8 +90,9 @@ strengthenResult v = fromRTypeRep $ rep{ty_res = res `strengthen` r , ty_binds =
 --   2. measures returning functions (fromReader :: Reader r a -> (r -> a) )
 --   TODO: SIMPLIFY by dropping support for multi parameter measures
 
-strengthenResult' :: Var -> SpecType
-strengthenResult' v = go mkT [] [1..] t
+-- formerly: strengthenResult'
+measureSpecType :: Var -> SpecType
+measureSpecType v = go mkT [] [1..] t
   where 
     mkR | boolRes   = propReft 
         | otherwise = exprReft  
@@ -111,6 +114,7 @@ strengthenResult' v = go mkT [] [1..] t
     hasRApps (RApp {})        = True
     hasRApps _                = False
     
+   
 -- | 'weakenResult foo t' drops the singleton constraint `v = foo x y` 
 --   that is added, e.g. for measures in /strengthenResult'. 
 --   This should only be used _when_ checking the body of 'foo' 
@@ -168,7 +172,7 @@ coreAltToDef x z zs y t alts
   | not (null litAlts) = measureFail x "Cannot lift definition with literal alternatives" 
   | otherwise          = do 
       d1s <- F.notracepp "coreAltDefs-1" <$> mapM (mkAlt x cc myArgs z) dataAlts 
-      d2s <- F.notracepp "coreAltDefs-2" <$>     mkDef x cc myArgs z  defAlts defExpr 
+      d2s <- F.notracepp "coreAltDefs-2" <$>       mkDef x cc myArgs z  defAlts defExpr 
       return (d1s ++ d2s)
   where 
     myArgs   = reverse zs
@@ -179,19 +183,19 @@ coreAltToDef x z zs y t alts
     litAlts  =             [ a | a@(C.LitAlt _, _, _) <- alts ]
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
-    mkAlt x ctor args dx (C.DataAlt d, xs, e)
-      = Def x (toArgs id args) d (Just $ varRType dx) (toArgs Just xs) 
+    mkAlt x ctor _args dx (C.DataAlt d, xs, e)
+      = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs) 
       . ctor 
       . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs))) 
      <$> coreToLg e
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
 
-    mkDef x ctor args dx (Just dtss) (Just e) = do  
+    mkDef x ctor _args dx (Just dtss) (Just e) = do  
       eDef   <- ctor <$> coreToLg e
-      let ys  = toArgs id args
+      -- let ys  = toArgs id args
       let dxt = Just (varRType dx)
-      return  [ Def x ys d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
+      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
     
     mkDef _ _ _ _ _ _ = 
       return [] 
@@ -207,7 +211,7 @@ defArgs x     = zipWith (\i t -> (defArg i, defRTyp t)) [0..]
 
 coreToDef :: Reftable r => LocSymbol -> Var -> C.CoreExpr
           -> LogicM [Def (Located (RRType r)) DataCon]
-coreToDef x _ e                   = {- F.notracepp "CORE-TO-DEF" <$>  -} (go [] $ inlinePreds $ simplify e)
+coreToDef x _ e                   = go [] $ inlinePreds $ simplify e
   where
     go args   (C.Lam  x e)        = go (x:args) e
     go args   (C.Tick _ e)        = go args e
@@ -220,8 +224,9 @@ coreToDef x _ e                   = {- F.notracepp "CORE-TO-DEF" <$>  -} (go [] 
 
 measureFail       :: LocSymbol -> String -> a
 measureFail x msg = panic sp e 
-  where sp        = Just (GM.fSrcSpan x)
-        e         = Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg
+  where 
+    sp            = Just (GM.fSrcSpan x)
+    e             = Printf.printf "Cannot create measure '%s': %s" (F.showpp x) msg
     
 
 -- | 'isMeasureArg x' returns 'Just t' if 'x' is a valid argument for a measure.
@@ -245,7 +250,7 @@ coreToFun _ _v e = go [] $ normalize e
     go acc (C.Lam x e)  | isErasable x = go acc e
     go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
-    go acc e            = (reverse acc,) . Right . F.tracepp "CORE-TO-LOGIC" <$> coreToLg e
+    go acc e            = (reverse acc,) . Right <$> coreToLg e
     
 
 instance Show C.CoreExpr where

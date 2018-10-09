@@ -147,17 +147,14 @@ config = cmdArgsMode $ Config {
           &= name "prune-unsorted"
 
  , notermination
-    = def &= help "Disable Termination Check"
+    = def 
+          &= help "Disable Termination Check"
           &= name "no-termination-check"
 
- , structuralTerm
-    = def &= help "Structural Termination Check"
-          &= name "structural-termination"
-
- , nostructuralT
-    = def &= help "Trust that size functions are inductive"
-          &= name "trust-sizes"
-
+ , nostructuralterm
+    = def &= name "no-structural-termination"
+          &= help "Disable structural termination check" 
+          
  , gradual
     = def &= help "Enable gradual refinement type checking"
           &= name "gradual"
@@ -172,12 +169,8 @@ config = cmdArgsMode $ Config {
           &= name "ginteractive"
 
  , totalHaskell
-    = def &= help "Check for termination and totality, Overrides no-termination flags"
+    = def &= help "Check for termination and totality; overrides no-termination flags"
           &= name "total-Haskell"
-
- , autoproofs
-    = def &= help "Automatically construct proofs from axioms"
-          &= name "auto-proofs"
 
  , nowarnings
     = def &= help "Don't display warnings, only show errors"
@@ -187,9 +180,9 @@ config = cmdArgsMode $ Config {
     = def &= help "Don't create intermediate annotation files"
           &= name "no-annotations"
 
- , trustInternals
-    = False &= help "Trust GHC generated code"
-            &= name "trust-internals"
+ , checkDerived
+    = def &= help "Check GHC generated binders (e.g. Read, Show instances)"
+          &= name "check-derived"
 
  , caseExpandDepth 
     = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
@@ -265,10 +258,6 @@ config = cmdArgsMode $ Config {
     = def &= help "Do not generate ADT representations in refinement logic"
           &= name "no-adt"
 
- , noMeasureFields
-    = def &= help "Do not automatically lift data constructor fields into measures"
-          &= name "no-measure-fields"
-
  , scrapeImports
     = False &= help "Scrape qualifiers from imported specifications"
             &= name "scrape-imports"
@@ -332,43 +321,35 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
---  , nonLinCuts
---   = True  &= name "non-linear-cuts"
---            &= help "(TRUE) Treat non-linear kvars as cuts"
-
   , autoInstantiate
     = def
           &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
           &= name "automatic-instances"
 
-  -- , proofMethod
-    -- = def
-          -- &= help "Specify what method to use to create instances. Options `arithmetic`, `rewrite`, `allmathods`. Default is `rewrite`"
-          -- &= name "proof-method"
-  -- , fuel
-    -- = defFuel &= help "Fuel parameter for liquid instances (default is 2)"
-        -- &= name "fuel"
-
- -- , debugInstantionation
- --   = False &= help "Debug Progress in liquid instantiation"
- --      &= name "debug-instantiation"
-
   , proofLogicEval
-    = False &= help "Enable Proof-by-Logical-Evaluation"
+    = def  
+        &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
   , reflection 
-    = False &= help "Enable reflection of Haskell functions and theorem proving" 
+    = def 
+        &= help "Enable reflection of Haskell functions and theorem proving" 
         &= name "reflection"
- } &= verbosity
-   &= program "liquid"
-   &= help    "Refinement Types for Haskell"
-   &= summary copyright
-   &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
-              , ""
-              , "To check a Haskell file foo.hs, type:"
-              , "  liquid foo.hs "
-              ]
+
+  , compileSpec 
+    = def 
+        &= name "compile-spec"
+        &= help "Only compile specifications (into .bspec file); skip verification" 
+
+  } &= verbosity
+    &= program "liquid"
+    &= help    "Refinement Types for Haskell"
+    &= summary copyright
+    &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
+               , ""
+               , "To check a Haskell file foo.hs, type:"
+               , "  liquid foo.hs "
+               ]
 
 defaultPort :: Int
 defaultPort = 3000
@@ -524,18 +505,16 @@ defConfig = Config
   , diffcheck         = def
   , saveQuery         = def
   , checks            = def
+  , nostructuralterm  = def 
   , noCheckUnknown    = def
-  , notermination     = def
-  , structuralTerm    = False 
-  , nostructuralT     = def 
+  , notermination     = False 
   , gradual           = False
   , gdepth            = 1
   , ginteractive      = False
-  , totalHaskell      = def
-  , autoproofs        = def
+  , totalHaskell      = def -- True 
   , nowarnings        = def
   , noannotations     = def
-  , trustInternals    = False
+  , checkDerived      = False
   , caseExpandDepth   = 2 
   , strata            = def
   , notruetypes       = def
@@ -543,7 +522,6 @@ defConfig = Config
   , pruneUnsorted     = def
   , exactDC           = def
   , noADT             = def
-  , noMeasureFields   = def
   , cores             = def
   , minPartSize       = FC.defaultMinPartSize
   , maxPartSize       = FC.defaultMaxPartSize
@@ -567,13 +545,12 @@ defConfig = Config
   , eliminate         = FC.Some
   , noPatternInline   = False
   , noSimplifyCore    = False
-  -- , nonLinCuts        = True
   , autoInstantiate   = def
-  -- , debugInstantiate  = False
   , noslice           = False
   , noLiftedImport    = False
   , proofLogicEval    = False
   , reflection        = False
+  , compileSpec       = False
   }
 
 ------------------------------------------------------------------------
@@ -607,8 +584,10 @@ consoleResultJson _ _ annm = do
   putStrLn "RESULT"
   B.putStrLn . encode . annErrors $ annm
 
-resultWithContext :: FixResult UserError -> IO (FixResult CError)
-resultWithContext = mapM errorWithContext
+resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
+resultWithContext (F.Unsafe es)   = F.Unsafe      <$> errorsWithContext es
+resultWithContext (F.Crash  es s) = (`F.Crash` s) <$> errorsWithContext es
+resultWithContext (F.Safe)        = return F.Safe 
 
 instance Show (CtxError Doc) where
   show = showpp

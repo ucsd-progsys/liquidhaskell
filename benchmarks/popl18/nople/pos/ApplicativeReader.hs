@@ -71,7 +71,7 @@ id_helper2 :: Arg r => (r -> a) -> Proof
 {-@ id_helper2 :: r:(r -> a) 
   -> { (\q:r -> r q) == (\q:r -> (id) (r q)) } @-}
 id_helper2 r 
-  = ((\q -> r q) =*=. (\q -> (id) (r q))) (id_helper2_body r)
+  = ((\q -> r q) =*=: (\q -> (id) (r q))) (id_helper2_body r)
   *** QED 
 
 
@@ -89,7 +89,7 @@ id_helper1 :: Arg r => (r -> a) -> Proof
 {-@ id_helper1 :: r:(r -> a) 
   -> { (\q:r -> (((\w:r -> id) (q)) (r q))) == (\q:r -> (id) (r q)) } @-}
 id_helper1 r 
-  = ((\q -> (((\w -> id) q) (r q))) =*=. (\q -> id (r q))) (id_helper1_body r)
+  = ((\q -> (((\w -> id) q) (r q))) =*=: (\q -> id (r q))) (id_helper1_body r)
   *** QED 
 {-@ id_helper1_body :: r:(r -> a) -> q:r
   -> {(((\w:r -> id) (q)) (r q)) == (id) (r q) } @-}
@@ -168,7 +168,7 @@ interchange (Reader f) x
   @-} 
 interchange_helper_0 :: Arg r => (r -> (a -> a)) -> a -> Proof 
 interchange_helper_0 f x
-  = (((\r -> (f r) x) =*=. (\r -> (f r) ((\r' -> x) r))) 
+  = (((\r -> (f r) x) =*=: (\r -> (f r) ((\r' -> x) r))) 
     (\_ -> simpleProof)) *** QED  
 
 
@@ -178,7 +178,7 @@ interchange_helper_0 f x
   @-} 
 interchange_helper_1 :: Arg r => (r -> (a -> a)) -> a -> Proof 
 interchange_helper_1 f x 
-  =  (((\r -> (f r) x) =*=. (\r -> (idollar x) (f r))) (interchange_helper_1_body f x)) *** QED 
+  =  (((\r -> (f r) x) =*=: (\r -> (idollar x) (f r))) (interchange_helper_1_body f x)) *** QED 
 
 {-@ interchange_helper_1_body 
   :: f:(r -> (a -> a)) -> x:a -> r':r
@@ -199,7 +199,7 @@ interchange_helper_1_body f x r
 interchange_helper_2 :: Arg r => (r -> (a -> a)) -> a -> Proof 
 interchange_helper_2 f x 
   =    (((\r' -> ((\r'' -> (idollar x)) (r')) (f r')) ) 
-  =*=. (\r' -> (idollar x) (f r'))
+  =*=: (\r' -> (idollar x) (f r'))
        ) (interchange_helper_2_body f x) *** QED 
 
 {-@ interchange_helper_2_body 

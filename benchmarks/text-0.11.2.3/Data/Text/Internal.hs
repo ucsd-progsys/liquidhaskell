@@ -1,6 +1,6 @@
 {-@ LIQUID "--maxparams=3"    @-}
 {-@ LIQUID "--prune-unsorted" @-}
-{-@ LIQUID "--trust-sizes" @-}
+{- LIQUID "--trust-sizes" @-}
 
 {-# LANGUAGE CPP, DeriveDataTypeable #-}
 
@@ -52,13 +52,13 @@ import Data.Typeable (Typeable)
 --LIQUID
 import Language.Haskell.Liquid.Prelude
 
-{-@ data Text [tlen] = Text
-            (ttarr :: A.Array)
-            (ttoff :: AValidO ttarr)
-            (ttlen :: (AValidL ttoff ttarr))
+{-@ data Text [tlen] = Text { ttarr :: Data.Text.Array.Array
+                            , ttoff :: AValidO ttarr
+                            , ttlen :: AValidL ttoff ttarr
+                            }
   @-}
 
-{-@ measure tarr :: Text -> A.Array
+{-@ measure tarr :: Text -> Data.Text.Array.Array
     tarr (Text a o l) = a
   @-}
 

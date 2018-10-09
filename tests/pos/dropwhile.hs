@@ -1,16 +1,16 @@
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--no-totality" @-}
+{-@ LIQUID "--no-totality"    @-}
 
 module DropWhile where
 
 import Language.Haskell.Liquid.Prelude
 import Prelude hiding (head, dropWhile, (.), filter)
 
-main :: IO ()
-main =
+--main :: IO ()
+foo =  
   if head (dropWhile ((/=) 3) (1:::2:::3:::Emp)) == 3
-    then return ()
-    else liquidError "Not going to happen"
+     then ()
+     else liquidError "Not going to happen"
 
 -------------------------------------------------------------------------------
 -- | The `head` function returns a value that satisfies the abstract refinement

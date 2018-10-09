@@ -256,7 +256,7 @@ unsafeFinalize (PS p _ _) = FC.finalizeForeignPtr p
 -- referential transparency.
 --
 
-{-@ unsafePackCString :: cstr:{v: CString | 0 <= (plen v)} -> IO {v: ByteString | (bLength v) = (plen cstr)} @-}
+{-@ unsafePackCString :: cstr:{v: _ | 0 <= (plen v)} -> IO {v: _ | (bLength v) = (plen cstr)} @-}
 unsafePackCString :: CString -> IO ByteString
 unsafePackCString cstr = do
     fp <- newForeignPtr_ (castPtr cstr)
@@ -289,7 +289,7 @@ unsafePackCStringLen (ptr,len) = do
 -- This function is also unsafe if you call its finalizer twice,
 -- which will result in a /double free/ error.
 --
-{-@ unsafePackMallocCString :: cstr:{v: CString | 0 <= (plen v)} -> IO {v: ByteString | (bLength v) = (plen cstr)} @-}
+{-@ unsafePackMallocCString :: cstr:{v: _ | 0 <= (plen v)} -> IO {v: _ | (bLength v) = (plen cstr)} @-}
 unsafePackMallocCString :: CString -> IO ByteString
 unsafePackMallocCString cstr = do
     fp  <- newForeignPtr c_free_finalizer (castPtr cstr)

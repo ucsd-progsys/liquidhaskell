@@ -1,6 +1,6 @@
 module MaskError where 
 
-{-@ assume Prelude.error :: String -> a @-}
+{-@ assume error :: String -> a @-}
 
 foo :: Int -> Int 
 foo _ = error "oh no"

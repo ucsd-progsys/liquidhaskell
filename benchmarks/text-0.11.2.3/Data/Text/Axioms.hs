@@ -1,3 +1,6 @@
+
+{-@ LIQUID "--prune-unsorted" @-}
+
 module Data.Text.Axioms where
 
 import qualified Data.Text.Array as A

@@ -46,14 +46,14 @@ import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
 
-import           Language.Haskell.Liquid.Types.Variance
-import           Language.Haskell.Liquid.Types.Strata
-import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
-import           Language.Haskell.Liquid.Types.RefType
+-- import           Language.Haskell.Liquid.Types.Variance
+-- import           Language.Haskell.Liquid.Types.Strata
+-- import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
+-- import           Language.Haskell.Liquid.Types.RefType
 
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
-import           Language.Haskell.Liquid.Constraint.Fresh
+-- import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Constraint
 

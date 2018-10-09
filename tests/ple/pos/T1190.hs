@@ -1,7 +1,5 @@
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--no-adt"         @-}
-{-@ LIQUID "--diff"           @-}
-{-@ LIQUID "--ple"            @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
 
 module Intervals where
 

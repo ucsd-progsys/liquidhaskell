@@ -12,7 +12,6 @@ module Language.Haskell.Liquid.Types.PredType (
   , dataConPSpecType
   , makeTyConInfo
   , replacePreds
-
   , replacePredsWithRefs
   , pVartoRConc
 
@@ -21,7 +20,6 @@ module Language.Haskell.Liquid.Types.PredType (
 
   -- * Compute @RType@ of a given @PVar@
   , pvarRType
-
   , substParg
   , pApp
   , pappSort
@@ -51,30 +49,31 @@ import qualified Language.Fixpoint.Types         as F
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
-import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Types.Types
 import           Data.List                       (nub)
 import           Data.Default
 
-makeTyConInfo :: [(TC.TyCon, TyConP)] -> M.HashMap TC.TyCon RTyCon
-makeTyConInfo = hashMapMapWithKey mkRTyCon . M.fromList
+makeTyConInfo :: [TyConP] -> M.HashMap TC.TyCon RTyCon
+makeTyConInfo tcps = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
 
-mkRTyCon ::  TC.TyCon -> TyConP -> RTyCon
-mkRTyCon tc (TyConP _ αs' ps _ tyvariance predvariance size)
+mkRTyCon ::  TyConP -> RTyCon
+mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
   = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
   where
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
     pvs' = subts (zip αs' τs) <$> ps
 
 -- TODO: duplicated with Liquid.Measure.makeDataConType
-dataConPSpecType :: DataCon -> DataConP -> [(Var, SpecType)]
-dataConPSpecType dc dcp = [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType :: DataConP -> [(Var, SpecType)]
+dataConPSpecType dcp    = [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
-          | otherwise   = dcWorkSpecType dc wrapT
-    wrapT               = dcWrapSpecType dc dcp
-    workX               = dataConWorkId dc            -- this is the weird one for GADTs
-    wrapX               = dataConWrapId dc            -- this is what the user expects to see
-    isVanilla           = {- F.notracepp ("IS-Vanilla: " ++ showpp dc) $ -} isVanillaDataCon dc
+          | otherwise   = dcWorkSpecType   dc wrapT
+    wrapT               = dcWrapSpecType   dc dcp
+    workX               = dataConWorkId    dc            -- this is the weird one for GADTs
+    wrapX               = dataConWrapId    dc            -- this is what the user expects to see
+    isVanilla           = isVanillaDataCon dc
+    dc                  = dcpCon dcp
 
 dcWorkSpecType :: DataCon -> SpecType -> SpecType
 dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
@@ -145,7 +144,7 @@ strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
+dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
     mkArrow makeVars ps ls [] ts' rt'
   where
@@ -163,7 +162,7 @@ dcWrapSpecType dc (DataConP _ vs ps ls cs yts rt _ _ _)
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where
-  pprintTidy k (TyConP _ vs ps ls _ _ _)
+  pprintTidy k (TyConP _ _ vs ps ls _ _ _)
     = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
       (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
@@ -172,8 +171,9 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ vs ps ls cs yts t isGadt mname _)
-     =  (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
+  pprintTidy k (DataConP _ dc vs ps ls cs yts t isGadt mname _)
+     =  pprintTidy k dc
+    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))
@@ -200,9 +200,8 @@ dataConTy _ _
   = panic Nothing "ofTypePAppTy"
 
 ----------------------------------------------------------------------------
------ Interface: Replace Predicate With Uninterprented Function Symbol -----
+-- | Interface: Replace Predicate With Uninterpreted Function Symbol -------
 ----------------------------------------------------------------------------
-
 replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)
                      -> UReft F.Reft -> UReft F.Reft
 replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps) s)
@@ -267,7 +266,7 @@ replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> Spe
 replacePreds msg                 = foldl' go
   where
      go _ (_, RProp _ (RHole _)) = panic Nothing "replacePreds on RProp _ (RHole _)"
-     go z (π, t) = substPred msg   (π, t)     z
+     go z (π, t)                 = substPred msg   (π, t)     z
 
 
 -- TODO: replace `replacePreds` with
@@ -362,7 +361,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
     rvs      = foldReft (\_ r acc -> rvReft r : acc) []
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
-substRCon msg su t _ _        = panic Nothing $ msg ++ " substRCon " ++ showpp (su, t)
+substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)
 
 pad :: [Char] -> (a -> a) -> [a] -> [a] -> ([a], [a])
 pad _ f [] ys   = (f <$> ys, ys)

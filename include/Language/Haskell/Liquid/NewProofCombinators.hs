@@ -9,6 +9,7 @@ module Language.Haskell.Liquid.NewProofCombinators (
 
   -- * Proof is just a () alias
   Proof
+  , toProof 
 
   -- * Proof constructors
   , trivial, unreachable, (***), QED(..)
@@ -28,10 +29,6 @@ module Language.Haskell.Liquid.NewProofCombinators (
   -- Uncheck operator used only for proof debugging
   , (==!) -- x ==! y always succeds
 
-  -- * The below operator does not check intermediate equalities
-  --   but takes optional proof argument.
-  , (==.)
-
   -- * Combining Proofs
   , (&&&)
   , withProof 
@@ -45,6 +42,9 @@ module Language.Haskell.Liquid.NewProofCombinators (
 -------------------------------------------------------------------------------
 
 type Proof = ()
+
+toProof :: a -> Proof
+toProof _ = ()
 
 -------------------------------------------------------------------------------
 -- | Proof Construction -------------------------------------------------------

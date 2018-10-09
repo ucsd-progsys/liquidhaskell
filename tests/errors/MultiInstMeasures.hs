@@ -4,19 +4,16 @@ import Data.Word
 import GHC.Ptr
 
 {-@ class measure sizeOf :: forall a . Ptr a -> Int @-}
+
 {-@
-instance measure sizeOf :: (Ptr Data.Word.Word16) -> Int
+instance measure sizeOf :: (Ptr GHC.Word.Word16) -> Int
 sizeOf (Ptr x) = 2
 @-}
+
 {-@
-instance measure sizeOf :: (Ptr Data.Word.Word32) -> Int
+instance measure sizeOf :: (Ptr GHC.Word.Word32) -> Int
 sizeOf (Ptr y) = 4
 @-}
-
-{- measure sizeOf :: forall a . Ptr a -> Int @-}
-
-{- invariant {v:Ptr Word16 | sizeOf v = 2} @-}
-{- invariant {v:Ptr Word32 | sizeOf v = 4} @-}
 
 {-@
 bar :: { p : Ptr Word32 | plen p >= (sizeOf p) }

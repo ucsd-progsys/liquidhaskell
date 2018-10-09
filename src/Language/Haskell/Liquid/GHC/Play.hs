@@ -23,6 +23,9 @@ import qualified Data.HashMap.Strict as M
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 
+
+
+
 dataConImplicitIds :: DataCon -> [Id]
 dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]
 

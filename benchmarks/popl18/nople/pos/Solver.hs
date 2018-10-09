@@ -9,6 +9,9 @@
 {-@ LIQUID "--exact-data-cons" @-}
 {-@ LIQUID "--pruneunsorted"   @-}
 
+-- TAG: absref 
+-- TAG: termination
+
 module Solver where
 
 import Data.Tuple

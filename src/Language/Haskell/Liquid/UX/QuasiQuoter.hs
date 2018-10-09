@@ -1,7 +1,8 @@
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor #-}
-{-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE TupleSections      #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module Language.Haskell.Liquid.UX.QuasiQuoter (
     -- * LiquidHaskell Specification QuasiQuoter
@@ -23,7 +24,6 @@ import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
 
 import Text.Parsec.Pos
-import Text.PrettyPrint.HughesPJ
 
 import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import qualified Language.Fixpoint.Types as F
@@ -31,7 +31,6 @@ import qualified Language.Fixpoint.Types as F
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.UX.Tidy
 
 --------------------------------------------------------------------------------
@@ -64,7 +63,7 @@ lqDec src = do
 
 throwErrorInQ :: UserError -> Q a
 throwErrorInQ err =
-  fail . showpp =<< runIO (errorWithContext err)
+  fail . showpp =<< runIO (errorsWithContext [err])
 
 --------------------------------------------------------------------------------
 -- Liquid Haskell to Template Haskell ------------------------------------------
@@ -83,11 +82,12 @@ mkSpecDecs (Asrts (names, (ty, _))) =
   (\t -> (`SigD` t) . symbolName <$> names)
     <$> simplifyBareType (head names) (quantifyFreeRTy $ val ty)
 mkSpecDecs (Alias rta) =
-  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody rta)
+  return . (TySynD name tvs) <$> simplifyBareType lsym (rtBody (val rta))
   where
-    lsym = F.Loc (rtPos rta) (rtPosE rta) (rtName rta)
-    name = symbolName $ rtName rta
-    tvs  = PlainTV . symbolName <$> rtTArgs rta
+    lsym = F.atLoc rta n 
+    name = symbolName n 
+    n    = rtName (val rta)
+    tvs  = PlainTV . symbolName <$> rtTArgs (val rta)
 mkSpecDecs _ =
   Right []
 
@@ -103,10 +103,10 @@ simplifyBareType s t = case simplifyBareType' t of
   Simplified t' ->
     Right t'
   FoundExprArg l ->
-    Left $ ErrTySpec l (pprint $ val s) (pprint t) $ text
+    Left $ ErrTySpec l Nothing (pprint $ val s) (pprint t) $ 
       "Found expression argument in bad location in type"
   FoundHole ->
-    Left $ ErrTySpec (fSrcSpan s) (pprint $ val s) (pprint t) $ text
+    Left $ ErrTySpec (fSrcSpan s) Nothing (pprint $ val s) (pprint t) $ 
       "Can't write LiquidHaskell type with hole in a quasiquoter"
 
 simplifyBareType' :: BareType -> Simpl Type

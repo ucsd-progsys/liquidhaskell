@@ -3,6 +3,8 @@
 
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans -fno-warn-incomplete-patterns #-}
 
+{-# LANGUAGE PartialTypeSignatures #-}
+
 -- #prune
 
 -- |
@@ -45,7 +47,7 @@
 -- Lazy variant by Duncan Coutts and Don Stewart.
 --
 
-module Data.ByteString.Lazy (
+module Data.ByteString.LazyZip (
         -- * Zipping and unzipping ByteStrings
         zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
         zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
@@ -117,8 +119,8 @@ zip = zipWith (,)
 zipWith :: (Word8 -> Word8 -> a) -> ByteString -> ByteString -> [a]
 zipWith _ Empty     _  = []
 zipWith _ _      Empty = []
-zipWith f (Chunk a as) (Chunk b bs) = go f a as b bs (sz a as b bs) 0
-  -- where
+zipWith f (Chunk a as) (Chunk b bs) = go a as b bs (sz a as b bs) 0
+  where
   --   go x xs y ys = f (S.unsafeHead x) (S.unsafeHead y)
   --                : to (S.unsafeTail x) xs (S.unsafeTail y) ys
 
@@ -135,54 +137,69 @@ zipWith f (Chunk a as) (Chunk b bs) = go f a as b bs (sz a as b bs) 0
   --   to x (Chunk x' xs) y (Chunk y' ys) | S.null x
   --                                     && S.null y       = go x' xs y' ys
 
-{-@ go :: (Word8 -> Word8 -> a)
-       -> x:ByteStringNE -> xs:ByteString
-       -> y:ByteStringNE -> ys:ByteString
-       -> {v:Nat64 | v = (bLength x) + (lbLength xs) + (bLength y) + (lbLength ys)}
-       -> {v:Nat64 | v = 0}
-       -> {v:[a] | (len v)
-                 = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
-                   then ((bLength x) + (lbLength xs))
-                   else ((bLength y) + (lbLength ys)))}
-   @-}
-{-@ decrease go 6 7 @-}
-go f x xs y ys d (z :: Int64)
-  = f (S.unsafeHead x) (S.unsafeHead y)
-  : to f (S.unsafeTail x) xs (S.unsafeTail y) ys (sz (S.unsafeTail x) xs (S.unsafeTail y) ys) 1
-
-{-@ to :: (Word8 -> Word8 -> a)
-       -> x:S.ByteString -> xs:ByteString
-       -> y:S.ByteString -> ys:ByteString
-       -> {v:Nat64 | v = (bLength x) + (lbLength xs) + (bLength y) + (lbLength ys)}
-       -> {v:Nat64 | v = 1}
-       -> {v:[a] | (len v)
-                 = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
-                   then ((bLength x) + (lbLength xs))
-                   else ((bLength y) + (lbLength ys)))}
-   @-}
-{-@ decrease to 6 7 @-}
-to f x Empty         _ _             d (_::Int64) | S.null x       = []
-to f _ _             y Empty         d _ | S.null y       = []
-to f x xs            y ys            d _ | not (S.null x)
-                                        && not (S.null y) = go f x  xs y  ys (sz x xs y ys) 0
-to f x xs            _ (Chunk y' ys) d _ | not (S.null x) = go f x  xs y' ys (sz x xs y' ys) 0
---LIQUID to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
---LIQUID to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
---LIQUID FIXME: these guards "should" be implied by the above checks
-to f x (Chunk x' xs) y ys            d _ | not (S.null y)
-                                        && S.null x       = go f x' xs y  ys (sz x' xs y ys) 0
-to f x (Chunk x' xs) y (Chunk y' ys) d _ | S.null x
-                                        && S.null y       = go f x' xs y' ys (sz x' xs y' ys) 0
-
-
-{-@ sz :: x:S.ByteString -> xs:ByteString
-       -> y:S.ByteString -> ys:ByteString
+          {-@ go ::  x:ByteStringNE -> xs:ByteString
+                 -> y:ByteStringNE -> ys:ByteString
+                 -> ddd:{v:Nat64 | v = (bLength x) + (lbLength xs) + (bLength y) + (lbLength ys)}
+                 -> zzz:{v:Nat64 | v = 0}
+                 -> {v:[a] | (len v)
+                           = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
+                             then ((bLength x) + (lbLength xs))
+                             else ((bLength y) + (lbLength ys)))}
+                  / [ddd, zzz] 
+             @-}
+          {- decrease go 6 7 @-}
+          go ::  _ -> _ 
+              -> _ -> _ 
+              -> Int64
+              -> Int64 
+              -> [_] 
+          go x xs y ys d (z :: Int64)
+            = (f (S.unsafeHead x) (S.unsafeHead y))
+            : (to (S.unsafeTail x) xs (S.unsafeTail y) ys (sz (S.unsafeTail x) xs (S.unsafeTail y) ys) 1)
+          
+          {-@ to :: x:_ -> xs:ByteString
+                 -> y:_ -> ys:ByteString
+                 -> dda:{v:Nat64 | v = (bLength x) + (lbLength xs) + (bLength y) + (lbLength ys)}
+                 -> zza:{v:Nat64 | v = 1}
+                 -> {v:[a] | (len v)
+                           = (if (((bLength x) + (lbLength xs)) <= ((bLength y) + (lbLength ys)))
+                             then ((bLength x) + (lbLength xs))
+                             else ((bLength y) + (lbLength ys)))}
+                 / [dda, zza]
+             @-}
+          
+          {- decrease to 6 7 @-}
+          
+          to :: _ -- ByteString
+             -> _ -- ByteString
+             -> _ -- ByteString
+             -> _ -- ByteString
+             -> Int64 
+             -> Int64
+             -> [_] 
+          
+          to x Empty         _ _             d (_::Int64) | S.null x = []
+          to _ _             y Empty         d _ | S.null y          = []
+          to x xs            y ys            d _ | not (S.null x)
+                                                  && not (S.null y) = go x  xs y  ys (sz x xs y ys) 0
+          to x xs            _ (Chunk y' ys) d _ | not (S.null x) = go x  xs y' ys (sz x xs y' ys) 0
+          --LIQUID to _ (Chunk x' xs) y ys            | not (S.null y) = go x' xs y  ys
+          --LIQUID to _ (Chunk x' xs) _ (Chunk y' ys)                  = go x' xs y' ys
+          --LIQUID FIXME: these guards "should" be implied by the above checks
+          to x (Chunk x' xs) y ys            d _ | not (S.null y)
+                                                  && S.null x       = go x' xs y  ys (sz x' xs y ys) 0
+          to x (Chunk x' xs) y (Chunk y' ys) d _ | S.null x
+                                                  && S.null y       = go x' xs y' ys (sz x' xs y' ys) 0
+          
+          
+{-@ sz :: x:_ -> xs:_ 
+       -> y:_ -> ys:_
        -> {v:Nat64 | v = ((bLength x) + (lbLength xs) + (bLength y) + (lbLength ys))}
-   @-}
+  @-}
 sz x xs y ys = fromIntegral (S.length x) + length xs
              + fromIntegral (S.length y) + length ys
-
-{-@ qualif ByteStringNE(v:S.ByteString): (bLength v) > 0 @-}
+          
+{-@ qualif ByteStringNE(v:Data.ByteString.Internal.ByteString): (bLength v) > 0 @-}
 
 {- qualif LBZip(v:List a,
                  x:S.ByteString,

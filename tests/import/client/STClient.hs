@@ -1,3 +1,6 @@
+-- TAG: classes 
+-- TAG: bounds 
+
 {-@ LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--higherorder"       @-}
 

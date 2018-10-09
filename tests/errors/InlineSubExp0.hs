@@ -1,8 +1,8 @@
 
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1258
 
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--short-names"    @-} 
+{-@ LIQUID "--reflection"  @-}
+{-@ LIQUID "--short-names" @-} 
 
 module T1258 where 
 

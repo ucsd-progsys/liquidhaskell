@@ -1,32 +1,26 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
+{-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--betaequivalence" @-}
 
+module MonadId where
 
-{-# LANGUAGE IncoherentInstances   #-}
-{-# LANGUAGE FlexibleContexts      #-}
+import Prelude hiding (return, (>>=))
 
-module MonadMaybe where
-
-import Prelude hiding (return, Maybe(..), (>>=))
-
-import Proves
-import Helper
+import Language.Haskell.Liquid.NewProofCombinators 
+import Helper 
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a
 -- | Right identity:	m >>= return    ≡ m
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
-{-@ axiomatize return @-}
+{-@ reflect return @-}
 return :: a -> Identity a
 return x = Identity x
 
-{-@ axiomatize bind @-}
+{-@ reflect bind @-}
 bind :: Identity a -> (a -> Identity b) -> Identity b
 bind (Identity x) f = f x
 
-{-@ data Identity a = Identity { runIdentity :: a } @-}
 data Identity a = Identity a
 
 -- | Left Identity
@@ -34,8 +28,8 @@ data Identity a = Identity a
 left_identity :: a -> (a -> Identity b) -> Proof
 left_identity x f
   =   bind (return x) f
-  ==. bind (Identity x) f
-  ==. f x
+  === bind (Identity x) f
+  === f x
   *** QED
 
 
@@ -46,8 +40,8 @@ left_identity x f
 right_identity :: Identity a -> Proof
 right_identity (Identity x)
   =   bind (Identity x) return
-  ==. return x
-  ==. Identity x
+  === return x
+  === Identity x
   *** QED
 
 
@@ -58,15 +52,14 @@ right_identity (Identity x)
 associativity :: Identity a -> (a -> Identity b) -> (b -> Identity c) -> Proof
 associativity (Identity x) f g
   =   bind (bind (Identity x) f) g
-  ==. bind (f x) g
-  ==. (\x -> (bind (f x) g)) x   ? beta_reduce x f g 
-  ==. bind (Identity x) (\x -> (bind (f x) g))
+  === bind (f x) g
+  ==? (\x -> (bind (f x) g)) x   ? beta_reduce x f g 
+  === bind (Identity x) (\x -> (bind (f x) g))
   *** QED
 
 beta_reduce :: a -> (a -> Identity b) -> (b -> Identity c) -> Proof 
 {-@ beta_reduce :: x:a -> f:(a -> Identity b) -> g:(b -> Identity c)
                 -> {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
-
-beta_reduce x f g = simpleProof 
+beta_reduce x f g = () 
 
  

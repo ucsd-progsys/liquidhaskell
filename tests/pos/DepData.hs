@@ -1,7 +1,5 @@
 {-# LANGUAGE GADTs #-}
 
-{-@ LIQUID "--no-measure" @-}
-
 module DepData where
 
 data Foo = Foo { thing1 :: Int, thing2 :: Int }

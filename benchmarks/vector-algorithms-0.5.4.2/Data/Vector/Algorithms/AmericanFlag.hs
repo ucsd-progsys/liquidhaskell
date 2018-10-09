@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, ScopedTypeVariables #-}
+{-# LANGUAGE PartialTypeSignatures, FlexibleContexts, ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
 
 -- ---------------------------------------------------------------------------
@@ -79,9 +79,22 @@ maxPasses :: Int
 maxPasses = undefined
 
 
-{-@ qualif MaxPasses(v:int, p:int): v = (maxPassesN - p) @-}
-{-@ qualif MaxPasses(v:int): v <= maxPassesN @-}
-{-@ qualif MaxPasses(v:int): v < maxPassesN  @-}
+{- qualif MaxPasses(v:int, p:int): v = (maxPassesN - p) @-}
+{- qualif MaxPasses(v:int): v <= maxPassesN @-}
+{- qualif MaxPasses(v:int): v < maxPassesN  @-}
+
+{-@ qualif_MaxPasses1 :: p:_ -> {v:_ | v = (maxPassesN - p) }  @-}
+qualif_MaxPasses1 :: Int -> Int
+qualif_MaxPasses1 = undefined 
+
+{-@ qualif_MaxPasses2 :: _ -> {v:_ | v <= maxPassesN }  @-}
+qualif_MaxPasses2 :: () -> Int  
+qualif_MaxPasses2 = undefined 
+
+{-@ qualif_MaxPasses3 :: _ -> {v:_ | v < maxPassesN }  @-}
+qualif_MaxPasses3 :: () -> Int  
+qualif_MaxPasses3 = undefined 
+
 
 
 instance Lexicographic Word8 where
@@ -270,6 +283,9 @@ flagLoop :: (PrimMonad m, MVector v e)
 flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
  where
 
+ go, go' :: Int -> _ -> Int -> Int -> _ 
+
+ {- lazy go @-}
  {-@ decrease go 3 4 @-}
   {- LIQUID WITNESS -}
  go pass v (d :: Int) (_ :: Int)
@@ -279,6 +295,7 @@ flagLoop cmp stop count pile v mp radix = go 0 v (mp) 1
           else go' pass v (mp-pass) 0
         --LIQUID INLINE unless (stop e $ pass - 1) $ go' pass v (mp-pass) 0
 
+ {- lazy go' @-}
  {-@ decrease go' 3 4 @-}
    {- LIQUID WITNESS -}
  go' pass v (d :: Int) (_ :: Int)
