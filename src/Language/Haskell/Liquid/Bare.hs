@@ -31,7 +31,8 @@ import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
 import           System.Directory                           (doesFileExist)
-import           Language.Fixpoint.Utils.Files              -- (extFileName)
+import           System.Console.CmdArgs.Verbosity           (whenLoud)
+import           Language.Fixpoint.Utils.Files             
 import           Language.Fixpoint.Misc                     as Misc 
 import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
@@ -63,7 +64,7 @@ loadLiftedSpec cfg srcF
   | otherwise          = do
       let specF = extFileName BinSpec srcF
       ex  <- doesFileExist specF
-      putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
+      whenLoud $ putStrLn $ "Loading Binary Lifted Spec: " ++ specF ++ " " ++ "for source-file: " ++ show srcF ++ " " ++ show ex
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
