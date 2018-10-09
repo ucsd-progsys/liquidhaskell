@@ -38,7 +38,7 @@ Install
   <br>
 
   + `http://z3.codeplex.com`
-  + `http://cvc4.cs.nyu.edu`
+  + `http://cvc4.cs.stanford.edu/web/`
   + `http://mathsat.fbk.eu`
 
 </div>

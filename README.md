@@ -322,7 +322,7 @@ To run a different solver (supporting SMTLIB2) do:
 
 Currently, LiquidHaskell supports
 
-+ [CVC4](http://cvc4.cs.nyu.edu/)
++ [CVC4](http://cvc4.cs.stanford.edu/web/)
 + [MathSat](http://mathsat.fbk.eu/download.html )
 
 To use these solvers, you must install the corresponding binaries

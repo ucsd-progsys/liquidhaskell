@@ -25,6 +25,7 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
+import Data.List (sort, reverse)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import Options.Applicative
@@ -240,9 +241,7 @@ microTests = group "Micro"
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   ]
   where 
-    -- dkMicro name dir res o  = testGroup name <$> odirTests dir _TODO_REBARE o res 
     mkMicro name dir res    = testGroup name <$> dirTests  dir [] res 
-    -- _TODO_REBARE            = [ "Inst01.hs" ]
 
 
 posIgnored    = [ "mapreduce.hs" ]
@@ -534,7 +533,6 @@ noPleIgnored
 
 esopIgnored 
   = [ "Base0.hs"
-    -- , "Base.hs"                -- REFLECT-IMPORTS: TODO BLOWUP
     ]
 
 icfpIgnored :: [FilePath]
