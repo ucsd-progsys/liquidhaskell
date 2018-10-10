@@ -83,6 +83,7 @@ module Language.Fixpoint.Types.Constraints (
 
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import qualified Data.List                 as L -- (sort, nub, delete)
@@ -102,7 +103,7 @@ import           Language.Fixpoint.Types.Environments
 import qualified Language.Fixpoint.Utils.Files as Files
 
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
 
@@ -250,8 +251,9 @@ subcId = mfromJust "subCId" . sid
 type GFixSolution = GFixSol Expr
 
 type FixSolution  = M.HashMap KVar Expr
+
 newtype GFixSol e = GSol (M.HashMap KVar (e, [e]))
-  deriving (Generic, Monoid, Functor)
+  deriving (Generic, Semigroup, Monoid, Functor)
 
 toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
@@ -262,13 +264,16 @@ data Result a = Result { resStatus    :: !(FixResult a)
                        , gresSolution :: !GFixSolution }
                 deriving (Generic, Show)
 
+instance Semigroup (Result a) where
+  r1 <> r2  = Result stat soln gsoln
+    where
+      stat  = (resStatus r1)    <> (resStatus r2)
+      soln  = (resSolution r1)  <> (resSolution r2)
+      gsoln = (gresSolution r1) <> (gresSolution r2)
+
 instance Monoid (Result a) where
   mempty        = Result mempty mempty mempty
-  mappend r1 r2 = Result stat soln gsoln
-    where
-      stat      = mappend (resStatus r1)    (resStatus r2)
-      soln      = mappend (resSolution r1)  (resSolution r2)
-      gsoln     = mappend (gresSolution r1) (gresSolution r2)
+  mappend       = (<>)
 
 unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
@@ -290,7 +295,7 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
-pprSinfos msg = map ((text msg <>) . toFix) . L.sort . fmap sinfo
+pprSinfos msg = map ((text msg <->) . toFix) . L.sort . fmap sinfo
 
 instance Fixpoint a => Show (WfC a) where
   show = showFix
@@ -345,7 +350,7 @@ instance PPrint GFixSolution where
   pprintTidy k (GSol xs) = vcat $ punctuate "\n\n" (pprintTidyGradual k <$> M.toList xs)
 
 pprintTidyGradual :: Tidy -> (KVar, (Expr, [Expr])) -> Doc
-pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <> pprint es)
+pprintTidyGradual _ (x, (e, es)) = ppLocOfKVar x <+> text ":=" <+> (ppNonTauto " && " e <-> pprint es)
 
 ppLocOfKVar :: KVar -> Doc
 ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
@@ -353,7 +358,7 @@ ppLocOfKVar = text. dropWhile (/='(') . symbolString .kv
 ppNonTauto :: Doc -> Expr -> Doc
 ppNonTauto d e
   | isTautoPred e = mempty
-  | otherwise     = pprint e <> d
+  | otherwise     = pprint e <-> d
 
 instance Show   GFixSolution where
   show = showpp
@@ -472,6 +477,20 @@ instance Loc Qualifier where
     where
       l     = qPos q
 
+instance Subable Qualifier where 
+  syms   = qualFreeSymbols 
+  subst  = mapQualBody . subst
+  substf = mapQualBody . substf
+  substa = mapQualBody . substa
+
+mapQualBody :: (Expr -> Expr) -> Qualifier -> Qualifier
+mapQualBody f q = q { qBody = f (qBody q) }
+  
+qualFreeSymbols :: Qualifier -> [Symbol]
+qualFreeSymbols q = filter (not . isPrim) xs 
+  where
+    xs            = syms (qBody q) L.\\ syms (qpSym <$> qParams q) 
+
 instance Fixpoint QualParam where 
   toFix (QP x _ t) = toFix (x, t) 
 
@@ -480,8 +499,8 @@ instance PPrint QualParam where
 
 instance PPrint QualPattern where 
   pprintTidy _ PatNone         = "" 
-  pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <> pprint i)
-  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <> pprint i) <+> pprintTidy k s 
+  pprintTidy k (PatPrefix s i) = "as" <+> pprintTidy k s <+> ("$" <-> pprint i)
+  pprintTidy k (PatSuffix s i) = "as" <+> ("$" <-> pprint i) <+> pprintTidy k s 
   pprintTidy k (PatExact  s  ) = "~"  <+> pprintTidy k s 
 
 instance Fixpoint Qualifier where
@@ -491,7 +510,7 @@ instance PPrint Qualifier where
   pprintTidy k q = "qualif" <+> pprintTidy k (qName q) <+> "defined at" <+> pprintTidy k (qPos q)
 
 pprQual :: Qualifier -> Doc
-pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <> parens args <> colon <+> parens (toFix p) <+> text "//" <+> toFix l
+pprQual (Q n xts p l) = text "qualif" <+> text (symbolString n) <-> parens args <-> colon <+> parens (toFix p) <+> text "//" <+> toFix l
   where
     args              = intersperse comma (toFix <$> xts)
 
@@ -576,14 +595,17 @@ newtype Kuts = KS { ksVars :: S.HashSet KVar }
                deriving (Eq, Show, Generic)
 
 instance Fixpoint Kuts where
-  toFix (KS s) = vcat $ ((text "cut " <>) . toFix) <$> S.toList s
+  toFix (KS s) = vcat $ (("cut " <->) . toFix) <$> S.toList s
 
 ksMember :: KVar -> Kuts -> Bool
 ksMember k (KS s) = S.member k s
 
+instance Semigroup Kuts where
+  k1 <> k2 = KS $ S.union (ksVars k1) (ksVars k2)
+
 instance Monoid Kuts where
-  mempty        = KS S.empty
-  mappend k1 k2 = KS $ S.union (ksVars k1) (ksVars k2)
+  mempty  = KS S.empty
+  mappend = (<>)
 
 ------------------------------------------------------------------------
 -- | Constructing Queries
@@ -661,11 +683,30 @@ data GInfo c a =
 instance HasGradual (GInfo c a) where
   isGradual info = any isGradual (M.elems $ ws info)
 
+instance Semigroup HOInfo where
+  i1 <> i2 = HOI { hoBinds = hoBinds i1 || hoBinds i2
+                 , hoQuals = hoQuals i1 || hoQuals i2
+                 }
+
 instance Monoid HOInfo where
   mempty        = HOI False False
-  mappend i1 i2 = HOI { hoBinds = hoBinds i1 || hoBinds i2
-                      , hoQuals = hoQuals i1 || hoQuals i2
-                      }
+
+instance Semigroup (GInfo c a) where
+  i1 <> i2 = FI { cm       = (cm i1)       <> (cm i2)
+                , ws       = (ws i1)       <> (ws i2)
+                , bs       = (bs i1)       <> (bs i2)
+                , ebinds   = (ebinds i1)   <> (ebinds i2)
+                , gLits    = (gLits i1)    <> (gLits i2)
+                , dLits    = (dLits i1)    <> (dLits i2)
+                , kuts     = (kuts i1)     <> (kuts i2)
+                , quals    = (quals i1)    <> (quals i2)
+                , bindInfo = (bindInfo i1) <> (bindInfo i2)
+                , ddecls   = (ddecls i1)   <> (ddecls i2)
+                , hoInfo   = (hoInfo i1)   <> (hoInfo i2)
+                , asserts  = (asserts i1)  <> (asserts i2)
+                , ae       = (ae i1)       <> (ae i2)
+                }
+
 
 instance Monoid (GInfo c a) where
   mempty        = FI { cm       = M.empty
@@ -682,21 +723,6 @@ instance Monoid (GInfo c a) where
                      , asserts  = mempty 
                      , ae       = mempty
                      } 
-
-  mappend i1 i2 = FI { cm       = mappend (cm i1)       (cm i2)
-                     , ws       = mappend (ws i1)       (ws i2)
-                     , bs       = mappend (bs i1)       (bs i2)
-                     , ebinds   = mappend (ebinds i1)   (ebinds i2)
-                     , gLits    = mappend (gLits i1)    (gLits i2)
-                     , dLits    = mappend (dLits i1)    (dLits i2)
-                     , kuts     = mappend (kuts i1)     (kuts i2)
-                     , quals    = mappend (quals i1)    (quals i2)
-                     , bindInfo = mappend (bindInfo i1) (bindInfo i2)
-                     , ddecls   = mappend (ddecls i1)   (ddecls i2)
-                     , hoInfo   = mappend (hoInfo i1)   (hoInfo i2)
-                     , asserts  = mappend (asserts i1)  (asserts i2)
-                     , ae       = mappend (ae i1)       (ae i2)
-                     }
 
 instance PTable (SInfo a) where
   ptable z = DocTable [ (text "# Sub Constraints", pprint $ length $ cm z)
@@ -832,13 +858,16 @@ instance NFData Equation
 instance NFData SMTSolver
 instance NFData Eliminate
 
-instance Monoid AxiomEnv where
-  mempty           = AEnv [] [] (M.fromList [])
-  mappend a1 a2    = AEnv aenvEqs' aenvSimpl' aenvExpand'
+instance Semigroup AxiomEnv where
+  a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand'
     where
-      aenvEqs'     = mappend (aenvEqs a1) (aenvEqs a2)
-      aenvSimpl'   = mappend (aenvSimpl a1) (aenvSimpl a2)
-      aenvExpand'  = mappend (aenvExpand a1) (aenvExpand a2)
+      aenvEqs'    = (aenvEqs a1)    <> (aenvEqs a2)
+      aenvSimpl'  = (aenvSimpl a1)  <> (aenvSimpl a2)
+      aenvExpand' = (aenvExpand a1) <> (aenvExpand a2)
+
+instance Monoid AxiomEnv where
+  mempty          = AEnv [] [] (M.fromList [])
+  mappend         = (<>)
 
 instance PPrint AxiomEnv where
   pprintTidy _ = text . show

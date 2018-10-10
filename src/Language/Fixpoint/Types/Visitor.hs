@@ -50,6 +50,7 @@ module Language.Fixpoint.Types.Visitor (
 
 -- import           Control.Monad.Trans.State.Strict (State, modify, runState)
 -- import           Control.DeepSeq
+import           Data.Semigroup      (Semigroup (..))
 import           Control.Monad.State.Strict
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M
@@ -248,9 +249,12 @@ mapKVarSubsts f          = trans kvVis () ()
 
 newtype MInt = MInt Integer -- deriving (Eq, NFData)
 
+instance Semigroup MInt where
+  MInt m <> MInt n = MInt (m + n)
+
 instance Monoid MInt where
-  mempty                    = MInt 0
-  mappend (MInt m) (MInt n) = MInt (m + n)
+  mempty  = MInt 0
+  mappend = (<>)
 
 size :: Visitable t => t -> Integer
 size t    = n
@@ -328,8 +332,7 @@ stripCasts = trans (defaultVisitor { txExpr = const go }) () ()
 --   to the ty-vars that they should be substituted with. Note the
 --   domain and range are both Symbol and not the Int used for real ty-vars.
 --------------------------------------------------------------------------------
-
-type CoSub = M.HashMap Symbol Sort -- Symbol
+type CoSub = M.HashMap Symbol Sort 
 
 applyCoSub :: CoSub -> Expr -> Expr
 applyCoSub coSub      = mapExpr fE

@@ -17,7 +17,7 @@ import           Language.Fixpoint.Types
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import           Language.Fixpoint.Smt.Types
 import qualified Language.Fixpoint.Smt.Theories as Thy
-import           Data.Monoid
+import           Data.Semigroup                 (Semigroup (..))
 import qualified Data.Text.Lazy.Builder         as Builder
 import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)

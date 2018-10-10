@@ -1,5 +1,4 @@
-
-resolver: lts-8.9
+resolver: lts-12.2
 
 flags:
   liquid-fixpoint:
@@ -7,10 +6,14 @@ flags:
 
 packages:
 - '.'
+
+packages:
+- '.'
+
 extra-deps:
 - dotgen-0.4.2
 - fgl-visualize-0.1.0.1
-- intern-0.9.1.4
-- located-base-0.1.1.0
-
-# resolver: nightly-2016-05-21
+- intern-0.9.2
+- located-base-0.1.1.1
+- tasty-rerun-1.1.12
+- text-format-0.3.2

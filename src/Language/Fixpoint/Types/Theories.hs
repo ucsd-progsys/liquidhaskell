@@ -32,6 +32,7 @@ module Language.Fixpoint.Types.Theories (
 
 
 import           Data.Generics             (Data)
+import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
@@ -42,7 +43,7 @@ import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
@@ -72,14 +73,17 @@ type FuncSort = (SmtSort, SmtSort)
 instance NFData   SymEnv
 instance B.Binary SymEnv
 
+instance Semigroup SymEnv where
+  e1 <> e2 = SymEnv { seSort   = seSort   e1 <> seSort   e2
+                    , seTheory = seTheory e1 <> seTheory e2
+                    , seData   = seData   e1 <> seData   e2
+                    , seLits   = seLits   e1 <> seLits   e2
+                    , seAppls  = seAppls  e1 <> seAppls  e2
+                    }
+
 instance Monoid SymEnv where
   mempty        = SymEnv emptySEnv emptySEnv emptySEnv emptySEnv mempty
-  mappend e1 e2 = SymEnv { seSort   = seSort   e1 `mappend` seSort   e2
-                         , seTheory = seTheory e1 `mappend` seTheory e2
-                         , seData   = seData   e1 `mappend` seData   e2
-                         , seLits   = seLits   e1 `mappend` seLits   e2
-                         , seAppls  = seAppls  e1 `mappend` seAppls  e2
-                         }
+  mappend       = (<>)
 
 symEnv :: SEnv Sort -> SEnv TheorySymbol -> [DataDecl] -> SEnv Sort -> [Sort] -> SymEnv
 symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
@@ -272,7 +276,7 @@ instance PPrint SmtSort where
   pprintTidy _ SSet         = text "Set"
   pprintTidy _ SMap         = text "Map"
   pprintTidy _ (SBitVec n)  = text "BitVec" <+> int n
-  pprintTidy _ (SVar i)     = text "@" <> int i
+  pprintTidy _ (SVar i)     = text "@" <-> int i
 --  HKT pprintTidy k (SApp ts)    = ppParens k (pprintTidy k tyAppName) ts
   pprintTidy k (SData c ts) = ppParens k (pprintTidy k c)         ts
 

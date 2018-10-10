@@ -28,6 +28,7 @@ module Language.Fixpoint.Graph.Deps (
 
 import           Prelude hiding (init)
 import           Data.Maybe                       (mapMaybe, fromMaybe)
+import           Data.Semigroup                   (Semigroup (..))
 import           Data.Tree (flatten)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Files
@@ -46,7 +47,7 @@ import qualified Data.HashMap.Strict                  as M
 import qualified Data.Graph                           as G
 import           Data.Function (on)
 import           Data.Hashable
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
@@ -289,9 +290,12 @@ instance PPrint (Elims a) where
     where
       ppSize     = pprint . S.size
 
+instance (Eq a, Hashable a) => Semigroup (Elims a) where
+  Deps d1 n1 <> Deps d2 n2 = Deps (S.union d1 d2) (S.union n1 n2)
+
 instance (Eq a, Hashable a) => Monoid (Elims a) where
-  mempty                            = Deps S.empty S.empty
-  mappend (Deps d1 n1) (Deps d2 n2) = Deps (S.union d1 d2) (S.union n1 n2)
+  mempty  = Deps S.empty S.empty
+  mappend = (<>)
 
 dCut, dNonCut :: (Hashable a) => a -> Elims a
 dNonCut v = Deps S.empty (S.singleton v)
@@ -551,7 +555,7 @@ instance PTable Stats where
 
 graphStats :: F.TaggedC c a => Config -> F.GInfo c a -> Stats
 graphStats cfg si = Stats {
-    stNumKVCuts   = S.size $ F.tracepp "CUTS:" (depCuts d)
+    stNumKVCuts   = S.size (depCuts d)
   , stNumKVNonLin = S.size  nlks
   , stNumKVTotal  = S.size (depCuts d) + S.size (depNonCuts d)
   , stIsReducible = isReducible si

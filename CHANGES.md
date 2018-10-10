@@ -2,8 +2,11 @@
 
 ## NEXT
 
+## 0.8.0.1 
+
 - Support for "existential binders", see `tests/pos/ebind-*.fq` for example.
   This only works with `--eliminate`.
+- Move to GHC 8.4.3 
 
 ## 0.7.0.0
 

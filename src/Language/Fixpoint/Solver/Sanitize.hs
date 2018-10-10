@@ -241,11 +241,10 @@ cNoFreeVars :: F.SInfo a -> (F.Symbol -> Bool) -> F.SimpC a -> Maybe [F.Symbol]
 cNoFreeVars fi known c = if S.null fv then Nothing else Just (S.toList fv)
   where
     be   = F.bs fi
-    -- lits = fst <$> F.toListSEnv (F.gLits fi)
     ids  = F.elemsIBindEnv $ F.senv c
     cDom = [fst $ F.lookupBindEnv i be | i <- ids]
     cRng = concat [S.toList . F.reftFreeVars . F.sr_reft . snd $ F.lookupBindEnv i be | i <- ids]
-    fv   = (`nubDiff` cDom) . filter (not . known) $ cRng -- `nubDiff` (lits ++ cDom ++ prims fi)
+    fv   = (`Misc.nubDiff` cDom) . filter (not . known) $ cRng 
 
 badCs :: Misc.ListNE (F.SimpC a, [F.Symbol]) -> E.Error
 badCs = E.catErrors . map (E.errFreeVarInConstraint . Misc.mapFst F.subcId)
@@ -258,20 +257,15 @@ banQualifFreeVars :: F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
 banQualifFreeVars fi = Misc.applyNonNull (Right fi) (Left . badQuals) bads
   where
-    bads   = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
-    lits   = fst <$> F.toListSEnv (F.gLits fi)
-    free q = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
-
+    bads    = [ (q, xs) | q <- F.quals fi, let xs = free q, not (null xs) ]
+    free q  = filter (not . isLit) (F.syms q) 
+    isLit x = F.memberSEnv x (F.gLits fi) 
+    -- lits    = fst <$> F.toListSEnv (F.gLits fi)
+    -- free q  = S.toList $ F.syms (F.qBody q) `nubDiff` (lits ++ F.prims ++ F.syms (F.qpSym <$> F.qParams q))
 
 badQuals     :: Misc.ListNE (F.Qualifier, Misc.ListNE F.Symbol) -> E.Error
 badQuals bqs = E.catErrors [ E.errFreeVarInQual q xs | (q, xs) <- bqs]
 
--- Null if first is a subset of second
-nubDiff :: [F.Symbol] -> [F.Symbol] -> S.HashSet F.Symbol
-nubDiff a b = a' `S.difference` b'
-  where
-    a' = S.fromList a
-    b' = S.fromList b
 
 --------------------------------------------------------------------------------
 -- | check that each constraint has RHS of form [k1,...,kn] or [p]
@@ -315,7 +309,8 @@ symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
     defs            = F.toListSEnv . F.gLits $ fi
-    txFun
+    txFun           
+      | True        = id
       | allowHO cfg = id
       | otherwise   = defuncSort
 

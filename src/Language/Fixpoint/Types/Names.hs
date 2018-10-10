@@ -103,6 +103,7 @@ module Language.Fixpoint.Types.Names (
   , bvOrName
   , propConName
   -- HKT , tyAppName
+  , isPrim
   , prims
   , mulFuncName
   , divFuncName
@@ -169,7 +170,9 @@ instance Eq Symbol where
   S i _ _ == S j _ _ = i == j
 
 instance Ord Symbol where
-  compare (S i _ _) (S j _ _) = compare i j
+  -- compare (S i _ _) (S j _ _) = compare i j
+  -- compare s1 s2 = compare (symbolString s1) (symbolString s2)
+  compare s1 s2 = compare (symbolText s1) (symbolText s2)
 
 instance Interned Symbol where
   type Uninterned Symbol = T.Text
@@ -594,40 +597,44 @@ mulFuncName, divFuncName :: Symbol
 mulFuncName  = "Z3_OP_MUL"
 divFuncName  = "Z3_OP_DIV"
 
-prims :: [Symbol]
-prims = [ propConName
-        , _hpropConName
-        , vvName
-        , "Pred"
-        , "List"
-        , "[]"
-        , "bool"
-        -- , "int"
-        -- , "real"
-        , setConName
-        , charConName
-        , "Set_sng"
-        , "Set_cup"
-        , "Set_cap"
-        , "Set_dif"
-        , "Set_emp"
-        , "Set_empty"
-        , "Set_mem"
-        , "Set_sub"
-        , mapConName
-        , "Map_select"
-        , "Map_store"
-        , "Map_union"
-        , "Map_default"
-        , size32Name
-        , size64Name
-        , bitVecName
-        , bvOrName
-        , bvAndName
-        , "FAppTy"
-        , nilName
-        , consName
-        ]
+isPrim :: Symbol -> Bool 
+isPrim x = S.member x prims 
+
+prims :: S.HashSet Symbol
+prims = S.fromList 
+  [ propConName
+  , _hpropConName
+  , vvName
+  , "Pred"
+  , "List"
+  , "[]"
+  , "bool"
+  -- , "int"
+  -- , "real"
+  , setConName
+  , charConName
+  , "Set_sng"
+  , "Set_cup"
+  , "Set_cap"
+  , "Set_dif"
+  , "Set_emp"
+  , "Set_empty"
+  , "Set_mem"
+  , "Set_sub"
+  , mapConName
+  , "Map_select"
+  , "Map_store"
+  , "Map_union"
+  , "Map_default"
+  , size32Name
+  , size64Name
+  , bitVecName
+  , bvOrName
+  , bvAndName
+  , "FAppTy"
+  , nilName
+  , consName
+  ]
 
 {-
 -------------------------------------------------------------------------------

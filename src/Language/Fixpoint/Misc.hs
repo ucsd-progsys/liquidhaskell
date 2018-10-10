@@ -18,12 +18,14 @@ import           Control.Arrow                    (second)
 import           Control.Monad                    (when, forM_, filterM)
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L
+import qualified Data.HashSet                     as S
 import           Data.Tuple                       (swap)
 import           Data.Maybe
 import           Data.Array                       hiding (indices)
 import           Data.Function                    (on)
 import qualified Data.Graph                       as G
 import qualified Data.Tree                        as T
+
 import           Data.Unique
 import           Debug.Trace                      (trace)
 import           System.Console.ANSI
@@ -31,17 +33,13 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import           System.Process                   (system)
 import           System.Directory                 (createDirectoryIfMissing)
 import           System.FilePath                  (takeDirectory)
-import           Text.PrettyPrint.HughesPJ        hiding (first)
+import           Text.PrettyPrint.HughesPJ.Compat
 import           System.IO                        (stdout, hFlush )
 import           System.Exit                      (ExitCode)
 import           Control.Concurrent.Async
 
-
-#ifdef MIN_VERSION_located_base
-import Prelude hiding (error, undefined)
-import GHC.Err.Located
+import Prelude hiding (undefined)
 import GHC.Stack
-#endif
 
 type (|->) a b = M.HashMap a b
 
@@ -58,6 +56,15 @@ traceShow s x = trace ("\nTrace: [" ++ s ++ "] : " ++ show x)  x
 hashMapToAscList :: Ord a => M.HashMap a b -> [(a, b)]
 hashMapToAscList = L.sortBy (compare `on` fst) . M.toList
 
+findNearest :: (Ord i, Num i) => i -> [(i, a)] -> Maybe a 
+findNearest key kvs = argMin [ (abs (key - k), v) | (k, v) <- kvs ]
+
+argMin :: (Ord k) => [(k, v)] -> Maybe v 
+argMin = fmap snd . headMb . L.sortBy (compare `on` fst)
+
+headMb :: [a] -> Maybe a 
+headMb []    = Nothing 
+headMb (x:_) = Just x
 ---------------------------------------------------------------
 -- | Unique Int -----------------------------------------------
 ---------------------------------------------------------------
@@ -139,10 +146,11 @@ wrap l r s = l ++ s ++ r
 repeats :: Int -> [a] -> [a]
 repeats n  = concat . replicate n
 
-#ifdef MIN_VERSION_located_base
-errorstar :: (?callStack :: CallStack) => String -> a
-#endif
 
+errorP :: String -> String -> a
+errorP p s = error (p ++ s)   
+
+errorstar :: (?callStack :: CallStack) => String -> a
 errorstar  = error . wrap (stars ++ "\n") (stars ++ "\n")
   where
     stars = repeats 3 $ wrapStars "ERROR"
@@ -159,15 +167,9 @@ thd3 (_,_,x) = x
 secondM :: Functor f => (b -> f c) -> (a, b) -> f (a, c)
 secondM act (x, y) = (x,) <$> act y
 
-#ifdef MIN_VERSION_located_base
 mlookup    :: (?callStack :: CallStack, Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
 safeLookup :: (?callStack :: CallStack, Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
 mfromJust  :: (?callStack :: CallStack) => String -> Maybe a -> a
-#else
-mlookup    :: (Eq k, Show k, Hashable k) => M.HashMap k v -> k -> v
-safeLookup :: (Eq k, Hashable k) => String -> k -> M.HashMap k v -> v
-mfromJust  :: String -> Maybe a -> a
-#endif
 
 mlookup m k = fromMaybe err $ M.lookup k m
   where
@@ -206,19 +208,21 @@ hashNub = M.keys . M.fromList . fmap (, ())
 
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
-  where
-    nubOrd (x:t@(y:_))
-      | x == y    = nubOrd t
-      | otherwise = x : nubOrd t
-    nubOrd xs     = xs
+
+nubOrd :: (Eq a) => [a] -> [a]
+nubOrd (x:t@(y:_))
+  | x == y    = nubOrd t
+  | otherwise = x : nubOrd t
+nubOrd xs     = xs
+
+hashNubWith :: (Eq b, Hashable b) => (a -> b) -> [a] -> [a]
+hashNubWith f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 
 duplicates :: (Eq k, Hashable k) => [k] -> [k]
 duplicates xs = [ x | (x, n) <- count xs, 1 < n ]
 
-#ifdef MIN_VERSION_located_base
 safeZip :: (?callStack :: CallStack) => String -> [a] -> [b] -> [(a,b)]
 safeZipWith :: (?callStack :: CallStack) => String -> (a -> b -> c) -> [a] -> [b] -> [c]
-#endif
 
 safeZip msg xs ys
   | nxs == nys
@@ -241,21 +245,12 @@ safeZipWith msg f xs ys
 {-@ type ListNE a = {v:[a] | 0 < len v} @-}
 type ListNE a = [a]
 
-#ifdef MIN_VERSION_located_base
 safeHead   :: (?callStack :: CallStack) => String -> ListNE a -> a
 safeLast   :: (?callStack :: CallStack) => String -> ListNE a -> a
 safeInit   :: (?callStack :: CallStack) => String -> ListNE a -> [a]
 safeUncons :: (?callStack :: CallStack) => String -> ListNE a -> (a, [a])
 safeUnsnoc :: (?callStack :: CallStack) => String -> ListNE a -> ([a], a)
 safeFromList :: (?callStack :: CallStack, Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k v
-#else
-safeHead   :: String -> ListNE a -> a
-safeLast   :: String -> ListNE a -> a
-safeInit   :: String -> ListNE a -> [a]
-safeUncons :: String -> ListNE a -> (a, [a])
-safeUnsnoc :: String -> ListNE a -> ([a], a)
-safeFromList :: (Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k v
-#endif
 
 safeFromList msg kvs = applyNonNull (M.fromList kvs) err (dups kvs)
   where
@@ -288,7 +283,7 @@ applyNonNull _   f xs = f xs
 
 arrow, dcolon :: Doc
 arrow              = text "->"
-dcolon             = colon <> colon
+dcolon             = colon <-> colon
 
 intersperse :: Doc -> [Doc] -> Doc
 intersperse d ds   = hsep $ punctuate d ds
@@ -333,6 +328,10 @@ mapEither f (x:xs) = case f x of
                        Right z -> (ys, z:zs)
                      where
                        (ys, zs) = mapEither f xs
+
+isRight :: Either a b -> Bool 
+isRight (Right _) = True 
+isRight _         = False
 
 componentsWith :: (Ord c) => (a -> [(b, c, [c])]) -> a -> [[b]]
 componentsWith eF x = map (fst3 . f) <$> vss
@@ -436,3 +435,10 @@ revMapM f          = go []
   where
     go !acc []     = return (reverse acc)
     go !acc (x:xs) = do {!y <- f x; go (y:acc) xs}
+
+-- Null if first is a subset of second
+nubDiff :: (Eq a, Hashable a) => [a] -> [a] -> S.HashSet a 
+nubDiff a b = a' `S.difference` b'
+  where
+    a' = S.fromList a
+    b' = S.fromList b

@@ -14,17 +14,21 @@ module Language.Fixpoint.Types.Substitutions (
 import           Data.Maybe
 import qualified Data.HashMap.Strict       as M
 import qualified Data.HashSet              as S
+import           Data.Semigroup            (Semigroup (..))
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Names
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Misc
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf               (printf)
+
+instance Semigroup Subst where
+  (<>) = catSubst
 
 instance Monoid Subst where
   mempty  = emptySubst
-  mappend = catSubst
+  mappend = (<>)
 
 filterSubst :: (Symbol -> Expr -> Bool) -> Subst -> Subst
 filterSubst f (Su m) = Su (M.filterWithKey f m)
@@ -38,7 +42,6 @@ catSubst (Su s1) θ2@(Su s2) = Su $ M.union s1' s2
     s1'                     = subst θ2 <$> s1
 
 mkSubst :: [(Symbol, Expr)] -> Subst
-
 mkSubst = Su . M.fromList . reverse . filter notTrivial
   where
     notTrivial (x, EVar y) = x /= y
@@ -50,6 +53,8 @@ isEmptySubst (Su xes) = M.null xes
 targetSubstSyms :: Subst -> [Symbol]
 targetSubstSyms (Su ms) = syms $ M.elems ms
 
+
+  
 instance Subable () where
   syms _      = []
   subst _ ()  = ()
@@ -64,10 +69,17 @@ instance (Subable a, Subable b) => Subable (a,b) where
 
 instance Subable a => Subable [a] where
   syms   = concatMap syms
-  subst  = map . subst
-  substf = map . substf
-  substa = map . substa
+  subst  = fmap . subst
+  substf = fmap . substf
+  substa = fmap . substa
 
+instance Subable a => Subable (Maybe a) where
+  syms   = concatMap syms . maybeToList
+  subst  = fmap . subst
+  substf = fmap . substf
+  substa = fmap . substa
+
+ 
 instance Subable a => Subable (M.HashMap k a) where
   syms   = syms . M.elems
   subst  = M.map . subst
@@ -159,14 +171,20 @@ disjoint (Su su) bs = S.null $ suSyms `S.intersection` bsSyms
     suSyms = S.fromList $ syms (M.elems su) ++ syms (M.keys su)
     bsSyms = S.fromList $ syms $ fst <$> bs
 
+instance Semigroup Expr where
+  p <> q = pAnd [p, q]
+
 instance Monoid Expr where
-  mempty      = PTrue
-  mappend p q = pAnd [p, q]
-  mconcat     = pAnd
+  mempty  = PTrue
+  mappend = (<>)
+  mconcat = pAnd
+
+instance Semigroup Reft where
+  (<>) = meetReft
 
 instance Monoid Reft where
   mempty  = trueReft
-  mappend = meetReft
+  mappend = (<>)
 
 meetReft :: Reft -> Reft -> Reft
 meetReft (Reft (v, ra)) (Reft (v', ra'))
@@ -174,9 +192,12 @@ meetReft (Reft (v, ra)) (Reft (v', ra'))
   | v == dummySymbol = Reft (v', ra' `mappend` (ra `subst1`  (v , EVar v')))
   | otherwise        = Reft (v , ra  `mappend` (ra' `subst1` (v', EVar v )))
 
+instance Semigroup SortedReft where
+  t1 <> t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
+
 instance Monoid SortedReft where
-  mempty        = RR mempty mempty
-  mappend t1 t2 = RR (mappend (sr_sort t1) (sr_sort t2)) (mappend (sr_reft t1) (sr_reft t2))
+  mempty  = RR mempty mempty
+  mappend = (<>)
 
 instance Subable Reft where
   syms (Reft (v, ras))      = v : syms ras
