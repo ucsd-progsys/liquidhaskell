@@ -1,0 +1,45 @@
+clone_folder: "c:\\lh"
+environment:
+  global:
+    STACK_ROOT: "c:\\sr"
+    TMP: "c:\\tmp"
+
+init:
+- git --version
+  
+install:
+# http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
+- set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
+
+# Download latest stable Stack tool
+- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
+- 7z x stack.zip stack.exe
+- stack --version
+
+# Install Microsoft Z3 from NuGet
+- nuget install z3x64win -Version 4.5.0.1	
+
+- set PATH=z3x64win.4.5.0.1\tools;%PATH%
+- z3 --version
+
+# Update GIT submodule
+- git submodule update --init --recursive
+
+build_script:
+- stack setup > nul
+- echo "" | stack --no-terminal build --jobs 1
+
+# ZIP execturable
+- ps: ((.\stack.exe exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
+- ps: ((.\stack.exe exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
+
+- 7z a liquidhaskell.zip LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
+
+test_script:
+# The ugly echo "" hack is to avoid complaints about 0 being an invalid file
+# descriptor
+#- echo "" | stack --no-terminal test --jobs 1 --verbose
+
+artifacts:
+- path: liquidhaskell.zip
+  name: LiquidHaskell
