@@ -20,5 +20,5 @@ flags:
 extra-package-dbs: []
 
 ghc-options:
-  hscolour: -fno-warn-tabs
+  hscolour: -w 
 
