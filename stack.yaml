@@ -18,3 +18,7 @@ flags:
     devel: true
 
 extra-package-dbs: []
+
+ghc-options:
+  "*": -fno-warn-tabs
+
