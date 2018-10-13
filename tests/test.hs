@@ -236,6 +236,8 @@ microTests = group "Micro"
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
+  , mkMicro "implicit-pos"   "tests/implicit/pos"    ExitSuccess
+  , mkMicro "implicit-neg"   "tests/implicit/neg"   (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
