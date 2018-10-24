@@ -28,16 +28,15 @@ install:
 build_script:
 - stack setup > nul
 
-# Enable RDP for debugging
-- ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-rdp.ps1'))
-- echo "" | stack --no-terminal build hscolour --jobs 1
-- echo "" | stack --no-terminal build --jobs 1
+# Prebuild dependencies (fixing potential long-paths issue)
+- echo "" | stack --no-terminal --jobs 1 build hscolour
+- echo "" | stack --no-terminal --jobs 1 --only-dependencies build 
+
+# Build LiquidHaskell
+- echo "" | stack --no-terminal --jobs 1 --copy-bins --local-bin-path . build
 
 # ZIP execturable
-- ps: ((.\stack.exe exec -- which liquid.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
-- ps: ((.\stack.exe exec -- which fixpoint.exe) -replace "^/c/", "c:\" -replace "/", "\") | %{7z.exe a liquidhaskell.zip $_}
-
-- 7z a liquidhaskell.zip LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
+- 7z a liquidhaskell.zip liquid.exe fixpoint.exe LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
 
 test_script:
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
