@@ -30,10 +30,10 @@ build_script:
 
 # Prebuild dependencies (fixing potential long-paths issue)
 - echo "" | stack --no-terminal --jobs 1 build hscolour
-- echo "" | stack --no-terminal --jobs 1 --only-dependencies build 
+- echo "" | stack --no-terminal --jobs 1 build --only-dependencies
 
 # Build LiquidHaskell
-- echo "" | stack --no-terminal --jobs 1 --copy-bins --local-bin-path . build
+- echo "" | stack --no-terminal --jobs 1 build --copy-bins --local-bin-path .
 
 # ZIP execturable
 - 7z a liquidhaskell.zip liquid.exe fixpoint.exe LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
