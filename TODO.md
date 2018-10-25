@@ -2,12 +2,9 @@
 
 ## Horn
 
+- [x] exec
 - [ ] parse
-- [ ] exec
 - [ ] test!
-
-
-isHorn cfg if srcFile 
 
 ## Existential Binders
 
