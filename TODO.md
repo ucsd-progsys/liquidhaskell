@@ -1,5 +1,14 @@
 # TODO
 
+## Horn
+
+- [ ] parse
+- [ ] exec
+- [ ] test!
+
+
+isHorn cfg if srcFile 
+
 ## Existential Binders
 
 See `tests/pos/ebind-0{0, 1, 2}.fq` which respectively correspond to:

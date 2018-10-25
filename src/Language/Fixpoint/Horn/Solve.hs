@@ -9,20 +9,32 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE DeriveTraversable          #-}
 
-module Language.Fixpoint.Horn.Solve (solve) where 
+module Language.Fixpoint.Horn.Solve (solveHorn, solve) where 
 
--- import           Data.Generics                  (Data)
--- import           Data.Typeable                  (Typeable)
+import qualified Data.HashMap.Strict            as M
+import qualified Data.List                      as L
+import qualified Data.Tuple                     as Tuple 
+import qualified Data.Maybe                     as Mb
+import           System.Exit
 import           GHC.Generics                   (Generic)
 import qualified Language.Fixpoint.Solver       as Solver 
 import qualified Language.Fixpoint.Misc         as Misc 
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F 
 import qualified Language.Fixpoint.Horn.Types   as H 
-import qualified Data.HashMap.Strict            as M
-import qualified Data.List                      as L
-import qualified Data.Tuple                     as Tuple 
-import qualified Data.Maybe                     as Mb
+
+
+----------------------------------------------------------------------------------
+solveHorn :: F.Config -> IO ExitCode 
+----------------------------------------------------------------------------------
+solveHorn cfg = do 
+  q <- parseQuery (F.srcFile cfg)
+  r <- solve cfg q 
+  Solver.resultExitCode r 
+
+parseQuery :: FilePath -> IO (H.Query ())
+parseQuery = undefined
+
 
 ----------------------------------------------------------------------------------
 solve :: F.Config -> H.Query () -> IO (F.Result Integer)

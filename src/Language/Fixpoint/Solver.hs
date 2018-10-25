@@ -13,6 +13,7 @@ module Language.Fixpoint.Solver (
 
     -- * Function to determine outcome
   , resultExit
+  , resultExitCode
 
     -- * Parse Qualifiers from File
   , parseFInfo
@@ -51,29 +52,27 @@ import           Control.DeepSeq
 -- | Solve an .fq file ----------------------------------------------------
 ---------------------------------------------------------------------------
 solveFQ :: Config -> IO ExitCode
----------------------------------------------------------------------------
-solveFQ cfg = solveFQ' cfg `catch` errorExit
-
-errorExit :: Error -> IO ExitCode
-errorExit e = do
-  colorStrLn Sad ("Oops, unexpected error: " ++ showpp e)
-  return (ExitFailure 2)
-
-solveFQ' :: Config -> IO ExitCode
-solveFQ' cfg = do
+solveFQ cfg = do
     (fi, opts) <- readFInfo file
     cfg'       <- withPragmas cfg opts
     let fi'     = ignoreQualifiers cfg' fi
     r          <- solve cfg' fi'
-    let stat    = resStatus $!! r
-    -- let str  = render $ resultDoc $!! (const () <$> stat)
-    -- putStrLn "\n"
-    whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
-    return $ eCode r
+    resultExitCode (fst <$> r)
   where
     file    = srcFile      cfg
+
+---------------------------------------------------------------------------
+resultExitCode :: Result SubcId -> IO ExitCode 
+---------------------------------------------------------------------------
+resultExitCode r = do 
+  -- let str  = render $ resultDoc $!! (const () <$> stat)
+  -- putStrLn "\n"
+  whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
+  return (eCode r)
+  where 
+    stat    = resStatus $!! r
     eCode   = resultExit . resStatus
-    statStr = render . resultDoc . fmap fst
+    statStr = render . resultDoc 
 
 ignoreQualifiers :: Config -> FInfo a -> FInfo a
 ignoreQualifiers cfg fi
