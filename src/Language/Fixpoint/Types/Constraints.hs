@@ -651,7 +651,10 @@ fi cs ws binds ls ds ks qs bi aHO aHOq es axe adts ebs
 -- | Top-level Queries
 ------------------------------------------------------------------------
 
-data FInfoWithOpts a = FIO {fioFI :: FInfo a, fioOpts :: [String]}
+data FInfoWithOpts a = FIO 
+  { fioFI   :: FInfo a
+  , fioOpts :: [String]
+  }
 
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a

@@ -19,22 +19,19 @@ import           System.Exit
 import           GHC.Generics                   (Generic)
 import qualified Language.Fixpoint.Solver       as Solver 
 import qualified Language.Fixpoint.Misc         as Misc 
+import qualified Language.Fixpoint.Parse        as Parse 
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F 
 import qualified Language.Fixpoint.Horn.Types   as H 
-
+import qualified Language.Fixpoint.Horn.Parse   as H 
 
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode 
 ----------------------------------------------------------------------------------
 solveHorn cfg = do 
-  q <- parseQuery (F.srcFile cfg)
+  q <- Parse.parseFromFile H.queryP (F.srcFile cfg)
   r <- solve cfg q 
   Solver.resultExitCode r 
-
-parseQuery :: FilePath -> IO (H.Query ())
-parseQuery = undefined
-
 
 ----------------------------------------------------------------------------------
 solve :: F.Config -> H.Query () -> IO (F.Result Integer)
@@ -60,7 +57,7 @@ hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a
 hornSubCs be kve c = (be', M.fromList (F.addIds cs)) 
   where
     (be', cs)      = goS kve F.emptyIBindEnv lhs0 be c 
-    lhs0           = bindSortedReft kve (topBind c) 
+    lhs0           = bindSortedReft kve H.dummyBind 
 
 -- | @goS@ recursively traverses the NNF constraint to build up a list 
 --   of the vanilla @SubC@ constraints.
@@ -82,11 +79,6 @@ goS kve env _   be (H.All b c)  = (be'', subcs)
     (bId, be')                  = F.insertBindEnv (H.bSym b) bSR be 
     bSR                         = bindSortedReft kve b 
     env'                        = F.insertsIBindEnv [bId] env 
-
-{-@ topBind :: {v:_ | okCstr v} -> _ @-}
-topBind :: H.Cstr a -> H.Bind 
-topBind (H.All b _) = b
-topBind _           = F.panic "topBind: malformed NNF constraint" 
 
 bindSortedReft :: KVEnv a -> H.Bind -> F.SortedReft 
 bindSortedReft kve (H.Bind x t p) = F.RR t (F.Reft (x, predExpr kve p))

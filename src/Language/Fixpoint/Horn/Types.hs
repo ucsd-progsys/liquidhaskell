@@ -20,6 +20,7 @@ module Language.Fixpoint.Horn.Types
 
     -- * invariants (refinements) on constraints 
   , okCstr 
+  , dummyBind
   ) 
   where 
 
@@ -57,6 +58,9 @@ data Bind = Bind
   , bPred :: !Pred 
   }
   deriving (Data, Typeable, Generic)
+
+dummyBind :: Bind 
+dummyBind = Bind F.dummySymbol F.intSort (PAnd []) 
 
 data Cstr a
   = Head  !Pred a               -- ^ p

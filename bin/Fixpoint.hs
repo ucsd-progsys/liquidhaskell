@@ -11,9 +11,7 @@ import qualified Control.Exception              as Ex
 main :: IO ()
 main = do
   cfg <- F.getOpts
-  Misc.writeLoud $  "Options: " ++ show cfg
---   if isHorn cfg 
---    then ...
+  Misc.writeLoud ("Options: " ++ show cfg)
   e <- solveQuery cfg
   exitWith e
 
