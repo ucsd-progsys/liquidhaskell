@@ -201,7 +201,6 @@ strengthenSortedReft :: SortedReft -> Expr -> SortedReft
 strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
 
 
-
 {-
   [(Int, Expr)]  ==> [(BindId, Expr)]
 
@@ -259,10 +258,12 @@ toGFixSol :: M.HashMap KVar (e, [e]) -> GFixSol e
 toGFixSol = GSol
 
 
-data Result a = Result { resStatus    :: !(FixResult a)
-                       , resSolution  :: !FixSolution
-                       , gresSolution :: !GFixSolution }
-                deriving (Generic, Show)
+data Result a = Result 
+  { resStatus    :: !(FixResult a)
+  , resSolution  :: !FixSolution
+  , gresSolution :: !GFixSolution 
+  }
+  deriving (Generic, Show, Functor)
 
 instance Semigroup (Result a) where
   r1 <> r2  = Result stat soln gsoln
@@ -438,7 +439,8 @@ shiftVV r@(Reft (v, ras)) v'
 
 addIds :: [SubC a] -> [(Integer, SubC a)]
 addIds = zipWith (\i c -> (i, shiftId i $ c {_sid = Just i})) [1..]
-  where -- Adding shiftId to have distinct VV for SMT conversion
+  where 
+    -- Adding shiftId to have distinct VV for SMT conversion
     shiftId i c = c { slhs = shiftSR i $ slhs c }
                     { srhs = shiftSR i $ srhs c }
     shiftSR i sr = sr { sr_reft = shiftR i $ sr_reft sr }
@@ -654,30 +656,31 @@ data FInfoWithOpts a = FIO {fioFI :: FInfo a, fioOpts :: [String]}
 type FInfo a   = GInfo SubC a
 type SInfo a   = GInfo SimpC a
 
-data HOInfo = HOI { hoBinds :: Bool          -- ^ Allow higher order binds in the environemnt
-                  , hoQuals :: Bool          -- ^ Allow higher order quals
-                  }
+data HOInfo = HOI 
+  { hoBinds :: Bool          -- ^ Allow higher order binds in the environemnt
+  , hoQuals :: Bool          -- ^ Allow higher order quals
+  }
   deriving (Eq, Show, Generic)
 
 allowHO, allowHOquals :: GInfo c a -> Bool
 allowHO      = hoBinds . hoInfo
 allowHOquals = hoQuals . hoInfo
 
-data GInfo c a =
-  FI { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
-     , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
-     , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
-     , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
-     , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
-     , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
-     , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
-     , quals    :: ![Qualifier]               -- ^ Abstract domain
-     , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
-     , ddecls   :: ![DataDecl]                -- ^ User-defined data declarations
-     , hoInfo   :: !HOInfo                    -- ^ Higher Order info
-     , asserts  :: ![Triggered Expr]
-     , ae       :: AxiomEnv
-     }
+data GInfo c a = FI 
+  { cm       :: !(M.HashMap SubcId (c a))  -- ^ cst id |-> Horn Constraint
+  , ws       :: !(M.HashMap KVar (WfC a))  -- ^ Kvar  |-> WfC defining its scope/args
+  , bs       :: !BindEnv                   -- ^ Bind  |-> (Symbol, SortedReft)
+  , ebinds   :: ![BindId]                  -- ^ Subset of existential binders
+  , gLits    :: !(SEnv Sort)               -- ^ Global Constant symbols
+  , dLits    :: !(SEnv Sort)               -- ^ Distinct Constant symbols
+  , kuts     :: !Kuts                      -- ^ Set of KVars *not* to eliminate
+  , quals    :: ![Qualifier]               -- ^ Abstract domain
+  , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
+  , ddecls   :: ![DataDecl]                -- ^ User-defined data declarations
+  , hoInfo   :: !HOInfo                    -- ^ Higher Order info
+  , asserts  :: ![Triggered Expr]
+  , ae       :: AxiomEnv
+  }
   deriving (Eq, Show, Functor, Generic)
 
 instance HasGradual (GInfo c a) where

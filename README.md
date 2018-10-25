@@ -258,7 +258,7 @@ distinct lit#Tue : Day
 distinct lit#Wed : Day
 ```
 
-The above two are represented programmatically by generating   
+The above two are represented programmatically by generating
 suitable `Symbol` values (for the literals  see `litSymbol`)
 and `Sort` values as `FTC FTycon` and then making an `SEnv`
 from the `[(Symbol, Sort)]`.
