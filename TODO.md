@@ -2,9 +2,7 @@
 
 ## Horn
 
-- [x] exec
-- [ ] parse
-- [ ] test!
+- [x] test!
 
 Steal SMTLIB parser from here:
 
