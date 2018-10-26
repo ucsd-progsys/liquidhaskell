@@ -7,3 +7,9 @@ constraint:
   lhs {v : Str | v = lit$cat }
   rhs {v : Str | strLen v = 3 }
   id 1 tag [6]
+
+constraint:
+  env []
+  lhs {v : Str | v = lit$cat }
+  rhs {v : Str | v = "cat"   }
+  id 2 tag [6]

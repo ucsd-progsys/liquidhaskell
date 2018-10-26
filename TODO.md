@@ -1,5 +1,13 @@
 # TODO
 
+## Horn
+
+- [x] test!
+
+Steal SMTLIB parser from here:
+
+- https://github.com/connerirwin/musfix/blob/master/src/Language/SMT/Parser.hs
+
 ## Existential Binders
 
 See `tests/pos/ebind-0{0, 1, 2}.fq` which respectively correspond to:

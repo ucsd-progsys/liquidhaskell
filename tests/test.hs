@@ -73,7 +73,13 @@ unitTests
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 2)
-    , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"  []             ExitSuccess
+    , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
+
+    , testGroup "horn-pos"   <$> dirTests elimCmd   "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg"   <$> dirTests elimCmd   "tests/horn/neg"  []          (ExitFailure 1)
+    , testGroup "horn-pos"   <$> dirTests nativeCmd "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg"   <$> dirTests nativeCmd "tests/horn/neg"  []          (ExitFailure 1)
+
     -- , testGroup "todo"       <$> dirTests elimCmd   "tests/todo"   []            (ExitFailure 1)
     -- , testGroup "todo-crash" <$> dirTests elimCmd   "tests/todo-crash" []        (ExitFailure 2)
    ]
@@ -85,13 +91,13 @@ skipNativePos = ["NonLinear-pack.fq"]
 ---------------------------------------------------------------------------
 dirTests :: TestCmd -> FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
 ---------------------------------------------------------------------------
-dirTests testCmd root ignored code
-  = do files    <- walkDirectory root
-       let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
-       return    $ mkTest testCmd code root <$> tests
+dirTests testCmd root ignored code = do 
+  files    <- walkDirectory root
+  let tests = [ rel | f <- files, isTest f, let rel = makeRelative root f, rel `notElem` ignored ]
+  return    $ mkTest testCmd code root <$> tests
 
 isTest   :: FilePath -> Bool
-isTest f = takeExtension f `elem` [".fq"]
+isTest f = takeExtension f `elem` [".fq", ".smt2"]
 
 ---------------------------------------------------------------------------
 mkTest :: TestCmd -> ExitCode -> FilePath -> FilePath -> TestTree

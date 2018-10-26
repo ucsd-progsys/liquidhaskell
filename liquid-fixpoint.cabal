@@ -110,7 +110,9 @@ Library
                    Language.Fixpoint.Solver.Sanitize,
                    Language.Fixpoint.Utils.Statistics,
                    Language.Fixpoint.Solver.Solve,
-
+                   Language.Fixpoint.Horn.Types,
+                   Language.Fixpoint.Horn.Parse,
+                   Language.Fixpoint.Horn.Solve,
                    Text.PrettyPrint.HughesPJ.Compat
 
   Other-Modules: Paths_liquid_fixpoint
