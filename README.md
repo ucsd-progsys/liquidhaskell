@@ -1,5 +1,9 @@
-Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) [![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
+Liquid Fixpoint [![Hackage](https://img.shields.io/hackage/v/liquid-fixpoint.svg)](https://hackage.haskell.org/package/liquid-fixpoint) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquid-fixpoint.svg)](http://packdeps.haskellers.com/feed?needle=liquid-fixpoint) 
+[![CircleCI](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint.svg?style=svg)](https://circleci.com/gh/ucsd-progsys/liquid-fixpoint)
 ===============
+
+
+
 
 
 
