@@ -37,7 +37,7 @@ smt2data :: SymEnv -> [DataDecl] -> Builder.Builder
 smt2data env = smt2data' env . map padDataDecl
 
 smt2data' :: SymEnv -> [DataDecl] -> Builder.Builder
-smt2data' env ds = build "({}) ({})" (tvars, smt2many (smt2data1 env <$> ds)) 
+smt2data' env ds = build "({}) ({})" (tvars, smt2many (smt2data1 env <$> muSort ds)) 
   where
     tvars        = smt2many (smt2TV <$> [0..(n-1)])
     smt2TV       = smt2 env . SVar
