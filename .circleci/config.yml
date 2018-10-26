@@ -4,7 +4,7 @@ version: 2.0
 jobs:
   build:
     docker:
-      - image: fpco/stack-build:lts-8.9
+      - image: fpco/stack-build:lts-12.2
     steps:
       - add_ssh_keys
       - run: apt-get install z3
@@ -30,12 +30,13 @@ jobs:
       - run:
           name: Test
           command: |
-            mkdir -p $CIRCLE_TEST_REPORTS/junit
-            stack test liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=$CIRCLE_TEST_REPORTS/junit/main-test-results.xml":
+            stack clean
+            mkdir -p /tmp/junit
+            stack test liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml":
             stack haddock
             stack sdist
-            mkdir -p $CIRCLE_TEST_REPORTS/tasty
-            cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
+            # mkdir -p $CIRCLE_TEST_REPORTS/tasty
+            # cp -r tests/logs/cur $CIRCLE_TEST_REPORTS/tasty/log
       - run:
           name: Dist
           command: stack sdist
