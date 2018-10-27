@@ -93,6 +93,7 @@ isMono             = null . Vis.foldSort fv []
 class Elaborate a where
   elaborate :: Located String -> SymEnv -> a -> a
 
+
 instance (Loc a) => Elaborate (SInfo a) where
   elaborate x senv si = si
     { cm      = elaborate x senv <$> cm      si

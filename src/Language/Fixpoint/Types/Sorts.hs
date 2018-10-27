@@ -61,6 +61,7 @@ module Language.Fixpoint.Types.Sorts (
   , DataField (..)
   , DataCtor (..)
   , DataDecl (..)
+  , muSort
 
   -- * Embedding Source types as Sorts
   , TCEmb, TCArgs (..)
@@ -89,6 +90,7 @@ import           Language.Fixpoint.Types.Spans
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
 import qualified Data.HashMap.Strict       as M
+import qualified Data.List                 as L
 
 data FTycon   = TC LocSymbol TCInfo deriving (Ord, Show, Data, Typeable, Generic)
 
@@ -256,6 +258,17 @@ instance Symbolic DataField where
 
 instance Symbolic DataCtor where
   symbol = val . dcName
+
+
+muSort  :: [DataDecl] -> [DataDecl]
+muSort dds = mapSortDataDecl tx <$> dds
+  where
+    selfs = [(fTyconSelfSort c n, fTyconSort c) | DDecl c n _ <- dds]
+    tx t  = fromMaybe t $ L.lookup t selfs 
+
+    mapSortDataDecl f  dd = dd { ddCtors  = mapSortDataCTor f  <$> ddCtors  dd }
+    mapSortDataCTor f  ct = ct { dcFields = mapSortDataField f <$> dcFields ct }
+    mapSortDataField f df = df { dfSort   = f $ dfSort df }
 
 isFirstOrder, isFunction :: Sort -> Bool
 isFirstOrder (FFunc sx s) = not (isFunction sx) && isFirstOrder s
