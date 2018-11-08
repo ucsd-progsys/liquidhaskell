@@ -515,6 +515,13 @@ mkC                    = Just . ECon . (`F.L` F.charSort)  . repr
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
+isBangInteger :: [C.CoreAlt] -> Bool 
+isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)] 
+  =  symbol s  == "GHC.Integer.Type.S#" 
+  && symbol jp == "GHC.Integer.Type.Jp#" 
+  && symbol jn == "GHC.Integer.Type.Jn#"  
+isBangInteger _ = False 
+
 isErasable :: Id -> Bool
 isErasable v = F.notracepp msg $ isGhcSplId v && not (isDCId v) 
   where 
@@ -570,7 +577,10 @@ instance Simplify C.CoreExpr where
     = simplify e
   simplify (C.Let xes e)
     = C.Let (simplify xes) (simplify e)
-  simplify (C.Case e x t alts)
+  simplify (C.Case e x t alts@[(_,_,ee),_,_]) | isBangInteger alts
+    = Misc.traceShow ("To simplify case") $ 
+       sub (M.singleton x (simplify e)) (simplify ee)
+  simplify ce@(C.Case e x t alts)
     = C.Case (simplify e) x t (filter (not . isUndefined) (simplify <$> alts))
   simplify (C.Cast e c)
     = C.Cast (simplify e) c
