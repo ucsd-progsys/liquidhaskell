@@ -51,6 +51,25 @@ eval s (And f g) = (eval s f) && (eval s g)
 eval s (Or  f g) = (eval s f) || (eval s g)
 eval s (Not f)   = not (eval s f)
 
+-------------------------------------------------------------------------------
+-- | NNF Conversion with store -- "INTERNAL" VERIFICATION 
+-------------------------------------------------------------------------------
+
+{-@ reflect nnfP @-}
+{-@ nnf :: s:_ -> p:_ -> {v:NNF | eval s v = eval s p} @-} 
+nnf :: [Bool] -> Pred -> Pred 
+nnf s (Var i)    = Var  i 
+nnf s (Not p)    = nnf' s p  
+nnf s (And p q)  = And (nnf s p) (nnf s q) 
+nnf s (Or  p q)  = Or  (nnf s p) (nnf s q) 
+
+{-@ reflect nnfN @-}
+{-@ nnf' :: s:_ -> p:_ -> {v:NNF | eval s p = not (eval s v)} @-} 
+nnf' :: [Bool] -> Pred -> Pred 
+nnf' s (Var i)    = Not (Var i) 
+nnf' s (Not p)    = nnf s p  
+nnf' s (And p q)  = Or  (nnf' s p) (nnf' s q) 
+nnf' s (Or  p q)  = And (nnf' s p) (nnf' s q) 
 
 -------------------------------------------------------------------------------
 -- | NNF Conversion 
@@ -73,7 +92,7 @@ nnfN (And p q)  = Or  (nnfN p) (nnfN q)
 nnfN (Or  p q)  = And (nnfN p) (nnfN q) 
 
 -------------------------------------------------------------------------------
--- | NNF Conversion Correctness 
+-- | NNF Conversion -- "EXTERNAL" VERIFICATION 
 -------------------------------------------------------------------------------
 
 {-@ thmP :: s:_ -> p:_ -> { eval s p = eval s (nnfP p) } @-}
@@ -94,3 +113,4 @@ thmN s (Not p)   = thmP s p
 not :: Bool -> Bool 
 not True = False 
 not False = True 
+
