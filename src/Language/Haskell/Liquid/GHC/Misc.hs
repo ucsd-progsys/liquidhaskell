@@ -630,9 +630,12 @@ dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
 
 dropModuleNames  :: Symbol -> Symbol
+dropModuleNames = dropModuleNamesCorrect 
+{- 
 dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
  where
    lastName msg = symbol . safeLast msg
+-}
 
 dropModuleNamesCorrect  :: Symbol -> Symbol
 dropModuleNamesCorrect = F.symbol . go . F.symbolText
@@ -644,15 +647,25 @@ dropModuleNamesCorrect = F.symbol . go . F.symbolText
              Nothing -> s
 
 takeModuleNames  :: Symbol -> Symbol
+takeModuleNames = F.symbol . go T.empty . F.symbolText
+  where
+    go acc s = case T.uncons s of
+                Just (c,tl) -> if isUpper c && T.any (== '.') tl
+                                 then go (getModule s) $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
+                                 else acc 
+                Nothing -> acc 
+    getModule s = T.snoc (T.takeWhile (/= '.') s) '.'
+
+{- 
 takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
   where
     initName msg = symbol . T.intercalate "." . safeInit msg
+-}
 
 dropModuleUnique :: Symbol -> Symbol
 dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
   where
     headName msg = symbol . safeHead msg
-
 
 cmpSymbol :: Symbol -> Symbol -> Bool
 cmpSymbol coreSym logicSym
