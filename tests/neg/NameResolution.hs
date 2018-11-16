@@ -1,6 +1,6 @@
 module Fixme where
 
-import Prelude hiding ((==))
+import Prelude hiding ((==), (++))
 import Language.Haskell.Liquid.Equational 
 
 
@@ -22,3 +22,6 @@ foo _
   ==.. 2 
 
 
+{-@ (++) :: a -> a -> a @-}
+(++) :: a -> a -> a 
+x ++ _ = x 
