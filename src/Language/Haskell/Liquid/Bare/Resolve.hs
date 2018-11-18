@@ -645,7 +645,10 @@ unQualifySymbol sym
   | otherwise             = (Nothing, sym) 
 
 splitModuleNameExact :: F.Symbol -> (F.Symbol, F.Symbol)
-splitModuleNameExact x = (GM.takeModuleNames x, GM.dropModuleNames x)
+splitModuleNameExact x' = myTracepp ("splitModuleNameExact for " ++ F.showpp x) 
+                          (GM.takeModuleNames x, GM.dropModuleNames x)
+  where
+    x = GM.stripParensSym x' 
 
 errResolve :: PJ.Doc -> String -> LocSymbol -> UserError 
 errResolve k msg lx = ErrResolve (GM.fSrcSpan lx) k (F.pprint (F.val lx)) (PJ.text msg) 
