@@ -181,7 +181,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Measures
   , Measure (..)
-  , UnSortedExprs (..), UnSortedExpr (..)
+  , UnSortedExprs, UnSortedExpr
   , MeasureKind (..)
   , CMeasure (..)
   , Def (..)
@@ -2044,7 +2044,7 @@ instance F.PPrint a => F.PPrint (Def t a) where
       cbsd = parens (F.pprintTidy k c <-> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
 instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
-  pprintTidy k (M n s eqs _ u) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
+  pprintTidy k (M n s eqs _ _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
                                   $$ vcat (F.pprintTidy k `fmap` eqs)
 
 
