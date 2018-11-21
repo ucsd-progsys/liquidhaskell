@@ -59,7 +59,7 @@ import           Control.Monad.State.Strict
 
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
-import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes)
+import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
 import           Data.Semigroup            (Semigroup (..))
 
 import           Language.Fixpoint.Types.PrettyPrint
@@ -300,10 +300,20 @@ checkSorted sp γ t =
     Left e   -> Just (text (val e))
     Right _  -> Nothing
 
-pruneUnsortedReft :: SEnv Sort -> SortedReft -> SortedReft
-pruneUnsortedReft γ (RR s (Reft (v, p))) = RR s (Reft (v, tx p))
+pruneUnsortedReft :: SEnv Sort -> Templates -> SortedReft -> SortedReft
+pruneUnsortedReft _ t r 
+  | isEmptyTemplates t 
+  = r 
+pruneUnsortedReft γ t (RR s (Reft (v, p)))
+  | isAnyTemplates t 
+  -- this is the old code that checks everything 
+  = RR s (Reft (v, tx filterAny p))
+  | otherwise
+  = RR s (Reft (v, tx (filter filterWithTemplate) p))
   where
-    tx   = pAnd . mapMaybe (checkPred' f) . conjuncts
+    filterAny = mapMaybe (checkPred' f)
+    filterWithTemplate e =  not (matchesTemplates t e) || isJust (checkPred' f e)
+    tx f = pAnd . f . conjuncts
     f    = (`lookupSEnvWithDistance` γ')
     γ'   = insertSEnv v s γ
     -- wmsg t r = "WARNING: prune unsorted reft:\n" ++ showFix r ++ "\n" ++ t
@@ -312,7 +322,7 @@ checkPred' :: Env -> Expr -> Maybe Expr
 checkPred' f p = res -- traceFix ("checkPred: p = " ++ showFix p) $ res
   where
     res        = case runCM0 dummySpan (checkPred f p) of
-                   Left _err -> {- trace (_wmsg _err p) -} Nothing
+                   Left _err -> notracepp ("Removing" ++ showpp p) Nothing
                    Right _   -> Just p
 
 class Checkable a where
