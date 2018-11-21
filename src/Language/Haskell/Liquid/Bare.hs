@@ -725,7 +725,7 @@ isSymbolOfVar x v = x == symbol' v
 
 measureTypeToInv :: Bare.Env -> ModName -> (LocSymbol, (Ghc.Var, LocSpecType)) -> ((Maybe Ghc.Var, LocSpecType), Maybe UnSortedExpr)
 measureTypeToInv env name (x, (v, t)) 
-  = tracepp "measureTypeToInv" $ ((Just v, t {val = Bare.qualifyTop env name (F.loc x) mtype}), usorted)
+  = notracepp "measureTypeToInv" $ ((Just v, t {val = Bare.qualifyTop env name (F.loc x) mtype}), usorted)
   where
     trep = toRTypeRep (val t)
     ts   = ty_args  trep

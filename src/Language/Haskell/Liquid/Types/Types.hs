@@ -1990,7 +1990,7 @@ data Measure ty ctor = M
   , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
   } deriving (Data, Typeable, Generic, Functor)
 
-type UnSortedExprs = [UnSortedExpr]
+type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
 
 data MeasureKind 

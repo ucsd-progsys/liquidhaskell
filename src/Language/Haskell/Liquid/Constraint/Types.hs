@@ -50,6 +50,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
+
+  , getTemplates
   ) where
 
 import Prelude hiding (error)
@@ -211,8 +213,16 @@ data CGInfo = CGInfo
   , allowHO    :: !Bool
   , ghcI       :: !GhcInfo
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
-  , unsorted   :: ![UnSortedExpr]              -- ^ Potentially unsorted expressions
+  , unsorted   :: !F.Templates                 -- ^ Potentially unsorted expressions
   }
+
+
+getTemplates :: CG F.Templates
+getTemplates = do 
+  fg     <- pruneRefs <$> get
+  ts     <- unsorted  <$> get
+  return $ if fg then F.anything else ts 
+       
 
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo

@@ -133,19 +133,19 @@ rsplitW γ (RProp ss t0) = do
 
 bsplitW :: CGEnv -> SpecType -> CG [FixWfC]
 bsplitW γ t =
-  do pflag <- pruneRefs <$> get
+  do temp  <- getTemplates
      isHO  <- allowHO   <$> get
-     return $ bsplitW' γ t pflag isHO
+     return $ bsplitW' γ t temp isHO
 
 bsplitW' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
-         => CGEnv -> RRType r -> Bool -> Bool -> [F.WfC Cinfo]
-bsplitW' γ t pflag isHO
+         => CGEnv -> RRType r -> F.Templates -> Bool -> [F.WfC Cinfo]
+bsplitW' γ t temp isHO
   | isHO || F.isNonTrivial r'
   = F.wfC (feBinds $ fenv γ) r' ci
   | otherwise
   = []
   where
-    r'                = rTypeSortedReft' pflag γ t
+    r'                = rTypeSortedReft' γ temp t
     ci                = Ci (getLocation γ) Nothing (cgVar γ)
 
 --------------------------------------------------------------------------------
@@ -421,8 +421,8 @@ splitC (SubC γ t1 t2)
   = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ traceTy t1 ++ "\n  <:\n" ++ traceTy t2
 
 splitC (SubR γ o r)
-  = do fg     <- pruneRefs <$> get
-       let r1' = if fg then pruneUnsortedReft γ'' r1 else r1
+  = do ts     <- getTemplates
+       let r1' = pruneUnsortedReft γ'' ts r1
        return $ F.subC γ' r1' r2 Nothing tag ci
   where
     γ'' = feEnv $ fenv γ
@@ -485,10 +485,10 @@ bsplitC :: CGEnv
         -> CG [F.SubC Cinfo]
 bsplitC γ t1 t2 = do
   checkStratum γ t1 t2
-  pflag  <- pruneRefs <$> get
+  temp   <- getTemplates
   isHO   <- allowHO   <$> get
   t1'    <- addLhsInv γ <$> refreshVV t1
-  return  $ bsplitC' γ t1' t2 pflag isHO
+  return  $ bsplitC' γ t1' t2 temp isHO
 
 addLhsInv :: CGEnv -> SpecType -> SpecType
 addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
@@ -509,8 +509,8 @@ checkStratum γ t1 t2
     [s1, s2]  = getStrata <$> [t1, t2]
     wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
-bsplitC' :: CGEnv -> SpecType -> SpecType -> Bool -> Bool -> [F.SubC Cinfo]
-bsplitC' γ t1 t2 pflag isHO
+bsplitC' :: CGEnv -> SpecType -> SpecType -> F.Templates -> Bool -> [F.SubC Cinfo]
+bsplitC' γ t1 t2 tem isHO
  | isHO
  = F.subC γ' r1'  r2' Nothing tag ci
  | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
@@ -521,8 +521,8 @@ bsplitC' γ t1 t2 pflag isHO
  = []
   where
     γ'  = feBinds $ fenv γ
-    r1' = rTypeSortedReft' pflag γ t1
-    r2' = rTypeSortedReft' pflag γ t2
+    r1' = rTypeSortedReft' γ tem t1
+    r2' = rTypeSortedReft' γ tem t2
     ci  = Ci src err (cgVar γ)
     tag = getTag γ
     -- err = Just $ ErrSubType src "subtype" g t1 t2

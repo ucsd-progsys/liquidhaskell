@@ -120,8 +120,8 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
-                     ++ condNull noPrune
-                       (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      (gsData sp)))
+                     ++ condNull False -- NV TODO: check consistency with templates
+                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      (gsData sp)))
                      ++ mapMaybe (checkBind allowHO "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
                      ++ checkTySigs         allowHO cbs            emb tcEnv env                (gsSig sp)
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
@@ -152,7 +152,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     allowHO          = higherOrderFlag sp
-    noPrune          = not (pruneFlag sp)
+    -- noPrune          = not (pruneFlag sp)
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 
