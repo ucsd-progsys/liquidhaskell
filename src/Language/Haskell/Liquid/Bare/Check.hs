@@ -530,7 +530,7 @@ checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataC
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
 checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> [Error]
-checkMeasure emb γ (M name@(Loc src _ n) sort body _)
+checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
   = [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)

@@ -181,6 +181,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Measures
   , Measure (..)
+  , UnSortedExprs (..), UnSortedExpr (..)
   , MeasureKind (..)
   , CMeasure (..)
   , Def (..)
@@ -1986,7 +1987,11 @@ data Measure ty ctor = M
   , msSort :: ty
   , msEqns :: [Def ty ctor]
   , msKind :: !MeasureKind 
+  , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
   } deriving (Data, Typeable, Generic, Functor)
+
+type UnSortedExprs = [UnSortedExpr]
+type UnSortedExpr  = ([F.Symbol], F.Expr)
 
 data MeasureKind 
   = MsReflect     -- ^ due to `reflect foo` 
@@ -2009,8 +2014,8 @@ instance Bifunctor Def where
 
 
 instance Bifunctor Measure where
-  first f (M n s es k)  = M n (f s) (first f <$> es) k
-  second f (M n s es k) = M n s (second f <$> es) k
+  first  f (M n s es k u) = M n (f s) (first f <$> es) k u
+  second f (M n s es k u) = M n s (second f <$> es)    k u 
 
 instance                             B.Binary MeasureKind 
 instance                             B.Binary Body
@@ -2039,8 +2044,8 @@ instance F.PPrint a => F.PPrint (Def t a) where
       cbsd = parens (F.pprintTidy k c <-> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
 instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
-  pprintTidy k (M n s eqs _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
-                                $$ vcat (F.pprintTidy k `fmap` eqs)
+  pprintTidy k (M n s eqs _ u) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
+                                  $$ vcat (F.pprintTidy k `fmap` eqs)
 
 
 instance F.PPrint (Measure t a) => Show (Measure t a) where

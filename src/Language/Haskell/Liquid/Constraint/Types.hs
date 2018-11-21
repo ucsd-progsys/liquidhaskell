@@ -211,6 +211,7 @@ data CGInfo = CGInfo
   , allowHO    :: !Bool
   , ghcI       :: !GhcInfo
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
+  , unsorted   :: ![UnSortedExpr]              -- ^ Potentially unsorted expressions
   }
 
 instance PPrint CGInfo where

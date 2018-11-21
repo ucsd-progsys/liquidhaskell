@@ -89,11 +89,32 @@ makeMeasureDefinition :: Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
 makeMeasureDefinition tycEnv lmap cbs x = 
   case GM.findVarDef (val x) cbs of
     Nothing       -> Ex.throw $ errHMeas x "Cannot extract measure from haskell function"
-    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted
+    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted (Ghc.varType v) mdef) 
                      where 
                        vx           = F.atLoc x (F.symbol v)
                        mdef         = coreToDef' tycEnv lmap vx v def
                        vinfo        = GM.varLocInfo logicType v
+
+makeUnSorted :: Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
+makeUnSorted t defs
+  | isMeasureType ta 
+  = mempty
+  | otherwise
+  = map defToUnSortedExpr defs
+  where
+    ta = go $ Ghc.expandTypeSynonyms t
+
+    go (Ghc.ForAllTy _ t) = go t 
+    go (Ghc.FunTy t _)    = t 
+    go t                  = t -- this should never happen!
+
+    isMeasureType (Ghc.TyConApp _ ts) = all Ghc.isTyVarTy ts
+    isMeasureType _                   = False  
+
+    defToUnSortedExpr def = (xx:(fst <$> binds def), 
+                             Ms.bodyPred (F.mkEApp (measure def) [F.expr xx]) (body def)) 
+
+    xx = F.vv $ Just 10000
 
 coreToDef' :: Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr 
            -> [Def LocSpecType Ghc.DataCon] 
@@ -324,14 +345,14 @@ bareBool = RApp (RTyCon Ghc.boolTyCon [] def) [] [] mempty
 -}
 
 makeMeasureSelector :: (Show a1) => LocSymbol -> SpecType -> Ghc.DataCon -> Int -> a1 -> Measure SpecType Ghc.DataCon
-makeMeasureSelector x s dc n i = M { msName = x, msSort = s, msEqns = [eqn], msKind = MsSelector }
+makeMeasureSelector x s dc n i = M { msName = x, msSort = s, msEqns = [eqn], msKind = MsSelector, msUnSorted = mempty}
   where
     eqn                        = Def x dc Nothing args (E (F.EVar $ mkx i))
     args                       = ((, Nothing) . mkx) <$> [1 .. n]
     mkx j                      = F.symbol ("xx" ++ show j)
 
 makeMeasureChecker :: LocSymbol -> SpecType -> Ghc.DataCon -> Int -> Measure SpecType Ghc.DataCon
-makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns <$> filter (/= dc) dcs), msKind = MsChecker }
+makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns <$> filter (/= dc) dcs), msKind = MsChecker, msUnSorted = mempty }
   where
     s       = F.notracepp ("makeMeasureChecker: " ++ show x) s0
     eqn     = Def x dc Nothing (((, Nothing) . mkx) <$> [1 .. n])       (P F.PTrue)
@@ -363,9 +384,9 @@ makeMeasureSpec env sigEnv myName (name, spec)
 bareMSpec :: Bare.Env -> Bare.SigEnv -> ModName -> ModName -> Ms.BareSpec -> Ms.MSpec LocBareType LocSymbol 
 bareMSpec env sigEnv myName name spec = Ms.mkMSpec ms cms ims 
   where
-    cms        = filter inScope1 $             Ms.cmeasures spec
-    ms         = filter inScope2 $ expMeas <$> Ms.measures  spec
-    ims        = filter inScope2 $ expMeas <$> Ms.imeasures spec
+    cms        = F.notracepp "CMS" $ filter inScope1 $             Ms.cmeasures spec
+    ms         = F.notracepp "UMS" $ filter inScope2 $ expMeas <$> Ms.measures  spec
+    ims        = F.notracepp "IMS" $ filter inScope2 $ expMeas <$> Ms.imeasures spec
     expMeas    = expandMeasure env name  rtEnv
     rtEnv      = Bare.sigRTEnv          sigEnv
     force      = name == myName 
@@ -398,7 +419,7 @@ mkMeasureSort env name (Ms.MSpec c mm cm im) =
       ofMeaSort l = Bare.ofBareType env name l Nothing 
 
       tx :: Measure BareType ctor -> (Measure SpecType ctor)
-      tx (M n s eqs k) = M n (ofMeaSort l s) (txDef <$> eqs) k     where l = GM.fSourcePos n
+      tx (M n s eqs k u) = M n (ofMeaSort l s) (txDef <$> eqs) k u where l = GM.fSourcePos n
 
       txDef :: Def BareType ctor -> (Def SpecType ctor)
       txDef d = first (ofMeaSort l) d                              where l = GM.fSourcePos (measure d) 
@@ -448,7 +469,7 @@ makeClassMeasureSpec :: MSpec (RType c tv (UReft r2)) t
                      -> [(LocSymbol, CMeasure (RType c tv r2))]
 makeClassMeasureSpec (Ms.MSpec {..}) = tx <$> M.elems cmeasMap
   where
-    tx (M n s _ _) = (n, CM n (mapReft ur_reft s))
+    tx (M n s _ _ _) = (n, CM n (mapReft ur_reft s))
 
 
 {- 
