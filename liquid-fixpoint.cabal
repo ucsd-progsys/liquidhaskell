@@ -222,6 +222,7 @@ test-suite testparser
                  Language.Fixpoint.Types.PrettyPrint
                  Language.Fixpoint.Types.Refinements
                  Language.Fixpoint.Types.Sorts
+                 Language.Fixpoint.Types.Templates
                  Language.Fixpoint.Types.Spans
                  Language.Fixpoint.Types.Substitutions
                  Language.Fixpoint.Types.Theories
