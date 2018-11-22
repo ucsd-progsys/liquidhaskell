@@ -674,21 +674,22 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = Bare.qualifyTopDummy env name <$> (F.notracepp "MEASURES-1" $ ms1 ++ ms2)
+  , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
   , gsInvariants = Misc.nubHashOn (F.loc . snd) invs 
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
+  , gsUnsorted   = usI ++ (concatMap msUnSorted $ concatMap measures specs)
   }
   where
     measVars     = Bare.meSyms      measEnv -- ms'
                 ++ Bare.meClassSyms measEnv -- cms' 
                 ++ Bare.varMeasures env
-    measures     = Bare.meMeasureSpec measEnv  
-    ms1          = M.elems (Ms.measMap measures)
-    ms2          =          Ms.imeas   measures
+    measuresSp   = Bare.meMeasureSpec measEnv  
+    ms1          = M.elems (Ms.measMap measuresSp)
+    ms2          =          Ms.imeas   measuresSp
     mySpec       = M.lookupDefault mempty name specs
     name         = giTargetMod      src
-    invs         = makeMeasureInvariants env name sig mySpec
-                ++ concat (makeInvariants env sigEnv <$> M.toList specs)
+    (minvs,usI)  = makeMeasureInvariants env name sig mySpec
+    invs         = minvs ++ concat (makeInvariants env sigEnv <$> M.toList specs)
 
 makeIAliases :: Bare.Env -> Bare.SigEnv -> (ModName, BareSpec) -> [(LocSpecType, LocSpecType)]
 makeIAliases env sigEnv (name, spec)
@@ -706,14 +707,15 @@ makeInvariants env sigEnv (name, spec) =
     , let t = Bare.cookSpecType env sigEnv name Bare.GenTV bt
   ]
 
-makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec -> [(Maybe Ghc.Var, LocSpecType)]
+makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec 
+                      -> ([(Maybe Ghc.Var, LocSpecType)], [UnSortedExpr])
 makeMeasureInvariants env name sig mySpec 
-  = measureTypeToInv env name <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
-                                       , isSymbolOfVar (val x) y ]
+  = mapSnd Mb.catMaybes $ 
+    unzip (measureTypeToInv env name <$> [(x, (y, ty)) | x <- xs, (y, ty) <- sigs
+                                         , isSymbolOfVar (val x) y ])
   where 
     sigs = gsTySigs sig 
     xs   = S.toList (Ms.hmeas  mySpec) 
-
 
 isSymbolOfVar :: Symbol -> Ghc.Var -> Bool
 isSymbolOfVar x v = x == symbol' v
@@ -721,26 +723,41 @@ isSymbolOfVar x v = x == symbol' v
     symbol' :: Ghc.Var -> Symbol
     symbol' = GM.dropModuleNames . symbol . Ghc.getName
 
-measureTypeToInv :: Bare.Env -> ModName -> (LocSymbol, (Ghc.Var, LocSpecType)) -> (Maybe Ghc.Var, LocSpecType)
-measureTypeToInv env name (x, (v, t)) = (Just v, t {val = Bare.qualifyTop env name (F.loc x) mtype})
+measureTypeToInv :: Bare.Env -> ModName -> (LocSymbol, (Ghc.Var, LocSpecType)) -> ((Maybe Ghc.Var, LocSpecType), Maybe UnSortedExpr)
+measureTypeToInv env name (x, (v, t)) 
+  = notracepp "measureTypeToInv" $ ((Just v, t {val = Bare.qualifyTop env name (F.loc x) mtype}), usorted)
   where
     trep = toRTypeRep (val t)
     ts   = ty_args  trep
     args = ty_binds trep
     res  = ty_res   trep
+    z    = last args
+    tz   = last ts
+    usorted = if isSimpleADT tz then Nothing else ((mapFst (:[])) <$> mkReft (dummyLoc $ F.symbol v) z tz res)
     mtype
       | null ts 
       = uError $ ErrHMeas (GM.sourcePosSrcSpan $ loc t) (pprint x) "Measure has no arguments!"
       | otherwise 
-      = mkInvariant x (last args) (last ts) res 
+      = mkInvariant x z tz res 
+    isSimpleADT (RApp _ ts _ _) = all isRVar ts 
+    isSimpleADT _               = False 
 
 mkInvariant :: LocSymbol -> Symbol -> SpecType -> SpecType -> SpecType
 mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
       where
-        Reft (v, p)    = toReft $ Mb.fromMaybe mempty $ stripRTypeBase tr
-        su             = mkSubst [(v, mkEApp x [EVar v])]
-        reft           = Reft (v, subst su p')
-        p'             = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
+        reft  = Mb.maybe mempty Reft mreft
+        mreft = mkReft x z t tr 
+
+
+mkReft :: LocSymbol -> Symbol -> SpecType -> SpecType -> Maybe (Symbol, Expr)
+mkReft x z t tr 
+  | Just q <- stripRTypeBase tr
+  = let Reft (v, p) = toReft q
+        su          = mkSubst [(v, mkEApp x [EVar v])]
+        p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
+    in  Just (v, subst su p')
+mkReft _ _ _ _  
+  = Nothing 
 
 
 -- REBARE: formerly, makeGhcSpec3
@@ -810,7 +827,7 @@ knownWiredTyCons env name = filter isKnown wiredTyCons
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
 makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv 
-  { meMeasureSpec = measures 
+  { meMeasureSpec = F.notracepp "meMEASURES" measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
   , meDataCons    = F.notracepp "meDATACONS" cs' 
