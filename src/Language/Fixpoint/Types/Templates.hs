@@ -4,7 +4,7 @@ module Language.Fixpoint.Types.Templates (
 
   isEmptyTemplates, isAnyTemplates,
 
-  matchesTemplates
+  matchesTemplates, filterUnMatched
 
   )where
 
@@ -20,6 +20,17 @@ data Templates
 
 
 type Template = ([Symbol], Expr)
+
+
+class HasTemplates a where 
+  filterUnMatched :: Templates -> a -> a 
+
+
+instance HasTemplates Expr where
+  filterUnMatched temps e = pAnd $ filter (not . matchesTemplates temps) $ conjuncts e 
+
+instance HasTemplates Reft where
+  filterUnMatched temps (Reft (x,e)) = Reft (x, filterUnMatched temps e)
 
 matchesTemplates :: Templates -> Expr -> Bool 
 matchesTemplates TAll _ = True 
