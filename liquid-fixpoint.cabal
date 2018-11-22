@@ -77,6 +77,7 @@ Library
                    Language.Fixpoint.Types.Triggers,
                    Language.Fixpoint.Types.Solutions,
                    Language.Fixpoint.Types.Utils,
+                   Language.Fixpoint.Types.Templates,
                    Language.Fixpoint.Types.Graduals,
                    Language.Fixpoint.Types,
                    Language.Fixpoint.Graph.Types,
@@ -221,6 +222,7 @@ test-suite testparser
                  Language.Fixpoint.Types.PrettyPrint
                  Language.Fixpoint.Types.Refinements
                  Language.Fixpoint.Types.Sorts
+                 Language.Fixpoint.Types.Templates
                  Language.Fixpoint.Types.Spans
                  Language.Fixpoint.Types.Substitutions
                  Language.Fixpoint.Types.Theories
