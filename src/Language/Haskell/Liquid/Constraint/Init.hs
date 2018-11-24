@@ -282,6 +282,7 @@ initCGI cfg info = CGInfo {
   , autoSize   = gsAutosize tspc
   , allowHO    = higherOrderFlag cfg
   , ghcI       = info
+  , unsorted   = F.notracepp "UNSORTED" $ F.makeTemplates $ gsUnsorted $ gsData spc
   }
   where
     tce        = gsTcEmbeds nspc 

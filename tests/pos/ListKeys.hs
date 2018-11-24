@@ -1,14 +1,16 @@
-{-@ LIQUID "--pruneunsorted" @-}
+{- LIQUID "--pruneunsorted" @-}
 
 module Foo () where
-import Data.Set (Set(..)) 
+import Data.Set (Set(..), empty, union, singleton) 
 
-{-@  measure listKeys :: [(k, v)] -> (Set k) 
-    listKeys([])   = {v | Set_emp v }
-    listKeys(x:xs) = {v | v = (Set_cup (Set_sng (fst x)) (listKeys xs)) }
+{-@  measure listKeys @-}
+listKeys :: Ord k => [(k, v)] -> Set k 
+listKeys [] = empty 
+listKeys (x:xs) = singleton (myfst x) `union` listKeys xs 
 
-@-}
-
+{-@ measure myfst @-}
+myfst :: (a,b) -> a 
+myfst (x,_) = x 
 
 {-@ getFsts :: ys:[(a, b)] -> {v : [a] | listElts v = listKeys ys } @-}
 getFsts ::[(a, b)] ->  [a]
