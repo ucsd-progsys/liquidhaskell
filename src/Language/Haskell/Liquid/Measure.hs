@@ -19,6 +19,7 @@ module Language.Haskell.Liquid.Measure (
   , mkM, mkMSpec, mkMSpec'
   , dataConTypes
   , defRefType
+  , bodyPred
   ) where
 
 import           DataCon
@@ -47,10 +48,10 @@ import           Language.Haskell.Liquid.Types.Specs
 import           Language.Haskell.Liquid.UX.Tidy
 
 
-mkM ::  LocSymbol -> ty -> [Def ty bndr] -> MeasureKind -> Measure ty bndr
-mkM name typ eqns kind
+mkM ::  LocSymbol -> ty -> [Def ty bndr] -> MeasureKind -> UnSortedExprs -> Measure ty bndr
+mkM name typ eqns kind u
   | all ((name ==) . measure) eqns
-  = M name typ eqns kind
+  = M name typ eqns kind u
   | otherwise
   = panic Nothing $ "invalid measure definition for " ++ show name
 

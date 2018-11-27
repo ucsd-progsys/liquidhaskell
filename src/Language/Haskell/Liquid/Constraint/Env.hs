@@ -184,17 +184,14 @@ addCGEnv tx γ (_, x, t') = do
   let t  = tx $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
-  pflag <- pruneRefs <$> get
-  is    <- if True -- // || allowHOBinders || isBase t
-            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind γ' l t
-            else return []
+  tem   <- getTemplates 
+  is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
-                 => Bool -> CGEnv -> RRType r -> F.SortedReft
-rTypeSortedReft' pflag γ
-  | pflag     = pruneUnsortedReft (feEnv $ fenv γ) . f
-  | otherwise = f
+                 => CGEnv -> F.Templates -> RRType r -> F.SortedReft
+rTypeSortedReft' γ t 
+  = pruneUnsortedReft (feEnv $ fenv γ) t . f
   where
     f         = rTypeSortedReft (emb γ)
 
@@ -250,10 +247,8 @@ addEEnv γ (x,t')= do
   let t  = addRTyConInv (invs γ) $ normalize idx t'
   let l  = getLocation γ
   let γ' = γ { renv = insertREnv x t (renv γ) }
-  pflag <- pruneRefs <$> get
-  is    <- if True -- // allowHOBinders || isBase t
-            then (:) <$> addBind l x (rTypeSortedReft' pflag γ' t) <*> addClassBind γ' l t
-            else return []
+  tem   <- getTemplates
+  is    <- (:) <$> addBind l x (rTypeSortedReft' γ' tem t) <*> addClassBind γ' l t
   modify (\s -> s { ebinds = ebinds s ++ (snd <$> is)})
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
