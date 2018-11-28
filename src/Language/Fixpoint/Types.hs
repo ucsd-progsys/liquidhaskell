@@ -17,3 +17,4 @@ import Language.Fixpoint.Types.Constraints      as X
 import Language.Fixpoint.Types.Utils            as X
 import Language.Fixpoint.Types.Triggers         as X
 import Language.Fixpoint.Types.Theories         as X
+import Language.Fixpoint.Types.Templates        as X
