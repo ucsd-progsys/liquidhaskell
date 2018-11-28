@@ -22,6 +22,7 @@ define GHC.Real.fromIntegral x = (x)
 
 define GHC.Types.True                 = (true)
 define GHC.Real.div x y               = (x / y)
+define GHC.Base.$ f x                 = (f x)
 
 define Language.Haskell.Liquid.Bag.get k m   = (Map_select m k)
 define Language.Haskell.Liquid.Bag.put k m   = (Map_store m k (1 + (Map_select m k)))
