@@ -3,6 +3,10 @@ module Semigroup where
 
 import Prelude hiding (Semigroup(..), mappend)
 
+infixl 3 ?
+(?) :: a -> () -> a
+x ? _ = x
+{-# INLINE (?)   #-}
 
 infixl 3 ==.
 
@@ -17,7 +21,9 @@ data QED = QED
 infixl 2 ***
 x *** QED = ()
 
-
+-- ==========
+-- Desugaring
+-- ==========
 
 {-@
   data SemigroupD a = SemigroupD {
@@ -33,30 +39,6 @@ data SemigroupD a = SemigroupD {
       sdMappend :: a -> a -> a
     , sdLawAssociative :: a -> a -> a -> ()
     }
-
--- {-@ mappend 
--- {-@ assume mappend 
---  :: d : SemigroupD a 
---  -> x : a 
---  -> y : a 
---  -> z : {a | z = sdMappend d x y}
---  @-}
-
-{-@ reflect mappend @-}
-mappend :: SemigroupD a -> a -> a -> a
-mappend d x y = sdMappend d x y
-
--- {-@ reflect lawAssociative @-}
--- {-@ lawAssociative 
-{-@ assume lawAssociative 
- :: d : SemigroupD a
- -> x : a
- -> y : a
- -> z : a
- -> {mappend d (mappend d x y) z = mappend d x (mappend d y z)}
- @-}
-lawAssociative :: SemigroupD a -> a -> a -> a -> ()
-lawAssociative d x y z = sdLawAssociative d x y z
 
 {-@ reflect mappendInt @-}
 mappendInt :: Int -> Int -> Int
@@ -95,4 +77,81 @@ lawAssociativeInt x y z =
 --     ==. x + (y + z)
 --     ==. mappend semigroupInt x (mappend semigroupInt y z)
 --     *** QED
+
+
+-- ======================================
+-- Attempting to use desugared class laws
+-- ======================================
+
+{-@ assume lawAssociative
+ :: d : SemigroupD a
+ -> x : a
+ -> y : a
+ -> z : a
+ -> {sdMappend d (sdMappend d x y) z = sdMappend d x (sdMappend d y z)}
+@-}
+lawAssociative :: SemigroupD a -> a -> a -> a -> ()
+lawAssociative _ _ _ _ = ()
+
+{-@ testLemma
+ :: d : SemigroupD a
+ -> x : a
+ -> y : a
+ -> z : a
+ -> {sdMappend d (sdMappend d x y) z = sdMappend d x (sdMappend d y z) }
+ @-}
+testLemma :: SemigroupD a -> a -> a -> a -> ()
+testLemma d x y z = sdLawAssociative d x y z 
+    -- JP: sdLawAssociative doesn't work, but replacing it with the assumed lawAssociative does.
+
+
+
+
+
+
+
+-- {-@ testLemma'
+--  :: d : SemigroupD a
+--  -> w : a
+--  -> x : a
+--  -> y : a
+--  -> z : a
+--  -> {sdMappend d (sdMappend d w x) (sdMappend d y z) = sdMappend d w (sdMappend d x (sdMappend d y z)) }
+--  @-}
+-- testLemma' :: SemigroupD a -> a -> a -> a -> a -> ()
+-- testLemma' d w x y z = lawAssociative d w x (sdMappend d y z)
+--     --     sdMappend d (sdMappend d w x) r ? lawAssociative d w x r
+--     -- ==. sdMappend d w (sdMappend d x r)
+--     -- *** QED
+-- 
+--     where
+--         r = sdMappend d y z
+
+
+
+
+
+-- {-@ mappend 
+-- {-@ assume mappend 
+--  :: d : SemigroupD a 
+--  -> x : a 
+--  -> y : a 
+--  -> z : {a | z = sdMappend d x y}
+--  @-}
+-- 
+-- {-@ reflect mappend @-}
+-- mappend :: SemigroupD a -> a -> a -> a
+-- mappend d x y = sdMappend d x y
+-- 
+-- -- {-@ reflect lawAssociative @-}
+-- -- {-@ lawAssociative 
+-- {-@ assume lawAssociative 
+--  :: d : SemigroupD a
+--  -> x : a
+--  -> y : a
+--  -> z : a
+--  -> {mappend d (mappend d x y) z = mappend d x (mappend d y z)}
+--  @-}
+-- lawAssociative :: SemigroupD a -> a -> a -> a -> ()
+-- lawAssociative d x y z = sdLawAssociative d x y z
 
