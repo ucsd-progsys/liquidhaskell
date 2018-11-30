@@ -345,7 +345,7 @@ textOrder = Just . mkOrder $
 proverTests :: IO TestTree
 proverTests = group "Prover"
   [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess
-  , testGroup "prover_lib"      <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess
+  , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess
   , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess
   , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1)
   , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess

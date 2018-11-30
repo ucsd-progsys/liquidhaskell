@@ -1,271 +1,182 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances     #-}
-{-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
+
 module Language.Haskell.Liquid.ProofCombinators (
 
-    (==:), (<=:), (<:), (>:)
+  -- ATTENTION! `Admit` and `(==!)` are UNSAFE: they should not belong the final proof term
 
-  , (==?)
+  -- * Proof is just a () alias
+  Proof
+  , toProof 
 
-  , (==.), (<=.), (<.), (>.), (>=.)
+  -- * Proof constructors
+  , trivial, unreachable, (***), QED(..)
 
-  , (?), (***)
+  -- * Proof certificate constructors
+  , (?)
 
-  , (==>), (&&&), (∵)
+  -- * These two operators check all intermediate equalities
+  , (===) -- proof of equality is implicit eg. x === y
+  , (=<=) -- proof of equality is implicit eg. x <= y
+  , (=>=)  -- proof of equality is implicit eg. x =>= y 
 
-  , proof, toProof, simpleProof, trivial
+  -- * This operator does not check intermediate equalities
+  , (==.) 
 
-  , QED(..)
+  -- Uncheck operator used only for proof debugging
+  , (==!) -- x ==! y always succeds
 
-  , Proof
-
-  , byTheorem, castWithTheorem, cast 
-
-  -- Function Equality 
-  , Arg
-
-  , (=*=.)
-
-  -- Conjunction
-  , PAnd (..)
+  -- * Combining Proofs
+  , (&&&)
+  , withProof 
+  , impossible 
 
 
-  -- Disjunction
-  , POr (..)
+) where
 
-  ) where
-
+-------------------------------------------------------------------------------
+-- | Proof is just a () alias -------------------------------------------------
+-------------------------------------------------------------------------------
 
 type Proof = ()
-
-trivial :: Proof
-trivial = ()
-
-
-data QED = QED
-
-infixl 2 ***
-
-(***) :: a -> QED -> Proof
-_ *** _ = ()
-
-
--- | Because provide lemmata ? or ∵
-
-infixl 3 ∵
-
-(∵) :: (Proof -> a) -> Proof -> a
-f ∵ y = f y
-
-
-infixl 3 ?
-
-(?) :: (Proof -> a) -> Proof -> a
-f ? y = f y
-
-
-
-{-@ measure proofBool :: Proof -> Bool @-}
-
--- | Proof combinators (are Proofean combinators)
-{-@ (==>) :: p:Proof
-          -> q:Proof
-          -> {v:Proof |
-          (((proofBool p)) && ((proofBool p) => (proofBool q)))
-          =>
-          (((proofBool p) && (proofBool q)))
-          } @-}
-(==>) :: Proof -> Proof -> Proof
-_ ==> _ = ()
-
-
-{- (&&&) :: p:{Proof | (proofBool p) }
-          -> q:{Proof | (proofBool q) }
-          -> {v:Proof | (proofBool p) && (proofBool q) } @-}
-(&&&) :: Proof -> Proof -> Proof
-_ &&& _ = ()
-
-
--- | proof goes from Int to resolve types for the optional proof combinators
-proof :: Int -> Proof
-proof _ = ()
 
 toProof :: a -> Proof
 toProof _ = ()
 
-simpleProof :: Proof
-simpleProof = ()
+-------------------------------------------------------------------------------
+-- | Proof Construction -------------------------------------------------------
+-------------------------------------------------------------------------------
 
--- | proof operators requiring proof terms
-infixl 3 ==:, <=:, <:, >:, ==?
+-- | trivial is proof by SMT
 
+trivial :: Proof
+trivial =  ()
 
--- | Comparison operators requiring proof terms
+-- {-@ unreachable :: {v : Proof | False } @-}
+unreachable :: Proof
+unreachable =  ()
 
-(<=:) :: a -> a -> Proof -> a
-{-@ (<=:) :: x:a -> y:a -> {v:Proof | x <= y } -> {v:a | v == y } @-}
-(<=:) _ y _ = y
+-- All proof terms are deleted at runtime.
+{- RULE "proofs are irrelevant" forall (p :: Proof). p = () #-}
 
-(<:) :: a -> a -> Proof -> a
-{-@ (<:) :: x:a -> y:a -> {v:Proof | x < y } -> {v:a | v == y } @-}
-(<:) _ y _ = y
+-- | proof casting
+-- | `x *** QED`: x is a proof certificate* strong enough for SMT to prove your theorem
+-- | `x *** Admit`: x is an unfinished proof
 
+infixl 3 ***
+{-@ assume (***) :: a -> p:QED -> { if (isAdmit p) then false else true } @-}
+(***) :: a -> QED -> Proof
+_ *** _ = ()
 
-(>:) :: a -> a -> Proof -> a
-{-@ (>:) :: x:a -> y:a -> {v:Proof | x > y } -> {v:a | v == y } @-}
-(>:) _ y _ = y
+data QED = Admit | QED
 
-
-(==:) :: a -> a -> Proof -> a
-{-@ (==:) :: x:a -> y:a -> {v:Proof| x == y} -> {v:a | v == x && v == y } @-}
-(==:) x _ _ = x
-
-
--- | proof operators with optional proof terms
-infixl 3 ==., <=., <., >., >=.
-
-
--- | Comparison operators requiring proof terms optionally
-
-class ToProve a r where
-  (==?) :: a -> a -> r
-
-
-instance (a~b) => ToProve a b where
-{-@ instance ToProve a b where
-  ==? :: x:a -> y:a -> {v:b | v ~~ x }
-  @-}
-  (==?)  = undefined
-
-instance (a~b) => ToProve a (Proof -> b) where
-{-@ instance ToProve a (Proof -> b) where
-  ==? :: x:a -> y:a -> Proof -> {v:b | v ~~ x  }
-  @-}
-  (==?) = undefined
-
-
-
-class OptEq a r where
-  (==.) :: a -> a -> r
-
-instance (a~b) => OptEq a (Proof -> b) where
-{-@ instance OptEq a (Proof -> b) where
-  ==. :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y}
-  @-}
-  (==.) x _ _ = x
-
-instance (a~b) => OptEq a b where
-{-@ instance OptEq a b where
-  ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y }
-  @-}
-  (==.) x _ = x
-
-
-class OptLEq a r where
-  (<=.) :: a -> a -> r
-
-
-instance (a~b) => OptLEq a (Proof -> b) where
-{-@ instance OptLEq a (Proof -> b) where
-  <=. :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ y }
-  @-}
-  (<=.) _ y _ = y
-
-instance (a~b) => OptLEq a b where
-{-@ instance OptLEq a b where
-  <=. :: x:a -> y:{a | x <= y} -> {v:b | v ~~ y }
-  @-}
-  (<=.) _ y = y
-
-class OptGEq a r where
-  (>=.) :: a -> a -> r
-
-instance OptGEq a (Proof -> a) where
-{-@ instance OptGEq a (Proof -> a) where
-  >=. :: x:a -> y:a -> {v:Proof| x >= y} -> {v:a | v == y }
-  @-}
-  (>=.) _ y _ = y
-
-instance OptGEq a a where
-{-@ instance OptGEq a a where
-  >=. :: x:a -> y:{a| x >= y} -> {v:a | v == y  }
-  @-}
-  (>=.) _ y = y
-
-
-class OptLess a r where
-  (<.) :: a -> a -> r
-
-instance (a~b) => OptLess a (Proof -> b) where
-{-@ instance OptLess a (Proof -> b) where
-  <. :: x:a -> y:a -> {v:Proof | x < y} -> {v:b | v ~~ y  }
-  @-}
-  (<.) _ y _ = y
-
-instance (a~b) => OptLess a b where
-{-@ instance OptLess a b where
-  <. :: x:a -> y:{a| x < y} -> {v:b | v ~~ y  }
-  @-}
-  (<.) _ x = x
-
-
-class OptGt a r where
-  (>.) :: a -> a -> r
-
-instance (a~b) => OptGt a (Proof -> b) where
-{-@ instance OptGt a (Proof -> b) where
-  >. :: x:a -> y:a -> {v:Proof| x > y} -> {v:b | v ~~ y }
-  @-}
-  (>.) _ y _ = y
-
-instance (a~b) => OptGt a b where
-{-@ instance OptGt a b where
-  >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ y  }
-  @-}
-  (>.) _ x = x
+{-@ measure isAdmit :: QED -> Bool @-}
+{-@ Admit :: {v:QED | isAdmit v } @-}
 
 
 -------------------------------------------------------------------------------
-----------  Casting -----------------------------------------------------------
+-- | * Checked Proof Certificates ---------------------------------------------
 -------------------------------------------------------------------------------
 
-{-@ measure castWithTheorem :: a -> b -> b @-}
-castWithTheorem :: a -> b -> b 
-castWithTheorem _ x = x 
+-- Any (refined) carries proof certificates.
+-- For example 42 :: {v:Int | v == 42} is a certificate that
+-- the value 42 is equal to 42.
+-- But, this certificate will not really be used to proof any fancy theorems.
+
+-- Below we provide a number of equational operations
+-- that constuct proof certificates.
+
+-- | Implicit equality
+
+-- x === y returns the proof certificate that
+-- result value is equal to both x and y
+-- when y == x (as assumed by the operator's precondition)
+
+infixl 3 ===
+{-@ (===) :: x:a -> y:{a | y == x} -> {v:a | v == x && v == y} @-}
+(===) :: a -> a -> a
+_ === y  = y
+
+infixl 3 =<=
+{-@ (=<=) :: x:a -> y:{a | x <= y} -> {v:a | v == y} @-}
+(=<=) :: a -> a -> a
+_ =<= y  = y
+
+infixl 3 =>=
+{-@ (=>=) :: x:a -> y:{a | x >= y}  -> {v:a | v == y} @-}
+(=>=) :: a -> a -> a
+_ =>= y  = y
+
+-------------------------------------------------------------------------------
+-- | `?` is basically Haskell's $ and is used for the right precedence
+-- | `?` lets you "add" some fact into a proof term
+-------------------------------------------------------------------------------
+
+infixl 3 ?
+
+(?) :: a -> Proof -> a 
+x ? _ = x 
+{-# INLINE (?)   #-} 
+
+-------------------------------------------------------------------------------
+-- | Assumed equality
+-- 	`x ==! y `
+--   returns the admitted proof certificate that result value is equals x and y
+-------------------------------------------------------------------------------
+
+infixl 3 ==!
+{-@ assume (==!) :: x:a -> y:a -> {v:a | v == x && v == y} @-}
+(==!) :: a -> a -> a
+(==!) _ y = y
 
 
-{-@ measure cast :: b -> a -> a @-}
-{-@ cast :: b -> x:a -> {v:a | v == x } @-}
-cast :: b -> a -> a 
-cast _ x = x 
+-- | To summarize:
+--
+-- 	- (==!) is *only* for proof debugging
+--	- (===) does not require explicit proof term
+-- 	- (?)   lets you insert "lemmas" as other `Proof` values
+
+-------------------------------------------------------------------------------
+-- | * Unchecked Proof Certificates -------------------------------------------
+-------------------------------------------------------------------------------
+
+-- | The above operators check each intermediate proof step.
+--   The operator `==.` below accepts an optional proof term
+--   argument, but does not check intermediate steps.
+--   TODO: What is it USEFUL FOR?
+
+infixl 3 ==.
+
+{-# DEPRECATED (==.) "Use (===) instead" #-}
+
+{-# INLINE (==.) #-} 
+(==.) :: a -> a -> a 
+_ ==. x = x 
+
+-------------------------------------------------------------------------------
+-- | * Combining Proof Certificates -------------------------------------------
+-------------------------------------------------------------------------------
+
+(&&&) :: Proof -> Proof -> Proof
+x &&& _ = x
 
 
-byTheorem :: a -> Proof -> a
-byTheorem a _ = a
+{-@ withProof :: x:a -> b -> {v:a | v = x} @-}
+withProof :: a -> b -> a
+withProof x y = x
 
--- | Function Equality 
+{-@ impossible :: {v:a | false} -> b @-}
+impossible :: a -> b
+impossible _ = undefined
 
-{- TO REFINE 
-class FunEq a b r where
-  (=*=.) :: (a -> b) -> (a -> b) -> r
+-------------------------------------------------------------------------------
+-- | Convenient Syntax for Inductive Propositions 
+-------------------------------------------------------------------------------
 
-instance (c~(a -> b)) => FunEq a b ((a -> Proof) -> c) where
-  {-@ instance FunEq a b ((a -> Proof) -> a -> b) where
-   =*=. :: f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:_ | f == g && v ~~ f && v ~~ g}
-   @-} 
-   f =*=. g = undefined  
--}
-
-class Arg a where 
-
-
-{-@ assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g} @-}
-(=*=.) :: Arg a => (a -> b) -> (a -> b) -> (a -> Proof) -> (a -> b)
-(=*=.) f _ _ = f
+{-@ measure prop :: a -> b           @-}
+{-@ type Prop E = {v:_ | prop v = E} @-}
 
 
 
-data POr  a b = POrLeft a | POrRight b 
-data PAnd a b = PAnd a b 

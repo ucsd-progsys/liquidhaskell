@@ -4,7 +4,7 @@ module Append where
 
 import Prelude hiding (map, concatMap)
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect append @-}
 append :: L a -> L a -> L a
@@ -40,7 +40,8 @@ prop_append_neutral Emp
 prop_append_neutral (x ::: xs)
   = append (x ::: xs) Emp
   === x ::: (append xs Emp)
-  ==? x ::: xs             ? prop_append_neutral xs
+    ? prop_append_neutral xs
+  === x ::: xs             
   *** QED
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
@@ -56,8 +57,8 @@ prop_assoc (x ::: xs) ys zs
   =   append (append (x ::: xs) ys) zs
   === append (x ::: append xs ys) zs
   === x ::: append (append xs ys) zs
-  ==? x ::: append xs (append ys zs)  
       ? prop_assoc xs ys zs
+  === x ::: append xs (append ys zs)  
   === append (x ::: xs) (append ys zs)
   *** QED
 
@@ -78,8 +79,8 @@ prop_map_append f (x ::: xs) ys
   =   map f (append (x ::: xs) ys)
   === map f (x ::: append xs ys)
   === f x ::: map f (append xs ys)
-  ==? f x ::: append (map f xs) (map f ys) 
       ? prop_map_append f xs ys
+  === f x ::: append (map f xs) (map f ys) 
   === append (f x ::: map f xs) (map f ys)
   === append (map f (x ::: xs)) (map f ys)
   *** QED
@@ -101,8 +102,8 @@ prop_concatMap f (x ::: xs)
   =   concatt (map f (x ::: xs))
   === concatt (f x ::: map f xs)
   === append (f x) (concatt (map f xs))
-  ==? append (f x) (concatMap f xs)     
       ? prop_concatMap f xs
+  === append (f x) (concatMap f xs)     
   === concatMap f (x ::: xs)
   *** QED
 

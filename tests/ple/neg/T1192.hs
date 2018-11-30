@@ -6,7 +6,7 @@ module RangeSet where
 
 import qualified Data.Set as S
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect sem_ij @-}
 {-@ sem_ij :: i:Int -> j:Int -> S.Set Int / [j - i] @-}

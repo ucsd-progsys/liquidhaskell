@@ -4,7 +4,7 @@ module MonoidList where
 
 import Prelude hiding (mappend, mempty)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | Monoid
 -- | mempty-left ∀ x . mappend mempty  x ≡ x
@@ -38,7 +38,8 @@ mempty_right (x ::: xs)
   =   mappend (x ::: xs) mempty
   === mappend (x:::xs) Emp
   === x ::: (mappend xs Emp)
-  ==? x ::: xs             ? mempty_right xs
+    ? mempty_right xs
+  === x ::: xs             
   *** QED
 
 {-@ mappend_assoc :: xs:L a -> ys:L a -> zs:L a
@@ -54,7 +55,8 @@ mappend_assoc (x ::: xs) ys zs
   =   mappend (mappend (x ::: xs) ys) zs
   === mappend (x ::: mappend xs ys) zs
   === x ::: mappend (mappend xs ys) zs
-  ==? x ::: mappend xs (mappend ys zs)  ? mappend_assoc xs ys zs
+    ? mappend_assoc xs ys zs
+  === x ::: mappend xs (mappend ys zs)  
   === mappend (x ::: xs) (mappend ys zs)
   *** QED
 

@@ -4,7 +4,7 @@ module MonadList where
 
 import Prelude hiding (return) 
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a
@@ -37,7 +37,8 @@ left_identity x f
         === bind (C x N) f
         === append (f x) (bind N f)
         === append (f x) N
-        ==? f x                      ? prop_append_neutral (bind N f)
+            ? prop_append_neutral (bind N f)
+        === f x          
 
 
 -- | Right Identity
@@ -56,7 +57,8 @@ right_identity (C x xs)
         === append (C x N)    (bind xs return)
         === C x (append N (bind xs return))
         === C x (bind xs return)
-        ==? C x xs                              ? right_identity xs
+          ? right_identity xs
+        === C x xs                             
 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
@@ -73,11 +75,11 @@ associativity (C x xs) f g
   = toProof $
       bind (bind (C x xs) f) g
           === bind (append (f x) (bind xs f)) g
-          ==? bind (append (f x) (bind xs f)) g 
               ? bind_append (f x) (bind xs f) g
+          === bind (append (f x) (bind xs f)) g 
           === append (bind (f x) g) (bind (bind xs f) g)
-          ==? append (bind (f x) g) (bind xs (\y -> bind (f y) g)) 
               ? associativity xs f g
+          === append (bind (f x) g) (bind xs (\y -> bind (f y) g)) 
           === append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g))
           === bind (C x xs) (\y -> bind (f y) g)
 
@@ -97,10 +99,10 @@ bind_append (C x xs) ys f
       bind (append (C x xs) ys) f
         === bind (C x (append xs ys)) f
         === append (f x) (bind (append xs ys) f)
-        ==? append (f x) (append (bind xs f) (bind ys f)) 
             ? bind_append xs ys f
-        ==? append (append (f x) (bind xs f)) (bind ys f) 
+        === append (f x) (append (bind xs f) (bind ys f)) 
             ? prop_assoc (f x) (bind xs f) (bind ys f)
+        === append (append (f x) (bind xs f)) (bind ys f) 
         === append (bind (C x xs) f) (bind ys f)
 
 
@@ -137,7 +139,8 @@ prop_append_neutral N
 prop_append_neutral (C x xs)
   = toProof $
        append (C x xs) N === C x (append xs N)
-                         ==? C x xs             ? prop_append_neutral xs
+                           ? prop_append_neutral xs
+                         === C x xs          
 
 
 
@@ -154,5 +157,6 @@ prop_assoc (C x xs) ys zs
       append (append (C x xs) ys) zs
         === append (C x (append xs ys)) zs
         === C x (append (append xs ys) zs)
-        ==? C x (append xs (append ys zs))  ? prop_assoc xs ys zs
+          ? prop_assoc xs ys zs
+        === C x (append xs (append ys zs))  
         === append (C x xs) (append ys zs)

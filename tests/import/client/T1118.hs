@@ -5,7 +5,7 @@ module T1118 where
 import T1118Lib2 
 import T1118Lib1
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect leqU1 @-}
 leqU1 :: U1 p -> U1 p -> Bool

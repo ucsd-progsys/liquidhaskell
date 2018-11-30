@@ -6,7 +6,7 @@ module Data.Monoid where
 
 import Prelude hiding (Monoid (..))
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 
 class VerifiedMonoid a where

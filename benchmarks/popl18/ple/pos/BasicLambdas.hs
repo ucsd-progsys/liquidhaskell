@@ -2,7 +2,7 @@
 
 module BasicLambda where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 import Prelude hiding (map, id)
 

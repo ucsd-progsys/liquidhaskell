@@ -4,7 +4,7 @@ module T1117 where
 
 import T1117Lib 
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ axiomatize leqU1 @-}
 leqU1 :: U1 p -> U1 p -> Bool
