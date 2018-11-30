@@ -45,7 +45,8 @@ mapReduceSum :: Int -> List Int -> Proof
 mapReduceSum n is 
   =   msum n is 
   === mapReduce n sum plus is 
-  ==? sum is  ? mapReduceTheorem n sum plus sumLeftId sumDistributes is 
+    ? mapReduceTheorem n sum plus sumLeftId sumDistributes is 
+  === sum is  
   *** QED 
 
 -------------------------------------------------------------------------------
@@ -68,8 +69,8 @@ mapReduceTheorem n f op left_id _ N
   === reduce op (f N) (f N `C` map f N )
   === reduce op (f N) (f N `C` N)
   === op (f N) (reduce op (f N) N)
-  ==? op (f N) (f N)
-       ? left_id N
+      ? left_id N
+  === op (f N) (f N)
   === f N 
   *** QED 
 
@@ -82,21 +83,23 @@ mapReduceTheorem n f op left_id _ is@(C x xs)
   === reduce op (f N) (f is `C` N)
   === op (f is) (reduce op (f N) N)
   === op (f is) (f N)
-  ==? f is  ? left_id is
+	? left_id is
+  === f is  
   *** QED 
+
 mapReduceTheorem n f op left_id distributionTheorem is 
   =   mapReduce n f op is 
   === reduce op (f N) (map f (chunk n is)) 
   === reduce op (f N) (map f (C (take n is) (chunk n (drop n is)))) 
   === reduce op (f N) (C (f (take n is)) (map f (chunk n (drop n is)))) 
   === op (f (take n is)) (reduce op (f N) (map f (chunk n (drop n is))))  
-  ==? op (f (take n is)) (mapReduce n f op (drop n is)) 
       ? mapReduceTheorem n f op left_id distributionTheorem (drop n is)
+  === op (f (take n is)) (mapReduce n f op (drop n is)) 
   === op (f (take n is)) (f (drop n is)) 
-  ==? f (append (take n is) (drop n is))
       ? distributionTheorem (take n is) (drop n is)
-  ==? f is 
+  === f (append (take n is) (drop n is))
       ? appendTakeDrop n is 
+  === f is 
   *** QED  
 
 
@@ -191,8 +194,8 @@ appendTakeDrop i (C x xs)
   =   append (take i (C x xs)) (drop i (C x xs))
   === append (C x (take (i-1) xs)) (drop (i-1) xs)
   === C x (append (take (i-1) xs) (drop (i-1) xs))
-  ==? C x xs 
       ? appendTakeDrop (i-1) xs 
+  === C x xs 
   *** QED 
 
 
@@ -222,8 +225,8 @@ sumDistributes N ys
 sumDistributes (C x xs) ys  
   =   sum (append (C x xs) ys)
   === sum (C x (append xs ys))
-  ==? x `plus` (sum (append xs ys))
       ? sumDistributes xs ys
+  === x `plus` (sum (append xs ys))
   === x `plus` (plus (sum xs) (sum ys))
   === x + (sum xs + sum ys)
   === ((x + sum xs) + sum ys)

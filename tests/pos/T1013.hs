@@ -29,7 +29,8 @@ fmapRec1Id :: (forall a b. (a -> b) -> f a -> f b)
 fmapRec1Id fmapF fmapFId r@(Rec1 fp)
   =   fmapRec1 fmapF _identity r
   === Rec1 (fmapF _identity fp)
-  ==? Rec1 (_identity fp) ? fmapFId fp
+      ? fmapFId fp
+  === Rec1 (_identity fp) 
   === Rec1 fp
   === r
   *** QED

@@ -25,10 +25,12 @@ eqEitherRefl :: (a -> a -> Bool) -> (a -> Proof)
 eqEitherRefl eqA eqARefl eqB _ p@(Left x) =
       eqEither eqA eqB p p
   === eqA x x
-  ==? True ? eqARefl x
+    ? eqARefl x
+  === True 
   *** QED
 eqEitherRefl eqA _ eqB eqBRefl p@(Right y) =
       eqEither eqA eqB p p
   === eqB y y
-  ==? True ? eqBRefl y
+    ? eqBRefl y
+  === True 
   *** QED

@@ -47,8 +47,8 @@ fmapRec1Compose fmapF fmapFCompose f g r@(Rec1 fp)
   =   fmapRec1 fmapF (_compose f g) r
   === fmapRec1 fmapF (_compose f g) (Rec1 fp)
   === Rec1 (fmapF (_compose f g) fp)
-  ==? Rec1 (_compose (fmapF f) (fmapF g) fp) 
       ? fmapFCompose f g fp
+  === Rec1 (_compose (fmapF f) (fmapF g) fp) 
   === Rec1 (fmapF f (fmapF g fp))
   === fmapRec1 fmapF f (Rec1 (fmapF g fp))
   === fmapRec1 fmapF f (fmapRec1 fmapF g (Rec1 fp))

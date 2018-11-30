@@ -4,7 +4,7 @@ module Append where
 
 import Prelude hiding (map, concatMap)
 
-import Language.Haskell.Liquid.ProofCombinators
+import Language.Haskell.Liquid.NewProofCombinators
 
 {-@ reflect append @-}
 append :: L a -> L a -> L a
