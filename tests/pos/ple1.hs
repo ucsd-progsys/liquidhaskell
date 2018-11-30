@@ -29,8 +29,8 @@ assocProof (x:xs) ys zs
   =   ((x:xs) ++ ys) ++ zs
   === (x : (xs ++ ys)) ++ zs
   === x : ((xs ++ ys) ++ zs)
-  ==? x : (xs ++ (ys ++ zs)) 
-      ? assocProof xs ys zs
+    ? assocProof xs ys zs
+  === x : (xs ++ (ys ++ zs)) 
   === (x:xs) ++ (ys ++ zs)
   ***  QED
 

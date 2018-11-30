@@ -37,8 +37,8 @@ left_identity x f
   === bind (x ::: Emp) f
   === append (f x) (bind Emp f)
   === append (f x) Emp
-  ==? f x                      
-      ? prop_append_neutral (f x)
+    ? prop_append_neutral (f x)
+  === f x                      
   *** QED
 
 -- | Right Identity
@@ -56,8 +56,8 @@ right_identity (x ::: xs)
   === append (x ::: Emp)    (bind xs return)
   === x ::: append Emp (bind xs return)
   === x ::: bind xs return
-  ==? x ::: xs                              
-      ? right_identity xs
+    ? right_identity xs
+  === x ::: xs                              
   *** QED
 
 
@@ -73,13 +73,13 @@ associativity Emp f g
   *** QED
 associativity (x ::: xs) f g
   =   bind (bind (x ::: xs) f) g
-  ==? bind (append (f x) (bind xs f)) g                    
       ? bind_append (f x) (bind xs f) g
+  === bind (append (f x) (bind xs f)) g                    
   === append (bind (f x) g) (bind (bind xs f) g)
-  ==? append (bind (f x) g) (bind xs (\y -> bind (f y) g)) 
       ? associativity xs f g
-  ==? append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) 
+  === append (bind (f x) g) (bind xs (\y -> bind (f y) g)) 
       ? βequivalence f g x 
+  === append ((\y -> bind (f y) g) x) (bind xs (\y -> bind (f y) g)) 
   === bind (x ::: xs) (\y -> bind (f y) g)
   *** QED
 
@@ -105,10 +105,10 @@ bind_append (x ::: xs) ys f
   =   bind (append (x ::: xs) ys) f
   === bind (x ::: append xs ys) f
   === append (f x) (bind (append xs ys) f)
-  ==? append (f x) (append (bind xs f) (bind ys f)) 
       ? bind_append xs ys f
-  ==? append (append (f x) (bind xs f)) (bind ys f) 
+  === append (f x) (append (bind xs f) (bind ys f)) 
       ? prop_assoc (f x) (bind xs f) (bind ys f)
+  === append (append (f x) (bind xs f)) (bind ys f) 
   === append (bind (x ::: xs) f) (bind ys f)
   *** QED
 
@@ -144,8 +144,8 @@ prop_append_neutral Emp
 prop_append_neutral (x ::: xs)
   =   append (x ::: xs) Emp
   === x ::: append xs Emp
-  ==? x ::: xs             
       ? prop_append_neutral xs
+  === x ::: xs             
   *** QED
 
 {-@ prop_assoc :: xs:L a -> ys:L a -> zs:L a
@@ -161,7 +161,7 @@ prop_assoc (x ::: xs) ys zs
   =   append (append (x ::: xs) ys) zs
   === append (x ::: append xs ys) zs
   === x ::: append (append xs ys) zs
-  ==? x ::: append xs (append ys zs)  
       ? prop_assoc xs ys zs
+  === x ::: append xs (append ys zs)  
   === append (x ::: xs) (append ys zs)
   *** QED

@@ -5,8 +5,6 @@ module FunctionAbstraction where
 import Language.Haskell.Liquid.NewProofCombinators
 import Helper
 
-
-
 fib :: Int -> Int
 fib n
   | n == 0    = 0

@@ -47,13 +47,16 @@ gen_increasing f thm x y
   | x + 1 == y
   =    f y 
   ===  f (x + 1)
-  =>=? f x       ?  thm x
+    ?  thm x
+  =>=  f x       
   ***  QED
 
   | x + 1 < y
-  = f x
-  =<=?  f (y-1)   ?   gen_increasing f thm x (y-1)
-  =<=?  f y       ?   thm (y-1)
+  =    f x
+       ? gen_increasing f thm x (y-1)
+  =<=  f (y-1)
+       ?   thm (y-1)
+  =<=  f y       
   *** QED
 
 revgen_increasing :: (Int -> Int) -> (Int -> Int -> Proof) -> (Int -> Proof)
@@ -69,15 +72,18 @@ gen_incr :: (Int -> Int) -> (Int -> Proof) -> (Int -> Int -> Proof)
                    ->  x:Nat -> y:Greater x -> {f x <= f y} / [y] @-}
 gen_incr f thm x y
   | x + 1 == y
-  =    f x 
-  =<=? f (x + 1) ? thm x
-  =<=  f y
-  ***  QED
+  =   f x 
+      ? thm x 
+  =<= f (x + 1) 
+  =<= f y
+  *** QED
 
   | x + 1 < y
-  = f x  
-  =<=? f (y-1)   ?   gen_incr f thm x (y-1)
-  =<=? f y       ?   thm (y-1)
+  =   f x  
+      ? gen_incr f thm x (y-1)
+  =<= f (y-1)   
+      ? thm (y-1)
+  =<= f y
   *** QED
 
 
@@ -89,11 +95,14 @@ gen_increasing2 f thm c x y
   | x + 1 == y
   = f y c 
   === f (x + 1) c
-  =>=? f x c        ? thm c x
+      ? thm c x 
+  =>= f x c
   *** QED
 
   | x + 1 < y
-  = f x c 
-  =<=?  f (y-1) c    ? gen_increasing2 f thm c x (y-1)
-  =<=?  f y c        ? thm c (y-1)
+  =   f x c    
+      ? gen_increasing2 f thm c x (y-1)
+  =<= f (y-1) c 
+      ? thm c (y-1)
+  =<= f y c 
   *** QED

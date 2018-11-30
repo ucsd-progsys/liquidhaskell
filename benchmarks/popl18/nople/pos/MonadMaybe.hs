@@ -65,8 +65,8 @@ associativity Nothing f g
 associativity (Just x) f g
   =   bind (bind (Just x) f) g
   === bind (f x) g
-  ==? (\y -> bind (f y) g) x             
       ? beta_reduce x f g 
+  === (\y -> bind (f y) g) x             
   === bind (Just x) (\y -> bind (f y) g)
   *** QED 
 

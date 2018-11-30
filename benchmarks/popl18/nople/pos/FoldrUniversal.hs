@@ -42,8 +42,10 @@ foldrUniversal f h e Emp base step
   *** QED
 foldrUniversal f h e (C x xs) base step
   =   h (C x xs)
-  ==? f x (h xs)         ? step x xs
-  ==? f x (foldr f e xs) ? foldrUniversal f h e xs base step
+      ? step x xs
+  === f x (h xs)         
+      ? foldrUniversal f h e xs base step
+  === f x (foldr f e xs) 
   === foldr f e (C x xs)
   *** QED
 
@@ -74,7 +76,8 @@ fuse_step h f e g thm x Emp
   === h (foldr f e (C x Emp))
   === h (f x (foldr f e Emp))
   === h (f x e)
-  ==? g x (h e)  ? thm x e
+    ? thm x e
+  === g x (h e) 
   === g x (h (foldr f e Emp))
   === g x ((compose h (foldr f e)) Emp)
   *** QED
@@ -84,8 +87,8 @@ fuse_step h f e g thm x (C y ys)
   === h (foldr f e (C x (C y ys)))
   === h (f x (foldr f e (C y ys)))
   === h (f x (f y (foldr f e ys)))
-  ==? g x (h (f y (foldr f e ys)))
-        ? thm x (f y (foldr f e ys))
+    ? thm x (f y (foldr f e ys))
+  === g x (h (f y (foldr f e ys)))
   === g x (h (foldr f e (C y ys)))
   === g x ((compose h (foldr f e)) (C y ys))
   *** QED

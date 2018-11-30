@@ -32,8 +32,6 @@ left_identity x f
   === f x
   *** QED
 
-
-
 -- | Right Identity
 
 {-@ right_identity :: x:Identity a -> { bind x return == x } @-}
@@ -53,7 +51,8 @@ associativity :: Identity a -> (a -> Identity b) -> (b -> Identity c) -> Proof
 associativity (Identity x) f g
   =   bind (bind (Identity x) f) g
   === bind (f x) g
-  ==? (\x -> (bind (f x) g)) x   ? beta_reduce x f g 
+      ? beta_reduce x f g
+  === (\x -> (bind (f x) g)) x   
   === bind (Identity x) (\x -> (bind (f x) g))
   *** QED
 
@@ -61,5 +60,3 @@ beta_reduce :: a -> (a -> Identity b) -> (b -> Identity c) -> Proof
 {-@ beta_reduce :: x:a -> f:(a -> Identity b) -> g:(b -> Identity c)
                 -> {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
 beta_reduce x f g = () 
-
- 
