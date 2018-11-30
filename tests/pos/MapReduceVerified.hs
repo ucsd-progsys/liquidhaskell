@@ -9,7 +9,7 @@
 module MapReduce where 
 
 import Prelude hiding (mconcat, map, split, take, drop, sum)
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -------------------------------------------------------------------------------
 ------------  Map Reduce Definition  ------------------------------------------

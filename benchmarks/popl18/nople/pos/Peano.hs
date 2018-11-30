@@ -7,7 +7,7 @@ module Peano where
 import Prelude hiding (plus)
 
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 -- Why do we need these?
 zeroR     :: Peano -> Proof

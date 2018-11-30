@@ -6,7 +6,7 @@ module Compose where
 
 import Prelude hiding (map)
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c

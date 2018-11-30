@@ -3,7 +3,7 @@
 
 module ListExample where
 
-import NewProofCombinators
+import ProofCombinators
 
 import Prelude hiding ((++))
 

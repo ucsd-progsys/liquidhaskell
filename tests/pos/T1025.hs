@@ -2,7 +2,7 @@
 
 module Bug where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ data Either a b = Left a | Right b @-}
 

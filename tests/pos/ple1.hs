@@ -4,7 +4,7 @@
 module PLE where
 
 import Prelude hiding ((++))
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 assocThm :: (Eq a) => [a] -> [a] -> [a] -> Bool
 assocProof :: [a] -> [a] -> [a] -> Proof

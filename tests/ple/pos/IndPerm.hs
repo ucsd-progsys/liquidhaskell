@@ -94,5 +94,5 @@ llen :: List a -> Int
 llen Nil        = 0
 llen (Cons h t) = 1 + llen t
 
-{-@ measure prop :: a -> b           @-}
-{-@ type Prop E = {v:_ | prop v = E} @-}
+{- measure prop :: a -> b           @-}
+{- type Prop E = {v:_ | prop v = E} @-}

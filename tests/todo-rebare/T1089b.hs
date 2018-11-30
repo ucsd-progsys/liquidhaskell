@@ -6,7 +6,7 @@
 
 module Iso where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ data Iso a b = Iso { to   :: a -> b
                        , from :: b -> a

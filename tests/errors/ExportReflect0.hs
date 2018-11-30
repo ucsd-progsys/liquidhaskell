@@ -5,7 +5,7 @@
 
 module Bug (foo, zogbert) where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect identity @-}
 identity :: a -> a

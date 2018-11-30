@@ -5,7 +5,7 @@ module Induction where
 
 import qualified Prelude
 import           Prelude (Char, Int, Bool (..))
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 -- TODO:import Basics
 

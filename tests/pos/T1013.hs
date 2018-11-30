@@ -3,7 +3,7 @@
 {-# LANGUAGE RankNTypes #-}
 module Generics2 where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect _identity @-}
 _identity :: a -> a

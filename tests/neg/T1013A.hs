@@ -7,7 +7,7 @@ module Bug where
 
 import Prelude hiding (fmap)
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-@ reflect _compose @-}
 _compose :: (b -> c) -> (a -> b) -> a -> c

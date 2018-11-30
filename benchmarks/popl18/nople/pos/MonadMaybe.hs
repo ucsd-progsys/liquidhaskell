@@ -6,7 +6,7 @@ module MonadMaybe where
 
 import Prelude hiding (return) 
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a

@@ -4,7 +4,7 @@ module MapFusion where
 
 import Prelude hiding (map)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 {-@ axiomatize compose @-}
 compose :: (b -> c) -> (a -> b) -> a -> c

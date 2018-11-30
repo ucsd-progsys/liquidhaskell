@@ -4,7 +4,7 @@ module MonoidList where
 
 import Prelude hiding (mappend, mempty)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | Monoid
 -- | mempty-left ∀ x . mappend mempty  x ≡ x

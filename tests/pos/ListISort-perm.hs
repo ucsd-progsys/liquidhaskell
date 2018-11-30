@@ -4,7 +4,7 @@
 
 module ListSort where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 
 -- FULL SIGS: don't work right now, thanks to https://github.com/ucsd-progsys/liquidhaskell/issues/1205

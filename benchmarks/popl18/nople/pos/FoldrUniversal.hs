@@ -6,7 +6,7 @@
 module FoldrUniversal where
 
 import Prelude hiding (foldr)
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | foldrUniversal
 {-@ reflect foldr @-}

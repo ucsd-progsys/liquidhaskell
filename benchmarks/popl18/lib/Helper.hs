@@ -13,7 +13,7 @@ module Helper (
   , lambda_expand, beta_application
   ) where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 import Proves (Arg, (=*=:))
 
 {-@ beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}

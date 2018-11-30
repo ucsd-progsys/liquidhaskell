@@ -5,7 +5,7 @@ module FunctionEquality where
 
 import Prelude hiding (id)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 {-@ reflect id @-}
 id :: a -> a

@@ -4,7 +4,7 @@ module ApplicativeId where
 
 import Prelude hiding (fmap, id, pure, seq)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- import Helper
 

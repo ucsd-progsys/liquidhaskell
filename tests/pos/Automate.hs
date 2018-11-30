@@ -3,7 +3,7 @@ module Automate where
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 fibA :: Int -> Int 
 {-@ reflect fibA @-}

@@ -4,7 +4,7 @@
 
 module Nat where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 
 {-@ data N [toInt] = Zero | Suc N @-}
