@@ -3,7 +3,8 @@
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE TypeFamilies          #-}
 {-# LANGUAGE IncoherentInstances   #-}
-module Language.Haskell.Liquid.ProofCombinators (
+
+module Language.Haskell.Liquid.OldProofCombinators (
 
     (==:), (<=:), (<:), (>:)
 
