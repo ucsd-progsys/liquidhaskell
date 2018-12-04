@@ -4,9 +4,8 @@
 --
 --   We should flag a proper malformed data-declaration error instead.
 
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-} 
 
 module MonoidList where
 

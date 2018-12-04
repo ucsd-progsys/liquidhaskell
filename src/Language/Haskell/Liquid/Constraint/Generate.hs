@@ -200,16 +200,11 @@ unOCons (RRTy _ _ OCons t) = unOCons t
 unOCons t                  = t
 
 mergecondition :: RType c tv r -> RType c tv r -> RType c tv r
-mergecondition (RAllT _ t1) (RAllT v t2)
-  = RAllT v $ mergecondition t1 t2
-mergecondition (RAllP _ t1) (RAllP p t2)
-  = RAllP p $ mergecondition t1 t2
-mergecondition (RRTy xts r OCons t1) t2
-  = RRTy xts r OCons (mergecondition t1 t2)
-mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2)
-  = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
-mergecondition _ t
-  = t
+mergecondition (RAllT _ t1) (RAllT v t2)               = RAllT v (mergecondition t1 t2)
+mergecondition (RAllP _ t1) (RAllP p t2)               = RAllP p (mergecondition t1 t2)
+mergecondition (RRTy xts r OCons t1) t2                = RRTy xts r OCons (mergecondition t1 t2)
+mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2) = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
+mergecondition _ t                                     = t
 
 safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
 safeLogIndex err ls n
@@ -248,7 +243,6 @@ consCBLet :: CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBLet γ cb = do
   oldtcheck <- tcheck <$> get
-  -- REBARE lazyVars  <- specLazy <$> get
   isStr     <- doTermCheck (getConfig γ) cb
   -- TODO: yuck.
   modify $ \s -> s { tcheck = oldtcheck && isStr }
@@ -289,7 +283,6 @@ trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
 derivedVar :: GhcSrc -> Var -> Bool
 derivedVar src x = S.member x (giDerVars src)
-  -- TODO-REBARE: x `elem` giDerVars src || GM.isInternal x
 
 doTermCheck :: Config -> Bind Var -> CG Bool
 doTermCheck cfg bind = do 
@@ -412,7 +405,7 @@ consCB True _ γ (Rec xes)
          then consCBSizedTys γ xes
          else check xxes <$> consCBWithExprs γ xes
     where
-      xs = fst $ unzip xes
+      xs = fst (unzip xes)
       check ys r | length ys == length xs = r
                  | otherwise              = panic (Just loc) $ msg
       msg        = "Termination expressions must be provided for all mutually recursive binders"
@@ -421,13 +414,13 @@ consCB True _ γ (Rec xes)
 
 -- don't do termination checking, but some strata checks?
 consCB _ False γ (Rec xes)
-  = do xets'   <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
-       sflag   <- scheck <$> get
-       let cmakeDivType = if sflag then makeDivType else id
-       let xets = mapThd3 (fmap cmakeDivType) <$> xets'
-       modify $ \i -> i { recCount = recCount i + length xes }
-       let xts = [(x, to) | (x, _, to) <- xets]
-       γ'     <- foldM extender (γ `setRecs` (fst <$> xts)) xts
+  = do xets'     <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
+       sflag     <- scheck <$> get
+       let mkDivT = if sflag then makeDivType else id
+       let xets   = mapThd3 (fmap mkDivT) <$> xets'
+       modify     $ \i -> i { recCount = recCount i + length xes }
+       let xts    = [(x, to) | (x, _, to) <- xets]
+       γ'        <- foldM extender (γ `setRecs` (fst <$> xts)) xts
        mapM_ (consBind True γ') xets
        return γ'
 
@@ -619,12 +612,12 @@ topSpecType x t = do
   return $ if derivedVar (giSrc info) x then topRTypeBase t else t
 
 --------------------------------------------------------------------------------
--- | Constraint Generation: Checking -------------------------------------------
+-- | Bidirectional Constraint Generation: CHECKING -----------------------------
 --------------------------------------------------------------------------------
 cconsE :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE g e t = do
-  -- Note: tracing goes here
+  -- NOTE: tracing goes here
   -- traceM $ printf "cconsE:\n  expr = %s\n  exprType = %s\n  lqType = %s\n" (showPpr e) (showPpr (exprType e)) (showpp t)
   cconsE' g e t
 
@@ -801,8 +794,14 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
 cconsLazyLet _ _ _
   = panic Nothing "Constraint.Generate.cconsLazyLet called on invalid inputs"
 
+-- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
+isPLETerm :: CGEnv -> Bool  
+isPLETerm γ 
+  | Just x <- cgVar γ = isPLEVar (giSpec . cgInfo $ γ) x 
+  | otherwise         = False 
+
 --------------------------------------------------------------------------------
--- | Type Synthesis ------------------------------------------------------------
+-- | Bidirectional Constraint Generation: SYNTHESIS ----------------------------
 --------------------------------------------------------------------------------
 consE :: CGEnv -> CoreExpr -> CG SpecType
 --------------------------------------------------------------------------------
@@ -813,15 +812,19 @@ consE γ e
 
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
--- be empty if there is no axiomatization
+-- is empty if there is no axiomatization. 
 
+-- [NOTE: PLE-OPT] We *disable* refined instantiatition for 
+-- reflected functions inside proofs.
 consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t          <- {- PLE-OPT -} if isGeneric (ty_var_value α) te && not (isPLETerm γ) 
+                                     then freshTy_type TypeInstE e τ 
+                                     else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       tt <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
-       return $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
+       tt         <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
+       return      $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
 -- NV END HACK
 

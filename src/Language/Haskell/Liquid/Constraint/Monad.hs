@@ -51,7 +51,7 @@ addC c@(SubC γ t1 t2) _msg
   | otherwise
   = do modify $ \s -> s { hsCs  = c : (hsCs s) }
        bflag <- headDefault True . isBind <$> get
-       sflag <- scheck                 <$> get
+       sflag <- scheck                    <$> get
        if bflag && sflag
          then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
          else return ()

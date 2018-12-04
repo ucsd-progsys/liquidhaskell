@@ -165,7 +165,7 @@ x &&& _ = x
 
 {-@ withProof :: x:a -> b -> {v:a | v = x} @-}
 withProof :: a -> b -> a
-withProof x y = x
+withProof x _ = x
 
 {-@ impossible :: {v:a | false} -> b @-}
 impossible :: a -> b

@@ -33,7 +33,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.Maybe                             as Mb 
 
-import qualified Language.Fixpoint.Types.Visitor        as V
+-- import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
@@ -332,7 +332,7 @@ fieldName d dp x
 
 makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
                -> [F.DataField]
-makeDataFields tce c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
+makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
     su                      = zip (F.symbol <$> as) [0..]
     fSort                   = {- muSort c (length as) . -}  F.substVars su . RT.rTypeSort tce

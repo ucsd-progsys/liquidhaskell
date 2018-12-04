@@ -9,20 +9,6 @@
 
 module Language.Haskell.Liquid.Types.Specs where 
 
-  -- ( GhcInfo      (..)
-  -- , GhcSpec      (..)
-  -- , GhcSpecData  (..)
-  -- , GhcSpecVars  (..)
-  -- , GhcSpecNames (..)
-  -- , GhcSpecQual  (..)
-  -- , GhcSpecSig   (..)
-  -- , GhcSpecRefl  (..)
-  -- , GhcSpecTerm  (..)
-  -- , GhcSrc       (..)
-  -- , Spec         (..)
-  -- )
-  -- where
-
 import           GHC.Generics
 import qualified Data.Binary             as B
 import qualified Language.Fixpoint.Types as F
@@ -42,7 +28,7 @@ import           Language.Haskell.Liquid.GHC.API
 
 data GhcInfo = GI
   { giSrc       :: !GhcSrc  
-  , giSpec      :: !GhcSpec        -- ^ All specification information for module
+  , giSpec      :: !GhcSpec               -- ^ All specification information for module
   }
 
 data GhcSrc = Src 
@@ -197,3 +183,8 @@ isExportedVar info v = n `elemNameSet` ns
   where
     n                = getName v
     ns               = gsExports info
+
+isPLEVar :: GhcSpec -> Var -> Bool 
+isPLEVar sp x = M.member x (gsAutoInst (gsRefl sp)) 
+
+

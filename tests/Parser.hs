@@ -190,14 +190,6 @@ testSpecP =
        parseSingleSpec "lazy eval" @?==
           "lazy eval"
 
-    , testCase "automatic-instances" $
-       parseSingleSpec "automatic-instances foo with 5" @?==
-            "automatic-instances foo with 5"
-
-    , testCase "LIQUID" $
-       parseSingleSpec "LIQUID \"--automatic-instances=liquidinstances\" " @?==
-            "LIQUID --automatic-instances=liquidinstances"
-
     , testCase "default parser (Asrts)" $
        parseSingleSpec " assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [OkPos t s]" @?==
             "assumeIndices :: t:ByteStringNE -> s:BS.ByteString -> [(OkPos t s)]"

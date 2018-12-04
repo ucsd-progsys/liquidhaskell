@@ -4,7 +4,7 @@ module Hutton where
 
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 

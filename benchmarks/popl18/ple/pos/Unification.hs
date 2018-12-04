@@ -6,7 +6,7 @@
 -- where? switch off non-lin-cuts in higher-order mode?
 
 {-@ LIQUID "--reflection"      @-}
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+{-@ LIQUID "--ple-local" @-}
 
 module Unify where
 

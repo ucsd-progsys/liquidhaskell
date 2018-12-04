@@ -59,18 +59,6 @@ fixConfig tgt cfg = def
 cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = return (targetFInfo info cgi)
 
--- REBARE: cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
--- REBARE: cgInfoFInfo info cgi = do
-  -- REBARE: let tgtFI  = targetFInfo info cgi
-  -- REBARE: let qFiles = giHqFiles . gsQual . giSpec $ info
-  -- REBARE: impFI     <- ignoreQualifiers info <$> parseFInfo qFiles 
-  -- REBARE: return       (tgtFI <> impFI)
-
--- REBARE: ignoreQualifiers :: GhcInfo -> F.FInfo a -> F.FInfo a
--- REBARE: ignoreQualifiers info fi
--- REBARE:   | useSpcQuals info = fi
--- REBARE:   | otherwise        = fi { F.quals = [] }
-
 targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
   where
@@ -103,10 +91,10 @@ makeAxiomEnvironment info xts fcs
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
-                   || (Config.allowLocalPLE cfg && maybe False isExpand (subVar sub))
-  where 
-    isExpand x      = M.member x autos 
-    autos           = gsAutoInst (gsRefl sp)  
+                   || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
+  -- where 
+    -- isExpand x      = M.member x autos 
+    -- autos           = gsAutoInst (gsRefl sp)  
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut

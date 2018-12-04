@@ -438,8 +438,7 @@ addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ gsAsmSigs sig }
     reflSigs         = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
-makeAutoInst env name spec = 
-  Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
+makeAutoInst env name spec = Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv 
@@ -750,7 +749,7 @@ mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
 
 
 mkReft :: LocSymbol -> Symbol -> SpecType -> SpecType -> Maybe (Symbol, Expr)
-mkReft x z t tr 
+mkReft x z _t tr 
   | Just q <- stripRTypeBase tr
   = let Reft (v, p) = toReft q
         su          = mkSubst [(v, mkEApp x [EVar v])]

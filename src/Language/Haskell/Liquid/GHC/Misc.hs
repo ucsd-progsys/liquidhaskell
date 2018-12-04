@@ -77,7 +77,7 @@ import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
-import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
+import           Language.Fixpoint.Misc                     (safeHead) -- , safeLast, safeInit)
 import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors

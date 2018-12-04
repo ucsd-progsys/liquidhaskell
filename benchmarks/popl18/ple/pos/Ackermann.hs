@@ -3,7 +3,7 @@
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 
 module Ackermann where

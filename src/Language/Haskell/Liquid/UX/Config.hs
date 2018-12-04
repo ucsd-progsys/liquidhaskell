@@ -82,23 +82,24 @@ data Config = Config
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
-  , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
+  -- PLE-OPT , autoInstantiate :: Instantiate -- ^ How to instantiate axioms
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
+  , proofLogicEvalLocal  :: Bool   -- ^ Enable proof-by-logical-evaluation locally, per function
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec     :: Bool       -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
-instance Serialize Instantiate
+-- PLE-OPT instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
 
-data Instantiate
-  = NoInstances
-  | LiquidInstances
-  | LiquidInstancesLocal
-  deriving (Eq, Data, Typeable, Generic)
+-- PLE-OPT    data Instantiate
+  -- PLE-OPT    = NoInstances
+  -- PLE-OPT    | LiquidInstances
+  -- PLE-OPT    | LiquidInstancesLocal
+  -- PLE-OPT    deriving (Eq, Data, Typeable, Generic)
 
 allowPLE :: Config -> Bool
 allowPLE cfg
@@ -108,20 +109,20 @@ allowPLE cfg
 allowGlobalPLE :: Config -> Bool
 allowGlobalPLE cfg
   =  proofLogicEval  cfg
-  || autoInstantiate cfg == LiquidInstances
+-- // PLE-OPT  || autoInstantiate cfg == LiquidInstances
 
 allowLocalPLE :: Config -> Bool
 allowLocalPLE cfg
-  =  proofLogicEval  cfg
-  || autoInstantiate cfg == LiquidInstancesLocal
+  =  proofLogicEvalLocal  cfg
+-- // PLE-OPT  || autoInstantiate cfg == LiquidInstancesLocal
 
-instance Default Instantiate where
-  def = NoInstances
+-- PLE-OPT instance Default Instantiate where
+  -- PLE-OPT def = NoInstances
 
-instance Show Instantiate where
-  show NoInstances           = "none"
-  show LiquidInstancesLocal  = "liquid-local"
-  show LiquidInstances       = "liquid-global"
+-- PLE-OPT instance Show Instantiate where
+  -- PLE-OPT show NoInstances           = "none"
+  -- PLE-OPT show LiquidInstancesLocal  = "liquid-local"
+  -- PLE-OPT show LiquidInstances       = "liquid-global"
 
 instance HasConfig  Config where
   getConfig x = x
@@ -161,7 +162,7 @@ totalityCheck' :: Config -> Bool
 totalityCheck' cfg = (not (nototality cfg)) || totalHaskell cfg
 
 terminationCheck' :: Config -> Bool
-terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) -- && (not (structuralTerm cfg))
+terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg)) 
 
 structuralTerm :: (HasConfig a) => a -> Bool 
 structuralTerm = not . nostructuralterm . getConfig
