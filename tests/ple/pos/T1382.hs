@@ -20,11 +20,13 @@ module Lists where
 import Prelude hiding ((++))
 import Language.Haskell.Liquid.ProofCombinators 
 
+data List a = Nil | Cons a (List a)
+
 {-@ infixr ++  @-}
 {-@ reflect ++ @-}
-(++) :: [a] -> [a] -> [a] 
-[]     ++ ys = ys 
-(x:xs) ++ ys = x : (xs ++ ys)
+(++) :: List a -> List a -> List a 
+Nil         ++ ys = ys 
+(Cons x xs) ++ ys = Cons x (xs ++ ys)
 
 -------------------------------------------------------------------------------
 
@@ -32,20 +34,20 @@ import Language.Haskell.Liquid.ProofCombinators
 
 {-@ lemma_app_assoc0 :: xs:_ -> ys:_ -> zs:_ -> 
       { (xs ++ ys) ++ zs = xs ++ (ys ++ zs) } @-} 
-lemma_app_assoc0 :: [a] -> [a] -> [a] -> () 
-lemma_app_assoc0 []     ys zs 
-  =   ([] ++ ys) ++ zs 
+lemma_app_assoc0 :: List a -> List a -> List a -> () 
+lemma_app_assoc0 Nil     ys zs 
+  =   (Nil ++ ys) ++ zs 
   === ys ++ zs 
-  === [] ++ (ys ++ zs)
+  === Nil ++ (ys ++ zs)
   *** QED 
 
-lemma_app_assoc0 (x:xs) ys zs 
-  =   ((x:xs) ++ ys) ++ zs 
-  === (x: (xs ++ ys)) ++ zs 
-  === x : ((xs ++ ys) ++ zs) 
+lemma_app_assoc0 (Cons x xs) ys zs 
+  =   ((Cons x xs) ++ ys) ++ zs 
+  === (Cons x (xs ++ ys)) ++ zs 
+  === Cons x ((xs ++ ys) ++ zs) 
     ? lemma_app_assoc0 xs ys zs
-  === x : (xs ++ (ys ++ zs))
-  === (x : xs) ++ (ys ++ zs)
+  === Cons x (xs ++ (ys ++ zs))
+  === (Cons x xs) ++ (ys ++ zs)
   *** QED 
 
 -------------------------------------------------------------------------------
@@ -54,9 +56,9 @@ lemma_app_assoc0 (x:xs) ys zs
 {-@ ple lemma_app_assoc1 @-}
 {-@ lemma_app_assoc1 :: xs:_ -> ys:_ -> zs:_ -> 
       { (xs ++ ys) ++ zs = xs ++ (ys ++ zs) } @-} 
-lemma_app_assoc1 :: [a] -> [a] -> [a] -> () 
-lemma_app_assoc1 []     ys zs = () 
-lemma_app_assoc1 (x:xs) ys zs = lemma_app_assoc1 xs ys zs
+lemma_app_assoc1 :: List a -> List a -> List a -> () 
+lemma_app_assoc1 Nil         ys zs = () 
+lemma_app_assoc1 (Cons x xs) ys zs = lemma_app_assoc1 xs ys zs
 
 -------------------------------------------------------------------------------
 -- Running PLE on equational proof
@@ -64,21 +66,34 @@ lemma_app_assoc1 (x:xs) ys zs = lemma_app_assoc1 xs ys zs
 {-@ ple lemma_app_assoc2 @-}
 {-@ lemma_app_assoc2 :: xs:_ -> ys:_ -> zs:_ -> 
       { (xs ++ ys) ++ zs = xs ++ (ys ++ zs) } @-} 
-lemma_app_assoc2 :: [a] -> [a] -> [a] -> () 
-lemma_app_assoc2 []     ys zs 
-  =   ([] ++ ys) ++ zs 
+lemma_app_assoc2 :: List a -> List a -> List a -> () 
+lemma_app_assoc2 Nil     ys zs 
+  =   (Nil ++ ys) ++ zs 
   === ys ++ zs 
-  === [] ++ (ys ++ zs)
+  === Nil ++ (ys ++ zs)
   *** QED 
 
-lemma_app_assoc2 (x:xs) ys zs 
-  =   ((x:xs) ++ ys) ++ zs 
-  === (x: (xs ++ ys)) ++ zs 
-  === x : ((xs ++ ys) ++ zs) 
+lemma_app_assoc2 (Cons x xs) ys zs 
+  =   ((Cons x xs) ++ ys) ++ zs 
+  === (Cons x (xs ++ ys)) ++ zs 
+  === Cons x ((xs ++ ys) ++ zs) 
     ? lemma_app_assoc2 xs ys zs
-  === x : (xs ++ (ys ++ zs))
-  === (x : xs) ++ (ys ++ zs)
+  === Cons x (xs ++ (ys ++ zs))
+  === (Cons x xs) ++ (ys ++ zs)
   *** QED 
+
+
+{-@ foo :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
+foo :: a -> b -> a 
+foo = undefined
+
+infixl 3 ???
+
+{-@ (???) :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
+(???) :: a -> b -> a 
+x ??? _ = x 
+{-# INLINE (???)   #-} 
+
 
 
 {- 

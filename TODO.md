@@ -1,13 +1,8 @@
 # TODO
 
-- [] Fix termination tests in fail.txt 
-- [] Fix resolve     tests in fail.txt 
-- [] Fix eq-repr     tests in fail.txt 
-- [] Remove trace 
-- [] Remove warnings 
-- [] fix circle
-- [] merge PR
+## PLE-OPT 
 
+- Don't generate KVars inside "proofs" [somehow causes proofs to fail]
 
 ## CallStack/Error
 

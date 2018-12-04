@@ -794,12 +794,6 @@ cconsLazyLet γ (Let (NonRec x ex) e) t
 cconsLazyLet _ _ _
   = panic Nothing "Constraint.Generate.cconsLazyLet called on invalid inputs"
 
--- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
-isPLETerm :: CGEnv -> Bool  
-isPLETerm γ 
-  | Just x <- cgVar γ = isPLEVar (giSpec . cgInfo $ γ) x 
-  | otherwise         = False 
-
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: SYNTHESIS ----------------------------
 --------------------------------------------------------------------------------
@@ -818,7 +812,7 @@ consE γ e
 -- reflected functions inside proofs.
 consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- {- PLE-OPT -} if isGeneric (ty_var_value α) te && not (isPLETerm γ) 
+       t          <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
                                      then freshTy_type TypeInstE e τ 
                                      else trueTy τ
        addW        $ WfC γ t
@@ -838,7 +832,7 @@ consE _ (Lit c)
 
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- if isGeneric (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t          <- if isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt         <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
@@ -1437,10 +1431,19 @@ isType :: Expr CoreBndr -> Bool
 isType (Type _)                 = True
 isType a                        = eqType (exprType a) predType
 
+-- | @isGeneric@ determines whether the @RTyVar@ CAN and SHOULD be instantiated in a refined manner.
+isGeneric :: CGEnv -> RTyVar -> SpecType -> Bool
+isGeneric γ α t = isGenericVar α t && not (isPLETerm γ)
 
+-- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
+isPLETerm :: CGEnv -> Bool  
+isPLETerm γ 
+  | Just x <- cgVar γ = {- F.tracepp ("isPLEVar:" ++ F.showpp x) $ -} isPLEVar (giSpec . cgInfo $ γ) x 
+  | otherwise         = False 
 
-isGeneric :: RTyVar -> SpecType -> Bool
-isGeneric α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
+-- | @isGenericVar@ determines whether the @RTyVar@ has no class constraints
+isGenericVar :: RTyVar -> SpecType -> Bool
+isGenericVar α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
   where classConstrs t = [(c, ty_var_value α')
                                   | (c, ts) <- tyClasses t
                                   , t'      <- ts

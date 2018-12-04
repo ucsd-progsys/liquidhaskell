@@ -279,8 +279,8 @@ anglesCircleP :: Parser ParamComp
 anglesCircleP
   = angles $ do
       PC sb t <- parens btP
-      p <- monoPredicateP
-      return $ PC sb (t `strengthen` MkUReft mempty p mempty)
+      p       <- monoPredicateP
+      return   $ PC sb (t `strengthen` MkUReft mempty p mempty)
 
 holePC :: Parser ParamComp
 holePC = do
