@@ -2,7 +2,7 @@ module Automate where
 
 {-@ LIQUID "--automatic-instances=smtinstances" @-}
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 
 fibA :: Int -> Int 

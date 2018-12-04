@@ -58,6 +58,21 @@ To run inside `ghci` e.g. when developing do:
 
 See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
 
+
+How To Get Editor Support
+-------------------------
+
+To get Liquid Haskell in your editor use the Haskell IDE Engine and activate the liquid plugin. 
+For example, 
+
+- [VS Code](https://code.visualstudio.com/)
+
+    1. Install the [haskell-ide-engine](https://github.com/haskell/haskell-ide-engine)
+    2. Enable Haskell Language Server extension from VS Code. 
+    3. In the VS Code settings search for `liquid` and enable the `Liquid On` extension.
+
+
+
 How To Run Regression Tests
 ---------------------------
 

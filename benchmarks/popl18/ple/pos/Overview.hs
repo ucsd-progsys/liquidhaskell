@@ -2,10 +2,8 @@
 {-@ LIQUID "--ple"        @-} 
 
 module FunctionAbstraction where
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 import Helper
-
-
 
 fib :: Int -> Int
 fib n

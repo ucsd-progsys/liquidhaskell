@@ -6,7 +6,7 @@
 
 module T1258 where 
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 data Foo = A | B
 data Bar = C | D

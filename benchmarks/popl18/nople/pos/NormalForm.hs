@@ -5,7 +5,7 @@
 
 module MonadReader where
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 {-
 

@@ -5,7 +5,7 @@ module Lists where
 
 import Prelude hiding (reverse, length, filter)
 -- import           Prelude (Char, Int, Bool (..))
-import           Language.Haskell.Liquid.NewProofCombinators
+import           Language.Haskell.Liquid.ProofCombinators
 
 -- TODO: import Basics and Induction
 

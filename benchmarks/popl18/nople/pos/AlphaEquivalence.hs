@@ -6,7 +6,7 @@ module ApplicativeReader where
 
 import Prelude hiding (fmap, id, seq, pure)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 {-@ reflect seq @-}
 seq :: (r -> (a -> b)) -> (r -> a) ->  (Reader r b)

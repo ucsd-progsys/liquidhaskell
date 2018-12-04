@@ -3,7 +3,7 @@
 module ApplicativeMaybe where
 
 import Prelude hiding (fmap, id, seq, pure)
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | Applicative Laws :
 -- | identity      pure id <*> v = v

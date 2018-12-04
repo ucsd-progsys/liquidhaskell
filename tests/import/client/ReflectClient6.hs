@@ -3,7 +3,7 @@
 
 module ReflectClient6 where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 import ReflectLib6
 

@@ -6,7 +6,7 @@ module MonadMaybe where
 
 import Prelude hiding (return) 
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | Monad Laws :
 -- | Left identity:	  return a >>= f  ≡ f a
@@ -65,8 +65,8 @@ associativity Nothing f g
 associativity (Just x) f g
   =   bind (bind (Just x) f) g
   === bind (f x) g
-  ==? (\y -> bind (f y) g) x             
       ? beta_reduce x f g 
+  === (\y -> bind (f y) g) x             
   === bind (Just x) (\y -> bind (f y) g)
   *** QED 
 

@@ -4,7 +4,7 @@ module FunctorMaybe where
 
 import Prelude hiding (fmap, id) 
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 -- | Functor Laws :
 -- | fmap-id fmap id ≡ id
