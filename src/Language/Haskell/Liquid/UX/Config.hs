@@ -34,6 +34,7 @@ data Config = Config
   , stringTheory   :: Bool       -- ^ interpretation of string theory in the logic
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
+  , smtTimeout     :: Maybe Int  -- ^ smt timeout 
   , extensionality :: Bool       -- ^ allow function extentionality axioms
   , alphaEquivalence :: Bool     -- ^ allow lambda alpha-equivalence axioms
   , betaEquivalence  :: Bool     -- ^ allow lambda beta-equivalence axioms

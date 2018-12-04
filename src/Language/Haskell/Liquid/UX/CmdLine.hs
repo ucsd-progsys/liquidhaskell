@@ -111,6 +111,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow function extentionality axioms"
 
+ , smtTimeout 
+    = def
+          &= help "Timeout of smt queries in msec"    
+      
  , alphaEquivalence
     = def
           &= help "Allow lambda alpha-equivalence axioms"
@@ -498,6 +502,7 @@ defConfig = Config
   , stringTheory      = def
   , higherorder       = def
   , extensionality    = def
+  , smtTimeout        = def 
   , alphaEquivalence  = def
   , betaEquivalence   = def
   , normalForm        = def

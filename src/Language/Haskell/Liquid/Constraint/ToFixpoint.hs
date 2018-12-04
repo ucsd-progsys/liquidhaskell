@@ -45,6 +45,7 @@ fixConfig tgt cfg = def
   , FC.allowHO          = higherOrderFlag   cfg
   , FC.allowHOqs        = higherorderqs     cfg
   , FC.extensionality   = extensionality    cfg || gradual cfg
+  , FC.smtTimeout       = smtTimeout        cfg 
   , FC.alphaEquivalence = alphaEquivalence  cfg
   , FC.betaEquivalence  = betaEquivalence   cfg
   , FC.normalForm       = normalForm        cfg
