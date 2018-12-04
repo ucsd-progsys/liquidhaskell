@@ -11,9 +11,7 @@
 -- | Axiom Instantiation  ------------------------------------------------------
 --------------------------------------------------------------------------------
 
-module Language.Fixpoint.Solver.Instantiate (
-  instantiate
-  ) where
+module Language.Fixpoint.Solver.Instantiate (instantiate) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
