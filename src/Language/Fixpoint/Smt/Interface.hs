@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE PatternGuards             #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
@@ -59,6 +60,7 @@ module Language.Fixpoint.Smt.Interface (
 import           Language.Fixpoint.Types.Config ( SMTSolver (..)
                                                 , Config
                                                 , solver
+                                                , smtTimeout
                                                 , extensionality
                                                 , alphaEquivalence
                                                 , betaEquivalence
@@ -308,8 +310,8 @@ smtPreamble cfg Z3 me
        v:_ <- T.words . (!!1) . T.splitOn "\"" <$> smtReadRaw me
        checkValidStringFlag Z3 v cfg
        if T.splitOn "." v `versionGreaterEq` ["4", "3", "2"]
-         then return $ z3_432_options ++ makeMbqi cfg ++ Thy.preamble cfg Z3
-         else return $ z3_options     ++ makeMbqi cfg ++ Thy.preamble cfg Z3
+         then return $ z3_432_options ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
+         else return $ z3_options     ++ makeMbqi cfg ++ makeTimeout cfg ++ Thy.preamble cfg Z3
 smtPreamble cfg s _
   = checkValidStringFlag s "" cfg >> return (Thy.preamble cfg s)
 
@@ -401,6 +403,13 @@ respSat r       = die $ err dummySpan $ text ("crash: SMTLIB2 respSat = " ++ sho
 
 interact' :: Context -> Command -> IO ()
 interact' me cmd  = void $ command me cmd
+
+
+makeTimeout :: Config -> [LT.Text]
+makeTimeout cfg
+  | Just i <- smtTimeout cfg = [ LT.pack ("\n(set-option :timeout " ++ (show i) ++ ")\n")]
+  | otherwise                = [""]
+
 
 makeMbqi :: Config -> [LT.Text]
 makeMbqi cfg

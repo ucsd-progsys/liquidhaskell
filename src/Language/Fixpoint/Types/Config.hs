@@ -69,6 +69,7 @@ data Config = Config
   , allowHOqs   :: Bool                -- ^ allow higher order qualifiers
   , eliminate   :: Eliminate           -- ^ eliminate non-cut KVars
   , elimBound   :: Maybe Int           -- ^ maximum length of KVar chain to eliminate
+  , smtTimeout  :: Maybe Int           -- ^ smt timeout in msec
   , elimStats   :: Bool                -- ^ print eliminate stats
   , solverStats :: Bool                -- ^ print solver stats
   , metadata    :: Bool                -- ^ print meta-data associated with constraints
@@ -145,7 +146,8 @@ defConfig = Config {
   , allowHO          = False   &= help "Allow higher order binders into fixpoint environment"
   , allowHOqs        = False   &= help "Allow higher order qualifiers"
   , eliminate        = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
-  , elimBound        = Nothing &= name "elimBound"  &= help "(alpha) Maximum eliminate-chain depth"
+  , elimBound        = Nothing &= name "elimBound"   &= help "(alpha) Maximum eliminate-chain depth"
+  , smtTimeout       = Nothing &= name "smtTimeout"  &= help "smt timeout in msec"
   , elimStats        = False   &= help "(alpha) Print eliminate stats"
   , solverStats      = False   &= help "Print solver stats"
   , save             = False   &= help "Save Query as .fq and .bfq files"
