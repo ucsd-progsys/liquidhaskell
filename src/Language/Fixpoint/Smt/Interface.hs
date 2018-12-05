@@ -5,6 +5,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE UndecidableInstances      #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE PatternGuards             #-}
 
 -- | This module contains an SMTLIB2 interface for
 --   1. checking the validity, and,
