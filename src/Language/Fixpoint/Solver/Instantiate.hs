@@ -20,6 +20,7 @@ import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
 import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
 import qualified Data.Text            as T
@@ -47,8 +48,8 @@ instantiate' :: (Loc a) => Config -> GInfo SimpC a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = M.toList (cm fi)
+                        ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi), isTarget c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
@@ -69,13 +70,6 @@ withCtx cfg file env k = do
   res <- k ctx
   _   <- SMT.cleanupContext ctx
   return res
-
-
---------------------------------------------------------------------------------
--- | Partition Binds into individual "owning" constraints, to not repeat PLE 
---   for each bind, but instead, to just do PLE for that bind while at the 
---   the "root" constraint.
---------------------------------------------------------------------------------
 
 --------------------------------------------------------------------------------
 -- | PLE for a single 'SimpC'

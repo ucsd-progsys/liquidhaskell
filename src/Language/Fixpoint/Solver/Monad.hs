@@ -101,12 +101,10 @@ runSolverM cfg sI act =
     return (fst res)
   where
     s0 ctx   = SS ctx be (stats0 fi)
-    act'     = {- declare initEnv >> -} assumesAxioms (F.asserts fi) >> act
+    act'     = assumesAxioms (F.asserts fi) >> act
     release  = cleanupContext
     acquire  = makeContextWithSEnv cfg file initEnv
     initEnv  = symbolEnv   cfg fi
-    -- lts      = F.toListSEnv (F.dLits fi)
-    -- ds       = F.ddecls fi
     be       = F.bs fi
     file     = C.srcFile cfg
     -- only linear arithmentic when: linear flag is on or solver /= Z3
@@ -251,7 +249,8 @@ checkSat p
 --------------------------------------------------------------------------------
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
 --------------------------------------------------------------------------------
-assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
+-- PLE-OPT assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
+assumesAxioms _ = return () 
 
 
 ---------------------------------------------------------------------------
