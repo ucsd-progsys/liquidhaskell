@@ -1,6 +1,7 @@
 module Language.Fixpoint.Utils.Trie 
   ( -- * Datatype
-    Trie
+    Trie (..)
+  , Branch (..)
 
     -- * Constructors
   , empty
