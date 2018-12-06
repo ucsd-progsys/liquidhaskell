@@ -153,7 +153,7 @@ loopB env ctx delta i res (T.Val cid)  = do
 
 
 ple1 :: InstEnv a -> Assumes -> Diff -> Maybe BindId -> Maybe SubcId -> IO Expr 
-ple1 env ctx delta i cidMb = incrInstSimpC env ctx delta (getCstr <$> tracepp msg cidMb)
+ple1 env ctx delta i cidMb = incrInstSimpC env ctx delta (getCstr <$> notracepp msg cidMb)
   where 
     msg                    = "PLE-1: " ++ show i 
     getCstr cid            = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
@@ -166,7 +166,7 @@ updCtx :: Assumes -> Expr -> Assumes
 updCtx es e = e:es 
 
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = Misc.traceShow "TRIE:" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+mkCTrie ics  = {- Misc.traceShow "TRIE:" $ -} T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
     cBinds   = L.sort . elemsIBindEnv . senv 
 
@@ -205,7 +205,7 @@ incrCstrExprs benv diff Nothing = (unElab <$> binds, unElab <$> es)
 incrCstrExprs benv diff (Just c) = (unElab <$> binds, unElab <$> es)
   where
     es                           = (crhs c) : (expr <$> binds)
-    binds                        = [ lookupBindEnv i benv | i <- drop (tracepp msg 1) diff ] 
+    binds                        = [ lookupBindEnv i benv | i <- drop (notracepp msg 1) diff ] 
     msg                          = "incrCstrExprs: " ++ show (sid c, diff)
     
 
@@ -260,7 +260,7 @@ incrEval (InstEnv cfg ctx _ aenv _) ps facts eCands = do
   where 
     γ      = knowledge cfg ctx aenv 
     eqs    = initEqualities ctx aenv facts  
-    cands  = tracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps eCands)
+    cands  = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps eCands)
     s0     = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
     ctxEqs = toSMT cfg ctx [] <$> concat 
                 [ ps
