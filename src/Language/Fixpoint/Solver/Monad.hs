@@ -249,8 +249,8 @@ checkSat p
 --------------------------------------------------------------------------------
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
 --------------------------------------------------------------------------------
--- PLE-OPT assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
-assumesAxioms _ = return () 
+assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
+-- assumesAxioms _ = return () 
 
 
 ---------------------------------------------------------------------------

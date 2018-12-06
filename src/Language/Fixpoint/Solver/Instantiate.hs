@@ -74,8 +74,8 @@ incrInstantiate' cfg fi = do
     t      = mkCTrie cs
     cs     = [ (i, c) | (i, c) <- M.toList (cm fi)
                       , isTarget c
-                      , FIX-THIS-HERE not (M.lookupDefault False sid (aenvExpand aenv)) = 
-                        return PTrue
+                      -- , FIX-THIS-HERE not (M.lookupDefault False sid (aenvExpand aenv)) = 
+                      --  return PTrue
              ] 
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
