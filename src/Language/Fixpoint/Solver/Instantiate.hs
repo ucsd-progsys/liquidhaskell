@@ -46,8 +46,8 @@ instantiate cfg fi
   | rewriteAxioms cfg = instantiate' cfg fi
   | otherwise         = return fi
 
-instantiate' :: (Loc a) => Config -> GInfo SimpC a -> IO (SInfo a)
-instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
+instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
+instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
@@ -56,8 +56,8 @@ instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
-sInfo :: Config -> GInfo SimpC a -> SymEnv -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
+sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
+sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
@@ -102,17 +102,15 @@ instT env = loopT env ctx0 diff0 i0 res0
     e0    = pAnd $ eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env) -- formerly is0 
     i0    = 0 
 
-
 loopT :: InstEnv a -> Assumes -> Diff -> BindId -> InstRes -> CTrie -> IO InstRes
-loopT env ctx delta i res (T.Node [])  = 
-  return res
-loopT env ctx delta i res (T.Node [b]) = 
-  loopB env ctx delta i res b
-loopT env ctx delta i res (T.Node bs)  = do 
-  e'      <- ple1 env ctx delta Nothing
-  let ctx' = updCtx ctx e'
-  let res' = updRes res i e'
-  foldM (loopB env ctx' delta i) res' bs
+
+loopT env ctx delta i res t = case t of 
+  T.Node []  -> return res
+  T.Node [b] -> loopB env ctx delta i res b
+  T.Node bs  -> do e'      <- ple1 env ctx delta Nothing
+                   let ctx' = updCtx ctx e'
+                   let res' = updRes res i e'
+                   foldM (loopB env ctx' delta i) res' bs
 
 loopB :: InstEnv a -> Assumes -> Diff -> BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta _ res (T.Bind i t) = 
