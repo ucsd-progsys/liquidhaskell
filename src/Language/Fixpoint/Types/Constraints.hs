@@ -37,6 +37,7 @@ module Language.Fixpoint.Types.Constraints (
   , TaggedC, clhs, crhs
   -- , strengthenLhs
   , strengthenHyp
+  , strengthenBinds
 
   -- * Accessing Constraints
   , addIds
@@ -179,7 +180,6 @@ instance Loc a => Loc (SimpC a) where
 strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
-    -- bindExprs        = safeFromList "strengthenHyp" (mapFst (subcBind si) <$> ies)
     bindExprs        = safeFromList "strengthenHyp" [ (subcBind si i, e) | (i, e) <- ies ]
 
 subcBind :: SInfo a -> SubcId -> BindId

@@ -56,6 +56,7 @@ instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
+
 sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
 sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
@@ -64,6 +65,43 @@ sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$
     ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
     axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
     fi'              = fi { asserts = axs' ++ asserts fi }
+
+incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
+incrInstantiate' cfg fi = do 
+    res   <- withCtx cfg file sEnv (trieResult t . instEnv cfg fi cs)
+    return $ incrSInfo cfg sEnv fi res 
+  where
+    t      = mkCTrie cs
+    cs     = [ (i, c) | (i, c) <- M.toList (cm fi)
+                      , isTarget c
+                      , FIX-THIS-HERE not (M.lookupDefault False sid (aenvExpand aenv)) = 
+                        return PTrue
+             ] 
+    file   = srcFile cfg ++ ".evals"
+    sEnv   = symbolEnv cfg fi
+
+
+mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
+mkCTrie = undefined
+
+instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
+instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) 
+  where 
+    bEnv              = bs fi
+    aEnv              = ae fi
+
+-- instT :: InstEnv a -> CTrie -> IO InstRes
+
+incrSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+incrSInfo cfg env fi res = strengthenBinds fi res' 
+  where
+    res'                 = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
+    ps''                 = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
+    (ps', _ {-_axs-})    = defuncAxioms cfg env ps
+    (is, ps)             = unzip (M.toList res)
+    -- _axs'                = elaborate (atLoc dummySpan "PLE2") env <$> _axs
+    -- fi'              = fi { asserts = axs' ++ asserts fi }
+
 
 withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
 withCtx cfg file env k = do
@@ -93,14 +131,14 @@ type CBranch = T.Branch SubcId
 type Assumes = [Expr]     -- ultimately, the SMT context 
 type Diff    = [BindId]   -- ^ in "reverse" order
 
-instT :: InstEnv a -> CTrie -> IO InstRes
-instT env = loopT env ctx0 diff0 i0 res0  
+trieResult :: CTrie -> InstEnv a -> IO InstRes
+trieResult t env = loopT env ctx0 diff0 i0 res0 t 
   where 
-    diff0 = [i0]
-    res0  = updRes M.empty i0 e0 
-    ctx0  = updCtx []         e0
-    e0    = pAnd $ eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env) -- formerly is0 
-    i0    = 0 
+    diff0        = [i0]
+    res0         = updRes M.empty i0 e0 
+    ctx0         = updCtx []         e0
+    e0           = pAnd $ eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env) -- formerly is0 
+    i0           = 0 
 
 loopT :: InstEnv a -> Assumes -> Diff -> BindId -> InstRes -> CTrie -> IO InstRes
 
