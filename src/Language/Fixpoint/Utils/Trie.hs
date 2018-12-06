@@ -6,12 +6,15 @@ module Language.Fixpoint.Utils.Trie
     -- * Constructors
   , empty
   , insert
+  , fromList
 
     -- * Visitors 
   , fold 
   , foldM
   ) 
   where 
+
+import qualified Data.List as L 
 
 type Key  = Int
 type Path = [Key]
@@ -35,6 +38,12 @@ insert :: Path -> a -> Trie a -> Trie a
 -------------------------------------------------------------------------------
 insert []     v (Node ts) = Node ((Val v) : ts) 
 insert (i:is) v (Node ts) = Node (insertKey i is v ts)
+
+
+-------------------------------------------------------------------------------
+fromList :: [(Path, a)] -> Trie a 
+-------------------------------------------------------------------------------
+fromList = L.foldl' (\t (k, v) -> insert k v t) empty 
 
 -- i=3 
 -- 0 1 2 3 4 5 6 

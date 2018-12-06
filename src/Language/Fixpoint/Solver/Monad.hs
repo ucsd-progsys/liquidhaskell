@@ -197,7 +197,6 @@ filterValid_ sp p qs me = catMaybes <$> do
       return $ if valid then Just x else Nothing
 
 
-
 --------------------------------------------------------------------------------
 -- | `filterValidGradual ps [(x1, q1),...,(xn, qn)]` returns the list `[ xi | p => qi]`
 -- | for some p in the list ps
@@ -250,7 +249,6 @@ checkSat p
 assumesAxioms :: [F.Triggered F.Expr] -> SolveM ()
 --------------------------------------------------------------------------------
 assumesAxioms es = withContext $ \me -> forM_  es $ smtAssertAxiom me
--- assumesAxioms _ = return () 
 
 
 ---------------------------------------------------------------------------

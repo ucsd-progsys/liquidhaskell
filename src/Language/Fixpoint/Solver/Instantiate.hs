@@ -43,7 +43,8 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg = instantiate' cfg fi
+  | False             = instantiate' cfg fi
+  | rewriteAxioms cfg = incrInstantiate' cfg fi
   | otherwise         = return fi
 
 instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
@@ -51,7 +52,7 @@ instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi), isTarget c] 
+    cstrs           = M.toList (cm fi) -- [ (i, c) | (i, c) <- M.toList (cm fi) , isTarget c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
@@ -72,17 +73,11 @@ incrInstantiate' cfg fi = do
     return $ incrSInfo cfg sEnv fi res 
   where
     t      = mkCTrie cs
-    cs     = [ (i, c) | (i, c) <- M.toList (cm fi)
-                      , isTarget c
-                      -- , FIX-THIS-HERE not (M.lookupDefault False sid (aenvExpand aenv)) = 
-                      --  return PTrue
-             ] 
+    cs     = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
+    aEnv   = ae fi 
 
-
-mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie = undefined
 
 instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
 instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) 
@@ -93,14 +88,14 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs)
 -- instT :: InstEnv a -> CTrie -> IO InstRes
 
 incrSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
-incrSInfo cfg env fi res = strengthenBinds fi res' 
+incrSInfo cfg env fi res = strengthenBinds fi' res' 
   where
     res'                 = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
     ps''                 = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
-    (ps', _ {-_axs-})    = defuncAxioms cfg env ps
+    (ps', axs)           = defuncAxioms cfg env ps
     (is, ps)             = unzip (M.toList res)
-    -- _axs'                = elaborate (atLoc dummySpan "PLE2") env <$> _axs
-    -- fi'              = fi { asserts = axs' ++ asserts fi }
+    axs'                 = elaborate (atLoc dummySpan "PLE2") env <$> axs
+    fi'                  = fi { asserts = axs' ++ asserts fi }
 
 
 withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
@@ -111,15 +106,13 @@ withCtx cfg file env k = do
   _   <- SMT.cleanupContext ctx
   return res
 
-
-
 ------------------------------------------------------------------------------- 
 -- | "Incremental" PLE
 ------------------------------------------------------------------------------- 
 
 data InstEnv a = InstEnv 
-  { ieCfg   :: !Config
-  , ieSMT   :: !SMT.Context
+  { _ieCfg  :: !Config
+  , _ieSMT  :: !SMT.Context
   , ieBEnv  :: !BindEnv
   , ieAenv  :: !AxiomEnv 
   , ieCstrs :: !(M.HashMap SubcId (SimpC a))
@@ -141,7 +134,6 @@ trieResult t env = loopT env ctx0 diff0 i0 res0 t
     i0           = 0 
 
 loopT :: InstEnv a -> Assumes -> Diff -> BindId -> InstRes -> CTrie -> IO InstRes
-
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
@@ -157,18 +149,22 @@ loopB env ctx delta i res (T.Val cid)  = do
   e' <- ple1 env ctx delta (Just cid)
   return (updRes res i e')
 
-updRes :: InstRes -> BindId -> Expr -> InstRes
-updRes = undefined
-
-updCtx :: Assumes -> Expr -> Assumes 
-updCtx = undefined
 
 ple1 :: InstEnv a -> Assumes -> Diff -> Maybe SubcId -> IO Expr 
-ple1 env ctx delta cidMb = incrInstSimpC env ctx delta (getCstr env <$> cidMb)
+ple1 env ctx delta i = incrInstSimpC env ctx delta (getCstr <$> i)
+  where 
+    getCstr cid      = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
 
-getCstr :: InstEnv a -> SubcId -> SimpC a 
-getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
+updRes :: InstRes -> BindId -> Expr -> InstRes
+updRes res i e = M.insert i e res 
 
+updCtx :: Assumes -> Expr -> Assumes 
+updCtx es e = e:es 
+
+mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
+mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+  where
+    cBinds   = L.sort . elemsIBindEnv . senv 
 
 --------------------------------------------------------------------------------
 -- | PLE for a single 'SimpC'
@@ -176,14 +172,12 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
 incrInstSimpC :: InstEnv a -> Assumes -> Diff -> Maybe (SimpC a) -> IO Expr
 --------------------------------------------------------------------------------
 incrInstSimpC env ps delta subMb = do
---  let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
   let (bs, es0) = incrCstrExprs (ieBEnv env) delta subMb
   equalities   <- incrEval env ps bs es0 
   let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
   return        $ pAnd evalEqs  
 
-incrCstrExprs :: BindEnv -> Diff -> Maybe (SimpC a) 
-              -> ([(Symbol, SortedReft)], [Expr])
+incrCstrExprs :: BindEnv -> Diff -> Maybe (SimpC a) -> ([(Symbol, SortedReft)], [Expr])
 incrCstrExprs benv diff subMb = (unElab <$> binds, unElab <$> es)
   where
     es                        = eRhs : (expr <$> binds)
@@ -197,14 +191,16 @@ instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
           -> IO Expr
 --------------------------------------------------------------------------------
 instSimpC cfg ctx bds aenv sid sub 
-  | not (M.lookupDefault False sid (aenvExpand aenv)) = 
-    return PTrue
-  | otherwise     = do
-    -- JUST PUT AT TOP! "initial Context" let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
+  | isPleCstr aenv sid sub = do
+    let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
     equalities   <- evaluate cfg ctx aenv bs es0 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
-    return        $ pAnd ({- is0 ++ -} evalEqs)  
+    return        $ pAnd (is0 ++ evalEqs)  
+  | otherwise     = return PTrue
+
+isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
+isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
 
 cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrExprs bds sub = (unElab <$> binds, unElab <$> es)
@@ -222,8 +218,6 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
       | Just _ <- unApplyAt f = EApp e1 e2
     go e                      = e
 
-
-
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
@@ -233,10 +227,10 @@ incrEval :: InstEnv a -- Config -> SMT.Context -> AxiomEnv -- ^ Definitions
          -> [Expr]                    -- ^ Candidates for unfolding 
          -> IO [(Expr, Expr)]         -- ^ Newly unfolded equalities
 --------------------------------------------------------------------------------
-incrEval (InstEnv cfg ctx _ aenv _) {- cfg ctx aenv -} ps facts es = do 
+incrEval (InstEnv cfg ctx _ aenv _) ps facts eCands = do 
   let γ        = knowledge cfg ctx aenv 
   let eqs      = initEqualities ctx aenv facts  
-  let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
+  let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps eCands)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = toSMT cfg ctx [] <$> concat 
                    [ ps
@@ -247,7 +241,6 @@ incrEval (InstEnv cfg ctx _ aenv _) {- cfg ctx aenv -} ps facts es = do
                    forM_ ctxEqs (SMT.smtAssert ctx) 
                    mapM (evalOne γ s0) cands
   return        $ eqs ++ concat eqss
-
 
 --------------------------------------------------------------------------------
 evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
