@@ -125,15 +125,14 @@ type Assumes = [Expr]     -- ultimately, the SMT context
 type Diff    = [BindId]   -- ^ in "reverse" order
 
 trieResult :: CTrie -> InstEnv a -> IO InstRes
-trieResult t env = loopT env ctx0 diff0 i0 res0 t 
+trieResult t env = loopT env ctx0 diff0 Nothing res0 t 
   where 
-    diff0        = [i0]
-    res0         = updRes M.empty i0 e0 
-    ctx0         = updCtx []         e0
+    diff0        = []
+    res0         = M.empty 
+    ctx0         = updCtx [] e0
     e0           = pAnd $ eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env) -- formerly is0 
-    i0           = 0 
 
-loopT :: InstEnv a -> Assumes -> Diff -> BindId -> InstRes -> CTrie -> IO InstRes
+loopT :: InstEnv a -> Assumes -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
@@ -142,9 +141,9 @@ loopT env ctx delta i res t = case t of
                    let res' = updRes res i e'
                    foldM (loopB env ctx' delta i) res' bs
 
-loopB :: InstEnv a -> Assumes -> Diff -> BindId -> InstRes -> CBranch -> IO InstRes
+loopB :: InstEnv a -> Assumes -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta _ res (T.Bind i t) = 
-  loopT env ctx (i:delta) i res t
+  loopT env ctx (i:delta) (Just i) res t
 loopB env ctx delta i res (T.Val cid)  = do 
   e' <- ple1 env ctx delta (Just cid)
   return (updRes res i e')
@@ -155,14 +154,15 @@ ple1 env ctx delta i = incrInstSimpC env ctx delta (getCstr <$> i)
   where 
     getCstr cid      = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
 
-updRes :: InstRes -> BindId -> Expr -> InstRes
-updRes res i e = M.insert i e res 
+updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
+updRes res (Just i) e = M.insert i e res 
+updRes res  Nothing _ = res 
 
 updCtx :: Assumes -> Expr -> Assumes 
 updCtx es e = e:es 
 
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+mkCTrie ics  = Misc.traceShow "TRIE:" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
     cBinds   = L.sort . elemsIBindEnv . senv 
 
