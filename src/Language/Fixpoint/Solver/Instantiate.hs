@@ -43,16 +43,19 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | False             = instantiate' cfg fi
-  | rewriteAxioms cfg = incrInstantiate' cfg fi
-  | otherwise         = return fi
+  | False -- rewriteAxioms cfg 
+  = instantiate' cfg fi
+  | rewriteAxioms cfg -- False 
+  = incrInstantiate' cfg fi
+  | otherwise         
+  = return fi
 
 instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = M.toList (cm fi) -- [ (i, c) | (i, c) <- M.toList (cm fi) , isTarget c] 
+    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
@@ -136,23 +139,24 @@ loopT :: InstEnv a -> Assumes -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO 
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> do e'      <- ple1 env ctx delta Nothing
+  T.Node bs  -> do e'      <- ple1 env ctx delta i Nothing
                    let ctx' = updCtx ctx e'
                    let res' = updRes res i e'
-                   foldM (loopB env ctx' delta i) res' bs
+                   foldM (loopB env ctx' [] i) res' bs
 
 loopB :: InstEnv a -> Assumes -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta _ res (T.Bind i t) = 
   loopT env ctx (i:delta) (Just i) res t
 loopB env ctx delta i res (T.Val cid)  = do 
-  e' <- ple1 env ctx delta (Just cid)
+  e' <- ple1 env ctx delta i (Just cid)
   return (updRes res i e')
 
 
-ple1 :: InstEnv a -> Assumes -> Diff -> Maybe SubcId -> IO Expr 
-ple1 env ctx delta i = incrInstSimpC env ctx delta (getCstr <$> i)
+ple1 :: InstEnv a -> Assumes -> Diff -> Maybe BindId -> Maybe SubcId -> IO Expr 
+ple1 env ctx delta i cidMb = incrInstSimpC env ctx delta (getCstr <$> tracepp msg cidMb)
   where 
-    getCstr cid      = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
+    msg                    = "PLE-1: " ++ show i 
+    getCstr cid            = Misc.safeLookup "Instantiate.getCstr" cid (ieCstrs env)
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
 updRes res (Just i) e = M.insert i e res 
@@ -177,12 +181,34 @@ incrInstSimpC env ps delta subMb = do
   let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
   return        $ pAnd evalEqs  
 
+{- 
 incrCstrExprs :: BindEnv -> Diff -> Maybe (SimpC a) -> ([(Symbol, SortedReft)], [Expr])
 incrCstrExprs benv diff subMb = (unElab <$> binds, unElab <$> es)
   where
     es                        = eRhs : (expr <$> binds)
     eRhs                      = maybe PTrue crhs subMb
     binds                     = [ lookupBindEnv i benv | i <- diff ] 
+-}
+
+{- |  [NOTE:Incremental-PLE] 
+      1. At an "internal" branch point within the trie, there is no RHS
+      2. At an "external" leaf, if the "diff" is a singleton then it is just the LHS bind,
+         and any interesting PLE-candidates are already in the environment. 
+  -} 
+
+incrCstrExprs :: BindEnv -> Diff -> Maybe (SimpC a) -> ([(Symbol, SortedReft)], [Expr])
+incrCstrExprs benv diff Nothing = (unElab <$> binds, unElab <$> es)
+  where
+    es                          = expr <$> binds
+    binds                       = [ lookupBindEnv i benv | i <- diff ] 
+
+incrCstrExprs benv diff (Just c) = (unElab <$> binds, unElab <$> es)
+  where
+    es                           = (crhs c) : (expr <$> binds)
+    binds                        = [ lookupBindEnv i benv | i <- drop (tracepp msg 1) diff ] 
+    msg                          = "incrCstrExprs: " ++ show (sid c, diff)
+    
+
 
 --------------------------------------------------------------------------------
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
@@ -218,6 +244,7 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
       | Just _ <- unApplyAt f = EApp e1 e2
     go e                      = e
 
+
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
@@ -228,20 +255,25 @@ incrEval :: InstEnv a -- Config -> SMT.Context -> AxiomEnv -- ^ Definitions
          -> IO [(Expr, Expr)]         -- ^ Newly unfolded equalities
 --------------------------------------------------------------------------------
 incrEval (InstEnv cfg ctx _ aenv _) ps facts eCands = do 
-  let γ        = knowledge cfg ctx aenv 
-  let eqs      = initEqualities ctx aenv facts  
-  let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps eCands)
-  let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
-  let ctxEqs   = toSMT cfg ctx [] <$> concat 
-                   [ ps
-                   , [ EEq e1 e2 | (e1, e2)  <- eqs ]
-                   , [ expr xr   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
-                   ]
-  eqss        <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                   forM_ ctxEqs (SMT.smtAssert ctx) 
-                   mapM (evalOne γ s0) cands
-  return        $ eqs ++ concat eqss
+  eqss    <- evalCands ctx ctxEqs γ s0 cands
+  return   $ eqs ++ concat eqss
+  where 
+    γ      = knowledge cfg ctx aenv 
+    eqs    = initEqualities ctx aenv facts  
+    cands  = tracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps eCands)
+    s0     = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
+    ctxEqs = toSMT cfg ctx [] <$> concat 
+                [ ps
+                , [ EEq e1 e2 | (e1, e2)  <- eqs ]
+                , [ expr xr   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
+                ]
 
+evalCands :: SMT.Context -> [Expr] -> Knowledge -> EvalEnv -> [Expr] -> IO [[(Expr, Expr)]]
+evalCands _   _      _ _  []    = return []
+evalCands ctx ctxEqs γ s0 cands = SMT.smtBracket ctx "PLE.evaluate" $ do
+                                    forM_ ctxEqs (SMT.smtAssert ctx) 
+                                    mapM (evalOne γ s0) cands
+ 
 --------------------------------------------------------------------------------
 evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
          -> [(Symbol, SortedReft)]            -- ^ Environment of "true" facts 
