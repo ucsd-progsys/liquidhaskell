@@ -475,9 +475,9 @@ grepDictionary _                      = Nothing
 --------------------------------------------------------------------------------
 consBind :: Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)
 --------------------------------------------------------------------------------
-consBind _ _ (x, _, t)
-  | RecSelId {} <- idDetails x -- don't check record selectors
-  = return t
+consBind _ _ (x, _, Assumed t)
+  | RecSelId {} <- idDetails x -- don't check record selectors with assumed specs
+  = return $ Assumed t -- $ F.tracepp ("TYPE FOR SELECTOR " ++ show x) t
 
 consBind isRec γ (x, e, Asserted spect)
   = do let γ'         = γ `setBind` x
