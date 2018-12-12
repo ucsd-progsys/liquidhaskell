@@ -33,7 +33,7 @@ build_script:
 
 # Test build liquid-fixpoint
 - cd liquid-fixpoint
-- echo "" | stack --no-terminal build -v --copy-bins --local-bin-path ..\
+- echo "" | stack --no-terminal build --jobs 1
 - cd ..
 
 - echo "" | stack --no-terminal --jobs 1 build --only-dependencies
