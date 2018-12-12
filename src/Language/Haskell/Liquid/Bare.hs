@@ -21,7 +21,6 @@ module Language.Haskell.Liquid.Bare (
   , saveLiftedSpec
   ) where
 
-
 import           Prelude                                    hiding (error)
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
@@ -850,14 +849,6 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     name          = Bare.tcName        tycEnv
     dms           = Bare.makeDefaultMethods env mts  
     (cls, mts)    = Bare.makeClasses        env sigEnv name specs
-    -- TODO-REBARE: -- xs'      = fst <$> ms'
-
--- checkMeasures :: MSpec SpecType Ghc.DataCon  
--- _checkMeasures ms = checkMeasure <$> ms 
--- checkMeasure m    = F.tracepp msg m 
-  -- where 
-    -- msg         = "CHECK-MEASURES: " ++ F.showpp syms
-    -- syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 

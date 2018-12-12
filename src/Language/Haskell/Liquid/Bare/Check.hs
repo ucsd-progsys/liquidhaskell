@@ -8,29 +8,15 @@
 module Language.Haskell.Liquid.Bare.Check 
   ( checkGhcSpec
   , checkBareSpec
-  -- , checkTy
-  -- , checkTerminationExpr
   ) where
-
--- import           BasicTypes
--- import           DataCon
--- import           Id
--- import           Name                                      (getSrcSpan)
--- import           Prelude                                   hiding (error)
--- import           TyCon
--- import           Var
--- import qualified SrcLoc
 
 import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
 import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
-
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
-
 import           Data.Maybe
 import           Data.Function                             (on)
 import           Text.PrettyPrint.HughesPJ
-
 import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S

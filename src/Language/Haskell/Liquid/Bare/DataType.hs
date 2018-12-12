@@ -3,8 +3,7 @@
 {-# LANGUAGE TupleSections     #-}
 
 module Language.Haskell.Liquid.Bare.DataType
-  ( 
-    dataConMap
+  ( dataConMap
 
   -- * Names for accessing Data Constuctors 
   , makeDataConChecker

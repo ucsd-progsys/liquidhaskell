@@ -71,7 +71,7 @@ refreshArgsTop (x, t)
 --   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
 freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type k e τ  =  F.tracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
+freshTy_type k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
                    <$> freshTy_reftype k (ofType τ)
 
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
