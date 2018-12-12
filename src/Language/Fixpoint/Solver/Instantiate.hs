@@ -121,11 +121,11 @@ ple1 env@(InstEnv {..}) ctx delta i cidMb res = do
   return (ctx'', res')
 
 evalCands :: SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> [Expr] -> IO [Unfold] 
-evalCands _   _ _  _      []    = return []
-evalCands ctx γ s0 ctxEqs cands = SMT.smtBracket ctx "PLE.evaluate" $ do
-                                    forM_ ctxEqs (SMT.smtAssert ctx) 
-                                    eqs <- mapM (evalOne γ s0) cands
-                                    return (zip (Just <$> cands) eqs)
+evalCands _   _ _  _     []    = return []
+evalCands ctx γ s0 assms cands = SMT.smtBracket ctx "PLE.evaluate" $ do
+                                   forM_ assms (SMT.smtAssert ctx) 
+                                   eqs <- mapM (evalOne γ s0) cands
+                                   return (zip (Just <$> cands) eqs)
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
