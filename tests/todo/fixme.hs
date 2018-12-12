@@ -1,8 +1,5 @@
-module Foo (goo) where 
+module Foo where
 
-goo :: Int 
-goo = fac 5
-
-fac :: Int -> Int 
-fac n = if n == 0 then 1 else n * (fac (n-1))
-
+{-@ bar :: x:Int -> {v:Int | v < x } @-}
+bar :: Int -> Int 
+bar x = x 
