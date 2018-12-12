@@ -9,7 +9,7 @@ init:
   
 install:
 # http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
-- set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
+- set PATH=%PATH%;C:\Program Files\Git\mingw64\bin
 
 # Download latest stable Stack tool
 - curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-i386.zip
@@ -19,7 +19,7 @@ install:
 # Install Microsoft Z3 from NuGet
 - nuget install z3x64win -Version 4.5.0.1	
 
-- set PATH=z3x64win.4.5.0.1\tools;%PATH%
+- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
 - z3 --version
 
 # Update GIT submodule
@@ -33,7 +33,7 @@ build_script:
 
 # Test build liquid-fixpoint
 - cd liquid-fixpoint
-- echo "" | ..\stack --no-terminal build -v --copy-bins --local-bin-path .
+- echo "" | stack --no-terminal build -v --copy-bins --local-bin-path ..\
 - cd ..
 
 - echo "" | stack --no-terminal --jobs 1 build --only-dependencies
