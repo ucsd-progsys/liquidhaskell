@@ -32,6 +32,8 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
+import           Debug.Trace          (trace)
+
 -- import           Text.Printf (printf)
 
 
@@ -45,7 +47,7 @@ import           Data.Char            (isUpper)
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
 pleNew :: Bool
-pleNew = False -- True -- TODO: UPDATE-ASSUMES
+pleNew = True -- True -- TODO: UPDATE-ASSUMES
 
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
@@ -180,13 +182,24 @@ loopB env ctx delta iMb res b = case b of
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
 
-updCtxRes :: ICtx -> InstRes -> Maybe BindId -> [Unfold] -> (ICtx, InstRes) 
-updCtxRes ctx res iMb us = ( ctx { icCands  = cands', icEquals = mempty}
-                           , updRes res iMb $ pAnd (equalitiesPred eqs)
-                           ) 
+updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
+updCtxRes env ctx res iMb cidMb us 
+                       = trace msg ( ctx { icCands  = cands', icEquals = mempty}
+                                   , res'
+                                   ) 
   where 
-    cands'               = S.difference (icCands ctx) (S.fromList solvedCands)
-    (solvedCands, eqs)   = unzipCat (Misc.mapFst Mb.maybeToList <$> us) 
+    msg                = Mb.maybe "nuttin\n" (debugResult env res') cidMb
+    res'               = updRes res iMb $ pAnd (equalitiesPred eqs)
+    cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
+    (solvedCands, eqs) = NO-YOU-FOOL-ONLY-REMOVE-THE-NON-EMPTy-CANDS!!! unzipCat (Misc.mapFst Mb.maybeToList <$> us) 
+
+debugResult :: InstEnv a -> InstRes -> SubcId -> String 
+debugResult (InstEnv {..}) res i = msg 
+  where 
+    msg                          = "INCR-INSTANTIATE i = " ++ show i ++ ": " ++ showpp cidEqs 
+    cidEqs                       = pAnd [ e | i <- cBinds, e <- Mb.maybeToList $ M.lookup i res ] 
+    cBinds                       = L.sort . elemsIBindEnv . senv . getCstr ieCstrs $ i
+
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
 updRes res (Just i) e = M.insert i e res 
@@ -232,10 +245,10 @@ instance PPrint CTrie where
 ple1 :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
 ple1 env@(InstEnv {..}) ctx delta i cidMb res = do 
   let ctx'          = updCtx env ctx delta cidMb 
-  let assms         = icAssms ctx'
+  let assms         = tracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
   let cands         = S.toList (icCands ctx')
   unfolds          <- evalCands ieSMT ieKnowl ieEvEnv assms cands   
-  let (ctx'', res') = updCtxRes ctx' res i unfolds
+  let (ctx'', res') = updCtxRes env ctx' res i cidMb unfolds
   return (ctx'', res')
 
 --------------------------------------------------------------------------------
