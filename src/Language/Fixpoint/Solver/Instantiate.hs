@@ -27,6 +27,7 @@ import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
 import qualified Language.Fixpoint.Utils.Trie    as T 
+import           Language.Fixpoint.Utils.Progress -- as T 
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
@@ -63,9 +64,10 @@ incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 ------------------------------------------------------------------------------- 
 incrInstantiate' cfg fi = do 
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
-    let t  = mkCTrie cs                                             -- 1. BUILD the Trie
-    res   <- withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv fi res                               -- 3. STRENGTHEN SInfo using InstRes
+    let t  = mkCTrie cs                                               -- 1. BUILD the Trie
+    res   <- withProgress (length cs) $ 
+               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
@@ -109,7 +111,8 @@ loopT env ctx delta i res t = case t of
 loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta iMb res b = case b of 
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
-  T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' ->
+  T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
+                  progressTick
                   (snd <$> ple1 env ctx' iMb (Just cid) res) 
 
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 

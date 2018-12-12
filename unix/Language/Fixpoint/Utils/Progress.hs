@@ -10,8 +10,6 @@ import           Control.Monad                    (when)
 import           System.IO.Unsafe                 (unsafePerformIO)
 import           System.Console.CmdArgs.Verbosity (isNormal)
 import           Data.IORef
-
-
 import           System.Console.AsciiProgress
 
 {-# NOINLINE pbRef #-}
@@ -34,13 +32,13 @@ progressInit n = do
     writeIORef pbRef (Just pr)
 
 mkPB   :: Int -> IO ProgressBar
-
-mkPB n = newProgressBar def { pgWidth       = 80
-                            , pgTotal       = toInteger n
-                            , pgFormat      = "Working :percent [:bar]"
-                            , pgPendingChar = '.'
-                            , pgOnCompletion = Nothing -- Just "Done solving." --  :percent."
-                            }
+mkPB n = newProgressBar def 
+  { pgWidth       = 80
+  , pgTotal       = toInteger n
+  , pgFormat      = "Working :percent [:bar]"
+  , pgPendingChar = '.'
+  , pgOnCompletion = Nothing -- Just "Done solving." --  :percent."
+  }
 
 progressTick :: IO ()
 progressTick    = go =<< readIORef pbRef
