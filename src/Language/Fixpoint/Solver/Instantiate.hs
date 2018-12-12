@@ -1,3 +1,13 @@
+--------------------------------------------------------------------------------
+-- | This module implements "Proof by Logical Evaluation" where we 
+--   unfold function definitions if they *must* be unfolded, to strengthen
+--   the environments with function-definition-equalities. 
+--   The algorithm is discussed at length in:
+-- 
+--     1. "Refinement Reflection", POPL 2018, https://arxiv.org/pdf/1711.03842
+--     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf 
+--------------------------------------------------------------------------------
+
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
@@ -7,11 +17,6 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
-
-
---------------------------------------------------------------------------------
--- | Axiom Instantiation  ------------------------------------------------------
---------------------------------------------------------------------------------
 
 module Language.Fixpoint.Solver.Instantiate (instantiate) where
 
@@ -35,19 +40,9 @@ import           Data.Char            (isUpper)
 -- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
-
-(~>) :: (Expr, String) -> Expr -> EvalST Expr
-(e, _str) ~> e' = do
-  let msg = "PLE: " ++ _str ++ showpp (e, e') 
-  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
-  return e'
-
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-incrementalPLE :: Bool
-incrementalPLE = True
-
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
   | rewriteAxioms cfg && incrementalPLE 
@@ -59,54 +54,25 @@ instantiate cfg fi
   | otherwise         
   = return fi
 
---------------------------------------------------------------------------------
--- | "Old" GLOBAL PLE 
---------------------------------------------------------------------------------
-
-instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
-instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
-  where
-    act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
-    file            = srcFile cfg ++ ".evals"
-    env             = symbolEnv cfg fi
-    aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
-
-
-sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
-  where
-    (is, ps)         = unzip ips
-    (ps', axs)       = defuncAxioms cfg env ps
-    ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
-    axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
-    fi'              = fi { asserts = axs' ++ asserts fi }
-
-
-withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
-withCtx cfg file env k = do
-  ctx <- SMT.makeContextWithSEnv cfg file env
-  _   <- SMT.smtPush ctx
-  res <- k ctx
-  _   <- SMT.cleanupContext ctx
-  return res
-
+incrementalPLE :: Bool
+incrementalPLE = True
 ------------------------------------------------------------------------------- 
--- | "Incremental" PLE
+-- | New "Incremental" PLE
 ------------------------------------------------------------------------------- 
 incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 ------------------------------------------------------------------------------- 
 incrInstantiate' cfg fi = do 
-    res   <- withCtx cfg file sEnv (trieResult t . instEnv cfg fi cs)
-    return $ incrSInfo cfg sEnv fi res 
+    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
+    let t  = mkCTrie cs                                             -- 1. BUILD the Trie
+    res   <- withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv fi res                               -- 3. STRENGTHEN SInfo using InstRes
   where
-    t      = mkCTrie cs
-    cs     = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi 
 
+------------------------------------------------------------------------------- 
+-- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
 instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
 instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
   where 
@@ -115,17 +81,66 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
     γ                 = knowledge cfg ctx aEnv 
     s0                = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg 
 
-    
-incrSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
-incrSInfo cfg env fi res = strengthenBinds fi' res' 
+---------------------------------------------------------------------------------------------- 
+-- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
+mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
+mkCTrie ics  = notracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
-    res'                 = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
-    ps''                 = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
-    (ps', axs)           = defuncAxioms cfg env ps
-    (is, ps)             = unzip (M.toList res)
-    axs'                 = elaborate (atLoc dummySpan "PLE2") env <$> axs
-    fi'                  = fi { asserts = axs' ++ asserts fi }
+    cBinds   = L.sort . elemsIBindEnv . senv 
 
+---------------------------------------------------------------------------------------------- 
+-- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
+pleTrie :: CTrie -> InstEnv a -> IO InstRes
+pleTrie t env = loopT env ctx0 diff0 Nothing res0 t 
+  where 
+    diff0        = []
+    res0         = M.empty 
+    ctx0         = initCtx es0
+    es0          = eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
+
+loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
+loopT env ctx delta i res t = case t of 
+  T.Node []  -> return res
+  T.Node [b] -> loopB env ctx delta i res b
+  T.Node bs  -> do (ctx'', res') <- ple1 env ctx delta i Nothing res 
+                   foldM (loopB env ctx'' [] i) res' bs
+
+loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
+loopB env ctx delta iMb res b = case b of 
+  T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
+  T.Val cid  -> snd <$> ple1 env ctx delta iMb (Just cid) res 
+
+-- | @ple1@ performs the PLE at a single "node" in the Trie 
+ple1 :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
+ple1 env@(InstEnv {..}) ctx delta i cidMb res = do 
+  let ctx'          = updCtx env ctx delta cidMb 
+  let assms         = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
+  let cands         = S.toList (icCands ctx')
+  unfolds          <- evalCands ieSMT ieKnowl ieEvEnv assms cands   
+  let (ctx'', res') = updCtxRes env ctx' res i cidMb unfolds
+  return (ctx'', res')
+
+evalCands :: SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> [Expr] -> IO [Unfold] 
+evalCands _   _ _  _      []    = return []
+evalCands ctx γ s0 ctxEqs cands = SMT.smtBracket ctx "PLE.evaluate" $ do
+                                    forM_ ctxEqs (SMT.smtAssert ctx) 
+                                    eqs <- mapM (evalOne γ s0) cands
+                                    return (zip (Just <$> cands) eqs)
+
+---------------------------------------------------------------------------------------------- 
+-- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
+
+resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+resSInfo cfg env fi res = strengthenBinds fi' res' 
+  where
+    res'                = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
+    ps''                = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
+    (ps', axs)          = defuncAxioms cfg env ps
+    (is, ps)            = unzip (M.toList res)
+    axs'                = elaborate (atLoc dummySpan "PLE2") env <$> axs
+    fi'                 = fi { asserts = axs' ++ asserts fi }
+
+---------------------------------------------------------------------------------------------- 
 -- | @InstEnv@ has the global information needed to do PLE
 data InstEnv a = InstEnv 
   { ieCfg   :: !Config
@@ -144,14 +159,13 @@ data ICtx    = ICtx
   , icEquals :: ![Expr]          -- ^ "Known" equalities
   } 
 
--- | @InstRes@ is th final result of PLE; a map from @BindId@ to the equations "known" at that BindId
+-- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
 type InstRes = M.HashMap BindId Expr
 
 -- | @Unfold is the result of running PLE at a single equality; 
 --     (e, [(e1, e1')...]) is the source @e@ and the (possible empty) 
 --   list of PLE-generated equalities (e1, e1') ... 
 type Unfold  = (Maybe Expr, [(Expr, Expr)])
-
 type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
@@ -159,33 +173,12 @@ type Diff    = [BindId]    -- ^ in "reverse" order
 initCtx :: [Expr] -> ICtx
 initCtx es = ICtx [] mempty es
 
-trieResult :: CTrie -> InstEnv a -> IO InstRes
-trieResult t env = loopT env ctx0 diff0 Nothing res0 t 
-  where 
-    diff0        = []
-    res0         = M.empty 
-    ctx0         = initCtx es0
-    es0          = eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env) -- formerly is0 
-
-loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
-loopT env ctx delta i res t = case t of 
-  T.Node []  -> return res
-  T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> do (ctx'', res') <- ple1 env ctx delta i Nothing res 
-                   foldM (loopB env ctx'' [] i) res' bs
-
-loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
-loopB env ctx delta iMb res b = case b of 
-  T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
-  T.Val cid  -> snd <$> ple1 env ctx delta iMb (Just cid) res 
-
-
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = {- trace msg -} 
+                       = {- trace _msg -} 
                          ( ctx { icCands  = cands', icEquals = mempty}
                          , res'
                          ) 
@@ -235,32 +228,32 @@ updCtx InstEnv {..} ctx delta cidMb
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 
-mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = notracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
-  where
-    cBinds   = L.sort . elemsIBindEnv . senv 
-
 instance PPrint CTrie where 
   pprintTidy _ = Misc.tshow 
 
 --------------------------------------------------------------------------------
--- | PLE for a single 'SimpC'
+-- | "Old" GLOBAL PLE 
 --------------------------------------------------------------------------------
-ple1 :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
-ple1 env@(InstEnv {..}) ctx delta i cidMb res = do 
-  let ctx'          = updCtx env ctx delta cidMb 
-  let assms         = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
-  let cands         = S.toList (icCands ctx')
-  unfolds          <- evalCands ieSMT ieKnowl ieEvEnv assms cands   
-  let (ctx'', res') = updCtxRes env ctx' res i cidMb unfolds
-  return (ctx'', res')
+instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
+instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
+  where
+    act ctx         = forM cstrs $ \(i, c) ->
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
+    file            = srcFile cfg ++ ".evals"
+    env             = symbolEnv cfg fi
+    aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
---------------------------------------------------------------------------------
-instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
-          -> SubcId 
-          -> SimpC a 
-          -> IO Expr
---------------------------------------------------------------------------------
+sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
+sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
+  where
+    (is, ps)         = unzip ips
+    (ps', axs)       = defuncAxioms cfg env ps
+    ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
+    axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
+    fi'              = fi { asserts = axs' ++ asserts fi }
+
+instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 
   | isPleCstr aenv sid sub = do
     let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
@@ -289,17 +282,8 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
       | Just _ <- unApplyAt f = EApp e1 e2
     go e                      = e
 
-
 --------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
---------------------------------------------------------------------------------
-evalCands :: SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> [Expr] -> IO [Unfold] 
-evalCands _   _ _  _      []    = return []
-evalCands ctx γ s0 ctxEqs cands = SMT.smtBracket ctx "PLE.evaluate" $ do
-                                    forM_ ctxEqs (SMT.smtAssert ctx) 
-                                    eqs <- mapM (evalOne γ s0) cands
-                                    return (zip (Just <$> cands) eqs)
- 
 --------------------------------------------------------------------------------
 evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
          -> [(Symbol, SortedReft)]            -- ^ Environment of "true" facts 
@@ -692,3 +676,22 @@ assertSelectors γ e = do
            return e
     go _ e
       = return e
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
+withCtx cfg file env k = do
+  ctx <- SMT.makeContextWithSEnv cfg file env
+  _   <- SMT.smtPush ctx
+  res <- k ctx
+  _   <- SMT.cleanupContext ctx
+  return res
+
+(~>) :: (Expr, String) -> Expr -> EvalST Expr
+(e, _str) ~> e' = do
+  let msg = "PLE: " ++ _str ++ showpp (e, e') 
+  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
+  return e'
+
