@@ -32,8 +32,7 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
-import           Debug.Trace          (trace)
-
+-- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
 
@@ -46,15 +45,17 @@ import           Debug.Trace          (trace)
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-pleNew :: Bool
-pleNew = True -- True -- TODO: UPDATE-ASSUMES
+incrementalPLE :: Bool
+incrementalPLE = True
 
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && not pleNew 
-  = instantiate' cfg fi
-  | rewriteAxioms cfg &&     pleNew 
+  | rewriteAxioms cfg && incrementalPLE 
   = incrInstantiate' cfg fi
+
+  | rewriteAxioms cfg -- && not incrementalPLE
+  = instantiate' cfg fi
+
   | otherwise         
   = return fi
 
@@ -66,7 +67,7 @@ instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -184,14 +185,17 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = trace msg ( ctx { icCands  = cands', icEquals = mempty}
-                                   , res'
-                                   ) 
+                       = {- trace msg -} 
+                         ( ctx { icCands  = cands', icEquals = mempty}
+                         , res'
+                         ) 
   where 
-    msg                = Mb.maybe "nuttin\n" (debugResult env res') cidMb
-    res'               = updRes res iMb $ pAnd (equalitiesPred eqs)
+    _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
+    res'               = updRes res iMb (pAnd solvedEqs) 
     cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
-    (solvedCands, eqs) = NO-YOU-FOOL-ONLY-REMOVE-THE-NON-EMPTy-CANDS!!! unzipCat (Misc.mapFst Mb.maybeToList <$> us) 
+    solvedEqs          = concatMap snd okUnfolds
+    solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
+    okUnfolds          = [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
 
 debugResult :: InstEnv a -> InstRes -> SubcId -> String 
 debugResult (InstEnv {..}) res i = msg 
@@ -205,8 +209,8 @@ updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
 updRes res (Just i) e = M.insert i e res 
 updRes res  Nothing _ = res 
 
-unzipCat :: [([b], [c])] -> ([b], [c])
-unzipCat bscss = (concatMap fst bscss, concatMap snd bscss)  
+-- unzipCat :: [([b], [c])] -> ([b], [c])
+-- unzipCat bscss = (concatMap fst bscss, concatMap snd bscss)  
 
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@ 
 --   to the context. 
@@ -232,7 +236,7 @@ getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = tracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+mkCTrie ics  = notracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
     cBinds   = L.sort . elemsIBindEnv . senv 
 
@@ -245,7 +249,7 @@ instance PPrint CTrie where
 ple1 :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
 ple1 env@(InstEnv {..}) ctx delta i cidMb res = do 
   let ctx'          = updCtx env ctx delta cidMb 
-  let assms         = tracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
+  let assms         = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
   let cands         = S.toList (icCands ctx')
   unfolds          <- evalCands ieSMT ieKnowl ieEvEnv assms cands   
   let (ctx'', res') = updCtxRes env ctx' res i cidMb unfolds
