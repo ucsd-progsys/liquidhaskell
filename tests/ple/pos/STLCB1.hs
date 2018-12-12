@@ -3,12 +3,12 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
-{-@ LIQUID "--diff"           @-}
 
 {-# LANGUAGE GADTs #-}
 
 module STLC where 
 
+import Language.Haskell.Liquid.ProofCombinators ((?))
 
 type Var = String 
 
@@ -53,7 +53,6 @@ data TEnv
 
 
 {-@ reflect seq2 @-}
--- seq2 :: (a -> b -> Result c) -> Result a -> Result b -> Result c
 seq2 :: (Val -> Val -> Result) -> Result -> Result -> Result
 seq2 f r1 r2 = case r1 of 
                  Stuck     -> Stuck 
@@ -213,17 +212,22 @@ eval_safe _ _ (EBool _) TBool  = ()
 eval_safe _ _ (EInt _)  TInt   = () 
 eval_safe g s (EBin o e1 e2) t = evalOp_res_safe o r1 r2 
   where 
-    r1                         = eval s e1 `withProof` (eval_safe g s e1 (opIn o))
-    r2                         = eval s e2 `withProof` (eval_safe g s e2 (opIn o))
-eval_safe g s (EVar x)       t = pf 
-  where 
-    (_, pf)                    = lookup_safe g s x t
+    r1                         = eval s e1 
+				 `withProof` (eval_safe g s e1 (opIn o))
+    r2                         = eval s e2 
+    			         `withProof` (eval_safe g s e2 (opIn o))
+eval_safe g s (EVar x)       t = case lookup_safe g s x t of 
+				  (_, prf) -> prf 
+  -- where 
+  --  (_, pf)                    = lookup_safe g s x t
 
 --------------------------------------------------------------------------------
 -- | Boilerplate 
 --------------------------------------------------------------------------------
 
-{-@ withProof :: x:a -> b -> {v:a | v = x} @-}
+{-@ withProof :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. x:a<pa> -> b<pb> -> {v:a<pa> | v = x} @-}
 withProof :: a -> b -> a
 withProof x y = x
+
+{- withProof :: x:a -> b -> {v:a | v = x} @-}
 
