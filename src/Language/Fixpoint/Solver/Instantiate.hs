@@ -1,3 +1,13 @@
+--------------------------------------------------------------------------------
+-- | This module implements "Proof by Logical Evaluation" where we 
+--   unfold function definitions if they *must* be unfolded, to strengthen
+--   the environments with function-definition-equalities. 
+--   The algorithm is discussed at length in:
+-- 
+--     1. "Refinement Reflection", POPL 2018, https://arxiv.org/pdf/1711.03842
+--     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf 
+--------------------------------------------------------------------------------
+
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE TupleSections             #-}
@@ -5,15 +15,10 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE ViewPatterns              #-}
 {-# LANGUAGE PatternGuards             #-}
+{-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
---------------------------------------------------------------------------------
--- | Axiom Instantiation  ------------------------------------------------------
---------------------------------------------------------------------------------
-
-module Language.Fixpoint.Solver.Instantiate (
-  instantiate
-  ) where
+module Language.Fixpoint.Solver.Instantiate (instantiate) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
@@ -21,42 +26,234 @@ import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
+import qualified Language.Fixpoint.Utils.Trie    as T 
+import           Language.Fixpoint.Utils.Progress -- as T 
 import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
+import qualified Data.HashSet         as S
 import qualified Data.List            as L
-import           Data.Maybe           (isNothing, catMaybes, fromMaybe)
+import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
+-- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
-
-(~>) :: (Expr, String) -> Expr -> EvalST Expr
-(e, _str) ~> e' = do
-  let msg = "PLE: " ++ _str ++ showpp (e, e') 
-  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
-  return e'
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg = instantiate' cfg fi
-  | otherwise         = return fi
+  | rewriteAxioms cfg && incrementalPLE 
+  = incrInstantiate' cfg fi
 
-instantiate' :: (Loc a) => Config -> GInfo SimpC a -> IO (SInfo a)
-instantiate' cfg fi = sInfo cfg fi env <$> withCtx cfg file env act
+  | rewriteAxioms cfg -- && not incrementalPLE
+  = instantiate' cfg fi
+
+  | otherwise         
+  = return fi
+
+incrementalPLE :: Bool
+incrementalPLE = True
+------------------------------------------------------------------------------- 
+-- | New "Incremental" PLE
+------------------------------------------------------------------------------- 
+incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
+------------------------------------------------------------------------------- 
+incrInstantiate' cfg fi = do 
+    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
+    let t  = mkCTrie cs                                               -- 1. BUILD the Trie
+    res   <- withProgress (length cs) $ 
+               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
+  where
+    file   = srcFile cfg ++ ".evals"
+    sEnv   = symbolEnv cfg fi
+    aEnv   = ae fi 
+
+------------------------------------------------------------------------------- 
+-- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
+instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
+instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
+  where 
+    bEnv              = bs fi
+    aEnv              = ae fi
+    γ                 = knowledge cfg ctx aEnv 
+    s0                = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg 
+
+---------------------------------------------------------------------------------------------- 
+-- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
+mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
+mkCTrie ics  = notracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+  where
+    cBinds   = L.sort . elemsIBindEnv . senv 
+
+---------------------------------------------------------------------------------------------- 
+-- | Step 2: @pleTrie@ walks over the @CTrie@ to actually do the incremental-PLE
+pleTrie :: CTrie -> InstEnv a -> IO InstRes
+pleTrie t env = loopT env ctx0 diff0 Nothing res0 t 
+  where 
+    diff0        = []
+    res0         = M.empty 
+    ctx0         = initCtx es0
+    es0          = eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
+
+loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
+loopT env ctx delta i res t = case t of 
+  T.Node []  -> return res
+  T.Node [b] -> loopB env ctx delta i res b
+  T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do 
+                  (ctx'', res') <- ple1 env ctx' i Nothing res 
+                  foldM (loopB env ctx'' [] i) res' bs
+
+loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
+loopB env ctx delta iMb res b = case b of 
+  T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
+  T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
+                  progressTick
+                  (snd <$> ple1 env ctx' iMb (Just cid) res) 
+
+withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
+withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
+  let ctx'  = updCtx env ctx delta cidMb 
+  let assms = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
+  SMT.smtBracket ieSMT  "PLE.evaluate" $ do
+    forM_ assms (SMT.smtAssert ieSMT) 
+    act ctx'
+
+-- | @ple1@ performs the PLE at a single "node" in the Trie 
+ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
+ple1 env@(InstEnv {..}) ctx i cidMb res = do 
+  let cands = S.toList (icCands ctx) 
+  unfolds  <- evalCands ieKnowl ieEvEnv cands   
+  return    $ updCtxRes env ctx res i cidMb unfolds
+
+evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
+evalCands _ _  []    = return []
+evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
+                          return (zip (Just <$> cands) eqs)
+
+---------------------------------------------------------------------------------------------- 
+-- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
+
+resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
+resSInfo cfg env fi res = strengthenBinds fi' res' 
+  where
+    res'                = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
+    ps''                = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
+    (ps', axs)          = defuncAxioms cfg env ps
+    (is, ps)            = unzip (M.toList res)
+    axs'                = elaborate (atLoc dummySpan "PLE2") env <$> axs
+    fi'                 = fi { asserts = axs' ++ asserts fi }
+
+---------------------------------------------------------------------------------------------- 
+-- | @InstEnv@ has the global information needed to do PLE
+data InstEnv a = InstEnv 
+  { ieCfg   :: !Config
+  , ieSMT   :: !SMT.Context
+  , ieBEnv  :: !BindEnv
+  , ieAenv  :: !AxiomEnv 
+  , ieCstrs :: !(M.HashMap SubcId (SimpC a))
+  , ieKnowl :: !Knowledge
+  , ieEvEnv :: !EvalEnv
+  } 
+
+-- | @ICtx@ is the local information -- at each trie node -- obtained by incremental PLE
+data ICtx    = ICtx 
+  { icAssms  :: ![Pred]          -- ^ Hypotheses, already converted to SMT format 
+  , icCands  :: S.HashSet Expr   -- ^ "Candidates" for unfolding
+  , icEquals :: ![Expr]          -- ^ "Known" equalities
+  } 
+
+-- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
+type InstRes = M.HashMap BindId Expr
+
+-- | @Unfold is the result of running PLE at a single equality; 
+--     (e, [(e1, e1')...]) is the source @e@ and the (possible empty) 
+--   list of PLE-generated equalities (e1, e1') ... 
+type Unfold  = (Maybe Expr, [(Expr, Expr)])
+type CTrie   = T.Trie   SubcId
+type CBranch = T.Branch SubcId
+type Diff    = [BindId]    -- ^ in "reverse" order
+
+initCtx :: [Expr] -> ICtx
+initCtx es = ICtx [] mempty es
+
+equalitiesPred :: [(Expr, Expr)] -> [Expr]
+equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
+
+updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
+updCtxRes env ctx res iMb cidMb us 
+                       = {- trace _msg -} 
+                         ( ctx { icCands  = cands', icEquals = mempty}
+                         , res'
+                         ) 
+  where 
+    _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
+    res'               = updRes res iMb (pAnd solvedEqs) 
+    cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
+    solvedEqs          = concatMap snd okUnfolds
+    solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
+    okUnfolds          = [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
+
+debugResult :: InstEnv a -> InstRes -> SubcId -> String 
+debugResult (InstEnv {..}) res i = msg 
+  where 
+    msg                          = "INCR-INSTANTIATE i = " ++ show i ++ ": " ++ showpp cidEqs 
+    cidEqs                       = pAnd [ e | i <- cBinds, e <- Mb.maybeToList $ M.lookup i res ] 
+    cBinds                       = L.sort . elemsIBindEnv . senv . getCstr ieCstrs $ i
+
+
+updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
+updRes res (Just i) e = M.insert i e res 
+updRes res  Nothing _ = res 
+
+-- unzipCat :: [([b], [c])] -> ([b], [c])
+-- unzipCat bscss = (concatMap fst bscss, concatMap snd bscss)  
+
+-- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@ 
+--   to the context. 
+updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
+updCtx InstEnv {..} ctx delta cidMb 
+              = ctx { icAssms  = ctxEqs  -- <> icAssms  ctx
+                    , icCands  = cands   <> icCands  ctx
+                    , icEquals = initEqs <> icEquals ctx }
+  where         
+    initEqs   = equalitiesPred (initEqualities ieSMT ieAenv bs)
+    cands     = S.fromList (concatMap topApps es0)
+    ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
+                  [ initEqs 
+                  , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
+                  ]
+    (bs, es0) = (unElab <$> binds, unElab <$> es)
+    es        = eRhs : (expr <$> binds) 
+    eRhs      = maybe PTrue crhs subMb
+    binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
+    subMb     = getCstr ieCstrs <$> cidMb
+
+getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
+getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
+
+instance PPrint CTrie where 
+  pprintTidy _ = Misc.tshow 
+
+--------------------------------------------------------------------------------
+-- | "Old" GLOBAL PLE 
+--------------------------------------------------------------------------------
+instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
+instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = M.toList (cm fi)
+    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
-sInfo :: Config -> GInfo SimpC a -> SymEnv -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
+sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
+sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
@@ -64,37 +261,18 @@ sInfo cfg fi env ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$
     axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
     fi'              = fi { asserts = axs' ++ asserts fi }
 
-withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
-withCtx cfg file env k = do
-  ctx <- SMT.makeContextWithSEnv cfg file env
-  _   <- SMT.smtPush ctx
-  res <- k ctx
-  _   <- SMT.cleanupContext ctx
-  return res
-
-
---------------------------------------------------------------------------------
--- | Partition Binds into individual "owning" constraints, to not repeat PLE 
---   for each bind, but instead, to just do PLE for that bind while at the 
---   the "root" constraint.
---------------------------------------------------------------------------------
-
---------------------------------------------------------------------------------
--- | PLE for a single 'SimpC'
---------------------------------------------------------------------------------
-instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv
-          -> Integer -> SimpC a 
-          -> IO Expr
---------------------------------------------------------------------------------
+instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 
-  | not (M.lookupDefault False sid (aenvExpand aenv)) = 
-    return PTrue
-  | otherwise                                         = do
+  | isPleCstr aenv sid sub = do
     let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
-    equalities   <- evaluate cfg ctx bs aenv es0 
+    equalities   <- evaluate cfg ctx aenv bs es0 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
     return        $ pAnd (is0 ++ evalEqs)  
+  | otherwise     = return PTrue
+
+isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
+isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
 
 cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
 cstrExprs bds sub = (unElab <$> binds, unElab <$> es)
@@ -113,166 +291,14 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
     go e                      = e
 
 --------------------------------------------------------------------------------
--- | Knowledge (SMT Interaction)
---------------------------------------------------------------------------------
-data Knowledge = KN 
-  { knSims    :: ![Rewrite]           -- ^ Measure info, asserted for each new Ctor ('assertSelectors')
-  , knAms     :: ![Equation]          -- ^ (Recursive) function definitions, used for PLE
-  , knContext :: SMT.Context
-  , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-  , knLams    :: [(Symbol, Sort)]
-  }
-
-isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = knPreds γ (knContext γ) (knLams γ) e
-
-isProof :: (a, SortedReft) -> Bool 
-isProof (_, RR s _) = showpp s == "Tuple"
-
-knowledge :: Config -> SMT.Context -> AxiomEnv -> Knowledge
-knowledge cfg ctx aenv = KN 
-  { knSims    = aenvSimpl aenv
-  , knAms     = aenvEqs   aenv
-  , knContext = ctx 
-  , knPreds   = askSMT    cfg 
-  , knLams    = [] 
-  } 
-
--- | This creates the rewrite rule e1 -> e2, applied when:
--- 1. when e2 is a DataCon and can lead to further reductions
--- 2. when size e2 < size e1
-
-initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
-initEqualities ctx aenv es = simpleEqs
-  where
-    simpleEqs              = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
-    dcEqs                  = Misc.hashNub (catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
-    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
-    senv                   = SMT.ctxSymEnv ctx
-
--- AT: Non-obvious needed invariant: askSMT True is always the 
--- totality-effecting one.
--- RJ: What does "totality effecting" mean? 
-
-askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-askSMT cfg ctx bs e
-  | isTautoPred  e     = return True
-  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
-  | otherwise          = return False
-  where 
-    e'                 = toSMT cfg ctx bs e 
-
-toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
-  where
-    elabEnv      = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
-    senv         = SMT.ctxSymEnv ctx
-
-makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
-makeSimplifications sis (dc, es, e)
-     = go =<< sis
- where
-   go (SMeasure f dc' xs bd)
-     | dc == dc', length xs == length es
-     = [(EApp (EVar f) e, subst (mkSubst $ zip xs es) bd)]
-   go _
-     = []
-
-getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
-getDCEquality senv e1 e2
-  | Just dc1 <- f1
-  , Just dc2 <- f2
-  = if dc1 == dc2
-      then Nothing
-      else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
-  | Just dc1 <- f1
-  = Just (dc1, es1, e2)
-  | Just dc2 <- f2
-  = Just (dc2, es2, e1)
-  | otherwise
-  = Nothing
-  where
-    (f1, es1) = Misc.mapFst (getDC senv) (splitEApp e1)
-    (f2, es2) = Misc.mapFst (getDC senv) (splitEApp e2)
-
--- TODO: Stringy hacks
-getDC :: SymEnv -> Expr -> Maybe Symbol
-getDC senv (EVar x)
-  | isUpperSymbol x && isNothing (symEnvTheory x senv)
-  = Just x
-getDC _ _
-  = Nothing
-
-isUpperSymbol :: Symbol -> Bool
-isUpperSymbol = isUpper . headSym . dropModuleNames
-
-dropModuleNames :: Symbol -> Symbol
-dropModuleNames = mungeNames (symbol . last) "."
-  where
-    mungeNames _ _ ""  = ""
-    mungeNames f d s'@(symbolText -> s)
-      | s' == tupConName = tupConName
-      | otherwise        = f $ T.splitOn d $ stripParens s
-
-    stripParens t = fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
-
-splitPAnd :: Expr -> [Expr]
-splitPAnd (PAnd es) = concatMap splitPAnd es
-splitPAnd e         = [e]
-
---------------------------------------------------------------------------------
--- | Creating Measure Info
---------------------------------------------------------------------------------
--- AT@TODO do this for all reflected functions, not just DataCons
-
-{- [NOTE:Datacon-Selectors] The 'assertSelectors' function
-   insert measure information for every constructor that appears
-   in the expression e.
-
-   In theory, this is not required as the SMT ADT encoding takes
-   care of it. However, in practice, some constructors, e.g. from
-   GADTs cannot be directly encoded in SMT due to the lack of SMTLIB
-   support for GADT. Hence, we still need to hang onto this code.
-
-   See tests/proof/ple2.fq for a concrete example.
- -}
-
-assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors γ e = do
-    sims <- aenvSimpl <$> gets _evAEnv
-    -- cfg  <- gets evCfg
-    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (notracepp "assertSelector" e) sims
-    forM_ sims $ \s -> Vis.mapMExpr (go s) e
-    return ()
-  where
-    go :: Rewrite -> Expr -> EvalST Expr
-    go (SMeasure f dc xs bd) e@(EApp _ _)
-      | (EVar dc', es) <- splitEApp e
-      , dc == dc'
-      , length xs == length es
-      = do let e1 = EApp (EVar f) e
-           let e2 = subst (mkSubst $ zip xs es) bd
-           addEquality γ e1 e2
-           return e
-    go _ e
-      = return e
-
---------------------------------------------------------------------------------
 -- | Symbolic Evaluation with SMT
 --------------------------------------------------------------------------------
-data EvalEnv = EvalEnv
-  { evId        :: !Int
-  , evSequence  :: [(Expr,Expr)]
-  , _evAEnv     :: !AxiomEnv
-  , evEnv       :: !SymEnv
-  , _evCfg      :: !Config
-  }
-
-type EvalST a = StateT EvalEnv IO a
-
-evaluate :: Config -> SMT.Context -> [(Symbol, SortedReft)] -> AxiomEnv -> [Expr] 
-         -> IO [(Expr, Expr)]
-evaluate cfg ctx facts aenv es = do 
+evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
+         -> [(Symbol, SortedReft)]            -- ^ Environment of "true" facts 
+         -> [Expr]                            -- ^ Candidates for unfolding 
+         -> IO [(Expr, Expr)]                 -- ^ Newly unfolded equalities
+--------------------------------------------------------------------------------
+evaluate cfg ctx aenv facts es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
   let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
@@ -283,6 +309,19 @@ evaluate cfg ctx facts aenv es = do
                    forM_ ctxEqs (SMT.smtAssert ctx) 
                    mapM (evalOne γ s0) cands
   return        $ eqs ++ concat eqss
+
+
+--------------------------------------------------------------------------------
+data EvalEnv = EvalEnv
+  { evId        :: !Int
+  , evSequence  :: [(Expr,Expr)]
+  , _evAEnv     :: !AxiomEnv
+  , evEnv       :: !SymEnv
+  , _evCfg      :: !Config
+  }
+
+type EvalST a = StateT EvalEnv IO a
+--------------------------------------------------------------------------------
 
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
 evalOne γ s0 e = do
@@ -503,3 +542,164 @@ evalIte' γ _ b e1 e2 _ _
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
+
+--------------------------------------------------------------------------------
+-- | Knowledge (SMT Interaction)
+--------------------------------------------------------------------------------
+data Knowledge = KN 
+  { knSims    :: ![Rewrite]           -- ^ Measure info, asserted for each new Ctor ('assertSelectors')
+  , knAms     :: ![Equation]          -- ^ (Recursive) function definitions, used for PLE
+  , knContext :: SMT.Context
+  , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+  , knLams    :: [(Symbol, Sort)]
+  }
+
+isValid :: Knowledge -> Expr -> IO Bool
+isValid γ e = knPreds γ (knContext γ) (knLams γ) e
+
+isProof :: (a, SortedReft) -> Bool 
+isProof (_, RR s _) = showpp s == "Tuple"
+
+knowledge :: Config -> SMT.Context -> AxiomEnv -> Knowledge
+knowledge cfg ctx aenv = KN 
+  { knSims    = aenvSimpl aenv
+  , knAms     = aenvEqs   aenv
+  , knContext = ctx 
+  , knPreds   = askSMT    cfg 
+  , knLams    = [] 
+  } 
+
+-- | This creates the rewrite rule e1 -> e2, applied when:
+-- 1. when e2 is a DataCon and can lead to further reductions
+-- 2. when size e2 < size e1
+initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
+initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
+  where
+    dcEqs                  = Misc.hashNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
+    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
+    senv                   = SMT.ctxSymEnv ctx
+
+-- AT: Non-obvious needed invariant: askSMT True is always the 
+-- totality-effecting one.
+-- RJ: What does "totality effecting" mean? 
+
+askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
+askSMT cfg ctx bs e
+  | isTautoPred  e     = return True
+  | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
+  | otherwise          = return False
+  where 
+    e'                 = toSMT cfg ctx bs e 
+
+toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
+toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
+  where
+    elabEnv      = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
+    senv         = SMT.ctxSymEnv ctx
+
+makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
+makeSimplifications sis (dc, es, e)
+     = go =<< sis
+ where
+   go (SMeasure f dc' xs bd)
+     | dc == dc', length xs == length es
+     = [(EApp (EVar f) e, subst (mkSubst $ zip xs es) bd)]
+   go _
+     = []
+
+getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
+getDCEquality senv e1 e2
+  | Just dc1 <- f1
+  , Just dc2 <- f2
+  = if dc1 == dc2
+      then Nothing
+      else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
+  | Just dc1 <- f1
+  = Just (dc1, es1, e2)
+  | Just dc2 <- f2
+  = Just (dc2, es2, e1)
+  | otherwise
+  = Nothing
+  where
+    (f1, es1) = Misc.mapFst (getDC senv) (splitEApp e1)
+    (f2, es2) = Misc.mapFst (getDC senv) (splitEApp e2)
+
+-- TODO: Stringy hacks
+getDC :: SymEnv -> Expr -> Maybe Symbol
+getDC senv (EVar x)
+  | isUpperSymbol x && Mb.isNothing (symEnvTheory x senv)
+  = Just x
+getDC _ _
+  = Nothing
+
+isUpperSymbol :: Symbol -> Bool
+isUpperSymbol = isUpper . headSym . dropModuleNames
+
+dropModuleNames :: Symbol -> Symbol
+dropModuleNames = mungeNames (symbol . last) "."
+  where
+    mungeNames _ _ ""  = ""
+    mungeNames f d s'@(symbolText -> s)
+      | s' == tupConName = tupConName
+      | otherwise        = f $ T.splitOn d $ stripParens s
+    stripParens t = Mb.fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
+
+splitPAnd :: Expr -> [Expr]
+splitPAnd (PAnd es) = concatMap splitPAnd es
+splitPAnd e         = [e]
+
+--------------------------------------------------------------------------------
+-- | Creating Measure Info
+--------------------------------------------------------------------------------
+-- AT@TODO do this for all reflected functions, not just DataCons
+
+{- [NOTE:Datacon-Selectors] The 'assertSelectors' function
+   insert measure information for every constructor that appears
+   in the expression e.
+
+   In theory, this is not required as the SMT ADT encoding takes
+   care of it. However, in practice, some constructors, e.g. from
+   GADTs cannot be directly encoded in SMT due to the lack of SMTLIB
+   support for GADT. Hence, we still need to hang onto this code.
+
+   See tests/proof/ple2.fq for a concrete example.
+ -}
+
+assertSelectors :: Knowledge -> Expr -> EvalST ()
+assertSelectors γ e = do
+    sims <- aenvSimpl <$> gets _evAEnv
+    -- cfg  <- gets evCfg
+    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (notracepp "assertSelector" e) sims
+    forM_ sims $ \s -> Vis.mapMExpr (go s) e
+    return ()
+  where
+    go :: Rewrite -> Expr -> EvalST Expr
+    go (SMeasure f dc xs bd) e@(EApp _ _)
+      | (EVar dc', es) <- splitEApp e
+      , dc == dc'
+      , length xs == length es
+      = do let e1 = EApp (EVar f) e
+           let e2 = subst (mkSubst $ zip xs es) bd
+           addEquality γ e1 e2
+           return e
+    go _ e
+      = return e
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+withCtx :: Config -> FilePath -> SymEnv -> (SMT.Context -> IO a) -> IO a
+withCtx cfg file env k = do
+  ctx <- SMT.makeContextWithSEnv cfg file env
+  _   <- SMT.smtPush ctx
+  res <- k ctx
+  _   <- SMT.cleanupContext ctx
+  return res
+
+(~>) :: (Expr, String) -> Expr -> EvalST Expr
+(e, _str) ~> e' = do
+  let msg = "PLE: " ++ _str ++ showpp (e, e') 
+  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
+  return e'
+

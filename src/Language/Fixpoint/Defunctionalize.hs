@@ -29,7 +29,6 @@ import qualified Data.HashMap.Strict as M
 import           Data.Hashable
 import           Data.Maybe             (isJust, maybeToList)
 import qualified Data.List           as L
-
 import           Control.Monad.State
 import           Language.Fixpoint.Misc            (sortNub, fM, whenM, secondM, mapSnd)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
