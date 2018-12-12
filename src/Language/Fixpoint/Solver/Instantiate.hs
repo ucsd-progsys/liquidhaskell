@@ -102,30 +102,35 @@ loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO Ins
 loopT env ctx delta i res t = case t of 
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
-  T.Node bs  -> do (ctx'', res') <- ple1 env ctx delta i Nothing res 
-                   foldM (loopB env ctx'' [] i) res' bs
+  T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do 
+                  (ctx'', res') <- ple1 env ctx' i Nothing res 
+                  foldM (loopB env ctx'' [] i) res' bs
 
 loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
 loopB env ctx delta iMb res b = case b of 
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
-  T.Val cid  -> snd <$> ple1 env ctx delta iMb (Just cid) res 
+  T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' ->
+                  (snd <$> ple1 env ctx' iMb (Just cid) res) 
+
+withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
+withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
+  let ctx'  = updCtx env ctx delta cidMb 
+  let assms = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
+  SMT.smtBracket ieSMT  "PLE.evaluate" $ do
+    forM_ assms (SMT.smtAssert ieSMT) 
+    act ctx'
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
-ple1 :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
-ple1 env@(InstEnv {..}) ctx delta i cidMb res = do 
-  let ctx'          = updCtx env ctx delta cidMb 
-  let assms         = notracepp ("ple1-assms: " ++ show cidMb) (icAssms ctx')
-  let cands         = S.toList (icCands ctx')
-  unfolds          <- evalCands ieSMT ieKnowl ieEvEnv assms cands   
-  let (ctx'', res') = updCtxRes env ctx' res i cidMb unfolds
-  return (ctx'', res')
+ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
+ple1 env@(InstEnv {..}) ctx i cidMb res = do 
+  let cands = S.toList (icCands ctx) 
+  unfolds  <- evalCands ieKnowl ieEvEnv cands   
+  return    $ updCtxRes env ctx res i cidMb unfolds
 
-evalCands :: SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> [Expr] -> IO [Unfold] 
-evalCands _   _ _  _     []    = return []
-evalCands ctx γ s0 assms cands = SMT.smtBracket ctx "PLE.evaluate" $ do
-                                   forM_ assms (SMT.smtAssert ctx) 
-                                   eqs <- mapM (evalOne γ s0) cands
-                                   return (zip (Just <$> cands) eqs)
+evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
+evalCands _ _  []    = return []
+evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
+                          return (zip (Just <$> cands) eqs)
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
@@ -209,7 +214,7 @@ updRes res  Nothing _ = res
 --   to the context. 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
 updCtx InstEnv {..} ctx delta cidMb 
-              = ctx { icAssms  = ctxEqs  <> icAssms  ctx
+              = ctx { icAssms  = ctxEqs  -- <> icAssms  ctx
                     , icCands  = cands   <> icCands  ctx
                     , icEquals = initEqs <> icEquals ctx }
   where         
