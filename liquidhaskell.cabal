@@ -1,5 +1,5 @@
 Name:                liquidhaskell
-Version:             0.8.4.0
+Version:             0.8.5.0
 Copyright:           2010-18 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 Synopsis:            Liquid Types for Haskell
 Description:         Liquid Types for Haskell.
@@ -109,8 +109,8 @@ Executable liquid
 Library
    Default-Language: Haskell98
    Build-Depends: base >=4.11.1.0 && <5
-                , ghc == 8.4.3
-                , ghc-boot == 8.4.3
+                , ghc == 8.4.4
+                , ghc-boot == 8.4.4
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
