@@ -116,7 +116,8 @@ _ =>= y  = y
 
 infixl 3 ?
 
-(?) :: a -> Proof -> a 
+{-@ (?) :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
+(?) :: a -> b -> a 
 x ? _ = x 
 {-# INLINE (?)   #-} 
 
@@ -165,7 +166,7 @@ x &&& _ = x
 
 {-@ withProof :: x:a -> b -> {v:a | v = x} @-}
 withProof :: a -> b -> a
-withProof x y = x
+withProof x _ = x
 
 {-@ impossible :: {v:a | false} -> b @-}
 impossible :: a -> b

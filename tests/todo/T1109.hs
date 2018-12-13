@@ -5,11 +5,9 @@
 -- nonlinear-cuts (i.e. they add new cut vars that require qualifiers.) why?
 -- where? switch off non-lin-cuts in higher-order mode?
 
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--eliminate=all"   @-}
-
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+{-@ LIQUID "--reflection"    @-}
+{-@ LIQUID "--ple-local"     @-}
+{-@ LIQUID "--eliminate=all" @-}
 
 module Unify where
 

@@ -249,7 +249,7 @@ This flag is **global** and will symbolically evaluate all the terms that appear
 As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
 
 ```
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+{-@ LIQUID "--ple-local" @-}
 ```
 
 will only evaluate terms appearing in the specifications

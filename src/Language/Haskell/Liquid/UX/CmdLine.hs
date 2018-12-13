@@ -325,15 +325,21 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  , autoInstantiate
-    = def
-          &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
-          &= name "automatic-instances"
+  -- PLE-OPT , autoInstantiate
+    -- PLE-OPT = def
+          -- PLE-OPT &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
+          -- PLE-OPT &= name "automatic-instances"
 
   , proofLogicEval
     = def  
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
+
+  , proofLogicEvalLocal
+    = def  
+        &= help "Enable Proof-by-Logical-Evaluation locally, per function"
+        &= name "ple-local"
+
 
   , reflection 
     = def 
@@ -550,10 +556,11 @@ defConfig = Config
   , eliminate         = FC.Some
   , noPatternInline   = False
   , noSimplifyCore    = False
-  , autoInstantiate   = def
+  -- PLE-OPT , autoInstantiate   = def
   , noslice           = False
   , noLiftedImport    = False
   , proofLogicEval    = False
+  , proofLogicEvalLocal = False
   , reflection        = False
   , compileSpec       = False
   }

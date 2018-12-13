@@ -4,7 +4,6 @@
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE BangPatterns      #-}
 
--- REBARE: formerly, Language.Haskell.Liquid.Bare.Spec
 module Language.Haskell.Liquid.Bare.Class 
   ( makeClasses
   , makeSpecDictionaries
@@ -71,7 +70,6 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     ms'    = [ (s, rFun "" (RApp cc (flip RVar mempty <$> as) [] mempty) <$> t) | (s, t) <- ms]
     t      = rCls tc as'
 
-
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Either UserError LocSpecType     
 mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
   where 
@@ -81,7 +79,6 @@ mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv 
 unClass :: SpecType -> SpecType 
 unClass = snd . bkClass . fourth4 . bkUniv
 
--- formerly, makeSpec
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
          -> Either UserError (ModName, PlugTV Ghc.Var, LocSpecType)
 makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env sigEnv name mbV bt
@@ -89,7 +86,6 @@ makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env si
     mbV = case Bare.maybeResolveSym env name "makeMethod" lx of 
             Just v  -> Bare.LqTV v 
             Nothing -> Bare.GenTV 
-
 
 -------------------------------------------------------------------------------
 makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var SpecType 

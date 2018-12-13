@@ -433,7 +433,7 @@ lookupGhcVar env name kind lx =
     Right v -> Mb.fromMaybe v       (lookupLocalVar env lx [v]) 
     Left  e -> Mb.fromMaybe (err e) (lookupLocalVar env lx []) 
   where
-    -- err e   = Misc.errorP "error-lookupGhcVar" (F.showpp e)
+    -- err e   = Misc.errorP "error-lookupGhcVar" (F.showpp (e, F.loc lx, lx))
     err     = Ex.throw
 
 -- | @lookupLocalVar@ takes as input the list of "global" (top-level) vars 

@@ -1,12 +1,23 @@
 # TODO
 
-- [] Fix termination tests in fail.txt 
-- [] Fix resolve     tests in fail.txt 
-- [] Fix eq-repr     tests in fail.txt 
-- [] Remove trace 
-- [] Remove warnings 
-- [] fix circle
-- [] merge PR
+## PLE-OPT 
+
+- [x] Don't generate KVars inside "proofs" [somehow causes proofs to fail]
+- []  Only run INSTANTIATE/PLE on constraints with a concrete LHS?
+- []  Fancy TRIE to do INCREMENTAL PLE.
+
+
+```
+$ time stack exec -- fixpoint ple-overhead.bfq --allowho --eliminate=some
+
+Safe
+        0.29 real         0.26 user         0.13 sys
+
+$ time stack exec -- fixpoint ple-overhead.bfq --allowho --eliminate=some --rewrite
+
+Safe
+        0.54 real         0.53 user         0.18 sys
+```
 
 
 ## CallStack/Error

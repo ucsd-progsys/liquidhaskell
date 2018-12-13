@@ -3,7 +3,6 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
-{-LIQUID "--diff"           @-}
 
 {-# LANGUAGE GADTs #-}
 

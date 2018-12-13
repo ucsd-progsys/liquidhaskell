@@ -21,7 +21,6 @@ module Language.Haskell.Liquid.Bare (
   , saveLiftedSpec
   ) where
 
-
 import           Prelude                                    hiding (error)
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
@@ -438,8 +437,7 @@ addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ gsAsmSigs sig }
     reflSigs         = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
-makeAutoInst env name spec = 
-  Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
+makeAutoInst env name spec = Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
 makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv 
@@ -750,7 +748,7 @@ mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
 
 
 mkReft :: LocSymbol -> Symbol -> SpecType -> SpecType -> Maybe (Symbol, Expr)
-mkReft x z t tr 
+mkReft x z _t tr 
   | Just q <- stripRTypeBase tr
   = let Reft (v, p) = toReft q
         su          = mkSubst [(v, mkEApp x [EVar v])]
@@ -851,14 +849,6 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     name          = Bare.tcName        tycEnv
     dms           = Bare.makeDefaultMethods env mts  
     (cls, mts)    = Bare.makeClasses        env sigEnv name specs
-    -- TODO-REBARE: -- xs'      = fst <$> ms'
-
--- checkMeasures :: MSpec SpecType Ghc.DataCon  
--- _checkMeasures ms = checkMeasure <$> ms 
--- checkMeasure m    = F.tracepp msg m 
-  -- where 
-    -- msg         = "CHECK-MEASURES: " ++ F.showpp syms
-    -- syms        = M.keys (Ms.measMap m) ++ M.keys (Ms.cmeasMap m) 
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 

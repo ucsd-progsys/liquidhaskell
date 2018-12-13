@@ -1,5 +1,5 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 -- TAG: absref 
 

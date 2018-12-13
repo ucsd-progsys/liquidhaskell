@@ -2,7 +2,6 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-  LIQUID "--diff"       @-}
 {-@ infixr ++             @-}
 
 {-# LANGUAGE GADTs #-}

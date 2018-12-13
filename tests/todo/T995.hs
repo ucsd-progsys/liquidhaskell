@@ -1,5 +1,5 @@
 {-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 module Basics
   ( Peano(..)

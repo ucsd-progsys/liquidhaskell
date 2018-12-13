@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {- LIQUID "--totality"        @-}
 {-@ LIQUID "--exact-data-cons" @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 {-@ LIQUID "--fuel=10" @-}
 
 {-# LANGUAGE IncoherentInstances   #-}

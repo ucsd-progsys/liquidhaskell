@@ -577,10 +577,10 @@ instance Simplify C.CoreExpr where
     = simplify e
   simplify (C.Let xes e)
     = C.Let (simplify xes) (simplify e)
-  simplify (C.Case e x t alts@[(_,_,ee),_,_]) | isBangInteger alts
+  simplify (C.Case e x _t alts@[(_,_,ee),_,_]) | isBangInteger alts
     = Misc.traceShow ("To simplify case") $ 
        sub (M.singleton x (simplify e)) (simplify ee)
-  simplify ce@(C.Case e x t alts)
+  simplify (C.Case e x t alts)
     = C.Case (simplify e) x t (filter (not . isUndefined) (simplify <$> alts))
   simplify (C.Cast e c)
     = C.Cast (simplify e) c
