@@ -65,7 +65,7 @@ incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 incrInstantiate' cfg fi = do 
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
-    res   <- withProgress (length cs) $ 
+    res   <- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
