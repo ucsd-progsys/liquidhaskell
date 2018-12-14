@@ -90,6 +90,7 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ allow axiom instantiation via rewriting
+  , incrPLE          :: Bool           -- ^ use incremental PLE 
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -171,6 +172,7 @@ defConfig = Config {
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
+  , incrPLE          = False &= help "use incremental PLE" 
   }
   &= verbosity
   &= program "fixpoint"

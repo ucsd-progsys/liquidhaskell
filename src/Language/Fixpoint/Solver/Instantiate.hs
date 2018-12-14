@@ -46,7 +46,7 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && incrementalPLE 
+  | rewriteAxioms cfg && incrPLE cfg
   = incrInstantiate' cfg fi
 
   | rewriteAxioms cfg -- && not incrementalPLE
@@ -55,8 +55,6 @@ instantiate cfg fi
   | otherwise         
   = return fi
 
-incrementalPLE :: Bool
-incrementalPLE = True
 ------------------------------------------------------------------------------- 
 -- | New "Incremental" PLE
 ------------------------------------------------------------------------------- 
