@@ -165,7 +165,7 @@ result :: (F.Fixpoint a, F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Sol
 --------------------------------------------------------------------------------
 result cfg wkl s = do
   lift $ writeLoud "Computing Result"
-  stat    <- result_ wkl s
+  stat    <- result_ cfg wkl s
   lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
   F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
   where
@@ -174,12 +174,18 @@ result cfg wkl s = do
 solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
-result_ :: (F.Loc a, NFData a) => W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_  w s = res <$> filterM (isUnsat s) cs
+result_ :: (F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
+result_  cfg w s = res <$> filterM (isUnsat s) cs
   where
-    cs       = W.unsatCandidates w
-    res []   = F.Safe
-    res cs'  = F.Unsafe cs'
+    cs           = isChecked cfg (W.unsatCandidates w)
+    res []       = F.Safe
+    res cs'      = F.Unsafe cs'
+
+isChecked :: Config -> [F.SimpC a] -> [F.SimpC a]
+isChecked cfg cs = case checkCstr cfg of 
+  []   -> cs 
+  ids  -> let s = S.fromList ids in 
+          [c | c <- cs, S.member (F.subcId c) s ]
 
 --------------------------------------------------------------------------------
 -- | `minimizeResult` transforms each KVar's result by removing
