@@ -37,6 +37,7 @@ module Language.Fixpoint.Types.Constraints (
   , TaggedC, clhs, crhs
   -- , strengthenLhs
   , strengthenHyp
+  , strengthenBinds
 
   -- * Accessing Constraints
   , addIds
@@ -167,12 +168,11 @@ data SimpC a = SimpC
   { _cenv  :: !IBindEnv
   , _crhs  :: !Expr
   , _cid   :: !(Maybe Integer)
-  , cbind :: !BindId               -- ^ Id of lhs/rhs binder
+  , cbind  :: !BindId               -- ^ Id of lhs/rhs binder
   , _ctag  :: !Tag
   , _cinfo :: !a
   }
   deriving (Generic, Functor)
-
 
 instance Loc a => Loc (SimpC a) where 
   srcSpan = srcSpan . _cinfo
@@ -180,7 +180,7 @@ instance Loc a => Loc (SimpC a) where
 strengthenHyp :: SInfo a -> [(Integer, Expr)] -> SInfo a
 strengthenHyp si ies = strengthenBinds si bindExprs
   where
-    bindExprs        = safeFromList "strengthenHyp" (mapFst (subcBind si) <$> ies)
+    bindExprs        = safeFromList "strengthenHyp" [ (subcBind si i, e) | (i, e) <- ies ]
 
 subcBind :: SInfo a -> SubcId -> BindId
 subcBind si i
@@ -681,7 +681,7 @@ data GInfo c a = FI
   , bindInfo :: !(M.HashMap BindId a)      -- ^ Metadata about binders
   , ddecls   :: ![DataDecl]                -- ^ User-defined data declarations
   , hoInfo   :: !HOInfo                    -- ^ Higher Order info
-  , asserts  :: ![Triggered Expr]
+  , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
   , ae       :: AxiomEnv
   }
   deriving (Eq, Show, Functor, Generic)

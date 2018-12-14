@@ -99,6 +99,7 @@ Library
                    Language.Fixpoint.Misc,
                    Language.Fixpoint.Utils.Progress,
                    Language.Fixpoint.Utils.Files,
+                   Language.Fixpoint.Utils.Trie,
                    Language.Fixpoint.Solver.GradualSolution,
                    Language.Fixpoint.Solver.Solution,
                    Language.Fixpoint.Solver.Worklist,
@@ -229,6 +230,7 @@ test-suite testparser
                  Language.Fixpoint.Types.Triggers
                  Language.Fixpoint.Types.Utils
                  Language.Fixpoint.Utils.Files
+                 Language.Fixpoint.Utils.Trie
                  Text.PrettyPrint.HughesPJ.Compat
 
     build-depends:

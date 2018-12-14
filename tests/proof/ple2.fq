@@ -1,20 +1,20 @@
 fixpoint "--rewrite"
 
-constant mkQQ  : (func(0, [int; QQ]))
-constant QQ    : (func(0, [int; QQ]))
-constant selQQ : (func(0, [QQ; int]))
+constant maker    : (func(0, [int; QQ]))
+constant QQ       : (func(0, [int; QQ]))
+constant selector : (func(0, [QQ; int]))
 
-match selQQ QQ x = (x)
+match selector QQ x = (x)
 
-define mkQQ(n : int) : QQ = (((mkQQ n) = (QQ n)))
-define QQ(z : int) : QQ   = ((selQQ (QQ z)) = z)
+define maker(n : int) : QQ = (((maker n) = (QQ n)))
+define QQ(z : int) : QQ   = ((selector (QQ z)) = z)
 
 expand [1 : True]
 
-bind 0 z : {v: QQ | v = mkQQ 10 }
+bind 0 z : {v: QQ | v = maker 10 }
 
 constraint:
-  env []
-  lhs {v : QQ | v = mkQQ 10  }
-  rhs {v : QQ | selQQ v = 10 }
+  env [0]
+  lhs {v : QQ | v = z }
+  rhs {v : QQ | selector v = 10 }
   id 1 tag []
