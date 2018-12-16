@@ -38,7 +38,7 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
-import           Debug.Trace          (trace)
+-- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
 --------------------------------------------------------------------------------
@@ -184,7 +184,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = trace _msg 
+                       = -- trace _msg 
                          ( ctx { icCands  = cands', icEquals = mempty}
                          , res'
                          ) 
