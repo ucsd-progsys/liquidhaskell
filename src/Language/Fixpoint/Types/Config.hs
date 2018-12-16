@@ -173,7 +173,7 @@ defConfig = Config {
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
-  , incrPle          = False &= help "Use incremental PLE"
+  , incrPle          = True  &= help "Use incremental PLE"
   , checkCstr        = []    &= help "Only check these specific constraint-ids" 
   }
   &= verbosity

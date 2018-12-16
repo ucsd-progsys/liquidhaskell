@@ -177,7 +177,7 @@ type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: [Expr] -> ICtx
-initCtx es = ICtx [] mempty (tracepp "INITIAL-STUFF-INCR" es)
+initCtx es = ICtx [] mempty (notracepp "INITIAL-STUFF-INCR" es)
 
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
@@ -244,7 +244,7 @@ instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -262,7 +262,7 @@ sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 
   | isPleCstr aenv sid sub = do
-    let is0       = tracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
+    let is0       = notracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
     equalities   <- evaluate cfg ctx aenv bs es0 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
@@ -299,14 +299,14 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = tracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
+  let cands    = Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
   eqss        <- SMT.smtBracket ctx "PLE.evaluate" $ do
                    forM_ ctxEqs (SMT.smtAssert ctx) 
                    mapM (evalOne γ s0) cands
-  return        $ eqs ++ concat (tracepp "evaluate: eqss" eqss)
+  return        $ eqs ++ concat eqss
 
 
 --------------------------------------------------------------------------------
