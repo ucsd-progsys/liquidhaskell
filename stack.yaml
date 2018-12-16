@@ -1,7 +1,6 @@
 resolver: lts-12.15
 
 packages:
-- liquid-fixpoint/
 - '.'
 
 extra-deps:

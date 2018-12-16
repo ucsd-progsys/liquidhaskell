@@ -33,13 +33,13 @@ build_script:
 
 # Test build liquid-fixpoint
 - cd liquid-fixpoint
-- echo "" | stack --no-terminal build --jobs 1
+- echo "" | stack --no-terminal --jobs 1 build --copy-bins --local-bin-path ..
 - cd ..
 
 - echo "" | stack --no-terminal --jobs 1 build --only-dependencies
 
 # Build LiquidHaskell
-- echo "" | stack --no-terminal --jobs 4 build -v --copy-bins --local-bin-path .
+- echo "" | stack --no-terminal --jobs 4 build --copy-bins --local-bin-path .
 
 # ZIP execturable
 - 7z a liquidhaskell.zip liquid.exe fixpoint.exe LICENSE LICENSE_Z3 %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
