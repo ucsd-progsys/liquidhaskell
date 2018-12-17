@@ -70,6 +70,7 @@ initEnv info
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
        f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
+       f3'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
        f3       <- refreshArgs' $ vals gsAsmSigs (gsSig sp)                  -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
@@ -79,7 +80,7 @@ initEnv info
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3, f4, f5]
+       let bs    = (tx <$> ) <$> [f0 ++ f0', f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
@@ -227,11 +228,22 @@ assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
     xs          = S.fromList . f             $ info
     sigs        = gsTySigs  . gsSig . giSpec $ info
 
+
+recSelectorsTy :: GhcInfo -> CG [(Var, SpecType)]
+recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (varType v)
+  where
+    topVs        = filter isTop $ giDefVars (giSrc info)
+    isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) &&  isRecordSelector v
+    sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp]
+    sp           = gsSig . giSpec $ info
+    
+
+
 grtyTop :: GhcInfo -> CG [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
-    isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs)
+    isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) && not (isRecordSelector v)
     sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp]
     sp           = gsSig . giSpec $ info
 
