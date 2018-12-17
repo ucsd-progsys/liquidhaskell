@@ -89,8 +89,14 @@ data Config = Config
   , autoKuts         :: Bool           -- ^ ignore given kut variables
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
+<<<<<<< HEAD
   , rewriteAxioms    :: Bool           -- ^ allow axiom instantiation via rewriting
   , incrPLE          :: Bool           -- ^ use incremental PLE 
+=======
+  , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
+  , incrPle          :: Bool           -- ^ Use incremental PLE
+  , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
+>>>>>>> 59410b20075932d1bc5b4bed7bdad3c20efc1016
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -163,16 +169,21 @@ defConfig = Config {
   , minimizeKs       = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
   , minimalSol       = False &= help "Shrink fixpoint by removing implied qualifiers"
   , gradual          = False &= help "Solve gradual-refinement typing constraints"
-  , ginteractive      = False &= help "Interactive Gradual Solving"
+  , ginteractive     = False &= help "Interactive Gradual Solving"
   , extensionality   = False &= help "Allow function extensionality axioms"
   , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
   , betaEquivalence  = False &= help "Allow lambda alpha equivalence axioms"
-  , normalForm       = False  &= help "Allow lambda normal-form equivalence axioms"
+  , normalForm       = False &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
+<<<<<<< HEAD
   , incrPLE          = False &= help "use incremental PLE" 
+=======
+  , incrPle          = True  &= help "Use incremental PLE"
+  , checkCstr        = []    &= help "Only check these specific constraint-ids" 
+>>>>>>> 59410b20075932d1bc5b4bed7bdad3c20efc1016
   }
   &= verbosity
   &= program "fixpoint"
