@@ -46,7 +46,7 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && incrementalPLE 
+  | rewriteAxioms cfg && incrPle cfg 
   = incrInstantiate' cfg fi
 
   | rewriteAxioms cfg -- && not incrementalPLE
@@ -55,8 +55,6 @@ instantiate cfg fi
   | otherwise         
   = return fi
 
-incrementalPLE :: Bool
-incrementalPLE = True
 ------------------------------------------------------------------------------- 
 -- | New "Incremental" PLE
 ------------------------------------------------------------------------------- 
@@ -179,14 +177,14 @@ type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: [Expr] -> ICtx
-initCtx es = ICtx [] mempty es
+initCtx es = ICtx [] mempty (notracepp "INITIAL-STUFF-INCR" es)
 
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = {- trace _msg -} 
+                       = -- trace _msg 
                          ( ctx { icCands  = cands', icEquals = mempty}
                          , res'
                          ) 
@@ -194,7 +192,7 @@ updCtxRes env ctx res iMb cidMb us
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
     cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
-    solvedEqs          = concatMap snd okUnfolds
+    solvedEqs          = icEquals ctx ++ concatMap snd okUnfolds
     solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
     okUnfolds          = [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
 
@@ -217,7 +215,7 @@ updRes res  Nothing _ = res
 --   to the context. 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
 updCtx InstEnv {..} ctx delta cidMb 
-              = ctx { icAssms  = ctxEqs  -- <> icAssms  ctx
+              = ctx { icAssms  = ctxEqs  
                     , icCands  = cands   <> icCands  ctx
                     , icEquals = initEqs <> icEquals ctx }
   where         
@@ -264,7 +262,7 @@ sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 
   | isPleCstr aenv sid sub = do
-    let is0       = eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
+    let is0       = notracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
     equalities   <- evaluate cfg ctx aenv bs es0 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
@@ -301,7 +299,7 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = notracepp "evaluate: cands" $ Misc.hashNub (concatMap topApps es)
+  let cands    = Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 

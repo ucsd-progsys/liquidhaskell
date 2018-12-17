@@ -1,51 +1,51 @@
 # TODO
 
-## PLE-OPT
+## PLE-DEBUG
 
-Use tries to make PLE "incremental"
+GOOD [OLD]
 
-```haskell
-data Trie a
-  = Node ![Branch a]
-  deriving (Eq, Show)
-
-data Branch a
-  = Bind !Key !(Trie a)
-  | Val a
-  deriving (Eq, Show)
-
-type Result  = M.HashMap Key !Expr
-type CTrie   = Trie   SubcId
-type CBranch = Branch SubcId
-
-type Context = [Expr]                      -- ultimately, the SMT context 
-
-trieInstantiate :: Env -> CTrie -> Result
+stack exec -- fixpoint tests/todo/IndPalindrome.hs.bfq --allowho --eliminate=some --rewrite > log.old 2>&1
 
 
-ple1 :: Env -> Context -> Diff -> BindId -> Maybe SubCid -> Expr 
-ple1 = undefined
+Trace: [INSTANTIATE i = 26] : ((isJust GHC.Base.Nothing <=> false))
+&& ((((((is$GHC.Types.: GHC.Types.[] <=> false)
+        && (is$GHC.Types.[] GHC.Types.[] <=> true))
+       && (is$GHC.Types.: GHC.Types.[] <=> false))
+      && (is$GHC.Types.[] GHC.Types.[] <=> true))
+     && len GHC.Types.[] == 0))
+&& (((((is$IndPalindrome.Pals IndPalindrome.Pal0 <=> false)
+       && (is$IndPalindrome.Pal1 IndPalindrome.Pal0 <=> false))
+      && (is$IndPalindrome.Pal0 IndPalindrome.Pal0 <=> true))
+     && prop IndPalindrome.Pal0 == IndPalindrome.Pal GHC.Types.[]))
+     
+&& IndPalindrome.Pal (IndPalindrome.single d2DX) == IndPalindrome.Pal (GHC.Types.: d2DX GHC.Types.[])
+&& len (GHC.Types.: d2DX GHC.Types.[]) == 1 + len GHC.Types.[]
+&& is$GHC.Types.[] (GHC.Types.: d2DX GHC.Types.[]) == false
+&& is$GHC.Types.: (GHC.Types.: d2DX GHC.Types.[]) == true
+&& lqdc##$select##GHC.Types.:##1 (GHC.Types.: d2DX GHC.Types.[]) == d2DX
+&& lqdc##$select##GHC.Types.:##2 (GHC.Types.: d2DX GHC.Types.[]) == GHC.Types.[]
+&& is$GHC.Types.[] (GHC.Types.: d2DX GHC.Types.[]) == false
+&& is$GHC.Types.: (GHC.Types.: d2DX GHC.Types.[]) == true
+&& lqdc##$select##GHC.Types.:##1 (GHC.Types.: d2DX GHC.Types.[]) == d2DX
+&& lqdc##$select##GHC.Types.:##2 (GHC.Types.: d2DX GHC.Types.[]) == GHC.Types.[]
+&& head (GHC.Types.: d2DX GHC.Types.[]) == d2DX
+&& tail (GHC.Types.: d2DX GHC.Types.[]) == GHC.Types.[]
 
-updRes :: Result -> BindId -> Expr -> Result
-updRes = undefined
 
-updCtx :: Context -> Expr -> Context
-updCtx = undefined
+BAD [NEW]
 
+stack exec -- fixpoint tests/todo/IndPalindrome.hs.bfq --allowho --eliminate=some --rewrite --incr > log.new 2>&1
 
-loopT :: Env -> Context -> Diff -> BindId -> Result -> CTrie   -> Result
-loopT env ctx delta i res (Node [])  = res
-loopT env ctx delta i res (Node [b]) = loopB env ctx delta i res b
-loopT env ctx delta i res (Node bs)  = L.foldl' (loopB ctx' delta i) res' bs
-  where
-    e'                               = ple1 env ctx delta i None
-    ctx'                             = updCtx ctx e'
-    res'                             = updRes res i e'
-
-loopB :: Env -> Context -> Diff -> BindId -> Result -> CBranch -> Result
-loopB env ctx delta i res (Arc i t)  = loopT env ctx (i:delta) i res t
-loopB env ctx delta i res (Val cid)  = updRes res i e'
-  where
-    e'                               = ple1 env ctx delta i (Just cid)
-
-```
+INCR-INSTANTIATE i = 26: 
+(IndPalindrome.Pal (IndPalindrome.single d2DX) == IndPalindrome.Pal (GHC.Types.: d2DX GHC.Types.[])
+ && len (GHC.Types.: d2DX GHC.Types.[]) == 1 + len GHC.Types.[]
+ && is$GHC.Types.[] (GHC.Types.: d2DX GHC.Types.[]) == false
+ && is$GHC.Types.: (GHC.Types.: d2DX GHC.Types.[]) == true
+ && lqdc##$select##GHC.Types.:##1 (GHC.Types.: d2DX GHC.Types.[]) == d2DX
+ && lqdc##$select##GHC.Types.:##2 (GHC.Types.: d2DX GHC.Types.[]) == GHC.Types.[]
+ && is$GHC.Types.[] (GHC.Types.: d2DX GHC.Types.[]) == false
+ && is$GHC.Types.: (GHC.Types.: d2DX GHC.Types.[]) == true
+ && lqdc##$select##GHC.Types.:##1 (GHC.Types.: d2DX GHC.Types.[]) == d2DX
+ && lqdc##$select##GHC.Types.:##2 (GHC.Types.: d2DX GHC.Types.[]) == GHC.Types.[]
+ && head (GHC.Types.: d2DX GHC.Types.[]) == d2DX
+ && tail (GHC.Types.: d2DX GHC.Types.[]) == GHC.Types.[])
