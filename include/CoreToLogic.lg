@@ -42,3 +42,5 @@ define Control.Parallel.Strategies.withStrategy s x = (x)
 
 define ProofCombinators.cast x y = (y)
 define Language.Haskell.Liquid.Equational.eq x y = (y)
+
+define GHC.CString.unpackCString# x = x
