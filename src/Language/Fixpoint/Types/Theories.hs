@@ -152,7 +152,7 @@ funcSortIndex env e z = M.lookupDefault err z (seAppls env)
     err               = panic ("Unknown func-sort: " ++ showpp z ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
-ffuncSort env t      = tracepp ("ffuncSort " ++ showpp (t1,t2)) (tx t1, tx t2)
+ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
   where
     tx               = applySmtSort (seData env) 
     (t1, t2)         = args t

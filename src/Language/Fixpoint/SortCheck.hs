@@ -567,7 +567,7 @@ takeArgs env e es =
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
   where
-    f                      = tracepp ("makeApplication: " ++ showpp (e2, t2)) $ applyAt t2 s
+    f                      = {- notracepp ("makeApplication: " ++ showpp (e2, t2)) $ -} applyAt t2 s
     t2                     = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
