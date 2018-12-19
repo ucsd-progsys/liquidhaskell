@@ -38,7 +38,7 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
--- import           Debug.Trace          (trace)
+import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
 --------------------------------------------------------------------------------
@@ -46,7 +46,7 @@ import           Data.Char            (isUpper)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && incrPle cfg 
+  | rewriteAxioms cfg && False -- incrPle cfg 
   = incrInstantiate' cfg fi
 
   | rewriteAxioms cfg -- && not incrementalPLE
@@ -184,7 +184,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = -- trace _msg 
+                       = trace _msg 
                          ( ctx { icCands  = cands', icEquals = mempty}
                          , res'
                          ) 
@@ -244,7 +244,7 @@ instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -299,7 +299,7 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = Misc.hashNub (concatMap topApps es)
+  let cands    = tracepp "evaluate-cands" $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
@@ -349,14 +349,16 @@ eval :: Knowledge -> Expr -> EvalST Expr
 eval γ (ELam (x,s) e)
   = do e'    <- eval γ{knLams = (x, s) : knLams γ} e
        return $ ELam (x, s) e'
-
 eval γ e@(EIte b e1 e2)
   = do b' <- eval γ b
        evalIte γ e b' e1 e2
 eval γ (ECoerc s t e)
   = ECoerc s t <$> eval γ e
+
 eval γ e@(EApp _ _)
-  = evalArgs γ e >>= evalApp γ e
+  = do args <- evalArgs γ e
+       tracepp ("evalApp: " ++ showpp (e, args)) <$> evalApp γ e args
+
 eval γ e@(EVar _)
   = evalApp γ e (e,[])
 eval γ (PAtom r e1 e2)
