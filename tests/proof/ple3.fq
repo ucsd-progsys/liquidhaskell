@@ -24,15 +24,16 @@ expand [2 : True]
 
 bind 0 s0 : {v: Blob | true }
 
+// UNSAT because we dont use the equality from v1 = set... when ple-ing (get v1 ...) 
 constraint:
   env [0]
   lhs {v1 : Blob | v1 = set s0 66 100  }
   rhs {v1 : Blob | get v1 66 = 100 }
   id 1 tag []
 
-// THE FOLLOWING IS FINE 
-// constraint:
-  // env [0]
-  // lhs {v2 : Blob | true  }
-  // rhs {v2 : Blob | get (set s0 66 100) 66 = 100 }
-  // id 2 tag []
+// SAT because the ple implementation first "normalizes" the arg to set
+constraint:
+  env [0]
+  lhs {v2 : Blob | true  }
+  rhs {v2 : Blob | get (set s0 66 100) 66 = 100 }
+  id 2 tag []
