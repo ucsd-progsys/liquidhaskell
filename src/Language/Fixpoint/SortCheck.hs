@@ -111,7 +111,7 @@ instance Elaborate Sort where
   elaborate _ _ = go
    where
       go s | isString s = strSort
-      go (FAbs i s)    = FAbs i $ go s
+      go (FAbs i s)    = FAbs i   (go s)
       go (FFunc s1 s2) = funSort (go s1) (go s2)
       go (FApp s1 s2)  = FApp    (go s1) (go s2)
       go s             = s
@@ -567,7 +567,8 @@ takeArgs env e es =
 makeApplication :: Expr -> (Expr, Sort) -> Expr
 makeApplication e1 (e2, s) = ECst (EApp (EApp f e1) e2) s
   where
-    f                      = applyAt (exprSort "makeAppl" e2) s
+    f                      = tracepp ("makeApplication: " ++ showpp (e2, t2)) $ applyAt t2 s
+    t2                     = exprSort "makeAppl" e2
 
 applyAt :: Sort -> Sort -> Expr
 applyAt s t = ECst (EVar applyName) (FFunc s t)
@@ -604,10 +605,7 @@ splitArgs :: Expr -> (Expr, [(Expr, Sort)])
 splitArgs = go []
   where
     go acc (ECst (EApp e1 e) s) = go ((e, s) : acc) e1
-    -- go acc e@(EApp f _)
-    --    | Just _ <- unApplyAt f   = (e, acc)
     go _   e@EApp{}             = errorstar $ "UNEXPECTED: splitArgs: EApp without output type: " ++ showpp e
-    -- go acc (ECst e _)           = go acc e
     go acc e                    = (e, acc)
 
 --------------------------------------------------------------------------------

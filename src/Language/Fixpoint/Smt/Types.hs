@@ -60,11 +60,12 @@ instance PPrint Command where
   pprintTidy _ = ppCmd
 
 ppCmd :: Command -> Doc
-ppCmd Push          = text "Push"
-ppCmd Pop           = text "Pop"
-ppCmd CheckSat      = text "CheckSat"
-ppCmd (DeclData d)  = text "Data" <+> pprint d
-ppCmd (Declare {})  = text "Declare ..."
+ppCmd Push             = text "Push"
+ppCmd Pop              = text "Pop"
+ppCmd CheckSat         = text "CheckSat"
+ppCmd (DeclData d)     = text "Data" <+> pprint d
+ppCmd (Declare x [] t) = text "Declare" <+> pprint x <+> text ":" <+> pprint t
+ppCmd (Declare x ts t) = text "Declare" <+> pprint x <+> text ":" <+> parens (pprint ts) <+> pprint t 
 ppCmd (Define {})   = text "Define ..."
 ppCmd (Assert _ e)  = text "Assert" <+> pprint e
 ppCmd (AssertAx _)  = text "AssertAxiom ..."
