@@ -1,23 +1,9 @@
 # TODO
 
-## PLE-OPT 
+## GET-SET 
 
-- [x] Don't generate KVars inside "proofs" [somehow causes proofs to fail]
-- []  Only run INSTANTIATE/PLE on constraints with a concrete LHS?
-- []  Fancy TRIE to do INCREMENTAL PLE.
-
-
-```
-$ time stack exec -- fixpoint ple-overhead.bfq --allowho --eliminate=some
-
-Safe
-        0.29 real         0.26 user         0.13 sys
-
-$ time stack exec -- fixpoint ple-overhead.bfq --allowho --eliminate=some --rewrite
-
-Safe
-        0.54 real         0.53 user         0.18 sys
-```
+1. Why does `GetSet3` work with the recursive `get` definition but not the indirection via `getDefault`? 
+2. Why does `GetSet5` require the silly `GState {}` case split? (When the `GetSet5_mono.hs` version does not!)
 
 
 ## CallStack/Error
