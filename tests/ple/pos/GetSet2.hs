@@ -17,7 +17,7 @@ get s x = s x
 ok :: State -> () 
 ok _ = ()
 
-{-@ fails :: s:State -> { s1:State | get s1 "x" == 10 } @-}
-fails :: State -> State  
-fails s = set s "x" 10
+{-@ fails :: s:State -> { v:Int | v == 10 } @-}
+fails :: State -> Int 
+fails s = (set s "x" 10) "x"
 
