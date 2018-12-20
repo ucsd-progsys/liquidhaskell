@@ -46,7 +46,7 @@ import           Debug.Trace          (trace)
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg  && False -- incrPle cfg 
+  | rewriteAxioms cfg  && incrPle cfg 
   = incrInstantiate' cfg fi
 
   | rewriteAxioms cfg -- && not incrementalPLE
@@ -125,15 +125,32 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
 ple1 env@(InstEnv {..}) ctx i cidMb res = do 
   let cands = S.toList (icCands ctx) 
-  unfolds  <- evalCands ieKnowl ieEvEnv cands   
+  -- unfolds  <- evalCands ieKnowl ieEvEnv cands   
+  unfolds  <- evalCandsLoop ieCfg ieSMT ieKnowl ieEvEnv cands   
   return    $ updCtxRes env ctx res i cidMb unfolds
 
-evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
-evalCands _ _  []    = return []
-evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
-                          return (zip (Just <$> cands) (tracepp "evalCands" eqs)  )
+_evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
+_evalCands _ _  []    = return []
+_evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
+                           return $ mkUnfolds (zip (Just <$> cands) eqs)
 
+unfoldPred :: Config -> SMT.Context -> [Unfold] -> Pred 
+unfoldPred cfg ctx = toSMT cfg ctx [] . pAnd . concatMap snd  
 
+evalCandsLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
+evalCandsLoop cfg ctx γ s0 cands = go [] cands 
+  where 
+    go acc []    = return acc 
+    go acc cands = do eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                                  SMT.smtAssert ctx (unfoldPred cfg ctx acc) 
+                                  mapM (evalOne γ s0) cands
+                      let us  = zip (Just <$> cands) eqss 
+                      case mkUnfolds us of 
+                        []  -> return acc 
+                        us' -> do let acc'   = acc ++ us' 
+                                  let oks    = S.fromList [ e | (Just e, _) <- us' ]
+                                  let cands' = [ e | e <- cands, not (S.member e oks) ] 
+                                  go acc' cands' 
 
 
 ---------------------------------------------------------------------------------------------- 
@@ -174,7 +191,8 @@ type InstRes = M.HashMap BindId Expr
 -- | @Unfold is the result of running PLE at a single equality; 
 --     (e, [(e1, e1')...]) is the source @e@ and the (possible empty) 
 --   list of PLE-generated equalities (e1, e1') ... 
-type Unfold  = (Maybe Expr, [(Expr, Expr)])
+-- type Unfold  = (Maybe Expr, [(Expr, Expr)])
+type Unfold  = (Maybe Expr, [Expr])
 type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
@@ -185,9 +203,13 @@ initCtx es = ICtx [] mempty (notracepp "INITIAL-STUFF-INCR" es)
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
 
+notrace msg x 
+  | False     = trace msg x 
+  | otherwise = x 
+
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = trace _msg 
+                       = notrace _msg 
                          ( ctx { icCands  = cands', icEquals = mempty}
                          , res'
                          ) 
@@ -195,11 +217,14 @@ updCtxRes env ctx res iMb cidMb us
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
     cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
-    solvedEqs          = icEquals ctx ++ concatMap snd okUnfolds
-    solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
-    okUnfolds          = [ (eMb, ps)  | (eMb, eqs) <- us
-                                      , let ps = equalitiesPred eqs
-                                      , not (null ps) ] 
+    solvedEqs          = icEquals ctx ++ concatMap snd us
+    solvedCands        = [ e          | (Just e, _) <- us]
+
+mkUnfolds :: [(a, [(Expr, Expr)])] -> [(a, [Expr])]
+mkUnfolds us = [ (eMb, ps)  | (eMb, eqs) <- us
+                            , let ps = equalitiesPred eqs
+                            , not (null ps) 
+               ] 
 
 debugResult :: InstEnv a -> InstRes -> SubcId -> String 
 debugResult (InstEnv {..}) res i = msg 
@@ -249,7 +274,7 @@ instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
@@ -304,7 +329,7 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = tracepp "evaluate-cands" $ Misc.hashNub (concatMap topApps es)
+  let cands    = notracepp "evaluate-cands" $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
@@ -378,11 +403,8 @@ eval γ e@(EIte b e1 e2)
        evalIte γ e b' e1 e2
 eval γ (ECoerc s t e)
   = ECoerc s t <$> eval γ e
-
 eval γ e@(EApp _ _)
-  = do args <- evalArgs γ e
-       tracepp ("evalApp: " ++ showpp (e, args)) <$> evalApp γ e args
-
+  = evalArgs γ e >>= evalApp γ e 
 eval γ e@(EVar _)
   = evalApp γ e (e,[])
 eval γ (PAtom r e1 e2)
