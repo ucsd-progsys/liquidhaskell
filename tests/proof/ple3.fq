@@ -1,5 +1,6 @@
 fixpoint "--rewrite"
 
+
 data Blob 0 = [
   | VEmp  { }
   | VCons { blobKey : Int , blobVal : Int, blobTail : Blob} 
