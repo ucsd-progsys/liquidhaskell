@@ -130,6 +130,7 @@ errorTests = group "Error-Messages"
     -- , errorTest "tests/errors/MissingAbsRefArgs.hs"   2 "Illegal type specification for `Fixme.bar`"
 
     errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
+  , errorTest "tests/errors/IndStarErr.hs"          2 "Error: Malformed prop"
   , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Error: Multiple specifications for `pig`"
   , errorTest "tests/errors/MultiRecSels.hs"        2 "Duplicated definitions for field `left`" 
   , errorTest "tests/errors/DupFunSigs.hs"          2 "Multiple specifications for `Main.fromWeekDayNum`"
