@@ -109,8 +109,8 @@ Executable liquid
 Library
    Default-Language: Haskell98
    Build-Depends: base >=4.11.1.0 && <5
-                , ghc == 8.4.3
-                , ghc-boot == 8.4.3
+                , ghc == 8.4.4
+                , ghc-boot == 8.4.4
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
