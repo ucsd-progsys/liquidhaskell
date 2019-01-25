@@ -197,7 +197,7 @@ getStructArgs src args =
 structDecreasing :: Env () -> S.HashSet Call -> Result ()
 structDecreasing env calls
   | S.null calls = mempty
-  | not $ S.null nonDecCalls = raiseErr nonDecCalls
+  | not $ S.null $ nonDec calls = raiseErr $ nonDec calls
   | otherwise =
       let ca = commonArgs calls in
         if S.null ca then
@@ -208,7 +208,7 @@ structDecreasing env calls
     raiseErr calls =
       retErr env $ text "Non-structural recursion in calls" <+>
       (text $ showPpr (S.map callSource calls))
-    nonDecCalls = S.filter (S.null . decreasingArgs) calls
+    nonDec calls = S.filter (S.null . decreasingArgs) calls
     commonArgs calls = foldl1 S.intersection (S.map candidateArgs calls)
     removeDecreasing args call
       | S.null (decreasingArgs call `S.difference` args) = Nothing
