@@ -1,12 +1,8 @@
-{-@ LIQUID "--exactdc" @-}
-
 module B where 
 
-import A 
+    import C
+    
+    data B a = B {b1 :: a, b2 :: a }
+    {-@ data B a = B {b1 :: a, b2 :: {v:a | cProp b1 v } } @-}
 
-data Bar = Bar {barFoo :: Foo Int Int} 
-{-@ data Bar = Bar {barFoo :: Foo} @-}
 
-{-@ reflect bar @-}
-bar :: Bar -> Int 
-bar (Bar (Foo x _)) = x 

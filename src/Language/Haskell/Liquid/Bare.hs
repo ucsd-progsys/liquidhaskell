@@ -67,7 +67,7 @@ loadLiftedSpec cfg srcF
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
-      Ex.evaluate lSp
+      Ex.evaluate $ F.tracepp "loaded spec = " lSp
 
 errMissingSpec :: FilePath -> FilePath -> UserError 
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
@@ -83,6 +83,7 @@ warnMissingLiftedSpec srcF specF = do
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
 saveLiftedSpec src sp = do
   ensurePath specF
+  putStrLn ("To write in " ++ show specF ++ "\n\n" ++ show lspec)
   B.encodeFile specF lspec
   -- print (errorP "DIE" "HERE" :: String) 
   where
@@ -97,10 +98,10 @@ saveLiftedSpec src sp = do
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap mspecs0  
-           = checkThrow (Bare.checkGhcSpec mspecs renv cbs sp)
+           = checkThrow (Bare.checkGhcSpec (F.tracepp "mspecs" mspecs) renv cbs sp)
   where 
-    mspecs = [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] 
-    sp     = makeGhcSpec0 cfg src lmap mspecs 
+    mspecs = mspecs0 -- [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] -- , isTarget m ] 
+    sp     = F.tracepp "Final Spec" $  makeGhcSpec0 cfg src lmap mspecs 
     renv   = ghcSpecEnv sp 
     cbs    = giCbs src
 
@@ -117,6 +118,7 @@ ghcSpecEnv sp = fromListSEnv (binds)
                  , [(symbol v, vSort v) | v              <- gsReflects (gsRefl sp)]
                  , [(x,        vSort v) | (x, v)         <- gsFreeSyms (gsName sp), Ghc.isConLikeId v ]
                  , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
+                 , [(x, RR s mempty)    | (x, s)         <- gsImps sp       ]
                  ]
     vSort     = Bare.varSortedReft emb -- rSort . varRSort
     rSort     = rTypeSortedReft    emb 
@@ -133,6 +135,7 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc
 -------------------------------------------------------------------------------------
 makeGhcSpec0 cfg src lmap mspecs = SP 
   { gsConfig = cfg 
+  , gsImps   = makeImports mspecs
   , gsSig    = addReflSigs refl sig 
   , gsRefl   = refl 
   , gsData   = sData 
@@ -140,9 +143,14 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsName   = makeSpecName env     tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 
+  , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
+                   impSigs = makeImports mspecs,
+                   expSigs = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
+                   , dataDecls = dataDecls mySpec2 
+                   } 
   }
   where
+    l       = F.dummyPos "expand-LSpec"
     -- build up spec components 
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
@@ -153,29 +161,35 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
     mySpec   = mySpec2 <> lSpec1 
-    lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
+    lSpec1   = F.tracepp "lspec1" (lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1)
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
     tyi      = Bare.tcTyConMap   tycEnv 
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
-    mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
-    iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
+    mySpec2  = F.tracepp "mySpecs0" $ Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
+    iSpecs2  = F.tracepp "iSpecs0"  $ Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
     rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
-    mySpec1  = mySpec0 <> lSpec0    
-    lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
+    mySpec1  = F.tracepp "mySpec1" $ (mySpec0 <> lSpec0)    
+    lSpec0   = F.tracepp "lspec0" $ makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecs  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
     -- check barespecs 
-    name     = F.notracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
+    name     = F.tracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
-splitSpecs name specs = (mySpec, iSpecm) 
+splitSpecs name specs = (F.tracepp "lspec0" mySpec, iSpecm) 
   where 
     mySpec            = mconcat (snd <$> mySpecs)
     (mySpecs, iSpecs) = L.partition ((name ==) . fst) specs 
     iSpecm            = fmap mconcat . Misc.group $ iSpecs
+
+
+makeImports :: [(ModName, Ms.BareSpec)] -> [(F.Symbol, F.Sort)]
+makeImports specs = concatMap (expSigs . snd) specs'
+  where specs' = filter (isSrcImport . fst) specs
+
 
 makeEmbeds :: GhcSrc -> Bare.Env -> [(ModName, Ms.BareSpec)] -> F.TCEmb Ghc.TyCon 
 makeEmbeds src env 
@@ -222,7 +236,7 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec 
   , Ms.reflects  = Ms.reflects mySpec
-  , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
+  , Ms.dataDecls = {- Ms.dataDecls mySpec ++ -} Bare.makeHaskellDataDecls cfg name mySpec tcs  
   }
   where 
     tcs          = uniqNub (gsTcs src ++ refTcs)
@@ -667,7 +681,8 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
-  { gsCtors      = [ (x, tt) 
+  { gsCtors      = F.notracepp "gsCtors"
+                   [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
                    ]
