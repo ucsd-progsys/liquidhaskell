@@ -100,7 +100,8 @@ makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcS
 makeGhcSpec cfg src lmap mspecs0  
            = checkThrow (Bare.checkGhcSpec mspecs renv cbs sp)
   where 
-    mspecs = mspecs0 -- [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] -- , isTarget m ] 
+    mspecs =  [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0, isTarget m ] 
+           ++ [ (m, sp) | (m, sp) <- mspecs0, not (isTarget m)]
     sp     = makeGhcSpec0 cfg src lmap mspecs 
     renv   = ghcSpecEnv sp 
     cbs    = giCbs src
@@ -143,7 +144,8 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsName   = makeSpecName env     tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
+  , gsLSpec  = -- F.tracepp "gsLSpec" $ 
+                makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
                    impSigs = makeImports mspecs,
                    expSigs = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
                    , dataDecls = dataDecls mySpec2 

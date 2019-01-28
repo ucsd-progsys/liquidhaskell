@@ -41,7 +41,7 @@ import           Debug.Trace (trace)
 -- | Checking BareSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 checkBareSpec :: ModName -> Ms.BareSpec -> Either [Error] Ms.BareSpec 
-checkBareSpec _ sp = Misc.applyNonNull (Right $ F.tracepp "CHECKING SP = " $ sp) Left $ concat 
+checkBareSpec _ sp = Misc.applyNonNull (Right $ sp) Left $ concat 
   [ checkUnique   "measure"    measures 
   , checkUnique   "field"      fields 
   , checkDisjoints             [ inlines
