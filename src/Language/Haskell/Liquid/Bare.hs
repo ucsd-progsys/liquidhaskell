@@ -67,7 +67,7 @@ loadLiftedSpec cfg srcF
       lSp <- if ex 
                then Just <$> B.decodeFile specF 
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
-      Ex.evaluate $ F.tracepp "loaded spec = " lSp
+      Ex.evaluate lSp
 
 errMissingSpec :: FilePath -> FilePath -> UserError 
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
@@ -83,7 +83,7 @@ warnMissingLiftedSpec srcF specF = do
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
 saveLiftedSpec src sp = do
   ensurePath specF
-  putStrLn ("To write in " ++ show specF ++ "\n\n" ++ show lspec)
+  -- putStrLn ("To write in " ++ show specF ++ "\n\n" ++ show lspec)
   B.encodeFile specF lspec
   -- print (errorP "DIE" "HERE" :: String) 
   where
@@ -98,10 +98,10 @@ saveLiftedSpec src sp = do
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap mspecs0  
-           = checkThrow (Bare.checkGhcSpec (F.tracepp "mspecs" mspecs) renv cbs sp)
+           = checkThrow (Bare.checkGhcSpec mspecs renv cbs sp)
   where 
     mspecs = mspecs0 -- [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0] -- , isTarget m ] 
-    sp     = F.tracepp "Final Spec" $  makeGhcSpec0 cfg src lmap mspecs 
+    sp     = makeGhcSpec0 cfg src lmap mspecs 
     renv   = ghcSpecEnv sp 
     cbs    = giCbs src
 
@@ -161,25 +161,25 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
     mySpec   = mySpec2 <> lSpec1 
-    lSpec1   = F.tracepp "lspec1" (lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1)
+    lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
     tyi      = Bare.tcTyConMap   tycEnv 
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
-    mySpec2  = F.tracepp "mySpecs0" $ Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
-    iSpecs2  = F.tracepp "iSpecs0"  $ Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
+    mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
+    iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
     rtEnv    = Bare.makeRTEnv env name mySpec1 iSpecs0 lmap  
-    mySpec1  = F.tracepp "mySpec1" $ (mySpec0 <> lSpec0)    
-    lSpec0   = F.tracepp "lspec0" $ makeLiftedSpec0 cfg src embs lmap mySpec0 
+    mySpec1  = mySpec0 <> lSpec0    
+    lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecs  
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
     -- check barespecs 
-    name     = F.tracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
+    name     = F.notracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
-splitSpecs name specs = (F.tracepp "lspec0" mySpec, iSpecm) 
+splitSpecs name specs = (mySpec, iSpecm) 
   where 
     mySpec            = mconcat (snd <$> mySpecs)
     (mySpecs, iSpecs) = L.partition ((name ==) . fst) specs 

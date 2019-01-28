@@ -314,7 +314,6 @@ processModules cfg logicMap tgtFiles depGraph homeModules = do
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
 
-    -- NV lifted 
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
@@ -334,7 +333,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
-                     then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked (tracepp "bareSpec" bareSpec)
+                     then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
                      else return Nothing
 
 updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
@@ -365,7 +364,6 @@ loadModule' tm = loadModule tm'
     tm'  = tm { tm_parsed_module = pm' }
 
 
-    -- NV HERE
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc GhcInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
