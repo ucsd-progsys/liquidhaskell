@@ -1,6 +1,8 @@
 module Client2 where 
 
-    import Client1 
+    {-@ reflect cProp @-}
     
-    a :: Eq a => B a -> Bool 
-    a (B x y) = x == y 
+    cProp :: Eq a => a -> a -> Bool 
+    cProp x y = x == y 
+
+
