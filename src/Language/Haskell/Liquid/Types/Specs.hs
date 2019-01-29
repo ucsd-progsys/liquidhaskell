@@ -18,6 +18,7 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
 import           Language.Haskell.Liquid.GHC.API 
+import           Text.PrettyPrint.HughesPJ              (text, (<+>)) 
 
 -------------------------------------------------------------------------
 -- | GHC Information:  Code & Spec --------------------------------------
@@ -64,7 +65,8 @@ data GhcSpec = SP
   , gsName   :: !GhcSpecNames 
   , gsVars   :: !GhcSpecVars 
   , gsTerm   :: !GhcSpecTerm 
-  , gsRefl   :: !GhcSpecRefl                  
+  , gsRefl   :: !GhcSpecRefl   
+  , gsImps   :: ![(F.Symbol, F.Sort)]  -- ^ Imported Environment          
   , gsConfig :: !Config                       
   , gsLSpec  :: !BareSpec               -- ^ Lifted specification for the target module
   }
@@ -141,6 +143,8 @@ instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]              -- ^ User-defined properties for ADTs
+  , impSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Imported variables types
+  , expSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Exported variables types
   , asmSigs    :: ![(F.LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(F.LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]            -- ^ Local type signatures
@@ -176,7 +180,11 @@ data Spec ty bndr  = Spec
   , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                        --   see tests/pos/NatClass.hs
   , axeqs      :: ![F.Equation]                        -- ^ Equalities used for Proof-By-Evaluation
-  } deriving (Generic)
+  } deriving (Generic, Show)
+
+instance (Show ty, Show bndr, F.PPrint ty, F.PPrint bndr) => F.PPrint (Spec ty bndr) where
+    pprintTidy k sp = text "dataDecls = " <+> pprintTidy k  (dataDecls sp)
+
 
 isExportedVar :: GhcSrc -> Var -> Bool
 isExportedVar info v = n `elemNameSet` ns

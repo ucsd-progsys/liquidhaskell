@@ -84,6 +84,8 @@ checkDuplicateMeasure ms
 instance Semigroup (Spec ty bndr) where
   s1 <> s2
     = Spec { measures   =           measures   s1 ++ measures   s2
+           , impSigs    =           impSigs    s1 ++ impSigs    s2
+           , expSigs    =           expSigs    s1 ++ expSigs    s2 
            , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
            , sigs       =           sigs       s1 ++ sigs       s2
            , localSigs  =           localSigs  s1 ++ localSigs  s2
@@ -125,6 +127,8 @@ instance Monoid (Spec ty bndr) where
   mappend = (<>)
   mempty
     = Spec { measures   = []
+           , impSigs    = [] 
+           , expSigs    = [] 
            , asmSigs    = []
            , sigs       = []
            , localSigs  = []
