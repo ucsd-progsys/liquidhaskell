@@ -144,7 +144,7 @@ instance B.Binary BareSpec
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]              -- ^ User-defined properties for ADTs
   , impSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Imported variables types
-  , expSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Imported variables types
+  , expSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Exported variables types
   , asmSigs    :: ![(F.LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(F.LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]            -- ^ Local type signatures
@@ -184,11 +184,6 @@ data Spec ty bndr  = Spec
 
 instance (Show ty, Show bndr, F.PPrint ty, F.PPrint bndr) => F.PPrint (Spec ty bndr) where
     pprintTidy k sp = text "dataDecls = " <+> pprintTidy k  (dataDecls sp)
-
-
-instance F.PPrint GhcSpec where
-  pprintTidy k sp = pprintTidy k  (gsLSpec sp)
-  
 
 
 isExportedVar :: GhcSrc -> Var -> Bool

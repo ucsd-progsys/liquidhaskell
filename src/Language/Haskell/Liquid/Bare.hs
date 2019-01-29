@@ -83,7 +83,6 @@ warnMissingLiftedSpec srcF specF = do
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
 saveLiftedSpec src sp = do
   ensurePath specF
-  -- putStrLn ("To write in " ++ show specF ++ "\n\n" ++ show lspec)
   B.encodeFile specF lspec
   -- print (errorP "DIE" "HERE" :: String) 
   where
@@ -144,15 +143,13 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsName   = makeSpecName env     tycEnv measEnv   name 
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , gsLSpec  = -- F.tracepp "gsLSpec" $ 
-                makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
+  , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
                    impSigs = makeImports mspecs,
                    expSigs = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
                    , dataDecls = dataDecls mySpec2 
                    } 
   }
   where
-    l       = F.dummyPos "expand-LSpec"
     -- build up spec components 
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
@@ -163,7 +160,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
     mySpec   = mySpec2 <> lSpec1 
-    lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
+    lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1 
     sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
     tyi      = Bare.tcTyConMap   tycEnv 
     tycEnv   = makeTycEnv   cfg name env embs mySpec2 iSpecs2 
@@ -238,7 +235,7 @@ makeLiftedSpec0 :: Config -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareS
 makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec 
   , Ms.reflects  = Ms.reflects mySpec
-  , Ms.dataDecls = {- Ms.dataDecls mySpec ++ -} Bare.makeHaskellDataDecls cfg name mySpec tcs  
+  , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
   }
   where 
     tcs          = uniqNub (gsTcs src ++ refTcs)
@@ -683,8 +680,7 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
-  { gsCtors      = F.notracepp "gsCtors"
-                   [ (x, tt) 
+  { gsCtors      = [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
                    ]

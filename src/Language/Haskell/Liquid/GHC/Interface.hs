@@ -313,7 +313,6 @@ processModules cfg logicMap tgtFiles depGraph homeModules = do
   where                                             
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
-
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
@@ -748,7 +747,7 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 --------------------------------------------------------------------------------
 -- | Pretty Printing -----------------------------------------------------------
 --------------------------------------------------------------------------------
-{- 
+
 instance PPrint GhcSpec where
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
@@ -761,7 +760,6 @@ instance PPrint GhcSpec where
     , pprintLongList k (gsCtors (gsData spec))
     , "******* Measure Specifications **************"
     , pprintLongList k (gsMeas (gsData spec))       ]
--}
 
 instance PPrint GhcInfo where
   pprintTidy k info = vcat
