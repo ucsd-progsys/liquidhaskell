@@ -32,9 +32,9 @@ import qualified Language.Fixpoint.Types as F
 -------------------------------------------------------------------------------
 -- | @HVar@ is a Horn variable 
 -------------------------------------------------------------------------------
-data Var a = HVar  
-  { hvName :: !F.Symbol                         -- ^ name of the variable $k1, $k2 etc.  
-  , hvArgs :: ![F.Sort] {- len hvArgs > 0 -}    -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@ 
+data Var a = HVar
+  { hvName :: !F.Symbol                         -- ^ name of the variable $k1, $k2 etc.
+  , hvArgs :: ![F.Sort] {- len hvArgs > 0 -}    -- ^ sorts of its parameters i.e. of the relation defined by the @HVar@
   , hvMeta :: a                                 -- ^ meta-data
   }
   deriving (Eq, Ord, Data, Typeable, Generic, Functor)
@@ -65,12 +65,14 @@ dummyBind = Bind F.dummySymbol F.intSort (PAnd [])
 data Cstr a
   = Head  !Pred a               -- ^ p
   | CAnd  ![(Cstr a)]           -- ^ c1 /\ ... /\ cn
-  | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c 
+  | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
+  | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p => c
   deriving (Data, Typeable, Generic, Functor)
 
 -- We want all valid constraints to start with a binding at the top
 okCstr :: Cstr a -> Bool 
 okCstr (All {}) = True 
+okCstr (Any {}) = True 
 okCstr _        = False 
 
 -------------------------------------------------------------------------------

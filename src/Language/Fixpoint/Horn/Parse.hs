@@ -43,6 +43,7 @@ hCstrP = parens body
   where 
     body =  H.CAnd  <$> (reserved "and"    *> many1 hCstrP)
         <|> H.All   <$> (reserved "forall" *> hBindP)       <*> hCstrP 
+        <|> H.Any   <$> (reserved "exists" *> hBindP)       <*> hCstrP 
         <|> H.Head  <$> hPredP                              <*> pure ()
 
 hBindP :: Parser H.Bind

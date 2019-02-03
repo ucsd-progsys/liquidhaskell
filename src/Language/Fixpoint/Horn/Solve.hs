@@ -15,6 +15,7 @@ import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import qualified Data.Tuple                     as Tuple 
 import qualified Data.Maybe                     as Mb
+import           Data.Either                    (partitionEithers)
 import           System.Exit
 import           GHC.Generics                   (Generic)
 import qualified Language.Fixpoint.Solver       as Solver 
@@ -42,40 +43,56 @@ hornFInfo :: H.Query a -> F.FInfo a
 hornFInfo q    = mempty 
   { F.cm       = cs 
   , F.bs       = be2  
+  , F.ebinds   = ebs
   , F.ws       = kvEnvWfCs kve 
   , F.quals    = H.qQuals q 
   } 
   where 
     be0        = F.emptyBindEnv
     (be1, kve) = hornWfs   be0     (H.qVars q)
-    (be2, cs)  = hornSubCs be1 kve (H.qCstr q)
+    (be2, ebs, cs)  = hornSubCs be1 kve (H.qCstr q)
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a 
-          -> (F.BindEnv, M.HashMap F.SubcId (F.SubC a)) 
+          -> (F.BindEnv, [F.BindId], M.HashMap F.SubcId (F.SubC a)) 
 ----------------------------------------------------------------------------------
-hornSubCs be kve c = (be', M.fromList (F.addIds cs)) 
+hornSubCs be kve c = (be', ebs, M.fromList (F.addIds cs)) 
   where
-    (be', cs)      = goS kve F.emptyIBindEnv lhs0 be c 
+    (be', ebs, cs)      = goS kve F.emptyIBindEnv lhs0 be c 
     lhs0           = bindSortedReft kve H.dummyBind 
 
 -- | @goS@ recursively traverses the NNF constraint to build up a list 
 --   of the vanilla @SubC@ constraints.
 
 goS :: KVEnv a -> F.IBindEnv -> F.SortedReft -> F.BindEnv -> H.Cstr a 
-    -> (F.BindEnv, [F.SubC a])
-goS kve env lhs be (H.Head p l) = (be, [subc])
+    -> (F.BindEnv, [F.BindId], [F.SubC a])
+
+goS kve env lhs be c = (be', mEbs, subcs)
+  where
+    (be', ecs) = goS' kve env lhs be c
+    (mEbs, subcs) = partitionEithers ecs
+
+goS' :: KVEnv a -> F.IBindEnv -> F.SortedReft -> F.BindEnv -> H.Cstr a 
+    -> (F.BindEnv, [Either F.BindId (F.SubC a)])
+goS' kve env lhs be (H.Head p l) = (be, [Right subc])
   where 
     subc                        = F.mkSubC env lhs rhs Nothing [] l 
     rhs                         = updSortedReft kve lhs p 
 
-goS kve env lhs be (H.CAnd cs)  = (be', concat subcss)
+goS' kve env lhs be (H.CAnd cs)  = (be', concat subcss)
   where 
-    (be', subcss)               = L.mapAccumL (goS kve env lhs) be cs 
+    (be', subcss)               = L.mapAccumL (goS' kve env lhs) be cs 
 
-goS kve env _   be (H.All b c)  = (be'', subcs)
+goS' kve env _   be (H.All b c)  = (be'', subcs)
   where 
-    (be'', subcs)               = goS kve env' bSR be' c 
+    (be'', subcs)               = goS' kve env' bSR be' c 
+    (bId, be')                  = F.insertBindEnv (H.bSym b) bSR be 
+    bSR                         = bindSortedReft kve b 
+    env'                        = F.insertsIBindEnv [bId] env 
+
+goS' kve env _   be (H.Any b c)  = (be'', Left bId : subcs)
+  where 
+    (be'', subcs)               = goS' kve env' bSR be' c 
     (bId, be')                  = F.insertBindEnv (H.bSym b) bSR be 
     bSR                         = bindSortedReft kve b 
     env'                        = F.insertsIBindEnv [bId] env 
