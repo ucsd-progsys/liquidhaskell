@@ -115,6 +115,7 @@ Library
                    Language.Fixpoint.Horn.Types,
                    Language.Fixpoint.Horn.Parse,
                    Language.Fixpoint.Horn.Solve,
+                   Language.Fixpoint.Horn.Transformations,
                    Text.PrettyPrint.HughesPJ.Compat
 
   Other-Modules: Paths_liquid_fixpoint
