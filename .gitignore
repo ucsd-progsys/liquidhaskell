@@ -1,3 +1,4 @@
+Session.vim
 .depend
 *.cmi
 *.cmo
@@ -26,5 +27,7 @@
 /external/ocamlgraph/src/version.ml
 /tests/neg/.liquid/
 /tests/pos/.liquid/
+/tests/logs/cur/summary.csv
 /external/ocamlgraph/config.log
 /TAGS
+/tags
