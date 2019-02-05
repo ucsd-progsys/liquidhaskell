@@ -41,41 +41,50 @@ pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b' (Head (Reft F.PTrue) ())]
     pi = Var x [x]
 
 ------------------------------------------------------------------------------
+-- | elim solves all of the KVars in a Cstr (assuming no cycles...)
 ------------------------------------------------------------------------------
--- Now, we have two options: either we can trust that KVars are solved in
--- topological order (which is impossible in general, or we create
--- disjunctive versions of Cstr and Pred, and go back and forth.
-
 elim :: Cstr a -> Cstr a
-elim c = dstr2cstr $ foldl elim1 d (boundKvars c) 
-  where d = cstr2dstr c
+------------------------------------------------------------------------------
+elim c = foldl elim1 c (boundKvars c)
 
-elim1 :: Dstr a -> (F.Symbol,[F.Symbol]) -> Dstr a
-elim1 c (k,xs) = doelim k (sol1 [] (k,xs) c) c
+-- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
+-- each rhs occurence of k.
+elim1 :: Cstr a -> (F.Symbol,[F.Symbol]) -> Cstr a
+elim1 c (k,xs) = doelim k (sol1 (k,xs) c) c
 
-sol1 :: [Dind] -> (F.Symbol, [F.Symbol]) -> Dstr a -> ([Dind], Dred)
-sol1 bs k (DAnd cs) = (concat (bs:bss), DPOr ps)
-  where (bss, ps) = unzip $ sol1 [] k <$> cs
-sol1 bs k (DAll b c) = (b:bs', c')
-  where (bs', c') = sol1 bs k c
-sol1 bs (k,xs) (DHead (DVar k' ys) _) | k == k'
-  = (bs, DReft $ F.PAnd $ zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys))
-sol1 bs _ (DHead _ _) = (bs, DReft F.PFalse)
--- sol1 _ _ (Any _ _) =  error "ebinds don't work with old elim"
+-- A solution is a Hyp of binders (including one anonymous binder
+-- that I've singled out here).
+--     (What does Hyp stand for? Hypercube? but the dims don't line up...)
+-- Naming conventions:
+--  - `b` is a binder `forall . x:t .p =>`
+--  - `bs` is a list of binders, or a "cube" that tracks all of the
+--     information on the rhs of a given constraint
+--  - `bss` is a Hyp, that tells us the solution to a Var, that is,
+--     a collection of cubes that we'll want to disjunct
 
-doelim :: F.Symbol -> ([Dind], Dred) -> Dstr a -> Dstr a
-doelim k bp (DAnd cs)
-  = DAnd $ doelim k bp <$> cs
-doelim k (bs, p) (DAll (Dind x t (DVar k' _)) c)
+sol1 :: (F.Symbol, [F.Symbol]) -> Cstr a -> ([[Bind]], F.Expr)
+sol1 k (CAnd cs) = (concat bsss, F.POr ps)
+  where (bsss, ps) = unzip $ sol1 k <$> cs
+sol1 k (All b c) = ((b:) <$> bss', c')
+  where (bss', c') = sol1 k c
+sol1 (k,xs) (Head (Var k' ys) _) | k == k'
+  = ([], F.PAnd $ zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys))
+sol1 _ (Head _ _) = ([], F.PFalse)
+sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
+
+doelim :: F.Symbol -> ([[Bind]], F.Expr) -> Cstr a -> Cstr a
+doelim k bp (CAnd cs)
+  = CAnd $ doelim k bp <$> cs
+doelim k (bss, p) (All (Bind x t (Var k' _)) c)
   | k == k'
-  = foldr DAll (DAll (Dind x t p) $ doelim k (bs,p) c) bs
-doelim k bp (DAll b c)
-  = DAll b (doelim k bp c)
-doelim k _ (DHead (DVar k' _) a)
+  = CAnd $ foldr All (All (Bind x t (Reft p)) $ doelim k (bss,p) c) <$> bss
+doelim k bp (All b c)
+  = All b (doelim k bp c)
+doelim k _ (Head (Var k' _) a)
   | k == k'
-  = DHead (DReft F.PTrue) a
-doelim _ _ (DHead p a) = DHead p a
--- doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
+  = Head (Reft F.PTrue) a
+doelim _ _ (Head p a) = Head p a
+doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
 
 boundKvars :: Cstr a -> [(F.Symbol,[F.Symbol])]
 boundKvars (Head _ _) = []
@@ -84,60 +93,3 @@ boundKvars (All (Bind _ _ (Var k xs)) c) = (k, xs) : boundKvars c
 boundKvars (All _ c) = boundKvars c
 boundKvars (Any (Bind _ _ (Var k xs)) c) = (k, xs) : boundKvars c
 boundKvars (Any _ c) = boundKvars c
-
--------------------------------------------------------------------------------
--- | @Dred@ is a disjunctive predicate
--------------------------------------------------------------------------------
-data Dred 
-  = DReft  !F.Expr                               -- ^ r 
-  | DVar   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn) 
-  | DPAnd  ![Dred]                               -- ^ p1 /\ .../\ pn 
-  | DPOr   ![Dred]                               -- ^ p1 \/ ...\/ pn 
-   
--------------------------------------------------------------------------------
--- | @Dstr@ is a disjunctive NNF Horn Constraint. 
--------------------------------------------------------------------------------
-data Dind = Dind 
-  { _dSym  :: !F.Symbol 
-  , _dSort :: !F.Sort 
-  , _dPred :: !Dred 
-  }
-
-data Dstr a
-  = DHead  !Dred a               -- ^ p
-  | DAnd   ![Dstr a]             -- ^ c1 /\ ... /\ cn
-  | DAll   !Dind  !(Dstr a)      -- ^ \all x:t. p => c
-
-cstr2dstr :: Cstr a -> Dstr a
-cstr2dstr (Head p a) = DHead (pred2dred p) a
-cstr2dstr (CAnd c) = DAnd (cstr2dstr <$> c)
-cstr2dstr (All b c) = DAll (bind2dind b) (cstr2dstr c)
-cstr2dstr (Any _ _) = error "Classic Eliminate doesn't support ebinds"
-
-dstr2cstr :: Dstr a -> Cstr a
-dstr2cstr (DHead p a) = Head (dred2pred p) a
-dstr2cstr (DAnd c) = CAnd (dstr2cstr <$> c)
-dstr2cstr (DAll b c) = All (dind2bind b) (dstr2cstr c)
-
-pred2dred :: Pred -> Dred
-pred2dred (Reft c) = DReft c
-pred2dred (Var c1 c2) = DVar c1 c2
-pred2dred (PAnd c) = DPAnd (pred2dred <$> c)
-
-dred2pred :: Dred -> Pred
-dred2pred (DReft p) = Reft p
-dred2pred (DVar c1 c2) = Var c1 c2
-dred2pred (DPAnd c) = PAnd (dred2pred <$> c)
-dred2pred (DPOr c) = Reft $ F.POr $ dred2expr <$> c
-
-dred2expr :: Dred -> F.Expr
-dred2expr (DReft p) = p
-dred2expr (DVar{}) = error "KVARS HAVEN'T BEEN ELIMINATED IN RHS OF ELIMINATE"
-dred2expr (DPAnd c) = F.PAnd (dred2expr <$> c)
-dred2expr (DPOr c) = F.POr (dred2expr <$> c)
-
-bind2dind :: Bind -> Dind
-bind2dind (Bind x t p) = Dind x t (pred2dred p)
-
-dind2bind :: Dind -> Bind
-dind2bind (Dind x t p) = Bind x t (dred2pred p)
