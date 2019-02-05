@@ -1,20 +1,22 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.Fixpoint.Horn.Parse (queryP) where 
+module Language.Fixpoint.Horn.Parse (hornP) where 
 
-import           Language.Fixpoint.Parse       
+import           Language.Fixpoint.Parse
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Horn.Types   as H 
 import           Text.Parsec       hiding (State)
 
 -------------------------------------------------------------------------------
-queryP :: Parser (H.Query ())
+hornP :: Parser (H.Query (), [String])
 -------------------------------------------------------------------------------
-queryP = mkQuery <$> many hThingP 
+hornP = do
+  hThings <- many hThingP
+  pure (mkQuery hThings, [ o | HOpt o <- hThings ])
 
-mkQuery :: [HThing a] -> H.Query a 
-mkQuery things = H.Query 
+mkQuery :: [HThing a] -> H.Query a
+mkQuery things = H.Query
   { H.qQuals =        [ q | HQual q <- things ] 
   , H.qVars  =        [ k | HVar  k <- things ] 
   , H.qCstr  = H.CAnd [ c | HCstr c <- things ] 
@@ -23,18 +25,20 @@ mkQuery things = H.Query
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
 --   in a .smt2 query file.
 
-data HThing a 
-  = HQual !F.Qualifier 
+data HThing a
+  = HQual !F.Qualifier
   | HVar  !(H.Var a)
   | HCstr !(H.Cstr a)
+  | HOpt !String
   deriving (Functor)
 
 hThingP :: Parser (HThing ())
 hThingP  = parens body 
   where 
-    body =  HQual <$> (reserved "qualif"     *> hQualifierP) 
+    body =  HQual <$> (reserved "qualif"     *> hQualifierP)
         <|> HCstr <$> (reserved "constraint" *> hCstrP)
         <|> HVar  <$> (reserved "var"        *> hVarP)
+        <|> HOpt  <$> (reserved "fixpoint"   *> stringLiteral)
 
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr ())

@@ -29,10 +29,11 @@ import qualified Language.Fixpoint.Horn.Parse   as H
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode 
 ----------------------------------------------------------------------------------
-solveHorn cfg = do 
-  q <- Parse.parseFromFile H.queryP (F.srcFile cfg)
-  r <- solve cfg q 
-  Solver.resultExitCode r 
+solveHorn cfg = do
+  (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
+  cfg <- (F.withPragmas cfg opts)
+  r <- solve cfg q
+  Solver.resultExitCode r
 
 ----------------------------------------------------------------------------------
 solve :: F.Config -> H.Query () -> IO (F.Result Integer)

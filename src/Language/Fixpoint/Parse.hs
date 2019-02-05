@@ -26,6 +26,7 @@ module Language.Fixpoint.Parse (
   , whiteSpace
   , blanks
   , pairP
+  , stringLiteral
 
   -- * Parsing basic entities
 
