@@ -50,7 +50,35 @@ elim c = foldl elim1 c (boundKvars c)
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
 -- each rhs occurence of k.
 elim1 :: Cstr a -> (F.Symbol,[F.Symbol]) -> Cstr a
-elim1 c (k,xs) = doelim k (sol1 (k,xs) c) c
+elim1 c (k,su) = doelim k sol c
+  where sol = sol1 (k,su) (scope k c)
+
+-- scope drops extraneous leading binders so that we can take the strongest
+-- scoped solution instead of the strongest solution
+scope :: F.Symbol -> Cstr a -> Cstr a
+scope k = go . snd . scope' k
+  where go (All _ c') = go c'
+        go c = c
+
+-- scope' prunes out branches that don't have k
+scope' :: F.Symbol -> Cstr a -> (Bool, Cstr a)
+
+scope' k (CAnd c) = case map snd $ filter fst $ map (scope' k) c of
+                     []  -> (False, CAnd [])
+                     [c] -> (True, c)
+                     cs  -> (True, CAnd cs)
+
+scope' k c@(All (Bind x t (Var k' su)) c')
+  | k == k' = (True, c)
+  | otherwise = All (Bind x t (Var k' su)) <$> scope' k c'
+scope' k c@(All _ c')
+  = const c <$> scope' k c'
+scope' _ (Any _ _) = error "ebinds don't work with old elim"
+
+scope' k c@(Head (Var k' _) _)
+-- this case seems extraneous?
+  | k == k'   = (True, c)
+scope' _ c@Head{} = (False, c)
 
 -- A solution is a Hyp of binders (including one anonymous binder
 -- that I've singled out here).
