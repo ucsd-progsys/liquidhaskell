@@ -7,9 +7,12 @@ import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import           Control.Monad (void)
 
--- |
+-- $setup
 -- >>> import Language.Fixpoint.Parse
 -- >>> import Language.Fixpoint.Horn.Parse
+-- >>> :set -XOverloadedStrings
+
+-- |
 -- >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind01.smt2"
 -- >>> qCstr (poke q)
 -- (and (forall ((m int) (true)) (and (forall ((x1 int) (and (true) (x1 x1))) (and (forall ((v int) (v == m + 1)) ((v == x1))) (forall ((v int) (v == x1 + 1)) ((v == 2 + m))))) (exists ((x1 int) (and (true) (x1 x1))) ((true))))))
@@ -47,6 +50,15 @@ elim :: Cstr a -> Cstr a
 ------------------------------------------------------------------------------
 elim c = foldl elim1 c (boundKvars c)
 
+-- |
+-- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
+-- (and (forall ((x int) (x > 0)) (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0))))))
+-- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test01.smt2"
+-- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0)))) (forall ((z int) (z > 100)) (forall ((v int) (v == x + z)) ((v > 100)))))))
+
+-- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- [("k0",["z"])]
+
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
 -- each rhs occurence of k.
 elim1 :: Cstr a -> (F.Symbol,[F.Symbol]) -> Cstr a
@@ -59,6 +71,11 @@ scope :: F.Symbol -> Cstr a -> Cstr a
 scope k = go . snd . scope' k
   where go (All _ c') = go c'
         go c = c
+
+-- |
+-- >>> sc <- scope' "k0" . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- >>> sc
+-- (True,(forall ((x int) (x > 0)) (and (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) ((k0 v)))) (forall ((z int) (k0 z)) (forall ((v int) (v == x + z)) ((v > 100)))))))
 
 -- scope' prunes out branches that don't have k
 scope' :: F.Symbol -> Cstr a -> (Bool, Cstr a)
@@ -80,9 +97,14 @@ scope' k c@(Head (Var k' _) _)
   | k == k'   = (True, c)
 scope' _ c@Head{} = (False, c)
 
--- A solution is a Hyp of binders (including one anonymous binder
+-- | A solution is a Hyp of binders (including one anonymous binder
 -- that I've singled out here).
---     (What does Hyp stand for? Hypercube? but the dims don't line up...)
+-- (What does Hyp stand for? Hypercube? but the dims don't line up...)
+--
+-- >>> c <- qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- >>> sol1 ("k0",["z"]) (scope "k0" c)
+-- ([],POr [PAnd [PAtom Eq (EVar "z") (EVar "v")],POr []])
+
 -- Naming conventions:
 --  - `b` is a binder `forall . x:t .p =>`
 --  - `bs` is a list of binders, or a "cube" that tracks all of the
@@ -100,6 +122,10 @@ sol1 (k,xs) (Head (Var k' ys) _) | k == k'
 sol1 _ (Head _ _) = ([], F.PFalse)
 sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
 
+-- |
+-- >>> :add src/Language/Fixpoint/Horn/Parse.hs
+-- >>> doParse' hCstrP "" "(forall ((v Int) (v = x + z)) ((v > 100)))"
+
 doelim :: F.Symbol -> ([[Bind]], F.Expr) -> Cstr a -> Cstr a
 doelim k bp (CAnd cs)
   = CAnd $ doelim k bp <$> cs
@@ -113,6 +139,25 @@ doelim k _ (Head (Var k' _) a)
   = Head (Reft F.PTrue) a
 doelim _ _ (Head p a) = Head p a
 doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
+
+-- | Returns a list of KVars with thier arguments that are present as
+-- binders in a given constraint
+--
+-- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/ebind01.smt2"
+-- []
+-- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/ebind02.smt2"
+-- [("k",["v2"])]
+-- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
+-- []
+-- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test01.smt2"
+-- []
+-- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- [("k0",["z"])]
+--
+-- TODO: fix the following
+--
+-- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
+-- [("k0",["z"]), ... ]
 
 boundKvars :: Cstr a -> [(F.Symbol,[F.Symbol])]
 boundKvars (Head _ _) = []
