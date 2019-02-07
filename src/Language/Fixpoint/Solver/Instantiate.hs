@@ -412,7 +412,7 @@ evalArgs γ = go []
       = (,acc) <$> eval γ e
 
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ e (e1, es) = mytracepp "evalApp:END" <$> (evalAppAc γ e $ mytracepp "evalApp:BEGIN" (e1, es))
+evalApp γ e (e1, es) = notracepp "evalApp:END" <$> (evalAppAc γ e $ notracepp "evalApp:BEGIN" (e1, es))
 
 evalAppAc :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalAppAc γ e (EVar f, [ex])
@@ -539,7 +539,14 @@ addEquality γ e1 e2 =
   modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
 
 evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ e b e1 e2 = join $
+evalIte γ e b e1 e2 = mytracepp "evalIte:END: " <$> 
+                        evalIteAc γ e b e1 (mytracepp msg e2) 
+  where 
+    msg = "evalIte:BEGIN: " ++ showpp e 
+
+
+evalIteAc :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIteAc γ e b e1 e2 = join $
                       evalIte' γ e b e1 e2 <$>
                       liftIO (isValid γ b) <*>
                       liftIO (isValid γ (PNot b))
@@ -574,7 +581,8 @@ data Knowledge = KN
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = knPreds γ (knContext γ) (knLams γ) e
+isValid γ e = mytracepp ("isValid: " ++ showpp e) <$> 
+                knPreds γ (knContext γ) (knLams γ) e
 
 isProof :: (a, SortedReft) -> Bool 
 isProof (_, RR s _) = showpp s == "Tuple"
