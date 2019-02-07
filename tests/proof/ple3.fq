@@ -1,0 +1,40 @@
+fixpoint "--rewrite"
+
+
+data Blob 0 = [
+  | VEmp  { }
+  | VCons { blobKey : Int , blobVal : Int, blobTail : Blob} 
+]
+
+define set (s : Blob, key: Int, valu : Int) : Blob = 
+  ((set s key valu) = (VCons key valu s))
+
+define get (s : Blob, key: Int) : Int  = 
+  ((get s key) = (if (is$VEmp s) then 
+                    0 
+                  else if (key = (blobKey s)) then 
+                    (blobVal s) 
+                  else 
+                    (get (blobTail s) key)))
+
+constant get : (func(0, [Blob; Int; Int]))
+constant set : (func(0, [Blob; Int; Int; Blob]))
+
+expand [1 : True]
+expand [2 : True]
+
+bind 0 s0 : {v: Blob | true }
+
+// UNSAT because we dont use the equality from v1 = set... when ple-ing (get v1 ...) 
+constraint:
+  env [0]
+  lhs {v1 : Blob | v1 = set s0 66 100  }
+  rhs {v1 : Blob | get v1 66 = 100 }
+  id 1 tag []
+
+// SAT because the ple implementation first "normalizes" the arg to set
+constraint:
+  env [0]
+  lhs {v2 : Blob | true  }
+  rhs {v2 : Blob | get (set s0 66 100) 66 = 100 }
+  id 2 tag []
