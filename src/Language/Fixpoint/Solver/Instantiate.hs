@@ -608,10 +608,12 @@ evalIte' γ e _ _ e2 _ b'
   | b'
   = do e' <- eval γ e2
        (e, "If-False") ~> e'
-evalIte' γ _ b e1 e2 _ _
-  = do e1' <- eval γ e1
-       e2' <- eval γ e2
-       return $ EIte b e1' e2'
+evalIte' _γ _ b e1 e2 _ _
+  = return $ EIte b e1 e2
+    -- see #387 
+    -- do e1' <- eval γ e1
+    --   e2' <- eval γ e2
+    --   return $ EIte b e1' e2'
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
