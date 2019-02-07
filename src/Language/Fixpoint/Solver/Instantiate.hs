@@ -185,18 +185,19 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
                        = -- trace _msg 
-                         ( ctx { icCands  = _cands',   icEquals = mempty}
+                         ( ctx { {- icCands  = _cands', -}  icEquals = mempty}
                          , res'
                          ) 
   where 
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
-    _cands'             = ((icCands ctx) `S.union` newCands) `S.difference`  (S.fromList solvedCands)
+    -- _cands'             = ((icCands ctx) `S.union` newCands) `S.difference`  (S.fromList solvedCands)
+    -- newCands           = S.fromList (concatMap topApps newEqs) 
+    -- solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
     solvedEqs          = icEquals ctx ++ newEqs 
     newEqs             = concatMap snd okUnfolds
-    solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
     okUnfolds          = tracepp _str [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
-    newCands           = _fixme "FIXME: get-topApps newEqs"
+
     _str               = "okUnfolds " ++ showpp (iMb, cidMb)
 
 debugResult :: InstEnv a -> InstRes -> SubcId -> String 
