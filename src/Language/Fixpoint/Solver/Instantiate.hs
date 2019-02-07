@@ -84,7 +84,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = tracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+mkCTrie ics  = notracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
     cBinds   = L.sort . elemsIBindEnv . senv 
 
@@ -116,7 +116,7 @@ loopB env ctx delta iMb res b = case b of
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb 
-  let assms = tracepp ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
+  let assms = notracepp ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT) 
     act ctx'
@@ -124,9 +124,9 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
 ple1 env@(InstEnv {..}) ctx i cidMb res = do 
-  let cands = tracepp ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx) 
+  let cands = notracepp ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx) 
   unfolds  <- evalCands ieKnowl ieEvEnv cands   
-  return    $ updCtxRes env ctx res i cidMb (tracepp ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
+  return    $ updCtxRes env ctx res i cidMb (notracepp ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
 
 evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
 evalCands _ _  []    = return []
@@ -139,7 +139,7 @@ evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env fi res = strengthenBinds fi' res' 
   where
-    res'                = M.fromList $ tracepp "ELAB-INST:  " $ zip is ps''
+    res'                = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
     ps''                = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
     (ps', axs)          = defuncAxioms cfg env ps
     (is, ps)            = unzip (M.toList res)
@@ -163,6 +163,7 @@ data ICtx    = ICtx
   { icAssms  :: ![Pred]          -- ^ Hypotheses, already converted to SMT format 
   , icCands  :: S.HashSet Expr   -- ^ "Candidates" for unfolding
   , icEquals :: ![Expr]          -- ^ "Known" equalities
+  , icSolved :: S.HashSet Expr   -- ^ Terms that we have already expanded
   } 
 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
@@ -177,7 +178,12 @@ type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: [Expr] -> ICtx
-initCtx es = ICtx [] mempty (notracepp "INITIAL-STUFF-INCR" es)
+initCtx es = ICtx 
+  { icAssms  = [] 
+  , icCands  = mempty 
+  , icEquals = notracepp "INITIAL-STUFF-INCR" es 
+  , icSolved = mempty
+  }
 
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
@@ -185,18 +191,19 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
                        = -- trace _msg 
-                         ( ctx { {- icCands  = _cands', -}  icEquals = mempty}
+                         ( ctx { icCands  = cands', icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
   where 
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
-    -- _cands'             = ((icCands ctx) `S.union` newCands) `S.difference`  (S.fromList solvedCands)
-    -- newCands           = S.fromList (concatMap topApps newEqs) 
-    -- solvedCands        = [ e          | (Just e, _) <- okUnfolds ]
+    cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
+    solved'            = S.union (icSolved ctx) solvedCands 
+    newCands           = S.fromList (concatMap topApps newEqs) 
+    solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ] 
     solvedEqs          = icEquals ctx ++ newEqs 
     newEqs             = concatMap snd okUnfolds
-    okUnfolds          = tracepp _str [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
+    okUnfolds          = notracepp _str [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
 
     _str               = "okUnfolds " ++ showpp (iMb, cidMb)
 
@@ -224,7 +231,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs <> icEquals ctx }
   where         
     initEqs   = equalitiesPred (initEqualities ieSMT ieAenv bs)
-    cands     = S.fromList (concatMap topApps es0)
+    cands     = (S.fromList (concatMap topApps es0)) `S.difference` (icSolved ctx)
     ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
                   [ initEqs 
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
@@ -248,14 +255,14 @@ instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . tracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
 
 sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg env fi ips = strengthenHyp fi' (tracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
+sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
@@ -266,7 +273,7 @@ sInfo cfg env fi ips = strengthenHyp fi' (tracepp "ELAB-INST:  " $ zip (fst <$> 
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 
   | isPleCstr aenv sid sub = do
-    let is0       = tracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
+    let is0       = notracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
     equalities   <- evaluate cfg ctx aenv bs es0 sid 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
@@ -304,7 +311,7 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es sid = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = tracepp ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
+  let cands    = notracepp ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
