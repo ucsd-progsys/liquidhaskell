@@ -216,13 +216,13 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
                        = -- trace _msg 
-                         ( ctx { icCands  = cands', icSolved = solved', icEquals = mempty}
+                         ( ctx { {- icCands  = cands', -} icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
   where 
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
-    cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
+    _cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
     solved'            = S.union (icSolved ctx) solvedCands 
     newCands           = S.fromList (concatMap topApps newEqs) 
     solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ] 
@@ -608,12 +608,14 @@ evalIte' γ e _ _ e2 _ b'
   | b'
   = do e' <- eval γ e2
        (e, "If-False") ~> e'
-evalIte' _γ _ b e1 e2 _ _
+evalIte' γ _ b e1 e2 _ _
+  | False
   = return $ EIte b e1 e2
+  | otherwise 
     -- see #387 
-    -- do e1' <- eval γ e1
-    --   e2' <- eval γ e2
-    --   return $ EIte b e1' e2'
+  = do e1' <- eval γ e1
+       e2' <- eval γ e2
+       return $ EIte b e1' e2'
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
