@@ -90,7 +90,7 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
-  , incrPle          :: Bool           -- ^ Use incremental PLE
+  , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   } deriving (Eq,Data,Typeable,Show,Generic)
 
@@ -173,7 +173,7 @@ defConfig = Config {
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
-  , incrPle          = True  &= help "Use incremental PLE"
+  , noIncrPle        = False &= help "Don't use incremental PLE"
   , checkCstr        = []    &= help "Only check these specific constraint-ids" 
   }
   &= verbosity
