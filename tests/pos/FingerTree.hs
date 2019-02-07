@@ -1,4 +1,4 @@
-{-@ LIQUID "--no-termination" @-}
+{- LIQUID "--no-termination" @-}
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--ple"            @-}
