@@ -609,7 +609,7 @@ evalIte' γ e _ _ e2 _ b'
   = do e' <- eval γ e2
        (e, "If-False") ~> e'
 evalIte' γ _ b e1 e2 _ _
-  | False
+  | True -- False
   = return $ EIte b e1 e2
   | otherwise 
     -- see #387 
