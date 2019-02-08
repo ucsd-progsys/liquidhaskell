@@ -5,11 +5,15 @@ module Language.Fixpoint.Horn.Transformations (
 
 import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
+import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
+import           Data.String                  (fromString)
+import qualified Data.Set                     as S
 
 -- $setup
+-- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
+-- >>> :m + *Language.Fixpoint.Horn.Parse
 -- >>> import Language.Fixpoint.Parse
--- >>> import Language.Fixpoint.Horn.Parse
 -- >>> :set -XOverloadedStrings
 
 -- |
@@ -45,25 +49,22 @@ pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b' (Head (Reft F.PTrue) ())]
 
 ------------------------------------------------------------------------------
 -- | elim solves all of the KVars in a Cstr (assuming no cycles...)
-------------------------------------------------------------------------------
-elim :: Cstr a -> Cstr a
-------------------------------------------------------------------------------
-elim c = foldl elim1 c (boundKvars c)
-
--- |
 -- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
 -- (and (forall ((x int) (x > 0)) (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0))))))
 -- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test01.smt2"
 -- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0)))) (forall ((z int) (z > 100)) (forall ((v int) (v == x + z)) ((v > 100)))))))
-
 -- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
--- [("k0",["z"])]
+-- (and (forall ((x int) (x > 0)) (and (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) ((true)))) (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) (forall ((z int) (z == v)) (forall ((v int) (v == x + z)) ((v > 100)))))))))
+------------------------------------------------------------------------------
+elim :: Cstr a -> Cstr a
+------------------------------------------------------------------------------
+elim c = S.foldl elim1 c (boundKvars c)
 
+elim1 :: Cstr a -> F.Symbol -> Cstr a
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
 -- each rhs occurence of k.
-elim1 :: Cstr a -> (F.Symbol,[F.Symbol]) -> Cstr a
-elim1 c (k,su) = doelim k sol c
-  where sol = sol1 (k,su) (scope k c)
+elim1 c k = doelim k sol c
+  where sol = sol1 k (scope k c)
 
 -- scope drops extraneous leading binders so that we can take the strongest
 -- scoped solution instead of the strongest solution
@@ -75,7 +76,7 @@ scope k = go . snd . scope' k
 -- |
 -- >>> sc <- scope' "k0" . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
 -- >>> sc
--- (True,(forall ((x int) (x > 0)) (and (forall ((y int) (y > x + 100)) (forall ((v int) (v == x + y)) ((k0 v)))) (forall ((z int) (k0 z)) (forall ((v int) (v == x + z)) ((v > 100)))))))
+-- (True,(forall ((x ... (and (forall ((y ... (forall ((v ... ((k0 v)))) (forall ((z ...
 
 -- scope' prunes out branches that don't have k
 scope' :: F.Symbol -> Cstr a -> (Bool, Cstr a)
@@ -85,6 +86,7 @@ scope' k (CAnd c) = case map snd $ filter fst $ map (scope' k) c of
                      [c] -> (True, c)
                      cs  -> (True, CAnd cs)
 
+-- TODO: Bind PAnd Case
 scope' k c@(All (Bind x t (Var k' su)) c')
   | k == k' = (True, c)
   | otherwise = All (Bind x t (Var k' su)) <$> scope' k c'
@@ -102,8 +104,11 @@ scope' _ c@Head{} = (False, c)
 -- (What does Hyp stand for? Hypercube? but the dims don't line up...)
 --
 -- >>> c <- qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
--- >>> sol1 ("k0",["z"]) (scope "k0" c)
--- ([],POr [PAnd [PAtom Eq (EVar "z") (EVar "v")],POr []])
+-- >>> sol1 ("k0") (scope "k0" c)
+-- [[((y int) (y > x + 100)),((v int) (v == x + y)),((_ bool) (κarg$k0#1 == v))]]
+-- >>> c <- qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
+-- >>> sol1 ("k0") (scope "k0" c)
+-- [[((x int) (x > 0)),((v int) (v == x)),((_ bool) (κarg$k0#1 == v))],[((y int) (k0 y)),((v int) (v == y + 1)),((_ bool) (κarg$k0#1 == v))]]
 
 -- Naming conventions:
 --  - `b` is a binder `forall . x:t .p =>`
@@ -112,26 +117,34 @@ scope' _ c@Head{} = (False, c)
 --  - `bss` is a Hyp, that tells us the solution to a Var, that is,
 --     a collection of cubes that we'll want to disjunct
 
-sol1 :: (F.Symbol, [F.Symbol]) -> Cstr a -> ([[Bind]], F.Expr)
-sol1 k (CAnd cs) = (concat bsss, F.POr ps)
-  where (bsss, ps) = unzip $ sol1 k <$> cs
-sol1 k (All b c) = ((b:) <$> bss', c')
-  where (bss', c') = sol1 k c
-sol1 (k,xs) (Head (Var k' ys) _) | k == k'
-  = ([], F.PAnd $ zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys))
-sol1 _ (Head _ _) = ([], F.PFalse)
+sol1 :: F.Symbol -> Cstr a -> [[Bind]]
+sol1 k (CAnd cs) = sol1 k =<< cs
+sol1 k (All b c) = (b:) <$> sol1 k c
+sol1 k (Head (Var k' ys) _) | k == k'
+  = [[Bind (fromString "_") F.boolSort $ Reft $ F.PAnd $ zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys)]]
+  where xs = zipWith const (kargs k) ys
+sol1 _ (Head _ _) = []
 sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
 
--- |
--- >>> :add src/Language/Fixpoint/Horn/Parse.hs
--- >>> doParse' hCstrP "" "(forall ((v Int) (v = x + z)) ((v > 100)))"
+kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1..]
 
-doelim :: F.Symbol -> ([[Bind]], F.Expr) -> Cstr a -> Cstr a
+-- |
+-- >>> let c = doParse' hCstrP "" "(forall ((z Int) ($k0 z)) ((z = x)))"
+-- >>> doelim "k0" [[Bind "v" F.boolSort (Reft $ F.EVar "v"), Bind "_" F.boolSort (Reft $ F.EVar "donkey")]]  c
+-- (forall ((v bool) (v)) (forall ((z int) (donkey)) ((z == x))))
+
+doelim :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
 doelim k bp (CAnd cs)
   = CAnd $ doelim k bp <$> cs
-doelim k (bss, p) (All (Bind x t (Var k' _)) c)
+doelim k bss (All (Bind x t (Var k' xs)) c)
   | k == k'
-  = CAnd $ foldr All (All (Bind x t (Reft p)) $ doelim k (bss,p) c) <$> bss
+  -- quadratic blowup in number of constraints, uh oh!
+  = mkAnd $ cubeSol . reverse <$> bss
+  where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
+        mkAnd [c] = c
+        mkAnd cs = CAnd cs
+        cubeSol ((Bind _ _ (Reft eqs)):xs) = foldl (flip All) (All (Bind x t (Reft $ F.subst su eqs)) $ doelim k bss c) xs
+        cubeSol _ = error "internal error"
 doelim k bp (All b c)
   = All b (doelim k bp c)
 doelim k _ (Head (Var k' _) a)
@@ -141,28 +154,24 @@ doelim _ _ (Head p a) = Head p a
 doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
 
 -- | Returns a list of KVars with thier arguments that are present as
--- binders in a given constraint
 --
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/ebind01.smt2"
--- []
+-- ... []
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/ebind02.smt2"
--- [("k",["v2"])]
+-- ... ["k"]
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
--- []
+-- ... []
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test01.smt2"
--- []
+-- ... []
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
--- [("k0",["z"])]
---
--- TODO: fix the following
---
+-- ... ["k0"]
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
--- [("k0",["z"]), ... ]
+-- ... ["k0"]
 
-boundKvars :: Cstr a -> [(F.Symbol,[F.Symbol])]
-boundKvars (Head _ _) = []
-boundKvars (CAnd c) = boundKvars =<< c
-boundKvars (All (Bind _ _ (Var k xs)) c) = (k, xs) : boundKvars c
+boundKvars :: Cstr a -> S.Set F.Symbol
+boundKvars (Head _ _) = S.empty
+boundKvars (CAnd c) = mconcat $ boundKvars <$> c
+boundKvars (All (Bind _ _ (Var k _xs)) c) = S.insert k $ boundKvars c
 boundKvars (All _ c) = boundKvars c
-boundKvars (Any (Bind _ _ (Var k xs)) c) = (k, xs) : boundKvars c
+boundKvars (Any (Bind _ _ (Var k _xs)) c) = S.insert k $ boundKvars c
 boundKvars (Any _ c) = boundKvars c
