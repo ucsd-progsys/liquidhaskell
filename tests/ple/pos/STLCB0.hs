@@ -143,7 +143,9 @@ evalOp_safe And (VBool _) (VBool _) = ()
       -> { isResTy (seq2 (evalOp o) r1 r2) (opOut o) } 
   @-}
 evalOp_res_safe :: Op -> Result -> Result -> ()
-evalOp_res_safe o (Result v1) (Result v2) = evalOp_safe o v1 v2
+evalOp_res_safe Add (Result v1) (Result v2) = evalOp_safe Add v1 v2
+evalOp_res_safe Leq (Result v1) (Result v2) = evalOp_safe Leq v1 v2
+evalOp_res_safe And (Result v1) (Result v2) = evalOp_safe And v1 v2
 evalOp_res_safe o _ _                     = () 
 
 --------------------------------------------------------------------------------
