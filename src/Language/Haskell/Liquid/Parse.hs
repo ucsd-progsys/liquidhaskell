@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Types
 import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (dataDeclP, angles, refBindP, refP, refDefP)
+import           Language.Fixpoint.Parse                hiding (stringLiteral, dataDeclP, angles, refBindP, refP, refDefP)
 
 import Control.Monad.State
 
