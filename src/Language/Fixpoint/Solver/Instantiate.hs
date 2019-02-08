@@ -390,6 +390,15 @@ evalOne γ s0 e = do
   (e', st) <- runStateT (eval γ (mytracepp "evalOne: " e)) s0 
   if e' == e then return [] else return ((e, e') : evSequence st)
 
+{- 
+
+  eval :: Knowledge -> Expr -> EvalST Expr
+
+  evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+  
+ -}
+
+
 -- Don't evaluate under Lam, App, Ite, or Constants
 topApps :: Expr -> [Expr]
 topApps = go 
