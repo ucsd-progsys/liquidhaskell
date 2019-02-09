@@ -408,8 +408,13 @@ evalOne γ s0 e = do
      expand under any function that is already on the call-stack.
   -}
 
-data Recur  = Ok | No 
+data Recur  = Ok | No deriving (Eq, Show)
 type CStack = ([Symbol], Recur)
+
+instance PPrint Recur where 
+  pprintTidy _ = Misc.tshow 
+  
+
 
 initCS :: CStack 
 initCS = ([], Ok)
@@ -423,7 +428,6 @@ recurCS (fs, No) f = not (f `elem` fs)
 
 noRecurCS :: CStack -> CStack 
 noRecurCS (fs, _) = (fs, No)
-
 
 -- Don't evaluate under Lam, App, Ite, or Constants
 topApps :: Expr -> [Expr]
@@ -487,7 +491,8 @@ evalAppAc γ stk e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
-  = do let ePopIf = mytracepp "evalAppAc:ePop " $ substPopIf (zip (smArgs simp) es) (smBody simp)
+  = do let msg    = "evalAppAc:ePop: " ++ showpp (f, dc, es)
+       let ePopIf = mytracepp msg $ substPopIf (zip (smArgs simp) es) (smBody simp)
        e'    <- eval γ stk ePopIf 
        (e, "Rewrite -" ++ showpp f) ~> e'
 
@@ -630,12 +635,12 @@ evalIte' γ stk e _ _ e2 _ b'
   = do e' <- eval γ stk e2
        (e, "If-False") ~> e'
 evalIte' γ stk _ b e1 e2 _ _
-  -- // | False
-  -- // = return (EIte b e1 e2)
-  -- // | otherwise 
+  | False 
+  = return (EIte b e1 e2)
+  | otherwise 
   -- see [NOTE:Eval-Ite] #387 
   = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
-    where stk' = noRecurCS stk 
+    where stk' = tracepp "evalIte'" $ noRecurCS stk 
 
 --  = do e1' <- eval γ e1
 --       e2' <- eval γ e2
