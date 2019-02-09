@@ -120,6 +120,7 @@ data Eliminate
   = None
   | Some
   | All
+  | Horn
   deriving (Eq, Data, Typeable, Generic)
 
 instance Serialize Eliminate
@@ -131,6 +132,7 @@ instance Show Eliminate where
   show None = "none"
   show Some = "some"
   show All  = "all"
+  show Horn  = "horn"
 
 
 useElim :: Config -> Bool

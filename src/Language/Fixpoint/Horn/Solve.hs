@@ -25,13 +25,30 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F 
 import qualified Language.Fixpoint.Horn.Types   as H 
 import qualified Language.Fixpoint.Horn.Parse   as H 
+import qualified Language.Fixpoint.Horn.Transformations as Tx
+import           System.Console.CmdArgs.Verbosity
 
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode 
 ----------------------------------------------------------------------------------
 solveHorn cfg = do
   (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
-  cfg <- (F.withPragmas cfg opts)
+
+  -- Unlike FP, default to --eliminate=some
+  cfg <- F.withPragmas (cfg { F.eliminate =  F.Some }) opts
+
+  -- Run passes that run on Horn format
+  q <- if F.eliminate cfg == F.Horn
+         then do
+           let c' = Tx.uniq $ H.qCstr q
+           whenLoud $ print "Horn Uniq:"
+           whenLoud $ print c'
+           let c'' = Tx.elim c'
+           whenLoud $ print "Horn Elim:"
+           whenLoud $ print c''
+           pure $ q { H.qCstr = c'' }
+         else pure q
+
   r <- solve cfg q
   Solver.resultExitCode r
 

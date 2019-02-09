@@ -1,7 +1,7 @@
 module Language.Fixpoint.Horn.Transformations (
-  poke,
-  elim,
-  uniq
+    poke
+  , elim
+  , uniq
 ) where
 
 import           Language.Fixpoint.Horn.Types

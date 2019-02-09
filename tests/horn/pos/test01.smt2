@@ -1,4 +1,5 @@
 // TODO move to actual SMTLIB format 
+(fixpoint "--eliminate=horn")
 
 (constraint 
   (forall ((x Int) (x > 0))
