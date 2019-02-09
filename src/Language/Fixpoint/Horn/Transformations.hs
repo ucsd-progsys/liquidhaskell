@@ -1,14 +1,17 @@
 module Language.Fixpoint.Horn.Transformations (
   poke,
-  elim
+  elim,
+  uniq
 ) where
 
 import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
-import           Data.String                  (fromString)
+import           Data.String                  (IsString (..))
 import qualified Data.Set                     as S
+import           Control.Monad.State
+-- import           Language.Fixpoint.Misc (traceShow)
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -48,6 +51,48 @@ pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b' (Head (Reft F.PTrue) ())]
     pi = Var x [x]
 
 ------------------------------------------------------------------------------
+-- | uniq makes sure each binder has a uniqe name
+------------------------------------------------------------------------------
+type RenameMap = M.HashMap F.Symbol Integer
+
+uniq :: Cstr a -> Cstr a
+uniq c = evalState (uniq' c) M.empty
+
+uniq' :: Cstr a -> State RenameMap (Cstr a)
+uniq' (Head c a) = Head <$> gets (rename c) <*> pure a
+uniq' (CAnd c) = CAnd <$> mapM uniq' c
+uniq' (All b c2) = do
+    b' <- uBind b
+    All b' <$> uniq' c2
+uniq' (Any b c2) = do
+    b' <- uBind b
+    Any b' <$> uniq' c2
+
+uBind :: Bind -> State RenameMap Bind
+uBind (Bind x t p) = do
+   x' <- uVariable x
+   Bind x' t <$> gets (rename p)
+
+uVariable :: IsString a => F.Symbol -> State RenameMap a
+uVariable x = do
+   i <- gets (M.lookupDefault 0 x)
+   modify (M.insert x (i+1))
+   pure $ numSym x (i+1)
+
+rename :: Pred -> RenameMap -> Pred
+rename e m = substPred (M.mapWithKey numSym m) e
+
+numSym :: IsString a => F.Symbol -> Integer -> a
+numSym s i = fromString $ F.symbolString s ++ "#" ++ show i
+
+substPred :: M.HashMap F.Symbol F.Symbol -> Pred -> Pred
+substPred su (Reft e) = Reft $ F.subst (F.Su $ F.EVar <$> su) e
+substPred su (PAnd ps) = PAnd $ substPred su <$> ps
+substPred su (Var k xs) = Var k $ upd <$> xs
+  where upd x = M.lookupDefault x x su
+
+
+------------------------------------------------------------------------------
 -- | elim solves all of the KVars in a Cstr (assuming no cycles...)
 -- >>> elim . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test00.smt2"
 -- (and (forall ((x int) (x > 0)) (forall ((y int) (y > x)) (forall ((v int) (v == x + y)) ((v > 0))))))
@@ -58,7 +103,9 @@ pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b' (Head (Reft F.PTrue) ())]
 ------------------------------------------------------------------------------
 elim :: Cstr a -> Cstr a
 ------------------------------------------------------------------------------
-elim c = S.foldl elim1 c (boundKvars c)
+elim c = if S.null $ boundKvars res then res else error "called elim on cyclic fucker"
+  where
+  res = S.foldl elim1 c (boundKvars c)
 
 elim1 :: Cstr a -> F.Symbol -> Cstr a
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
@@ -168,7 +215,9 @@ doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
 -- ... ["k0"]
 
+--- TODO, what about PAnd?
 boundKvars :: Cstr a -> S.Set F.Symbol
+boundKvars (Head (Var k _) _) = S.singleton k
 boundKvars (Head _ _) = S.empty
 boundKvars (CAnd c) = mconcat $ boundKvars <$> c
 boundKvars (All (Bind _ _ (Var k _xs)) c) = S.insert k $ boundKvars c
