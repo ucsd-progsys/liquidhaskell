@@ -43,7 +43,7 @@ import           Data.Char            (isUpper)
 
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp 
+mytracepp = tracepp 
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
@@ -387,16 +387,42 @@ type EvalST a = StateT EvalEnv IO a
 
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
 evalOne γ s0 e = do
-  (e', st) <- runStateT (eval γ (mytracepp "evalOne: " e)) s0 
+  (e', st) <- runStateT (eval γ initCS (mytracepp "evalOne: " e)) s0 
   if e' == e then return [] else return ((e, e') : evSequence st)
+
 
 {- 
 
-  eval :: Knowledge -> Expr -> EvalST Expr
+  eval    :: Knowledge -> CStack -> Expr -> EvalST Expr
+  evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+  evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+  evalRecApplication :: Knowledge -> CStack -> Expr -> Expr -> EvalST Expr
 
-  evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-  
  -}
+
+{- | [NOTE: Eval-Ite]  We should not be doing any PLE/eval under if-then-else where 
+     the guard condition does not provably hold. For example, see issue #387.
+     However, its ok and desirable to `eval` in this case, as long as one is not 
+     unfolding recursive functions. To permit this, we track the "call-stack" and 
+     whether or not, `eval` is occurring under an unresolved guard: if so, we do not 
+     expand under any function that is already on the call-stack.
+  -}
+
+data Recur  = Ok | No 
+type CStack = ([Symbol], Recur)
+
+initCS :: CStack 
+initCS = ([], Ok)
+
+pushCS :: CStack -> Symbol -> CStack 
+pushCS (fs, r) f = (f:fs, r)
+
+recurCS :: CStack -> Symbol -> Bool 
+recurCS (_,  Ok) _ = True 
+recurCS (fs, No) f = not (f `elem` fs) 
+
+noRecurCS :: CStack -> CStack 
+noRecurCS (fs, _) = (fs, No)
 
 
 -- Don't evaluate under Lam, App, Ite, or Constants
@@ -418,68 +444,54 @@ topApps = go
 makeLam :: Knowledge -> Expr -> Expr
 makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
 
-eval :: Knowledge -> Expr -> EvalST Expr
-eval γ (ELam (x,s) e)
-  = do e'    <- eval γ{knLams = (x, s) : knLams γ} e
-       return $ ELam (x, s) e'
-eval γ e@(EIte b e1 e2)
-  = do b' <- eval γ b
-       evalIte γ e b' e1 e2
-eval γ (ECoerc s t e)
-  = ECoerc s t <$> eval γ e
-eval γ e@(EApp _ _)
-  = evalArgs γ e >>= evalApp γ e 
-eval γ e@(EVar _)
-  = evalApp γ e (e,[])
-eval γ (PAtom r e1 e2)
-  = PAtom r <$> eval γ e1 <*> eval γ e2
-eval γ (ENeg e)
-  = ENeg <$> eval γ e
-eval γ (EBin o e1 e2)
-  = EBin o <$> eval γ e1 <*> eval γ e2
-eval γ (ETApp e t)
-  = flip ETApp t <$> eval γ e
-eval γ (ETAbs e s)
-  = flip ETAbs s <$> eval γ e
-eval γ (PNot e)
-  = PNot <$> eval γ e
-eval γ (PImp e1 e2)
-  = PImp <$> eval γ e1 <*> eval γ e2
-eval γ (PIff e1 e2)
-  = PIff <$> eval γ e1 <*> eval γ e2
-eval γ (PAnd es)
-  = PAnd <$> (eval γ <$$> es)
-eval γ (POr es)
-  = POr  <$> (eval γ <$$> es)
-eval _ e = return e
+
+eval :: Knowledge -> CStack -> Expr -> EvalST Expr
+eval γ stk = go 
+  where 
+    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' stk e where γ' = γ { knLams = (x, s) : knLams γ }
+    go e@(EIte b e1 e2) = go b        >>= \b' -> evalIte γ stk e b' e1 e2
+    go (ECoerc s t e)   = ECoerc s t  <$> go e
+    go e@(EApp _ _)     = evalArgs γ stk e >>= evalApp γ stk e 
+    go e@(EVar _)       = evalApp  γ stk e (e, [])
+    go (PAtom r e1 e2)  = PAtom r      <$> go e1 <*> go e2
+    go (ENeg e)         = ENeg         <$> go e
+    go (EBin o e1 e2)   = EBin o       <$> go e1 <*> go e2
+    go (ETApp e t)      = flip ETApp t <$> go e
+    go (ETAbs e s)      = flip ETAbs s <$> go e
+    go (PNot e)         = PNot         <$> go e
+    go (PImp e1 e2)     = PImp         <$> go e1 <*> go e2
+    go (PIff e1 e2)     = PIff         <$> go e1 <*> go e2
+    go (PAnd es)        = PAnd         <$> (go  <$$> es)
+    go (POr es)         = POr          <$> (go  <$$> es)
+    go e                = return e
 
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
 
-evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ = go []
+evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgs γ stk = go []
   where
     go acc (EApp f e)
-      = do f' <- eval γ f
-           e' <- eval γ e
+      = do f' <- eval γ stk f
+           e' <- eval γ stk e
            go (e':acc) f'
     go acc e
-      = (,acc) <$> eval γ e
+      = (,acc) <$> eval γ stk e
 
-evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ e (e1, es) = notracepp "evalApp:END" <$> (evalAppAc γ e $ notracepp "evalApp:BEGIN" (e1, es))
+evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalApp γ stk e (e1, es) = notracepp "evalApp:END" <$> (evalAppAc γ stk e $ notracepp "evalApp:BEGIN" (e1, es))
 
-evalAppAc :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalAppAc γ e (EVar f, [ex])
+evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalAppAc γ stk e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
   = do let ePopIf = mytracepp "evalAppAc:ePop " $ substPopIf (zip (smArgs simp) es) (smBody simp)
-       e'    <- eval γ ePopIf 
+       e'    <- eval γ stk ePopIf 
        (e, "Rewrite -" ++ showpp f) ~> e'
 
-evalAppAc γ _ (EVar f, es)
+evalAppAc γ stk _ (EVar f, es)
   -- we should move the lookupKnowledge stuff here into kmAms γ
   | Just eq <- L.find (( == f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
@@ -488,16 +500,17 @@ evalAppAc γ _ (EVar f, es)
   = do env   <- seSort <$> gets evEnv
        let ee = substEq env PopIf eq es bd
        assertSelectors γ ee 
-       eval γ ee 
+       eval γ stk ee 
 
-evalAppAc γ _e (EVar f, es)
+evalAppAc γ stk _e (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
+  , recurCS stk f 
   = do env      <- seSort <$> gets evEnv
-       evalRecApplication γ (eApps (EVar f) es) (substEq env Normal eq es bd)
-evalAppAc _ _ (f, es)
-  = return $ eApps f es
+       evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
+evalAppAc _ _ _ (f, es)
+  = return (eApps f es)
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -567,64 +580,66 @@ substPopIf xes e = L.foldl' go e xes
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
 
-evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ e (EIte b e1 e2) = do
+-- see [NOTE:Eval-Ite] the below is wrong; we need to guard other branches too. sigh.
+
+evalRecApplication :: Knowledge -> CStack -> Expr -> Expr -> EvalST Expr
+evalRecApplication γ stk e (EIte b e1 e2) = do
   contra <- {- mytracepp  ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
   if contra
     then return e
-    else do b' <- eval γ b
+    else do b' <- eval γ stk b
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-                   eval γ e1 >>=
+                   eval γ stk e1 >>=
                    ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
                            ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
-                           eval γ e2 >>=
+                           eval γ stk e2 >>=
                            ((e, "App2: ") ~>)
                       else return e
-evalRecApplication _ _ e
+evalRecApplication _ _ _ e
   = return e
 
 addEquality :: Knowledge -> Expr -> Expr -> EvalST ()
 addEquality γ e1 e2 =
   modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
 
-evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ e b e1 e2 = mytracepp "evalIte:END: " <$> 
-                        evalIteAc γ e b e1 (mytracepp msg e2) 
+evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIte γ stk e b e1 e2 = mytracepp "evalIte:END: " <$> 
+                            evalIteAc γ stk e b e1 (mytracepp msg e2) 
   where 
     msg = "evalIte:BEGIN: " ++ showpp e 
 
 
-evalIteAc :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIteAc γ e b e1 e2 = join $
-                      evalIte' γ e b e1 e2 <$>
-                      liftIO (isValid γ b) <*>
-                      liftIO (isValid γ (PNot b))
+evalIteAc :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIteAc γ stk e b e1 e2 
+  = join $ evalIte' γ stk e b e1 e2 <$> liftIO (isValid γ b) <*> liftIO (isValid γ (PNot b))
 
-evalIte' :: Knowledge -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool
-            -> EvalST Expr
-evalIte' γ e _ e1 _ b _
+evalIte' :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool -> EvalST Expr
+evalIte' γ stk e _ e1 _ b _
   | b
-  = do e' <- eval γ e1
+  = do e' <- eval γ stk e1
        (e, "If-True of:" ++ showpp b)  ~> e'
-evalIte' γ e _ _ e2 _ b'
+evalIte' γ stk e _ _ e2 _ b'
   | b'
-  = do e' <- eval γ e2
+  = do e' <- eval γ stk e2
        (e, "If-False") ~> e'
-evalIte' γ _ b e1 e2 _ _
-  | True -- False
-  = return $ EIte b e1 e2
-  | otherwise 
-    -- see #387 
-  = do e1' <- eval γ e1
-       e2' <- eval γ e2
-       return $ EIte b e1' e2'
+evalIte' γ stk _ b e1 e2 _ _
+  -- // | False
+  -- // = return (EIte b e1 e2)
+  -- // | otherwise 
+  -- see [NOTE:Eval-Ite] #387 
+  = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
+    where stk' = noRecurCS stk 
+
+--  = do e1' <- eval γ e1
+--       e2' <- eval γ e2
+--       return (EIte b e1' e2') 
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
