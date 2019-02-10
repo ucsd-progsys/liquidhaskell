@@ -41,11 +41,11 @@ solveHorn cfg = do
   q <- if F.eliminate cfg == F.Horn
          then do
            let c' = Tx.uniq $ H.qCstr q
-           whenLoud $ print "Horn Uniq:"
-           whenLoud $ print c'
+           whenLoud $ putStrLn "Horn Uniq:"
+           whenLoud $ putStrLn $ F.showpp  c'
            let c'' = Tx.elim c'
-           whenLoud $ print "Horn Elim:"
-           whenLoud $ print c''
+           whenLoud $ putStrLn "Horn Elim:"
+           whenLoud $ putStrLn $ F.showpp c''
            pure $ q { H.qCstr = c'' }
          else pure q
 
