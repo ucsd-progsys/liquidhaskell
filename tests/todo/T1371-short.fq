@@ -1,0 +1,77 @@
+// minimized version of LH #1371 
+
+fixpoint "--rewrite"
+
+data Thing 0 = [
+       | Op { opLeft : Thing, opRight : Thing}
+       | N  { eNum : int}
+     ]
+
+// ACTUAL
+define killer (arg1 : Thing,  arg2 : Thing) : Thing = 
+  (((killer arg1 arg2) = (if (is$N arg1) 
+                            then (if (is$N arg2) then (arg1) else (Op (opLeft arg2) (killer (N (eNum arg1)) (opRight arg2)))) 
+                            else (Op (opLeft arg1) (killer (opRight arg1) arg2)))))
+
+constant killer : (func(0 , [Thing; Thing; Thing]))
+
+match is$Op N x       =  (false)
+match eNum  N x       =  (x) 
+match is$N  N x       =  (true)
+match N       x       =  ((N x)) 
+match opRight Op x y  =  (y)
+match opLeft  Op x y  =  (x)
+match is$Op   Op x y  =  (true)
+match is$N    Op x y  =  (false)
+
+bind 0 arg2 : {v : Thing | []}
+bind 1 e1   : {v : Thing | []}
+bind 2 e2   : {v : Thing | []}
+bind 3 dY1  : {v : Thing | [((1 + 2) = 3);
+                           (v = (killer e2 arg2));
+                           (v = (if (is$N e2) then (Op (opLeft arg2) (killer (N (eNum e2)) (opRight arg2))) else (Op (opLeft e2) (killer (opRight e2) arg2))));
+                           (v = (killer e2 arg2))]}
+
+
+
+
+
+bind 39 tmp : {v : Thing | [ ((opRight v) = e2);
+                             ((opLeft v) = e1);
+                             ((is$Op v) <=> true);
+                             ((is$N v) <=> false);
+                             (v = (Op e1 e2));
+                             (v = (Op e1 e2));
+                             ((opRight v) = e2);
+                             ((opLeft v) = e1);
+                             ((is$Op v) <=> true);
+                             ((is$N v) <=> false);
+                             (v = (Op e1 e2))]}
+
+
+bind 40 n : {v : int | []}
+
+bind 50 dXY : {v : Thing | [((is$Op v) <=> false);
+                              ((eNum v) = n);
+                              ((is$N v) <=> true);
+                              (v = (N n))]}
+
+bind 60 dXZ : {v : Thing | [((1 + 2) = 3);
+                           (v = (killer dXY e2));
+                           (v = (if (is$N dXY) 
+                                    then (Op (opLeft e2) (killer (N (eNum dXY)) (opRight e2))) 
+                                    else (Op (opLeft dXY) (killer (opRight dXY) e2))));
+                           (v = (killer dXY e2))]}
+
+expand [8 : True]
+
+constraint:
+  env [0; 1; 2; 39;40; 50; 60]
+  lhs {VV8 : Thing | [((opRight VV8) = dXZ);
+                               ((opLeft VV8) = e1);
+                               ((is$Op VV8) <=> true);
+                               ((is$N VV8) <=> false);
+                               (VV8 = (Op e1 dXZ))]}
+  rhs {VV8 : Thing | [((10 + 2) = 3)]}
+  id 8 tag [3]
+  // META constraint id 8 : ()

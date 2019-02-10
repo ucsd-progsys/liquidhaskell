@@ -152,9 +152,9 @@ funcSortIndex env e z = M.lookupDefault err z (seAppls env)
     err               = panic ("Unknown func-sort: " ++ showpp z ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
-ffuncSort env t      = (tx t1, tx t2)
+ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
   where
-    tx               = applySmtSort (seData env)
+    tx               = applySmtSort (seData env) 
     (t1, t2)         = args t
     args (FFunc a b) = (a, b)
     args _           = (FInt, FInt)
@@ -232,13 +232,14 @@ instance B.Binary SmtSort
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
-sortSmtSort poly env  = go . unAbs
+sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAbs $ t
   where
     go (FFunc _ _)    = SInt
     go FInt           = SInt
     go FReal          = SReal
     go t
       | t == boolSort = SBool
+      | isString t    = SString 
     go (FVar i)
       | poly          = SVar i
       | otherwise     = SInt

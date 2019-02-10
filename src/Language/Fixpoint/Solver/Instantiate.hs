@@ -41,6 +41,10 @@ import           Data.Char            (isUpper)
 -- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
+
+mytracepp :: (PPrint a) => String -> a -> a
+mytracepp = tracepp 
+
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
@@ -84,7 +88,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = notracepp "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+mkCTrie ics  = mytracepp  "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
     cBinds   = L.sort . elemsIBindEnv . senv 
 
@@ -116,7 +120,7 @@ loopB env ctx delta iMb res b = case b of
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb 
-  let assms = notracepp ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
+  let assms = mytracepp  ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT) 
     act ctx'
@@ -124,14 +128,34 @@ withAssms env@(InstEnv {..}) ctx delta cidMb act = do
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
 ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
 ple1 env@(InstEnv {..}) ctx i cidMb res = do 
-  let cands = notracepp ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx) 
-  unfolds  <- evalCands ieKnowl ieEvEnv cands   
-  return    $ updCtxRes env ctx res i cidMb (notracepp ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
+  let cands = mytracepp  ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx) 
+  -- unfolds  <- evalCands ieKnowl ieEvEnv cands   
+  unfolds  <- evalCandsLoop ieCfg ieSMT ieKnowl ieEvEnv cands   
+  return    $ updCtxRes env ctx res i cidMb (mytracepp  ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
 
-evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
-evalCands _ _  []    = return []
-evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
-                          return (zip (Just <$> cands) eqs)
+_evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
+_evalCands _ _  []    = return []
+_evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
+                           return $ mkUnfolds (zip (Just <$> cands) eqs)
+
+unfoldPred :: Config -> SMT.Context -> [Unfold] -> Pred 
+unfoldPred cfg ctx = toSMT cfg ctx [] . pAnd . concatMap snd  
+
+evalCandsLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
+evalCandsLoop cfg ctx γ s0 cands = go [] cands 
+  where 
+    go acc []    = return acc 
+    go acc cands = do eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                                  SMT.smtAssert ctx (unfoldPred cfg ctx acc) 
+                                  mapM (evalOne γ s0) cands
+                      let us  = zip (Just <$> cands) eqss 
+                      case mkUnfolds us of 
+                        []  -> return acc 
+                        us' -> do let acc'   = acc ++ us' 
+                                  let oks    = S.fromList [ e | (Just e, _) <- us' ]
+                                  let cands' = [ e | e <- cands, not (S.member e oks) ] 
+                                  go acc' cands' 
+
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
@@ -139,7 +163,7 @@ evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env fi res = strengthenBinds fi' res' 
   where
-    res'                = M.fromList $ notracepp "ELAB-INST:  " $ zip is ps''
+    res'                = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
     ps''                = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
     (ps', axs)          = defuncAxioms cfg env ps
     (is, ps)            = unzip (M.toList res)
@@ -172,7 +196,8 @@ type InstRes = M.HashMap BindId Expr
 -- | @Unfold is the result of running PLE at a single equality; 
 --     (e, [(e1, e1')...]) is the source @e@ and the (possible empty) 
 --   list of PLE-generated equalities (e1, e1') ... 
-type Unfold  = (Maybe Expr, [(Expr, Expr)])
+-- type Unfold  = (Maybe Expr, [(Expr, Expr)])
+type Unfold  = (Maybe Expr, [Expr])
 type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
@@ -181,7 +206,7 @@ initCtx :: [Expr] -> ICtx
 initCtx es = ICtx 
   { icAssms  = [] 
   , icCands  = mempty 
-  , icEquals = notracepp "INITIAL-STUFF-INCR" es 
+  , icEquals = mytracepp  "INITIAL-STUFF-INCR" es 
   , icSolved = mempty
   }
 
@@ -191,21 +216,29 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
                        = -- trace _msg 
-                         ( ctx { icCands  = cands', icSolved = solved', icEquals = mempty}
+                         ( ctx { {- icCands  = cands', -} icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
   where 
     _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
-    cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
+    _cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
     solved'            = S.union (icSolved ctx) solvedCands 
     newCands           = S.fromList (concatMap topApps newEqs) 
     solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ] 
     solvedEqs          = icEquals ctx ++ newEqs 
     newEqs             = concatMap snd okUnfolds
-    okUnfolds          = notracepp _str [ (eMb, ps)  | (eMb, eqs) <- us, let ps = equalitiesPred eqs, not (null ps) ] 
-
+    okUnfolds          = mytracepp  _str [ (eMb, ps)  | (eMb, ps) <- us, {- let ps = equalitiesPred eqs, -} not (null ps) ] 
     _str               = "okUnfolds " ++ showpp (iMb, cidMb)
+    -- cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
+    -- solvedEqs          = icEquals ctx ++ concatMap snd us
+    -- solvedCands        = [ e          | (Just e, _) <- us]
+
+mkUnfolds :: [(a, [(Expr, Expr)])] -> [(a, [Expr])]
+mkUnfolds us = [ (eMb, ps)  | (eMb, eqs) <- us
+                            , let ps = equalitiesPred eqs
+                            , not (null ps) 
+               ] 
 
 debugResult :: InstEnv a -> InstRes -> SubcId -> String 
 debugResult (InstEnv {..}) res i = msg 
@@ -255,14 +288,14 @@ instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . notracepp ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
+                        ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
-    aenv            = {- notracepp "AXIOM-ENV" -} (ae fi)
+    aenv            = {- mytracepp  "AXIOM-ENV" -} (ae fi)
 
 sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$> is) ps'')
+sInfo cfg env fi ips = strengthenHyp fi' (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
     (ps', axs)       = defuncAxioms cfg env ps
@@ -273,7 +306,7 @@ sInfo cfg env fi ips = strengthenHyp fi' (notracepp "ELAB-INST:  " $ zip (fst <$
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 
   | isPleCstr aenv sid sub = do
-    let is0       = notracepp "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
+    let is0       = mytracepp  "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
     let (bs, es0) = cstrExprs bds sub
     equalities   <- evaluate cfg ctx aenv bs es0 sid 
     let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
@@ -311,14 +344,33 @@ evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
 evaluate cfg ctx aenv facts es sid = do 
   let eqs      = initEqualities ctx aenv facts  
   let γ        = knowledge cfg ctx aenv 
-  let cands    = notracepp ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
+  let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
   let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
   let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
+  eqss        <- _evalLoop cfg ctx γ s0 ctxEqs cands 
+  return       $ eqs ++ eqss
+{- 
   eqss        <- SMT.smtBracket ctx "PLE.evaluate" $ do
                    forM_ ctxEqs (SMT.smtAssert ctx) 
                    mapM (evalOne γ s0) cands
-  return        $ eqs ++ concat eqss
+  return       $ eqs ++ concat eqss
+-}
+
+_evalLoop cfg ctx γ s0 ctxEqs cands = loop [] cands 
+  where 
+    loop acc []    = return acc
+    loop acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
+                        eqss <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                                  forM_ (eqp : ctxEqs) (SMT.smtAssert ctx) 
+                                  mapM (evalOne γ s0) cands
+                        case concat eqss of 
+                          []   -> return acc 
+                          eqs' -> do let acc'   = acc ++ eqs' 
+                                     let oks    = S.fromList (fst <$> eqs')
+                                     let cands' = [ e | e <- cands, not (S.member e oks) ] 
+                                     loop acc' cands' 
+
 
 
 --------------------------------------------------------------------------------
@@ -335,8 +387,47 @@ type EvalST a = StateT EvalEnv IO a
 
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
 evalOne γ s0 e = do
-  (e', st) <- runStateT (eval γ e) s0 
+  (e', st) <- runStateT (eval γ initCS (mytracepp "evalOne: " e)) s0 
   if e' == e then return [] else return ((e, e') : evSequence st)
+
+
+{- 
+
+  eval    :: Knowledge -> CStack -> Expr -> EvalST Expr
+  evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+  evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+  evalRecApplication :: Knowledge -> CStack -> Expr -> Expr -> EvalST Expr
+
+ -}
+
+{- | [NOTE: Eval-Ite]  We should not be doing any PLE/eval under if-then-else where 
+     the guard condition does not provably hold. For example, see issue #387.
+     However, its ok and desirable to `eval` in this case, as long as one is not 
+     unfolding recursive functions. To permit this, we track the "call-stack" and 
+     whether or not, `eval` is occurring under an unresolved guard: if so, we do not 
+     expand under any function that is already on the call-stack.
+  -}
+
+data Recur  = Ok | No deriving (Eq, Show)
+type CStack = ([Symbol], Recur)
+
+instance PPrint Recur where 
+  pprintTidy _ = Misc.tshow 
+  
+
+
+initCS :: CStack 
+initCS = ([], Ok)
+
+pushCS :: CStack -> Symbol -> CStack 
+pushCS (fs, r) f = (f:fs, r)
+
+recurCS :: CStack -> Symbol -> Bool 
+recurCS (_,  Ok) _ = True 
+recurCS (fs, No) f = not (f `elem` fs) 
+
+noRecurCS :: CStack -> CStack 
+noRecurCS (fs, _) = (fs, No)
 
 -- Don't evaluate under Lam, App, Ite, or Constants
 topApps :: Expr -> [Expr]
@@ -357,64 +448,55 @@ topApps = go
 makeLam :: Knowledge -> Expr -> Expr
 makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
 
-eval :: Knowledge -> Expr -> EvalST Expr
-eval γ (ELam (x,s) e)
-  = do e'    <- eval γ{knLams = (x, s) : knLams γ} e
-       return $ ELam (x, s) e'
 
-eval γ e@(EIte b e1 e2)
-  = do b' <- eval γ b
-       evalIte γ e b' e1 e2
-eval γ (ECoerc s t e)
-  = ECoerc s t <$> eval γ e
-eval γ e@(EApp _ _)
-  = evalArgs γ e >>= evalApp γ e
-eval γ e@(EVar _)
-  = evalApp γ e (e,[])
-eval γ (PAtom r e1 e2)
-  = PAtom r <$> eval γ e1 <*> eval γ e2
-eval γ (ENeg e)
-  = ENeg <$> eval γ e
-eval γ (EBin o e1 e2)
-  = EBin o <$> eval γ e1 <*> eval γ e2
-eval γ (ETApp e t)
-  = flip ETApp t <$> eval γ e
-eval γ (ETAbs e s)
-  = flip ETAbs s <$> eval γ e
-eval γ (PNot e)
-  = PNot <$> eval γ e
-eval γ (PImp e1 e2)
-  = PImp <$> eval γ e1 <*> eval γ e2
-eval γ (PIff e1 e2)
-  = PIff <$> eval γ e1 <*> eval γ e2
-eval γ (PAnd es)
-  = PAnd <$> (eval γ <$$> es)
-eval γ (POr es)
-  = POr  <$> (eval γ <$$> es)
-eval _ e = return e
+eval :: Knowledge -> CStack -> Expr -> EvalST Expr
+eval γ stk = go 
+  where 
+    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' stk e where γ' = γ { knLams = (x, s) : knLams γ }
+    go e@(EIte b e1 e2) = go b        >>= \b' -> evalIte γ stk e b' e1 e2
+    go (ECoerc s t e)   = ECoerc s t  <$> go e
+    go e@(EApp _ _)     = evalArgs γ stk e >>= evalApp γ stk e 
+    go e@(EVar _)       = evalApp  γ stk e (e, [])
+    go (PAtom r e1 e2)  = PAtom r      <$> go e1 <*> go e2
+    go (ENeg e)         = ENeg         <$> go e
+    go (EBin o e1 e2)   = EBin o       <$> go e1 <*> go e2
+    go (ETApp e t)      = flip ETApp t <$> go e
+    go (ETAbs e s)      = flip ETAbs s <$> go e
+    go (PNot e)         = PNot         <$> go e
+    go (PImp e1 e2)     = PImp         <$> go e1 <*> go e2
+    go (PIff e1 e2)     = PIff         <$> go e1 <*> go e2
+    go (PAnd es)        = PAnd         <$> (go  <$$> es)
+    go (POr es)         = POr          <$> (go  <$$> es)
+    go e                = return e
 
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
 
-evalArgs :: Knowledge -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ = go []
+evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgs γ stk = go []
   where
     go acc (EApp f e)
-      = do f' <- eval γ f
-           e' <- eval γ e
+      = do f' <- eval γ stk f
+           e' <- eval γ stk e
            go (e':acc) f'
     go acc e
-      = (,acc) <$> eval γ e
+      = (,acc) <$> eval γ stk e
 
-evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ e (EVar f, [ex])
+evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalApp γ stk e (e1, es) = notracepp "evalApp:END" <$> (evalAppAc γ stk e $ notracepp "evalApp:BEGIN" (e1, es))
+
+evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalAppAc γ stk e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
   , length (smArgs simp) == length es
-  = do e'    <- eval γ $ substPopIf (zip (smArgs simp) es) (smBody simp)
+  = do let msg    = "evalAppAc:ePop: " ++ showpp (f, dc, es)
+       let ePopIf = mytracepp msg $ substPopIf (zip (smArgs simp) es) (smBody simp)
+       e'    <- eval γ stk ePopIf 
        (e, "Rewrite -" ++ showpp f) ~> e'
-evalApp γ _ (EVar f, es)
+
+evalAppAc γ stk _ (EVar f, es)
   -- we should move the lookupKnowledge stuff here into kmAms γ
   | Just eq <- L.find (( == f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
@@ -423,16 +505,17 @@ evalApp γ _ (EVar f, es)
   = do env   <- seSort <$> gets evEnv
        let ee = substEq env PopIf eq es bd
        assertSelectors γ ee 
-       eval γ ee 
+       eval γ stk ee 
 
-evalApp γ _e (EVar f, es)
+evalAppAc γ stk _e (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es   -- recursive equations
+  , recurCS stk f 
   = do env      <- seSort <$> gets evEnv
-       evalRecApplication γ (eApps (EVar f) es) (substEq env Normal eq es bd)
-evalApp _ _ (f, es)
-  = return $ eApps f es
+       evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
+evalAppAc _ _ _ (f, es)
+  = return (eApps f es)
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -458,7 +541,7 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
     eTs   = sortExpr sp env <$> es
-    coSub = notracepp ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
+    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
 
 mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
@@ -466,7 +549,7 @@ mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
     xys         = concat (zipWith matchSorts xTs eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = notracepp ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
+matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
@@ -502,53 +585,66 @@ substPopIf xes e = L.foldl' go e xes
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
 
-evalRecApplication :: Knowledge -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ e (EIte b e1 e2) = do
-  contra <- {- notracepp ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
+-- see [NOTE:Eval-Ite] the below is wrong; we need to guard other branches too. sigh.
+
+evalRecApplication :: Knowledge -> CStack -> Expr -> Expr -> EvalST Expr
+evalRecApplication γ stk e (EIte b e1 e2) = do
+  contra <- {- mytracepp  ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
   if contra
     then return e
-    else do b' <- eval γ b
+    else do b' <- eval γ stk b
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-                   eval γ e1 >>=
+                   eval γ stk e1 >>=
                    ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
                            ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
-                           eval γ e2 >>=
+                           eval γ stk e2 >>=
                            ((e, "App2: ") ~>)
                       else return e
-evalRecApplication _ _ e
+evalRecApplication _ _ _ e
   = return e
 
 addEquality :: Knowledge -> Expr -> Expr -> EvalST ()
 addEquality γ e1 e2 =
   modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
 
-evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ e b e1 e2 = join $
-                      evalIte' γ e b e1 e2 <$>
-                      liftIO (isValid γ b) <*>
-                      liftIO (isValid γ (PNot b))
+evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIte γ stk e b e1 e2 = mytracepp "evalIte:END: " <$> 
+                            evalIteAc γ stk e b e1 (mytracepp msg e2) 
+  where 
+    msg = "evalIte:BEGIN: " ++ showpp e 
 
-evalIte' :: Knowledge -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool
-            -> EvalST Expr
-evalIte' γ e _ e1 _ b _
+
+evalIteAc :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIteAc γ stk e b e1 e2 
+  = join $ evalIte' γ stk e b e1 e2 <$> liftIO (isValid γ b) <*> liftIO (isValid γ (PNot b))
+
+evalIte' :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool -> EvalST Expr
+evalIte' γ stk e _ e1 _ b _
   | b
-  = do e' <- eval γ e1
+  = do e' <- eval γ stk e1
        (e, "If-True of:" ++ showpp b)  ~> e'
-evalIte' γ e _ _ e2 _ b'
+evalIte' γ stk e _ _ e2 _ b'
   | b'
-  = do e' <- eval γ e2
+  = do e' <- eval γ stk e2
        (e, "If-False") ~> e'
-evalIte' γ _ b e1 e2 _ _
-  = do e1' <- eval γ e1
-       e2' <- eval γ e2
-       return $ EIte b e1' e2'
+evalIte' γ stk _ b e1 e2 _ _
+  | False 
+  = return (EIte b e1 e2)
+  | otherwise 
+  -- see [NOTE:Eval-Ite] #387 
+  = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
+    where stk' = tracepp "evalIte'" $ noRecurCS stk 
+
+--  = do e1' <- eval γ e1
+--       e2' <- eval γ e2
+--       return (EIte b e1' e2') 
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
@@ -565,7 +661,8 @@ data Knowledge = KN
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
-isValid γ e = knPreds γ (knContext γ) (knLams γ) e
+isValid γ e = mytracepp ("isValid: " ++ showpp e) <$> 
+                knPreds γ (knContext γ) (knLams γ) e
 
 isProof :: (a, SortedReft) -> Bool 
 isProof (_, RR s _) = showpp s == "Tuple"
@@ -679,7 +776,7 @@ assertSelectors :: Knowledge -> Expr -> EvalST ()
 assertSelectors γ e = do
     sims <- aenvSimpl <$> gets _evAEnv
     -- cfg  <- gets evCfg
-    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (notracepp "assertSelector" e) sims
+    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
     forM_ sims $ \s -> Vis.mapMExpr (go s) e
     return ()
   where
@@ -710,6 +807,6 @@ withCtx cfg file env k = do
 (~>) :: (Expr, String) -> Expr -> EvalST Expr
 (e, _str) ~> e' = do
   let msg = "PLE: " ++ _str ++ showpp (e, e') 
-  modify (\st -> st {evId = (notracepp msg $ evId st) + 1})
+  modify (\st -> st {evId = (mytracepp msg $ evId st) + 1})
   return e'
 
