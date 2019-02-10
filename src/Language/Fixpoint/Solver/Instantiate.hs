@@ -43,7 +43,7 @@ import           Data.Char            (isUpper)
 
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = tracepp 
+mytracepp = notracepp 
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
@@ -408,7 +408,7 @@ evalOne γ s0 e = do
      expand under any function that is already on the call-stack.
   -}
 
-data Recur  = Ok | No deriving (Eq, Show)
+data Recur  = Ok | Stop deriving (Eq, Show)
 type CStack = ([Symbol], Recur)
 
 instance PPrint Recur where 
@@ -424,10 +424,10 @@ pushCS (fs, r) f = (f:fs, r)
 
 recurCS :: CStack -> Symbol -> Bool 
 recurCS (_,  Ok) _ = True 
-recurCS (fs, No) f = not (f `elem` fs) 
+recurCS (fs, _) f  = not (f `elem` fs) 
 
 noRecurCS :: CStack -> CStack 
-noRecurCS (fs, _) = (fs, No)
+noRecurCS (fs, _) = (fs, Stop)
 
 -- Don't evaluate under Lam, App, Ite, or Constants
 topApps :: Expr -> [Expr]
@@ -484,7 +484,7 @@ evalArgs γ stk = go []
       = (,acc) <$> eval γ stk e
 
 evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ stk e (e1, es) = notracepp "evalApp:END" <$> (evalAppAc γ stk e $ notracepp "evalApp:BEGIN" (e1, es))
+evalApp γ stk e (e1, es) = mytracepp "evalApp:END" <$> (evalAppAc γ stk e $ mytracepp "evalApp:BEGIN" (e1, es))
 
 evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalAppAc γ stk e (EVar f, [ex])
@@ -501,11 +501,12 @@ evalAppAc γ stk _ (EVar f, es)
   | Just eq <- L.find (( == f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es
-  , f `notElem` syms bd               -- non-recursive equations
+  , f `notElem` syms bd               -- non-recursive equations << HACK! misses MUTUALLY RECURSIVE definitions! 
+  , recurCS stk f 
   = do env   <- seSort <$> gets evEnv
        let ee = substEq env PopIf eq es bd
        assertSelectors γ ee 
-       eval γ stk ee 
+       eval γ (pushCS stk f) ee 
 
 evalAppAc γ stk _e (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
@@ -618,7 +619,7 @@ evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 evalIte γ stk e b e1 e2 = mytracepp "evalIte:END: " <$> 
                             evalIteAc γ stk e b e1 (mytracepp msg e2) 
   where 
-    msg = "evalIte:BEGIN: " ++ showpp e 
+    msg = "evalIte:BEGINS: " ++ showpp (stk, e) 
 
 
 evalIteAc :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
@@ -635,12 +636,12 @@ evalIte' γ stk e _ _ e2 _ b'
   = do e' <- eval γ stk e2
        (e, "If-False") ~> e'
 evalIte' γ stk _ b e1 e2 _ _
-  | False 
-  = return (EIte b e1 e2)
-  | otherwise 
+  -- // | False 
+  -- // = return (EIte b e1 e2)
+  -- // | otherwise 
   -- see [NOTE:Eval-Ite] #387 
   = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
-    where stk' = tracepp "evalIte'" $ noRecurCS stk 
+    where stk' = mytracepp "evalIte'" $ noRecurCS stk 
 
 --  = do e1' <- eval γ e1
 --       e2' <- eval γ e2
