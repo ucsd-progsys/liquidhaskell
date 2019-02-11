@@ -75,7 +75,7 @@ uBind (Bind x t p) = do
 
 uVariable :: IsString a => F.Symbol -> State RenameMap a
 uVariable x = do
-   i <- gets (M.lookupDefault 0 x)
+   i <- gets (M.lookupDefault (-1) x)
    modify (M.insert x (i+1))
    pure $ numSym x (i+1)
 
@@ -83,6 +83,7 @@ rename :: Pred -> RenameMap -> Pred
 rename e m = substPred (M.mapWithKey numSym m) e
 
 numSym :: IsString a => F.Symbol -> Integer -> a
+numSym s 0 = fromString $ F.symbolString s
 numSym s i = fromString $ F.symbolString s ++ "#" ++ show i
 
 substPred :: M.HashMap F.Symbol F.Symbol -> Pred -> Pred
@@ -90,7 +91,6 @@ substPred su (Reft e) = Reft $ F.subst (F.Su $ F.EVar <$> su) e
 substPred su (PAnd ps) = PAnd $ substPred su <$> ps
 substPred su (Var k xs) = Var k $ upd <$> xs
   where upd x = M.lookupDefault x x su
-
 
 ------------------------------------------------------------------------------
 -- | elim solves all of the KVars in a Cstr (assuming no cycles...)
@@ -156,6 +156,9 @@ scope' _ c@Head{} = (False, c)
 -- >>> c <- qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
 -- >>> sol1 ("k0") (scope "k0" c)
 -- [[((x int) (x > 0)),((v int) (v == x)),((_ bool) (κarg$k0#1 == v))],[((y int) (k0 y)),((v int) (v == y + 1)),((_ bool) (κarg$k0#1 == v))]]
+-- >>> let c = doParse' hCstrP "" "(forall ((a Int) (p a)) (forall ((b Int) (q b)) (and (($k a)) (($k b)))))"
+-- >>> sol1 "k" c
+-- [[((a int) (p a)),((b int) (q b)),((_ bool) (κarg$k#1 == a))],[((a int) (p a)),((b int) (q b)),((_ bool) (κarg$k#1 == b))]]
 
 -- Naming conventions:
 --  - `b` is a binder `forall . x:t .p =>`
@@ -215,12 +218,12 @@ doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
 -- ... ["k0"]
 
---- TODO, what about PAnd?
 boundKvars :: Cstr a -> S.Set F.Symbol
-boundKvars (Head (Var k _) _) = S.singleton k
-boundKvars (Head _ _) = S.empty
+boundKvars (Head p _) = pKVars p
 boundKvars (CAnd c) = mconcat $ boundKvars <$> c
-boundKvars (All (Bind _ _ (Var k _xs)) c) = S.insert k $ boundKvars c
-boundKvars (All _ c) = boundKvars c
-boundKvars (Any (Bind _ _ (Var k _xs)) c) = S.insert k $ boundKvars c
-boundKvars (Any _ c) = boundKvars c
+boundKvars (All (Bind _ _ p) c) = pKVars p <> boundKvars c
+boundKvars (Any (Bind _ _ p) c) = pKVars p <> boundKvars c
+
+pKVars (Var k _) = S.singleton k
+pKVars (PAnd ps) = mconcat $ pKVars <$> ps
+pKVars _ = S.empty
