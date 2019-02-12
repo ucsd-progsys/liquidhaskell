@@ -37,7 +37,6 @@ makeHaskellAxioms :: GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap ->
 makeHaskellAxioms src env tycEnv name lmap spSig 
   = fmap (makeAxiom env tycEnv name lmap) 
   . getReflectDefs src spSig
-  -- TODO-REBARE: forM_ xtvds $ \(x,_,v,_) -> updateLMapXV x v
 
 
 getReflectDefs :: GhcSrc -> GhcSpecSig -> Ms.BareSpec 

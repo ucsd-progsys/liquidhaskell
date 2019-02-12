@@ -82,7 +82,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts])
+  = F.AEnv (makeEquations sp) -- LF : missing-sort++ [specTypeEq emb x t | (x, t) <- xts])
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
@@ -93,9 +93,6 @@ makeAxiomEnvironment info xts fcs
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
-  -- where 
-    -- isExpand x      = M.member x autos 
-    -- autos           = gsAutoInst (gsRefl sp)  
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
