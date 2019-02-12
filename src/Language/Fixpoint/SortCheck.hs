@@ -653,7 +653,7 @@ splitArgs = go []
 --------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
-applySorts = tracepp "applySorts" . (defs ++) . Vis.fold vis () []
+applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }

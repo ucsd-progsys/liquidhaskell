@@ -43,7 +43,7 @@ import           Data.Char            (isUpper)
 
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp 
+mytracepp = tracepp 
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
@@ -593,7 +593,7 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
   contra <- {- mytracepp  ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
   if contra
     then return e
-    else do b' <- eval γ stk b
+    else do b' <- eval γ stk (mytracepp "REC-APP-COND" b) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA-LOOP?
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>
