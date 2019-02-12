@@ -43,7 +43,7 @@ import           Data.Char            (isUpper)
 
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = tracepp 
+mytracepp = notracepp 
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
