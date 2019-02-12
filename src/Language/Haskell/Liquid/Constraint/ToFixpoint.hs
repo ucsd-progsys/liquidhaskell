@@ -79,7 +79,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb (F.tracepp "SPECTYPEEQ" x) t | (x, t) <- xts, not (isClassOrDict x)])
+  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts, not (isClassOrDict x)])
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
@@ -89,7 +89,14 @@ makeAxiomEnvironment info xts fcs
 
 isClassOrDict :: Id -> Bool
 isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
-                    $ (GM.isDataConId x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
+                    $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
+
+hasClassArg :: Id -> Bool
+hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
+  where 
+    msg       = "hasClassArg: " ++ showpp (x, t:ts)
+    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
+
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
