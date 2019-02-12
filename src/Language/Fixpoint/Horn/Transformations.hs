@@ -22,10 +22,13 @@ import           Control.Monad.State
 -- |
 -- >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind01.smt2"
 -- >>> qCstr (poke q)
--- (and (forall ((m int) (true)) (and (forall ((x1 int) (and (true) (x1 x1))) (and (forall ((v int) (v == m + 1)) ((v == x1))) (forall ((v int) (v == x1 + 1)) ((v == 2 + m))))) (exists ((x1 int) (and (true) (x1 x1))) ((true))))))
+-- (and (forall ((m int) (true)) (and (forall ((x1 int) (and (true) (πx1 x1))) (and (forall ((v int) (v == m + 1)) ((v == x1))) (forall ((v int) (v == x1 + 1)) ((v == 2 + m))))) (exists ((x1 int) (and (true) (πx1 x1))) ((true))))))
 -- >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind02.smt2"
 -- >>> qCstr (poke q)
--- (and (forall ((m int) (true)) (forall ((z int) (z == m - 1)) (and (forall ((v1 int) (v1 == z + 2)) ((k v1))) (and (forall ((x1 int) (and (true) (x1 x1))) (and (forall ((v2 int) (k v2)) ((v2 == x1))) (forall ((v3 int) (v3 == x1 + 1)) ((v3 == m + 2))))) (exists ((x1 int) (and (true) (x1 x1))) ((true))))))))
+-- (and (forall ((m int) (true)) (forall ((z int) (z == m - 1)) (and (forall ((v1 int) (v1 == z + 2)) ((k v1))) (and (forall ((x1 int) (and (true) (πx1 x1))) (and (forall ((v2 int) (k v2)) ((v2 == x1))) (forall ((v3 int) (v3 == x1 + 1)) ((v3 == m + 2))))) (exists ((x1 int) (and (true) (πx1 x1))) ((true))))))))
+-- >>> let c = doParse' hCstrP "" "(forall ((a Int) (p a)) (exists ((b Int) (q b)) (and (($k a)) (($k b)))))"
+-- >>> pokec c
+-- (forall ((a int) (p a)) (and (forall ((b int) (and (q b) (πb b))) (and ((k a)) ((k b)))) (exists ((b int) (and (q b) (πb b))) ((true)))))
 
 ------------------------------------------------------------------------------
 poke :: Query a -> Query ()
@@ -37,7 +40,7 @@ ebs :: Cstr a -> [Var ()]
 ebs (Head _ _) = []
 ebs (CAnd cs) = ebs =<< cs
 ebs (All _ c) = ebs c
-ebs (Any (Bind x t _) c) = HVar x [t] () : ebs c
+ebs (Any (Bind x t _) c) = HVar (piSym x) [t] () : ebs c
 
 pokec :: Cstr a -> Cstr ()
 pokec (Head c _) = (Head c ())
@@ -48,7 +51,10 @@ pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b' (Head (Reft F.PTrue) ())]
   where
     Bind x t p = b
     b' = Bind x t (PAnd [p, pi])
-    pi = Var x [x]
+    pi = Var (piSym x) [x]
+
+piSym :: F.Symbol -> F.Symbol
+piSym s = fromString $ "π" ++ F.symbolString s
 
 ------------------------------------------------------------------------------
 -- | uniq makes sure each binder has a uniqe name
