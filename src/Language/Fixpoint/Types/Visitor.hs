@@ -148,9 +148,24 @@ instance (Visitable (c a)) => Visitable (GInfo c a) where
   visit v c x = do
     cm' <- mapM (visit v c) (cm x)
     bs' <- visit v c (bs x)
-    return x { cm = cm', bs = bs' }
+    ae' <- visit v c (ae x) 
+    return x { cm = cm', bs = bs', ae = ae' }
 
+instance Visitable AxiomEnv where 
+  visit v c x = do 
+    eqs'    <- mapM (visit v c) (aenvEqs   x) 
+    simpls' <- mapM (visit v c) (aenvSimpl x) 
+    return x { aenvEqs = eqs' , aenvSimpl = simpls'} 
 
+instance Visitable Equation where 
+  visit v c eq = do 
+    body' <- visit v c (tracepp "visit-equation" $ eqBody eq) 
+    return eq { eqBody = body' } 
+
+instance Visitable Rewrite where 
+  visit v c rw = do 
+    body' <- visit v c (smBody rw) 
+    return rw { smBody = body' } 
 
 ---------------------------------------------------------------------------------
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr

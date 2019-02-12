@@ -118,6 +118,19 @@ instance Elaborate Sort where
       funSort :: Sort -> Sort -> Sort
       funSort = FApp . FApp funcSort
 
+instance Elaborate AxiomEnv where
+  elaborate msg env ae = ae
+    { aenvEqs   = elaborate msg env (aenvEqs ae) 
+    , aenvSimpl = elaborate msg env (aenvSimpl ae) 
+    }
+
+instance Elaborate Rewrite where 
+  elaborate msg env rw = rw { smBody = elaborate msg env (smBody rw) } 
+
+instance Elaborate Equation where 
+  elaborate msg env eq = eq { eqBody = elaborate msg env (eqBody eq) } 
+
+
 instance Elaborate Expr where
   elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
 
@@ -636,7 +649,7 @@ splitArgs = go []
 --------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
-applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
+applySorts = tracepp "applySorts" . (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
