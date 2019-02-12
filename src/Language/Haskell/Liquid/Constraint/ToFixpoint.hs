@@ -79,7 +79,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts, not (isClassOrDict x)])
+  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts]) 
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
@@ -87,8 +87,8 @@ makeAxiomEnvironment info xts fcs
     cfg      = getConfig  info
     sp       = giSpec     info
 
-isClassOrDict :: Id -> Bool
-isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
+_isClassOrDict :: Id -> Bool
+_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
                     $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
 
 hasClassArg :: Id -> Bool
