@@ -121,14 +121,18 @@ instance Elaborate Sort where
 instance Elaborate AxiomEnv where
   elaborate msg env ae = ae
     { aenvEqs   = elaborate msg env (aenvEqs ae) 
-    , aenvSimpl = elaborate msg env (aenvSimpl ae) 
+    -- MISSING SORTS OOPS, aenvSimpl = elaborate msg env (aenvSimpl ae) 
     }
 
 instance Elaborate Rewrite where 
-  elaborate msg env rw = rw { smBody = elaborate msg env (smBody rw) } 
+  elaborate msg env rw = rw { smBody = elaborate msg env' (smBody rw) } 
+    where 
+      env' = insertsSymEnv env undefined
 
 instance Elaborate Equation where 
-  elaborate msg env eq = eq { eqBody = elaborate msg env (eqBody eq) } 
+  elaborate msg env eq = eq { eqBody = elaborate msg env' (eqBody eq) } 
+    where
+      env' = insertsSymEnv env (eqArgs eq) 
 
 
 instance Elaborate Expr where
