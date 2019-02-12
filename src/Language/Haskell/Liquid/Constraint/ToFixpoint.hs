@@ -79,7 +79,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp) --  TODO:missing-sort ++ [specTypeEq emb (F.tracepp "SPECTYPEEQ" x) t | (x, t) <- xts, not (isClassOrDict x)])
+  = F.AEnv (makeEquations sp ++ [specTypeEq emb (F.tracepp "SPECTYPEEQ" x) t | (x, t) <- xts, not (isClassOrDict x)])
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
@@ -87,13 +87,19 @@ makeAxiomEnvironment info xts fcs
     cfg      = getConfig  info
     sp       = giSpec     info
 
-_isClassOrDict :: Id -> Bool
-_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
-                    $ GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x) 
+isClassOrDict :: Id -> Bool
+isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
+                    $ (GM.isDataConId x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
 
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
+
+-- [TODO:missing-sorts] data-constructors often have unelaboratable 'define' so either
+-- 1. Make `elaborate` robust so it doesn't crash and returns maybe or
+-- 2. Make the `ctor` well-sorted or 
+-- 3. Don't create `define` for the ctor. 
+-- Unfortunately 3 breaks a bunch of tests...
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
