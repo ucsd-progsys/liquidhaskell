@@ -20,7 +20,7 @@ import Data.Maybe (fromJust)
 -- AT: Move to own module?
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
-import           Language.Haskell.Liquid.GHC.Misc  (simplesymbol)
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
 import           Data.Maybe                        (fromMaybe)
@@ -82,7 +82,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp) -- LF : missing-sort++ [specTypeEq emb x t | (x, t) <- xts])
+  = F.AEnv (makeEquations sp ++ [specTypeEq emb (F.tracepp "SPECTYPEEQ" x) t | (x, t) <- xts, not (GM.isDictionary x)])
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
@@ -138,7 +138,7 @@ makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
   where
     axioms       = gsMyAxioms refl ++ gsImpAxioms refl 
     refl         = gsRefl sp
-    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
+    sigs         = M.fromList [ (GM.simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
 equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
 equationBody f xArgs e mbT
