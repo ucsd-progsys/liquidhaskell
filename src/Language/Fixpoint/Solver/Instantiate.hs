@@ -468,7 +468,7 @@ evalArgsOLD γ stk e = go [] e
 
 evalOk :: Knowledge -> CStack -> Expr -> EvalST Expr
 evalOk γ stk@(_, Ok) e = eval γ stk e 
-evalOk γ _           e = pure e 
+evalOk _ _           e = pure e 
 
 evalArgsNEW :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
 evalArgsNEW γ stk e = do 
