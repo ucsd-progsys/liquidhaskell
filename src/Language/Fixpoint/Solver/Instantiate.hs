@@ -467,6 +467,8 @@ evalArgs γ stk e = go [] e
     go acc e
       = (,acc) <$> eval γ stk e
 
+-- | Minimal test case illustrating this `evalOk` hack is LH#tests/ple/pos/MossakaBug.hs
+--   too tired & baffled to generate simple .fq version. TODO:nuke and rewrite PLE!
 evalOk :: Knowledge -> CStack -> Expr -> EvalST Expr
 evalOk γ stk@(_, Ok) e = eval γ stk e 
 evalOk _ _           e = pure e 
