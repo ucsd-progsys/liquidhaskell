@@ -159,7 +159,7 @@ instance Visitable AxiomEnv where
 
 instance Visitable Equation where 
   visit v c eq = do 
-    body' <- visit v c ({- tracepp "visit-equation" $ -} eqBody eq) 
+    body' <- visit v c (eqBody eq) 
     return eq { eqBody = body' } 
 
 instance Visitable Rewrite where 
