@@ -332,7 +332,7 @@ interpSymbols :: [(Symbol, TheorySymbol)]
 interpSymbols =
   [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
-  , interpSym setAdd   add   setBopSort
+  , interpSym setAdd   add   setAddSort
   , interpSym setCup   cup   setBopSort
   , interpSym setCap   cap   setBopSort
   , interpSym setMem   mem   setMemSort
@@ -352,6 +352,7 @@ interpSymbols =
   ]
   where
     boolInt    = boolToIntName
+    setAddSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (FVar 0)           (setSort $ FVar 0)
     setBopSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) (setSort $ FVar 0)
     setMemSort = FAbs 0 $ FFunc (FVar 0) $ FFunc (setSort $ FVar 0) boolSort
     setCmpSort = FAbs 0 $ FFunc (setSort $ FVar 0) $ FFunc (setSort $ FVar 0) boolSort

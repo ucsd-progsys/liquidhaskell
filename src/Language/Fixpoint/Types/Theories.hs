@@ -24,6 +24,7 @@ module Language.Fixpoint.Types.Theories (
     , symEnvSort
     , symEnvTheory
     , insertSymEnv
+    , insertsSymEnv
     , symbolAtName
     , symbolAtSmtName
 
@@ -44,6 +45,7 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
+import qualified Data.List                as L 
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
@@ -91,7 +93,7 @@ symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
     xEnv'                 = unionSEnv xEnv wiredInEnv
     dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap               = M.fromList (zip smts [0..])
-    smts                  = funcSorts dEnv ts -- tracepp "smt-apply-sorts" $ Misc.sortNub $ (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+    smts                  = funcSorts dEnv ts 
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNININTERPRETED but POLYMORPHIC, hence need to go through
@@ -139,6 +141,9 @@ symEnvSort   x env = lookupSEnv x (seSort env)
 
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
+
+insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
+insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env) 
 
 symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Symbol
 symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env

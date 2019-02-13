@@ -41,7 +41,6 @@ import           Data.Char            (isUpper)
 -- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
-
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
 
@@ -252,9 +251,6 @@ updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
 updRes res (Just i) e = M.insert i e res 
 updRes res  Nothing _ = res 
 
--- unzipCat :: [([b], [c])] -> ([b], [c])
--- unzipCat bscss = (concatMap fst bscss, concatMap snd bscss)  
-
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@ 
 --   to the context. 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
@@ -350,26 +346,21 @@ evaluate cfg ctx aenv facts es sid = do
               ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
   eqss        <- _evalLoop cfg ctx γ s0 ctxEqs cands 
   return       $ eqs ++ eqss
-{- 
-  eqss        <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                   forM_ ctxEqs (SMT.smtAssert ctx) 
-                   mapM (evalOne γ s0) cands
-  return       $ eqs ++ concat eqss
--}
 
-_evalLoop cfg ctx γ s0 ctxEqs cands = loop [] cands 
+
+_evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands 
   where 
-    loop acc []    = return acc
-    loop acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
-                        eqss <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                                  forM_ (eqp : ctxEqs) (SMT.smtAssert ctx) 
-                                  mapM (evalOne γ s0) cands
-                        case concat eqss of 
-                          []   -> return acc 
-                          eqs' -> do let acc'   = acc ++ eqs' 
-                                     let oks    = S.fromList (fst <$> eqs')
-                                     let cands' = [ e | e <- cands, not (S.member e oks) ] 
-                                     loop acc' cands' 
+    loop _ acc []    = return acc
+    loop i acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
+                          eqss <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                                    forM_ (eqp : ctxEqs) (SMT.smtAssert ctx) 
+                                    mapM (evalOne γ s0) cands
+                          case concat eqss of 
+                            []   -> return acc 
+                            eqs' -> do let acc'   = acc ++ eqs' 
+                                       let oks    = S.fromList (fst <$> eqs')
+                                       let cands' = [ e | e <- cands, not (S.member e oks) ] 
+                                       loop (i+1) acc' cands'
 
 
 
@@ -390,16 +381,6 @@ evalOne γ s0 e = do
   (e', st) <- runStateT (eval γ initCS (mytracepp "evalOne: " e)) s0 
   if e' == e then return [] else return ((e, e') : evSequence st)
 
-
-{- 
-
-  eval    :: Knowledge -> CStack -> Expr -> EvalST Expr
-  evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-  evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
-  evalRecApplication :: Knowledge -> CStack -> Expr -> Expr -> EvalST Expr
-
- -}
-
 {- | [NOTE: Eval-Ite]  We should not be doing any PLE/eval under if-then-else where 
      the guard condition does not provably hold. For example, see issue #387.
      However, its ok and desirable to `eval` in this case, as long as one is not 
@@ -413,8 +394,6 @@ type CStack = ([Symbol], Recur)
 
 instance PPrint Recur where 
   pprintTidy _ = Misc.tshow 
-  
-
 
 initCS :: CStack 
 initCS = ([], Ok)
@@ -424,6 +403,7 @@ pushCS (fs, r) f = (f:fs, r)
 
 recurCS :: CStack -> Symbol -> Bool 
 recurCS (_,  Ok) _ = True 
+-- recurCS (_,  _ ) _ = False -- not (f `elem` fs) 
 recurCS (fs, _) f  = not (f `elem` fs) 
 
 noRecurCS :: CStack -> CStack 
@@ -448,7 +428,6 @@ topApps = go
 makeLam :: Knowledge -> Expr -> Expr
 makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
 
-
 eval :: Knowledge -> CStack -> Expr -> EvalST Expr
 eval γ stk = go 
   where 
@@ -472,21 +451,53 @@ eval γ stk = go
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
+-- | `evalArgs` also evaluates all the partial applications for hacky reasons,
+--   suppose `foo g = id` then we want `foo g 10 = 10` and for that we need 
+--   to `eval` the term `foo g` into `id` to tickle the `eval` on `id 10`.
+--   This seems a bit of a hack. At any rate, this can lead to divergence. 
+--   TODO: distill a .fq test from the MOSSAKA-hw3 example.
 
 evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ stk = go []
+evalArgs γ stk e = go [] e 
   where
     go acc (EApp f e)
-      = do f' <- eval γ stk f
+      = do f' <- evalOk γ stk f
            e' <- eval γ stk e
            go (e':acc) f'
     go acc e
       = (,acc) <$> eval γ stk e
 
+-- | Minimal test case illustrating this `evalOk` hack is LH#tests/ple/pos/MossakaBug.hs
+--   too tired & baffled to generate simple .fq version. TODO:nuke and rewrite PLE!
+evalOk :: Knowledge -> CStack -> Expr -> EvalST Expr
+evalOk γ stk@(_, Ok) e = eval γ stk e 
+evalOk _ _           e = pure e 
+
+{- 
+evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgs 
+  | True  = evalArgsOLD 
+  | False = evalArgsNEW 
+
+evalArgsNEW :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgsNEW γ stk e = do 
+    let (e1, es) = splitEApp e 
+    e1' <- eval γ stk e1 
+    es' <- mapM (eval γ stk) es 
+    return (e1', es')
+
+-}
+    
 evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ stk e (e1, es) = mytracepp "evalApp:END" <$> (evalAppAc γ stk e $ mytracepp "evalApp:BEGIN" (e1, es))
+-- evalApp γ stk e (e1, es) = tracepp ("evalApp:END" ++ showpp (e1,es)) <$> (evalAppAc γ stk e (e1, es))
+evalApp γ stk e (e1, es) = do 
+  res     <- evalAppAc γ stk e (e1, es)
+  let diff = (res /= (eApps e1 es))
+  return   $ mytracepp ("evalApp:END:" ++ showpp diff) res 
 
 evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
+
+{- MOSSAKA-} 
 evalAppAc γ stk e (EVar f, [ex])
   | (EVar dc, es) <- splitEApp ex
   , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
@@ -514,7 +525,9 @@ evalAppAc γ stk _e (EVar f, es)
   , length (eqArgs eq) == length es   -- recursive equations
   , recurCS stk f 
   = do env      <- seSort <$> gets evEnv
-       evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
+       mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e)) 
+         <$> evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
+
 evalAppAc _ _ _ (f, es)
   = return (eApps f es)
 
@@ -593,20 +606,20 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
   contra <- {- mytracepp  ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
   if contra
     then return e
-    else do b' <- eval γ stk b
+    else do b' <- eval γ stk (mytracepp "REC-APP-COND" b) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA-LOOP?
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-                   eval γ stk e1 >>=
+                   eval γ stk (mytracepp ("evalREC-1: " ++ showpp stk) e1) >>=
                    ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
                            ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
-                           eval γ stk e2 >>=
-                           ((e, "App2: ") ~>)
+                           eval γ stk (mytracepp ("evalREC-2: " ++ showpp stk) e2) >>=
+                           ((e, ("App2: " ++ showpp stk ) ) ~>)
                       else return e
 evalRecApplication _ _ _ e
   = return e
@@ -636,16 +649,9 @@ evalIte' γ stk e _ _ e2 _ b'
   = do e' <- eval γ stk e2
        (e, "If-False") ~> e'
 evalIte' γ stk _ b e1 e2 _ _
-  -- // | False 
-  -- // = return (EIte b e1 e2)
-  -- // | otherwise 
   -- see [NOTE:Eval-Ite] #387 
   = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
     where stk' = mytracepp "evalIte'" $ noRecurCS stk 
-
---  = do e1' <- eval γ e1
---       e2' <- eval γ e2
---       return (EIte b e1' e2') 
 
 instance Expression (Symbol, SortedReft) where
   expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
@@ -702,7 +708,7 @@ askSMT cfg ctx bs e
 toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
 toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
   where
-    elabEnv      = L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
+    elabEnv      = insertsSymEnv senv -- L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
     senv         = SMT.ctxSymEnv ctx
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]

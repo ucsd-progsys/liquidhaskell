@@ -1,50 +1,26 @@
 # TODO
 
-- T1371.hs.bfq
+$ stack exec -- fixpoint tests/todo/MJBug.hs.bfq --rewrite --noincr +RTS -xc
 
-Stack trace:
-
-  Language.Fixpoint.Solver.Instantiate.evalAppAc,
-  called from Language.Fixpoint.Solver.Instantiate.evalApp,
-  called from Language.Fixpoint.Solver.Instantiate.eval,
-  called from Language.Fixpoint.Solver.Instantiate.evalOne,
-  called from Language.Fixpoint.Smt.Interface.smtBracket,
-  called from Language.Fixpoint.Solver.Instantiate.evaluate,
+$ stack exec -- fixpoint tests/todo/MJBug.hs.bfq --rewrite --noincr
 
 
-Trace: [evalApp: ] : is$N : [N (val lq_anf$##7205759403792797318##dXY)]
+Trace: [EVAL-REC-APP[] : Stop : Hw3.nnf (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK)))] 
 
-Trace: [evalAppAc:ePop ] : true
-
-Trace: [PLE: Rewrite -is$Nis$N (N (val lq_anf$##7205759403792797318##dXY)) : true] : 0
+    if is$Hw3.Var (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK)))) 
+        then
+            Hw3.Not (Hw3.Var (Hw3.Var##lqdc##$select##Hw3.Var##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK)))))) 
+        else
+            (if is$Hw3.Not (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK)))) then Hw3.nnf (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK))))) else (if is$Hw3.Or (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK)))) then Hw3.And (Hw3.nnf (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK))))))) (Hw3.nnf (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##2 (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK))))))) else Hw3.Or (Hw3.nnf (Hw3.Not (Hw3.And##lqdc##$select##Hw3.And##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK))))))) (Hw3.nnf (Hw3.Not (Hw3.And##lqdc##$select##Hw3.And##2 (Hw3.Not##lqdc##$select##Hw3.Not##1 (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or##1 (Hw3.Not##lqdc##$select##Hw3.Not##1 ds_d3nK)))))))))
 
 
 
- [opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR (opR e2##aVJ)))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))))]
 
-define killer (e1 : Thing,  e2 : Thing)
-  = (((killer e1 e2) = (if (is$N e1
-                          then
-  							   (if (is$N e2)
-								  then e1
-								  else (Op (left e2) (killer (N (val e1)) (right e2))))
-					      else (Op (left e1) (killer (right e1) e2)))))
+    nnf x = if cond then E1 else E2
 
-define killer (arg1 : Thing,  arg2 : Thing) : Thing = 
-  (((killer arg1 arg2) = (if (is$N arg1) then 
-                            (if (is$N arg2) then 
-                               arg1 
-                             else 
-                               (Op (opLeft arg2) (bar (N (eNum arg1)) (opRight arg2)))) 
-                         else 
-                             (Op (opLeft arg1) (bar (opRight arg1) arg2)))))
 
-define Bug.bar (ds_dXI : Bug.Thing,  ds_dXJ : Bug.Thing) = (&& [((Bug.bar ds_dXI ds_dXJ) = (if (is$Bug.N ds_dXI) then (if (is$Bug.N ds_dXJ) then ds_dXI else (Bug.Op (Bug.Op##lqdc##$select##Bug.Op##1 ds_dXJ) (Bug.bar (Bug.N (Bug.N##lqdc##$select##Bug.N##1 ds_dXI)) (Bug.Op##lqdc##$select##Bug.Op##2 ds_dXJ)))) else (Bug.Op (Bug.Op##lqdc##$select##Bug.Op##1 ds_dXI) (Bug.bar (Bug.Op##lqdc##$select##Bug.Op##2 ds_dXI) ds_dXJ))));
-                                                                (true => && [((1 + 2) = 3)])])
+    nnf e ==> if cond then E1 [x := e ] else E2 [x := e]
+              
+                E1 [x := e]
 
-// KILLS
-define killer (arg1 : Thing,  arg2 : Thing) : Thing = 
-   (((killer arg1 arg2) = (if (is$N arg1) 
-                            then (Op (opLeft arg2) (killer (N (eNum arg1)) (opRight arg2))) 
-                            else (Op (opLeft arg1) (killer (opRight arg1) arg2)))))
 

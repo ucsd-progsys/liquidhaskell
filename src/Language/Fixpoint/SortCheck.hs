@@ -118,8 +118,30 @@ instance Elaborate Sort where
       funSort :: Sort -> Sort -> Sort
       funSort = FApp . FApp funcSort
 
+instance Elaborate AxiomEnv where
+  elaborate msg env ae = ae
+    { aenvEqs   = elaborate msg env (aenvEqs ae) 
+    -- MISSING SORTS OOPS, aenvSimpl = elaborate msg env (aenvSimpl ae) 
+    }
+
+instance Elaborate Rewrite where 
+  elaborate msg env rw = rw { smBody = skipElabExpr msg env' (smBody rw) } 
+    where 
+      env' = insertsSymEnv env undefined
+
+instance Elaborate Equation where 
+  elaborate msg env eq = eq { eqBody = skipElabExpr msg env' (eqBody eq) } 
+    where
+      env' = insertsSymEnv env (eqArgs eq) 
+
 instance Elaborate Expr where
   elaborate msg env = elabNumeric . elabApply env . elabExpr msg env
+
+
+skipElabExpr :: Located String -> SymEnv -> Expr -> Expr 
+skipElabExpr msg env e = case elabExprE msg env e of 
+  Left _   -> e 
+  Right e' ->  elabNumeric . elabApply env $ e'
 
 instance Elaborate (Symbol, Sort) where
   elaborate msg env (x, s) = (x, elaborate msg env s)
@@ -160,10 +182,15 @@ instance (Loc a) => Elaborate (SimpC a) where
 -- | 'elabExpr' adds "casts" to decorate polymorphic instantiation sites.
 --------------------------------------------------------------------------------
 elabExpr :: Located String -> SymEnv -> Expr -> Expr
-elabExpr msg env e = 
+elabExpr msg env e = case elabExprE msg env e of 
+  Left ex  -> die ex 
+  Right e' -> e' 
+
+elabExprE :: Located String -> SymEnv -> Expr -> Either Error Expr
+elabExprE msg env e = 
   case runCM0 (srcSpan msg) (elab (env, f) e) of
-    Left e   -> die $ err (srcSpan e) (d (val e))
-    Right s  -> notracepp ("elabExpr: e =" ++ showpp e) $ fst s
+    Left e   -> Left  $ err (srcSpan e) (d (val e))
+    Right s  -> Right (fst s)
   where
     sEnv = seSort env
     f    = (`lookupSEnvWithDistance` sEnv)
