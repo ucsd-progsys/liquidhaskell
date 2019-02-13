@@ -5,25 +5,22 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
   ) where
 
 import           Prelude hiding (error)
--- import           Data.Monoid
-
+import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Types hiding     ( binds )
--- REBARE: import           Language.Fixpoint.Solver                 ( parseFInfo )
 import           Language.Haskell.Liquid.Constraint.Qualifier
-import Data.Maybe (fromJust)
+import qualified Data.Maybe as Mb 
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
-import           Language.Haskell.Liquid.GHC.Misc  (simplesymbol)
+import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
-import           Data.Maybe                        (fromMaybe)
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
@@ -31,7 +28,7 @@ import           TyCon                             (TyCon)
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
-  { FC.solver           = fromJust (smtsolver cfg)
+  { FC.solver           = Mb.fromJust (smtsolver cfg)
   , FC.linear           = linear            cfg
   , FC.eliminate        = eliminate         cfg
   , FC.nonLinCuts       = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
@@ -82,7 +79,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts])
+  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts]) 
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
@@ -90,12 +87,26 @@ makeAxiomEnvironment info xts fcs
     cfg      = getConfig  info
     sp       = giSpec     info
 
+_isClassOrDict :: Id -> Bool
+_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
+                    $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
+
+hasClassArg :: Id -> Bool
+hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
+  where 
+    msg       = "hasClassArg: " ++ showpp (x, t:ts)
+    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
+
+
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
-  -- where 
-    -- isExpand x      = M.member x autos 
-    -- autos           = gsAutoInst (gsRefl sp)  
+
+-- [TODO:missing-sorts] data-constructors often have unelaboratable 'define' so either
+-- 1. Make `elaborate` robust so it doesn't crash and returns maybe or
+-- 2. Make the `ctor` well-sorted or 
+-- 3. Don't create `define` for the ctor. 
+-- Unfortunately 3 breaks a bunch of tests...
 
 specTypeEq :: F.TCEmb TyCon -> Var -> SpecType -> F.Equation
 specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
@@ -141,7 +152,7 @@ makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
   where
     axioms       = gsMyAxioms refl ++ gsImpAxioms refl 
     refl         = gsRefl sp
-    sigs         = M.fromList [ (simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
+    sigs         = M.fromList [ (GM.simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
 equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
 equationBody f xArgs e mbT
@@ -160,7 +171,7 @@ specTypeToLogic es e t
   where
     res       = specTypeToResultRef e t
     args      = zipWith mkExpr (mkReft <$> ts) es
-    mkReft t  =  F.toReft $ fromMaybe mempty (stripRTypeBase t)
+    mkReft t  =  F.toReft $ Mb.fromMaybe mempty (stripRTypeBase t)
     mkExpr (F.Reft (v, ev)) e = F.subst1 ev (v, e)
 
 
@@ -184,7 +195,7 @@ specTypeToLogic es e t
 
 specTypeToResultRef :: F.Expr -> SpecType -> F.Expr
 specTypeToResultRef e t
-  = mkExpr $ F.toReft $ fromMaybe mempty (stripRTypeBase $ ty_res trep)
+  = mkExpr $ F.toReft $ Mb.fromMaybe mempty (stripRTypeBase $ ty_res trep)
   where
     mkExpr (F.Reft (v, ev)) = F.subst1 ev (v, e)
     trep                   = toRTypeRep t
