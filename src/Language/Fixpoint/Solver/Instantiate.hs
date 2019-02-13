@@ -251,9 +251,6 @@ updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
 updRes res (Just i) e = M.insert i e res 
 updRes res  Nothing _ = res 
 
--- unzipCat :: [([b], [c])] -> ([b], [c])
--- unzipCat bscss = (concatMap fst bscss, concatMap snd bscss)  
-
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@ 
 --   to the context. 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
@@ -353,7 +350,7 @@ evaluate cfg ctx aenv facts es sid = do
 
 _evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands 
   where 
-    loop i acc []    = return acc
+    loop _ acc []    = return acc
     loop i acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
                           eqss <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                     forM_ (eqp : ctxEqs) (SMT.smtAssert ctx) 
@@ -454,20 +451,27 @@ eval γ stk = go
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
-{- MOSSAKA 
 evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ stk = go []
+evalArgs 
+  | True  = evalArgsOLD 
+  | False = evalArgsNEW 
+
+evalArgsOLD :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgsOLD γ stk e = go [] e 
   where
     go acc (EApp f e)
-      = do f' <- eval γ stk (notracepp "eval-args-f" f) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA 'pure' forces termination ????
+      = do f' <- evalOk γ stk (notracepp "eval-args-f" f) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA 'pure' forces termination ????
            e' <- eval γ stk e
            go (e':acc) f'
     go acc e
       = (,acc) <$> eval γ stk e
--}
 
-evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ stk e = do 
+evalOk :: Knowledge -> CStack -> Expr -> EvalST Expr
+evalOk γ stk@(_, Ok) e = eval γ stk e 
+evalOk γ _           e = pure e 
+
+evalArgsNEW :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgsNEW γ stk e = do 
     let (e1, es) = splitEApp e 
     e1' <- eval γ stk e1 
     es' <- mapM (eval γ stk) es 
@@ -592,7 +596,6 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
   if contra
     then return e
     else do b' <- eval γ stk (mytracepp "REC-APP-COND" b) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA-LOOP?
-            -- let b' = b
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>

@@ -16,7 +16,7 @@ Trace: [EVAL-REC-APP[] : Stop : Hw3.nnf (Hw3.Not (Hw3.Or##lqdc##$select##Hw3.Or#
 
 
 
-    nnf x = if cond then E1 else E2 
+    nnf x = if cond then E1 else E2
 
 
     nnf e ==> if cond then E1 [x := e ] else E2 [x := e]
