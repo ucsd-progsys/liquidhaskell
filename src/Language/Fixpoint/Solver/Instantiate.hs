@@ -451,16 +451,17 @@ eval γ stk = go
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
-evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs 
-  | True  = evalArgsOLD 
-  | False = evalArgsNEW 
+-- | `evalArgs` also evaluates all the partial applications for hacky reasons,
+--   suppose `foo g = id` then we want `foo g 10 = 10` and for that we need 
+--   to `eval` the term `foo g` into `id` to tickle the `eval` on `id 10`.
+--   This seems a bit of a hack. At any rate, this can lead to divergence. 
+--   TODO: distill a .fq test from the MOSSAKA-hw3 example.
 
-evalArgsOLD :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgsOLD γ stk e = go [] e 
+evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgs γ stk e = go [] e 
   where
     go acc (EApp f e)
-      = do f' <- evalOk γ stk (notracepp "eval-args-f" f) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA 'pure' forces termination ????
+      = do f' <- evalOk γ stk f
            e' <- eval γ stk e
            go (e':acc) f'
     go acc e
@@ -470,19 +471,27 @@ evalOk :: Knowledge -> CStack -> Expr -> EvalST Expr
 evalOk γ stk@(_, Ok) e = eval γ stk e 
 evalOk _ _           e = pure e 
 
+{- 
+evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
+evalArgs 
+  | True  = evalArgsOLD 
+  | False = evalArgsNEW 
+
 evalArgsNEW :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
 evalArgsNEW γ stk e = do 
     let (e1, es) = splitEApp e 
     e1' <- eval γ stk e1 
     es' <- mapM (eval γ stk) es 
     return (e1', es')
-      
+
+-}
+    
 evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
 -- evalApp γ stk e (e1, es) = tracepp ("evalApp:END" ++ showpp (e1,es)) <$> (evalAppAc γ stk e (e1, es))
 evalApp γ stk e (e1, es) = do 
   res     <- evalAppAc γ stk e (e1, es)
   let diff = (res /= (eApps e1 es))
-  return   $ tracepp ("evalApp:END:" ++ showpp diff) res 
+  return   $ mytracepp ("evalApp:END:" ++ showpp diff) res 
 
 evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
 
@@ -514,7 +523,7 @@ evalAppAc γ stk _e (EVar f, es)
   , length (eqArgs eq) == length es   -- recursive equations
   , recurCS stk f 
   = do env      <- seSort <$> gets evEnv
-       tracepp ("EVAL-REC-APP" ++ showpp (stk, _e)) 
+       mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e)) 
          <$> evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
 
 evalAppAc _ _ _ (f, es)
@@ -600,14 +609,14 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
             if b1
               then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-                   eval γ stk (tracepp ("evalREC-1: " ++ showpp stk) e1) >>=
+                   eval γ stk (mytracepp ("evalREC-1: " ++ showpp stk) e1) >>=
                    ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
                            ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
-                           eval γ stk (tracepp ("evalREC-2: " ++ showpp stk) e2) >>=
+                           eval γ stk (mytracepp ("evalREC-2: " ++ showpp stk) e2) >>=
                            ((e, ("App2: " ++ showpp stk ) ) ~>)
                       else return e
 evalRecApplication _ _ _ e
