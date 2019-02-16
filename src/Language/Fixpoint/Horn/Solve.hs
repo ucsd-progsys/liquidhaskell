@@ -34,23 +34,30 @@ solveHorn :: F.Config -> IO ExitCode
 solveHorn cfg = do
   (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
 
-  -- Unlike FP, default to --eliminate=some
-  cfg <- F.withPragmas (cfg { F.eliminate =  F.Some }) opts
+  -- If you want to set --eliminate=none, you better make it a pragma
+  cfg <- if F.eliminate cfg == F.None
+           then pure (cfg { F.eliminate =  F.Some })
+           else pure cfg
+  cfg <- F.withPragmas cfg opts
 
   -- Run passes that run on Horn format
-  q <- if F.eliminate cfg == F.Horn
-         then do
-           let c' = Tx.uniq $ H.qCstr q
-           whenLoud $ putStrLn "Horn Uniq:"
-           whenLoud $ putStrLn $ F.showpp  c'
-           let c'' = Tx.elim c'
-           whenLoud $ putStrLn "Horn Elim:"
-           whenLoud $ putStrLn $ F.showpp c''
-           pure $ q { H.qCstr = c'' }
-         else pure q
+  q <- eliminate cfg q
 
   r <- solve cfg q
   Solver.resultExitCode r
+
+eliminate cfg q
+  | F.eliminate cfg == F.Existentials =
+    Tx.solveEbs q
+  | F.eliminate cfg == F.Horn = do
+    let c' = Tx.uniq $ H.qCstr q
+    whenLoud $ putStrLn "Horn Uniq:"
+    whenLoud $ putStrLn $ F.showpp  c'
+    let c'' = Tx.elim c'
+    whenLoud $ putStrLn "Horn Elim:"
+    whenLoud $ putStrLn $ F.showpp c''
+    pure $ q { H.qCstr = c'' }
+  | otherwise = pure q
 
 ----------------------------------------------------------------------------------
 solve :: F.Config -> H.Query () -> IO (F.Result Integer)

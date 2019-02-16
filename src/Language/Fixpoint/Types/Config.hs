@@ -115,12 +115,15 @@ instance Show SMTSolver where
 --   None = use PA/Quals for ALL k-vars, i.e. no eliminate
 --   Some = use PA/Quals for CUT k-vars, i.e. eliminate non-cuts
 --   All  = eliminate ALL k-vars, solve cut-vars to TRUE
+--   Horn = eliminate kvars using the Horn solver
+--   Existentials = eliminate kvars and existentials
 ---------------------------------------------------------------------------------------
 data Eliminate
   = None
   | Some
   | All
   | Horn
+  | Existentials
   deriving (Eq, Data, Typeable, Generic)
 
 instance Serialize Eliminate
@@ -133,6 +136,7 @@ instance Show Eliminate where
   show Some = "some"
   show All  = "all"
   show Horn  = "horn"
+  show Existentials  = "existentials"
 
 
 useElim :: Config -> Bool
