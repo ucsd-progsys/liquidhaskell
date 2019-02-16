@@ -47,7 +47,7 @@ data Pred
   = Reft  !F.Expr                               -- ^ r 
   | Var   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn) 
   | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn 
-  deriving (Data, Typeable, Generic)
+  deriving (Data, Typeable, Generic, Eq)
    
 -------------------------------------------------------------------------------
 -- | @Cst@ is an NNF Horn Constraint. 
@@ -58,7 +58,7 @@ data Bind = Bind
   , bSort :: !F.Sort 
   , bPred :: !Pred 
   }
-  deriving (Data, Typeable, Generic)
+  deriving (Data, Typeable, Generic, Eq)
 
 dummyBind :: Bind 
 dummyBind = Bind F.dummySymbol F.intSort (PAnd []) 
@@ -69,7 +69,7 @@ data Cstr a
   | CAnd  ![(Cstr a)]           -- ^ c1 /\ ... /\ cn
   | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
   | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p => c
-  deriving (Data, Typeable, Generic, Functor)
+  deriving (Data, Typeable, Generic, Functor, Eq)
 
 -- We want all valid constraints to start with a binding at the top
 okCstr :: Cstr a -> Bool 
