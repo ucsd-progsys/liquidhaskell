@@ -10,11 +10,13 @@ import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
+-- import           Control.Arrow
 import           Data.String                  (IsString (..))
 import qualified Data.Set                     as S
 import           Control.Monad.State
 import           Data.Maybe (catMaybes)
 import           Language.Fixpoint.Types.Visitor as V
+import           System.Console.CmdArgs.Verbosity
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -33,19 +35,27 @@ solveEbs :: Query a -> IO (Query ())
 ------------------------------------------------------------------------------
 solveEbs (Query qs vs c) = do
   -- first we poke c, split into side and noside
-  let c' = pokec c
+  let c' = pokec $ c
+  whenLoud $ putStrLn $ "Horn pokec:"
+  whenLoud $ putStrLn $ F.showpp c'
       -- This rhs Just pattern match will fail if there's not at least one
       -- eb!
   let (Just horn, Just side) = split c'
+  whenLoud $ putStrLn $ "Horn split:"
+  whenLoud $ putStrLn $ F.showpp (horn, side)
   -- This whole business depends on Stringly-typed invariant that an ebind
   -- n corresponds to a pivar πn . That's pretty shit but I can't think of
   -- a better way to do this
   let ns = fst <$> ebs c
   -- elim pivars in noside
   let (hornNoPis, sideNoPis) = elimPis ns (horn, side)
+  whenLoud $ putStrLn $ "Horn nopis:"
+  whenLoud $ putStrLn $ F.showpp (hornNoPis, sideNoPis)
   -- elim kvars in noside ... apply them to side, somehow?
   let ks = S.toList $ boundKvars hornNoPis
   let (hornElim, sideElim) = elimKs ks (hornNoPis, sideNoPis)
+  whenLoud $ putStrLn $ "Horn Elim:"
+  whenLoud $ putStrLn $ F.showpp (hornElim, sideElim)
         -- perform QE and throw away the other constraints
         --   (somehow this has to be done so that we don't drop quantifiers in
         --   other things, but I guess we can just keep a list of ebinds and
@@ -256,9 +266,10 @@ andMaybes cs = case catMaybes cs of
 
 elimPis :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimPis [] cc = cc
-elimPis (n:ns) (horn, side) = elimPis ns (applyPi n nSol horn, applyPi n nSol side)
+elimPis (n:ns) (horn, side) = elimPis ns (apply horn, apply side)
 -- TODO: handle this error?
   where Just nSol = defs n horn
+        apply = applyPi n nSol
 
 -- TODO: PAnd may be a problem
 applyPi :: F.Symbol -> Cstr a -> Cstr a -> Cstr a
@@ -276,7 +287,8 @@ applyPi k defs (Head (Var k' xs) a)
   -- what happens when pi's appear inside the defs for other pis?
   -- this shouldn't happen because there should be a strict
   --  pi -> k -> pi structure
-  -- but that comes from the typing rules, not this format.
+  -- but that comes from the typing rules, not this format, so let's make
+  -- it an invariant of solveEbs above
   = Head (Reft $ cstrToExpr defs) a
 applyPi _ _ (Head p a) = Head p a
 
@@ -329,6 +341,7 @@ Just (and
 
 -}
 
+-- We need to rename the bound vars in the defs.
 defs :: F.Symbol -> Cstr a -> Maybe (Cstr a)
 defs x (CAnd cs) = andMaybes $ defs x <$> cs
 defs x (All (Bind x' _ _) c)
@@ -342,6 +355,22 @@ defs x (All (Bind x' _ _) c)
 defs x (All _ c) = defs x c
 defs _ (Head _ _) = Nothing
 defs _ (Any _ _) =  error "defs should be run only after noside and poke"
+
+
+{-
+renameBoundVars :: V.Visitable t => F.Symbol -> t -> t
+renameBoundVars k = V.mapExpr go
+  where
+  go (F.PAll xts e) = F.PAll xts' $ F.subst su e
+    where
+    xts' = (\(x,t) -> (symCons x k, t)) <$> xts
+    su = F.Su $  M.fromList $ zip (fst <$> xts) (F.EVar . fst <$> xts')
+  -- go (F.PExist _ _) = undefined
+  go e = e
+
+symCons :: F.Symbol -> F.Symbol -> F.Symbol
+symCons s z = fromString $ F.symbolString s ++ F.symbolString z
+-}
 
 {-
 -- | `filterCstr x` operates over a constraint
@@ -388,7 +417,6 @@ predToExpr (Var k xs) = F.PKVar (F.KV k) (F.Su $ M.fromList su)
 predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 
 ------------------------------------------------------------------------------
--- let's take a stab at this, shall, we?
 {- |
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind02.smt2"
 >>> let (Just noside, Just side) = split $ pokec $ qCstr q
@@ -418,6 +446,7 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
                                              && v1 == z + 2 => v2 == x1
                                      && forall [v3 : int]
                                           . v3 == x1 + 1 => v3 == m + 2)))))
+
 -}
 elimKs :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimKs [] cc = cc
@@ -443,15 +472,28 @@ doelim' k bss (Any (Bind x t p) c) = Any (Bind x t $ tx k bss p) (doelim' k bss 
 -- exists in the positive positions (which will stay exists when we go to
 -- prenex) may give us a lot of trouble during _quantifier elimination_
 tx :: F.Symbol -> [[Bind]] -> Pred -> Pred
-tx k bss = V.mapKVars' existentialPackage
+tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV }) M.empty ()
   where
   splitBinds xs = unzip $ (\(Bind x t p) -> ((x,t),p)) <$> xs
   cubeSol su (Bind _ _ (Reft eqs):xs)
     | (xts, es) <- splitBinds xs
-    = F.PExist xts $ F.PAnd  (F.subst su eqs : map predToExpr es)
+    = F.PExist xts $ F.PAnd (F.subst su eqs : map predToExpr es)
   cubeSol _ _ = error "cubeSol in doelim'"
-  existentialPackage (F.KV k', su) | k' == k = Just $ F.PAnd $ cubeSol su . reverse <$> bss
-  existentialPackage _ = Nothing
+  existentialPackage m (F.PKVar (F.KV k') su)
+    | k' == k
+    , M.lookupDefault 0 k m < 2
+    = F.PAnd $ cubeSol su . reverse <$> bss
+  existentialPackage _ e = e
+  ctxKV m (F.PKVar (F.KV k) _) = M.insertWith (+) k 1 m
+  ctxKV m _ = m
+
+-- suToEqs :: F.Subst -> F.Expr
+-- -- why EEq? see substElim, but don't attempt to understand the code unless
+-- -- you have a good therapist...
+-- suToEqs (F.Su m) = F.PAnd $ (uncurry F.EEq) . first F.EVar <$> M.toList m
+-- 
+-- consAnd (F.PAnd xs) (F.PAnd ys) = F.PAnd (xs ++ ys)
+-- consAnd a b = F.PAnd [a,b]
 
 -- Visitor only visit Exprs in Pred!
 instance V.Visitable Pred where
@@ -487,6 +529,7 @@ forallEqElim (F.PAll [(x,_)] (F.PImp (F.PAtom F.Eq a b) e))
   | F.EVar x' <- b
   , x == x'
   = F.subst1 e (x,a)
+forallEqElim (F.PAll _ _) = F.PTrue
 forallEqElim e = e
 
 instance V.Visitable (Cstr a) where
@@ -641,7 +684,8 @@ doelim k bss (All (Bind x t (Var k' xs)) c)
   where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
         mkAnd [c] = c
         mkAnd cs = CAnd cs
-        cubeSol ((Bind _ _ (Reft eqs)):xs) = foldl (flip All) (All (Bind x t (Reft $ F.subst su eqs)) $ doelim k bss c) xs
+        cubeSol ((Bind _ _ (Reft eqs)):xs) =
+          foldl (flip All) (All (Bind x t (Reft $ F.subst su eqs)) $ doelim k bss c) xs
         cubeSol _ = error "internal error"
 --- TODO: what about the PAnd case inside b?
 doelim k bp (All b c)
