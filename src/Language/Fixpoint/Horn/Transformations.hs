@@ -17,6 +17,7 @@ import           Control.Monad.State
 import           Data.Maybe (catMaybes)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
+-- import           Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -64,6 +65,8 @@ solveEbs (Query qs vs c) = do
   --  (hmm, don't we need to be inside IO for this?)
   checkSides (qe sideElim)
   -- return query off to solver
+  whenLoud $ putStrLn $ "Horn qe:"
+  whenLoud $ putStrLn $ F.showpp $ qe hornElim
   pure $ Query qs (void <$> vs) (qe hornElim)
   -- pure $ Query qs (void <$> vs) (qe $ CAnd [hornElim, sideElim])
 
@@ -439,14 +442,13 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
      (forall ((v3 int) (v3 == x1 + 1))
       (((v3 == m + 2))))))))) : (forall ((m int) (true))
                                  (forall ((z int) (z == m - 1))
-                                  (exists ((x1 int) (true))
+                                  (forall ((x1 int) (true))
                                    ((forall [v2 : int]
                                        . exists [v1 : int]
                                            . (v2 == v1)
                                              && v1 == z + 2 => v2 == x1
                                      && forall [v3 : int]
                                           . v3 == x1 + 1 => v3 == m + 2)))))
-
 -}
 elimKs :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimKs [] cc = cc
@@ -455,7 +457,7 @@ elimKs (k:ks) (horn, side) = elimKs ks (horn', side')
         -- Eliminate Kvars inside Cstr inside horn, and in Expr (under
         -- quantifiers waiting to be eliminated) in both.
         horn' = doelim' k sol . doelim k sol $ horn
-        side' = doelim' k sol side
+        side' = doelim' k sol $ side
 
 doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
 doelim' k bss (Head p a) = Head (tx k bss p) a
@@ -479,6 +481,11 @@ tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV 
     | (xts, es) <- splitBinds xs
     = F.PExist xts $ F.PAnd (F.subst su eqs : map predToExpr es)
   cubeSol _ _ = error "cubeSol in doelim'"
+  -- This case is a HACK. In actuality, we need some notion of
+  -- positivity...
+  existentialPackage _ (F.PImp _ (F.PKVar (F.KV k') _))
+    | k' == k
+    = F.PTrue
   existentialPackage m (F.PKVar (F.KV k') su)
     | k' == k
     , M.lookupDefault 0 k m < 2
@@ -522,6 +529,12 @@ qe :: Cstr a -> Cstr a
 qe = V.mapExpr forallEqElim
 
 -- Need to do some massaging to actually get into this form...
+-- err, oops, QE needs to proceed bottom-up, not top-down
+forallEqElim (F.PImp (F.PExist xts p) e)
+  = F.PAll xts (F.PImp p e)
+forallEqElim (F.PAll (xt:xts) p)
+  | xts /= []
+  = forallEqElim (F.PAll [xt] (F.PAll xts p))
 forallEqElim (F.PAll [(x,_)] (F.PImp (F.PAtom F.Eq a b) e))
   | F.EVar x' <- a
   , x == x'
