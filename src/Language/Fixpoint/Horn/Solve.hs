@@ -41,7 +41,10 @@ solveHorn cfg = do
   cfg <- F.withPragmas cfg opts
 
   -- Run passes that run on Horn format
-  q <- eliminate cfg q
+  let c = Tx.uniq $ H.qCstr q
+  whenLoud $ putStrLn "Horn Uniq:"
+  whenLoud $ putStrLn $ F.showpp c
+  q <- eliminate cfg (q { H.qCstr = c })
 
   r <- solve cfg q
   Solver.resultExitCode r
@@ -50,13 +53,10 @@ eliminate cfg q
   | F.eliminate cfg == F.Existentials =
     Tx.solveEbs q
   | F.eliminate cfg == F.Horn = do
-    let c' = Tx.uniq $ H.qCstr q
-    whenLoud $ putStrLn "Horn Uniq:"
-    whenLoud $ putStrLn $ F.showpp  c'
-    let c'' = Tx.elim c'
+    let c = Tx.elim $ H.qCstr q
     whenLoud $ putStrLn "Horn Elim:"
-    whenLoud $ putStrLn $ F.showpp c''
-    pure $ q { H.qCstr = c'' }
+    whenLoud $ putStrLn $ F.showpp c
+    pure $ q { H.qCstr = c }
   | otherwise = pure q
 
 ----------------------------------------------------------------------------------
