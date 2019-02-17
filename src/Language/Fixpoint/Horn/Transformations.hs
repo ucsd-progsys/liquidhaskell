@@ -10,14 +10,15 @@ import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
--- import           Control.Arrow
+import           Control.Arrow
 import           Data.String                  (IsString (..))
+import           Data.Either
 import qualified Data.Set                     as S
 import           Control.Monad.State
 import           Data.Maybe (catMaybes)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
--- import           Debug.Trace
+import           Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -483,7 +484,7 @@ tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV 
   cubeSol _ _ = error "cubeSol in doelim'"
   -- This case is a HACK. In actuality, we need some notion of
   -- positivity...
-  existentialPackage _ (F.PImp _ (F.PKVar (F.KV k') _))
+  existentialPackage _ (F.PAll _ (F.PImp _ (F.PKVar (F.KV k') _)))
     | k' == k
     = F.PTrue
   existentialPackage m (F.PKVar (F.KV k') su)
@@ -508,6 +509,12 @@ instance V.Visitable Pred where
   visit v c (Reft e) = Reft <$> visit v c e
   visit _ _ var      = pure var
 
+instance V.Visitable (Cstr a) where
+  visit v c (CAnd cs) = CAnd <$> mapM (visit v c) cs
+  visit v c (Head p a) = Head <$> visit v c p <*> pure a
+  visit v ctx (All (Bind x t p) c) = All <$> (Bind x t <$> visit v ctx p) <*> visit v ctx c
+  visit v ctx (Any (Bind x t p) c) = All <$> (Bind x t <$> visit v ctx p) <*> visit v ctx c
+
 ------------------------------------------------------------------------------
 -- | Quantifier elimination for use with implicit solver
 qe :: Cstr a -> Cstr a
@@ -526,12 +533,29 @@ qe :: Cstr a -> Cstr a
 --    forall a1 ... an . exists n . forall v1 . ( exists karg . p ) => (exists karg' . q)
 -- see [NOTE-elimK-positivity]?
 
-qe = V.mapExpr forallEqElim
+
+-- TODO: LOL this is hilariously slow but it's fine for now
+qe = V.mapExpr $ (cataExpr forallEqElim) . mapExpr curryImp .  mapExpr catAnds
+
+-- catAnds makes sure that each and had 1> conjunct, and that there are no
+-- nested ands
+--- What about empty PAnds?
+catAnds (F.PAnd xs) = mkAnd $ uncurry (++) $ first concat $ partitionEithers (map go xs)
+  where
+  go (F.PAnd xs) = Left xs
+  go e = Right e
+  mkAnd [c] = catAnds c
+  mkAnd cs = F.PAnd cs
+catAnds e = e
+
+-- ORDERING!!!
+curryImp (F.PImp (F.PExist xts p) e)
+  = F.PAll xts $ curryImp (F.PImp p e)
+curryImp (F.PImp (F.PAnd xs) x) = foldr F.PImp x xs
+curryImp e = e
 
 -- Need to do some massaging to actually get into this form...
 -- err, oops, QE needs to proceed bottom-up, not top-down
-forallEqElim (F.PImp (F.PExist xts p) e)
-  = F.PAll xts (F.PImp p e)
 forallEqElim (F.PAll (xt:xts) p)
   | xts /= []
   = forallEqElim (F.PAll [xt] (F.PAll xts p))
@@ -542,14 +566,33 @@ forallEqElim (F.PAll [(x,_)] (F.PImp (F.PAtom F.Eq a b) e))
   | F.EVar x' <- b
   , x == x'
   = F.subst1 e (x,a)
-forallEqElim (F.PAll _ _) = F.PTrue
+forallEqElim q@(F.PAll _ _) = traceShow q $ F.PTrue
 forallEqElim e = e
 
-instance V.Visitable (Cstr a) where
-  visit v c (CAnd cs) = CAnd <$> mapM (visit v c) cs
-  visit v c (Head p a) = Head <$> visit v c p <*> pure a
-  visit v ctx (All (Bind x t p) c) = All <$> (Bind x t <$> visit v ctx p) <*> visit v ctx c
-  visit v ctx (Any (Bind x t p) c) = All <$> (Bind x t <$> visit v ctx p) <*> visit v ctx c
+-- like mapExpr, but bottom-up instead of top-down
+cataExpr :: (F.Expr -> F.Expr) -> F.Expr -> F.Expr
+cataExpr f e@(F.ESym _)      = f   e
+cataExpr f e@(F.ECon _)      = f   e
+cataExpr f e@(F.EVar _)      = f   e
+cataExpr f e@(F.PKVar _ _)   = f   e
+cataExpr f (F.EApp g e)      = f $ F.EApp (f g) (f e)
+cataExpr f (F.ENeg e)        = f $ F.ENeg (f e)
+cataExpr f (F.EBin o e1 e2)  = f $ F.EBin o (f e1) (f e2)
+cataExpr f (F.EIte p e1 e2)  = f $ F.EIte (f p) (f e1) (f e2)
+cataExpr f (F.ECst e t)      = f $ F.ECst (f e) t
+cataExpr f (F.PAnd  ps)      = f $ F.PAnd (map f ps)
+cataExpr f (F.POr  ps)       = f $ F.POr  (map f ps)
+cataExpr f (F.PNot p)        = f $ F.PNot (f p)
+cataExpr f (F.PImp p1 p2)    = f $ F.PImp (f p1) (f p2)
+cataExpr f (F.PIff p1 p2)    = f $ F.PIff (f p1) (f p2)
+cataExpr f (F.PAtom r e1 e2) = f $ F.PAtom r (f e1) (f e2)
+cataExpr f (F.PAll xts p)    = f $ F.PAll   xts  (f p)
+cataExpr f (F.ELam (x,t) e)  = f $ F.ELam (x,t)  (f e)
+cataExpr f (F.ECoerc a t e)  = f $ F.ECoerc a t  (f e)
+cataExpr f (F.PExist xts p)  = f $ F.PExist xts  (f p)
+cataExpr f (F.ETApp e s)     = f $ (`F.ETApp` s) (f e)
+cataExpr f (F.ETAbs e s)     = f $ (`F.ETAbs` s) (f e)
+cataExpr f (F.PGrad k su i e) = f $ F.PGrad k su i (f e)
 
 ------------------------------------------------------------------------------
 checkSides :: Cstr a -> IO ()
