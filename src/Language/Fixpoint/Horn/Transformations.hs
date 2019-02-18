@@ -36,149 +36,47 @@ type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
 -- - predicate for exists binder is `true`. This doesn't seem hard to lift,
 -- but I just haven't tested it/thought too hard about what the correct
 -- behavior in this case is.
+-- - There is at least one ebind
 solveEbs :: Query a -> IO (Query ())
 ------------------------------------------------------------------------------
 solveEbs (Query qs vs c) = do
-  -- first we poke c, split into side and noside
   let c' = pokec $ c
-  whenLoud $ putStrLn $ "Horn pokec:"
+  whenLoud $ putStrLn "Horn pokec:"
   whenLoud $ putStrLn $ F.showpp c'
-      -- This rhs Just pattern match will fail if there's not at least one
-      -- eb!
+  -- This rhs pattern match will fail if there's not at least one eb!
   let (Just horn, Just side) = split c'
-  whenLoud $ putStrLn $ "Horn split:"
+  whenLoud $ putStrLn "Horn split:"
   whenLoud $ putStrLn $ F.showpp (horn, side)
+
   -- This whole business depends on Stringly-typed invariant that an ebind
   -- n corresponds to a pivar πn . That's pretty shit but I can't think of
   -- a better way to do this
-
-  -- ALSO here's how we differ from the ebsolver in the rest of fixpoint
-  -- --- as usual, we find solutions in terms of each other, and then we
-  -- apply those solutions to the constraint but ALSO to the other
-  -- solutions. Why is this better than lazily fetching them? hmm...
-
-  -- Well, if we subst in the kvsols first, then we just need to make sure
-  -- that we solve out the PIs in DEPENDENCY ORDER, since we need to QE
-  -- those before they become relevant to the others.
-
-  -- Is there a clever way of computing dependency order or do we just have
-  -- to do it? Well, we could have a State with the PiSols, call it
-  -- recursively, memorizing as we go... and then apply this to the
-  -- constraint itself!
 
   -- find solutions to the pivars, put them on the Left of the map
   let ns = fst <$> ebs c
   let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]]
             :: Sol
-  whenLoud $ putStrLn $ "Pisols:"
+  whenLoud $ putStrLn "Pisols:"
   whenLoud $ putStrLn $ F.showpp $ pisols
 
   -- find solutions to the kvars, put them on the Right of the map
   let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs]
            :: Sol
-  whenLoud $ putStrLn $ "Horn Elim:"
+  whenLoud $ putStrLn "Horn Elim:"
   whenLoud $ putStrLn $ F.showpp ksols
 
   let sol = execState (mapM (lookupSol M.empty . piVar) ns) (ksols <> pisols)
-  whenLoud $ putStrLn $ "QE sols:"
+  whenLoud $ putStrLn "QE sols:"
   let elimSol = M.mapMaybe (either (const Nothing) (Just . flip Head () . Reft)) sol
   whenLoud $ putStrLn $ F.showpp elimSol
-  let hornFinal = M.foldrWithKey applyPi horn elimSol
-  whenLoud $ putStrLn $ "Final Horn:"
-  whenLoud $ putStrLn $ F.showpp hornFinal
-  -- Now, we go through each pivar, and try to do QE in it. If there's
-  -- a Pi or a kvar under it, then we need to go and get the solution.
-  -- Since we're doing this SEPARATELY from the AD search, we can memoize.
-  -- In fact, we have to, because at the end of the day, we do want to
-  -- fully solved map.
+
   checkSides $ M.foldrWithKey applyPi side elimSol
+  let hornFinal = M.foldrWithKey applyPi horn elimSol
+  whenLoud $ putStrLn "Final Horn:"
+  whenLoud $ putStrLn $ F.showpp hornFinal
 
-  pure $ Query qs (void <$> vs) $ hornFinal
+  pure $ Query qs (void <$> vs) hornFinal
 
-  --       -- perform QE and throw away the other constraints
-  --       --   (somehow this has to be done so that we don't drop quantifiers in
-  --       --   other things, but I guess we can just keep a list of ebinds and
-  --       --   only do QE for *those* binders)
-  -- -- check the side conditions
-  -- --  (hmm, don't we need to be inside IO for this?)
-  -- checkSides (qe sideElim)
-  -- -- return query off to solver
-  -- whenLoud $ putStrLn $ "Horn qe:"
-  -- whenLoud $ putStrLn $ F.showpp $ qe hornElim
-  -- pure $ Query qs (void <$> vs) (qe hornElim)
-  -- -- pure $ Query qs (void <$> vs) (qe $ CAnd [hornElim, sideElim])
-
--- lookup recursively:
---   (when I want the solution for some k or pivar `x`)
---   lookup the Cstr that solves it
---   if it's an unsolved pi
---     run QE on the cstr
---     store it
---   return it
---
--- QE:
---   (given some constraint c from an unsolved pi, we want to squash it into an expr)
---   if it's head -> if head is a kvar then lookup the kvarsol for these args and QE that
---                -> if head is a pred return that expr
---                -> if head is a pand recursive and conjunct
---   if it's any --> throw an error?
---   if it's forall equality => pred         (how do we actually find the
---     QE in pred, then apply the equality   equalities?)
---   if it's forall kvar => pred
---     lookup and then QE
---   if it's And
---      recusre and the conjunct
-
-lookupSol :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
-lookupSol m (Var x xs) =
-  let n = M.lookupDefault 0 x m in
-  if n > 0 then pure $ predToExpr (Var x xs) else
-  let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
-    -- Memoize only the solutions to Pivars, because they don't depend on args
-    (Just (Left (Right sol))) -> do
-      sol <- qe m' sol
-      modify $ M.insert x $ Right $ sol
-      pure sol
-    (Just (Left (Left sol))) -> qe m' $ doelim2 sol (Var x xs)
-    (Just (Right sol)) -> pure sol
-    Nothing -> error $ "no soution to Var " ++ F.symbolString x
-lookupSol _ (Reft e) = pure e
-lookupSol m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
-
-qe :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
-qe m (Head p ()) = lookupSol m p
-qe m (CAnd cs) = F.PAnd <$> mapM (qe m) cs
-qe m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
-qe _ Any{} = error "QE for Any????"
-
-forallElim x p e = forallElim' x eqs e
-  where
-  eqs = fold eqVis () [] p
-  eqVis             = (defaultVisitor :: Visitor F.Expr t) { accExpr = kv' }
-  kv' _ e@(F.PAtom F.Eq a b)
-    | F.EVar x == a || F.EVar x == b
-    = [e]
-  kv' _ _                    = []
-
-forallElim' x (F.PAtom F.Eq a b : _) e
-  | F.EVar x == a
-  = F.subst1 e (x,b)
-  | F.EVar x == b
-  = F.subst1 e (x,a)
-forallElim' _ _ _ = F.PTrue
-
--- This solution is "wrong" ... forall should be exists and implies should
--- be and, but it's fine because that doesn't matter to QE above
-doelim2 :: [[Bind]] -> Pred -> Cstr ()
-doelim2 bss (Var k xs)
-  = mkAnd $ cubeSol . reverse <$> bss
-  where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
-        mkAnd [c] = c
-        mkAnd cs = CAnd cs
-        cubeSol ((Bind _ _ (Reft eqs)):xs) =
-          foldl (flip All) (Head (Reft $ F.subst su eqs) ()) xs
-        cubeSol _ = error "internal error"
-doelim2 _ p = Head p ()
 
 ------------------------------------------------------------------------------
 {- |
@@ -455,69 +353,15 @@ Just (and
 
 -}
 
--- We need to rename the bound vars in the defs.
 defs :: F.Symbol -> Cstr a -> Maybe (Cstr a)
 defs x (CAnd cs) = andMaybes $ defs x <$> cs
 defs x (All (Bind x' _ _) c)
   | x' == x
---  , (Found, c') <- filterCstr x c
   = pure c
--- defs x (All (Bind _ _ (Var k' _)) c)
---   | k' == piSym x
---   , (NotFound, _) <- filterCstr x c
---   = Nothing
 defs x (All _ c) = defs x c
 defs _ (Head _ _) = Nothing
 defs _ (Any _ _) =  error "defs should be run only after noside and poke"
 
-
-{-
-renameBoundVars :: V.Visitable t => F.Symbol -> t -> t
-renameBoundVars k = V.mapExpr go
-  where
-  go (F.PAll xts e) = F.PAll xts' $ F.subst su e
-    where
-    xts' = (\(x,t) -> (symCons x k, t)) <$> xts
-    su = F.Su $  M.fromList $ zip (fst <$> xts) (F.EVar . fst <$> xts')
-  -- go (F.PExist _ _) = undefined
-  go e = e
-
-symCons :: F.Symbol -> F.Symbol -> F.Symbol
-symCons s z = fromString $ F.symbolString s ++ F.symbolString z
--}
-
-{-
--- | `filterCstr x` operates over a constraint
--- ```
--- c =
---   /\ z:t . z > 0 -> y:t . true -> z=y     (1)
---   /\ b:t . p b   -> n:t . true -> x=b     (2)
---   /\ c:t . c = x -> m:t . true -> true    (3)
--- ```
--- and should return (2) /\ (3) since they're the constraints that mention
--- `x`
-filterCstr :: F.Symbol -> Cstr a -> (Found, Cstr a)
-filterCstr x c@(Head p _) = (findPred x p, c)
-filterCstr x (CAnd cs) = case map snd $ filter (foundToBool . fst) $ filterCstr x <$> cs of
-  [] -> (NotFound, CAnd cs)
-  cs' -> (Found, CAnd cs')
-filterCstr x (All (Bind x' t p) c) = (f <> findPred x p, All (Bind x' t p) c')
-    where
-    (f, c') = filterCstr x c
-filterCstr _ Any{} = error "filtercstr should only be run in the noside case of poke"
-
-findPred:: F.Symbol -> Pred -> Found
-findPred x (Reft e) = V.fold (V.Visitor const (const id) (const (eVar x))) () mempty e
-findPred x (Var _ ks) = boolToFound $ elem x ks
-findPred x (PAnd p) = mconcat $ findPred x <$> p
-
-eVar x (F.EVar x') = boolToFound (x == x')
-eVar _ _ = boolToFound False
--}
-
--- the WP we get for the defining constraints for a pivar are the wrong
--- kind of quantifier, so we need to make them expressions before we run QE
--- (or should we augment the pred type with quantifiers?
 cstrToExpr :: Cstr a -> F.Expr
 cstrToExpr (Head p _) = predToExpr p
 cstrToExpr (CAnd cs) = F.PAnd $ cstrToExpr <$> cs
@@ -605,14 +449,6 @@ tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV 
   ctxKV m (F.PKVar (F.KV k) _) = M.insertWith (+) k 1 m
   ctxKV m _ = m
 
--- suToEqs :: F.Subst -> F.Expr
--- -- why EEq? see substElim, but don't attempt to understand the code unless
--- -- you have a good therapist...
--- suToEqs (F.Su m) = F.PAnd $ (uncurry F.EEq) . first F.EVar <$> M.toList m
--- 
--- consAnd (F.PAnd xs) (F.PAnd ys) = F.PAnd (xs ++ ys)
--- consAnd a b = F.PAnd [a,b]
-
 -- Visitor only visit Exprs in Pred!
 instance V.Visitable Pred where
   visit v c (PAnd ps) = PAnd <$> mapM (visit v c) ps
@@ -643,10 +479,88 @@ instance V.Visitable (Cstr a) where
 -- NEW STRATEGY: look under each FORALL, bottom up, compile a list of all equalities that
 -- are negative, and apply some relevant one to the whole thinger.
 --
--- (okay we do first need to make the foralls from exists... maybe do that
--- back in elimK?)
+-- we do first need to make the foralls from exists... so instead let's
+-- just start out with foralls in doElim. They're in the wrong polarity,
+-- but that's not visible from the other side of QE, so that's fine.
+------------------------------------------------------------------------------
+-- Now, we go through each pivar, and try to do QE in it. If there's
+-- a Pi or a kvar under it, then we need to go and get the solution.
+-- Since we're doing this SEPARATELY from the AD search, we can memoize.
+-- In fact, we have to, because at the end of the day, we do want a
+-- fully solved map.
 --
--- Well, it's an HC, so negativity isn't so complex
+-- QE:
+--   (given some constraint c from an unsolved pi, we want to squash it into an expr)
+--   if it's head -> if head is a kvar then lookup the kvarsol for these args and QE that
+--                -> if head is a pred return that expr
+--                -> if head is a pand recursive and conjunct
+--   if it's any --> throw an error?
+--   if it's forall equality => pred         (how do we actually find the
+--     QE in pred, then apply the equality   equalities?)
+--   if it's forall kvar => pred
+--     lookup and then QE
+--   if it's And
+--      recurse and then conjunct
+--
+-- lookup recursively:
+--   (when I want the solution for some k or pivar `x`)
+--   lookup the Cstr that solves it
+--   if it's an unsolved pi
+--     run QE on the cstr
+--     store it
+--   return it
+
+qe :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
+qe m (Head p ()) = lookupSol m p
+qe m (CAnd cs) = F.PAnd <$> mapM (qe m) cs
+qe m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
+qe _ Any{} = error "QE for Any????"
+
+forallElim x p e = forallElim' x eqs e
+  where
+  eqs = fold eqVis () [] p
+  eqVis             = (defaultVisitor :: Visitor F.Expr t) { accExpr = kv' }
+  kv' _ e@(F.PAtom F.Eq a b)
+    | F.EVar x == a || F.EVar x == b
+    = [e]
+  kv' _ _                    = []
+
+forallElim' x (F.PAtom F.Eq a b : _) e
+  | F.EVar x == a
+  = F.subst1 e (x,b)
+  | F.EVar x == b
+  = F.subst1 e (x,a)
+forallElim' _ _ _ = F.PTrue
+
+lookupSol :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
+lookupSol m (Var x xs) =
+  let n = M.lookupDefault 0 x m in
+  if n > 0 then pure $ predToExpr (Var x xs) else
+  let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
+    -- Memoize only the solutions to Pivars, because they don't depend on args
+    (Just (Left (Right sol))) -> do
+      sol <- qe m' sol
+      modify $ M.insert x $ Right $ sol
+      pure sol
+    (Just (Left (Left sol))) -> qe m' $ doelim2 sol (Var x xs)
+    (Just (Right sol)) -> pure sol
+    Nothing -> error $ "no soution to Var " ++ F.symbolString x
+lookupSol _ (Reft e) = pure e
+lookupSol m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
+
+
+-- This solution is "wrong" ... forall should be exists and implies should
+-- be and, but it's fine because that doesn't matter to QE above
+doelim2 :: [[Bind]] -> Pred -> Cstr ()
+doelim2 bss (Var k xs)
+  = mkAnd $ cubeSol . reverse <$> bss
+  where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
+        mkAnd [c] = c
+        mkAnd cs = CAnd cs
+        cubeSol ((Bind _ _ (Reft eqs)):xs) =
+          foldl (flip All) (Head (Reft $ F.subst su eqs) ()) xs
+        cubeSol _ = error "internal error"
+doelim2 _ p = Head p ()
 ------------------------------------------------------------------------------
 
 checkSides :: Cstr a -> IO ()
