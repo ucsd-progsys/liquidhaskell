@@ -14,7 +14,9 @@ import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
+import           Control.Arrow
 import           Data.String                  (IsString (..))
+import           Data.Either
 import qualified Data.Set                     as S
 import           Control.Monad.State
 import           Data.Maybe (catMaybes)
@@ -130,7 +132,9 @@ solveEbs (Query qs vs c) = do
 --      recusre and the conjunct
 
 lookupSol :: Pred -> State Sol F.Expr
-lookupSol (Var x xs) = gets (M.lookup x) >>= \case
+lookupSol x = do ans <- lookupSol' x
+                 pure $ traceShow (x,ans) ans
+lookupSol' (Var x xs) = gets (M.lookup x) >>= \case
     -- Memoize only the solutions to Pivars, because they don't depend on args
     (Just (Left (Right sol))) -> do
       sol <- qe sol
@@ -139,23 +143,44 @@ lookupSol (Var x xs) = gets (M.lookup x) >>= \case
     (Just (Left (Left sol))) -> qe $ doelim x sol (Head (Var x xs) ())
     (Just (Right sol)) -> pure sol
     Nothing -> error $ "no soution to Var " ++ F.symbolString x
-lookupSol (Reft e) = pure e
-lookupSol (PAnd ps) = F.PAnd <$> mapM lookupSol ps
+lookupSol' (Reft e) = pure e
+lookupSol' (PAnd ps) = F.PAnd <$> mapM lookupSol ps
 
 qe :: Cstr () -> State Sol F.Expr
 qe (Head p ()) = lookupSol p
 qe (CAnd cs) = F.PAnd <$> mapM qe cs
+qe c@(All (Bind x _ p@(Var k _)) c') = gets (M.lookup k) >>= \case
+    (Just (Left (Left sol))) ->
+      let All (Bind x _ p) c' = doelim k sol c in
+        -- this doesn't work if there's another var in p...
+         forallElim x <$> lookupSol p <*> qe c'
+    _ -> forallElim x <$> lookupSol p <*> qe c'
 qe (All (Bind x _ p) c) = forallElim x <$> lookupSol p <*> qe c
 qe Any{} = error "QE for Any????"
 
-forallElim x (F.PAtom F.Eq a b) e
+-- replace this catAnds hack with a visitor that just grabs all the
+-- equalities
+forallElim x p e = forallElim' x (catAnds p) e
+
+forallElim' x (F.PAtom F.Eq a b) e
   | F.EVar x' <- a
   , x == x'
   = F.subst1 e (x,b)
   | F.EVar x' <- b
   , x == x'
   = F.subst1 e (x,a)
-forallElim x p e = traceShow (x,p,e) $ F.PTrue
+forallElim' x p e = traceShow (x,p,e) $ F.PTrue
+
+-- catAnds makes sure that each and had 1> conjunct, and that there are no
+-- nested ands
+--- What about empty PAnds?
+catAnds (F.PAnd xs) = mkAnd $ uncurry (++) $ first concat $ partitionEithers (map go xs)
+  where
+  go (F.PAnd xs) = Left xs
+  go e = Right e
+  mkAnd [c] = catAnds c
+  mkAnd cs = F.PAnd cs
+catAnds e = e
 
 
 -- precompute :: Cstr () -> State Sol (Cstr ())
@@ -652,17 +677,6 @@ instance V.Visitable (Cstr a) where
 
 {-- TODO: LOL this is hilariously slow but it's fine for now
 qe = V.mapExpr $ (cataExpr forallEqElim) . mapExpr curryImp .  mapExpr catAnds
-
--- catAnds makes sure that each and had 1> conjunct, and that there are no
--- nested ands
---- What about empty PAnds?
-catAnds (F.PAnd xs) = mkAnd $ uncurry (++) $ first concat $ partitionEithers (map go xs)
-  where
-  go (F.PAnd xs) = Left xs
-  go e = Right e
-  mkAnd [c] = catAnds c
-  mkAnd cs = F.PAnd cs
-catAnds e = e
 
 -- ORDERING!!!
 curryImp (F.PImp (F.PExist xts p) e)
