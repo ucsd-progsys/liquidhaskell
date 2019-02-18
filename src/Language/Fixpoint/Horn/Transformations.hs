@@ -14,15 +14,13 @@ import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
-import           Control.Arrow
 import           Data.String                  (IsString (..))
-import           Data.Either
 import qualified Data.Set                     as S
 import           Control.Monad.State
 import           Data.Maybe (catMaybes)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
-import           Debug.Trace
+-- import           Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -81,7 +79,7 @@ solveEbs (Query qs vs c) = do
   whenLoud $ putStrLn $ "Horn Elim:"
   whenLoud $ putStrLn $ F.showpp ksols
 
-  let sol = execState (mapM (lookupSol . piVar) ns) (ksols <> pisols)
+  let sol = execState (mapM (lookupSol M.empty . piVar) ns) (ksols <> pisols)
   whenLoud $ putStrLn $ "QE sols:"
   let elimSol = M.mapMaybe (either (const Nothing) (Just . flip Head () . Reft)) sol
   whenLoud $ putStrLn $ F.showpp elimSol
@@ -131,81 +129,56 @@ solveEbs (Query qs vs c) = do
 --   if it's And
 --      recusre and the conjunct
 
-lookupSol :: Pred -> State Sol F.Expr
-lookupSol x = do ans <- lookupSol' x
-                 pure $ traceShow (x,ans) ans
-lookupSol' (Var x xs) = gets (M.lookup x) >>= \case
+lookupSol :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
+lookupSol m (Var x xs) =
+  let n = M.lookupDefault 0 x m in
+  if n > 0 then pure $ predToExpr (Var x xs) else
+  let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
     -- Memoize only the solutions to Pivars, because they don't depend on args
     (Just (Left (Right sol))) -> do
-      sol <- qe sol
+      sol <- qe m' sol
       modify $ M.insert x $ Right $ sol
       pure sol
-    (Just (Left (Left sol))) -> qe $ doelim x sol (Head (Var x xs) ())
+    (Just (Left (Left sol))) -> qe m' $ doelim2 sol (Var x xs)
     (Just (Right sol)) -> pure sol
     Nothing -> error $ "no soution to Var " ++ F.symbolString x
-lookupSol' (Reft e) = pure e
-lookupSol' (PAnd ps) = F.PAnd <$> mapM lookupSol ps
+lookupSol _ (Reft e) = pure e
+lookupSol m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
 
-qe :: Cstr () -> State Sol F.Expr
-qe (Head p ()) = lookupSol p
-qe (CAnd cs) = F.PAnd <$> mapM qe cs
-qe c@(All (Bind x _ p@(Var k _)) c') = gets (M.lookup k) >>= \case
-    (Just (Left (Left sol))) ->
-      let All (Bind x _ p) c' = doelim k sol c in
-        -- this doesn't work if there's another var in p...
-         forallElim x <$> lookupSol p <*> qe c'
-    _ -> forallElim x <$> lookupSol p <*> qe c'
-qe (All (Bind x _ p) c) = forallElim x <$> lookupSol p <*> qe c
-qe Any{} = error "QE for Any????"
+qe :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
+qe m (Head p ()) = lookupSol m p
+qe m (CAnd cs) = F.PAnd <$> mapM (qe m) cs
+qe m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
+qe _ Any{} = error "QE for Any????"
 
--- replace this catAnds hack with a visitor that just grabs all the
--- equalities
-forallElim x p e = forallElim' x (catAnds p) e
-
-forallElim' x (F.PAtom F.Eq a b) e
-  | F.EVar x' <- a
-  , x == x'
-  = F.subst1 e (x,b)
-  | F.EVar x' <- b
-  , x == x'
-  = F.subst1 e (x,a)
-forallElim' x p e = traceShow (x,p,e) $ F.PTrue
-
--- catAnds makes sure that each and had 1> conjunct, and that there are no
--- nested ands
---- What about empty PAnds?
-catAnds (F.PAnd xs) = mkAnd $ uncurry (++) $ first concat $ partitionEithers (map go xs)
+forallElim x p e = forallElim' x eqs e
   where
-  go (F.PAnd xs) = Left xs
-  go e = Right e
-  mkAnd [c] = catAnds c
-  mkAnd cs = F.PAnd cs
-catAnds e = e
+  eqs = fold eqVis () [] p
+  eqVis             = (defaultVisitor :: Visitor F.Expr t) { accExpr = kv' }
+  kv' _ e@(F.PAtom F.Eq a b)
+    | F.EVar x == a || F.EVar x == b
+    = [e]
+  kv' _ _                    = []
 
+forallElim' x (F.PAtom F.Eq a b : _) e
+  | F.EVar x == a
+  = F.subst1 e (x,b)
+  | F.EVar x == b
+  = F.subst1 e (x,a)
+forallElim' _ _ _ = F.PTrue
 
--- precompute :: Cstr () -> State Sol (Cstr ())
--- precompute = mapCstrM go
---   where
---   go :: Cstr () -> State Sol (Cstr ())
---   go c@(Head (Var v _) ()) = do
---     hc <- gets (applySol c v . M.lookup v)
---     pure hc
--- 
--- mapCstrM f (All b c) = f . All b =<< mapCstrM f c
--- mapCstrM f (Any b c) = f . Any b =<< mapCstrM f c
--- mapCstrM f (CAnd cs) = f . CAnd =<< mapM (mapCstrM f) cs
--- mapCstrM f c@Head{} = f c
-
--- overExprCstr :: (F.Expr -> F.Expr) -> Cstr a -> Cstr a
--- overExprCstr f (Head p a) = Head (overExprPred f p) a
--- overExprCstr f (CAnd cs) = CAnd (overExprCstr f <$> cs)
--- overExprCstr f (All (Bind x t p) c) = All (Bind x t (overExprPred f p)) (overExprCstr f c)
--- overExprCstr f (Any (Bind x t p) c) = Any (Bind x t (overExprPred f p)) (overExprCstr f c)
--- 
--- overExprPred :: (F.Expr -> F.Expr) -> Pred -> Pred
--- overExprPred f (Reft p) = Reft $ f p
--- overExprPred _ p@Var{} = p
--- overExprPred f (PAnd ps) = PAnd $ overExprPred f <$> ps
+-- This solution is "wrong" ... forall should be exists and implies should
+-- be and, but it's fine because that doesn't matter to QE above
+doelim2 :: [[Bind]] -> Pred -> Cstr ()
+doelim2 bss (Var k xs)
+  = mkAnd $ cubeSol . reverse <$> bss
+  where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
+        mkAnd [c] = c
+        mkAnd cs = CAnd cs
+        cubeSol ((Bind _ _ (Reft eqs)):xs) =
+          foldl (flip All) (Head (Reft $ F.subst su eqs) ()) xs
+        cubeSol _ = error "internal error"
+doelim2 _ p = Head p ()
 
 ------------------------------------------------------------------------------
 {- |
@@ -674,57 +647,8 @@ instance V.Visitable (Cstr a) where
 -- back in elimK?)
 --
 -- Well, it's an HC, so negativity isn't so complex
-
-{-- TODO: LOL this is hilariously slow but it's fine for now
-qe = V.mapExpr $ (cataExpr forallEqElim) . mapExpr curryImp .  mapExpr catAnds
-
--- ORDERING!!!
-curryImp (F.PImp (F.PExist xts p) e)
-  = F.PAll xts $ curryImp (F.PImp p e)
-curryImp (F.PImp (F.PAnd xs) x) = foldr F.PImp x xs
-curryImp e = e
-
--- Need to do some massaging to actually get into this form...
--- err, oops, QE needs to proceed bottom-up, not top-down
-forallEqElim (F.PAll (xt:xts) p)
-  | xts /= []
-  = forallEqElim (F.PAll [xt] (F.PAll xts p))
-forallEqElim (F.PAll [(x,_)] (F.PImp (F.PAtom F.Eq a b) e))
-  | F.EVar x' <- a
-  , x == x'
-  = F.subst1 e (x,b)
-  | F.EVar x' <- b
-  , x == x'
-  = F.subst1 e (x,a)
-forallEqElim q@(F.PAll _ _) = traceShow q $ F.PTrue
-forallEqElim e = e
-
--- like mapExpr, but bottom-up instead of top-down
-cataExpr :: (F.Expr -> F.Expr) -> F.Expr -> F.Expr
-cataExpr f e@(F.ESym _)      = f   e
-cataExpr f e@(F.ECon _)      = f   e
-cataExpr f e@(F.EVar _)      = f   e
-cataExpr f e@(F.PKVar _ _)   = f   e
-cataExpr f (F.EApp g e)      = f $ F.EApp (f g) (f e)
-cataExpr f (F.ENeg e)        = f $ F.ENeg (f e)
-cataExpr f (F.EBin o e1 e2)  = f $ F.EBin o (f e1) (f e2)
-cataExpr f (F.EIte p e1 e2)  = f $ F.EIte (f p) (f e1) (f e2)
-cataExpr f (F.ECst e t)      = f $ F.ECst (f e) t
-cataExpr f (F.PAnd  ps)      = f $ F.PAnd (map f ps)
-cataExpr f (F.POr  ps)       = f $ F.POr  (map f ps)
-cataExpr f (F.PNot p)        = f $ F.PNot (f p)
-cataExpr f (F.PImp p1 p2)    = f $ F.PImp (f p1) (f p2)
-cataExpr f (F.PIff p1 p2)    = f $ F.PIff (f p1) (f p2)
-cataExpr f (F.PAtom r e1 e2) = f $ F.PAtom r (f e1) (f e2)
-cataExpr f (F.PAll xts p)    = f $ F.PAll   xts  (f p)
-cataExpr f (F.ELam (x,t) e)  = f $ F.ELam (x,t)  (f e)
-cataExpr f (F.ECoerc a t e)  = f $ F.ECoerc a t  (f e)
-cataExpr f (F.PExist xts p)  = f $ F.PExist xts  (f p)
-cataExpr f (F.ETApp e s)     = f $ (`F.ETApp` s) (f e)
-cataExpr f (F.ETAbs e s)     = f $ (`F.ETAbs` s) (f e)
-cataExpr f (F.PGrad k su i e) = f $ F.PGrad k su i (f e)
--}
 ------------------------------------------------------------------------------
+
 checkSides :: Cstr a -> IO ()
 checkSides _side = pure ()
 
