@@ -26,6 +26,7 @@ import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H 
 import qualified Language.Fixpoint.Horn.Parse   as H 
 import qualified Language.Fixpoint.Horn.Transformations as Tx
+import qualified Language.Fixpoint.Smt.Interface as SI
 import           System.Console.CmdArgs.Verbosity
 
 ----------------------------------------------------------------------------------
@@ -50,8 +51,11 @@ solveHorn cfg = do
   Solver.resultExitCode r
 
 eliminate cfg q
-  | F.eliminate cfg == F.Existentials =
-    Tx.solveEbs q
+  | F.eliminate cfg == F.Existentials = do
+    (side, q) <- Tx.solveEbs q
+    b <- SI.checkValid cfg "/tmp/asdf.smt2" [] F.PTrue $ Tx.cstrToExpr side
+    if b then print "checked side condition" else error "side failed"
+    pure q
   | F.eliminate cfg == F.Horn = do
     let c = Tx.elim $ H.qCstr q
     whenLoud $ putStrLn "Horn Elim:"

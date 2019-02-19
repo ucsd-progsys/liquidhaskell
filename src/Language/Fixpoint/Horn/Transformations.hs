@@ -8,6 +8,7 @@ module Language.Fixpoint.Horn.Transformations (
   , elimPis
   , elimKs
   , solveEbs
+  , cstrToExpr
 ) where
 
 import           Language.Fixpoint.Horn.Types
@@ -37,7 +38,7 @@ type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
 -- but I just haven't tested it/thought too hard about what the correct
 -- behavior in this case is.
 -- - There is at least one ebind
-solveEbs :: Query a -> IO (Query ())
+solveEbs :: Query a -> IO (Cstr (), Query ())
 ------------------------------------------------------------------------------
 solveEbs (Query qs vs c) = do
   let c' = pokec $ c
@@ -70,12 +71,11 @@ solveEbs (Query qs vs c) = do
   let elimSol = M.mapMaybe (either (const Nothing) (Just . flip Head () . Reft)) sol
   whenLoud $ putStrLn $ F.showpp elimSol
 
-  checkSides $ M.foldrWithKey applyPi side elimSol
   let hornFinal = M.foldrWithKey applyPi horn elimSol
   whenLoud $ putStrLn "Final Horn:"
   whenLoud $ putStrLn $ F.showpp hornFinal
 
-  pure $ Query qs (void <$> vs) hornFinal
+  pure $ (M.foldrWithKey applyPi side elimSol, Query qs (void <$> vs) hornFinal)
 
 
 ------------------------------------------------------------------------------
@@ -561,10 +561,6 @@ doelim2 bss (Var k xs)
           foldl (flip All) (Head (Reft $ F.subst su eqs) ()) xs
         cubeSol _ = error "internal error"
 doelim2 _ p = Head p ()
-------------------------------------------------------------------------------
-
-checkSides :: Cstr a -> IO ()
-checkSides _side = pure ()
 
 ------------------------------------------------------------------------------
 -- | uniq makes sure each binder has a unique name
