@@ -29,6 +29,7 @@ import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import qualified Language.Fixpoint.Types as F
 import qualified Text.PrettyPrint.HughesPJ.Compat as P
+import qualified Data.HashMap.Strict as M
 
 -------------------------------------------------------------------------------
 -- | @HVar@ is a Horn variable 
@@ -85,6 +86,8 @@ data Query a = Query
   { qQuals :: ![F.Qualifier]                    -- ^ qualifiers over which to solve cstrs
   , qVars  :: ![Var a]                          -- ^ kvars, with parameter-sorts
   , qCstr  :: !(Cstr a)                         -- ^ list of constraints
+  , qCon   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
+  , qDis   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
   }
   deriving (Data, Typeable, Generic, Functor)
 

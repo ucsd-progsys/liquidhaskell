@@ -2,8 +2,7 @@
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE LambdaCase  #-}
 module Language.Fixpoint.Horn.Transformations (
-    poke
-  , elim
+    elim
   , uniq
   , elimPis
   , elimKs
@@ -40,7 +39,7 @@ type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
 -- - There is at least one ebind
 solveEbs :: Query a -> IO (Cstr (), Query ())
 ------------------------------------------------------------------------------
-solveEbs (Query qs vs c) = do
+solveEbs (Query qs vs c cons dist) = do
   let c' = pokec $ c
   whenLoud $ putStrLn "Horn pokec:"
   whenLoud $ putStrLn $ F.showpp c'
@@ -75,13 +74,14 @@ solveEbs (Query qs vs c) = do
   whenLoud $ putStrLn "Final Horn:"
   whenLoud $ putStrLn $ F.showpp hornFinal
 
-  pure $ (M.foldrWithKey applyPi side elimSol, Query qs (void <$> vs) hornFinal)
+  pure $ (M.foldrWithKey applyPi side elimSol
+         , Query qs (void <$> vs) hornFinal cons dist)
 
 
 ------------------------------------------------------------------------------
 {- |
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind01.smt2"
->>> F.pprint $ qCstr (poke q)
+>>> F.pprint $ pokec (qCstr q)
 (and
  (forall ((m int) (true))
   (and
@@ -95,7 +95,7 @@ solveEbs (Query qs vs c) = do
     ((πx1 x1))))))
 
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind02.smt2"
->>> F.pprint $ qCstr (poke q)
+>>> F.pprint $ pokec (qCstr q)
 (and
  (forall ((m int) (true))
   (forall ((z int) (z == m - 1))
@@ -123,10 +123,6 @@ solveEbs (Query qs vs c) = do
   (exists ((b int) (q b))
    ((πb b)))))
 -}
-
-poke :: Query a -> Query ()
-poke (Query quals vars cstr) = Query quals (map void vars ++ pivars) (pokec cstr)
-  where pivars = (\(x,t) -> HVar (piSym x) [t] ()) <$> ebs cstr
 
 ebs :: Cstr a -> [(F.Symbol, F.Sort)]
 ebs (Head _ _) = []

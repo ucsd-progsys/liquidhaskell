@@ -75,6 +75,8 @@ hornFInfo q    = mempty
   , F.ebinds   = ebs
   , F.ws       = kvEnvWfCs kve 
   , F.quals    = H.qQuals q 
+  , F.gLits    = F.fromMapSEnv $ H.qCon q
+  , F.dLits    = F.fromMapSEnv $ H.qDis q
   } 
   where 
     be0        = F.emptyBindEnv
