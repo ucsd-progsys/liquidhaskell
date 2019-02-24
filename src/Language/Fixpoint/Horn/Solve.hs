@@ -41,12 +41,6 @@ solveHorn cfg = do
            else pure cfg
   cfg <- F.withPragmas cfg opts
 
-  -- Run passes that run on Horn format
-  let c = Tx.uniq $ Tx.flatten $ H.qCstr q
-  whenLoud $ putStrLn "Horn Uniq:"
-  whenLoud $ putStrLn $ F.showpp c
-  q <- eliminate cfg (q { H.qCstr = c })
-
   r <- solve cfg q
   Solver.resultExitCode r
 
@@ -66,7 +60,12 @@ eliminate cfg q
 ----------------------------------------------------------------------------------
 solve :: F.Config -> H.Query () -> IO (F.Result Integer)
 ----------------------------------------------------------------------------------
-solve cfg q = fmap fst <$> Solver.solve cfg (hornFInfo q) 
+solve cfg q = fmap fst <$> do
+  let c = Tx.uniq $ Tx.flatten $ H.qCstr q
+  whenLoud $ putStrLn "Horn Uniq:"
+  whenLoud $ putStrLn $ F.showpp c
+  q <- eliminate cfg (q { H.qCstr = c })
+  Solver.solve cfg (hornFInfo q)
 
 hornFInfo :: H.Query a -> F.FInfo a 
 hornFInfo q    = mempty 
