@@ -42,7 +42,7 @@ solveHorn cfg = do
   cfg <- F.withPragmas cfg opts
 
   -- Run passes that run on Horn format
-  let c = Tx.uniq $ H.qCstr q
+  let c = Tx.uniq $ Tx.flatten $ H.qCstr q
   whenLoud $ putStrLn "Horn Uniq:"
   whenLoud $ putStrLn $ F.showpp c
   q <- eliminate cfg (q { H.qCstr = c })

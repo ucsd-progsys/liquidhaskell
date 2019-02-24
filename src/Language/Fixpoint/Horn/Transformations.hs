@@ -1,9 +1,11 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE LambdaCase  #-}
+{-# LANGUAGE FlexibleInstances  #-}
 module Language.Fixpoint.Horn.Transformations (
-    elim
-  , uniq
+    uniq
+  , flatten
+  , elim
   , elimPis
   , elimKs
   , solveEbs
@@ -27,6 +29,53 @@ import           System.Console.CmdArgs.Verbosity
 -- >>> :m + *Language.Fixpoint.Horn.Parse
 -- >>> import Language.Fixpoint.Parse
 -- >>> :set -XOverloadedStrings
+
+{- | flatten removes redundant `and`s and empty conjuncts.
+
+For example:
+>>> :{
+flatten $ doParse' hCstrP "" "(forall ((VV##15 int) (VV##15 == anf##3)) \
+            \      ((and (and \
+            \        ($k13 VV##15 anf##3 moo##5) \
+            \        (true)))))"
+:}
+(forall ((VV##15 int) (VV##15 == anf##3)) ((k13 VV##15 anf##3 moo##5)))
+-}
+
+class Flatten a where
+  flatten :: a -> a
+
+instance Flatten (Cstr a) where
+  flatten (CAnd cs) = case flatten cs of
+                        [c] -> c
+                        cs -> CAnd cs
+  flatten (Head p a) = Head (flatten p) a
+  flatten (All (Bind x t p) c) = All (Bind x t (flatten p)) (flatten c)
+  flatten (Any (Bind x t p) c) = Any (Bind x t (flatten p)) (flatten c)
+
+instance Flatten [Cstr a] where
+  flatten (CAnd cs : xs) = flatten cs ++ flatten xs
+  flatten (x:xs)
+    | Head (Reft p) _ <- fx
+    , F.isTautoPred p            = flatten xs
+    | otherwise                  = fx:flatten xs
+    where fx = flatten x
+  flatten [] = []
+
+instance Flatten Pred where
+  flatten (PAnd ps) = case flatten ps of
+                        [p] -> p
+                        ps  -> PAnd ps
+  flatten p = p
+
+instance Flatten [Pred] where
+  flatten (PAnd ps' : ps) = flatten ps' ++ flatten ps
+  flatten (p : ps)
+    | Reft e <- fp
+    , F.isTautoPred e     = flatten ps
+    | otherwise           = fp : flatten ps
+    where fp = flatten p
+  flatten []              = []
 
 type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
 ------------------------------------------------------------------------------
