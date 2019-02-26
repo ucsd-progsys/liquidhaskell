@@ -561,7 +561,7 @@ qe m (CAnd cs) = F.PAnd <$> mapM (qe m) cs
 qe m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
 qe _ Any{} = error "QE for Any????"
 
-forallElim x p e = forallElim' x eqs e
+forallElim x p e = forallElim' x eqs p e
   where
   eqs = fold eqVis () [] p
   eqVis             = (defaultVisitor :: Visitor F.Expr t) { accExpr = kv' }
@@ -570,12 +570,14 @@ forallElim x p e = forallElim' x eqs e
     = [e]
   kv' _ _                    = []
 
-forallElim' x (F.PAtom F.Eq a b : _) e
+forallElim' x (F.PAtom F.Eq a b : _) _ e
   | F.EVar x == a
   = F.subst1 e (x,b)
   | F.EVar x == b
   = F.subst1 e (x,a)
-forallElim' _ _ _ = F.PTrue
+forallElim' x [] p e
+  | x `notElem` F.syms p && x `notElem` F.syms e  = e
+forallElim' _ _ _ _ = F.PTrue
 
 lookupSol :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
 lookupSol m (Var x xs) =
