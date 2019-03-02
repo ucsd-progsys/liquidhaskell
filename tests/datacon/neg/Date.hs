@@ -1,5 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- via https://github.com/chrisdone/sandbox/blob/master/liquid-haskell-dates.hs
+
 -- | Modelling a calendar date statically.
 
 module Date where
