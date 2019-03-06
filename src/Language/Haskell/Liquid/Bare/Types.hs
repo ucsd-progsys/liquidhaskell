@@ -130,7 +130,8 @@ data MeasEnv = MeasEnv
   , meSyms        :: ![(F.Symbol, Located (RRType F.Reft))]
   , meDataCons    :: ![(Ghc.Var,  LocSpecType)]           
   , meClasses     :: ![DataConP]                           
-  , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]    
+  , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]  
+  , meCLaws       :: !([(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])])  
   }
 
 -------------------------------------------------------------------------------

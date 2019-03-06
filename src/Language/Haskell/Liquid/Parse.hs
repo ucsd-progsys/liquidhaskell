@@ -853,6 +853,7 @@ data Pspec ty ctor
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
+  | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | RInst   (RInstance ty)                                -- ^ refined 'instance' definition
   | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate 
   | Invt    ty                                            -- ^ 'invariant' specification
@@ -960,6 +961,8 @@ ppPspec k (IMeas   m)
   = "instance  measure" <+> pprintTidy k m
 ppPspec k (Class   cls) 
   = pprintTidy k cls 
+ppPspec k (CLaws  cls) 
+  = pprintTidy k cls 
 ppPspec k (RInst   inst) 
   = pprintTidy k inst 
 ppPspec k (Varia   (lx, vs))  
@@ -1042,6 +1045,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
@@ -1082,7 +1086,8 @@ specP
                                 <|> (liftM HBound  hboundP  ))))
     <|> (reserved "class"
          >> ((reserved "measure"  >> liftM CMeas  cMeasureP )
-                                 <|> liftM Class  classP    ))
+         <|> (reserved "laws"     >> liftM CLaws  classP)
+         <|> liftM Class  classP                            ))
     <|> (reserved "instance"
          >> ((reserved "measure"  >> liftM IMeas  iMeasureP )
                                  <|> liftM RInst  instanceP ))

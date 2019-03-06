@@ -154,7 +154,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
     sData    = makeSpecData  src env sigEnv measEnv sig specs 
-    refl     = makeSpecRefl  src specs env name sig tycEnv 
+    refl     = makeSpecRefl  src measEnv specs env name sig tycEnv 
     sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv 
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     -- build up environments
@@ -407,18 +407,19 @@ makeSize env name spec =
       = Nothing
 
 ------------------------------------------------------------------------------------------
-makeSpecRefl :: GhcSrc -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv 
+makeSpecRefl :: GhcSrc -> Bare.MeasEnv -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv 
              -> GhcSpecRefl 
 ------------------------------------------------------------------------------------------
-makeSpecRefl src specs env name sig tycEnv = SpRefl 
+makeSpecRefl src menv specs env name sig tycEnv = SpRefl 
   { gsLogicMap   = lmap 
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
   , gsMyAxioms   = myAxioms 
-  , gsReflects   = F.notracepp "REFLECTS" $ filter (isReflectVar rflSyms) sigVars
+  , gsReflects   = F.notracepp "REFLECTS" (lawMethods ++ filter (isReflectVar rflSyms) sigVars)
   , gsHAxioms    = xtes 
   }
   where
+    lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv) 
     mySpec       = M.lookupDefault mempty name specs 
     xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
     myAxioms     = [ Bare.qualifyTop env name (F.loc lt) (e {eqName = symbol x}) | (x, lt, e) <- xtes]  
@@ -468,6 +469,7 @@ makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig
     mySpec     = M.lookupDefault mempty name specs
     asmSigs    = Bare.tcSelVars tycEnv 
               ++ makeAsmSigs env sigEnv name specs 
+              ++ [ (x,t) | (_, x, t) <- concat $ map snd (Bare.meCLaws measEnv)]
     tySigs     = strengthenSigs . concat $
                   [ [(v, (0, t)) | (v, t,_) <- mySigs                         ]   -- NOTE: these weights are to priortize 
                   , [(v, (1, t)) | (v, t  ) <- makeMthSigs measEnv            ]   -- user defined sigs OVER auto-generated 
@@ -844,6 +846,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   , meDataCons    = F.notracepp "meDATACONS" cs' 
   , meClasses     = cls
   , meMethods     = mts ++ dms 
+  , meCLaws       = laws
   }
   where 
     measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv name <$> M.toList specs))
@@ -862,6 +865,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     name          = Bare.tcName        tycEnv
     dms           = Bare.makeDefaultMethods env mts  
     (cls, mts)    = Bare.makeClasses        env sigEnv name specs
+    laws          = F.notracepp "LAWS" $ Bare.makeCLaws env sigEnv name specs
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 

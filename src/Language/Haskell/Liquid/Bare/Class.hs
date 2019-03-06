@@ -6,6 +6,7 @@
 
 module Language.Haskell.Liquid.Bare.Class 
   ( makeClasses
+  , makeCLaws
   , makeSpecDictionaries
   , makeDefaultMethods
   ) 
@@ -29,6 +30,22 @@ import qualified Language.Haskell.Liquid.Measure            as Ms
 import           Language.Haskell.Liquid.Bare.Types         as Bare 
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
+
+-------------------------------------------------------------------------------
+makeCLaws :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 
+            -> [(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])]
+-------------------------------------------------------------------------------
+makeCLaws env sigEnv myName specs = 
+  [ (Mb.fromMaybe (msg tc) (Ghc.tyConClass_maybe tc), snd cls) | (name, spec) <- M.toList specs
+          , cls          <- Ms.claws spec
+          , tc           <- Mb.maybeToList (classTc cls) 
+          , cls          <- Mb.maybeToList (mkClass env sigEnv myName name cls tc)
+    ]
+  where
+    msg tc  = error ("Not a type class: " ++ F.showpp tc)
+    classTc = Bare.maybeResolveSym env myName "makeClass" . btc_tc . rcName 
+
+
 
 -------------------------------------------------------------------------------
 makeClasses :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 

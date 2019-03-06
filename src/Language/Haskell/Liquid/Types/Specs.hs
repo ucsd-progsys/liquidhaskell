@@ -173,6 +173,7 @@ data Spec ty bndr  = Spec
   , cmeasures  :: ![Measure ty ()]                -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
+  , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!

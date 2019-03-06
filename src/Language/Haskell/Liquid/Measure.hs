@@ -104,6 +104,7 @@ instance Semigroup (Spec ty bndr) where
            , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
            , imeasures  =           imeasures  s1 ++ imeasures  s2
            , classes    =           classes    s1 ++ classes    s2
+           , claws      =           claws      s1 ++ claws      s2
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , dvariance  =           dvariance  s1 ++ dvariance  s2
@@ -158,6 +159,7 @@ instance Monoid (Spec ty bndr) where
            , cmeasures  = []
            , imeasures  = []
            , classes    = []
+           , claws      = [] 
            , termexprs  = []
            , rinstance  = []
            , dvariance  = []
