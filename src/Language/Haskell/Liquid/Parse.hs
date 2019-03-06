@@ -854,6 +854,7 @@ data Pspec ty ctor
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
+  | ILaws   (RILaws ty)
   | RInst   (RInstance ty)                                -- ^ refined 'instance' definition
   | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate 
   | Invt    ty                                            -- ^ 'invariant' specification
@@ -1090,7 +1091,8 @@ specP
          <|> liftM Class  classP                            ))
     <|> (reserved "instance"
          >> ((reserved "measure"  >> liftM IMeas  iMeasureP )
-                                 <|> liftM RInst  instanceP ))
+         <|> (reserved "laws"     >> liftM ILaws instanceLawP)
+         <|> liftM RInst  instanceP ))
 
     <|> (reserved "import"        >> liftM Impt   symbolP   )
 
@@ -1189,6 +1191,11 @@ tyBindsP = do
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
+
+
+eqBinderP :: Parser (LocSymbol, LocSymbol)
+eqBinderP = (\x _ y -> (x, y)) <$> xP <*> (spaces >> reserved "=") <*> xP
+  where xP = locParserP binderP
 
 tyBindP    :: Parser (LocSymbol, Located BareType)
 tyBindP    = xyP xP dcolon tP
@@ -1298,6 +1305,24 @@ oneClassArg
     classParams =  (reserved "where" >> return [])
                <|> ((:) <$> (fmap bTyVar <$> locLowerIdP) <*> classParams)
     sing x      = [x]
+
+instanceLawP :: Parser (RILaws (Located BareType))
+instanceLawP
+  = do sups <- supersP
+       c    <- classBTyConP
+       spaces
+       tvs  <- manyTill (locParserP bareTypeP) (try $ reserved "where")
+       ms   <- grabs eqBinderP
+       spaces
+       return $ RIL c sups tvs ms -- sups tvs ms
+  where
+    superP   = locParserP (toRCls <$> bareAtomBindP)
+    supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                       <* reservedOp "=>")
+               <|> return []
+    toRCls x = x
+    
+
 
 instanceP :: Parser (RInstance (Located BareType))
 instanceP

@@ -211,7 +211,7 @@ module Language.Haskell.Liquid.Types.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..), RISig(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -1030,6 +1030,16 @@ data RInstance t = RI
   , ritype  :: [t]
   , risigs  :: [(F.LocSymbol, RISig t)]
   } deriving (Generic, Functor, Data, Typeable, Show)
+
+data RILaws ty = RIL
+  { rilName    :: BTyCon
+  , rilSupers  :: [ty]
+  , rilTyArgs  :: [ty]
+  , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
+  } deriving (Show, Functor, Data, Typeable, Generic)
+
+
+
 
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)

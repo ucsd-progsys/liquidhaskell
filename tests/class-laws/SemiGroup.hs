@@ -32,10 +32,10 @@ module SemiGroup where
     instance SG Int where 
       mappend = mappendInt 
 
-    {- 
+    {-@ 
     instance laws SG Int where 
       assocSG = mappendIntAssoc
-    -}
+    @-}
     
     
     {-@ reflect mappendInt @-}  
@@ -55,10 +55,10 @@ module SemiGroup where
     mappendMaybe (Just x) (Just y) = Just (x `mappend` y)
     mappendMaybe _ _               = Nothing 
     
-    {- 
+    {-@ 
     instance laws SG a => SG (Maybe a) where 
       assocSG = mappendMaybeAssoc
-    -}
+    @-}
     
     {-@ mappendMaybeAssoc :: SG a => x:Maybe a -> y:Maybe a -> z:Maybe a 
       -> { mappendMaybe x (mappendMaybe y z) == mappendMaybe (mappendMaybe x y) z } @-}
