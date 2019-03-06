@@ -16,10 +16,12 @@ module SemiGroup where
      @-}
     
     -- Semantics of class-law:
+
     -- 1. reflect ALL class methods 
-    -- 2. assume all the sigs 
     {- measure SemiGroup.mappend :: a -> a -> a @-}
     {- assume mappend :: x:a -> y:a  -> {v:a | v == SemiGroup.mappend x y } @-}
+
+    -- 2. assume all the sigs 
     {- assume assocSG :: SG a => x:a -> y:a -> z:a 
               -> { mappend x (mappend y z) == mappend (mappend x y) z } @-}
     
@@ -29,8 +31,9 @@ module SemiGroup where
     
     instance SG Int where 
       mappend = mappendInt 
+
     {- 
-    instance-laws SG Int where 
+    instance laws SG Int where 
       assocSG = mappendIntAssoc
     -}
     
@@ -53,7 +56,7 @@ module SemiGroup where
     mappendMaybe _ _               = Nothing 
     
     {- 
-    instance-law SG a => SG (Maybe a) where 
+    instance laws SG a => SG (Maybe a) where 
       assocSG = mappendMaybeAssoc
     -}
     
