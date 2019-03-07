@@ -22,18 +22,18 @@ module SemiGroup where
     {- assume mappend :: x:a -> y:a  -> {v:a | v == SemiGroup.mappend x y } @-}
 
     -- 2. assume all the sigs 
-    {- assume assocSG :: SG a => x:a -> y:a -> z:a 
-              -> { mappend x (mappend y z) == mappend (mappend x y) z } @-}
+    {- assume assocSG :: SG a => a:a -> b:a -> c:a 
+              -> { mappend a (mappend b c) == mappend (mappend a b) c } @-}
     
     assocSG :: SG a => a -> a -> a -> () 
     assocSG x y z = () 
-    
     
     instance SG Int where 
       mappend = mappendInt 
 
     {-@ 
     instance laws SG Int where 
+      mappend = mappendInt
       assocSG = mappendIntAssoc
     @-}
     
@@ -57,6 +57,7 @@ module SemiGroup where
     
     {-@ 
     instance laws SG a => SG (Maybe a) where 
+      mappend = mappendMaybe
       assocSG = mappendMaybeAssoc
     @-}
     
@@ -66,4 +67,25 @@ module SemiGroup where
     mappendMaybeAssoc (Just x) (Just y) (Just z)
       = assocSG x y z 
     mappendMaybeAssoc _ _ _ = () 
+    
+    instance SG [a] where 
+      mappend = mappendList
+
+    {-@ reflect mappendList @-}
+    mappendList :: [a] -> [a] -> [a]
+    mappendList []     ys = ys 
+    mappendList (x:xs) ys = x:mappendList xs ys 
+    
+    {-@ 
+    instance laws SG a => SG [a] where 
+      mappend = mappendList
+      assocSG = mappendListAssoc
+    @-}
+
+    {-@ mappendListAssoc :: x:[a] -> y:[a] -> z:[a] 
+      -> { mappendList x (mappendList y z) == mappendList (mappendList x y) z } @-}
+    mappendListAssoc :: [a] -> [a] -> [a] -> () 
+    mappendListAssoc (x:xs) ys zs
+      = mappendListAssoc xs ys zs  
+    mappendListAssoc _ _ _ = () 
     

@@ -1,0 +1,59 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+
+-- Syntactic Equality of Types up tp forall type renaming
+
+module Language.Haskell.Liquid.Types.Equality where 
+
+import           Language.Haskell.Liquid.Types
+import qualified Language.Haskell.Liquid.GHC.API as Ghc
+
+instance Eq SpecType where 
+  t1 == t2 = compareRType t1 t2 
+  
+compareRType :: SpecType -> SpecType -> Bool 
+compareRType i1 i2 = go i1 i2 
+  where 
+    go :: SpecType -> SpecType -> Bool 
+    go (RAllT x1 t1) (RAllT x2 t2)
+      | RTV v1 <- ty_var_value x1
+      , RTV v2 <- ty_var_value x2 
+      = go t1 (subt (v2, Ghc.mkTyVarTy v1) t2) 
+
+    go (RVar v1 r1) (RVar v2 r2) 
+      = v1 == v2 && r1 == r2 
+    go (RFun x1 t11 t12 r1) (RFun x2 t21 t22 r2)
+      = x1 == x2    && r1 == r2
+      && go t11 t21 && go t12 t22 
+    go (RImpF x1 t11 t12 r1) (RImpF x2 t21 t22 r2)
+      = x1 == x2    && r1 == r2
+      && go t11 t21 && go t12 t22    
+    go (RAllP x1 t1) (RAllP x2 t2)
+      = x1 == x2 && go t1 t2 
+    go (RAllS x1 t1) (RAllS x2 t2)
+      = x1 == x2 && go t1 t2 
+    go (RApp x1 ts1 ps1 r1) (RApp x2 ts2 ps2 r2)
+      = x1 == x2 && and (zipWith go ts1 ts2) 
+        && r1 == r2 && and (zipWith (==) ps1 ps2) 
+    go (RAllE x1 t11 t12) (RAllE x2 t21 t22)
+      = x1 == x2 && go t11 t21 && go t12 t22 
+    go (REx x1 t11 t12) (REx x2 t21 t22)
+      = x1 == x2 && go t11 t21 && go t12 t22
+    go (RExprArg e1) (RExprArg e2)
+      = e1 == e2 
+    go (RAppTy t11 t12 r1) (RAppTy t21 t22 r2)
+      = go t11 t21 && go t12 t22 && r1 == r2 
+    go (RRTy _ _ _ r1) (RRTy _ _ _ r2) 
+      = r1 == r2 
+    go (RHole r1) (RHole r2)
+      = r1 == r2  
+    go t1 t2 
+      = False 
+
+instance Eq t2 => Eq (Ref t1 t2) where
+    (RProp _ t1) == (RProp _ t2) = t1 == t2 
+
+instance Eq r => Eq (UReft r) where
+  (MkUReft r1 p1 s1) == (MkUReft r2 p2 s2)
+     = r1 == r2 && p1 == p2 && s1 == s2 
+  

@@ -144,9 +144,11 @@ data LawInstance = LawInstance
   { lilName   :: Class
   , liSupers  :: [LocSpecType]
   , lilTyArgs :: [LocSpecType]
-  , lilEqus   :: [(Maybe Var, (Maybe Var, Maybe LocSpecType))]
+  , lilEqus   :: [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))]
+  , lilPos    :: SrcSpan
   }  
 
+type VarOrLocSymbol = Either Var LocSymbol
 type BareSpec      = Spec    LocBareType F.LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol
 type BareDef       = Def     LocBareType F.LocSymbol

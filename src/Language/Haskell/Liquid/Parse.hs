@@ -1194,10 +1194,6 @@ tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
 
 
-eqBinderP :: Parser (LocSymbol, LocSymbol)
-eqBinderP = (\x _ y -> (x, y)) <$> xP <*> (spaces >> reserved "=") <*> xP
-  where xP = locParserP binderP
-
 tyBindP    :: Parser (LocSymbol, Located BareType)
 tyBindP    = xyP xP dcolon tP
   where
@@ -1309,21 +1305,27 @@ oneClassArg
 
 instanceLawP :: Parser (RILaws (Located BareType))
 instanceLawP
-  = do sups <- supersP
+  = do l1   <- getPosition
+       sups <- supersP
        c    <- classBTyConP
        spaces
        tvs  <- manyTill (locParserP bareTypeP) (try $ reserved "where")
-       ms   <- grabs eqBinderP
        spaces
-       return $ RIL c sups tvs ms -- sups tvs ms
+       ms   <- grabs eqBinderP -- NV same parsing problem
+       spaces
+       l2   <- getPosition
+       return $ RIL c sups tvs ms (Loc l1 l2 ()) -- sups tvs ms
   where
     superP   = locParserP (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
     toRCls x = x
-    
 
+    eqBinderP = xyP xP (spaces >> string "=" <* spaces) (xP <* spaces)
+      
+    xP = locParserP binderP
+    
 
 instanceP :: Parser (RInstance (Located BareType))
 instanceP
@@ -1430,7 +1432,7 @@ binderP    = pwr    <$> parens (idP bad)
          <|> symbol <$> idP badc
   where
     idP p  = many1 (satisfy (not . p))
-    badc c = (c == ':') || (c == ',') || bad c
+    badc c = (c == ':') || (c == ',') || bad c -- ( c == '=') || bad c
     bad c  = isSpace c || c `elem` ("(,)" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 

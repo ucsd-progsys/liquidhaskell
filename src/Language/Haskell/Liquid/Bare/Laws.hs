@@ -7,6 +7,7 @@ import qualified Data.HashMap.Strict                        as M
 import Control.Monad (join)
 import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Fixpoint.Types                    as F
+import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import           Language.Haskell.Liquid.Bare.Types         as Bare 
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
@@ -30,6 +31,7 @@ makeInstanceLaw env sigEnv sigs name rilaw = LawInstance
   , liSupers  = mkTy <$> rilSupers rilaw 
   , lilTyArgs = mkTy <$> rilTyArgs rilaw
   , lilEqus   = [(mkVar l, mkTypedVar r) | (l,r)<- rilEqus rilaw ]  
+  , lilPos    = GM.sourcePosSrcSpan $ loc $ rilPos rilaw
   } 
   where
     tc    :: Maybe Class 
@@ -40,11 +42,15 @@ makeInstanceLaw env sigEnv sigs name rilaw = LawInstance
 
     mkTy :: LocBareType -> LocSpecType
     mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV 
-    mkVar :: LocSymbol -> Maybe Var 
-    mkVar = Bare.maybeResolveSym env name "makeInstanceLaw"
+    mkVar :: LocSymbol -> VarOrLocSymbol 
+    mkVar x = case Bare.maybeResolveSym env name "makeInstanceLaw" x of 
+                Just v -> Left v 
+                _      -> Right x 
 
-    mkTypedVar :: LocSymbol -> (Maybe Var, Maybe LocSpecType)
-    mkTypedVar l = let x = mkVar l in (x, join ((`L.lookup` sigs) <$> x))
+    mkTypedVar :: LocSymbol -> (VarOrLocSymbol, Maybe LocSpecType)
+    mkTypedVar l = case mkVar l of 
+                     Left x -> (Left x, Just $ Mb.fromMaybe (dummyLoc $ ofType $ varType x) (L.lookup x sigs))
+                     Right x -> (Right x, Nothing)
 
 
   {-

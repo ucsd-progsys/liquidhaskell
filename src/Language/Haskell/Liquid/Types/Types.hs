@@ -1036,6 +1036,7 @@ data RILaws ty = RIL
   , rilSupers  :: [ty]
   , rilTyArgs  :: [ty]
   , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
+  , rilPos     :: F.Located ()
   } deriving (Show, Functor, Data, Typeable, Generic)
 
 
@@ -2132,7 +2133,7 @@ instance F.PPrint t => F.PPrint (RClass t) where
 
 
 instance F.PPrint t => F.PPrint (RILaws t) where
-  pprintTidy k (RIL n ss ts mts) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
+  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
    where 
     supers [] = "" 
     supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
