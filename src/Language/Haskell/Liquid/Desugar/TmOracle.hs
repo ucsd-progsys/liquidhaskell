@@ -6,7 +6,7 @@ The term equality oracle. The main export of the module is function `tmOracle'.
 
 {-# LANGUAGE CPP, MultiWayIf #-}
 
-module Language.Haskell.Liquid.Desugar.TmOracle (
+module TmOracle (
 
         -- re-exported from PmExpr
         PmExpr(..), PmLit(..), SimpleEq, ComplexEq, PmVarEnv, falsePmExpr,
@@ -19,6 +19,10 @@ module Language.Haskell.Liquid.Desugar.TmOracle (
         -- misc.
         toComplex, exprDeepLookup, pmLitType, flattenPmVarEnv
     ) where
+
+#include "HsVersions.h"
+
+import GhcPrelude
 
 import PmExpr
 
@@ -96,6 +100,10 @@ solveOneEq solver_env@(_,(_,env)) complex
   $ applySubstComplexEq env complex -- replace everything we already know
 
 -- | Solve a complex equality.
+-- Nothing => definitely unsatisfiable
+-- Just tms => I have added the complex equality and added
+--             it to the tmstate; the result may or may not be
+--             satisfiable
 solveComplexEq :: TmState -> ComplexEq -> Maybe TmState
 solveComplexEq solver_state@(standby, (unhandled, env)) eq@(e1, e2) = case eq of
   -- We cannot do a thing about these cases

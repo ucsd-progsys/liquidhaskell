@@ -10,16 +10,17 @@ Desugaring foreign declarations (see also DsCCall).
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Language.Haskell.Liquid.Desugar.DsForeign ( dsForeigns ) where
+module DsForeign ( dsForeigns ) where
 
-import Prelude hiding ((<>))
+#include "HsVersions.h"
+import GhcPrelude
 
 import TcRnMonad        -- temp
 
 import CoreSyn
 
-import Language.Haskell.Liquid.Desugar.DsCCall
-import Language.Haskell.Liquid.Desugar.DsMonad
+import DsCCall
+import DsMonad
 
 import HsSyn
 import DataCon
@@ -51,6 +52,7 @@ import Platform
 import Config
 import OrdList
 import Pair
+import Util
 import Hooks
 import Encoding
 
@@ -97,17 +99,18 @@ dsForeigns' fos = do
   where
    do_ldecl (L loc decl) = putSrcSpanDs loc (do_decl decl)
 
-   do_decl (ForeignImport { fd_name = id, fd_co = co, fd_fi = spec }) = do
+   do_decl (ForeignImport { fd_name = id, fd_i_ext = co, fd_fi = spec }) = do
       traceIf (text "fi start" <+> ppr id)
       let id' = unLoc id
       (bs, h, c) <- dsFImport id' co spec
       traceIf (text "fi end" <+> ppr id)
       return (h, c, [], bs)
 
-   do_decl (ForeignExport { fd_name = L _ id, fd_co = co
+   do_decl (ForeignExport { fd_name = L _ id, fd_e_ext = co
                           , fd_fe = CExport (L _ (CExportStatic _ ext_nm cconv)) _ }) = do
       (h, c, _, _) <- dsFExport id co ext_nm cconv False
       return (h, c, [id], [])
+   do_decl (XForeignDecl _) = panic "dsForeigns'"
 
 {-
 ************************************************************************
@@ -157,8 +160,9 @@ dsCImport id co (CLabel cid) cconv _ _ = do
               | tyConUnique tycon == funPtrTyConKey ->
                  IsFunction
              _ -> IsData
-   (_resTy, foRhs) <- resultWrapper ty
-   let
+   (resTy, foRhs) <- resultWrapper ty
+   ASSERT(fromJust resTy `eqType` addrPrimTy)    -- typechecker ensures this
+    let
         rhs = foRhs (Lit (MachLabel cid stdcall_info fod))
         rhs' = Cast rhs co
         stdcall_info = fun_type_arg_stdcall_info dflags cconv ty
@@ -226,7 +230,8 @@ dsFCall fn_id co fcall mDeclHeader = do
                                       CApiConv safety)
                       c = includes
                        $$ fun_proto <+> braces (cRet <> semi)
-                      includes = vcat [ text "#include <" <> ftext h <> text ">"
+                      includes = vcat [ text "#include \"" <> ftext h
+                                        <> text "\""
                                       | Header _ h <- nub headers ]
                       fun_proto = cResType <+> pprCconv <+> ppr wrapperName <> parens argTypes
                       cRet
@@ -714,6 +719,12 @@ toCType = f False
            -- through one layer of type synonym etc.
            | Just t' <- coreView t
               = f voidOK t'
+           -- This may be an 'UnliftedFFITypes'-style ByteArray# argument
+           -- (which is marshalled like a Ptr)
+           | Just byteArrayPrimTyCon        == tyConAppTyConPicky_maybe t
+              = (Nothing, text "const void*")
+           | Just mutableByteArrayPrimTyCon == tyConAppTyConPicky_maybe t
+              = (Nothing, text "void*")
            -- Otherwise we don't know the C type. If we are allowing
            -- void then return that; otherwise something has gone wrong.
            | voidOK = (Nothing, text "void")
@@ -775,7 +786,9 @@ getPrimTyOf ty
   -- with a single primitive-typed argument (see TcType.legalFEArgTyCon).
   | otherwise =
   case splitDataProductType_maybe rep_ty of
-     Just (_, _, _data_con, [prim_ty]) ->
+     Just (_, _, data_con, [prim_ty]) ->
+        ASSERT(dataConSourceArity data_con == 1)
+        ASSERT2(isUnliftedType prim_ty, ppr prim_ty)
         prim_ty
      _other -> pprPanic "DsForeign.getPrimTyOf" (ppr ty)
   where

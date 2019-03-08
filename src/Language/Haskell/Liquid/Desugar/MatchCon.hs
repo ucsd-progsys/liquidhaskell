@@ -9,23 +9,26 @@ Pattern-matching constructors
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Language.Haskell.Liquid.Desugar.MatchCon ( matchConFamily, matchPatSyn ) where
+module MatchCon ( matchConFamily, matchPatSyn ) where
 
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match     ( match )
+#include "HsVersions.h"
+
+import GhcPrelude
+
+import {-# SOURCE #-} Match     ( match )
 
 import HsSyn
-import Language.Haskell.Liquid.Desugar.DsBinds
+import DsBinds
 import ConLike
 import TcType
-import Language.Haskell.Liquid.Desugar.DsMonad
-import Language.Haskell.Liquid.Desugar.DsUtils
+import DsMonad
+import DsUtils
 import MkCore   ( mkCoreLets )
 import Util
 import Id
 import NameEnv
 import FieldLabel ( flSelector )
 import SrcLoc
-import DynFlags
 import Outputable
 import Control.Monad(liftM)
 import Data.List (groupBy)
@@ -89,9 +92,8 @@ matchConFamily :: [Id]
                -> DsM MatchResult
 -- Each group of eqns is for a single constructor
 matchConFamily (var:vars) ty groups
-  = do dflags <- getDynFlags
-       alts <- mapM (fmap toRealAlt . matchOneConLike vars ty) groups
-       return (mkCoAlgCaseMatchResult dflags var ty alts)
+  = do alts <- mapM (fmap toRealAlt . matchOneConLike vars ty) groups
+       return (mkCoAlgCaseMatchResult var ty alts)
   where
     toRealAlt alt = case alt_pat alt of
         RealDataCon dcon -> alt{ alt_pat = dcon }
@@ -118,7 +120,8 @@ matchOneConLike :: [Id]
                 -> [EquationInfo]
                 -> DsM (CaseAlt ConLike)
 matchOneConLike vars ty (eqn1 : eqns)   -- All eqns for a single constructor
-  = do  { let inst_tys = arg_tys ++ mkTyVarTys tvs1
+  = do  { let inst_tys = ASSERT( tvs1 `equalLength` ex_tvs )
+                         arg_tys ++ mkTyVarTys tvs1
 
               val_arg_tys = conLikeInstOrigArgTys con1 inst_tys
         -- dataConInstOrigArgTys takes the univ and existential tyvars
@@ -128,7 +131,8 @@ matchOneConLike vars ty (eqn1 : eqns)   -- All eqns for a single constructor
                           -> [(ConArgPats, EquationInfo)] -> DsM MatchResult
               -- All members of the group have compatible ConArgPats
               match_group arg_vars arg_eqn_prs
-                = do { (wraps, eqns') <- liftM unzip (mapM shift arg_eqn_prs)
+                = ASSERT( notNull arg_eqn_prs )
+                  do { (wraps, eqns') <- liftM unzip (mapM shift arg_eqn_prs)
                      ; let group_arg_vars = select_arg_vars arg_vars arg_eqn_prs
                      ; match_result <- match (group_arg_vars ++ vars) ty eqns'
                      ; return (adjustMatchResult (foldr1 (.) wraps) match_result) }
@@ -165,7 +169,7 @@ matchOneConLike vars ty (eqn1 : eqns)   -- All eqns for a single constructor
               = firstPat eqn1
     fields1 = map flSelector (conLikeFieldLabels con1)
 
---     ex_tvs = conLikeExTyVars con1
+    ex_tvs = conLikeExTyVars con1
 
     -- Choose the right arg_vars in the right order for this group
     -- Note [Record patterns]
@@ -174,7 +178,9 @@ matchOneConLike vars ty (eqn1 : eqns)   -- All eqns for a single constructor
       | RecCon flds <- arg_pats
       , let rpats = rec_flds flds
       , not (null rpats)     -- Treated specially; cf conArgPats
-      = map lookup_fld rpats
+      = ASSERT2( fields1 `equalLength` arg_vars,
+                 ppr con1 $$ ppr fields1 $$ ppr arg_vars )
+        map lookup_fld rpats
       | otherwise
       = arg_vars
       where

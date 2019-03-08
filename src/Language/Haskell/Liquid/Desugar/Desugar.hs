@@ -9,10 +9,14 @@ The Desugarer: turning HsSyn into Core.
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Language.Haskell.Liquid.Desugar.Desugar (
+module Desugar (
     -- * Desugaring operations
     deSugar, deSugarExpr
     ) where
+
+#include "HsVersions.h"
+
+import GhcPrelude
 
 import DsUsage
 import DynFlags
@@ -24,17 +28,15 @@ import TcRnDriver ( runTcInteractive )
 import Id
 import Name
 import Type
-import InstEnv
-import Class
 import Avail
 import CoreSyn
 import CoreFVs     ( exprsSomeFreeVarsList )
 import CoreOpt     ( simpleOptPgm, simpleOptExpr )
 import PprCore
-import Language.Haskell.Liquid.Desugar.DsMonad
-import Language.Haskell.Liquid.Desugar.DsExpr
-import Language.Haskell.Liquid.Desugar.DsBinds
-import Language.Haskell.Liquid.Desugar.DsForeign
+import DsMonad
+import DsExpr
+import DsBinds
+import DsForeign
 import PrelNames   ( coercibleTyConKey )
 import TysPrim     ( eqReprPrimTyCon )
 import Unique      ( hasKey )
@@ -54,14 +56,16 @@ import FastString
 import ErrUtils
 import Outputable
 import SrcLoc
-import Language.Haskell.Liquid.Desugar.Coverage
+import Coverage
 import Util
 import MonadUtils
 import OrdList
+import ExtractDocs
 
 import Data.List
 import Data.IORef
 import Control.Monad( when )
+import Plugins ( LoadedPlugin(..) )
 
 {-
 ************************************************************************
@@ -77,7 +81,8 @@ deSugar :: HscEnv -> ModLocation -> TcGblEnv -> IO (Messages, Maybe ModGuts)
 
 deSugar hsc_env
         mod_loc
-        tcg_env@(TcGblEnv { tcg_semantic_mod = mod,
+        tcg_env@(TcGblEnv { tcg_mod          = id_mod,
+                            tcg_semantic_mod = mod,
                             tcg_src          = hsc_src,
                             tcg_type_env     = type_env,
                             tcg_imports      = imports,
@@ -98,7 +103,6 @@ deSugar hsc_env
                             tcg_th_foreign_files = th_foreign_files_var,
                             tcg_fords        = fords,
                             tcg_rules        = rules,
-                            tcg_vects        = vects,
                             tcg_patsyns      = patsyns,
                             tcg_tcs          = tcs,
                             tcg_insts        = insts,
@@ -128,18 +132,17 @@ deSugar hsc_env
                           ; (spec_prs, spec_rules) <- dsImpSpecs imp_specs
                           ; (ds_fords, foreign_prs) <- dsForeigns fords
                           ; ds_rules <- mapMaybeM dsRule rules
-                          ; ds_vects <- mapM dsVect vects
                           ; let hpc_init
                                   | gopt Opt_Hpc dflags = hpcInitCode mod ds_hpc_info
                                   | otherwise = empty
                           ; return ( ds_ev_binds
                                    , foreign_prs `appOL` core_prs `appOL` spec_prs
-                                   , spec_rules ++ ds_rules, ds_vects
+                                   , spec_rules ++ ds_rules
                                    , ds_fords `appendStubC` hpc_init) }
 
         ; case mb_res of {
            Nothing -> return (msgs, Nothing) ;
-           Just (ds_ev_binds, all_prs, all_rules, vects0, ds_fords) ->
+           Just (ds_ev_binds, all_prs, all_rules, ds_fords) ->
 
      do {       -- Add export flags to bindings
           keep_alive <- readIORef keep_var
@@ -155,31 +158,34 @@ deSugar hsc_env
         -- You might think it doesn't matter, but the simplifier brings all top-level
         -- things into the in-scope set before simplifying; so we get no unfolding for F#!
 
-#if defined(DEBUG)
-          -- Debug only as pre-simple-optimisation program may be really big
         ; endPassIO hsc_env print_unqual CoreDesugar final_pgm rules_for_imps
-#endif
-        ; (ds_binds, ds_rules_for_imps, ds_vects)
-            <- simpleOptPgm dflags mod final_pgm rules_for_imps vects0
+        ; (ds_binds, ds_rules_for_imps)
+            <- simpleOptPgm dflags mod final_pgm rules_for_imps
                          -- The simpleOptPgm gets rid of type
                          -- bindings plus any stupid dead code
 
         ; endPassIO hsc_env print_unqual CoreDesugarOpt ds_binds ds_rules_for_imps
 
         ; let used_names = mkUsedNames tcg_env
-        ; deps <- mkDependencies tcg_env
+              pluginModules =
+                map lpModule (plugins (hsc_dflags hsc_env))
+        ; deps <- mkDependencies (thisInstalledUnitId (hsc_dflags hsc_env))
+                                 (map mi_module pluginModules) tcg_env
 
         ; used_th <- readIORef tc_splice_used
         ; dep_files <- readIORef dependent_files
         ; safe_mode <- finalSafeMode dflags tcg_env
-        ; usages <- mkUsageInfo hsc_env mod (imp_mods imports) used_names dep_files merged
+        ; usages <- mkUsageInfo hsc_env mod (imp_mods imports) used_names
+                      dep_files merged pluginModules
         -- id_mod /= mod when we are processing an hsig, but hsigs
         -- never desugared and compiled (there's no code!)
         -- Consequently, this should hold for any ModGuts that make
         -- past desugaring. See Note [Identity versus semantic module].
-        --; MASSERT( id_mod == mod )
+        ; MASSERT( id_mod == mod )
 
         ; foreign_files <- readIORef th_foreign_files_var
+
+        ; let (doc_hdr, decl_docs, arg_docs) = extractDocs tcg_env
 
         ; let mod_guts = ModGuts {
                 mg_module       = mod,
@@ -205,11 +211,12 @@ deSugar hsc_env
                 mg_foreign_files = foreign_files,
                 mg_hpc_info     = ds_hpc_info,
                 mg_modBreaks    = modBreaks,
-                mg_vect_decls   = ds_vects,
-                mg_vect_info    = noVectInfo,
                 mg_safe_haskell = safe_mode,
                 mg_trust_pkg    = imp_trust_own_pkg imports,
-                mg_complete_sigs = complete_matches
+                mg_complete_sigs = complete_matches,
+                mg_doc_hdr      = doc_hdr,
+                mg_decl_docs    = decl_docs,
+                mg_arg_docs     = arg_docs
               }
         ; return (msgs, Just mod_guts)
         }}}}
@@ -242,7 +249,7 @@ Note [Top-level evidence]
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 Top-level evidence bindings may be mutually recursive with the top-level value
 bindings, so we must put those in a Rec.  But we can't put them *all* in a Rec
-because the occurrence analyser doesn't teke account of type/coercion variables
+because the occurrence analyser doesn't take account of type/coercion variables
 when computing dependencies.
 
 So we pull out the type/coercion variables (which are in dependency order),
@@ -372,9 +379,9 @@ Reason
 -}
 
 dsRule :: LRuleDecl GhcTc -> DsM (Maybe CoreRule)
-dsRule (L loc (HsRule name rule_act vars lhs _tv_lhs rhs _fv_rhs))
+dsRule (L loc (HsRule _ name rule_act vars lhs rhs))
   = putSrcSpanDs loc $
-    do  { let bndrs' = [var | L _ (RuleBndr (L _ var)) <- vars]
+    do  { let bndrs' = [var | L _ (RuleBndr _ (L _ var)) <- vars]
 
         ; lhs' <- unsetGOptM Opt_EnableRewriteRules $
                   unsetWOptM Opt_WarnIdentities $
@@ -387,7 +394,8 @@ dsRule (L loc (HsRule name rule_act vars lhs _tv_lhs rhs _fv_rhs))
 
         -- Substitute the dict bindings eagerly,
         -- and take the body apart into a (f args) form
-        ; case decomposeRuleLhs bndrs'' lhs'' of {
+        ; dflags <- getDynFlags
+        ; case decomposeRuleLhs dflags bndrs'' lhs'' of {
                 Left msg -> do { warnDs NoReason msg; return Nothing } ;
                 Right (final_bndrs, fn_id, args) -> do
 
@@ -396,13 +404,12 @@ dsRule (L loc (HsRule name rule_act vars lhs _tv_lhs rhs _fv_rhs))
                 -- we don't want to attach rules to the bindings of implicit Ids,
                 -- because they don't show up in the bindings until just before code gen
               fn_name   = idName fn_id
-              final_rhs = simpleOptExpr rhs''    -- De-crap it
+              final_rhs = simpleOptExpr dflags rhs''    -- De-crap it
               rule_name = snd (unLoc name)
               final_bndrs_set = mkVarSet final_bndrs
               arg_ids = filterOut (`elemVarSet` final_bndrs_set) $
                         exprsSomeFreeVarsList isId args
 
-        ; dflags <- getDynFlags
         ; rule <- dsMkUserRule this_mod is_local
                          rule_name rule_act fn_name final_bndrs args
                          final_rhs
@@ -411,6 +418,7 @@ dsRule (L loc (HsRule name rule_act vars lhs _tv_lhs rhs _fv_rhs))
 
         ; return (Just rule)
         } } }
+dsRule (L _ (XRuleDecl _)) = panic "dsRule"
 
 
 warnRuleShadowing :: RuleName -> Activation -> Id -> [Id] -> DsM ()
@@ -539,38 +547,6 @@ about this. For example in Control.Arrow we have
 
 and similar, which will elicit exactly these warnings, and risk never
 firing.  But it's not clear what to do instead.  We could make the
-class methocd rules inactive in phase 2, but that would delay when
+class method rules inactive in phase 2, but that would delay when
 subsequent transformations could fire.
-
-
-************************************************************************
-*                                                                      *
-*              Desugaring vectorisation declarations
-*                                                                      *
-************************************************************************
 -}
-
-dsVect :: LVectDecl GhcTc -> DsM CoreVect
-dsVect (L loc (HsVect _ (L _ v) rhs))
-  = putSrcSpanDs loc $
-    do { rhs' <- dsLExpr rhs
-       ; return $ Vect v rhs'
-       }
-dsVect (L _loc (HsNoVect _ (L _ v)))
-  = return $ NoVect v
-dsVect (L _loc (HsVectTypeOut isScalar tycon rhs_tycon))
-  = return $ VectType isScalar tycon' rhs_tycon
-  where
-    tycon' | Just ty <- coreView $ mkTyConTy tycon
-           , (tycon', []) <- splitTyConApp ty      = tycon'
-           | otherwise                             = tycon
-dsVect vd@(L _ (HsVectTypeIn _ _ _ _))
-  = pprPanic "Desugar.dsVect: unexpected 'HsVectTypeIn'" (ppr vd)
-dsVect (L _loc (HsVectClassOut cls))
-  = return $ VectClass (classTyCon cls)
-dsVect vc@(L _ (HsVectClassIn _ _))
-  = pprPanic "Desugar.dsVect: unexpected 'HsVectClassIn'" (ppr vc)
-dsVect (L _loc (HsVectInstOut inst))
-  = return $ VectInst (instanceDFunId inst)
-dsVect vi@(L _ (HsVectInstIn _))
-  = pprPanic "Desugar.dsVect: unexpected 'HsVectInstIn'" (ppr vi)

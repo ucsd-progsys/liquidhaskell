@@ -1,6 +1,6 @@
 Name:                liquidhaskell
-Version:             0.8.4.0
-Copyright:           2010-18 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+Version:             0.8.6.0
+Copyright:           2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 Synopsis:            Liquid Types for Haskell
 Description:         Liquid Types for Haskell.
 Homepage:            https://github.com/ucsd-progsys/liquidhaskell
@@ -109,8 +109,8 @@ Executable liquid
 Library
    Default-Language: Haskell98
    Build-Depends: base >=4.11.1.0 && <5
-                , ghc == 8.4.3
-                , ghc-boot == 8.4.3
+                , ghc 
+                , ghc-boot 
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
@@ -136,7 +136,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.8.0.0
                 , located-base
-                , aeson >= 1.2 && < 1.4
+                , aeson 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18

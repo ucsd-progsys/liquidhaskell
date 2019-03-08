@@ -7,7 +7,7 @@ Desugaring foreign calls
 -}
 
 {-# LANGUAGE CPP #-}
-module Language.Haskell.Liquid.Desugar.DsCCall
+module DsCCall
         ( dsCCall
         , mkFCall
         , unboxArg
@@ -15,16 +15,20 @@ module Language.Haskell.Liquid.Desugar.DsCCall
         , resultWrapper
         ) where
 
+#include "HsVersions.h"
+
+
+import GhcPrelude
 
 import CoreSyn
 
-import Language.Haskell.Liquid.Desugar.DsMonad
+import DsMonad
 import CoreUtils
 import MkCore
 import MkId
 import ForeignCall
 import DataCon
-import Language.Haskell.Liquid.Desugar.DsUtils
+import DsUtils
 
 import TcType
 import Type
@@ -39,6 +43,7 @@ import Literal
 import PrelNames
 import DynFlags
 import Outputable
+import Util
 
 import Data.Maybe
 
@@ -111,7 +116,8 @@ mkFCall :: DynFlags -> Unique -> ForeignCall
 --      (ccallid::(forall a b.  StablePtr (a -> b) -> Addr -> Char -> IO Addr))
 --                      a b s x c
 mkFCall dflags uniq the_fcall val_args res_ty
-  = mkApps (mkVarApps (Var the_fcall_id) tyvars) val_args
+  = ASSERT( all isTyVar tyvars )  -- this must be true because the type is top-level
+    mkApps (mkVarApps (Var the_fcall_id) tyvars) val_args
   where
     arg_tys = map exprType val_args
     body_ty = (mkFunTys arg_tys res_ty)
@@ -155,7 +161,9 @@ unboxArg arg
   -- Data types with a single constructor, which has a single, primitive-typed arg
   -- This deals with Int, Float etc; also Ptr, ForeignPtr
   | is_product_type && data_con_arity == 1
-  = do case_bndr <- newSysLocalDs arg_ty
+  = ASSERT2(isUnliftedType data_con_arg_ty1, pprType arg_ty)
+                        -- Typechecker ensures this
+    do case_bndr <- newSysLocalDs arg_ty
        prim_arg <- newSysLocalDs data_con_arg_ty1
        return (Var prim_arg,
                \ body -> Case arg case_bndr (exprType body) [(DataAlt data_con,[prim_arg],body)]
@@ -278,6 +286,8 @@ mk_alt return_result (Nothing, wrap_result)
 
 mk_alt return_result (Just prim_res_ty, wrap_result)
   = -- The ccall returns a non-() value
+    ASSERT2( isPrimitiveType prim_res_ty, ppr prim_res_ty )
+             -- True because resultWrapper ensures it is so
     do { result_id <- newSysLocalDs prim_res_ty
        ; state_id <- newSysLocalDs realWorldStatePrimTy
        ; let the_rhs = return_result (Var state_id)

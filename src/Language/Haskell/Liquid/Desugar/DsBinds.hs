@@ -13,22 +13,24 @@ lower levels it is preserved with @let@/@letrec@s).
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Language.Haskell.Liquid.Desugar.DsBinds ( dsTopLHsBinds, dsLHsBinds, decomposeRuleLhs, dsSpec,
+module DsBinds ( dsTopLHsBinds, dsLHsBinds, decomposeRuleLhs, dsSpec,
                  dsHsWrapper, dsTcEvBinds, dsTcEvBinds_s, dsEvBinds, dsMkUserRule
   ) where
 
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr( dsLExpr )
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match( matchWrapper )
+#include "HsVersions.h"
 
-import Prelude hiding ((<>))
+import GhcPrelude
 
-import Language.Haskell.Liquid.Desugar.DsMonad
-import Language.Haskell.Liquid.Desugar.DsGRHSs
-import Language.Haskell.Liquid.Desugar.DsUtils
+import {-# SOURCE #-}   DsExpr( dsLExpr )
+import {-# SOURCE #-}   Match( matchWrapper )
+
+import DsMonad
+import DsGRHSs
+import DsUtils
+import Check ( checkGuardMatches )
 
 import HsSyn            -- lots of things
 import CoreSyn          -- lots of things
-import Literal          ( Literal(MachStr) )
 import CoreOpt          ( simpleOptExpr )
 import OccurAnal        ( occurAnalyseExpr )
 import MkCore
@@ -47,12 +49,11 @@ import Coercion
 import TysWiredIn ( typeNatKind, typeSymbolKind )
 import Id
 import MkId(proxyHashId)
-import Class
 import Name
 import VarSet
 import Rules
 import VarEnv
-import Var( EvVar )
+import Var( EvVar, varType )
 import Outputable
 import Module
 import SrcLoc
@@ -63,6 +64,7 @@ import BasicTypes
 import DynFlags
 import FastString
 import Util
+import UniqSet( nonDetEltsUniqSet )
 import MonadUtils
 import qualified GHC.LanguageExtensions as LangExt
 import Control.Monad
@@ -84,7 +86,12 @@ dsTopLHsBinds binds
        ; return nilOL }
 
   | otherwise
-  = do { (_, prs) <- dsLHsBinds binds
+  = do { (force_vars, prs) <- dsLHsBinds binds
+       ; when debugIsOn $
+         do { xstrict <- xoptM LangExt.Strict
+            ; MASSERT2( null force_vars || xstrict, ppr binds $$ ppr force_vars ) }
+              -- with -XStrict, even top-level vars are listed as force vars.
+
        ; return (toOL prs) }
 
   where
@@ -157,9 +164,10 @@ dsHsBind dflags b@(FunBind { fun_id = L _ fun, fun_matches = matches
           return (force_var, [core_binds]) }
 
 dsHsBind dflags (PatBind { pat_lhs = pat, pat_rhs = grhss
-                         , pat_rhs_ty = ty
+                         , pat_ext = NPatBindTc _ ty
                          , pat_ticks = (rhs_tick, var_ticks) })
   = do  { body_expr <- dsGuarded grhss ty
+        ; checkGuardMatches PatBindGuards grhss
         ; let body' = mkOptTickBox rhs_tick body_expr
               pat'  = decideBangHood dflags pat
         ; (force_var,sel_binds) <- mkSelectorBinds var_ticks pat body'
@@ -174,7 +182,7 @@ dsHsBind dflags (AbsBinds { abs_tvs = tyvars, abs_ev_vars = dicts
                           , abs_exports = exports
                           , abs_ev_binds = ev_binds
                           , abs_binds = binds, abs_sig = has_sig })
-  = do { ds_binds <- addDictsDs (toTcTypeBag (listToBag dicts)) $
+  = do { ds_binds <- addDictsDs (listToBag dicts) $
                      dsLHsBinds binds
                                    -- addDictsDs: push type constraints deeper
                                    --             for inner pattern match check
@@ -185,6 +193,7 @@ dsHsBind dflags (AbsBinds { abs_tvs = tyvars, abs_ev_vars = dicts
        ; dsAbsBinds dflags tyvars dicts exports ds_ev_binds ds_binds has_sig }
 
 dsHsBind _ (PatSynBind{}) = panic "dsHsBind: PatSynBind"
+dsHsBind _ (XHsBindsLR{}) = panic "dsHsBind: XHsBindsLR"
 
 
 -----------------------
@@ -244,6 +253,7 @@ dsAbsBinds dflags tyvars dicts exports
                    ; return (makeCorePair dflags global
                                           (isDefaultMethod prags)
                                           0 (core_wrap (Var local))) }
+             mk_bind (XABExport _) = panic "dsAbsBinds"
        ; main_binds <- mapM mk_bind exports
 
        ; return (force_vars, flattenBinds ds_ev_binds ++ bind_prs ++ main_binds) }
@@ -288,6 +298,7 @@ dsAbsBinds dflags tyvars dicts exports
                            -- the user written (local) function.  The global
                            -- Id is just the selector.  Hmm.
                      ; return ((global', rhs) : fromOL spec_binds) }
+             mk_bind (XABExport _) = panic "dsAbsBinds"
 
        ; export_binds_s <- mapM mk_bind (exports ++ extra_exports)
 
@@ -335,7 +346,8 @@ dsAbsBinds dflags tyvars dicts exports
     mk_export local =
       do global <- newSysLocalDs
                      (exprType (mkLams tyvars (mkLams dicts (Var local))))
-         return (ABE { abe_poly  = global
+         return (ABE { abe_ext   = noExt
+                     , abe_poly  = global
                      , abe_mono  = local
                      , abe_wrap  = WpHole
                      , abe_prags = SpecPrags [] })
@@ -670,14 +682,14 @@ dsSpec mb_poly_rhs (L loc (SpecPrag poly_id spec_co spec_inl))
        ; -- pprTrace "dsRule" (vcat [ text "Id:" <+> ppr poly_id
          --                         , text "spec_co:" <+> ppr spec_co
          --                         , text "ds_rhs:" <+> ppr ds_lhs ]) $
-         case decomposeRuleLhs spec_bndrs ds_lhs of {
+         dflags <- getDynFlags
+       ; case decomposeRuleLhs dflags spec_bndrs ds_lhs of {
            Left msg -> do { warnDs NoReason msg; return Nothing } ;
            Right (rule_bndrs, _fn, args) -> do
 
-       { dflags <- getDynFlags
-       ; this_mod <- getModule
+       { this_mod <- getModule
        ; let fn_unf    = realIdUnfolding poly_id
-             spec_unf  = specUnfolding spec_bndrs core_app arity_decrease fn_unf
+             spec_unf  = specUnfolding dflags spec_bndrs core_app arity_decrease fn_unf
              spec_id   = mkLocalId spec_name spec_ty
                             `setInlinePragma` inl_prag
                             `setIdUnfolding`  spec_unf
@@ -809,14 +821,15 @@ SPEC f :: ty                [n]   INLINE [k]
 ************************************************************************
 -}
 
-decomposeRuleLhs :: [Var] -> CoreExpr -> Either SDoc ([Var], Id, [CoreExpr])
+decomposeRuleLhs :: DynFlags -> [Var] -> CoreExpr
+                 -> Either SDoc ([Var], Id, [CoreExpr])
 -- (decomposeRuleLhs bndrs lhs) takes apart the LHS of a RULE,
 -- The 'bndrs' are the quantified binders of the rules, but decomposeRuleLhs
 -- may add some extra dictionary binders (see Note [Free dictionaries])
 --
 -- Returns an error message if the LHS isn't of the expected shape
 -- Note [Decomposing the left-hand side of a RULE]
-decomposeRuleLhs orig_bndrs orig_lhs
+decomposeRuleLhs dflags orig_bndrs orig_lhs
   | not (null unbound)    -- Check for things unbound on LHS
                           -- See Note [Unused spec binders]
   = Left (vcat (map dead_msg unbound))
@@ -837,7 +850,7 @@ decomposeRuleLhs orig_bndrs orig_lhs
   = Left bad_shape_msg
  where
    lhs1         = drop_dicts orig_lhs
-   lhs2         = simpleOptExpr lhs1  -- See Note [Simplify rule LHS]
+   lhs2         = simpleOptExpr dflags lhs1  -- See Note [Simplify rule LHS]
    (fun2,args2) = collectArgs lhs2
 
    lhs_fvs    = exprFreeVars lhs2
@@ -1117,28 +1130,54 @@ dsHsWrapper (WpFun c1 c2 t1 doc)
                                    ; if ok
                                      then return (\e -> (Lam x (w2 (app e arg))))
                                      else return id }  -- this return is irrelevant
-dsHsWrapper (WpCast co)       = return $ \e -> mkCastDs e co
+dsHsWrapper (WpCast co)       = ASSERT(coercionRole co == Representational)
+                                return $ \e -> mkCastDs e co
 dsHsWrapper (WpEvApp tm)      = do { core_tm <- dsEvTerm tm
                                    ; return (\e -> App e core_tm) }
 
 --------------------------------------
 dsTcEvBinds_s :: [TcEvBinds] -> DsM [CoreBind]
 dsTcEvBinds_s []       = return []
-dsTcEvBinds_s (b:_)    = dsTcEvBinds b
+dsTcEvBinds_s (b:rest) = ASSERT( null rest )  -- Zonker ensures null
+                         dsTcEvBinds b
 
 dsTcEvBinds :: TcEvBinds -> DsM [CoreBind]
 dsTcEvBinds (TcEvBinds {}) = panic "dsEvBinds"    -- Zonker has got rid of this
 dsTcEvBinds (EvBinds bs)   = dsEvBinds bs
 
 dsEvBinds :: Bag EvBind -> DsM [CoreBind]
-dsEvBinds bs = mapM ds_scc (sccEvBinds bs)
+dsEvBinds bs
+  = do { ds_bs <- mapBagM dsEvBind bs
+       ; return (mk_ev_binds ds_bs) }
+
+mk_ev_binds :: Bag (Id,CoreExpr) -> [CoreBind]
+-- We do SCC analysis of the evidence bindings, /after/ desugaring
+-- them. This is convenient: it means we can use the CoreSyn
+-- free-variable functions rather than having to do accurate free vars
+-- for EvTerm.
+mk_ev_binds ds_binds
+  = map ds_scc (stronglyConnCompFromEdgedVerticesUniq edges)
   where
-    ds_scc (AcyclicSCC (EvBind { eb_lhs = v, eb_rhs = r}))
-                          = liftM (NonRec v) (dsEvTerm r)
-    ds_scc (CyclicSCC bs) = liftM Rec (mapM dsEvBind bs)
+    edges :: [ Node EvVar (EvVar,CoreExpr) ]
+    edges = foldrBag ((:) . mk_node) [] ds_binds
+
+    mk_node :: (Id, CoreExpr) -> Node EvVar (EvVar,CoreExpr)
+    mk_node b@(var, rhs)
+      = DigraphNode { node_payload = b
+                    , node_key = var
+                    , node_dependencies = nonDetEltsUniqSet $
+                                          exprFreeVars rhs `unionVarSet`
+                                          coVarsOfType (varType var) }
+      -- It's OK to use nonDetEltsUniqSet here as stronglyConnCompFromEdgedVertices
+      -- is still deterministic even if the edges are in nondeterministic order
+      -- as explained in Note [Deterministic SCC] in Digraph.
+
+    ds_scc (AcyclicSCC (v,r)) = NonRec v r
+    ds_scc (CyclicSCC prs)    = Rec prs
 
 dsEvBind :: EvBind -> DsM (Id, CoreExpr)
 dsEvBind (EvBind { eb_lhs = v, eb_rhs = r}) = liftM ((,) v) (dsEvTerm r)
+
 
 {-**********************************************************************
 *                                                                      *
@@ -1147,41 +1186,15 @@ dsEvBind (EvBind { eb_lhs = v, eb_rhs = r}) = liftM ((,) v) (dsEvTerm r)
 **********************************************************************-}
 
 dsEvTerm :: EvTerm -> DsM CoreExpr
-dsEvTerm (EvId v)           = return (Var v)
-dsEvTerm (EvCallStack cs)   = dsEvCallStack cs
-dsEvTerm (EvTypeable ty ev) = dsEvTypeable ty ev
-dsEvTerm (EvLit (EvNum n))  = mkNaturalExpr n
-dsEvTerm (EvLit (EvStr s))  = mkStringExprFS s
+dsEvTerm (EvExpr e)          = return e
+dsEvTerm (EvTypeable ty ev)  = dsEvTypeable ty ev
+dsEvTerm (EvFun { et_tvs = tvs, et_given = given
+                , et_binds = ev_binds, et_body = wanted_id })
+  = do { ds_ev_binds <- dsTcEvBinds ev_binds
+       ; return $ (mkLams (tvs ++ given) $
+                   mkCoreLets ds_ev_binds $
+                   Var wanted_id) }
 
-dsEvTerm (EvCast tm co)
-  = do { tm' <- dsEvTerm tm
-       ; return $ mkCastDs tm' co }
-
-dsEvTerm (EvDFunApp df tys tms)
-  = do { tms' <- mapM dsEvTerm tms
-       ; return $ Var df `mkTyApps` tys `mkApps` tms' }
-  -- The use of mkApps here is OK vis-a-vis levity polymorphism because
-  -- the terms are always evidence variables with types of kind Constraint
-
-dsEvTerm (EvCoercion co) = return (Coercion co)
-dsEvTerm (EvSuperClass d n)
-  = do { d' <- dsEvTerm d
-       ; let (cls, tys) = getClassPredTys (exprType d')
-             sc_sel_id  = classSCSelId cls n    -- Zero-indexed
-       ; return $ Var sc_sel_id `mkTyApps` tys `App` d' }
-
-dsEvTerm (EvSelector sel_id tys tms)
-  = do { tms' <- mapM dsEvTerm tms
-       ; return $ Var sel_id `mkTyApps` tys `mkApps` tms' }
-
-dsEvTerm (EvDelayedError ty msg) = return $ dsEvDelayedError ty msg
-
-dsEvDelayedError :: Type -> FastString -> CoreExpr
-dsEvDelayedError ty msg
-  = Var errorId `mkTyApps` [getRuntimeRep ty, ty] `mkApps` [litMsg]
-  where
-    errorId = tYPE_ERROR_ID
-    litMsg  = Lit (MachStr (fastStringToByteString msg))
 
 {-**********************************************************************
 *                                                                      *
@@ -1303,58 +1316,3 @@ tyConRep tc
        ; return (Var tc_rep_id) }
   | otherwise
   = pprPanic "tyConRep" (ppr tc)
-
-{- Note [Memoising typeOf]
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-See #3245, #9203
-
-IMPORTANT: we don't want to recalculate the TypeRep once per call with
-the proxy argument.  This is what went wrong in #3245 and #9203. So we
-help GHC by manually keeping the 'rep' *outside* the lambda.
--}
-
-
-{-**********************************************************************
-*                                                                      *
-           Desugaring EvCallStack evidence
-*                                                                      *
-**********************************************************************-}
-
-dsEvCallStack :: EvCallStack -> DsM CoreExpr
--- See Note [Overview of implicit CallStacks] in TcEvidence.hs
-dsEvCallStack cs = do
-  df            <- getDynFlags
-  m             <- getModule
-  srcLocDataCon <- dsLookupDataCon srcLocDataConName
-  let mkSrcLoc l =
-        liftM (mkCoreConApps srcLocDataCon)
-              (sequence [ mkStringExprFS (unitIdFS $ moduleUnitId m)
-                        , mkStringExprFS (moduleNameFS $ moduleName m)
-                        , mkStringExprFS (srcSpanFile l)
-                        , return $ mkIntExprInt df (srcSpanStartLine l)
-                        , return $ mkIntExprInt df (srcSpanStartCol l)
-                        , return $ mkIntExprInt df (srcSpanEndLine l)
-                        , return $ mkIntExprInt df (srcSpanEndCol l)
-                        ])
-
-  emptyCS <- Var <$> dsLookupGlobalId emptyCallStackName
-
-  pushCSVar <- dsLookupGlobalId pushCallStackName
-  let pushCS name loc rest =
-        mkCoreApps (Var pushCSVar) [mkCoreTup [name, loc], rest]
-
-  let mkPush name loc tm = do
-        nameExpr <- mkStringExprFS name
-        locExpr <- mkSrcLoc loc
-        case tm of
-          EvCallStack EvCsEmpty -> return (pushCS nameExpr locExpr emptyCS)
-          _ -> do tmExpr  <- dsEvTerm tm
-                  -- at this point tmExpr :: IP sym CallStack
-                  -- but we need the actual CallStack to pass to pushCS,
-                  -- so we use unwrapIP to strip the dictionary wrapper
-                  -- See Note [Overview of implicit CallStacks]
-                  let ip_co = unwrapIP (exprType tmExpr)
-                  return (pushCS nameExpr locExpr (mkCastDs tmExpr ip_co))
-  case cs of
-    EvCsPushCall name loc tm -> mkPush (occNameFS $ getOccName name) loc tm
-    EvCsEmpty -> return emptyCS

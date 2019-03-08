@@ -6,22 +6,26 @@ Haskell expressions (as used by the pattern matching checker) and utilities.
 
 {-# LANGUAGE CPP #-}
 
-module Language.Haskell.Liquid.Desugar.PmExpr (
+module PmExpr (
         PmExpr(..), PmLit(..), SimpleEq, ComplexEq, toComplex, eqPmLit,
         truePmExpr, falsePmExpr, isTruePmExpr, isFalsePmExpr, isNotPmExprOther,
         lhsExprToPmExpr, hsExprToPmExpr, substComplexEq, filterComplex,
         pprPmExprWithParens, runPmPprM
     ) where
 
+#include "HsVersions.h"
 
 import GhcPrelude
 
+import BasicTypes (SourceText)
+import FastString (FastString, unpackFS)
 import HsSyn
 import Id
 import Name
 import NameSet
 import DataCon
 import ConLike
+import TcType (isStringTy)
 import TysWiredIn
 import Outputable
 import Util
@@ -235,34 +239,44 @@ lhsExprToPmExpr (L _ e) = hsExprToPmExpr e
 
 hsExprToPmExpr :: HsExpr GhcTc -> PmExpr
 
-hsExprToPmExpr (HsVar         x) = PmExprVar (idName (unLoc x))
-hsExprToPmExpr (HsConLikeOut  c) = PmExprVar (conLikeName c)
-hsExprToPmExpr (HsOverLit  olit) = PmExprLit (PmOLit False olit)
-hsExprToPmExpr (HsLit       lit) = PmExprLit (PmSLit lit)
+hsExprToPmExpr (HsVar        _ x) = PmExprVar (idName (unLoc x))
+hsExprToPmExpr (HsConLikeOut _ c) = PmExprVar (conLikeName c)
 
-hsExprToPmExpr e@(NegApp _ neg_e)
-  | PmExprLit (PmOLit False ol) <- synExprToPmExpr neg_e
-  = PmExprLit (PmOLit True ol)
+-- Desugar literal strings as a list of characters. For other literal values,
+-- keep it as it is.
+-- See `translatePat` in Check.hs (the `NPat` and `LitPat` case), and
+-- Note [Translate Overloaded Literal for Exhaustiveness Checking].
+hsExprToPmExpr (HsOverLit _ olit)
+  | OverLit (OverLitTc False ty) (HsIsString src s) _ <- olit, isStringTy ty
+  = stringExprToList src s
+  | otherwise = PmExprLit (PmOLit False olit)
+hsExprToPmExpr (HsLit     _ lit)
+  | HsString src s <- lit
+  = stringExprToList src s
+  | otherwise = PmExprLit (PmSLit lit)
+
+hsExprToPmExpr e@(NegApp _ (L _ neg_expr) _)
+  | PmExprLit (PmOLit False olit) <- hsExprToPmExpr neg_expr
+    -- NB: DON'T simply @(NegApp (NegApp olit))@ as @x@. when extension
+    -- @RebindableSyntax@ enabled, (-(-x)) may not equals to x.
+  = PmExprLit (PmOLit True olit)
   | otherwise = PmExprOther e
-hsExprToPmExpr (HsPar (L _ e)) = hsExprToPmExpr e
 
-hsExprToPmExpr e@(ExplicitTuple ps boxity)
+hsExprToPmExpr (HsPar _ (L _ e)) = hsExprToPmExpr e
+
+hsExprToPmExpr e@(ExplicitTuple _ ps boxity)
   | all tupArgPresent ps = mkPmExprData tuple_con tuple_args
   | otherwise            = PmExprOther e
   where
     tuple_con  = tupleDataCon boxity (length ps)
-    tuple_args = [ lhsExprToPmExpr e | L _ (Present e) <- ps ]
+    tuple_args = [ lhsExprToPmExpr e | L _ (Present _ e) <- ps ]
 
-hsExprToPmExpr e@(ExplicitList _elem_ty mb_ol elems)
+hsExprToPmExpr e@(ExplicitList _  mb_ol elems)
   | Nothing <- mb_ol = foldr cons nil (map lhsExprToPmExpr elems)
   | otherwise        = PmExprOther e {- overloaded list: No PmExprApp -}
   where
     cons x xs = mkPmExprData consDataCon [x,xs]
     nil       = mkPmExprData nilDataCon  []
-
-hsExprToPmExpr (ExplicitPArr _elem_ty elems)
-  = mkPmExprData (parrFakeCon (length elems)) (map lhsExprToPmExpr elems)
-
 
 -- we want this but we would have to make everything monadic :/
 -- ./compiler/deSugar/DsMonad.hs:397:dsLookupDataCon :: Name -> DsM DataCon
@@ -271,20 +285,23 @@ hsExprToPmExpr (ExplicitPArr _elem_ty elems)
 --   con  <- dsLookupDataCon (unLoc c)
 --   args <- mapM lhsExprToPmExpr (hsRecFieldsArgs binds)
 --   return (PmExprCon con args)
-hsExprToPmExpr e@(RecordCon   _ _ _ _) = PmExprOther e
+hsExprToPmExpr e@(RecordCon {}) = PmExprOther e
 
-hsExprToPmExpr (HsTick            _ e) = lhsExprToPmExpr e
-hsExprToPmExpr (HsBinTick       _ _ e) = lhsExprToPmExpr e
-hsExprToPmExpr (HsTickPragma  _ _ _ e) = lhsExprToPmExpr e
-hsExprToPmExpr (HsSCC           _ _ e) = lhsExprToPmExpr e
-hsExprToPmExpr (HsCoreAnn       _ _ e) = lhsExprToPmExpr e
-hsExprToPmExpr (ExprWithTySig     e _) = lhsExprToPmExpr e
-hsExprToPmExpr (ExprWithTySigOut  e _) = lhsExprToPmExpr e
-hsExprToPmExpr (HsWrap            _ e) =  hsExprToPmExpr e
+hsExprToPmExpr (HsTick           _ _ e) = lhsExprToPmExpr e
+hsExprToPmExpr (HsBinTick      _ _ _ e) = lhsExprToPmExpr e
+hsExprToPmExpr (HsTickPragma _ _ _ _ e) = lhsExprToPmExpr e
+hsExprToPmExpr (HsSCC          _ _ _ e) = lhsExprToPmExpr e
+hsExprToPmExpr (HsCoreAnn      _ _ _ e) = lhsExprToPmExpr e
+hsExprToPmExpr (ExprWithTySig      _ e) = lhsExprToPmExpr e
+hsExprToPmExpr (HsWrap           _ _ e) =  hsExprToPmExpr e
 hsExprToPmExpr e = PmExprOther e -- the rest are not handled by the oracle
 
-synExprToPmExpr :: SyntaxExpr GhcTc -> PmExpr
-synExprToPmExpr = hsExprToPmExpr . syn_expr  -- ignore the wrappers
+stringExprToList :: SourceText -> FastString -> PmExpr
+stringExprToList src s = foldr cons nil (map charToPmExpr (unpackFS s))
+  where
+    cons x xs      = mkPmExprData consDataCon [x,xs]
+    nil            = mkPmExprData nilDataCon  []
+    charToPmExpr c = PmExprLit (PmSLit (HsChar src c))
 
 {-
 %************************************************************************
@@ -395,7 +412,7 @@ needsParens (PmExprLit    l) = isNegatedPmLit l
 needsParens (PmExprEq    {}) = False -- will become a wildcard
 needsParens (PmExprOther {}) = False -- will become a wildcard
 needsParens (PmExprCon (RealDataCon c) es)
-  | isTupleDataCon c || isPArrFakeCon c
+  | isTupleDataCon c
   || isConsDataCon c || null es = False
   | otherwise                   = True
 needsParens (PmExprCon (PatSynCon _) es) = not (null es)
@@ -408,12 +425,10 @@ pprPmExprWithParens expr
 pprPmExprCon :: ConLike -> [PmExpr] -> PmPprM SDoc
 pprPmExprCon (RealDataCon con) args
   | isTupleDataCon con = mkTuple <$> mapM pprPmExpr args
-  |  isPArrFakeCon con = mkPArr  <$> mapM pprPmExpr args
-  |  isConsDataCon con = pretty_list
+  | isConsDataCon con  = pretty_list
   where
-    mkTuple, mkPArr :: [SDoc] -> SDoc
+    mkTuple :: [SDoc] -> SDoc
     mkTuple = parens     . fsep . punctuate comma
-    mkPArr  = paBrackets . fsep . punctuate comma
 
     -- lazily, to be used in the list case only
     pretty_list :: PmPprM SDoc
@@ -425,7 +440,7 @@ pprPmExprCon (RealDataCon con) args
 
     list_elements [x,y]
       | PmExprCon c es <- y,  RealDataCon nilDataCon == c
-          = [x,y]
+          = ASSERT(null es) [x,y]
       | PmExprCon c es <- y, RealDataCon consDataCon == c
           = x : list_elements es
       | otherwise = [x,y]

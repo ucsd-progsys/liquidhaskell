@@ -1,7 +1,9 @@
-module Language.Haskell.Liquid.Desugar.Match where
+module Match where
+
+import GhcPrelude
 import Var      ( Id )
 import TcType   ( Type )
-import Language.Haskell.Liquid.Desugar.DsMonad  ( DsM, EquationInfo, MatchResult )
+import DsMonad  ( DsM, EquationInfo, MatchResult )
 import CoreSyn  ( CoreExpr )
 import HsSyn    ( LPat, HsMatchContext, MatchGroup, LHsExpr )
 import Name     ( Name )
@@ -26,8 +28,8 @@ matchSimply
         -> CoreExpr
         -> DsM CoreExpr
 
-matchSinglePat
-        :: CoreExpr
+matchSinglePatVar
+        :: Id
         -> HsMatchContext Name
         -> LPat GhcTc
         -> Type

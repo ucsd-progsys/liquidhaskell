@@ -8,27 +8,31 @@ Matching guarded right-hand-sides (GRHSs)
 
 {-# LANGUAGE CPP #-}
 
-module Language.Haskell.Liquid.Desugar.DsGRHSs ( dsGuarded, dsGRHSs, dsGRHS, isTrueLHsExpr ) where
+module DsGRHSs ( dsGuarded, dsGRHSs, dsGRHS, isTrueLHsExpr ) where
 
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.DsExpr  ( dsLExpr, dsLocalBinds )
-import {-# SOURCE #-} Language.Haskell.Liquid.Desugar.Match   ( matchSinglePat )
+#include "HsVersions.h"
+
+import GhcPrelude
+
+import {-# SOURCE #-} DsExpr  ( dsLExpr, dsLocalBinds )
+import {-# SOURCE #-} Match   ( matchSinglePatVar )
 
 import HsSyn
 import MkCore
 import CoreSyn
+import CoreUtils (bindNonRec)
 
-import Language.Haskell.Liquid.Desugar.DsMonad
-import Language.Haskell.Liquid.Desugar.DsUtils
-import TysWiredIn
-import PrelNames
+import Check (genCaseTmCs2)
+import DsMonad
+import DsUtils
 import Type   ( Type )
-import Module
 import Name
+import Util
 import SrcLoc
 import Outputable
 
 {-
-@dsGuarded@ is used for both @case@ expressions and pattern bindings.
+@dsGuarded@ is used for pattern bindings.
 It desugars:
 \begin{verbatim}
         | g1 -> e1
@@ -41,7 +45,6 @@ necessary.  The type argument gives the type of the @ei@.
 -}
 
 dsGuarded :: GRHSs GhcTc (LHsExpr GhcTc) -> Type -> DsM CoreExpr
-
 dsGuarded grhss rhs_ty = do
     match_result <- dsGRHSs PatBindRhs grhss rhs_ty
     error_expr <- mkErrorAppDs nON_EXHAUSTIVE_GUARDS_ERROR_ID rhs_ty empty
@@ -53,17 +56,20 @@ dsGRHSs :: HsMatchContext Name
         -> GRHSs GhcTc (LHsExpr GhcTc)          -- Guarded RHSs
         -> Type                                 -- Type of RHS
         -> DsM MatchResult
-dsGRHSs hs_ctx (GRHSs grhss binds) rhs_ty
-  = do { match_results <- mapM (dsGRHS hs_ctx rhs_ty) grhss
+dsGRHSs hs_ctx (GRHSs _ grhss binds) rhs_ty
+  = ASSERT( notNull grhss )
+    do { match_results <- mapM (dsGRHS hs_ctx rhs_ty) grhss
        ; let match_result1 = foldr1 combineMatchResults match_results
              match_result2 = adjustMatchResultDs (dsLocalBinds binds) match_result1
                              -- NB: nested dsLet inside matchResult
        ; return match_result2 }
+dsGRHSs _ (XGRHSs _) _ = panic "dsGRHSs"
 
 dsGRHS :: HsMatchContext Name -> Type -> LGRHS GhcTc (LHsExpr GhcTc)
        -> DsM MatchResult
-dsGRHS hs_ctx rhs_ty (L _ (GRHS guards rhs))
+dsGRHS hs_ctx rhs_ty (L _ (GRHS _ guards rhs))
   = matchGuards (map unLoc guards) (PatGuard hs_ctx) rhs rhs_ty
+dsGRHS _ _ (L _ (XGRHS _)) = panic "dsGRHS"
 
 {-
 ************************************************************************
@@ -93,16 +99,16 @@ matchGuards [] _ rhs _
         -- NB:  The success of this clause depends on the typechecker not
         --      wrapping the 'otherwise' in empty HsTyApp or HsWrap constructors
         --      If it does, you'll get bogus overlap warnings
-matchGuards (BodyStmt e _ _ _ : stmts) ctx rhs rhs_ty
+matchGuards (BodyStmt _ e _ _ : stmts) ctx rhs rhs_ty
   | Just addTicks <- isTrueLHsExpr e = do
     match_result <- matchGuards stmts ctx rhs rhs_ty
     return (adjustMatchResultDs addTicks match_result)
-matchGuards (BodyStmt expr _ _ _ : stmts) ctx rhs rhs_ty = do
+matchGuards (BodyStmt _ expr _ _ : stmts) ctx rhs rhs_ty = do
     match_result <- matchGuards stmts ctx rhs rhs_ty
     pred_expr <- dsLExpr expr
     return (mkGuardedMatchResult pred_expr match_result)
 
-matchGuards (LetStmt binds : stmts) ctx rhs rhs_ty = do
+matchGuards (LetStmt _ binds : stmts) ctx rhs rhs_ty = do
     match_result <- matchGuards stmts ctx rhs rhs_ty
     return (adjustMatchResultDs (dsLocalBinds binds) match_result)
         -- NB the dsLet occurs inside the match_result
@@ -110,10 +116,19 @@ matchGuards (LetStmt binds : stmts) ctx rhs rhs_ty = do
         --         so we can't desugar the bindings without the
         --         body expression in hand
 
-matchGuards (BindStmt pat bind_rhs _ _ _ : stmts) ctx rhs rhs_ty = do
-    match_result <- matchGuards stmts ctx rhs rhs_ty
+matchGuards (BindStmt _ pat bind_rhs _ _ : stmts) ctx rhs rhs_ty = do
+    let upat = unLoc pat
+        dicts = collectEvVarsPat upat
+    match_var <- selectMatchVar upat
+    tm_cs <- genCaseTmCs2 (Just bind_rhs) [upat] [match_var]
+    match_result <- addDictsDs dicts $
+                    addTmCsDs tm_cs  $
+                      -- See Note [Type and Term Equality Propagation] in Check
+                    matchGuards stmts ctx rhs rhs_ty
     core_rhs <- dsLExpr bind_rhs
-    matchSinglePat core_rhs (StmtCtxt ctx) pat rhs_ty match_result
+    match_result' <- matchSinglePatVar match_var (StmtCtxt ctx) pat rhs_ty
+                                       match_result
+    pure $ adjustMatchResult (bindNonRec match_var core_rhs) match_result'
 
 matchGuards (LastStmt  {} : _) _ _ _ = panic "matchGuards LastStmt"
 matchGuards (ParStmt   {} : _) _ _ _ = panic "matchGuards ParStmt"
@@ -121,34 +136,8 @@ matchGuards (TransStmt {} : _) _ _ _ = panic "matchGuards TransStmt"
 matchGuards (RecStmt   {} : _) _ _ _ = panic "matchGuards RecStmt"
 matchGuards (ApplicativeStmt {} : _) _ _ _ =
   panic "matchGuards ApplicativeLastStmt"
-
-isTrueLHsExpr :: LHsExpr GhcTc -> Maybe (CoreExpr -> DsM CoreExpr)
-
--- Returns Just {..} if we're sure that the expression is True
--- I.e.   * 'True' datacon
---        * 'otherwise' Id
---        * Trivial wappings of these
--- The arguments to Just are any HsTicks that we have found,
--- because we still want to tick then, even it they are always evaluated.
-isTrueLHsExpr (L _ (HsVar (L _ v))) |  v `hasKey` otherwiseIdKey
-                                    || v `hasKey` getUnique trueDataConId
-                                            = Just return
-        -- trueDataConId doesn't have the same unique as trueDataCon
-isTrueLHsExpr (L _ (HsConLikeOut con)) | con `hasKey` getUnique trueDataCon = Just return
-isTrueLHsExpr (L _ (HsTick tickish e))
-    | Just ticks <- isTrueLHsExpr e
-    = Just (\x -> do wrapped <- ticks x
-                     return (Tick tickish wrapped))
-   -- This encodes that the result is constant True for Hpc tick purposes;
-   -- which is specifically what isTrueLHsExpr is trying to find out.
-isTrueLHsExpr (L _ (HsBinTick ixT _ e))
-    | Just ticks <- isTrueLHsExpr e
-    = Just (\x -> do e <- ticks x
-                     this_mod <- getModule
-                     return (Tick (HpcTick this_mod ixT) e))
-
-isTrueLHsExpr (L _ (HsPar e))         = isTrueLHsExpr e
-isTrueLHsExpr _                       = Nothing
+matchGuards (XStmtLR {} : _) _ _ _ =
+  panic "matchGuards XStmtLR"
 
 {-
 Should {\em fail} if @e@ returns @D@

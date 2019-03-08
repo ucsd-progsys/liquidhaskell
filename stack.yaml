@@ -1,4 +1,4 @@
-resolver: lts-12.2
+resolver: lts-13.11
 
 packages:
 - liquid-fixpoint/

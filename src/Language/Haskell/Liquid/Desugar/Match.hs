@@ -9,33 +9,37 @@ The @match@ function
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Language.Haskell.Liquid.Desugar.Match ( match, matchEquations, matchWrapper, matchSimply, matchSinglePat ) where
+module Match ( match, matchEquations, matchWrapper, matchSimply
+             , matchSinglePat, matchSinglePatVar ) where
 
-import {-#SOURCE#-} Language.Haskell.Liquid.Desugar.DsExpr (dsLExpr, dsSyntaxExpr)
+#include "HsVersions.h"
+
+import GhcPrelude
+
+import {-#SOURCE#-} DsExpr (dsLExpr, dsSyntaxExpr)
 
 import DynFlags
 import HsSyn
 import TcHsSyn
 import TcEvidence
 import TcRnMonad
-import Language.Haskell.Liquid.Desugar.Check
+import Check
 import CoreSyn
 import Literal
 import CoreUtils
 import MkCore
-import Language.Haskell.Liquid.Desugar.DsMonad
-import Language.Haskell.Liquid.Desugar.DsBinds
-import Language.Haskell.Liquid.Desugar.DsGRHSs
-import Language.Haskell.Liquid.Desugar.DsUtils
+import DsMonad
+import DsBinds
+import DsGRHSs
+import DsUtils
 import Id
 import ConLike
 import DataCon
 import PatSyn
-import Language.Haskell.Liquid.Desugar.MatchCon
-import Language.Haskell.Liquid.Desugar.MatchLit
+import MatchCon
+import MatchLit
 import Type
 import Coercion ( eqCoercion )
-import TcType ( toTcTypeBag )
 import TyCon( isNewTyCon )
 import TysWiredIn
 import SrcLoc
@@ -149,6 +153,8 @@ is the scrutinee(s) of the match. The desugared expression may
 sometimes use that Id in a local binding or as a case binder.  So it
 should not have an External name; Lint rejects non-top-level binders
 with External names (Trac #13043).
+
+See also Note [Localise pattern binders] in DsUtils
 -}
 
 type MatchId = Id   -- See Note [Match Ids]
@@ -159,14 +165,17 @@ match :: [MatchId]        -- Variables rep\'ing the exprs we\'re matching with
       -> [EquationInfo]   -- Info about patterns, etc. (type synonym below)
       -> DsM MatchResult  -- Desugared result!
 
-match [] _ eqns
-  = return (foldr1 combineMatchResults match_results)
+match [] ty eqns
+  = ASSERT2( not (null eqns), ppr ty )
+    return (foldr1 combineMatchResults match_results)
   where
-    match_results = [ eqn_rhs eqn
+    match_results = [ ASSERT( null (eqn_pats eqn) )
+                      eqn_rhs eqn
                     | eqn <- eqns ]
 
 match vars@(v:_) ty eqns    -- Eqns *can* be empty
-  = do  { dflags <- getDynFlags
+  = ASSERT2( all (isInternalName . idName) vars, ppr vars )
+    do  { dflags <- getDynFlags
                 -- Tidy the first pattern, generating
                 -- auxiliary bindings if necessary
         ; (aux_binds, tidy_eqns) <- mapAndUnzipM (tidyEqnInfo v) eqns
@@ -244,7 +253,7 @@ matchBangs [] _ _ = panic "matchBangs"
 matchCoercion :: [MatchId] -> Type -> [EquationInfo] -> DsM MatchResult
 -- Apply the coercion to the match variable and then match that
 matchCoercion (var:vars) ty (eqns@(eqn1:_))
-  = do  { let CoPat co pat _ = firstPat eqn1
+  = do  { let CoPat _ co pat _ = firstPat eqn1
         ; let pat_ty' = hsPatType pat
         ; var' <- newUniqueId var pat_ty'
         ; match_result <- match (var':vars) ty $
@@ -260,7 +269,7 @@ matchView (var:vars) ty (eqns@(eqn1:_))
   = do  { -- we could pass in the expr from the PgView,
          -- but this needs to extract the pat anyway
          -- to figure out the type of the fresh variable
-         let ViewPat viewExpr (L _ pat) _ = firstPat eqn1
+         let ViewPat _ viewExpr (L _ pat) = firstPat eqn1
          -- do the rest of the compilation
         ; let pat_ty' = hsPatType pat
         ; var' <- newUniqueId var pat_ty'
@@ -277,7 +286,7 @@ matchOverloadedList :: [MatchId] -> Type -> [EquationInfo] -> DsM MatchResult
 matchOverloadedList (var:vars) ty (eqns@(eqn1:_))
 -- Since overloaded list patterns are treated as view patterns,
 -- the code is roughly the same as for matchView
-  = do { let ListPat _ elt_ty (Just (_,e)) = firstPat eqn1
+  = do { let ListPat (ListPatTc elt_ty (Just (_,e))) _ = firstPat eqn1
        ; var' <- newUniqueId var (mkListTy elt_ty)  -- we construct the overall type by hand
        ; match_result <- match (var':vars) ty $
                             map (decomposeFirstPat getOLPat) eqns -- getOLPat builds the pattern inside as a non-overloaded version of the overloaded list pattern
@@ -292,13 +301,14 @@ decomposeFirstPat extractpat (eqn@(EqnInfo { eqn_pats = pat : pats }))
 decomposeFirstPat _ _ = panic "decomposeFirstPat"
 
 getCoPat, getBangPat, getViewPat, getOLPat :: Pat GhcTc -> Pat GhcTc
-getCoPat (CoPat _ pat _)     = pat
+getCoPat (CoPat _ _ pat _)   = pat
 getCoPat _                   = panic "getCoPat"
-getBangPat (BangPat pat  )   = unLoc pat
+getBangPat (BangPat _ pat  ) = unLoc pat
 getBangPat _                 = panic "getBangPat"
-getViewPat (ViewPat _ pat _) = unLoc pat
+getViewPat (ViewPat _ _ pat) = unLoc pat
 getViewPat _                 = panic "getViewPat"
-getOLPat (ListPat pats ty (Just _)) = ListPat pats ty Nothing
+getOLPat (ListPat (ListPatTc ty (Just _)) pats)
+        = ListPat (ListPatTc ty Nothing)  pats
 getOLPat _                   = panic "getOLPat"
 
 {-
@@ -391,19 +401,19 @@ tidy1 :: Id                  -- The Id being scrutinised
 -- It eliminates many pattern forms (as-patterns, variable patterns,
 -- list patterns, etc) and returns any created bindings in the wrapper.
 
-tidy1 v (ParPat pat)      = tidy1 v (unLoc pat)
-tidy1 v (SigPatOut pat _) = tidy1 v (unLoc pat)
-tidy1 _ (WildPat ty)      = return (idDsWrapper, WildPat ty)
-tidy1 v (BangPat (L l p)) = tidy_bang_pat v l p
+tidy1 v (ParPat _ pat)      = tidy1 v (unLoc pat)
+tidy1 v (SigPat _ pat)      = tidy1 v (unLoc pat)
+tidy1 _ (WildPat ty)        = return (idDsWrapper, WildPat ty)
+tidy1 v (BangPat _ (L l p)) = tidy_bang_pat v l p
 
         -- case v of { x -> mr[] }
         -- = case v of { _ -> let x=v in mr[] }
-tidy1 v (VarPat (L _ var))
+tidy1 v (VarPat _ (L _ var))
   = return (wrapBind var v, WildPat (idType var))
 
         -- case v of { x@p -> mr[] }
         -- = case v of { p -> let x=v in mr[] }
-tidy1 v (AsPat (L _ var) pat)
+tidy1 v (AsPat _ (L _ var) pat)
   = do  { (wrap, pat') <- tidy1 v (unLoc pat)
         ; return (wrapBind var v . wrap, pat') }
 
@@ -418,7 +428,7 @@ tidy1 v (AsPat (L _ var) pat)
     The case expr for v_i is just: match [v] [(p, [], \ x -> Var v_i)] any_expr
 -}
 
-tidy1 v (LazyPat pat)
+tidy1 v (LazyPat _ pat)
     -- This is a convenient place to check for unlifted types under a lazy pattern.
     -- Doing this check during type-checking is unsatisfactory because we may
     -- not fully know the zonked types yet. We sure do here.
@@ -434,39 +444,31 @@ tidy1 v (LazyPat pat)
         ; let sel_binds =  [NonRec b rhs | (b,rhs) <- sel_prs]
         ; return (mkCoreLets sel_binds, WildPat (idType v)) }
 
-tidy1 _ (ListPat pats ty Nothing)
+tidy1 _ (ListPat (ListPatTc ty Nothing) pats )
   = return (idDsWrapper, unLoc list_ConPat)
   where
     list_ConPat = foldr (\ x y -> mkPrefixConPat consDataCon [x, y] [ty])
                         (mkNilPat ty)
                         pats
 
--- Introduce fake parallel array constructors to be able to handle parallel
--- arrays with the existing machinery for constructor pattern
-tidy1 _ (PArrPat pats ty)
-  = return (idDsWrapper, unLoc parrConPat)
-  where
-    arity      = length pats
-    parrConPat = mkPrefixConPat (parrFakeCon arity) pats [ty]
-
-tidy1 _ (TuplePat pats boxity tys)
+tidy1 _ (TuplePat tys pats boxity)
   = return (idDsWrapper, unLoc tuple_ConPat)
   where
     arity = length pats
     tuple_ConPat = mkPrefixConPat (tupleDataCon boxity arity) pats tys
 
-tidy1 _ (SumPat pat alt arity tys)
+tidy1 _ (SumPat tys pat alt arity)
   = return (idDsWrapper, unLoc sum_ConPat)
   where
     sum_ConPat = mkPrefixConPat (sumDataCon alt arity) [pat] tys
 
 -- LitPats: we *might* be able to replace these w/ a simpler form
-tidy1 _ (LitPat lit)
+tidy1 _ (LitPat _ lit)
   = return (idDsWrapper, tidyLitPat lit)
 
 -- NPats: we *might* be able to replace these w/ a simpler form
-tidy1 _ (NPat (L _ lit) mb_neg eq ty)
-  = return (idDsWrapper, tidyNPat tidyLitPat lit mb_neg eq ty)
+tidy1 _ (NPat ty (L _ lit) mb_neg eq)
+  = return (idDsWrapper, tidyNPat lit mb_neg eq ty)
 
 -- Everything else goes through unchanged...
 
@@ -477,20 +479,20 @@ tidy1 _ non_interesting_pat
 tidy_bang_pat :: Id -> SrcSpan -> Pat GhcTc -> DsM (DsWrapper, Pat GhcTc)
 
 -- Discard par/sig under a bang
-tidy_bang_pat v _ (ParPat (L l p))      = tidy_bang_pat v l p
-tidy_bang_pat v _ (SigPatOut (L l p) _) = tidy_bang_pat v l p
+tidy_bang_pat v _ (ParPat _ (L l p)) = tidy_bang_pat v l p
+tidy_bang_pat v _ (SigPat _ (L l p)) = tidy_bang_pat v l p
 
 -- Push the bang-pattern inwards, in the hope that
 -- it may disappear next time
-tidy_bang_pat v l (AsPat v' p)  = tidy1 v (AsPat v' (L l (BangPat p)))
-tidy_bang_pat v l (CoPat w p t) = tidy1 v (CoPat w (BangPat (L l p)) t)
+tidy_bang_pat v l (AsPat x v' p) = tidy1 v (AsPat x v' (L l (BangPat noExt p)))
+tidy_bang_pat v l (CoPat x w p t)
+  = tidy1 v (CoPat x w (BangPat noExt (L l p)) t)
 
 -- Discard bang around strict pattern
 tidy_bang_pat v _ p@(LitPat {})    = tidy1 v p
 tidy_bang_pat v _ p@(ListPat {})   = tidy1 v p
 tidy_bang_pat v _ p@(TuplePat {})  = tidy1 v p
 tidy_bang_pat v _ p@(SumPat {})    = tidy1 v p
-tidy_bang_pat v _ p@(PArrPat {})   = tidy1 v p
 
 -- Data/newtype constructors
 tidy_bang_pat v l p@(ConPatOut { pat_con = L _ (RealDataCon dc)
@@ -519,7 +521,7 @@ tidy_bang_pat v l p@(ConPatOut { pat_con = L _ (RealDataCon dc)
 --
 -- NB: SigPatIn, ConPatIn should not happen
 
-tidy_bang_pat _ l p = return (idDsWrapper, BangPat (L l p))
+tidy_bang_pat _ l p = return (idDsWrapper, BangPat noExt (L l p))
 
 -------------------
 push_bang_into_newtype_arg :: SrcSpan
@@ -528,15 +530,18 @@ push_bang_into_newtype_arg :: SrcSpan
                            -> HsConPatDetails GhcTc -> HsConPatDetails GhcTc
 -- See Note [Bang patterns and newtypes]
 -- We are transforming   !(N p)   into   (N !p)
-push_bang_into_newtype_arg l _ty (PrefixCon (arg:_))
-  = PrefixCon [L l (BangPat arg)]
+push_bang_into_newtype_arg l _ty (PrefixCon (arg:args))
+  = ASSERT( null args)
+    PrefixCon [L l (BangPat noExt arg)]
 push_bang_into_newtype_arg l _ty (RecCon rf)
-  | HsRecFields { rec_flds = L lf fld : _ } <- rf
+  | HsRecFields { rec_flds = L lf fld : flds } <- rf
   , HsRecField { hsRecFieldArg = arg } <- fld
-  = RecCon (rf { rec_flds = [L lf (fld { hsRecFieldArg = L l (BangPat arg) })] })
+  = ASSERT( null flds)
+    RecCon (rf { rec_flds = [L lf (fld { hsRecFieldArg
+                                           = L l (BangPat noExt arg) })] })
 push_bang_into_newtype_arg l ty (RecCon rf) -- If a user writes !(T {})
   | HsRecFields { rec_flds = [] } <- rf
-  = PrefixCon [L l (BangPat (noLoc (WildPat ty)))]
+  = PrefixCon [L l (BangPat noExt (noLoc (WildPat ty)))]
 push_bang_into_newtype_arg _ _ cd
   = pprPanic "push_bang_into_newtype_arg" (pprConArgs cd)
 
@@ -696,8 +701,7 @@ JJQC 30-Nov-1997
 -}
 
 matchWrapper ctxt mb_scr (MG { mg_alts = L _ matches
-                             , mg_arg_tys = arg_tys
-                             , mg_res_ty = rhs_ty
+                             , mg_ext = MatchGroupTc arg_tys rhs_ty
                              , mg_origin = origin })
   = do  { dflags <- getDynFlags
         ; locn   <- getSrcSpanDs
@@ -722,17 +726,18 @@ matchWrapper ctxt mb_scr (MG { mg_alts = L _ matches
     mk_eqn_info vars (L _ (Match { m_pats = pats, m_grhss = grhss }))
       = do { dflags <- getDynFlags
            ; let upats = map (unLoc . decideBangHood dflags) pats
-                 dicts = toTcTypeBag (collectEvVarsPats upats) -- Only TcTyVars
+                 dicts = collectEvVarsPats upats
            ; tm_cs <- genCaseTmCs2 mb_scr upats vars
            ; match_result <- addDictsDs dicts $ -- See Note [Type and Term Equality Propagation]
                              addTmCsDs tm_cs  $ -- See Note [Type and Term Equality Propagation]
                              dsGRHSs ctxt grhss rhs_ty
-           ; return (EqnInfo { eqn_pats = upats, eqn_rhs  = match_result}) }
+           ; return (EqnInfo { eqn_pats = upats, eqn_rhs = match_result}) }
+    mk_eqn_info _ (L _ (XMatch _)) = panic "matchWrapper"
 
     handleWarnings = if isGenerated origin
                      then discardWarningsDs
                      else id
-
+matchWrapper _ _ (XMatchGroup _) = panic "matchWrapper"
 
 matchEquations  :: HsMatchContext Name
                 -> [MatchId] -> [EquationInfo] -> Type
@@ -775,7 +780,7 @@ matchSimply scrut hs_ctx pat result_expr fail_expr = do
 matchSinglePat :: CoreExpr -> HsMatchContext Name -> LPat GhcTc
                -> Type -> MatchResult -> DsM MatchResult
 -- matchSinglePat ensures that the scrutinee is a variable
--- and then calls match_single_pat_var
+-- and then calls matchSinglePatVar
 --
 -- matchSinglePat does not warn about incomplete patterns
 -- Used for things like [ e | pat <- stuff ], where
@@ -783,18 +788,19 @@ matchSinglePat :: CoreExpr -> HsMatchContext Name -> LPat GhcTc
 
 matchSinglePat (Var var) ctx pat ty match_result
   | not (isExternalName (idName var))
-  = match_single_pat_var var ctx pat ty match_result
+  = matchSinglePatVar var ctx pat ty match_result
 
 matchSinglePat scrut hs_ctx pat ty match_result
   = do { var           <- selectSimpleMatchVarL pat
-       ; match_result' <- match_single_pat_var var hs_ctx pat ty match_result
+       ; match_result' <- matchSinglePatVar var hs_ctx pat ty match_result
        ; return (adjustMatchResult (bindNonRec var scrut) match_result') }
 
-match_single_pat_var :: Id   -- See Note [Match Ids]
-                     -> HsMatchContext Name -> LPat GhcTc
-                     -> Type -> MatchResult -> DsM MatchResult
-match_single_pat_var var ctx pat ty match_result
-  = do { dflags <- getDynFlags
+matchSinglePatVar :: Id   -- See Note [Match Ids]
+                  -> HsMatchContext Name -> LPat GhcTc
+                  -> Type -> MatchResult -> DsM MatchResult
+matchSinglePatVar var ctx pat ty match_result
+  = ASSERT2( isInternalName (idName var), ppr var )
+    do { dflags <- getDynFlags
        ; locn   <- getSrcSpanDs
 
                     -- Pattern match check warnings
@@ -965,18 +971,18 @@ viewLExprEq (e1,_) (e2,_) = lexp e1 e2
     exp :: HsExpr GhcTc -> HsExpr GhcTc -> Bool
     -- real comparison is on HsExpr's
     -- strip parens
-    exp (HsPar (L _ e)) e'   = exp e e'
-    exp e (HsPar (L _ e'))   = exp e e'
+    exp (HsPar _ (L _ e)) e'   = exp e e'
+    exp e (HsPar _ (L _ e'))   = exp e e'
     -- because the expressions do not necessarily have the same type,
     -- we have to compare the wrappers
-    exp (HsWrap h e) (HsWrap h' e') = wrap h h' && exp e e'
-    exp (HsVar i) (HsVar i') =  i == i'
-    exp (HsConLikeOut c) (HsConLikeOut c') = c == c'
+    exp (HsWrap _ h e) (HsWrap _ h' e') = wrap h h' && exp e e'
+    exp (HsVar _ i) (HsVar _ i') =  i == i'
+    exp (HsConLikeOut _ c) (HsConLikeOut _ c') = c == c'
     -- the instance for IPName derives using the id, so this works if the
     -- above does
-    exp (HsIPVar i) (HsIPVar i') = i == i'
-    exp (HsOverLabel l x) (HsOverLabel l' x') = l == l' && x == x'
-    exp (HsOverLit l) (HsOverLit l') =
+    exp (HsIPVar _ i) (HsIPVar _ i') = i == i'
+    exp (HsOverLabel _ l x) (HsOverLabel _ l' x') = l == l' && x == x'
+    exp (HsOverLit _ l) (HsOverLit _ l') =
         -- Overloaded lits are equal if they have the same type
         -- and the data is the same.
         -- this is coarser than comparing the SyntaxExpr's in l and l',
@@ -984,20 +990,20 @@ viewLExprEq (e1,_) (e2,_) = lexp e1 e2
         -- because these expressions get written as a bunch of different variables
         -- (presumably to improve sharing)
         eqType (overLitType l) (overLitType l') && l == l'
-    exp (HsApp e1 e2) (HsApp e1' e2') = lexp e1 e1' && lexp e2 e2'
+    exp (HsApp _ e1 e2) (HsApp _ e1' e2') = lexp e1 e1' && lexp e2 e2'
     -- the fixities have been straightened out by now, so it's safe
     -- to ignore them?
-    exp (OpApp l o _ ri) (OpApp l' o' _ ri') =
+    exp (OpApp _ l o ri) (OpApp _ l' o' ri') =
         lexp l l' && lexp o o' && lexp ri ri'
-    exp (NegApp e n) (NegApp e' n') = lexp e e' && syn_exp n n'
-    exp (SectionL e1 e2) (SectionL e1' e2') =
+    exp (NegApp _ e n) (NegApp _ e' n') = lexp e e' && syn_exp n n'
+    exp (SectionL _ e1 e2) (SectionL _ e1' e2') =
         lexp e1 e1' && lexp e2 e2'
-    exp (SectionR e1 e2) (SectionR e1' e2') =
+    exp (SectionR _ e1 e2) (SectionR _ e1' e2') =
         lexp e1 e1' && lexp e2 e2'
-    exp (ExplicitTuple es1 _) (ExplicitTuple es2 _) =
+    exp (ExplicitTuple _ es1 _) (ExplicitTuple _ es2 _) =
         eq_list tup_arg es1 es2
-    exp (ExplicitSum _ _ e _) (ExplicitSum _ _ e' _) = lexp e e'
-    exp (HsIf _ e e1 e2) (HsIf _ e' e1' e2') =
+    exp (ExplicitSum _ _ _ e) (ExplicitSum _ _ _ e') = lexp e e'
+    exp (HsIf _ _ e e1 e2) (HsIf _ _ e' e1' e2') =
         lexp e e' && lexp e1 e1' && lexp e2 e2'
 
     -- Enhancement: could implement equality for more expressions
@@ -1019,8 +1025,8 @@ viewLExprEq (e1,_) (e2,_) = lexp e1 e2
         wrap res_wrap1 res_wrap2
 
     ---------
-    tup_arg (L _ (Present e1)) (L _ (Present e2)) = lexp e1 e2
-    tup_arg (L _ (Missing t1)) (L _ (Missing t2)) = eqType t1 t2
+    tup_arg (L _ (Present _ e1)) (L _ (Present _ e2)) = lexp e1 e2
+    tup_arg (L _ (Missing t1))   (L _ (Missing t2))   = eqType t1 t2
     tup_arg _ _ = False
 
     ---------
@@ -1043,8 +1049,8 @@ viewLExprEq (e1,_) (e2,_) = lexp e1 e2
 
     ---------
     ev_term :: EvTerm -> EvTerm -> Bool
-    ev_term (EvId a)       (EvId b)       = a==b
-    ev_term (EvCoercion a) (EvCoercion b) = a `eqCoercion` b
+    ev_term (EvExpr (Var a)) (EvExpr  (Var b)) = a==b
+    ev_term (EvExpr (Coercion a)) (EvExpr (Coercion b)) = a `eqCoercion` b
     ev_term _ _ = False
 
     ---------
@@ -1061,21 +1067,23 @@ patGroup _ (ConPatOut { pat_con = L _ con
  | PatSynCon psyn <- con                = PgSyn psyn tys
 patGroup _ (WildPat {})                 = PgAny
 patGroup _ (BangPat {})                 = PgBang
-patGroup _ (NPat (L _ OverLit {ol_val=oval}) mb_neg _ _) =
+patGroup _ (NPat _ (L _ OverLit {ol_val=oval}) mb_neg _) =
   case (oval, isJust mb_neg) of
    (HsIntegral   i, False) -> PgN (fromInteger (il_value i))
    (HsIntegral   i, True ) -> PgN (-fromInteger (il_value i))
    (HsFractional r, False) -> PgN (fl_value r)
    (HsFractional r, True ) -> PgN (-fl_value r)
-   (HsIsString _ s, _) -> PgOverS s
-patGroup _ (NPlusKPat _ (L _ OverLit {ol_val=oval}) _ _ _ _) =
+   (HsIsString _ s, _) -> ASSERT(isNothing mb_neg)
+                          PgOverS s
+patGroup _ (NPlusKPat _ _ (L _ OverLit {ol_val=oval}) _ _ _) =
   case oval of
    HsIntegral i -> PgNpK (il_value i)
    _ -> pprPanic "patGroup NPlusKPat" (ppr oval)
-patGroup _ (CoPat _ p _)                = PgCo  (hsPatType p) -- Type of innelexp pattern
-patGroup _ (ViewPat expr p _)           = PgView expr (hsPatType (unLoc p))
-patGroup _ (ListPat _ _ (Just _))       = PgOverloadedList
-patGroup dflags (LitPat lit)            = PgLit (hsLitKey dflags lit)
+patGroup _ (CoPat _ _ p _)              = PgCo  (hsPatType p)
+                                                    -- Type of innelexp pattern
+patGroup _ (ViewPat _ expr p)           = PgView expr (hsPatType (unLoc p))
+patGroup _ (ListPat (ListPatTc _ (Just _)) _) = PgOverloadedList
+patGroup dflags (LitPat _ lit)          = PgLit (hsLitKey dflags lit)
 patGroup _ pat                          = pprPanic "patGroup" (ppr pat)
 
 {-
