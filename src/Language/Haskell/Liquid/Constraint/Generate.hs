@@ -1349,7 +1349,15 @@ varRefType' γ x t'
       | higherOrderFlag γ
       = strengthenMeet
       | otherwise
-      = strengthenTop
+      = strengthenTop'
+
+strengthenTop' :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
+strengthenTop' (RApp c ts rs r) r'  = RApp c ts rs $ r'
+strengthenTop' (RVar a r) r'        = RVar a       $ r'
+strengthenTop' (RFun b t1 t2 r) r'  = RFun b t1 t2 $ r'
+strengthenTop' (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ r'
+strengthenTop' t _                  = t
+
 
 -- | create singleton types for function application
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
