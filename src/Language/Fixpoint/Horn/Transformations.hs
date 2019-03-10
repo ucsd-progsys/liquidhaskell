@@ -19,10 +19,9 @@ import           Control.Monad (void)
 import           Data.String                  (IsString (..))
 import qualified Data.Set                     as S
 import           Control.Monad.State
-import           Data.Maybe (catMaybes)
+import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
--- import           Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -86,17 +85,21 @@ type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
 -- but I just haven't tested it/thought too hard about what the correct
 -- behavior in this case is.
 -- - There is at least one ebind
-solveEbs :: Query a -> IO (Cstr (), Query ())
+solveEbs :: Query a -> IO (Query ()) -- IO (Cstr (), Query ())
 ------------------------------------------------------------------------------
 solveEbs (Query qs vs c cons dist) = do
   let c' = pokec $ c
   whenLoud $ putStrLn "Horn pokec:"
   whenLoud $ putStrLn $ F.showpp c'
   -- This rhs pattern match will fail if there's not at least one eb!
-  let (Just horn, Just side) = split c'
+  let (Just horn, mside) = split c'
   whenLoud $ putStrLn "Horn split:"
-  whenLoud $ putStrLn $ F.showpp (horn, side)
+  whenLoud $ putStrLn $ F.showpp (horn, mside)
 
+  if mside == Nothing
+    then pure $ Query qs (void <$> vs) horn cons dist
+    else do
+  let Just side = mside
   -- This whole business depends on Stringly-typed invariant that an ebind
   -- n corresponds to a pivar πn . That's pretty shit but I can't think of
   -- a better way to do this
@@ -118,14 +121,39 @@ solveEbs (Query qs vs c cons dist) = do
   whenLoud $ putStrLn "QE sols:"
   let elimSol = M.mapMaybe (either (const Nothing) (Just . flip Head () . Reft)) sol
   whenLoud $ putStrLn $ F.showpp elimSol
+  let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) sol
 
   let hornFinal = M.foldrWithKey applyPi horn elimSol
   whenLoud $ putStrLn "Final Horn:"
   whenLoud $ putStrLn $ F.showpp hornFinal
 
-  pure $ (M.foldrWithKey applyPi side elimSol
-         , Query qs (void <$> vs) hornFinal cons dist)
+  let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
+  whenLoud $ putStrLn "PreElim Side:"
+  whenLoud $ putStrLn $ F.showpp sideCstr
+  let sideEE = elimE undefined sideCstr
+  whenLoud $ putStrLn "Final Side:"
+  whenLoud $ putStrLn $ F.showpp sideEE
 
+  pure $ (Query qs (void <$> vs) (CAnd [ hornFinal, sideEE ]) cons dist)
+
+elimE :: Sol -> Cstr () -> Cstr ()
+elimE m (All b c) = All b (elimE m c)
+elimE m (CAnd cs) = CAnd (elimE m <$> cs)
+elimE _m p@Head{} = p
+-- need to QE inside here first
+elimE _m (Any (Bind x _ _) (Head p l)) = Head (F.subst1 p (x,e)) l
+    where e = fromMaybe undefined $ findSolP x p
+elimE _m (Any _ _) = error "oops"
+
+instance F.Subable Pred where
+    syms = undefined
+    substa = undefined
+    substf = undefined
+    subst su p = substP su p
+
+substP su (Reft e) = Reft $ F.subst su e
+substP su (PAnd ps) = PAnd $ substP su <$> ps
+substP _ (Var _k _xs) = error "oops"
 
 ------------------------------------------------------------------------------
 {- |
@@ -434,7 +462,7 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
       . (v2 == v1)
         && v1 == z + 2 => v2 == x1
 && forall [v3 : int]
-     . v3 == x1 + 1 => v3 == m + 2))
+
     (and
      (forall ((v1 int) (v1 == z + 2))
       (forall ((v2 int) (v2 == v1))
@@ -595,6 +623,16 @@ lookupSol m (Var x xs) =
 lookupSol _ (Reft e) = pure e
 lookupSol m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
 
+findSolP :: F.Symbol -> Pred -> Maybe F.Expr
+findSolP x (Reft e) = findSolE x e
+findSolP x (PAnd (p:ps)) = findSolP x p <> findSolP x (PAnd ps)
+findSolP _ _ = error "findSolP KVar"
+
+findSolE :: F.Symbol -> F.Expr -> Maybe F.Expr
+findSolE x (F.PAtom F.Eq (F.EVar y) e) | x == y = Just e
+findSolE x (F.PAtom F.Eq e (F.EVar y)) | x == y = Just e
+findSolE x (F.PAnd (e:es)) = findSolE x e <> findSolE x (F.PAnd es)
+findSolE _ _ = Nothing
 
 -- This solution is "wrong" ... forall should be exists and implies should
 -- be and, but it's fine because that doesn't matter to QE above
