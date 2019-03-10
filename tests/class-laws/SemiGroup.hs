@@ -15,15 +15,6 @@ module SemiGroup where
               -> { mappend x (mappend y z) == mappend (mappend x y) z }
      @-}
     
-    -- Semantics of class-law:
-
-    -- 1. reflect ALL class methods 
-    {- measure SemiGroup.mappend :: a -> a -> a @-}
-    {- assume mappend :: x:a -> y:a  -> {v:a | v == SemiGroup.mappend x y } @-}
-
-    -- 2. assume all the sigs 
-    {- assume assocSG :: SG a => a:a -> b:a -> c:a 
-              -> { mappend a (mappend b c) == mappend (mappend a b) c } @-}
     
     assocSG :: SG a => a -> a -> a -> () 
     assocSG x y z = () 

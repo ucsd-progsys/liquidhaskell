@@ -43,13 +43,7 @@ checkOneLaw c (x, t) li
 
 unify :: (Doc -> Error) -> Class -> LawInstance -> LocSpecType -> LocSpecType -> [Error]
 unify mkError c li t1 t2 
-  = go t12 $ F.tracepp ("To unify " ++ showpp t1 ++ "\nWITH\n" ++ showpp t2 ++ 
-               "RES = " ++ showpp esubst ++ "\n BINDS = " ++ showpp (classMethods c) 
-               ++ "\nTYArgs = \n" ++ showpp (lilTyArgs li)
-               ++ "\nTSUB\n" ++ showpp tsubst
-               ++ "\nSUB1 = \n" ++ showpp t11
-               ++ "\nSUB2 = \n" ++ showpp t12
-               ++ "\nAGAINST \n" ++ showpp t22) t22 
+  = go t12 t22 
   where 
     t22 = fromRTypeRep (trep2 {ty_vars = [], ty_binds = fst <$> args2, ty_args = snd <$> args2, ty_refts = drop (length tc2) (ty_refts trep2)})
     subtsSpec = subts :: ([(TyVar, Type)] -> SpecType -> SpecType)
@@ -57,8 +51,8 @@ unify mkError c li t1 t2
     t11 = subtsSpec tsubst $ fromRTypeRep (trep1 {ty_vars = [], ty_binds = fst <$> args1, ty_args = snd <$> args1, ty_refts = drop (length tc1) (ty_refts trep1)})
     trep1 = toRTypeRep $ val t1 
     trep2 = toRTypeRep $ val t2 
-    (tc1, args1) = F.tracepp "SPLIT1" $ splitTypeConstraints $ zip (ty_binds trep1) (ty_args trep1)
-    (tc2, args2) = F.tracepp "SPLIT2" $ splitTypeConstraints $ zip (ty_binds trep2) (ty_args trep2)
+    (tc1, args1) = splitTypeConstraints $ zip (ty_binds trep1) (ty_args trep1)
+    (tc2, args2) = splitTypeConstraints $ zip (ty_binds trep2) (ty_args trep2)
     esubst = F.mkSubst ((zip  (fst <$> args1) ((F.EVar . fst) <$> args2))
                  ++  [(F.symbol x, F.EVar (F.symbol y)) | (Left x, (Left y, _)) <- lilEqus li]
                      )

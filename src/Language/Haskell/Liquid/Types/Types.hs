@@ -1039,9 +1039,6 @@ data RILaws ty = RIL
   , rilPos     :: F.Located ()
   } deriving (Show, Functor, Data, Typeable, Generic)
 
-
-
-
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)
 

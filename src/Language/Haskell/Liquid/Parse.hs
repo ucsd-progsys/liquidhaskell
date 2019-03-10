@@ -1311,10 +1311,10 @@ instanceLawP
        spaces
        tvs  <- manyTill (locParserP bareTypeP) (try $ reserved "where")
        spaces
-       ms   <- grabs eqBinderP -- NV same parsing problem
+       ms   <- grabs eqBinderP
        spaces
        l2   <- getPosition
-       return $ RIL c sups tvs ms (Loc l1 l2 ()) -- sups tvs ms
+       return $ RIL c sups tvs ms (Loc l1 l2 ())
   where
     superP   = locParserP (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
@@ -1432,7 +1432,7 @@ binderP    = pwr    <$> parens (idP bad)
          <|> symbol <$> idP badc
   where
     idP p  = many1 (satisfy (not . p))
-    badc c = (c == ':') || (c == ',') || bad c -- ( c == '=') || bad c
+    badc c = (c == ':') || (c == ',') || bad c
     bad c  = isSpace c || c `elem` ("(,)" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 

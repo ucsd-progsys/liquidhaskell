@@ -3,8 +3,8 @@ module Language.Haskell.Liquid.Bare.Laws ( makeInstanceLaws ) where
 import qualified Data.Maybe                                 as Mb
 import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
+import           Control.Monad (join)
 
-import Control.Monad (join)
 import qualified Language.Haskell.Liquid.Measure            as Ms
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
@@ -52,12 +52,3 @@ makeInstanceLaw env sigEnv sigs name rilaw = LawInstance
                      Left x -> (Left x, Just $ Mb.fromMaybe (dummyLoc $ ofType $ varType x) (L.lookup x sigs))
                      Right x -> (Right x, Nothing)
 
-
-  {-
-  data RILaws ty = RIL
-  { rilName    :: BTyCon
-  , rilSupers  :: [ty]
-  , rilTyArgs  :: [ty]
-  , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
-  }
-  -}
