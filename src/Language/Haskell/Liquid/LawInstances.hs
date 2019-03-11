@@ -35,12 +35,13 @@ checkOneLaw c (x, t) li
   | Just (Left _, Just ti) <- lix 
   = unify mkError c li t ti
   | Just (Right l, _) <- lix
-  = [mkError (text "The instance for the law" <+> pprint x <+> text "is not found")]
+  = [mkError (text "is not found.")]
   | otherwise
-  = [mkError (text "The instance for the law" <+> pprint x <+> text "is not defined")]
+  = [mkError (text "is not defined.")]
   where 
     lix = L.lookup (Left x) (lilEqus li)
-    mkError = ErrILaw (lilPos li) (pprint c) (pprintXs $ lilTyArgs li)
+    mkError txt = ErrILaw (lilPos li) (pprint c) (pprintXs $ lilTyArgs li)
+                          (text "The instance for the law" <+> pprint x <+> txt)
     pprintXs [l] = pprint l 
     pprintXs xs  = pprint xs 
 
@@ -48,10 +49,10 @@ unify :: (Doc -> Error) -> Class -> LawInstance -> LocSpecType -> LocSpecType ->
 unify mkError c li t1 t2 
   = if t11 =*= t22 then [] else err
   where 
-    err = [mkError (pprint t1 <+> text "\nis different than\n" <+> pprint t2
-      <+> text "\nesubt1 = " <+> pprint esubst1  
-      <+> text "\nesubt = " <+> pprint esubst  
-      <+> text "\ncompared\n" <+> pprint t11 <+> text "\nWITH\n" <+> pprint t22 
+    err = [mkError (text "is invalid:\nType" <+> pprint t1 <+> text "\nis different than\n" <+> pprint t2
+    --   <+> text "\nesubt1 = " <+> pprint esubst1  
+    --   <+> text "\nesubt = " <+> pprint esubst  
+    --   <+> text "\ncompared\n" <+> pprint t11 <+> text "\nWITH\n" <+> pprint t22 
            )]
 
     t22 = fromRTypeRep (trep2 {ty_vars = [], ty_binds = fst <$> args2, ty_args = snd <$> args2, ty_refts = drop (length tc2) (ty_refts trep2)})

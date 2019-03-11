@@ -237,6 +237,8 @@ microTests = group "Micro"
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
+  , mkMicro "class-laws-pos" "tests/class-laws/pos"  ExitSuccess
+  , mkMicro "class-laws-neg" "tests/class-laws/neg" (ExitFailure 1)
   , mkMicro "implicit-pos"   "tests/implicit/pos"    ExitSuccess
   , mkMicro "implicit-neg"   "tests/implicit/neg"   (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068
