@@ -212,12 +212,14 @@ Library
                     Language.Haskell.Liquid.Types.Literals,
                     Language.Haskell.Liquid.Types.Strata,
                     Language.Haskell.Liquid.Types.Fresh,
+                    Language.Haskell.Liquid.Types.Equality,
                     Language.Haskell.Liquid.Constraint.Fresh,
                     Language.Haskell.Liquid.Types.Visitors,
                     Language.Haskell.Liquid.WiredIn,
                     Language.Haskell.Liquid.Types.Names,
                     Language.Haskell.Liquid.Liquid,
                     Language.Haskell.Liquid.Desugar.HscMain,
+                    Language.Haskell.Liquid.LawInstances,
 
                     -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
                     Language.Haskell.Liquid.Desugar.Check,
@@ -251,6 +253,7 @@ Library
                     Language.Haskell.Liquid.Bare.Axiom,
                     Language.Haskell.Liquid.Bare.ToBare,
                     Language.Haskell.Liquid.Bare.Class,
+                    Language.Haskell.Liquid.Bare.Laws,
                     Language.Haskell.Liquid.Bare.Check,
                     Language.Haskell.Liquid.Interactive.Types,
                     Language.Haskell.Liquid.Interactive.Handler,

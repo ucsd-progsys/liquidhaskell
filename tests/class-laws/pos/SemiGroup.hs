@@ -15,27 +15,18 @@ module SemiGroup where
               -> { mappend x (mappend y z) == mappend (mappend x y) z }
      @-}
     
-    -- Semantics of class-law:
-
-    -- 1. reflect ALL class methods 
-    {- measure SemiGroup.mappend :: a -> a -> a @-}
-    {- assume mappend :: x:a -> y:a  -> {v:a | v == SemiGroup.mappend x y } @-}
-
-    -- 2. assume all the sigs 
-    {- assume assocSG :: SG a => x:a -> y:a -> z:a 
-              -> { mappend x (mappend y z) == mappend (mappend x y) z } @-}
     
     assocSG :: SG a => a -> a -> a -> () 
     assocSG x y z = () 
     
-    
     instance SG Int where 
       mappend = mappendInt 
 
-    {- 
+    {-@ 
     instance laws SG Int where 
+      mappend = mappendInt
       assocSG = mappendIntAssoc
-    -}
+    @-}
     
     
     {-@ reflect mappendInt @-}  
@@ -55,10 +46,11 @@ module SemiGroup where
     mappendMaybe (Just x) (Just y) = Just (x `mappend` y)
     mappendMaybe _ _               = Nothing 
     
-    {- 
+    {-@ 
     instance laws SG a => SG (Maybe a) where 
+      mappend = mappendMaybe
       assocSG = mappendMaybeAssoc
-    -}
+    @-}
     
     {-@ mappendMaybeAssoc :: SG a => x:Maybe a -> y:Maybe a -> z:Maybe a 
       -> { mappendMaybe x (mappendMaybe y z) == mappendMaybe (mappendMaybe x y) z } @-}
@@ -66,4 +58,25 @@ module SemiGroup where
     mappendMaybeAssoc (Just x) (Just y) (Just z)
       = assocSG x y z 
     mappendMaybeAssoc _ _ _ = () 
+    
+    instance SG [a] where 
+      mappend = mappendList
+
+    {-@ reflect mappendList @-}
+    mappendList :: [a] -> [a] -> [a]
+    mappendList []     ys = ys 
+    mappendList (x:xs) ys = x:mappendList xs ys 
+    
+    {-@ 
+    instance laws SG a => SG [a] where 
+      mappend = mappendList
+      assocSG = mappendListAssoc
+    @-}
+
+    {-@ mappendListAssoc :: x:[a] -> y:[a] -> z:[a] 
+      -> { mappendList x (mappendList y z) == mappendList (mappendList x y) z } @-}
+    mappendListAssoc :: [a] -> [a] -> [a] -> () 
+    mappendListAssoc (x:xs) ys zs
+      = mappendListAssoc xs ys zs  
+    mappendListAssoc _ _ _ = () 
     
