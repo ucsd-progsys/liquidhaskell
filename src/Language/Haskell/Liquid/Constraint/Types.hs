@@ -72,7 +72,7 @@ import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
-import           Control.Monad.Fail 
+-- import           Control.Monad.Fail 
 
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
