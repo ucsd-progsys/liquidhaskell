@@ -25,7 +25,7 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
-import Data.List (sort, reverse)
+-- import Data.List (sort, reverse)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import Options.Applicative

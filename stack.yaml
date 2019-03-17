@@ -10,8 +10,8 @@ extra-deps:
 - fgl-visualize-0.1.0.1
 - intern-0.9.2
 - located-base-0.1.1.1
-- tasty-rerun-1.1.12
 - text-format-0.3.2
+- tasty-rerun-1.1.14
 
 flags:
   liquidhaskell:
