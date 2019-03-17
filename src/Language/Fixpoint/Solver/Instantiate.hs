@@ -348,6 +348,8 @@ evaluate cfg ctx aenv facts es sid = do
   return       $ eqs ++ eqss
 
 
+ 
+_evalLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Pred] -> [Expr] -> IO [(Expr, Expr)]
 _evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands 
   where 
     loop _ acc []    = return acc
