@@ -448,7 +448,7 @@ copyright = concat $ concat
   , [$(simpleVersion Meta.version)]
   -- , [" (" ++ _commitCount ++ " commits)" | _commitCount /= ("1"::String) &&
   --                                          _commitCount /= ("UNKNOWN" :: String)]
-  , ["\nCopyright 2013-18 Regents of the University of California. All Rights Reserved.\n"]
+  , ["\nCopyright 2013-19 Regents of the University of California. All Rights Reserved.\n"]
   ]
   where
     _commitCount = $gitCommitCount
