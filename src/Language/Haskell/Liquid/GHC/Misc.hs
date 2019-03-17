@@ -81,7 +81,8 @@ import           Language.Fixpoint.Misc                     (safeHead) -- , safe
 import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
-import           Language.Haskell.Liquid.Desugar.HscMain
+-- import           Language.Haskell.Liquid.Desugar.HscMain
+import           HscMain
 import           Id                                         (isExportedId, idOccInfo, setIdInfo)
 
 
@@ -486,14 +487,18 @@ lookupRdrName hsc_env mod_name rdr_name = do
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
-qualImportDecl :: ModuleName -> ImportDecl name
-qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
+-- qualImportDecl :: ModuleName -> ImportDecl name
+-- qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 
 ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
-  where go  x = x {hsmodDecls = filter go' $ hsmodDecls x}
-        go' x | SigD (InlineSig _ _) <-  unLoc x = False
-              | otherwise                        = True
+  where 
+    go :: HsModule GhcPs -> HsModule GhcPs
+    go  x      = x {hsmodDecls = filter go' (hsmodDecls x) }
+    go' :: LHsDecl GhcPs -> Bool
+    go' x 
+      | SigD _ (InlineSig {}) <-  unLoc x = False
+      | otherwise                         = True
 
 --------------------------------------------------------------------------------
 -- | Symbol Conversions --------------------------------------------------------
@@ -729,7 +734,7 @@ desugarModule tcm = do
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  guts <- liftIO $ hscDesugar{- WithLoc -} hsc_env_tmp ms tcg
   return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
@@ -742,7 +747,7 @@ gHC_VERSION = show __GLASGOW_HASKELL__
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
-type Prec = TyPrec
+-- type Prec = TyPrec -- TODO:GHC-863
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
 lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing

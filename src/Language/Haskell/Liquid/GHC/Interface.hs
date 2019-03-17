@@ -138,6 +138,9 @@ runLiquidGhc hscEnv cfg act =
       df <- configureDynFlags cfg tmp
       prettyPrintGhcErrors df act
 
+updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
+updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
+
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
   df <- getSessionDynFlags
@@ -145,7 +148,7 @@ configureDynFlags cfg tmp = do
   loud <- liftIO isLoud
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                 , includePaths = nub $ idirs cfg ++ includePaths df'
+                 , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg) 
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
@@ -200,7 +203,7 @@ compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
   df  <- getSessionDynFlags
   _   <- setSessionDynFlags $
-           df { includePaths = nub $ idirs cfg ++ includePaths df
+           df { includePaths = updateIncludePaths df (idirs cfg) 
               , importPaths  = nub $ idirs cfg ++ importPaths df
               , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession

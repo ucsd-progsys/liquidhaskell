@@ -416,7 +416,7 @@ replaceIrrefutPat' t e
   = Nothing
 
 isIrrefutErrorVar :: Var -> Bool
-isIrrefutErrorVar x = MkCore.iRREFUT_PAT_ERROR_ID == x
+isIrrefutErrorVar x = False -- MkCore.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
 
 
 --------------------------------------------------------------------------------

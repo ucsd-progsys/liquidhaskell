@@ -45,12 +45,14 @@ import           Unify
 import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import           Control.Monad.State
+import           Control.Monad.Fail 
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
 import qualified Data.List                                     as L
 import qualified Data.Foldable                                 as F
 import qualified Data.Traversable                              as T
+import qualified Data.Functor.Identity
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
@@ -1450,3 +1452,9 @@ isGenericVar α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classCo
                                   , α'      <- freeTyVars t']
         isOrd          = (ordClassName ==) . className
         isEq           = (eqClassName ==) . className
+
+-- instance MonadFail CG where 
+--  fail msg = panic Nothing msg
+
+instance MonadFail Data.Functor.Identity.Identity where 
+  fail msg = panic Nothing msg
