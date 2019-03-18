@@ -416,8 +416,9 @@ replaceIrrefutPat' t e
   = Nothing
 
 isIrrefutErrorVar :: Var -> Bool
-isIrrefutErrorVar _x = False -- MkCore.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
-
+-- isIrrefutErrorVar _x = False -- MkCore.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
+isIrrefutErrorVar x = x == MkCore.pAT_ERROR_ID
+ 
 --------------------------------------------------------------------------------
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]
 --------------------------------------------------------------------------------
