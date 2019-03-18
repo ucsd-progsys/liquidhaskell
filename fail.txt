@@ -6,3 +6,107 @@ ElabLocation.hs
       Data/Vector/Algorithms/Intro.hs:        FAIL (3.67s)
 
 
+rjhala@borscht ~/r/s/liquidhaskell (ghc-863)> stack exec -- liquid -i benchmarks/vector-algorithms-0.5.4.2/ benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Intro.hs
+LiquidHaskell Version 0.8.6.0
+Copyright 2013-19 Regents of the University of California. All Rights Reserved.
+
+
+**** DONE:  A-Normalization ****************************************************
+
+
+**** DONE:  Extracted Core using GHC *******************************************
+
+
+**** DONE:  Transformed Core ***************************************************
+
+Working 100% [=================================================================]
+
+**** DONE:  annotate ***********************************************************
+
+
+**** RESULT: UNSAFE ************************************************************
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Intro.hs:102:2-5: Error: Liquid Type Mismatch
+
+ 102 |  sort 0 l u = H.sortByBounds cmp a l  u
+        ^^^^
+
+   Inferred type
+     VV : {v : GHC.Types.Int | v == l + 1}
+
+   not a subtype of Required type
+     VV : {VV : GHC.Types.Int | VV >= 0
+                                && 0 <= VV
+                                && VV <= vsize a - (0 + 1)}
+
+   In Context
+     l : {l : GHC.Types.Int | 0 <= l
+                              && (Data.Vector.Algorithms.Intro.threshold == 0 => l > 0)
+                              && l <= u
+                              && l >= 0
+                              && l <= vsize a}
+
+     a : a##xo (Control.Monad.Primitive.PrimState b##xo) c##xo
+
+     Data.Vector.Algorithms.Intro.threshold : {Data.Vector.Algorithms.Intro.threshold : GHC.Types.Int | 0 <= Data.Vector.Algorithms.Intro.threshold
+                                                                                                        && Data.Vector.Algorithms.Intro.threshold /= 0
+                                                                                                        && Data.Vector.Algorithms.Intro.threshold >= 0
+                                                                                                        && Data.Vector.Algorithms.Intro.threshold > 0}
+
+     u : {u : GHC.Types.Int | u >= 0
+                              && l <= u
+                              && u <= vsize a}
+rjhala@borscht ~/r/s/liquidhaskell (ghc-863) [1]>
+stack exec -- liquid -i benchmarks/vector-algorithms-0.5.4.2/ benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Merge.hs
+LiquidHaskell Version 0.8.6.0
+Copyright 2013-19 Regents of the University of California. All Rights Reserved.
+
+
+**** DONE:  A-Normalization ****************************************************
+
+WARNING: ("Yikes! No source information") Not expanding DEFAULT with 2 cases at depth 6
+Enable expansion with --max-case-expand=7
+
+
+**** DONE:  Extracted Core using GHC *******************************************
+
+
+**** DONE:  Transformed Core ***************************************************
+
+Working 170% [================================================================================================================]
+
+**** DONE:  annotate ***********************************************************
+
+
+**** RESULT: UNSAFE ************************************************************
+
+
+ /Users/rjhala/research/stack/liquidhaskell/benchmarks/vector-algorithms-0.5.4.2/Data/Vector/Algorithms/Merge.hs:75:1-5: Error: Liquid Type Mismatch
+
+ 75 | merge cmp src buf mid = do unsafeCopy low lower
+      ^^^^^
+
+   Inferred type
+     VV : {v : GHC.Types.Int | v == 0}
+
+   not a subtype of Required type
+     VV : {VV : GHC.Types.Int | VV >= 0
+                                && 0 <= VV
+                                && VV <= vsize low - (0 + 1)}
+
+   In Context
+     low : {low : a##xo (Control.Monad.Primitive.PrimState b##xo) c##xo | vsize low == mid}
+
+     src : {src : a##xo (Control.Monad.Primitive.PrimState b##xo) c##xo | 0 < vsize src}
+
+     mid : {mid : GHC.Types.Int | mid <= vsize src
+                                  && mid <= vsize buf
+                                  && mid < vsize src
+                                  && mid < vsize buf
+                                  && mid >= 0
+                                  && 0 <= mid
+                                  && mid <= vsize src - (0 + 1)
+                                  && mid <= vsize buf - (0 + 1)}
+
+     buf : {buf : a##xo (Control.Monad.Primitive.PrimState b##xo) c##xo | 0 < vsize buf}
