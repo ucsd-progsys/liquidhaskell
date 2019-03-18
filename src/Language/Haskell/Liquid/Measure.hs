@@ -107,6 +107,7 @@ instance Semigroup (Spec ty bndr) where
            , claws      =           claws      s1 ++ claws      s2
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
+           , ilaws      =               ilaws  s1 ++ ilaws      s2 
            , dvariance  =           dvariance  s1 ++ dvariance  s2
            , axeqs      =           axeqs s1      ++ axeqs s2
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
@@ -162,6 +163,7 @@ instance Monoid (Spec ty bndr) where
            , claws      = [] 
            , termexprs  = []
            , rinstance  = []
+           , ilaws      = [] 
            , dvariance  = []
            , axeqs      = []
            , bounds     = M.empty

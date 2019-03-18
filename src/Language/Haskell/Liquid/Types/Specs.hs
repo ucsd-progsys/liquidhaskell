@@ -66,6 +66,7 @@ data GhcSpec = SP
   , gsVars   :: !GhcSpecVars 
   , gsTerm   :: !GhcSpecTerm 
   , gsRefl   :: !GhcSpecRefl   
+  , gsLaws   :: !GhcSpecLaws 
   , gsImps   :: ![(F.Symbol, F.Sort)]  -- ^ Imported Environment          
   , gsConfig :: !Config                       
   , gsLSpec  :: !BareSpec               -- ^ Lifted specification for the target module
@@ -134,6 +135,20 @@ data GhcSpecRefl = SpRefl
   , gsLogicMap   :: !LogicMap
   }
 
+data GhcSpecLaws = SpLaws 
+  { gsLawDefs :: !([(Class, [(Var, LocSpecType)])])
+  , gsLawInst :: ![LawInstance]
+  }
+
+data LawInstance = LawInstance
+  { lilName   :: Class
+  , liSupers  :: [LocSpecType]
+  , lilTyArgs :: [LocSpecType]
+  , lilEqus   :: [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))]
+  , lilPos    :: SrcSpan
+  }  
+
+type VarOrLocSymbol = Either Var LocSymbol
 type BareSpec      = Spec    LocBareType F.LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol
 type BareDef       = Def     LocBareType F.LocSymbol
@@ -176,6 +191,7 @@ data Spec ty bndr  = Spec
   , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
+  , ilaws      :: ![RILaws ty]
   , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications

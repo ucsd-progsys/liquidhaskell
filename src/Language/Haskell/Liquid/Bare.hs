@@ -51,7 +51,9 @@ import qualified Language.Haskell.Liquid.Bare.Axiom         as Bare
 import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Class         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Check         as Bare 
+import qualified Language.Haskell.Liquid.Bare.Laws          as Bare 
 import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
+import           Control.Arrow                    (second)
 
 --------------------------------------------------------------------------------
 -- | De/Serializing Spec files -------------------------------------------------
@@ -138,6 +140,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsImps   = makeImports mspecs
   , gsSig    = addReflSigs refl sig 
   , gsRefl   = refl 
+  , gsLaws   = laws 
   , gsData   = sData 
   , gsQual   = qual 
   , gsName   = makeSpecName env     tycEnv measEnv   name 
@@ -155,6 +158,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
     sData    = makeSpecData  src env sigEnv measEnv sig specs 
     refl     = makeSpecRefl  src measEnv specs env name sig tycEnv 
+    laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
     sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv 
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     -- build up environments
@@ -405,6 +409,17 @@ makeSize env name spec =
       = Just f
       | otherwise
       = Nothing
+
+
+
+------------------------------------------------------------------------------------------
+makeSpecLaws :: Bare.Env -> Bare.SigEnv -> [(Ghc.Var,LocSpecType)] -> Bare.MeasEnv -> Bare.ModSpecs 
+             -> GhcSpecLaws 
+------------------------------------------------------------------------------------------
+makeSpecLaws env sigEnv sigs menv specs = SpLaws 
+  { gsLawDefs = second (map (\(_,x,y) -> (x,y))) <$> Bare.meCLaws menv  
+  , gsLawInst = Bare.makeInstanceLaws env sigEnv sigs specs
+  }
 
 ------------------------------------------------------------------------------------------
 makeSpecRefl :: GhcSrc -> Bare.MeasEnv -> Bare.ModSpecs -> Bare.Env -> ModName -> GhcSpecSig -> Bare.TycEnv 

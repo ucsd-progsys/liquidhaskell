@@ -1001,6 +1001,11 @@ and compelling example.
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
+#### Class Laws
+
+Class laws can be defined and checked using the `class laws` and `instance laws` keywords. 
+For an example, see [class-laws/pos/SemiGroup.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/06d22aa070933d9ea833e30d84ed91de2a28eaee/tests/class-laws/pos/SemiGroup.hs)
+
 #### Type Aliases
 
 

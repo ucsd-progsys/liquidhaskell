@@ -211,7 +211,7 @@ module Language.Haskell.Liquid.Types.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..), RISig(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -1031,6 +1031,14 @@ data RInstance t = RI
   , risigs  :: [(F.LocSymbol, RISig t)]
   } deriving (Generic, Functor, Data, Typeable, Show)
 
+data RILaws ty = RIL
+  { rilName    :: BTyCon
+  , rilSupers  :: [ty]
+  , rilTyArgs  :: [ty]
+  , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
+  , rilPos     :: F.Located ()
+  } deriving (Show, Functor, Data, Typeable, Generic)
+
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)
 
@@ -1044,8 +1052,10 @@ ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintT
 instance F.PPrint t => F.PPrint (RInstance t) where
   pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts 
 
+  
 instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
+instance (B.Binary t) => B.Binary (RILaws t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
@@ -2117,6 +2127,26 @@ instance F.PPrint t => F.PPrint (RClass t) where
       supers [] = "" 
       supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
+
+
+instance F.PPrint t => F.PPrint (RILaws t) where
+  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
+   where 
+    supers [] = "" 
+    supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+    tuplify   = parens . hcat . punctuate ", "
+
+
+ppEqs :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
+          => F.Tidy -> Doc -> n -> [a] -> [(x, t)] -> Doc
+ppEqs k hdr name args mts 
+  = vcat $ hdr <+> dName <+> "where" 
+         : [ nest 4 (bind m t) | (m, t) <- mts ] 
+    where 
+      dName    = parens  (F.pprintTidy k name <+> dArgs)
+      dArgs    = gaps    (F.pprintTidy k      <$> args)
+      gaps     = hcat . punctuate " "
+      bind m t = F.pprintTidy k m <+> "=" <+> F.pprintTidy k t 
 
 ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
           => F.Tidy -> Doc -> n -> [a] -> [(x, RISig t)] -> Doc

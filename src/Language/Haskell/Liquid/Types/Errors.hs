@@ -383,6 +383,12 @@ data TError t =
                 , msg  :: !Doc
                 } -- ^ Termination Error
 
+  | ErrILaw     { pos   :: !SrcSpan
+                , cname :: !Doc
+                , iname :: !Doc
+                , msg   :: !Doc
+                } -- ^ Instance Law Error
+
   | ErrRClass   { pos   :: !SrcSpan
                 , cls   :: !Doc
                 , insts :: ![(SrcSpan, Doc)]
@@ -935,6 +941,11 @@ ppError' _ dSp dCtx (ErrStTerm _ x s)
   = dSp <+> text "Structural Termination Error"
         $+$ dCtx
         <+> (text "Cannot prove termination for size" <+> x) $+$ s
+ppError' _ dSp dCtx (ErrILaw _ c i s)
+  = dSp <+> text "Law Instance Error"
+        $+$ dCtx
+        <+> (text "The instance" <+> i <+> text "of class" <+> c <+> text "is not valid.") $+$ s
+      
 
 ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"
