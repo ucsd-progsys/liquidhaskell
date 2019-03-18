@@ -154,6 +154,7 @@ configureDynFlags cfg tmp = do
                                                 (ModRenaming True [])
                                 : (packageFlags df')
 
+                 , debugLevel   = 1               -- insert SourceNotes
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
                  , hscTarget    = HscInterpreted
