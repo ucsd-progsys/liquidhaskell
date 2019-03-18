@@ -1,2 +1,20 @@
-## FAILING TESTS for TODO-REBARE 
+## FAILING TESTS for GHC-863
+
+ElabLocation.hs
+
+tests/pos/
+  zipper000.hs:                           FAIL (0.50s)
+  zipper0.hs:                             FAIL (0.55s)
+  zipper.hs:                              FAIL (0.59s)
+  T866.hs:                                FAIL (0.42s)
+  risers.hs:                              FAIL (0.45s)
+  elim00.hs:                              FAIL (0.44s)
+tests/neg
+  risers.hs:                              FAIL (0.44s)
+  mr00.hs:                                FAIL (0.31s)
+
+
+      Data/Vector/Algorithms/Merge.hs:        FAIL (9.24s)
+      Data/Vector/Algorithms/Intro.hs:        FAIL (3.67s)
+
 
