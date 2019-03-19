@@ -854,6 +854,7 @@ data Pspec ty ctor
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
+  | ILaws   (RILaws ty)
   | RInst   (RInstance ty)                                -- ^ refined 'instance' definition
   | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate 
   | Invt    ty                                            -- ^ 'invariant' specification
@@ -1048,6 +1049,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
+  , Measure.ilaws      = [i | ILaws  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
@@ -1090,7 +1092,8 @@ specP
          <|> liftM Class  classP                            ))
     <|> (reserved "instance"
          >> ((reserved "measure"  >> liftM IMeas  iMeasureP )
-                                 <|> liftM RInst  instanceP ))
+         <|> (reserved "laws"     >> liftM ILaws instanceLawP)
+         <|> liftM RInst  instanceP ))
 
     <|> (reserved "import"        >> liftM Impt   symbolP   )
 
@@ -1189,6 +1192,7 @@ tyBindsP = do
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
+
 
 tyBindP    :: Parser (LocSymbol, Located BareType)
 tyBindP    = xyP xP dcolon tP
@@ -1298,6 +1302,30 @@ oneClassArg
     classParams =  (reserved "where" >> return [])
                <|> ((:) <$> (fmap bTyVar <$> locLowerIdP) <*> classParams)
     sing x      = [x]
+
+instanceLawP :: Parser (RILaws (Located BareType))
+instanceLawP
+  = do l1   <- getPosition
+       sups <- supersP
+       c    <- classBTyConP
+       spaces
+       tvs  <- manyTill (locParserP bareTypeP) (try $ reserved "where")
+       spaces
+       ms   <- grabs eqBinderP
+       spaces
+       l2   <- getPosition
+       return $ RIL c sups tvs ms (Loc l1 l2 ())
+  where
+    superP   = locParserP (toRCls <$> bareAtomBindP)
+    supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                       <* reservedOp "=>")
+               <|> return []
+    toRCls x = x
+
+    eqBinderP = xyP xP (spaces >> string "=" <* spaces) (xP <* spaces)
+      
+    xP = locParserP binderP
+    
 
 instanceP :: Parser (RInstance (Located BareType))
 instanceP
