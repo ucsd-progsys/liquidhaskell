@@ -4,9 +4,10 @@
 
 ## 0.8.6.0
 
-- Support for GHC 8.6.4 
-- New structural termination checker (used by default)
-- Miscellaneous bug fixes for PLE 
+- Built with GHC 8.6.4 
+- Structural termination checker (used by default)
+- Support for specifying class-laws and that they hold on instances 
+- Bug fixes for PLE 
 - Need to run LH on imported libs (with source) first; can use `--compile-spec` to avoid checking. 
 
 ## 0.8.4.0 
