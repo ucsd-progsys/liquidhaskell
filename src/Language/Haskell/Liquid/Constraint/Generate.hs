@@ -1229,7 +1229,7 @@ instantiatePvs :: SpecType -> [SpecProp] -> SpecType
 instantiatePvs           = L.foldl' go
   where 
     go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
-    go _ _               = errorP "" {- panic Nothing -} "Constraint.instantiatePvs"
+    go _ _               = errorP "" "Constraint.instantiatePvs"
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkTyCon _ _ t@(RApp _ _ _ _) = t
