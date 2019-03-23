@@ -108,6 +108,7 @@ merge cmp src buf mid = do unsafeCopy low lower
               wroteLow (d-1) 1 (iLow + 1) iHigh eHigh (iIns + 1)
 {-# INLINE merge #-}
 
+{-@ threshold :: {v:Int | v = 25} @-}
 threshold :: Int
 threshold = 25
 {-# INLINE threshold #-}

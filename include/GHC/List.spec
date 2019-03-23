@@ -5,7 +5,7 @@ tail         :: xs:{v: [a] | len v > 0} -> {v: [a] | len(v) = (len(xs) - 1) && v
 
 last         :: xs:{v: [a] | len v > 0} -> a
 init         :: xs:{v: [a] | len v > 0} -> {v: [a] | len(v) = len(xs) - 1}
-null         :: xs:[a] -> {v: Bool | ((v) <=> len(xs) = 0) }
+null         :: xs:[a] -> {v: GHC.Types.Bool | ((v) <=> len(xs) = 0) }
 length       :: xs:[a] -> {v: GHC.Types.Int | v = len(xs)}
 filter       :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
 scanl        :: (a -> b -> a) -> a -> xs:[b] -> {v: [a] | len(v) = 1 + len(xs) }
@@ -25,9 +25,8 @@ replicate    :: n:Nat -> x:a -> {v: [{v:a | v = x}] | len(v) = n}
 cycle        :: {v: [a] | len(v) > 0 } -> [a]
 lazy cycle
 
-takeWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
-
-dropWhile    :: (a -> Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
+takeWhile    :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
+dropWhile    :: (a -> GHC.Types.Bool) -> xs:[a] -> {v: [a] | len(v) <= len(xs)}
 
 take :: n:GHC.Types.Int
      -> xs:[a]
@@ -37,11 +36,11 @@ drop :: n:GHC.Types.Int
      -> {v:[a] | (if (n >= 0) then (len(v) = (if (len(xs) < n) then 0 else len(xs) - n)) else ((len v) = (len xs)))}
 
 splitAt :: n:_ -> x:[a] -> ({v:[a] | (if (n >= 0) then (Min (len v) (len x) n) else ((len v) = 0))},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}>
-span    :: (a -> Bool) 
+span    :: (a -> GHC.Types.Bool) 
         -> xs:[a] 
         -> ({v:[a]|((len v)<=(len xs))}, {v:[a]|((len v)<=(len xs))})
 
-break :: (a -> Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x) + (len y)}>
+break :: (a -> GHC.Types.Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x) + (len y)}>
 
 reverse      :: xs:[a] -> {v: [a] | len(v) = len(xs)}
 

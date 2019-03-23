@@ -187,10 +187,9 @@ normalizeName γ e
        return $ Var x
 
 shouldNormalize :: Literal -> Bool
-shouldNormalize l = case l of
-  LitInteger _ _ -> True
-  MachStr _ -> True
-  _ -> False
+shouldNormalize (LitNumber {})  = True 
+shouldNormalize (MachStr {})    = True 
+shouldNormalize _               = False
 
 add :: [CoreBind] -> DsMW ()
 add w = modify $ \s -> s { st_binds = st_binds s ++ w}

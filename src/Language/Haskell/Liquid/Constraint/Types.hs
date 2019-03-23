@@ -1,7 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE EmptyDataDecls    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE EmptyDataDecls       #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -69,6 +72,7 @@ import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
+-- import           Control.Monad.Fail 
 
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
