@@ -2,6 +2,9 @@
 
 ## NEXT
 
+- Fix bugs in PLE
+- Move to GHC 8.6.4 
+
 ## 0.8.0.1 
 
 - Support for HORN-NNF format clauses, see `tests/horn/{pos,neg}/*.smt2`

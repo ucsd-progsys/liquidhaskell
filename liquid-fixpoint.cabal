@@ -1,5 +1,5 @@
 name:                liquid-fixpoint
-version:             0.8.0.1
+version:             0.8.0.2
 Copyright:           2010-17 Ranjit Jhala, University of California, San Diego.
 synopsis:            Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 homepage:            https://github.com/ucsd-progsys/liquid-fixpoint
@@ -10,13 +10,10 @@ maintainer:          jhala@cs.ucsd.edu
 category:            Language
 build-type:          Simple
 cabal-version:       >=1.10
-Tested-With:         GHC == 7.10.3, GHC == 8.0.1
+Tested-With:         GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4 
 
-
-
-description:     This package is a Haskell wrapper to the SMTLIB-based
-                 Horn-Clause/Logical Implication constraint solver used
-                 for Liquid Types.
+description:     This package implements an SMTLIB based Horn-Clause/Logical 
+                 Implication constraint solver used for Liquid Types.
                  .
                  The package includes:
                  .
