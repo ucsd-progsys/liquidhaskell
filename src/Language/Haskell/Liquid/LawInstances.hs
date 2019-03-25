@@ -50,9 +50,9 @@ unify mkError c li t1 t2
   = if t11 =*= t22 then [] else err
   where 
     err = [mkError (text "is invalid:\nType" <+> pprint t1 <+> text "\nis different than\n" <+> pprint t2
-    --   <+> text "\nesubt1 = " <+> pprint esubst1  
-    --   <+> text "\nesubt = " <+> pprint esubst  
-    --   <+> text "\ncompared\n" <+> pprint t11 <+> text "\nWITH\n" <+> pprint t22 
+       --  text "\nesubt1 = " <+> pprint esubst1  
+       -- text "\nesubt = " <+> pprint esubst  
+       -- text "\ncompared\n" <+> pprint t11 <+> text "\nWITH\n" <+> pprint t22 
            )]
 
     t22 = fromRTypeRep (trep2 {ty_vars = [], ty_binds = fst <$> args2, ty_args = snd <$> args2, ty_refts = drop (length tc2) (ty_refts trep2)})
