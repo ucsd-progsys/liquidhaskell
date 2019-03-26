@@ -42,15 +42,13 @@ This requires that you have installed [stack][stack] (which we strongly recommen
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
     stack install
-
-## Build with `cabal`
-
-    git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
+    
+If you haven't set up your ssh keys with github, use the `https` method to clone and build
+    
+    git clone --recursive https://github.com/ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
-
-    cabal sandbox init
-    cabal sandbox add-source ./liquid-fixpoint
-    cabal install
+    stack install
+    
 
 ## Troubleshooting
 

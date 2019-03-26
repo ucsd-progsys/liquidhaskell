@@ -2,13 +2,13 @@
 
 
 
-
 [![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquidhaskell.svg)](http://packdeps.haskellers.com/feed?needle=liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
 [![Windows build status](https://ci.appveyor.com/api/projects/status/78y7uusjcgor5p16?svg=true)](https://github.com/ucsd-progsys/liquidhaskell)
 
 Main Web site
 -------------
 
+* [Try LiquidHaskell in your browser](http://goto.ucsd.edu:8090/index.html)
 * [Splash page with examples and link to blog](https://ucsd-progsys.github.io/liquidhaskell-blog/)
 * [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
 * [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
@@ -36,6 +36,8 @@ LiquidHaskell requires (in addition to the cabal dependencies)
 How To Clone, Build and Install
 -------------------------------
 
+You may want to [try LiquidHaskell online](http://goto.ucsd.edu:8090/index.html)
+
 See [install instructions](INSTALL.md)
 
 How To Run
@@ -55,6 +57,21 @@ To run inside `ghci` e.g. when developing do:
     ghci> liquid ["tests/pos/Abs.hs"]
 
 See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
+
+
+How To Get Editor Support
+-------------------------
+
+To get Liquid Haskell in your editor use the Haskell IDE Engine and activate the liquid plugin. 
+For example, 
+
+- [VS Code](https://code.visualstudio.com/)
+
+    1. Install the [haskell-ide-engine](https://github.com/haskell/haskell-ide-engine)
+    2. Enable Haskell Language Server extension from VS Code. 
+    3. In the VS Code settings search for `liquid` and enable the `Liquid On` extension.
+
+
 
 How To Run Regression Tests
 ---------------------------
@@ -232,7 +249,7 @@ This flag is **global** and will symbolically evaluate all the terms that appear
 As an alternative, the `liquidinstanceslocal` flag has local behavior. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/benchmarks/proofautomation/pos/Unification.hs)
 
 ```
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+{-@ LIQUID "--ple-local" @-}
 ```
 
 will only evaluate terms appearing in the specifications
@@ -984,6 +1001,14 @@ and compelling example.
 
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
+
+#### Class Laws
+
+Class laws can be defined and checked using the `class laws` 
+and `instance laws` keywords. For an example, see: 
+
+* [class-laws/pos/SemiGroup.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/06d22aa070933d9ea833e30d84ed91de2a28eaee/tests/class-laws/pos/SemiGroup.hs)
+* [class-laws/pos/SemiGroup.hs](tests/class-laws/pos/SemiGroup.hs)
 
 #### Type Aliases
 

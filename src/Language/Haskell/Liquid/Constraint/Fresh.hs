@@ -42,6 +42,7 @@ import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
+import qualified Language.Haskell.Liquid.GHC.Misc as GM 
 
 --------------------------------------------------------------------------------
 -- | This is all hardwiring stuff to CG ----------------------------------------
@@ -70,7 +71,8 @@ refreshArgsTop (x, t)
 --   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
 freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type k _ τ  = freshTy_reftype k $ ofType τ
+freshTy_type k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
+                   <$> freshTy_reftype k (ofType τ)
 
 freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
 freshTy_expr k e _  = freshTy_reftype k $ exprRefType e

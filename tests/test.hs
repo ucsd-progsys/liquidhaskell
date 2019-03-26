@@ -25,7 +25,7 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
-import Data.List (sort, reverse)
+-- import Data.List (sort, reverse)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import Options.Applicative
@@ -143,6 +143,7 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/TerminationExprUnb.hs"  2 "Illegal termination specification for `go`"
   , errorTest "tests/errors/UnboundVarInSpec.hs"    2 "Illegal type specification for `Fixme.foo`"
   , errorTest "tests/errors/UnboundVarInAssume.hs"  2 "Illegal type specification for `Assume.incr`"
+  , errorTest "tests/errors/UnboundCheckVar.hs"     2 "Unknown variable `UnboundCheckVar.ink`"
   , errorTest "tests/errors/UnboundFunInSpec.hs"    2 "Illegal type specification for `Goo.three`"
   , errorTest "tests/errors/UnboundFunInSpec1.hs"   2 "Illegal type specification for `Goo.foo`"
   , errorTest "tests/errors/UnboundFunInSpec2.hs"   2 "Illegal type specification for `Goo.foo`"
@@ -200,7 +201,9 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Error: Unknown variable `llen2`" 
   , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
   , errorTest "tests/errors/HintMismatch.hs"        2 "HINT: Use the hole"
-  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
+  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:14-11:15: Error"
+  , errorTest "tests/errors/ErrLocation.hs"         1 "ErrLocation.hs:7:13-19: Error"
+  , errorTest "tests/errors/ErrLocation2.hs"        1 "ErrLocation2.hs:9:20: Error"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
@@ -236,6 +239,11 @@ microTests = group "Micro"
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
+  , mkMicro "class-laws-pos" "tests/class-laws/pos"  ExitSuccess
+  , mkMicro "class-laws-crash" "tests/class-laws/crash" (ExitFailure 2)
+  , mkMicro "class-laws-neg"   "tests/class-laws/neg"   (ExitFailure 1)
+  , mkMicro "implicit-pos"   "tests/implicit/pos"    ExitSuccess
+  , mkMicro "implicit-neg"   "tests/implicit/neg"   (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
@@ -343,7 +351,7 @@ textOrder = Just . mkOrder $
 proverTests :: IO TestTree
 proverTests = group "Prover"
   [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess
-  , testGroup "prover_lib"      <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess
+  , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess
   , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess
   , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1)
   , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess

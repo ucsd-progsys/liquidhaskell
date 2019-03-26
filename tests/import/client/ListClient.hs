@@ -1,8 +1,7 @@
 -- | A "client" that uses the reflected definitions.
 
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-} 
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-} 
 
 module ListClient where
 

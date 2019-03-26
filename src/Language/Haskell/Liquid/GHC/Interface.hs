@@ -138,6 +138,9 @@ runLiquidGhc hscEnv cfg act =
       df <- configureDynFlags cfg tmp
       prettyPrintGhcErrors df act
 
+updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
+updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
+
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
   df <- getSessionDynFlags
@@ -145,12 +148,13 @@ configureDynFlags cfg tmp = do
   loud <- liftIO isLoud
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                 , includePaths = nub $ idirs cfg ++ includePaths df'
+                 , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg) 
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
                                 : (packageFlags df')
 
+                 , debugLevel   = 1               -- insert SourceNotes
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
                  , hscTarget    = HscInterpreted
@@ -200,7 +204,7 @@ compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
   df  <- getSessionDynFlags
   _   <- setSessionDynFlags $
-           df { includePaths = nub $ idirs cfg ++ includePaths df
+           df { includePaths = updateIncludePaths df (idirs cfg) 
               , importPaths  = nub $ idirs cfg ++ importPaths df
               , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession
@@ -339,7 +343,7 @@ updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec
 updLiftedSpec s1 Nothing   = s1 
 updLiftedSpec s1 (Just s2) = (clear s1) `mappend` s2 
   where 
-    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [] }
+    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary

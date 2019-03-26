@@ -1,7 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE EmptyDataDecls    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE EmptyDataDecls       #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -50,6 +53,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , addArgument, addArguments
+
+  , getTemplates
   ) where
 
 import Prelude hiding (error)
@@ -67,6 +72,7 @@ import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
+-- import           Control.Monad.Fail 
 
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
@@ -211,7 +217,16 @@ data CGInfo = CGInfo
   , allowHO    :: !Bool
   , ghcI       :: !GhcInfo
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
+  , unsorted   :: !F.Templates                 -- ^ Potentially unsorted expressions
   }
+
+
+getTemplates :: CG F.Templates
+getTemplates = do 
+  fg     <- pruneRefs <$> get
+  ts     <- unsorted  <$> get
+  return $ if fg then F.anything else ts 
+       
 
 instance PPrint CGInfo where
   pprintTidy = pprCGInfo

@@ -8,29 +8,15 @@
 module Language.Haskell.Liquid.Bare.Check 
   ( checkGhcSpec
   , checkBareSpec
-  -- , checkTy
-  -- , checkTerminationExpr
   ) where
-
--- import           BasicTypes
--- import           DataCon
--- import           Id
--- import           Name                                      (getSrcSpan)
--- import           Prelude                                   hiding (error)
--- import           TyCon
--- import           Var
--- import qualified SrcLoc
 
 import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
 import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
-
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
-
 import           Data.Maybe
 import           Data.Function                             (on)
 import           Text.PrettyPrint.HughesPJ
-
 import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
@@ -45,6 +31,7 @@ import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
 import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
@@ -120,8 +107,8 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
-                     ++ condNull noPrune
-                       (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (gsCtors      (gsData sp)))
+                     ++ condNull noPrune 
+                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
                      ++ mapMaybe (checkBind allowHO "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
                      ++ checkTySigs         allowHO cbs            emb tcEnv env                (gsSig sp)
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
@@ -142,6 +129,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                                      (gsTconsP (gsName sp))
+                     ++ checkLawInstances (gsLaws sp)
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -153,6 +141,8 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     allowHO          = higherOrderFlag sp
     noPrune          = not (pruneFlag sp)
+    txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v,t) <- ts]
+    temps            = F.makeTemplates $ gsUnsorted $ gsData sp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
 
@@ -530,7 +520,7 @@ checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataC
 checkMeasures emb env = concatMap (checkMeasure emb env)
 
 checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> [Error]
-checkMeasure emb γ (M name@(Loc src _ n) sort body _)
+checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
   = [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)

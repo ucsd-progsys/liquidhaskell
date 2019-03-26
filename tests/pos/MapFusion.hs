@@ -1,7 +1,7 @@
 {-@ LIQUID "--higherorder"     @-}
 {-@ LIQUID "--exact-data-cons" @-}
 
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 {-# LANGUAGE IncoherentInstances #-}
 {-# LANGUAGE FlexibleContexts    #-}

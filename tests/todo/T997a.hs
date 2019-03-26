@@ -1,7 +1,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--totality"                            @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 {-@ LIQUID "--diff"                                @-}
 
 module Lists where

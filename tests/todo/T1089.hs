@@ -2,7 +2,7 @@
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

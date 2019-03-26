@@ -22,7 +22,7 @@ prop0 xs = filter (evalQ (Qry Eq Fst (Const 5))) xs
             -> L {v:Row | rowLeft v == 5} @-}
 mapCast :: (Row -> Proof) -> L Row -> L Row
 mapCast _ N = N
-mapCast p (C x xs) = cast (p x) x `C` mapCast p xs
+mapCast p (C x xs) = (x `withProof` (p x)) `C` mapCast p xs
 
 
 
@@ -30,9 +30,9 @@ evalQProp :: Row -> Proof
 {-@ evalQProp :: x:Row -> {evalQ (Qry Eq Fst (Const 5)) x <=> rowLeft x == 5} @-}
 evalQProp (Row l r)
   =   evalQ (Qry Eq Fst (Const 5)) (Row l r)
-  ==. evalC Eq (evalV Fst (Row l r)) (evalV (Const 5) (Row l r))
-  ==. evalC Eq l 5
-  ==. l == 5
+  === evalC Eq (evalV Fst (Row l r)) (evalV (Const 5) (Row l r))
+  === evalC Eq l 5
+  === l == 5
   *** QED
 
 

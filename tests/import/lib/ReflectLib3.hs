@@ -1,5 +1,5 @@
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-} 
 
 module ReflectLib3 where
 

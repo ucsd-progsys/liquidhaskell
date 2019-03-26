@@ -1,5 +1,5 @@
 {-@ LIQUID "--exact-data-cons"   @-}
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 module Foo where
 import Prelude hiding (Maybe (..))
 

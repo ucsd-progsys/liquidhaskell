@@ -8,7 +8,7 @@
 module Fulcrum where 
 
 import Prelude hiding ((++), unzip, take, drop, abs, sum, minimum, min)
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 fv       :: [Int] -> Int -> Int 
 fulcrum  :: [Int] -> (Int, Int -> ())
@@ -133,10 +133,13 @@ thmSplitAppend xs     0 = ()
 thmSplitAppend []     i = () 
 thmSplitAppend (x:xs) i = thmSplitAppend xs (i - 1)
 
+-- type SuffixAt a I Xs = {v:[a] | v = drop I Xs && len v > 0} 
+
 {-@ thmDrop :: xs:[a] -> i:Nat -> ys:SuffixAt _ i xs -> { drop (i+1) xs == tail ys } @-}
 thmDrop (x:xs) 0 ys = () 
-thmDrop []     i ys = thmSuffixAt [] i ys 
-thmDrop (x:xs) i ys = thmDrop xs (i-1) ys
+thmDrop _      _ _  = undefined
+-- thmDrop []     i ys = thmSuffixAt [] i ys 
+-- thmDrop (x:xs) i ys = thmDrop xs (i-1) ys
 
 {-@ thmTake :: xs:[a] -> i:Nat -> ys:SuffixAt _ i xs -> { take (i+1) xs == (take i xs ++ [head ys]) } @-}
 thmTake (x:xs) 0 ys = () 

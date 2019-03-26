@@ -97,6 +97,9 @@ gentze3 f notexistsfx y fy =
     notexistsfx (y, fy)
 
 
+data POr  a b = POrLeft a | POrRight b 
+data PAnd a b = PAnd a b 
+
 
 
 

@@ -49,7 +49,7 @@ simplify the overhead of proof.
 module RangeSet where
 
 import           Prelude hiding (min, max)
-import           Language.Haskell.Liquid.NewProofCombinators
+import           Language.Haskell.Liquid.ProofCombinators
 \end{code}
 </div>
 
@@ -576,9 +576,9 @@ lem_union :: Int -> Int -> Int -> Int -> ()
 
 [splicing-1]:        https://ucsd-progsys.github.io/liquidhaskell-blog/2017/12/15/splitting-and-splicing-intervals-I.lhs/
 [lh-termination]:    https://github.com/ucsd-progsys/liquidhaskell/blob/develop/README.md#explicit-termination-metrics
-[lh-qed]:            https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L65-L69
-[lh-imp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L87-L96
-[lh-exp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/NewProofCombinators.hs#L98-L116
+[lh-qed]:            https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/ProofCombinators.hs#L65-L69
+[lh-imp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/ProofCombinators.hs#L87-L96
+[lh-exp-eq]:         https://github.com/ucsd-progsys/liquidhaskell/blob/develop/include/Language/Haskell/Liquid/ProofCombinators.hs#L98-L116
 [bird-algebra]:      http://themattchan.com/docs/algprog.pdf
 [demo]:              http://goto.ucsd.edu:8090/index.html#?demo=RangeSet.hs
 [intersect-good]:    https://github.com/antalsz/hs-to-coq/blob/8f84d61093b7be36190142c795d6cd4496ef5aed/examples/intervals/Proofs.v#L370-L439

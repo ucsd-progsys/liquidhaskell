@@ -4,7 +4,7 @@
 {-@ LIQUID "--normalform"       @-} 
 
 module NormalForm where
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 {-
 

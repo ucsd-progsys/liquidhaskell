@@ -3,7 +3,7 @@
 module FunctorList where
 
 import Prelude hiding (fmap, id)
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 -- | Functor Laws :
 -- | fmap-id fmap id ≡ id
@@ -38,7 +38,8 @@ fmap_id (C x xs)
   = toProof $
       fmap id (C x xs) === C (id x) (fmap id xs)
                        === C x (fmap id xs)
-                       ==? C x (id xs)            ? fmap_id xs
+                         ? fmap_id xs
+                       === C x (id xs)            
                        === C x xs
                        === id (C x xs)
 
@@ -68,7 +69,8 @@ fmap_distrib f g (C x xs)
   = toProof $
       fmap (compose f g) (C x xs)
        === C ((compose f g) x) (fmap (compose f g) xs)
-       ==? C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) ? fmap_distrib f g xs
+         ? fmap_distrib f g xs
+       === C ((compose f g) x) ((compose (fmap f) (fmap g)) xs) 
        === C ((compose f g) x) (fmap f (fmap g xs))
        === C (f (g x)) (fmap f (fmap g xs))
        === fmap f (C (g x) (fmap g xs))

@@ -6,7 +6,7 @@
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--totality"                            @-}
 
-{- LIQUID "--automatic-instances=liquidinstances" @-}
+{- LIQUID "--ple" @-}
 
 module SearchTree where
 

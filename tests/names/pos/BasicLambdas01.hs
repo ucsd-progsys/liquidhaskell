@@ -4,7 +4,7 @@ module Append where
 
 import Prelude hiding (id)
 
-import Language.Haskell.Liquid.NewProofCombinators 
+import Language.Haskell.Liquid.ProofCombinators 
 
 
 {-@ axiomatize id @-}

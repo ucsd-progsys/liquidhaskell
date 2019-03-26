@@ -125,13 +125,13 @@ type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
 -------------------------------------------------------------------------------
 -- REBARE: used to be output of makeGhcSpecCHOP2
 data MeasEnv = MeasEnv 
-  { meMeasureSpec :: !(MSpec SpecType Ghc.DataCon)          -- measures
-  , meClassSyms   :: ![(F.Symbol, Located (RRType F.Reft))] -- cms' 
-  , meSyms        :: ![(F.Symbol, Located (RRType F.Reft))] -- ms' 
-  , meDataCons    :: ![(Ghc.Var,  LocSpecType)]             -- cs'
-                                                            -- xs' :: [Symbol] = fst <$> meSyms
-  , meClasses     :: ![DataConP]                            -- cls 
-  , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]     -- mts 
+  { meMeasureSpec :: !(MSpec SpecType Ghc.DataCon)          
+  , meClassSyms   :: ![(F.Symbol, Located (RRType F.Reft))] 
+  , meSyms        :: ![(F.Symbol, Located (RRType F.Reft))]
+  , meDataCons    :: ![(Ghc.Var,  LocSpecType)]           
+  , meClasses     :: ![DataConP]                           
+  , meMethods     :: ![(ModName, Ghc.Var, LocSpecType)]  
+  , meCLaws       :: !([(Ghc.Class, [(ModName, Ghc.Var, LocSpecType)])])  
   }
 
 -------------------------------------------------------------------------------

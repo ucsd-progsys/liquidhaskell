@@ -3,7 +3,7 @@
 
 module Bug where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 data U1 p = U1
 data M1 i c f p = M1 { unM1 :: f p }

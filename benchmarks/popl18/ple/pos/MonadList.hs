@@ -6,7 +6,7 @@ module MonadList where
 
 import Prelude hiding (return, (>>=))
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 
 
 -- | Monad Laws :

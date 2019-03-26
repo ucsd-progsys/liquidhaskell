@@ -1,5 +1,5 @@
 
-{-@ LIQUID "--automatic-instances=liquidinstances" @-}
+{-@ LIQUID "--ple" @-}
 
 import InfixLib 
 

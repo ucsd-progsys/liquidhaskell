@@ -3,8 +3,7 @@
 {-# LANGUAGE TupleSections     #-}
 
 module Language.Haskell.Liquid.Bare.DataType
-  ( 
-    dataConMap
+  ( dataConMap
 
   -- * Names for accessing Data Constuctors 
   , makeDataConChecker
@@ -33,7 +32,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.Maybe                             as Mb 
 
-import qualified Language.Fixpoint.Types.Visitor        as V
+-- import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
@@ -332,18 +331,19 @@ fieldName d dp x
 
 makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, SpecType)]
                -> [F.DataField]
-makeDataFields tce c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
+makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
     su                      = zip (F.symbol <$> as) [0..]
-    fSort                   = muSort c (length as) . F.substVars su . RT.rTypeSort tce
+    fSort                   = {- muSort c (length as) . -}  F.substVars su . RT.rTypeSort tce
 
+{- 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
 muSort c n  = V.mapSort tx
   where
     ct      = F.fTyconSort c
     me      = F.fTyconSelfSort c n
     tx t    = if t == me then ct else t
-
+-}
 
 
 

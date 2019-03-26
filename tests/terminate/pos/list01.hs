@@ -8,3 +8,10 @@ revL                = go N
     go acc N        = acc
     go acc (C x xs) = go (C x acc) xs
 
+mapLFlipped N f = N
+mapLFlipped (C x xs) f = C (f x) (mapLFlipped xs f)
+
+revLFlipped x = go x N
+  where
+    go N acc = acc
+    go (C x xs) acc = go xs (C x acc)

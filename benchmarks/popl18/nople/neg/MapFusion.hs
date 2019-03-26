@@ -2,7 +2,7 @@
 
 module MapFusion where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 import Prelude hiding (map)
 
 
@@ -37,8 +37,10 @@ map_fusion f g (C x xs)
   = toProof $
       map (compose f g) (C x xs)
        === C ((compose f g) x) (map (compose f g) xs)
-       ==? C ((compose f g) x) ((compose (map f) (map g)) xs) ? map_fusion_0 f g xs
-       ==? C ((compose f g) x) ((compose (map f) (map g)) xs) ? map_fusion f g xs
+         ? map_fusion_0 f g xs
+       === C ((compose f g) x) ((compose (map f) (map g)) xs)
+         ? map_fusion f g xs
+       === C ((compose f g) x) ((compose (map f) (map g)) xs) 
        === C ((compose f g) x) (map f (map g xs))
        === C (f (g x)) (map f (map g xs))
        === map f (C (g x) (map g xs))

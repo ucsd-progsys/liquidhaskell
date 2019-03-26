@@ -111,6 +111,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow function extentionality axioms"
 
+ , smtTimeout 
+    = def
+          &= help "Timeout of smt queries in msec"    
+      
  , alphaEquivalence
     = def
           &= help "Allow lambda alpha-equivalence axioms"
@@ -321,15 +325,21 @@ config = cmdArgsMode $ Config {
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
 
-  , autoInstantiate
-    = def
-          &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
-          &= name "automatic-instances"
+  -- PLE-OPT , autoInstantiate
+    -- PLE-OPT = def
+          -- PLE-OPT &= help "How to instantiate axiomatized functions `smtinstances` for SMT instantiation, `liquidinstances` for terminating instantiation"
+          -- PLE-OPT &= name "automatic-instances"
 
   , proofLogicEval
     = def  
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
+
+  , proofLogicEvalLocal
+    = def  
+        &= help "Enable Proof-by-Logical-Evaluation locally, per function"
+        &= name "ple-local"
+
 
   , reflection 
     = def 
@@ -438,7 +448,7 @@ copyright = concat $ concat
   , [$(simpleVersion Meta.version)]
   -- , [" (" ++ _commitCount ++ " commits)" | _commitCount /= ("1"::String) &&
   --                                          _commitCount /= ("UNKNOWN" :: String)]
-  , ["\nCopyright 2013-18 Regents of the University of California. All Rights Reserved.\n"]
+  , ["\nCopyright 2013-19 Regents of the University of California. All Rights Reserved.\n"]
   ]
   where
     _commitCount = $gitCommitCount
@@ -498,6 +508,7 @@ defConfig = Config
   , stringTheory      = def
   , higherorder       = def
   , extensionality    = def
+  , smtTimeout        = def 
   , alphaEquivalence  = def
   , betaEquivalence   = def
   , normalForm        = def
@@ -545,10 +556,11 @@ defConfig = Config
   , eliminate         = FC.Some
   , noPatternInline   = False
   , noSimplifyCore    = False
-  , autoInstantiate   = def
+  -- PLE-OPT , autoInstantiate   = def
   , noslice           = False
   , noLiftedImport    = False
   , proofLogicEval    = False
+  , proofLogicEvalLocal = False
   , reflection        = False
   , compileSpec       = False
   }

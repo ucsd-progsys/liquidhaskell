@@ -164,7 +164,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Modules and Imports
   , ModName (..), ModType (..)
-  , isSrcImport, isSpecImport
+  , isSrcImport, isSpecImport, isTarget
   , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
@@ -181,6 +181,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Measures
   , Measure (..)
+  , UnSortedExprs, UnSortedExpr
   , MeasureKind (..)
   , CMeasure (..)
   , Def (..)
@@ -210,7 +211,7 @@ module Language.Haskell.Liquid.Types.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..), RISig(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -1030,6 +1031,14 @@ data RInstance t = RI
   , risigs  :: [(F.LocSymbol, RISig t)]
   } deriving (Generic, Functor, Data, Typeable, Show)
 
+data RILaws ty = RIL
+  { rilName    :: BTyCon
+  , rilSupers  :: [ty]
+  , rilTyArgs  :: [ty]
+  , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
+  , rilPos     :: F.Located ()
+  } deriving (Show, Functor, Data, Typeable, Generic)
+
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)
 
@@ -1043,8 +1052,10 @@ ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintT
 instance F.PPrint t => F.PPrint (RInstance t) where
   pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts 
 
+  
 instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
+instance (B.Binary t) => B.Binary (RILaws t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
@@ -1919,6 +1930,11 @@ instance F.Symbolic ModName where
 instance F.Symbolic ModuleName where
   symbol = F.symbol . moduleNameFS
 
+
+isTarget :: ModName -> Bool 
+isTarget (ModName Target _) = True 
+isTarget _                  = False 
+
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True
 isSrcImport _                     = False
@@ -1986,7 +2002,11 @@ data Measure ty ctor = M
   , msSort :: ty
   , msEqns :: [Def ty ctor]
   , msKind :: !MeasureKind 
+  , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
   } deriving (Data, Typeable, Generic, Functor)
+
+type UnSortedExprs = [UnSortedExpr] -- mempty = []
+type UnSortedExpr  = ([F.Symbol], F.Expr)
 
 data MeasureKind 
   = MsReflect     -- ^ due to `reflect foo` 
@@ -2009,8 +2029,8 @@ instance Bifunctor Def where
 
 
 instance Bifunctor Measure where
-  first f (M n s es k)  = M n (f s) (first f <$> es) k
-  second f (M n s es k) = M n s (second f <$> es) k
+  first  f (M n s es k u) = M n (f s) (first f <$> es) k u
+  second f (M n s es k u) = M n s (second f <$> es)    k u 
 
 instance                             B.Binary MeasureKind 
 instance                             B.Binary Body
@@ -2039,8 +2059,8 @@ instance F.PPrint a => F.PPrint (Def t a) where
       cbsd = parens (F.pprintTidy k c <-> hsep (F.pprintTidy k `fmap` (fst <$> bs)))
 
 instance (F.PPrint t, F.PPrint a) => F.PPrint (Measure t a) where
-  pprintTidy k (M n s eqs _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
-                                $$ vcat (F.pprintTidy k `fmap` eqs)
+  pprintTidy k (M n s eqs _ _) =  F.pprintTidy k n <+> {- parens (pprintTidy k (loc n)) <+> -} "::" <+> F.pprintTidy k s
+                                  $$ vcat (F.pprintTidy k `fmap` eqs)
 
 
 instance F.PPrint (Measure t a) => Show (Measure t a) where
@@ -2107,6 +2127,26 @@ instance F.PPrint t => F.PPrint (RClass t) where
       supers [] = "" 
       supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
+
+
+instance F.PPrint t => F.PPrint (RILaws t) where
+  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
+   where 
+    supers [] = "" 
+    supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+    tuplify   = parens . hcat . punctuate ", "
+
+
+ppEqs :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
+          => F.Tidy -> Doc -> n -> [a] -> [(x, t)] -> Doc
+ppEqs k hdr name args mts 
+  = vcat $ hdr <+> dName <+> "where" 
+         : [ nest 4 (bind m t) | (m, t) <- mts ] 
+    where 
+      dName    = parens  (F.pprintTidy k name <+> dArgs)
+      dArgs    = gaps    (F.pprintTidy k      <$> args)
+      gaps     = hcat . punctuate " "
+      bind m t = F.pprintTidy k m <+> "=" <+> F.pprintTidy k t 
 
 ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
           => F.Tidy -> Doc -> n -> [a] -> [(x, RISig t)] -> Doc

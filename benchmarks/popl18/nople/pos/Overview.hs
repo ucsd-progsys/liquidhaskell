@@ -2,7 +2,7 @@
 
 module FunctionAbstraction where
 
-import Language.Haskell.Liquid.NewProofCombinators
+import Language.Haskell.Liquid.ProofCombinators
 import Helper
 
 fib :: Int -> Int
@@ -46,7 +46,8 @@ safe () =
 {-@ safe' :: () ->  { fib 3 == 2 } @-}
 safe' () 
   =   fib 3 
-  ==? fib 2 + fib 1 ? safe ()
+    ? safe ()
+  === fib 2 + fib 1 
   === 2
   *** QED
 
@@ -71,9 +72,9 @@ fib_incr n
    | otherwise
    = fib n
    === fib (n-1) + fib (n-2)
-   =<=? fib n     + fib (n-2)
-           ? fib_incr (n-1)
-   =<=? fib n     + fib (n-1)
-           ? fib_incr (n-2)
-   =<=? fib (n+1)
+     ? fib_incr (n-1)
+   =<= fib n     + fib (n-2)
+     ? fib_incr (n-2)
+   =<= fib n     + fib (n-1)
+   =<= fib (n+1)
    *** QED

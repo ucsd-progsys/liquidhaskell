@@ -77,11 +77,12 @@ import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
-import           Language.Fixpoint.Misc                     (safeHead, safeLast, safeInit)
+import           Language.Fixpoint.Misc                     (safeHead) -- , safeLast, safeInit)
 import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
-import           Language.Haskell.Liquid.Desugar.HscMain
+-- import           Language.Haskell.Liquid.Desugar.HscMain
+import           HscMain
 import           Id                                         (isExportedId, idOccInfo, setIdInfo)
 
 
@@ -486,14 +487,18 @@ lookupRdrName hsc_env mod_name rdr_name = do
         throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
-qualImportDecl :: ModuleName -> ImportDecl name
-qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
+-- qualImportDecl :: ModuleName -> ImportDecl name
+-- qualImportDecl mn = (simpleImportDecl mn) { ideclQualified = True }
 
 ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
-  where go  x = x {hsmodDecls = filter go' $ hsmodDecls x}
-        go' x | SigD (InlineSig _ _) <-  unLoc x = False
-              | otherwise                        = True
+  where 
+    go :: HsModule GhcPs -> HsModule GhcPs
+    go  x      = x {hsmodDecls = filter go' (hsmodDecls x) }
+    go' :: LHsDecl GhcPs -> Bool
+    go' x 
+      | SigD _ (InlineSig {}) <-  unLoc x = False
+      | otherwise                         = True
 
 --------------------------------------------------------------------------------
 -- | Symbol Conversions --------------------------------------------------------
@@ -630,9 +635,12 @@ dropModuleNamesAndUnique :: Symbol -> Symbol
 dropModuleNamesAndUnique = dropModuleUnique . dropModuleNames
 
 dropModuleNames  :: Symbol -> Symbol
+dropModuleNames = dropModuleNamesCorrect 
+{- 
 dropModuleNames = mungeNames lastName sepModNames "dropModuleNames: "
  where
    lastName msg = symbol . safeLast msg
+-}
 
 dropModuleNamesCorrect  :: Symbol -> Symbol
 dropModuleNamesCorrect = F.symbol . go . F.symbolText
@@ -644,15 +652,24 @@ dropModuleNamesCorrect = F.symbol . go . F.symbolText
              Nothing -> s
 
 takeModuleNames  :: Symbol -> Symbol
-takeModuleNames  = mungeNames initName sepModNames "takeModuleNames: "
+takeModuleNames  = F.symbol . go [] . F.symbolText
+  where
+    go acc s = case T.uncons s of
+                Just (c,tl) -> if isUpper c && T.any (== '.') tl
+                                 then go (getModule s:acc) $ snd $ fromJust $ T.uncons $ T.dropWhile (/= '.') s
+                                 else T.intercalate "." (reverse acc) 
+                Nothing -> T.intercalate "." (reverse acc) 
+    getModule s = T.takeWhile (/= '.') s
+
+{- 
+takeModuleNamesOld  = mungeNames initName sepModNames "takeModuleNames: "
   where
     initName msg = symbol . T.intercalate "." . safeInit msg
-
+-}
 dropModuleUnique :: Symbol -> Symbol
 dropModuleUnique = mungeNames headName sepUnique   "dropModuleUnique: "
   where
     headName msg = symbol . safeHead msg
-
 
 cmpSymbol :: Symbol -> Symbol -> Bool
 cmpSymbol coreSym logicSym
@@ -717,7 +734,7 @@ desugarModule tcm = do
   let (tcg, _) = tm_internals_ tcm
   hsc_env <- getSession
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  guts <- liftIO $ hscDesugarWithLoc hsc_env_tmp ms tcg
+  guts <- liftIO $ hscDesugar{- WithLoc -} hsc_env_tmp ms tcg
   return DesugaredModule { dm_typechecked_module = tcm, dm_core_module = guts }
 
 --------------------------------------------------------------------------------
@@ -729,8 +746,6 @@ gHC_VERSION = show __GLASGOW_HASKELL__
 
 symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
-
-type Prec = TyPrec
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
 lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing

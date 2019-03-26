@@ -1,6 +1,6 @@
 {-@ LIQUID "--exactdc" @-}
 {-@ LIQUID "--higherorder" @-}
-{-@ LIQUID "--automatic-instances=liquidinstanceslocal" @-}
+{-@ LIQUID "--ple-local" @-}
 {-@ infix   ++ @-}
 
 module Reverse where
