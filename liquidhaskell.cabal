@@ -315,6 +315,7 @@ test-suite test
                ,     liquid-fixpoint >= 0.8.0.0
                ,     hpc >= 0.6
                ,     text
+  other-modules:     Paths_liquidhaskell
 
 test-suite liquidhaskell-parser
   default-language: Haskell2010
