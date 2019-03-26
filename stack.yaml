@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-resolver: lts-12.15
-=======
 resolver: lts-13.11
->>>>>>> orig/develop
 
 packages:
 - '.'
