@@ -3,7 +3,6 @@
 
 packages: .
           ./liquid-fixpoint
-          ./text-format
 
 package liquid-fixpoint
   flags: devel
@@ -11,4 +10,4 @@ package liquid-fixpoint
 package liquidhaskell
   flags: devel
 
-with-compiler: ghc-8.4.3
+with-compiler: ghc-8.6.4

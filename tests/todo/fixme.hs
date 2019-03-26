@@ -1,4 +1,4 @@
-module Foo where
+{-@ LIQUID "--reflection" @-}
 
 
 {-@ r :: {v:Float | v > 0} @-}

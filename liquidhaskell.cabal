@@ -1,6 +1,6 @@
 Name:                liquidhaskell
-Version:             0.8.4.0
-Copyright:           2010-18 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+Version:             0.8.6.0
+Copyright:           2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
 Synopsis:            Liquid Types for Haskell
 Description:         Liquid Types for Haskell.
 Homepage:            https://github.com/ucsd-progsys/liquidhaskell
@@ -109,8 +109,8 @@ Executable liquid
 Library
    Default-Language: Haskell98
    Build-Depends: base >=4.11.1.0 && <5
-                , ghc == 8.4.3
-                , ghc-boot == 8.4.3
+                , ghc 
+                , ghc-boot 
                 , template-haskell >= 2.9
                 , time >= 1.4
                 , array >= 0.5
@@ -136,7 +136,7 @@ Library
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.8.0.0
                 , located-base
-                , aeson >= 1.2 && < 1.4
+                , aeson 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
                 , Cabal >= 1.18
@@ -218,29 +218,28 @@ Library
                     Language.Haskell.Liquid.WiredIn,
                     Language.Haskell.Liquid.Types.Names,
                     Language.Haskell.Liquid.Liquid,
-                    Language.Haskell.Liquid.Desugar.HscMain,
-                    Language.Haskell.Liquid.LawInstances,
-
-                    -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
-                    Language.Haskell.Liquid.Desugar.Check,
-                    Language.Haskell.Liquid.Desugar.Coverage,
-                    Language.Haskell.Liquid.Desugar.Desugar,
-                    Language.Haskell.Liquid.Desugar.DsArrows,
-                    Language.Haskell.Liquid.Desugar.DsBinds,
-                    Language.Haskell.Liquid.Desugar.DsCCall,
-                    Language.Haskell.Liquid.Desugar.DsExpr,
-                    Language.Haskell.Liquid.Desugar.DsForeign,
-                    Language.Haskell.Liquid.Desugar.DsGRHSs,
-                    Language.Haskell.Liquid.Desugar.DsListComp,
-                    Language.Haskell.Liquid.Desugar.DsMeta,
-                    Language.Haskell.Liquid.Desugar.DsUtils,
-                    Language.Haskell.Liquid.Desugar.Match,
-                    Language.Haskell.Liquid.Desugar.MatchCon,
-                    Language.Haskell.Liquid.Desugar.MatchLit,
-                    Language.Haskell.Liquid.Desugar.DsMonad,
-                    Language.Haskell.Liquid.Desugar.StaticPtrTable,
-                    Language.Haskell.Liquid.Desugar.TmOracle,
                     Paths_liquidhaskell,
+                    -- Language.Haskell.Liquid.Desugar.HscMain,
+                    Language.Haskell.Liquid.LawInstances,
+                    -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
+                    -- Language.Haskell.Liquid.Desugar.Check,
+                    -- Language.Haskell.Liquid.Desugar.Coverage,
+                    -- Language.Haskell.Liquid.Desugar.Desugar,
+                    -- Language.Haskell.Liquid.Desugar.DsArrows,
+                    -- Language.Haskell.Liquid.Desugar.DsBinds,
+                    -- Language.Haskell.Liquid.Desugar.DsCCall,
+                    -- Language.Haskell.Liquid.Desugar.DsExpr,
+                    -- Language.Haskell.Liquid.Desugar.DsForeign,
+                    -- Language.Haskell.Liquid.Desugar.DsGRHSs,
+                    -- Language.Haskell.Liquid.Desugar.DsListComp,
+                    -- Language.Haskell.Liquid.Desugar.DsMeta,
+                    -- Language.Haskell.Liquid.Desugar.DsUtils,
+                    -- Language.Haskell.Liquid.Desugar.Match,
+                    -- Language.Haskell.Liquid.Desugar.MatchCon,
+                    -- Language.Haskell.Liquid.Desugar.MatchLit,
+                    -- Language.Haskell.Liquid.Desugar.DsMonad,
+                    -- Language.Haskell.Liquid.Desugar.StaticPtrTable,
+                    -- Language.Haskell.Liquid.Desugar.TmOracle,
 
                     -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
                     Language.Haskell.Liquid.Bare.Types,
@@ -316,6 +315,7 @@ test-suite test
                ,     liquid-fixpoint >= 0.8.0.0
                ,     hpc >= 0.6
                ,     text
+  other-modules:     Paths_liquidhaskell
 
 test-suite liquidhaskell-parser
   default-language: Haskell2010
@@ -375,28 +375,29 @@ test-suite liquidhaskell-parser
                  , bytestring
                  -- , liquidhaskell
   
-  other-modules:   Language.Haskell.Liquid.Bare.DataType
+  other-modules:   Paths_liquidhaskell
+                 , Language.Haskell.Liquid.Bare.DataType
                  , Language.Haskell.Liquid.Bare.Misc
                  , Language.Haskell.Liquid.Bare.Resolve
                  , Language.Haskell.Liquid.Bare.Types
-                 , Language.Haskell.Liquid.Desugar.Check
-                 , Language.Haskell.Liquid.Desugar.Coverage
-                 , Language.Haskell.Liquid.Desugar.Desugar
-                 , Language.Haskell.Liquid.Desugar.DsArrows
-                 , Language.Haskell.Liquid.Desugar.DsBinds
-                 , Language.Haskell.Liquid.Desugar.DsCCall
-                 , Language.Haskell.Liquid.Desugar.DsExpr
-                 , Language.Haskell.Liquid.Desugar.DsForeign
-                 , Language.Haskell.Liquid.Desugar.DsGRHSs
-                 , Language.Haskell.Liquid.Desugar.DsListComp
-                 , Language.Haskell.Liquid.Desugar.DsMeta
-                 , Language.Haskell.Liquid.Desugar.DsMonad
-                 , Language.Haskell.Liquid.Desugar.DsUtils
-                 , Language.Haskell.Liquid.Desugar.HscMain
-                 , Language.Haskell.Liquid.Desugar.Match
-                 , Language.Haskell.Liquid.Desugar.MatchCon
-                 , Language.Haskell.Liquid.Desugar.MatchLit
-                 , Language.Haskell.Liquid.Desugar.TmOracle
+                 -- , Language.Haskell.Liquid.Desugar.Check
+                 -- , Language.Haskell.Liquid.Desugar.Coverage
+                 -- , Language.Haskell.Liquid.Desugar.Desugar
+                 -- , Language.Haskell.Liquid.Desugar.DsArrows
+                 -- , Language.Haskell.Liquid.Desugar.DsBinds
+                 -- , Language.Haskell.Liquid.Desugar.DsCCall
+                 -- , Language.Haskell.Liquid.Desugar.DsExpr
+                 -- , Language.Haskell.Liquid.Desugar.DsForeign
+                 -- , Language.Haskell.Liquid.Desugar.DsGRHSs
+                 -- , Language.Haskell.Liquid.Desugar.DsListComp
+                 -- , Language.Haskell.Liquid.Desugar.DsMeta
+                 -- , Language.Haskell.Liquid.Desugar.DsMonad
+                 -- , Language.Haskell.Liquid.Desugar.DsUtils
+                 -- , Language.Haskell.Liquid.Desugar.HscMain
+                 -- , Language.Haskell.Liquid.Desugar.Match
+                 -- , Language.Haskell.Liquid.Desugar.MatchCon
+                 -- , Language.Haskell.Liquid.Desugar.MatchLit
+                 -- , Language.Haskell.Liquid.Desugar.TmOracle
                  , Language.Haskell.Liquid.GHC.API
                  , Language.Haskell.Liquid.GHC.Misc
                  , Language.Haskell.Liquid.GHC.Play
@@ -424,3 +425,4 @@ test-suite liquidhaskell-parser
                  , Language.Haskell.Liquid.UX.Config
                  , Language.Haskell.Liquid.UX.Tidy
                  , Language.Haskell.Liquid.WiredIn
+                 , Paths_liquidhaskell 

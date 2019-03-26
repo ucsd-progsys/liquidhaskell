@@ -199,36 +199,41 @@ type FreshM m = Freshable m Integer
 --------------------------------------------------------------------------------
 refreshVV :: FreshM m => SpecType -> m SpecType
 --------------------------------------------------------------------------------
-refreshVV (RAllT a t) = RAllT a <$> refreshVV t
-refreshVV (RAllP p t) = RAllP p <$> refreshVV t
+refreshVV (RAllT a t) = 
+  RAllT a <$> refreshVV t
 
-refreshVV (REx x t1 t2)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       shiftVV (REx x t1' t2') <$> fresh
+refreshVV (RAllP p t) = 
+  RAllP p <$> refreshVV t
 
-refreshVV (RImpF x t1 t2 r)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       shiftVV (RImpF x t1' t2' r) <$> fresh
+refreshVV (REx x t1 t2) = do 
+  t1' <- refreshVV t1
+  t2' <- refreshVV t2
+  shiftVV (REx x t1' t2') <$> fresh
 
-refreshVV (RFun x t1 t2 r)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       shiftVV (RFun x t1' t2' r) <$> fresh
+refreshVV (RImpF x t1 t2 r) = do
+  t1' <- refreshVV t1
+  t2' <- refreshVV t2
+  shiftVV (RImpF x t1' t2' r) <$> fresh
 
-refreshVV (RAppTy t1 t2 r)
-  = do [t1', t2'] <- mapM refreshVV [t1, t2]
-       shiftVV (RAppTy t1' t2' r) <$> fresh
+refreshVV (RFun x t1 t2 r) = do
+  t1' <- refreshVV t1
+  t2' <- refreshVV t2
+  shiftVV (RFun x t1' t2' r) <$> fresh
 
-refreshVV (RApp c ts rs r)
-  = do ts' <- mapM refreshVV ts
-       rs' <- mapM refreshVVRef rs
-       shiftVV (RApp c ts' rs' r) <$> fresh
+refreshVV (RAppTy t1 t2 r) = do 
+  t1' <- refreshVV t1
+  t2' <- refreshVV t2
+  shiftVV (RAppTy t1' t2' r) <$> fresh
 
-refreshVV t
-  = shiftVV t <$> fresh
+refreshVV (RApp c ts rs r) = do 
+  ts' <- mapM refreshVV    ts
+  rs' <- mapM refreshVVRef rs
+  shiftVV (RApp c ts' rs' r) <$> fresh
 
-refreshVVRef :: Freshable m Integer
-             => Ref b (RType RTyCon RTyVar RReft)
-             -> m (Ref b (RType RTyCon RTyVar RReft))
+refreshVV t = 
+  shiftVV t <$> fresh
+
+refreshVVRef :: Freshable m Integer => Ref b SpecType -> m (Ref b SpecType)
 refreshVVRef (RProp ss (RHole r))
   = return $ RProp ss (RHole r)
 

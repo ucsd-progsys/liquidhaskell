@@ -145,7 +145,7 @@ fromAliasSymbol :: AliasTable x t -> F.Symbol -> Located (RTAlias x t)
 fromAliasSymbol table sym
   = fromMaybe err (M.lookup sym table)
   where
-    err = panic Nothing $ "fromAliasSymbol: Dangling alias symbol: " ++ show sym
+    err = panic Nothing ("fromAliasSymbol: Dangling alias symbol: " ++ show sym)
 
 type Graph t = [Node t]
 type Node  t = (t, t, [t])
@@ -805,11 +805,15 @@ expToBindRef (MkUReft r (Pr p) l)
   = mapM expToBind p >>= return . (\p -> MkUReft r p l). Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
-expToBind p
-  = do Just π <- liftM (M.lookup (pname p)) (pmap <$> get)
-       let pargs0 = zip (pargs p) (Misc.fst3 <$> pargs π)
-       pargs' <- mapM expToBindParg pargs0
-       return $ p{pargs = pargs'}
+expToBind p = do 
+  res <- liftM (M.lookup (pname p)) (pmap <$> get)
+  case res of 
+    Nothing -> 
+      panic Nothing ("expToBind: " ++ show p) 
+    Just π  -> do
+      let pargs0 = zip (pargs p) (Misc.fst3 <$> pargs π)
+      pargs' <- mapM expToBindParg pargs0
+      return $ p { pargs = pargs' }
 
 expToBindParg :: (((), F.Symbol, F.Expr), RSort) -> State ExSt ((), F.Symbol, F.Expr)
 expToBindParg ((t, s, e), s') = liftM ((,,) t s) (expToBindExpr e s')
