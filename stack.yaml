@@ -2,6 +2,7 @@ resolver: lts-13.10
 
 packages:
 - '.'
+- 'liquid-fixpoint'
 
 extra-deps:
 - csv-table-0.1.0.1
