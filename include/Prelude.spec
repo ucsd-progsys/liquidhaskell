@@ -29,6 +29,7 @@ assume GHC.Num.+ :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 assume GHC.Num.- :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
 
 embed GHC.Types.Double  as real
+embed GHC.Types.Float   as real
 embed Integer           as int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
