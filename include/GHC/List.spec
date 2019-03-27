@@ -35,7 +35,7 @@ drop :: n:GHC.Types.Int
      -> xs:[a]
      -> {v:[a] | (if (n >= 0) then (len(v) = (if (len(xs) < n) then 0 else len(xs) - n)) else ((len v) = (len xs)))}
 
-splitAt :: n:_ -> x:[a] -> ({v:[a] | (if (n >= 0) then (Min (len v) (len x) n) else ((len v) = 0))},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}>
+splitAt :: n:_ -> x:[a] -> ({v:[a] | (if (n >= 0) then (if (len x) < n then (len v) = (len x) else (len v) = n) else ((len v) = 0))},[a])<{\x1 x2 -> (len x2) = (len x) - (len x1)}>
 span    :: (a -> GHC.Types.Bool) 
         -> xs:[a] 
         -> ({v:[a]|((len v)<=(len xs))}, {v:[a]|((len v)<=(len xs))})
