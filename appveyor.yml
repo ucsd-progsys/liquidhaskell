@@ -1,9 +1,3 @@
-clone_folder: "c:\\lh"
-environment:
-  global:
-    STACK_ROOT: "c:\\sr"
-    TMP: "c:\\tmp"
-
 init:
 - git --version
   
