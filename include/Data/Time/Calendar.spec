@@ -8,4 +8,4 @@ fromGregorian :: Integer -> NumericMonth -> NumericDayOfMonth -> Day
 
 toGregorian :: Day -> (Integer,NumericMonth,NumericDayOfMonth)
 
-gregorianMonthLength :: Integer -> Int -> { x:Nat | 28 <= x && x <= 31 }
+gregorianMonthLength :: Integer -> NumericMonth -> { x:Nat | 28 <= x && x <= 31 }
