@@ -1,315 +1,270 @@
-Name:                liquidhaskell
-Version:             0.8.6.0
-Copyright:           2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
-Synopsis:            Liquid Types for Haskell
-Description:         Liquid Types for Haskell.
-Homepage:            https://github.com/ucsd-progsys/liquidhaskell
-License:             BSD3
-License-file:        LICENSE
-Author:              Ranjit Jhala, Niki Vazou, Eric Seidel
-Maintainer:          Ranjit Jhala <jhala@cs.ucsd.edu>
-Category:            Language
-Build-Type:          Simple
-Cabal-version:       >=1.22
-
-
-data-files: include/*.hquals
-          , include/*.hs
-          , include/*.spec
-          , include/CoreToLogic.lg
-          , include/Control/*.spec
-          , include/Control/Parallel/*.spec
-          , include/Data/*.hquals
-          , include/Data/*.spec
-          , include/Data/Text/*.spec
-          , include/Data/Text/Fusion/*.spec
-          , include/Data/Text/Lazy/*.spec
-          , include/Data/ByteString/*.spec
-          , include/Foreign/*.spec
-          , include/Foreign/C/*.spec
-          , include/Foreign/Marshal/*.spec
-          , include/GHC/*.hquals
-          , include/GHC/*.spec
-          , include/GHC/IO/*.spec
-          , include/Language/Haskell/Liquid/*.hs
-          , include/Language/Haskell/Liquid/*.pred
-          , include/System/*.spec
-          , include/710/Data/*.spec
-          , syntax/liquid.css
-
+name:               liquidhaskell
+version:            0.8.6.0
+synopsis:           Liquid Types for Haskell
+description:        Liquid Types for Haskell.
+license:            BSD3
+license-file:       LICENSE
+copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+author:             Ranjit Jhala, Niki Vazou, Eric Seidel
+maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
+category:           Language
+homepage:           https://github.com/ucsd-progsys/liquidhaskell
+build-type:         Simple
 extra-source-files: CHANGES.md
-                  , README.md
-                  , devel/Paths_liquidhaskell.hs
-                  , tests/pos/*.hs
-                  , tests/neg/*.hs
-                  , tests/import/lib/*.hs
-                  , tests/import/client/*.hs
-                  , tests/errors/*.hs
-                  , tests/pos/*.hquals
-                  , tests/ffi-include/foo.c
-                  , tests/ffi-include/foo.h
+                    README.md
+                    devel/Paths_liquidhaskell.hs
+                    tests/pos/*.hs
+                    tests/neg/*.hs
+                    tests/import/lib/*.hs
+                    tests/import/client/*.hs
+                    tests/errors/*.hs
+                    tests/pos/*.hquals
+                    tests/ffi-include/foo.c
+                    tests/ffi-include/foo.h
+data-files:         include/*.hquals
+                    include/*.hs
+                    include/*.spec
+                    include/CoreToLogic.lg
+                    include/Control/*.spec
+                    include/Control/Parallel/*.spec
+                    include/Data/*.hquals
+                    include/Data/*.spec
+                    include/Data/Text/*.spec
+                    include/Data/Text/Fusion/*.spec
+                    include/Data/Text/Lazy/*.spec
+                    include/Data/ByteString/*.spec
+                    include/Foreign/*.spec
+                    include/Foreign/C/*.spec
+                    include/Foreign/Marshal/*.spec
+                    include/GHC/*.hquals
+                    include/GHC/*.spec
+                    include/GHC/IO/*.spec
+                    include/Language/Haskell/Liquid/*.hs
+                    include/Language/Haskell/Liquid/*.pred
+                    include/System/*.spec
+                    include/710/Data/*.spec
+                    syntax/liquid.css
+cabal-version:      >= 1.22
 
-Source-Repository head
-  Type:        git
-  Location:    https://github.com/ucsd-progsys/liquidhaskell/
+source-repository head
+  type:     git
+  location: https://github.com/ucsd-progsys/liquidhaskell/
 
-Flag devel
-  Description: turn on stricter error reporting for development
-  Default:     False
-  Manual:      True
+flag devel
+  default:     False
+  manual:      True
+  description: turn on stricter error reporting for development
 
-Flag include
-  Description: use in-tree include directory
-  Default:     False
+flag include
+  default:     False
+  description: use in-tree include directory
 
-Flag deterministic-profiling
-  Description: Support building against GHC with https://phabricator.haskell.org/D4388 backported
-  Default:     False
+flag deterministic-profiling
+  default:     False
+  description: Support building against GHC with <https://phabricator.haskell.org/D4388>
+               backported
 
-Executable liquid
-  default-language: Haskell98
-  Build-Depends: base >=4.9.1.0 && <5
-               , liquidhaskell
+library
+  exposed-modules:    Gradual.Concretize
+                      Gradual.GUI
+                      Gradual.GUI.Annotate
+                      Gradual.GUI.Misc
+                      Gradual.GUI.Types
+                      Gradual.Misc
+                      Gradual.PrettyPrinting
+                      Gradual.Refinements
+                      Gradual.Trivial
+                      Gradual.Types
+                      Gradual.Uniquify
+                      Language.Haskell.Liquid.Bag
+                      Language.Haskell.Liquid.Bare
+                      Language.Haskell.Liquid.Bare.Axiom
+                      Language.Haskell.Liquid.Bare.Check
+                      Language.Haskell.Liquid.Bare.Class
+                      Language.Haskell.Liquid.Bare.DataType
+                      Language.Haskell.Liquid.Bare.Expand
+                      Language.Haskell.Liquid.Bare.Laws
+                      Language.Haskell.Liquid.Bare.Measure
+                      Language.Haskell.Liquid.Bare.Misc
+                      Language.Haskell.Liquid.Bare.Plugged
+                      Language.Haskell.Liquid.Bare.Resolve
+                      Language.Haskell.Liquid.Bare.ToBare
+                      Language.Haskell.Liquid.Bare.Types
+                      Language.Haskell.Liquid.Constraint.Constraint
+                      Language.Haskell.Liquid.Constraint.Env
+                      Language.Haskell.Liquid.Constraint.Fresh
+                      Language.Haskell.Liquid.Constraint.Generate
+                      Language.Haskell.Liquid.Constraint.Init
+                      Language.Haskell.Liquid.Constraint.Monad
+                      Language.Haskell.Liquid.Constraint.Qualifier
+                      Language.Haskell.Liquid.Constraint.Split
+                      Language.Haskell.Liquid.Constraint.ToFixpoint
+                      Language.Haskell.Liquid.Constraint.Types
+                      Language.Haskell.Liquid.Equational
+                      Language.Haskell.Liquid.Foreign
+                      Language.Haskell.Liquid.GHC.API
+                      Language.Haskell.Liquid.GHC.Interface
+                      Language.Haskell.Liquid.GHC.Misc
+                      Language.Haskell.Liquid.GHC.Play
+                      Language.Haskell.Liquid.GHC.Resugar
+                      Language.Haskell.Liquid.GHC.SpanStack
+                      Language.Haskell.Liquid.GHC.TypeRep
+                      Language.Haskell.Liquid.Interactive.Handler
+                      Language.Haskell.Liquid.Interactive.Types
+                      Language.Haskell.Liquid.LawInstances
+                      Language.Haskell.Liquid.Liquid
+                      Language.Haskell.Liquid.List
+                      Language.Haskell.Liquid.Measure
+                      Language.Haskell.Liquid.Misc
+                      Language.Haskell.Liquid.Parse
+                      Language.Haskell.Liquid.Prelude
+                      Language.Haskell.Liquid.ProofCombinators
+                      Language.Haskell.Liquid.Termination.Structural
+                      Language.Haskell.Liquid.Transforms.ANF
+                      Language.Haskell.Liquid.Transforms.CoreToLogic
+                      Language.Haskell.Liquid.Transforms.Rec
+                      Language.Haskell.Liquid.Transforms.RefSplit
+                      Language.Haskell.Liquid.Transforms.Rewrite
+                      Language.Haskell.Liquid.Transforms.Simplify
+                      Language.Haskell.Liquid.Types
+                      Language.Haskell.Liquid.Types.Bounds
+                      Language.Haskell.Liquid.Types.Dictionaries
+                      Language.Haskell.Liquid.Types.Equality
+                      Language.Haskell.Liquid.Types.Errors
+                      Language.Haskell.Liquid.Types.Fresh
+                      Language.Haskell.Liquid.Types.Literals
+                      Language.Haskell.Liquid.Types.Meet
+                      Language.Haskell.Liquid.Types.Names
+                      Language.Haskell.Liquid.Types.PredType
+                      Language.Haskell.Liquid.Types.PrettyPrint
+                      Language.Haskell.Liquid.Types.RefType
+                      Language.Haskell.Liquid.Types.Specs
+                      Language.Haskell.Liquid.Types.Strata
+                      Language.Haskell.Liquid.Types.Types
+                      Language.Haskell.Liquid.Types.Variance
+                      Language.Haskell.Liquid.Types.Visitors
+                      Language.Haskell.Liquid.UX.ACSS
+                      Language.Haskell.Liquid.UX.Annotate
+                      Language.Haskell.Liquid.UX.CTags
+                      Language.Haskell.Liquid.UX.CmdLine
+                      Language.Haskell.Liquid.UX.Config
+                      Language.Haskell.Liquid.UX.DiffCheck
+                      Language.Haskell.Liquid.UX.Errors
+                      Language.Haskell.Liquid.UX.QuasiQuoter
+                      Language.Haskell.Liquid.UX.Tidy
+                      Language.Haskell.Liquid.WiredIn
+                      LiquidHaskell
+                      Paths_liquidhaskell
+  hs-source-dirs:     src, include
+  build-depends:      base                 >= 4.11.1.0 && < 5
+                    , Diff                 >= 0.3
+                    , aeson
+                    , binary
+                    , bytestring           >= 0.10
+                    , cereal
+                    , cmdargs              >= 0.10
+                    , containers           >= 0.5
+                    , data-default         >= 0.5
+                    , deepseq              >= 1.3
+                    , directory            >= 1.2
+                    , filepath             >= 1.3
+                    , fingertree           >= 0.1
+                    , ghc
+                    , ghc-boot
+                    , ghc-paths            >= 0.1
+                    , ghc-prim
+                    , gitrev
+                    , hashable             >= 1.2
+                    , hscolour             >= 1.22
+                    , liquid-fixpoint      >= 0.8.0.0
+                    , mtl                  >= 2.1
+                    , optparse-simple
+                    , parsec               >= 3.1
+                    , pretty               >= 1.1
+                    , syb                  >= 0.4.4
+                    , template-haskell     >= 2.9
+                    , temporary            >= 1.2
+                    , text                 >= 1.2
+                    , time                 >= 1.4
+                    , time
+                    , transformers         >= 0.3
+                    , unordered-containers >= 0.2
+                    , vector               >= 0.10
+  default-language:   Haskell98
+  default-extensions: PatternGuards
+  ghc-options:        -W -fwarn-missing-signatures
 
-  Main-is: src/Liquid.hs
-  ghc-options: -W -threaded -fdefer-typed-holes
+  if flag(include)
+    hs-source-dirs: devel
+
+  if flag(deterministic-profiling)
+    cpp-options: -DDETERMINISTIC_PROFILING
+
+executable liquid
+  main-is:            src/Liquid.hs
+  build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
+  default-language:   Haskell98
+  default-extensions: PatternGuards
+  ghc-options:        -W -threaded -fdefer-typed-holes
+
   if flag(devel)
     ghc-options: -Werror
-  Default-Extensions: PatternGuards
 
 executable gradual
+  main-is:          src/Gradual.hs
+  build-depends:    base            >= 4.8.1.0 && < 5
+                  , cmdargs
+                  , hscolour
+                  , liquid-fixpoint >= 0.7.0.5
+                  , liquidhaskell
   default-language: Haskell2010
-  main-is:        src/Gradual.hs
-  ghc-options: -W -threaded
+  buildable:        False
+  ghc-options:      -W -threaded
+
   if flag(devel)
     ghc-options: -Werror
-  build-depends:  base >=4.8.1.0 && <5,
-               liquidhaskell,
-               liquid-fixpoint >= 0.7.0.5,
-               hscolour,
-                  cmdargs
-  -- error: Variable not in scope: target :: GhcInfo -> t
-  buildable:   False
 
 executable target
+  main-is:          src/Target.hs
+  build-depends:    base >= 4.8.1.0 && < 5, hint, liquidhaskell
   default-language: Haskell2010
-  main-is:        src/Target.hs
-  build-depends:  base >=4.8.1.0 && <5,
-                  hint,
-                  liquidhaskell
-  -- error: Could not find module `Test.Target'
-  buildable:   False
-
-Library
-   Default-Language: Haskell98
-   Build-Depends: base >=4.11.1.0 && <5
-                , ghc 
-                , ghc-boot 
-                , template-haskell >= 2.9
-                , time >= 1.4
-                , cmdargs >= 0.10
-                , time
-                , containers >= 0.5
-                , data-default >= 0.5
-                , deepseq >= 1.3
-                , directory >= 1.2
-                , Diff >= 0.3
-                , filepath >= 1.3
-                , ghc-paths >= 0.1
-                , hscolour >= 1.22
-                , mtl >= 2.1
-                , parsec >= 3.1
-                , pretty >= 1.1
-                , syb >= 0.4.4
-                , text >= 1.2
-                , vector >= 0.10
-                , hashable >= 1.2
-                , unordered-containers >= 0.2
-                , liquid-fixpoint >= 0.8.0.0
-                , aeson 
-                , bytestring >= 0.10
-                , fingertree >= 0.1
-                , cereal
-                , binary
-                , temporary >= 1.2
-                , transformers >= 0.3
-                , ghc-prim
-                , gitrev
-                , optparse-simple
-
-   hs-source-dirs:  src, include
-   Exposed-Modules: LiquidHaskell,
-                    Language.Haskell.Liquid.Prelude,
-                    Language.Haskell.Liquid.Bag,
-                    Language.Haskell.Liquid.Equational,
-                    Language.Haskell.Liquid.ProofCombinators,
-                    Language.Haskell.Liquid.Foreign,
-                    Language.Haskell.Liquid.List,
-                    Language.Haskell.Liquid.Bare,
-                    Language.Haskell.Liquid.Constraint.Constraint,
-                    Language.Haskell.Liquid.Constraint.Init,
-                    Language.Haskell.Liquid.Constraint.Monad,
-                    Language.Haskell.Liquid.Constraint.Env,
-                    Language.Haskell.Liquid.Constraint.Types,
-                    Language.Haskell.Liquid.Constraint.Split,
-                    Language.Haskell.Liquid.Constraint.Generate,
-                    Language.Haskell.Liquid.Constraint.ToFixpoint,
-                    Language.Haskell.Liquid.Measure,
-                    Language.Haskell.Liquid.Parse,
-                    Language.Haskell.Liquid.GHC.Interface,
-                    Language.Haskell.Liquid.GHC.SpanStack,
-                    Language.Haskell.Liquid.Types.Specs, 
-                    Language.Haskell.Liquid.Types.Types, 
-                    Language.Haskell.Liquid.Types.RefType,
-                    Language.Haskell.Liquid.Types.Errors,
-                    Language.Haskell.Liquid.Types.PrettyPrint,
-                    Language.Haskell.Liquid.Types.PredType,
-                    Language.Haskell.Liquid.Types.Meet,
-                    Language.Haskell.Liquid.UX.ACSS,
-                    Language.Haskell.Liquid.UX.DiffCheck,
-                    Language.Haskell.Liquid.UX.QuasiQuoter,
-                    Language.Haskell.Liquid.Transforms.Rewrite,
-                    Language.Haskell.Liquid.Transforms.ANF,
-                    Language.Haskell.Liquid.Transforms.RefSplit,
-                    Language.Haskell.Liquid.Transforms.CoreToLogic,
-                    Language.Haskell.Liquid.Transforms.Rec,
-                    Language.Haskell.Liquid.Transforms.Simplify,
-                    Language.Haskell.Liquid.UX.Errors,
-                    Language.Haskell.Liquid.UX.Annotate,
-                    Language.Haskell.Liquid.UX.CTags,
-                    Language.Haskell.Liquid.UX.Config,
-                    Language.Haskell.Liquid.UX.CmdLine,
-                    Language.Haskell.Liquid.GHC.API,
-                    Language.Haskell.Liquid.GHC.Misc,
-                    Language.Haskell.Liquid.GHC.Play,
-                    Language.Haskell.Liquid.GHC.TypeRep,
-                    Language.Haskell.Liquid.GHC.Resugar,
-                    Language.Haskell.Liquid.Misc,
-                    Language.Haskell.Liquid.Types.Variance,
-                    Language.Haskell.Liquid.Types.Bounds,
-                    Language.Haskell.Liquid.Types.Dictionaries,
-                    Language.Haskell.Liquid.Constraint.Qualifier,
-                    Language.Haskell.Liquid.Termination.Structural, 
-                    Language.Haskell.Liquid.UX.Tidy,
-                    Language.Haskell.Liquid.Types,
-                    Language.Haskell.Liquid.Types.Literals,
-                    Language.Haskell.Liquid.Types.Strata,
-                    Language.Haskell.Liquid.Types.Fresh,
-                    Language.Haskell.Liquid.Types.Equality,
-                    Language.Haskell.Liquid.Constraint.Fresh,
-                    Language.Haskell.Liquid.Types.Visitors,
-                    Language.Haskell.Liquid.WiredIn,
-                    Language.Haskell.Liquid.Types.Names,
-                    Language.Haskell.Liquid.Liquid,
-                    Paths_liquidhaskell,
-                    -- Language.Haskell.Liquid.Desugar.HscMain,
-                    Language.Haskell.Liquid.LawInstances,
-                    -- NOTE: these need to be exposed so GHC generates .dyn_o files for them..
-                    -- Language.Haskell.Liquid.Desugar.Check,
-                    -- Language.Haskell.Liquid.Desugar.Coverage,
-                    -- Language.Haskell.Liquid.Desugar.Desugar,
-                    -- Language.Haskell.Liquid.Desugar.DsArrows,
-                    -- Language.Haskell.Liquid.Desugar.DsBinds,
-                    -- Language.Haskell.Liquid.Desugar.DsCCall,
-                    -- Language.Haskell.Liquid.Desugar.DsExpr,
-                    -- Language.Haskell.Liquid.Desugar.DsForeign,
-                    -- Language.Haskell.Liquid.Desugar.DsGRHSs,
-                    -- Language.Haskell.Liquid.Desugar.DsListComp,
-                    -- Language.Haskell.Liquid.Desugar.DsMeta,
-                    -- Language.Haskell.Liquid.Desugar.DsUtils,
-                    -- Language.Haskell.Liquid.Desugar.Match,
-                    -- Language.Haskell.Liquid.Desugar.MatchCon,
-                    -- Language.Haskell.Liquid.Desugar.MatchLit,
-                    -- Language.Haskell.Liquid.Desugar.DsMonad,
-                    -- Language.Haskell.Liquid.Desugar.StaticPtrTable,
-                    -- Language.Haskell.Liquid.Desugar.TmOracle,
-
-                    -- FIXME: These shouldn't really be exposed, but the linker complains otherwise...
-                    Language.Haskell.Liquid.Bare.Types,
-                    Language.Haskell.Liquid.Bare.DataType,
-                    Language.Haskell.Liquid.Bare.Misc,
-                    Language.Haskell.Liquid.Bare.Resolve,
-                    Language.Haskell.Liquid.Bare.Measure,
-                    Language.Haskell.Liquid.Bare.Expand,
-                    Language.Haskell.Liquid.Bare.Plugged,
-                    Language.Haskell.Liquid.Bare.Axiom,
-                    Language.Haskell.Liquid.Bare.ToBare,
-                    Language.Haskell.Liquid.Bare.Class,
-                    Language.Haskell.Liquid.Bare.Laws,
-                    Language.Haskell.Liquid.Bare.Check,
-                    Language.Haskell.Liquid.Interactive.Types,
-                    Language.Haskell.Liquid.Interactive.Handler,
-                    -- Language.Haskell.Liquid.Model,
-
-                    -- Test.Target,
-                    -- Test.Target.Eval,
-                    -- Test.Target.Expr,
-                    -- Test.Target.Monad,
-                    -- Test.Target.Targetable,
-                    -- Test.Target.Targetable.Function,
-                    -- Test.Target.Testable,
-                    -- Test.Target.Types,
-                    -- Test.Target.Util,
-
-                    Gradual.Concretize,
-                    Gradual.Uniquify,
-                    Gradual.Types,
-                    Gradual.Refinements,
-                    Gradual.PrettyPrinting,
-                    Gradual.Misc,
-                    Gradual.Trivial,
-                    Gradual.GUI,
-                    Gradual.GUI.Annotate,
-                    Gradual.GUI.Types,
-                    Gradual.GUI.Misc                    
-
-   ghc-options: -W -fwarn-missing-signatures
-   if flag(include)
-     hs-source-dirs: devel
---   if flag(devel)
---     ghc-options: -Werror
-   if flag(deterministic-profiling)
-     cpp-options: -DDETERMINISTIC_PROFILING
-   Default-Extensions: PatternGuards
+  buildable:        False
 
 test-suite test
+  type:             exitcode-stdio-1.0
+  main-is:          test.hs
+  other-modules:    Paths_liquidhaskell
+  hs-source-dirs:   tests
+  build-depends:    base                 >= 4.8.1.0 && < 5
+                  , containers           >= 0.5
+                  , directory            >= 1.2
+                  , filepath             >= 1.3
+                  , mtl                  >= 2.1
+                  , optparse-applicative >= 0.11
+                  , process              >= 1.2
+                  , stm                  >= 2.4
+                  , tagged               >= 0.7.3
+                  , tasty                >= 0.10
+                  , tasty-ant-xml
+                  , tasty-hunit          >= 0.9
+                  , tasty-rerun          >= 1.1
+                  , text
+                  , transformers         >= 0.3
   default-language: Haskell98
-  type:              exitcode-stdio-1.0
-  hs-source-dirs:    tests
-  ghc-options:       -W -threaded
---  if flag(devel)
---    ghc-options: -Werror
-  main-is:           test.hs
-  build-depends:     base >=4.8.1.0 && <5
-               ,     containers >= 0.5
-               ,     directory >= 1.2
-               ,     filepath >= 1.3
-               ,     mtl >= 2.1
-               ,     process >= 1.2
-               ,     optparse-applicative >= 0.11
-               ,     stm >= 2.4
-               ,     tagged >= 0.7.3
-               ,     tasty >= 0.10
-               ,     tasty-ant-xml
-               ,     tasty-hunit >= 0.9
-               ,     tasty-rerun >= 1.1
-               ,     transformers >= 0.3
-               ,     text
-  other-modules:     Paths_liquidhaskell
+  ghc-options:      -W -threaded
 
 test-suite liquidhaskell-parser
+  type:             exitcode-stdio-1.0
+  main-is:          Parser.hs
+  other-modules:    Paths_liquidhaskell
+  hs-source-dirs:   tests
+  build-depends:    base            >= 4.8.1.0 && < 5
+                  , liquid-fixpoint >= 0.8.0.0
+                  , liquidhaskell
+                  , parsec
+                  , syb
+                  , tasty           >= 0.10
+                  , tasty-ant-xml
+                  , tasty-hunit     >= 0.9
   default-language: Haskell2010
-  type: exitcode-stdio-1.0
-  hs-source-dirs: tests
-  ghc-options: -W
-  main-is: Parser.hs
-  build-depends:
-                     base >=4.8.1.0 && <5
-               ,     parsec
-               ,     tasty >= 0.10
-               ,     tasty-ant-xml
-               ,     tasty-hunit >= 0.9
-               ,     syb
-               ,     liquid-fixpoint >= 0.8.0.0
-               , liquidhaskell
-  other-modules:   Paths_liquidhaskell
+  ghc-options:      -W
