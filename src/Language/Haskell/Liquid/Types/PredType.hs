@@ -129,6 +129,7 @@ meetWorkWrapRep c workR wrapR
   = workR { ty_binds = xs ++ (ty_binds wrapR)
           , ty_args  = ts ++ zipWith strengthenRType ts' (ty_args wrapR)
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
+          , ty_preds = ty_preds wrapR
           }
   | otherwise
   = panic (Just (getSrcSpan c)) errMsg
