@@ -62,7 +62,6 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.PrettyPrint
 import           Language.Haskell.Liquid.Types.RefType
 
-import           Language.Haskell.Liquid.UX.Errors            ()
 import           Language.Haskell.Liquid.UX.Tidy
 import           Language.Haskell.Liquid.Types                hiding (Located(..), Def(..))
 -- import           Language.Haskell.Liquid.Types.Specifications

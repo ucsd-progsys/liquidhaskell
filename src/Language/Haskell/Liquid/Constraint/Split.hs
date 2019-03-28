@@ -43,7 +43,6 @@ import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
 import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
-import           Language.Haskell.Liquid.UX.Errors () -- CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
 
 -- import           Language.Haskell.Liquid.Types.Variance
