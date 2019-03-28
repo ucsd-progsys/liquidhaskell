@@ -123,13 +123,10 @@ Library
                , syb
                , cmdargs
                , ansi-terminal
-               , bifunctors
                , binary
-               , bytestring
                , containers
                , deepseq
                , directory
-               , filemanip
                , filepath
                , ghc-prim
                , intern
@@ -147,13 +144,6 @@ Library
                , cereal
                , text-format
                , fgl
-               , fgl-visualize
-               , dotgen
-               , time
-               , parallel-io
-
-  -- unconditionally depend on located-base
-  Build-Depends: located-base
 
   if !os(windows)
     Build-Depends: ascii-progress >= 0.3
@@ -182,9 +172,7 @@ test-suite test
                     tasty-hunit,
                     tasty-rerun >= 1.1.12,
                     tasty-ant-xml,
-                    tasty-hunit >= 0.9,
-                    text
-
+                    tasty-hunit >= 0.9
 
 test-suite testparser
   default-language: Haskell98
@@ -195,76 +183,7 @@ test-suite testparser
     ghc-options:    -Werror
   main-is:          testParser.hs
   build-depends:    base >= 4.9.1.0 && < 5,
-                    directory,
-                    filepath,
                     tasty >= 0.10,
                     tasty-hunit,
-                    tasty-rerun >= 1.1,
-                    tasty-ant-xml,
                     tasty-hunit >= 0.9,
-                    text,
                     liquid-fixpoint
-  if flag(devel)
-    hs-source-dirs:   tests src
-    other-modules:
-                 Language.Fixpoint.Misc
-                 Language.Fixpoint.Parse
-                 Language.Fixpoint.Smt.Bitvector
-                 Language.Fixpoint.Smt.Types
-                 Language.Fixpoint.Types
-                 Language.Fixpoint.Types.Config
-                 Language.Fixpoint.Types.Constraints
-                 Language.Fixpoint.Types.Environments
-                 Language.Fixpoint.Types.Errors
-                 Language.Fixpoint.Types.Names
-                 Language.Fixpoint.Types.PrettyPrint
-                 Language.Fixpoint.Types.Refinements
-                 Language.Fixpoint.Types.Sorts
-                 Language.Fixpoint.Types.Templates
-                 Language.Fixpoint.Types.Spans
-                 Language.Fixpoint.Types.Substitutions
-                 Language.Fixpoint.Types.Theories
-                 Language.Fixpoint.Types.Triggers
-                 Language.Fixpoint.Types.Utils
-                 Language.Fixpoint.Utils.Files
-                 Language.Fixpoint.Utils.Trie
-                 Text.PrettyPrint.HughesPJ.Compat
-
-    build-depends:
-                 array
-               , async
-               , attoparsec
-               , syb
-               , cmdargs
-               , ansi-terminal
-               , bifunctors
-               , binary
-               , bytestring
-               , containers
-               , deepseq
-               , directory
-               , filemanip
-               , filepath
-               , ghc-prim
-               , intern
-               , mtl
-               , parsec
-               , pretty
-               , boxes
-               , parallel
-               , process
-               , syb
-               , text
-               , transformers
-               , hashable
-               , unordered-containers
-               , cereal
-               , text-format
-               , fgl
-               , fgl-visualize
-               , dotgen
-               , time
-    if impl(ghc >= 7.10.2)
-      Build-Depends: located-base
-  else
-    build-depends: liquid-fixpoint
