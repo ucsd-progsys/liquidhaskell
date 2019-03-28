@@ -69,17 +69,7 @@ Flag deterministic-profiling
 Executable liquid
   default-language: Haskell98
   Build-Depends: base >=4.9.1.0 && <5
-               , ghc
-               , ghc-boot
-               , cmdargs
-               , time
-               , deepseq
-               , pretty
-               , process
-               , liquid-fixpoint >= 0.8.0.0
-               , located-base
                , liquidhaskell
-               , hpc >= 0.6
 
   Main-is: src/Liquid.hs
   ghc-options: -W -threaded -fdefer-typed-holes
@@ -113,8 +103,6 @@ Library
                 , ghc-boot 
                 , template-haskell >= 2.9
                 , time >= 1.4
-                , array >= 0.5
-                , hpc >= 0.6
                 , cmdargs >= 0.10
                 , time
                 , containers >= 0.5
@@ -128,29 +116,20 @@ Library
                 , mtl >= 2.1
                 , parsec >= 3.1
                 , pretty >= 1.1
-                , process >= 1.2
                 , syb >= 0.4.4
                 , text >= 1.2
                 , vector >= 0.10
                 , hashable >= 1.2
                 , unordered-containers >= 0.2
                 , liquid-fixpoint >= 0.8.0.0
-                , located-base
                 , aeson 
                 , bytestring >= 0.10
                 , fingertree >= 0.1
-                , Cabal >= 1.18
-                , bifunctors >= 5.1
                 , cereal
                 , binary
                 , temporary >= 1.2
                 , transformers >= 0.3
-                , text-format
-                , th-lift
-                , exceptions >= 0.6
-                , QuickCheck >= 2.7
                 , ghc-prim
-                , hpc >= 0.6
                 , gitrev
                 , optparse-simple
 
@@ -311,9 +290,6 @@ test-suite test
                ,     tasty-hunit >= 0.9
                ,     tasty-rerun >= 1.1
                ,     transformers >= 0.3
-               ,     syb
-               ,     liquid-fixpoint >= 0.8.0.0
-               ,     hpc >= 0.6
                ,     text
   other-modules:     Paths_liquidhaskell
 
@@ -325,25 +301,11 @@ test-suite liquidhaskell-parser
   main-is: Parser.hs
   build-depends:
                      base >=4.8.1.0 && <5
-               ,     ghc-boot
-               ,     containers >= 0.5
                ,     parsec
                ,     tasty >= 0.10
                ,     tasty-ant-xml
                ,     tasty-hunit >= 0.9
-               ,     tasty-rerun >= 1.1
-               ,     text
-               ,     transformers >= 0.3
                ,     syb
                ,     liquid-fixpoint >= 0.8.0.0
-               ,     hpc >= 0.6
-               , array >= 0.5
-               , time >= 1.4
-               , directory >= 1.2
-               , hpc >= 0.6
-               , containers >= 0.5
-               , template-haskell >= 2.9
-               , bytestring
                , liquidhaskell
-  
   other-modules:   Paths_liquidhaskell
