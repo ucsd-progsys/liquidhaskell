@@ -52,7 +52,6 @@ import           Language.Haskell.Liquid.Types          hiding (Def, LMap) -- (L
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import           Language.Haskell.Liquid.Types.Visitors
-import           Language.Haskell.Liquid.UX.Errors      ()
 import           Text.Parsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 -- import           Language.Haskell.Liquid.Types.Errors
