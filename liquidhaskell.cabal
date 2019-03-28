@@ -77,24 +77,28 @@ Executable liquid
     ghc-options: -Werror
   Default-Extensions: PatternGuards
 
--- executable gradual
-  -- default-language: Haskell2010
-  -- main-is:        src/Gradual.hs
-  -- ghc-options: -W -threaded
-  -- if flag(devel)
-    -- ghc-options: -Werror
-  -- build-depends:  base >=4.8.1.0 && <5,
-                  -- liquidhaskell,
-                  -- liquid-fixpoint >= 0.7.0.5,
-                  -- hscolour,
-                  -- cmdargs
+executable gradual
+  default-language: Haskell2010
+  main-is:        src/Gradual.hs
+  ghc-options: -W -threaded
+  if flag(devel)
+    ghc-options: -Werror
+  build-depends:  base >=4.8.1.0 && <5,
+               liquidhaskell,
+               liquid-fixpoint >= 0.7.0.5,
+               hscolour,
+                  cmdargs
+  -- error: Variable not in scope: target :: GhcInfo -> t
+  buildable:   False
 
--- executable target
-  -- default-language: Haskell2010
-  -- main-is:        src/Target.hs
-  -- build-depends:  base >=4.8.1.0 && <5,
-                  -- hint,
-                  -- liquidhaskell
+executable target
+  default-language: Haskell2010
+  main-is:        src/Target.hs
+  build-depends:  base >=4.8.1.0 && <5,
+                  hint,
+                  liquidhaskell
+  -- error: Could not find module `Test.Target'
+  buildable:   False
 
 Library
    Default-Language: Haskell98
