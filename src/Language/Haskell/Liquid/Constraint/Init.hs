@@ -271,6 +271,7 @@ initCGI cfg info = CGInfo {
   , binds      = F.emptyBindEnv
   , ebinds     = []
   , annotMap   = AI M.empty
+  , holesMap   = M.empty
   , newTyEnv   = M.fromList (mapSnd val <$> gsNewTypes (gsSig spc))
   , tyConInfo  = tyi
   , tyConEmbed = tce

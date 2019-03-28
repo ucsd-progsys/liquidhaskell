@@ -221,6 +221,7 @@ solveCs cfg tgt cgi info names = do
   let resModel_     = e2u cfg sol <$> resErr
   let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
+  whenLoud $ putStrLn ("Holes = " ++ showpp (fmap (fmap (tidySpecType F.Lossy) . applySolution sol) <$> holesMap cgi))
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
 

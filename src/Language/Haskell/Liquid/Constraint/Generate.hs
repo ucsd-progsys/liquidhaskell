@@ -689,7 +689,7 @@ cconsE' γ e@(Cast e' c) t
        addC (SubC γ t' t) ("cconsE Cast: " ++ GM.showPpr e)
 
 cconsE' γ (Var x) t | isHoleVar x 
-  = addLocA (Just x) (getLocation γ) (varAnn γ x t)
+  = addHole x t γ 
 
 cconsE' γ e t
   = do te  <- consE γ e

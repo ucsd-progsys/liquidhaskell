@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.Constraint.Monad  where
 import           Var
 import           Name (getSrcSpan)
 import           SrcLoc
-import           Outputable hiding (showPpr, panic)
+import           Outputable hiding (showPpr, panic, (<>))
 
 import qualified TyCon as TC
 
@@ -112,6 +112,13 @@ addLocA :: Maybe Var -> SrcSpan -> Annot SpecType -> CG ()
 addLocA !xo !l !t
   = modify $ \s -> s { annotMap = addA l xo t $ annotMap s }
 
+
+-- | Used for annotating holes 
+
+addHole :: Var -> SpecType -> CGEnv -> CG () 
+addHole x t γ = modify $ \s -> s {holesMap = M.insertWith (<>) x hinfo $ holesMap s}
+  where 
+    hinfo = [HoleInfo t (getSrcSpan x) (mconcat [renv γ, grtys γ, assms γ, intys γ])]
 
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications
