@@ -106,7 +106,7 @@ module Language.Haskell.Liquid.Types.Types (
   , LocBareType, LocSpecType
   , RSort
   , UsedPVar, RPVar, RReft
-  , REnv (..)
+  , REnv (..), AREnv (..)
 
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
@@ -138,6 +138,9 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Inferred Annotations
   , AnnInfo (..)
   , Annot (..)
+
+  -- * Hole Information 
+  , HoleInfo(..)
 
   -- * Overall Output
   , Output (..)
@@ -1864,10 +1867,26 @@ instance F.PPrint Predicate where
 --   + global : many bindings, shared across all constraints
 --   + local  : few bindings, relevant to particular constraints
 
-data REnv = REnv
-  { reGlobal :: M.HashMap Symbol SpecType -- ^ the "global" names for module
-  , reLocal  :: M.HashMap Symbol SpecType -- ^ the "local" names for sub-exprs
+type REnv = AREnv SpecType 
+
+data AREnv t = REnv
+  { reGlobal :: M.HashMap Symbol t -- ^ the "global" names for module
+  , reLocal  :: M.HashMap Symbol t -- ^ the "local" names for sub-exprs
   }
+
+instance Functor AREnv where 
+  fmap f (REnv g l) = REnv (fmap f g) (fmap f l)
+
+instance (F.PPrint t) => F.PPrint (AREnv t) where
+  pprintTidy k re = "RENV LOCAL" $+$ F.pprintTidy k (reLocal re) <>
+                    "\nRENV GLOBAL" $+$ F.pprintTidy k (reGlobal re)
+  
+
+instance Semigroup REnv where 
+  REnv g1 l1 <> REnv g2 l2 = REnv (g1 <> g2) (l1 <> l2)  
+
+instance Monoid REnv where 
+  mempty = REnv mempty mempty
 
 instance NFData REnv where
   rnf (REnv {}) = ()
@@ -2160,6 +2179,22 @@ ppMethods k hdr name args mts
       bind m t = ppRISig k m t -- F.pprintTidy k m <+> "::" <+> F.pprintTidy k t 
 
 instance B.Binary ty => B.Binary (RClass ty)
+
+
+------------------------------------------------------------------------
+-- | Var Hole Info -----------------------------------------------------
+------------------------------------------------------------------------
+
+data HoleInfo t = HoleInfo {htype :: t, hloc :: SrcSpan, henv :: AREnv t }
+
+instance Functor HoleInfo where 
+  fmap f hinfo = hinfo{htype = f (htype hinfo), henv = fmap f (henv hinfo)}
+
+instance (F.PPrint t) => F.PPrint (HoleInfo t) where
+  pprintTidy k hinfo = text "type:" <+> F.pprintTidy k (htype hinfo) 
+                       <+> text "\n loc:" <+> F.pprintTidy k (hloc hinfo) 
+  -- to print the hole enviornment uncomment the following
+  --                     <+> text "\n env:" <+> F.pprintTidy k (henv hinfo)
 
 ------------------------------------------------------------------------
 -- | Annotations -------------------------------------------------------
