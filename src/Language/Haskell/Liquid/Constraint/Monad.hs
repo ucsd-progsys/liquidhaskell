@@ -12,9 +12,10 @@ module Language.Haskell.Liquid.Constraint.Monad  where
 import           Var
 import           Name (getSrcSpan)
 import           SrcLoc
-import           Outputable hiding (showPpr, panic, (<>))
+import           Outputable hiding (showPpr, panic, (<>), showSDoc, text)
 
 import qualified TyCon as TC
+import           Text.PrettyPrint.HughesPJ (text)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
@@ -26,7 +27,10 @@ import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
+import qualified Language.Fixpoint.Types.PrettyPrint as F 
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
+import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 
 --------------------------------------------------------------------------------
 -- RJ: What is this `isBind` business?
@@ -116,9 +120,14 @@ addLocA !xo !l !t
 -- | Used for annotating holes 
 
 addHole :: Var -> SpecType -> CGEnv -> CG () 
-addHole x t γ = modify $ \s -> s {holesMap = M.insertWith (<>) x hinfo $ holesMap s}
-  where 
-    hinfo = [HoleInfo t (getSrcSpan x) (mconcat [renv γ, grtys γ, assms γ, intys γ])]
+addHole x t γ = do 
+  modify $ \s -> s {holesMap = M.insertWith (<>) x hinfo $ holesMap s}
+  addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
+    where 
+      hinfo = [HoleInfo t loc env]
+      loc   = srcSpan $ cgLoc γ
+      env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
+      x'    = text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
 
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications
