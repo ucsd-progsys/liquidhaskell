@@ -1,8 +1,8 @@
 resolver: lts-13.11
 
 packages:
+- liquid-fixpoint
 - '.'
-- 'liquid-fixpoint'
 
 extra-deps:
 - csv-table-0.1.0.1
