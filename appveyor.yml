@@ -23,7 +23,7 @@ install:
 
 build_script:
 # Copy runtime DLLs
-- appveyor-copy.bat
+- call appveyor-copy.bat
 
 # Test build liquid-fixpoint
 - cd liquid-fixpoint
