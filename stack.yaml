@@ -1,7 +1,7 @@
 resolver: lts-13.14
 
 packages:
-- liquid-fixpoint/
+- liquid-fixpoint
 - '.'
 
 extra-deps:
@@ -18,3 +18,7 @@ flags:
     devel: true
 
 extra-package-dbs: []
+
+ghc-options:
+  hscolour: -w 
+
