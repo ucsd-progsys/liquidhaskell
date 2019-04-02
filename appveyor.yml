@@ -1,10 +1,5 @@
 platform: x64
 
-# Caching larger than 1GB will fail the build on Free AppVeyor account
-cache:
-# - C:\Users\appveyor\AppData\Roaming\stack\
-- C:\Users\appveyor\AppData\Local\Programs\stack\x86_64-windows\
-
 init:
 - git --version
   
