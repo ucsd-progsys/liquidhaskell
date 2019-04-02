@@ -22,11 +22,6 @@ install:
 - z3 --version
 
 build_script:
-# Test build liquid-fixpoint
-- cd liquid-fixpoint
-- echo "" | stack --no-terminal build --copy-bins --local-bin-path ..
-- cd ..
-
 # Build LiquidHaskell
 - echo "" | stack --no-terminal build --copy-bins --local-bin-path .
 
