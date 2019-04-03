@@ -1,10 +1,5 @@
 platform: x64
 
-# Caching larger than 1GB will fail the build on Free AppVeyor account
-cache:
-# - C:\Users\appveyor\AppData\Roaming\stack\
-- C:\Users\appveyor\AppData\Local\Programs\stack\x86_64-windows\
-
 init:
 - git --version
   
@@ -27,11 +22,6 @@ install:
 - z3 --version
 
 build_script:
-# Test build liquid-fixpoint
-- cd liquid-fixpoint
-- echo "" | stack --no-terminal build --copy-bins --local-bin-path ..
-- cd ..
-
 # Build LiquidHaskell
 - echo "" | stack --no-terminal build --copy-bins --local-bin-path .
 
