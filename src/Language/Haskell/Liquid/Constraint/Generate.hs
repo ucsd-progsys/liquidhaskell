@@ -951,9 +951,15 @@ getExprDict γ           =  go
     go (App a (Type _)) = go a
     go _                = Nothing
 
+--------------------------------------------------------------------------------
 -- | With GADTs and reflection, refinements can contain type variables, 
 --   as 'coercions' (see ucsd-progsys/#1424). At application sites, we 
 --   must also substitute those from the refinements (not just the types).
+--      https://github.com/ucsd-progsys/liquidhaskell/issues/1424
+-- 
+--   see: tests/ple/{pos,neg}/T1424.hs
+--
+--------------------------------------------------------------------------------
 
 subsTyReft :: CGEnv -> RTyVar -> Type -> SpecType -> SpecType 
 subsTyReft γ a t = mapExprReft (\_ -> F.applyCoSub coSub) 
