@@ -30,12 +30,16 @@ test1 tx ty = funky tx ty
 
 {-@ reflect proj @-}
 proj :: Field a -> a -> a 
-proj FInt  nnn = nnn
+proj FInt  nnn = add nnn 1
 proj FBool kkk = not kkk
+
+{-@ reflect add @-}
+add :: Int -> Int -> Int 
+add x y = x + y
 
 {-@ test2 :: _ -> TT @-}
 test2 :: () -> Bool
-test2 _ = proj FInt 10 == 10
+test2 _ = proj FInt 10 == 11
 
 ---------------------------------------------------------------
 
@@ -45,7 +49,7 @@ projW f x = proj f x
 
 {-@ test3 :: _ -> TT @-}
 test3 :: () -> Bool
-test3 _ = projW FInt 100 == 100
+test3 _ = projW FInt 100 == 101
 
 
 
