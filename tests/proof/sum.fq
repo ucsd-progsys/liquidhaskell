@@ -2,13 +2,17 @@ fixpoint "--rewrite"
 
 constant sum : (func(0, [int; int]))
 
-// define sum(n : int) : int = ((sum n) = if (n = 0) then 0 else (if (sum (n-1) = 10) then 55 else (n + sum (n-1))))
 define sum(n : int) : int = ((sum n) = if (n <= 0) then 0 else (n + sum (n-1)))
 
 expand [1 : True]
+expand [2 : True]
+
+bind 0 n : {v : int | (3 <= v) }
 
 constraint:
   env []
   lhs {v : int | true }
-  rhs {v : int | (sum 3) = 6 }
+  rhs {v : int | (sum 5) = 15 }
   id 1 tag []
+
+

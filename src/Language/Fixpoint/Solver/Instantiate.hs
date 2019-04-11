@@ -38,7 +38,7 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
--- import           Debug.Trace          (trace)
+import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -73,6 +73,8 @@ incrInstantiate' cfg fi = do
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi 
+
+
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
@@ -115,6 +117,7 @@ loopB env ctx delta iMb res b = case b of
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
                   (snd <$> ple1 env ctx' iMb (Just cid) res) 
+
 
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
@@ -214,7 +217,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = -- trace _msg 
+                       = trace _msg 
                          ( ctx { {- icCands  = cands', -} icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
@@ -560,12 +563,12 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
     coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
 
 mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
-mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
+mkCoSub eTs xTs = Misc.safeFromList ("mkCoSub: " ++ showpp xys) xys
   where
-    xys         = concat (zipWith matchSorts xTs eTs)
+    xys         = tracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts xTs eTs
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
+matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
