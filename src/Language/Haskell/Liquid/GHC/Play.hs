@@ -19,12 +19,14 @@ import PrelNames (isStringClassName)
 
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
+import qualified Data.List           as L
 
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 
 
-
+isHoleVar :: Var -> Bool 
+isHoleVar x = L.isPrefixOf "_" (show x)
 
 dataConImplicitIds :: DataCon -> [Id]
 dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]

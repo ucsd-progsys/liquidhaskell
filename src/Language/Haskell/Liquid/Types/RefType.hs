@@ -1787,6 +1787,7 @@ instance PPrint DataCtor where
       ppThetas [] = empty
       ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
 
+
 ppVars :: (PPrint a) => Tidy -> [a] -> Doc
 ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "." 
 
@@ -1811,5 +1812,3 @@ instance PPrint (RType c tv r) => Show (RType c tv r) where
 instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
-instance PPrint REnv where
-  pprintTidy k re = "RENV" $+$ pprintTidy k (reLocal re)

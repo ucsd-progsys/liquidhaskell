@@ -14,4 +14,7 @@ ackFlipped (S n) sm@(S m) = ackFlipped (ackFlipped n sm) m
 
 -- This case is redundant, but without it LH can't determine that this function
 -- is total. See https://github.com/ucsd-progsys/liquidhaskell/issues/1396
-ackFlipped _ _ = error "unreachable"
+-- Commenting out this case because termination breaks with -fdefer-typed-holes on 
+{-@ LIQUID "--no-totality" @-}
+-- ackFlipped _ _ = error "unreachable"
+
