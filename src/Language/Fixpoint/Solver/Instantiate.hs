@@ -38,7 +38,7 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
-import           Debug.Trace          (trace)
+-- import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -217,7 +217,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ]
 
 updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
 updCtxRes env ctx res iMb cidMb us 
-                       = trace _msg 
+                       = -- trace _msg 
                          ( ctx { {- icCands  = cands', -} icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
@@ -560,12 +560,16 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
     eTs   = sortExpr sp env <$> es
-    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
+    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub env eTs ts
 
-mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
-mkCoSub eTs xTs = Misc.safeFromList ("mkCoSub: " ++ showpp xys) xys
+mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
+mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ] 
   where
-    xys         = tracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts xTs eTs
+    unite ts    = mytracepp ("UNITE: " ++ showpp ts) $ Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
+    senv        = mkSearchEnv env
+    uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts) 
+    xys         = mytracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
+    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" $ (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
 matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2

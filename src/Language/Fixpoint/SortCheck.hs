@@ -16,6 +16,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort Substitutions
     TVSubst
   , Env
+  , mkSearchEnv
 
   -- * Checking Well-Formedness
   , checkSorted
@@ -33,6 +34,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Unify
   , unifyFast
   , unifySorts
+  , unifyTo1
 
   -- * Apply Substitution
   , apply
@@ -279,6 +281,12 @@ data ChState  = ChS { chCount :: Int, chSpan :: SrcSpan }
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
+
+
+--------------------------------------------------------------------------------
+mkSearchEnv :: SEnv a -> Symbol -> SESearch a 
+--------------------------------------------------------------------------------
+mkSearchEnv env x = lookupSEnvWithDistance x env  
 
 -- withError :: CheckM a -> ChError -> CheckM a
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
@@ -989,11 +997,33 @@ unify f e t1 t2
       Right su -> Just su
 
 --------------------------------------------------------------------------------
+unifyTo1 :: Env -> [Sort] -> Maybe Sort
+--------------------------------------------------------------------------------
+unifyTo1 f ts  
+  = case runCM0 dummySpan (unifyTo1M f ts) of
+      Left _  -> Nothing
+      Right t -> Just t 
+
+
+--------------------------------------------------------------------------------
+unifyTo1M :: Env -> [Sort] -> CheckM Sort 
+--------------------------------------------------------------------------------
+unifyTo1M _ []     = panic "unifyTo1: empty list"
+unifyTo1M f (t0:ts) = snd <$> foldM step (emptySubst, t0) ts
+  where 
+    step :: (TVSubst, Sort) -> Sort -> CheckM (TVSubst, Sort)
+    step (su, t) t' = do 
+      su' <- unify1 f Nothing su t t' 
+      return (su', apply su' t)
+
+
+--------------------------------------------------------------------------------
 unifySorts :: Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unifySorts   = unifyFast False emptyEnv
   where
     emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
+
 
 --------------------------------------------------------------------------------
 -- | Fast Unification; `unifyFast True` is just equality
@@ -1006,6 +1036,7 @@ unifyFast True  _ = uMono
     uMono t1 t2
      | t1 == t2   = Just emptySubst
      | otherwise  = Nothing
+
 
 
 --------------------------------------------------------------------------------
