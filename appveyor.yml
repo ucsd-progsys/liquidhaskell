@@ -32,8 +32,8 @@ build_script:
 - fixpoint --version
 - liquid --version
 
-# ZIP execturable
-- 7z a liquidhaskell.zip liquid.exe fixpoint.exe LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
+# ZIP execturable 
+- 7z a liquidhaskell.zip liquid.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
 
 test_script:
 - echo "" | stack --no-terminal test liquidhaskell --fast --test-arguments "-p Micro"

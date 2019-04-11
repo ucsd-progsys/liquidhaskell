@@ -1,4 +1,5 @@
-{-# LANGUAGE TupleSections             #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DoAndIfThenElse #-}
 
 module Language.Haskell.Liquid.Misc where
 
@@ -7,6 +8,8 @@ import Control.Monad.State
 
 import Control.Arrow (first)
 import System.FilePath
+import System.Directory   (doesFileExist)
+import System.Environment (getExecutablePath)
 
 import qualified Control.Exception     as Ex --(evaluate, catch, IOException)
 import qualified Data.HashSet          as S
@@ -132,7 +135,18 @@ getCssPath :: IO FilePath
 getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
 
 getCoreToLogicPath :: IO FilePath
-getCoreToLogicPath = fmap (</> "CoreToLogic.lg") getIncludeDir
+getCoreToLogicPath = do
+    let fileName = "CoreToLogic.lg"
+
+    -- Try to find it first at executable path
+    exePath <- dropFileName <$> getExecutablePath
+    let atExe = exePath </> fileName
+    exists <- doesFileExist atExe
+    
+    if exists then 
+      return atExe
+    else 
+      fmap (</> fileName) getIncludeDir
 
 
 {-@ type ListN a N = {v:[a] | len v = N} @-}
