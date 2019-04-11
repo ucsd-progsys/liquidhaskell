@@ -1,4 +1,6 @@
+{- LIQUID "--max-case-expand=0" @-}
 {-@ LIQUID "--no-case-expand" @-}
+
 module NoCaseExpand where
 
 data ABC = A | B | C 
