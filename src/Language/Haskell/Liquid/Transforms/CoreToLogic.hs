@@ -400,7 +400,8 @@ toLogicApp e = do
                   lmap <- lsSymMap <$> getState
                   def  <- (`mkEApp` args) <$> tosymbol f
                   ((\x -> makeApp def lmap x args) <$> (tosymbol' f))
-    _       -> do (fe : args) <- mapM coreToLg (f:es)
+    _       -> do fe   <- coreToLg f
+                  args <- mapM coreToLg es
                   return $ foldl EApp fe args
 
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
@@ -487,19 +488,19 @@ makesub (C.NonRec x e) =  (symbol x,) <$> coreToLg e
 makesub  _             = throw "Cannot make Logical Substitution of Recursive Definitions"
 
 mkLit :: Literal -> Maybe Expr
-mkLit (MachInt    n)   = mkI n
-mkLit (MachInt64  n)   = mkI n
-mkLit (MachWord   n)   = mkI n
-mkLit (MachWord64 n)   = mkI n
-mkLit (MachFloat  n)   = mkR n
-mkLit (MachDouble n)   = mkR n
-mkLit (LitInteger n _) = mkI n
-mkLit (MachStr    s)   = mkS s
-mkLit (MachChar   c)   = mkC c 
-mkLit _                = Nothing -- ELit sym sort
+mkLit (LitNumber _ n _) = mkI n
+-- mkLit (MachInt64  n)    = mkI n
+-- mkLit (MachWord   n)    = mkI n
+-- mkLit (MachWord64 n)    = mkI n
+-- mkLit (LitInteger n _)  = mkI n
+mkLit (MachFloat  n)    = mkR n
+mkLit (MachDouble n)    = mkR n
+mkLit (MachStr    s)    = mkS s
+mkLit (MachChar   c)    = mkC c 
+mkLit _                 = Nothing -- ELit sym sort
 
 mkI :: Integer -> Maybe Expr
-mkI                    = Just . ECon . I
+mkI = Just . ECon . I
 
 mkR :: Rational -> Maybe Expr
 mkR                    = Just . ECon . F.R . fromRational

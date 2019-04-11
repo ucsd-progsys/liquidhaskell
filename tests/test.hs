@@ -25,7 +25,7 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
-import Data.List (sort, reverse)
+-- import Data.List (sort, reverse)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import Options.Applicative
@@ -201,7 +201,9 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Error: Unknown variable `llen2`" 
   , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
   , errorTest "tests/errors/HintMismatch.hs"        2 "HINT: Use the hole"
-  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
+  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:14-11:15: Error"
+  , errorTest "tests/errors/ErrLocation.hs"         1 "ErrLocation.hs:7:13-19: Error"
+  , errorTest "tests/errors/ErrLocation2.hs"        1 "ErrLocation2.hs:9:20: Error"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 

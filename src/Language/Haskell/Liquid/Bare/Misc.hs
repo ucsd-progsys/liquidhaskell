@@ -19,7 +19,7 @@ import           TysWiredIn
 
 import           Id
 import           Type
-import           Kind                                  (isStarKind)
+import           Kind                                  (classifiesTypeWithValues) 
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Var
 
@@ -131,7 +131,7 @@ mapTyVars hsT lqT
        throwError (err (F.pprint hsT) (F.pprint lqT)) 
 
 isKind :: Kind -> Bool
-isKind k = isStarKind k --  typeKind k
+isKind = classifiesTypeWithValues -- TODO:GHC-863 isStarKind k --  typeKind k
 
 
 mapTyRVar :: MonadError Error m
