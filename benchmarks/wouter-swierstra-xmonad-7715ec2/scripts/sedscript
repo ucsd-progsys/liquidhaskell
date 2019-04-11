@@ -1,6 +1,0 @@
-1,4d 
-s/delete :: /delete :: Ord a3 => /g
-s/remove0 :: /remove0 :: Ord a1 => /g
-s/insert :: /insert :: Ord a1 => /g
-s/sink :: /sink :: Ord a3 => /g
-s/float ::/float :: Ord a3=> /g
