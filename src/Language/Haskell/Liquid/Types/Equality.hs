@@ -48,7 +48,7 @@ compareRType i1 i2 = go i1 i2
       = r1 =*= r2 
     go (RHole r1) (RHole r2)
       = r1 =*= r2  
-    go t1 t2 
+    go _t1 _t2 
       = False 
 
 class REq a where 
