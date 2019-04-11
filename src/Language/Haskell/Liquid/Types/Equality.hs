@@ -10,7 +10,7 @@ import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 
 import Control.Monad.Writer.Lazy
-import Control.Monad
+-- import Control.Monad
 import qualified Data.List as L
 
 instance REq SpecType where 
