@@ -16,6 +16,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort Substitutions
     TVSubst
   , Env
+  , mkSearchEnv
 
   -- * Checking Well-Formedness
   , checkSorted
@@ -33,6 +34,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Unify
   , unifyFast
   , unifySorts
+  , unifyTo1
 
   -- * Apply Substitution
   , apply
@@ -279,6 +281,12 @@ data ChState  = ChS { chCount :: Int, chSpan :: SrcSpan }
 
 type Env      = Symbol -> SESearch Sort
 type ElabEnv  = (SymEnv, Env)
+
+
+--------------------------------------------------------------------------------
+mkSearchEnv :: SEnv a -> Symbol -> SESearch a 
+--------------------------------------------------------------------------------
+mkSearchEnv env x = lookupSEnvWithDistance x env  
 
 -- withError :: CheckM a -> ChError -> CheckM a
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
@@ -660,6 +668,88 @@ splitArgs = go []
      of all sorts at which 'apply' is used, computed by 'applySorts'.
  -}
 
+{- | [NOTE:coerce-apply] -- related to [NOTE:apply-monomorphism]
+
+Haskell's GADTs cause a peculiar problem illustrated below:
+
+```haskell
+data Field a where
+  FInt  :: Field Int
+  FBool :: Field Bool
+
+{-@ reflect proj @-}
+proj :: Field a -> a -> a
+proj fld x = case fld of
+               FInt  -> 1 + x
+               FBool -> not b  
+```
+
+## The Problem
+
+The problem is you cannot encode the body of `proj` as a well-sorted refinement:
+ 
+```haskell
+    if is$FInt fld
+        then (1 + (coerce (a ~ Int)  x))
+        else (not (coerce (a ~ Bool) x))
+```
+
+The catch is that `x` is being used BOTH as `Int` and as `Bool` 
+which is not supported in SMTLIB.
+
+## Approach: Uninterpreted Functions
+
+We encode `coerce` as an explicit **uninterpreted function**:
+
+```haskell
+    if is$FInt fld
+        then (1 + (coerce@(a -> int)  x))
+        else (not (coerce@(a -> bool) x))
+```
+
+where we define, extra constants in the style of `apply` 
+
+```haskell
+   constant coerce@(a -> int ) :: a -> int
+   constant coerce@(a -> bool) :: a -> int
+```
+
+However, it would not let us verify:
+
+
+```haskell
+{-@ reflect unwrap @-}
+unwrap :: Field a -> a -> a
+unwrap fld x = proj fld x
+
+{-@ test :: _ -> TT @-}
+test =  unwrap FInt  4    == 5
+     && unwrap FBool True == False
+```
+
+because we'd get
+
+```haskell
+  unwrap FInt 4 :: { if is$FInt FInt then (1 + coerce_int_int 4) else ...  }
+```
+
+and the UIF nature of `coerce_int_int` renders the VC invalid.
+
+## Solution: Eliminate Trivial Coercions
+
+HOWEVER, the solution here, may simply be to use UIFs when the
+coercion is non-trivial (e.g. `a ~ int`) but to eschew them when
+they are trivial. That is we would encode:
+
+| Expr                   | SMTLIB             |
+|:-----------------------|:-------------------|
+| `coerce (a ~ int) x`   | `coerce_a_int x`   |
+| `coerce (int ~ int) x` | `x`                |
+
+which, I imagine is what happens _somewhere_ inside GHC too?
+
+-}
+
 --------------------------------------------------------------------------------
 applySorts :: Vis.Visitable t => t -> [Sort]
 --------------------------------------------------------------------------------
@@ -667,9 +757,11 @@ applySorts = {- tracepp "applySorts" . -} (defs ++) . Vis.fold vis () []
   where
     defs   = [FFunc t1 t2 | t1 <- basicSorts, t2 <- basicSorts]
     vis    = (Vis.defaultVisitor :: Vis.Visitor [KVar] t) { Vis.accExpr = go }
-    go _ (EApp (ECst (EVar f) t) _)
+    go _ (EApp (ECst (EVar f) t) _)   -- get types needed for [NOTE:apply-monomorphism]
            | f == applyName
            = [t]
+    go _ (ECoerc t1 t2 _)             -- get types needed for [NOTE:coerce-apply]
+           = [FFunc t1 t2] 
     go _ _ = []
 
 --------------------------------------------------------------------------------
@@ -905,11 +997,33 @@ unify f e t1 t2
       Right su -> Just su
 
 --------------------------------------------------------------------------------
+unifyTo1 :: Env -> [Sort] -> Maybe Sort
+--------------------------------------------------------------------------------
+unifyTo1 f ts  
+  = case runCM0 dummySpan (unifyTo1M f ts) of
+      Left _  -> Nothing
+      Right t -> Just t 
+
+
+--------------------------------------------------------------------------------
+unifyTo1M :: Env -> [Sort] -> CheckM Sort 
+--------------------------------------------------------------------------------
+unifyTo1M _ []     = panic "unifyTo1: empty list"
+unifyTo1M f (t0:ts) = snd <$> foldM step (emptySubst, t0) ts
+  where 
+    step :: (TVSubst, Sort) -> Sort -> CheckM (TVSubst, Sort)
+    step (su, t) t' = do 
+      su' <- unify1 f Nothing su t t' 
+      return (su', apply su' t)
+
+
+--------------------------------------------------------------------------------
 unifySorts :: Sort -> Sort -> Maybe TVSubst
 --------------------------------------------------------------------------------
 unifySorts   = unifyFast False emptyEnv
   where
     emptyEnv = const $ die $ err dummySpan "SortChecl: lookup in Empty Env "
+
 
 --------------------------------------------------------------------------------
 -- | Fast Unification; `unifyFast True` is just equality
@@ -922,6 +1036,7 @@ unifyFast True  _ = uMono
     uMono t1 t2
      | t1 == t2   = Just emptySubst
      | otherwise  = Nothing
+
 
 
 --------------------------------------------------------------------------------

@@ -466,6 +466,7 @@ dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
 funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
 funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
+                 ++ [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where

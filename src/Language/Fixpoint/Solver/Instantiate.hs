@@ -74,6 +74,8 @@ incrInstantiate' cfg fi = do
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi 
 
+
+
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
 instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
@@ -115,6 +117,7 @@ loopB env ctx delta iMb res b = case b of
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
                   (snd <$> ple1 env ctx' iMb (Just cid) res) 
+
 
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
@@ -557,15 +560,19 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
     eTs   = sortExpr sp env <$> es
-    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub eTs ts
+    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub env eTs ts
 
-mkCoSub :: [Sort] -> [Sort] -> Vis.CoSub
-mkCoSub eTs xTs = Misc.safeFromList "mkCoSub" xys
+mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
+mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ] 
   where
-    xys         = concat (zipWith matchSorts xTs eTs)
+    unite ts    = mytracepp ("UNITE: " ++ showpp ts) $ Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
+    senv        = mkSearchEnv env
+    uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts) 
+    xys         = mytracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
+    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" $ (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ show (s1, s2)) $ go s1 s2
+matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2

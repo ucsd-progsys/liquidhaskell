@@ -167,9 +167,11 @@ instance SMTLIB2 Expr where
   smt2 env (PAll   [] p)    = smt2 env p
   smt2 env (PAll   bs p)    = build "(forall ({}) {})"  (smt2s env bs, smt2 env p)
   smt2 env (PAtom r e1 e2)  = mkRel env r e1 e2
-  smt2 env (ELam b e)       = smt2Lam env b e
-  smt2 env (ECoerc _ _ e)   = smt2 env e
+  smt2 env (ELam b e)       = smt2Lam   env b e
+  smt2 env (ECoerc t1 t2 e) = smt2Coerc env t1 t2 e
   smt2 _   e                = panic ("smtlib2 Pred  " ++ show e)
+
+
 
 -- | smt2Cast uses the 'as x T' pattern needed for polymorphic ADT constructors
 --   like Nil, see `tests/pos/adt_list_1.fq`
@@ -211,6 +213,14 @@ smt2App env e
   = build "({} {})" (smt2 env f, smt2s env es)
   where
     (f, es)   = splitEApp' e
+
+smt2Coerc :: SymEnv -> Sort -> Sort -> Expr -> Builder.Builder
+smt2Coerc env t1 t2 e 
+  | t1 == t2  = smt2 env e
+  | otherwise = build "({} {})" (symbolBuilder coerceFn , smt2 env e)
+  where 
+    coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
+    t         = FFunc t1 t2
 
 -- unCast :: Expr -> Expr
 -- unCast (ECst e _) = unCast e
