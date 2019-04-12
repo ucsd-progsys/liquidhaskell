@@ -56,6 +56,7 @@ import qualified Data.Functor.Identity
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
+import qualified Language.Fixpoint.Types.Visitor               as F
 -- import           Language.Fixpoint.Solver.Instantiate
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Init
@@ -814,7 +815,7 @@ consE γ e
 -- no need to check this code with flag, the axioms environment with
 -- is empty if there is no axiomatization. 
 
--- [NOTE: PLE-OPT] We *disable* refined instantiatition for 
+-- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
 consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
@@ -823,7 +824,8 @@ consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
                                      else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       tt         <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
+       tt00       <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
+       let tt      = subsTyReft γ (ty_var_value α) τ tt00
        return      $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
 
 -- NV END HACK
@@ -841,7 +843,8 @@ consE γ e'@(App e a@(Type τ))
        t          <- if isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
-       tt         <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       tt0        <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       let tt      = subsTyReft γ (ty_var_value α) τ tt0
        -- NV TODO: embed this step with subsTyVar_meet'
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
@@ -951,6 +954,21 @@ getExprDict γ           =  go
     go (Tick _ e)       = go e
     go (App a (Type _)) = go a
     go _                = Nothing
+
+--------------------------------------------------------------------------------
+-- | With GADTs and reflection, refinements can contain type variables, 
+--   as 'coercions' (see ucsd-progsys/#1424). At application sites, we 
+--   must also substitute those from the refinements (not just the types).
+--      https://github.com/ucsd-progsys/liquidhaskell/issues/1424
+-- 
+--   see: tests/ple/{pos,neg}/T1424.hs
+--
+--------------------------------------------------------------------------------
+
+subsTyReft :: CGEnv -> RTyVar -> Type -> SpecType -> SpecType 
+subsTyReft γ a t = mapExprReft (\_ -> F.applyCoSub coSub) 
+  where 
+    coSub        = M.fromList [(F.symbol a, typeSort (emb γ) t)]
 
 --------------------------------------------------------------------------------
 -- | Type Synthesis for Special @Pattern@s -------------------------------------
@@ -1450,12 +1468,13 @@ isPLETerm γ
 -- | @isGenericVar@ determines whether the @RTyVar@ has no class constraints
 isGenericVar :: RTyVar -> SpecType -> Bool
 isGenericVar α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
-  where classConstrs t = [(c, ty_var_value α')
-                                  | (c, ts) <- tyClasses t
-                                  , t'      <- ts
-                                  , α'      <- freeTyVars t']
-        isOrd          = (ordClassName ==) . className
-        isEq           = (eqClassName ==) . className
+  where 
+    classConstrs t = [(c, ty_var_value α')
+                        | (c, ts) <- tyClasses t
+                        , t'      <- ts
+                        , α'      <- freeTyVars t']
+    isOrd          = (ordClassName ==) . className
+    isEq           = (eqClassName ==) . className
 
 -- instance MonadFail CG where 
 --  fail msg = panic Nothing msg

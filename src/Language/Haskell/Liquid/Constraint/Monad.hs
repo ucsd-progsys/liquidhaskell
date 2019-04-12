@@ -27,7 +27,7 @@ import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
-import qualified Language.Fixpoint.Types.PrettyPrint as F 
+-- import qualified Language.Fixpoint.Types.PrettyPrint as F 
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc

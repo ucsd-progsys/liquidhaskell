@@ -19,14 +19,13 @@ checkOneInstance c laws li
   = checkExtra c li ((fst <$> laws) ++ classMethods c) (lilEqus li) ++ concatMap (\l -> checkOneLaw c l li) laws
 
 checkExtra :: Class  -> LawInstance -> [Var] -> [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))] -> [Error]
-checkExtra c li laws insts = mkError <$> ({- (msgExtra <$> extra) ++ -}  (msgUnfoundLaw <$> unfoundLaws) ++ (msgUnfoundInstance <$> unfoundInstances))
+checkExtra c li _laws insts = mkError <$> ({- (msgExtra <$> extra) ++ -}  (msgUnfoundLaw <$> unfoundLaws) ++ (msgUnfoundInstance <$> unfoundInstances))
     where 
-
         unfoundInstances = [ x | (_, (Right x,_)) <- insts] 
         unfoundLaws = [ x | (Right x, _) <- insts] 
-        extra = [] -- this breaks on extra super requirements [ (x,i) | (Left x, (Left i, _)) <- insts, not (x `L.elem` laws)] 
+        _extra = [] -- this breaks on extra super requirements [ (x,i) | (Left x, (Left i, _)) <- insts, not (x `L.elem` laws)] 
         mkError = ErrILaw (lilPos li) (pprint c) (pprint $ lilTyArgs li) 
-        msgExtra (x,_)       = pprint x <+> text "is not a defined law."
+        _msgExtra (x,_)      = pprint x <+> text "is not a defined law."
         msgUnfoundLaw i      = pprint i <+> text "is not a defined law."
         msgUnfoundInstance i = pprint i <+> text "is not a defined instance."
 
@@ -34,7 +33,7 @@ checkOneLaw :: Class -> (Var, LocSpecType) -> LawInstance -> [Error]
 checkOneLaw c (x, t) li 
   | Just (Left _, Just ti) <- lix 
   = unify mkError c li t ti
-  | Just (Right l, _) <- lix
+  | Just (Right _l, _) <- lix
   = [mkError (text "is not found.")]
   | otherwise
   = [mkError (text "is not defined.")]
@@ -81,7 +80,7 @@ unify mkError c li t1 t2
     splitForall vs (RAllT v t) = splitForall (v:vs) t 
     splitForall vs  t           = (vs, t) 
 
-    findTyVars ((b@(x,RApp cc as _ _):ts)) | rtc_tc cc == classTyCon c 
+    findTyVars (((_x, RApp cc as _ _):_ts)) | rtc_tc cc == classTyCon c 
       = [v | RVar v _ <- as ]
     findTyVars (_:ts) = findTyVars ts 
     findTyVars [] = [] 
@@ -90,7 +89,7 @@ unify mkError c li t1 t2
 splitTypeConstraints :: [(F.Symbol, SpecType)] -> ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
 splitTypeConstraints = go []  
   where  
-    go cs (b@(x,RApp c _ _ _):ts) 
+    go cs (b@(_x, RApp c _ _ _):ts) 
       | isClass c
       = go (b:cs) ts 
     go cs r = (reverse cs, map (\(x, t) -> (x, shiftVV t x)) r)

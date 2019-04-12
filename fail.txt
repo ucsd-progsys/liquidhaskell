@@ -1,5 +1,4 @@
 ## FAILING TESTS for GHC-863
 
-- ElabLocation.hs
 
 

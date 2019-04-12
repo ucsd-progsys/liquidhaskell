@@ -169,7 +169,7 @@ configureDynFlags cfg tmp = do
                  , stubDir      = Just tmp
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
-                   `gopt_set` Opt_DeferTypedHoles	
+                   `gopt_set` Opt_DeferTypedHoles
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving

@@ -50,6 +50,7 @@ main = do
             else error "Month is out of range."
      else error "Year is out of range."
 
+{-@ assume error :: _ -> _ @-} -- don't report warnings on `error`
 
 -- Examples:
 

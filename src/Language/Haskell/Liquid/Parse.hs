@@ -972,7 +972,8 @@ ppPspec _ (BFix    _)           --
   = "fixity"
 ppPspec k (Define  (lx, y))     
   = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y 
-
+ppPspec _ (ILaws {}) 
+  = "TBD-INSTANCE-LAWS"
 
 
 -- | For debugging
