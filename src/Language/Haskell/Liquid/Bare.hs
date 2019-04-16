@@ -825,10 +825,10 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = F.notracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
-    tcs           = Misc.snd3 <$> tcDds 
-    tyi           = Bare.qualifyTopDummy env myName <$> makeTyConInfo tycons
+    tcs           = F.tracepp "TYCONS" $ Misc.snd3 <$> tcDds 
+    tyi           = Bare.qualifyTopDummy env myName (makeTyConInfo tycons)
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
@@ -855,10 +855,10 @@ knownWiredTyCons env name = filter isKnown wiredTyCons
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
 makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv 
-  { meMeasureSpec = F.notracepp "meMEASURES" measures 
+  { meMeasureSpec = measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
-  , meDataCons    = F.notracepp "meDATACONS" cs' 
+  , meDataCons    = cs' 
   , meClasses     = cls
   , meMethods     = mts ++ dms 
   , meCLaws       = laws
@@ -871,7 +871,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                , Mb.isNothing (lookup (val lx) cms') ]
     cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
-    txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
+    txRefs v t    = F.tracepp ("TX-REF: " ++ showpp (v, t)) $ Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- unpacking the environment
     tyi           = Bare.tcTyConMap    tycEnv 
     dcSelectors   = Bare.tcSelMeasures tycEnv 

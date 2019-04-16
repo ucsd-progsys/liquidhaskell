@@ -141,7 +141,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     allowHO          = higherOrderFlag sp
     noPrune          = not (pruneFlag sp)
-    txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v,t) <- ts]
+    txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData sp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 

@@ -24,9 +24,9 @@ module Language.Haskell.Liquid.Types.Types (
     module Language.Haskell.Liquid.UX.Config
 
   -- * Ghc Information
-
   , TargetVars   (..)
-
+  , TyConMap     (..)
+  
   -- * F.Located Things
   , F.Located (..)
   , F.dummyLoc
@@ -278,6 +278,15 @@ import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
 import           Data.Default
+
+-----------------------------------------------------------------------------
+-- | Information about Type Constructors
+-----------------------------------------------------------------------------
+data TyConMap = TyConMap 
+  { tcmTyRTy :: M.HashMap TyCon RTyCon 
+  }
+ 
+
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------

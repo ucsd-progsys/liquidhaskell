@@ -45,7 +45,7 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 --   this module is responsible for plugging the holes we obviously cannot
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
-makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> M.HashMap Ghc.TyCon RTyCon -> Ghc.NameSet
+makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> Ghc.NameSet
                -> Bare.PlugTV Ghc.Var -> LocSpecType
                -> LocSpecType
 
@@ -250,7 +250,7 @@ goPlug tce tyi err f = go
     -- problem to the user.
     -- go st               _                 = st
 
-addRefs :: F.TCEmb Ghc.TyCon -> M.HashMap Ghc.TyCon RTyCon -> SpecType -> SpecType
+addRefs :: F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecType
 addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
   where
     RApp c' _ ps _ = addTyConInfo tce tyi (RApp c ts [] r)

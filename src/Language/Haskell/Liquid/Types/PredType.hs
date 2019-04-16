@@ -33,7 +33,7 @@ import           Prelude                         hiding (error)
 import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
-import qualified TyCon                           as TC
+-- import qualified TyCon                           as TC
 -- import qualified Var
 import           Type
 import           Var
@@ -53,8 +53,9 @@ import           Language.Haskell.Liquid.Types.Types
 import           Data.List                       (nub)
 import           Data.Default
 
-makeTyConInfo :: [TyConP] -> M.HashMap TC.TyCon RTyCon
-makeTyConInfo tcps = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
+
+makeTyConInfo :: [TyConP] -> TyConMap -- M.HashMap TC.TyCon RTyCon
+makeTyConInfo tcps = TyConMap $ M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
 
 mkRTyCon ::  TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
@@ -63,15 +64,21 @@ mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
     pvs' = subts (zip αs' τs) <$> ps
 
--- TODO: duplicated with Liquid.Measure.makeDataConType
+
+-------------------------------------------------------------------------------
+-- | @dataConPSpecType@ converts a @DataConP@, LH's internal representation for 
+--   a (refined) data constructor into a @SpecType@ for that constructor.
+--   TODO: duplicated with Liquid.Measure.makeDataConType
+-------------------------------------------------------------------------------
 dataConPSpecType :: DataConP -> [(Var, SpecType)]
-dataConPSpecType dcp    = [ (workX, workT), (wrapX, wrapT) ]
+-------------------------------------------------------------------------------
+dataConPSpecType dcp    = F.notracepp "dataConPSpecType" [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT
     wrapT               = dcWrapSpecType   dc dcp
-    workX               = dataConWorkId    dc            -- this is the weird one for GADTs
-    wrapX               = dataConWrapId    dc            -- this is what the user expects to see
+    workX               = dataConWorkId    dc            -- This is the weird one for GADTs
+    wrapX               = dataConWrapId    dc            -- This is what the user expects to see
     isVanilla           = isVanillaDataCon dc
     dc                  = dcpCon dcp
 
@@ -163,10 +170,19 @@ dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where
-  pprintTidy k (TyConP _ _ vs ps ls _ _ _)
-    = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
-      (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
-      (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
+  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
+                           <+> ppComm     k (tcpFreeTyVarsTy tc) 
+                           <+> ppComm     k (tcpFreePredTy   tc) 
+                           <+> ppComm     k (tcpFreeLabelTy  tc)
+      --  (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
+      -- (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
+      -- (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
+
+ppComm :: PPrint a => F.Tidy -> [a] -> Doc 
+ppComm k = parens . hsep . punctuate comma . fmap (pprintTidy k)
+
+
+    
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr

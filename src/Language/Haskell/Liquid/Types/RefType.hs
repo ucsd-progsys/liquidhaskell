@@ -20,8 +20,10 @@
 
 module Language.Haskell.Liquid.Types.RefType (
 
+    TyConMap
+
   -- * Functions for lifting Reft-values to Spec-values
-    uTop, uReft, uRType, uRType', uRTypeGen, uPVar
+  , uTop, uReft, uRType, uRType', uRTypeGen, uPVar
 
   -- * Applying a solution to a SpecType
   , applySolution
@@ -119,6 +121,12 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
 
 import Data.List (sort, foldl')
+
+
+
+ 
+
+
 
 strengthenDataConType :: (Var, SpecType) -> (Var, SpecType)
 strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
@@ -768,7 +776,7 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 -------------------------------------------------------------------------
 addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
              => TCEmb TyCon
-             -> (M.HashMap TyCon RTyCon)
+             -> TyConMap -- (M.HashMap TyCon RTyCon)
              -> RRType r
              -> RRType r
 -------------------------------------------------------------------------
@@ -777,7 +785,7 @@ addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 -------------------------------------------------------------------------
 expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
            => TCEmb TyCon
-           -> (M.HashMap TyCon RTyCon)
+           -> TyConMap 
            -> RRType r
            -> RRType r
 -------------------------------------------------------------------------
@@ -837,18 +845,14 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
 
 appRTyCon :: SubsTy RTyVar (RType c RTyVar ()) RPVar
-          => TCEmb TyCon
-          -> M.HashMap TyCon RTyCon
-          -> RTyCon
-          -> [RType c RTyVar r]
-          -> RTyCon
+          => TCEmb TyCon -> TyConMap -> RTyCon -> [RType c RTyVar r] -> RTyCon
 appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
   where
     c    = rtc_tc rc
     ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
     ts'  = if null ts then rVar <$> βs else toRSort <$> ts
-    rc'  = M.lookupDefault rc c tyi
-    αs   = GM.tyConTyVarsDef $ rtc_tc rc'
+    rc'  = M.lookupDefault rc c (tcmTyRTy tyi)
+    αs   = GM.tyConTyVarsDef (rtc_tc rc')
     βs   = GM.tyConTyVarsDef c
     rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
 

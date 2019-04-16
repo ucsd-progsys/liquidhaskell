@@ -45,7 +45,7 @@ data GhcSrc = Src
   , giUseVars   :: ![Var]                 -- ^ Binders that are _read_ in module
   , gsExports   :: !NameSet               -- ^ `Name`s exported by the module being verified
   , gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons 
-  , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance dataCons 
+  , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons 
   , gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
   , gsQualImps  :: !QImports              -- ^ Map of qualified imports
   , gsAllImps   :: !(S.HashSet F.Symbol)  -- ^ Set of _all_ imported modules
@@ -115,7 +115,7 @@ data GhcSpecNames = SpNames
   -- REBARE: == gsMeas , gsLits       :: ![(F.Symbol, LocSpecType)]    -- ^ Literals/Constants e.g. datacons: EQ, GT, string lits: "zombie",...
   , gsTcEmbeds   :: !(F.TCEmb TyCon)              -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
-  , gsTyconEnv   :: !(M.HashMap TyCon RTyCon)
+  , gsTyconEnv   :: !TyConMap
   }
 
 data GhcSpecTerm = SpTerm 
