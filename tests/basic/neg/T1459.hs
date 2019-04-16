@@ -1,3 +1,6 @@
+
+-- https://github.com/ucsd-progsys/liquidhaskell/issues/1459
+
 import qualified Data.ByteString.Lazy as BL
 
 bar2 :: BL.ByteString -> Int
