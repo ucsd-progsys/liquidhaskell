@@ -282,7 +282,10 @@ class Qualify a where
   qualify :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 
 instance Qualify TyConMap where 
-  qualify env name l bs (TyConMap m) = TyConMap (qualify env name l bs <$> m)  
+  qualify env name l bs (TyConMap m1 m2) = TyConMap (tx <$> m1) (tx <$> m2)
+    where 
+      tx :: (Qualify a) => a -> a 
+      tx = qualify env name l bs 
 
 instance Qualify TyConP where 
   qualify env name _ bs tcp = tcp { tcpSizeFun = qualify env name (tcpLoc tcp) bs <$> tcpSizeFun tcp }
@@ -861,8 +864,8 @@ addSymSort :: Ghc.SrcSpan -> F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecTy
 addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
-    rc'                = F.tracepp ("app-rtycon: " ++ showpp (rc, ts)) $ RT.appRTyCon tce tyi rc ts
-    pvs                = rTyConPVs rc'
+    (_, pvs)           = F.tracepp ("app-rtycon: " ++ showpp (rc, ts)) $ RT.appRTyCon tce tyi rc ts
+    -- pvs             = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RProp _ (RHole r')) = r' `F.meet` r

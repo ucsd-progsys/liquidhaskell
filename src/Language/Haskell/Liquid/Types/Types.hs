@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Ghc Information
   , TargetVars   (..)
   , TyConMap     (..)
-  
+
   -- * F.Located Things
   , F.Located (..)
   , F.dummyLoc
@@ -283,7 +283,8 @@ import           Data.Default
 -- | Information about Type Constructors
 -----------------------------------------------------------------------------
 data TyConMap = TyConMap 
-  { tcmTyRTy :: M.HashMap TyCon RTyCon 
+  { tcmTyRTy :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon 
+  , tcmFIRTy :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
   }
  
 

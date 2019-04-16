@@ -75,7 +75,6 @@ data Env = RE
   , reAllImps   :: !(S.HashSet F.Symbol)     -- ^ all imported modules
   , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
   , reGlobSyms  :: !(S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
-  -- , reCbs       :: ![CoreBind]               -- ^ needed to resolve local vars in signatures e.g. tests-names-pos-local02.hs
   , reSrc       :: !GhcSrc                   -- ^ all source info
   }
 

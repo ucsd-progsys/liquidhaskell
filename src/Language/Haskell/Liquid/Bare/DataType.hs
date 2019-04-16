@@ -128,9 +128,9 @@ makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
     cs                    = F.notracepp "famInstTcs-all" cs0
 
 famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
-famInstTyConType c = F.tracepp ("famInstTyConType: " ++ F.showpp c) $ 
-  case Ghc.tyConFamInst_maybe c of
-    Just (c', ts) -> Just (famInstType (Ghc.tyConArity c) c' ts)
+famInstTyConType c = case Ghc.tyConFamInst_maybe c of
+    Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+                     $ Just (famInstType (Ghc.tyConArity c) c' ts)
     Nothing       -> Nothing
 
 famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
@@ -534,7 +534,7 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
     (yts, ot)     = F.notracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
-                    qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
+                    qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
