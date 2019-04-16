@@ -282,7 +282,10 @@ class Qualify a where
   qualify :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 
 instance Qualify TyConMap where 
-  qualify env name l bs (TyConMap m1 m2) = TyConMap (tx <$> m1) (tx <$> m2)
+  qualify env name l bs tyi = tyi 
+    { tcmTyRTy = tx <$> tcmTyRTy tyi 
+    , tcmFIRTy = tx <$> tcmFIRTy tyi 
+    } 
     where 
       tx :: (Qualify a) => a -> a 
       tx = qualify env name l bs 

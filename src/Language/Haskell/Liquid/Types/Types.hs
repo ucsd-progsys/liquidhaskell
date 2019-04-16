@@ -283,8 +283,9 @@ import           Data.Default
 -- | Information about Type Constructors
 -----------------------------------------------------------------------------
 data TyConMap = TyConMap 
-  { tcmTyRTy :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon 
-  , tcmFIRTy :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
+  { tcmTyRTy    :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon 
+  , tcmFIRTy    :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
+  , tcmFtcArity :: M.HashMap TyCon             Int     -- ^ Arity of each Family-Tycon 
   }
  
 

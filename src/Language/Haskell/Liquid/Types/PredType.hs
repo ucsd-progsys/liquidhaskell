@@ -55,22 +55,24 @@ import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.Types
 import           Data.Default
 
-makeTyConInfo :: [Ghc.TyCon] -> [TyConP] -> TyConMap
-makeTyConInfo fiTcs tcps = TyConMap 
-  { tcmTyRTy = tcm
-  , tcmFIRTy = mkFInstRTyCon fiTcs tcm 
+makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
+makeTyConInfo tce fiTcs tcps = TyConMap 
+  { tcmTyRTy    = tcM
+  , tcmFIRTy    = tcInstM 
+  , tcmFtcArity = arities
   }
-  where tcm  = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
+  where 
+    tcM         = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
+    tcInstM     = mkFInstRTyCon tce fiTcs tcM 
+    arities     = safeFromList "makeTyConInfo" [ (c, length ts) | (c, ts) <- M.keys tcInstM ]
 
-mkFInstRTyCon :: [Ghc.TyCon] -> M.HashMap Ghc.TyCon RTyCon -> M.HashMap (Ghc.TyCon, [F.Sort]) RTyCon
-mkFInstRTyCon fiTcs tcm = M.fromList 
-  [ (unFamInst fiTc, rtc) 
-    | fiTc <- fiTcs
-    , rtc  <- Mb.maybeToList (M.lookup fiTc tcm)
+mkFInstRTyCon :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> M.HashMap Ghc.TyCon RTyCon -> M.HashMap (Ghc.TyCon, [F.Sort]) RTyCon
+mkFInstRTyCon tce fiTcs tcm = M.fromList 
+  [ ((c, typeSort tce <$> ts), rtc) 
+    | fiTc    <- fiTcs
+    , rtc     <- Mb.maybeToList (M.lookup fiTc tcm)
+    , (c, ts) <- Mb.maybeToList (famInstArgs fiTc)
   ] 
-
-unFamInst :: Ghc.TyCon -> (Ghc.TyCon, [F.Sort])
-unFamInst = _fixme_unFamInst
 
 mkRTyCon ::  TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)

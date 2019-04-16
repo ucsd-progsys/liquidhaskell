@@ -59,7 +59,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , typeUniqueSymbol
   , classBinds
   , isSizeable
-
+  , famInstTyConType
+  , famInstArgs
 
   -- * Manipulating Refinements in RTypes
   , strengthen
@@ -119,6 +120,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
+import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 
 import Data.List (sort, foldl')
 
@@ -894,8 +896,37 @@ rTyConWithPVars tyi rc ts = case famInstTyConMb tyi rc ts of
 -- | @famInstTyConMb rc args@ uses the @RTyCon@ AND @args@ to see if 
 --   this is a family instance @RTyCon@, and if so, returns it.
 --   see [NOTE:FamInstPredVars]
+--   eg: 'famInstTyConMb tyi Field [Blob, a]' should give 'Just R:FieldBlob' 
+    
 famInstTyConMb :: TyConMap -> RTyCon -> [F.Sort] -> Maybe RTyCon
-famInstTyConMb = _fixme_famInstTyConMb 
+famInstTyConMb tyi rc ts = do 
+  let c = rtc_tc rc
+  n    <- M.lookup c      (tcmFtcArity tyi)
+  M.lookup (c, take n ts) (tcmFIRTy    tyi)
+
+famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
+famInstTyConType c = uncurry Ghc.mkTyConApp <$> famInstArgs c 
+
+-- | @famInstArgs c@ destructs a family-instance @TyCon@ into its components, e.g. 
+--   e.g. 'famInstArgs R:FieldBlob' is @(Field, [Blob])@ 
+
+famInstArgs :: Ghc.TyCon -> Maybe (Ghc.TyCon, [Ghc.Type])
+famInstArgs c = case Ghc.tyConFamInst_maybe c of
+    Just (c', ts) -> F.tracepp ("famInstArgs: " ++ F.showpp (c, cArity, ts)) 
+                     $ Just (c', take (length ts - cArity) ts) 
+    Nothing       -> Nothing
+    where 
+      cArity      = Ghc.tyConArity c
+
+-- TODO:faminst-preds: case Ghc.tyConFamInst_maybe c of
+-- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+-- TODO:faminst-preds:                    $ Just (famInstType (Ghc.tyConArity c) c' ts)
+-- TODO:faminst-preds:   Nothing       -> Nothing
+
+-- TODO:faminst-preds: famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
+-- TODO:faminst-preds: famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
+
+
 
 
 -- | @plainTyConPVars@ uses the @TyCon@ to return the 
@@ -906,7 +937,6 @@ plainRTyConPVars :: TyConMap -> RTyCon -> (RTyCon, [RPVar])
 plainRTyConPVars tyi rc = (rc', rTyConPVs rc') 
   where 
     rc'                   = M.lookupDefault rc (rtc_tc rc) (tcmTyRTy tyi)
-
 
 
 

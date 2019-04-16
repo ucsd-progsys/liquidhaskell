@@ -123,10 +123,11 @@ makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
     famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
-                                , ty  <- Mb.maybeToList (famInstTyConType c) ]
+                                , ty  <- Mb.maybeToList (RT.famInstTyConType c) ]
     embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
     cs                    = F.notracepp "famInstTcs-all" cs0
 
+{- 
 famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
 famInstTyConType c = case Ghc.tyConFamInst_maybe c of
     Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
@@ -135,6 +136,7 @@ famInstTyConType c = case Ghc.tyConFamInst_maybe c of
 
 famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
 famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
+-}
 
 {- | [NOTE:FamInstEmbeds] GHC represents family instances in two ways: 
 
@@ -539,7 +541,7 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
     (xs, ts)      = unzip xts
-    t0            = case famInstTyConType tc of
+    t0            = case RT.famInstTyConType tc of
                       Nothing -> F.notracepp "dataConResult-3: " $ RT.gApp tc αs πs
                       Just ty -> RT.ofType ty
     isGadt        = Mb.isJust res
