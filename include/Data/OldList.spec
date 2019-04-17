@@ -1,4 +1,4 @@
-module spec Data.List where
+module spec Data.OldList where
 
 import GHC.Base
 import GHC.List
