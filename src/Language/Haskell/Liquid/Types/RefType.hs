@@ -867,7 +867,7 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
  -}
 
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
-appRTyCon tce tyi rc ts = F.tracepp _msg (resTc, ps'') 
+appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'') 
   where
     _msg  = "appRTyCon-family: " ++ showpp (GHC.isFamilyTyCon c, GHC.tyConArity c, toType <$> ts)
     resTc = RTyCon c ps'' (rtc_info rc'')
@@ -912,7 +912,7 @@ famInstTyConType c = uncurry Ghc.mkTyConApp <$> famInstArgs c
 
 famInstArgs :: Ghc.TyCon -> Maybe (Ghc.TyCon, [Ghc.Type])
 famInstArgs c = case Ghc.tyConFamInst_maybe c of
-    Just (c', ts) -> F.tracepp ("famInstArgs: " ++ F.showpp (c, cArity, ts)) 
+    Just (c', ts) -> F.notracepp ("famInstArgs: " ++ F.showpp (c, cArity, ts)) 
                      $ Just (c', take (length ts - cArity) ts) 
     Nothing       -> Nothing
     where 

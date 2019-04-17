@@ -867,7 +867,7 @@ addSymSort :: Ghc.SrcSpan -> F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecTy
 addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
-    (_, pvs)           = F.tracepp ("app-rtycon: " ++ showpp (rc, ts)) $ RT.appRTyCon tce tyi rc ts
+    (_, pvs)           = RT.appRTyCon tce tyi rc ts
     -- pvs             = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest

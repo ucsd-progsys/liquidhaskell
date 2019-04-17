@@ -754,9 +754,9 @@ ppError' _ dSp dCtx (ErrParse _ _ e)
         $+$ dCtx
         $+$ (nest 4 $ pprint e)
 
-ppError' _ dSp dCtx (ErrTySpec _ k v t s)
-  -- = dSp <+> ("Illegal type specification for" <+> ppTicks v) --  <-> ppKind k <-> ppTicks v)
-  = dSp <+> ("Illegal type specification for" <+> _ppKind k <-> ppTicks v)
+ppError' _ dSp dCtx (ErrTySpec _ _k v t s)
+  = dSp <+> ("Illegal type specification for" <+> ppTicks v) --  <-> ppKind k <-> ppTicks v)
+  -- = dSp <+> ("Illegal type specification for" <+> _ppKind k <-> ppTicks v)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
