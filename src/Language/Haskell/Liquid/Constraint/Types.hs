@@ -194,7 +194,7 @@ data CGInfo = CGInfo
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
   , holesMap   :: !(M.HashMap Var [HoleInfo SpecType])    -- ^ information for ghc hole expressions
-  , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
+  , tyConInfo  :: !TyConMap                    -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED) 
   , newTyEnv   :: !(M.HashMap TC.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions

@@ -12,7 +12,7 @@ module Language.Haskell.Liquid.Bare.Types
     -- * Tycon and Datacon processing environment
   , TycEnv (..) 
   , DataConMap
-  , TyConMap
+  , RT.TyConMap
 
     -- * Signature processing environment 
   , SigEnv (..)
@@ -75,7 +75,6 @@ data Env = RE
   , reAllImps   :: !(S.HashSet F.Symbol)     -- ^ all imported modules
   , reLocalVars :: !LocalVars                -- ^ lines at which local variables are defined.
   , reGlobSyms  :: !(S.HashSet F.Symbol)     -- ^ global symbols, typically unlifted measures like 'len', 'fromJust'
-  -- , reCbs       :: ![CoreBind]               -- ^ needed to resolve local vars in signatures e.g. tests-names-pos-local02.hs
   , reSrc       :: !GhcSrc                   -- ^ all source info
   }
 
@@ -97,7 +96,7 @@ type TyThingMap = M.HashMap F.Symbol [(F.Symbol, Ghc.TyThing)]
 -------------------------------------------------------------------------------
 data SigEnv = SigEnv 
   { sigEmbs       :: !(F.TCEmb Ghc.TyCon) 
-  , sigTyRTyMap   :: !(M.HashMap Ghc.TyCon RTyCon)
+  , sigTyRTyMap   :: !RT.TyConMap 
   , sigExports    :: !Ghc.NameSet
   , sigRTEnv      :: !BareRTEnv
   }
@@ -110,14 +109,13 @@ data TycEnv = TycEnv
   , tcDataCons    :: ![DataConP]
   , tcSelMeasures :: ![Measure SpecType Ghc.DataCon]
   , tcSelVars     :: ![(Ghc.Var, LocSpecType)]
-  , tcTyConMap    :: !TyConMap 
+  , tcTyConMap    :: !RT.TyConMap 
   , tcAdts        :: ![F.DataDecl]
   , tcDataConMap  :: !DataConMap 
   , tcEmbs        :: !(F.TCEmb Ghc.TyCon)
   , tcName        :: !ModName
   }
 
-type TyConMap   = M.HashMap Ghc.TyCon RTyCon
 type DataConMap = M.HashMap (F.Symbol, Int) F.Symbol
 
 -------------------------------------------------------------------------------

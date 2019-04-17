@@ -89,13 +89,7 @@ makeDataConSelector dmMb d i = M.lookupDefault def (F.symbol d, i) dm
   where 
     dm                       = Mb.fromMaybe M.empty dmMb 
     def                      = makeDataConSelector' d i
-
- {- 
-  case mbDm of
-  Nothing -> def
-  Just dm -> M.lookupDefault def (F.symbol d, i) dm
-  where
- -} 
+ 
 
 makeDataConSelector' :: Ghc.DataCon -> Int -> F.Symbol
 makeDataConSelector' d i
@@ -129,20 +123,26 @@ makeFamInstEmbeds cs0 embs = L.foldl' embed embs famInstSorts
     famInstSorts          = F.notracepp "famInstTcs"
                             [ (c, RT.typeSort embs ty)
                                 | c   <- cs
-                                , ty  <- Mb.maybeToList (famInstTyConType c) ]
+                                , ty  <- Mb.maybeToList (RT.famInstTyConType c) ]
     embed embs (c, t)     = F.tceInsert c t F.NoArgs embs
     cs                    = F.notracepp "famInstTcs-all" cs0
 
+{- 
 famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
 famInstTyConType c = case Ghc.tyConFamInst_maybe c of
-  Just (c', ts) -> Just (famInstType (Ghc.tyConArity c) c' ts)
-  Nothing       -> Nothing
+    Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+                     $ Just (famInstType (Ghc.tyConArity c) c' ts)
+    Nothing       -> Nothing
 
 famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
 famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
+-}
 
-{- | [NOTE:FamInstEmbeds] For various reasons, GHC represents family instances
-     in two ways: (1) As an applied type, (2) As a special tycon.
+{- | [NOTE:FamInstEmbeds] GHC represents family instances in two ways: 
+
+     (1) As an applied type, 
+     (2) As a special tycon.
+     
      For example, consider `tests/pos/ExactGADT4.hs`:
 
         class PersistEntity record where
@@ -171,6 +171,7 @@ famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
         R$58$EntityFieldBlobdog :-> EntityField Blob
 
      So that all occurrences of the (2) are treated as (1) by the sort checker.
+
  -}
 
 --------------------------------------------------------------------------------
@@ -345,82 +346,19 @@ muSort c n  = V.mapSort tx
     tx t    = if t == me then ct else t
 -}
 
-
-
---------------------------------------------------------------------------------
-{- | NOTE:AUTO-INDPRED (tests/todo/IndPred1.hs)
--- DO NOT DELETE
--- RJ: too hard, too brittle, I _thought_ we could just
--- generate the F.DataDecl, but really, you need the GHC
--- names for the Prop-Ctor if you want to be able to `import`
--- a predicate across modules. Seems a LOT easier to just have
--- the program explicitly create the the proposition type
--- e.g. as shownn in (tests/pos/IndPred0.hs)
---------------------------------------------------------------------------------
-
-type SpecTypeRep  = RTypeRep RTyCon RTyVar RReft
-
--- | 'makePropDecl' creates the 'F.DataDecl' for the *proposition* described
---   by the corresponding 'TyCon' / 'DataDecl', e.g. tests/pos/IndPred0.hs
-makePropDecl :: F.TCEmb TyCon -> TyCon -> DataPropDecl -> Maybe F.DataDecl
-makePropDecl tce tc (dd, pd) = makePropTyDecl tce tc dd <$> pd
-
-makePropTyDecl :: F.TCEmb TyCon -> TyCon -> DataDecl -> SpecType -> F.DataDecl
-makePropTyDecl tce tc dd t
-  = F.DDecl
-    { F.ddTyCon = ftc
-    , F.ddVars  = length (ty_vars tRep)
-    , F.ddCtors = [ makePropTyCtor tce ftc tRep ]
-    }
-  where
-    ftc         = propFTycon tc dd
-    tRep        = toRTypeRep t
-
-propFTycon :: TyCon -> DataDecl -> F.FTycon
-propFTycon tc = F.symbolFTycon . fmap (`F.suffixSymbol` F.propConName) . tyConLocSymbol tc
-
-makePropTyCtor :: F.TCEmb TyCon -> F.FTycon -> SpecTypeRep -> F.DataCtor
-makePropTyCtor tce ftc t
-  = F.DCtor
-    { F.dcName   = F.fTyconSymbol ftc
-    , F.dcFields = makePropTyFields tce ftc t
-    }
-
-makePropTyFields :: F.TCEmb TyCon -> F.FTycon -> SpecTypeRep -> [F.DataField]
-makePropTyFields tce ftc t = makeDataFields tce ftc as xts
-  where
-    as                     = [ a | RTVar a _ <- ty_vars t ]
-    xts                    = zipWith (\i t -> (fld i, t)) [0..] (ty_args t)
-    tcSym                  = F.fTyconSymbol ftc
-    fld                    = F.atLoc tcSym
-                           . GM.symbolMeasure "propField" (val tcSym)
-                           . Just
-
-isPropDecl :: F.DataDecl -> Bool
-isPropDecl d =  (F.isSuffixOfSym F.propConName . F.symbol . F.ddTyCon $ d)
-              && (length (F.ddCtors d) == 1)
-
-qualifyDataDecl :: ModName -> DataDecl -> DataDecl
-qualifyDataDecl name d = d { tycName = qualifyName name (tycName d)}
-
-qualifyName :: ModName -> LocSymbol -> LocSymbol
-qualifyName n x = F.atLoc x $ GM.qualifySymbol nSym (val x)
-  where
-    nSym        = GM.takeModuleNames (F.symbol n)
-
--}
-
 --------------------------------------------------------------------------------
 meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
-meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec emb xts dcs  = F.notracepp "meetDataConSpec" 
+                                $ M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
     dcm0                     = M.fromList (dataConSpec' dcs)
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
                                 where
                                   tx' = maybe t (meetX x t) (M.lookup x dcm)
-    meetX x t (sp', t')      = meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t')
+    meetX x t (sp', t')      = F.notracepp (_msg x t t') $ meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t')
+    _msg x t t'              = "MEET-VAR-TYPES: " ++ showpp (x, t, t')
 
 dataConSpec' :: [DataConP] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
 dataConSpec' = concatMap tx 
@@ -598,12 +536,12 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
     (yts, ot)     = F.notracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
-                    qualifyDataCtor ({- exactDCFlag cfg && -} not isGadt) name dLoc (zip xs ts', t0')
+                    qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
     (xs, ts)      = unzip xts
-    t0            = case famInstTyConType tc of
+    t0            = case RT.famInstTyConType tc of
                       Nothing -> F.notracepp "dataConResult-3: " $ RT.gApp tc αs πs
                       Just ty -> RT.ofType ty
     isGadt        = Mb.isJust res

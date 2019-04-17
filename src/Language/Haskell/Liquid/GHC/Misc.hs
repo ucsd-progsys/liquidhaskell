@@ -582,6 +582,7 @@ instance Symbolic Var where   -- TODO:reflect-datacons varSymbol
     | isExportedId v = exportedVarSymbol v
     | otherwise      = localVarSymbol    v
 
+
 instance Hashable Var where
   hashWithSalt = uniqueHash
 
