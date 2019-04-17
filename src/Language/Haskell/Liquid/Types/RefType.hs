@@ -863,7 +863,12 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
      solely in the `RTyCon` as with family instances, you need BOTH 
      the `TyCon` and the args to determine the extra info. 
      
-     Thus, in `TyConMap`
+     We do so in `TyConMap`, and by crucially extending 
+
+     @RefType.appRTyCon@ whose job is to use the Refined @TyCon@ 
+     that is, the @RTyCon@ generated from the @TyConP@ to strengthen
+     individual occurrences of the TyCon applied to various arguments.
+
  -}
 
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
