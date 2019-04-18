@@ -187,7 +187,8 @@ liquidQuery cfg tgt info edc = do
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
   out        <- timedAction names $ solveCs cfg tgt cgi info3 names
-  return      $ mconcat [oldOut, out]
+  let newout  = mconcat [oldOut, out]
+  return      $ newout
 
 updGhcInfoTermVars    :: GhcInfo -> GhcInfo 
 updGhcInfoTermVars i  = updInfo i  (ST.terminationVars i) 
