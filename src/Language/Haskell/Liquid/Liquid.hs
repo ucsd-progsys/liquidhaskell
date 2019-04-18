@@ -228,13 +228,9 @@ solveCs cfg tgt cgi info names = do
 
 synthesizeHole :: Error -> Error 
 synthesizeHole e@(ErrHole {..}) 
-  = e{msg = mempty} 
-{- NV TODO: add this code when synthesizer is defined 
-synthesizeHole e@(ErrHole {..}) 
-  | length fills > 0 
-  = e{msg = text "\n Hole Fills: " <+> pprintMany fills} 
+  = e{msg = fmsg} 
   where fills = synthesize ctx thl
--}
+        fmsg  = if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty 
 synthesizeHole e = e
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
