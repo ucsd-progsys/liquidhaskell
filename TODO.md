@@ -1,5 +1,15 @@
 # TODO
 
+## Build
+
+Given:
+
+- Target  = D.hs
+- Imports = A.hs, B.hs, C.hs
+
+Invariant
+
+
 
 ## CallStack/Error
 

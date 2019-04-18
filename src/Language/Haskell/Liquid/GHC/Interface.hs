@@ -111,7 +111,7 @@ getGhcInfos hscEnv cfg tgtFiles' = do
 checkFilePresent :: FilePath -> IO ()
 checkFilePresent f = do
   b <- doesFileExist f
-  when (not b) $ panic Nothing ("Cannot find file: " ++ f)
+  unless b $ panic Nothing ("Cannot find file: " ++ f)
 
 getGhcInfos' :: Config -> LogicMap -> [FilePath] -> Ghc ([GhcInfo], HscEnv)
 getGhcInfos' cfg logicMap tgtFiles = do
@@ -180,15 +180,8 @@ configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
 configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
-  moduleGraph     <- depanal [] False
-                     -- NOTE: drop hs-boot files from the graph.
-                     -- we do it manually rather than using the flag to topSortModuleGraph
-                     -- because otherwise the order of mutually recursive modules depends
-                     -- on the modulename, e.g. given
-                     --   Bar.hs --> Foo.hs --> Bar.hs-boot
-                     -- we'll get
-                     --   [Bar.hs, Foo.hs]
-                     -- wich is backwards..
+  moduleGraph     <- depanal [] False -- see [NOTE:DROP-BOOT-FILES]
+
   let homeModules  = filter (not . isBootSummary) $
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
@@ -213,6 +206,19 @@ compileCFiles cfg = do
   df  <- getSessionDynFlags
   void $ setSessionDynFlags $ df { ldInputs = nub $ map (FileOption "") os ++ ldInputs df }
 
+{- | [NOTE:DROP-BOOT-FILES] Drop hs-boot files from the graph.
+      We do it manually rather than using the flag to topSortModuleGraph
+      because otherwise the order of mutually recursive modules depends
+      on the modulename, e.g. given
+
+      Bar.hs --> Foo.hs --> Bar.hs-boot
+
+      we'll get
+      
+      [Bar.hs, Foo.hs]
+    
+      which is backwards..
+ -}
 --------------------------------------------------------------------------------
 -- Home Module Dependency Graph ------------------------------------------------
 --------------------------------------------------------------------------------
