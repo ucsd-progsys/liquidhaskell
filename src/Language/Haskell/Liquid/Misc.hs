@@ -8,7 +8,7 @@ import Control.Monad.State
 
 import Control.Arrow (first)
 import System.FilePath
-import System.Directory   (doesFileExist)
+import System.Directory   (getModificationTime, doesFileExist)
 import System.Environment (getExecutablePath)
 
 import qualified Control.Exception     as Ex --(evaluate, catch, IOException)
@@ -373,3 +373,9 @@ sayReadFile f = do
   -- print ("SAY-READ-FILE: " ++ f)
   res <- readFile f 
   Ex.evaluate res
+
+lastModified :: FilePath -> IO (Maybe UTCTime) 
+lastModified f = do 
+  ex  <- doesFileExist f
+  if ex then Just <$> getModificationTime f
+        else return   Nothing

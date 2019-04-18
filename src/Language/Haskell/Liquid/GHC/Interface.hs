@@ -10,7 +10,7 @@
 module Language.Haskell.Liquid.GHC.Interface (
 
   -- * Determine the build-order for target files
-   orderTargets
+   realTargets
 
   -- * Extract all information needed for verification
   , getGhcInfos
@@ -100,23 +100,50 @@ import Language.Fixpoint.Utils.Files
 import qualified Debug.Trace as Debug 
 
 --------------------------------------------------------------------------------
-{- | @orderTargets mE cfg targets@ uses `Interface.configureGhcTargets` to return a list of files
+{- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to 
+     return a list of files
 
        [i1, i2, ... ] ++ [f1, f2, ...]
 
-     1. where each file only (transitively imports) preceding ones; 
+     1. Where each file only (transitively imports) PRECEDIING ones; 
      2. `f1..` are a permutation of the original `targets`;
+     3. `i1..` either don't have "fresh" .bspec files. 
+
  -}
 --------------------------------------------------------------------------------
--- orderTargets :: MbEnv -> Config -> [FilePath] -> IO [FilePath]
--- orderTargets _ _ fs = return fs -- undefined
--- orderTargets _ _ tgtFiles = return fs -- undefined
+realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
+realTargets  mbEnv cfg tgtFs = do 
+  incDir   <- Misc.getIncludeDir 
+  allFs    <- orderTargets mbEnv cfg tgtFs
+  let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
+  realFs   <- filterM check srcFs
+  dir      <- getCurrentDirectory
+  return      (makeRelative dir <$> realFs)
+  where 
+    check f    = not <$> skipTarget tgts f 
+    tgts       = S.fromList tgtFs
 
 orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
 orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
   homeModules <- configureGhcTargets tgtFiles
-  return (modSummaryHsFile <$> mgModSummaries homeModules)
-  -- depGraph    <- buildDepGraph homeModules
+  return         (modSummaryHsFile <$> mgModSummaries homeModules)
+
+
+skipTarget :: S.HashSet FilePath -> FilePath -> IO Bool
+skipTarget tgts f 
+  | S.member f tgts = return False          -- Always check target file 
+  | otherwise       = hasFreshBinSpec f     -- But skip an import with fresh .bspec
+
+hasFreshBinSpec :: FilePath -> IO Bool
+hasFreshBinSpec srcF = do 
+  let specF = extFileName BinSpec srcF
+  srcMb    <- Misc.lastModified srcF 
+  specMb   <- Misc.lastModified specF 
+  case (srcMb, specMb) of 
+    (Just srcT, Just specT) -> return (srcT < specT)
+    _                       -> return False
+
+
 
 --------------------------------------------------------------------------------
 -- | GHC Interface Pipeline ----------------------------------------------------

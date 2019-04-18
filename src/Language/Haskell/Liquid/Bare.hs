@@ -72,14 +72,14 @@ loadLiftedSpec cfg srcF
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
       Ex.evaluate lSp
 
-errMissingSpec :: FilePath -> FilePath -> UserError 
-errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
-
 warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
 warnMissingLiftedSpec srcF specF = do 
   incDir <- Misc.getIncludeDir 
   unless (Misc.isIncludeFile incDir srcF)
     $ Ex.throw (errMissingSpec srcF specF) 
+
+errMissingSpec :: FilePath -> FilePath -> UserError 
+errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 

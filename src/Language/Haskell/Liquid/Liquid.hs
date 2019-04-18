@@ -78,13 +78,21 @@ liquidConstraints cfg = do
 --------------------------------------------------------------------------------
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 --------------------------------------------------------------------------------
-runLiquid mE cfg  = orderTargets mE cfg (files cfg) >>= go mE
-  where 
+runLiquid mE cfg  = do 
+  reals <- realTargets mE cfg (files cfg)
+  putStrLn $ showpp (text "Targets:" <+> vcat (text <$> reals))
+  checkTargets cfg mE reals
+
+checkTargets :: Config -> MbEnv -> [FilePath] -> IO (ExitCode, MbEnv)
+checkTargets cfg  = go 
+  where
     go env []     = return (ExitSuccess, env)
-    go env (f:fs) = do (ec, env') <- runLiquidTargets env cfg [f] 
+    go env (f:fs) = do colorPhaseLn Loud ("[Checking: " ++ f ++ "]") ""
+                       (ec, env') <- runLiquidTargets env cfg [f] 
                        case ec of 
                          ExitSuccess -> go env' fs
                          _           -> return (ec, env')
+
 
 --------------------------------------------------------------------------------
 -- | @runLiquid@ checks a *target-list* of files, ASSUMING that we have 
