@@ -179,6 +179,7 @@ library
                     , liquid-fixpoint      >= 0.8.0.0
                     , mtl                  >= 2.1
                     , optparse-simple
+                    , githash
                     , parsec               >= 3.1
                     , pretty               >= 1.1
                     , syb                  >= 0.4.4
