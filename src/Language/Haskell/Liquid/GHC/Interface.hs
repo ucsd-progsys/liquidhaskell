@@ -112,13 +112,15 @@ import qualified Debug.Trace as Debug
  -}
 --------------------------------------------------------------------------------
 realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
-realTargets  mbEnv cfg tgtFs = do 
-  incDir   <- Misc.getIncludeDir 
-  allFs    <- orderTargets mbEnv cfg tgtFs
-  let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
-  realFs   <- filterM check srcFs
-  dir      <- getCurrentDirectory
-  return      (makeRelative dir <$> realFs)
+realTargets  mbEnv cfg tgtFs 
+  | noCheckImports cfg = return tgtFs
+  | otherwise          = do 
+    incDir   <- Misc.getIncludeDir 
+    allFs    <- orderTargets mbEnv cfg tgtFs
+    let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
+    realFs   <- filterM check srcFs
+    dir      <- getCurrentDirectory
+    return      (makeRelative dir <$> realFs)
   where 
     check f    = not <$> skipTarget tgts f 
     tgts       = S.fromList tgtFs

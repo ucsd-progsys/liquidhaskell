@@ -350,6 +350,11 @@ config = cmdArgsMode $ Config {
         &= name "compile-spec"
         &= help "Only compile specifications (into .bspec file); skip verification" 
 
+  , noCheckImports
+    = def 
+        &= name "no-check-imports"
+        &= help "Do not check the transitive imports; only check the target files." 
+
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -580,6 +585,7 @@ defConfig = Config
   , proofLogicEvalLocal = False
   , reflection        = False
   , compileSpec       = False
+  , noCheckImports    = False
   }
 
 ------------------------------------------------------------------------
