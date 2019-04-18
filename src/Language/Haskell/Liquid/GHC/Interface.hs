@@ -9,11 +9,14 @@
 
 module Language.Haskell.Liquid.GHC.Interface (
 
-  -- * extract all information needed for verification
-    getGhcInfos
+  -- * Determine the build-order for target files
+   orderTargets
+
+  -- * Extract all information needed for verification
+  , getGhcInfos
   , runLiquidGhc
 
-  -- * printer
+  -- * Printer
   , pprintCBs
 
   -- * predicates
@@ -97,6 +100,25 @@ import Language.Fixpoint.Utils.Files
 import qualified Debug.Trace as Debug 
 
 --------------------------------------------------------------------------------
+{- | @orderTargets mE cfg targets@ uses `Interface.configureGhcTargets` to return a list of files
+
+       [i1, i2, ... ] ++ [f1, f2, ...]
+
+     1. where each file only (transitively imports) preceding ones; 
+     2. `f1..` are a permutation of the original `targets`;
+ -}
+--------------------------------------------------------------------------------
+-- orderTargets :: MbEnv -> Config -> [FilePath] -> IO [FilePath]
+-- orderTargets _ _ fs = return fs -- undefined
+-- orderTargets _ _ tgtFiles = return fs -- undefined
+
+orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
+orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
+  homeModules <- configureGhcTargets tgtFiles
+  return (modSummaryHsFile <$> mgModSummaries homeModules)
+  -- depGraph    <- buildDepGraph homeModules
+
+--------------------------------------------------------------------------------
 -- | GHC Interface Pipeline ----------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -129,7 +151,6 @@ createTempDirectoryIfMissing tgtFile = Misc.tryIgnore "create temp directory" $
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
-
 runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
 runLiquidGhc hscEnv cfg act =
   withSystemTempDirectory "liquid" $ \tmp ->

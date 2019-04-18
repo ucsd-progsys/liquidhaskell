@@ -75,7 +75,6 @@ liquidConstraints cfg = do
     Right (gs, _) -> 
       return $ Left $ map generateConstraints gs
 
-
 --------------------------------------------------------------------------------
 runLiquid :: MbEnv -> Config -> IO (ExitCode, MbEnv)
 --------------------------------------------------------------------------------
@@ -86,18 +85,6 @@ runLiquid mE cfg  = orderTargets mE cfg (files cfg) >>= go mE
                        case ec of 
                          ExitSuccess -> go env' fs
                          _           -> return (ec, env')
-
---------------------------------------------------------------------------------
-{- | @orderTargets mE cfg targets@ uses `Interface.configureGhcTargets` to return a list of files
-
-       [i1, i2, ... ] ++ [f1, f2, ...]
-
-     1. where each file only (transitively imports) preceding ones; 
-     2. `f1..` are a permutation of the original `targets`;
- -}
---------------------------------------------------------------------------------
-orderTargets :: MbEnv -> Config -> [FilePath] -> IO [FilePath]
-orderTargets _ _ fs = return fs -- undefined
 
 --------------------------------------------------------------------------------
 -- | @runLiquid@ checks a *target-list* of files, ASSUMING that we have 
