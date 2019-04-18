@@ -6,8 +6,6 @@
 {-# LANGUAGE TypeSynonymInstances      #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
-{-@ LIQUID "--diff"     @-}
-
 -- | This module contains all the code needed to output the result which
 --   is either: `SAFE` or `WARNING` with some reasonable error message when
 --   something goes wrong. All forms of errors/exceptions should go through
@@ -49,6 +47,7 @@ import System.Environment
 import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
 import System.Console.CmdArgs.Text
+import GitHash 
 
 import Data.List                           (nub)
 
@@ -446,6 +445,7 @@ copyright :: String
 copyright = concat $ concat
   [ ["LiquidHaskell "]
   , [$(simpleVersion Meta.version)]
+  , [gitInfo]
   -- , [" (" ++ _commitCount ++ " commits)" | _commitCount /= ("1"::String) &&
   --                                          _commitCount /= ("UNKNOWN" :: String)]
   , ["\nCopyright 2013-19 Regents of the University of California. All Rights Reserved.\n"]
@@ -453,7 +453,24 @@ copyright = concat $ concat
   where
     _commitCount = $gitCommitCount
 
--- NOTE [searchpath]
+gitInfo :: String
+gitInfo  = msg
+  where
+    giTry  = $$tGitInfoCwdTry
+    msg    = case giTry of
+               Left _   -> " no git information"
+               Right gi -> gitMsg gi
+    
+gitMsg :: GitInfo -> String
+gitMsg gi = concat
+  [ " [", giBranch gi, "@", giHash gi
+  , " (", giCommitDate gi, ")"
+  -- , " (", show (giCommitCount gi), " commits in HEAD)"
+  , "] "
+  ]
+
+
+-- [NOTE:searchpath]
 -- 1. we used to add the directory containing the file to the searchpath,
 --    but this is bad because GHC does NOT do this, and it causes spurious
 --    "duplicate module" errors in the following scenario
