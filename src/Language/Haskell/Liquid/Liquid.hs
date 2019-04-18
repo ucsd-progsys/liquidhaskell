@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards     #-}
 
 {-@ LIQUID "--diff"     @-}
 
@@ -37,6 +38,7 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
@@ -187,8 +189,7 @@ liquidQuery cfg tgt info edc = do
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
                             -- , render (pprint cgi)                            ]
   out        <- timedAction names $ solveCs cfg tgt cgi info3 names
-  let newout  = mconcat [oldOut, out]
-  return      $ newout
+  return      $ mconcat [oldOut, out]
 
 updGhcInfoTermVars    :: GhcInfo -> GhcInfo 
 updGhcInfoTermVars i  = updInfo i  (ST.terminationVars i) 
@@ -197,7 +198,6 @@ updGhcInfoTermVars i  = updInfo i  (ST.terminationVars i)
     updSpec   sp   vs = sp   { gsTerm = updSpTerm (gsTerm sp)   vs }
     updSpTerm gsT  vs = gsT  { gsNonStTerm = S.fromList vs         } 
       
-
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
   putStrLn "***************************** SubCs *******************************"
@@ -220,10 +220,18 @@ solveCs cfg tgt cgi info names = do
   let resErr        = applySolution sol . cinfoError . snd <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
-  let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
+  let lErrors       = (synthesizeHole . applySolution sol) <$> logErrors cgi
+  let resModel      = resModel_  `addErrors` (e2u cfg sol <$> lErrors)
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
+
+synthesizeHole :: Error -> Error 
+synthesizeHole e@(ErrHole {..}) 
+  | length fills > 0 
+  = e{msg = text "\n Hole Fills: " <+> pprint fills} 
+  where fills = synthesize ctx thl
+synthesizeHole e = e
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
 e2u cfg s = fmap F.pprint . tidyError cfg s

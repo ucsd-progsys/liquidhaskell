@@ -1,5 +1,8 @@
 module Hole where 
 
+myid :: a -> a 
+myid x = _id
+
 incr :: Int -> Int 
 {-@ incr :: x:Int -> {v:Int | x < v } @-} 
 incr = _incr 
