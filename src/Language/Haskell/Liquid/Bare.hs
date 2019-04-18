@@ -825,10 +825,10 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = F.notracepp "MAKECONTYPES" $ Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
-    tyi           = Bare.qualifyTopDummy env myName <$> makeTyConInfo tycons
+    tyi           = Bare.qualifyTopDummy env myName (makeTyConInfo embs fiTcs tycons)
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
@@ -838,6 +838,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     dm            = Bare.dataConMap adts
     dcSelectors   = concatMap (Bare.makeMeasureSelectors cfg dm) datacons
     recSelectors  = Bare.makeRecordSelectorSigs env myName       datacons
+    fiTcs         = gsFiTcs (Bare.reSrc env)
    
 knownWiredDataCons :: Bare.Env -> ModName -> [Located DataConP] 
 knownWiredDataCons env name = filter isKnown wiredDataCons 
@@ -855,10 +856,10 @@ knownWiredTyCons env name = filter isKnown wiredTyCons
 makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
 makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv 
-  { meMeasureSpec = F.notracepp "meMEASURES" measures 
+  { meMeasureSpec = measures 
   , meClassSyms   = cms' 
   , meSyms        = ms' 
-  , meDataCons    = F.notracepp "meDATACONS" cs' 
+  , meDataCons    = cs' 
   , meClasses     = cls
   , meMethods     = mts ++ dms 
   , meCLaws       = laws

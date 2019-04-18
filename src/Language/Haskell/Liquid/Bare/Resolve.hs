@@ -281,6 +281,15 @@ dummySourcePos = F.loc (F.dummyLoc ())
 class Qualify a where 
   qualify :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 
+instance Qualify TyConMap where 
+  qualify env name l bs tyi = tyi 
+    { tcmTyRTy = tx <$> tcmTyRTy tyi 
+    , tcmFIRTy = tx <$> tcmFIRTy tyi 
+    } 
+    where 
+      tx :: (Qualify a) => a -> a 
+      tx = qualify env name l bs 
+
 instance Qualify TyConP where 
   qualify env name _ bs tcp = tcp { tcpSizeFun = qualify env name (tcpLoc tcp) bs <$> tcpSizeFun tcp }
 
@@ -854,17 +863,12 @@ expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType
 txRefSort :: TyConMap -> F.TCEmb Ghc.TyCon -> LocSpecType -> LocSpecType
 txRefSort tyi tce t = F.atLoc t $ mapBot (addSymSort (GM.fSrcSpan t) tce tyi) (val t)
 
-addSymSort :: (PPrint t, F.Reftable t)
-           => Ghc.SrcSpan
-           -> F.TCEmb Ghc.TyCon
-           -> M.HashMap Ghc.TyCon RTyCon
-           -> RType RTyCon RTyVar (UReft t)
-           -> RType RTyCon RTyVar (UReft t)
+addSymSort :: Ghc.SrcSpan -> F.TCEmb Ghc.TyCon -> TyConMap -> SpecType -> SpecType 
 addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
   = RApp rc ts (zipWith3 (addSymSortRef sp rc) pvs rargs [1..]) r'
   where
-    rc'                = RT.appRTyCon tce tyi rc ts
-    pvs                = rTyConPVs rc'
+    (_, pvs)           = RT.appRTyCon tce tyi rc ts
+    -- pvs             = rTyConPVs rc'
     (rargs, rrest)     = splitAt (length pvs) rs
     r'                 = L.foldl' go r rrest
     go r (RProp _ (RHole r')) = r' `F.meet` r
@@ -873,26 +877,14 @@ addSymSort sp tce tyi (RApp rc@(RTyCon {}) ts rs r)
 addSymSort _ _ _ t
   = t
 
-addSymSortRef :: (PPrint t, PPrint a, F.Symbolic tv, F.Reftable t)
-              => Ghc.SrcSpan
-              -> a
-              -> PVar (RType c tv ())
-              -> Ref (RType c tv ()) (RType c tv (UReft t))
-              -> Int
-              -> Ref (RType c tv ()) (RType c tv (UReft t))
+addSymSortRef :: (PPrint s) => Ghc.SrcSpan -> s -> RPVar -> SpecProp -> Int -> SpecProp 
 addSymSortRef sp rc p r i
   | isPropPV p
   = addSymSortRef' sp rc i p r
   | otherwise
   = panic Nothing "addSymSortRef: malformed ref application"
-
-addSymSortRef' :: (PPrint t, PPrint a, F.Symbolic tv, F.Reftable t)
-               => Ghc.SrcSpan
-               -> a
-               -> Int
-               -> PVar (RType c tv ())
-               -> Ref (RType c tv ()) (RType c tv (UReft t))
-               -> Ref (RType c tv ()) (RType c tv (UReft t))
+              
+addSymSortRef' :: (PPrint s) => Ghc.SrcSpan -> s -> Int -> RPVar -> SpecProp -> SpecProp 
 addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
   = RProp xs t
     where
