@@ -67,7 +67,7 @@ splitSFun = go []
 
 instance PPrint SExpr where 
     pprintTidy k (SVar s)   = pprintTidy k s 
-    pprintTidy k (SFun x e) = char '\\' <+> printArgs (x:xs) <+> text "->" <+> pprintTidy k bd 
+    pprintTidy k (SFun x e) = char '\\' <> (printArgs (x:xs) <+> text "->" <+> pprintTidy k bd) 
       where (xs,bd) = splitSFun e 
             printArgs [] = mempty
             printArgs (x:xs) = pprintTidy k x <+> printArgs xs
