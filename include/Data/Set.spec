@@ -25,7 +25,6 @@ measure Set_emp   :: (Data.Set.Internal.Set a) -> GHC.Types.Bool
 // empty set
 measure Set_empty :: forall a. GHC.Types.Int -> (Data.Set.Internal.Set a)
 
-
 // membership test
 measure Set_mem  :: a -> (Data.Set.Internal.Set a) -> GHC.Types.Bool
 
