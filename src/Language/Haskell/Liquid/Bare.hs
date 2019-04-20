@@ -22,6 +22,7 @@ module Language.Haskell.Liquid.Bare (
   ) where
 
 import           Prelude                                    hiding (error)
+import           Control.Monad                              (unless)
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -71,15 +72,14 @@ loadLiftedSpec cfg srcF
                else (warnMissingLiftedSpec srcF specF >> return Nothing)
       Ex.evaluate lSp
 
-errMissingSpec :: FilePath -> FilePath -> UserError 
-errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
-
 warnMissingLiftedSpec :: FilePath -> FilePath -> IO () 
 warnMissingLiftedSpec srcF specF = do 
   incDir <- Misc.getIncludeDir 
-  if Misc.isIncludeFile incDir srcF 
-    then return () 
-    else Ex.throw (errMissingSpec srcF specF) 
+  unless (Misc.isIncludeFile incDir srcF)
+    $ Ex.throw (errMissingSpec srcF specF) 
+
+errMissingSpec :: FilePath -> FilePath -> UserError 
+errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
 saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 

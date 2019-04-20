@@ -1,33 +1,32 @@
 # Changes
 
-## NEXT 
+## NEXT 0.8.6.0
 
-## 0.8.6.0
+- Automatically check (transitive) dependencies
+- Built with GHC 8.6.4
+- Structural termination checker (on by default)
+- Support for specifying class-laws and that they hold on instances
+- Bug fixes for PLE
+- Need to run LH on imported libs (with source) first; can use `--compile-spec` to avoid checking.
 
-- Built with GHC 8.6.4 
-- Structural termination checker (used by default)
-- Support for specifying class-laws and that they hold on instances 
-- Bug fixes for PLE 
-- Need to run LH on imported libs (with source) first; can use `--compile-spec` to avoid checking. 
+## 0.8.4.0
 
-## 0.8.4.0 
-
-- Support for GHC 8.4.3 
+- Support for GHC 8.4.3
 - Significant restructuring of `Bare` front-end to shrink dependency on GHC-API
 
 ## 0.8.2.2
 
-- Support for GHC 8.2.2 
+- Support for GHC 8.2.2
 
 - Support for GADTs and TypeFamilies, see
-	- `tests/{pos,neg}/ExactGADT*.hs` 
+	- `tests/{pos,neg}/ExactGADT*.hs`
 
-- Add support for Bags/Multisets, see 
+- Add support for Bags/Multisets, see
 	- `tests/pos/bag.hs`
 	- `tests/neg/bag.hs`
 	- `tests/pos/ListISort-bag.hs`
 
-- Add support for *inductive predicates* see 
+- Add support for *inductive predicates* see
 	- `tests/pos/IndEven.hs`
 	- `tests/pos/IndPerm.hs`
 	- `tests/pos/IndStar.hs`

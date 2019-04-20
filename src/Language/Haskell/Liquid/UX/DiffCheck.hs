@@ -143,7 +143,7 @@ assumeSpec sigm sp = sp { gsSig = gsig { gsAsmSigs = M.toList $ M.union sigm ass
     gsig           = gsSig sp
 
 diffVars :: [Int] -> [Def] -> [Var]
-diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
+diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
                          go (L.sort ls) defs
   where
     defs             = L.sort defs'

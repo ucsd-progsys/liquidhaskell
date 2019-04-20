@@ -46,10 +46,10 @@ import Language.Haskell.Liquid.Prelude
 -- the programmer to provide a proof that the 'Text' is non-empty.
 {-@ unsafeHead :: TextNE -> Char @-}
 unsafeHead :: Text -> Char
-unsafeHead (Text arr off _len)
+unsafeHead (Text arr off xlen)
     | m < 0xD800 || m > 0xDBFF = unsafeChr m
     | otherwise                = chr2 m n
-    where m = A.unsafeIndexF arr off _len off
+    where m = A.unsafeIndexF arr off xlen off
           {-@ lazyvar n @-}
           n = A.unsafeIndex arr (off+1)
 {-# INLINE unsafeHead #-}
@@ -96,13 +96,13 @@ data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
                     <= (tlength t)))}
   @-}
 iter :: Text -> Int -> Iter
-iter (Text arr off _len) i
+iter (Text arr off xlen) i
     | m < 0xD800 || m > 0xDBFF = Iter (unsafeChr m) 1
     | otherwise                = let k = j + 1
                                      n = A.unsafeIndex arr k
                                  in
                                  Iter (chr2 m n) 2
-  where m = A.unsafeIndexF arr off _len j
+  where m = A.unsafeIndexF arr off xlen j
         j = off + i
         {- lazyvar n @-}
         -- n = A.unsafeIndex arr k
@@ -121,10 +121,10 @@ iter (Text arr off _len) i
                            <= (tlength t)))}
   @-}
 iter_ :: Text -> Int -> Int
-iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
+iter_ (Text arr off xlen) i | m < 0xD800 || m > 0xDBFF = 1
                             | otherwise                = 2
 --LIQUID   where m = A.unsafeIndex arr (off+i)
-  where m = A.unsafeIndexF arr off _len (off+i)
+  where m = A.unsafeIndexF arr off xlen (off+i)
 {-# INLINE iter_ #-}
 
 -- | /O(1)/ Iterate one step backwards through a UTF-16 array,
@@ -140,13 +140,13 @@ iter_ (Text arr off _len) i | m < 0xD800 || m > 0xDBFF = 1
 --LIQUID reverseIter :: Text -> Int -> (Char,Int)
 --LIQUID reverseIter (Text arr off _len) i
 reverseIter :: Text -> Int -> (Char,Int)
-reverseIter (Text arr off _len) i
+reverseIter (Text arr off xlen) i
     | m < 0xDC00 || m > 0xDFFF = (unsafeChr m, neg 1)
     | otherwise                = let k = j - 1
                                      n = A.unsafeIndex arr k
                                  in
                                   (chr2 n m,    neg 2)
-  where m = A.unsafeIndexB arr off _len j
+  where m = A.unsafeIndexB arr off xlen j
         {- lazyvar n @-}
         -- n = A.unsafeIndex arr k
         j = off + i
@@ -170,7 +170,7 @@ lengthWord16 (Text _arr _off len) = len
 -- | /O(1)/ Unchecked take of 'k' 'Word16's from the front of a 'Text'.
 {-@ takeWord16 :: k:Nat -> {v:Text | (k <= (tlen v))} -> {v:Text | (tlen v) = k} @-}
 takeWord16 :: Int -> Text -> Text
-takeWord16 k (Text arr off _len) = Text arr off k
+takeWord16 k (Text arr off xlen) = Text arr off k
 {-# INLINE takeWord16 #-}
 
 -- | /O(1)/ Unchecked drop of 'k' 'Word16's from the front of a 'Text'.

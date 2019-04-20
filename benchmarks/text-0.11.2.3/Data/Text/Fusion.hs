@@ -1,8 +1,8 @@
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--eliminate=none" @-}
 
 {-# LANGUAGE BangPatterns, MagicHash #-}
 
-{-@ LIQUID "--eliminate=none" @-}
 
 -- |
 -- Module      : Data.Text.Fusion
