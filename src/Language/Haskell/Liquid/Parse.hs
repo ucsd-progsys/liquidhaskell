@@ -44,7 +44,7 @@ import           Language.Haskell.Liquid.Types
 import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (dataDeclP, angles, refBindP, refP, refDefP)
+import           Language.Fixpoint.Parse                hiding (stringLiteral, dataDeclP, angles, refBindP, refP, refDefP)
 
 import Control.Monad.State
 
@@ -853,6 +853,8 @@ data Pspec ty ctor
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
+  | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
+  | ILaws   (RILaws ty)
   | RInst   (RInstance ty)                                -- ^ refined 'instance' definition
   | Incl    FilePath                                      -- ^ 'include' a path -- TODO: deprecate 
   | Invt    ty                                            -- ^ 'invariant' specification
@@ -960,6 +962,8 @@ ppPspec k (IMeas   m)
   = "instance  measure" <+> pprintTidy k m
 ppPspec k (Class   cls) 
   = pprintTidy k cls 
+ppPspec k (CLaws  cls) 
+  = pprintTidy k cls 
 ppPspec k (RInst   inst) 
   = pprintTidy k inst 
 ppPspec k (Varia   (lx, vs))  
@@ -968,7 +972,8 @@ ppPspec _ (BFix    _)           --
   = "fixity"
 ppPspec k (Define  (lx, y))     
   = "define" <+> pprintTidy k (val lx) <+> "=" <+> pprintTidy k y 
-
+ppPspec _ (ILaws {}) 
+  = "TBD-INSTANCE-LAWS"
 
 
 -- | For debugging
@@ -1023,6 +1028,8 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
                       ++ [(y, t) | Asrts (ys, (t, _)) <- xs, y <- ys]
   , Measure.localSigs  = []
   , Measure.reflSigs   = []
+  , Measure.impSigs    = []
+  , Measure.expSigs    = [] 
   , Measure.invariants = [(Nothing, t) | Invt   t <- xs]
   , Measure.ialiases   = [t | Using t <- xs]
   , Measure.imports    = [i | Impt   i <- xs]
@@ -1040,8 +1047,10 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
+  , Measure.ilaws      = [i | ILaws  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
@@ -1080,10 +1089,12 @@ specP
                                 <|> (liftM HBound  hboundP  ))))
     <|> (reserved "class"
          >> ((reserved "measure"  >> liftM CMeas  cMeasureP )
-                                 <|> liftM Class  classP    ))
+         <|> (reserved "laws"     >> liftM CLaws  classP)
+         <|> liftM Class  classP                            ))
     <|> (reserved "instance"
          >> ((reserved "measure"  >> liftM IMeas  iMeasureP )
-                                 <|> liftM RInst  instanceP ))
+         <|> (reserved "laws"     >> liftM ILaws instanceLawP)
+         <|> liftM RInst  instanceP ))
 
     <|> (reserved "import"        >> liftM Impt   symbolP   )
 
@@ -1182,6 +1193,7 @@ tyBindsP = do
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
+
 
 tyBindP    :: Parser (LocSymbol, Located BareType)
 tyBindP    = xyP xP dcolon tP
@@ -1291,6 +1303,30 @@ oneClassArg
     classParams =  (reserved "where" >> return [])
                <|> ((:) <$> (fmap bTyVar <$> locLowerIdP) <*> classParams)
     sing x      = [x]
+
+instanceLawP :: Parser (RILaws (Located BareType))
+instanceLawP
+  = do l1   <- getPosition
+       sups <- supersP
+       c    <- classBTyConP
+       spaces
+       tvs  <- manyTill (locParserP bareTypeP) (try $ reserved "where")
+       spaces
+       ms   <- grabs eqBinderP
+       spaces
+       l2   <- getPosition
+       return $ RIL c sups tvs ms (Loc l1 l2 ())
+  where
+    superP   = locParserP (toRCls <$> bareAtomBindP)
+    supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
+                       <* reservedOp "=>")
+               <|> return []
+    toRCls x = x
+
+    eqBinderP = xyP xP (spaces >> string "=" <* spaces) (xP <* spaces)
+      
+    xP = locParserP binderP
+    
 
 instanceP :: Parser (RInstance (Located BareType))
 instanceP

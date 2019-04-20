@@ -9,11 +9,14 @@
 
 module Language.Haskell.Liquid.GHC.Interface (
 
-  -- * extract all information needed for verification
-    getGhcInfos
+  -- * Determine the build-order for target files
+   realTargets
+
+  -- * Extract all information needed for verification
+  , getGhcInfos
   , runLiquidGhc
 
-  -- * printer
+  -- * Printer
   , pprintCBs
 
   -- * predicates
@@ -97,6 +100,54 @@ import Language.Fixpoint.Utils.Files
 import qualified Debug.Trace as Debug 
 
 --------------------------------------------------------------------------------
+{- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to 
+     return a list of files
+
+       [i1, i2, ... ] ++ [f1, f2, ...]
+
+     1. Where each file only (transitively imports) PRECEDIING ones; 
+     2. `f1..` are a permutation of the original `targets`;
+     3. `i1..` either don't have "fresh" .bspec files. 
+
+ -}
+--------------------------------------------------------------------------------
+realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
+realTargets  mbEnv cfg tgtFs 
+  | noCheckImports cfg = return tgtFs
+  | otherwise          = do 
+    incDir   <- Misc.getIncludeDir 
+    allFs    <- orderTargets mbEnv cfg tgtFs
+    let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
+    realFs   <- filterM check srcFs
+    dir      <- getCurrentDirectory
+    return      (makeRelative dir <$> realFs)
+  where 
+    check f    = not <$> skipTarget tgts f 
+    tgts       = S.fromList tgtFs
+
+orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
+orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
+  homeModules <- configureGhcTargets tgtFiles
+  return         (modSummaryHsFile <$> mgModSummaries homeModules)
+
+
+skipTarget :: S.HashSet FilePath -> FilePath -> IO Bool
+skipTarget tgts f 
+  | S.member f tgts = return False          -- Always check target file 
+  | otherwise       = hasFreshBinSpec f     -- But skip an import with fresh .bspec
+
+hasFreshBinSpec :: FilePath -> IO Bool
+hasFreshBinSpec srcF = do 
+  let specF = extFileName BinSpec srcF
+  srcMb    <- Misc.lastModified srcF 
+  specMb   <- Misc.lastModified specF 
+  case (srcMb, specMb) of 
+    (Just srcT, Just specT) -> return (srcT < specT)
+    _                       -> return False
+
+
+
+--------------------------------------------------------------------------------
 -- | GHC Interface Pipeline ----------------------------------------------------
 --------------------------------------------------------------------------------
 
@@ -111,7 +162,7 @@ getGhcInfos hscEnv cfg tgtFiles' = do
 checkFilePresent :: FilePath -> IO ()
 checkFilePresent f = do
   b <- doesFileExist f
-  when (not b) $ panic Nothing ("Cannot find file: " ++ f)
+  unless b $ panic Nothing ("Cannot find file: " ++ f)
 
 getGhcInfos' :: Config -> LogicMap -> [FilePath] -> Ghc ([GhcInfo], HscEnv)
 getGhcInfos' cfg logicMap tgtFiles = do
@@ -129,7 +180,6 @@ createTempDirectoryIfMissing tgtFile = Misc.tryIgnore "create temp directory" $
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
-
 runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
 runLiquidGhc hscEnv cfg act =
   withSystemTempDirectory "liquid" $ \tmp ->
@@ -138,6 +188,9 @@ runLiquidGhc hscEnv cfg act =
       df <- configureDynFlags cfg tmp
       prettyPrintGhcErrors df act
 
+updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
+updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
+
 configureDynFlags :: Config -> FilePath -> Ghc DynFlags
 configureDynFlags cfg tmp = do
   df <- getSessionDynFlags
@@ -145,12 +198,13 @@ configureDynFlags cfg tmp = do
   loud <- liftIO isLoud
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                 , includePaths = nub $ idirs cfg ++ includePaths df'
+                 , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg) 
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
                                 : (packageFlags df')
 
+                 , debugLevel   = 1               -- insert SourceNotes
                  -- , profAuto     = ProfAutoCalls
                  , ghcLink      = LinkInMemory
                  , hscTarget    = HscInterpreted
@@ -165,6 +219,7 @@ configureDynFlags cfg tmp = do
                  , stubDir      = Just tmp
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
+                   `gopt_set` Opt_DeferTypedHoles
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving
@@ -175,15 +230,8 @@ configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
 configureGhcTargets tgtFiles = do
   targets         <- mapM (`guessTarget` Nothing) tgtFiles
   _               <- setTargets targets
-  moduleGraph     <- depanal [] False
-                     -- NOTE: drop hs-boot files from the graph.
-                     -- we do it manually rather than using the flag to topSortModuleGraph
-                     -- because otherwise the order of mutually recursive modules depends
-                     -- on the modulename, e.g. given
-                     --   Bar.hs --> Foo.hs --> Bar.hs-boot
-                     -- we'll get
-                     --   [Bar.hs, Foo.hs]
-                     -- wich is backwards..
+  moduleGraph     <- depanal [] False -- see [NOTE:DROP-BOOT-FILES]
+
   let homeModules  = filter (not . isBootSummary) $
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
@@ -200,7 +248,7 @@ compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
   df  <- getSessionDynFlags
   _   <- setSessionDynFlags $
-           df { includePaths = nub $ idirs cfg ++ includePaths df
+           df { includePaths = updateIncludePaths df (idirs cfg) 
               , importPaths  = nub $ idirs cfg ++ importPaths df
               , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
   hsc <- getSession
@@ -208,6 +256,19 @@ compileCFiles cfg = do
   df  <- getSessionDynFlags
   void $ setSessionDynFlags $ df { ldInputs = nub $ map (FileOption "") os ++ ldInputs df }
 
+{- | [NOTE:DROP-BOOT-FILES] Drop hs-boot files from the graph.
+      We do it manually rather than using the flag to topSortModuleGraph
+      because otherwise the order of mutually recursive modules depends
+      on the modulename, e.g. given
+
+      Bar.hs --> Foo.hs --> Bar.hs-boot
+
+      we'll get
+      
+      [Bar.hs, Foo.hs]
+    
+      which is backwards..
+ -}
 --------------------------------------------------------------------------------
 -- Home Module Dependency Graph ------------------------------------------------
 --------------------------------------------------------------------------------
@@ -339,7 +400,7 @@ updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec
 updLiftedSpec s1 Nothing   = s1 
 updLiftedSpec s1 (Just s2) = (clear s1) `mappend` s2 
   where 
-    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [] }
+    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary

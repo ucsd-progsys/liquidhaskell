@@ -20,8 +20,10 @@
 
 module Language.Haskell.Liquid.Types.RefType (
 
+    TyConMap
+
   -- * Functions for lifting Reft-values to Spec-values
-    uTop, uReft, uRType, uRType', uRTypeGen, uPVar
+  , uTop, uReft, uRType, uRType', uRTypeGen, uPVar
 
   -- * Applying a solution to a SpecType
   , applySolution
@@ -57,7 +59,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , typeUniqueSymbol
   , classBinds
   , isSizeable
-
+  , famInstTyConType
+  , famInstArgs
 
   -- * Manipulating Refinements in RTypes
   , strengthen
@@ -117,8 +120,15 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
+import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 
 import Data.List (sort, foldl')
+
+
+
+ 
+
+
 
 strengthenDataConType :: (Var, SpecType) -> (Var, SpecType)
 strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
@@ -768,36 +778,34 @@ quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 -------------------------------------------------------------------------
 addTyConInfo :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
              => TCEmb TyCon
-             -> (M.HashMap TyCon RTyCon)
+             -> TyConMap -- (M.HashMap TyCon RTyCon)
              -> RRType r
              -> RRType r
 -------------------------------------------------------------------------
 addTyConInfo tce tyi = mapBot (expandRApp tce tyi)
 
 -------------------------------------------------------------------------
-expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
-           => TCEmb TyCon
-           -> (M.HashMap TyCon RTyCon)
-           -> RRType r
-           -> RRType r
+expandRApp :: (PPrint r, Reftable r, SubsTy RTyVar RSort r, Reftable (RRProp r))
+           => TCEmb TyCon -> TyConMap -> RRType r -> RRType r
 -------------------------------------------------------------------------
 expandRApp tce tyi t@(RApp {}) = RApp rc' ts rs' r
   where
     RApp rc ts rs r            = t
-    rc'                        = appRTyCon tce tyi rc as
+    (rc', _)                   = appRTyCon tce tyi rc as
     pvs                        = rTyConPVs rc'
     rs'                        = applyNonNull rs0 (rtPropPV rc pvs) rs
     rs0                        = rtPropTop <$> pvs
     n                          = length fVs
     fVs                        = GM.tyConTyVarsDef $ rtc_tc rc
     as                         = choosen n ts (rVar <$> fVs)
-
-    choosen 0 _ _           = []
-    choosen i (x:xs) (_:ys) = x:choosen (i-1) xs ys
-    choosen i []     (y:ys) = y:choosen (i-1) [] ys
-    choosen _ _ _           = impossible Nothing "choosen: this cannot happen"
-
 expandRApp _ _ t               = t
+
+choosen :: Int -> [a] -> [a] -> [a]
+choosen 0 _ _           = []
+choosen i (x:xs) (_:ys) = x:choosen (i-1) xs ys
+choosen i []     (y:ys) = y:choosen (i-1) [] ys
+choosen _ _ _           = impossible Nothing "choosen: this cannot happen"
+
 
 rtPropTop
   :: (OkRT c tv r,
@@ -835,22 +843,106 @@ mkRTProp pv (RProp ss t)
 pvArgs :: PVar t -> [(Symbol, t)]
 pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 
+{- | [NOTE:FamInstPredVars] related to [NOTE:FamInstEmbeds]
+     See tests/datacon/pos/T1446.hs 
+     The function txRefSort converts
 
-appRTyCon :: SubsTy RTyVar (RType c RTyVar ()) RPVar
-          => TCEmb TyCon
-          -> M.HashMap TyCon RTyCon
-          -> RTyCon
-          -> [RType c RTyVar r]
-          -> RTyCon
-appRTyCon tce tyi rc ts = RTyCon c ps' (rtc_info rc'')
+        Int<p>              ===> {v:Int | p v}
+
+     which is fine, but also converts
+
+        Field<q> Blob a     ===> {v:Field Blob a | q v}
+        
+     which is NOT ok, because q expects a different arg.
+
+     The above happens because, thanks to instance-family stuff,
+     LH doesn't realize that q is actually an ARG of Field Blob
+     Note that Field itself has no args, but Field Blob does...
+
+     That is, it is not enough to store the refined `TyCon` info,
+     solely in the `RTyCon` as with family instances, you need BOTH 
+     the `TyCon` and the args to determine the extra info. 
+     
+     We do so in `TyConMap`, and by crucially extending 
+
+     @RefType.appRTyCon@ whose job is to use the Refined @TyCon@ 
+     that is, the @RTyCon@ generated from the @TyConP@ to strengthen
+     individual occurrences of the TyCon applied to various arguments.
+
+ -}
+
+appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
+appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'') 
   where
-    c    = rtc_tc rc
-    ps'  = subts (zip (RTV <$> αs) ts') <$> rTyConPVs rc'
-    ts'  = if null ts then rVar <$> βs else toRSort <$> ts
-    rc'  = M.lookupDefault rc c tyi
-    αs   = GM.tyConTyVarsDef $ rtc_tc rc'
-    βs   = GM.tyConTyVarsDef c
-    rc'' = if isNumeric tce rc' then addNumSizeFun rc' else rc'
+    _msg  = "appRTyCon-family: " ++ showpp (GHC.isFamilyTyCon c, GHC.tyConArity c, toType <$> ts)
+    resTc = RTyCon c ps'' (rtc_info rc'')
+    c     = rtc_tc rc
+   
+    (rc', ps') = rTyConWithPVars tyi rc (rTypeSort tce <$> ts)
+    -- TODO:faminst-preds rc'   = M.lookupDefault rc c (tcmTyRTy tyi)
+    -- TODO:faminst-preds ps'   = rTyConPVs rc' 
+
+    -- TODO:faminst-preds: these substitutions may be WRONG if we are using FAMINST.
+    ps''  = subts (zip (RTV <$> αs) ts') <$> ps' 
+      where 
+        ts' = if null ts then rVar <$> βs else toRSort <$> ts
+        αs  = GM.tyConTyVarsDef (rtc_tc rc')
+        βs  = GM.tyConTyVarsDef c
+    
+    rc''  = if isNumeric tce rc' then addNumSizeFun rc' else rc'
+
+rTyConWithPVars :: TyConMap -> RTyCon -> [F.Sort] -> (RTyCon, [RPVar])
+rTyConWithPVars tyi rc ts = case famInstTyConMb tyi rc ts of 
+  Just fiRc    -> (rc', rTyConPVs fiRc)       -- use the PVars from the family-instance TyCon
+  Nothing      -> (rc', ps')                  -- use the PVars from the origin          TyCon
+  where 
+    (rc', ps') = plainRTyConPVars tyi rc
+
+-- | @famInstTyConMb rc args@ uses the @RTyCon@ AND @args@ to see if 
+--   this is a family instance @RTyCon@, and if so, returns it.
+--   see [NOTE:FamInstPredVars]
+--   eg: 'famInstTyConMb tyi Field [Blob, a]' should give 'Just R:FieldBlob' 
+    
+famInstTyConMb :: TyConMap -> RTyCon -> [F.Sort] -> Maybe RTyCon
+famInstTyConMb tyi rc ts = do 
+  let c = rtc_tc rc
+  n    <- M.lookup c      (tcmFtcArity tyi)
+  M.lookup (c, take n ts) (tcmFIRTy    tyi)
+
+famInstTyConType :: Ghc.TyCon -> Maybe Ghc.Type
+famInstTyConType c = uncurry Ghc.mkTyConApp <$> famInstArgs c 
+
+-- | @famInstArgs c@ destructs a family-instance @TyCon@ into its components, e.g. 
+--   e.g. 'famInstArgs R:FieldBlob' is @(Field, [Blob])@ 
+
+famInstArgs :: Ghc.TyCon -> Maybe (Ghc.TyCon, [Ghc.Type])
+famInstArgs c = case Ghc.tyConFamInst_maybe c of
+    Just (c', ts) -> F.notracepp ("famInstArgs: " ++ F.showpp (c, cArity, ts)) 
+                     $ Just (c', take (length ts - cArity) ts) 
+    Nothing       -> Nothing
+    where 
+      cArity      = Ghc.tyConArity c
+
+-- TODO:faminst-preds: case Ghc.tyConFamInst_maybe c of
+-- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+-- TODO:faminst-preds:                    $ Just (famInstType (Ghc.tyConArity c) c' ts)
+-- TODO:faminst-preds:   Nothing       -> Nothing
+
+-- TODO:faminst-preds: famInstType :: Int -> Ghc.TyCon -> [Ghc.Type] -> Ghc.Type
+-- TODO:faminst-preds: famInstType n c ts = Ghc.mkTyConApp c (take (length ts - n) ts)
+
+
+
+
+-- | @plainTyConPVars@ uses the @TyCon@ to return the 
+--   "refined" @RTyCon@ and @RPVars@ from the refined 
+--   'data' definition for the @TyCon@, e.g. will use 
+--   'List Int' to return 'List<p> Int' (if List has an abs-ref).
+plainRTyConPVars :: TyConMap -> RTyCon -> (RTyCon, [RPVar])
+plainRTyConPVars tyi rc = (rc', rTyConPVs rc') 
+  where 
+    rc'                   = M.lookupDefault rc (rtc_tc rc) (tcmTyRTy tyi)
+
 
 
 -- RJ: The code of `isNumeric` is incomprehensible.
@@ -1787,6 +1879,7 @@ instance PPrint DataCtor where
       ppThetas [] = empty
       ppThetas ts = parens (hcat $ punctuate ", " (pprintTidy k <$> ts)) <+> "=>"
 
+
 ppVars :: (PPrint a) => Tidy -> [a] -> Doc
 ppVars k as = "forall" <+> hcat (punctuate " " (F.pprintTidy k <$> as)) <+> "." 
 
@@ -1811,5 +1904,3 @@ instance PPrint (RType c tv r) => Show (RType c tv r) where
 instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
-instance PPrint REnv where
-  pprintTidy k re = "RENV" $+$ pprintTidy k (reLocal re)

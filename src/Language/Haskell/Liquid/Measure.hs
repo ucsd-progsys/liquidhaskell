@@ -84,6 +84,8 @@ checkDuplicateMeasure ms
 instance Semigroup (Spec ty bndr) where
   s1 <> s2
     = Spec { measures   =           measures   s1 ++ measures   s2
+           , impSigs    =           impSigs    s1 ++ impSigs    s2
+           , expSigs    =           expSigs    s1 ++ expSigs    s2 
            , asmSigs    =           asmSigs    s1 ++ asmSigs    s2
            , sigs       =           sigs       s1 ++ sigs       s2
            , localSigs  =           localSigs  s1 ++ localSigs  s2
@@ -102,8 +104,10 @@ instance Semigroup (Spec ty bndr) where
            , cmeasures  =           cmeasures  s1 ++ cmeasures  s2
            , imeasures  =           imeasures  s1 ++ imeasures  s2
            , classes    =           classes    s1 ++ classes    s2
+           , claws      =           claws      s1 ++ claws      s2
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
+           , ilaws      =               ilaws  s1 ++ ilaws      s2 
            , dvariance  =           dvariance  s1 ++ dvariance  s2
            , axeqs      =           axeqs s1      ++ axeqs s2
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
@@ -125,6 +129,8 @@ instance Monoid (Spec ty bndr) where
   mappend = (<>)
   mempty
     = Spec { measures   = []
+           , impSigs    = [] 
+           , expSigs    = [] 
            , asmSigs    = []
            , sigs       = []
            , localSigs  = []
@@ -154,8 +160,10 @@ instance Monoid (Spec ty bndr) where
            , cmeasures  = []
            , imeasures  = []
            , classes    = []
+           , claws      = [] 
            , termexprs  = []
            , rinstance  = []
+           , ilaws      = [] 
            , dvariance  = []
            , axeqs      = []
            , bounds     = M.empty

@@ -2,8 +2,8 @@
 
 
 
-
 [![Hackage](https://img.shields.io/hackage/v/liquidhaskell.svg)](https://hackage.haskell.org/package/liquidhaskell) [![Hackage-Deps](https://img.shields.io/hackage-deps/v/liquidhaskell.svg)](http://packdeps.haskellers.com/feed?needle=liquidhaskell) [![Build Status](https://img.shields.io/circleci/project/ucsd-progsys/liquidhaskell/master.svg)](https://circleci.com/gh/ucsd-progsys/liquidhaskell)
+[![Windows build status](https://ci.appveyor.com/api/projects/status/78y7uusjcgor5p16/branch/develop?svg=true)](https://ci.appveyor.com/project/varosi/liquidhaskell-nlhra/branch/develop)
 
 Main Web site
 -------------
@@ -1001,6 +1001,14 @@ and compelling example.
 
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
+
+#### Class Laws
+
+Class laws can be defined and checked using the `class laws` 
+and `instance laws` keywords. For an example, see: 
+
+* [class-laws/pos/SemiGroup.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/06d22aa070933d9ea833e30d84ed91de2a28eaee/tests/class-laws/pos/SemiGroup.hs)
+* [class-laws/pos/SemiGroup.hs](tests/class-laws/pos/SemiGroup.hs)
 
 #### Type Aliases
 

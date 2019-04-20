@@ -18,6 +18,7 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
 import           Language.Haskell.Liquid.GHC.API 
+import           Text.PrettyPrint.HughesPJ              (text, (<+>)) 
 
 -------------------------------------------------------------------------
 -- | GHC Information:  Code & Spec --------------------------------------
@@ -44,7 +45,7 @@ data GhcSrc = Src
   , giUseVars   :: ![Var]                 -- ^ Binders that are _read_ in module
   , gsExports   :: !NameSet               -- ^ `Name`s exported by the module being verified
   , gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons 
-  , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance dataCons 
+  , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons 
   , gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
   , gsQualImps  :: !QImports              -- ^ Map of qualified imports
   , gsAllImps   :: !(S.HashSet F.Symbol)  -- ^ Set of _all_ imported modules
@@ -64,7 +65,9 @@ data GhcSpec = SP
   , gsName   :: !GhcSpecNames 
   , gsVars   :: !GhcSpecVars 
   , gsTerm   :: !GhcSpecTerm 
-  , gsRefl   :: !GhcSpecRefl                  
+  , gsRefl   :: !GhcSpecRefl   
+  , gsLaws   :: !GhcSpecLaws 
+  , gsImps   :: ![(F.Symbol, F.Sort)]  -- ^ Imported Environment          
   , gsConfig :: !Config                       
   , gsLSpec  :: !BareSpec               -- ^ Lifted specification for the target module
   }
@@ -112,7 +115,7 @@ data GhcSpecNames = SpNames
   -- REBARE: == gsMeas , gsLits       :: ![(F.Symbol, LocSpecType)]    -- ^ Literals/Constants e.g. datacons: EQ, GT, string lits: "zombie",...
   , gsTcEmbeds   :: !(F.TCEmb TyCon)              -- ^ Embedding GHC Tycons into fixpoint sorts e.g. "embed Set as Set_set" from include/Data/Set.spec
   , gsADTs       :: ![F.DataDecl]                 -- ^ ADTs extracted from Haskell 'data' definitions
-  , gsTyconEnv   :: !(M.HashMap TyCon RTyCon)
+  , gsTyconEnv   :: !TyConMap
   }
 
 data GhcSpecTerm = SpTerm 
@@ -132,6 +135,20 @@ data GhcSpecRefl = SpRefl
   , gsLogicMap   :: !LogicMap
   }
 
+data GhcSpecLaws = SpLaws 
+  { gsLawDefs :: !([(Class, [(Var, LocSpecType)])])
+  , gsLawInst :: ![LawInstance]
+  }
+
+data LawInstance = LawInstance
+  { lilName   :: Class
+  , liSupers  :: [LocSpecType]
+  , lilTyArgs :: [LocSpecType]
+  , lilEqus   :: [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))]
+  , lilPos    :: SrcSpan
+  }  
+
+type VarOrLocSymbol = Either Var LocSymbol
 type BareSpec      = Spec    LocBareType F.LocSymbol
 type BareMeasure   = Measure LocBareType F.LocSymbol
 type BareDef       = Def     LocBareType F.LocSymbol
@@ -141,6 +158,8 @@ instance B.Binary BareSpec
 
 data Spec ty bndr  = Spec
   { measures   :: ![Measure ty bndr]              -- ^ User-defined properties for ADTs
+  , impSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Imported variables types
+  , expSigs    :: ![(F.Symbol, F.Sort)]           -- ^ Exported variables types
   , asmSigs    :: ![(F.LocSymbol, ty)]            -- ^ Assumed (unchecked) types; including reflected signatures
   , sigs       :: ![(F.LocSymbol, ty)]            -- ^ Imported functions and types
   , localSigs  :: ![(F.LocSymbol, ty)]            -- ^ Local type signatures
@@ -169,14 +188,20 @@ data Spec ty bndr  = Spec
   , cmeasures  :: ![Measure ty ()]                -- ^ Measures attached to a type-class
   , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
+  , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
+  , ilaws      :: ![RILaws ty]
   , dvariance  :: ![(F.LocSymbol, [Variance])]         -- ^ ? Where do these come from ?!
   , bounds     :: !(RRBEnv ty)
   , defs       :: !(M.HashMap F.LocSymbol F.Symbol)    -- ^ Temporary (?) hack to deal with dictionaries in specifications
                                                        --   see tests/pos/NatClass.hs
   , axeqs      :: ![F.Equation]                        -- ^ Equalities used for Proof-By-Evaluation
-  } deriving (Generic)
+  } deriving (Generic, Show)
+
+instance (Show ty, Show bndr, F.PPrint ty, F.PPrint bndr) => F.PPrint (Spec ty bndr) where
+    pprintTidy k sp = text "dataDecls = " <+> pprintTidy k  (dataDecls sp)
+
 
 isExportedVar :: GhcSrc -> Var -> Bool
 isExportedVar info v = n `elemNameSet` ns

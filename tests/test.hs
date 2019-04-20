@@ -25,7 +25,7 @@ import Data.Proxy
 import Data.String
 import Data.Tagged
 import Data.Typeable
-import Data.List (sort, reverse)
+-- import Data.List (sort, reverse)
 import qualified Data.Text    as T
 import qualified Data.Text.IO as T
 import Options.Applicative
@@ -201,7 +201,9 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/MissingSizeFun.hs"      2 "Error: Unknown variable `llen2`" 
   , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
   , errorTest "tests/errors/HintMismatch.hs"        2 "HINT: Use the hole"
-  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:9-11:15: Error"
+  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:14-11:15: Error"
+  , errorTest "tests/errors/ErrLocation.hs"         1 "ErrLocation.hs:7:13-19: Error"
+  , errorTest "tests/errors/ErrLocation2.hs"        1 "ErrLocation2.hs:9:20: Error"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
@@ -220,7 +222,7 @@ microTests = group "Micro"
   , mkMicro "basic-neg"      "tests/basic/neg"       (ExitFailure 1)
   , mkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess          -- measPosOrder
   , mkMicro "measure-neg"    "tests/measure/neg"     (ExitFailure 1)
-  , mkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          -- dconPosOrder 
+  , mkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          
   , mkMicro "datacon-neg"    "tests/datacon/neg"     (ExitFailure 1)
   , mkMicro "names-pos"      "tests/names/pos"       ExitSuccess
   , mkMicro "names-neg"      "tests/names/neg"       (ExitFailure 1)
@@ -228,7 +230,7 @@ microTests = group "Micro"
   , mkMicro "reflect-neg"    "tests/reflect/neg"     (ExitFailure 1) 
   , mkMicro "absref-pos"     "tests/absref/pos"      ExitSuccess
   , mkMicro "absref-neg"     "tests/absref/neg"      (ExitFailure 1)
-  , mkMicro "import-lib"     "tests/import/lib"      ExitSuccess          -- impLibOrder 
+  -- , mkMicro "import-lib"     "tests/import/lib"      ExitSuccess       -- NOT disabled; but via CHECK-IMPORTS
   , mkMicro "import-cli"     "tests/import/client"   ExitSuccess
   , mkMicro "class-pos"      "tests/classes/pos"     ExitSuccess
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
@@ -237,6 +239,9 @@ microTests = group "Micro"
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
+  , mkMicro "class-laws-pos" "tests/class-laws/pos"  ExitSuccess
+  , mkMicro "class-laws-crash" "tests/class-laws/crash" (ExitFailure 2)
+  , mkMicro "class-laws-neg"   "tests/class-laws/neg"   (ExitFailure 1)
   , mkMicro "implicit-pos"   "tests/implicit/pos"    ExitSuccess
   , mkMicro "implicit-neg"   "tests/implicit/neg"   (ExitFailure 1)
   -- RJ: disabling because broken by adt PR #1068
@@ -261,14 +266,14 @@ benchTests = group "Benchmarks"
   , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
   ]
 
-_impLibOrder :: Maybe FileOrder 
-_impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
-
-_dconPosOrder :: Maybe FileOrder 
-_dconPosOrder = Just . mkOrder $ [ "Data02Lib.hs" ]
-
-_measPosOrder :: Maybe FileOrder 
-_measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
+-- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
+-- AUTO-ORDER _impLibOrder = Just . mkOrder $ [ "T1102_LibZ.hs", "WrapLibCode.hs", "STLib.hs", "T1102_LibY.hs" ]
+-- AUTO-ORDER 
+-- AUTO-ORDER _dconPosOrder :: Maybe FileOrder 
+-- AUTO-ORDER _dconPosOrder = Just . mkOrder $ [ "Data02Lib.hs" ]
+-- AUTO-ORDER 
+-- AUTO-ORDER _measPosOrder :: Maybe FileOrder 
+-- AUTO-ORDER _measPosOrder = Just . mkOrder $ [ "List00Lib.hs" ]
 
 proverOrder :: Maybe FileOrder 
 proverOrder = Just . mkOrder $ 
@@ -492,10 +497,10 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-        , "--compile-spec -iinclude --c-files=cbits/fpstring.c"
+        , "-iinclude --c-files=cbits/fpstring.c"
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "--compile-spec -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        , "--no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."

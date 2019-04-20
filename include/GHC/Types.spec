@@ -4,6 +4,7 @@ embed GHC.Prim.Int#     as int
 embed GHC.Prim.Addr#    as Str
 embed GHC.Prim.Char#    as Char
 embed GHC.Types.Double# as real
+embed GHC.Types.Float# as real
 embed GHC.Types.Word    as int 
 
 // TODO: Drop prefix below
@@ -25,6 +26,7 @@ GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
 GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
 
 assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
+assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
 assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
 assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
 

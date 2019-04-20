@@ -1,7 +1,10 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE TupleSections     #-}
-{-# LANGUAGE EmptyDataDecls    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE FlexibleContexts     #-}
+{-# LANGUAGE TupleSections        #-}
+{-# LANGUAGE EmptyDataDecls       #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+
 
 module Language.Haskell.Liquid.Constraint.Types
   ( -- * Constraint Generation Monad
@@ -69,6 +72,7 @@ import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
+-- import           Control.Monad.Fail 
 
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
@@ -189,7 +193,8 @@ data CGInfo = CGInfo
   , binds      :: !F.BindEnv                   -- ^ set of environment binders
   , ebinds     :: ![F.BindId]                  -- ^ existentials
   , annotMap   :: !(AnnInfo (Annot SpecType))  -- ^ source-position annotation map
-  , tyConInfo  :: !(M.HashMap TC.TyCon RTyCon) -- ^ information about type-constructors
+  , holesMap   :: !(M.HashMap Var [HoleInfo SpecType])    -- ^ information for ghc hole expressions
+  , tyConInfo  :: !TyConMap                    -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED) 
   , newTyEnv   :: !(M.HashMap TC.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions

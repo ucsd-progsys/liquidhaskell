@@ -50,7 +50,7 @@ astExpr = In (Lit 10 IxExpr)
 astType :: Ast 
 astType = In (Lit 10 IxType)
 
-{-@ app :: forall <p :: AstIndex -> Bool>. Fix (AstF p) -> Fix (AstF p) -> Fix (AstF p) @-}
+{-@ app :: forall <p :: AstIndex -> Bool>. Fix (AstF<p>) -> Fix (AstF<p>) -> Fix (AstF<p>) @-}
 app f x = In $ App f x
 
 {-@ id1 :: forall <p :: AstIndex -> Bool>. Fix (AstF p) -> Fix (AstF p)  @-}

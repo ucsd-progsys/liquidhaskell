@@ -1,0 +1,14 @@
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
+
+data Peano = Z | S Peano
+
+{-@ reflect isEven @-}
+isEven :: Peano -> Bool
+isEven Z     = True
+isEven (S n) = not (isEven n)
+
+{-@ foo :: _ -> {v:Int | v = 0} @-}
+foo :: Peano -> Int
+foo (S Z) = 5
+foo _     = 0

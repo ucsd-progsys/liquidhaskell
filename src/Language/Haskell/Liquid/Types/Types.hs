@@ -24,8 +24,8 @@ module Language.Haskell.Liquid.Types.Types (
     module Language.Haskell.Liquid.UX.Config
 
   -- * Ghc Information
-
   , TargetVars   (..)
+  , TyConMap     (..)
 
   -- * F.Located Things
   , F.Located (..)
@@ -106,7 +106,8 @@ module Language.Haskell.Liquid.Types.Types (
   , LocBareType, LocSpecType
   , RSort
   , UsedPVar, RPVar, RReft
-  , REnv (..)
+  , REnv
+  , AREnv (..)
 
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
@@ -139,6 +140,9 @@ module Language.Haskell.Liquid.Types.Types (
   , AnnInfo (..)
   , Annot (..)
 
+  -- * Hole Information 
+  , HoleInfo(..)
+
   -- * Overall Output
   , Output (..)
 
@@ -164,7 +168,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Modules and Imports
   , ModName (..), ModType (..)
-  , isSrcImport, isSpecImport
+  , isSrcImport, isSpecImport, isTarget
   , getModName, getModString, qualifyModName
 
   -- * Refinement Type Aliases
@@ -211,7 +215,7 @@ module Language.Haskell.Liquid.Types.Types (
   , LogicMap(..), toLogicMap, eAppWithMap, LMap(..)
 
   -- * Refined Instances
-  , RDEnv, DEnv(..), RInstance(..), RISig(..)
+  , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -274,6 +278,17 @@ import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
 import           Data.Default
+
+-----------------------------------------------------------------------------
+-- | Information about Type Constructors
+-----------------------------------------------------------------------------
+data TyConMap = TyConMap 
+  { tcmTyRTy    :: M.HashMap TyCon             RTyCon  -- ^ Map from GHC TyCon to RTyCon 
+  , tcmFIRTy    :: M.HashMap (TyCon, [F.Sort]) RTyCon  -- ^ Map from GHC Family-Instances to RTyCon
+  , tcmFtcArity :: M.HashMap TyCon             Int     -- ^ Arity of each Family-Tycon 
+  }
+ 
+
 -----------------------------------------------------------------------------
 -- | Printer ----------------------------------------------------------------
 -----------------------------------------------------------------------------
@@ -1031,6 +1046,14 @@ data RInstance t = RI
   , risigs  :: [(F.LocSymbol, RISig t)]
   } deriving (Generic, Functor, Data, Typeable, Show)
 
+data RILaws ty = RIL
+  { rilName    :: BTyCon
+  , rilSupers  :: [ty]
+  , rilTyArgs  :: [ty]
+  , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
+  , rilPos     :: F.Located ()
+  } deriving (Show, Functor, Data, Typeable, Generic)
+
 data RISig t = RIAssumed t | RISig t
   deriving (Generic, Functor, Data, Typeable, Show)
 
@@ -1044,8 +1067,10 @@ ppRISig k x (RISig t)     =              F.pprintTidy k x <+> "::" <+> F.pprintT
 instance F.PPrint t => F.PPrint (RInstance t) where
   pprintTidy k (RI n ts mts) = ppMethods k "instance" n ts mts 
 
+  
 instance (B.Binary t) => B.Binary (RInstance t)
 instance (B.Binary t) => B.Binary (RISig t)
+instance (B.Binary t) => B.Binary (RILaws t)
 
 newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
@@ -1854,10 +1879,26 @@ instance F.PPrint Predicate where
 --   + global : many bindings, shared across all constraints
 --   + local  : few bindings, relevant to particular constraints
 
-data REnv = REnv
-  { reGlobal :: M.HashMap Symbol SpecType -- ^ the "global" names for module
-  , reLocal  :: M.HashMap Symbol SpecType -- ^ the "local" names for sub-exprs
+type REnv = AREnv SpecType 
+
+data AREnv t = REnv
+  { reGlobal :: M.HashMap Symbol t -- ^ the "global" names for module
+  , reLocal  :: M.HashMap Symbol t -- ^ the "local" names for sub-exprs
   }
+
+instance Functor AREnv where 
+  fmap f (REnv g l) = REnv (fmap f g) (fmap f l)
+
+instance (F.PPrint t) => F.PPrint (AREnv t) where
+  pprintTidy k re = "RENV LOCAL" $+$ F.pprintTidy k (reLocal re) <>
+                    "\nRENV GLOBAL" $+$ F.pprintTidy k (reGlobal re)
+  
+
+instance Semigroup REnv where 
+  REnv g1 l1 <> REnv g2 l2 = REnv (g1 <> g2) (l1 <> l2)  
+
+instance Monoid REnv where 
+  mempty = REnv mempty mempty
 
 instance NFData REnv where
   rnf (REnv {}) = ()
@@ -1919,6 +1960,11 @@ instance F.Symbolic ModName where
 
 instance F.Symbolic ModuleName where
   symbol = F.symbol . moduleNameFS
+
+
+isTarget :: ModName -> Bool 
+isTarget (ModName Target _) = True 
+isTarget _                  = False 
 
 isSrcImport :: ModName -> Bool
 isSrcImport (ModName SrcImport _) = True
@@ -2113,6 +2159,26 @@ instance F.PPrint t => F.PPrint (RClass t) where
       supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
       tuplify   = parens . hcat . punctuate ", "
 
+
+instance F.PPrint t => F.PPrint (RILaws t) where
+  pprintTidy k (RIL n ss ts mts _) = ppEqs k ("instance laws" <+> supers ss) n ts mts 
+   where 
+    supers [] = "" 
+    supers ts = tuplify (F.pprintTidy k   <$> ts) <+> "=>"
+    tuplify   = parens . hcat . punctuate ", "
+
+
+ppEqs :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
+          => F.Tidy -> Doc -> n -> [a] -> [(x, t)] -> Doc
+ppEqs k hdr name args mts 
+  = vcat $ hdr <+> dName <+> "where" 
+         : [ nest 4 (bind m t) | (m, t) <- mts ] 
+    where 
+      dName    = parens  (F.pprintTidy k name <+> dArgs)
+      dArgs    = gaps    (F.pprintTidy k      <$> args)
+      gaps     = hcat . punctuate " "
+      bind m t = F.pprintTidy k m <+> "=" <+> F.pprintTidy k t 
+
 ppMethods :: (F.PPrint x, F.PPrint t, F.PPrint a, F.PPrint n) 
           => F.Tidy -> Doc -> n -> [a] -> [(x, RISig t)] -> Doc
 ppMethods k hdr name args mts 
@@ -2125,6 +2191,22 @@ ppMethods k hdr name args mts
       bind m t = ppRISig k m t -- F.pprintTidy k m <+> "::" <+> F.pprintTidy k t 
 
 instance B.Binary ty => B.Binary (RClass ty)
+
+
+------------------------------------------------------------------------
+-- | Var Hole Info -----------------------------------------------------
+------------------------------------------------------------------------
+
+data HoleInfo t = HoleInfo {htype :: t, hloc :: SrcSpan, henv :: AREnv t }
+
+instance Functor HoleInfo where 
+  fmap f hinfo = hinfo{htype = f (htype hinfo), henv = fmap f (henv hinfo)}
+
+instance (F.PPrint t) => F.PPrint (HoleInfo t) where
+  pprintTidy k hinfo = text "type:" <+> F.pprintTidy k (htype hinfo) 
+                       <+> text "\n loc:" <+> F.pprintTidy k (hloc hinfo) 
+  -- to print the hole enviornment uncomment the following
+  --                     <+> text "\n env:" <+> F.pprintTidy k (henv hinfo)
 
 ------------------------------------------------------------------------
 -- | Annotations -------------------------------------------------------

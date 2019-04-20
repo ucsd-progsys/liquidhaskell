@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators, BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE PartialTypeSignatures, TypeOperators, BangPatterns, ScopedTypeVariables #-}
 
 -- ---------------------------------------------------------------------------
 -- |
@@ -99,6 +99,7 @@ introsort :: (PrimMonad m, MVector v e)
           => Comparison e -> v (PrimState m) e -> Int -> Int -> Int -> m ()
 introsort cmp a i l u = sort i l u >> I.sortByBounds cmp a l u
  where
+ sort :: Int -> Int -> Int -> _ 
  sort 0 l u = H.sortByBounds cmp a l  u 
   {- LIQUID WITNESS -}
  sort (d :: Int) l u
@@ -253,6 +254,7 @@ ilg m = 2 * loop m 0
 
 
 -- the size of array at which the introsort algorithm switches to insertion sort
+{-@ threshold :: {v:Int | v = 18} @-}
 threshold :: Int
 threshold = 18
 {-# INLINE threshold #-}

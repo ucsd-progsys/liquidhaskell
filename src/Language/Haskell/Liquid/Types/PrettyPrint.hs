@@ -129,13 +129,14 @@ instance PPrint LogicMap where
                                  , nest 2 $ text "axiom-map"
                                  , nest 4 $ pprint am
                                  ]
+                    
 --------------------------------------------------------------------------------
 -- | Pretty Printing RefType ---------------------------------------------------
 --------------------------------------------------------------------------------
 instance (OkRT c tv r) => PPrint (RType c tv r) where
   -- RJ: THIS IS THE CRUCIAL LINE, the following prints short types.
   pprintTidy _ = rtypeDoc F.Lossy
-  -- pprintTidy _ = ppRType TopPrec
+  -- pprintTidy _ = ppRType topPrec
 
 instance (PPrint tv, PPrint ty) => PPrint (RTAlias tv ty) where
   pprintTidy = ppAlias
@@ -160,7 +161,7 @@ pprints k c = sep . punctuate c . map (pprintTidy k)
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => F.Tidy -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
-rtypeDoc k    = ppr_rtype (ppE k) TopPrec
+rtypeDoc k    = ppr_rtype (ppE k) topPrec
   where
     ppE F.Lossy = ppEnvShort ppEnv
     ppE F.Full  = ppEnv
@@ -168,6 +169,8 @@ rtypeDoc k    = ppr_rtype (ppE k) TopPrec
 instance PPrint F.Tidy where
   pprintTidy _ F.Full  = "Full"
   pprintTidy _ F.Lossy = "Lossy"
+
+type Prec = PprPrec 
 
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
@@ -181,9 +184,9 @@ ppr_rtype bb p t@(RAllS _ _)
 ppr_rtype _ _ (RVar a r)
   = F.ppTy r $ pprint a
 ppr_rtype bb p t@(RImpF _ _ _ _)
-  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
+  = maybeParen p funPrec (ppr_rty_fun bb empty t)
 ppr_rtype bb p t@(RFun _ _ _ _)
-  = maybeParen p FunPrec $ ppr_rty_fun bb empty t
+  = maybeParen p funPrec (ppr_rty_fun bb empty t)
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
   = F.ppTy r $ brackets (ppr_rtype bb p t) <-> ppReftPs bb p rs
@@ -252,7 +255,7 @@ ppExists
       F.Reftable (RTProp c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppExists bb p t
-  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "exists" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
     where (zs,  t')               = split [] t
           split zs (REx x t t')   = split ((x,t):zs) t'
           split zs t                = (reverse zs, t)
@@ -261,7 +264,7 @@ ppAllExpr
   :: (OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Prec -> RType c tv r -> Doc
 ppAllExpr bb p t
-  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb TopPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
+  = text "forall" <+> brackets (intersperse comma [ppr_dbind bb topPrec x t | (x, t) <- zs]) <-> dot <-> ppr_rtype bb p t'
     where 
       (zs,  t')               = split [] t
       split zs (RAllE x t t') = split ((x,t):zs) t'
@@ -296,17 +299,17 @@ ppr_rty_fun'
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> RType c tv r -> Doc
 ppr_rty_fun' bb (RImpF b t t' r)
-  = F.ppTy r $ ppr_dbind bb FunPrec b t $+$ ppr_rty_fun bb (text "~>") t'
+  = F.ppTy r $ ppr_dbind bb funPrec b t $+$ ppr_rty_fun bb (text "~>") t'
 ppr_rty_fun' bb (RFun b t t' r)
-  = F.ppTy r $ ppr_dbind bb FunPrec b t $+$ ppr_rty_fun bb arrow t'
+  = F.ppTy r $ ppr_dbind bb funPrec b t $+$ ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
-  = ppr_rtype bb TopPrec t
+  = ppr_rtype bb topPrec t
 
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
-ppr_forall bb p t = maybeParen p FunPrec $ sep [
+ppr_forall bb p t = maybeParen p funPrec $ sep [
                       ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) (ty_labels trep)
                     , ppr_clss cls
-                    , ppr_rtype bb TopPrec t'
+                    , ppr_rtype bb topPrec t'
                     ]
   where
     trep          = toRTypeRep t

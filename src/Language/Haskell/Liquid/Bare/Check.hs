@@ -31,6 +31,7 @@ import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
 import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
+import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
@@ -128,6 +129,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                                      (gsTconsP (gsName sp))
+                     ++ checkLawInstances (gsLaws sp)
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -139,7 +141,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     allowHO          = higherOrderFlag sp
     noPrune          = not (pruneFlag sp)
-    txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v,t) <- ts]
+    txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData sp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 

@@ -223,6 +223,13 @@ data TError t =
                , texp :: !t
                } -- ^ liquid type error
 
+  | ErrHole    { pos :: !SrcSpan
+               , msg :: !Doc
+               , ctx :: !(M.HashMap Symbol t)
+               , var :: !Doc 
+               , thl :: !t 
+               } -- ^ hole type 
+
   | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
                , msg  :: !Doc
@@ -382,6 +389,12 @@ data TError t =
                 , dname :: !Doc
                 , msg  :: !Doc
                 } -- ^ Termination Error
+
+  | ErrILaw     { pos   :: !SrcSpan
+                , cname :: !Doc
+                , iname :: !Doc
+                , msg   :: !Doc
+                } -- ^ Instance Law Error
 
   | ErrRClass   { pos   :: !SrcSpan
                 , cls   :: !Doc
@@ -717,6 +730,10 @@ ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
 
+ppError' _td dSp _dCtx (ErrHole _ _ _ x t)
+  = dSp <+> "Hole Found"
+        $+$ pprint x <+> "::" <+> pprint t 
+
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
         $+$ dCtx
@@ -739,6 +756,7 @@ ppError' _ dSp dCtx (ErrParse _ _ e)
 
 ppError' _ dSp dCtx (ErrTySpec _ _k v t s)
   = dSp <+> ("Illegal type specification for" <+> ppTicks v) --  <-> ppKind k <-> ppTicks v)
+  -- = dSp <+> ("Illegal type specification for" <+> _ppKind k <-> ppTicks v)
         $+$ dCtx
         $+$ nest 4 (vcat [ pprint v <+> Misc.dcolon <+> pprint t
                          , pprint s
@@ -935,6 +953,11 @@ ppError' _ dSp dCtx (ErrStTerm _ x s)
   = dSp <+> text "Structural Termination Error"
         $+$ dCtx
         <+> (text "Cannot prove termination for size" <+> x) $+$ s
+ppError' _ dSp dCtx (ErrILaw _ c i s)
+  = dSp <+> text "Law Instance Error"
+        $+$ dCtx
+        <+> (text "The instance" <+> i <+> text "of class" <+> c <+> text "is not valid.") $+$ s
+      
 
 ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"

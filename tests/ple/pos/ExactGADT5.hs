@@ -1,8 +1,8 @@
-{-@ LIQUID "--no-adt" 	                           @-}
-{-@ LIQUID "--exact-data-con"                      @-}
-{-@ LIQUID "--higherorder"                         @-}
-{-@ LIQUID "--no-termination"                      @-}
-{-@ LIQUID "--ple" @-}
+{-@ LIQUID "--no-adt" 	      @-}
+{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--higherorder"    @-}
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--ple" 	      @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -34,9 +34,6 @@ createEqQuery field value =
   }
 
 
--- createEqQuery :: EntityField record typ -> typ -> Filter record typ
--- createEqQuery field value = Filter field value EQUAL
-
 createLeQuery :: (PersistEntity record, Eq typ) =>
                  EntityField record typ -> typ -> Filter record typ
 createLeQuery field value =
@@ -50,13 +47,9 @@ createLeQuery field value =
 data Blob  = B { xVal :: Int, yVal :: Int }
 
 instance PersistEntity Blob where
-  {- data EntityField Blob typ where
-        BlobXVal :: EntityField Blob Int
-      | BlobYVal :: EntityField Blob Int
-    -}
-    data EntityField Blob typ where
-        BlobXVal :: EntityField Blob Int
-        BlobYVal :: EntityField Blob Int
+  data EntityField Blob typ where
+    BlobXVal :: EntityField Blob Int
+    BlobYVal :: EntityField Blob Int
 
 {-@ filter :: f:(a -> Bool) -> [a] -> [{v:a | f v}] @-}
 filter :: (a -> Bool) -> [a] -> [a]

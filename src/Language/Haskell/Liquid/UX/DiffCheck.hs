@@ -52,7 +52,6 @@ import           Language.Haskell.Liquid.Types          hiding (Def, LMap) -- (L
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import           Language.Haskell.Liquid.Types.Visitors
-import           Language.Haskell.Liquid.UX.Errors      ()
 import           Text.Parsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 -- import           Language.Haskell.Liquid.Types.Errors
@@ -144,7 +143,7 @@ assumeSpec sigm sp = sp { gsSig = gsig { gsAsmSigs = M.toList $ M.union sigm ass
     gsig           = gsSig sp
 
 diffVars :: [Int] -> [Def] -> [Var]
-diffVars ls defs'    = tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
+diffVars ls defs'    = -- tracePpr ("INCCHECK: diffVars lines = " ++ show ls ++ " defs= " ++ show defs) $
                          go (L.sort ls) defs
   where
     defs             = L.sort defs'

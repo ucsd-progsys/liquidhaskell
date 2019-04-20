@@ -33,28 +33,46 @@ import           Prelude                         hiding (error)
 import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
-import qualified TyCon                           as TC
+-- import qualified TyCon                           as TC
 -- import qualified Var
 import           Type
 import           Var
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
-import           Data.List                       (foldl', partition)
+import qualified Data.Maybe                                 as Mb 
+import qualified Data.List         as L -- (foldl', partition)
+-- import           Data.List                       (nub)
 
 import           Language.Fixpoint.Misc
 
 -- import           Language.Fixpoint.Types         hiding (Expr, Predicate)
-import qualified Language.Fixpoint.Types         as F
+import qualified Language.Fixpoint.Types                    as F
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.Types
-import           Data.List                       (nub)
 import           Data.Default
 
-makeTyConInfo :: [TyConP] -> M.HashMap TC.TyCon RTyCon
-makeTyConInfo tcps = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
+makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
+makeTyConInfo tce fiTcs tcps = TyConMap 
+  { tcmTyRTy    = tcM
+  , tcmFIRTy    = tcInstM 
+  , tcmFtcArity = arities
+  }
+  where 
+    tcM         = M.fromList [(tcpCon tcp, mkRTyCon tcp) | tcp <- tcps ]
+    tcInstM     = mkFInstRTyCon tce fiTcs tcM 
+    arities     = safeFromList "makeTyConInfo" [ (c, length ts) | (c, ts) <- M.keys tcInstM ]
+
+mkFInstRTyCon :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> M.HashMap Ghc.TyCon RTyCon -> M.HashMap (Ghc.TyCon, [F.Sort]) RTyCon
+mkFInstRTyCon tce fiTcs tcm = M.fromList 
+  [ ((c, typeSort tce <$> ts), rtc) 
+    | fiTc    <- fiTcs
+    , rtc     <- Mb.maybeToList (M.lookup fiTc tcm)
+    , (c, ts) <- Mb.maybeToList (famInstArgs fiTc)
+  ] 
 
 mkRTyCon ::  TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
@@ -63,15 +81,21 @@ mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
     pvs' = subts (zip αs' τs) <$> ps
 
--- TODO: duplicated with Liquid.Measure.makeDataConType
+
+-------------------------------------------------------------------------------
+-- | @dataConPSpecType@ converts a @DataConP@, LH's internal representation for 
+--   a (refined) data constructor into a @SpecType@ for that constructor.
+--   TODO: duplicated with Liquid.Measure.makeDataConType
+-------------------------------------------------------------------------------
 dataConPSpecType :: DataConP -> [(Var, SpecType)]
-dataConPSpecType dcp    = [ (workX, workT), (wrapX, wrapT) ]
+-------------------------------------------------------------------------------
+dataConPSpecType dcp    = F.notracepp "dataConPSpecType" [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT
     wrapT               = dcWrapSpecType   dc dcp
-    workX               = dataConWorkId    dc            -- this is the weird one for GADTs
-    wrapX               = dataConWrapId    dc            -- this is what the user expects to see
+    workX               = dataConWorkId    dc            -- This is the weird one for GADTs
+    wrapX               = dataConWrapId    dc            -- This is what the user expects to see
     isVanilla           = isVanillaDataCon dc
     dc                  = dcpCon dcp
 
@@ -129,6 +153,7 @@ meetWorkWrapRep c workR wrapR
   = workR { ty_binds = xs ++ (ty_binds wrapR)
           , ty_args  = ts ++ zipWith strengthenRType ts' (ty_args wrapR)
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
+          , ty_preds = ty_preds wrapR
           }
   | otherwise
   = panic (Just (getSrcSpan c)) errMsg
@@ -162,10 +187,19 @@ dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
 
 instance PPrint TyConP where
-  pprintTidy k (TyConP _ _ vs ps ls _ _ _)
-    = (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
-      (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
-      (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
+  pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
+                           <+> ppComm     k (tcpFreeTyVarsTy tc) 
+                           <+> ppComm     k (tcpFreePredTy   tc) 
+                           <+> ppComm     k (tcpFreeLabelTy  tc)
+      --  (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
+      -- (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
+      -- (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
+
+ppComm :: PPrint a => F.Tidy -> [a] -> Doc 
+ppComm k = parens . hsep . punctuate comma . fmap (pprintTidy k)
+
+
+    
 
 instance Show TyConP where
  show = showpp -- showSDoc . ppr
@@ -209,7 +243,7 @@ replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps) s)
   where
     rs''             = mconcat $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1
-    (ps1, ps2)       = partition (== p) ps
+    (ps1, ps2)       = L.partition (== p) ps
 
 pVartoRConc :: PVar t -> (F.Symbol, [(a, b, F.Expr)]) -> F.Expr
 pVartoRConc p (v, args) | length args == length (pargs p)
@@ -263,7 +297,7 @@ symbolRTyCon n = RTyCon (stringTyCon 'x' 42 $ F.symbolString n) [] def
 -------------------------------------------------------------------------------------
 replacePreds                 :: String -> SpecType -> [(RPVar, SpecProp)] -> SpecType
 -------------------------------------------------------------------------------------
-replacePreds msg                 = foldl' go
+replacePreds msg                 = L.foldl' go
   where
      go _ (_, RProp _ (RHole _)) = panic Nothing "replacePreds on RProp _ (RHole _)"
      go z (π, t)                 = substPred msg   (π, t)     z
@@ -390,16 +424,16 @@ substPredP msg (p, RProp ss prop) (RProp s t)
 splitRPvar :: PVar t -> UReft r -> (UReft r, [UsedPVar])
 splitRPvar pv (MkUReft x (Pr pvs) s) = (MkUReft x (Pr pvs') s, epvs)
   where
-    (epvs, pvs')               = partition (uPVar pv ==) pvs
+    (epvs, pvs')               = L.partition (uPVar pv ==) pvs
 
 -- TODO: rewrite using foldReft
 freeArgsPs :: PVar (RType t t1 ()) -> RType t t1 (UReft t2) -> [F.Symbol]
 freeArgsPs p (RVar _ r)
   = freeArgsPsRef p r
 freeArgsPs p (RImpF _ t1 t2 r)
-  = nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+  = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RFun _ t1 t2 r)
-  = nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+  = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAllT _ t)
   = freeArgsPs p t
 freeArgsPs p (RAllS _ t)
@@ -408,19 +442,19 @@ freeArgsPs p (RAllP p' t)
   | p == p'   = []
   | otherwise = freeArgsPs p t
 freeArgsPs p (RApp _ ts _ r)
-  = nub $ freeArgsPsRef p r ++ concatMap (freeArgsPs p) ts
+  = L.nub $ freeArgsPsRef p r ++ concatMap (freeArgsPs p) ts
 freeArgsPs p (RAllE _ t1 t2)
-  = nub $ freeArgsPs p t1 ++ freeArgsPs p t2
+  = L.nub $ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (REx _ t1 t2)
-  = nub $ freeArgsPs p t1 ++ freeArgsPs p t2
+  = L.nub $ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAppTy t1 t2 r)
-  = nub $ freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
+  = L.nub $ freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs _ (RExprArg _)
   = []
 freeArgsPs p (RHole r)
   = freeArgsPsRef p r
 freeArgsPs p (RRTy env r _ t)
-  = nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
+  = L.nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
 freeArgsPsRef :: PVar t1 -> UReft t -> [F.Symbol]
 freeArgsPsRef p (MkUReft _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (F.EVar x) == w]
@@ -430,7 +464,7 @@ freeArgsPsRef p (MkUReft _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),
 
 meetListWithPSubs :: (Foldable t, PPrint t1, F.Reftable b)
                   => t (PVar t1) -> [(F.Symbol, RSort)] -> b -> b -> b
-meetListWithPSubs πs ss r1 r2    = foldl' (meetListWithPSub ss r1) r2 πs
+meetListWithPSubs πs ss r1 r2    = L.foldl' (meetListWithPSub ss r1) r2 πs
 
 meetListWithPSubsRef :: (Foldable t, F.Reftable (RType t1 t2 t3))
                      => t (PVar t4)
@@ -438,7 +472,7 @@ meetListWithPSubsRef :: (Foldable t, F.Reftable (RType t1 t2 t3))
                      -> Ref τ (RType t1 t2 t3)
                      -> Ref τ (RType t1 t2 t3)
                      -> Ref τ (RType t1 t2 t3)
-meetListWithPSubsRef πs ss r1 r2 = foldl' ((meetListWithPSubRef ss) r1) r2 πs
+meetListWithPSubsRef πs ss r1 r2 = L.foldl' ((meetListWithPSubRef ss) r1) r2 πs
 
 meetListWithPSub ::  (F.Reftable r, PPrint t) => [(F.Symbol, RSort)]-> r -> r -> PVar t -> r
 meetListWithPSub ss r1 r2 π

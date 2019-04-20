@@ -967,6 +967,8 @@ countCharI a (Stream next s0 _len) = loop 0 s0
                  | otherwise -> loop i s'
 {-# INLINE [0] countCharI #-}
 
+{-@ assume error :: String -> a @-}
+
 streamError :: String -> String -> a
 streamError func msg = P.error $ "Data.Text.Fusion.Common." ++ func ++ ": " ++ msg
 
