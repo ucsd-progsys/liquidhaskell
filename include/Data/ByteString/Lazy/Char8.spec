@@ -70,7 +70,7 @@ init
 
 assume null
     :: bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | b <=> bllen bs == 0 }
+    -> { b : GHC.Types.Bool | b <=> bllen bs == 0 }
 
 assume length
     :: bs : Data.ByteString.Lazy.ByteString -> { n : Data.Int.Int64 | bllen bs == n }
@@ -127,13 +127,13 @@ assume concatMap
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | bllen i == 0 ==> bllen o == 0 }
 
-assume any :: (Char -> Bool)
+assume any :: (Char -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen bs == 0 ==> not b }
+    -> { b : GHC.Types.Bool | bllen bs == 0 ==> not b }
 
-assume all :: (Char -> Bool)
+assume all :: (Char -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen bs == 0 ==> b }
+    -> { b : GHC.Types.Bool | bllen bs == 0 ==> b }
 
 maximum :: { bs : Data.ByteString.Lazy.ByteString | 1 <= bllen bs } -> Char
 
@@ -210,38 +210,38 @@ assume splitAt
        )
 
 assume takeWhile
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | bllen o <= bllen i }
 
 assume dropWhile
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | bllen o <= bllen i }
 
 assume span
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
        )
 
 assume spanEnd
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
        )
 
 assume break
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
        )
 
 assume breakEnd
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
@@ -251,7 +251,7 @@ assume group
     -> [{ o : Data.ByteString.Lazy.ByteString | 1 <= bllen o && bllen o <= bllen i }]
 
 assume groupBy
-    :: (Char -> Char -> Bool)
+    :: (Char -> Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> [{ o : Data.ByteString.Lazy.ByteString | 1 <= bllen o && bllen o <= bllen i }]
 
@@ -269,7 +269,7 @@ assume split
     -> [{ o : Data.ByteString.Lazy.ByteString | bllen o <= bllen i }]
 
 assume splitWith
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> [{ o : Data.ByteString.Lazy.ByteString | bllen o <= bllen i }]
 
@@ -292,17 +292,17 @@ assume unwords
 assume isPrefixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not b }
+    -> { b : GHC.Types.Bool | bllen l >= bllen r ==> not b }
 
 assume isSuffixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not b }
+    -> { b : GHC.Types.Bool | bllen l >= bllen r ==> not b }
 
 assume isInfixOf
     :: l : Data.ByteString.Lazy.ByteString
     -> r : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen l >= bllen r ==> not b }
+    -> { b : GHC.Types.Bool | bllen l >= bllen r ==> not b }
 
 assume breakSubstring
     :: il : Data.ByteString.Lazy.ByteString
@@ -314,25 +314,25 @@ assume breakSubstring
 assume elem
     :: Char
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen b == 0 ==> not b }
+    -> { b : GHC.Types.Bool | bllen b == 0 ==> not b }
 
 assume notElem
     :: Char
     -> bs : Data.ByteString.Lazy.ByteString
-    -> { b : Bool | bllen b == 0 ==> b }
+    -> { b : GHC.Types.Bool | bllen b == 0 ==> b }
 
 assume find
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
     -> Maybe { w8 : Char | bllen bs /= 0 }
 
 assume filter
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> { o : Data.ByteString.Lazy.ByteString | bllen o <= bllen i }
 
 assume partition
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> i : Data.ByteString.Lazy.ByteString
     -> ( { l : Data.ByteString.Lazy.ByteString | bllen l <= bllen i }
        , { r : Data.ByteString.Lazy.ByteString | bllen r <= bllen i }
@@ -359,12 +359,12 @@ assume elemIndexEnd
     -> Maybe { n : Data.Int.Int64 | 0 <= n && n < bllen bs }
 
 assume findIndex
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
     -> Maybe { n : Data.Int.Int64 | 0 <= n && n < bllen bs }
 
 assume findIndices
-    :: (Char -> Bool)
+    :: (Char -> GHC.Types.Bool)
     -> bs : Data.ByteString.Lazy.ByteString
     -> [{ n : Data.Int.Int64 | 0 <= n && n < bllen bs }]
 

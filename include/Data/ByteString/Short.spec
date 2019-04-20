@@ -18,7 +18,7 @@ unpack :: bs : Data.ByteString.Short.ShortByteString -> { w8s : [Data.Word.Word8
 
 empty :: { bs : Data.ByteString.Short.ShortByteString | sbslen bs == 0 }
 
-null :: bs : Data.ByteString.Short.ShortByteString -> { b : Bool | b <=> sbslen bs == 0 }
+null :: bs : Data.ByteString.Short.ShortByteString -> { b : GHC.Types.Bool | b <=> sbslen bs == 0 }
 
 length :: bs : Data.ByteString.Short.ShortByteString -> { n : Int | sbslen bs == n }
 
