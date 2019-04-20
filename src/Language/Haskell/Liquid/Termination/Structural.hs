@@ -1,172 +1,323 @@
-{-# LANGUAGE LambdaCase          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE DeriveGeneric       #-}
+{-# LANGUAGE ViewPatterns #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
-import Language.Haskell.Liquid.Types hiding (terminationCheck)
+import Language.Haskell.Liquid.Types hiding (terminationCheck, isDecreasing)
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
--- import Language.Haskell.Liquid.UX.Config hiding (terminationCheck)
 
 import CoreSyn
 import Var
 import Name (getSrcSpan)
 import VarSet
+import CoreSubst (deShadowBinds)
 
-import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
-import qualified Data.HashSet  as S
-import Data.Hashable (Hashable)
-import GHC.Generics (Generic)
-import Data.Maybe (mapMaybe)
+import Text.PrettyPrint.HughesPJ hiding ((<>))
+
+import qualified Data.HashSet as HS
+import Data.HashSet (HashSet)
+import qualified Data.Map.Strict as M
+import Data.Map.Strict (Map)
+import qualified Data.List as L
+
+import Control.Monad (liftM, ap)
+import Data.Foldable (fold)
 
 terminationVars :: GhcInfo -> [Var]
-terminationVars = resultVars . terminationCheck
+terminationVars info = failingBinds info >>= allBoundVars
 
-resultVars :: Result a -> [Var]
-resultVars (OK _)       = []
-resultVars (Error es) = teVar <$> es 
-
-terminationCheck :: GhcInfo -> Result ()
-terminationCheck info 
-  | isStruct  = mconcat $ map (checkBind cbs) (allRecBinds cbs)
-  | otherwise = mconcat $ map (checkBind cbs) (S.toList $ gsStTerm $ gsTerm $ giSpec info)
+failingBinds :: GhcInfo -> [CoreBind]
+failingBinds info = filter (hasErrors . checkBind) structBinds
   where 
-    isStruct  = structuralTerm   info 
-    cbs       = giCbs (giSrc     info)
+    structCheckWholeProgram = structuralTerm info
+    program = giCbs . giSrc $ info
+    structFuns = gsStTerm . gsTerm . giSpec $ info
+    structBinds
+      | structCheckWholeProgram = program
+      | otherwise = findStructBinds structFuns program
+
+checkBind :: CoreBind -> Result ()
+checkBind bind = do
+  srcCallInfo <- getCallInfoBind emptyEnv (deShadowBind bind)
+  let structCallInfo = fmap toStructCall <$> srcCallInfo
+  fold $ mapWithFun structDecreasing structCallInfo
+
+deShadowBind :: CoreBind -> CoreBind
+deShadowBind bind = head $ deShadowBinds [bind]
+
+findStructBinds :: HashSet Var -> CoreProgram -> [CoreBind]
+findStructBinds structFuns program = filter isStructBind program
+  where
+    isStructBind (NonRec f _) = f `HS.member` structFuns
+    isStructBind (Rec []) = False
+    isStructBind (Rec ((f,_):xs)) = f `HS.member` structFuns || isStructBind (Rec xs)
+
+allBoundVars :: CoreBind -> [Var]
+allBoundVars (NonRec v e) = v : (nextBinds e >>= allBoundVars)
+allBoundVars (Rec binds) = map fst binds ++ (map snd binds >>= nextBinds >>= allBoundVars)
+
+nextBinds :: CoreExpr -> [CoreBind]
+nextBinds = \case
+  App e a -> nextBinds e ++ nextBinds a
+  Lam _ e -> nextBinds e
+  Let b e -> [b] ++ nextBinds e
+  Case scrut _ _ alts -> nextBinds scrut ++ ([body | (_, _, body) <- alts] >>= nextBinds)
+  Cast e _ -> nextBinds e
+  Tick _ e -> nextBinds e
+  Var{} -> []
+  Lit{} -> []
+  Coercion{} -> []
+  Type{} -> []
 
 ------------------------------------------------------------------------------------------
 
-data Result a = OK a | Error [TermError]
+-- Note that this is *not* the Either/Maybe monad, since it's important that we
+-- collect all errors, not just the first error.
+data Result a = Result
+  { resultVal :: a
+  , resultErrors :: [TermError]
+  } deriving (Show)
 
 data TermError = TE 
-  { teVar   :: !Var
-  , teError :: !UserError 
-  }
+  { teVar   :: Var
+  , teError :: UserError
+  } deriving (Show)
 
-mkError :: Var -> Doc -> Result a
-mkError fun expl = Error [mkTermError fun expl] 
+hasErrors :: Result a -> Bool
+hasErrors = not . null . resultErrors
+
+addError :: Var -> Doc -> Result a -> Result a
+addError fun expl (Result x errs) = Result x (mkTermError fun expl : errs)
 
 mkTermError :: Var -> Doc -> TermError
-mkTermError fun expl = TE 
-  { teVar   = fun 
+mkTermError fun expl = TE
+  { teVar   = fun
   , teError = ErrStTerm (getSrcSpan fun) (text $ showPpr fun) expl
   }
 
 instance Monoid a => Monoid (Result a) where
-  mempty  = OK mempty
-  mappend = (<>)
+  mempty  = Result mempty []
 
 instance Semigroup a => Semigroup (Result a) where
-  OK x     <> OK y     = OK (x <> y)
-  OK _     <> e        = e
-  e        <> OK _     = e
-  Error e1 <> Error e2 = Error (e1 ++ e2)
+  Result x e1 <> Result y e2 = Result (x <> y) (e1 ++ e2)
 
--- resultToDoc :: Result -> Output Doc
--- resultToDoc OK        = mempty
--- resultToDoc (Error x) = mempty { o_result = Unsafe x }
+instance Monad Result where
+  Result x e1 >>= f =
+    let Result y e2 = f x in
+    Result y (e2 ++ e1)
 
-checkBind :: [CoreBind] -> Var -> Result ()
-checkBind cbs x = maybe (OK ()) isStructurallyRecursiveGroup (findRecBind cbs x)
+instance Applicative Result where
+  pure x = Result x []
+  (<*>) = ap
 
-allRecBinds :: [CoreBind] -> [Var]
-allRecBinds cbs = concat[ fst <$> xes |  Rec xes <- cbs ]
+instance Functor Result where
+  fmap = liftM
 
-findRecBind :: [CoreBind] -> Var -> Maybe [(Var,CoreExpr)]
-findRecBind [] _ = Nothing
-findRecBind (NonRec x _:_) y | x == y
-  = Nothing
-findRecBind (Rec xes:_)    y | y `elem` (fst <$> xes)
-  = Just xes
-findRecBind (_:xes) y
-  = findRecBind xes y
+--------------------------------------------------------------------------------
 
-isStructurallyRecursiveGroup :: [(Var,CoreExpr)] -> Result ()
-isStructurallyRecursiveGroup xes = mconcat (isStructurallyRecursive funs <$> xes)
-  where funs = mkVarSet (map fst xes)
+data Env = Env
+  { envCurrentFun :: Maybe Var
+  , envCurrentArgs :: [CoreArg]
+  , envCheckedFuns :: [Fun]
+  }
 
-isStructurallyRecursive :: VarSet -> (Var, CoreExpr) -> Result ()
-isStructurallyRecursive funs (fun, rhs)
-  | null xs
-  = mkError fun (text "The definition has no value parameters.")
-  | otherwise
-  = let env = Env (mkError fun) funs (map initParam xs) in
-      case check env [] body of
-        OK calls -> structDecreasing env calls
-        Error err -> Error err
-  where
-    (_ts, xs, body) = collectTyAndValBinders rhs
+data Fun = Fun
+  { funName :: Var
+  , funParams :: [Param]
+  }
 
 data Param = Param
-    { origParam :: VarSet -- ^ Variables bound to parameter
-    , subterms  :: VarSet -- ^ Variables bound to subterms of the parameter
-    }
+  { paramNames :: VarSet
+  , paramSubterms :: VarSet
+  } deriving (Eq)
 
-initParam :: Var -> Param
-initParam x = Param (unitVarSet x) emptyVarSet
+emptyEnv :: Env
+emptyEnv = Env
+  { envCurrentFun = Nothing
+  , envCurrentArgs = []
+  , envCheckedFuns = []
+  }
 
-data Env a = Env
-    { retErr   :: Doc -> Result a  -- ^ How to signal erros
-    , funs     :: VarSet           -- ^ Which functions are interesting
-    , params   :: [Param]          -- ^ Parameters
-    }
+mkFun :: Var -> Fun
+mkFun name = Fun
+  { funName = name
+  , funParams = []
+  }
 
+mkParam :: Var -> Param
+mkParam name = Param
+  { paramNames = unitVarSet name
+  , paramSubterms = emptyVarSet
+  }
 
-shadow :: Env a -> [Var] -> Env a
-shadow (Env retErr funs params) vs
-    = Env retErr (funs `delVarSetList` vs) (map shadowParam params)
+lookupFun :: Env -> Var -> Maybe Fun
+lookupFun env name = L.find (\fun -> funName fun == name) $ envCheckedFuns env
+
+clearCurrentArgs :: Env -> Env
+clearCurrentArgs env = env { envCurrentArgs = [] }
+
+setCurrentFun :: Var -> Env -> Env
+setCurrentFun fun env = env { envCurrentFun = Just fun }
+
+clearCurrentFun :: Env -> Env
+clearCurrentFun env = env { envCurrentFun = Nothing }
+
+addArg :: CoreArg -> Env -> Env
+addArg arg env = env { envCurrentArgs = arg:envCurrentArgs env }
+
+addParam :: Var -> Env -> Env
+addParam param env = case envCurrentFun env of
+  Nothing -> env
+  Just name -> env { envCheckedFuns = updateFunNamed name <$> envCheckedFuns env }
   where
-    shadowParam (Param origParam subterms)
-      = Param (origParam `delVarSetList` vs) (subterms `delVarSetList` vs)
+    updateFunNamed name fun
+      | funName fun == name = fun { funParams = mkParam param : funParams fun }
+      | otherwise = fun
 
-envAddSubterms :: CoreExpr -- ^ the scrutinee variable
-               -> [Var]    -- ^ the variables that are subterms
-               -> Env a
-               -> Env a
-envAddSubterms (Tick _ e) vs env = envAddSubterms e vs env
-envAddSubterms (Cast e _) vs env = envAddSubterms e vs env
-envAddSubterms (Var v)    vs env = env { params = map paramAddSubterms (params env) }
+addSynonym :: Var -> Var -> Env -> Env
+addSynonym oldName newName env = env { envCheckedFuns = updateFun <$> envCheckedFuns env }
   where
-    paramAddSubterms p | v `elemVarSet` origParam p || v `elemVarSet` subterms p
-                       = p { subterms = subterms p `extendVarSetList` vs }
-                       | otherwise = p
-envAddSubterms _ _ env = env
+    updateFun fun = fun { funParams = updateParam <$> funParams fun }
+    updateParam param
+      | oldName `elemVarSet` paramNames param = param { paramNames = paramNames param `extendVarSet` newName }
+      | oldName `elemVarSet` paramSubterms param = param { paramSubterms = paramSubterms param `extendVarSet` newName }
+      | otherwise = param
 
-check :: Env (S.HashSet Call) -> [CoreArg] -> CoreExpr -> Result (S.HashSet Call)
-check env args = \case
-    Var fun | not (fun `elemVarSet` funs env) -> mempty
-            | length args < length (params env) -> retErr env $ text "Unsaturated call to" <+> (text $ showPpr fun)
-            | otherwise -> OK $ S.singleton $ getStructArgs (showPpr $ mkApps (Var fun) args) $ zip (params env) args
+addSubterms :: Var -> [Var] -> Env -> Env
+addSubterms var subterms env = env { envCheckedFuns = updateFun <$> envCheckedFuns env }
+  where
+    updateFun fun = fun { funParams = updateParam <$> funParams fun }
+    updateParam param
+      | var `elemVarSet` paramNames param || var `elemVarSet` paramSubterms param = param { paramSubterms = paramSubterms param `extendVarSetList` subterms }
+      | otherwise = param
 
-    App e a | isTypeArg a ->                   check env args e
-            | otherwise   -> check env [] a <> check env (a:args) e
+addCheckedFun :: Var -> Env -> Env
+addCheckedFun name env = env { envCheckedFuns = mkFun name : envCheckedFuns env }
 
-    Lam v e    -> check (env `shadow` [v]) [] e
-    Let (NonRec v rhs) body -> check env  [] rhs <> check (env `shadow` [v]) [] body
-    Let (Rec pairs) body -> foldMap (check (env `shadow` vs) []) (body : rhss)
-      where (vs,rhss) = unzip pairs
+isParam :: Var -> Param -> Bool
+var `isParam` param = var `elemVarSet` paramNames param
 
-    Case scrut bndr _ alts -> mconcat $
-        [ check env [] scrut ] ++
-        [ check env' [] rhs
-        | (_, pats, rhs) <- alts
-        , let env' = envAddSubterms scrut pats $ env `shadow` (bndr:pats) ]
+isParamSubterm :: Var -> Param -> Bool
+var `isParamSubterm` param = var `elemVarSet` paramSubterms param
 
-    -- Boring transparent cases
-    Cast e _   -> check env args e
-    Tick _ e   -> check env args e
-    -- Boring base cases
-    Lit{}      -> mempty
-    Coercion{} -> mempty
-    Type{}     -> mempty
+--------------------------------------------------------------------------------
 
-data Call = Call
-  { callSource :: String
-  , candidateArgs :: S.HashSet Int
-  , decreasingArgs :: S.HashSet Int
-  } deriving (Eq, Show, Generic)
+newtype FunInfo a = FunInfo (Map Var a)
 
-instance Hashable Call
+data SrcCall = SrcCall
+  { srcCallFun :: Var
+  , srcCallArgs :: [(Param, CoreArg)]
+  }
+
+instance Semigroup a => Semigroup (FunInfo a) where
+  FunInfo xs <> FunInfo ys = FunInfo $ M.unionWith (<>) xs ys
+
+instance Semigroup a => Monoid (FunInfo a) where
+  mempty = FunInfo M.empty
+
+instance Functor FunInfo where
+  fmap f (FunInfo xs) = FunInfo (fmap f xs)
+
+instance Foldable FunInfo where
+  foldMap f (FunInfo m) = foldMap f m
+
+mapWithFun :: (Var -> a -> b) -> FunInfo a -> FunInfo b
+mapWithFun f (FunInfo x) = FunInfo (M.mapWithKey f x)
+
+mkFunInfo :: Var -> a -> FunInfo a
+mkFunInfo fun x = FunInfo $ M.singleton fun x
+
+mkSrcCall :: Var -> [(Param, CoreArg)] -> SrcCall
+mkSrcCall fun args = SrcCall
+  { srcCallFun = fun
+  , srcCallArgs = args
+  }
+
+toVar :: CoreExpr -> Maybe Var
+toVar (Var x) = Just x
+toVar (Cast e _) = toVar e
+toVar (Tick _ e) = toVar e
+toVar _ = Nothing
+
+zipExact :: [a] -> [b] -> Maybe [(a, b)]
+zipExact [] [] = Just []
+zipExact (x:xs) (y:ys) = ((x, y):) <$> zipExact xs ys
+zipExact _ _ = Nothing
+
+-- Collect information about all of the recursive calls in a function
+-- definition which will be needed to check for structural termination.
+getCallInfoExpr :: Env -> CoreExpr -> Result (FunInfo [SrcCall])
+getCallInfoExpr env = \case
+  Var (lookupFun env -> Just fun) ->
+    case zipExact (funParams fun) (reverse $ envCurrentArgs env) of
+      Just args -> pure $ mkFunInfo (funName fun) [mkSrcCall (funName fun) args]
+      Nothing -> addError (funName fun) "Unsaturated call to function" mempty
+
+  App e a
+    | isTypeArg a -> getCallInfoExpr env e
+    | otherwise -> getCallInfoExpr argEnv a <> getCallInfoExpr appEnv e
+      where
+        argEnv = clearCurrentFun . clearCurrentArgs $ env
+        appEnv = clearCurrentFun . addArg a $ env
+
+  Lam x e
+    | isTyVar x -> getCallInfoExpr env e
+    | otherwise -> getCallInfoExpr (addParam x env) e
+
+  Let bind e -> getCallInfoBind env bind <> getCallInfoExpr env e
+
+  Case (toVar -> Just var) bndr _ alts -> foldMap getCallInfoAlt alts
+    where
+      getCallInfoAlt (_, subterms, body) = getCallInfoExpr (branchEnv subterms) body
+      branchEnv subterms = addSubterms var subterms . addSynonym var bndr $ env
+
+  Case scrut _ _ alts -> getCallInfoExpr env scrut <> foldMap getCallInfoAlt alts
+    where
+      getCallInfoAlt (_, _, body) = getCallInfoExpr env body
+
+  Cast e _ -> getCallInfoExpr env e
+  Tick _ e -> getCallInfoExpr env e
+
+  Var{} -> pure mempty
+  Lit{} -> pure mempty
+  Coercion{} -> pure mempty
+  Type{} -> pure mempty
+
+getCallInfoBind :: Env -> CoreBind -> Result (FunInfo [SrcCall])
+getCallInfoBind env = \case
+  NonRec _ e -> getCallInfoExpr (clearCurrentFun env) e
+  Rec [] -> pure mempty
+  Rec [(f, e)] -> getCallInfoExpr (addCheckedFun f . setCurrentFun f $ env) e
+  Rec binds -> foldMap failBind binds
+    where failBind (f, e) =
+            addError f "Structural checking of mutually-recursive functions is not supported" $
+            getCallInfoExpr (clearCurrentFun env) e
+
+--------------------------------------------------------------------------------
+
+data StructInfo = Unchanged Int | Decreasing Int
+
+unStructInfo :: StructInfo -> Int
+unStructInfo (Unchanged p) = p
+unStructInfo (Decreasing p) = p
+
+isDecreasing :: StructInfo -> Bool
+isDecreasing (Decreasing _) = True
+isDecreasing (Unchanged _) = False
+
+data StructCall = StructCall
+  { structCallFun :: Var
+  , structCallArgs :: [Int]
+  , structCallDecArgs :: [Int]
+  }
+
+mkStructCall :: Var -> [StructInfo] -> StructCall
+mkStructCall fun sis = StructCall
+  { structCallFun = fun
+  , structCallArgs = map unStructInfo sis
+  , structCallDecArgs = map unStructInfo . filter isDecreasing $ sis
+  }
 
 -- This is where we  check a function call. We go through  the list of arguments
 -- and find the  indices of those which are decreasing.  Note that this approach
@@ -176,43 +327,26 @@ instance Hashable Call
 -- won't necessarily work, but
 -- foo (x:xs) yys@(y:ys) = foo xs yys
 -- will.
-getStructArgs :: String -> [(Param, CoreArg)] -> Call
-getStructArgs src args =
-  let (ca, da) = getStructArgs' 0 args in Call src ca da
+toStructCall :: SrcCall -> StructCall
+toStructCall srcCall = mkStructCall (srcCallFun srcCall) $ toStructArgs 0 (srcCallArgs srcCall)
   where
-    getStructArgs' _ [] = (S.empty, S.empty)
-    getStructArgs' i ((p, Cast e _) : args) = getStructArgs' i ((p, e) : args)
-    getStructArgs' i ((p, Tick _ e) : args) = getStructArgs' i ((p, e) : args)
-    getStructArgs' i ((p, Var v) : args)
-      | v `elemVarSet` origParam p = (S.singleton i, S.empty) <> getStructArgs' (i + 1) args
-      | v `elemVarSet` subterms p = (S.singleton i, S.singleton i) <> getStructArgs' (i + 1) args
-      | otherwise = getStructArgs' (i + 1) args
-    getStructArgs' i (_ : args) = getStructArgs' (i + 1) args
+    toStructArgs _ [] = []
+    toStructArgs index ((param, toVar -> Just v):args)
+      | v `isParam` param = Unchanged index : toStructArgs (index + 1) args
+      | v `isParamSubterm` param = Decreasing index : toStructArgs (index + 1) args
+    toStructArgs index (_:args) = toStructArgs (index + 1) args
 
 -- Check if there is some way to lexicographically order the arguments so that
 -- they are structurally decreasing. Essentially, in order for there to be, we
 -- must be able to find some argument which is always either unchanged or
 -- decreasing. We can then remove every call where that argument is decreasing
 -- and recurse.
-structDecreasing :: Env () -> S.HashSet Call -> Result ()
-structDecreasing env calls
-  | S.null calls = mempty
-  | not $ S.null $ nonDec calls = raiseErr $ nonDec calls
-  | otherwise =
-      let ca = commonArgs calls in
-        if S.null ca then
-          raiseErr calls
-        else
-          structDecreasing env $ (S.fromList . mapMaybe (removeDecreasing ca) . S.toList) calls
+structDecreasing :: Var -> [StructCall] -> Result ()
+structDecreasing _ [] = mempty
+structDecreasing funName calls
+  | null sharedArgs = addError funName "Non-structural recursion" mempty
+  | otherwise = structDecreasing funName $ (map removeSharedArgs . filter noneDecreasing) calls
   where
-    raiseErr calls =
-      retErr env $ text "Non-structural recursion in calls" <+>
-      (text $ showPpr (S.map callSource calls))
-    nonDec calls = S.filter (S.null . decreasingArgs) calls
-    commonArgs calls = foldl1 S.intersection (S.map candidateArgs calls)
-    removeDecreasing args call
-      | S.null (decreasingArgs call `S.difference` args) = Nothing
-      | otherwise = Just $ call
-        { candidateArgs = candidateArgs call `S.difference` args
-        , decreasingArgs = decreasingArgs call `S.difference` args
-        }
+    sharedArgs = foldl1 L.intersect (structCallArgs <$> calls)
+    noneDecreasing call = null $ structCallDecArgs call `L.intersect` sharedArgs
+    removeSharedArgs call = call { structCallArgs = structCallArgs call L.\\ sharedArgs }

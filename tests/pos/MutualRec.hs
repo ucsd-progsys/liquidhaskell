@@ -1,5 +1,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 
+-- TODO: Fix resolve so we can remove this/add termination metrics
+{-@ LIQUID "--no-termination" @-}
+
 module MutualRec where
 
 import Language.Haskell.Liquid.Prelude
