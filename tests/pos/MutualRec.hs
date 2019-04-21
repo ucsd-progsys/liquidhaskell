@@ -34,8 +34,9 @@ fromDistinctAscList xs
             m  = n `div` 2
             nr = n - nl - 1
 
-    createR (n::Int) c l ((k,x):ys) = create (createB l k x c) n ys
-    createR _ _ _ []         = unsafeError "fromDistinctAscList createR []"
-    createB l k x c r zs     = c (bin k x l r) zs
+    -- MUTUAL createR (n::Int) c l ((k,x):ys) = create (createB l k x c) n ys
+    createR (n::Int) c l ((k,x):ys) = create (\r -> c (bin k x l r)) n ys
+    createR _ _ _ []                = unsafeError "fromDistinctAscList createR []"
+    -- MUTUAL createB l k x c r zs     = c (bin k x l r) zs
 
 

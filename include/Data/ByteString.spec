@@ -45,7 +45,7 @@ init
 
 null 
   :: bs : Data.ByteString.ByteString
-  -> { b : Bool | b <=> bslen bs == 0 }
+  -> { b : GHC.Types.Bool | b <=> bslen bs == 0 }
 
 length :: bs : Data.ByteString.ByteString -> { n : Int | bslen bs == n }
 
@@ -102,14 +102,14 @@ concatMap
   -> { o : Data.ByteString.ByteString | bslen i == 0 ==> bslen o == 0 }
 
 any 
-  :: (_ -> Bool)
+  :: (_ -> GHC.Types.Bool)
   -> bs : Data.ByteString.ByteString
-  -> { b : Bool | bslen bs == 0 ==> not b }
+  -> { b : GHC.Types.Bool | bslen bs == 0 ==> not b }
 
 all 
-  :: (_ -> Bool)
+  :: (_ -> GHC.Types.Bool)
   -> bs : Data.ByteString.ByteString
-  -> { b : Bool | bslen bs == 0 ==> b }
+  -> { b : GHC.Types.Bool | bslen bs == 0 ==> b }
 
 maximum :: { bs : Data.ByteString.ByteString | 1 <= bslen bs } -> _
 
@@ -184,38 +184,38 @@ splitAt
        )
 
 takeWhile
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> { o : Data.ByteString.ByteString | bslen o <= bslen i }
 
 dropWhile
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> { o : Data.ByteString.ByteString | bslen o <= bslen i }
 
 span
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
        )
 
 spanEnd
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
        )
 
 break
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
        )
 
 breakEnd
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
@@ -226,7 +226,7 @@ group
     -> [{ o : Data.ByteString.ByteString | 1 <= bslen o && bslen o <= bslen i }]
 
 groupBy
-    :: (_ -> _ -> Bool)
+    :: (_ -> _ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> [{ o : Data.ByteString.ByteString | 1 <= bslen o && bslen o <= bslen i }]
 
@@ -244,24 +244,24 @@ split
     -> [{ o : Data.ByteString.ByteString | bslen o <= bslen i }]
 
 splitWith
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> [{ o : Data.ByteString.ByteString | bslen o <= bslen i }]
 
 isPrefixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l >= bslen r ==> not b }
+    -> { b : GHC.Types.Bool | bslen l >= bslen r ==> not b }
 
 isSuffixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l > bslen r ==> not b }
+    -> { b : GHC.Types.Bool | bslen l > bslen r ==> not b }
 
 isInfixOf
     :: l : Data.ByteString.ByteString
     -> r : Data.ByteString.ByteString
-    -> { b : Bool | bslen l > bslen r ==> not b }
+    -> { b : GHC.Types.Bool | bslen l > bslen r ==> not b }
 
 breakSubstring
     :: il : Data.ByteString.ByteString
@@ -273,25 +273,25 @@ breakSubstring
 elem
     :: _
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen bs == 0 ==> not b }
+    -> { b : GHC.Types.Bool | bslen bs == 0 ==> not b }
 
 notElem
     :: _
     -> bs : Data.ByteString.ByteString
-    -> { b : Bool | bslen bs == 0 ==> b }
+    -> { b : GHC.Types.Bool | bslen bs == 0 ==> b }
 
 find
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> bs : Data.ByteString.ByteString
     -> (Maybe { w8 : _ | bslen bs /= 0 })
 
 filter
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> { o : Data.ByteString.ByteString | bslen o <= bslen i }
 
 partition
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> i : Data.ByteString.ByteString
     -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
        , { r : Data.ByteString.ByteString | bslen r <= bslen i }
@@ -315,12 +315,12 @@ elemIndexEnd
     -> (Maybe { n : Int | 0 <= n && n < bslen bs })
 
 findIndex
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> bs : Data.ByteString.ByteString
     -> (Maybe { n : Int | 0 <= n && n < bslen bs })
 
 findIndices
-    :: (_ -> Bool)
+    :: (_ -> GHC.Types.Bool)
     -> bs : Data.ByteString.ByteString
     -> [{ n : Int | 0 <= n && n < bslen bs }]
 
