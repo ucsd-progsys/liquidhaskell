@@ -13,7 +13,17 @@ data Pred
   = Var Int
   | Not Pred 
   | Or  Pred Pred 
-  | And Pred Pred 
+  | And Pred Pred
+
+{-@ data Pred [predSize] @-}
+
+{-@ measure predSize @-}
+{-@ predSize :: Pred -> Nat @-}
+predSize :: Pred -> Int
+predSize (Var _) = 1
+predSize (Not p) = 1 + predSize p
+predSize (Or p q) = 1 + predSize p + predSize q
+predSize (And p q) = 1 + predSize p + predSize q
 
 -------------------------------------------------------------------------------
 -- | Define NNF as a Refinement of @Pred@ 
@@ -56,7 +66,7 @@ eval s (Not f)   = not (eval s f)
 -------------------------------------------------------------------------------
 
 {-@ reflect nnfP @-}
-{-@ nnf :: s:_ -> p:_ -> {v:NNF | eval s v = eval s p} @-} 
+{-@ nnf :: s:_ -> p:_ -> {v:NNF | eval s v = eval s p} / [predSize p] @-}
 nnf :: [Bool] -> Pred -> Pred 
 nnf s (Var i)    = Var  i 
 nnf s (Not p)    = nnf' s p  
@@ -64,7 +74,7 @@ nnf s (And p q)  = And (nnf s p) (nnf s q)
 nnf s (Or  p q)  = Or  (nnf s p) (nnf s q) 
 
 {-@ reflect nnfN @-}
-{-@ nnf' :: s:_ -> p:_ -> {v:NNF | eval s p = not (eval s v)} @-} 
+{-@ nnf' :: s:_ -> p:_ -> {v:NNF | eval s p = not (eval s v)} / [predSize p] @-}
 nnf' :: [Bool] -> Pred -> Pred 
 nnf' s (Var i)    = Not (Var i) 
 nnf' s (Not p)    = nnf s p  
@@ -95,14 +105,14 @@ nnfN (Or  p q)  = And (nnfN p) (nnfN q)
 -- | NNF Conversion -- "EXTERNAL" VERIFICATION 
 -------------------------------------------------------------------------------
 
-{-@ thmP :: s:_ -> p:_ -> { eval s p = eval s (nnfP p) } @-}
+{-@ thmP :: s:_ -> p:_ -> { eval s p = eval s (nnfP p) } / [predSize p] @-}
 thmP :: [Bool] -> Pred -> Bool
 thmP s (Var i)   = True
 thmP s (And p q) = thmP s p && thmP s q
 thmP s (Or  p q) = thmP s p && thmP s q
 thmP s (Not p)   = thmN s p 
 
-{-@ thmN :: s:_  -> p:_ -> { eval s p = not (eval s (nnfN p)) } @-}
+{-@ thmN :: s:_  -> p:_ -> { eval s p = not (eval s (nnfN p)) } / [predSize p] @-}
 thmN :: [Bool] -> Pred -> Bool
 thmN s (Var i)   = True
 thmN s (And p q) = thmN s p && thmN s q
