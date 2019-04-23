@@ -23,7 +23,7 @@ import Prelude hiding (mapM, error)
 import Data.Bifunctor
 import qualified Data.Maybe as Mb
 import Text.PrettyPrint.HughesPJ (text)
-import Text.Printf     (printf)
+-- import Text.Printf     (printf)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -225,10 +225,10 @@ tyConDataName full tc
     dcs        = Misc.sortOn F.symbol (Ghc.tyConDataCons tc)
 
 dataConDecl :: Ghc.DataCon -> DataCtor
-dataConDecl d     = F.tracepp msg $ DataCtor dx (F.symbol <$> as) [] xts outT
+dataConDecl d     = {- F.notracepp msg $ -} DataCtor dx (F.symbol <$> as) [] xts outT
   where
     isGadt        = not (Ghc.isVanillaDataCon d)
-    msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
+    -- msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
     xts           = [(Bare.makeDataConSelector Nothing d i, RT.bareOfType t) | (i, t) <- its ]
     dx            = F.symbol <$> GM.locNamedThing d
     its           = zip [1..] ts
@@ -293,7 +293,7 @@ bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Gh
 bkDataCon dc nFlds  = (as, ts, (F.dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds _ts
-    t                 = Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
+    t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> αs
     ((αs,_,_,_,_ts,_t), _t0) = hammer dc

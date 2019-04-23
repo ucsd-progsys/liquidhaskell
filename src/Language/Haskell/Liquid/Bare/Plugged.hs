@@ -90,7 +90,7 @@ makePluggedDataCon embs tyi ldcp
                           }
   where 
     (tArgs, tRes)     = plugMany       embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
-    (das, _, dts, dt) = F.tracepp ("makePluggedDC: " ++ F.showpp dc) $ Ghc.dataConSig dc
+    (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
     dcArgs            = reverse (dcpTyArgs dcp)
     dcVars            = dcpFreeTyVars dcp 
     dc                = dcpCon        dcp

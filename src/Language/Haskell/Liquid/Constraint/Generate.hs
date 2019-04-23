@@ -1184,7 +1184,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let (x' : ys')   = F.symbol <$> (x:ys)
   xt0             <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
   let xt           = shiftVV xt0 x'
-  tdc             <- F.tracepp ("dataConWorkId-ty: " ++ F.showpp c) <$> (γ ??= (dataConWorkId c) >>= refreshVV)
+  tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
   let (rtd,yts',_) = unfoldR tdc xt ys
   yts             <- projectTypes pIs yts'
   let ys''         = F.symbol <$> filter (not . GM.isPredVar) ys

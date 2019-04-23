@@ -350,8 +350,8 @@ muSort c n  = V.mapSort tx
 meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
-meetDataConSpec emb xts dcs  = F.tracepp "meetDataConSpec" 
-                                $ M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec emb xts dcs  = -- F.notracepp "meetDataConSpec" $
+                               M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
     dcm0                     = M.fromList (dataConSpec' dcs)
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
@@ -535,7 +535,7 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
-    (yts, ot)     = F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
+    (yts, ot)     = -- F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
                       qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))

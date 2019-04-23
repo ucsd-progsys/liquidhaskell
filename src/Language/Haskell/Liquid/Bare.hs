@@ -111,7 +111,7 @@ checkThrow :: Ex.Exception e => Either e c -> c
 checkThrow = either Ex.throw id 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv (binds)
+ghcSpecEnv sp = fromListSEnv binds
   where
     emb       = gsTcEmbeds (gsName sp)
     binds     = concat 
@@ -122,8 +122,8 @@ ghcSpecEnv sp = fromListSEnv (binds)
                  , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
                  , [(x, RR s mempty)    | (x, s)         <- gsImps sp       ]
                  ]
-    vSort     = Bare.varSortedReft emb -- rSort . varRSort
-    rSort     = rTypeSortedReft    emb 
+    vSort     = Bare.varSortedReft emb
+    rSort     = rTypeSortedReft    emb
 
 
 -------------------------------------------------------------------------------------
@@ -437,7 +437,7 @@ makeSpecRefl src menv specs env name sig tycEnv = SpRefl
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv) 
     mySpec       = M.lookupDefault mempty name specs 
     xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
-    myAxioms     = F.tracepp "MY-AXIOMS" [ Bare.qualifyTop env name (F.loc lt) (e {eqName = symbol x}) | (x, lt, e) <- xtes]  
+    myAxioms     = [ Bare.qualifyTop env name (F.loc lt) (e {eqName = symbol x}) | (x, lt, e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                         ++ (fst  <$> gsAsmSigs sig)   -- assumes
