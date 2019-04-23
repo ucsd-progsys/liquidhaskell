@@ -147,9 +147,9 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
   , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
-                   impSigs = makeImports mspecs,
-                   expSigs = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                   , dataDecls = dataDecls mySpec2 
+                   impSigs   = makeImports mspecs,
+                   expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
+                   dataDecls = dataDecls mySpec2 
                    } 
   }
   where
@@ -437,7 +437,7 @@ makeSpecRefl src menv specs env name sig tycEnv = SpRefl
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv) 
     mySpec       = M.lookupDefault mempty name specs 
     xtes         = Bare.makeHaskellAxioms src env tycEnv name lmap sig mySpec
-    myAxioms     = [ Bare.qualifyTop env name (F.loc lt) (e {eqName = symbol x}) | (x, lt, e) <- xtes]  
+    myAxioms     = F.tracepp "MY-AXIOMS" [ Bare.qualifyTop env name (F.loc lt) (e {eqName = symbol x}) | (x, lt, e) <- xtes]  
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                         ++ (fst  <$> gsAsmSigs sig)   -- assumes

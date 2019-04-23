@@ -10,8 +10,6 @@ module Language.Haskell.Liquid.Bare.Measure
   , makeHaskellInlines
   , makeHaskellDataDecls
   , makeMeasureSelectors
-  -- , strengthenHaskellMeasures
-  -- , strengthenHaskellInlines
   , makeMeasureSpec
   , makeMeasureSpec'
   , varMeasures
@@ -19,33 +17,19 @@ module Language.Haskell.Liquid.Bare.Measure
   -- , makeHaskellBounds
   ) where
 
--- import CoreSyn
--- import DataCon
--- import TyCon
--- import Id
--- import Type hiding (isFunTy)
--- import Var
--- import TysWiredIn (boolTyCon) -- , wiredInTyCons)
-
 import Data.Default
--- import Data.Either (either)
 import qualified Control.Exception as Ex
 import Prelude hiding (mapM, error)
 import Data.Bifunctor
 import qualified Data.Maybe as Mb
--- import Data.Char (toUpper)
 import Text.PrettyPrint.HughesPJ (text)
--- import Text.Parsec.Pos (SourcePos)
 import Text.Printf     (printf)
--- import qualified Data.List as L
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 
--- import           Language.Fixpoint.Types (Symbol, dummySymbol, symbolString, symbol, Expr(..), meet)
 import           Language.Fixpoint.SortCheck (isFirstOrder)
 import qualified Language.Fixpoint.Types as F
-
 import           Language.Haskell.Liquid.Transforms.CoreToLogic
 import qualified Language.Fixpoint.Misc                as Misc
 import qualified Language.Haskell.Liquid.Misc          as Misc
@@ -63,16 +47,6 @@ import qualified Language.Haskell.Liquid.Bare.Expand   as Bare
 import qualified Language.Haskell.Liquid.Bare.DataType as Bare 
 import qualified Language.Haskell.Liquid.Bare.ToBare   as Bare 
 
--- import           Language.Haskell.Liquid.Bare.Env
--- import           Language.Haskell.Liquid.Bare.Misc       (simpleSymbolVar, hasBoolResult, makeDataConChecker, makeDataConSelector)
--- import           Language.Haskell.Liquid.Bare.Expand
--- import           Language.Haskell.Liquid.Bare.Lookup
--- import           Language.Haskell.Liquid.Bare.OfType
--- import           Language.Haskell.Liquid.Bare.Resolve
--- import           Language.Haskell.Liquid.Bare.ToBare
-
-  -- let tds          = [(name, tc, dd) | (name, tc, _, Just dd) <- tcDds]
-  -- let adts         = makeDataDecls cfg embs myName tds datacons
 --------------------------------------------------------------------------------
 makeHaskellMeasures :: GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                     -> [Measure (Located BareType) LocSymbol]
@@ -212,7 +186,7 @@ hasDataDecl mod spec
   where
     msg tc       = "hasDataDecl " ++ show (tcName tc)
     def          = NoDecl Nothing
-    tcName       = fmap (qualifiedDataName mod) . tyConDataName True -- False
+    tcName       = fmap (qualifiedDataName mod) . tyConDataName True
     dcName       =       qualifiedDataName mod  . tycName
     decls        = M.fromList [ (Just dn, hasDecl d)
                                 | d     <- Ms.dataDecls spec
@@ -251,8 +225,7 @@ tyConDataName full tc
     dcs        = Misc.sortOn F.symbol (Ghc.tyConDataCons tc)
 
 dataConDecl :: Ghc.DataCon -> DataCtor
-dataConDecl d     = F.notracepp msg $ DataCtor dx (F.symbol <$> as) [] xts outT -- Nothing
--- dataConDecl d     = F.tracepp msg $ DataCtor dx (RT.bareOfType <$> ps) xts outT
+dataConDecl d     = F.tracepp msg $ DataCtor dx (F.symbol <$> as) [] xts outT
   where
     isGadt        = not (Ghc.isVanillaDataCon d)
     msg           = printf "dataConDecl (gadt = %s)" (show isGadt)
@@ -283,7 +256,7 @@ makeMeasureSelectors cfg dm (Loc l l' c)
     dc         = dcpCon    c 
     isGadt     = dcpIsGadt c 
     xts        = dcpTyArgs c
-    autofields = not (isGadt) -- REBARE || noMeasureFields cfg)
+    autofields = not (isGadt)
     go ((x, t), i)
       -- do not make selectors for functional fields
       | isFunTy t && not (higherOrderFlag cfg)
@@ -316,12 +289,12 @@ dataConSel dc n (Proj i) = mkArrow as [] [] [] [xt] (mempty <$> ti)
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
-bkDataCon :: (F.Reftable r) => Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RRType r, r))
+bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RRType r, r))
 bkDataCon dc nFlds  = (as, ts, (F.dummySymbol, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds _ts
-    t                 = {- traceShow ("bkDataConResult" ++ GM.showPpr (_t, t0)) $ -}
-                        RT.ofType  $ Ghc.mkTyConApp tc tArgs'
+    t                 = Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
+                          RT.ofType  $ Ghc.mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> αs
     ((αs,_,_,_,_ts,_t), _t0) = hammer dc
     tArgs'            = take (nArgs - nVars) tArgs ++ (Ghc.mkTyVarTy <$> αs)

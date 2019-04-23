@@ -2,15 +2,9 @@
 
 ## Build
 
-Given:
+`gsCtors` is used to store the data-con-binders.
+`makeAxiomEnvironment` is used for the `define`
 
-- Target  = D.hs
-- Imports = A.hs, B.hs, C.hs
-
-Invariant
-
-     Data/Text/Unsafe.hs:        FAIL (2.69s)
-     Data/Text/Fusion/Common.hs: FAIL (5.73s)
 
 ## CallStack/Error
 
