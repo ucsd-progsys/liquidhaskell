@@ -111,7 +111,7 @@ checkThrow :: Ex.Exception e => Either e c -> c
 checkThrow = either Ex.throw id 
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv (binds)
+ghcSpecEnv sp = fromListSEnv binds
   where
     emb       = gsTcEmbeds (gsName sp)
     binds     = concat 
@@ -122,8 +122,8 @@ ghcSpecEnv sp = fromListSEnv (binds)
                  , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
                  , [(x, RR s mempty)    | (x, s)         <- gsImps sp       ]
                  ]
-    vSort     = Bare.varSortedReft emb -- rSort . varRSort
-    rSort     = rTypeSortedReft    emb 
+    vSort     = Bare.varSortedReft emb
+    rSort     = rTypeSortedReft    emb
 
 
 -------------------------------------------------------------------------------------
@@ -147,9 +147,9 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsVars   = makeSpecVars cfg src mySpec env 
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
   , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
-                   impSigs = makeImports mspecs,
-                   expSigs = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-                   , dataDecls = dataDecls mySpec2 
+                   impSigs   = makeImports mspecs,
+                   expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
+                   dataDecls = dataDecls mySpec2 
                    } 
   }
   where

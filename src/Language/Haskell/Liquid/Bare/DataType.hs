@@ -350,8 +350,8 @@ muSort c n  = V.mapSort tx
 meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
-meetDataConSpec emb xts dcs  = F.notracepp "meetDataConSpec" 
-                                $ M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec emb xts dcs  = -- F.notracepp "meetDataConSpec" $
+                               M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
     dcm0                     = M.fromList (dataConSpec' dcs)
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
@@ -535,8 +535,8 @@ ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = Dat
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
-    (yts, ot)     = F.notracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
-                    qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
+    (yts, ot)     = -- F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
+                      qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
@@ -612,15 +612,6 @@ dataConResultTy c _ t _
     -- _tr0                    = Ghc.dataConRepType c
     -- _tr1                    = Ghc.varType (Ghc.dataConWorkId c)
     -- _tr2                    = Ghc.varType (Ghc.dataConWrapId c)
-
--- REBARE gadtSubst :: [RTyVar] -> Ghc.DataCon -> [(RTyVar, RSort, SpecType)]
--- REBARE gadtSubst as c  = mkSubst (Misc.join aBs bTs)
-  -- REBARE where
-    -- REBARE bTs         = [ (b, t) |  Just (b, t) <- eqSubst <$> ty_args workR ]
-    -- REBARE aBs         = zip as bs
-    -- REBARE bs          = ty_var_value <$> ty_vars workR
-    -- REBARE workR       = dataConWorkRep c
-    -- REBARE mkSubst bTs = [ (b, toRSort t, t) | (b, t) <- bTs ]
 
 eqSubst :: SpecType -> Maybe (RTyVar, SpecType)
 eqSubst (RApp c [_, _, (RVar a _), t] _ _)

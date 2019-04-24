@@ -318,7 +318,7 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isPredVar {- isClassPred . varType -}) <$> vs)
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isPredVar) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
@@ -1179,29 +1179,30 @@ case x :: List b of
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> Maybe [Int] -> CG CGEnv
 -------------------------------------------------------------------------------------
-caseEnv γ x _   (DataAlt c) ys pIs
-  = do let (x' : ys')    = F.symbol <$> (x:ys)
-       xt0              <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
-       let xt            = shiftVV xt0 x'
-       tdc              <- γ ??= (dataConWorkId c) >>= refreshVV
-       let (rtd,yts', _) = unfoldR tdc xt ys
-       yts              <- projectTypes pIs yts'
-       let r1            = dataConReft   c   ys''
-       let r2            = dataConMsReft rtd ys''
-       let xt            = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
-       let cbs           = safeZip "cconsCase" (x':ys') (xt0 : yts)
-       cγ'              <- addBinders γ   x' cbs
-       cγ               <- addBinders cγ' x' [(x', xt)]
-       return $ addArguments cγ ys
-  where
-       ys'' = F.symbol <$> filter (not . GM.isPredVar) ys
+caseEnv γ x _   (DataAlt c) ys pIs = do 
+
+  let (x' : ys')   = F.symbol <$> (x:ys)
+  xt0             <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x
+  let xt           = shiftVV xt0 x'
+  tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
+  let (rtd,yts',_) = unfoldR tdc xt ys
+  yts             <- projectTypes pIs yts'
+  let ys''         = F.symbol <$> filter (not . GM.isPredVar) ys
+  let r1           = dataConReft   c   ys''
+  let r2           = dataConMsReft rtd ys''
+  let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
+  let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
+  cγ'             <- addBinders γ   x' cbs
+  cγ              <- addBinders cγ' x' [(x', xt)]
+  return           $ addArguments cγ ys
+  -- where
     -- ys'' = F.symbol <$> (filter (not . isClassPred . varType) ys)
 
-caseEnv γ x acs a _ _
-  = do let x'  = F.symbol x
-       xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
-       cγ     <- addBinders γ x' [(x', xt')]
-       return cγ
+caseEnv γ x acs a _ _ = do 
+  let x'  = F.symbol x
+  xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
+  cγ     <- addBinders γ x' [(x', xt')]
+  return cγ
 
 --------------------------------------------------------------------------------
 -- | `projectTypes` masks (i.e. true's out) all types EXCEPT those
@@ -1253,7 +1254,7 @@ instantiatePvs :: SpecType -> [SpecProp] -> SpecType
 instantiatePvs           = L.foldl' go
   where 
     go (RAllP p tbody) r = replacePreds "instantiatePv" tbody [(p, r)]
-    go _ _               = errorP "" "Constraint.instantiatePvs"
+    go t               _ = errorP "" ("Constraint.instantiatePvs: t = " ++ showpp t)
 
 checkTyCon :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkTyCon _ _ t@(RApp _ _ _ _) = t

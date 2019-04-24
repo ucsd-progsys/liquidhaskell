@@ -1591,25 +1591,25 @@ tyConName c
   | otherwise         = symbol c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
-typeSortFun tce t -- τ1 τ2
-  = mkFFunc 0 sos
-  where sos  = typeSort tce <$> τs
-        τs   = grabArgs [] t
+typeSortFun tce t = mkFFunc 0 sos
+  where 
+    sos           = typeSort tce <$> τs
+    τs            = grabArgs [] t
 
 grabArgs :: [Type] -> Type -> [Type]
 grabArgs τs (FunTy τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
-  | not $ isClassPred τ1
+  | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
   = grabArgs (τ1:τs) τ2
   | otherwise
   = grabArgs τs τ2
 grabArgs τs τ
   = reverse (τ:τs)
 
--- mkDataConIdsTy :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
---                => DataCon -> RType RTyCon RTyVar r -> [(Var, RType RTyCon RTyVar r)]
--- mkDataConIdsTy dc t = (`expandProductType` t) <$> dataConImplicitIds dc
+isNonValueTy :: Type -> Bool
+isNonValueTy t = {- Ghc.isPredTy -} isClassPred t || isEqPred t
+
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
                   => Var -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r

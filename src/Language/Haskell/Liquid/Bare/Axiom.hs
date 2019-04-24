@@ -80,7 +80,7 @@ makeAssumeType tce lmap dm x mbT v def
   where
     t     = Mb.fromMaybe (ofType $ Ghc.varType v) mbT
     out   = rTypeSort tce (ty_res tRep)
-    at    = {- F.notracepp ("AXIOM-TYPE: " ++ showpp (x, toType t)) $ -} axiomType x t
+    at    = F.notracepp ("AXIOM-TYPE: " ++ showpp (x, toType t)) $ axiomType x t
     tRep  = toRTypeRep at
     xArgs = F.EVar <$> [x | (x, t) <- zip (ty_binds tRep) (ty_args tRep), not (isClassType t)]
     _msg  = unwords [showpp x, showpp mbT]
@@ -98,9 +98,6 @@ makeAssumeType tce lmap dm x mbT v def
 
 rTypeSortExp :: F.TCEmb Ghc.TyCon -> SpecType -> F.Sort
 rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
-
--- makeSMTAxiom :: LocSymbol -> [(Symbol, F.Sort)] -> F.Expr -> F.Sort -> AxiomEq
--- makeSMTAxiom = F.mkEquation . val
 
 grabBody :: Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
 grabBody (Ghc.Lam x e)  = (x:xs, e') where (xs, e') = grabBody e
