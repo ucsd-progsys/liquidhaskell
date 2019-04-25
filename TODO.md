@@ -2,9 +2,9 @@
 
 ## Build
 
-`gsCtors` is used to store the data-con-binders.
+`gsCtors`              is used to store the data-con-binders.
 `makeAxiomEnvironment` is used for the `define`
-
+`ghcSpecEnv`           creates the `Sort` for the funky datacons.
 
 ## CallStack/Error
 

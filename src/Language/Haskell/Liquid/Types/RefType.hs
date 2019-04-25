@@ -1499,6 +1499,22 @@ and then swiftly turned back into an `RHole` via `ofType`
 Of course, we hope this doesn't break any GHC invariants!
 See issue #1476 and #1477 
 
+The other option is to *not* use `toType` on things that have
+holes in them, but this seems worse, e.g. because you may define 
+a plain GHC alias like:
+
+    type ToNat a = a -> Nat 
+
+and then you might write refinement types like:
+
+    {-@ foo :: ToNat {v:_ | 0 <= v} @-}
+
+and we'd want to expand the above to
+
+    {-@ foo :: {v:_ | 0 <= v} -> Nat @-}
+
+and then resolve the hole using the (GHC) type of `foo`.
+
 -}
 
 --------------------------------------------------------------------------------
