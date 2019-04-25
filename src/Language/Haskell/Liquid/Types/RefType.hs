@@ -1168,10 +1168,10 @@ mkRApp
   -> r
   -> RType c tv r
 mkRApp m s c ts rs r r'
-  | isFun c, [t1, t2] <- ts
+  | isFun c, [_, _, t1, t2] <- ts
   = RFun dummySymbol t1 t2 $ refAppTyToFun r'
   | otherwise
-  = subsFrees m s zs $ RApp c ts rs $ r `meet` r' -- (refAppTyToApp r')
+  = subsFrees m s zs $ RApp c ts rs $ r `meet` r'
   where
     zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
 
