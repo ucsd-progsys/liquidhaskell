@@ -153,8 +153,9 @@ tickSrcSpan _                 = noSrcSpan
 -- FIXME: reusing uniques like this is really dangerous
 stringTyVar :: String -> TyVar
 stringTyVar s = mkTyVar name liftedTypeKind
-  where name = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
-        occ  = mkTyVarOcc s
+  where 
+    name      = mkInternalName (mkUnique 'x' 24)  occ noSrcSpan
+    occ       = mkTyVarOcc s
 
 -- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var

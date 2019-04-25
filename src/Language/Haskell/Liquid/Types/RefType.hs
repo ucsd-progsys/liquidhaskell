@@ -88,7 +88,7 @@ module Language.Haskell.Liquid.Types.RefType (
 -- import           GHC.Stack
 import TyCoRep
 import Prelude hiding (error)
-import qualified Prelude
+-- import qualified Prelude
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
@@ -1374,9 +1374,14 @@ ofType_ tx = go . expandTypeSynonyms
     go (CoercionTy _)
       = errorstar "Coercion is currently not supported"
 
-ofLitType :: (Monoid r) => (TyCon -> [t] -> [p] -> r -> t) -> TyLit -> t
-ofLitType rF (NumTyLit _) = rF intTyCon [] [] mempty
-ofLitType rF (StrTyLit _) = rF listTyCon [rF charTyCon [] [] mempty] [] mempty
+ofLitType :: (Monoid r) => (TyCon -> [RType c tv r] -> [p] -> r -> RType c tv r) -> TyLit -> RType c tv r
+ofLitType rF (NumTyLit _)  = rF intTyCon [] [] mempty
+ofLitType rF t@(StrTyLit _)
+  | t == holeLit           = RHole mempty 
+  | otherwise              = rF listTyCon [rF charTyCon [] [] mempty] [] mempty
+
+holeLit :: TyLit
+holeLit = StrTyLit "$LH_RHOLE"
 
 data TyConv c tv r = TyConv
   { tcFVar  :: TyVar -> RType c tv r
@@ -1475,9 +1480,26 @@ toType t@(RExprArg _)
   = impossible Nothing $ "CANNOT HAPPEN: RefType.toType called with: " ++ show t
 toType (RRTy _ _ _ t)
   = toType t
-toType t
-  = {- impossible Nothing -} Prelude.error $ "RefType.toType cannot handle: " ++ show t
+toType (RHole _)
+  = LitTy holeLit  
+-- toType t
+--  = {- impossible Nothing -} Prelude.error $ "RefType.toType cannot handle: " ++ show t
 
+{- | [NOTE:Hole-Lit] 
+
+We use `toType` to convert RType to GHC.Type to expand any GHC 
+related type-aliases, e.g. in Bare.Resolve.expandRTypeSynonyms. 
+If the RType has a RHole then what to do?
+
+We, encode `RHole` as `LitTy "LH_HOLE"` -- which is a bit of 
+a *hack*. The only saving grace is it is used *temporarily* 
+and then swiftly turned back into an `RHole` via `ofType` 
+(after GHC has done its business of expansion).
+
+Of course, we hope this doesn't break any GHC invariants!
+See issue #1476 and #1477 
+
+-}
 
 --------------------------------------------------------------------------------
 -- | Annotations and Solutions -------------------------------------------------

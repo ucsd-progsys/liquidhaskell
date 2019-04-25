@@ -851,18 +851,21 @@ tyApp t                []  []  r  = t `RT.strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
 expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
+expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType
+
+{- 
+expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
 expandRTypeSynonyms t
   | rTypeHasHole t = t 
   | otherwise      = expandRTypeSynonyms' t
-
-expandRTypeSynonyms' :: (Expandable r) => RRType r -> RRType r
-expandRTypeSynonyms' = RT.ofType . Ghc.expandTypeSynonyms . RT.toType -- . F.tracepp "expandRTypeSyn: "
 
 rTypeHasHole :: RType c tv r -> Bool
 rTypeHasHole = foldRType f False
   where 
     f _ (RHole _) = True
     f b _         = b
+-}
+
 ------------------------------------------------------------------------------------------
 -- | Is this the SAME as addTyConInfo? No. `txRefSort`
 -- (1) adds the _real_ sorts to RProp,
