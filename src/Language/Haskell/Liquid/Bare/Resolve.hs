@@ -491,6 +491,8 @@ knownGhcType env name (F.Loc l _ t) =
     Left e  -> myTracepp ("knownType: " ++ F.showpp (t, e)) $ False 
     Right _ -> True 
 
+
+
 _rTypeTyCons :: (Ord c) => RType c tv r -> [c]
 _rTypeTyCons           = Misc.sortNub . foldRType f []   
   where 
@@ -850,8 +852,19 @@ tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid 
 
 expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
 expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType
-                   
 
+{- 
+expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
+expandRTypeSynonyms t
+  | rTypeHasHole t = t 
+  | otherwise      = expandRTypeSynonyms' t
+
+rTypeHasHole :: RType c tv r -> Bool
+rTypeHasHole = foldRType f False
+  where 
+    f _ (RHole _) = True
+    f b _         = b
+-}
 
 ------------------------------------------------------------------------------------------
 -- | Is this the SAME as addTyConInfo? No. `txRefSort`

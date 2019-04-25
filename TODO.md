@@ -2,8 +2,36 @@
 
 ## Build
 
-`gsCtors` is used to store the data-con-binders.
-`makeAxiomEnvironment` is used for the `define`
+## 1474
+
+This does type-substitutions in GHC
+
+- https://hackage.haskell.org/package/ghc-8.6.5/docs/src/TyCoRep.html#subst_ty
+
+The key bit:
+
+ go (AppTy fun arg)   = mkAppTy (go fun) $! (go arg)
+                -- The mkAppTy smart constructor is important
+                -- we might be replacing (a Int), represented with App
+                -- by [Int], represented with TyConApp
+
+
+mkRAppTy (TyConApp tc tys) ty2 = mkRTyConApp tc (tys ++ [ty2])
+mkRAppTy ty1               ty2 = RAppTy ty1 ty2
+
+-- | Analog of GHC's @mkTyConApp@
+
+mkRTyConApp :: c -> [RType c tv r] -> RType c tv r
+mkRTyConApp c t
+
+mkRTyConApp :: TyCon -> [Type] -> Type
+mkRTyConApp c ts
+  | isFunTyCon c
+  , [_rep1,_rep2,ty1,ty2] <- tys
+  = FunTy ty1 ty2
+
+  | otherwise
+  = RTyConApp c ts
 
 
 ## CallStack/Error

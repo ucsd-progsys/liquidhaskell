@@ -410,8 +410,6 @@ makeSize env name spec =
       | otherwise
       = Nothing
 
-
-
 ------------------------------------------------------------------------------------------
 makeSpecLaws :: Bare.Env -> Bare.SigEnv -> [(Ghc.Var,LocSpecType)] -> Bare.MeasEnv -> Bare.ModSpecs 
              -> GhcSpecLaws 
@@ -697,7 +695,8 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
              -> GhcSpecData
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
-  { gsCtors      = [ (x, tt) 
+  { gsCtors      = F.tracepp "GS-CTORS" 
+                   [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
                    ]
