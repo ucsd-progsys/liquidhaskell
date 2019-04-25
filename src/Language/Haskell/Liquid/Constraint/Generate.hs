@@ -865,7 +865,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ e'@(App e a)
-  = do ([], πs, ls, te) <- bkUniv <$> consE γ e
+  = do ([], πs, ls, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
        te'              <- instantiateStrata ls te0
        (γ', te''')      <- dropExists γ te'
