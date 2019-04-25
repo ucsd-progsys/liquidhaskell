@@ -1153,8 +1153,14 @@ subsFreeRAppTy m s (RApp c ts rs r) t' r'
 subsFreeRAppTy _ _ t t' r'
   = RAppTy t t' r'
 
-mkRApp
-  :: (Eq tv, Hashable tv, Reftable r, TyConable c,
+
+-- | @mkRApp@ is the refined variant of GHC's @mkTyConApp@ which ensures that 
+--    that applications of the "function" type constructor are normalized to 
+--    the special case @FunTy@ representation. The extra `_rep1`, and `_rep2` 
+--    parameters come from the "levity polymorphism" changes in GHC 8.6 (?)
+--    See [NOTE:Levity-Polymorphism]
+
+mkRApp :: (Eq tv, Hashable tv, Reftable r, TyConable c,
       SubsTy tv (RType c tv ()) c, SubsTy tv (RType c tv ()) r,
       SubsTy tv (RType c tv ()) (RType c tv ()), FreeVar c tv,
       SubsTy tv (RType c tv ()) tv,
@@ -1168,12 +1174,54 @@ mkRApp
   -> r
   -> RType c tv r
 mkRApp m s c ts rs r r'
-  | isFun c, [_, _, t1, t2] <- ts
-  = RFun dummySymbol t1 t2 $ refAppTyToFun r'
+  | isFun c, [_rep1, _rep2, t1, t2] <- ts
+  = RFun dummySymbol t1 t2 (refAppTyToFun r')
   | otherwise
-  = subsFrees m s zs $ RApp c ts rs $ r `meet` r'
+  = subsFrees m s zs (RApp c ts rs (r `meet` r'))
   where
     zs = [(tv, toRSort t, t) | (tv, t) <- zip (freeVars c) ts]
+
+{-| [NOTE:Levity-Polymorphism] 
+ 
+     Thanks to Joachim Brietner and Simon Peyton-Jones!
+     With GHC's "levity polymorphism feature", see more here 
+
+         https://stackoverflow.com/questions/35318562/what-is-levity-polymorphism     
+
+     The function type constructor actually has type
+
+        (->) :: forall (r1::RuntimeRep) (r2::RuntimeRep).  TYPE r1 -> TYPE r2 -> TYPE LiftedRep
+
+     so we have to be careful to follow GHC's @mkTyConApp@ 
+     
+        https://hackage.haskell.org/package/ghc-8.6.4/docs/src/Type.html#mkTyConApp
+
+     which normalizes applications of the `FunTyCon` constructor to use the special 
+     case `FunTy` representation thus, so that we are not stuck with incompatible 
+     representations e.g. 
+
+        thing -> thing                                                  ... (using RFun)
+
+     and 
+
+        (-> 'GHC.Types.LiftedRep 'GHC.Types.LiftedRep thing thing)      ... (using RApp)
+
+
+     More details from Joachim Brietner:
+
+     Now you might think that the function arrow has the following kind: `(->) :: * -> * -> *`.
+     But that is not the full truth: You can have functions that accept or return things with 
+     different representations than just the usual lifted one.
+
+     So the function arrow actually has kind `(->) :: forall r1 r2. TYPE r1 -> TYPE r2 -> *`.
+     And in `(-> 'GHC.Types.LiftedRep 'GHC.Types.LiftedRep thing thing)`  you see this spelled 
+     out explicitly. But it really is just `(thing -> thing)`, just printed with more low-level detail.
+
+     Also see
+
+       • https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#levity-polymorphism
+       • and other links from https://stackoverflow.com/a/35320729/946226 (edited) 
+ -}
 
 refAppTyToFun :: Reftable r => r -> r
 refAppTyToFun r
