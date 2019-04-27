@@ -80,6 +80,7 @@ module Language.Fixpoint.Types.Refinements (
   , eApps
   , eAppC
   , splitEApp
+  , splitPAnd
   , reftConjuncts
 
   -- * Transforming
@@ -315,6 +316,10 @@ splitEApp = go []
   where
     go acc (EApp f e) = go (e:acc) f
     go acc e          = (e, acc)
+
+splitPAnd :: Expr -> [Expr]
+splitPAnd (PAnd es) = concatMap splitPAnd es
+splitPAnd e         = [e]
 
 eAppC :: Sort -> Expr -> Expr -> Expr
 eAppC s e1 e2 = ECst (EApp e1 e2) s

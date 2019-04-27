@@ -16,12 +16,14 @@ import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
 import           Control.Monad (void)
+import           Control.Monad.Identity
 import           Data.String                  (IsString (..))
 import qualified Data.Set                     as S
 import           Control.Monad.State
 import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
+-- import           Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -130,7 +132,7 @@ solveEbs (Query qs vs c cons dist) = do
   let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
   whenLoud $ putStrLn "PreElim Side:"
   whenLoud $ putStrLn $ F.showpp sideCstr
-  let sideEE = elimE undefined sideCstr
+  let sideEE = hornify $ elimE undefined sideCstr
   whenLoud $ putStrLn "Final Side:"
   whenLoud $ putStrLn $ F.showpp sideEE
 
@@ -142,8 +144,31 @@ elimE m (CAnd cs) = CAnd (elimE m <$> cs)
 elimE _m p@Head{} = p
 -- need to QE inside here first
 elimE _m (Any (Bind x _ _) (Head p l)) = Head (F.subst1 p (x,e)) l
-    where e = fromMaybe undefined $ findSolP x p
+    where e = fromMaybe F.PTrue $ findSolP x p
 elimE _m (Any _ _) = error "oops"
+
+hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
+  where ps' = let (ks, qs) = split ps [] [] in PAnd qs : ks
+
+        split ks ps ((Var x xs):qs) = split ((Var x xs):ks) ps qs
+        split ks ps (q:qs) = split ks (q:ps) qs
+        split ks ps [] = (ks, ps)
+hornify (Head (Reft r) a) = CAnd (flip Head a <$> ((Reft $ F.PAnd ps):(Reft <$> ks)))
+  where (ks, ps) = split [] [] $ F.splitPAnd r
+        split ks ps (r@F.PKVar{}:rs) = split (r:ks) ps rs
+        split ks ps (r:rs) = split ks (r:ps) rs
+        split ks ps [] = (ks,ps)
+hornify (Head h a) = Head h a
+hornify (All b c) = All b $ hornify c
+hornify (Any b c) = Any b $ hornify c
+hornify (CAnd cs) = CAnd $ hornify <$> cs
+
+
+instance F.Subable Bind where
+    syms = undefined
+    substa = undefined
+    substf = undefined
+    subst su (Bind x t p) = (Bind x t (F.subst su p))
 
 instance F.Subable Pred where
     syms = undefined
@@ -153,7 +178,7 @@ instance F.Subable Pred where
 
 substP su (Reft e) = Reft $ F.subst su e
 substP su (PAnd ps) = PAnd $ substP su <$> ps
-substP _ (Var _k _xs) = error "oops"
+substP su (Var k xs) = Var k $ F.subst su xs
 
 ------------------------------------------------------------------------------
 {- |
@@ -583,11 +608,15 @@ instance V.Visitable (Cstr a) where
 --     store it
 --   return it
 
-qe :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
-qe m (Head p ()) = lookupSol m p
-qe m (CAnd cs) = F.PAnd <$> mapM (qe m) cs
-qe m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
-qe _ Any{} = error "QE for Any????"
+qe m c = do
+ c' <- qe' m c
+ pure $ {-trace (show c ++ " qe -> " ++ show c')-} c'
+
+qe' :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
+qe' m (Head p ())          = lookupSol m p
+qe' m (CAnd cs)            = F.PAnd <$> mapM (qe m) cs
+qe' m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
+qe' _ Any{}                = error "QE for Any????"
 
 forallElim x p e = forallElim' x eqs p e
   where
@@ -603,12 +632,19 @@ forallElim' x (F.PAtom F.Eq a b : _) _ e
   = F.subst1 e (x,b)
   | F.EVar x == b
   = F.subst1 e (x,a)
-forallElim' x [] p e
+forallElim' x _ p e
   | x `notElem` F.syms p && x `notElem` F.syms e  = e
-forallElim' _ _ _ _ = F.PTrue
+forallElim' x _ _ e = runIdentity $ flip mapMExpr e $ \case
+    p@F.PAtom{} -> if x `notElem` F.syms p then pure p else pure F.PTrue
+   -- TODO: where else might this appear? App, KVar?
+    p -> pure p
 
-lookupSol :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
-lookupSol m (Var x xs) =
+lookupSol m c = do
+ c' <- lookupSol' m c
+ pure $ {-trace (show c ++ " lS -> " ++ show c')-} c'
+
+lookupSol' :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
+lookupSol' m (Var x xs) =
   let n = M.lookupDefault 0 x m in
   if n > 0 then pure $ predToExpr (Var x xs) else
   let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
@@ -617,11 +653,13 @@ lookupSol m (Var x xs) =
       sol <- qe m' sol
       modify $ M.insert x $ Right $ sol
       pure sol
-    (Just (Left (Left sol))) -> qe m' $ doelim2 sol (Var x xs)
+    (Just (Left (Left sol))) -> 
+      qe m' $ doelim2 sol (Var x xs)
+
     (Just (Right sol)) -> pure sol
     Nothing -> error $ "no soution to Var " ++ F.symbolString x
-lookupSol _ (Reft e) = pure e
-lookupSol m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
+lookupSol' _ (Reft e) = pure e
+lookupSol' m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
 
 findSolP :: F.Symbol -> Pred -> Maybe F.Expr
 findSolP x (Reft e) = findSolE x e
@@ -765,6 +803,15 @@ scope' _ c@Head{} = (False, c)
 --     a collection of cubes that we'll want to disjunct
 
 sol1 :: F.Symbol -> Cstr a -> [[Bind]]
+-- sol1 k cs = go k [] cs
+--   where
+--     go k branch (CAnd cs) = go k branch =<< cs
+--     go k branch (All b c) = go k (branch ++ [b]) c
+--     go k branch (Head (Var k' ys) _) | k == k' = [F.subst (F.Su $ M.fromList $ zip ys (F.EVar <$> xs)) branch]
+--       where xs = zipWith const (kargs k) ys
+--     go _ _ (Head _ _) = []
+--     go _ _ (Any _ _) =  error "ebinds don't work with old elim"
+
 sol1 k (CAnd cs) = sol1 k =<< cs
 sol1 k (All b c) = (b:) <$> sol1 k c
 sol1 k (Head (Var k' ys) _) | k == k'
