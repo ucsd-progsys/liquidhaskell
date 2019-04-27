@@ -16,7 +16,8 @@ module Language.Fixpoint.Solver.Sanitize
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts)
-import           Language.Fixpoint.SortCheck     (applySorts, isFirstOrder)
+import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
+-- import           Language.Fixpoint.Defunctionalize 
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
@@ -289,10 +290,16 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 -- | symbol |-> sort for EVERY variable in the SInfo; 'symbolEnv' can ONLY be
 --   called with **sanitized** environments (post the uniqification etc.) or
 --   else you get duplicate sorts and other such errors.
+--   We do this peculiar dance with `env0` to extract the apply-sorts from the 
+--   function definitions inside the `AxiomEnv` which cannot be elaborated as 
+--   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv tEnv ds (F.dLits si) ts
+symbolEnv cfg si = F.symEnv sEnv tEnv ds (F.dLits si) (ts ++ ts')
   where
+    ts'          = applySorts ae' 
+    ae'          = elaborate (F.atLoc E.dummySpan "symbolEnv") env0 (F.ae si)
+    env0         = F.symEnv sEnv tEnv ds (F.dLits si) ts
     tEnv         = Thy.theorySymbols ds
     ds           = F.ddecls si
     ts           = Misc.hashNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])

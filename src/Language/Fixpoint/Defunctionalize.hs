@@ -218,7 +218,6 @@ instance (Defunc (c a), TaggedC c a) => Defunc (GInfo c a) where
                 , gLits   = gLits'
                 , dLits   = dLits'
                 , bs      = bs'
-                -- NOPROP , quals   = quals'
                 , asserts = (noTrigger <$> axioms) ++ ass'
                 }
 

@@ -24,6 +24,8 @@ withProgress n act = displayConsoleRegions $ do
   progressClose
   return r
 
+
+  
 progressInit :: Int -> IO ()
 progressInit n = do
   normal <- isNormal 
@@ -45,6 +47,18 @@ progressTick    = go =<< readIORef pbRef
   where
    go (Just pr) = tick pr
    go _         = return ()
+
+{- 
+incTick :: ProgressBar -> IO () 
+incTick pb = do
+  st <- getProgressStats pb 
+  if (incomplete st) 
+    then putStrLn (show (stPercent st, stTotal st, stCompleted st)) >> (tick pb)
+    else return () 
+
+incomplete :: Stats -> Bool 
+incomplete st = stPercent st < 100 -- stCompleted st < stTotal st
+-}
 
 progressClose :: IO ()
 progressClose = go =<< readIORef pbRef

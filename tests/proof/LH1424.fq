@@ -1,0 +1,43 @@
+fixpoint "--rewrite"
+
+data Field 1 = [
+       | FInt {}
+     ]
+
+define funky (ds : Field a,  kkk : a) : int = (((funky ds kkk) = (coerce (a ~ int) kkk)))
+
+constant funky : (func(1 , [(Field @(0)); @(0); int]))
+
+expand [1 : True; 
+        2 : True;
+        3 : True
+        ] 
+
+bind 1 tx   : {VV : (Field bob) | []}
+bind 2 ty   : {VV : bob | []}
+bind 3 fInt : {VV : Field int   | [ VV = FInt]}
+
+constraint:
+  env [1; 2]
+  lhs {VV : int | [VV = (funky tx ty)]}
+  rhs {VV : int | [VV = (funky tx ty)]}
+  id 1 tag []
+
+constraint:
+  env [3]
+  lhs {VV : int | []}
+  rhs {VV : int | [4 = (funky fInt 4)]}
+  id 2 tag []
+
+constraint:
+  env []
+  lhs {VV : int | []}
+  rhs {VV : int | [4 = (funky FInt 4)]}
+  id 3 tag []
+
+
+
+
+
+
+

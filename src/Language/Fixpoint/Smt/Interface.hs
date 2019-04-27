@@ -347,11 +347,12 @@ smtDecls :: Context -> [(Symbol, Sort)] -> IO ()
 smtDecls = mapM_ . uncurry . smtDecl
 
 smtDecl :: Context -> Symbol -> Sort -> IO ()
-smtDecl me x t = interact' me (Declare x ins' out')
+smtDecl me x t = interact' me ({- notracepp msg $ -} Declare x ins' out')
   where
     ins'       = sortSmtSort False env <$> ins
     out'       = sortSmtSort False env     out
     (ins, out) = deconSort t
+    _msg        = "smtDecl: " ++ showpp (x, t, ins, out)
     env        = seData (ctxSymEnv me)
 
 smtFuncDecl :: Context -> Symbol -> ([SmtSort],  SmtSort) -> IO ()
@@ -450,7 +451,7 @@ declare me = do
     thyXTs     =                    filter (isKind 1) xts
     qryXTs     = Misc.mapSnd tx <$> filter (isKind 2) xts
     isKind n   = (n ==)  . symKind env . fst
-    xts        = symbolSorts (F.seSort env) -- F.toListSEnv           (F.seSort env)
+    xts        = {- tracepp "symbolSorts" $ -} symbolSorts (F.seSort env) 
     tx         = elaborate    "declare" env
     ats        = funcSortVars env
 
@@ -465,6 +466,7 @@ dataDeclarations = orderDeclarations . map snd . F.toListSEnv . F.seData
 
 funcSortVars :: F.SymEnv -> [(F.Symbol, ([F.SmtSort], F.SmtSort))]
 funcSortVars env  = [(var applyName  t       , appSort t) | t <- ts]
+                 ++ [(var coerceName t       , ([t1],t2)) | t@(t1, t2) <- ts]
                  ++ [(var lambdaName t       , lamSort t) | t <- ts]
                  ++ [(var (lamArgSymbol i) t , argSort t) | t@(_,F.SInt) <- ts, i <- [1..Thy.maxLamArg] ]
   where

@@ -24,6 +24,7 @@ module Language.Fixpoint.Types.Theories (
     , symEnvSort
     , symEnvTheory
     , insertSymEnv
+    , insertsSymEnv
     , symbolAtName
     , symbolAtSmtName
 
@@ -44,6 +45,7 @@ import           Language.Fixpoint.Types.Errors
 import           Language.Fixpoint.Types.Environments
 
 import           Text.PrettyPrint.HughesPJ.Compat
+import qualified Data.List                as L 
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Binary              as B
 import qualified Data.HashMap.Strict      as M
@@ -91,7 +93,7 @@ symEnv xEnv fEnv ds ls ts = SymEnv xEnv' fEnv dEnv ls sortMap
     xEnv'                 = unionSEnv xEnv wiredInEnv
     dEnv                  = fromListSEnv [(symbol d, d) | d <- ds]
     sortMap               = M.fromList (zip smts [0..])
-    smts                  = funcSorts dEnv ts -- tracepp "smt-apply-sorts" $ Misc.sortNub $ (SInt, SInt) : [ (tx t1, tx t2) | FFunc t1 t2 <- ts]
+    smts                  = funcSorts dEnv ts 
 
 -- | These are "BUILT-in" polymorphic functions which are
 --   UNININTERPRETED but POLYMORPHIC, hence need to go through
@@ -140,6 +142,9 @@ symEnvSort   x env = lookupSEnv x (seSort env)
 insertSymEnv :: Symbol -> Sort -> SymEnv -> SymEnv
 insertSymEnv x t env = env { seSort = insertSEnv x t (seSort env) }
 
+insertsSymEnv :: SymEnv -> [(Symbol, Sort)] -> SymEnv
+insertsSymEnv = L.foldl' (\env (x, s) -> insertSymEnv x s env) 
+
 symbolAtName :: (PPrint a) => Symbol -> SymEnv -> a -> Sort -> Symbol
 symbolAtName mkSym env e = symbolAtSmtName mkSym env e . ffuncSort env
 
@@ -152,9 +157,9 @@ funcSortIndex env e z = M.lookupDefault err z (seAppls env)
     err               = panic ("Unknown func-sort: " ++ showpp z ++ " for " ++ showpp e)
 
 ffuncSort :: SymEnv -> Sort -> FuncSort
-ffuncSort env t      = (tx t1, tx t2)
+ffuncSort env t      = {- tracepp ("ffuncSort " ++ showpp (t1,t2)) -} (tx t1, tx t2)
   where
-    tx               = applySmtSort (seData env)
+    tx               = applySmtSort (seData env) 
     (t1, t2)         = args t
     args (FFunc a b) = (a, b)
     args _           = (FInt, FInt)
@@ -232,13 +237,14 @@ instance B.Binary SmtSort
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
-sortSmtSort poly env  = go . unAbs
+sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAbs $ t
   where
     go (FFunc _ _)    = SInt
     go FInt           = SInt
     go FReal          = SReal
     go t
       | t == boolSort = SBool
+      | isString t    = SString 
     go (FVar i)
       | poly          = SVar i
       | otherwise     = SInt

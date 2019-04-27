@@ -1,0 +1,10 @@
+constant foo : (func(1, [@(0); int]))
+
+bind 1 strCat   : {v : Str    | v == "cat" }
+bind 2 listCat  : {v : [Char] | v == "cat" }
+
+constraint:
+  env [ 1; 2 ]
+  lhs {v : int | true }
+  rhs {v : int | foo strCat == foo listCat } 
+  id 1 tag []

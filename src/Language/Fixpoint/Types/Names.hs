@@ -112,6 +112,7 @@ module Language.Fixpoint.Types.Names (
   , setToIntName, bitVecToIntName, mapToIntName, boolToIntName, realToIntName, toIntName
   , setApplyName, bitVecApplyName, mapApplyName, boolApplyName, realApplyName, intApplyName
   , applyName
+  , coerceName
 
   , lambdaName
   , lamArgSymbol
@@ -554,6 +555,9 @@ intApplyName    = intSymbol "int_apply_"
 
 applyName :: Symbol
 applyName = "apply"
+
+coerceName :: Symbol
+coerceName = "coerce"
 
 preludeName, dummyName, boolConName, funConName :: Symbol
 preludeName  = "Prelude"

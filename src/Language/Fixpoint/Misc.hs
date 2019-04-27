@@ -252,11 +252,12 @@ safeUncons :: (?callStack :: CallStack) => String -> ListNE a -> (a, [a])
 safeUnsnoc :: (?callStack :: CallStack) => String -> ListNE a -> ([a], a)
 safeFromList :: (?callStack :: CallStack, Eq k, Hashable k, Show k) => String -> [(k, v)] -> M.HashMap k v
 
-safeFromList msg kvs = applyNonNull (M.fromList kvs) err (dups kvs)
+safeFromList msg kvs = applyNonNull (M.fromList kvs) err dups
   where
-    dups             = duplicates . fmap fst
+    -- dups             = duplicates . fmap fst
+    dups             = [ x | (x, n) <- count (fst <$> kvs), 1 < n ]
     err              = errorstar . wrap "safeFromList with duplicates" msg . show
-    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2
+    wrap m1 m2 s     = m1 ++ " " ++ s ++ " " ++ m2 
 
 safeHead _   (x:_) = x
 safeHead msg _     = errorstar $ "safeHead with empty list " ++ msg
@@ -442,3 +443,10 @@ nubDiff a b = a' `S.difference` b'
   where
     a' = S.fromList a
     b' = S.fromList b
+
+
+fold1M :: (Monad m) => (a -> a -> m a) -> [a] -> m a 
+fold1M _ []         = errorstar $ "fold1M with empty list"
+fold1M _ [x]        = return x 
+fold1M f (x1:x2:xs) = do { x <- f x1 x2; fold1M f (x:xs) }  
+

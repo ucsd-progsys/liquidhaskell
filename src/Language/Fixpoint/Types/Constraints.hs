@@ -682,7 +682,7 @@ data GInfo c a = FI
   , ddecls   :: ![DataDecl]                -- ^ User-defined data declarations
   , hoInfo   :: !HOInfo                    -- ^ Higher Order info
   , asserts  :: ![Triggered Expr]          -- ^ TODO: what is this?
-  , ae       :: AxiomEnv
+  , ae       :: AxiomEnv                   -- ^ Information about reflected function defs
   }
   deriving (Eq, Show, Functor, Generic)
 
