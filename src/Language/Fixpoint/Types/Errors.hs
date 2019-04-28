@@ -22,6 +22,7 @@ module Language.Fixpoint.Types.Errors (
   , FixResult (..)
   , colorResult
   , resultDoc
+  , resultExit 
 
   -- * Abstract Error Type
   , Error
@@ -49,6 +50,7 @@ module Language.Fixpoint.Types.Errors (
   , errIllScopedKVar
   ) where
 
+import           System.Exit                        (ExitCode (..))
 import           Control.Exception
 import           Data.Serialize                (Serialize (..))
 import           Data.Generics                 (Data)
@@ -196,6 +198,11 @@ colorResult :: FixResult a -> Moods
 colorResult (Safe)      = Happy
 colorResult (Unsafe _)  = Angry
 colorResult (_)         = Sad
+
+resultExit :: FixResult a -> ExitCode
+resultExit Safe        = ExitSuccess
+resultExit (Unsafe _)  = ExitFailure 1
+resultExit _           = ExitFailure 2
 
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------
