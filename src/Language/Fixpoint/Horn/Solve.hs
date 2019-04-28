@@ -18,6 +18,7 @@ import qualified Data.Maybe                     as Mb
 import           Data.Either                    (partitionEithers)
 import           System.Exit
 import           GHC.Generics                   (Generic)
+import           Control.DeepSeq
 import qualified Language.Fixpoint.Solver       as Solver 
 import qualified Language.Fixpoint.Misc         as Misc 
 import qualified Language.Fixpoint.Parse        as Parse 
@@ -36,9 +37,18 @@ solveHorn cfg = do
   Solver.resultExitCode r
 
 ----------------------------------------------------------------------------------
-solve :: F.Config -> H.Query () -> IO (F.Result Integer)
+solve :: (NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
+       -> IO (F.Result Integer)
 ----------------------------------------------------------------------------------
 solve cfg q = fmap fst <$> Solver.solve cfg (hornFInfo q) 
+
+
+----------------------------------------------------------------------------------
+  -- solve :: F.Config -> H.Query () -> IO (F.Result Integer)
+----------------------------------------------------------------------------------
+  -- solve cfg q = fmap fst <$> Solver.solve cfg (hornFInfo q) 
+
+
 
 hornFInfo :: H.Query a -> F.FInfo a 
 hornFInfo q    = mempty 
