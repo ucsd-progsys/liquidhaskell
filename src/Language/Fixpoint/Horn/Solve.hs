@@ -3,6 +3,7 @@
 --   by reducing them to the standard FInfo. 
 -------------------------------------------------------------------------------
 
+
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -32,15 +33,15 @@ solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
 solveHorn cfg = do
   (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
-  cfg <- (F.withPragmas cfg opts)
-  r <- solve cfg q
-  Solver.resultExitCode r
+  cfg       <- (F.withPragmas cfg opts)
+  r         <- solve cfg q
+  Solver.resultExitCode (fst <$> r)
 
 ----------------------------------------------------------------------------------
 solve :: (NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
-       -> IO (F.Result Integer)
+       -> IO (F.Result (Integer, a))
 ----------------------------------------------------------------------------------
-solve cfg q = fmap fst <$> Solver.solve cfg (hornFInfo q) 
+solve cfg q = {- fmap fst <$> -} Solver.solve cfg (hornFInfo q) 
 
 
 ----------------------------------------------------------------------------------
