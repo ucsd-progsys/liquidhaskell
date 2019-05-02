@@ -487,7 +487,7 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
       . (v2 == v1)
         && v1 == z + 2 => v2 == x1
 && forall [v3 : int]
-
+     . v3 == x1 + 1 => v3 == m + 2))
     (and
      (forall ((v1 int) (v1 == z + 2))
       (forall ((v2 int) (v2 == v1))
