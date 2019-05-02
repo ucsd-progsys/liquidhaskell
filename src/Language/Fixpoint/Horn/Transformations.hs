@@ -24,6 +24,7 @@ import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 -- import           Debug.Trace
+trace _ = id
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -116,14 +117,14 @@ solveEbs (Query qs vs c cons dist) = do
   -- find solutions to the kvars, put them on the Right of the map
   let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs]
            :: Sol
-  whenLoud $ putStrLn "Horn Elim:"
-  whenLoud $ putStrLn $ F.showpp ksols
+  -- whenLoud $ putStrLn "Horn Elim:"
+  -- whenLoud $ putStrLn $ F.showpp ksols
 
-  let sol = execState (mapM (lookupSol M.empty . piVar) ns) (ksols <> pisols)
+  let sol = evalState (mapM (lookupSol M.empty . piVar) ns) (ksols <> pisols)
   whenLoud $ putStrLn "QE sols:"
-  let elimSol = M.mapMaybe (either (const Nothing) (Just . flip Head () . Reft)) sol
+  let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) () | p <- sol]
   whenLoud $ putStrLn $ F.showpp elimSol
-  let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) sol
+  let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
 
   let hornFinal = M.foldrWithKey applyPi horn elimSol
   whenLoud $ putStrLn "Final Horn:"
@@ -162,7 +163,6 @@ hornify (Head h a) = Head h a
 hornify (All b c) = All b $ hornify c
 hornify (Any b c) = Any b $ hornify c
 hornify (CAnd cs) = CAnd $ hornify <$> cs
-
 
 instance F.Subable Bind where
     syms = undefined
@@ -610,7 +610,7 @@ instance V.Visitable (Cstr a) where
 
 qe m c = do
  c' <- qe' m c
- pure $ {-trace (show c ++ " qe -> " ++ show c')-} c'
+ pure $ trace (show c ++ " =[qe]=>  " ++ show c') c'
 
 qe' :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
 qe' m (Head p ())          = lookupSol m p
@@ -641,7 +641,7 @@ forallElim' x _ _ e = runIdentity $ flip mapMExpr e $ \case
 
 lookupSol m c = do
  c' <- lookupSol' m c
- pure $ {-trace (show c ++ " lS -> " ++ show c')-} c'
+ pure $ trace (show m ++ show c ++ " =[l]=> " ++ show c')  c'
 
 lookupSol' :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
 lookupSol' m (Var x xs) =
@@ -651,7 +651,7 @@ lookupSol' m (Var x xs) =
     -- Memoize only the solutions to Pivars, because they don't depend on args
     (Just (Left (Right sol))) -> do
       sol <- qe m' sol
-      modify $ M.insert x $ Right $ sol
+      -- modify $ M.insert x $ Right $ sol
       pure sol
     (Just (Left (Left sol))) -> 
       qe m' $ doelim2 sol (Var x xs)
