@@ -7,6 +7,7 @@ import           Language.Fixpoint.Parse
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Horn.Types   as H 
 import           Text.Parsec       hiding (State)
+import qualified Data.HashMap.Strict            as M
 
 -------------------------------------------------------------------------------
 hornP :: Parser (H.Query (), [String])
@@ -20,6 +21,8 @@ mkQuery things = H.Query
   { H.qQuals =        [ q | HQual q <- things ] 
   , H.qVars  =        [ k | HVar  k <- things ] 
   , H.qCstr  = H.CAnd [ c | HCstr c <- things ] 
+  , H.qCon   = M.fromList  [ (x,t) | HCon x t <- things]
+  , H.qDis   = M.fromList  [ (x,t) | HDis x t <- things]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -29,6 +32,11 @@ data HThing a
   = HQual !F.Qualifier
   | HVar  !(H.Var a)
   | HCstr !(H.Cstr a)
+  
+  -- for uninterpred functions and ADT constructors
+  | HCon  F.Symbol F.Sort
+  | HDis  F.Symbol F.Sort
+
   | HOpt !String
   deriving (Functor)
 
@@ -39,6 +47,8 @@ hThingP  = parens body
         <|> HCstr <$> (reserved "constraint" *> hCstrP)
         <|> HVar  <$> (reserved "var"        *> hVarP)
         <|> HOpt  <$> (reserved "fixpoint"   *> stringLiteral)
+        <|> HCon  <$> (reserved "constant"   *> symbolP) <*> sortP
+        <|> HDis  <$> (reserved "distinct"   *> symbolP) <*> sortP
 
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr ())

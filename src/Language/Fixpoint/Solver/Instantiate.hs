@@ -767,10 +767,6 @@ dropModuleNames = mungeNames (symbol . last) "."
       | otherwise        = f $ T.splitOn d $ stripParens s
     stripParens t = Mb.fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
 
-splitPAnd :: Expr -> [Expr]
-splitPAnd (PAnd es) = concatMap splitPAnd es
-splitPAnd e         = [e]
-
 --------------------------------------------------------------------------------
 -- | Creating Measure Info
 --------------------------------------------------------------------------------

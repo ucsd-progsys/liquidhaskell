@@ -14,7 +14,7 @@ module Language.Fixpoint.Solver.Solution
   ) where
 
 import           Control.Parallel.Strategies
-import           Control.Arrow (second)
+import           Control.Arrow (second, (***))
 import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
@@ -251,7 +251,7 @@ applyKVar g s ksu = case Sol.lookup s (F.ksuKVar ksu) of
     msg     = "applyKVar: " ++ show (ceCid g)
 
 hypPred :: CombinedEnv -> Sol.Sol a Sol.QBind -> F.KVSub -> Sol.Hyp  -> ExprInfo
-hypPred g s ksu = mrExprInfos (cubePred g s ksu) F.pOr mconcatPlus
+hypPred g s ksu hyp = F.pOr *** mconcatPlus $ unzip $ cubePred g s ksu <$> hyp
 
 {- | `cubePred g s k su c` returns the predicate for
 

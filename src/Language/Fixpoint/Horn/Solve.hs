@@ -20,6 +20,7 @@ import           Data.Either                    (partitionEithers)
 import           System.Exit
 import           GHC.Generics                   (Generic)
 import           Control.DeepSeq
+import           Control.Monad                  (void)
 import qualified Language.Fixpoint.Solver       as Solver 
 import qualified Language.Fixpoint.Misc         as Misc 
 import qualified Language.Fixpoint.Parse        as Parse 
@@ -27,29 +28,48 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F 
 import qualified Language.Fixpoint.Horn.Types   as H 
 import qualified Language.Fixpoint.Horn.Parse   as H 
+import qualified Language.Fixpoint.Horn.Transformations as Tx
+-- import qualified Language.Fixpoint.Smt.Interface as SI
+import           System.Console.CmdArgs.Verbosity
 
 ----------------------------------------------------------------------------------
 solveHorn :: F.Config -> IO ExitCode 
 ----------------------------------------------------------------------------------
 solveHorn cfg = do
   (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
-  cfg       <- (F.withPragmas cfg opts)
-  r         <- solve cfg q
+
+  -- If you want to set --eliminate=none, you better make it a pragma
+  cfg <- if F.eliminate cfg == F.None
+           then pure (cfg { F.eliminate =  F.Some })
+           else pure cfg
+  cfg <- F.withPragmas cfg opts
+
+  r <- solve cfg q
   Solver.resultExitCode (fst <$> r)
+
+eliminate cfg q
+  | F.eliminate cfg == F.Existentials = do
+    q <- Tx.solveEbs q
+    -- b <- SI.checkValid cfg "/tmp/asdf.smt2" [] F.PTrue $ Tx.cstrToExpr side
+    -- if b then print "checked side condition" else error "side failed"
+    pure q
+  | F.eliminate cfg == F.Horn = do
+    let c = Tx.elim $ H.qCstr q
+    whenLoud $ putStrLn "Horn Elim:"
+    whenLoud $ putStrLn $ F.showpp c
+    pure $ q { H.qCstr = c }
+  | otherwise = pure q
 
 ----------------------------------------------------------------------------------
 solve :: (NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
-       -> IO (F.Result (Integer, a))
+       -> IO (F.Result (Integer, ()))
 ----------------------------------------------------------------------------------
-solve cfg q = {- fmap fst <$> -} Solver.solve cfg (hornFInfo q) 
-
-
-----------------------------------------------------------------------------------
-  -- solve :: F.Config -> H.Query () -> IO (F.Result Integer)
-----------------------------------------------------------------------------------
-  -- solve cfg q = fmap fst <$> Solver.solve cfg (hornFInfo q) 
-
-
+solve cfg q = do
+  let c = Tx.uniq $ Tx.flatten $ H.qCstr q
+  whenLoud $ putStrLn "Horn Uniq:"
+  whenLoud $ putStrLn $ F.showpp c
+  q <- eliminate cfg (void $ q { H.qCstr = c })
+  Solver.solve cfg (hornFInfo q)
 
 hornFInfo :: H.Query a -> F.FInfo a 
 hornFInfo q    = mempty 
@@ -58,6 +78,8 @@ hornFInfo q    = mempty
   , F.ebinds   = ebs
   , F.ws       = kvEnvWfCs kve 
   , F.quals    = H.qQuals q 
+  , F.gLits    = F.fromMapSEnv $ H.qCon q
+  , F.dLits    = F.fromMapSEnv $ H.qDis q
   } 
   where 
     be0        = F.emptyBindEnv
