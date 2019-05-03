@@ -3,6 +3,7 @@
 --   by reducing them to the standard FInfo. 
 -------------------------------------------------------------------------------
 
+
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -18,6 +19,8 @@ import qualified Data.Maybe                     as Mb
 import           Data.Either                    (partitionEithers)
 import           System.Exit
 import           GHC.Generics                   (Generic)
+import           Control.DeepSeq
+import           Control.Monad                  (void)
 import qualified Language.Fixpoint.Solver       as Solver 
 import qualified Language.Fixpoint.Misc         as Misc 
 import qualified Language.Fixpoint.Parse        as Parse 
@@ -42,11 +45,11 @@ solveHorn cfg = do
   cfg <- F.withPragmas cfg opts
 
   r <- solve cfg q
-  Solver.resultExitCode r
+  Solver.resultExitCode (fst <$> r)
 
 eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
-    ( q) <- Tx.solveEbs q
+    q <- Tx.solveEbs q
     -- b <- SI.checkValid cfg "/tmp/asdf.smt2" [] F.PTrue $ Tx.cstrToExpr side
     -- if b then print "checked side condition" else error "side failed"
     pure q
@@ -58,13 +61,14 @@ eliminate cfg q
   | otherwise = pure q
 
 ----------------------------------------------------------------------------------
-solve :: F.Config -> H.Query () -> IO (F.Result Integer)
+solve :: (NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
+       -> IO (F.Result (Integer, ()))
 ----------------------------------------------------------------------------------
-solve cfg q = fmap fst <$> do
+solve cfg q = do
   let c = Tx.uniq $ Tx.flatten $ H.qCstr q
   whenLoud $ putStrLn "Horn Uniq:"
   whenLoud $ putStrLn $ F.showpp c
-  q <- eliminate cfg (q { H.qCstr = c })
+  q <- eliminate cfg (void $ q { H.qCstr = c })
   Solver.solve cfg (hornFInfo q)
 
 hornFInfo :: H.Query a -> F.FInfo a 
