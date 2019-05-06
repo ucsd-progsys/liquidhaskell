@@ -1360,17 +1360,15 @@ riMethodSigP
         return (x, RISig t)
  <?> "riMethodSigP"
 
-
-
 classP :: Parser (RClass (Located BareType))
 classP
   = do sups <- supersP
        c    <- classBTyConP
        spaces
        tvs  <- manyTill (bTyVar <$> tyVarIdP) (try $ reserved "where")
-       ms   <- grabs tyBindP
+       ms   <- try (grabs tyBindP) -- <|> sepBy tyBindP semi
        spaces
-       return $ RClass c sups tvs ms -- sups tvs ms
+       return $ RClass c sups tvs ms
   where
     superP   = locParserP (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
