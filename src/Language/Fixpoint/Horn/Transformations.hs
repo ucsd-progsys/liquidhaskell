@@ -122,7 +122,7 @@ solveEbs (Query qs vs c cons dist) = do
 
   let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
   whenLoud $ putStrLn "QE sols:"
-  let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) l0 | p <- sol] -- <<< don't fing LOSE INFORMATION
+  let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) l0 | p <- sol]
   whenLoud $ putStrLn $ F.showpp elimSol
   let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
 
