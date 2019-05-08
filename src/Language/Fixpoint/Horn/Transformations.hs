@@ -15,7 +15,6 @@ module Language.Fixpoint.Horn.Transformations (
 import           Language.Fixpoint.Horn.Types
 import qualified Language.Fixpoint.Types      as F
 import qualified Data.HashMap.Strict          as M
-import           Control.Monad (void)
 import           Control.Monad.Identity
 import           Data.String                  (IsString (..))
 import qualified Data.Set                     as S
@@ -24,6 +23,8 @@ import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 -- import           Debug.Trace
+
+trace :: p -> a -> a
 trace _ = id
 
 -- $setup
@@ -79,19 +80,19 @@ instance Flatten [Pred] where
     where fp = flatten p
   flatten []              = []
 
-type Sol = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr ())) F.Expr)
+type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
 ------------------------------------------------------------------------------
 -- | solveEbs has some preconditions
--- - pi -> k -> pi strucutre. That is, there are no cycles, and while ks
+-- - pi -> k -> pi structure. That is, there are no cycles, and while ks
 -- can depend on other ks, pis cannot directly depend on other pis
 -- - predicate for exists binder is `true`. This doesn't seem hard to lift,
 -- but I just haven't tested it/thought too hard about what the correct
 -- behavior in this case is.
 -- - There is at least one ebind
-solveEbs :: Query a -> IO (Query ()) -- IO (Cstr (), Query ())
+solveEbs :: (F.PPrint a, Eq a) => Query a -> IO (Query a)
 ------------------------------------------------------------------------------
 solveEbs (Query qs vs c cons dist) = do
-  let c' = pokec $ c
+  let c' = pokec c
   whenLoud $ putStrLn "Horn pokec:"
   whenLoud $ putStrLn $ F.showpp c'
   -- This rhs pattern match will fail if there's not at least one eb!
@@ -100,7 +101,7 @@ solveEbs (Query qs vs c cons dist) = do
   whenLoud $ putStrLn $ F.showpp (horn, mside)
 
   if mside == Nothing
-    then pure $ Query qs (void <$> vs) horn cons dist
+    then pure $ Query qs vs horn cons dist
     else do
   let Just side = mside
   -- This whole business depends on Stringly-typed invariant that an ebind
@@ -109,20 +110,19 @@ solveEbs (Query qs vs c cons dist) = do
 
   -- find solutions to the pivars, put them on the Left of the map
   let ns = fst <$> ebs c
-  let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]]
-            :: Sol
+  let l0 = cLabel horn
+  let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]] -- :: Sol a
   whenLoud $ putStrLn "Pisols:"
-  whenLoud $ putStrLn $ F.showpp $ pisols
+  -- whenLoud $ putStrLn $ F.showpp $ pisols
 
   -- find solutions to the kvars, put them on the Right of the map
-  let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs]
-           :: Sol
+  let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs] -- :: Sol
   -- whenLoud $ putStrLn "Horn Elim:"
   -- whenLoud $ putStrLn $ F.showpp ksols
 
-  let sol = evalState (mapM (lookupSol M.empty . piVar) ns) (ksols <> pisols)
+  let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
   whenLoud $ putStrLn "QE sols:"
-  let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) () | p <- sol]
+  let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) l0 | p <- sol] -- <<< don't fing LOSE INFORMATION
   whenLoud $ putStrLn $ F.showpp elimSol
   let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
 
@@ -137,9 +137,9 @@ solveEbs (Query qs vs c cons dist) = do
   whenLoud $ putStrLn "Final Side:"
   whenLoud $ putStrLn $ F.showpp sideEE
 
-  pure $ (Query qs (void <$> vs) (CAnd [ hornFinal, sideEE ]) cons dist)
+  pure $ (Query qs vs (CAnd [ hornFinal, sideEE ]) cons dist)
 
-elimE :: Sol -> Cstr () -> Cstr ()
+elimE :: Sol a -> Cstr a -> Cstr a
 elimE m (All b c) = All b (elimE m c)
 elimE m (CAnd cs) = CAnd (elimE m <$> cs)
 elimE _m p@Head{} = p
@@ -148,6 +148,7 @@ elimE _m (Any (Bind x _ _) (Head p l)) = Head (F.subst1 p (x,e)) l
     where e = fromMaybe F.PTrue $ findSolP x p
 elimE _m (Any _ _) = error "oops"
 
+hornify :: Cstr a -> Cstr a
 hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
   where ps' = let (ks, qs) = split ps [] [] in PAnd qs : ks
 
@@ -176,6 +177,7 @@ instance F.Subable Pred where
     substf = undefined
     subst su p = substP su p
 
+substP :: F.Subst -> Pred -> Pred
 substP su (Reft e) = Reft $ F.subst su e
 substP su (PAnd ps) = PAnd $ substP su <$> ps
 substP su (Var k xs) = Var k $ F.subst su xs
@@ -232,11 +234,11 @@ ebs (CAnd cs) = ebs =<< cs
 ebs (All _ c) = ebs c
 ebs (Any (Bind x t _) c) = (x,t) : ebs c
 
-pokec :: Cstr a -> Cstr ()
-pokec (Head c _) = Head c ()
-pokec (CAnd c) = CAnd (pokec <$> c)
+pokec :: Cstr a -> Cstr a
+pokec (Head c l) = Head c l
+pokec (CAnd c)   = CAnd (pokec <$> c)
 pokec (All b c2) = All b $ pokec c2
-pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b (Head pi ())]
+pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b (Head pi l)]
   -- TODO: actually use the renamer?
   where
     Bind x t _p = b
@@ -244,8 +246,11 @@ pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b (Head pi ())]
     -- machinery assumes they're in the approrpiate syntactic form
     b' = Bind x t pi -- (PAnd [p, pi])
     pi = piVar x
+    l  = cLabel c2
 
+piVar :: F.Symbol -> Pred
 piVar x = Var (piSym x) [x]
+
 piSym :: F.Symbol -> F.Symbol
 piSym s = fromString $ "π" ++ F.symbolString s
 
@@ -323,6 +328,7 @@ split (All b c) = (All b <$> c', All b <$> c'')
 split c@Any{} = (Nothing, Just c)
 split c@Head{} = (Just c, Nothing)
 
+andMaybes :: [Maybe (Cstr a)] -> Maybe (Cstr a)
 andMaybes cs = case catMaybes cs of
                  [] -> Nothing
                  [c] -> Just c
@@ -512,6 +518,7 @@ elimKs (k:ks) (horn, side) = elimKs ks (horn', side')
         horn' = doelim' k sol . doelim k sol $ horn
         side' = doelim' k sol $ side
 
+doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
 doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
 doelim' k bss (Head p a) = Head (tx k bss p) a
 doelim' k bss (All (Bind x t p) c) = All (Bind x t $ tx k bss p) (doelim' k bss c)
@@ -608,16 +615,18 @@ instance V.Visitable (Cstr a) where
 --     store it
 --   return it
 
+qe :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
 qe m c = do
  c' <- qe' m c
  pure $ trace (show c ++ " =[qe]=>  " ++ show c') c'
 
-qe' :: M.HashMap F.Symbol Integer -> Cstr () -> State Sol F.Expr
-qe' m (Head p ())          = lookupSol m p
+qe' :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
+qe' m (Head p l)           = lookupSol l m p
 qe' m (CAnd cs)            = F.PAnd <$> mapM (qe m) cs
-qe' m (All (Bind x _ p) c) = forallElim x <$> lookupSol m p <*> qe m c
+qe' m (All (Bind x _ p) c) = forallElim x <$> lookupSol (cLabel c) m p <*> qe m c
 qe' _ Any{}                = error "QE for Any????"
 
+forallElim :: (F.Subable t, Visitable t) => F.Symbol -> t -> F.Expr -> F.Expr
 forallElim x p e = forallElim' x eqs p e
   where
   eqs = fold eqVis () [] p
@@ -627,6 +636,7 @@ forallElim x p e = forallElim' x eqs p e
     = [e]
   kv' _ _                    = []
 
+forallElim' :: F.Subable a => F.Symbol -> [F.Expr] -> a -> F.Expr -> F.Expr
 forallElim' x (F.PAtom F.Eq a b : _) _ e
   | F.EVar x == a
   = F.subst1 e (x,b)
@@ -639,12 +649,13 @@ forallElim' x _ _ e = runIdentity $ flip mapMExpr e $ \case
    -- TODO: where else might this appear? App, KVar?
     p -> pure p
 
-lookupSol m c = do
- c' <- lookupSol' m c
+lookupSol :: a -> M.HashMap F.Symbol Integer -> Pred -> State (Sol a) F.Expr
+lookupSol l m c = do
+ c' <- lookupSol' l m c
  pure $ trace (show m ++ show c ++ " =[l]=> " ++ show c')  c'
 
-lookupSol' :: M.HashMap F.Symbol Integer -> Pred -> State Sol F.Expr
-lookupSol' m (Var x xs) =
+lookupSol' :: a -> M.HashMap F.Symbol Integer -> Pred -> State (Sol a) F.Expr
+lookupSol' l m (Var x xs) =
   let n = M.lookupDefault 0 x m in
   if n > 0 then pure $ predToExpr (Var x xs) else
   let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
@@ -654,12 +665,13 @@ lookupSol' m (Var x xs) =
       -- modify $ M.insert x $ Right $ sol
       pure sol
     (Just (Left (Left sol))) -> 
-      qe m' $ doelim2 sol (Var x xs)
+      qe m' $ doelim2 l sol (Var x xs)
 
     (Just (Right sol)) -> pure sol
     Nothing -> error $ "no soution to Var " ++ F.symbolString x
-lookupSol' _ (Reft e) = pure e
-lookupSol' m (PAnd ps) = F.PAnd <$> mapM (lookupSol m) ps
+    
+lookupSol' _ _ (Reft e) = pure e
+lookupSol' l m (PAnd ps) = F.PAnd <$> mapM (lookupSol l m) ps
 
 findSolP :: F.Symbol -> Pred -> Maybe F.Expr
 findSolP x (Reft e) = findSolE x e
@@ -674,16 +686,16 @@ findSolE _ _ = Nothing
 
 -- This solution is "wrong" ... forall should be exists and implies should
 -- be and, but it's fine because that doesn't matter to QE above
-doelim2 :: [[Bind]] -> Pred -> Cstr ()
-doelim2 bss (Var k xs)
+doelim2 :: a -> [[Bind]] -> Pred -> Cstr a
+doelim2 l bss (Var k xs)
   = mkAnd $ cubeSol . reverse <$> bss
   where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
         mkAnd [c] = c
         mkAnd cs = CAnd cs
         cubeSol ((Bind _ _ (Reft eqs)):xs) =
-          foldl (flip All) (Head (Reft $ F.subst su eqs) ()) xs
+          foldl (flip All) (Head (Reft $ F.subst su eqs) l) xs
         cubeSol _ = error "internal error"
-doelim2 _ p = Head p ()
+doelim2 l _ p = Head p l
 
 ------------------------------------------------------------------------------
 -- | uniq makes sure each binder has a unique name
@@ -820,6 +832,7 @@ sol1 k (Head (Var k' ys) _) | k == k'
 sol1 _ (Head _ _) = []
 sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
 
+kargs :: F.Symbol -> [F.Symbol]
 kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1..]
 
 -- |
@@ -864,11 +877,12 @@ doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
 -- ... ["k0"]
 
 boundKvars :: Cstr a -> S.Set F.Symbol
-boundKvars (Head p _) = pKVars p
-boundKvars (CAnd c) = mconcat $ boundKvars <$> c
+boundKvars (Head p _)           = pKVars p
+boundKvars (CAnd c)             = mconcat $ boundKvars <$> c
 boundKvars (All (Bind _ _ p) c) = pKVars p <> boundKvars c
 boundKvars (Any (Bind _ _ p) c) = pKVars p <> boundKvars c
 
+-- pKVars :: Pred -> S.Set F.Symbol
 pKVars (Var k _) = S.singleton k
 pKVars (PAnd ps) = mconcat $ pKVars <$> ps
-pKVars _ = S.empty
+pKVars _         = S.empty

@@ -20,7 +20,6 @@ import           Data.Either                    (partitionEithers)
 import           System.Exit
 import           GHC.Generics                   (Generic)
 import           Control.DeepSeq
-import           Control.Monad                  (void)
 import qualified Language.Fixpoint.Solver       as Solver 
 import qualified Language.Fixpoint.Misc         as Misc 
 import qualified Language.Fixpoint.Parse        as Parse 
@@ -47,6 +46,9 @@ solveHorn cfg = do
   r <- solve cfg q
   Solver.resultExitCode (fst <$> r)
 
+----------------------------------------------------------------------------------
+eliminate :: (Eq a, F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a) 
+----------------------------------------------------------------------------------
 eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
     q <- Tx.solveEbs q
@@ -61,14 +63,14 @@ eliminate cfg q
   | otherwise = pure q
 
 ----------------------------------------------------------------------------------
-solve :: (NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
-       -> IO (F.Result (Integer, ()))
+solve :: (Eq a, F.PPrint a, NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
+       -> IO (F.Result (Integer, a))
 ----------------------------------------------------------------------------------
 solve cfg q = do
   let c = Tx.uniq $ Tx.flatten $ H.qCstr q
   whenLoud $ putStrLn "Horn Uniq:"
   whenLoud $ putStrLn $ F.showpp c
-  q <- eliminate cfg (void $ q { H.qCstr = c })
+  q <- eliminate cfg ({- void $ -} q { H.qCstr = c })
   Solver.solve cfg (hornFInfo q)
 
 hornFInfo :: H.Query a -> F.FInfo a 

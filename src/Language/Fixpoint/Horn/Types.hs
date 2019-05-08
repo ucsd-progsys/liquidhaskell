@@ -18,6 +18,9 @@ module Language.Fixpoint.Horn.Types
   , Bind  (..)
   , Var   (..) 
 
+    -- * accessing constraint labels
+  , cLabel
+
     -- * invariants (refinements) on constraints 
   , okCstr 
   , dummyBind
@@ -64,13 +67,20 @@ data Bind = Bind
 dummyBind :: Bind 
 dummyBind = Bind F.dummySymbol F.intSort (PAnd []) 
 
--- Can we enforce the invariant that CAnd has len /= 1?
+-- Can we enforce the invariant that CAnd has len > 1?
 data Cstr a
   = Head  !Pred a               -- ^ p
   | CAnd  ![(Cstr a)]           -- ^ c1 /\ ... /\ cn
   | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
   | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p => c
   deriving (Data, Typeable, Generic, Functor, Eq)
+
+cLabel :: Cstr a -> a
+cLabel (Head _ l)   = l
+cLabel (CAnd (c:_)) = cLabel c
+cLabel (CAnd [])    = F.panic ("Empty Horn conjunction!") 
+cLabel (All _ c)    = cLabel c 
+cLabel (Any _ c)    = cLabel c
 
 -- We want all valid constraints to start with a binding at the top
 okCstr :: Cstr a -> Bool 
@@ -95,6 +105,7 @@ data Query a = Query
 -------------------------------------------------------------------------------
 -- Pretty Printing
 -------------------------------------------------------------------------------
+parens :: String -> String
 parens s = "(" ++ s ++ ")"
 
 instance Show (Var a) where

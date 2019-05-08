@@ -128,7 +128,7 @@ library
                   , transformers
                   , unordered-containers
   default-language: Haskell98
-  ghc-options:      -W -fno-warn-missing-methods
+  ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 
   if flag(devel)
     ghc-options: -Werror
