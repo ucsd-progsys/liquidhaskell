@@ -47,7 +47,7 @@ solveHorn cfg = do
   Solver.resultExitCode (fst <$> r)
 
 ----------------------------------------------------------------------------------
-eliminate :: (Eq a, F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a) 
+eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a) 
 ----------------------------------------------------------------------------------
 eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
@@ -63,7 +63,7 @@ eliminate cfg q
   | otherwise = pure q
 
 ----------------------------------------------------------------------------------
-solve :: (Eq a, F.PPrint a, NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
+solve :: (F.PPrint a, NFData a, F.Loc a, Show a, F.Fixpoint a) => F.Config -> H.Query a 
        -> IO (F.Result (Integer, a))
 ----------------------------------------------------------------------------------
 solve cfg q = do

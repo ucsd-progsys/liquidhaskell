@@ -89,7 +89,7 @@ type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
 -- but I just haven't tested it/thought too hard about what the correct
 -- behavior in this case is.
 -- - There is at least one ebind
-solveEbs :: (F.PPrint a, Eq a) => Query a -> IO (Query a)
+solveEbs :: (F.PPrint a) => Query a -> IO (Query a)
 ------------------------------------------------------------------------------
 solveEbs (Query qs vs c cons dist) = do
   let c' = pokec c
@@ -100,44 +100,43 @@ solveEbs (Query qs vs c cons dist) = do
   whenLoud $ putStrLn "Horn split:"
   whenLoud $ putStrLn $ F.showpp (horn, mside)
 
-  if mside == Nothing
-    then pure $ Query qs vs horn cons dist
-    else do
-  let Just side = mside
-  -- This whole business depends on Stringly-typed invariant that an ebind
-  -- n corresponds to a pivar πn. That's pretty bad but I can't think of
-  -- a better way to do this.
-
-  -- find solutions to the pivars, put them on the Left of the map
-  let ns = fst <$> ebs c
-  let l0 = cLabel horn
-  let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]] -- :: Sol a
-  whenLoud $ putStrLn "Pisols:"
-  -- whenLoud $ putStrLn $ F.showpp $ pisols
-
-  -- find solutions to the kvars, put them on the Right of the map
-  let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs] -- :: Sol
-  -- whenLoud $ putStrLn "Horn Elim:"
-  -- whenLoud $ putStrLn $ F.showpp ksols
-
-  let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
-  whenLoud $ putStrLn "QE sols:"
-  let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) l0 | p <- sol]
-  whenLoud $ putStrLn $ F.showpp elimSol
-  let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
-
-  let hornFinal = M.foldrWithKey applyPi horn elimSol
-  whenLoud $ putStrLn "Final Horn:"
-  whenLoud $ putStrLn $ F.showpp hornFinal
-
-  let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
-  whenLoud $ putStrLn "PreElim Side:"
-  whenLoud $ putStrLn $ F.showpp sideCstr
-  let sideEE = hornify $ elimE undefined sideCstr
-  whenLoud $ putStrLn "Final Side:"
-  whenLoud $ putStrLn $ F.showpp sideEE
-
-  pure $ (Query qs vs (CAnd [ hornFinal, sideEE ]) cons dist)
+  case mside of 
+    Nothing   -> pure $ Query qs vs horn cons dist
+    Just side -> do 
+        -- This whole business depends on Stringly-typed invariant that an ebind
+        -- n corresponds to a pivar πn. That's pretty bad but I can't think of
+        -- a better way to do this.
+      
+        -- find solutions to the pivars, put them on the Left of the map
+        let ns = fst <$> ebs c
+        let l0 = cLabel horn
+        let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]] -- :: Sol a
+        whenLoud $ putStrLn "Pisols:"
+        -- whenLoud $ putStrLn $ F.showpp $ pisols
+      
+        -- find solutions to the kvars, put them on the Right of the map
+        let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs] -- :: Sol
+        -- whenLoud $ putStrLn "Horn Elim:"
+        -- whenLoud $ putStrLn $ F.showpp ksols
+      
+        let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
+        whenLoud $ putStrLn "QE sols:"
+        let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) l0 | p <- sol]
+        whenLoud $ putStrLn $ F.showpp elimSol
+        let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
+      
+        let hornFinal = M.foldrWithKey applyPi horn elimSol
+        whenLoud $ putStrLn "Final Horn:"
+        whenLoud $ putStrLn $ F.showpp hornFinal
+      
+        let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
+        whenLoud $ putStrLn "PreElim Side:"
+        whenLoud $ putStrLn $ F.showpp sideCstr
+        let sideEE = hornify $ elimE undefined sideCstr
+        whenLoud $ putStrLn "Final Side:"
+        whenLoud $ putStrLn $ F.showpp sideEE
+      
+        pure $ (Query qs vs (CAnd [ hornFinal, sideEE ]) cons dist)
 
 elimE :: Sol a -> Cstr a -> Cstr a
 elimE m (All b c) = All b (elimE m c)
