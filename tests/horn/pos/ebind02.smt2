@@ -1,6 +1,3 @@
-// TODO: make this the default option
-(fixpoint "--eliminate=some")
-
 (var $k (Int))
 
 (constraint

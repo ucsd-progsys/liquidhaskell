@@ -224,7 +224,7 @@ mapGVars' f            = trans kvVis () ()
       | Just p' <- f (k, su) = subst su p'
     txK _ p            = p
 
-mapExpr :: (Expr -> Expr) -> Expr -> Expr
+mapExpr :: Visitable t => (Expr -> Expr) -> t -> t
 mapExpr f = trans (defaultVisitor {txExpr = const f}) () ()
 
 

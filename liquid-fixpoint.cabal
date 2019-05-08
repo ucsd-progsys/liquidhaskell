@@ -52,6 +52,7 @@ library
                     Language.Fixpoint.Horn.Parse
                     Language.Fixpoint.Horn.Solve
                     Language.Fixpoint.Horn.Types
+                    Language.Fixpoint.Horn.Transformations
                     Language.Fixpoint.Minimize
                     Language.Fixpoint.Misc
                     Language.Fixpoint.Parse
