@@ -105,8 +105,8 @@ solveEbs (Query qs vs c cons dist) = do
     else do
   let Just side = mside
   -- This whole business depends on Stringly-typed invariant that an ebind
-  -- n corresponds to a pivar πn . That's pretty shit but I can't think of
-  -- a better way to do this
+  -- n corresponds to a pivar πn. That's pretty bad but I can't think of
+  -- a better way to do this.
 
   -- find solutions to the pivars, put them on the Left of the map
   let ns = fst <$> ebs c
@@ -882,7 +882,7 @@ boundKvars (CAnd c)             = mconcat $ boundKvars <$> c
 boundKvars (All (Bind _ _ p) c) = pKVars p <> boundKvars c
 boundKvars (Any (Bind _ _ p) c) = pKVars p <> boundKvars c
 
--- pKVars :: Pred -> S.Set F.Symbol
+pKVars :: Pred -> S.Set F.Symbol
 pKVars (Var k _) = S.singleton k
 pKVars (PAnd ps) = mconcat $ pKVars <$> ps
 pKVars _         = S.empty
