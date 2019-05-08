@@ -91,17 +91,11 @@ data Config = Config
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  
+  , typedHoles      :: Bool        -- ^ Warn about "typed-holes"
   } deriving (Generic, Data, Typeable, Show, Eq)
 
--- PLE-OPT instance Serialize Instantiate
 instance Serialize SMTSolver
 instance Serialize Config
-
--- PLE-OPT    data Instantiate
-  -- PLE-OPT    = NoInstances
-  -- PLE-OPT    | LiquidInstances
-  -- PLE-OPT    | LiquidInstancesLocal
-  -- PLE-OPT    deriving (Eq, Data, Typeable, Generic)
 
 allowPLE :: Config -> Bool
 allowPLE cfg
@@ -109,22 +103,10 @@ allowPLE cfg
   || allowLocalPLE cfg
 
 allowGlobalPLE :: Config -> Bool
-allowGlobalPLE cfg
-  =  proofLogicEval  cfg
--- // PLE-OPT  || autoInstantiate cfg == LiquidInstances
+allowGlobalPLE cfg = proofLogicEval  cfg
 
 allowLocalPLE :: Config -> Bool
-allowLocalPLE cfg
-  =  proofLogicEvalLocal  cfg
--- // PLE-OPT  || autoInstantiate cfg == LiquidInstancesLocal
-
--- PLE-OPT instance Default Instantiate where
-  -- PLE-OPT def = NoInstances
-
--- PLE-OPT instance Show Instantiate where
-  -- PLE-OPT show NoInstances           = "none"
-  -- PLE-OPT show LiquidInstancesLocal  = "liquid-local"
-  -- PLE-OPT show LiquidInstances       = "liquid-global"
+allowLocalPLE cfg = proofLogicEvalLocal  cfg
 
 instance HasConfig  Config where
   getConfig x = x

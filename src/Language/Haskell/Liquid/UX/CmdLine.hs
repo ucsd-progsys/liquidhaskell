@@ -355,6 +355,10 @@ config = cmdArgsMode $ Config {
         &= name "no-check-imports"
         &= help "Do not check the transitive imports; only check the target files." 
 
+  , typedHoles
+    = def 
+        &= name "typed-holes"
+        &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -586,6 +590,7 @@ defConfig = Config
   , reflection        = False
   , compileSpec       = False
   , noCheckImports    = False
+  , typedHoles        = False
   }
 
 ------------------------------------------------------------------------
