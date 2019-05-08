@@ -24,8 +24,8 @@ module Language.Fixpoint.Types.Errors (
   , resultDoc
   , resultExit 
 
-  -- * Abstract Error Type
-  , Error
+  -- * Error Type
+  , Error, Error1
 
   -- * Constructor
   , err
@@ -33,6 +33,7 @@ module Language.Fixpoint.Types.Errors (
   -- * Accessors
   , errLoc
   , errMsg
+  , errs
 
   -- * Adding Insult to Injury
   , catError
@@ -91,6 +92,10 @@ instance (B.Binary a) => B.Binary (FixResult a)
 
 newtype Error = Error [Error1]
                 deriving (Eq, Ord, Show, Typeable, Generic)
+
+
+errs :: Error -> [Error1]
+errs (Error es) = es 
 
 data Error1 = Error1
   { errLoc :: SrcSpan
