@@ -304,6 +304,8 @@ data PPEnv = PP
 
 ppEnv :: PPEnv
 ppEnv = ppEnvDef 
+          { ppDebug = True }      -- RJ: needed for resolution, because pp is used for serialization?
+
 
 ppEnvDef :: PPEnv
 ppEnvDef = PP False False False False False
