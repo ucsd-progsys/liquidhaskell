@@ -289,9 +289,18 @@ ppr_dbind bb p x t
   = pprint x <-> colon <-> ppr_rtype bb p t
 
 
+
 ppr_rty_fun
   :: ( OkRT c tv r, PPrint (RType c tv r), PPrint (RType c tv ()))
   => PPEnv -> Doc -> RType c tv r -> Doc
+ppr_rty_fun bb prefix t = hsep (prefix : dArgs ++ [dOut])
+  where
+    dArgs               = concatMap ppArg args
+    dOut                = ppr_rtype bb topPrec out
+    ppArg (b, t, a)     = [ppr_dbind bb funPrec b t, a]
+    (args, out)         = brkFun t
+
+{- 
 ppr_rty_fun bb prefix t
   = prefix <+> ppr_rty_fun' bb t
 
@@ -304,6 +313,15 @@ ppr_rty_fun' bb (RFun b t t' r)
   = F.ppTy r $ ppr_dbind bb funPrec b t $+$ ppr_rty_fun bb arrow t'
 ppr_rty_fun' bb t
   = ppr_rtype bb topPrec t
+-}
+
+brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r) 
+brkFun (RImpF b t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'  
+brkFun (RFun b t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'  
+brkFun out              = ([], out) 
+
+
+
 
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 ppr_forall bb p t = maybeParen p funPrec $ sep [
