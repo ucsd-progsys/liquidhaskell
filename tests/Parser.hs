@@ -391,7 +391,7 @@ testSucceeds =
 
     , testCase "type spec 15" $
        parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?==
-            "assume (=*=.) :: (Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> {VV : lq_tmp$db##6:a -> b | f == g}"
+            "assume (=*=.) :: (Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> lq_tmp$db##6:a -> b"
 
     , testCase "type spec 16" $
        parseSingleSpec "sort :: (Ord a) => xs:[a] -> OListN a {len xs}" @?==

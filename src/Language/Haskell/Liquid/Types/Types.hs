@@ -294,9 +294,9 @@ data TyConMap = TyConMap
 -----------------------------------------------------------------------------
 
 data PPEnv = PP 
-  { ppPs    :: Bool -- ^ print "foralls"
+  { ppPs    :: Bool -- ^ print "foralls" and abstract-predicates 
   , ppTyVar :: Bool -- ^ print the unique suffix for each tyvar
-  , ppSs    :: Bool -- ^ print the strata (?) and abstract-predicates 
+  , ppSs    :: Bool -- ^ print the strata (?) 
   , ppShort :: Bool -- ^ print the tycons without qualification 
   , ppDebug :: Bool -- ^ gross with full info
   }
@@ -304,6 +304,7 @@ data PPEnv = PP
 
 ppEnv :: PPEnv
 ppEnv = ppEnvDef 
+          { ppPs    = True }   
           { ppDebug = True }   -- RJ: needed for resolution, because pp is used for serialization?
 
 {- | [NOTE:ppEnv] For some mysterious reason, `ppDebug` must equal `True`
