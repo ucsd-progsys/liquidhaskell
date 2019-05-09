@@ -1909,7 +1909,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 -- now just provide "default" Bivariant for mutually rec types.
 -- but there should be a finer solution
        | mutuallyRecursive c c'
-       = concat $ zipWith (goTyConApp pos) (repeat Bivariant) ts
+       = concatMap (goTyConApp pos Bivariant) ts
        | otherwise
        = concat $ zipWith (goTyConApp pos) (makeTyConVariance c') ts
 

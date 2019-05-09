@@ -635,7 +635,8 @@ instance Show (CtxError Doc) where
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
+writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" 
+                          >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 type CError = CtxError Doc
 

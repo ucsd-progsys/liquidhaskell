@@ -1,3 +1,5 @@
+{-@ LIQUID "--typed-holes" @-}
+
 module Hole where 
 
 incr :: Int -> Int 

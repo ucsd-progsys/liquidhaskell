@@ -161,7 +161,7 @@ pprints k c = sep . punctuate c . map (pprintTidy k)
 --------------------------------------------------------------------------------
 rtypeDoc :: (OkRT c tv r) => F.Tidy -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
-rtypeDoc k    = ppr_rtype (ppE k) topPrec
+rtypeDoc k      = ppr_rtype (ppE k) topPrec
   where
     ppE F.Lossy = ppEnvShort ppEnv
     ppE F.Full  = ppEnv
@@ -224,7 +224,7 @@ ppr_rtype _ _ (RHole r)
 
 ppTyConB :: TyConable c => PPEnv -> c -> Doc
 ppTyConB bb
-  | ppShort bb = {- shortModules . -} ppTycon
+  | ppShort bb = shortModules . ppTycon
   | otherwise  = ppTycon
 
 shortModules :: Doc -> Doc
