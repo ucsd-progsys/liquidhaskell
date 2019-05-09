@@ -304,8 +304,12 @@ data PPEnv = PP
 
 ppEnv :: PPEnv
 ppEnv = ppEnvDef 
-          { ppDebug = True }      -- RJ: needed for resolution, because pp is used for serialization?
+          { ppDebug = True }   -- RJ: needed for resolution, because pp is used for serialization?
 
+{- | [NOTE:ppEnv] For some mysterious reason, `ppDebug` must equal `True`
+     or various tests fail e.g. tests/classes/pos/TypeEquality0{0,1}.hs
+     Yikes. Find out why!
+ -}
 
 ppEnvDef :: PPEnv
 ppEnvDef = PP False False False False False
