@@ -108,7 +108,7 @@ config = cmdArgsMode $ Config {
 
  , extensionality
     = def
-          &= help "Allow function extentionality axioms"
+          &= help "Allow function extensionality axioms"
 
  , smtTimeout 
     = def
