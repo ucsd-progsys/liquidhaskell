@@ -1241,7 +1241,7 @@ Invariants
 
 LH lets you locally associate invariants with specific data types.
 
-For example, in [tests/pos/StreamInvariants.hs](tests/pos/StreamInvariants.hs) every
+For example, in [tests/measure/pos/Using00.hs](tests/measure/pos/Using00.hs) every
 list is treated as a Stream. To establish this local invariant one can use the
 `using` declaration
 
@@ -1254,9 +1254,9 @@ calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
 this invariant.
 
-With this, at the [above](tests/neg/StreamInvariants.hs) test LiquidHaskell
+With this, at the [above](tests/measure/neg/Using00.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
-But, at [tests/neg/StreamInvariants.hs](tests/neg/StreamInvariants.hs) the usage of
+But, at [tests/measure/neg/Using00.hs](tests/measure/neg/Using00.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
 
 
