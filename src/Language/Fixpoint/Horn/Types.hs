@@ -112,15 +112,15 @@ instance Show (Var a) where
   show (HVar k xs _) = show k ++ parens (unwords (show <$> xs))
 
 instance Show Pred where
-  show (Reft p) = parens $ F.showpp p
+  show (Reft p)   = parens $ F.showpp p
   show (Var x xs) = parens $ unwords (F.symbolString <$> x:xs)
-  show (PAnd ps) = parens $ unwords $ "and": map show ps
+  show (PAnd ps)  = parens $ unwords $ "and": map show ps
 
 instance Show (Cstr a) where
   show (Head p _) = parens $ show p
-  show (All b c) = parens $ unwords ["forall" , show b , show c]
-  show (Any b c) = parens $ unwords ["exists" , show b , show c]
-  show (CAnd cs) = parens $ unwords $ "and" : map show cs
+  show (All b c)  = parens $ unwords ["forall" , show b , show c]
+  show (Any b c)  = parens $ unwords ["exists" , show b , show c]
+  show (CAnd cs)  = parens $ unwords $ "and" : map show cs
 
 instance Show Bind where
   show (Bind x t p) = parens $ unwords [parens $ unwords [F.symbolString x, F.showpp t], show p]
