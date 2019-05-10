@@ -294,19 +294,23 @@ data TyConMap = TyConMap
 -----------------------------------------------------------------------------
 
 data PPEnv = PP 
-  { ppPs    :: Bool -- ^ print "foralls"
-  , ppTyVar :: Bool -- TODO if set to True all Bare fails
-  , ppSs    :: Bool
-  , ppShort :: Bool
+  { ppPs    :: Bool -- ^ print "foralls" and abstract-predicates 
+  , ppTyVar :: Bool -- ^ print the unique suffix for each tyvar
+  , ppSs    :: Bool -- ^ print the strata (?) 
+  , ppShort :: Bool -- ^ print the tycons without qualification 
   , ppDebug :: Bool -- ^ gross with full info
   }
   deriving (Show)
 
 ppEnv :: PPEnv
 ppEnv = ppEnvDef 
-          { ppTyVar = True }  -- To see UNIQUE SUFFIX on TYVar
-          { ppPs    = True }  -- To see forall and predicates 
-          { ppDebug = True }
+          { ppPs    = True }   
+          { ppDebug = True }   -- RJ: needed for resolution, because pp is used for serialization?
+
+{- | [NOTE:ppEnv] For some mysterious reason, `ppDebug` must equal `True`
+     or various tests fail e.g. tests/classes/pos/TypeEquality0{0,1}.hs
+     Yikes. Find out why!
+ -}
 
 ppEnvDef :: PPEnv
 ppEnvDef = PP False False False False False
@@ -2388,14 +2392,10 @@ instance F.PPrint BTyVar where
   pprintTidy _ (BTV α) = text (F.symbolString α)
 
 instance F.PPrint RTyVar where
-  -- pprintTidy k = pprintTidy k . F.symbol --(RTV α)
   pprintTidy k (RTV α)
-   | ppTyVar ppEnv  = F.pprintTidy k (F.symbol α) -- ppr_tyvar α
-   | otherwise      = ppr_tyvar_short α
+   | ppTyVar ppEnv  = F.pprintTidy k (F.symbol α) -- shows full tyvar
+   | otherwise      = ppr_tyvar_short α           -- drops the unique-suffix
    where
-     -- _ppr_tyvar :: Var -> Doc
-     -- _ppr_tyvar       = text . tvId
-
      ppr_tyvar_short :: TyVar -> Doc
      ppr_tyvar_short = text . showPpr
 

@@ -689,7 +689,7 @@ cconsE' γ e@(Cast e' c) t
   = do t' <- castTy γ (exprType e) e' c
        addC (SubC γ t' t) ("cconsE Cast: " ++ GM.showPpr e)
 
-cconsE' γ (Var x) t | isHoleVar x 
+cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
 
 cconsE' γ e t
