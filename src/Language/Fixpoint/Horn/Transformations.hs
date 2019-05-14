@@ -170,16 +170,38 @@ instance F.Subable Bind where
     substf = undefined
     subst su (Bind x t p) = (Bind x t (F.subst su p))
 
-instance F.Subable Pred where
-    syms = undefined
-    substa = undefined
-    substf = undefined
-    subst su p = substP su p
+-- instance F.Subable Pred where
+--    syms = undefined
+--    substa = undefined
+--    substf = undefined
+--    subst su p = substP su p
 
-substP :: F.Subst -> Pred -> Pred
-substP su (Reft e) = Reft $ F.subst su e
-substP su (PAnd ps) = PAnd $ substP su <$> ps
-substP su (Var k xs) = Var k $ F.subst su xs
+{- move to FP! -}
+instance F.Subable Pred where 
+  syms (Reft e)   = syms e
+  syms (Var _ xs) = xs 
+  syms (PAnd ps)  = concatMap syms ps  
+
+  substa f (Reft e)   = Reft  (F.substa f      e)
+  substa f (Var k xs) = Var k (F.substa f <$> xs)
+  substa f (PAnd ps)  = PAnd  (F.substa f <$> ps) 
+
+  subst su (Reft  e)  = Reft  (F.subst su      e) 
+  subst su (PAnd  ps) = PAnd  (F.subst su <$> ps) 
+  subst su (Var k xs) = Var k (F.subst su <$> xs) 
+ 
+  substf f (Reft  e)  = Reft  (F.substf f      e) 
+  substf f (PAnd  ps) = PAnd  (F.substf f <$> ps) 
+  substf f (Var k xs) = Var k (F.substf f <$> xs) 
+ 
+  subst1 (Reft  e)  su = Reft  (F.subst1 e su) 
+  subst1 (PAnd  ps) su = PAnd  [F.subst1 p su | p <- ps]
+  subst1 (Var k xs) su = Var k [F.subst1 x su | x <- xs]
+
+-- substP :: F.Subst -> Pred -> Pred
+-- substP su (Reft e)   = Reft (F.subst su e)
+-- substP su (PAnd ps)  = PAnd (substP su <$> ps)
+-- substP su (Var k xs) = Var k (F.subst su xs)
 
 ------------------------------------------------------------------------------
 {- |
