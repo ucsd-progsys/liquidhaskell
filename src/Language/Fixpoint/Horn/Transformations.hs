@@ -178,9 +178,9 @@ instance F.Subable Bind where
 
 {- move to FP! -}
 instance F.Subable Pred where 
-  syms (Reft e)   = syms e
+  syms (Reft e)   = F.syms e
   syms (Var _ xs) = xs 
-  syms (PAnd ps)  = concatMap syms ps  
+  syms (PAnd ps)  = concatMap F.syms ps  
 
   substa f (Reft e)   = Reft  (F.substa f      e)
   substa f (Var k xs) = Var k (F.substa f <$> xs)
