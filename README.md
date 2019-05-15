@@ -823,7 +823,7 @@ Any measures used in the refined class definition will need to be
 
 
 As an alternative, you can refine class instances.
-[For example](tests/pos/LiquidClass.hs)
+[For example](tests/classes/pos/Inst00.hs)
 
 ~~~~
 instance Compare Int where
