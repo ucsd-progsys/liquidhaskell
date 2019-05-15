@@ -83,6 +83,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , updateRTVar, isValKind, kindToRType
   , rTVarInfo
 
+  , isNumeric
+
   ) where
 
 -- import           GHC.Stack
@@ -948,7 +950,7 @@ plainRTyConPVars tyi rc = (rc', rTyConPVs rc')
 -- RJ: The code of `isNumeric` is incomprehensible.
 -- Please fix it to use intSort instead of intFTyCon
 isNumeric :: TCEmb TyCon -> RTyCon -> Bool
-isNumeric tce c = mySort == FTC F.intFTyCon || mySort == F.FInt
+isNumeric tce c = F.isNumeric mySort 
   where
     -- mySort      = M.lookupDefault def rc tce
     mySort      = maybe def fst (F.tceLookup rc tce)

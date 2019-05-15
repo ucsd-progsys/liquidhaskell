@@ -3,7 +3,11 @@ module Language.Haskell.Liquid.Synthesize (
   ) where
 
 import           Language.Haskell.Liquid.Types hiding (SVar)
+import           Language.Haskell.Liquid.Constraint.Types
+import qualified Language.Haskell.Liquid.Types.RefType as R
+import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar)
+import qualified Language.Fixpoint.Types.Config as F
 
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char)
 
@@ -13,8 +17,8 @@ import           Data.Default
 
 type SSEnv = M.HashMap Symbol SpecType
 
-synthesize :: SSEnv -> SpecType -> [SExpr]
-synthesize ctx t = [evalState (go t) (initState ctx)]
+synthesize :: FilePath -> F.Config -> CGInfo -> SSEnv -> SpecType -> IO [SExpr]
+synthesize tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
   where 
     -- Type Variable
     go (RVar α _)        = (`synthesizeRVar` α) <$> getSEnv
@@ -25,7 +29,17 @@ synthesize ctx t = [evalState (go t) (initState ctx)]
     -- Type Abstraction 
     go (RAllT _ t)       = go t
     -- Data Type, e.g., c = Int and ts = [] or c = List and ts = [a] 
-    go (RApp _c _ts _ _) = return def 
+    go t@(RApp c _ts _ r)  | R.isNumeric (tyConEmbed cgi) c = do 
+        let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
+        ctx <- sContext <$> get 
+        liftIO $ SMT.smtPush ctx
+        liftIO $ SMT.smtDecl ctx x s 
+        liftIO $ SMT.smtCheckSat ctx rr 
+        -- TODO: get model and parse the value for x 
+        liftIO $ SMT.smtPop ctx
+        return $ tracepp ("numeric with " ++ show r) def
+    go (RApp _c _ts _ _) 
+      = return def 
     -- Type Application, e.g, m a 
     go (RAppTy _ _ _)  = return def 
 
@@ -83,11 +97,15 @@ instance Default SExpr where
 -- The state keeps a unique index for generation of fresh variables 
 -- and the environment of variables to types that is expanded on lambda terms
 
-data SState = SState {ssEnv :: SSEnv, ssIdx :: Int}
-type SM = State SState 
+data SState = SState {ssEnv :: SSEnv, ssIdx :: Int, sContext :: SMT.Context}
+type SM = StateT SState IO
 
-initState :: SSEnv -> SState
-initState ctx = SState ctx 0 
+evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> SSEnv -> IO a 
+evalSM act tgt fcfg cgi env = do 
+  ctx <- SMT.makeContext fcfg tgt  
+  r <- evalStateT act (SState env 0 ctx)
+  SMT.cleanupContext ctx 
+  return r 
 
 getSEnv :: SM SSEnv
 getSEnv = ssEnv <$> get 

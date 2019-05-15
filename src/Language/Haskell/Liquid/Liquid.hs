@@ -37,6 +37,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
+import qualified Language.Fixpoint.Types.Config as F
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.Types.RefType (applySolution)
@@ -216,22 +217,23 @@ instance Show Cinfo where
 solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
-  F.Result r sol _ <- solve (fixConfig tgt cfg) finfo
+  let fcfg          = fixConfig tgt cfg
+  F.Result r sol _ <- solve fcfg finfo
   let resErr        = applySolution sol . cinfoError . snd <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
-  let lErrors       = (synthesizeHole . applySolution sol) <$> logErrors cgi
+  lErrors          <- mapM (synthesizeHole tgt fcfg cgi . applySolution sol) $ logErrors cgi
   let resModel      = resModel_  `addErrors` (e2u cfg sol <$> lErrors)
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
 
-synthesizeHole :: Error -> Error 
-synthesizeHole e@(ErrHole {..}) 
-  = e{msg = fmsg} 
-  where fills = synthesize ctx thl
-        fmsg  = if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty 
-synthesizeHole e = e
+synthesizeHole :: FilePath -> F.Config -> CGInfo -> Error -> IO Error 
+synthesizeHole tgt fcfg cgi e@(ErrHole {..}) = do 
+  fills    <- synthesize tgt fcfg cgi ctx thl
+  let fmsg  = if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty
+  return $ e{msg = fmsg} 
+synthesizeHole _ _ _ e = return e
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
 e2u cfg s = fmap F.pprint . tidyError cfg s
