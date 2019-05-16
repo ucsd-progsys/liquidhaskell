@@ -14,6 +14,9 @@ import           Text.PrettyPrint.HughesPJ ((<+>), text, char)
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Data.Default 
+import qualified Data.Text as T
+import           Data.Maybe
+import Debug.Trace 
 
 type SSEnv = M.HashMap Symbol SpecType
 
@@ -35,9 +38,12 @@ synthesize tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
         liftIO $ SMT.smtPush ctx
         liftIO $ SMT.smtDecl ctx x s 
         liftIO $ SMT.smtCheckSat ctx rr 
+        SMT.Model modelBinds <- (liftIO $ SMT.smtGetModel ctx) 
         -- TODO: get model and parse the value for x 
+        let xNotFound = error ("Symbol " ++ show x ++ "not found.")
+        let smtVal = T.unpack (fromMaybe xNotFound $ lookup x modelBinds)
         liftIO $ SMT.smtPop ctx
-        return $ tracepp ("numeric with " ++ show r) def
+        return $ tracepp ("numeric with " ++ show r) (SVar $ symbol smtVal)
     go (RApp _c _ts _ _) 
       = return def 
     -- Type Application, e.g, m a 
