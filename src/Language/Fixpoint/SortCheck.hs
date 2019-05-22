@@ -944,8 +944,8 @@ checkRel f r  e1 e2 = do
 
 
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
-checkRelTy _ _ Ueq s1 s2     = unless (s1 /= boolSort && s2 /= boolSort) (throwErrorAt $ errRel e s1 s2)
-checkRelTy _ _ Une s1 s2     = return ()
+checkRelTy _ e Ueq s1 s2     = checkURel e s1 s2
+checkRelTy _ e Une s1 s2     = checkURel e s1 s2 
 checkRelTy f _ _ s1@(FObj l) s2@(FObj l') | l /= l'
                              = (checkNumeric f s1 >> checkNumeric f s2) `withError` (errNonNumerics l l')
 checkRelTy _ _ _ FReal FReal = return ()
@@ -959,7 +959,8 @@ checkRelTy f e Eq t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (er
 checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (errRel e t1 t2))
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
-
+checkURel :: Expr -> Sort -> Sort -> CheckM ()
+checkURel e s1 s2 = unless (s1 /= boolSort && s2 /= boolSort) (throwErrorAt $ errRel e s1 s2)
 
 --------------------------------------------------------------------------------
 -- | Sort Unification on Expressions
