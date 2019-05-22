@@ -82,10 +82,16 @@ merge (Node lx ll lr) (Node rx rl rr)
 {-@ extract     :: tx:Tree a -> (x :: a, {t:Tree a | size t = size tx - 1 && tElts tx = sAdd1 x (tElts t)}) @-}
 {-@ replaceRoot :: x:a -> t:{_ | 0 < size t} -> {v:_ | size v == size t && tElts v = sAdd1 x (tElts' t)} @-}
 
+rr x (Node _ (Node (lx ll lr)) (Node (rx rl rr))) 
+  | x <= lx && x <= lr = undefined
+  | x <= lx && x >  lr = undefined
+
 {-@ measure tElts' @-}
 tElts' :: (Ord a) => Tree a -> S.Set a
 tElts' Empty        = S.empty
 tElts' (Node _ l r) = (tElts l) `S.union` (tElts r)
+
+
 
 {- 
 
