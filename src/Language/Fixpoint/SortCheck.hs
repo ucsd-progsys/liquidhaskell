@@ -960,7 +960,10 @@ checkRelTy f e Ne t1 t2      = void (unifys f (Just e) [t1] [t2] `withError` (er
 checkRelTy _ e _  t1 t2      = unless (t1 == t2) (throwErrorAt $ errRel e t1 t2)
 
 checkURel :: Expr -> Sort -> Sort -> CheckM ()
-checkURel e s1 s2 = unless (s1 /= boolSort && s2 /= boolSort) (throwErrorAt $ errRel e s1 s2)
+checkURel e s1 s2 = unless (b1 == b2) (throwErrorAt $ errRel e s1 s2)
+  where 
+    b1            = s1 == boolSort
+    b2            = s2 == boolSort
 
 --------------------------------------------------------------------------------
 -- | Sort Unification on Expressions
