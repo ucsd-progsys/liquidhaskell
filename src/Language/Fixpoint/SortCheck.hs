@@ -944,10 +944,10 @@ checkRel f r  e1 e2 = do
 
 
 checkRelTy :: Env -> Expr -> Brel -> Sort -> Sort -> CheckM ()
-checkRelTy _ _ Ueq _ _             = return ()
-checkRelTy _ _ Une _ _             = return ()
+checkRelTy _ _ Ueq s1 s2     = unless (s1 /= boolSort && s2 /= boolSort) (throwErrorAt $ errRel e s1 s2)
+checkRelTy _ _ Une s1 s2     = return ()
 checkRelTy f _ _ s1@(FObj l) s2@(FObj l') | l /= l'
-  = (checkNumeric f s1 >> checkNumeric f s2) `withError` (errNonNumerics l l')
+                             = (checkNumeric f s1 >> checkNumeric f s2) `withError` (errNonNumerics l l')
 checkRelTy _ _ _ FReal FReal = return ()
 checkRelTy _ _ _ FInt  FReal = return ()
 checkRelTy _ _ _ FReal FInt  = return ()
