@@ -79,14 +79,15 @@ hornFInfo q    = mempty
   , F.bs       = be2  
   , F.ebinds   = ebs
   , F.ws       = kvEnvWfCs kve 
-  , F.quals    = H.qQuals q 
+  , F.quals    = H.qQuals q ++ H.quals hCst 
   , F.gLits    = F.fromMapSEnv $ H.qCon q
   , F.dLits    = F.fromMapSEnv $ H.qDis q
   } 
   where 
     be0        = F.emptyBindEnv
     (be1, kve) = hornWfs   be0     (H.qVars q)
-    (be2, ebs, cs)  = hornSubCs be1 kve (H.qCstr q)
+    (be2, ebs, cs) = hornSubCs be1 kve hCst 
+    hCst       = H.qCstr q
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a 
@@ -173,7 +174,7 @@ kvInfo be k       = (be', KVInfo k (fst <$> xts) wfc)
     (be', ids)    = L.mapAccumL insertBE be xts' 
     ((x,t), xts') = Misc.safeUncons "Horn var with no args" xts 
     -- make the parameters
-    xts           = [ (hvarArg k i, t) | (t, i) <- zip (H.hvArgs k) [0..] ]
+    xts           = F.tracepp "kvInfo-arg" [ (hvarArg k i, t) | (t, i) <- zip (H.hvArgs k) [0..] ]
 
 insertBE :: F.BindEnv -> (F.Symbol, F.Sort) -> (F.BindEnv, F.BindId)
 insertBE be (x, t) = Tuple.swap $ F.insertBindEnv x (F.trueSortedReft t) be
