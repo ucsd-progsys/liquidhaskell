@@ -174,7 +174,7 @@ kvInfo be k       = (be', KVInfo k (fst <$> xts) wfc)
     (be', ids)    = L.mapAccumL insertBE be xts' 
     ((x,t), xts') = Misc.safeUncons "Horn var with no args" xts 
     -- make the parameters
-    xts           = F.tracepp "kvInfo-arg" [ (hvarArg k i, t) | (t, i) <- zip (H.hvArgs k) [0..] ]
+    xts           = [ (hvarArg k i, t) | (t, i) <- zip (H.hvArgs k) [0..] ]
 
 insertBE :: F.BindEnv -> (F.Symbol, F.Sort) -> (F.BindEnv, F.BindId)
 insertBE be (x, t) = Tuple.swap $ F.insertBindEnv x (F.trueSortedReft t) be
