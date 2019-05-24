@@ -1,7 +1,7 @@
 // TODO move to actual SMTLIB format 
 (fixpoint "--eliminate=horn")
 
-(var $k0 (Int))
+(var $k0 ((Int)))
 
 (qualif Foo ((v Int)) ((v > 100)))
 

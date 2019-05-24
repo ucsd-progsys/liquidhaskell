@@ -1,6 +1,6 @@
 (fixpoint "--eliminate=horn")
 
-(var $k (Int))
+(var $k ((Int)))
 
 (constraint
   (forall ((x Int) (x >= 0))

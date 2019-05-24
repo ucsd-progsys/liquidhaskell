@@ -1,6 +1,6 @@
 (qualif Bar ((v int)) (v >= 0))
 
-(var $k_##1 (Int))
+(var $k_##1 ((Int)))
 
 (constraint
   (and

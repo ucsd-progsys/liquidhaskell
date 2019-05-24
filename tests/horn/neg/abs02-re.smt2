@@ -1,5 +1,5 @@
-(var $k_##1 (Int Int))
-(var $k_##3 (Int Int))
+(var $k_##1 ((Int) (Int)))
+(var $k_##3 ((Int) (Int)))
 
 (constraint
   (and

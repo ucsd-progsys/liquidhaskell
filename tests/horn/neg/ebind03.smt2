@@ -1,5 +1,5 @@
-(var $ka (Int))
-(var $kb (Int))
+(var $ka ((Int)))
+(var $kb ((Int)))
 
 (constraint
 (and

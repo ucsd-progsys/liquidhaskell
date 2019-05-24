@@ -79,7 +79,7 @@ hornFInfo q    = mempty
   , F.bs       = be2  
   , F.ebinds   = ebs
   , F.ws       = kvEnvWfCs kve 
-  , F.quals    = H.qQuals q ++ H.quals hCst 
+  , F.quals    = H.qQuals q
   , F.gLits    = F.fromMapSEnv $ H.qCon q
   , F.dLits    = F.fromMapSEnv $ H.qDis q
   } 

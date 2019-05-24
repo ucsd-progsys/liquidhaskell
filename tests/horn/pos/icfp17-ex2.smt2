@@ -1,7 +1,7 @@
 (fixpoint "--eliminate=horn")
 
-(var $kx (Int))
-(var $ky (Int))
+(var $kx ((Int)))
+(var $ky ((Int)))
 
 (constraint
   (forall ((x Int) (x >= 0))

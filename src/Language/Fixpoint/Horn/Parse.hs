@@ -97,7 +97,7 @@ mkParam (x, t) = F.QP x F.PatNone t
 -------------------------------------------------------------------------------
 
 hVarP :: Parser (H.Var ())
-hVarP = H.HVar <$> kvSymP <*> parens (many1 sortP) <*> pure ()
+hVarP = H.HVar <$> kvSymP <*> parens (many1 (parens sortP)) <*> pure ()
 
 -------------------------------------------------------------------------------
 -- | Helpers 
