@@ -4,6 +4,7 @@
 --   constraints as described in "Local Refinement Typing", ICFP 2017
 -------------------------------------------------------------------------------
 
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -24,12 +25,17 @@ module Language.Fixpoint.Horn.Types
     -- * invariants (refinements) on constraints 
   , okCstr 
   , dummyBind
+
+    -- * extract qualifiers 
+  , quals
   ) 
   where 
 
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
+import qualified Data.List               as L
+import qualified Language.Fixpoint.Misc  as Misc
 import qualified Language.Fixpoint.Types as F
 import qualified Text.PrettyPrint.HughesPJ.Compat as P
 import qualified Data.HashMap.Strict as M
@@ -52,8 +58,57 @@ data Pred
   | Var   !F.Symbol ![F.Symbol]                 -- ^ $k(y1..yn) 
   | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn 
   deriving (Data, Typeable, Generic, Eq)
-   
+
 -------------------------------------------------------------------------------
+quals :: Cstr a -> [F.Qualifier] 
+-------------------------------------------------------------------------------
+quals = F.tracepp "horn.quals" . cstrQuals F.emptySEnv F.vv_  
+
+cstrQuals :: F.SEnv F.Sort -> F.Symbol -> Cstr a -> [F.Qualifier] 
+cstrQuals = go 
+  where
+    go env v (Head p _)  = predQuals env v p
+    go env v (CAnd   cs) = concatMap (go env v) cs
+    go env _ (All  b c)  = bindQuals env b c 
+    go env _ (Any  b c)  = bindQuals env b c
+
+bindQuals  :: F.SEnv F.Sort -> Bind -> Cstr a -> [F.Qualifier] 
+bindQuals env b c = predQuals env' bx (bPred b) ++ cstrQuals env' bx c 
+  where 
+    env'          = F.insertSEnv bx bt env
+    bx            = bSym b
+    bt            = bSort b
+
+predQuals :: F.SEnv F.Sort -> F.Symbol -> Pred -> [F.Qualifier]
+predQuals env v (Reft p)  = exprQuals env v p
+predQuals env v (PAnd ps) = concatMap (predQuals env v) ps
+predQuals _   _ _         = [] 
+
+exprQuals :: F.SEnv F.Sort -> F.Symbol -> F.Expr -> [F.Qualifier]
+exprQuals env v e = mkQual env v <$> F.conjuncts e
+
+mkQual :: F.SEnv F.Sort -> F.Symbol -> F.Expr -> F.Qualifier
+mkQual env v p = case envSort env <$> (v:xs) of
+                   (_,so):xts -> F.mkQ "Auto" ((v, so) : xts) p junk 
+                   _          -> F.panic "impossible"
+  where
+    xs         = L.delete v $ Misc.hashNub (F.syms p)
+    junk       = F.dummyPos "mkQual" 
+
+envSort :: F.SEnv F.Sort -> F.Symbol -> (F.Symbol, F.Sort)
+envSort env x = case F.lookupSEnv x env of
+                   Just t -> (x, t) 
+                   _      -> F.panic $ "unbound symbol in scrape: " ++ F.showpp x
+{- 
+  | Just _ <- lookupSEnv x lEnv = Nothing
+  | otherwise                   = Just (x, ai)
+  where
+    ai             = trace msg $ fObj $ Loc l l $ tempSymbol "LHTV" i
+    msg            = "Unknown symbol in qualifier: " ++ show x
+-}
+
+
+--------------------------------------------------------------------------------
 -- | @Cst@ is an NNF Horn Constraint. 
 -------------------------------------------------------------------------------
 -- Note that a @Bind@ is a simplified @F.SortedReft@ ...

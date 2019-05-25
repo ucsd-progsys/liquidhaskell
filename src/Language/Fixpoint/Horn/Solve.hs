@@ -79,14 +79,15 @@ hornFInfo q    = mempty
   , F.bs       = be2  
   , F.ebinds   = ebs
   , F.ws       = kvEnvWfCs kve 
-  , F.quals    = H.qQuals q 
+  , F.quals    = H.qQuals q
   , F.gLits    = F.fromMapSEnv $ H.qCon q
   , F.dLits    = F.fromMapSEnv $ H.qDis q
   } 
   where 
     be0        = F.emptyBindEnv
     (be1, kve) = hornWfs   be0     (H.qVars q)
-    (be2, ebs, cs)  = hornSubCs be1 kve (H.qCstr q)
+    (be2, ebs, cs) = hornSubCs be1 kve hCst 
+    hCst       = H.qCstr q
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a 

@@ -1,4 +1,4 @@
-(var $k (Int))
+(var $k ((Int)))
 
 (constraint
   (forall ((m Int) (true))
