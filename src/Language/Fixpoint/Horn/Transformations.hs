@@ -22,10 +22,14 @@ import           Control.Monad.State
 import           Data.Maybe                   (catMaybes, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
--- import           Debug.Trace
+import           Debug.Trace hiding (trace)
+import qualified Debug.Trace
 
-trace :: p -> a -> a
-trace _ = id
+_DBG :: Bool
+_DBG = False
+
+trace :: String -> a -> a
+trace = if _DBG then Debug.Trace.trace else const id
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -125,14 +129,14 @@ solveEbs (Query qs vs c cons dist) = do
         whenLoud $ putStrLn $ F.showpp elimSol
         let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
       
-        let hornFinal = M.foldrWithKey applyPi horn elimSol
+        let hornFinal = hornify $ M.foldrWithKey applyPi horn elimSol
         whenLoud $ putStrLn "Final Horn:"
         whenLoud $ putStrLn $ F.showpp hornFinal
       
         let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
         whenLoud $ putStrLn "PreElim Side:"
         whenLoud $ putStrLn $ F.showpp sideCstr
-        let sideEE = hornify $ elimE undefined sideCstr
+        let sideEE = hornify $ traceShowId $ elimE undefined sideCstr
         whenLoud $ putStrLn "Final Side:"
         whenLoud $ putStrLn $ F.showpp sideEE
       
@@ -149,16 +153,16 @@ elimE _m (Any _ _) = error "oops"
 
 hornify :: Cstr a -> Cstr a
 hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
-  where ps' = let (ks, qs) = split ps [] [] in PAnd qs : ks
+  where ps' = let (ks, qs) = split [] [] (flatten ps) in PAnd qs : ks
 
-        split ks ps ((Var x xs):qs) = split ((Var x xs):ks) ps qs
-        split ks ps (q:qs) = split ks (q:ps) qs
-        split ks ps [] = (ks, ps)
+        split kacc pacc ((Var x xs):qs) = split ((Var x xs):kacc) pacc qs
+        split kacc pacc (q:qs) = split kacc (q:pacc) qs
+        split kacc pacc [] = (kacc, pacc)
 hornify (Head (Reft r) a) = CAnd (flip Head a <$> ((Reft $ F.PAnd ps):(Reft <$> ks)))
   where (ks, ps) = split [] [] $ F.splitPAnd r
-        split ks ps (r@F.PKVar{}:rs) = split (r:ks) ps rs
-        split ks ps (r:rs) = split ks (r:ps) rs
-        split ks ps [] = (ks,ps)
+        split kacc pacc (r@F.PKVar{}:rs) = split (r:kacc) pacc rs
+        split kacc pacc (r:rs) = split kacc (r:pacc) rs
+        split kacc pacc [] = (kacc,pacc)
 hornify (Head h a) = Head h a
 hornify (All b c) = All b $ hornify c
 hornify (Any b c) = Any b $ hornify c
