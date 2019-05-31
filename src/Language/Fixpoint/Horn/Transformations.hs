@@ -84,6 +84,20 @@ instance Flatten [Pred] where
     where fp = flatten p
   flatten []              = []
 
+instance Flatten F.Expr where
+  flatten (F.PAnd ps) = case flatten ps of
+                         [p] -> p
+                         ps  -> F.PAnd ps
+  flatten p = p
+
+instance Flatten [F.Expr] where
+  flatten (F.PAnd ps' : ps) = flatten ps' ++ flatten ps
+  flatten (p : ps)
+    | F.isTautoPred fp    = flatten ps
+    | otherwise           = fp : flatten ps
+    where fp = flatten p
+  flatten []              = []
+
 type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
 ------------------------------------------------------------------------------
 -- | solveEbs has some preconditions
@@ -115,19 +129,19 @@ solveEbs (Query qs vs c cons dist) = do
         let ns = fst <$> ebs c
         let l0 = cLabel horn
         let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]] -- :: Sol a
-        whenLoud $ putStrLn "Pisols:"
+        -- whenLoud $ putStrLn "Pisols:"
         -- whenLoud $ putStrLn $ F.showpp $ pisols
       
         -- find solutions to the kvars, put them on the Right of the map
         let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs] -- :: Sol
-        -- whenLoud $ putStrLn "Horn Elim:"
-        -- whenLoud $ putStrLn $ F.showpp ksols
       
         let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
         whenLoud $ putStrLn "QE sols:"
-        let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft p) l0 | p <- sol]
+        let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft $ flatten p) l0 | p <- sol]
         whenLoud $ putStrLn $ F.showpp elimSol
         let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
+        whenLoud $ putStrLn "kSol:"
+        whenLoud $ putStrLn $ F.showpp kSol
       
         let hornFinal = hornify $ M.foldrWithKey applyPi horn elimSol
         whenLoud $ putStrLn "Final Horn:"
