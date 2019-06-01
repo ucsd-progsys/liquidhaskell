@@ -12,6 +12,7 @@ extra-deps:
 - located-base-0.1.1.1
 - text-format-0.3.2
 - tasty-rerun-1.1.14
+- unordered-containers-0.2.10.0
 
 flags:
   liquidhaskell:

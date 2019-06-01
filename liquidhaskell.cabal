@@ -119,6 +119,7 @@ library
                       Language.Haskell.Liquid.Parse
                       Language.Haskell.Liquid.Prelude
                       Language.Haskell.Liquid.ProofCombinators
+                      Language.Haskell.Liquid.Synthesis
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic
