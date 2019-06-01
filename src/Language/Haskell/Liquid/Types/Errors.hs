@@ -223,11 +223,11 @@ data TError t =
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrHole    { pos :: !SrcSpan
-               , msg :: !Doc
-               , ctx :: !(M.HashMap Symbol t)
-               , var :: !Doc 
-               , thl :: !t 
+  | ErrHole    { pos  :: !SrcSpan
+               , msg  :: !Doc
+               , ctx  :: !(M.HashMap Symbol t)
+               , svar :: !Symbol 
+               , thl  :: !t 
                } -- ^ hole type 
 
   | ErrAssType { pos  :: !SrcSpan

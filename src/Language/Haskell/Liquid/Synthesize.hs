@@ -6,10 +6,11 @@ import           Language.Haskell.Liquid.Types hiding (SVar)
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as R
 import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Types hiding (SEnv, SVar)
+import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
+import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
 
-import           Text.PrettyPrint.HughesPJ ((<+>), text, char)
+import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
@@ -20,8 +21,18 @@ import           Debug.Trace
 
 type SSEnv = M.HashMap Symbol SpecType
 
-synthesize :: FilePath -> F.Config -> CGInfo -> SSEnv -> SpecType -> IO [SExpr]
-synthesize tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
+
+synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
+synthesize tgt fcfg cgi = concat <$> (mapM go $ M.toList (holesMap cgi))
+  where 
+    go (x, hinfo) = mapM (go1 x) hinfo 
+    go1 x (HoleInfo t loc env) = do 
+      fills <- synthesize' tgt fcfg cgi (reGlobal env <> reLocal env) t 
+      return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
+                       mempty (symbol x) t 
+
+synthesize' :: FilePath -> F.Config -> CGInfo -> SSEnv -> SpecType -> IO [SExpr]
+synthesize' tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
   where 
 
     -- Is it good to push and pop here or in (1)??
@@ -221,3 +232,11 @@ substInFExpr pn nn e =
     PExist _ _expr -> error "PExist not implemented yet" 
     PGrad _kvar _subst _gradInfo _expr -> error "PGrad not implemented yet"
     ECoerc _sort1 _sort2 _expr -> error "ECoerc not implemented yet"  
+
+
+-------------------------------------------------------------------------------
+-- | Misc ---------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+pprintMany :: (PPrint a) => [a] -> Doc
+pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
