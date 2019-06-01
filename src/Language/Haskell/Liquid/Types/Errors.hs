@@ -730,9 +730,10 @@ ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
 
-ppError' _td dSp _dCtx (ErrHole _ _ _ x t)
+ppError' _td dSp _dCtx (ErrHole _ msg _ x t)
   = dSp <+> "Hole Found"
         $+$ pprint x <+> "::" <+> pprint t 
+        $+$ msg
 
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"
