@@ -246,8 +246,9 @@ solveCs cfg tgt cgi info names = do
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
   let lErrors       = applySolution sol <$> logErrors cgi
-                     -- NV todo: apply solution here?
-  hErrors          <- if (typedHoles cfg) then synthesize tgt fcfg cgi else return [] 
+  hErrors          <- if (typedHoles cfg) 
+                        then synthesize tgt fcfg (cgi{holesMap = fmap (applySolution sol) <$> holesMap  cgi}) 
+                        else return [] 
   let resModel      = resModel_  `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
