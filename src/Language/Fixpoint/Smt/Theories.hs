@@ -63,7 +63,7 @@ import           Data.String                 (IsString(..))
 
 elt, set, map :: Raw
 elt  = "Elt"
-set  = "Set"
+set  = "LSet"
 map  = "Map"
 
 emp, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
