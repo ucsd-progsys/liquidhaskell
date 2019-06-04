@@ -23,10 +23,9 @@ type SSEnv = M.HashMap Symbol SpecType
 
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
-synthesize tgt fcfg cgi = concat <$> (mapM go $ M.toList (holesMap cgi))
+synthesize tgt fcfg cgi = mapM go $ M.toList (holesMap cgi)
   where 
-    go (x, hinfo) = mapM (go1 x) hinfo 
-    go1 x (HoleInfo t loc env) = do 
+    go (x, HoleInfo t loc env) = do 
       fills <- synthesize' tgt fcfg cgi (reGlobal env <> reLocal env) t 
       return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
                        mempty (symbol x) t 

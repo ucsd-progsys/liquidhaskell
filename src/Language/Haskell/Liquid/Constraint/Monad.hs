@@ -122,10 +122,10 @@ addLocA !xo !l !t
 
 addHole :: Var -> SpecType -> CGEnv -> CG () 
 addHole x t γ = do 
-  modify $ \s -> s {holesMap = M.insertWith (<>) x hinfo $ holesMap s}
+  modify $ \s -> s {holesMap = M.insert x hinfo $ holesMap s}
   -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
     where 
-      hinfo = [HoleInfo t loc env]
+      hinfo = HoleInfo t loc env
       loc   = srcSpan $ cgLoc γ
       env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
       x'    = F.symbol x -- text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
