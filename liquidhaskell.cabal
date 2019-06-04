@@ -194,7 +194,7 @@ library
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
   default-language:   Haskell98
-  default-extensions: PatternGuards
+  default-extensions: PatternGuards, RecordWildCards
   ghc-options:        -W -fwarn-missing-signatures
 
   if flag(include)

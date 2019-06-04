@@ -1,12 +1,15 @@
 module Language.Haskell.Liquid.Synthesis where
 
+import qualified Data.Graph as G
 import           Data.Hashable
 import           Data.HashSet (HashSet)
 import qualified Data.HashSet as Set
 import qualified Data.HashMap.Strict as M
 import           Prelude
 
+import qualified Language.Fixpoint.Types                    as F
 import           Language.Haskell.Liquid.Types
+import           Util (sndOf3)
 import           Var
 
 
@@ -15,16 +18,16 @@ import           Var
 -- synthesize :: Var -> SpecType -> Env -> [Expr]
 -- synthesize _ _ _ = []
 
-data Graph a = Graph {
-      rootNodes :: HashSet a
-    , graphEdges :: M.HashMap a (HashSet a)
-    }
+-- data Graph a = Graph {
+--       rootNodes :: HashSet a
+--     , graphEdges :: M.HashMap a (HashSet a)
+--     }
 
 -- | Builds a dependency graph where an edge from hole a to hole b indicates hole b is dependent on hole a.
 -- Root holes are not dependent on other holes.
 -- Returns Nothing if a cycle is detected.
-holeDependencyGraph :: M.HashMap Var (HoleInfo SpecType) -> Maybe (Graph Var)
-holeDependencyGraph holeMap = 
+holeDependencyOrder :: M.HashMap Var (HoleInfo SpecType) -> Maybe [Var]
+holeDependencyOrder holeMap = 
     let seen = Set.empty in
     let holes = M.keys holeMap in
 
@@ -38,19 +41,28 @@ holeDependencyGraph holeMap =
 
         Just deps ->
 
-            -- Invert edges.
-            let edges = M.fromListWith mappend $ invert deps in
-
-            -- Find root nodes.
-            let roots = findRoots edges in
-
             -- Build graph.
-            Just $ Graph roots edges
+            let (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges deps in
+
+            -- Sort by partial ordering.
+            let vertices = reverse $ G.topSort graph in -- JP: Use revTopSort if they merge.
+
+            Just $ map (sndOf3 . nodeFromVertex) vertices
+
+
+            -- -- Invert edges.
+            -- let edges = M.fromListWith mappend $ invert deps in
+
+            -- -- Find root nodes.
+            -- let roots = findRoots edges in
+
+            -- -- Build graph.
+            -- Just $ Graph roots edges
 
 
     where
-        zipL :: (a -> Maybe [a]) -> a -> Maybe (a, [a])
-        zipL f x = (\y -> (x,y)) <$> f x
+        zipL :: (a -> Maybe [a]) -> a -> Maybe ((), a, [a])
+        zipL f x = (\y -> ((),x,y)) <$> f x
 
         -- Find all holes that this hole is dependent on.
         findDependencies :: HashSet Var -> Var -> Maybe [Var]
@@ -67,6 +79,8 @@ holeDependencyGraph holeMap =
             let seen = Set.insert v seen' in
 
             -- Lookup refinement type of v in environment.
+            let reft = lookupAREnv v in
+
             -- Get set of variables in reft of v.
             -- Remove v from set of variables.
             -- Recursively find dependencies of set of variables.
@@ -76,15 +90,29 @@ holeDependencyGraph holeMap =
             
             error "TODO"
 
-        -- Expand edges and reverse the direction.
-        invert :: Hashable a => [(a,[a])] -> [(a,HashSet a)]
-        invert = concatMap (\(a, bs) -> map (\b -> ( b, Set.singleton a)) bs)
-        
-        -- Find root nodes (Nodes that do not have edges pointed towards them).
-        findRoots :: (Hashable a, Eq a) => M.HashMap a (HashSet a) -> HashSet a
-        findRoots m =
-            let holes = M.keysSet m in
-            M.foldr (\towards acc -> Set.difference acc towards) holes m
+        -- JP: Does a function like this already exist?
+        -- What's the right way to convert Var to Symbol?
+        lookupAREnv :: Var -> AREnv t -> Maybe t
+        lookupAREnv v REnv{..} = 
+            let s = F.symbol v in
+
+            -- Lookup local first.
+            case M.lookup s reLocal of
+                Just r -> 
+                    Just r
+                Nothing -> 
+                    -- Lookup global next.
+                    M.lookup s reGlobal
+                        
+        -- -- Expand edges and reverse the direction.
+        -- invert :: Hashable a => [(a,[a])] -> [(a,HashSet a)]
+        -- invert = concatMap (\(a, bs) -> map (\b -> ( b, Set.singleton a)) bs)
+        -- 
+        -- -- Find root nodes (Nodes that do not have edges pointed towards them).
+        -- findRoots :: (Hashable a, Eq a) => M.HashMap a (HashSet a) -> HashSet a
+        -- findRoots m =
+        --     let holes = M.keysSet m in
+        --     M.foldr (\towards acc -> Set.difference acc towards) holes m
 
 
         
