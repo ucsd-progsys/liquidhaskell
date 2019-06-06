@@ -22,7 +22,7 @@ holeDependencyOrder holeMap =
     let holes = M.toList holeMap in
 
     -- Find hole's dependencies.
-    let deps = map (zipL $ findDependencies seen) holes in
+    let deps = map (zipL $ (fmap Set.toList . findDependencies seen)) holes in
 
     -- Return Nothing if cycle found.
     case sequence deps of
@@ -45,30 +45,47 @@ holeDependencyOrder holeMap =
         zipL f x@(k,_) = (\y -> (x,k,y)) <$> f x
 
         -- Find all holes that this hole is dependent on.
-        findDependencies :: HashSet Var -> (Var, HoleInfo SpecType) -> Maybe [Var]
+        findDependencies :: HashSet Var -> (Var, HoleInfo SpecType) -> Maybe (HashSet Var)
         findDependencies seen (v, _) | v `Set.member` seen = 
             if v `M.member` holeMap then 
                 -- If we've seen this hole before, there's a cycle.
                 Nothing
             else
                 -- Otherwise, we're done.
-                Just [] -- JP: Should we return Nothing here too?
+                Just mempty -- JP: Should we return Nothing here too?
                 
         findDependencies seen' (v, hi) =
             -- Add v to seen.
             let seen = Set.insert v seen' in
 
             -- Lookup refinement type of v in environment.
-            let reft = lookupAREnv v $ henv hi in
-
-            -- Get set of variables in reft of v.
-            -- Remove v from set of variables.
-            -- Recursively find dependencies of set of variables.
-            -- Check if there are any cycles in dependencies.
-            -- Union all dependencies.
-            -- Return all dependencies that are holes.
+            let reftM = lookupAREnv v $ henv hi in
             
-            error "TODO"
+            case reftM of
+                Nothing ->
+                    -- JP: What do we do if it's not in the environment? Is it an error? Or it has no dependencies?
+                    error "JP: findDependencies - what do we do here?"
+                Just reft ->
+
+                    -- Get set of variables in reft of v.
+                    let vars' = reftToVars reft in
+
+                    -- Remove v from set of variables.
+                    -- JP: Should it be an error if v `member` vars'?
+                    let vars = Set.delete v vars' in
+
+                    -- Recursively find dependencies of set of variables.
+                    let deps' = sequence $ map (\v -> findDependencies seen (v, hi)) $ Set.toList vars in -- JP: Reuse `hi`?
+
+                    -- Check if there are any cycles in dependencies.
+                    -- JP: Do we need to do this here? We do it earlier already?
+                    
+                    -- Union all dependencies.
+                    let deps = (Set.unions . (vars:)) <$> (deps') in
+
+                    -- Return all dependencies that are holes.
+                    Set.filter (`M.member` holeMap) <$> deps
+                    
 
         -- JP: Does a function like this already exist?
         -- What's the right way to convert Var to Symbol?
@@ -83,4 +100,18 @@ holeDependencyOrder holeMap =
                 Nothing -> 
                     -- Lookup global next.
                     M.lookup s reGlobal
+
+        reftToVars :: SpecType -> HashSet Var
+        reftToVars (RVar v t)                 = error "TODO"
+        reftToVars (RFun bind rin rout reft)  = error "TODO"
+        reftToVars (RImpF bind rin rout reft) = error "TODO"
+        reftToVars (RAllT bind ty)            = error "TODO"
+        reftToVars (RAllP bind ty)            = error "TODO"
+        reftToVars (RApp con args pargs reft) = error "TODO"
+        reftToVars (RAllE bind all ty)        = error "TODO"
+        reftToVars (REx bind exarg ty)        = error "TODO"
+        reftToVars (RExprArg lExpr)           = error "TODO"
+        reftToVars (RAppTy arg res reft)      = error "TODO"
+        reftToVars (RRTy env ref ob ty)       = error "TODO"
+        reftToVars (RHole r)                  = error "TODO"
                         
