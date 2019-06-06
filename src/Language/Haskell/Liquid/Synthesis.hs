@@ -9,27 +9,17 @@ import           Prelude
 
 import qualified Language.Fixpoint.Types                    as F
 import           Language.Haskell.Liquid.Types
-import           Util (sndOf3)
+import           Util (fstOf3)
 import           Var
 
-
--- JP: What if there are multiple holes in the expression?
--- 
--- synthesize :: Var -> SpecType -> Env -> [Expr]
--- synthesize _ _ _ = []
-
--- data Graph a = Graph {
---       rootNodes :: HashSet a
---     , graphEdges :: M.HashMap a (HashSet a)
---     }
 
 -- | Builds a dependency graph where an edge from hole a to hole b indicates hole b is dependent on hole a.
 -- Root holes are not dependent on other holes.
 -- Returns Nothing if a cycle is detected.
-holeDependencyOrder :: M.HashMap Var (HoleInfo SpecType) -> Maybe [Var]
+holeDependencyOrder :: M.HashMap Var (HoleInfo SpecType) -> Maybe [(Var, HoleInfo SpecType)]
 holeDependencyOrder holeMap = 
     let seen = Set.empty in
-    let holes = M.keys holeMap in
+    let holes = M.toList holeMap in
 
     -- Find hole's dependencies.
     let deps = map (zipL $ findDependencies seen) holes in
@@ -42,44 +32,34 @@ holeDependencyOrder holeMap =
         Just deps ->
 
             -- Build graph.
-            let (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges deps in
+            let (graph, nodeFromVertex, _vertexFromKey) = G.graphFromEdges deps in
 
             -- Sort by partial ordering.
             let vertices = reverse $ G.topSort graph in -- JP: Use revTopSort if they merge.
 
-            Just $ map (sndOf3 . nodeFromVertex) vertices
-
-
-            -- -- Invert edges.
-            -- let edges = M.fromListWith mappend $ invert deps in
-
-            -- -- Find root nodes.
-            -- let roots = findRoots edges in
-
-            -- -- Build graph.
-            -- Just $ Graph roots edges
+            Just $ map (fstOf3 . nodeFromVertex) vertices
 
 
     where
-        zipL :: (a -> Maybe [a]) -> a -> Maybe ((), a, [a])
-        zipL f x = (\y -> ((),x,y)) <$> f x
+        zipL :: ((k,v) -> Maybe [k]) -> (k,v) -> Maybe ((k,v), k, [k])
+        zipL f x@(k,_) = (\y -> (x,k,y)) <$> f x
 
         -- Find all holes that this hole is dependent on.
-        findDependencies :: HashSet Var -> Var -> Maybe [Var]
-        findDependencies seen v | v `Set.member` seen = 
+        findDependencies :: HashSet Var -> (Var, HoleInfo SpecType) -> Maybe [Var]
+        findDependencies seen (v, _) | v `Set.member` seen = 
             if v `M.member` holeMap then 
                 -- If we've seen this hole before, there's a cycle.
                 Nothing
             else
                 -- Otherwise, we're done.
-                Just []
+                Just [] -- JP: Should we return Nothing here too?
                 
-        findDependencies seen' v =
+        findDependencies seen' (v, hi) =
             -- Add v to seen.
             let seen = Set.insert v seen' in
 
             -- Lookup refinement type of v in environment.
-            let reft = lookupAREnv v in
+            let reft = lookupAREnv v $ henv hi in
 
             -- Get set of variables in reft of v.
             -- Remove v from set of variables.
@@ -104,18 +84,3 @@ holeDependencyOrder holeMap =
                     -- Lookup global next.
                     M.lookup s reGlobal
                         
-        -- -- Expand edges and reverse the direction.
-        -- invert :: Hashable a => [(a,[a])] -> [(a,HashSet a)]
-        -- invert = concatMap (\(a, bs) -> map (\b -> ( b, Set.singleton a)) bs)
-        -- 
-        -- -- Find root nodes (Nodes that do not have edges pointed towards them).
-        -- findRoots :: (Hashable a, Eq a) => M.HashMap a (HashSet a) -> HashSet a
-        -- findRoots m =
-        --     let holes = M.keysSet m in
-        --     M.foldr (\towards acc -> Set.difference acc towards) holes m
-
-
-        
-
-
-
