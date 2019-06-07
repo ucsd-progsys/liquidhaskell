@@ -3,7 +3,7 @@
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
 {-@ LIQUID "--reflection"     @-}
-{-@ LIQUID "--betaequivalence" @-}
+{- LIQUID "--betaequivalence" @-}
 {- LIQUID "--autoproofs"      @-}
 
 
@@ -16,19 +16,19 @@ module Helper (
 import Language.Haskell.Liquid.ProofCombinators
 import Proves (Arg, (=*=:))
 
-{-@ beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}
+{-@ assume beta_application :: bd:b -> f:(a -> {bd':b | bd' == bd}) -> x:a -> {f x == bd } @-}
 beta_application :: b -> (a -> b) -> a -> Proof  
 beta_application bd f x 
-  = f x === bd *** QED 
+  = trivial
 
 lambda_expand :: Arg r => (r -> a) -> Proof 
-{-@ lambda_expand :: r:(r -> a) -> { (\x:r -> r x) == r } @-}
+{-@ assume lambda_expand :: r:(r -> a) -> { (\x:r -> r x) == r } @-}
 lambda_expand r 
   = ( r =*=: \x -> r x) (body_lambda_expand r) *** QED 
 
 
 body_lambda_expand :: Arg r => (r -> a) -> r -> Proof 
-{-@ body_lambda_expand :: r:(r -> a) -> y:r -> { (\x:r -> r x) (y)  == r y } @-}
+{-@ assume body_lambda_expand :: r:(r -> a) -> y:r -> { (\x:r -> r x) (y)  == r y } @-}
 body_lambda_expand r y = trivial 
 
 
