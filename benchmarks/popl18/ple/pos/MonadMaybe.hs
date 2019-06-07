@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection"        @-}
 {-@ LIQUID "--ple"               @-}
-{-@ LIQUID "--betaequivalence"   @-}
+{- LIQUID "--betaequivalence"   @-}
 
 module MonadMaybe where
 
@@ -43,7 +43,7 @@ right_identity (Just x)
 
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
-{-@ associativity :: m:Maybe a -> f: (a -> Maybe b) -> g:(b -> Maybe c)
+{-@ assume associativity :: m:Maybe a -> f: (a -> Maybe b) -> g:(b -> Maybe c)
   -> {v:Proof | bind (bind m f) g == bind m (\x:a -> (bind (f x) g))} @-}
 associativity :: Maybe a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof
 associativity Nothing f g

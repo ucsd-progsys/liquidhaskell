@@ -1,6 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--betaequivalence" @-}
+{- LIQUID "--betaequivalence" @-}
 
 module MonadId where
 
@@ -46,7 +46,7 @@ associativity (Identity x) f g
   =   beta_reduce x f g 
 
 beta_reduce :: a -> (a -> Identity b) -> (b -> Identity c) -> Proof 
-{-@ beta_reduce :: x:a -> f:(a -> Identity b) -> g:(b -> Identity c)
+{-@ assume beta_reduce :: x:a -> f:(a -> Identity b) -> g:(b -> Identity c)
                 -> {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
 beta_reduce x f g = trivial 
 

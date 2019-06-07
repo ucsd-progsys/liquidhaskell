@@ -35,10 +35,6 @@ data Config = Config
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , smtTimeout     :: Maybe Int  -- ^ smt timeout 
-  , extensionality :: Bool       -- ^ allow function extensionality axioms
-  , alphaEquivalence :: Bool     -- ^ allow lambda alpha-equivalence axioms
-  , betaEquivalence  :: Bool     -- ^ allow lambda beta-equivalence axioms
-  , normalForm     :: Bool       -- ^ allow lambda normalization-equivalence axioms
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
