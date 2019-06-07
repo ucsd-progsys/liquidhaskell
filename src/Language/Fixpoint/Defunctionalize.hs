@@ -27,8 +27,9 @@ module Language.Fixpoint.Defunctionalize
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
+import qualified Data.List           as L
 import           Control.Monad.State
-import           Language.Fixpoint.Misc            (secondM)
+import           Language.Fixpoint.Misc            (fM, secondM, mapSnd)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types        hiding (allowHO)
 import           Language.Fixpoint.Types.Config
@@ -56,11 +57,105 @@ txExpr e = do
 
 defuncExpr :: Expr -> DF Expr
 defuncExpr = mapMExpr reBind
-      --    >=> mapMExpr (fM normalizeLams)
+         >=> mapMExpr (fM normalizeLams)
 
 reBind :: Expr -> DF Expr
 reBind (ELam (x, s) e) = ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
 reBind e               = return e
+
+maxLamArg :: Int
+maxLamArg = 7
+
+
+--------------------------------------------------------------------------------
+-- | Normalizations ------------------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- head normal form [TODO: example]
+
+normalize :: Expr -> Expr
+normalize = snd . go
+  where
+    go (ELam (y, sy) e) = (i + 1, shiftLam i y sy e') where (i, e') = go e
+                              -- y'       = lamArgSymbol i'  -- SHIFTLAM
+                          -- in  -- ELam (y', sy) (e' `subst1` (y, EVar y')))
+
+    go (EApp e e2)
+      |  (ELam (x, _) bd) <- unECst e
+                        = let (i1, e1') = go bd
+                              (i2, e2') = go e2
+                          in (max i1 i2, e1' `subst1` (x, e2'))
+    go (EApp e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, EApp e1' e2')
+    go (ECst e s)       = mapSnd (`ECst` s) (go e)
+    go (PAll bs e)      = mapSnd (PAll bs)  (go e)
+    go e                = (1, e)
+
+    unECst (ECst e _) = unECst e
+    unECst e          = e
+
+shiftLam :: Int -> Symbol -> Sort -> Expr -> Expr
+shiftLam i x t e = ELam (x_i, t) (e `subst1` (x, x_i_t))
+  where
+    x_i          = lamArgSymbol i
+    x_i_t        = ECst (EVar x_i) t
+
+-- normalize lambda arguments [TODO: example]
+
+normalizeLams :: Expr -> Expr
+normalizeLams e = snd $ normalizeLamsFromTo 1 e
+
+normalizeLamsFromTo :: Int -> Expr -> (Int, Expr)
+normalizeLamsFromTo i   = go
+  where
+    go (ELam (y, sy) e) = (i + 1, shiftLam i y sy e') where (i, e') = go e
+                          -- let (i', e') = go e
+                          --    y'       = lamArgSymbol i'  -- SHIFTLAM
+                          -- in (i' + 1, ELam (y', sy) (e' `subst1` (y, EVar y')))
+    go (EApp e1 e2)     = let (i1, e1') = go e1
+                              (i2, e2') = go e2
+                          in (max i1 i2, EApp e1' e2')
+    go (ECst e s)       = mapSnd (`ECst` s) (go e)
+    go (PAll bs e)      = mapSnd (PAll bs) (go e)
+    go e                = (i, e)
+
+--------------------------------------------------------------------------------
+-- | Beta Equivalence ----------------------------------------------------------
+--------------------------------------------------------------------------------
+_makeBetaAxioms :: Expr -> [Expr]
+_makeBetaAxioms e = makeEqForAll (normalizeLams e) (normalize e)
+  -- where
+  --  e             = trace ("BETA-NL e = " ++ showpp e0) e0
+
+makeEq :: Expr -> Expr -> Expr
+makeEq e1 e2
+  | e1 == e2  = PTrue
+  | otherwise = EEq e1 e2
+
+makeEqForAll :: Expr -> Expr -> [Expr]
+makeEqForAll e1 e2 = [ makeEq (closeLam su e1') (closeLam su e2') | su <- _instantiate xs]
+  where
+    (xs1, e1')     = splitPAll [] e1
+    (xs2, e2')     = splitPAll [] e2
+    xs             = L.nub (xs1 ++ xs2)
+
+closeLam :: [(Symbol, (Symbol, Sort))] -> Expr -> Expr
+closeLam ((x,(y,s)):su) e = ELam (y,s) (subst1 (closeLam su e) (x, EVar y))
+closeLam []             e = e
+
+splitPAll :: [(Symbol, Sort)] -> Expr -> ([(Symbol, Sort)], Expr)
+splitPAll acc (PAll xs e) = splitPAll (acc ++ xs) e
+splitPAll acc e           = (acc, e)
+
+_instantiate     :: [(Symbol, Sort)] -> [[(Symbol, (Symbol, Sort))]]
+_instantiate      = choices . map inst1
+  where
+    inst1 (x, s) = [(x, (lamArgSymbol i, s)) | i <- [1..maxLamArg]]
+
+choices :: [[a]] -> [[a]]
+choices []       = [[]]
+choices (xs:xss) = [a:as | a <- xs, as <- choices xss]
 
 --------------------------------------------------------------------------------
 -- | Containers defunctionalization --------------------------------------------
