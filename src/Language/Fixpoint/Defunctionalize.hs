@@ -305,9 +305,9 @@ makeDFState cfg env ibind = DFST
   , dfBEnv  = ibind
   , dfLam   = True
   , dfExt   = False
-  , dfAEq   = alphaEquivalence cfg
-  , dfBEq   = betaEquivalence  cfg
-  , dfNorm  = normalForm       cfg
+  , dfAEq   = False -- alphaEquivalence cfg
+  , dfBEq   = False -- betaEquivalence  cfg
+  , dfNorm  = True -- normalForm       cfg
   , dfHO    = allowHO cfg  || defunction cfg
   , dfLNorm = True
   -- INVARIANT: lambads and redexes are not defunctionalized
