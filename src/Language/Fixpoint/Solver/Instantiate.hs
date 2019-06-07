@@ -163,14 +163,12 @@ evalCandsLoop cfg ctx γ s0 cands = go [] cands
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
 
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
-resSInfo cfg env fi res = strengthenBinds fi' res' 
+resSInfo cfg env fi res = strengthenBinds fi res' 
   where
-    res'                = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
-    ps''                = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
-    (ps', axs)          = defuncAxioms cfg env ps
-    (is, ps)            = unzip (M.toList res)
-    axs'                = elaborate (atLoc dummySpan "PLE2") env <$> axs
-    fi'                 = fi { asserts = axs' ++ asserts fi }
+    res'     = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
+    ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
+    ps'      = defuncAny cfg env ps
+    (is, ps) = unzip (M.toList res)
 
 ---------------------------------------------------------------------------------------------- 
 -- | @InstEnv@ has the global information needed to do PLE
@@ -294,13 +292,11 @@ instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
     aenv            = {- mytracepp  "AXIOM-ENV" -} (ae fi)
 
 sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg env fi ips = strengthenHyp fi' (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
+sInfo cfg env fi ips = strengthenHyp fi (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
   where
     (is, ps)         = unzip ips
-    (ps', axs)       = defuncAxioms cfg env ps
+    ps'              = defuncAny cfg env ps
     ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
-    axs'             = elaborate (atLoc dummySpan "PLE2") env <$> axs
-    fi'              = fi { asserts = axs' ++ asserts fi }
 
 instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
 instSimpC cfg ctx bds aenv sid sub 

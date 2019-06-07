@@ -22,12 +22,10 @@ module Language.Fixpoint.Defunctionalize
   ( defunctionalize
   , Defunc(..)
   , defuncAny
-  , defuncAxioms
   ) where 
 
 import qualified Data.HashMap.Strict as M
 import           Data.Hashable
-import qualified Data.List           as L
 import           Control.Monad.State
 import           Language.Fixpoint.Misc            (fM, secondM, mapSnd)
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
@@ -42,10 +40,6 @@ defunctionalize cfg si = evalState (defunc si) (makeInitDFState cfg si)
 defuncAny :: Defunc a => Config -> SymEnv -> a -> a
 defuncAny cfg env e = evalState (defunc e) (makeDFState cfg env emptyIBindEnv)
 
-defuncAxioms :: (Defunc a) => Config -> SymEnv -> a -> (a, [Triggered Expr])
-defuncAxioms cfg env z = flip evalState (makeDFState cfg env emptyIBindEnv) $ do
-  z' <- defunc z
-  return (z', [])
 
 ---------------------------------------------------------------------------------------------
 -- | Expressions defunctionalization --------------------------------------------------------
@@ -62,39 +56,6 @@ defuncExpr = mapMExpr reBind
 reBind :: Expr -> DF Expr
 reBind (ELam (x, s) e) = ((\y -> ELam (y, s) (subst1 e (x, EVar y))) <$> freshSym s)
 reBind e               = return e
-
-maxLamArg :: Int
-maxLamArg = 7
-
-
---------------------------------------------------------------------------------
--- | Normalizations ------------------------------------------------------------
---------------------------------------------------------------------------------
-
--- head normal form [TODO: example]
-
-normalize :: Expr -> Expr
-normalize = snd . go
-  where
-    go (ELam (y, sy) e) = (i + 1, shiftLam i y sy e') where (i, e') = go e
-                              -- y'       = lamArgSymbol i'  -- SHIFTLAM
-                          -- in  -- ELam (y', sy) (e' `subst1` (y, EVar y')))
-
-    go (EApp e e2)
-      |  (ELam (x, _) bd) <- unECst e
-                        = let (i1, e1') = go bd
-                              (i2, e2') = go e2
-                          in (max i1 i2, e1' `subst1` (x, e2'))
-    go (EApp e1 e2)     = let (i1, e1') = go e1
-                              (i2, e2') = go e2
-                          in (max i1 i2, EApp e1' e2')
-    go (ECst e s)       = mapSnd (`ECst` s) (go e)
-    go (PAll bs e)      = mapSnd (PAll bs)  (go e)
-    go e                = (1, e)
-
-    unECst (ECst e _) = unECst e
-    unECst e          = e
-
 shiftLam :: Int -> Symbol -> Sort -> Expr -> Expr
 shiftLam i x t e = ELam (x_i, t) (e `subst1` (x, x_i_t))
   where
@@ -120,42 +81,6 @@ normalizeLamsFromTo i   = go
     go (PAll bs e)      = mapSnd (PAll bs) (go e)
     go e                = (i, e)
 
---------------------------------------------------------------------------------
--- | Beta Equivalence ----------------------------------------------------------
---------------------------------------------------------------------------------
-_makeBetaAxioms :: Expr -> [Expr]
-_makeBetaAxioms e = makeEqForAll (normalizeLams e) (normalize e)
-  -- where
-  --  e             = trace ("BETA-NL e = " ++ showpp e0) e0
-
-makeEq :: Expr -> Expr -> Expr
-makeEq e1 e2
-  | e1 == e2  = PTrue
-  | otherwise = EEq e1 e2
-
-makeEqForAll :: Expr -> Expr -> [Expr]
-makeEqForAll e1 e2 = [ makeEq (closeLam su e1') (closeLam su e2') | su <- _instantiate xs]
-  where
-    (xs1, e1')     = splitPAll [] e1
-    (xs2, e2')     = splitPAll [] e2
-    xs             = L.nub (xs1 ++ xs2)
-
-closeLam :: [(Symbol, (Symbol, Sort))] -> Expr -> Expr
-closeLam ((x,(y,s)):su) e = ELam (y,s) (subst1 (closeLam su e) (x, EVar y))
-closeLam []             e = e
-
-splitPAll :: [(Symbol, Sort)] -> Expr -> ([(Symbol, Sort)], Expr)
-splitPAll acc (PAll xs e) = splitPAll (acc ++ xs) e
-splitPAll acc e           = (acc, e)
-
-_instantiate     :: [(Symbol, Sort)] -> [[(Symbol, (Symbol, Sort))]]
-_instantiate      = choices . map inst1
-  where
-    inst1 (x, s) = [(x, (lamArgSymbol i, s)) | i <- [1..maxLamArg]]
-
-choices :: [[a]] -> [[a]]
-choices []       = [[]]
-choices (xs:xss) = [a:as | a <- xs, as <- choices xss]
 
 --------------------------------------------------------------------------------
 -- | Containers defunctionalization --------------------------------------------
@@ -247,8 +172,6 @@ data DFST = DFST
   { dfFresh :: !Int
   , dfEnv   :: !SymEnv
   , dfBEnv  :: !IBindEnv
-  , dfLam   :: !Bool        -- ^ normalize lams
-  , dfNorm  :: !Bool        -- ^ enable normal form axioms
   , dfHO    :: !Bool        -- ^ allow higher order thus defunctionalize
   , dfLams  :: ![Expr]      -- ^ lambda expressions appearing in the expressions
   , dfRedex :: ![Expr]      -- ^ redexes appearing in the expressions
@@ -260,8 +183,6 @@ makeDFState cfg env ibind = DFST
   { dfFresh = 0
   , dfEnv   = env
   , dfBEnv  = ibind
-  , dfLam   = True
-  , dfNorm  = True -- normalForm       cfg
   , dfHO    = allowHO cfg  || defunction cfg
   -- INVARIANT: lambads and redexes are not defunctionalized
   , dfLams  = []
