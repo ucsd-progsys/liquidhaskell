@@ -106,26 +106,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow higher order binders into the logic"
 
- , extensionality
-    = def
-          &= help "Allow function extensionality axioms"
-
  , smtTimeout 
     = def
           &= help "Timeout of smt queries in msec"    
       
- , alphaEquivalence
-    = def
-          &= help "Allow lambda alpha-equivalence axioms"
-
- , betaEquivalence
-    = def
-          &= help "Allow lambda beta-equivalence axioms"
-
- , normalForm
-    = def
-          &= help "Allow lambda normalization-equivalence axioms"
-
  , higherorderqs
     = def
           &= help "Allow higher order qualifiers to get automatically instantiated"
@@ -533,11 +517,7 @@ defConfig = Config
   , linear            = def
   , stringTheory      = def
   , higherorder       = def
-  , extensionality    = def
   , smtTimeout        = def 
-  , alphaEquivalence  = def
-  , betaEquivalence   = def
-  , normalForm        = def
   , higherorderqs     = def
   , diffcheck         = def
   , saveQuery         = def
