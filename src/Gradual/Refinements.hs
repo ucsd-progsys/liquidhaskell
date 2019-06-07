@@ -20,8 +20,8 @@ makeGMap gcfg cfg sinfo mes = toGMap <$> runSolverM cfg' sI act
   where
     sI   = solverInfo cfg' sinfo
     act  = mapM (concretize gcfg) mes
-    cfg' = cfg { srcFile        = srcFile cfg `withExt` Pred 
-               , extensionality = True -- disable mbqi
+    cfg' = cfg { srcFile = srcFile cfg `withExt` Pred 
+               , gradual = True -- disable mbqi
            }
 
 concretize :: GConfig -> (KVar, (GWInfo, [Expr])) -> SolveM (KVar, (GWInfo,[Expr]))
