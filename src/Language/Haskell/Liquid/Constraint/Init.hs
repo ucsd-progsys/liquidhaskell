@@ -74,7 +74,6 @@ initEnv info
        f3       <- refreshArgs' $ vals gsAsmSigs (gsSig sp)                  -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
---        fi       <- refreshArgs' $ makeMethodTypes (gsDicts $ gsSig $ giSpec info) (giCbs $ giSrc info)
        fi       <- refreshArgs' $ catMaybes $ [(x,) <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
