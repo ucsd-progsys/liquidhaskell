@@ -711,6 +711,9 @@ isParened xs  = xs /= stripParens xs
 isDictionary :: Symbolic a => a -> Bool
 isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
 
+isMethod :: Symbolic a => a -> Bool
+isMethod = isPrefixOfSym "$c" . dropModuleNames . symbol
+
 isInternal :: Symbolic a => a -> Bool
 isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
 
