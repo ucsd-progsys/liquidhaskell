@@ -95,7 +95,8 @@ data GhcSpecSig = SpSig
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
-  , gsDicts    :: !(DEnv Var SpecType)            -- ^ Refined Classes 
+  , gsDicts    :: !(DEnv Var SpecType)            -- ^ Refined Classes from Instances 
+  , gsMethods  :: ![(Var, MethodType SpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   }
 

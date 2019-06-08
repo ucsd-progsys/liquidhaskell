@@ -159,7 +159,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     sData    = makeSpecData  src env sigEnv measEnv sig specs 
     refl     = makeSpecRefl  src measEnv specs env name sig tycEnv 
     laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
-    sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv 
+    sig      = makeSpecSig name specs env sigEnv   tycEnv measEnv (giCbs src)
     measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
     -- build up environments
     specs    = M.insert name mySpec iSpecs2
@@ -467,18 +467,20 @@ makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe I
 makeAutoInst env name spec = Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
 
 ----------------------------------------------------------------------------------------
-makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv 
+makeSpecSig :: ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> Bare.TycEnv -> Bare.MeasEnv -> [Ghc.CoreBind]
             -> GhcSpecSig 
 ----------------------------------------------------------------------------------------
-makeSpecSig name specs env sigEnv tycEnv measEnv = SpSig 
+makeSpecSig name specs env sigEnv tycEnv measEnv cbs = SpSig 
   { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
   , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
-  , gsDicts    = Bare.makeSpecDictionaries env sigEnv specs 
+  , gsDicts    = dicts 
+  , gsMethods  = Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
   , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
   }
   where 
+    dicts      = Bare.makeSpecDictionaries env sigEnv specs  
     mySpec     = M.lookupDefault mempty name specs
     asmSigs    = Bare.tcSelVars tycEnv 
               ++ makeAsmSigs env sigEnv name specs 
