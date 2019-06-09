@@ -9,11 +9,13 @@ module Language.Haskell.Liquid.Bare.Class
   , makeCLaws
   , makeSpecDictionaries
   , makeDefaultMethods
+  , makeMethodTypes
   ) 
   where
 
 import           Data.Bifunctor 
 import qualified Data.Maybe                                 as Mb
+import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 
 import qualified Language.Fixpoint.Misc                     as Misc
@@ -30,6 +32,54 @@ import qualified Language.Haskell.Liquid.Measure            as Ms
 import           Language.Haskell.Liquid.Bare.Types         as Bare 
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
+
+
+
+-------------------------------------------------------------------------------
+makeMethodTypes :: DEnv Ghc.Var SpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType SpecType)]
+-------------------------------------------------------------------------------
+makeMethodTypes (DEnv m) cls cbs 
+  = [(x, MT (addCC x . fromRISig <$> methodType d x m) (addCC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
+    where 
+      grepMethods = filter GM.isMethod . freeVars mempty
+      ds = filter (GM.isDictionary . fst) (concatMap unRec cbs)
+      unRec (Ghc.Rec xes) = xes
+      unRec (Ghc.NonRec x e) = [(x,e)]
+
+      classType Nothing _ = Nothing
+      classType (Just (d, ts, _)) x = 
+        case filter ((==d) . Ghc.dataConWorkId . dcpCon) cls of 
+          (di:_) -> fmap (subst (zip (dcpFreeTyVars di) ts)) $ L.lookup (mkSymbol x) (dcpTyArgs di)
+          _      -> Nothing 
+
+      methodType d x m = ihastype (M.lookup d m) x
+
+      ihastype Nothing _    = Nothing
+      ihastype (Just xts) x = M.lookup (mkSymbol x) xts
+
+      mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
+
+      subst [] t = t 
+      subst ((a,ta):su) t = subsTyVar_meet' (a,ofType ta) (subst su t)
+
+addCC :: Ghc.Var -> SpecType -> SpecType
+addCC x t = go (ofType $ Ghc.varType x) t 
+  where
+    go :: SpecType -> SpecType -> SpecType
+    go (RAllT (RTVar a1 _) t1) (RAllT a2 t2) = RAllT a2 (go (subsTyVar_meet' (a1,RVar a1 mempty) t1) t2)
+    go (RFun x1 t11 t12 r) t | isClassType t11 = (RFun x1 t11 (go t12 t) r) 
+    go _ t = t 
+
+splitDictionary :: Ghc.CoreExpr -> Maybe (Ghc.Var, [Ghc.Type], [Ghc.Var])
+splitDictionary = go [] [] 
+  where 
+    go ts xs (Ghc.App e (Ghc.Tick _ a)) = go ts xs (Ghc.App e a)
+    go ts xs (Ghc.App e (Ghc.Type t))   = go (t:ts) xs e 
+    go ts xs (Ghc.App e (Ghc.Var x))    = go ts (x:xs) e 
+    go ts xs (Ghc.Tick _ t) = go ts xs t 
+    go ts xs (Ghc.Var x) = Just (x, reverse ts, reverse xs)
+    go _ _ _ = Nothing
+
 
 -------------------------------------------------------------------------------
 makeCLaws :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs 

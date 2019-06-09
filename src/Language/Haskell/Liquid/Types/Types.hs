@@ -216,6 +216,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Refined Instances
   , RDEnv, DEnv(..), RInstance(..), RISig(..), RILaws(..)
+  , MethodType(..), getMethodType
 
   -- * Ureftable Instances
   , UReftable(..)
@@ -1080,6 +1081,13 @@ newtype DEnv x ty = DEnv (M.HashMap x (M.HashMap Symbol (RISig ty)))
                     deriving (Semigroup, Monoid, Show, Functor)
 
 type RDEnv = DEnv Var SpecType
+
+data MethodType t = MT {tyInstance :: !(Maybe t), tyClass :: !(Maybe t) }
+  deriving (Show)
+
+getMethodType :: MethodType t -> Maybe t 
+getMethodType (MT (Just t) _ ) = Just t 
+getMethodType (MT _ t) = t 
 
 --------------------------------------------------------------------------
 -- | Values Related to Specifications ------------------------------------

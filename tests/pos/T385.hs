@@ -1,3 +1,4 @@
+{-@ LIQUID "--noclasscheck"    @-}
 module Compose where
 
 import Prelude hiding (Functor, Monad)

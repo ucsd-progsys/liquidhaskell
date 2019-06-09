@@ -138,6 +138,11 @@ config = cmdArgsMode $ Config {
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , noclasscheck
+    = def 
+          &= help "Disable Class Instance Check"
+          &= name "no-class-check"
+
  , nostructuralterm
     = def &= name "no-structural-termination"
           &= help "Disable structural termination check" 
@@ -525,6 +530,7 @@ defConfig = Config
   , nostructuralterm  = def 
   , noCheckUnknown    = def
   , notermination     = False 
+  , noclasscheck      = False 
   , gradual           = False
   , gdepth            = 1
   , ginteractive      = False
