@@ -18,7 +18,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
+module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv ) where
 
 import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error)
@@ -77,6 +77,7 @@ import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal,
 import           Language.Haskell.Liquid.Misc
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
@@ -89,17 +90,26 @@ generateConstraints      :: GhcInfo -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
-    act                  = consAct cfg info
+    act                  = do { γ <- initEnv info; consAct γ cfg info }
     cfg                  = getConfig   info
 
-consAct :: Config -> GhcInfo -> CG ()
-consAct cfg info = do
-  γ       <- initEnv      info
+
+generateConstraintsWithEnv :: GhcInfo -> CGInfo -> CGEnv -> CGInfo
+--------------------------------------------------------------------------------
+generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
+  where
+    act                  = consAct γ cfg info
+    cfg                  = getConfig   info
+
+
+
+consAct :: CGEnv -> Config -> GhcInfo -> CG ()
+consAct γ cfg info = do
   sflag   <- scheck   <$> get
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
-  foldM_ (consCBTop cfg info) γ (giCbs gSrc)
+  foldM_ (consCBTop cfg info) γ (F.tracepp "TO CHECK: " $ giCbs gSrc)
   hcs    <- hsCs  <$> get
   hws    <- hsWfs <$> get
   scss   <- sCs   <$> get

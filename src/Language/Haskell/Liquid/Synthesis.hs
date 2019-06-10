@@ -23,7 +23,7 @@ data Graph a = Graph {
 -- | Builds a dependency graph where an edge from hole a to hole b indicates hole b is dependent on hole a.
 -- Root holes are not dependent on other holes.
 -- Returns Nothing if a cycle is detected.
-holeDependencyGraph :: M.HashMap Var (HoleInfo SpecType) -> Maybe (Graph Var)
+holeDependencyGraph :: M.HashMap Var (HoleInfo SpecType i) -> Maybe (Graph Var)
 holeDependencyGraph holeMap = 
     let seen = Set.empty in
     let holes = M.keys holeMap in

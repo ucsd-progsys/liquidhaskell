@@ -120,6 +120,8 @@ library
                       Language.Haskell.Liquid.Prelude
                       Language.Haskell.Liquid.ProofCombinators
                       Language.Haskell.Liquid.Synthesis
+                      Language.Haskell.Liquid.Synthesize.GHC
+                      Language.Haskell.Liquid.Synthesize.Check
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic

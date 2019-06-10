@@ -23,6 +23,7 @@ import qualified Data.List           as L
 
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
+import Language.Haskell.Liquid.Types.PrettyPrint ()
 
 
 isHoleVar :: Var -> Bool 
