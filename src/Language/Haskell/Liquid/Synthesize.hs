@@ -13,6 +13,7 @@ import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.Synthesize.Check
+import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
@@ -108,16 +109,20 @@ maxDepth :: Int
 maxDepth = 1 
 
 matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM CoreExpr 
-matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$> mapM (makeAlt v t) (tyConDataCons c)
+matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$> mapM (makeAlt t (v, tx)) (tyConDataCons c)
 
-makeAlt :: Var -> SpecType -> DataCon -> SM GHC.CoreAlt 
-makeAlt x t c = do -- (AltCon, [b], Expr b)
-  xs <- mapM freshVar ts 
+makeAlt :: SpecType -> (Var, SpecType) -> DataCon -> SM GHC.CoreAlt 
+makeAlt t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
+  ts <- liftCG $ mapM trueTy τs
+  xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
-  liftCG (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
+  liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   e <- synthesizeBasic t
   return (GHC.DataAlt c, xs, e)
-  where ts = [] 
+  where 
+    (_, _, τs) = dataConInstSig c (toType <$> ts)
+makeAlt _ _ _ = error "makeAlt.bad argument"
+    
 
 hasType :: SpecType -> CoreExpr -> SM Bool
 hasType t e = do 
@@ -213,6 +218,14 @@ data SState
            }
 type SM = StateT SState IO
 
+locally :: SM a -> SM a 
+locally act = do 
+  st <- get 
+  r <- act 
+  modify $ \s -> s{sCGEnv = sCGEnv st, sCGI = sCGI st}
+  return r 
+
+
 evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> IO a 
 evalSM act tgt fcfg cgi cgenv env = do 
   ctx <- SMT.makeContext fcfg tgt  
@@ -231,16 +244,24 @@ addsEnv xts =
 
 addEnv :: Var -> SpecType -> SM ()
 addEnv x t = do 
-  liftCG (\γ -> γ += ("arg", symbol x, t))
+  liftCG0 (\γ -> γ += ("arg", symbol x, t))
   modify (\s -> s {ssEnv = M.insert (symbol x) (t,x) (ssEnv s)}) 
 
 
-liftCG :: (CGEnv -> CG CGEnv) -> SM () 
-liftCG act = do 
+liftCG0 :: (CGEnv -> CG CGEnv) -> SM () 
+liftCG0 act = do 
   st <- get 
   let (cgenv, cgi) = runState (act (sCGEnv st)) (sCGI st) 
   modify (\s -> s {sCGI = cgi, sCGEnv = cgenv}) 
 
+
+
+liftCG :: CG a -> SM a 
+liftCG act = do 
+  st <- get 
+  let (x, cgi) = runState act (sCGI st) 
+  modify (\s -> s {sCGI = cgi})
+  return x 
 
 
 freshVar :: SpecType -> SM Var
