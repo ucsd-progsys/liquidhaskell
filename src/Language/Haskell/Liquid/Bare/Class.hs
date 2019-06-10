@@ -36,7 +36,7 @@ import           Language.Haskell.Liquid.Bare.Expand        as Bare
 
 
 -------------------------------------------------------------------------------
-makeMethodTypes :: DEnv Ghc.Var SpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType SpecType)]
+makeMethodTypes :: DEnv Ghc.Var LocSpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType LocSpecType)]
 -------------------------------------------------------------------------------
 makeMethodTypes (DEnv m) cls cbs 
   = [(x, MT (addCC x . fromRISig <$> methodType d x m) (addCC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
@@ -49,7 +49,7 @@ makeMethodTypes (DEnv m) cls cbs
       classType Nothing _ = Nothing
       classType (Just (d, ts, _)) x = 
         case filter ((==d) . Ghc.dataConWorkId . dcpCon) cls of 
-          (di:_) -> fmap (subst (zip (dcpFreeTyVars di) ts)) $ L.lookup (mkSymbol x) (dcpTyArgs di)
+          (di:_) -> fmap ((dcpLoc di `F.atLoc`) . subst (zip (dcpFreeTyVars di) ts)) $ L.lookup (mkSymbol x) (dcpTyArgs di)
           _      -> Nothing 
 
       methodType d x m = ihastype (M.lookup d m) x
@@ -62,8 +62,8 @@ makeMethodTypes (DEnv m) cls cbs
       subst [] t = t 
       subst ((a,ta):su) t = subsTyVar_meet' (a,ofType ta) (subst su t)
 
-addCC :: Ghc.Var -> SpecType -> SpecType
-addCC x t = go (ofType $ Ghc.varType x) t 
+addCC :: Ghc.Var -> LocSpecType -> LocSpecType
+addCC x t = t{val = go (ofType $ Ghc.varType x) (val t)} 
   where
     go :: SpecType -> SpecType -> SpecType
     go (RAllT (RTVar a1 _) t1) (RAllT a2 t2) = RAllT a2 (go (subsTyVar_meet' (a1,RVar a1 mempty) t1) t2)
@@ -155,7 +155,7 @@ makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env si
             Nothing -> Bare.GenTV 
 
 -------------------------------------------------------------------------------
-makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var SpecType 
+makeSpecDictionaries :: Bare.Env -> Bare.SigEnv -> ModSpecs -> DEnv Ghc.Var LocSpecType 
 -------------------------------------------------------------------------------
 makeSpecDictionaries env sigEnv specs
   = dfromList 
@@ -164,7 +164,7 @@ makeSpecDictionaries env sigEnv specs
   $ M.toList specs
 
 makeSpecDictionary :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec)
-                   -> [(Ghc.Var, M.HashMap F.Symbol (RISig SpecType))]
+                   -> [(Ghc.Var, M.HashMap F.Symbol (RISig LocSpecType))]
 makeSpecDictionary env sigEnv (name, spec)
   = Mb.catMaybes 
   . resolveDictionaries env name 
@@ -174,18 +174,18 @@ makeSpecDictionary env sigEnv (name, spec)
 
 makeSpecDictionaryOne :: Bare.Env -> Bare.SigEnv -> ModName 
                       -> RInstance LocBareType 
-                      -> (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
+                      -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
 makeSpecDictionaryOne env sigEnv name (RI x t xts)
-         = makeDictionary $ RI x (val . mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
+         = makeDictionary $ RI x (mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
   where
     mkTy :: LocBareType -> LocSpecType
     mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV 
 
-    mkLSpecIType :: RISig LocBareType -> RISig SpecType
-    mkLSpecIType = fmap (val . mkTy)
+    mkLSpecIType :: RISig LocBareType -> RISig LocSpecType
+    mkLSpecIType = fmap mkTy
 
-resolveDictionaries :: Bare.Env -> ModName -> [(F.Symbol, M.HashMap F.Symbol (RISig SpecType))] 
-                    -> [Maybe (Ghc.Var, M.HashMap F.Symbol (RISig SpecType))]
+resolveDictionaries :: Bare.Env -> ModName -> [(F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))] 
+                    -> [Maybe (Ghc.Var, M.HashMap F.Symbol (RISig LocSpecType))]
 resolveDictionaries env name = fmap lookupVar 
                              . concat 
                              . fmap addInstIndex 
