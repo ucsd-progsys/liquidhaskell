@@ -89,10 +89,6 @@ data Context = Ctx
   , ctxCout    :: !Handle
   , ctxLog     :: !(Maybe Handle)
   , ctxVerbose :: !Bool
-  , ctxExt     :: !Bool              -- ^ flag to enable function extensionality axioms
-  , ctxAeq     :: !Bool              -- ^ flag to enable lambda a-equivalence axioms
-  , ctxBeq     :: !Bool              -- ^ flag to enable lambda b-equivalence axioms
-  , ctxNorm    :: !Bool              -- ^ flag to enable lambda normal form equivalence axioms
   , ctxSymEnv  :: !SymEnv
   }
 
