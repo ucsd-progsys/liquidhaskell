@@ -33,18 +33,18 @@ import qualified Data.HashMap.Strict                       as M
 
 
 
-makeDictionaries :: [RInstance SpecType] -> DEnv F.Symbol SpecType
+makeDictionaries :: [RInstance LocSpecType] -> DEnv F.Symbol LocSpecType
 makeDictionaries = DEnv . M.fromList . map makeDictionary
 
 
-makeDictionary :: RInstance SpecType -> (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
+makeDictionary :: RInstance LocSpecType -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
 makeDictionary (RI c ts xts) = (makeDictionaryName (btc_tc c) ts, M.fromList (mapFst val <$> xts))
 
-makeDictionaryName :: LocSymbol -> [SpecType] -> F.Symbol
+makeDictionaryName :: LocSymbol -> [LocSpecType] -> F.Symbol
 makeDictionaryName t ts
   = F.notracepp _msg $ F.symbol ("$f" ++ F.symbolString (val t) ++ concatMap mkName ts)
   where
-    mkName = makeDicTypeName sp . dropUniv
+    mkName = makeDicTypeName sp . dropUniv . val 
     sp     = GM.fSrcSpan t
     _msg   = "MAKE-DICTIONARY " ++ F.showpp (val t, ts)
 

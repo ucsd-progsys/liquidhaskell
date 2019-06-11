@@ -100,6 +100,7 @@ consAct cfg info = do
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   foldM_ (consCBTop cfg info) γ (giCbs gSrc)
+  mapM (consClass γ) (gsMethods $ gsSig $ giSpec info) 
   hcs    <- hsCs  <$> get
   hws    <- hsWfs <$> get
   scss   <- sCs   <$> get
@@ -118,6 +119,19 @@ consAct cfg info = do
                      , fixWfs   = fws
                      , annotMap = annot' }
 
+
+
+--------------------------------------------------------------------------------
+-- | Ensure that the instance type is a subtype of the class type --------------
+--------------------------------------------------------------------------------
+
+consClass :: CGEnv -> (Var, MethodType LocSpecType) -> CG ()
+consClass γ (x,mt) 
+  | Just ti <- tyInstance mt 
+  , Just tc <- tyClass    mt 
+  = addC (SubC (γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc ti))) (val ti) (val tc)) ("cconsClass for " ++ GM.showPpr x)
+consClass _ _ 
+  = return () 
 
 --------------------------------------------------------------------------------
 -- | TERMINATION TYPE ----------------------------------------------------------

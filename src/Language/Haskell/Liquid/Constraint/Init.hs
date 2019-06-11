@@ -74,7 +74,7 @@ initEnv info
        f3       <- refreshArgs' $ vals gsAsmSigs (gsSig sp)                  -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
-       fi       <- refreshArgs' $ catMaybes $ [(x,) <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
+       fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
@@ -187,7 +187,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , litEnv   = F.fromListSEnv lts
   , constEnv = F.fromListSEnv lt2s
   , fenv     = initFEnv $ filterHO (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas (gsData sp)))
-  , denv     = gsDicts (gsSig sp)
+  , denv     = dmapty val $ gsDicts (gsSig sp)
   , recs     = S.empty
   , fargs    = S.empty
   , invs     = mempty

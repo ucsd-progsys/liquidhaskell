@@ -43,10 +43,12 @@ push !s stk -- @(SpanStack stk)
 data Span
   = Var  !Var.Var           -- ^ binder for whom we are generating constraint
   | Tick !(Tickish Var.Var) -- ^ nearest known Source Span
+  | Span SrcSpan
 
 instance Show Span where
   show (Var x)   = show x
   show (Tick tt) = showPpr tt
+  show (Span s)  = show s 
 
 --------------------------------------------------------------------------------
 srcSpan :: SpanStack -> SrcSpan
@@ -63,6 +65,7 @@ spanSrcSpan      = maybeSpan Nothing . go
   where
     go (Var x)   = getSrcSpan x
     go (Tick tt) = tickSrcSpan tt
+    go (Span s)  = s 
 
 maybeSpan :: Maybe SrcSpan -> SrcSpan -> Maybe SrcSpan
 maybeSpan d sp
