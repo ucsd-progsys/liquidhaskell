@@ -41,7 +41,7 @@ makeInstanceLaw env sigEnv sigs name rilaw = LawInstance
     classTc = join . fmap tyConClass_maybe . Bare.maybeResolveSym env name "makeClass" . btc_tc  
 
     mkTy :: LocBareType -> LocSpecType
-    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV 
+    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV Nothing 
     mkVar :: LocSymbol -> VarOrLocSymbol 
     mkVar x = case Bare.maybeResolveSym env name "makeInstanceLaw" x of 
                 Just v -> Left v 
