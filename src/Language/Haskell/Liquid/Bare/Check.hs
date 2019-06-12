@@ -131,7 +131,9 @@ checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                                      (gsTconsP (gsName sp))
+                     ++ checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
                      ++ checkLawInstances (gsLaws sp)
+
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -147,6 +149,15 @@ checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
     temps            = F.makeTemplates $ gsUnsorted $ gsData sp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
+
+
+
+
+checkPlugged :: PPrint v => [(v, LocSpecType)] -> [Error] 
+checkPlugged xs = mkErr <$> filter (hasHoleTy . val . snd) xs 
+  where 
+    mkErr (x,t) = ErrBadData (GM.sourcePosSrcSpan $ loc t) (pprint x) msg 
+    msg        = "Cannot resolve type hole `_`. Use explicit type instead."
 
 
 --------------------------------------------------------------------------------

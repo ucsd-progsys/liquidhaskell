@@ -537,27 +537,27 @@ exprArg l msg = F.notracepp ("exprArg: " ++ msg) . go
 --   in multiple steps, into a @SpecType@. See [NOTE:Cooking-SpecType] for 
 --   details of each of the individual steps.
 ----------------------------------------------------------------------------------------
-cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Maybe F.Symbol -> LocBareType 
+cookSpecType :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
              -> LocSpecType 
-cookSpecType env sigEnv name x v bt
-         = either Ex.throw id (cookSpecTypeE env sigEnv name x v bt)
+cookSpecType env sigEnv name x bt
+         = either Ex.throw id (cookSpecTypeE env sigEnv name x bt)
   where 
     _msg = "cookSpecType: " ++ GM.showPpr (z, Ghc.varType <$> z)
     z    = Bare.plugSrc x 
 
 
 -----------------------------------------------------------------------------------------
-cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> (Maybe F.Symbol) -> LocBareType 
+cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
               -> Either UserError LocSpecType 
 -----------------------------------------------------------------------------------------
-cookSpecTypeE env sigEnv name x v bt
+cookSpecTypeE env sigEnv name x bt
   = id 
+  . fmap (plugHoles sigEnv name x)
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (specExpandType rtEnv)                         
   . fmap (fmap (generalizeWith x))
-  . checkPlugged v
   . fmap (maybePlug       sigEnv name x)
   . fmap (Bare.qualifyTop    env name l) 
   . bareSpecType       env name 
@@ -601,17 +601,6 @@ bareSpecType :: Bare.Env -> ModName -> LocBareType -> Either UserError LocSpecTy
 bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (val bt) of 
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)
-
-
-checkPlugged :: Maybe F.Symbol -> Either UserError LocSpecType -> Either UserError LocSpecType 
-checkPlugged _ (Left e)  = Left e 
-checkPlugged x (Right t)
-  | hasHoleTy (val t) 
-  = Left $ ErrBadData (GM.sourcePosSrcSpan $ loc t) (fromMaybe mempty (pprint <$> x)) msg 
-  | otherwise   
-  = Right t  
-  where
-    msg = "Cannot resolve type hole `_`. Use explicit type instead."
 
 maybePlug :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug sigEnv name kx = case Bare.plugSrc kx of 

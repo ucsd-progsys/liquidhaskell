@@ -138,7 +138,7 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     t      = rCls tc as'
 
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Either UserError LocSpecType     
-mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV Nothing 
+mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
   where 
     dropUniv t           = t' where (_, _, _, t') = bkUniv t
 
@@ -148,7 +148,7 @@ unClass = snd . bkClass . fourth4 . bkUniv
 
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
          -> Either UserError (ModName, PlugTV Ghc.Var, LocSpecType)
-makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env sigEnv name mbV (Just $ val lx) bt
+makeMethod env sigEnv name (lx, bt) = (name, mbV,) <$> Bare.cookSpecTypeE env sigEnv name mbV bt
   where 
     mbV = case Bare.maybeResolveSym env name "makeMethod" lx of 
             Just v  -> Bare.LqTV v 
@@ -176,13 +176,13 @@ makeSpecDictionaryOne :: Bare.Env -> Bare.SigEnv -> ModName
                       -> RInstance LocBareType 
                       -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
 makeSpecDictionaryOne env sigEnv name (RI x t xts)
-         = makeDictionary $ RI x (mkTy Nothing <$> t) [(x, mkLSpecIType (val x, t)) | (x, t) <- xts ] 
+         = makeDictionary $ RI x (mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
   where
-    mkTy :: Maybe F.Symbol -> LocBareType -> LocSpecType
-    mkTy x = Bare.cookSpecType env sigEnv name Bare.GenTV x
+    mkTy :: LocBareType -> LocSpecType
+    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV
 
-    mkLSpecIType :: (F.Symbol, RISig LocBareType) -> RISig LocSpecType
-    mkLSpecIType (x, t) = fmap (mkTy (Just x)) t
+    mkLSpecIType :: RISig LocBareType -> RISig LocSpecType
+    mkLSpecIType t = fmap mkTy t
 
 resolveDictionaries :: Bare.Env -> ModName -> [(F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))] 
                     -> [Maybe (Ghc.Var, M.HashMap F.Symbol (RISig LocSpecType))]

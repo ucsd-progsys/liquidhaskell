@@ -542,7 +542,7 @@ makeTySigs env sigEnv name spec
     expSigs   = makeTExpr  env name bareSigs rtEnv spec 
     bareSigs  = bareTySigs env name                spec 
     rtEnv     = Bare.sigRTEnv sigEnv 
-    cook x bt = Bare.cookSpecType env sigEnv name (Bare.HsTV x) (Just $ F.symbol x) bt 
+    cook x bt = Bare.cookSpecType env sigEnv name (Bare.HsTV x) bt 
 
 bareTySigs :: Bare.Env -> ModName -> Ms.BareSpec -> [(Ghc.Var, LocBareType)]
 bareTySigs env name spec = checkDuplicateSigs 
@@ -562,7 +562,7 @@ checkDuplicateSigs xts = case Misc.uniqueByKey symXs  of
 makeAsmSigs :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.ModSpecs -> [(Ghc.Var, LocSpecType)]
 makeAsmSigs env sigEnv myName specs = 
   [ (x, t) | (name, x, bt) <- rawAsmSigs env myName specs
-           , let t = Bare.cookSpecType env sigEnv name (Bare.LqTV x) (Just (F.symbol x)) bt
+           , let t = Bare.cookSpecType env sigEnv name (Bare.LqTV x) bt
   ] 
 
 rawAsmSigs :: Bare.Env -> ModName -> Bare.ModSpecs -> [(ModName, Ghc.Var, LocBareType)]
@@ -686,7 +686,7 @@ makeNewType env sigEnv name d
   where 
     tcMb                      = Bare.lookupGhcDnTyCon env name "makeNewType" tcName
     tcName                    = tycName d
-    t                         = Bare.cookSpecType env sigEnv name Bare.GenTV Nothing bt
+    t                         = Bare.cookSpecType env sigEnv name Bare.GenTV bt
     bt                        = getTy tcName (tycSrcPos d) (tycDCons d)
     getTy _ l [c]
       | [(_, t)] <- dcFields c = Loc l l t
@@ -727,14 +727,14 @@ makeIAliases env sigEnv (name, spec)
   where 
     -- mkIA :: (LocBareType, LocBareType) -> Either _ (LocSpecType, LocSpecType)
     mkIA (t1, t2) = (,) <$> mkI t1 <*> mkI t2
-    mkI           = Bare.cookSpecTypeE env sigEnv name Bare.GenTV Nothing 
+    mkI           = Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
 
 makeInvariants :: Bare.Env -> Bare.SigEnv -> (ModName, Ms.BareSpec) -> [(Maybe Ghc.Var, Located SpecType)]
 makeInvariants env sigEnv (name, spec) = 
   [ (Nothing, t) 
     | (_, bt) <- Ms.invariants spec 
     , Bare.knownGhcType env name bt
-    , let t = Bare.cookSpecType env sigEnv name Bare.GenTV Nothing bt
+    , let t = Bare.cookSpecType env sigEnv name Bare.GenTV bt
   ]
 
 makeMeasureInvariants :: Bare.Env -> ModName -> GhcSpecSig -> Ms.BareSpec 
@@ -966,6 +966,6 @@ normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
     fixBody :: BareType -> BareType 
     fixBody = Bare.specToBare 
             . F.val 
-            . Bare.cookSpecType env sigEnv name Bare.RawTV Nothing 
+            . Bare.cookSpecType env sigEnv name Bare.RawTV 
             . F.atLoc lx
 
