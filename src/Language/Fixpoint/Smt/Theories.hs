@@ -61,9 +61,11 @@ import           Data.String                 (IsString(..))
 -- | Theory Symbols ------------------------------------------------------------
 --------------------------------------------------------------------------------
 
+-- "set" is currently \"LSet\" instead of just \"Set\" because Z3 has its own
+-- \"Set\" since 4.8.5
 elt, set, map :: Raw
 elt  = "Elt"
-set  = "Set"
+set  = "LSet"
 map  = "Map"
 
 emp, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
