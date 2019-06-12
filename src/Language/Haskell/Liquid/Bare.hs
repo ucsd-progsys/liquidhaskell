@@ -144,7 +144,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , gsData   = sData 
   , gsQual   = qual 
   , gsName   = makeSpecName env     tycEnv measEnv   name 
-  , gsVars   = makeSpecVars cfg src mySpec env 
+  , gsVars   = makeSpecVars cfg src mySpec env measEnv
   , gsTerm   = makeSpecTerm cfg     mySpec env       name    
   , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
                    impSigs   = makeImports mspecs,
@@ -285,12 +285,13 @@ reflectedVars spec cbs = (fst <$> xDefs)
     reflSyms           = fmap val . S.toList . Ms.reflects $ spec
 
 ------------------------------------------------------------------------------------------
-makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> GhcSpecVars 
+makeSpecVars :: Config -> GhcSrc -> Ms.BareSpec -> Bare.Env -> Bare.MeasEnv -> GhcSpecVars 
 ------------------------------------------------------------------------------------------
-makeSpecVars cfg src mySpec env = SpVar 
+makeSpecVars cfg src mySpec env measEnv = SpVar 
   { gsTgtVars    =   map (resolveStringVar  env name)              (checks     cfg) 
   , gsIgnoreVars = S.map (Bare.lookupGhcVar env name "gs-ignores") (Ms.ignores mySpec) 
   , gsLvars      = S.map (Bare.lookupGhcVar env name "gs-lvars"  ) (Ms.lvars   mySpec)
+  , gsCMethods   = snd3 <$> Bare.meMethods measEnv 
   }
   where name     = giTargetMod src 
 
@@ -805,7 +806,7 @@ makeSpecName env tycEnv measEnv name = SpNames
   where 
     datacons, cls :: [DataConP]
     datacons   = Bare.tcDataCons tycEnv 
-    cls        = Bare.meClasses measEnv 
+    cls        = F.tracepp "meClasses" $ Bare.meClasses measEnv 
     tycons     = Bare.tcTyCons   tycEnv 
 
 

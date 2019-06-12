@@ -118,7 +118,7 @@ checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
-                     ++ checkClassMethods (gsCls src) (gsTySigs     (gsSig sp))
+                     ++ checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
@@ -323,12 +323,14 @@ checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
 checkDuplicate :: [(Var, LocSpecType)] -> [Error]
 checkDuplicate = checkUnique' fst (GM.fSrcSpan . snd)
 
-checkClassMethods :: Maybe [ClsInst] -> [(Var, LocSpecType)] -> [Error]
-checkClassMethods Nothing _ = [] 
-checkClassMethods (Just clsis) xts = [ErrMClass (GM.sourcePosSrcSpan $ loc t) (pprint x)| (x,t) <- dups ]
+checkClassMethods :: Maybe [ClsInst] -> [Var] ->  [(Var, LocSpecType)] -> [Error]
+checkClassMethods Nothing      _   _   = [] 
+checkClassMethods (Just clsis) cms xts = [ErrMClass (GM.sourcePosSrcSpan $ loc t) (pprint x)| (x,t) <- dups ]
   where 
-    dups = filter ((`elem` ms) . fst) xts 
-    ms = concatMap (classMethods . is_cls) clsis 
+    dups = F.notracepp "DPS" $ filter ((`elem` ms) . fst) xts' 
+    ms   = F.notracepp "MS"  $ concatMap (classMethods . is_cls) clsis
+    xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts 
+    cls  = F.notracepp "CLS" cms   
 
 -- checkDuplicate xts = mkErr <$> dups
   -- where
