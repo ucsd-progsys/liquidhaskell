@@ -401,6 +401,10 @@ data TError t =
                 , insts :: ![(SrcSpan, Doc)]
                 } -- ^ Refined Class/Interfaces Conflict
 
+  | ErrMClass   { pos   :: !SrcSpan
+                , var   :: !Doc
+                } -- ^ Standalone class method refinements
+
   | ErrBadQual  { pos   :: !SrcSpan
                 , qname :: !Doc
                 , msg   :: !Doc
@@ -957,8 +961,13 @@ ppError' _ dSp dCtx (ErrILaw _ c i s)
   = dSp <+> text "Law Instance Error"
         $+$ dCtx
         <+> (text "The instance" <+> i <+> text "of class" <+> c <+> text "is not valid.") $+$ s
-      
 
+ppError' _ dSp dCtx (ErrMClass _ v)
+  = dSp <+> text "Standalone class method refinement"
+    $+$ dCtx
+    $+$ (text "Invalid type specification for" <+> v) 
+    $+$ (text "Use class or instance refinements instead.")
+      
 ppError' _ dSp _ (ErrRClass p0 c is)
   = dSp <+> text "Refined classes cannot have refined instances"
     $+$ (nest 4 $ sepVcat blankLine $ describeCls : map describeInst is)

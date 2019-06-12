@@ -99,12 +99,13 @@ checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2)
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
+             -> GhcSrc
              -> F.SEnv F.SortedReft
              -> [CoreBind]
              -> GhcSpec
              -> Either [Error] GhcSpec
 
-checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
+checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune 
@@ -117,6 +118,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
+                     ++ checkClassMethods (gsCls src) (gsTySigs     (gsSig sp))
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
@@ -317,14 +319,21 @@ checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
     -- msg1             = "\nCheckd-SIGS:\n" ++ showpp (M.fromList xts)
     -- msg2             = "\nAssume-SIGS:\n" ++ showpp (M.fromList asmSigs)
 
+
 checkDuplicate :: [(Var, LocSpecType)] -> [Error]
 checkDuplicate = checkUnique' fst (GM.fSrcSpan . snd)
+
+checkClassMethods :: Maybe [ClsInst] -> [(Var, LocSpecType)] -> [Error]
+checkClassMethods Nothing _ = [] 
+checkClassMethods (Just clsis) xts = [ErrMClass (GM.sourcePosSrcSpan $ loc t) (pprint x)| (x,t) <- dups ]
+  where 
+    dups = filter ((`elem` ms) . fst) xts 
+    ms = concatMap (classMethods . is_cls) clsis 
 
 -- checkDuplicate xts = mkErr <$> dups
   -- where
     -- mkErr (x, ts) = ErrDupSpecs (getSrcSpan x) (pprint x) (GM.fSrcSpan <$> ts)
     -- dups          = [z | z@(_, _:_:_) <- M.toList $ group xts ]
-
 
 checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> [Error]
 checkDuplicateRTAlias s tas = mkErr <$> dups
