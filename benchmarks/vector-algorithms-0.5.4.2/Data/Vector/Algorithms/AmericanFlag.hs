@@ -68,9 +68,9 @@ class Lexicographic e where
 -- | LIQUID Class Specification ---------------------------------------------
 
 {-@ measure lexSize :: a -> Int                                           @-}
-{-@ size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
-{-@ index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
-{-@ terminate :: (Lexicographic e) => x:e -> n:Int -> {v:Bool | (((n+1) >= maxPassesN) => v)} @-}
+{-@ assume size  :: (Lexicographic e) => x:e -> {v:Nat | v = (lexSize x)}        @-}
+{-@ assume index :: (Lexicographic e) => Int -> x:e -> {v:Nat | v < (lexSize x)} @-}
+{-@ assume terminate :: (Lexicographic e) => x:e -> n:Int -> {v:Bool | (((n+1) >= maxPassesN) => v)} @-}
 
 {-@ measure maxPassesN :: Int @-}
 
