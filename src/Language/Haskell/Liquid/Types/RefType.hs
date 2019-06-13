@@ -1623,10 +1623,10 @@ shiftVV t _
 -- MOVE TO TYPES
 instance (Show tv, Show ty) => Show (RTAlias tv ty) where
   show (RTA n as xs t) =
-    printf "type %s %s %s = %s -- defined at %s" (symbolString n)
+    printf "type %s %s %s = %s" (symbolString n)
       (unwords (show <$> as))
       (unwords (show <$> xs))
-      (show t) 
+      (show t)
 
 --------------------------------------------------------------------------------
 -- | From Old Fixpoint ---------------------------------------------------------
