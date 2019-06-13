@@ -552,6 +552,7 @@ cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Lo
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name x bt
   = id 
+  . fmap (plugHoles sigEnv name x)
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
@@ -603,7 +604,7 @@ bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (va
 
 maybePlug :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug sigEnv name kx = case Bare.plugSrc kx of 
-                             Nothing -> id 
+                             Nothing -> id  
                              Just _  -> plugHoles sigEnv name kx 
 
 plugHoles :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 

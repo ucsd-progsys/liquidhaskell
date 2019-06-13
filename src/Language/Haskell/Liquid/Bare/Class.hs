@@ -179,10 +179,10 @@ makeSpecDictionaryOne env sigEnv name (RI x t xts)
          = makeDictionary $ RI x (mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
   where
     mkTy :: LocBareType -> LocSpecType
-    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV 
+    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV
 
     mkLSpecIType :: RISig LocBareType -> RISig LocSpecType
-    mkLSpecIType = fmap mkTy
+    mkLSpecIType t = fmap mkTy t
 
 resolveDictionaries :: Bare.Env -> ModName -> [(F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))] 
                     -> [Maybe (Ghc.Var, M.HashMap F.Symbol (RISig LocSpecType))]

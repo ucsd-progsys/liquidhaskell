@@ -122,6 +122,7 @@ module Language.Haskell.Liquid.Types.Types (
   , isBase
   , isFunTy
   , isTrivial
+  , hasHole 
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
@@ -147,7 +148,7 @@ module Language.Haskell.Liquid.Types.Types (
   , Output (..)
 
   -- * Refinement Hole
-  , hole, isHole, hasHole
+  , hole, isHole, hasHoleTy
 
   -- * Converting To and From Sort
   , ofRSort, toRSort
@@ -1613,6 +1614,23 @@ isBase (RRTy _ _ _ t)   = isBase t
 isBase (RAllE _ _ t)    = isBase t
 isBase (REx _ _ t)      = isBase t
 isBase _                = False
+
+hasHoleTy :: RType t t1 t2 -> Bool
+hasHoleTy (RVar _ _)         = False 
+hasHoleTy (RAllT _ t)        = hasHoleTy t 
+hasHoleTy (RAllP _ t)        = hasHoleTy t
+hasHoleTy (RAllS _ t)        = hasHoleTy t
+hasHoleTy (RImpF x t t' r)   = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RFun x t t' r)    = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RApp c ts rs r)   = any hasHoleTy ts 
+hasHoleTy (RAllE z t t')     = hasHoleTy t || hasHoleTy t'
+hasHoleTy (REx z t t')       = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RExprArg e)       = False 
+hasHoleTy (RAppTy t t' r)    = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RHole r)          = True 
+hasHoleTy (RRTy xts r o t)   = hasHoleTy t || any hasHoleTy (snd <$> xts)
+
+
 
 isFunTy :: RType t t1 t2 -> Bool
 isFunTy (RAllE _ _ t)    = isFunTy t

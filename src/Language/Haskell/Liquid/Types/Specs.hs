@@ -82,6 +82,7 @@ data GhcSpecVars = SpVar
   { gsTgtVars    :: ![Var]                        -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsIgnoreVars :: !(S.HashSet Var)              -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
   , gsLvars      :: !(S.HashSet Var)              -- ^ Variables that should be checked "lazily" in the environment they are used
+  , gsCMethods   :: ![Var]                        -- ^ Refined Class methods 
   }
 
 data GhcSpecQual = SpQual 
