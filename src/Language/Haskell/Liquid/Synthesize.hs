@@ -34,6 +34,7 @@ import           Data.Default
 import qualified Data.Text as T
 import           Data.Maybe
 import           Debug.Trace 
+import           Language.Haskell.Liquid.GHC.TypeRep
 
 
 
@@ -83,24 +84,76 @@ synthesizeBasic t = do es <- generateETerms t
                        ok <- findM (hasType t) es 
                        case ok of 
                         Just e  -> return e 
-                        Nothing -> getSEnv >>= (`synthesizeMatch` t)  
+                        Nothing -> do
+                          apps <- generateApps t
+                          ok' <- findM (hasType t) apps
+                          trace ("apps = " ++ show apps) $
+                            case ok' of
+                              Just e' -> return e'
+                              Nothing -> getSEnv >>= (`synthesizeMatch` t)  
+                       
 
-
+-- e-terms: var, constructors, function applications
 
 -- Panagiotis TODO: this should generates all e-terms, but now it only generates variables in the environment                    
 generateETerms :: SpecType -> SM [CoreExpr] 
 generateETerms t = do 
   lenv <- M.toList . ssEnv <$> get 
-  return [ GHC.Var v | (x, (tx, v)) <- lenv , τ == toType tx ] 
+  let delimiterStr = "\n************************************\n"
+  trace (delimiterStr ++ "[generateETerms] lenv = " ++ show lenv ++ " " ++ delimiterStr) $ 
+    return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
   where τ = toType t 
 
-  
+generateApps :: SpecType -> SM [CoreExpr]
+generateApps t = do
+  lenv <- M.toList . ssEnv <$> get
+  let τ = toType t
+  case generateApps' lenv lenv τ of
+    [] -> return []
+    l  -> return l
+
+generateApps' :: [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps' []      _  _ = []
+generateApps' (h : t) l2 τ = generateApps'' h l2 τ ++ generateApps' t l2 τ
+
+generateApps'' :: (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps'' _       []        _ = []
+generateApps'' h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
+  let htype  = toType rtype
+      htype' = toType rtype'
+      t  = typeAppl htype  htype'
+      t' = typeAppl htype' htype
+  in  
+  -- in  trace ( "\n ***** t = "   ++ 
+  --             showTy t ++ "\n"  ++ 
+  --             "       var = "   ++ 
+  --             show v ++ "\n"    ++
+  --             "\n ***** t' = "  ++ 
+  --             showTy t' ++ "\n" ++ 
+  --             "       var = "   ++ 
+  --             show v' ++ "\n"   ++
+  --             "\n ***** τ = "   ++ 
+  --             showTy τ ++ "\n"    ) $ 
+      case t of
+        Nothing ->
+          case t' of 
+            Nothing -> generateApps'' h es τ 
+            Just _  -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' h es τ
+        Just _  -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' h es τ
+
+typeAppl :: Type -> Type -> Maybe Type
+typeAppl (GHC.FunTy t' t'') t''' 
+  | t'' == t''' = Just t'
+typeAppl _                  _   = Nothing 
+
+
 -- Panagiotis TODO: here I only explore the first one                     
+--  We need the most recent one
 synthesizeMatch :: SSEnv -> SpecType -> SM CoreExpr 
 synthesizeMatch γ t 
   | (e:_) <- es 
   = do d <- incrDepth
-       if d <= maxDepth then matchOn t e else return def 
+       trace ("[synthesizeMatch] es = " ++ show es) $ if d <= maxDepth then matchOn t e else return def 
   | otherwise 
   = return def 
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
