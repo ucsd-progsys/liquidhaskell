@@ -6,7 +6,7 @@ import Data.Set (Set(..))
 myid []     = []
 myid (x:xs) = x : myid xs
 
-{-@ myapp :: xs:[a] -> ys:[a] -> {v:[a] | listElts(v) = Set_cup(listElts(xs), listElts(xs))} @-}
+{-@ myapp :: xs:[a] -> ys:[a] -> {v:[a] | listElts(v) = Set_cup (listElts xs) (listElts xs) } @-}
 myapp :: [a] -> [a] -> [a]
 myapp []     ys = ys
 myapp (x:xs) ys = x : myapp xs ys
