@@ -230,6 +230,11 @@ data TError t =
                , thl  :: !t 
                } -- ^ hole type 
 
+  | ErrHoleCycle    
+               { pos  :: !SrcSpan
+               , holesCycle :: [Symbol] -- Var?
+               } -- ^ hole dependencies form a cycle error
+
   | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
                , msg  :: !Doc
@@ -729,6 +734,10 @@ ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
         $+$ dCtx
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
+
+ppError' _td dSp _dCtx (ErrHoleCycle _ holes)
+  = dSp <+> "Cycle of holes found"
+        $+$ pprint holes
 
 ppError' _td dSp _dCtx (ErrHole _ msg _ x t)
   = dSp <+> "Hole Found"

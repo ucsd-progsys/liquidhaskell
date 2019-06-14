@@ -13,11 +13,10 @@ import           Util (fstOf3)
 import           Var
 
 
--- | Builds a dependency graph where an edge from hole a to hole b indicates hole b is dependent on hole a.
--- Root holes are not dependent on other holes.
--- Returns Nothing if a cycle is detected.
-holeDependencyOrder :: M.HashMap Var (HoleInfo SpecType i) -> Maybe [(Var, HoleInfo SpecType i)]
-holeDependencyOrder holeMap = 
+-- | Returns a list of strongly connected components of hole dependencies. 
+-- Results are returned in reverse topological order.
+holeDependencySSC :: M.HashMap Var (HoleInfo i SpecType) -> [G.SCC (Var, HoleInfo i SpecType)]
+holeDependencySSC holeMap = 
     -- let seen = Set.empty in
     let holes = M.toList holeMap in
 
@@ -28,13 +27,7 @@ holeDependencyOrder holeMap =
     let (graph, nodeFromVertex, _vertexFromKey) = G.graphFromEdges deps in
 
     -- Get strongly connected components, reverse topologically sorted.
-    let scc = G.stronglyConnComp deps in
-
-    -- Check for cycles and convert scc.
-    sequence $ map (\case
-        G.AcyclicSCC v -> Just v
-        G.CyclicSCC _ -> Nothing
-      ) scc
+    G.stronglyConnComp deps
 
 
     -- -- Sort by partial ordering.
@@ -66,7 +59,7 @@ holeDependencyOrder holeMap =
         zipL f x@(k,_) = (\y -> (x,k,y)) $ f x
 
         -- Find all holes that this hole is dependent on.
-        findDependencies :: (Var, HoleInfo SpecType i) -> HashSet Var
+        findDependencies :: (Var, HoleInfo i SpecType) -> HashSet Var
         findDependencies (_, hi) = 
             -- JP: Do we need to consider reft?
 

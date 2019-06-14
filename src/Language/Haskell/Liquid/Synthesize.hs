@@ -31,16 +31,23 @@ import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Data.Default 
+import           Data.Graph (SCC(..))
 import qualified Data.Text as T
 import           Data.Maybe
 import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.Synthesis
 
 
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
-synthesize tgt fcfg cginfo = mapM go $ M.toList (holesMap cginfo)
+synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo -- TODO: foldM filled holes to dependencies. XXX
   where 
+    goSCC (AcyclicSCC v) = go v
+    goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
+    goSCC (CyclicSCC [v]) = go v
+    goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
+
     go (x, HoleInfo t loc env (cgi,cge)) = do 
       fills <- synthesize' tgt fcfg cgi cge mempty x t 
       return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
