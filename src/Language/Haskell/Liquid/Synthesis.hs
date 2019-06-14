@@ -16,7 +16,7 @@ import           Var
 -- | Builds a dependency graph where an edge from hole a to hole b indicates hole b is dependent on hole a.
 -- Root holes are not dependent on other holes.
 -- Returns Nothing if a cycle is detected.
-holeDependencyOrder :: M.HashMap Var (HoleInfo SpecType) -> Maybe [(Var, HoleInfo SpecType)]
+holeDependencyOrder :: M.HashMap Var (HoleInfo SpecType i) -> Maybe [(Var, HoleInfo SpecType i)]
 holeDependencyOrder holeMap = 
     -- let seen = Set.empty in
     let holes = M.toList holeMap in
@@ -58,7 +58,7 @@ holeDependencyOrder holeMap =
         zipL f x@(k,_) = (\y -> (x,k,y)) $ f x
 
         -- Find all holes that this hole is dependent on.
-        findDependencies :: (Var, HoleInfo SpecType) -> HashSet Var
+        findDependencies :: (Var, HoleInfo SpecType i) -> HashSet Var
         findDependencies (_, hi) = 
             -- JP: Do we need to consider reft?
 

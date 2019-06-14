@@ -1,15 +1,31 @@
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
+
 module Language.Haskell.Liquid.Synthesize (
     synthesize
   ) where
 
 import           Language.Haskell.Liquid.Types hiding (SVar)
 import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Constraint.Generate 
+import           Language.Haskell.Liquid.Constraint.Env 
 import qualified Language.Haskell.Liquid.Types.RefType as R
+import           Language.Haskell.Liquid.GHC.Misc (showPpr)
+import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.Synthesize.Check
+import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
 
+
+import CoreSyn (CoreExpr)
+import qualified CoreSyn as GHC
+import Var 
+import TyCon
+import DataCon
+import qualified TyCoRep as GHC 
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 
 import           Control.Monad.State.Lazy
@@ -18,54 +34,32 @@ import           Data.Default
 import qualified Data.Text as T
 import           Data.Maybe
 import           Debug.Trace 
+import           Language.Haskell.Liquid.GHC.TypeRep
 
-type SSEnv = M.HashMap Symbol SpecType
 
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
-synthesize tgt fcfg cgi = mapM go $ M.toList (holesMap cgi)
+synthesize tgt fcfg cginfo = mapM go $ M.toList (holesMap cginfo)
   where 
-    go (x, HoleInfo t loc env) = do 
-      fills <- synthesize' tgt fcfg cgi (reGlobal env <> reLocal env) t 
+    go (x, HoleInfo t loc env (cgi,cge)) = do 
+      fills <- synthesize' tgt fcfg cgi cge mempty x t 
       return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
                        mempty (symbol x) t 
 
-synthesize' :: FilePath -> F.Config -> CGInfo -> SSEnv -> SpecType -> IO [SExpr]
-synthesize' tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
+synthesize' :: FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> Var -> SpecType -> IO [CoreExpr]
+synthesize' tgt fcfg cgi ctx senv x tx = (:[]) <$> evalSM (go tx) tgt fcfg cgi ctx senv
   where 
 
-    -- Is it good to push and pop here or in (1)??
-    pushContext :: SpecType -> StateT SState IO SExpr
-    pushContext t = do
-      ctx <- sContext <$> get
-      liftIO $ SMT.smtPush ctx
-      sexpr <- go t
-      liftIO $ SMT.smtPop ctx
-      return sexpr
-
-
-    go :: SpecType -> StateT SState IO SExpr
-    -- Type Variable
-    go (RVar α _)        = (`synthesizeRVar` α) <$> getSEnv
-    -- Function 
-    go (RFun x tx t _)   = 
-        do  let RR s (Reft (pn, in_rr)) = rTypeSortedReft (tyConEmbed cgi) tx  
-            y <- freshVar 
-            addEnv y tx 
-
-            ctx <- sContext <$> get
-            -- (1)
-            liftIO $ SMT.smtPush ctx
-            liftIO $ SMT.smtDecl ctx y s
-            liftIO $ SMT.smtAssert ctx (substInFExpr pn y in_rr)
-            -- liftIO $ SMT.smtCheckSat ctx in_rr
-            sexpr <- go (t `subst1` (x, EVar y))
-            liftIO $ SMT.smtPop ctx
-            return $ SFun y sexpr 
+    go :: SpecType -> SM CoreExpr
 
     -- Type Abstraction 
-    go (RAllT _ t)       = go t
-    -- Data Type, e.g., c = Int and ts = [] or c = List and ts = [a] 
+    go (RAllT a t)       = GHC.Lam (tyVarVar a) <$> go t
+    go (RFun x tx t _)   = 
+      do  y <- freshVar tx
+          addEnv y tx 
+          GHC.Lam y <$> go (t `subst1` (x, EVar $ symbol y))
+          
+    -- Special Treatment for synthesis of integers          
     go t@(RApp c _ts _ r)  
       | R.isNumeric (tyConEmbed cgi) c = 
           do  let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
@@ -77,10 +71,131 @@ synthesize' tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
               SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
               
               let xNotFound = error $ "Symbol " ++ show x ++ "not found."
-                  smtVal = T.unpack (fromMaybe xNotFound $ lookup x modelBinds)
+                  smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
               liftIO (SMT.smtPop ctx)
-              return $ tracepp ("numeric with " ++ show r) (SVar $ symbol smtVal)
+              return $ notracepp ("numeric with " ++ show r) (GHC.Var $ mkVar (Just smtVal) def def)
+
+    go t = do addEnv x tx -- NV TODO: edit the type of x to ensure termination 
+              synthesizeBasic t 
+    
+synthesizeBasic :: SpecType -> SM CoreExpr 
+synthesizeBasic t = do es <- generateETerms t
+                       ok <- findM (hasType t) es 
+                       case ok of 
+                        Just e  -> return e 
+                        Nothing -> do
+                          apps <- generateApps t
+                          ok' <- findM (hasType t) apps
+                          trace ("apps = " ++ show apps) $
+                            case ok' of
+                              Just e' -> return e'
+                              Nothing -> getSEnv >>= (`synthesizeMatch` t)  
+                       
+
+-- e-terms: var, constructors, function applications
+
+-- Panagiotis TODO: this should generates all e-terms, but now it only generates variables in the environment                    
+generateETerms :: SpecType -> SM [CoreExpr] 
+generateETerms t = do 
+  lenv <- M.toList . ssEnv <$> get 
+  let delimiterStr = "\n************************************\n"
+  trace (delimiterStr ++ "[generateETerms] lenv = " ++ show lenv ++ " " ++ delimiterStr) $ 
+    return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
+  where τ = toType t 
+
+generateApps :: SpecType -> SM [CoreExpr]
+generateApps t = do
+  lenv <- M.toList . ssEnv <$> get
+  let τ = toType t
+  case generateApps' lenv lenv τ of
+    [] -> return []
+    l  -> return l
+
+generateApps' :: [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps' []      _  _ = []
+generateApps' (h : t) l2 τ = generateApps'' h l2 τ ++ generateApps' t l2 τ
+
+generateApps'' :: (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps'' _       []        _ = []
+generateApps'' h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
+  let htype  = toType rtype
+      htype' = toType rtype'
+      t  = typeAppl htype  htype'
+      t' = typeAppl htype' htype
+  in  
+  -- in  trace ( "\n ***** t = "   ++ 
+  --             showTy t ++ "\n"  ++ 
+  --             "       var = "   ++ 
+  --             show v ++ "\n"    ++
+  --             "\n ***** t' = "  ++ 
+  --             showTy t' ++ "\n" ++ 
+  --             "       var = "   ++ 
+  --             show v' ++ "\n"   ++
+  --             "\n ***** τ = "   ++ 
+  --             showTy τ ++ "\n"    ) $ 
+      case t of
+        Nothing ->
+          case t' of 
+            Nothing -> generateApps'' h es τ 
+            Just _  -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' h es τ
+        Just _  -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' h es τ
+
+typeAppl :: Type -> Type -> Maybe Type
+typeAppl (GHC.FunTy t' t'') t''' 
+  | t'' == t''' = Just t'
+typeAppl _                  _   = Nothing 
+
+
+-- Panagiotis TODO: here I only explore the first one                     
+--  We need the most recent one
+synthesizeMatch :: SSEnv -> SpecType -> SM CoreExpr 
+synthesizeMatch γ t 
+  | (e:_) <- es 
+  = do d <- incrDepth
+       trace ("[synthesizeMatch] es = " ++ show es) $ if d <= maxDepth then matchOn t e else return def 
+  | otherwise 
+  = return def 
+  where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+
+maxDepth :: Int 
+maxDepth = 1 
+
+matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM CoreExpr 
+matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$> mapM (makeAlt t (v, tx)) (tyConDataCons c)
+
+makeAlt :: SpecType -> (Var, SpecType) -> DataCon -> SM GHC.CoreAlt 
+makeAlt t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
+  ts <- liftCG $ mapM trueTy τs
+  xs <- mapM freshVar ts    
+  addsEnv $ zip xs ts 
+  liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
+  e <- synthesizeBasic t
+  return (GHC.DataAlt c, xs, e)
+  where 
+    (_, _, τs) = dataConInstSig c (toType <$> ts)
+makeAlt _ _ _ = error "makeAlt.bad argument"
+    
+
+hasType :: SpecType -> CoreExpr -> SM Bool
+hasType t e = do 
+  x  <- freshVar t 
+  st <- get 
+  r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
+  liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr e ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+  return r 
+
+findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
+findM _ []     = return Nothing
+findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
+
+{- 
+    {- OLD STUFF -}
+    -- Type Variable
+    go (RVar α _)        = (`synthesizeRVar` α) <$> getSEnv
+    -- Function 
+
+    -- Data Type, e.g., c = Int and ts = [] or c = List and ts = [a] 
               -- return def
     go (RApp _c _ts _ _) 
       = return def 
@@ -97,7 +212,7 @@ synthesize' tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
     go (RRTy _ _ _ t)  = go t 
     go (RExprArg _)    = return def 
     go (RHole _)       = return def 
-
+-}
 ------------------------------------------------------------------------------
 -- Handle dependent arguments
 ------------------------------------------------------------------------------
@@ -133,40 +248,9 @@ synthesize' tgt fcfg cgi ctx t = (:[]) <$> evalSM (go t) tgt fcfg cgi ctx
 --     PGrad _kvar _subst _gradInfo _expr -> error "PGrad not implemented yet"
 --     ECoerc _sort1 _sort2 _expr -> error "ECoerc not implemented yet"
 
-synthesizeRVar :: SSEnv -> RTyVar -> SExpr
-synthesizeRVar ctx α = case M.keys $ M.filter isMyVar ctx of
-                        []    -> def 
-                        (x:_) -> SVar x 
-  where 
-    isMyVar (RVar β _) = β == α 
-    isMyVar _          = False 
 
--------------------------------------------------------------------------------
--- | Expressions to be Synthesized --------------------------------------------
--------------------------------------------------------------------------------
-
--- The synthesized expressions currently are only variables and lambdas
--- application, type abstraction and applications might be needed 
-
-data SExpr 
-  = SVar Symbol
-  | SFun Symbol SExpr 
-
-splitSFun :: SExpr -> ([Symbol], SExpr)
-splitSFun = go [] 
-  where go ac (SFun x e) = go (x:ac) e 
-        go ac e          = (reverse ac, e)
-
-instance PPrint SExpr where 
-    pprintTidy k (SVar s)   = pprintTidy k s 
-    pprintTidy k (SFun x e) = char '\\' <> (printArgs (x:xs) <+> text "->" <+> pprintTidy k bd) 
-      where (xs,bd) = splitSFun e 
-            printArgs [] = mempty
-            printArgs (x:xs) = pprintTidy k x <+> printArgs xs
-
-
-instance Default SExpr where 
-    def = SVar $ symbol "_todo"
+symbolExpr :: GHC.Type -> Symbol -> SM CoreExpr 
+symbolExpr τ x = incrSM >>= (\i -> return $ notracepp ("symExpr for " ++ showpp x) $  GHC.Var $ mkVar (Just $ symbolString x) i τ)
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------
@@ -174,26 +258,74 @@ instance Default SExpr where
 
 -- The state keeps a unique index for generation of fresh variables 
 -- and the environment of variables to types that is expanded on lambda terms
+type SSEnv = M.HashMap Symbol (SpecType, Var)
 
-data SState = SState {ssEnv :: SSEnv, ssIdx :: Int, sContext :: SMT.Context}
+data SState 
+  = SState { ssEnv    :: SSEnv -- Local Binders Generated during Synthesis 
+           , ssIdx    :: Int
+           , sContext :: SMT.Context
+           , sCGI     :: CGInfo
+           , sCGEnv   :: CGEnv
+           , sFCfg    :: F.Config
+           , sDepth   :: Int 
+           }
 type SM = StateT SState IO
 
-evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> SSEnv -> IO a 
-evalSM act tgt fcfg cgi env = do 
+locally :: SM a -> SM a 
+locally act = do 
+  st <- get 
+  r <- act 
+  modify $ \s -> s{sCGEnv = sCGEnv st, sCGI = sCGI st}
+  return r 
+
+
+evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> IO a 
+evalSM act tgt fcfg cgi cgenv env = do 
   ctx <- SMT.makeContext fcfg tgt  
-  r <- evalStateT act (SState env 0 ctx)
+  r <- evalStateT act (SState env 0 ctx cgi cgenv fcfg 0)
   SMT.cleanupContext ctx 
   return r 
 
 getSEnv :: SM SSEnv
 getSEnv = ssEnv <$> get 
 
-addEnv :: Symbol -> SpecType -> SM ()
-addEnv x t = modify (\s -> s {ssEnv = M.insert x t (ssEnv s)})
 
-freshVar :: SM Symbol
-freshVar = (\i -> symbol ("x" ++ show i)) <$> incrSM
-              
+addsEnv :: [(Var, SpecType)] -> SM () 
+addsEnv xts = 
+  mapM_ (\(x,t) -> modify (\s -> s {ssEnv = M.insert (symbol x) (t,x) (ssEnv s)})) xts  
+
+
+addEnv :: Var -> SpecType -> SM ()
+addEnv x t = do 
+  liftCG0 (\γ -> γ += ("arg", symbol x, t))
+  modify (\s -> s {ssEnv = M.insert (symbol x) (t,x) (ssEnv s)}) 
+
+
+liftCG0 :: (CGEnv -> CG CGEnv) -> SM () 
+liftCG0 act = do 
+  st <- get 
+  let (cgenv, cgi) = runState (act (sCGEnv st)) (sCGI st) 
+  modify (\s -> s {sCGI = cgi, sCGEnv = cgenv}) 
+
+
+
+liftCG :: CG a -> SM a 
+liftCG act = do 
+  st <- get 
+  let (x, cgi) = runState act (sCGI st) 
+  modify (\s -> s {sCGI = cgi})
+  return x 
+
+
+freshVar :: SpecType -> SM Var
+freshVar t = (\i -> mkVar (Just "x") i (toType t)) <$> incrSM
+
+incrDepth :: SM Int 
+incrDepth = do s <- get 
+               put s{sDepth = sDepth s + 1}
+               return (sDepth s)
+
+
 incrSM :: SM Int 
 incrSM = do s <- get 
             put s{ssIdx = ssIdx s + 1}
@@ -202,36 +334,7 @@ incrSM = do s <- get
 -- The rest will be added when needed.
 -- Replaces    | old w   | new  | symbol name in expr.
 substInFExpr :: Symbol -> Symbol -> Expr -> Expr
-substInFExpr pn nn e = 
-  case e of 
-    PAnd exprs -> PAnd (map (substInFExpr pn nn) exprs)
-    PAtom brel e1 e2 -> 
-      PAtom brel (substInFExpr pn nn e1) (substInFExpr pn nn e2) 
-    ESym _symConst -> error "ESym not implemented yet"
-    constant@ECon{} -> constant
-    var@(EVar symb) ->
-      if symb == pn 
-        then EVar nn
-        else var
-    EApp e1 e2 -> EApp (substInFExpr pn nn e1) (substInFExpr pn nn e2)
-    ENeg e -> ENeg (substInFExpr pn nn e) 
-    EBin bop e1 e2 -> EBin bop (substInFExpr pn nn e1) (substInFExpr pn nn e2) 
-    EIte e1 e2 e3 -> 
-      EIte (substInFExpr pn nn e1) (substInFExpr pn nn e2) (substInFExpr pn nn e3)
-    ECst e s -> ECst (substInFExpr pn nn e) s
-    ELam targ e -> ELam targ (substInFExpr pn nn e)
-    ETApp e s -> ETApp (substInFExpr pn nn e) s 
-    ETAbs e sym -> ETAbs (substInFExpr pn nn e) sym
-    POr _exprLst -> error "POr not implemented yet" 
-    PNot _expr -> error "PNot not implemented yet"
-    PImp _expr1 _expr2 -> error "PImp not implemented yet"
-    PIff _expr1 _expr2 -> error "PIff not implemented yet"
-    PKVar _kvar _subst -> error "PKVar not implemented yet"
-    PAll _ _expr -> error "PAll not implemented yet"
-    PExist _ _expr -> error "PExist not implemented yet" 
-    PGrad _kvar _subst _gradInfo _expr -> error "PGrad not implemented yet"
-    ECoerc _sort1 _sort2 _expr -> error "ECoerc not implemented yet"  
-
+substInFExpr pn nn e = subst1 e (pn, EVar nn)
 
 -------------------------------------------------------------------------------
 -- | Misc ---------------------------------------------------------------------
