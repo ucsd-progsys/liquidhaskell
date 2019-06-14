@@ -27,12 +27,20 @@ holeDependencyOrder holeMap =
     -- Build graph.
     let (graph, nodeFromVertex, _vertexFromKey) = G.graphFromEdges deps in
 
-    -- JP: TODO Check for cycles. XXX ???
+    -- Get strongly connected components, reverse topologically sorted.
+    let scc = G.stronglyConnComp deps in
 
-    -- Sort by partial ordering.
-    let vertices = reverse $ G.topSort graph in -- JP: Use revTopSort if they merge.
+    -- Check for cycles and convert scc.
+    sequence $ map (\case
+        G.AcyclicSCC v -> Just v
+        G.CyclicSCC _ -> Nothing
+      ) scc
 
-    Just $ map (fstOf3 . nodeFromVertex) vertices
+
+    -- -- Sort by partial ordering.
+    -- let vertices = reverse $ G.topSort graph in -- JP: Use revTopSort if they merge.
+
+    -- Just $ map (fstOf3 . nodeFromVertex) vertices
 
 
     -- let deps = map (zipL $ (fmap Set.toList . findDependencies seen)) holes in
