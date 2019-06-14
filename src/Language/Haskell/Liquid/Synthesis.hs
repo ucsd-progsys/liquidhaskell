@@ -60,12 +60,16 @@ holeDependencySSC holeMap =
 
         -- Find all holes that this hole is dependent on.
         findDependencies :: (Var, HoleInfo i SpecType) -> HashSet Var
-        findDependencies (_, hi) = 
+        findDependencies (v, hi) = 
             -- JP: Do we need to consider reft?
 
             -- Union vars in environment.
             let REnv{..} = henv hi in
-            let envVars = M.keysSet reLocal `Set.union` M.keysSet reGlobal in
+            let envVars' = M.keysSet reLocal `Set.union` M.keysSet reGlobal in
+
+            -- Remove v from set of variables.
+            -- JP: Should it be an error if v `member` vars'?
+            let envVars = Set.delete (F.symbol v) envVars' in
 
             -- Only return holes.
             Set.filter ((`Set.member` envVars) . F.symbol) $ M.keysSet holeMap

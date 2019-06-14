@@ -45,7 +45,6 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
   where 
     goSCC (AcyclicSCC v) = go v
     goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
-    goSCC (CyclicSCC [v]) = go v
     goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
 
     go (x, HoleInfo t loc env (cgi,cge)) = do 
