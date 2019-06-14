@@ -10,7 +10,7 @@ match len Cons x xs = (1 + len xs)
 constraint:
   env []
   lhs {v : int | true }
-  rhs {v : int | len(Cons(1, Cons(2, Cons(3, Nil)))) = 3}
+  rhs {v : int | len (Cons 1 (Cons 2 (Cons 3 Nil))) = 3}
   id 1 tag []
 
 expand [1 : True]
