@@ -157,12 +157,26 @@ typeAppl _                  _   = Nothing
 --  We need the most recent one
 synthesizeMatch :: SSEnv -> SpecType -> SM CoreExpr 
 synthesizeMatch γ t 
-  | (e:_) <- es 
-  = do d <- incrDepth
-       trace ("[synthesizeMatch] es = " ++ show es) $ if d <= maxDepth then matchOn t e else return def 
+  | [] <- es 
+  = return def
+
   | otherwise 
-  = return def 
+  = maybe def id <$> monadicFirst (\e -> withIncrDepth $ do
+        trace ("[synthesizeMatch] es = " ++ show es) $ matchOn t e
+      ) es
+
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+        
+        -- Return first nonempty result.
+        -- JP: probably want to keep going up to some limit of N results.
+        monadicFirst :: (a -> m (Maybe b)) -> [a] -> m (Maybe b)
+        monadicFirst _f [] = 
+            return Nothing
+        monadicFirst f (m:ms) = do
+            mb <- f m
+            case mb of
+                r@(Just _) -> return r
+                Nothing -> monadicFirst f ms
 
 maxDepth :: Int 
 maxDepth = 1 
@@ -326,10 +340,22 @@ liftCG act = do
 freshVar :: SpecType -> SM Var
 freshVar t = (\i -> mkVar (Just "x") i (toType t)) <$> incrSM
 
-incrDepth :: SM Int 
-incrDepth = do s <- get 
-               put s{sDepth = sDepth s + 1}
-               return (sDepth s)
+withIncrDepth :: SM a -> SM a
+withIncrDepth m = do 
+    s <- get 
+    let d = sDepth s
+
+    if d + 1 > maxDepth then
+        return def
+
+    else do
+        put s{sDepth = d + 1}
+
+        r <- m
+
+        modify $ \s -> s{sDepth = d}
+
+        return r
 
 
 incrSM :: SM Int 
