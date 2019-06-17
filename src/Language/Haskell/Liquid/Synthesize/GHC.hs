@@ -20,8 +20,9 @@ import Data.Maybe (fromMaybe)
 instance Default Type where
     def = TyVarTy alphaTyVar 
     
-instance Default CoreExpr where 
-    def = Var $ mkVar (Just "undefined") 0 def
+-- JP: Let's try to avoid this.
+-- instance Default CoreExpr where 
+--     def = Var $ mkVar (Just "undefined") 0 def
 
 mkVar :: Maybe String -> Int -> Type -> Var
 mkVar x i t = mkGlobalVar VanillaId name t vanillaIdInfo 

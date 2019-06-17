@@ -53,17 +53,17 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
                        mempty (symbol x) t 
 
 synthesize' :: FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> Var -> SpecType -> IO [CoreExpr]
-synthesize' tgt fcfg cgi ctx senv x tx = (:[]) <$> evalSM (go tx) tgt fcfg cgi ctx senv
+synthesize' tgt fcfg cgi ctx senv x tx = evalSM (go tx) tgt fcfg cgi ctx senv
   where 
 
-    go :: SpecType -> SM CoreExpr
+    go :: SpecType -> SM [CoreExpr] -- JP: [SM CoreExpr] ???
 
     -- Type Abstraction 
-    go (RAllT a t)       = GHC.Lam (tyVarVar a) <$> go t
+    go (RAllT a t)       = GHC.Lam (tyVarVar a) <$$> go t
     go (RFun x tx t _)   = 
       do  y <- freshVar tx
           addEnv y tx 
-          GHC.Lam y <$> go (t `subst1` (x, EVar $ symbol y))
+          GHC.Lam y <$$> go (t `subst1` (x, EVar $ symbol y))
           
     -- Special Treatment for synthesis of integers          
     go t@(RApp c _ts _ r)  
@@ -80,23 +80,18 @@ synthesize' tgt fcfg cgi ctx senv x tx = (:[]) <$> evalSM (go tx) tgt fcfg cgi c
                   smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
               liftIO (SMT.smtPop ctx)
-              return $ notracepp ("numeric with " ++ show r) (GHC.Var $ mkVar (Just smtVal) def def)
+              return $ notracepp ("numeric with " ++ show r) [GHC.Var $ mkVar (Just smtVal) def def]
 
     go t = do addEnv x tx -- NV TODO: edit the type of x to ensure termination 
               synthesizeBasic t 
     
-synthesizeBasic :: SpecType -> SM CoreExpr 
+synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do es <- generateETerms t
-                       ok <- findM (hasType t) es 
-                       case ok of 
-                        Just e  -> return e 
-                        Nothing -> do
+                       filterElseM (hasType t) es $ do
                           apps <- generateApps t
-                          ok' <- findM (hasType t) apps
-                          trace ("apps = " ++ show apps) $
-                            case ok' of
-                              Just e' -> return e'
-                              Nothing -> getSEnv >>= (`synthesizeMatch` t)  
+                          filterElseM (hasType t) apps $ do
+                            trace ("apps = " ++ show apps) $ 
+                              getSEnv >>= (`synthesizeMatch` t)
                        
 
 -- e-terms: var, constructors, function applications
@@ -155,29 +150,47 @@ typeAppl _                  _   = Nothing
 
 -- Panagiotis TODO: here I only explore the first one                     
 --  We need the most recent one
-synthesizeMatch :: SSEnv -> SpecType -> SM CoreExpr 
+synthesizeMatch :: SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch γ t 
-  | (e:_) <- es 
-  = do d <- incrDepth
-       trace ("[synthesizeMatch] es = " ++ show es) $ if d <= maxDepth then matchOn t e else return def 
-  | otherwise 
-  = return def 
+  -- | [] <- es 
+  -- = return def
+
+  -- | otherwise 
+  -- = maybe def id <$> monadicFirst 
+  = trace ("[synthesizeMatch] es = " ++ show es) $ join <$> mapM (\e -> withIncrDepth $ do
+        matchOn t e
+      ) es
+
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+        
+        -- -- Return first nonempty result.
+        -- -- JP: probably want to keep going up to some limit of N results.
+        -- monadicFirst :: (a -> m (Maybe b)) -> [a] -> m (Maybe b)
+        -- monadicFirst _f [] = 
+        --     return Nothing
+        -- monadicFirst f (m:ms) = do
+        --     mb <- f m
+        --     case mb of
+        --         r@(Just _) -> return r
+        --         Nothing -> monadicFirst f ms
 
 maxDepth :: Int 
 maxDepth = 1 
 
-matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM CoreExpr 
-matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$> mapM (makeAlt t (v, tx)) (tyConDataCons c)
+matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
+matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$$> mapM (makeAlt t (v, tx)) (tyConDataCons c)
 
-makeAlt :: SpecType -> (Var, SpecType) -> DataCon -> SM GHC.CoreAlt 
+(<$$>) :: (Functor m, Functor n) => (a -> b) -> m (n a) -> m (n b)
+(<$$>) = fmap . fmap
+
+makeAlt :: SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
 makeAlt t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  e <- synthesizeBasic t
-  return (GHC.DataAlt c, xs, e)
+  es <- synthesizeBasic t
+  return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)
 makeAlt _ _ _ = error "makeAlt.bad argument"
@@ -191,9 +204,17 @@ hasType t e = do
   liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr e ++ " of type " ++ show t ++ "\n Res = " ++ show r)
   return r 
 
-findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
-findM _ []     = return Nothing
-findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
+filterElseM :: Monad m => (a -> m Bool) -> [a] -> m [a] -> m [a]
+filterElseM f as ms = do
+    rs <- filterM f as
+    if null rs then
+        ms
+    else
+        return rs
+
+-- findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
+-- findM _ []     = return Nothing
+-- findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
 
 {- 
     {- OLD STUFF -}
@@ -326,10 +347,22 @@ liftCG act = do
 freshVar :: SpecType -> SM Var
 freshVar t = (\i -> mkVar (Just "x") i (toType t)) <$> incrSM
 
-incrDepth :: SM Int 
-incrDepth = do s <- get 
-               put s{sDepth = sDepth s + 1}
-               return (sDepth s)
+withIncrDepth :: Monoid a => SM a -> SM a
+withIncrDepth m = do 
+    s <- get 
+    let d = sDepth s
+
+    if d + 1 > maxDepth then
+        return mempty
+
+    else do
+        put s{sDepth = d + 1}
+
+        r <- m
+
+        modify $ \s -> s{sDepth = d}
+
+        return r
 
 
 incrSM :: SM Int 
