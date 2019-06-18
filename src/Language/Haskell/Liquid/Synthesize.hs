@@ -25,6 +25,7 @@ import qualified CoreSyn as GHC
 import Var 
 import TyCon
 import DataCon
+import TysWiredIn
 import qualified TyCoRep as GHC 
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 
@@ -37,6 +38,15 @@ import           Data.Maybe
 import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
+import           Data.List 
+
+-- containt GHC primitives
+initSSEnv :: CGInfo -> SSEnv
+initSSEnv info = M.fromList (filter iNeedIt (mkElem <$> prims))
+  where
+    mkElem (v, lt) = (F.symbol v, (val lt, v))
+    prims = gsCtors $ gsData $ giSpec $ ghcI info
+    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [nilDataCon, consDataCon])
 
 
 
@@ -48,9 +58,10 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
     goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
 
     go (x, HoleInfo t loc env (cgi,cge)) = do 
-      fills <- synthesize' tgt fcfg cgi cge mempty x t 
+      fills <- synthesize' tgt fcfg cgi cge (initSSEnv cginfo) x t 
       return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
                        mempty (symbol x) t 
+
 
 synthesize' :: FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> Var -> SpecType -> IO [CoreExpr]
 synthesize' tgt fcfg cgi ctx senv x tx = evalSM (go tx) tgt fcfg cgi ctx senv
@@ -63,6 +74,7 @@ synthesize' tgt fcfg cgi ctx senv x tx = evalSM (go tx) tgt fcfg cgi ctx senv
     go (RFun x tx t _)   = 
       do  y <- freshVar tx
           addEnv y tx 
+          addDecrTerm y [] -- init ssDecrTerm: At this point, x doesn't have any `smaller` terms.
           GHC.Lam y <$$> go (t `subst1` (x, EVar $ symbol y))
           
     -- Special Treatment for synthesis of integers          
@@ -89,14 +101,17 @@ synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do es <- generateETerms t
                        filterElseM (hasType t) es $ do
                           apps <- generateApps t
-                          filterElseM (hasType t) apps $ do
+                          filterElseM (hasType t) apps $ 
                             trace ("apps = " ++ show apps) $ 
                               getSEnv >>= (`synthesizeMatch` t)
                        
 
 -- e-terms: var, constructors, function applications
 
--- Panagiotis TODO: this should generates all e-terms, but now it only generates variables in the environment                    
+-- This should generates all e-terms.
+-- Now it generates variables and function applications in the environment.
+-- TODO: Add constructors in the environment.
+-- Note: Probably `generateApps` works for constructors as well.
 generateETerms :: SpecType -> SM [CoreExpr] 
 generateETerms t = do 
   lenv <- M.toList . ssEnv <$> get 
@@ -108,18 +123,19 @@ generateETerms t = do
 generateApps :: SpecType -> SM [CoreExpr]
 generateApps t = do
   lenv <- M.toList . ssEnv <$> get
+  decrTerms <- ssDecrTerm <$> get
   let τ = toType t
-  case generateApps' lenv lenv τ of
+  case generateApps' decrTerms lenv lenv τ of
     [] -> return []
     l  -> return l
 
-generateApps' :: [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps' []      _  _ = []
-generateApps' (h : t) l2 τ = generateApps'' h l2 τ ++ generateApps' t l2 τ
+generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps' _         []      _  _ = []
+generateApps' decrTerms (h : t) l2 τ = generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
 
-generateApps'' :: (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps'' _       []        _ = []
-generateApps'' h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
+generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps'' _         _                 []                       _ = []
+generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
   let htype  = toType rtype
       htype' = toType rtype'
       t  = typeAppl htype  htype'
@@ -138,9 +154,15 @@ generateApps'' h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ =
       case t of
         Nothing ->
           case t' of 
-            Nothing -> generateApps'' h es τ 
-            Just _  -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' h es τ
-        Just _  -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' h es τ
+            Nothing -> generateApps'' decrTerms h es τ 
+            Just _  -> 
+              case lookup v decrTerms of
+                Nothing   -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' decrTerms h es τ
+                Just vars -> generateApps'' decrTerms h es τ
+        Just _  -> 
+          case lookup v' decrTerms of
+            Nothing   -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' decrTerms h es τ
+            Just vars -> generateApps'' decrTerms h es τ
 
 typeAppl :: Type -> Type -> Maybe Type
 typeAppl (GHC.FunTy t' t'') t''' 
@@ -157,9 +179,8 @@ synthesizeMatch γ t
 
   -- | otherwise 
   -- = maybe def id <$> monadicFirst 
-  = trace ("[synthesizeMatch] es = " ++ show es) $ join <$> mapM (\e -> withIncrDepth $ do
-        matchOn t e
-      ) es
+  = trace ("[synthesizeMatch] es = " ++ show es) $ 
+      join <$> mapM (withIncrDepth . matchOn t) es
 
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
         
@@ -178,22 +199,29 @@ maxDepth :: Int
 maxDepth = 1 
 
 matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
-matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$$> mapM (makeAlt t (v, tx)) (tyConDataCons c)
+matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$$> mapM (makeAlt scrut t (v, tx)) (tyConDataCons c)
+  where scrut = v
 
 (<$$>) :: (Functor m, Functor n) => (a -> b) -> m (n a) -> m (n b)
 (<$$>) = fmap . fmap
 
-makeAlt :: SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
+makeAlt :: Var -> SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
+makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
+  -- begin: TOXIC
+  env <- ssEnv <$> get
+  let htVar = toType $ fst $ fromJust $ M.lookup (symbol var) env
+      xs' = filter (\χ -> htVar == (case M.lookup (symbol χ) env of { Nothing -> error $ "xs = " ++ show xs; Just xs'' -> toType $ fst xs'' } )) xs 
+  addDecrTerm var xs'
+  -- end: TOXIC
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)
-makeAlt _ _ _ = error "makeAlt.bad argument"
+makeAlt _ _ _ _ = error "makeAlt.bad argument"
     
 
 hasType :: SpecType -> CoreExpr -> SM Bool
@@ -286,15 +314,16 @@ symbolExpr τ x = incrSM >>= (\i -> return $ notracepp ("symExpr for " ++ showpp
 -- The state keeps a unique index for generation of fresh variables 
 -- and the environment of variables to types that is expanded on lambda terms
 type SSEnv = M.HashMap Symbol (SpecType, Var)
-
+type SSDecrTerm = [(Var, [Var])]
 data SState 
-  = SState { ssEnv    :: SSEnv -- Local Binders Generated during Synthesis 
-           , ssIdx    :: Int
-           , sContext :: SMT.Context
-           , sCGI     :: CGInfo
-           , sCGEnv   :: CGEnv
-           , sFCfg    :: F.Config
-           , sDepth   :: Int 
+  = SState { ssEnv      :: SSEnv -- Local Binders Generated during Synthesis 
+           , ssIdx      :: Int
+           , ssDecrTerm :: SSDecrTerm 
+           , sContext   :: SMT.Context
+           , sCGI       :: CGInfo
+           , sCGEnv     :: CGEnv
+           , sFCfg      :: F.Config
+           , sDepth     :: Int 
            }
 type SM = StateT SState IO
 
@@ -309,13 +338,15 @@ locally act = do
 evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> IO a 
 evalSM act tgt fcfg cgi cgenv env = do 
   ctx <- SMT.makeContext fcfg tgt  
-  r <- evalStateT act (SState env 0 ctx cgi cgenv fcfg 0)
+  r <- evalStateT act (SState env 0 [] ctx cgi cgenv fcfg 0)
   SMT.cleanupContext ctx 
   return r 
 
 getSEnv :: SM SSEnv
 getSEnv = ssEnv <$> get 
 
+getSDecrTerms :: SM SSDecrTerm 
+getSDecrTerms = ssDecrTerm <$> get
 
 addsEnv :: [(Var, SpecType)] -> SM () 
 addsEnv xts = 
@@ -326,6 +357,19 @@ addEnv :: Var -> SpecType -> SM ()
 addEnv x t = do 
   liftCG0 (\γ -> γ += ("arg", symbol x, t))
   modify (\s -> s {ssEnv = M.insert (symbol x) (t,x) (ssEnv s)}) 
+
+addDecrTerm :: Var -> [Var] -> SM ()
+addDecrTerm x vars = do
+  decrTerms <- getSDecrTerms 
+  case lookup x decrTerms of 
+    Nothing    -> modify (\s -> s { ssDecrTerm = (x, vars) : (ssDecrTerm s) } )
+    Just vars' -> do
+      let ix = elemIndex (x, vars') decrTerms
+      case ix of 
+        Nothing  -> error $ "[addDecrTerm] It should have been there " ++ show x 
+        Just ix' -> 
+          let (left, right) = splitAt ix' decrTerms 
+          in  modify (\s -> s { ssDecrTerm =  left ++ [(x, vars ++ vars')] ++ right } )
 
 
 liftCG0 :: (CGEnv -> CG CGEnv) -> SM () 
