@@ -81,7 +81,6 @@ defaultVisitor = Visitor
   , accExpr    = \_ _ -> mempty
   }
 
-
 ------------------------------------------------------------------------
 
 fold         :: (Visitable t, Monoid a) => Visitor a ctx -> ctx -> a -> t -> a
