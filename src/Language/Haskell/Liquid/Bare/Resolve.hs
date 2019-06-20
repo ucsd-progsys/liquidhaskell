@@ -555,12 +555,12 @@ resolveWith kind f env name str lx =
     msg     = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
 
 
-rankedThings :: (a -> Maybe b) -> [(Int, a)] -> [b]
+rankedThings :: (Misc.EqHash k) => (a -> Maybe b) -> [(k, a)] -> [b]
 rankedThings f ias = case Misc.sortOn fst (Misc.groupList ibs) of 
                        (_,ts):_ -> ts
                        []       -> []
   where 
-    ibs            = Mb.mapMaybe (\(i, x) -> (i,) <$> f x) ias
+    ibs            = Mb.mapMaybe (\(k, x) -> (k,) <$> f x) ias
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
@@ -569,9 +569,9 @@ rankedThings f ias = case Misc.sortOn fst (Misc.groupList ibs) of
 --   see tests-names-pos-*.hs, esp. vector04.hs where we need the name `Vector` 
 --   to resolve to `Data.Vector.Vector` and not `Data.Vector.Generic.Base.Vector`... 
 -------------------------------------------------------------------------------
-lookupTyThing :: Env -> ModName -> LocSymbol -> [(Int, Ghc.TyThing)]
+lookupTyThing :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
 -------------------------------------------------------------------------------
-lookupTyThing env name lsym = [ (k, t) | ((k,_), ts) <- ordMatches, t <- ts] 
+lookupTyThing env name lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts] 
                               
   where 
     ordMatches             = Misc.sortOn fst (Misc.groupList matches)
