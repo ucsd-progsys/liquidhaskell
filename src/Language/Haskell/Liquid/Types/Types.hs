@@ -1616,19 +1616,19 @@ isBase (REx _ _ t)      = isBase t
 isBase _                = False
 
 hasHoleTy :: RType t t1 t2 -> Bool
-hasHoleTy (RVar _ _)         = False 
-hasHoleTy (RAllT _ t)        = hasHoleTy t 
-hasHoleTy (RAllP _ t)        = hasHoleTy t
-hasHoleTy (RAllS _ t)        = hasHoleTy t
-hasHoleTy (RImpF x t t' r)   = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RFun x t t' r)    = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RApp c ts rs r)   = any hasHoleTy ts 
-hasHoleTy (RAllE z t t')     = hasHoleTy t || hasHoleTy t'
-hasHoleTy (REx z t t')       = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RExprArg e)       = False 
-hasHoleTy (RAppTy t t' r)    = hasHoleTy t || hasHoleTy t'
-hasHoleTy (RHole r)          = True 
-hasHoleTy (RRTy xts r o t)   = hasHoleTy t || any hasHoleTy (snd <$> xts)
+hasHoleTy (RVar _ _)       = False 
+hasHoleTy (RAllT _ t)      = hasHoleTy t 
+hasHoleTy (RAllP _ t)      = hasHoleTy t
+hasHoleTy (RAllS _ t)      = hasHoleTy t
+hasHoleTy (RImpF _ t t' _) = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RFun _ t t' _)  = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RApp _ ts _ _)  = any hasHoleTy ts 
+hasHoleTy (RAllE _ t t')   = hasHoleTy t || hasHoleTy t'
+hasHoleTy (REx _ t t')     = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RExprArg _)     = False 
+hasHoleTy (RAppTy t t' _)  = hasHoleTy t || hasHoleTy t'
+hasHoleTy (RHole _)        = True 
+hasHoleTy (RRTy xts _ _ t) = hasHoleTy t || any hasHoleTy (snd <$> xts)
 
 
 
