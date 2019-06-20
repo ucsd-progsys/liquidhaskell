@@ -199,8 +199,9 @@ maxDepth :: Int
 maxDepth = 1 
 
 matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
-matchOn t (v, tx, c) = GHC.Case (GHC.Var v) v (toType tx) <$$> mapM (makeAlt scrut t (v, tx)) (tyConDataCons c)
+matchOn t (v, tx, c) = (GHC.Case (GHC.Var v) v (toType tx) <$$> sequence) <$> mapM (makeAlt scrut t (v, tx)) (tyConDataCons c)
   where scrut = v
+  -- JP: Does this need to be a foldM? Previous pattern matches could influence expressions of later patterns?
 
 (<$$>) :: (Functor m, Functor n) => (a -> b) -> m (n a) -> m (n b)
 (<$$>) = fmap . fmap
