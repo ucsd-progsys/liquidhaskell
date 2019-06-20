@@ -14,7 +14,7 @@ module Language.Haskell.Liquid.Types.Dictionaries (
   ) where
 
 import           Data.Hashable
-import           Data.Maybe (catMaybes)
+-- import           Data.Maybe (catMaybes)
 
 import           Prelude                                   hiding (error)
 import           Var
@@ -24,7 +24,7 @@ import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 import           Language.Haskell.Liquid.Types.Types
-import           Language.Haskell.Liquid.Types.Visitors (freeVars)
+-- import           Language.Haskell.Liquid.Types.Visitors (freeVars)
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Fixpoint.Misc                (mapFst)
 import qualified Data.HashMap.Strict                       as M
