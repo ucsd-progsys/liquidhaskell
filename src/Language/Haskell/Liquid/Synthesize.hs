@@ -41,6 +41,7 @@ import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
 
 -- containt GHC primitives
+-- JP: Should we get this from REnv instead?
 initSSEnv :: CGInfo -> SSEnv
 initSSEnv info = M.fromList (filter iNeedIt (mkElem <$> prims))
   where
@@ -58,13 +59,13 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
     goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
 
     go (x, HoleInfo t loc env (cgi,cge)) = do 
-      fills <- synthesize' tgt fcfg cgi cge (initSSEnv cginfo) x t 
+      fills <- synthesize' tgt fcfg cgi cge env (initSSEnv cginfo) x t 
       return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
                        mempty (symbol x) t 
 
 
-synthesize' :: FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> Var -> SpecType -> IO [CoreExpr]
-synthesize' tgt fcfg cgi ctx senv x tx = evalSM (go tx) tgt fcfg cgi ctx senv
+synthesize' :: FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType -> IO [CoreExpr]
+synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx renv senv
   where 
 
     go :: SpecType -> SM [CoreExpr] -- JP: [SM CoreExpr] ???
@@ -101,9 +102,11 @@ synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do es <- generateETerms t
                        filterElseM (hasType t) es $ do
                           apps <- generateApps t
-                          filterElseM (hasType t) apps $ 
+                          filterElseM (hasType t) apps $ do
+                            senv <- getSEnv
+                            lenv <- getLocalEnv
                             trace ("apps = " ++ show apps) $ 
-                              getSEnv >>= (`synthesizeMatch` t)
+                              synthesizeMatch lenv senv t
                        
 
 -- e-terms: var, constructors, function applications
@@ -172,17 +175,24 @@ typeAppl _                  _   = Nothing
 
 -- Panagiotis TODO: here I only explore the first one                     
 --  We need the most recent one
-synthesizeMatch :: SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch γ t 
+synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
+synthesizeMatch lenv γ t 
   -- | [] <- es 
   -- = return def
 
   -- | otherwise 
   -- = maybe def id <$> monadicFirst 
   = trace ("[synthesizeMatch] es = " ++ show es) $ 
-      join <$> mapM (withIncrDepth . matchOn t) es
+      join <$> mapM (withIncrDepth . matchOn t) (es <> ls)
 
-  where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+  where 
+    es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+    ls = [(v,t,rtc_tc c) | (s, t@(RApp c _ _ _)) <- M.toList lenv
+                         , Just v <- [symbolToVar s] -- JP: Is there better syntax for this?
+         ]
+    
+    symbolToVar :: Symbol -> Maybe Var
+    symbolToVar _ = Nothing -- TODO: Actually implement me!!! Dependent on abstract symbols? XXX
         
         -- -- Return first nonempty result.
         -- -- JP: probably want to keep going up to some limit of N results.
@@ -317,7 +327,8 @@ symbolExpr τ x = incrSM >>= (\i -> return $ notracepp ("symExpr for " ++ showpp
 type SSEnv = M.HashMap Symbol (SpecType, Var)
 type SSDecrTerm = [(Var, [Var])]
 data SState 
-  = SState { ssEnv      :: SSEnv -- Local Binders Generated during Synthesis 
+  = SState { rEnv       :: REnv -- Local Binders Generated during Synthesis 
+           , ssEnv      :: SSEnv -- Local Binders Generated during Synthesis 
            , ssIdx      :: Int
            , ssDecrTerm :: SSDecrTerm 
            , sContext   :: SMT.Context
@@ -336,15 +347,20 @@ locally act = do
   return r 
 
 
-evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> SSEnv -> IO a 
-evalSM act tgt fcfg cgi cgenv env = do 
+evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> IO a 
+evalSM act tgt fcfg cgi cgenv renv env = do 
   ctx <- SMT.makeContext fcfg tgt  
-  r <- evalStateT act (SState env 0 [] ctx cgi cgenv fcfg 0)
+  r <- evalStateT act (SState renv env 0 [] ctx cgi cgenv fcfg 0)
   SMT.cleanupContext ctx 
   return r 
 
 getSEnv :: SM SSEnv
 getSEnv = ssEnv <$> get 
+
+type LEnv = M.HashMap Symbol SpecType -- | Local env.
+
+getLocalEnv :: SM LEnv
+getLocalEnv = (reLocal . rEnv) <$> get
 
 getSDecrTerms :: SM SSDecrTerm 
 getSDecrTerms = ssDecrTerm <$> get
