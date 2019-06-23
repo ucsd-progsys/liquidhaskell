@@ -713,7 +713,7 @@ askSMT cfg ctx bs e
 toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
 toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
   where
-    elabEnv      = insertsSymEnv senv -- L.foldl' (\env (x, s) -> insertSymEnv x s env) senv
+    elabEnv      = insertsSymEnv senv
     senv         = SMT.ctxSymEnv ctx
 
 makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
