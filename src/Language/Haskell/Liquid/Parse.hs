@@ -318,7 +318,7 @@ bareTypeP = do
 
 bareTypeBracesP :: Parser ParamComp
 bareTypeBracesP = do
-  t <-  braces (
+  t <-  try (braces (
             (try (do
                ct <- constraintP
                return $ Right ct
@@ -338,12 +338,20 @@ bareTypeBracesP = do
                     return $ Left $ PC (PcExplicit x) $ t (Reft (x, ra)) ))
            <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
                   return (Left $ nullPC t)
-            )
+            )) <|> try (helper holeOrPreds) <|> helper predP
   case t of
     Left l -> return l
     Right ct -> do
       PC _sb tt <- btP
       return $ nullPC $ rrTy ct tt
+  where
+    holeOrPreds
+      = (reserved "_" >> return hole)
+     <|> try (pAnd <$> brackets (sepBy predP semi))
+    helper p = braces $ do
+      t <- ((RHole . uTop . Reft . ("VV",)) <$> (p <* spaces))
+      return (Left $ nullPC t)
+
 
 bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
