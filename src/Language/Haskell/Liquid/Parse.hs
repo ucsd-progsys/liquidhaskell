@@ -324,7 +324,7 @@ bareTypeBracesP = do
                return $ Right ct
                      ))
            <|>
-            (try(do
+            (do
                     x  <- symbolP
                     _ <- colon
                     -- NOSUBST i  <- freshIntP
@@ -335,17 +335,15 @@ bareTypeBracesP = do
                     -- su replaces any use of x in the balance of the expression with the unique val
                     -- NOSUBST let xi = intSymbol x i
                     -- NOSUBST let su v = if v == x then xi else v
-                    return $ Left $ PC (PcExplicit x) $ t (Reft (x, ra)) ))
-           <|> do t <- ((RHole . uTop . Reft . ("VV",)) <$> (refasHoleP <* spaces))
-                  return (Left $ nullPC t)
-            )) <|> try (helper holeOrPreds) <|> helper predP
+                    return $ Left $ PC (PcExplicit x) $ t (Reft (x, ra)) )
+            )) <|> try (helper holeOrPredsP) <|> helper predP
   case t of
     Left l -> return l
     Right ct -> do
       PC _sb tt <- btP
       return $ nullPC $ rrTy ct tt
   where
-    holeOrPreds
+    holeOrPredsP
       = (reserved "_" >> return hole)
      <|> try (pAnd <$> brackets (sepBy predP semi))
     helper p = braces $ do
