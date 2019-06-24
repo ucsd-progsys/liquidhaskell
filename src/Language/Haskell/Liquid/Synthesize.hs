@@ -173,6 +173,44 @@ typeAppl (GHC.FunTy t' t'') t'''
 typeAppl _                  _   = Nothing 
 
 
+-- Select all functions with result type (t'') equal with goalType
+--        | goal |
+goalType :: Type -> Type -> Bool
+goalType τ t@(GHC.ForAllTy (TvBndr var _) htype) = 
+  trace ("[goalType ]forall." ++ show (symbol var) ++ " has type = " ++ showTy htype ++ ", vars = " ++ show (map symbol (varsInType t)) ++ " and goalType has vars: " ++ show (map symbol (varsInType τ)))
+    (goalType τ (substInType htype (varsInType τ)))
+goalType τ (GHC.FunTy _ t'') -- τ: base types
+  | t'' == τ  = True
+  | otherwise = goalType t'' τ
+goalType τ                 t 
+  | τ == t    = True
+  | otherwise = trace ("[goalType: No match] type = " ++ showTy t ++ ", with goalType = " ++ showTy τ) False
+
+-- TODO: More than one type variables in type (what happens in forall case with that?).
+substInType :: Type -> [TyVar] -> Type 
+substInType t [tv] = substInType' tv t
+  where 
+    substInType' :: TyVar -> Type -> Type
+    substInType' tv (GHC.TyVarTy var)                = GHC.TyVarTy tv
+    substInType' tv (GHC.ForAllTy (TvBndr var x) ty) = GHC.ForAllTy (TvBndr tv x) (substInType' tv ty)
+    substInType' tv (GHC.FunTy t0 t1)                = GHC.FunTy (substInType' tv t0) (substInType' tv t1)
+    substInType' tv (GHC.AppTy t0 t1)                = GHC.AppTy (substInType' tv t0) (substInType' tv t1)
+    substInType' tv (GHC.TyConApp c ts)              = GHC.TyConApp c (map (substInType' tv) ts)
+    substInType' _  t                                = error $ "[substInType'] Shouldn't reach that point for now " ++ showTy t
+substInType _ vars = error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
+
+varsInType :: Type -> [TyVar] -- Find all variables in type
+varsInType t = (map head . group . sort) (varsInType' t)
+  where
+    varsInType' (GHC.TyVarTy var)                = [var]
+    varsInType' (GHC.ForAllTy (TvBndr var _) ty) = var : varsInType' ty
+    varsInType' (GHC.FunTy t0 t1)                = varsInType' t0 ++ varsInType' t1
+    varsInType' (GHC.AppTy t0 t1)                = varsInType' t0 ++ varsInType' t1 
+    varsInType' (GHC.TyConApp c ts)              = foldr (\x y -> concat (map varsInType' ts) ++ y) [] ts
+    varsInType' t                                = error $ "[varsInType] Shouldn't reach that point for now " ++ showTy t
+
+
+
 -- Panagiotis TODO: here I only explore the first one                     
 --  We need the most recent one
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
