@@ -47,7 +47,7 @@ module Language.Haskell.Liquid.Types.Types (
   , BTyVar(..)
 
   -- * Refined Type Constructors
-  , RTyCon (RTyCon, rtc_tc, rtc_info)
+  , RTyCon (RTyCon, rtc_tc, rtc_info, rtc_pvars)
   , TyConInfo(..), defaultTyConInfo
   , rTyConPVs
   , rTyConPropVs
@@ -77,7 +77,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Predicate Variables
   , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
-  , PVKind (..)
+  , PVKind (..), isProp, getProp
   , Predicate (..)
 
   -- * Refinements
@@ -631,6 +631,10 @@ isProp :: PVKind t -> Bool
 isProp (PVProp _) = True
 isProp _          = False
 
+
+getProp :: PVKind t -> Maybe t 
+getProp (PVProp t) = Just t
+getProp _          = Nothing 
 
 defaultTyConInfo :: TyConInfo
 defaultTyConInfo = TyConInfo [] [] Nothing

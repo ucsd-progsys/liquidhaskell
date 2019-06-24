@@ -241,8 +241,23 @@ goPlug tce tyi err f = go
     -- zipWithDefM: if ts and ts' have different length then the liquid and haskell types are different.
     -- keep different types for now, as a pretty error message will be created at Bare.Check
     go (RApp _ ts _ _)  (RApp c ts' p r)   
-      | length ts == length ts'            = RApp c     (Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts') p r
+      | length ts == length ts'            = RApp c pts pps r 
+      where ps  = rtc_pvars $ rt_tycon $ addTyConInfo tce tyi (RApp c pts [] r)
+            pts = Misc.zipWithDef go ts $ Bare.matchKindArgs ts ts'
+            pps = zipWithFst go' p ps
     go hsT lqT                             = Ex.throw (err (F.pprint hsT) (F.pprint lqT))
+
+    go' lsP hsP
+      | Just t <- getProp (ptype hsP)
+      , hasHoleTy (rf_body lsP) 
+      = lsP{rf_body = go (fmap mempty t) (rf_body lsP)}
+      | otherwise
+      = lsP 
+
+    zipWithFst f []     []     = [] 
+    zipWithFst f xs     []     = xs 
+    zipWithFst f []     ys     = [] 
+    zipWithFst f (x:xs) (y:ys) = f x y:zipWithFst f xs ys 
 
     -- otherwise                          = Ex.throw err 
     -- If we reach the default case, there's probably an error, but we defer
