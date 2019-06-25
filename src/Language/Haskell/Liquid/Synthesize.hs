@@ -107,7 +107,16 @@ synthesizeBasic t = do es <- generateETerms t
                             lenv <- getLocalEnv
                             trace ("apps = " ++ show apps) $ 
                               synthesizeMatch lenv senv t
-                       
+                 
+
+-- synthesizeBasic' :: SpecType -> SM [CoreExpr]
+-- synthesizeBasic' specTy = 
+--  * Basic type: 
+--  do  senv <- M.toList . ssEnv <$> get
+--      let candidates = produceCands senv specTy
+-- 
+--
+
 
 -- e-terms: var, constructors, function applications
 
@@ -132,9 +141,37 @@ generateApps t = do
     [] -> return []
     l  -> return l
 
+filterCands :: [(Symbol, (Type, Var))] -> Type -> [(Symbol, (Type, Var))]
+filterCands []             _  = []
+filterCands (cand : cands) ty = 
+  let (_, (candType, _)) = cand
+      preamble = "[ filterCands ] "
+      nspaces  = length preamble 
+      delim    = "\n" ++ (replicate nspaces ' ')
+      isCand   = goalType ty candType
+  in  trace ("[ filterCands ] cand = " ++ showTy candType ++ delim  ++ "goalType = " ++ showTy ty ++ delim ++ "result = " ++ show isCand) $
+        if isCand
+          then cand : filterCands cands ty
+          else filterCands cands ty
+
+showCandidates :: SSEnv -> Type -> String 
+showCandidates senv goalTy = 
+  let senvLst   = M.toList senv
+      senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
+      -- filterFun (_, (specT, _)) = goalType goalTy specT
+      candTerms = filterCands senvLst' goalTy -- filter filterFun senvLst'
+      ppCands   = map (show . fst) candTerms
+      -- ppCands   = map showTy candTerms
+  in  trace ("[ showCandidates ] goalType = " ++ showTy goalTy)  
+        unwords $ intersperse ", " ppCands
+
+
 generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
 generateApps' _         []      _  _ = []
-generateApps' decrTerms (h : t) l2 τ = generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
+generateApps' decrTerms (h : t) l2 τ = 
+  -- trace ("[ Candidates ] " ++ (unwords $ intersperse ", " (map showTy (filter (goalType τ) (map (\(_, (spect, var)) -> toType spect) l2)))) ) $ 
+  trace ("[ Candidates ] " ++ showCandidates (M.fromList l2) τ ++ "\n [goalType ] " ++ showTy τ ++ "\n" ++ show (map fst l2))
+    generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
 
 generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
 generateApps'' _         _                 []                       _ = []
@@ -173,15 +210,30 @@ typeAppl (GHC.FunTy t' t'') t'''
 typeAppl _                  _   = Nothing 
 
 
--- Select all functions with result type (t'') equal with goalType
+
+-- Select all functions with result type equal with goalType
 --        | goal |
 goalType :: Type -> Type -> Bool
 goalType τ t@(GHC.ForAllTy (TvBndr var _) htype) = 
-  trace ("[goalType ]forall." ++ show (symbol var) ++ " has type = " ++ showTy htype ++ ", vars = " ++ show (map symbol (varsInType t)) ++ " and goalType has vars: " ++ show (map symbol (varsInType τ)))
-    (goalType τ (substInType htype (varsInType τ)))
-goalType τ (GHC.FunTy _ t'') -- τ: base types
+  let preamble = "[goalType ]forall."
+      nspaces = length preamble
+      delim = "\n" ++ replicate nspaces ' '  
+      substHType = substInType htype (varsInType τ)
+  in  trace 
+        ("[goalType ]forall." ++ 
+          show (symbol var) ++ 
+          " has type = " ++ 
+          showTy htype ++ 
+          ", vars = " ++ 
+          show (map symbol (varsInType t)) ++ 
+          " and goalType has vars: " ++ 
+          show (map symbol (varsInType τ)) ++
+          delim ++
+          "substituted type = " ++ showTy substHType)
+        (goalType τ substHType)
+goalType τ t@(GHC.FunTy _ t'') -- τ: base types
   | t'' == τ  = True
-  | otherwise = goalType t'' τ
+  | otherwise = trace ("[ goalType ]funTy = " ++ showTy t) $ goalType τ t''
 goalType τ                 t 
   | τ == t    = True
   | otherwise = trace ("[goalType: No match] type = " ++ showTy t ++ ", with goalType = " ++ showTy τ) False
@@ -190,7 +242,7 @@ goalType τ                 t
 substInType :: Type -> [TyVar] -> Type 
 substInType t [tv] = substInType' tv t
   where 
-    substInType' :: TyVar -> Type -> Type
+    -- substInType' :: TyVar -> Type -> Type
     substInType' tv (GHC.TyVarTy var)                = GHC.TyVarTy tv
     substInType' tv (GHC.ForAllTy (TvBndr var x) ty) = GHC.ForAllTy (TvBndr tv x) (substInType' tv ty)
     substInType' tv (GHC.FunTy t0 t1)                = GHC.FunTy (substInType' tv t0) (substInType' tv t1)
