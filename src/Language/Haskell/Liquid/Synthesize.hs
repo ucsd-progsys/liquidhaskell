@@ -99,23 +99,58 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
               synthesizeBasic t 
     
 synthesizeBasic :: SpecType -> SM [CoreExpr]
-synthesizeBasic t = do es <- generateETerms t
-                       filterElseM (hasType t) es $ do
-                          apps <- generateApps t
-                          filterElseM (hasType t) apps $ do
-                            senv <- getSEnv
-                            lenv <- getLocalEnv
-                            trace ("apps = " ++ show apps) $ 
-                              synthesizeMatch lenv senv t
-                 
+synthesizeBasic t = do 
+  rtc_cands <- synthesizeBasic' t 
+  trace ("[ synthesizeBasic ]" ++ (show $ map fst rtc_cands)) $
+    do  es <- generateETerms t
+        filterElseM (hasType t) es $ do
+            apps <- generateApps t
+            filterElseM (hasType t) apps $ do
+              senv <- getSEnv
+              lenv <- getLocalEnv
+              trace ("apps = " ++ show apps) $ 
+                synthesizeMatch lenv senv t
 
--- synthesizeBasic' :: SpecType -> SM [CoreExpr]
--- synthesizeBasic' specTy = 
+isBasic :: Type -> Bool
+isBasic TyConApp{} = True
+isBasic TyVarTy {} = True
+isBasic AppTy {}   = False 
+isBasic t@LitTy {} = trace ("LitTy " ++ showTy t) False
+isBasic t          = trace (" type = " ++ showTy t) False
+
+
+synthesizeBasic' :: SpecType -> SM [(Symbol, (Type, Var))]
+synthesizeBasic' specTy = 
 --  * Basic type: 
---  do  senv <- M.toList . ssEnv <$> get
---      let candidates = produceCands senv specTy
--- 
---
+ do   
+      senv <- ssEnv <$> get
+      let τ            = toType specTy
+          (_, cands)   = showCandidates senv τ
+          filterFunBasic (_, (ty, _)) = isBasic ty
+          filterFunFun   (_, (ty, _)) = not $ isBasic ty
+          basicTyCands = filter filterFunBasic cands
+          funTyCands   = filter filterFunFun cands
+          subgoals     = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands
+      -- TODO variable subtitution to determine new subgoals !!!
+      trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals) ++ "\n [ funTyCands ]"
+              ++ show (map fst funTyCands)
+              ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)) $
+        filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
+
+
+
+showGoals :: [[String]] -> String
+showGoals []             = ""
+showGoals (goal : goals) = 
+  show goal        ++ 
+  "\n"             ++ 
+  replicate 12 ' ' ++ 
+  showGoals goals
+
+createSubgoals :: Type -> [Type]
+-- TODO: forall missing, split there as well
+createSubgoals (GHC.FunTy t1 t2) = [t1, t2]
+createSubgoals t                 = [t]
 
 
 -- e-terms: var, constructors, function applications
@@ -147,14 +182,14 @@ filterCands (cand : cands) ty =
   let (_, (candType, _)) = cand
       preamble = "[ filterCands ] "
       nspaces  = length preamble 
-      delim    = "\n" ++ (replicate nspaces ' ')
+      delim    = "\n" ++ replicate nspaces ' '
       isCand   = goalType ty candType
   in  trace ("[ filterCands ] cand = " ++ showTy candType ++ delim  ++ "goalType = " ++ showTy ty ++ delim ++ "result = " ++ show isCand) $
         if isCand
           then cand : filterCands cands ty
           else filterCands cands ty
 
-showCandidates :: SSEnv -> Type -> String 
+showCandidates :: SSEnv -> Type -> (String, [(Symbol, (Type, Var))])
 showCandidates senv goalTy = 
   let senvLst   = M.toList senv
       senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
@@ -163,14 +198,14 @@ showCandidates senv goalTy =
       ppCands   = map (show . fst) candTerms
       -- ppCands   = map showTy candTerms
   in  trace ("[ showCandidates ] goalType = " ++ showTy goalTy)  
-        unwords $ intersperse ", " ppCands
+        (unwords $ intersperse ", " ppCands, candTerms)
 
 
 generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
 generateApps' _         []      _  _ = []
 generateApps' decrTerms (h : t) l2 τ = 
   -- trace ("[ Candidates ] " ++ (unwords $ intersperse ", " (map showTy (filter (goalType τ) (map (\(_, (spect, var)) -> toType spect) l2)))) ) $ 
-  trace ("[ Candidates ] " ++ showCandidates (M.fromList l2) τ ++ "\n [goalType ] " ++ showTy τ ++ "\n" ++ show (map fst l2))
+  trace ("[ Candidates ] " ++ fst (showCandidates (M.fromList l2) τ) ++ "\n [goalType ] " ++ showTy τ ++ "\n" ++ show (map fst l2))
     generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
 
 generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
@@ -369,40 +404,6 @@ filterElseM f as ms = do
     go (RExprArg _)    = return def 
     go (RHole _)       = return def 
 -}
-------------------------------------------------------------------------------
--- Handle dependent arguments
-------------------------------------------------------------------------------
--- * Arithmetic refinement expressions: 
---    > All constants right, all variables left
-------------------------------------------------------------------------------
--- depsSort :: Expr -> Expr 
--- depsSort e = 
---   case e of 
---     PAnd exprs -> PAnd (map depsSort exprs)
---       -- error "PAnd not implemented yet"
---     PAtom brel e1 e2 -> PAtom brel (depsSort e1)
---       -- error ("e1 = " ++ show e1)
---       -- error "PAtom not implemented yet"
---     ESym _symConst -> error "ESym not implemented yet" 
---     constant@(ECon _c) -> constant 
---     EVar _symbol -> error "EVar not implemented yet"
---     EApp _expr1 _expr2 -> error "EVar not implemented yet"
---     ENeg _expr -> error "ENeg not implemented yet"
---     EBin _bop _expr1 _expr2 -> error "EBin not implemented yet"
---     EIte _expr1 _expr2 _expr3 -> error "EIte not implemented yet"
---     ECst _expr _sort -> error "ECst not implemented yet"
---     ELam _targ _expr -> error "ELam not implemented yet"
---     ETApp _expr _sort -> error "ETApp not implemented yet"
---     ETAbs _expr _symbol -> error "ETAbs not implemented yet"
---     POr _exprLst -> error "POr not implemented yet" 
---     PNot _expr -> error "PNot not implemented yet"
---     PImp _expr1 _expr2 -> error "PImp not implemented yet"
---     PIff _expr1 _expr2 -> error "PIff not implemented yet"
---     PKVar _kvar _subst -> error "PKVar not implemented yet"
---     PAll _ _expr -> error "PAll not implemented yet"
---     PExist _ _expr -> error "PExist not implemented yet" 
---     PGrad _kvar _subst _gradInfo _expr -> error "PGrad not implemented yet"
---     ECoerc _sort1 _sort2 _expr -> error "ECoerc not implemented yet"
 
 
 symbolExpr :: GHC.Type -> Symbol -> SM CoreExpr 
