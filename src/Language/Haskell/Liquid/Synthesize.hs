@@ -101,7 +101,7 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do 
   rtc_cands <- synthesizeBasic' t 
-  trace ("[ synthesizeBasic ]" ++ (show $ map fst rtc_cands)) $
+  trace ("[ synthesizeBasic ]" ++ show (map fst rtc_cands)) $
     do  es <- generateETerms t
         filterElseM (hasType t) es $ do
             apps <- generateApps t
@@ -130,8 +130,13 @@ synthesizeBasic' specTy =
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
           basicTyCands = filter filterFunBasic cands
           funTyCands   = filter filterFunFun cands
-          subgoals     = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands
-      -- TODO variable subtitution to determine new subgoals !!!
+          
+          subgoals     = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
+          
+          -- Variable subtitution to determine new subgoals
+          tyVars       = varsInType τ
+          funTyCands'  = map (\(s, (ty, v)) -> (s, (substInType ty tyVars, v))) funTyCands 
+          
       trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals) ++ "\n [ funTyCands ]"
               ++ show (map fst funTyCands)
               ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)) $
@@ -147,10 +152,10 @@ showGoals (goal : goals) =
   replicate 12 ' ' ++ 
   showGoals goals
 
-createSubgoals :: Type -> [Type]
--- TODO: forall missing, split there as well
-createSubgoals (GHC.FunTy t1 t2) = [t1, t2]
-createSubgoals t                 = [t]
+createSubgoals :: Type -> [Type] -- Subgoals are function's arguments.
+createSubgoals (GHC.ForAllTy _ htype) = createSubgoals htype
+createSubgoals (GHC.FunTy t1 t2)      = t1 : createSubgoals t2
+createSubgoals t                      = [t]
 
 
 -- e-terms: var, constructors, function applications
@@ -162,9 +167,7 @@ createSubgoals t                 = [t]
 generateETerms :: SpecType -> SM [CoreExpr] 
 generateETerms t = do 
   lenv <- M.toList . ssEnv <$> get 
-  let delimiterStr = "\n************************************\n"
-  trace (delimiterStr ++ "[generateETerms] lenv = " ++ show lenv ++ " " ++ delimiterStr) $ 
-    return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
+  return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
   where τ = toType t 
 
 generateApps :: SpecType -> SM [CoreExpr]
@@ -180,14 +183,10 @@ filterCands :: [(Symbol, (Type, Var))] -> Type -> [(Symbol, (Type, Var))]
 filterCands []             _  = []
 filterCands (cand : cands) ty = 
   let (_, (candType, _)) = cand
-      preamble = "[ filterCands ] "
-      nspaces  = length preamble 
-      delim    = "\n" ++ replicate nspaces ' '
       isCand   = goalType ty candType
-  in  trace ("[ filterCands ] cand = " ++ showTy candType ++ delim  ++ "goalType = " ++ showTy ty ++ delim ++ "result = " ++ show isCand) $
-        if isCand
-          then cand : filterCands cands ty
-          else filterCands cands ty
+  in  if isCand
+        then cand : filterCands cands ty
+        else filterCands cands ty
 
 showCandidates :: SSEnv -> Type -> (String, [(Symbol, (Type, Var))])
 showCandidates senv goalTy = 
@@ -196,7 +195,6 @@ showCandidates senv goalTy =
       -- filterFun (_, (specT, _)) = goalType goalTy specT
       candTerms = filterCands senvLst' goalTy -- filter filterFun senvLst'
       ppCands   = map (show . fst) candTerms
-      -- ppCands   = map showTy candTerms
   in  trace ("[ showCandidates ] goalType = " ++ showTy goalTy)  
         (unwords $ intersperse ", " ppCands, candTerms)
 
@@ -204,7 +202,6 @@ showCandidates senv goalTy =
 generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
 generateApps' _         []      _  _ = []
 generateApps' decrTerms (h : t) l2 τ = 
-  -- trace ("[ Candidates ] " ++ (unwords $ intersperse ", " (map showTy (filter (goalType τ) (map (\(_, (spect, var)) -> toType spect) l2)))) ) $ 
   trace ("[ Candidates ] " ++ fst (showCandidates (M.fromList l2) τ) ++ "\n [goalType ] " ++ showTy τ ++ "\n" ++ show (map fst l2))
     generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
 
@@ -215,18 +212,7 @@ generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ =
       htype' = toType rtype'
       t  = typeAppl htype  htype'
       t' = typeAppl htype' htype
-  in  
-  -- in  trace ( "\n ***** t = "   ++ 
-  --             showTy t ++ "\n"  ++ 
-  --             "       var = "   ++ 
-  --             show v ++ "\n"    ++
-  --             "\n ***** t' = "  ++ 
-  --             showTy t' ++ "\n" ++ 
-  --             "       var = "   ++ 
-  --             show v' ++ "\n"   ++
-  --             "\n ***** τ = "   ++ 
-  --             showTy τ ++ "\n"    ) $ 
-      case t of
+  in  case t of
         Nothing ->
           case t' of 
             Nothing -> generateApps'' decrTerms h es τ 
