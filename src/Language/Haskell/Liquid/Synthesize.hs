@@ -39,6 +39,8 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
+import qualified Data.Map as Map 
+import           Data.List.Extra
 
 -- containt GHC primitives
 -- JP: Should we get this from REnv instead?
@@ -136,6 +138,7 @@ synthesizeBasic' specTy =
           subgoalsNum  = length subgoals'
           subgoals'    = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
           subgoals     = map (\x -> take (length x - 1)) subgoals'
+          initEMem     = initExprMemory senv
 
 
           -- [ GHC.Var v | (x, (tx, v)) <- basicTyCands ]
@@ -150,19 +153,75 @@ synthesizeBasic' specTy =
 
       trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals') ++ "\n [ funTyCands ]"
               ++ show (map fst funTyCands)
-              ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)) $
+              ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)
+              ++ "\n[ exprMemory ]" ++ show (map (\(t, e) -> (showTy t, show e)) (initExprMemory senv)) 
+              ++ "\n[ Expressions ]" ++ show (map showTy (map fst (fillArgs initEMem funTyCands initEMem))) 
+              ) 
         -- filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
-        return basicTyCands
+        (return basicTyCands)
 
 -- For every subgoal find the candidates
 -- If all subgoals are filled try to hasType 
 -- Try again until depth = 4
 
+type ExprMemory = [(Type, CoreExpr)]
+-- Initialized with basic type expressions
+-- e.g. b  --- x_s3
+--     [b] --- [], x_s0, x_s4
+initExprMemory :: SSEnv -> ExprMemory
+initExprMemory ssenv = 
+  let senv   = M.toList ssenv 
+      senv'  = filter (\(_, (t, _)) -> isBasic (toType t)) senv 
+      senv'' = map (\(_, (t, v)) -> (toType t, GHC.Var v)) senv' 
+  in  senv''
 
 
--- fillArgs :: Type -> SM [CoreExpr] -- Hopefully...
--- fillArgs t = 
---   let subgoals = 
+-- Produce new expressions from expressions currently in expression memory.
+-- Only funTyCands can be passed as second argument.
+fillArgs :: ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> ExprMemory 
+fillArgs exprs   []             accExprs = accExprs
+fillArgs exprMem (cand : cands) accExprs = 
+  let subgoalsNum       = length subgoals'
+      (sym, (htype, v)) = cand
+      subgoals'         = createSubgoals htype 
+      resultTy          = head $ reverse subgoals 
+      subgoals          = take (length subgoals' - 1) subgoals'
+      argCands          = map (withSubgoal exprMem) subgoals 
+      withType          = fillOne cand argCands
+      newExprs          = map (\x -> (htype, x)) withType
+  in  
+      trace ("[ subgoals ] " ++ (concat $ map showTy subgoals))
+        (fillArgs exprMem cands (accExprs ++ newExprs)) -- newExprs...
+
+-- Takes a function and a list of correct expressions for every argument
+-- and returns a list of new expressions.
+-- Currently, works with arity 1 or 2 (see below)...
+fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> [CoreExpr]
+fillOne funTyCand argCands = 
+  let (_, (t, v)) = funTyCand
+      arity       = length argCands 
+  in  if arity == 1 
+        then  [GHC.App (GHC.Var v) v' | v' <- head argCands ]
+        else  
+          if arity == 2
+            then  [ GHC.App (GHC.App (GHC.Var v) v') v'' 
+                    | v' <- head argCands, 
+                      v'' <- argCands !! 1                
+                  ]
+            else error $ "[ fillOne - funTyCand ] " -- ++ (show $ fst funTyCand)
+
+
+-- withSubgoals :: a type from subgoals 
+-- return all expressions in ExprMemory that have the same type
+withSubgoal :: ExprMemory -> Type -> [CoreExpr]
+withSubgoal []               _ = []
+withSubgoal ((t, e) : exprs) τ = 
+  if τ == t 
+    then e : withSubgoal exprs τ
+    else withSubgoal exprs τ
+
+
+
 
 showGoals :: [[String]] -> String
 showGoals []             = ""
