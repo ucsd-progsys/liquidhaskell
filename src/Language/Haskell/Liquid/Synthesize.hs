@@ -103,7 +103,7 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do 
   rtc_cands <- synthesizeBasic' t 
-  trace ("[ synthesizeBasic ]" ++ show (map fst rtc_cands)) $
+  trace ("[ synthesizeBasic ]" ++ show rtc_cands) $
     do  es <- generateETerms t
         filterElseM (hasType t) es $ do
             apps <- generateApps t
@@ -123,7 +123,7 @@ isBasic t@LitTy {}     = trace ("LitTy " ++ showTy t) False
 isBasic t              = trace (" type = " ++ showTy t) False
 
 
-synthesizeBasic' :: SpecType -> SM [(Symbol, (Type, Var))]
+synthesizeBasic' :: SpecType -> SM [CoreExpr] -- [(Symbol, (Type, Var))]
 synthesizeBasic' specTy = 
 --  * Basic type: 
   do  senv <- ssEnv <$> get
@@ -138,14 +138,20 @@ synthesizeBasic' specTy =
           subgoalsNum  = length subgoals'
           subgoals'    = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
           subgoals     = map (\x -> take (length x - 1)) subgoals'
-          initEMem     = initExprMemory senv
+          initEMem     = initExprMemory τ senv
 
-
+          exprs = fillArgs initEMem funTyCands' initEMem
           -- [ GHC.Var v | (x, (tx, v)) <- basicTyCands ]
           -- [ GHC.App 
                 -- (GHC.App (GHC.Var v) subgoal1) 
                 -- subgoal2  | (_, (_ , v)) <- funTyCands   ]
           
+          exprs1 = fillArgs exprs funTyCands' exprs
+          exprs2 = fillArgs exprs1 funTyCands' exprs1
+          exprs3 = fillArgs exprs2 funTyCands' exprs2
+          exprs4 = fillArgs exprs3 funTyCands' exprs3
+          exprs5 = fillArgs exprs4 funTyCands' exprs4
+          final = let (l, r) = splitAt 1 exprs5 in l ++ tail r
 
           -- Variable subtitution to determine new subgoals
           tyVars       = varsInType τ
@@ -154,11 +160,15 @@ synthesizeBasic' specTy =
       trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals') ++ "\n [ funTyCands ]"
               ++ show (map fst funTyCands)
               ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)
-              ++ "\n[ exprMemory ]" ++ show (map (\(t, e) -> (showTy t, show e)) (initExprMemory senv)) 
-              ++ "\n[ Expressions ]" ++ show (map showTy (map fst (fillArgs initEMem funTyCands initEMem))) 
+              ++ "\n[ exprMemory ]" ++ show (map (\(t, e) -> (showTy t, show e)) initEMem) 
+              ++ "\n[ Expressions ]" ++ show (map snd exprs5) 
               ) 
         -- filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
-        (return basicTyCands)
+        -- (filterM (hasType specTy) (map snd final))
+        (return (map snd exprs5))
+        -- (return basicTyCands)
+
+
 
 -- For every subgoal find the candidates
 -- If all subgoals are filled try to hasType 
@@ -168,12 +178,13 @@ type ExprMemory = [(Type, CoreExpr)]
 -- Initialized with basic type expressions
 -- e.g. b  --- x_s3
 --     [b] --- [], x_s0, x_s4
-initExprMemory :: SSEnv -> ExprMemory
-initExprMemory ssenv = 
-  let senv   = M.toList ssenv 
-      senv'  = filter (\(_, (t, _)) -> isBasic (toType t)) senv 
-      senv'' = map (\(_, (t, v)) -> (toType t, GHC.Var v)) senv' 
-  in  senv''
+initExprMemory :: Type -> SSEnv -> ExprMemory
+initExprMemory τ ssenv = 
+  let senv    = M.toList ssenv 
+      senv'   = filter (\(_, (t, _)) -> isBasic (toType t)) senv 
+      senv''  = map (\(_, (t, v)) -> (toType t, GHC.Var v)) senv' 
+      senv''' = map (\(t, e) -> (instantiateType τ t, e)) senv''
+  in  senv'''
 
 
 -- Produce new expressions from expressions currently in expression memory.
@@ -190,7 +201,7 @@ fillArgs exprMem (cand : cands) accExprs =
       withType          = fillOne cand argCands
       newExprs          = map (\x -> (htype, x)) withType
   in  
-      trace ("[ subgoals ] " ++ (concat $ map showTy subgoals))
+      trace ("[ newExprs ] " ++ show (map snd newExprs))
         (fillArgs exprMem cands (accExprs ++ newExprs)) -- newExprs...
 
 -- Takes a function and a list of correct expressions for every argument
@@ -200,7 +211,12 @@ fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> [CoreExpr]
 fillOne funTyCand argCands = 
   let (_, (t, v)) = funTyCand
       arity       = length argCands 
-  in  if arity == 1 
+  in
+    trace ( " [ FunctionFill ] " ++ 
+            show v ++ ", with arity " ++ 
+            show arity ++ "\n" ++ replicate 18 ' ' ++ 
+            " argCands " ++ show argCands) $  
+      if arity == 1 
         then  [GHC.App (GHC.Var v) v' | v' <- head argCands ]
         else  
           if arity == 2
@@ -216,12 +232,18 @@ fillOne funTyCand argCands =
 withSubgoal :: ExprMemory -> Type -> [CoreExpr]
 withSubgoal []               _ = []
 withSubgoal ((t, e) : exprs) τ = 
-  if τ == t 
-    then e : withSubgoal exprs τ
-    else withSubgoal exprs τ
+  trace (" [ withSubgoal ] t = [ " ++ showTy t ++ " ] τ = [ " ++ showTy τ ++ " ]") $
+    if τ == t 
+      then e : withSubgoal exprs τ
+      else withSubgoal exprs τ
 
 
-
+instantiateType :: Type -> Type -> Type 
+instantiateType τ t = 
+  let t' = substInType t (varsInType τ)
+  in  case t' of 
+        GHC.ForAllTy _ t'' -> t''
+        _                  -> t'  
 
 showGoals :: [[String]] -> String
 showGoals []             = ""
@@ -307,7 +329,7 @@ generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ =
 
 typeAppl :: Type -> Type -> Maybe Type
 typeAppl (GHC.FunTy t' t'') t''' 
-  | t'' == t''' = Just t'
+  | t' == t''' = Just t'
 typeAppl _                  _   = Nothing 
 
 
