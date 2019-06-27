@@ -105,44 +105,64 @@ synthesizeBasic t = do
     do  es <- generateETerms t
         filterElseM (hasType t) es $ do
             apps <- generateApps t
-            filterElseM (hasType t) apps $ do
-              senv <- getSEnv
-              lenv <- getLocalEnv
-              trace ("apps = " ++ show apps) $ 
-                synthesizeMatch lenv senv t
+            trace ("[ apps ] = " ++ show apps) $   -- [ CLEAN ]
+              filterElseM (hasType t) apps $ do
+                senv <- getSEnv
+                lenv <- getLocalEnv
+                trace ("apps = " ++ show apps) $ 
+                  synthesizeMatch lenv senv t
 
 isBasic :: Type -> Bool
-isBasic TyConApp{} = True
-isBasic TyVarTy {} = True
-isBasic AppTy {}   = False 
-isBasic t@LitTy {} = trace ("LitTy " ++ showTy t) False
-isBasic t          = trace (" type = " ++ showTy t) False
+isBasic TyConApp{}     = True
+isBasic TyVarTy {}     = True
+isBasic (ForAllTy _ t) = isBasic t
+isBasic AppTy {}       = False 
+isBasic t@LitTy {}     = trace ("LitTy " ++ showTy t) False
+isBasic t              = trace (" type = " ++ showTy t) False
 
 
 synthesizeBasic' :: SpecType -> SM [(Symbol, (Type, Var))]
 synthesizeBasic' specTy = 
 --  * Basic type: 
- do   
-      senv <- ssEnv <$> get
+  do  senv <- ssEnv <$> get
       let τ            = toType specTy
           (_, cands)   = showCandidates senv τ
           filterFunBasic (_, (ty, _)) = isBasic ty
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
           basicTyCands = filter filterFunBasic cands
           funTyCands   = filter filterFunFun cands
+
+          -- subgoals' has the result type too
+          subgoalsNum  = length subgoals'
+          subgoals'    = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
+          subgoals     = map (\x -> take (length x - 1)) subgoals'
+
+
+          -- [ GHC.Var v | (x, (tx, v)) <- basicTyCands ]
+          -- [ GHC.App 
+                -- (GHC.App (GHC.Var v) subgoal1) 
+                -- subgoal2  | (_, (_ , v)) <- funTyCands   ]
           
-          subgoals     = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
-          
+
           -- Variable subtitution to determine new subgoals
           tyVars       = varsInType τ
           funTyCands'  = map (\(s, (ty, v)) -> (s, (substInType ty tyVars, v))) funTyCands 
-          
-      trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals) ++ "\n [ funTyCands ]"
+
+      trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals') ++ "\n [ funTyCands ]"
               ++ show (map fst funTyCands)
               ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)) $
-        filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
+        -- filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
+        return basicTyCands
+
+-- For every subgoal find the candidates
+-- If all subgoals are filled try to hasType 
+-- Try again until depth = 4
 
 
+
+-- fillArgs :: Type -> SM [CoreExpr] -- Hopefully...
+-- fillArgs t = 
+--   let subgoals = 
 
 showGoals :: [[String]] -> String
 showGoals []             = ""
@@ -152,7 +172,8 @@ showGoals (goal : goals) =
   replicate 12 ' ' ++ 
   showGoals goals
 
-createSubgoals :: Type -> [Type] -- Subgoals are function's arguments.
+-- Subgoals are function's arguments.
+createSubgoals :: Type -> [Type] 
 createSubgoals (GHC.ForAllTy _ htype) = createSubgoals htype
 createSubgoals (GHC.FunTy t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                      = [t]
@@ -415,7 +436,7 @@ data SState
            , sDepth     :: Int 
            }
 type SM = StateT SState IO
-
+ 
 locally :: SM a -> SM a 
 locally act = do 
   st <- get 
