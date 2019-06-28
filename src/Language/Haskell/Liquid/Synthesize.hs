@@ -49,7 +49,7 @@ initSSEnv info = M.fromList (filter iNeedIt (mkElem <$> prims))
   where
     mkElem (v, lt) = (F.symbol v, (val lt, v))
     prims = gsCtors $ gsData $ giSpec $ ghcI info
-    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [{- nilDataCon, -} consDataCon])
+    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [{- nilDataCon, -} consDataCon]) -- PB: I'm not sure that we need `[]`.
 
 
 
@@ -102,7 +102,7 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
     
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do 
-  rtc_cands <- synthesizeBasic' t 
+  rtc_cands <- genTerms t 
   trace ("[ synthesizeBasic ]" ++ show rtc_cands) $
     do  es <- generateETerms t
         filterElseM (hasType t) es $ do
@@ -112,53 +112,57 @@ synthesizeBasic t = do
               lenv <- getLocalEnv
               synthesizeMatch lenv senv t
 
+{- 
+    PB: Possibly replace with this synthesizeBasic.
+    There is a bug for now with hasType and some expressions,
+    e.g. hasType t (stutter (stutter x_s0)).
+
+    synthesizeBasic :: SpecType -> SM [CoreExpr]
+    synthesizeBasic t = do
+      es <- genTerms t
+      filterElseM (hasType t) es $ do
+        senv <- getSEnv
+        lenv <- getLocalEnv 
+        synthesizeMatch lenv senv t
+-}
+
+
 isBasic :: Type -> Bool
 isBasic TyConApp{}     = True
 isBasic TyVarTy {}     = True
 isBasic (ForAllTy _ t) = isBasic t
 isBasic AppTy {}       = False 
-isBasic t@LitTy {}     = False
-isBasic t              = False
+isBasic LitTy {}       = False
+isBasic _              = False
 
 
-synthesizeBasic' :: SpecType -> SM [CoreExpr] 
-synthesizeBasic' specTy = 
---  * Basic type: 
+-- PB: This is to replace generateETerms and generateApps.
+genTerms :: SpecType -> SM [CoreExpr] 
+genTerms specTy = 
   do  senv <- ssEnv <$> get
       let τ            = toType specTy
           cands        = findCandidates senv τ
-          filterFunBasic (_, (ty, _)) = isBasic ty
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
-          basicTyCands = filter filterFunBasic cands
-          funTyCands   = filter filterFunFun cands
+          funTyCands'  = filter filterFunFun cands
+          funTyCands   = map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands'
 
-          -- subgoals' has the result type too
-          -- subgoalsNum  = length subgoals'
-          subgoals'    = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
-          subgoals     = map (\x -> take (length x - 1)) subgoals'
+
           initEMem     = initExprMemory τ senv
+          finalEMem    = withDepthFill maxAppDepth initEMem funTyCands 
 
-          exprs = fillMany initEMem funTyCands' initEMem
-          
-          exprs1 = fillMany exprs funTyCands' exprs
-          exprs2 = fillMany exprs1 funTyCands' exprs1
-          exprs3 = fillMany exprs2 funTyCands' exprs2
-          exprs4 = fillMany exprs3 funTyCands' exprs3
-          exprs5 = fillMany exprs4 funTyCands' exprs4
-          final = let (l, r) = splitAt 1 exprs5 in l ++ tail r
+          result       = takeExprs finalEMem 
+      trace ("\n[ Expressions ] " ++ show result) (return result) 
 
-          -- Variable subtitution to determine new subgoals
-          tyVars       = varsInType τ
-          funTyCands'  = map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands 
+maxAppDepth :: Int 
+maxAppDepth = 6
 
-      trace ("\n[ Expressions ] " ++ show (map snd exprs5)) 
-        (filterM (hasType specTy) (map snd exprs5))
-
-generateTerms :: SpecType -> SM [CoreExpr] 
-generateTerms t = do 
-  lenv <- M.toList . ssEnv <$> get 
-  return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
-  where τ = toType t
+-- PB: We need to combine that with genTerms and synthesizeBasic
+withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory
+withDepthFill depth exprMem funTyCands = 
+  if depth > 0 
+    then withDepthFill (depth - 1) exprMem' funTyCands
+    else exprMem 
+  where exprMem' = fillMany exprMem funTyCands exprMem
 
 type ExprMemory = [(Type, CoreExpr)]
 -- Initialized with basic type expressions
@@ -176,12 +180,11 @@ initExprMemory τ ssenv =
 -- Produce new expressions from expressions currently in expression memory (ExprMemory).
 -- Only candidate terms with function type (funTyCands) can be passed as second argument.
 fillMany :: ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> ExprMemory 
-fillMany exprs   []             accExprs = accExprs
+fillMany _       []             accExprs = accExprs
 fillMany exprMem (cand : cands) accExprs = 
-  let subgoalsNum       = length subgoals'
-      (sym, (htype, v)) = cand
+  let (_, (htype, _))   = cand
       subgoals'         = createSubgoals htype 
-      resultTy          = head $ reverse subgoals 
+      resultTy          = last subgoals 
       subgoals          = take (length subgoals' - 1) subgoals'
       argCands          = map (withSubgoal exprMem) subgoals 
       withType          = fillOne cand argCands
@@ -537,7 +540,7 @@ showGoals (goal : goals) =
   replicate 12 ' ' ++ 
   showGoals goals
 
-
+takeExprs = map snd 
 -------------------------------------------------------------------------------
 -- | To be removed ------------------------------------------------------------
 -------------------------------------------------------------------------------
