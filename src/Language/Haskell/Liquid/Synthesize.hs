@@ -49,7 +49,7 @@ initSSEnv info = M.fromList (filter iNeedIt (mkElem <$> prims))
   where
     mkElem (v, lt) = (F.symbol v, (val lt, v))
     prims = gsCtors $ gsData $ giSpec $ ghcI info
-    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [nilDataCon, consDataCon])
+    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [{- nilDataCon, -} consDataCon])
 
 
 
@@ -155,7 +155,7 @@ synthesizeBasic' specTy =
 
           -- Variable subtitution to determine new subgoals
           tyVars       = varsInType τ
-          funTyCands'  = map (\(s, (ty, v)) -> (s, (substInType ty tyVars, v))) funTyCands 
+          funTyCands'  = map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands 
 
       trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals') ++ "\n [ funTyCands ]"
               ++ show (map fst funTyCands)
@@ -164,8 +164,8 @@ synthesizeBasic' specTy =
               ++ "\n[ Expressions ]" ++ show (map snd exprs5) 
               ) 
         -- filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
-        -- (filterM (hasType specTy) (map snd final))
-        (return (map snd exprs5))
+        (filterM (hasType specTy) (map snd exprs5))
+        -- (return (map snd exprs5))
         -- (return basicTyCands)
 
 
@@ -199,10 +199,11 @@ fillArgs exprMem (cand : cands) accExprs =
       subgoals          = take (length subgoals' - 1) subgoals'
       argCands          = map (withSubgoal exprMem) subgoals 
       withType          = fillOne cand argCands
-      newExprs          = map (\x -> (htype, x)) withType
+      newExprs          = map (\x -> (resultTy, x)) withType
+      accExprs'         = accExprs ++ newExprs
   in  
-      trace ("[ newExprs ] " ++ show (map snd newExprs))
-        (fillArgs exprMem cands (accExprs ++ newExprs)) -- newExprs...
+      -- trace ("[ newExprs ] " ++ (show (map (\(x, y) -> (showTy x, show y)) accExprs')) )
+        (fillArgs exprMem cands accExprs') -- newExprs...
 
 -- Takes a function and a list of correct expressions for every argument
 -- and returns a list of new expressions.
@@ -449,7 +450,7 @@ makeAlt _ _ _ _ = error "makeAlt.bad argument"
     
 
 hasType :: SpecType -> CoreExpr -> SM Bool
-hasType t e = do 
+hasType t e = trace ("[ hasType ] " ++ show e) $ do 
   x  <- freshVar t 
   st <- get 
   r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
