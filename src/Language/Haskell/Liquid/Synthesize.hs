@@ -107,72 +107,58 @@ synthesizeBasic t = do
     do  es <- generateETerms t
         filterElseM (hasType t) es $ do
             apps <- generateApps t
-            trace ("[ apps ] = " ++ show apps) $   -- [ CLEAN ]
-              filterElseM (hasType t) apps $ do
-                senv <- getSEnv
-                lenv <- getLocalEnv
-                trace ("apps = " ++ show apps) $ 
-                  synthesizeMatch lenv senv t
+            filterElseM (hasType t) apps $ do
+              senv <- getSEnv
+              lenv <- getLocalEnv
+              synthesizeMatch lenv senv t
 
 isBasic :: Type -> Bool
 isBasic TyConApp{}     = True
 isBasic TyVarTy {}     = True
 isBasic (ForAllTy _ t) = isBasic t
 isBasic AppTy {}       = False 
-isBasic t@LitTy {}     = trace ("LitTy " ++ showTy t) False
-isBasic t              = trace (" type = " ++ showTy t) False
+isBasic t@LitTy {}     = False
+isBasic t              = False
 
 
-synthesizeBasic' :: SpecType -> SM [CoreExpr] -- [(Symbol, (Type, Var))]
+synthesizeBasic' :: SpecType -> SM [CoreExpr] 
 synthesizeBasic' specTy = 
 --  * Basic type: 
   do  senv <- ssEnv <$> get
       let τ            = toType specTy
-          (_, cands)   = showCandidates senv τ
+          cands        = findCandidates senv τ
           filterFunBasic (_, (ty, _)) = isBasic ty
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
           basicTyCands = filter filterFunBasic cands
           funTyCands   = filter filterFunFun cands
 
           -- subgoals' has the result type too
-          subgoalsNum  = length subgoals'
+          -- subgoalsNum  = length subgoals'
           subgoals'    = map (\(_, (ty, _)) -> createSubgoals ty) funTyCands'
           subgoals     = map (\x -> take (length x - 1)) subgoals'
           initEMem     = initExprMemory τ senv
 
-          exprs = fillArgs initEMem funTyCands' initEMem
-          -- [ GHC.Var v | (x, (tx, v)) <- basicTyCands ]
-          -- [ GHC.App 
-                -- (GHC.App (GHC.Var v) subgoal1) 
-                -- subgoal2  | (_, (_ , v)) <- funTyCands   ]
+          exprs = fillMany initEMem funTyCands' initEMem
           
-          exprs1 = fillArgs exprs funTyCands' exprs
-          exprs2 = fillArgs exprs1 funTyCands' exprs1
-          exprs3 = fillArgs exprs2 funTyCands' exprs2
-          exprs4 = fillArgs exprs3 funTyCands' exprs3
-          exprs5 = fillArgs exprs4 funTyCands' exprs4
+          exprs1 = fillMany exprs funTyCands' exprs
+          exprs2 = fillMany exprs1 funTyCands' exprs1
+          exprs3 = fillMany exprs2 funTyCands' exprs2
+          exprs4 = fillMany exprs3 funTyCands' exprs3
+          exprs5 = fillMany exprs4 funTyCands' exprs4
           final = let (l, r) = splitAt 1 exprs5 in l ++ tail r
 
           -- Variable subtitution to determine new subgoals
           tyVars       = varsInType τ
           funTyCands'  = map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands 
 
-      trace ("[ subgoals ]" ++ showGoals (map (map showTy) subgoals') ++ "\n [ funTyCands ]"
-              ++ show (map fst funTyCands)
-              ++ "\n[ basicTypes ]" ++ show (map fst basicTyCands)
-              ++ "\n[ exprMemory ]" ++ show (map (\(t, e) -> (showTy t, show e)) initEMem) 
-              ++ "\n[ Expressions ]" ++ show (map snd exprs5) 
-              ) 
-        -- filterM (\(_, (_, v)) -> hasType specTy (GHC.Var v)) basicTyCands
+      trace ("\n[ Expressions ] " ++ show (map snd exprs5)) 
         (filterM (hasType specTy) (map snd exprs5))
-        -- (return (map snd exprs5))
-        -- (return basicTyCands)
 
-
-
--- For every subgoal find the candidates
--- If all subgoals are filled try to hasType 
--- Try again until depth = 4
+generateTerms :: SpecType -> SM [CoreExpr] 
+generateTerms t = do 
+  lenv <- M.toList . ssEnv <$> get 
+  return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
+  where τ = toType t
 
 type ExprMemory = [(Type, CoreExpr)]
 -- Initialized with basic type expressions
@@ -187,11 +173,11 @@ initExprMemory τ ssenv =
   in  senv'''
 
 
--- Produce new expressions from expressions currently in expression memory.
--- Only funTyCands can be passed as second argument.
-fillArgs :: ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> ExprMemory 
-fillArgs exprs   []             accExprs = accExprs
-fillArgs exprMem (cand : cands) accExprs = 
+-- Produce new expressions from expressions currently in expression memory (ExprMemory).
+-- Only candidate terms with function type (funTyCands) can be passed as second argument.
+fillMany :: ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> ExprMemory 
+fillMany exprs   []             accExprs = accExprs
+fillMany exprMem (cand : cands) accExprs = 
   let subgoalsNum       = length subgoals'
       (sym, (htype, v)) = cand
       subgoals'         = createSubgoals htype 
@@ -201,44 +187,39 @@ fillArgs exprMem (cand : cands) accExprs =
       withType          = fillOne cand argCands
       newExprs          = map (\x -> (resultTy, x)) withType
       accExprs'         = accExprs ++ newExprs
-  in  
-      -- trace ("[ newExprs ] " ++ (show (map (\(x, y) -> (showTy x, show y)) accExprs')) )
-        (fillArgs exprMem cands accExprs') -- newExprs...
+  in  fillMany exprMem cands accExprs'
 
+-- PB: Currently, works with arity 1 or 2 (see below)...
+-- Also, I don't think that it works for higher order e.g. map :: (a -> b) -> [a] -> [b].
 -- Takes a function and a list of correct expressions for every argument
 -- and returns a list of new expressions.
--- Currently, works with arity 1 or 2 (see below)...
 fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> [CoreExpr]
 fillOne funTyCand argCands = 
   let (_, (t, v)) = funTyCand
       arity       = length argCands 
-  in
-    trace ( " [ FunctionFill ] " ++ 
-            show v ++ ", with arity " ++ 
-            show arity ++ "\n" ++ replicate 18 ' ' ++ 
-            " argCands " ++ show argCands) $  
-      if arity == 1 
+  in  if arity == 1 
         then  [GHC.App (GHC.Var v) v' | v' <- head argCands ]
-        else  
-          if arity == 2
-            then  [ GHC.App (GHC.App (GHC.Var v) v') v'' 
-                    | v' <- head argCands, 
-                      v'' <- argCands !! 1                
-                  ]
-            else error $ "[ fillOne - funTyCand ] " -- ++ (show $ fst funTyCand)
+        else  if arity == 2
+                then  [ GHC.App (GHC.App (GHC.Var v) v') v'' 
+                        | v' <- head argCands, 
+                          v'' <- argCands !! 1                
+                      ]
+                else error $ "[ fillOne ] Function: " ++ show v
 
 
--- withSubgoals :: a type from subgoals 
--- return all expressions in ExprMemory that have the same type
+-- withSubgoal :: a type from subgoals 
+-- Returns all expressions in ExprMemory that have the same type.
 withSubgoal :: ExprMemory -> Type -> [CoreExpr]
 withSubgoal []               _ = []
 withSubgoal ((t, e) : exprs) τ = 
-  trace (" [ withSubgoal ] t = [ " ++ showTy t ++ " ] τ = [ " ++ showTy τ ++ " ]") $
-    if τ == t 
-      then e : withSubgoal exprs τ
-      else withSubgoal exprs τ
+  if τ == t 
+    then e : withSubgoal exprs τ
+    else withSubgoal exprs τ
 
 
+-- Removes forall from type and replaces
+-- type variables from the first argument to the second argument.
+-- Returns the new type.
 instantiateType :: Type -> Type -> Type 
 instantiateType τ t = 
   let t' = substInType t (varsInType τ)
@@ -246,13 +227,6 @@ instantiateType τ t =
         GHC.ForAllTy _ t'' -> t''
         _                  -> t'  
 
-showGoals :: [[String]] -> String
-showGoals []             = ""
-showGoals (goal : goals) = 
-  show goal        ++ 
-  "\n"             ++ 
-  replicate 12 ' ' ++ 
-  showGoals goals
 
 -- Subgoals are function's arguments.
 createSubgoals :: Type -> [Type] 
@@ -261,26 +235,6 @@ createSubgoals (GHC.FunTy t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                      = [t]
 
 
--- e-terms: var, constructors, function applications
-
--- This should generates all e-terms.
--- Now it generates variables and function applications in the environment.
--- TODO: Add constructors in the environment.
--- Note: Probably `generateApps` works for constructors as well.
-generateETerms :: SpecType -> SM [CoreExpr] 
-generateETerms t = do 
-  lenv <- M.toList . ssEnv <$> get 
-  return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
-  where τ = toType t 
-
-generateApps :: SpecType -> SM [CoreExpr]
-generateApps t = do
-  lenv <- M.toList . ssEnv <$> get
-  decrTerms <- ssDecrTerm <$> get
-  let τ = toType t
-  case generateApps' decrTerms lenv lenv τ of
-    [] -> return []
-    l  -> return l
 
 filterCands :: [(Symbol, (Type, Var))] -> Type -> [(Symbol, (Type, Var))]
 filterCands []             _  = []
@@ -291,82 +245,33 @@ filterCands (cand : cands) ty =
         then cand : filterCands cands ty
         else filterCands cands ty
 
-showCandidates :: SSEnv -> Type -> (String, [(Symbol, (Type, Var))])
-showCandidates senv goalTy = 
+findCandidates :: SSEnv -> Type -> [(Symbol, (Type, Var))]
+findCandidates senv goalTy = 
   let senvLst   = M.toList senv
       senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
       -- filterFun (_, (specT, _)) = goalType goalTy specT
-      candTerms = filterCands senvLst' goalTy -- filter filterFun senvLst'
+      -- candTerms = filter filterFun senvLst'
+      candTerms = filterCands senvLst' goalTy 
       ppCands   = map (show . fst) candTerms
-  in  trace ("[ showCandidates ] goalType = " ++ showTy goalTy)  
-        (unwords $ intersperse ", " ppCands, candTerms)
-
-
-generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps' _         []      _  _ = []
-generateApps' decrTerms (h : t) l2 τ = 
-  trace ("[ Candidates ] " ++ fst (showCandidates (M.fromList l2) τ) ++ "\n [goalType ] " ++ showTy τ ++ "\n" ++ show (map fst l2))
-    generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
-
-generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps'' _         _                 []                       _ = []
-generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
-  let htype  = toType rtype
-      htype' = toType rtype'
-      t  = typeAppl htype  htype'
-      t' = typeAppl htype' htype
-  in  case t of
-        Nothing ->
-          case t' of 
-            Nothing -> generateApps'' decrTerms h es τ 
-            Just _  -> 
-              case lookup v decrTerms of
-                Nothing   -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' decrTerms h es τ
-                Just vars -> generateApps'' decrTerms h es τ
-        Just _  -> 
-          case lookup v' decrTerms of
-            Nothing   -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' decrTerms h es τ
-            Just vars -> generateApps'' decrTerms h es τ
-
-typeAppl :: Type -> Type -> Maybe Type
-typeAppl (GHC.FunTy t' t'') t''' 
-  | t' == t''' = Just t'
-typeAppl _                  _   = Nothing 
-
-
+  in  candTerms
 
 -- Select all functions with result type equal with goalType
 --        | goal |
 goalType :: Type -> Type -> Bool
 goalType τ t@(GHC.ForAllTy (TvBndr var _) htype) = 
-  let preamble = "[goalType ]forall."
-      nspaces = length preamble
-      delim = "\n" ++ replicate nspaces ' '  
-      substHType = substInType htype (varsInType τ)
-  in  trace 
-        ("[goalType ]forall." ++ 
-          show (symbol var) ++ 
-          " has type = " ++ 
-          showTy htype ++ 
-          ", vars = " ++ 
-          show (map symbol (varsInType t)) ++ 
-          " and goalType has vars: " ++ 
-          show (map symbol (varsInType τ)) ++
-          delim ++
-          "substituted type = " ++ showTy substHType)
-        (goalType τ substHType)
+  let substHType = substInType htype (varsInType τ)
+  in  goalType τ substHType
 goalType τ t@(GHC.FunTy _ t'') -- τ: base types
   | t'' == τ  = True
-  | otherwise = trace ("[ goalType ]funTy = " ++ showTy t) $ goalType τ t''
+  | otherwise = goalType τ t''
 goalType τ                 t 
   | τ == t    = True
-  | otherwise = trace ("[goalType: No match] type = " ++ showTy t ++ ", with goalType = " ++ showTy τ) False
+  | otherwise = False
 
 -- TODO: More than one type variables in type (what happens in forall case with that?).
 substInType :: Type -> [TyVar] -> Type 
 substInType t [tv] = substInType' tv t
   where 
-    -- substInType' :: TyVar -> Type -> Type
     substInType' tv (GHC.TyVarTy var)                = GHC.TyVarTy tv
     substInType' tv (GHC.ForAllTy (TvBndr var x) ty) = GHC.ForAllTy (TvBndr tv x) (substInType' tv ty)
     substInType' tv (GHC.FunTy t0 t1)                = GHC.FunTy (substInType' tv t0) (substInType' tv t1)
@@ -375,7 +280,8 @@ substInType t [tv] = substInType' tv t
     substInType' _  t                                = error $ "[substInType'] Shouldn't reach that point for now " ++ showTy t
 substInType _ vars = error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
 
-varsInType :: Type -> [TyVar] -- Find all variables in type
+-- Find all variables in type
+varsInType :: Type -> [TyVar] 
 varsInType t = (map head . group . sort) (varsInType' t)
   where
     varsInType' (GHC.TyVarTy var)                = [var]
@@ -450,7 +356,7 @@ makeAlt _ _ _ _ = error "makeAlt.bad argument"
     
 
 hasType :: SpecType -> CoreExpr -> SM Bool
-hasType t e = trace ("[ hasType ] " ++ show e) $ do 
+hasType t e = trace ("[ Entered: hasType ] with expr = " ++ show e) $ do 
   x  <- freshVar t 
   st <- get 
   r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
@@ -622,3 +528,73 @@ substInFExpr pn nn e = subst1 e (pn, EVar nn)
 
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
+
+showGoals :: [[String]] -> String
+showGoals []             = ""
+showGoals (goal : goals) = 
+  show goal        ++ 
+  "\n"             ++ 
+  replicate 12 ' ' ++ 
+  showGoals goals
+
+
+-------------------------------------------------------------------------------
+-- | To be removed ------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+-- To be removed
+generateApps :: SpecType -> SM [CoreExpr]
+generateApps t = do
+  lenv <- M.toList . ssEnv <$> get
+  decrTerms <- ssDecrTerm <$> get
+  let τ = toType t
+  case generateApps' decrTerms lenv lenv τ of
+    [] -> return []
+    l  -> return l
+
+
+-- To be removed
+generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps' _         []      _  _ = []
+generateApps' decrTerms (h : t) l2 τ = 
+  generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
+
+-- To be removed
+generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps'' _         _                 []                       _ = []
+generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
+  let htype  = toType rtype
+      htype' = toType rtype'
+      t  = typeAppl htype  htype'
+      t' = typeAppl htype' htype
+  in  case t of
+        Nothing ->
+          case t' of 
+            Nothing -> generateApps'' decrTerms h es τ 
+            Just _  -> 
+              case lookup v decrTerms of
+                Nothing   -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' decrTerms h es τ
+                Just vars -> generateApps'' decrTerms h es τ
+        Just _  -> 
+          case lookup v' decrTerms of
+            Nothing   -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' decrTerms h es τ
+            Just vars -> generateApps'' decrTerms h es τ
+
+-- To be removed
+typeAppl :: Type -> Type -> Maybe Type
+typeAppl (GHC.FunTy t' t'') t''' 
+  | t' == t''' = Just t'
+typeAppl _                  _   = Nothing 
+
+
+-- This should generates all e-terms.
+-- Now it generates variables and function applications in the environment.
+-- TODO: Add constructors in the environment.
+-- Note: Probably `generateApps` works for constructors as well.
+-- To be removed
+generateETerms :: SpecType -> SM [CoreExpr] 
+generateETerms t = do 
+  lenv <- M.toList . ssEnv <$> get 
+  return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
+  where τ = toType t 
+
