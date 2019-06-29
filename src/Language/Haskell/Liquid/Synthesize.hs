@@ -106,7 +106,7 @@ synthesizeBasic t = do es <- generateETerms t
                             senv <- getSEnv
                             lenv <- getLocalEnv
                             trace ("apps = " ++ show apps) $ 
-                              synthesizeMatch lenv senv t
+                              synthesizeMatch lenv senv t -- JP: Should we remove this from `synthesizeBasic`? Filter result?
                        
 
 
@@ -169,12 +169,33 @@ generateETerms t = do
 
 generateApps :: SpecType -> SM [CoreExpr]
 generateApps t = do
-  lenv <- M.toList . ssEnv <$> get
-  decrTerms <- ssDecrTerm <$> get
-  let τ = toType t
-  case generateApps' decrTerms lenv lenv τ of
-    [] -> return []
-    l  -> return l
+  env <- M.toList . ssEnv <$> get
+
+  fs <- concat <$> mapM generateF env
+
+  error "TODO"
+
+
+  where
+    generateF :: (Symbol, (SpecType, Var)) -> SM [(SpecType, CoreExpr)]
+    generateF (_, (t, v)) = do
+        let t' = RFun _freshSymbol (RVar _var _reft) t _reft'  -- JP: What's the right constructor here???
+        es <- synthesizeBasic t'
+
+        -- Generate arg here?
+        error "TODO"
+
+    _freshSymbol = undefined
+    _var = undefined
+    _reft = undefined
+    _reft' = undefined
+
+--   lenv <- M.toList . ssEnv <$> get
+--   decrTerms <- ssDecrTerm <$> get
+--   let τ = toType t
+--   case generateApps' decrTerms lenv lenv τ of
+--     [] -> return []
+--     l  -> return l
 
 generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
 generateApps' _         []      _  _ = []
