@@ -1,3 +1,5 @@
+(fixpoint "--eliminate=horn")
+
 (var $ka ((Int)))
 (var $kb ((Int)))
 

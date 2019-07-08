@@ -7,29 +7,28 @@ module Language.Fixpoint.Horn.Transformations (
   , flatten
   , elim
   , elimPis
-  , elimKs
+  -- , elimKs
   , solveEbs
   , cstrToExpr
 ) where
 
 import           Language.Fixpoint.Horn.Types
+import           Language.Fixpoint.Horn.Info
 import qualified Language.Fixpoint.Types      as F
+import           Language.Fixpoint.Graph      as FG
 import qualified Data.HashMap.Strict          as M
-import           Control.Monad.Identity
+-- import           Control.Monad.Identity
 import           Data.String                  (IsString (..))
+import           Data.Either                  (partitionEithers)
 import qualified Data.Set                     as S
+import qualified Data.Graph                   as DG
 import           Control.Monad.State
-import           Data.Maybe                   (catMaybes, fromMaybe)
+-- import           Data.Maybe                   (catMaybes, fromMaybe, fromJust, mapMaybe)
+import           Data.Maybe                   (catMaybes, fromJust, mapMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
-import           Debug.Trace hiding (trace)
-import qualified Debug.Trace
 
-_DBG :: Bool
-_DBG = False
-
-trace :: String -> a -> a
-trace = if _DBG then Debug.Trace.trace else const id
+-- import Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -98,7 +97,9 @@ instance Flatten [F.Expr] where
     where fp = flatten p
   flatten []              = []
 
-type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
+type KVEdges = [(FG.CVertex, FG.CVertex, [FG.CVertex])]
+
+-- type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
 ------------------------------------------------------------------------------
 -- | solveEbs has some preconditions
 -- - pi -> k -> pi structure. That is, there are no cycles, and while ks
@@ -109,61 +110,97 @@ type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
 -- - There is at least one ebind
 solveEbs :: (F.PPrint a) => Query a -> IO (Query a)
 ------------------------------------------------------------------------------
-solveEbs (Query qs vs c cons dist) = do
-  let c' = pokec c
+solveEbs query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else do
+  let normalizedC = pruneTauts $ flatten $ hornify c
+  whenLoud $ putStrLn "Normalized EHC:"
+  whenLoud $ putStrLn $ F.showpp normalizedC
+
+  let (Just noExists, _) = split normalizedC
+  let kEdges = buildKvarEdges query noExists
+  let acyclicKs = findAcyclicKVars kEdges
+  whenLoud $ putStrLn "acyclic kvars:"
+  whenLoud $ putStrLn $ F.showpp acyclicKs
+
+  let kvars = boundKvars normalizedC
+  let poked = pokec normalizedC
   whenLoud $ putStrLn "Horn pokec:"
-  whenLoud $ putStrLn $ F.showpp c'
-  -- This rhs pattern match will fail if there's not at least one eb!
-  let (Just horn, mside) = split c'
+  whenLoud $ putStrLn $ F.showpp poked
+
+  let (Just horn, Just side) = split poked
   whenLoud $ putStrLn "Horn split:"
-  whenLoud $ putStrLn $ F.showpp (horn, mside)
+  whenLoud $ putStrLn $ F.showpp (horn, side)
 
-  case mside of 
-    Nothing   -> pure $ Query qs vs horn cons dist
-    Just side -> do 
-        -- This whole business depends on Stringly-typed invariant that an ebind
-        -- n corresponds to a pivar πn. That's pretty bad but I can't think of
-        -- a better way to do this.
-      
-        -- find solutions to the pivars, put them on the Left of the map
-        let ns = fst <$> ebs c
-        let l0 = cLabel horn
-        let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]] -- :: Sol a
-        -- whenLoud $ putStrLn "Pisols:"
-        -- whenLoud $ putStrLn $ F.showpp $ pisols
-      
-        -- find solutions to the kvars, put them on the Right of the map
-        let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs] -- :: Sol
-      
-        let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
-        whenLoud $ putStrLn "QE sols:"
-        let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft $ flatten p) l0 | p <- sol]
-        whenLoud $ putStrLn $ F.showpp elimSol
-        let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
-        whenLoud $ putStrLn "kSol:"
-        whenLoud $ putStrLn $ F.showpp kSol
-      
-        let hornFinal = hornify $ M.foldrWithKey applyPi horn elimSol
-        whenLoud $ putStrLn "Final Horn:"
-        whenLoud $ putStrLn $ F.showpp hornFinal
-      
-        let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
-        whenLoud $ putStrLn "PreElim Side:"
-        whenLoud $ putStrLn $ F.showpp sideCstr
-        let sideEE = hornify $ traceShowId $ elimE undefined sideCstr
-        whenLoud $ putStrLn "Final Side:"
-        whenLoud $ putStrLn $ F.showpp sideEE
-      
-        pure $ (Query qs vs (CAnd [ hornFinal, sideEE ]) cons dist)
+  let pivars = boundKvars poked `S.difference` kvars
+  let piCstrs = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn)) (S.toList pivars)
+  whenLoud $ putStrLn "pi defining constraints:"
+  whenLoud $ putStrLn $ F.showpp piCstrs
 
-elimE :: Sol a -> Cstr a -> Cstr a
-elimE m (All b c) = All b (elimE m c)
-elimE m (CAnd cs) = CAnd (elimE m <$> cs)
-elimE _m p@Head{} = p
--- need to QE inside here first
-elimE _m (Any (Bind x _ _) (Head p l)) = Head (F.subst1 p (x,e)) l
-    where e = fromMaybe F.PTrue $ findSolP x p
-elimE _m (Any _ _) = error "oops"
+  if (S.fromList acyclicKs) /= kvars then error $ show (kvars, acyclicKs, kvars `S.difference` S.fromList acyclicKs) else pure ()
+
+  let (horn', side', piCstrs') = elimKs' acyclicKs (horn, side, piCstrs)
+  whenLoud $ putStrLn "solved acyclic kvars:"
+  whenLoud $ putStrLn $ F.showpp horn'
+  whenLoud $ putStrLn $ F.showpp side'
+  whenLoud $ putStrLn $ F.showpp piCstrs'
+
+  -- This whole business depends on Stringly-typed invariant that an ebind
+  -- n corresponds to a pivar πn. That's pretty bad but I can't think of
+  -- a better way to do this.
+
+  -- find solutions to the pivars, put them on the Left of the map
+  -- let ns = fst <$> ebs c
+  -- let l0 = cLabel horn
+  -- let pisols = M.fromList [(piSym n, Left $ Right $ nSol) | n <- ns, Just nSol <- [defs n horn]] -- :: Sol a
+  -- whenLoud $ putStrLn "Pisols:"
+  -- whenLoud $ putStrLn $ F.showpp $ pisols
+
+  -- find solutions to the kvars, put them on the Right of the map
+  -- let ksols = M.fromList [(k, Left $ Left $ sol1 k (scope k horn)) | k <- hvName <$> vs] -- :: Sol
+
+  error "WIP"
+  -- let sol = evalState (mapM (lookupSol l0 M.empty . piVar) ns) (ksols <> pisols)
+  -- whenLoud $ putStrLn "QE sols:"
+  -- let elimSol = M.fromList $ zip (piSym <$> ns) [Head (Reft $ flatten p) l0 | p <- sol]
+  -- whenLoud $ putStrLn $ F.showpp elimSol
+  -- let kSol = M.mapMaybe (either (either Just (const Nothing)) (const Nothing)) ksols
+  -- whenLoud $ putStrLn "kSol:"
+  -- whenLoud $ putStrLn $ F.showpp kSol
+
+  -- let hornFinal = hornify $ M.foldrWithKey applyPi horn elimSol
+  -- whenLoud $ putStrLn "Final Horn:"
+  -- whenLoud $ putStrLn $ F.showpp hornFinal
+
+  -- let sideCstr = M.foldrWithKey applyPi (M.foldrWithKey doelim' side kSol) elimSol
+  -- whenLoud $ putStrLn "PreElim Side:"
+  -- whenLoud $ putStrLn $ F.showpp sideCstr
+  -- let sideEE = hornify $ traceShowId $ elimE undefined sideCstr
+  -- whenLoud $ putStrLn "Final Side:"
+  -- whenLoud $ putStrLn $ F.showpp sideEE
+
+  -- pure $ (Query qs vs (CAnd [ hornFinal, sideEE ]) cons dist)
+
+-- | Collects the defining constraint for π AKA c in forall n.π => c
+piDefConstr :: F.Symbol -> Cstr a -> Cstr a
+piDefConstr k c = fromJust $ go c
+  where
+    go (CAnd cs) =
+      case mapMaybe go cs of
+        [c'] -> Just c'
+        _ -> Nothing
+    go (All (Bind _ _ (Var k' _)) c')
+      | k == k' = Just c'
+      | otherwise = go c'
+    go (All _ c') = go c'
+    go _ = Nothing
+
+-- elimE :: Sol a -> Cstr a -> Cstr a
+-- elimE m (All b c) = All b (elimE m c)
+-- elimE m (CAnd cs) = CAnd (elimE m <$> cs)
+-- elimE _m p@Head{} = p
+-- -- need to QE inside here first
+-- elimE _m (Any (Bind x _ _) (Head p l)) = Head (F.subst1 p (x,e)) l
+--     where e = fromMaybe F.PTrue $ findSolP x p
+-- elimE _m (Any _ _) = error "oops"
 
 hornify :: Cstr a -> Cstr a
 hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
@@ -195,24 +232,24 @@ instance F.Subable Bind where
 --    subst su p = substP su p
 
 {- move to FP! -}
-instance F.Subable Pred where 
+instance F.Subable Pred where
   syms (Reft e)   = F.syms e
-  syms (Var _ xs) = xs 
-  syms (PAnd ps)  = concatMap F.syms ps  
+  syms (Var _ xs) = xs
+  syms (PAnd ps)  = concatMap F.syms ps
 
   substa f (Reft e)   = Reft  (F.substa f      e)
   substa f (Var k xs) = Var k (F.substa f <$> xs)
-  substa f (PAnd ps)  = PAnd  (F.substa f <$> ps) 
+  substa f (PAnd ps)  = PAnd  (F.substa f <$> ps)
 
-  subst su (Reft  e)  = Reft  (F.subst su      e) 
-  subst su (PAnd  ps) = PAnd  (F.subst su <$> ps) 
-  subst su (Var k xs) = Var k (F.subst su <$> xs) 
- 
-  substf f (Reft  e)  = Reft  (F.substf f      e) 
-  substf f (PAnd  ps) = PAnd  (F.substf f <$> ps) 
-  substf f (Var k xs) = Var k (F.substf f <$> xs) 
- 
-  subst1 (Reft  e)  su = Reft  (F.subst1 e su) 
+  subst su (Reft  e)  = Reft  (F.subst su      e)
+  subst su (PAnd  ps) = PAnd  (F.subst su <$> ps)
+  subst su (Var k xs) = Var k (F.subst su <$> xs)
+
+  substf f (Reft  e)  = Reft  (F.substf f      e)
+  substf f (PAnd  ps) = PAnd  (F.substf f <$> ps)
+  substf f (Var k xs) = Var k (F.substf f <$> xs)
+
+  subst1 (Reft  e)  su = Reft  (F.subst1 e su)
   subst1 (PAnd  ps) su = PAnd  [F.subst1 p su | p <- ps]
   subst1 (Var k xs) su = Var k [F.subst1 x su | x <- xs]
 
@@ -267,23 +304,20 @@ instance F.Subable Pred where
    ((πb b)))))
 -}
 
-ebs :: Cstr a -> [(F.Symbol, F.Sort)]
-ebs (Head _ _) = []
-ebs (CAnd cs) = ebs =<< cs
-ebs (All _ c) = ebs c
-ebs (Any (Bind x t _) c) = (x,t) : ebs c
+-- ebs :: Cstr a -> [(F.Symbol, F.Sort)]
+-- ebs (Head _ _) = []
+-- ebs (CAnd cs) = ebs =<< cs
+-- ebs (All _ c) = ebs c
+-- ebs (Any (Bind x t _) c) = (x,t) : ebs c
 
 pokec :: Cstr a -> Cstr a
 pokec (Head c l) = Head c l
 pokec (CAnd c)   = CAnd (pokec <$> c)
 pokec (All b c2) = All b $ pokec c2
-pokec (Any b c2) = CAnd [All b' $ pokec c2, Any b (Head pi l)]
+pokec (Any b@(Bind x t p) c2) = CAnd [All b' $ CAnd [Head p l, pokec c2], Any b (Head pi l)]
   -- TODO: actually use the renamer?
   where
-    Bind x t _p = b
-    -- TODO: deal with refined ebinds somehow. currently the rest of the
-    -- machinery assumes they're in the approrpiate syntactic form
-    b' = Bind x t pi -- (PAnd [p, pi])
+    b' = Bind x t pi
     pi = piVar x
     l  = cLabel c2
 
@@ -548,20 +582,34 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
                                      && forall [v3 : int]
                                           . v3 == x1 + 1 => v3 == m + 2)))))
 -}
-elimKs :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
-elimKs [] cc = cc
-elimKs (k:ks) (horn, side) = elimKs ks (horn', side')
-  where sol = sol1 k (scope k horn)
-        -- Eliminate Kvars inside Cstr inside horn, and in Expr (under
-        -- quantifiers waiting to be eliminated) in both.
-        horn' = doelim' k sol . doelim k sol $ horn
-        side' = doelim' k sol $ side
+-- elimKs :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
+-- elimKs [] cc = cc
+-- elimKs (k:ks) (horn, side) = elimKs ks (horn', side')
+--   where sol = sol1 k (scope k horn)
+--         -- Eliminate Kvars inside Cstr inside horn, and in Expr (under
+--         -- quantifiers waiting to be eliminated) in both.
+--         horn' = doelim' k sol . doelim k sol $ horn
+--         side' = doelim' k sol $ side
 
-doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
-doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
-doelim' k bss (Head p a) = Head (tx k bss p) a
-doelim' k bss (All (Bind x t p) c) = All (Bind x t $ tx k bss p) (doelim' k bss c)
-doelim' k bss (Any (Bind x t p) c) = Any (Bind x t $ tx k bss p) (doelim' k bss c)
+-- TODO: make this elimKs and update tests for elimKs
+-- | Takes noside, side, piCstrs and solves a set of kvars in them
+elimKs' :: [F.Symbol]
+        -> (Cstr a, Cstr a, M.HashMap F.Symbol (Cstr a))
+        -> (Cstr a, Cstr a, M.HashMap F.Symbol (Cstr a))
+elimKs' [] cstrs = cstrs
+elimKs' (k:ks) (noside, side, piCstrs) = elimKs' ks (noside', side', piCstrs')
+  where
+    sol = sol1 k (scope k noside)
+    noside' = simplify $ doelim k sol noside
+    side' = simplify $ doelim k sol side
+    piCstrs' = simplify . (doelim k sol) <$> piCstrs
+
+
+-- doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
+-- doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
+-- doelim' k bss (Head p a) = Head (tx k bss p) a
+-- doelim' k bss (All (Bind x t p) c) = All (Bind x t $ tx k bss p) (doelim' k bss c)
+-- doelim' k bss (Any (Bind x t p) c) = Any (Bind x t $ tx k bss p) (doelim' k bss c)
 
 -- [NOTE-elimK-positivity]:
 --
@@ -572,26 +620,26 @@ doelim' k bss (Any (Bind x t p) c) = Any (Bind x t $ tx k bss p) (doelim' k bss 
 -- Well, this may be fine --- semantically, this is all the same, but the
 -- exists in the positive positions (which will stay exists when we go to
 -- prenex) may give us a lot of trouble during _quantifier elimination_
-tx :: F.Symbol -> [[Bind]] -> Pred -> Pred
-tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV }) M.empty ()
-  where
-  splitBinds xs = unzip $ (\(Bind x t p) -> ((x,t),p)) <$> xs
-  cubeSol su (Bind _ _ (Reft eqs):xs)
-    | (xts, es) <- splitBinds xs
-    = F.PExist xts $ F.PAnd (F.subst su eqs : map predToExpr es)
-  cubeSol _ _ = error "cubeSol in doelim'"
-  -- This case is a HACK. In actuality, we need some notion of
-  -- positivity...
-  existentialPackage _ (F.PAll _ (F.PImp _ (F.PKVar (F.KV k') _)))
-    | k' == k
-    = F.PTrue
-  existentialPackage m (F.PKVar (F.KV k') su)
-    | k' == k
-    , M.lookupDefault 0 k m < 2
-    = F.PAnd $ cubeSol su . reverse <$> bss
-  existentialPackage _ e = e
-  ctxKV m (F.PKVar (F.KV k) _) = M.insertWith (+) k 1 m
-  ctxKV m _ = m
+-- tx :: F.Symbol -> [[Bind]] -> Pred -> Pred
+-- tx k bss = trans (defaultVisitor { txExpr = existentialPackage, ctxExpr = ctxKV }) M.empty ()
+--   where
+--   splitBinds xs = unzip $ (\(Bind x t p) -> ((x,t),p)) <$> xs
+--   cubeSol su (Bind _ _ (Reft eqs):xs)
+--     | (xts, es) <- splitBinds xs
+--     = F.PExist xts $ F.PAnd (F.subst su eqs : map predToExpr es)
+--   cubeSol _ _ = error "cubeSol in doelim'"
+--   -- This case is a HACK. In actuality, we need some notion of
+--   -- positivity...
+--   existentialPackage _ (F.PAll _ (F.PImp _ (F.PKVar (F.KV k') _)))
+--     | k' == k
+--     = F.PTrue
+--   existentialPackage m (F.PKVar (F.KV k') su)
+--     | k' == k
+--     , M.lookupDefault 0 k m < 2
+--     = F.PAnd $ cubeSol su . reverse <$> bss
+--   existentialPackage _ e = e
+--   ctxKV m (F.PKVar (F.KV k) _) = M.insertWith (+) k 1 m
+--   ctxKV m _ = m
 
 -- Visitor only visit Exprs in Pred!
 instance V.Visitable Pred where
@@ -654,87 +702,87 @@ instance V.Visitable (Cstr a) where
 --     store it
 --   return it
 
-qe :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
-qe m c = do
- c' <- qe' m c
- pure $ trace (show c ++ " =[qe]=>  " ++ show c') c'
+-- qe :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
+-- qe m c = do
+--  c' <- qe' m c
+--  pure $ trace (show c ++ " =[qe]=>  " ++ show c') c'
 
-qe' :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
-qe' m (Head p l)           = lookupSol l m p
-qe' m (CAnd cs)            = F.PAnd <$> mapM (qe m) cs
-qe' m (All (Bind x _ p) c) = forallElim x <$> lookupSol (cLabel c) m p <*> qe m c
-qe' _ Any{}                = error "QE for Any????"
+-- qe' :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
+-- qe' m (Head p l)           = lookupSol l m p
+-- qe' m (CAnd cs)            = F.PAnd <$> mapM (qe m) cs
+-- qe' m (All (Bind x _ p) c) = forallElim x <$> lookupSol (cLabel c) m p <*> qe m c
+-- qe' _ Any{}                = error "QE for Any????"
 
-forallElim :: (F.Subable t, Visitable t) => F.Symbol -> t -> F.Expr -> F.Expr
-forallElim x p e = forallElim' x eqs p e
-  where
-  eqs = fold eqVis () [] p
-  eqVis             = (defaultVisitor :: Visitor F.Expr t) { accExpr = kv' }
-  kv' _ e@(F.PAtom F.Eq a b)
-    | F.EVar x == a || F.EVar x == b
-    = [e]
-  kv' _ _                    = []
+-- forallElim :: (F.Subable t, Visitable t) => F.Symbol -> t -> F.Expr -> F.Expr
+-- forallElim x p e = forallElim' x eqs p e
+--   where
+--   eqs = fold eqVis () [] p
+--   eqVis             = (defaultVisitor :: Visitor F.Expr t) { accExpr = kv' }
+--   kv' _ e@(F.PAtom F.Eq a b)
+--     | F.EVar x == a || F.EVar x == b
+--     = [e]
+--   kv' _ _                    = []
 
-forallElim' :: F.Subable a => F.Symbol -> [F.Expr] -> a -> F.Expr -> F.Expr
-forallElim' x (F.PAtom F.Eq a b : _) _ e
-  | F.EVar x == a
-  = F.subst1 e (x,b)
-  | F.EVar x == b
-  = F.subst1 e (x,a)
-forallElim' x _ p e
-  | x `notElem` F.syms p && x `notElem` F.syms e  = e
-forallElim' x _ _ e = runIdentity $ flip mapMExpr e $ \case
-    p@F.PAtom{} -> if x `notElem` F.syms p then pure p else pure F.PTrue
-   -- TODO: where else might this appear? App, KVar?
-    p -> pure p
+-- forallElim' :: F.Subable a => F.Symbol -> [F.Expr] -> a -> F.Expr -> F.Expr
+-- forallElim' x (F.PAtom F.Eq a b : _) _ e
+--   | F.EVar x == a
+--   = F.subst1 e (x,b)
+--   | F.EVar x == b
+--   = F.subst1 e (x,a)
+-- forallElim' x _ p e
+--   | x `notElem` F.syms p && x `notElem` F.syms e  = e
+-- forallElim' x _ _ e = runIdentity $ flip mapMExpr e $ \case
+--     p@F.PAtom{} -> if x `notElem` F.syms p then pure p else pure F.PTrue
+--    -- TODO: where else might this appear? App, KVar?
+--     p -> pure p
 
-lookupSol :: a -> M.HashMap F.Symbol Integer -> Pred -> State (Sol a) F.Expr
-lookupSol l m c = do
- c' <- lookupSol' l m c
- pure $ trace (show m ++ show c ++ " =[l]=> " ++ show c')  c'
+-- lookupSol :: a -> M.HashMap F.Symbol Integer -> Pred -> State (Sol a) F.Expr
+-- lookupSol l m c = do
+--  c' <- lookupSol' l m c
+--  pure $ trace (show m ++ show c ++ " =[l]=> " ++ show c')  c'
 
-lookupSol' :: a -> M.HashMap F.Symbol Integer -> Pred -> State (Sol a) F.Expr
-lookupSol' l m (Var x xs) =
-  let n = M.lookupDefault 0 x m in
-  if n > 0 then pure $ predToExpr (Var x xs) else
-  let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
-    -- Memoize only the solutions to Pivars, because they don't depend on args
-    (Just (Left (Right sol))) -> do
-      sol <- qe m' sol
-      -- modify $ M.insert x $ Right $ sol
-      pure sol
-    (Just (Left (Left sol))) -> 
-      qe m' $ doelim2 l sol (Var x xs)
+-- lookupSol' :: a -> M.HashMap F.Symbol Integer -> Pred -> State (Sol a) F.Expr
+-- lookupSol' l m (Var x xs) =
+--   let n = M.lookupDefault 0 x m in
+--   if n > 0 then pure $ predToExpr (Var x xs) else
+--   let m' = M.insert x (n+1) m in gets (M.lookup x) >>= \case
+--     -- Memoize only the solutions to Pivars, because they don't depend on args
+--     (Just (Left (Right sol))) -> do
+--       sol <- qe m' sol
+--       -- modify $ M.insert x $ Right $ sol
+--       pure sol
+--     (Just (Left (Left sol))) ->
+--       qe m' $ doelim2 l sol (Var x xs)
 
-    (Just (Right sol)) -> pure sol
-    Nothing -> error $ "no soution to Var " ++ F.symbolString x
-    
-lookupSol' _ _ (Reft e) = pure e
-lookupSol' l m (PAnd ps) = F.PAnd <$> mapM (lookupSol l m) ps
+--     (Just (Right sol)) -> pure sol
+--     Nothing -> error $ "no soution to Var " ++ F.symbolString x
 
-findSolP :: F.Symbol -> Pred -> Maybe F.Expr
-findSolP x (Reft e) = findSolE x e
-findSolP x (PAnd (p:ps)) = findSolP x p <> findSolP x (PAnd ps)
-findSolP _ _ = error "findSolP KVar"
+-- lookupSol' _ _ (Reft e) = pure e
+-- lookupSol' l m (PAnd ps) = F.PAnd <$> mapM (lookupSol l m) ps
 
-findSolE :: F.Symbol -> F.Expr -> Maybe F.Expr
-findSolE x (F.PAtom F.Eq (F.EVar y) e) | x == y = Just e
-findSolE x (F.PAtom F.Eq e (F.EVar y)) | x == y = Just e
-findSolE x (F.PAnd (e:es)) = findSolE x e <> findSolE x (F.PAnd es)
-findSolE _ _ = Nothing
+-- findSolP :: F.Symbol -> Pred -> Maybe F.Expr
+-- findSolP x (Reft e) = findSolE x e
+-- findSolP x (PAnd (p:ps)) = findSolP x p <> findSolP x (PAnd ps)
+-- findSolP _ _ = error "findSolP KVar"
+
+-- findSolE :: F.Symbol -> F.Expr -> Maybe F.Expr
+-- findSolE x (F.PAtom F.Eq (F.EVar y) e) | x == y = Just e
+-- findSolE x (F.PAtom F.Eq e (F.EVar y)) | x == y = Just e
+-- findSolE x (F.PAnd (e:es)) = findSolE x e <> findSolE x (F.PAnd es)
+-- findSolE _ _ = Nothing
 
 -- This solution is "wrong" ... forall should be exists and implies should
 -- be and, but it's fine because that doesn't matter to QE above
-doelim2 :: a -> [[Bind]] -> Pred -> Cstr a
-doelim2 l bss (Var k xs)
-  = mkAnd $ cubeSol . reverse <$> bss
-  where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
-        mkAnd [c] = c
-        mkAnd cs = CAnd cs
-        cubeSol ((Bind _ _ (Reft eqs)):xs) =
-          foldl (flip All) (Head (Reft $ F.subst su eqs) l) xs
-        cubeSol _ = error "internal error"
-doelim2 l _ p = Head p l
+-- doelim2 :: a -> [[Bind]] -> Pred -> Cstr a
+-- doelim2 l bss (Var k xs)
+--   = mkAnd $ cubeSol . reverse <$> bss
+--   where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
+--         mkAnd [c] = c
+--         mkAnd cs = CAnd cs
+--         cubeSol ((Bind _ _ (Reft eqs)):xs) =
+--           foldl (flip All) (Head (Reft $ F.subst su eqs) l) xs
+--         cubeSol _ = error "internal error"
+-- doelim2 l _ p = Head p l
 
 ------------------------------------------------------------------------------
 -- | uniq makes sure each binder has a unique name
@@ -789,48 +837,40 @@ substPred su (Var k xs) = Var k $ upd <$> xs
 ------------------------------------------------------------------------------
 elim :: Cstr a -> Cstr a
 ------------------------------------------------------------------------------
-elim c = if S.null $ boundKvars res then res else error "called elim on cyclic fucker"
+elim c = if S.null $ boundKvars res then res else error "called elim on cyclic constraint"
   where
   res = S.foldl elim1 c (boundKvars c)
 
 elim1 :: Cstr a -> F.Symbol -> Cstr a
 -- Find a `sol1` solution to a kvar `k`, and then subsitute in the solution for
--- each rhs occurence of k.
-elim1 c k = doelim k sol c
+-- each rhs occurrence of k.
+elim1 c k = simplify $ doelim k sol c
   where sol = sol1 k (scope k c)
 
--- scope drops extraneous leading binders so that we can take the strongest
--- scoped solution instead of the strongest solution
-scope :: F.Symbol -> Cstr a -> Cstr a
-scope k = go . snd . scope' k
-  where go (All _ c') = go c'
-        go c = c
-
 -- |
--- >>> sc <- scope' "k0" . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
+-- >>> sc <- scope "k0" . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test02.smt2"
 -- >>> sc
--- (True,(forall ((x ... (and (forall ((y ... (forall ((v ... ((k0 v)))) (forall ((z ...
+-- (forall ((x ... (and (forall ((y ... (forall ((v ... ((k0 v)))) (forall ((z ...
 
--- scope' prunes out branches that don't have k
-scope' :: F.Symbol -> Cstr a -> (Bool, Cstr a)
+-- scope prunes out branches that don't have k
+-- and removes assumptions that appear over every instance of k in guard position
+scope :: F.Symbol -> Cstr a -> Cstr a
+scope k cstr = go $ fromJust (prune k cstr) -- TODO: is it safe to fail if k doesn't appear in the head?
+  where
+    go (All _ c') = c'
+    go c = c
 
-scope' k (CAnd c) = case map snd $ filter fst $ map (scope' k) c of
-                     []  -> (False, CAnd [])
-                     [c] -> (True, c)
-                     cs  -> (True, CAnd cs)
-
--- TODO: Bind PAnd Case
-scope' k c@(All (Bind x t (Var k' su)) c')
-  | k == k' = (True, c)
-  | otherwise = All (Bind x t (Var k' su)) <$> scope' k c'
-scope' k c@(All _ c')
-  = const c <$> scope' k c'
-scope' _ (Any _ _) = error "ebinds don't work with old elim"
-
-scope' k c@(Head (Var k' _) _)
--- this case seems extraneous?
-  | k == k'   = (True, c)
-scope' _ c@Head{} = (False, c)
+prune :: F.Symbol -> Cstr a -> Maybe (Cstr a)
+prune k (CAnd cs) = if null cs' then Nothing else Just $ CAnd cs'
+  where cs' = mapMaybe (prune k) cs
+prune k c@(Head (Var k' _) _)
+  | k == k' = Just c
+  | otherwise = Nothing
+prune _ Head{} = Nothing
+prune k (All b c) = do
+  c' <- prune k c
+  pure (All b c')
+prune _ Any{} = error "existential binders should not be around during kvar elim"
 
 -- | A solution is a Hyp of binders (including one anonymous binder
 -- that I've singled out here).
@@ -853,20 +893,11 @@ scope' _ c@Head{} = (False, c)
 --  - `bss` is a Hyp, that tells us the solution to a Var, that is,
 --     a collection of cubes that we'll want to disjunct
 
-sol1 :: F.Symbol -> Cstr a -> [[Bind]]
--- sol1 k cs = go k [] cs
---   where
---     go k branch (CAnd cs) = go k branch =<< cs
---     go k branch (All b c) = go k (branch ++ [b]) c
---     go k branch (Head (Var k' ys) _) | k == k' = [F.subst (F.Su $ M.fromList $ zip ys (F.EVar <$> xs)) branch]
---       where xs = zipWith const (kargs k) ys
---     go _ _ (Head _ _) = []
---     go _ _ (Any _ _) =  error "ebinds don't work with old elim"
-
+sol1 :: F.Symbol -> Cstr a -> [([Bind], [F.Expr])]
 sol1 k (CAnd cs) = sol1 k =<< cs
-sol1 k (All b c) = (b:) <$> sol1 k c
+sol1 k (All b c) = (\(bs, eqs) -> (b:bs, eqs)) <$> sol1 k c
 sol1 k (Head (Var k' ys) _) | k == k'
-  = [[Bind (fromString "_") F.boolSort $ Reft $ F.PAnd $ zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys)]]
+  = [([], zipWith (F.PAtom F.Eq) (F.EVar <$> xs) (F.EVar <$> ys))]
   where xs = zipWith const (kargs k) ys
 sol1 _ (Head _ _) = []
 sol1 _ (Any _ _) =  error "ebinds don't work with old elim"
@@ -875,30 +906,50 @@ kargs :: F.Symbol -> [F.Symbol]
 kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1..]
 
 -- |
--- >>> let c = doParse' hCstrP "" "(forall ((z Int) ($k0 z)) ((z = x)))"
+-- >>> LET c = doParse' hCstrP "" "(forall ((z Int) ($k0 z)) ((z = x)))"
 -- >>> doelim "k0" [[Bind "v" F.boolSort (Reft $ F.EVar "v"), Bind "_" F.boolSort (Reft $ F.EVar "donkey")]]  c
 -- (forall ((v bool) (v)) (forall ((z int) (donkey)) ((z == x))))
 
-doelim :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
+doelim :: F.Symbol -> [([Bind], [F.Expr])] -> Cstr a -> Cstr a
 doelim k bp (CAnd cs)
   = CAnd $ doelim k bp <$> cs
-doelim k bss (All (Bind x t (Var k' xs)) c)
-  | k == k'
-  = mkAnd $ cubeSol . reverse <$> bss
-  where su = F.Su $ M.fromList $ zip (kargs k) (F.EVar <$> xs)
-        mkAnd [c] = c
-        mkAnd cs = CAnd cs
-        cubeSol ((Bind _ _ (Reft eqs)):xs) =
-          foldl (flip All) (All (Bind x t (Reft $ F.subst su eqs)) $ doelim k bss c) xs
-        cubeSol _ = error "internal error"
---- TODO: what about the PAnd case inside b?
-doelim k bp (All b c)
-  = All b (doelim k bp c)
+doelim k bss (All (Bind x t p) c) =
+  case findKVarInGuard k p of
+    Right _ -> All (Bind x t p) (doelim k bss c)
+    Left (kvars, preds) -> demorgan x t kvars preds (doelim k bss c) bss
+  where
+    demorgan :: F.Symbol -> F.Sort -> [(F.Symbol, [F.Symbol])] -> [Pred] -> Cstr a -> [([Bind], [F.Expr])] -> Cstr a
+    demorgan x t kvars preds c bss = mkAnd $ cubeSol <$> bss
+      where su = F.Su $ M.fromList $ concat $ map (\(k, xs) -> zip (kargs k) (F.EVar <$> xs)) kvars
+            mkAnd [c] = c
+            mkAnd cs = CAnd cs
+            cubeSol ((b:bs), eqs) = All b $ cubeSol (bs, eqs)
+            cubeSol ([], eqs) = All (Bind x t (PAnd $ (Reft <$> F.subst su eqs) ++ (F.subst su <$> preds))) c
 doelim k _ (Head (Var k' _) a)
   | k == k'
   = Head (Reft F.PTrue) a
 doelim _ _ (Head p a) = Head p a
-doelim _ _ (Any _ _) =  error "ebinds don't work with old elim"
+
+doelim k bss (Any (Bind x t p) c) =
+  case findKVarInGuard k p of
+    Right _ -> Any (Bind x t p) (doelim k bss c)
+    Left (_, rights) -> Any (Bind x t (PAnd rights)) (doelim k bss c) -- TODO: for now we set the kvar to true. not sure if this is correct
+
+-- If k is in the guard then returns a Left list of that k and the remaining preds in the guard
+-- If k is not in the guard returns a Right of the pred
+findKVarInGuard :: F.Symbol -> Pred -> Either ([(F.Symbol, [F.Symbol])], [Pred]) Pred
+findKVarInGuard k (PAnd ps) =
+  if null lefts
+    then Right (PAnd ps) -- kvar not found
+    else Left $ (newLefts, newRights)
+  where findResults = findKVarInGuard k <$> ps
+        (lefts, rights) = partitionEithers findResults
+        newLefts = concat $ map fst lefts
+        newRights = concat (snd <$> lefts) ++ rights
+findKVarInGuard k p@(Var k' xs)
+  | k == k' = Left ([(k', xs)], [])
+  | otherwise = Right p
+findKVarInGuard _ p = Right p
 
 -- | Returns a list of KVars with their arguments that are present as
 --
@@ -925,3 +976,51 @@ pKVars :: Pred -> S.Set F.Symbol
 pKVars (Var k _) = S.singleton k
 pKVars (PAnd ps) = mconcat $ pKVars <$> ps
 pKVars _         = S.empty
+
+-- | Returns true if the constraint does not contain any existential binders
+isNNF :: Cstr a -> Bool
+isNNF Head{} = True
+isNNF (CAnd cs) = all isNNF cs
+isNNF (All _ c) = isNNF c
+isNNF Any{} = False
+
+buildKvarEdges :: Query a -> Cstr a -> KVEdges
+buildKvarEdges (Query qs vs _ cons dist) nnf = mapMaybe removeNonKVar edges
+  where
+    edges = FG.kvgEdges $ FG.kvGraph $ hornFInfo $ Query qs vs nnf cons dist
+
+    removeNonKVar (FG.KVar k, _, connections) = Just (FG.KVar k, FG.KVar k, connections')
+      where connections' = [FG.KVar k' | FG.KVar k' <- connections]
+    removeNonKVar _ = Nothing
+
+findAcyclicKVars :: KVEdges -> [F.Symbol]
+findAcyclicKVars edges = [F.kv k | DG.AcyclicSCC (KVar k) <- DG.stronglyConnComp edges]
+
+simplify :: Cstr a -> Cstr a
+simplify = flatten . pruneTauts . removeDuplicateBinders
+
+removeDuplicateBinders :: Cstr a -> Cstr a
+removeDuplicateBinders = go S.empty
+  where
+    go _ c@Head{} = c
+    go xs (CAnd cs) = CAnd $ go xs <$> cs
+    go xs (All b@(Bind x _ _) c) = if x `S.member` xs then go xs c else All b $ go (S.insert x xs) c
+    go xs (Any b c) = Any b $ go xs c
+
+pruneTauts :: Cstr a -> Cstr a
+pruneTauts = fromJust . go
+  where
+    go (Head p l) = do
+      p' <- goP p
+      pure $ Head p' l
+    go (CAnd cs) = if null cs' then Nothing else Just $ CAnd cs'
+      where cs' = mapMaybe go cs
+    go (All b c) = do
+      c' <- go c
+      pure (All b c')
+    go c@Any{} = Just c
+
+    goP (Reft e) = if F.isTautoPred e then Nothing else Just $ Reft e
+    goP p@Var{} = Just p
+    goP (PAnd ps) = if null ps' then Nothing else Just $ PAnd ps'
+      where ps' = mapMaybe goP ps

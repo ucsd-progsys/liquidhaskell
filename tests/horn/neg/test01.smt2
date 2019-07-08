@@ -1,3 +1,5 @@
+(fixpoint "--eliminate=horn")
+
 // TODO move to actual SMTLIB format 
 
 (constraint 

@@ -127,7 +127,7 @@ data Cstr a
   = Head  !Pred a               -- ^ p
   | CAnd  ![(Cstr a)]           -- ^ c1 /\ ... /\ cn
   | All   !Bind  !(Cstr a)      -- ^ \all x:t. p => c
-  | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p => c
+  | Any   !Bind  !(Cstr a)      -- ^ \exi x:t. p /\ c or is it \exi x:t. p => c?
   deriving (Data, Typeable, Generic, Functor, Eq)
 
 cLabel :: Cstr a -> a
