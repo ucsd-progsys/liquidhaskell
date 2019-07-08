@@ -23,7 +23,6 @@ import           Data.Either                  (partitionEithers)
 import qualified Data.Set                     as S
 import qualified Data.Graph                   as DG
 import           Control.Monad.State
--- import           Data.Maybe                   (catMaybes, fromMaybe, fromJust, mapMaybe)
 import           Data.Maybe                   (catMaybes, fromJust, mapMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
@@ -131,17 +130,21 @@ solveEbs query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else d
   whenLoud $ putStrLn $ F.showpp (horn, side)
 
   let pivars = boundKvars poked `S.difference` kvars
-  let piCstrs = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn)) (S.toList pivars)
+  let piSols = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn)) (S.toList pivars)
   whenLoud $ putStrLn "pi defining constraints:"
-  whenLoud $ putStrLn $ F.showpp piCstrs
+  whenLoud $ putStrLn $ F.showpp piSols
 
   if (S.fromList acyclicKs) /= kvars then error $ show (kvars, acyclicKs, kvars `S.difference` S.fromList acyclicKs) else pure ()
 
-  let (horn', side', piCstrs') = elimKs' acyclicKs (horn, side, piCstrs)
+  let (horn', side', piSols') = elimKs' acyclicKs (horn, side, piSols)
   whenLoud $ putStrLn "solved acyclic kvars:"
   whenLoud $ putStrLn $ F.showpp horn'
   whenLoud $ putStrLn $ F.showpp side'
-  whenLoud $ putStrLn $ F.showpp piCstrs'
+  whenLoud $ putStrLn $ F.showpp piSols'
+
+  let solvedPiCstrs = solPis piSols'
+  whenLoud $ putStrLn "solved pis:"
+  whenLoud $ putStrLn $ F.showpp solvedPiCstrs
 
   -- This whole business depends on Stringly-typed invariant that an ebind
   -- n corresponds to a pivar πn. That's pretty bad but I can't think of
@@ -192,6 +195,28 @@ piDefConstr k c = fromJust $ go c
       | otherwise = go c'
     go (All _ c') = go c'
     go _ = Nothing
+
+solPis :: M.HashMap F.Symbol (Cstr a) -> M.HashMap F.Symbol Pred
+solPis piSols = M.map fromRight $ go (M.toList piSols) (Left <$> piSols)
+  where
+    go ((pi, c):pis) piSols = go pis $ M.insert pi (Right solved) piSols
+      where solved = qe $ solPi (S.singleton pi) piSols c
+    go [] piSols = piSols
+
+    fromRight (Right x) = x
+    fromRight _ = error "fromRight failed"
+
+solPi :: S.Set F.Symbol -> M.HashMap F.Symbol (Either (Cstr a) Pred) -> Cstr a -> Cstr a
+solPi _ _ c@Head{} = c
+solPi visited piSols (CAnd cs) = CAnd $ solPi visited piSols <$> cs
+solPi visited piSols (All (Bind x t (Var pi _)) c)
+  | S.member pi visited = solPi visited piSols c
+  | otherwise = All (Bind x t p) (solPi visited piSols c)
+      where p = case (piSols M.! pi) of
+                  Left defC -> qe $ solPi (S.insert pi visited) piSols defC
+                  Right defP -> defP
+solPi visited piSols (All b c) = All b (solPi visited piSols c)
+solPi _ _ Any{} = error "exists should not be present in piSols"
 
 -- elimE :: Sol a -> Cstr a -> Cstr a
 -- elimE m (All b c) = All b (elimE m c)
@@ -592,17 +617,17 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 --         side' = doelim' k sol $ side
 
 -- TODO: make this elimKs and update tests for elimKs
--- | Takes noside, side, piCstrs and solves a set of kvars in them
+-- | Takes noside, side, piSols and solves a set of kvars in them
 elimKs' :: [F.Symbol]
         -> (Cstr a, Cstr a, M.HashMap F.Symbol (Cstr a))
         -> (Cstr a, Cstr a, M.HashMap F.Symbol (Cstr a))
 elimKs' [] cstrs = cstrs
-elimKs' (k:ks) (noside, side, piCstrs) = elimKs' ks (noside', side', piCstrs')
+elimKs' (k:ks) (noside, side, piSols) = elimKs' ks (noside', side', piSols')
   where
     sol = sol1 k (scope k noside)
     noside' = simplify $ doelim k sol noside
     side' = simplify $ doelim k sol side
-    piCstrs' = simplify . (doelim k sol) <$> piCstrs
+    piSols' = simplify . (doelim k sol) <$> piSols
 
 
 -- doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
@@ -702,6 +727,23 @@ instance V.Visitable (Cstr a) where
 --     store it
 --   return it
 
+qe :: Cstr a -> Pred
+qe c = tryToDropForalls c'
+  where
+    xs = boundVars c
+    eqs = collectEqualities xs c
+    c' = rewriteWithEqualities eqs c
+
+tryToDropForalls :: Cstr a -> Pred
+tryToDropForalls = undefined
+
+rewriteWithEqualities :: [(F.Symbol, F.Expr)] -> Cstr a -> Cstr a
+rewriteWithEqualities = undefined
+
+collectEqualities :: S.Set F.Symbol -> Cstr a -> [(F.Symbol, F.Expr)]
+collectEqualities _ _ = undefined
+
+-- qe' :: S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> Cstr a -> Pred
 -- qe :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
 -- qe m c = do
 --  c' <- qe' m c
@@ -965,6 +1007,12 @@ findKVarInGuard _ p = Right p
 -- ... ["k0"]
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
 -- ... ["k0"]
+
+boundVars :: Cstr a -> S.Set F.Symbol
+boundVars Head{} = mempty
+boundVars (CAnd cs) = mconcat $ boundVars <$> cs
+boundVars (All (Bind x _ _) c) = S.singleton x <> boundVars c
+boundVars (Any (Bind x _ _) c) = S.singleton x <> boundVars c
 
 boundKvars :: Cstr a -> S.Set F.Symbol
 boundKvars (Head p _)           = pKVars p
