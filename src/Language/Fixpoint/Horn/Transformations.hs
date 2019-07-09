@@ -23,6 +23,7 @@ import           Data.Either                  (partitionEithers)
 import qualified Data.Set                     as S
 import qualified Data.Graph                   as DG
 import           Control.Monad.State
+import           Data.Bifunctor               (second)
 import           Data.Maybe                   (catMaybes, fromJust, mapMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
@@ -110,11 +111,11 @@ type KVEdges = [(FG.CVertex, FG.CVertex, [FG.CVertex])]
 solveEbs :: (F.PPrint a) => Query a -> IO (Query a)
 ------------------------------------------------------------------------------
 solveEbs query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else do
-  let normalizedC = pruneTauts $ flatten $ hornify c
+  let normalizedC = simplify $ hornify c
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
-  let (Just noExists, _) = split normalizedC
+  let (Just noExists, _) = split normalizedC -- TODO: fix this and remove pivars from edges below
   let kEdges = buildKvarEdges query noExists
   let acyclicKs = findAcyclicKVars kEdges
   whenLoud $ putStrLn "acyclic kvars:"
@@ -183,37 +184,38 @@ solveEbs query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else d
   -- pure $ (Query qs vs (CAnd [ hornFinal, sideEE ]) cons dist)
 
 -- | Collects the defining constraint for π AKA c in forall n.π => c
-piDefConstr :: F.Symbol -> Cstr a -> Cstr a
+-- additionally collects the variable name n
+piDefConstr :: F.Symbol -> Cstr a -> ([F.Symbol], Cstr a)
 piDefConstr k c = fromJust $ go c
   where
     go (CAnd cs) =
       case mapMaybe go cs of
         [c'] -> Just c'
         _ -> Nothing
-    go (All (Bind _ _ (Var k' _)) c')
-      | k == k' = Just c'
+    go (All (Bind _ _ (Var k' xs)) c')
+      | k == k' = Just (xs, c')
       | otherwise = go c'
     go (All _ c') = go c'
     go _ = Nothing
 
-solPis :: M.HashMap F.Symbol (Cstr a) -> M.HashMap F.Symbol Pred
+solPis :: M.HashMap F.Symbol ([F.Symbol], Cstr a) -> M.HashMap F.Symbol Pred
 solPis piSols = M.map fromRight $ go (M.toList piSols) (Left <$> piSols)
   where
-    go ((pi, c):pis) piSols = go pis $ M.insert pi (Right solved) piSols
-      where solved = qe $ solPi (S.singleton pi) piSols c
+    go ((pi, (xs, c)):pis) piSols = go pis $ M.insert pi (Right solved) piSols
+      where solved = qe xs $ solPi (S.singleton pi) piSols c
     go [] piSols = piSols
 
     fromRight (Right x) = x
     fromRight _ = error "fromRight failed"
 
-solPi :: S.Set F.Symbol -> M.HashMap F.Symbol (Either (Cstr a) Pred) -> Cstr a -> Cstr a
+solPi :: S.Set F.Symbol -> M.HashMap F.Symbol (Either ([F.Symbol], Cstr a) Pred) -> Cstr a -> Cstr a
 solPi _ _ c@Head{} = c
 solPi visited piSols (CAnd cs) = CAnd $ solPi visited piSols <$> cs
 solPi visited piSols (All (Bind x t (Var pi _)) c)
   | S.member pi visited = solPi visited piSols c
   | otherwise = All (Bind x t p) (solPi visited piSols c)
       where p = case (piSols M.! pi) of
-                  Left defC -> qe $ solPi (S.insert pi visited) piSols defC
+                  Left (n, defC) -> qe n $ solPi (S.insert pi visited) piSols defC
                   Right defP -> defP
 solPi visited piSols (All b c) = All b (solPi visited piSols c)
 solPi _ _ Any{} = error "exists should not be present in piSols"
@@ -336,18 +338,20 @@ instance F.Subable Pred where
 -- ebs (Any (Bind x t _) c) = (x,t) : ebs c
 
 pokec :: Cstr a -> Cstr a
-pokec (Head c l) = Head c l
-pokec (CAnd c)   = CAnd (pokec <$> c)
-pokec (All b c2) = All b $ pokec c2
-pokec (Any b@(Bind x t p) c2) = CAnd [All b' $ CAnd [Head p l, pokec c2], Any b (Head pi l)]
-  -- TODO: actually use the renamer?
+pokec = go mempty
   where
-    b' = Bind x t pi
-    pi = piVar x
-    l  = cLabel c2
+    go _ (Head c l) = Head c l
+    go xs (CAnd c)   = CAnd (go xs <$> c)
+    go xs (All b c2) = All b $ go ((bSym b):xs) c2
+    go xs (Any b@(Bind x t p) c2) = CAnd [All b' $ CAnd [Head p l, go (x:xs) c2], Any b (Head pi l)]
+      -- TODO: actually use the renamer?
+      where
+        b' = Bind x t pi
+        pi = piVar x xs
+        l  = cLabel c2
 
-piVar :: F.Symbol -> Pred
-piVar x = Var (piSym x) [x]
+piVar :: F.Symbol -> [F.Symbol] -> Pred
+piVar x xs = Var (piSym x) (x:xs)
 
 piSym :: F.Symbol -> F.Symbol
 piSym s = fromString $ "π" ++ F.symbolString s
@@ -619,15 +623,15 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 -- TODO: make this elimKs and update tests for elimKs
 -- | Takes noside, side, piSols and solves a set of kvars in them
 elimKs' :: [F.Symbol]
-        -> (Cstr a, Cstr a, M.HashMap F.Symbol (Cstr a))
-        -> (Cstr a, Cstr a, M.HashMap F.Symbol (Cstr a))
+        -> (Cstr a, Cstr a, M.HashMap F.Symbol ([F.Symbol], Cstr a))
+        -> (Cstr a, Cstr a, M.HashMap F.Symbol ([F.Symbol], Cstr a))
 elimKs' [] cstrs = cstrs
 elimKs' (k:ks) (noside, side, piSols) = elimKs' ks (noside', side', piSols')
   where
     sol = sol1 k (scope k noside)
     noside' = simplify $ doelim k sol noside
     side' = simplify $ doelim k sol side
-    piSols' = simplify . (doelim k sol) <$> piSols
+    piSols' = (second $ simplify . (doelim k sol)) <$> piSols
 
 
 -- doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
@@ -727,21 +731,77 @@ instance V.Visitable (Cstr a) where
 --     store it
 --   return it
 
-qe :: Cstr a -> Pred
-qe c = tryToDropForalls c'
+-- | Users of qe must ensure well-formedness
+qe :: [F.Symbol] -> Cstr a -> Pred
+qe ns c = PAnd $ ps
   where
-    xs = boundVars c
+    xs = (S.fromList ns) `S.union` (boundVars c)
     eqs = collectEqualities xs c
-    c' = rewriteWithEqualities eqs c
+    ps = rewriteWithEqualities xs eqs ns (dropGuards c)
 
-tryToDropForalls :: Cstr a -> Pred
-tryToDropForalls = undefined
+dropGuards :: Cstr a -> [Pred]
+dropGuards (Head p _) = [p]
+dropGuards (CAnd cs) = mconcat $ dropGuards <$> cs
+dropGuards (All _ c) = dropGuards c
+dropGuards Any{} = error "not allowed"
 
-rewriteWithEqualities :: [(F.Symbol, F.Expr)] -> Cstr a -> Cstr a
-rewriteWithEqualities = undefined
+rewriteWithEqualities :: S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [F.Symbol] -> [Pred] -> [Pred]
+rewriteWithEqualities xs equalities ns ps = argEqualities <> (F.subst su <$> ps)
+  where
+    argEqualities = map (\n -> Reft (F.PAtom F.Eq (F.EVar n) (F.subst su (F.EVar n)))) ns
+    su = F.mkSubst $ buildSubst eqs
+
+    eqGraph = equalityGraph xs equalities
+    eqs = concatMap (\case
+                        DG.AcyclicSCC eq -> [eq]
+                        DG.CyclicSCC eqs -> eqs) eqGraph
+
+    buildSubst [] = []
+    buildSubst ((x, e):eqs) = (x, e):(buildSubst eqs')
+      where
+        eqs' = foldr (\(x', e') eqs' -> rewriteEq x e x' e' <> eqs') [] eqs
+
+    rewriteEq x e x' e' = case (left, right) of
+      (F.EVar y, e) | y == x', e == e' -> [(x', e')]
+      _ -> extractEquality xs left right
+      where
+        left = F.subst1 (F.EVar x') (x, e)
+        right = F.subst1 e' (x, e)
+
+equalityGraph :: S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [DG.SCC (F.Symbol, F.Expr)]
+equalityGraph xs eqs = DG.stronglyConnComp (go eqs)
+  where
+    go [] = []
+    go ((x, F.EVar y):eqs)
+      | S.member y xs = ((x, F.EVar y), x, [y]):(go eqs)
+    go ((x, e):eqs) = ((x, e), x, []):(go eqs)
 
 collectEqualities :: S.Set F.Symbol -> Cstr a -> [(F.Symbol, F.Expr)]
-collectEqualities _ _ = undefined
+collectEqualities xs c = go c
+  where
+    go (Head p _) = goP p
+    go (CAnd cs) = mconcat $ go <$> cs
+    go (All (Bind _ _ p) c) = goP p <> go c
+    go Any{} = error "existentials shouldn't be present"
+
+    goP (Reft e) = goE e
+    goP (PAnd ps) = mconcat $ goP <$> ps
+    goP _ = mempty
+
+    goE (F.PAtom F.Eq left right) = extractEquality xs left right
+    goE (F.PAnd es) = mconcat $ goE <$> es
+    goE _ = mempty
+
+extractEquality :: S.Set F.Symbol -> F.Expr -> F.Expr -> [(F.Symbol, F.Expr)]
+extractEquality xs left right
+  | F.EVar x <- left, F.EVar y <- right, x == y = []
+  | F.EVar x <- left, F.EVar y <- right
+  , S.member x xs, S.member y xs = [(x, right), (y, left)]
+  | F.EVar x <- left
+  , S.member x xs = [(x, right)]
+  | F.EVar x <- right
+  , S.member x xs = [(x, left)]
+  | otherwise = mempty
 
 -- qe' :: S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> Cstr a -> Pred
 -- qe :: M.HashMap F.Symbol Integer -> Cstr a -> State (Sol a) F.Expr
