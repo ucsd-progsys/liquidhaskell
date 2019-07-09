@@ -15,12 +15,14 @@ module Language.Fixpoint.Horn.Transformations (
 import           Language.Fixpoint.Horn.Types
 import           Language.Fixpoint.Horn.Info
 import qualified Language.Fixpoint.Types      as F
+import qualified Language.Fixpoint.Types.Config as F
 import           Language.Fixpoint.Graph      as FG
 import qualified Data.HashMap.Strict          as M
 -- import           Control.Monad.Identity
 import           Data.String                  (IsString (..))
 import           Data.Either                  (partitionEithers)
 import qualified Data.Set                     as S
+import qualified Data.HashSet                 as HS
 import qualified Data.Graph                   as DG
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
@@ -97,8 +99,6 @@ instance Flatten [F.Expr] where
     where fp = flatten p
   flatten []              = []
 
-type KVEdges = [(FG.CVertex, FG.CVertex, [FG.CVertex])]
-
 -- type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
 ------------------------------------------------------------------------------
 -- | solveEbs has some preconditions
@@ -108,25 +108,22 @@ type KVEdges = [(FG.CVertex, FG.CVertex, [FG.CVertex])]
 -- but I just haven't tested it/thought too hard about what the correct
 -- behavior in this case is.
 -- - There is at least one ebind
-solveEbs :: (F.PPrint a) => Query a -> IO (Query a)
+solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
-solveEbs query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else do
-  let normalizedC = simplify $ hornify c
+solveEbs cfg query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else do
+  let normalizedC = flatten . pruneTauts $ hornify c
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
-  let (Just noExists, _) = split normalizedC -- TODO: fix this and remove pivars from edges below
-  let kEdges = buildKvarEdges query noExists
-  let acyclicKs = findAcyclicKVars kEdges
-  whenLoud $ putStrLn "acyclic kvars:"
-  whenLoud $ putStrLn $ F.showpp acyclicKs
-
   let kvars = boundKvars normalizedC
+
   let poked = pokec normalizedC
   whenLoud $ putStrLn "Horn pokec:"
   whenLoud $ putStrLn $ F.showpp poked
 
-  let (Just horn, Just side) = split poked
+  let (Just _horn, Just _side) = split poked
+  let horn = flatten . pruneTauts $ _horn
+  let side = flatten . pruneTauts $ _side
   whenLoud $ putStrLn "Horn split:"
   whenLoud $ putStrLn $ F.showpp (horn, side)
 
@@ -135,9 +132,14 @@ solveEbs query@(Query _qs _vs c _cons _dist) = if isNNF c then pure query else d
   whenLoud $ putStrLn "pi defining constraints:"
   whenLoud $ putStrLn $ F.showpp piSols
 
-  if (S.fromList acyclicKs) /= kvars then error $ show (kvars, acyclicKs, kvars `S.difference` S.fromList acyclicKs) else pure ()
+  let cuts = calculateCuts cfg query (forgetPiVars pivars horn)
+  let acyclicKs = kvars `S.difference` cuts
+  whenLoud $ putStrLn "kvars (cuts, acyclic, all):"
+  whenLoud $ print $ (cuts, acyclicKs, kvars)
 
-  let (horn', side', piSols') = elimKs' acyclicKs (horn, side, piSols)
+  if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
+
+  let (horn', side', piSols') = elimKs' (S.toList acyclicKs) (horn, side, piSols)
   whenLoud $ putStrLn "solved acyclic kvars:"
   whenLoud $ putStrLn $ F.showpp horn'
   whenLoud $ putStrLn $ F.showpp side'
@@ -1092,17 +1094,19 @@ isNNF (CAnd cs) = all isNNF cs
 isNNF (All _ c) = isNNF c
 isNNF Any{} = False
 
-buildKvarEdges :: Query a -> Cstr a -> KVEdges
-buildKvarEdges (Query qs vs _ cons dist) nnf = mapMaybe removeNonKVar edges
+calculateCuts :: F.Config -> Query a -> Cstr a -> S.Set F.Symbol
+calculateCuts cfg (Query qs vs _ cons dist) nnf = convert $ FG.depCuts deps
   where
-    edges = FG.kvgEdges $ FG.kvGraph $ hornFInfo $ Query qs vs nnf cons dist
+    (_, deps) = elimVars cfg (hornFInfo $ Query qs vs nnf cons dist)
+    convert hashset = S.fromList $ F.kv <$> (HS.toList hashset)
 
-    removeNonKVar (FG.KVar k, _, connections) = Just (FG.KVar k, FG.KVar k, connections')
-      where connections' = [FG.KVar k' | FG.KVar k' <- connections]
-    removeNonKVar _ = Nothing
-
-findAcyclicKVars :: KVEdges -> [F.Symbol]
-findAcyclicKVars edges = [F.kv k | DG.AcyclicSCC (KVar k) <- DG.stronglyConnComp edges]
+forgetPiVars :: S.Set F.Symbol -> Cstr a -> Cstr a
+forgetPiVars _ c@Head{} = c
+forgetPiVars pis (CAnd cs) = CAnd $ forgetPiVars pis <$> cs
+forgetPiVars pis (All (Bind x t p) c)
+  | Var k _ <- p, k `S.member` pis = All (Bind x t (PAnd [])) $ forgetPiVars pis c
+  | otherwise = All (Bind x t p) $ forgetPiVars pis c
+forgetPiVars _ Any{} = error "shouldn't be present"
 
 simplify :: Cstr a -> Cstr a
 simplify = flatten . pruneTauts . removeDuplicateBinders

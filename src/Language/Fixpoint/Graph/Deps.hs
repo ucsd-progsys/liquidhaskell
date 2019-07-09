@@ -18,7 +18,6 @@ module Language.Fixpoint.Graph.Deps (
 
       -- * Compute Raw Dependencies
       , kvEdges
-      , kvGraph
 
       -- * Partition
       , decompose
