@@ -131,11 +131,14 @@ data Cstr a
   deriving (Data, Typeable, Generic, Functor, Eq)
 
 cLabel :: Cstr a -> a
-cLabel (Head _ l)   = l
-cLabel (CAnd (c:_)) = cLabel c
-cLabel (CAnd [])    = F.panic ("Empty Horn conjunction!") 
-cLabel (All _ c)    = cLabel c 
-cLabel (Any _ c)    = cLabel c
+cLabel cstr = case go cstr of
+  [] -> F.panic "everything is true!!!"
+  label:_ -> label
+  where
+    go (Head _ l)   = [l]
+    go (CAnd cs)    = mconcat $ go <$> cs
+    go (All _ c)    = go c
+    go (Any _ c)    = go c
 
 -- We want all valid constraints to start with a binding at the top
 okCstr :: Cstr a -> Bool 
