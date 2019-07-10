@@ -176,26 +176,45 @@ piDefConstr k c = fromJust 2 $ go c
     go _ = Nothing
 
 solPis :: M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
-solPis piSols = M.map fromRight $ go (M.toList piSols) (Left <$> piSols)
+solPis piSols = go (M.toList piSols) piSols
   where
-    go ((pi, ((n, xs), c)):pis) piSols = go pis $ M.insert pi (Right solved) piSols
-      where solved = qe n (S.fromList xs) $ trace ("\n\nsolved pi pre-qe: " <> F.showpp n <> "\n\n" <> F.showpp (eqEdges (S.fromList xs) mempty $ collectEqualities temp) <> "\n" <> F.showpp temp <> "\n\n") $ solPi (S.fromList xs) (S.singleton pi) piSols c
-            temp = solPi (S.fromList xs) (S.singleton pi) piSols c
-    go [] piSols = piSols
-    fromRight (Right x) = x
-    fromRight _ = error "fromRight failed"
+    go ((pi, ((n, xs), c)):pis) piSols = M.insert pi solved $ go pis piSols
+      where solved = solPi pi n (S.fromList xs) piSols c
+    go [] _ = mempty
 
-solPi :: S.Set F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol (Either ((F.Symbol, [F.Symbol]), Cstr a) Pred) -> Cstr a -> Cstr a
-solPi _ _ _ c@Head{} = c
-solPi bound visited piSols (CAnd cs) = CAnd $ solPi bound visited piSols <$> cs
-solPi bound visited piSols (All (Bind x t (Var pi _)) c)
-  | S.member pi visited = solPi bound visited piSols c
-  | otherwise = All (Bind x t p) (solPi bound visited piSols c)
-      where p = case (piSols M.! pi) of
-                  Left ((n, xs), defC) -> qe n (S.fromList xs `S.union` bound) $ solPi (S.fromList xs `S.union` bound) (S.insert pi visited) piSols defC
-                  Right defP -> defP
-solPi bound visited piSols (All b c) = All b (solPi bound visited piSols c)
-solPi _ _ _ Any{} = error "exists should not be present in piSols"
+solPi :: F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
+solPi basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp reachableN <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
+  where
+    rewritten = rewriteWithEqualities n args equalities
+    equalities = (nub . fst) $ go (S.singleton basePi) c
+    edges = eqEdges args mempty equalities
+    (eGraph, vf, lookupVertex) = DG.graphFromEdges edges
+    -- reachableN = nub $ filter (/= F.EVar n) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)]
+    reachableN = vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)
+
+    go :: S.Set F.Symbol -> Cstr a -> ([(F.Symbol, F.Expr)], S.Set F.Symbol)
+    go visited (Head p _) = (collectEqualities p, visited)
+    go visited (CAnd cs) = foldl (\(eqs, visited) c -> let (eqs', visited') = go visited c in (eqs' <> eqs, visited')) (mempty, visited) cs
+    go visited (All (Bind _ _ (Var pi _)) c)
+      | S.member pi visited = go visited c
+      | otherwise = let (_, defC) = (piSols M.! pi)
+                        (eqs', newVisited) = go (S.insert pi visited) defC
+                        (eqs'', newVisited') = go newVisited c in
+          (eqs' <> eqs'', newVisited')
+    go visited (All (Bind _ _ p) c) = let (eqs, visited') = go visited c in
+      (eqs <> collectEqualities p, visited')
+    go _ Any{} = error "exists should not be present in piSols"
+
+-- solPi _ _ _ c@Head{} = c
+-- solPi bound visited piSols (CAnd cs) = CAnd $ solPi bound visited piSols <$> cs
+-- solPi bound visited piSols (All (Bind x t (Var pi _)) c)
+--   | S.member pi visited = solPi bound visited piSols c
+--   | otherwise = All (Bind x t p) (solPi bound visited piSols c)
+--       where p = case (piSols M.! pi) of
+--                   Left ((n, xs), defC) -> qe n (S.fromList xs `S.union` bound) $ solPi (S.fromList xs `S.union` bound) (S.insert pi visited) piSols defC
+--                   Right defP -> defP
+-- solPi bound visited piSols (All b c) = All b (solPi bound visited piSols c)
+-- solPi _ _ _ Any{} = error "exists should not be present in piSols"
 
 -- elimE :: Sol a -> Cstr a -> Cstr a
 -- elimE m (All b c) = All b (elimE m c)
@@ -707,17 +726,11 @@ instance V.Visitable (Cstr a) where
 --     store it
 --   return it
 
-qe :: F.Symbol -> S.Set F.Symbol -> Cstr a -> Pred
-qe n args c = PAnd $ ps
-  where
-    equalities = collectEqualities c
-    ps = rewriteWithEqualities n args equalities
-
--- dropGuards :: Cstr a -> [Pred]
--- dropGuards (Head p _) = [p]
--- dropGuards (CAnd cs) = mconcat $ dropGuards <$> cs
--- dropGuards (All _ c) = dropGuards c
--- dropGuards Any{} = error "not allowed"
+-- qe :: F.Symbol -> S.Set F.Symbol -> Cstr a -> Pred
+-- qe n args c = PAnd $ ps
+--   where
+--     equalities = collectEqualities c
+--     ps = rewriteWithEqualities n args equalities
 
 rewriteWithEqualities :: F.Symbol -> S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [Pred]
 rewriteWithEqualities n args equalities = preds
@@ -794,14 +807,9 @@ pairAppend (a, b) (c, d) = (a <> c, b <> d)
 --       | S.member y xs = ((x, F.EVar y), x, [y]):(go eqs)
 --     go ((x, e):eqs) = ((x, e), x, []):(go eqs)
 
-collectEqualities :: Cstr a -> [(F.Symbol, F.Expr)]
-collectEqualities c = nub $ go c
+collectEqualities :: Pred -> [(F.Symbol, F.Expr)]
+collectEqualities = goP
   where
-    go (Head p _) = goP p
-    go (CAnd cs) = mconcat $ go <$> cs
-    go (All (Bind _ _ p) c) = goP p <> go c
-    go Any{} = error "existentials shouldn't be present"
-
     goP (Reft e) = goE e
     goP (PAnd ps) = mconcat $ goP <$> ps
     goP _ = mempty
@@ -809,6 +817,22 @@ collectEqualities c = nub $ go c
     goE (F.PAtom F.Eq left right) = extractEquality left right
     goE (F.PAnd es) = mconcat $ goE <$> es
     goE _ = mempty
+
+-- collectEqualities :: Cstr a -> [(F.Symbol, F.Expr)]
+-- collectEqualities c = nub $ go c
+--   where
+--     go (Head p _) = goP p
+--     go (CAnd cs) = mconcat $ go <$> cs
+--     go (All (Bind _ _ p) c) = goP p <> go c
+--     go Any{} = error "existentials shouldn't be present"
+
+--     goP (Reft e) = goE e
+--     goP (PAnd ps) = mconcat $ goP <$> ps
+--     goP _ = mempty
+
+--     goE (F.PAtom F.Eq left right) = extractEquality left right
+--     goE (F.PAnd es) = mconcat $ goE <$> es
+--     goE _ = mempty
 
 extractEquality :: F.Expr -> F.Expr -> [(F.Symbol, F.Expr)]
 extractEquality left right
@@ -1094,4 +1118,5 @@ pruneTauts = fromJust 1. go
     goP (PAnd ps) = if null ps' then Nothing else Just $ PAnd ps'
       where ps' = mapMaybe goP ps
 
+fromJust :: (Show a) => a -> Maybe b -> b
 fromJust x = fromMaybe (error $ show x)
