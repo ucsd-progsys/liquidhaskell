@@ -196,6 +196,7 @@ library
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
+                    , extra 
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures
