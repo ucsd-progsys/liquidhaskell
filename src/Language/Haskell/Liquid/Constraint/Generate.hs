@@ -109,7 +109,7 @@ consAct γ cfg info = do
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
-  foldM_ (consCBTop cfg info) γ (F.tracepp "TO CHECK: " $ giCbs gSrc)
+  foldM_ (consCBTop cfg info) γ (F.notracepp "TO CHECK: " $ giCbs gSrc)
   hcs    <- hsCs  <$> get
   hws    <- hsWfs <$> get
   scss   <- sCs   <$> get

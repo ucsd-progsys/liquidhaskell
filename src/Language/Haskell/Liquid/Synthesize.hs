@@ -13,6 +13,7 @@ import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.Env 
 import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
+import           Language.Haskell.Liquid.Synthesize.Termination
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.Synthesize.Check
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
@@ -43,6 +44,10 @@ import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
 import qualified Data.Map as Map 
 import           Data.List.Extra
+
+
+notrace :: String -> a -> a 
+notrace _ a = a 
 
 -- containt GHC primitives
 -- JP: Should we get this from REnv instead?
@@ -76,11 +81,6 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
 
     -- Type Abstraction 
     go (RAllT a t)       = GHC.Lam (tyVarVar a) <$$> go t
-    go (RFun x tx t _)   = 
-      do  y <- freshVar tx
-          addEnv y tx 
-          addDecrTerm y [] -- init ssDecrTerm: At this point, x doesn't have any `smaller` terms.
-          GHC.Lam y <$$> go (t `subst1` (x, EVar $ symbol y))
           
     -- Special Treatment for synthesis of integers          
     go t@(RApp c _ts _ r)  
@@ -99,10 +99,15 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
               liftIO (SMT.smtPop ctx)
               return $ notracepp ("numeric with " ++ show r) [GHC.Var $ mkVar (Just smtVal) def def]
 
-    go t = do addEnv x tx -- NV TODO: edit the type of x to ensure termination 
-              synthesizeBasic t 
-    
 
+    go t = do ys <- mapM freshVar txs
+              let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
+              mapM (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
+              addEnv x $ decrType x tx ys (zip xs txs)
+              GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
+      where (_, (xs, txs, _), to) = bkArrow t 
+
+    
 -- synthesizeBasic :: SpecType -> SM [CoreExpr]
 -- synthesizeBasic t = do 
 --   rtc_cands <- genTerms t 
@@ -124,6 +129,17 @@ generateApps t = do
   fs <- concat <$> mapM generateF env
 
   error "TODO"
+
+synthesizeBasic :: SpecType -> SM [CoreExpr]
+synthesizeBasic t = do es <- generateETerms t
+                       filterElseM (hasType t) es $ do
+                          apps <- generateApps t
+                          filterElseM (hasType t) apps $ do
+                            senv <- getSEnv
+                            lenv <- getLocalEnv
+                            notrace ("apps = " ++ show apps) $ 
+                              synthesizeMatch lenv senv t -- JP: Should we remove this from `synthesizeBasic`? Filter result?
+                       
 
 
   where
@@ -346,6 +362,93 @@ varsInType t = (map head . group . sort) (varsInType' t)
 
 
 
+
+
+-- e-terms: var, constructors, function applications
+
+-- This should generates all e-terms.
+-- Now it generates variables and function applications in the environment.
+-- TODO: Add constructors in the environment.
+-- Note: Probably `generateApps` works for constructors as well.
+generateETerms :: SpecType -> SM [CoreExpr] 
+generateETerms t = do 
+  lenv <- M.toList . ssEnv <$> get 
+  let delimiterStr = "\n************************************\n"
+  notrace (delimiterStr ++ "[generateETerms] lenv = " ++ show lenv ++ " " ++ delimiterStr) $ 
+    return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
+  where τ = toType t 
+
+generateApps :: SpecType -> SM [CoreExpr]
+generateApps t = do
+  env <- M.toList . ssEnv <$> get
+
+  fs <- concat <$> mapM generateF env
+
+  error "TODO"
+
+
+  where
+    generateF :: (Symbol, (SpecType, Var)) -> SM [(SpecType, CoreExpr)]
+    generateF (_, (t, v)) = do
+        let t' = RFun _freshSymbol (RVar _var _reft) t _reft'  -- JP: What's the right constructor here???
+        es <- synthesizeBasic t'
+
+        -- Generate arg here?
+        error "TODO"
+
+    _freshSymbol = undefined
+    _var = undefined
+    _reft = undefined
+    _reft' = undefined
+
+--   lenv <- M.toList . ssEnv <$> get
+--   decrTerms <- ssDecrTerm <$> get
+--   let τ = toType t
+--   case generateApps' decrTerms lenv lenv τ of
+--     [] -> return []
+--     l  -> return l
+
+generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps' _         []      _  _ = []
+generateApps' decrTerms (h : t) l2 τ = generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
+
+generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
+generateApps'' _         _                 []                       _ = []
+generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
+  let htype  = toType rtype
+      htype' = toType rtype'
+      t  = typeAppl htype  htype'
+      t' = typeAppl htype' htype
+  in  
+  -- in  trace ( "\n ***** t = "   ++ 
+  --             showTy t ++ "\n"  ++ 
+  --             "       var = "   ++ 
+  --             show v ++ "\n"    ++
+  --             "\n ***** t' = "  ++ 
+  --             showTy t' ++ "\n" ++ 
+  --             "       var = "   ++ 
+  --             show v' ++ "\n"   ++
+  --             "\n ***** τ = "   ++ 
+  --             showTy τ ++ "\n"    ) $ 
+      case t of
+        Nothing ->
+          case t' of 
+            Nothing -> generateApps'' decrTerms h es τ 
+            Just _  -> 
+              case lookup v decrTerms of
+                Nothing   -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' decrTerms h es τ
+                Just vars -> generateApps'' decrTerms h es τ
+        Just _  -> 
+          case lookup v' decrTerms of
+            Nothing   -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' decrTerms h es τ
+            Just vars -> generateApps'' decrTerms h es τ
+
+typeAppl :: Type -> Type -> Maybe Type
+typeAppl (GHC.FunTy t' t'') t''' 
+  | t'' == t''' = Just t'
+typeAppl _                  _   = Nothing 
+
+
 -- Panagiotis TODO: here I only explore the first one                     
 --  We need the most recent one
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
@@ -355,7 +458,7 @@ synthesizeMatch lenv γ t
 
   -- | otherwise 
   -- = maybe def id <$> monadicFirst 
-  = trace ("[synthesizeMatch] es = " ++ show es) $ 
+  = notrace ("[synthesizeMatch] es = " ++ show es) $ 
       join <$> mapM (withIncrDepth . matchOn t) (es <> ls)
 
   where 
