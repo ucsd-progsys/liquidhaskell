@@ -102,6 +102,7 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
     go t = do addEnv x tx -- NV TODO: edit the type of x to ensure termination 
               synthesizeBasic t 
     
+
 -- synthesizeBasic :: SpecType -> SM [CoreExpr]
 -- synthesizeBasic t = do 
 --   rtc_cands <- genTerms t 
@@ -113,6 +114,32 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
 --               senv <- getSEnv
 --               lenv <- getLocalEnv
 --               synthesizeMatch lenv senv t
+
+{- 
+-- James: sketch out app some
+generateApps :: SpecType -> SM [CoreExpr]
+generateApps t = do
+  env <- M.toList . ssEnv <$> get
+
+  fs <- concat <$> mapM generateF env
+
+  error "TODO"
+
+
+  where
+    generateF :: (Symbol, (SpecType, Var)) -> SM [(SpecType, CoreExpr)]
+    generateF (_, (t, v)) = do
+        let t' = RFun _freshSymbol (RVar _var _reft) t _reft'  -- JP: What's the right constructor here???
+        es <- synthesizeBasic t'
+
+        -- Generate arg here?
+        error "TODO"
+
+    _freshSymbol = undefined
+    _var = undefined
+    _reft = undefined
+    _reft' = undefined
+-}
 
     -- PB: Possibly replace with this synthesizeBasic.
     -- There is a bug for now with hasType and some expressions,
