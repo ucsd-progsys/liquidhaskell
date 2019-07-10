@@ -14,6 +14,7 @@ module Language.Fixpoint.Horn.Transformations (
 
 import           Language.Fixpoint.Horn.Types
 import           Language.Fixpoint.Horn.Info
+import           Language.Fixpoint.Smt.Theories as F
 import qualified Language.Fixpoint.Types      as F
 import qualified Language.Fixpoint.Types.Config as F
 import           Language.Fixpoint.Graph      as FG
@@ -26,11 +27,11 @@ import qualified Data.HashSet                 as HS
 import qualified Data.Graph                   as DG
 import           Control.Monad.State
 import           Data.Bifunctor               (second)
-import           Data.Maybe                   (catMaybes, mapMaybe, fromJust)
+import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 
--- import Debug.Trace
+import Debug.Trace
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -137,13 +138,13 @@ solveEbs cfg query@(Query qs vs c cons dist) = if isNNF c then pure query else d
   whenLoud $ putStrLn "kvars (cuts, acyclic, all):"
   whenLoud $ print $ (cuts, acyclicKs, kvars)
 
-  if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
-
   let (horn', side', piSols') = elimKs' (S.toList acyclicKs) (horn, side, piSols)
   whenLoud $ putStrLn "solved acyclic kvars:"
   whenLoud $ putStrLn $ F.showpp horn'
   whenLoud $ putStrLn $ F.showpp side'
   whenLoud $ putStrLn $ F.showpp piSols'
+
+  if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
 
   let solvedPiCstrs = solPis piSols'
   whenLoud $ putStrLn "solved pis:"
@@ -162,7 +163,7 @@ solveEbs cfg query@(Query qs vs c cons dist) = if isNNF c then pure query else d
 -- | Collects the defining constraint for π AKA c in forall n.π => c
 -- additionally collects the variable name n
 piDefConstr :: F.Symbol -> Cstr a -> ((F.Symbol, [F.Symbol]), Cstr a)
-piDefConstr k c = fromJust $ go c
+piDefConstr k c = fromJust 2 $ go c
   where
     go (CAnd cs) =
       case mapMaybe go cs of
@@ -178,7 +179,8 @@ solPis :: M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Sym
 solPis piSols = M.map fromRight $ go (M.toList piSols) (Left <$> piSols)
   where
     go ((pi, ((n, xs), c)):pis) piSols = go pis $ M.insert pi (Right solved) piSols
-      where solved = qe n (S.fromList xs) $ solPi mempty (S.singleton pi) piSols c
+      where solved = qe n (S.fromList xs) $ trace ("\n\nsolved pi pre-qe: " <> F.showpp n <> "\n\n" <> F.showpp (eqEdges (S.fromList xs) mempty $ collectEqualities temp) <> "\n" <> F.showpp temp <> "\n\n") $ solPi (S.fromList xs) (S.singleton pi) piSols c
+            temp = solPi (S.fromList xs) (S.singleton pi) piSols c
     go [] piSols = piSols
     fromRight (Right x) = x
     fromRight _ = error "fromRight failed"
@@ -187,12 +189,12 @@ solPi :: S.Set F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol (Either ((F.Symb
 solPi _ _ _ c@Head{} = c
 solPi bound visited piSols (CAnd cs) = CAnd $ solPi bound visited piSols <$> cs
 solPi bound visited piSols (All (Bind x t (Var pi _)) c)
-  | S.member pi visited = solPi (S.insert x bound) visited piSols c
-  | otherwise = All (Bind x t p) (solPi (S.insert x bound) visited piSols c)
+  | S.member pi visited = solPi bound visited piSols c
+  | otherwise = All (Bind x t p) (solPi bound visited piSols c)
       where p = case (piSols M.! pi) of
-                  Left ((n, xs), defC) -> qe n (S.fromList xs `S.union` bound) $ solPi (S.insert x bound) (S.insert pi visited) piSols defC
+                  Left ((n, xs), defC) -> qe n (S.fromList xs `S.union` bound) $ solPi (S.fromList xs `S.union` bound) (S.insert pi visited) piSols defC
                   Right defP -> defP
-solPi bound visited piSols (All b c) = All b (solPi (S.insert (bSym b) bound) visited piSols c)
+solPi bound visited piSols (All b c) = All b (solPi bound visited piSols c)
 solPi _ _ _ Any{} = error "exists should not be present in piSols"
 
 -- elimE :: Sol a -> Cstr a -> Cstr a
@@ -608,7 +610,6 @@ elimKs' (k:ks) (noside, side, piSols) = elimKs' ks (noside', side', piSols')
     side' = simplify $ doelim k sol side
     piSols' = (second $ simplify . (doelim k sol)) <$> piSols
 
-
 -- doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
 -- doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
 -- doelim' k bss (Head p a) = Head (tx k bss p) a
@@ -709,9 +710,8 @@ instance V.Visitable (Cstr a) where
 qe :: F.Symbol -> S.Set F.Symbol -> Cstr a -> Pred
 qe n args c = PAnd $ ps
   where
-    vars = S.insert n $ boundVars c `S.union` args
-    equalities = collectEqualities vars c
-    ps = rewriteWithEqualities n args equalities -- (dropGuards c) -- TODO: this should probably get put back
+    equalities = collectEqualities c
+    ps = rewriteWithEqualities n args equalities
 
 -- dropGuards :: Cstr a -> [Pred]
 -- dropGuards (Head p _) = [p]
@@ -722,44 +722,44 @@ qe n args c = PAnd $ ps
 rewriteWithEqualities :: F.Symbol -> S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [Pred]
 rewriteWithEqualities n args equalities = preds
   where
-    (eGraph, vf, lookupVertex) = DG.graphFromEdges $ edges mempty equalities
+    (eGraph, vf, lookupVertex) = DG.graphFromEdges $ eqEdges args mempty equalities
 
-    nResult = (n, sols n)
-    argResults = map (\arg -> (arg, sols arg)) (S.toList args)
+    nResult = (n, makeWellFormed 4 $ sols n)
+    argResults = map (\arg -> (arg, makeWellFormed 4 $ sols arg)) (S.toList args)
 
-    preds = (mconcat $ (\(x, e) -> mkEquality x e) <$> (nResult:argResults))
+    preds = (mconcat $ (\(x, es) -> mconcat $ mkEquality x <$> es) <$> (nResult:argResults))
 
-    mkEquality _ [] = []
-    mkEquality x (e:_) = [Reft (F.PAtom F.Eq (F.EVar x) e)]
+    mkEquality x e = [Reft (F.PAtom F.Eq (F.EVar x) e)]
 
     sols :: F.Symbol -> [F.Expr]
     sols x = case lookupVertex x of
       Nothing -> []
-      Just vertex -> makeWellFormed $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
+      Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
+
+    argsAndPrims = args `S.union` (S.fromList $ map fst $ F.toListSEnv $ F.theorySymbols [])
 
     isWellFormed :: F.Expr -> Bool
-    isWellFormed e = (S.fromList $ F.syms e) `S.isSubsetOf` args
+    isWellFormed e = (S.fromList $ F.syms e) `S.isSubsetOf` argsAndPrims
 
-    -- TODO: compute this to a fixpoint somehow
-    makeWellFormed :: [F.Expr] -> [F.Expr]
-    makeWellFormed es = mconcat $ go <$> es
+    makeWellFormed :: Int -> [F.Expr] -> [F.Expr]
+    makeWellFormed 0 es = filter isWellFormed es -- We solved it. Maybe.
+    makeWellFormed n es = makeWellFormed (n - 1) $ mconcat $ go <$> es
       where
-        go e = if isWellFormed e then [e] else
-          if all (\(_, solList) -> not $ null solList) varSols
-            then [F.subst (F.mkSubst $ (\(x, (sol:_)) -> (x, sol)) <$> varSols) e]
-            else []
+        go e = if isWellFormed e then [e] else rewrite rewrites [e]
           where
-            varSols = (\x -> (x, filter isWellFormed (sols x))) <$> (F.syms e)
+            needSolving = (S.fromList $ F.syms e) `S.difference` argsAndPrims
+            rewrites = (\x -> (x, filter (/= F.EVar x) $ sols x)) <$> S.toList needSolving
+            rewrite [] es = es
+            rewrite ((x, rewrites):rewrites') es = rewrite rewrites' $ [F.subst (F.mkSubst [(x, e')]) e | e' <- rewrites, e <- es]
 
+eqEdges :: S.Set F.Symbol -> M.HashMap F.Symbol ([F.Symbol], [F.Expr]) -> [(F.Symbol, F.Expr)] -> [((F.Symbol, [F.Expr]), F.Symbol, [F.Symbol])]
+eqEdges args edgeMap [] = M.foldrWithKey (\x (ys, es) edges -> ((x, es), x, ys):edges) [] edgeMap
+eqEdges args edgeMap ((x, e):eqs)
+  | F.EVar y <- e, S.member y args = eqEdges args (M.insertWith pairAppend x ([y], [F.EVar y]) edgeMap) eqs
+  | F.EVar y <- e = eqEdges args (M.insertWith pairAppend x ([y], []) edgeMap) eqs
+  | otherwise = eqEdges args (M.insertWith pairAppend x ([], [e]) edgeMap) eqs
 
-    edges :: M.HashMap F.Symbol ([F.Symbol], [F.Expr]) -> [(F.Symbol, F.Expr)] -> [((F.Symbol, [F.Expr]), F.Symbol, [F.Symbol])]
-    edges edgeMap [] = M.foldrWithKey (\x (ys, es) edges -> ((x, es), x, ys):edges) [] edgeMap
-    edges edgeMap ((x, e):eqs)
-      | F.EVar y <- e, S.member y args = edges (M.insertWith pairAppend x ([], [F.EVar y]) edgeMap) eqs
-      | F.EVar y <- e = edges (M.insertWith pairAppend x ([y], []) edgeMap) eqs
-      | otherwise = edges (M.insertWith pairAppend x ([], [e]) edgeMap) eqs
-
-    pairAppend (a, b) (c, d) = (a <> c, b <> d)
+pairAppend (a, b) (c, d) = (a <> c, b <> d)
 
 -- rewriteWithEqualities args argEqs vars equalities = trace ("\n\nREWRITING:\n" <> F.showpp (S.toList args, argEqs, acyclicEqs, su, map makeReft argEqs) <> "\n\n") $ map makeReft argEqs
   -- where
@@ -794,8 +794,8 @@ rewriteWithEqualities n args equalities = preds
 --       | S.member y xs = ((x, F.EVar y), x, [y]):(go eqs)
 --     go ((x, e):eqs) = ((x, e), x, []):(go eqs)
 
-collectEqualities :: S.Set F.Symbol -> Cstr a -> [(F.Symbol, F.Expr)]
-collectEqualities xs c = nub $ go c
+collectEqualities :: Cstr a -> [(F.Symbol, F.Expr)]
+collectEqualities c = nub $ go c
   where
     go (Head p _) = goP p
     go (CAnd cs) = mconcat $ go <$> cs
@@ -806,19 +806,16 @@ collectEqualities xs c = nub $ go c
     goP (PAnd ps) = mconcat $ goP <$> ps
     goP _ = mempty
 
-    goE (F.PAtom F.Eq left right) = extractEquality xs left right
+    goE (F.PAtom F.Eq left right) = extractEquality left right
     goE (F.PAnd es) = mconcat $ goE <$> es
     goE _ = mempty
 
-extractEquality :: S.Set F.Symbol -> F.Expr -> F.Expr -> [(F.Symbol, F.Expr)]
-extractEquality xs left right
-  | F.EVar x <- left, F.EVar y <- right, x == y = []
-  | F.EVar x <- left, F.EVar y <- right
-  , S.member x xs, S.member y xs = [(x, right), (y, left)]
-  | F.EVar x <- left
-  , S.member x xs = [(x, right)]
-  | F.EVar x <- right
-  , S.member x xs = [(x, left)]
+extractEquality :: F.Expr -> F.Expr -> [(F.Symbol, F.Expr)]
+extractEquality left right
+  | F.EVar x <- left, F.EVar y <- right, x == y = mempty
+  | F.EVar x <- left, F.EVar y <- right  = [(x, right), (y, left)]
+  | F.EVar x <- left = [(x, right)]
+  | F.EVar x <- right = [(x, left)]
   | otherwise = mempty
 
 substPiSols :: M.HashMap F.Symbol Pred -> Cstr a -> Cstr a
@@ -919,7 +916,7 @@ elim1 c k = simplify $ doelim k sol c
 -- scope prunes out branches that don't have k
 -- and removes assumptions that appear over every instance of k in guard position
 scope :: F.Symbol -> Cstr a -> Cstr a
-scope k cstr = go $ fromJust (prune k cstr) -- TODO: is it safe to fail if k doesn't appear in the head?
+scope k cstr = go $ fromJust 3 (prune k cstr) -- TODO: is it safe to fail if k doesn't appear in the head?
   where
     go (All _ c') = c'
     go c = c
@@ -1080,7 +1077,7 @@ removeDuplicateBinders = go S.empty
     go xs (Any b c) = Any b $ go xs c
 
 pruneTauts :: Cstr a -> Cstr a
-pruneTauts = fromJust . go
+pruneTauts = fromJust 1. go
   where
     go (Head p l) = do
       p' <- goP p
@@ -1096,3 +1093,5 @@ pruneTauts = fromJust . go
     goP p@Var{} = Just p
     goP (PAnd ps) = if null ps' then Nothing else Just $ PAnd ps'
       where ps' = mapMaybe goP ps
+
+fromJust x = fromMaybe (error $ show x)
