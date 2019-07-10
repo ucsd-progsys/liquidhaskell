@@ -44,8 +44,6 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
-import qualified Data.Map as Map 
-import           Data.List.Extra
 
 
 notrace :: String -> a -> a 
@@ -104,64 +102,12 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
 
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
-              mapM (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
+              mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               addEnv x $ decrType x tx ys (zip xs txs)
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
       where (_, (xs, txs, _), to) = bkArrow t 
 
     
--- synthesizeBasic :: SpecType -> SM [CoreExpr]
--- synthesizeBasic t = do 
---   rtc_cands <- genTerms t 
---   trace ("[ synthesizeBasic ]" ++ show rtc_cands) $
---     do  es <- generateETerms t
---         filterElseM (hasType t) es $ do
---             apps <- generateApps t
---             filterElseM (hasType t) apps $ do
---               senv <- getSEnv
---               lenv <- getLocalEnv
---               synthesizeMatch lenv senv t
-
-{- 
--- James: sketch out app some
-generateApps :: SpecType -> SM [CoreExpr]
-generateApps t = do
-  env <- M.toList . ssEnv <$> get
-
-  fs <- concat <$> mapM generateF env
-
-  error "TODO"
-
-synthesizeBasic :: SpecType -> SM [CoreExpr]
-synthesizeBasic t = do es <- generateETerms t
-                       filterElseM (hasType t) es $ do
-                          apps <- generateApps t
-                          filterElseM (hasType t) apps $ do
-                            senv <- getSEnv
-                            lenv <- getLocalEnv
-                            notrace ("apps = " ++ show apps) $ 
-                              synthesizeMatch lenv senv t -- JP: Should we remove this from `synthesizeBasic`? Filter result?
-                       
-
-
-  where
-    generateF :: (Symbol, (SpecType, Var)) -> SM [(SpecType, CoreExpr)]
-    generateF (_, (t, v)) = do
-        let t' = RFun _freshSymbol (RVar _var _reft) t _reft'  -- JP: What's the right constructor here???
-        es <- synthesizeBasic t'
-
-        -- Generate arg here?
-        error "TODO"
-
-    _freshSymbol = undefined
-    _var = undefined
-    _reft = undefined
-    _reft' = undefined
--}
-
-    -- PB: Possibly replace with this synthesizeBasic.
-    -- There is a bug for now with hasType and some expressions,
-    -- e.g. hasType t (stutter (stutter x_s0)).
 
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do
@@ -189,7 +135,8 @@ genTerms specTy =
           initEMem     = initExprMemory τ senv
       finalEMem <- withDepthFill maxAppDepth initEMem funTyCands
       let result       = takeExprs finalEMem 
-      trace ("\n[ Expressions ] " ++ show result) (return result) 
+      -- trace ("\n[ Expressions ] " ++ show result) 
+      return result
 
 maxAppDepth :: Int 
 maxAppDepth = 6
@@ -232,8 +179,6 @@ fillMany exprMem (cand : cands) accExprs = do
   fillMany exprMem cands accExprs'
 
 
--- Let  (Language.Haskell.Liquid.GHC.API.Bind b)
---      (Language.Haskell.Liquid.GHC.API.Expr b)
 -- PB: Currently, works with arity 1 or 2 (see below)...
 -- Also, I don't think that it works for higher order e.g. map :: (a -> b) -> [a] -> [b].
 -- Takes a function and a list of correct expressions for every argument
@@ -359,94 +304,6 @@ varsInType t = (map head . group . sort) (varsInType' t)
 
 
 
-
-{- 
--- e-terms: var, constructors, function applications
-
--- This should generates all e-terms.
--- Now it generates variables and function applications in the environment.
--- TODO: Add constructors in the environment.
--- Note: Probably `generateApps` works for constructors as well.
-generateETerms :: SpecType -> SM [CoreExpr] 
-generateETerms t = do 
-  lenv <- M.toList . ssEnv <$> get 
-  let delimiterStr = "\n************************************\n"
-  notrace (delimiterStr ++ "[generateETerms] lenv = " ++ show lenv ++ " " ++ delimiterStr) $ 
-    return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
-  where τ = toType t 
-
-generateApps :: SpecType -> SM [CoreExpr]
-generateApps t = do
-  env <- M.toList . ssEnv <$> get
-
-  fs <- concat <$> mapM generateF env
-
-  error "TODO"
-
-
-  where
-    generateF :: (Symbol, (SpecType, Var)) -> SM [(SpecType, CoreExpr)]
-    generateF (_, (t, v)) = do
-        let t' = RFun _freshSymbol (RVar _var _reft) t _reft'  -- JP: What's the right constructor here???
-        es <- synthesizeBasic t'
-
-        -- Generate arg here?
-        error "TODO"
-
-    _freshSymbol = undefined
-    _var = undefined
-    _reft = undefined
-    _reft' = undefined
-
---   lenv <- M.toList . ssEnv <$> get
---   decrTerms <- ssDecrTerm <$> get
---   let τ = toType t
---   case generateApps' decrTerms lenv lenv τ of
---     [] -> return []
---     l  -> return l
-
-generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps' _         []      _  _ = []
-generateApps' decrTerms (h : t) l2 τ = generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
-
-generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps'' _         _                 []                       _ = []
-generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
-  let htype  = toType rtype
-      htype' = toType rtype'
-      t  = typeAppl htype  htype'
-      t' = typeAppl htype' htype
-  in  
-  -- in  trace ( "\n ***** t = "   ++ 
-  --             showTy t ++ "\n"  ++ 
-  --             "       var = "   ++ 
-  --             show v ++ "\n"    ++
-  --             "\n ***** t' = "  ++ 
-  --             showTy t' ++ "\n" ++ 
-  --             "       var = "   ++ 
-  --             show v' ++ "\n"   ++
-  --             "\n ***** τ = "   ++ 
-  --             showTy τ ++ "\n"    ) $ 
-      case t of
-        Nothing ->
-          case t' of 
-            Nothing -> generateApps'' decrTerms h es τ 
-            Just _  -> 
-              case lookup v decrTerms of
-                Nothing   -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' decrTerms h es τ
-                Just vars -> generateApps'' decrTerms h es τ
-        Just _  -> 
-          case lookup v' decrTerms of
-            Nothing   -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' decrTerms h es τ
-            Just vars -> generateApps'' decrTerms h es τ
-
-typeAppl :: Type -> Type -> Maybe Type
-typeAppl (GHC.FunTy t' t'') t''' 
-  | t'' == t''' = Just t'
-typeAppl _                  _   = Nothing 
--}
-
-
 -- Panagiotis TODO: here I only explore the first one                     
 --  We need the most recent one
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
@@ -492,12 +349,6 @@ makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
-  -- begin: TOXIC
-  env <- ssEnv <$> get
-  let htVar = toType $ fst $ fromJust $ M.lookup (symbol var) env
-      xs' = filter (\χ -> htVar == (case M.lookup (symbol χ) env of { Nothing -> error $ "xs = " ++ show xs; Just xs'' -> toType $ fst xs'' } )) xs 
-  addDecrTerm var xs'
-  -- end: TOXIC
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
@@ -507,7 +358,7 @@ makeAlt _ _ _ _ = error "makeAlt.bad argument"
     
 
 hasType :: SpecType -> CoreExpr -> SM Bool
-hasType t e = trace ("[ Entered: hasType ] with expr = " ++ show e) $ do 
+hasType t e = do 
   x  <- freshVar t 
   st <- get 
   r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
@@ -520,117 +371,10 @@ hasType t e = trace ("[ Entered: hasType ] with expr = " ++ show e) $ do
 -- findM _ []     = return Nothing
 -- findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
 
-{- 
-    {- OLD STUFF -}
-    -- Type Variable
-    go (RVar α _)        = (`synthesizeRVar` α) <$> getSEnv
-    -- Function 
-
-    -- Data Type, e.g., c = Int and ts = [] or c = List and ts = [a] 
-              -- return def
-    go (RApp _c _ts _ _) 
-      = return def 
-    -- Type Application, e.g, m a 
-    go RAppTy{} = return def 
-
-
-    -- Fancy Liquid Types to be ignored for now since they do not map to haskell types
-    go (RImpF _ _ t _) = go t 
-    go (RAllP _ t)     = go t 
-    go (RAllS _ t)     = go t 
-    go (RAllE _ _ t)   = go t 
-    go (REx _ _ t)     = go t 
-    go (RRTy _ _ _ t)  = go t 
-    go (RExprArg _)    = return def 
-    go (RHole _)       = return def 
--}
-
 
 symbolExpr :: GHC.Type -> Symbol -> SM CoreExpr 
 symbolExpr τ x = incrSM >>= (\i -> return $ notracepp ("symExpr for " ++ showpp x) $  GHC.Var $ mkVar (Just $ symbolString x) i τ)
 
 
--- The rest will be added when needed.
--- Replaces    | old w   | new  | symbol name in expr.
-substInFExpr :: Symbol -> Symbol -> Expr -> Expr
-substInFExpr pn nn e = subst1 e (pn, EVar nn)
 
--------------------------------------------------------------------------------
--- | Misc ---------------------------------------------------------------------
--------------------------------------------------------------------------------
-
-solDelim :: String
-solDelim = "\n*********************************************\n"
-
-pprintMany :: (PPrint a) => [a] -> Doc
-pprintMany xs = vcat [ F.pprint x $+$ text solDelim | x <- xs ]
-
-showGoals :: [[String]] -> String
-showGoals []             = ""
-showGoals (goal : goals) = 
-  show goal        ++ 
-  "\n"             ++ 
-  replicate 12 ' ' ++ 
-  showGoals goals
-
-takeExprs = map snd 
--------------------------------------------------------------------------------
--- | To be removed ------------------------------------------------------------
--------------------------------------------------------------------------------
-
--- To be removed
-generateApps :: SpecType -> SM [CoreExpr]
-generateApps t = do
-  lenv <- M.toList . ssEnv <$> get
-  decrTerms <- ssDecrTerm <$> get
-  let τ = toType t
-  case generateApps' decrTerms lenv lenv τ of
-    [] -> return []
-    l  -> return l
-
-
--- To be removed
-generateApps' :: SSDecrTerm -> [(Symbol, (SpecType, Var))] -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps' _         []      _  _ = []
-generateApps' decrTerms (h : t) l2 τ = 
-  generateApps'' decrTerms h l2 τ ++ generateApps' decrTerms t l2 τ
-
--- To be removed
-generateApps'' :: SSDecrTerm -> (Symbol, (SpecType, Var)) -> [(Symbol, (SpecType, Var))] -> GHC.Type -> [CoreExpr]
-generateApps'' _         _                 []                       _ = []
-generateApps'' decrTerms h@(_, (rtype, v)) ((_, (rtype', v')) : es) τ = 
-  let htype  = toType rtype
-      htype' = toType rtype'
-      t  = typeAppl htype  htype'
-      t' = typeAppl htype' htype
-  in  case t of
-        Nothing ->
-          case t' of 
-            Nothing -> generateApps'' decrTerms h es τ 
-            Just _  -> 
-              case lookup v decrTerms of
-                Nothing   -> GHC.App (GHC.Var v') (GHC.Var v) : generateApps'' decrTerms h es τ
-                Just vars -> generateApps'' decrTerms h es τ
-        Just _  -> 
-          case lookup v' decrTerms of
-            Nothing   -> GHC.App (GHC.Var v) (GHC.Var v') : generateApps'' decrTerms h es τ
-            Just vars -> generateApps'' decrTerms h es τ
-
--- To be removed
-typeAppl :: Type -> Type -> Maybe Type
-typeAppl (GHC.FunTy t' t'') t''' 
-  | t' == t''' = Just t'
-typeAppl _                  _   = Nothing 
-
-
--- This should generates all e-terms.
--- Now it generates variables and function applications in the environment.
--- TODO: Add constructors in the environment.
--- Note: Probably `generateApps` works for constructors as well.
--- To be removed
-generateETerms :: SpecType -> SM [CoreExpr] 
-generateETerms t = do 
-  lenv <- M.toList . ssEnv <$> get 
-  return [ GHC.Var v | (x, (tx, v)) <- lenv, τ == toType tx ] 
-  where τ = toType t 
 
