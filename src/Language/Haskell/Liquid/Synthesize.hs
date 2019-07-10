@@ -1,5 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Haskell.Liquid.Synthesize (
     synthesize
@@ -100,31 +102,29 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
     go t = do addEnv x tx -- NV TODO: edit the type of x to ensure termination 
               synthesizeBasic t 
     
+-- synthesizeBasic :: SpecType -> SM [CoreExpr]
+-- synthesizeBasic t = do 
+--   rtc_cands <- genTerms t 
+--   trace ("[ synthesizeBasic ]" ++ show rtc_cands) $
+--     do  es <- generateETerms t
+--         filterElseM (hasType t) es $ do
+--             apps <- generateApps t
+--             filterElseM (hasType t) apps $ do
+--               senv <- getSEnv
+--               lenv <- getLocalEnv
+--               synthesizeMatch lenv senv t
+
+    -- PB: Possibly replace with this synthesizeBasic.
+    -- There is a bug for now with hasType and some expressions,
+    -- e.g. hasType t (stutter (stutter x_s0)).
+
 synthesizeBasic :: SpecType -> SM [CoreExpr]
-synthesizeBasic t = do 
-  rtc_cands <- genTerms t 
-  trace ("[ synthesizeBasic ]" ++ show rtc_cands) $
-    do  es <- generateETerms t
-        filterElseM (hasType t) es $ do
-            apps <- generateApps t
-            filterElseM (hasType t) apps $ do
-              senv <- getSEnv
-              lenv <- getLocalEnv
-              synthesizeMatch lenv senv t
-
-{- 
-    PB: Possibly replace with this synthesizeBasic.
-    There is a bug for now with hasType and some expressions,
-    e.g. hasType t (stutter (stutter x_s0)).
-
-    synthesizeBasic :: SpecType -> SM [CoreExpr]
-    synthesizeBasic t = do
-      es <- genTerms t
-      filterElseM (hasType t) es $ do
-        senv <- getSEnv
-        lenv <- getLocalEnv 
-        synthesizeMatch lenv senv t
--}
+synthesizeBasic t = do
+  es <- genTerms t
+  filterElseM (hasType t) es $ do
+    senv <- getSEnv
+    lenv <- getLocalEnv 
+    synthesizeMatch lenv senv t
 
 
 isBasic :: Type -> Bool
@@ -148,21 +148,20 @@ genTerms specTy =
 
 
           initEMem     = initExprMemory τ senv
-          finalEMem    = withDepthFill maxAppDepth initEMem funTyCands 
-
-          result       = takeExprs finalEMem 
+      finalEMem <- withDepthFill maxAppDepth initEMem funTyCands
+      let result       = takeExprs finalEMem 
       trace ("\n[ Expressions ] " ++ show result) (return result) 
 
 maxAppDepth :: Int 
 maxAppDepth = 6
 
 -- PB: We need to combine that with genTerms and synthesizeBasic
-withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory
-withDepthFill depth exprMem funTyCands = 
+withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> SM ExprMemory
+withDepthFill depth exprMem funTyCands = do 
+  exprMem' <- fillMany exprMem funTyCands exprMem
   if depth > 0 
     then withDepthFill (depth - 1) exprMem' funTyCands
-    else exprMem 
-  where exprMem' = fillMany exprMem funTyCands exprMem
+    else return exprMem 
 
 type ExprMemory = [(Type, CoreExpr)]
 -- Initialized with basic type expressions
@@ -179,34 +178,59 @@ initExprMemory τ ssenv =
 
 -- Produce new expressions from expressions currently in expression memory (ExprMemory).
 -- Only candidate terms with function type (funTyCands) can be passed as second argument.
-fillMany :: ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> ExprMemory 
-fillMany _       []             accExprs = accExprs
-fillMany exprMem (cand : cands) accExprs = 
+fillMany :: ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> SM ExprMemory 
+fillMany _       []             accExprs = return accExprs
+fillMany exprMem (cand : cands) accExprs = do
   let (_, (htype, _))   = cand
       subgoals'         = createSubgoals htype 
       resultTy          = last subgoals 
       subgoals          = take (length subgoals' - 1) subgoals'
       argCands          = map (withSubgoal exprMem) subgoals 
-      withType          = fillOne cand argCands
-      newExprs          = map (\x -> (resultTy, x)) withType
+      
+  withType <- fillOne cand argCands
+  let newExprs          = map (resultTy, ) withType
       accExprs'         = accExprs ++ newExprs
-  in  fillMany exprMem cands accExprs'
+  fillMany exprMem cands accExprs'
 
+
+-- Let  (Language.Haskell.Liquid.GHC.API.Bind b)
+--      (Language.Haskell.Liquid.GHC.API.Expr b)
 -- PB: Currently, works with arity 1 or 2 (see below)...
 -- Also, I don't think that it works for higher order e.g. map :: (a -> b) -> [a] -> [b].
 -- Takes a function and a list of correct expressions for every argument
 -- and returns a list of new expressions.
-fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> [CoreExpr]
+fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> SM [CoreExpr]
 fillOne funTyCand argCands = 
   let (_, (t, v)) = funTyCand
       arity       = length argCands 
   in  if arity == 1 
-        then  [GHC.App (GHC.Var v) v' | v' <- head argCands ]
+    -- GHC.App (GHC.Var v) v'
+        then  do  idx <- ssIdx <$> get -- id to generate new variable
+                  let letv' = mkVar (Just "x") idx t
+                  incrSM 
+                  return [ 
+                    case v' of 
+                      GHC.Var _ -> GHC.App (GHC.Var v) v' 
+                      _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App (GHC.Var v) (GHC.Var letv')) | v' <- head argCands ]
         else  if arity == 2
-                then  [ GHC.App (GHC.App (GHC.Var v) v') v'' 
-                        | v' <- head argCands, 
-                          v'' <- argCands !! 1                
-                      ]
+                then do
+                  idx <- ssIdx <$> get -- id to generate new variable
+                  let letv' = mkVar (Just "x") idx t
+                  incrSM 
+                  idx' <- ssIdx <$> get
+                  let letv'' = mkVar (Just "x") idx' t
+                  incrSM
+                  return 
+                        [ case v' of 
+                            GHC.Var _ -> GHC.App (GHC.App (GHC.Var v) v') v'' 
+                            _         -> 
+                              GHC.Let (GHC.NonRec letv' v') (
+                                case v'' of 
+                                  GHC.Var _ -> GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) v''
+                                  _         -> GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) (GHC.Var letv'')))
+                          | v'  <- head argCands, 
+                            v'' <- argCands !! 1                
+                        ]
                 else error $ "[ fillOne ] Function: " ++ show v
 
 
@@ -255,7 +279,6 @@ findCandidates senv goalTy =
       -- filterFun (_, (specT, _)) = goalType goalTy specT
       -- candTerms = filter filterFun senvLst'
       candTerms = filterCands senvLst' goalTy 
-      ppCands   = map (show . fst) candTerms
   in  candTerms
 
 -- Select all functions with result type equal with goalType
@@ -529,8 +552,11 @@ substInFExpr pn nn e = subst1 e (pn, EVar nn)
 -- | Misc ---------------------------------------------------------------------
 -------------------------------------------------------------------------------
 
+solDelim :: String
+solDelim = "\n*********************************************\n"
+
 pprintMany :: (PPrint a) => [a] -> Doc
-pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
+pprintMany xs = vcat [ F.pprint x $+$ text solDelim | x <- xs ]
 
 showGoals :: [[String]] -> String
 showGoals []             = ""
