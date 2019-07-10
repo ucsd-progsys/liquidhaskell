@@ -363,7 +363,7 @@ varsInType t = (map head . group . sort) (varsInType' t)
 
 
 
-
+{- 
 -- e-terms: var, constructors, function applications
 
 -- This should generates all e-terms.
@@ -447,6 +447,7 @@ typeAppl :: Type -> Type -> Maybe Type
 typeAppl (GHC.FunTy t' t'') t''' 
   | t'' == t''' = Just t'
 typeAppl _                  _   = Nothing 
+-}
 
 
 -- Panagiotis TODO: here I only explore the first one                     
