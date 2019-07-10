@@ -122,6 +122,9 @@ library
                       Language.Haskell.Liquid.Synthesis
                       Language.Haskell.Liquid.Synthesize.GHC
                       Language.Haskell.Liquid.Synthesize.Termination
+                      Language.Haskell.Liquid.Synthesize.Monad
+                      Language.Haskell.Liquid.Synthesize.Misc
+                      Language.Haskell.Liquid.Synthesize.Generate
                       Language.Haskell.Liquid.Synthesize.Check
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
