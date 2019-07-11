@@ -206,7 +206,10 @@ fillOne funTyCand argCands =
                   incrSM
                   return 
                         [ case v' of 
-                            GHC.Var _ -> GHC.App (GHC.App (GHC.Var v) v') v'' 
+                            GHC.Var _ -> 
+                              case v'' of 
+                                GHC.Var _ -> GHC.App (GHC.App (GHC.Var v) v') v'' 
+                                _         -> GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.Var v) v') (GHC.Var letv'')) 
                             _         -> 
                               GHC.Let (GHC.NonRec letv' v') (
                                 case v'' of 
