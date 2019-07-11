@@ -31,7 +31,9 @@ import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 
-import Debug.Trace
+-- import Debug.Trace
+traceShowId = id
+trace msg v = v
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -111,11 +113,12 @@ instance Flatten [F.Expr] where
 -- - There is at least one ebind
 solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
-solveEbs cfg query@(Query qs vs c cons dist) = if isNNF c then pure query else do
+solveEbs cfg query@(Query qs vs c cons dist) = do
   let normalizedC = flatten . pruneTauts $ hornify c
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
+  if isNNF c then pure $ Query qs vs normalizedC cons dist else do
   let kvars = boundKvars normalizedC
 
   let poked = pokec normalizedC
@@ -144,9 +147,13 @@ solveEbs cfg query@(Query qs vs c cons dist) = if isNNF c then pure query else d
   whenLoud $ putStrLn $ F.showpp side'
   whenLoud $ putStrLn $ F.showpp piSols'
 
-  if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
+  -- if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
+  let elimCutK k c = doelim k [] c
+  horn' <- pure $ foldr elimCutK horn' cuts
+  side' <- pure $ foldr elimCutK side' cuts
+  piSols' <- pure $ fmap (fmap (flip (foldr elimCutK) cuts)) piSols'
 
-  let solvedPiCstrs = solPis piSols'
+  let solvedPiCstrs = solPis (S.fromList $ M.keys cons ++ M.keys dist) piSols'
   whenLoud $ putStrLn "solved pis:"
   whenLoud $ putStrLn $ F.showpp solvedPiCstrs
 
@@ -175,17 +182,17 @@ piDefConstr k c = fromJust 2 $ go c
     go (All _ c') = go c'
     go _ = Nothing
 
-solPis :: M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
-solPis piSols = go (M.toList piSols) piSols
+solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
+solPis measures piSols = go (M.toList piSols) piSols
   where
     go ((pi, ((n, xs), c)):pis) piSols = M.insert pi solved $ go pis piSols
-      where solved = solPi pi n (S.fromList xs) piSols c
+      where solved = solPi measures pi n (S.fromList xs) piSols c
     go [] _ = mempty
 
-solPi :: F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
-solPi basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp reachableN <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
+solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
+solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp reachableN <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
   where
-    rewritten = rewriteWithEqualities n args equalities
+    rewritten = rewriteWithEqualities measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) c
     edges = eqEdges args mempty equalities
     (eGraph, vf, lookupVertex) = DG.graphFromEdges edges
@@ -622,7 +629,7 @@ elimKs' :: [F.Symbol]
         -> (Cstr a, Cstr a, M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a))
         -> (Cstr a, Cstr a, M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a))
 elimKs' [] cstrs = cstrs
-elimKs' (k:ks) (noside, side, piSols) = elimKs' ks (noside', side', piSols')
+elimKs' (k:ks) (noside, side, piSols) = elimKs' (trace (F.showpp k ++ F.showpp sol) ks) (noside', side', piSols')
   where
     sol = sol1 k (scope k noside)
     noside' = simplify $ doelim k sol noside
@@ -732,8 +739,8 @@ instance V.Visitable (Cstr a) where
 --     equalities = collectEqualities c
 --     ps = rewriteWithEqualities n args equalities
 
-rewriteWithEqualities :: F.Symbol -> S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [Pred]
-rewriteWithEqualities n args equalities = preds
+rewriteWithEqualities :: S.Set F.Symbol -> F.Symbol -> S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [Pred]
+rewriteWithEqualities measures n args equalities = preds
   where
     (eGraph, vf, lookupVertex) = DG.graphFromEdges $ eqEdges args mempty equalities
 
@@ -749,7 +756,7 @@ rewriteWithEqualities n args equalities = preds
       Nothing -> []
       Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
 
-    argsAndPrims = args `S.union` (S.fromList $ map fst $ F.toListSEnv $ F.theorySymbols [])
+    argsAndPrims = args `S.union` (S.fromList $ map fst $ F.toListSEnv $ F.theorySymbols []) `S.union`measures
 
     isWellFormed :: F.Expr -> Bool
     isWellFormed e = (S.fromList $ F.syms e) `S.isSubsetOf` argsAndPrims
@@ -1101,7 +1108,7 @@ removeDuplicateBinders = go S.empty
     go xs (Any b c) = Any b $ go xs c
 
 pruneTauts :: Cstr a -> Cstr a
-pruneTauts = fromJust 1. go
+pruneTauts = fromMaybe (CAnd []) . go
   where
     go (Head p l) = do
       p' <- goP p
