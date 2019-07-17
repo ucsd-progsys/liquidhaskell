@@ -24,7 +24,7 @@ import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
 
-
+import CoreUtils (exprType)
 import CoreSyn (CoreExpr)
 import qualified CoreSyn as GHC
 import Var 
@@ -120,8 +120,7 @@ synthesizeBasic t = do
 
 
 
-
--- PB: This is to replace generateETerms and generateApps.
+-- Generate terms that have type t
 genTerms :: SpecType -> SM [CoreExpr] 
 genTerms specTy = 
   do  senv <- ssEnv <$> get
@@ -134,8 +133,8 @@ genTerms specTy =
 
           initEMem     = initExprMemory τ senv
       finalEMem <- withDepthFill maxAppDepth initEMem funTyCands
-      let result       = takeExprs finalEMem 
-      -- trace ("\n[ Expressions ] " ++ show result) 
+      let result       = takeExprs $ filter (\(t, _) -> t == τ) finalEMem 
+      -- trace ("\n[ Expressions ] " ++ show result) $
       return result
 
 maxAppDepth :: Int 
@@ -169,7 +168,7 @@ fillMany _       []             accExprs = return accExprs
 fillMany exprMem (cand : cands) accExprs = do
   let (_, (htype, _))   = cand
       subgoals'         = createSubgoals htype 
-      resultTy          = last subgoals 
+      resultTy          = last subgoals' 
       subgoals          = take (length subgoals' - 1) subgoals'
       argCands          = map (withSubgoal exprMem) subgoals 
       
@@ -187,37 +186,42 @@ fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> SM [CoreExpr]
 fillOne funTyCand argCands = 
   let (_, (t, v)) = funTyCand
       arity       = length argCands 
-  in  if arity == 1 
+      sg'         = createSubgoals t 
+      -- resTy       = last sg
+      sg          = take (length sg' - 1) sg'
+  in  {- trace ("[ fillOne ] Function " ++ show v ++ " with subgoals = " ++ show (map showTy sg)) $ -} if arity == 1 
     -- GHC.App (GHC.Var v) v'
-        then  do  idx <- ssIdx <$> get -- id to generate new variable
-                  let letv' = mkVar (Just "x") idx t
-                  incrSM 
+        then  do  idx <- incrSM -- id to generate new variable
                   return [ 
-                    case v' of 
-                      GHC.Var _ -> GHC.App (GHC.Var v) v' 
-                      _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App (GHC.Var v) (GHC.Var letv')) | v' <- head argCands ]
+                    let letv' = mkVar (Just "x") idx (head sg)
+                    in  case v' of 
+                          GHC.Var _ -> GHC.App (GHC.Var v) v' 
+                          _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App (GHC.Var v) (GHC.Var letv')) | v' <- head argCands ]
         else  if arity == 2
                 then do
-                  idx <- ssIdx <$> get -- id to generate new variable
-                  let letv' = mkVar (Just "x") idx t
-                  incrSM 
-                  idx' <- ssIdx <$> get
-                  let letv'' = mkVar (Just "x") idx' t
-                  incrSM
+                  !idx  <- incrSM  
+                  !idx' <- incrSM 
+
                   return 
-                        [ case v' of 
-                            GHC.Var _ -> 
-                              case v'' of 
-                                GHC.Var _ -> GHC.App (GHC.App (GHC.Var v) v') v'' 
-                                _         -> GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.Var v) v') (GHC.Var letv'')) 
+                    [ case v' of 
+                        GHC.Var _ -> 
+                          case v'' of 
+                            GHC.Var _ -> GHC.App (GHC.App (GHC.App (GHC.Var v) (GHC.Type (head sg))) v') v'' 
                             _         -> 
-                              GHC.Let (GHC.NonRec letv' v') (
-                                case v'' of 
-                                  GHC.Var _ -> GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) v''
-                                  _         -> GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) (GHC.Var letv'')))
-                          | v'  <- head argCands, 
-                            v'' <- argCands !! 1                
-                        ]
+                              let letv'' = mkVar (Just "x") idx' (sg !! 1)
+                              in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.App (GHC.Var v) (GHC.Type (head sg)) ) v') (GHC.Var letv'')) 
+                        _         -> 
+                          let letv' = mkVar (Just "x") idx (head sg) 
+                          in  GHC.Let (GHC.NonRec letv' v') (
+                            case v'' of
+                              GHC.Var _ -> 
+                                GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) v''
+                              _         -> 
+                                let letv'' = mkVar (Just "x") idx' (sg !! 1) 
+                                in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) (GHC.Var letv'')))
+                        | v'  <- head argCands, 
+                          v'' <- argCands !! 1
+                    ]
                 else error $ "[ fillOne ] Function: " ++ show v
 
 
@@ -361,7 +365,7 @@ makeAlt _ _ _ _ = error "makeAlt.bad argument"
     
 
 hasType :: SpecType -> CoreExpr -> SM Bool
-hasType t e = do 
+hasType t !e = do 
   x  <- freshVar t 
   st <- get 
   r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
@@ -370,9 +374,7 @@ hasType t e = do
 
 
 
--- findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
--- findM _ []     = return Nothing
--- findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
+
 
 
 symbolExpr :: GHC.Type -> Symbol -> SM CoreExpr 
