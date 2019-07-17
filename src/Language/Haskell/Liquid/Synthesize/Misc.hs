@@ -9,10 +9,15 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Smt.Interface as SMT
 
-import TyCoRep 
+
 import           Control.Monad.State.Lazy
 
+import CoreSyn (CoreExpr)
+import qualified CoreSyn as GHC
+import           TyCoRep 
+import Language.Haskell.Liquid.Synthesize.Monad
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
+import           Language.Haskell.Liquid.Synthesize.GHC
 
 -- can we replace it with Language.Haskell.Liquid.GHC.Misc.isBaseType ? 
 isBasic :: Type -> Bool
@@ -39,6 +44,13 @@ filterElseM f as ms = do
 substInFExpr :: F.Symbol -> F.Symbol -> F.Expr -> F.Expr
 substInFExpr pn nn e = F.subst1 e (pn, F.EVar nn)
 
+
+findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
+findM _ []     = return Nothing
+findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
+
+symbolExpr :: Type -> F.Symbol -> SM CoreExpr 
+symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)
 
 ----------------------------------------------------------------------------
 ----------------------------Printing----------------------------------------

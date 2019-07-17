@@ -14,7 +14,6 @@ import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.Termination
 import           Language.Haskell.Liquid.Synthesize.GHC
-import           Language.Haskell.Liquid.Synthesize.Check
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)

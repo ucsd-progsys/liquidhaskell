@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
-module Language.Haskell.Liquid.Synthesize.Check (check) where
+{-# LANGUAGE BangPatterns #-}
+module Language.Haskell.Liquid.Synthesize.Check (check, hasType) where
 
 
 import Language.Fixpoint.Types.Constraints
@@ -14,9 +15,21 @@ import Language.Haskell.Liquid.Constraint.Env
 import Language.Haskell.Liquid.Constraint.Generate 
 import Language.Haskell.Liquid.Constraint.Types 
 import Language.Haskell.Liquid.Constraint.ToFixpoint
+import Language.Haskell.Liquid.Synthesize.Monad
+import Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import CoreSyn 
 import Var 
+
+import Control.Monad.State.Lazy
+
+hasType :: SpecType -> CoreExpr -> SM Bool
+hasType t !e = do 
+  x  <- freshVar t 
+  st <- get 
+  r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
+  liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr e ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+  return r 
 
 check :: CGInfo -> CGEnv -> F.Config -> Var -> CoreExpr -> SpecType -> IO Bool 
 check cgi γ cfg x e t = do 
