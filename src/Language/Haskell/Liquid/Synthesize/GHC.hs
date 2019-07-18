@@ -88,3 +88,22 @@ varsInType t = (map head . group . sort) (varsInType' t)
     varsInType' (AppTy t0 t1)                = varsInType' t0 ++ varsInType' t1 
     varsInType' (TyConApp c ts)              = foldr (\x y -> concat (map varsInType' ts) ++ y) [] ts
     varsInType' t                            = error $ "[varsInType] Shouldn't reach that point for now " ++ showTy t
+
+-- If you find a binding add it to the second argument.
+--                    | (lhs, rhs)      |
+fromAnf :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
+fromAnf (Let bnd e) bnds = 
+  case bnd of
+    Rec {}       -> error "No recursive bindings in let."
+    NonRec rb lb -> 
+      fromAnf e ((rb, replaceBnds lb' bnds') : bnds')
+        where (lb', bnds') = fromAnf lb bnds
+fromAnf e           bnds = (replaceBnds e bnds, bnds)
+
+
+replaceBnds :: CoreExpr -> [(Var, CoreExpr)] -> CoreExpr 
+replaceBnds (Var var) bnds    = fromMaybe (Var var) (lookup var bnds)
+replaceBnds (App e1 e2) bnds  = App (replaceBnds e1 bnds) (replaceBnds e2 bnds) 
+replaceBnds (Type t)    _     = Type t
+replaceBnds lit@Lit{}   _     = lit 
+replaceBnds e           _     = e
