@@ -116,7 +116,9 @@ synthesizeBasic t = do
   filterElseM (hasType t) es $ do
     senv <- getSEnv
     lenv <- getLocalEnv 
-    synthesizeMatch lenv senv t
+    es' <- synthesizeMatch lenv senv t
+    cgenv <- sCGEnv <$> get
+    trace (" [ CGEnv0 ] " ++ show (reLocal $ renv cgenv)) $ filterM (hasType t) es'
 
 
 -- Panagiotis TODO: here I only explore the first one                     
@@ -165,7 +167,8 @@ makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  es <- synthesizeBasic t
+  -- es <- synthesizeBasic t -- Maybe not the right spot
+  es <- genTerms t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)

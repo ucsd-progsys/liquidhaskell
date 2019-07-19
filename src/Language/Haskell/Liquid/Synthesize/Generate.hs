@@ -39,7 +39,7 @@ genTerms specTy =
       return result
 
 maxAppDepth :: Int 
-maxAppDepth = 6
+maxAppDepth = 4
 
 -- PB: We need to combine that with genTerms and synthesizeBasic
 withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> SM ExprMemory
@@ -88,11 +88,9 @@ fillOne funTyCand argCands =
   let (_, (t, v)) = funTyCand
       arity       = length argCands 
       sg'         = createSubgoals t 
-      -- resTy       = last sg
       sg          = take (length sg' - 1) sg'
-  in  {- trace ("[ fillOne ] Function " ++ show v ++ " with subgoals = " ++ show (map showTy sg)) $ -} if arity == 1 
-    -- GHC.App (GHC.Var v) v'
-        then  do  idx <- incrSM -- id to generate new variable
+  in  if arity == 1 
+        then  do  idx <- incrSM 
                   return [ 
                     let letv' = mkVar (Just "x") idx (head sg)
                     in  case v' of 
@@ -125,6 +123,20 @@ fillOne funTyCand argCands =
                     ]
                 else error $ "[ fillOne ] Function: " ++ show v
 
+genApp :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> [Type] -> SM [CoreExpr]
+genApp _      []           []       = return []
+genApp ftcand (arg : args) (t : ts) = do
+  let (_, (t, v)) = ftcand
+      -- arity       = length argCands 
+      -- sg'         = createSubgoals t 
+      -- sg          = take (length sg' - 1) sg' 
+  idx <- incrSM
+  return 
+    [ let letv' = mkVar (Just "x") idx t
+      in  case v' of 
+            GHC.Var _ -> GHC.App (GHC.Var v) v' 
+            _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App (GHC.Var v) (GHC.Var letv')) | v' <- arg ]
+genApp _     _           _          = error "[ genApp ] types and terms mismatch"
 
 -- withSubgoal :: a type from subgoals 
 -- Returns all expressions in ExprMemory that have the same type.
