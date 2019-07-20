@@ -32,8 +32,9 @@ import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 
 -- import Debug.Trace
-traceShowId = id
-trace msg v = v
+-- traceShowId = id
+trace :: a -> b -> b
+trace _msg v = v
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -773,12 +774,14 @@ rewriteWithEqualities measures n args equalities = preds
             rewrite ((x, rewrites):rewrites') es = rewrite rewrites' $ [F.subst (F.mkSubst [(x, e')]) e | e' <- rewrites, e <- es]
 
 eqEdges :: S.Set F.Symbol -> M.HashMap F.Symbol ([F.Symbol], [F.Expr]) -> [(F.Symbol, F.Expr)] -> [((F.Symbol, [F.Expr]), F.Symbol, [F.Symbol])]
-eqEdges args edgeMap [] = M.foldrWithKey (\x (ys, es) edges -> ((x, es), x, ys):edges) [] edgeMap
+eqEdges _args edgeMap [] = M.foldrWithKey (\x (ys, es) edges -> ((x, es), x, ys):edges) [] edgeMap
 eqEdges args edgeMap ((x, e):eqs)
   | F.EVar y <- e, S.member y args = eqEdges args (M.insertWith pairAppend x ([y], [F.EVar y]) edgeMap) eqs
   | F.EVar y <- e = eqEdges args (M.insertWith pairAppend x ([y], []) edgeMap) eqs
   | otherwise = eqEdges args (M.insertWith pairAppend x ([], [e]) edgeMap) eqs
 
+pairAppend :: (Semigroup a, Semigroup b) =>
+              (a, b) -> (a, b) -> (a, b)
 pairAppend (a, b) (c, d) = (a <> c, b <> d)
 
 -- rewriteWithEqualities args argEqs vars equalities = trace ("\n\nREWRITING:\n" <> F.showpp (S.toList args, argEqs, acyclicEqs, su, map makeReft argEqs) <> "\n\n") $ map makeReft argEqs
@@ -947,18 +950,18 @@ elim1 c k = simplify $ doelim k sol c
 -- scope prunes out branches that don't have k
 -- and removes assumptions that appear over every instance of k in guard position
 scope :: F.Symbol -> Cstr a -> Cstr a
-scope k cstr = go $ fromJust 3 (prune k cstr) -- TODO: is it safe to fail if k doesn't appear in the head?
+scope k cstr = go $ either (Head (Reft F.PTrue)) id (prune k cstr)
   where
     go (All _ c') = c'
     go c = c
 
-prune :: F.Symbol -> Cstr a -> Maybe (Cstr a)
-prune k (CAnd cs) = if null cs' then Nothing else Just $ CAnd cs'
-  where cs' = mapMaybe (prune k) cs
-prune k c@(Head (Var k' _) _)
-  | k == k' = Just c
-  | otherwise = Nothing
-prune _ Head{} = Nothing
+prune :: F.Symbol -> Cstr a -> Either a (Cstr a)
+prune k c@(CAnd cs) = if null cs' then Left $ cLabel c else Right $ CAnd cs'
+  where cs' = [c | Right c <- prune k <$> cs]
+prune k c@(Head (Var k' _) l)
+  | k == k' = Right c
+  | otherwise = Left l
+prune _ (Head _ l) = Left l
 prune k (All b c) = do
   c' <- prune k c
   pure (All b c')
@@ -1058,11 +1061,11 @@ findKVarInGuard _ p = Right p
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
 -- ... ["k0"]
 
-boundVars :: Cstr a -> S.Set F.Symbol
-boundVars Head{} = mempty
-boundVars (CAnd cs) = mconcat $ boundVars <$> cs
-boundVars (All (Bind x _ _) c) = S.singleton x <> boundVars c
-boundVars (Any (Bind x _ _) c) = S.singleton x <> boundVars c
+_boundVars :: Cstr a -> S.Set F.Symbol
+_boundVars Head{} = mempty
+_boundVars (CAnd cs) = mconcat $ _boundVars <$> cs
+_boundVars (All (Bind x _ _) c) = S.singleton x <> _boundVars c
+_boundVars (Any (Bind x _ _) c) = S.singleton x <> _boundVars c
 
 boundKvars :: Cstr a -> S.Set F.Symbol
 boundKvars (Head p _)           = pKVars p
