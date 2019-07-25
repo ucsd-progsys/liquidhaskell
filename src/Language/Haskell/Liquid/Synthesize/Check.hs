@@ -18,6 +18,7 @@ import Language.Haskell.Liquid.Constraint.ToFixpoint
 import Language.Haskell.Liquid.Synthesize.Monad
 import Language.Haskell.Liquid.Synthesize.GHC
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
+import Language.Haskell.Liquid.Misc (mapThd3)
 
 import CoreSyn 
 import Var 
@@ -25,12 +26,40 @@ import Var
 import Control.Monad.State.Lazy
 
 hasType :: SpecType -> CoreExpr -> SM Bool
-hasType t !e = do 
+hasType t !e' = do 
   x  <- freshVar t 
   st <- get 
   r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
   liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
   return r 
+ where e = tx e' 
+
+{-
+tx turns 
+let x1 = 
+    let x2 = 
+      let x3 = e3 in 
+      e2[x3] in 
+    e1[x2] in 
+e[x1]
+into 
+let x3 = e3     in 
+let x2 = e2[x3] in 
+let x1 = e1[x2] in
+e[x1] 
+
+so that the refinement type of e can refer to all bindings x1, x2, x3
+-}
+
+tx :: CoreExpr -> CoreExpr
+tx (Case e b t alts) = Case e b t (mapThd3 tx <$> alts)
+tx e@(Let _ _) = let (bs,e') = unbind e in foldr Let e' bs 
+tx e = e 
+
+unbind :: CoreExpr -> ([CoreBind], CoreExpr)
+unbind (Let (NonRec x ex) e) = let (bs,e') = unbind ex in (bs ++ [NonRec x e'],e)
+unbind e = ([], e)
+
 
 check :: CGInfo -> CGEnv -> F.Config -> Var -> CoreExpr -> SpecType -> IO Bool 
 check cgi γ cfg x e t = do 
