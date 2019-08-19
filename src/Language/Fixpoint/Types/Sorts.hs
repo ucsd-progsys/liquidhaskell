@@ -50,6 +50,7 @@ module Language.Fixpoint.Types.Sorts (
   , unFApp
   , unAbs
 
+  , mkSortSubst
   , sortSubst
   , functionSort
   , mkFFunc
@@ -445,8 +446,13 @@ fTyconSort c
 basicSorts :: [Sort]
 basicSorts = [FInt, boolSort] 
 
+type SortSubst = M.HashMap Symbol Sort 
+
+mkSortSubst :: [(Symbol, Sort)] -> SortSubst
+mkSortSubst = M.fromList
+
 ------------------------------------------------------------------------
-sortSubst                  :: M.HashMap Symbol Sort -> Sort -> Sort
+sortSubst                 :: SortSubst -> Sort -> Sort
 ------------------------------------------------------------------------
 sortSubst θ t@(FObj x)    = fromMaybe t (M.lookup x θ)
 sortSubst θ (FFunc t1 t2) = FFunc (sortSubst θ t1) (sortSubst θ t2)

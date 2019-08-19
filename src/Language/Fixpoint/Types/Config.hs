@@ -82,10 +82,6 @@ data Config = Config
   , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
   , gradual     :: Bool                -- ^ solve "gradual" constraints
   , ginteractive :: Bool                -- ^ interactive gradual solving
-  , extensionality   :: Bool           -- ^ allow function extensionality
-  , alphaEquivalence :: Bool           -- ^ allow lambda alpha equivalence axioms
-  , betaEquivalence  :: Bool           -- ^ allow lambda beta equivalence axioms
-  , normalForm       :: Bool           -- ^ allow lambda normal-form equivalence axioms
   , autoKuts         :: Bool           -- ^ ignore given kut variables
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
@@ -171,10 +167,6 @@ defConfig = Config {
   , minimalSol       = False &= help "Shrink fixpoint by removing implied qualifiers"
   , gradual          = False &= help "Solve gradual-refinement typing constraints"
   , ginteractive     = False &= help "Interactive Gradual Solving"
-  , extensionality   = False &= help "Allow function extensionality axioms"
-  , alphaEquivalence = False &= help "Allow lambda alpha equivalence axioms"
-  , betaEquivalence  = False &= help "Allow lambda alpha equivalence axioms"
-  , normalForm       = False &= help "Allow lambda normal-form equivalence axioms"
   , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"

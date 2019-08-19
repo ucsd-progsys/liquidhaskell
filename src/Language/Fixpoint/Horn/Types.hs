@@ -59,6 +59,13 @@ data Pred
   | PAnd  ![Pred]                               -- ^ p1 /\ .../\ pn 
   deriving (Data, Typeable, Generic, Eq)
 
+
+instance Semigroup Pred where
+  p1 <> p2 = PAnd [p1, p2]
+
+instance Monoid Pred where 
+  mempty = Reft mempty
+
 -------------------------------------------------------------------------------
 quals :: Cstr a -> [F.Qualifier] 
 -------------------------------------------------------------------------------

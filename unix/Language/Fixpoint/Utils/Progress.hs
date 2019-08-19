@@ -11,6 +11,7 @@ import           System.IO.Unsafe                 (unsafePerformIO)
 import           System.Console.CmdArgs.Verbosity (isNormal)
 import           Data.IORef
 import           System.Console.AsciiProgress
+-- import           Language.Fixpoint.Misc (traceShow)
 
 {-# NOINLINE pbRef #-}
 pbRef :: IORef (Maybe ProgressBar)
@@ -23,8 +24,6 @@ withProgress n act = displayConsoleRegions $ do
   r <- act
   progressClose
   return r
-
-
   
 progressInit :: Int -> IO ()
 progressInit n = do
@@ -36,29 +35,29 @@ progressInit n = do
 mkPB   :: Int -> IO ProgressBar
 mkPB n = newProgressBar def 
   { pgWidth       = 80
-  , pgTotal       = toInteger n
+  , pgTotal       = {- traceShow "MAKE-PROGRESS" -} (toInteger n)
   , pgFormat      = "Working :percent [:bar]"
   , pgPendingChar = '.'
-  , pgOnCompletion = Nothing -- Just "Done solving." --  :percent."
+  , pgOnCompletion = Nothing
   }
 
 progressTick :: IO ()
 progressTick    = go =<< readIORef pbRef
   where
-   go (Just pr) = tick pr
+   go (Just pr) = incTick pr
    go _         = return ()
 
-{- 
 incTick :: ProgressBar -> IO () 
 incTick pb = do
   st <- getProgressStats pb 
-  if (incomplete st) 
-    then putStrLn (show (stPercent st, stTotal st, stCompleted st)) >> (tick pb)
-    else return () 
+  when (incomplete st) (tick pb)
+    -- then tick pb -- putStrLn (show (stPercent st, stTotal st, stCompleted st)) >> (tick pb)
+    -- else return () 
 
 incomplete :: Stats -> Bool 
-incomplete st = stPercent st < 100 -- stCompleted st < stTotal st
--}
+incomplete st = {- traceShow "INCOMPLETE" -} (stRemaining st) > 0 
+-- incomplete st = stPercent st < 100
+
 
 progressClose :: IO ()
 progressClose = go =<< readIORef pbRef
