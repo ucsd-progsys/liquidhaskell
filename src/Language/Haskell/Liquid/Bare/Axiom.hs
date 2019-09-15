@@ -17,6 +17,7 @@ import qualified Control.Exception         as Ex
 import qualified Text.PrettyPrint.HughesPJ as PJ -- (text)
 import qualified Data.HashSet              as S
 import qualified Data.Maybe                as Mb 
+import Control.Monad.Trans.State.Lazy (evalState, get, put)
 
 import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -146,15 +147,21 @@ instance Subable Ghc.CoreAlt where
   subst su (c, xs, e) = (c, xs, subst su e)
 
 -- | Specification for Haskell function
-axiomType :: (TyConable c) => LocSymbol -> RType c tv RReft -> RType c tv RReft
-axiomType s t = fromRTypeRep (tr {ty_res = res, ty_binds = xs})
+axiomType :: LocSymbol -> SpecType -> SpecType
+axiomType s t = F.notracepp ("axiomType for " ++ showpp s) $ evalState (go t) (1, []) 
   where
-    res           = strengthen (ty_res tr) (singletonApp s ys)
-    ys            = fst $ unzip $ dropWhile (isClassType . snd) xts
-    xts           = safeZip "axiomBinds" xs (ty_args tr)
-    xs            = zipWith unDummy bs [1..]
-    tr            = toRTypeRep t
-    bs            = ty_binds tr
+    go (RAllT a t) = RAllT a <$> go t
+    go (RAllP p t) = RAllP p <$> go t 
+    go (RFun x tx t r) | isClassType tx = (\t' -> RFun x tx t' r) <$> go t
+    go (RFun x tx t r) = do 
+      (i,bs) <- get 
+      let x' = unDummy x i 
+      put (i+1, x':bs)
+      t' <- go t 
+      return $ RFun x' tx t' r 
+    go t = do 
+      ys <- (reverse . snd) <$> get
+      return $ strengthen t (singletonApp s ys)
 
 unDummy :: F.Symbol -> Int -> F.Symbol
 unDummy x i
