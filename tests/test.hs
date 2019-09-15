@@ -74,6 +74,7 @@ unitTests
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 2)
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
+    , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
 
     , testGroup "horn-pos"   <$> dirTests elimCmd   "tests/horn/pos"  []          ExitSuccess
     , testGroup "horn-neg"   <$> dirTests elimCmd   "tests/horn/neg"  []          (ExitFailure 1)
