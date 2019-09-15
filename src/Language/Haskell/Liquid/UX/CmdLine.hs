@@ -138,6 +138,10 @@ config = cmdArgsMode $ Config {
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
+ , rankNTypes 
+    = def &= help "Adds precise reasoning on presence of rankNTypes"
+          &= name "rankNTypes" 
+
  , noclasscheck
     = def 
           &= help "Disable Class Instance Check"
@@ -530,6 +534,7 @@ defConfig = Config
   , nostructuralterm  = def 
   , noCheckUnknown    = def
   , notermination     = False 
+  , rankNTypes        = False 
   , noclasscheck      = False 
   , gradual           = False
   , gdepth            = 1
