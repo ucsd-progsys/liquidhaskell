@@ -45,7 +45,7 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
-
+import           Literal
 
 notrace :: String -> a -> a 
 notrace _ a = a 
@@ -98,7 +98,7 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
                   smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
               liftIO (SMT.smtPop ctx)
-              return $ notracepp ("numeric with " ++ show r) [GHC.Var $ mkVar (Just smtVal) def def]
+              return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))]
 
 
     go t = do ys <- mapM freshVar txs
