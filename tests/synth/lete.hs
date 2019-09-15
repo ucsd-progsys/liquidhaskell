@@ -3,5 +3,10 @@
 {-@ lete :: { i:Int | i > 41 } @-}
 lete :: Int
 lete =
-    let x = _x in
+------------------------------------------------------
+    -- type annotated `x = _x :: Int` not in holesMap
+    -- without type annotation `_x` isn't `Int`
+    -- What happens in this case? 
+------------------------------------------------------
+    let x = _x in   
     x + x
