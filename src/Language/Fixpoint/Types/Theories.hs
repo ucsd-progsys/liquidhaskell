@@ -237,9 +237,9 @@ instance B.Binary SmtSort
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
-sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAbs $ t
+sortSmtSort poly env t  = (if poly then tracepp ("sortSmtSort: " ++ showpp t) else id) $  go . unAbs $ t
   where
-    m = sortAbs t 
+    m = tracepp ("sortAbs for " ++ showpp t ) $ sortAbs t 
     go (FFunc _ _)    = SInt
     go FInt           = SInt
     go FReal          = SReal
@@ -247,8 +247,8 @@ sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unA
       | t == boolSort = SBool
       | isString t    = SString 
     go (FVar i)
-      | poly, i < m   = SVar i
-      | otherwise     = SInt
+      | poly, i <= m  = tracepp ("FVAR i = " ++ showpp i ++ " m = " ++ showpp m) $ SVar i
+      | otherwise     = tracepp ("otherwise i = " ++ showpp i ++ " m = " ++ showpp m) $ SInt
     go t              = fappSmtSort poly env ct ts where (ct:ts) = unFApp t
 
 fappSmtSort :: Bool -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort

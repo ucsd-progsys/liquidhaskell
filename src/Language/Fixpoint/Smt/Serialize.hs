@@ -44,10 +44,10 @@ smt2data' env ds = build "({}) ({})" (tvars, smt2many (smt2data1 env <$> muSort 
     n            = numTyVars ds 
 
 smt2data1 :: SymEnv -> DataDecl -> Builder.Builder
-smt2data1 env (DDecl tc _ cs) = build "({} {})" (name, ctors)
+smt2data1 env (DDecl tc as cs) = build "({} {})" (name, ctors)
   where
     name                      = smt2 env (symbol tc)
-    ctors                     = smt2many (smt2ctor env <$> cs)
+    ctors                     = smt2many (smt2ctor env as <$> cs)
 
 numTyVars    :: [DataDecl] -> Int 
 numTyVars ds 
@@ -73,14 +73,14 @@ smt2data' env (DDecl tc n cs) = build "({}) (({} {}))" (tvars, name, ctors)
     (TreeList nil (cons (car Tree) (cdr TreeList)))))
 -}
 
-smt2ctor :: SymEnv -> DataCtor -> Builder.Builder
-smt2ctor env (DCtor c [])  = smt2 env c
-smt2ctor env (DCtor c fs)  = build "({} {})" (smt2 env c, fields)
+smt2ctor :: SymEnv -> Int -> DataCtor -> Builder.Builder
+smt2ctor env _  (DCtor c [])  = smt2 env c
+smt2ctor env as (DCtor c fs)  = build "({} {})" (smt2 env c, fields)
   where
-    fields                 = smt2many (smt2field env <$> fs)
+    fields                 = smt2many (smt2field env as <$> fs)
 
-smt2field :: SymEnv -> DataField -> Builder.Builder
-smt2field env d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env t)
+smt2field :: SymEnv -> Int -> DataField -> Builder.Builder
+smt2field env as d@(DField x t) = build "({} {})" (smt2 env x, smt2SortPoly d env $ mkPoly as t)
 
 -- | SMTLIB/Z3 don't like "unused" type variables; they get pruned away and
 --   cause wierd hassles. See tests/pos/adt_poly_dead.fq for an example.

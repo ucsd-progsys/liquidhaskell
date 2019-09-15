@@ -56,6 +56,7 @@ module Language.Fixpoint.Types.Sorts (
   , functionSort
   , mkFFunc
   , bkFFunc
+  , mkPoly
 
   , isNumeric, isReal, isString, isPolyInst
 
@@ -365,6 +366,9 @@ isPolyInst s t = isPoly s && not (isPoly t)
 isPoly :: Sort -> Bool
 isPoly (FAbs {}) = True
 isPoly _         = False
+
+mkPoly :: Int -> Sort -> Sort 
+mkPoly i s = foldl (flip FAbs) s [0..i] 
 
 
 instance Hashable FTycon where
