@@ -334,8 +334,8 @@ makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, Sp
                -> [F.DataField]
 makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
-    su                      = zip (F.symbol <$> as) [0..]
-    fSort                   = {- muSort c (length as) . -}  F.substVars su . RT.rTypeSort tce
+    su    = zip (F.symbol <$> as) [0..]
+    fSort = F.substVars su . F.mapFVar (+ (length as)) . RT.rTypeSort tce
 
 {- 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
