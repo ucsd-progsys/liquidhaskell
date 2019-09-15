@@ -21,6 +21,8 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 
 import           Debug.Trace 
 
+import           System.IO.Unsafe
+
 -- Generate terms that have type t
 genTerms :: SpecType -> SM [CoreExpr] 
 genTerms specTy = 
@@ -78,65 +80,52 @@ fillMany exprMem (cand : cands) accExprs = do
       accExprs'         = accExprs ++ newExprs
   fillMany exprMem cands accExprs'
 
+-- {applyOne, applyNext, applyMany} are auxiliary functions for `fillOne`
+applyOne :: Var -> [CoreExpr] -> Type -> SM [CoreExpr]
+applyOne v args typeOfArgs = do
+  idx <- incrSM
+  let v'' = case varType v of
+              ForAllTy{} -> GHC.App (GHC.Var v) (GHC.Type typeOfArgs)
+              _          -> GHC.Var v
+  return 
+    [ let letv' = mkVar (Just "x") idx typeOfArgs
+      in  case v' of 
+            GHC.Var _ -> GHC.App v'' v' 
+            _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App v'' (GHC.Var letv')) | v' <- args ] 
 
--- PB: Currently, works with arity 1 or 2 (see below)...
--- Also, I don't think that it works for higher order e.g. map :: (a -> b) -> [a] -> [b].
+applyNext :: [CoreExpr] -> [CoreExpr] -> Type -> SM [CoreExpr]
+applyNext apps args typeOfArgs = do 
+  !idx  <- incrSM
+  return 
+    [ case v'' of 
+        GHC.Var _ -> GHC.App v' v''
+        _         ->
+          let letv'' = mkVar (Just "x") idx typeOfArgs 
+          in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App v' (GHC.Var letv''))
+    | v' <- apps, v'' <- args
+    ]
+
+applyMany :: [CoreExpr] -> [[CoreExpr]] -> [Type] -> SState -> ([CoreExpr], SState)
+applyMany exprs []             []                         st = (exprs, st)
+applyMany exprs (args : args') (typeOfArgs : typeOfArgs') st = 
+  let (exprs', st') = unsafePerformIO $ runStateT (applyNext exprs args typeOfArgs) st 
+  in  applyMany exprs' args' typeOfArgs' st'
+applyMany _     _              _                          _  = error "applyMany wildcard"
+
 -- Takes a function and a list of correct expressions for every argument
 -- and returns a list of new expressions.
-fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> SM [CoreExpr]
-fillOne funTyCand argCands = 
-  let (_, (t, v)) = funTyCand
-      arity       = length argCands 
+fillOne :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> SM [CoreExpr] 
+fillOne funTyCand argCands = do 
+  let (_, (t, v)) = funTyCand 
       sg'         = createSubgoals t 
       sg          = take (length sg' - 1) sg'
-  in  if arity == 1 
-        then  do  idx <- incrSM 
-                  return [ 
-                    let letv' = mkVar (Just "x") idx (head sg)
-                    in  case v' of 
-                          GHC.Var _ -> GHC.App (GHC.Var v) v' 
-                          _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App (GHC.Var v) (GHC.Var letv')) | v' <- head argCands ]
-        else  if arity == 2
-                then do
-                  !idx  <- incrSM  
-                  !idx' <- incrSM 
+      withTypeIns = head sg 
+  exprs <- applyOne v (head argCands) withTypeIns 
+  st <- get 
+  let (exprs', st') = applyMany exprs (tail argCands) (tail sg) st
+  put st'
+  return exprs'
 
-                  return 
-                    [ case v' of 
-                        GHC.Var _ -> 
-                          case v'' of 
-                            GHC.Var _ -> GHC.App (GHC.App (GHC.App (GHC.Var v) (GHC.Type (head sg))) v') v'' 
-                            _         -> 
-                              let letv'' = mkVar (Just "x") idx' (sg !! 1)
-                              in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.App (GHC.Var v) (GHC.Type (head sg)) ) v') (GHC.Var letv'')) 
-                        _         -> 
-                          let letv' = mkVar (Just "x") idx (head sg) 
-                          in  GHC.Let (GHC.NonRec letv' v') (
-                            case v'' of
-                              GHC.Var _ -> 
-                                GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) v''
-                              _         -> 
-                                let letv'' = mkVar (Just "x") idx' (sg !! 1) 
-                                in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App (GHC.App (GHC.Var v) (GHC.Var letv')) (GHC.Var letv'')))
-                        | v'  <- head argCands, 
-                          v'' <- argCands !! 1
-                    ]
-                else error $ "[ fillOne ] Function: " ++ show v
-
-genApp :: (Symbol, (Type, Var)) -> [[CoreExpr]] -> [Type] -> SM [CoreExpr]
-genApp _      []           []       = return []
-genApp ftcand (arg : args) (t : ts) = do
-  let (_, (t, v)) = ftcand
-      -- arity       = length argCands 
-      -- sg'         = createSubgoals t 
-      -- sg          = take (length sg' - 1) sg' 
-  idx <- incrSM
-  return 
-    [ let letv' = mkVar (Just "x") idx t
-      in  case v' of 
-            GHC.Var _ -> GHC.App (GHC.Var v) v' 
-            _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App (GHC.Var v) (GHC.Var letv')) | v' <- arg ]
-genApp _     _           _          = error "[ genApp ] types and terms mismatch"
 
 -- withSubgoal :: a type from subgoals 
 -- Returns all expressions in ExprMemory that have the same type.
