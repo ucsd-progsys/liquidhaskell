@@ -77,7 +77,7 @@ makeAssumeType
   -> Ghc.Var -> Ghc.CoreExpr
   -> (LocSpecType, F.Equation)
 makeAssumeType tce lmap dm x mbT v def
-  = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts le out)
+  = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts (F.subst su le) out)
   where
     t     = Mb.fromMaybe (ofType $ Ghc.varType v) mbT
     at    = axiomType x t
