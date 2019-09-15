@@ -17,7 +17,7 @@ import qualified Control.Exception         as Ex
 import qualified Text.PrettyPrint.HughesPJ as PJ -- (text)
 import qualified Data.HashSet              as S
 import qualified Data.Maybe                as Mb 
-import Control.Monad.Trans.State.Lazy (evalState, get, put)
+import Control.Monad.Trans.State.Lazy (runState, get, put)
 
 import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Measure as Ms
@@ -77,13 +77,12 @@ makeAssumeType
   -> Ghc.Var -> Ghc.CoreExpr
   -> (LocSpecType, F.Equation)
 makeAssumeType tce lmap dm x mbT v def
-  = (x {val = at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts le out)
+  = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts le out)
   where
     t     = Mb.fromMaybe (ofType $ Ghc.varType v) mbT
-    out   = rTypeSort tce (ty_res tRep)
-    at    = F.notracepp ("AXIOM-TYPE: " ++ showpp (x, toType t)) $ axiomType x t
-    tRep  = toRTypeRep at
-    xArgs = F.EVar <$> [x | (x, t) <- zip (ty_binds tRep) (ty_args tRep), not (isClassType t)]
+    at    = axiomType x t
+    out   = rTypeSort tce $ ares at 
+    xArgs = (F.EVar . fst) <$> aargs at
     _msg  = unwords [showpp x, showpp mbT]
     le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic def') of
               Right e -> e
@@ -94,8 +93,7 @@ makeAssumeType tce lmap dm x mbT v def
     (xs, def') = grabBody (normalize def)
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
-    xts        = zipWith (\x t -> (F.symbol x, rTypeSortExp tce t)) xs ts
-    ts         = filter (not . isClassType) (ty_args tRep)
+    xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
 
 rTypeSortExp :: F.TCEmb Ghc.TyCon -> SpecType -> F.Sort
 rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
@@ -109,10 +107,12 @@ isBoolBind :: Ghc.Var -> Bool
 isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType ()))
 
 strengthenRes :: SpecType -> F.Reft -> SpecType
-strengthenRes t r = fromRTypeRep $ trep {ty_res = ty_res trep `strengthen` F.ofReft r }
-  where
-    trep = toRTypeRep t
-
+strengthenRes t r = go t 
+  where 
+    go (RAllT a t)     = RAllT a $ go t 
+    go (RAllP p t)     = RAllP p $ go t
+    go (RFun x tx t r) = RFun x tx (go t) r 
+    go t               =  t `strengthen` F.ofReft r 
 
 class Subable a where
   subst :: (Ghc.Var, Ghc.CoreExpr) -> a -> a
@@ -146,22 +146,28 @@ instance Subable Ghc.CoreExpr where
 instance Subable Ghc.CoreAlt where
   subst su (c, xs, e) = (c, xs, subst su e)
 
+data AxiomType = AT { aty :: SpecType, aargs :: [(F.Symbol, SpecType)], ares :: SpecType }
+
 -- | Specification for Haskell function
-axiomType :: LocSymbol -> SpecType -> SpecType
-axiomType s t = F.notracepp ("axiomType for " ++ showpp s) $ evalState (go t) (1, []) 
+axiomType :: LocSymbol -> SpecType -> AxiomType
+axiomType s t = AT to (reverse xts) res  
   where
+    (to, (_,xts, Just res)) = runState (go t) (1,[], Nothing)
     go (RAllT a t) = RAllT a <$> go t
     go (RAllP p t) = RAllP p <$> go t 
     go (RFun x tx t r) | isClassType tx = (\t' -> RFun x tx t' r) <$> go t
     go (RFun x tx t r) = do 
-      (i,bs) <- get 
+      (i,bs,res) <- get 
       let x' = unDummy x i 
-      put (i+1, x':bs)
+      put (i+1, (x', tx):bs,res)
       t' <- go t 
       return $ RFun x' tx t' r 
     go t = do 
-      ys <- (reverse . snd) <$> get
-      return $ strengthen t (singletonApp s ys)
+      (i,bs,res) <- get 
+      let ys = reverse $ map fst bs
+      let t' = strengthen t (singletonApp s ys)
+      put (i, bs, Just t')
+      return t' 
 
 unDummy :: F.Symbol -> Int -> F.Symbol
 unDummy x i
