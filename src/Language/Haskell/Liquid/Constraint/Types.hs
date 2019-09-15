@@ -108,6 +108,7 @@ data CGEnv = CGE
   , tgKey  :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
   , trec   :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
   , lcb    :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
+  , forallcb :: !(M.HashMap Var F.Expr)              -- ^ Polymorhic let bindings 
   , holes  :: !HEnv                                  -- ^ Types with holes, will need refreshing
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
   , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps reflected Haskell functions to the logical functions
@@ -431,7 +432,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3
          `seq` rnf x5
          `seq` rnf x55
