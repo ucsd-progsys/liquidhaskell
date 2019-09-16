@@ -662,7 +662,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
     | null fls                    --    no field labels
-    || any (isFunTy . snd) args   -- OR function-valued fields
+    || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
     | otherwise 
