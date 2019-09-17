@@ -428,9 +428,9 @@ makeSpecRefl src menv specs env name sig tycEnv = SpRefl
   { gsLogicMap   = lmap 
   , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-  , gsMyAxioms   = myAxioms 
-  , gsReflects   = F.notracepp "REFLECTS" (lawMethods ++ filter (isReflectVar rflSyms) sigVars)
-  , gsHAxioms    = xtes 
+  , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
+  , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars)
+  , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
   }
   where
     lawMethods   = F.notracepp "Law Methods" $ concatMap Ghc.classMethods (fst <$> Bare.meCLaws menv) 

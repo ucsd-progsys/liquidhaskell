@@ -238,6 +238,7 @@ microTests = group "Micro"
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
   , mkMicro "ple-pos"        "tests/ple/pos"         ExitSuccess
   , mkMicro "ple-neg"        "tests/ple/neg"         (ExitFailure 1)
+  , mkMicro "rankN-pos"      "tests/RankNTypes/pos"         ExitSuccess
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess

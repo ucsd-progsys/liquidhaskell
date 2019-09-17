@@ -40,6 +40,7 @@ data Config = Config
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , rankNTypes     :: Bool       -- ^ Adds precise reasoning on presence of rankNTypes
   , noclasscheck   :: Bool       -- ^ disable checking class instances 
   -- , structuralTerm :: Bool       -- ^ use structural termination checker
   , nostructuralterm :: Bool    -- ^ disable structural termination check

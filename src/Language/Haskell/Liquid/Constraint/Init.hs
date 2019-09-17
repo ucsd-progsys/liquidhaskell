@@ -201,6 +201,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , tgKey    = Nothing
   , trec     = Nothing
   , lcb      = M.empty
+  , forallcb = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
   , aenv     = axEnv (gsRefl sp)
