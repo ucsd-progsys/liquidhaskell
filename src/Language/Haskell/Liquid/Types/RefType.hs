@@ -1661,13 +1661,15 @@ typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . GM.typeUniqueString
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
-typeSortForAll tce τ  = genSort $ typeSort tce tbody
+typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort sbody
   where
-    genSort t         = foldl' (flip FAbs) (sortSubst su t) [0..n-1]
+    sbody             = typeSort tce tbody
+    genSort t         = foldl' (flip FAbs) (sortSubst su t) [i..n+i-1]
     (as, tbody)       = F.notracepp ("splitForallTys" ++ GM.showPpr τ) (splitForAllTys τ)
-    su                = M.fromList $ zip sas (FVar <$>  [0..])
+    su                = M.fromList $ zip sas (FVar <$>  [i..])
     sas               = symbol <$> as
     n                 = length as
+    i                 = sortAbs sbody + 1
 
 -- RJ: why not make this the Symbolic instance?
 tyConName :: TyCon -> Symbol
