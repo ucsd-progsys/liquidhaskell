@@ -33,6 +33,7 @@ module Language.Fixpoint.Types.Sorts (
   , strFTyCon
   , setFTyCon
   , mapFTyCon -- TODO: hide these
+  , mapFVar
 
   , basicSorts, intSort, realSort, boolSort, strSort, funcSort
   , setSort, bitVecSort, mapSort, charSort
@@ -49,12 +50,14 @@ module Language.Fixpoint.Types.Sorts (
   , fObj
   , unFApp
   , unAbs
+  , sortAbs
 
   , mkSortSubst
   , sortSubst
   , functionSort
   , mkFFunc
   , bkFFunc
+  , mkPoly
 
   , isNumeric, isReal, isString, isPolyInst
 
@@ -220,6 +223,26 @@ functionSort s
     go vs ss (FFunc s1 s2) = go vs (s1:ss) s2
     go vs ss t             = (reverse vs, reverse ss, t)
 
+
+sortAbs :: Sort -> Int 
+sortAbs (FAbs i s)    = max i (sortAbs s) 
+sortAbs (FFunc s1 s2) = max (sortAbs s1) (sortAbs s2) 
+sortAbs (FApp  s1 s2) = max (sortAbs s1) (sortAbs s2)
+sortAbs _             = -1  
+
+mapFVar :: (Int -> Int) -> Sort -> Sort 
+mapFVar f = go 
+  where go (FVar i)      = FVar (f i)
+        go (FAbs i t)    = FAbs (f i) (go t)
+        go (FFunc t1 t2) = FFunc (go t1) (go t2)
+        go (FApp t1 t2)  = FApp (go t1) (go t2)
+        go t@(FObj _)    = t  
+        go t@(FTC _)     = t  
+        go t@FInt        = t  
+        go t@FReal       = t  
+        go t@FNum        = t  
+        go t@FFrac       = t  
+
 --------------------------------------------------------------------------------
 -- | Sorts ---------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -248,7 +271,7 @@ data DataCtor = DCtor
 data DataDecl = DDecl
   { ddTyCon :: !FTycon            -- ^ Name of defined datatype
   , ddVars  :: !Int               -- ^ Number of type variables
-  , ddCtors :: [DataCtor]         -- ^ Datatype Ctors
+  , ddCtors :: [DataCtor]         -- ^ Datatype Ctors. Invariant: type variables bound in ctors are greater than ddVars
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
 instance Symbolic DataDecl where
@@ -344,6 +367,9 @@ isPolyInst s t = isPoly s && not (isPoly t)
 isPoly :: Sort -> Bool
 isPoly (FAbs {}) = True
 isPoly _         = False
+
+mkPoly :: Int -> Sort -> Sort 
+mkPoly i s = foldl (flip FAbs) s [0..i] 
 
 
 instance Hashable FTycon where

@@ -230,15 +230,16 @@ instance NFData   SmtSort
 instance B.Binary SmtSort
 
 -- | The 'poly' parameter is True when we are *declaring* sorts,
---   and so we need to leave type variables be; it is False when
+--   and so we need to leave the top type variables be; it is False when
 --   we are declaring variables etc., and there, we serialize them
 --   using `Int` (though really, there SHOULD BE NO floating tyVars...
 --   'smtSort True  msg t' serializes a sort 't' using type variables,
 --   'smtSort False msg t' serializes a sort 't' using 'Int' instead of tyvars.
 
 sortSmtSort :: Bool -> SEnv DataDecl -> Sort -> SmtSort
-sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unAbs $ t
+sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}  go . unAbs $ t
   where
+    m = sortAbs t 
     go (FFunc _ _)    = SInt
     go FInt           = SInt
     go FReal          = SReal
@@ -246,7 +247,7 @@ sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) $ -} go . unA
       | t == boolSort = SBool
       | isString t    = SString 
     go (FVar i)
-      | poly          = SVar i
+      | poly, i < m   = SVar i
       | otherwise     = SInt
     go t              = fappSmtSort poly env ct ts where (ct:ts) = unFApp t
 
