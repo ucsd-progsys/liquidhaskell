@@ -104,7 +104,9 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
+              mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
               addEnv x $ decrType x tx ys (zip xs txs)
+              addEmem x $ decrType x tx ys (zip xs txs)
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
       where (_, (xs, txs, _), to) = bkArrow t 
 
@@ -118,7 +120,7 @@ synthesizeBasic t = do
     lenv <- getLocalEnv 
     es' <- synthesizeMatch lenv senv t
     cgenv <- sCGEnv <$> get
-    trace (" [ CGEnv0 ] " ++ show (reLocal $ renv cgenv)) $ filterM (hasType t) es'
+    filterM (hasType t) es'
 
 
 -- Panagiotis TODO: here I only explore the first one                     
@@ -166,6 +168,7 @@ makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
+  addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   -- es <- synthesizeBasic t -- Maybe not the right spot
   es <- genTerms t

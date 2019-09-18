@@ -30,7 +30,7 @@ hasType t !e' = do
   x  <- freshVar t 
   st <- get 
   r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
-  liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+  -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
   return r 
  where e = tx e' 
 

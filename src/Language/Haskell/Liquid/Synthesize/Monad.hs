@@ -14,12 +14,12 @@ import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.Termination
 import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.Synthesize.Misc
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
-
 
 import CoreSyn (CoreExpr)
 import qualified CoreSyn as GHC
@@ -55,6 +55,11 @@ maxDepth = 1
 -- and the environment of variables to types that is expanded on lambda terms
 type SSEnv = M.HashMap Symbol (SpecType, Var)
 type SSDecrTerm = [(Var, [Var])]
+
+-- Initialized with basic type expressions
+-- e.g. b  --- x_s3
+--     [b] --- [], x_s0, x_s4
+type ExprMemory = [(Type, CoreExpr, Int)]
 data SState 
   = SState { rEnv       :: REnv -- Local Binders Generated during Synthesis 
            , ssEnv      :: SSEnv -- Local Binders Generated during Synthesis 
@@ -64,10 +69,15 @@ data SState
            , sCGI       :: CGInfo
            , sCGEnv     :: CGEnv
            , sFCfg      :: F.Config
-           , sDepth     :: Int 
+           , sDepth     :: Int
+           , sExprMem   :: ExprMemory 
+           , sAppDepth  :: Int
            }
 type SM = StateT SState IO
- 
+
+maxAppDepth :: Int 
+maxAppDepth = 4
+
 locally :: SM a -> SM a 
 locally act = do 
   st <- get 
@@ -79,9 +89,10 @@ locally act = do
 evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> IO a 
 evalSM act tgt fcfg cgi cgenv renv env = do 
   ctx <- SMT.makeContext fcfg tgt  
-  r <- evalStateT act (SState renv env 0 [] ctx cgi cgenv fcfg 0)
+  r <- evalStateT act (SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0)
   SMT.cleanupContext ctx 
   return r 
+  where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
 getSEnv = ssEnv <$> get 
@@ -98,11 +109,24 @@ addsEnv :: [(Var, SpecType)] -> SM ()
 addsEnv xts = 
   mapM_ (\(x,t) -> modify (\s -> s {ssEnv = M.insert (symbol x) (t,x) (ssEnv s)})) xts  
 
+addsEmem :: [(Var, SpecType)] -> SM () 
+addsEmem xts = do 
+  curAppDepth <- sAppDepth <$> get
+  trace (" [ addsEmem ] " ++ show curAppDepth) $ mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})) xts  
+  
 
 addEnv :: Var -> SpecType -> SM ()
 addEnv x t = do 
   liftCG0 (\γ -> γ += ("arg", symbol x, t))
   modify (\s -> s {ssEnv = M.insert (symbol x) (t,x) (ssEnv s)}) 
+
+addEmem :: Var -> SpecType -> SM ()
+addEmem x t = do 
+  curAppDepth <- sAppDepth <$> get
+  liftCG0 (\γ -> γ += ("arg", symbol x, t))
+  trace (" [ addElem ] " ++ show curAppDepth) $ modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})
+
+
 
 addDecrTerm :: Var -> [Var] -> SM ()
 addDecrTerm x vars = do
@@ -159,3 +183,27 @@ incrSM :: SM Int
 incrSM = do s <- get 
             put s{ssIdx = ssIdx s + 1}
             return (ssIdx s)
+
+symbolExpr :: Type -> F.Symbol -> SM CoreExpr 
+symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)
+
+-- to be removed
+-- initExprMemory :: Type -> SSEnv -> ExprMemory
+-- initExprMemory τ ssenv = 
+--   let senv    = M.toList ssenv 
+--       senv'   = filter (\(_, (t, _)) -> isBasic (toType t)) senv 
+--       senv''  = map (\(_, (t, v)) -> (toType t, GHC.Var v)) senv' 
+--       senv''' = map (\(t, e) -> (instantiateType τ t, e)) senv''
+--   in  senv'''
+
+initExprMem :: SSEnv -> ExprMemory
+initExprMem ssenv = 
+  let senv  = M.toList ssenv 
+      -- Init `ExprMemory` with 0
+      senv'  = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) senv
+  in  senv'
+
+-- Misc
+showEmem  emem = show $ showEmem' emem
+showEmem' emem = map (\(t, e, i) -> (showTy t, show e, show i)) emem
+  

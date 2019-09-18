@@ -15,7 +15,7 @@ import           Control.Monad.State.Lazy
 import CoreSyn (CoreExpr)
 import qualified CoreSyn as GHC
 import           TyCoRep 
-import Language.Haskell.Liquid.Synthesize.Monad
+-- import Language.Haskell.Liquid.Synthesize.Monad
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
 
@@ -49,8 +49,6 @@ findM :: Monad m => (a -> m Bool) -> [a] -> m (Maybe a)
 findM _ []     = return Nothing
 findM p (x:xs) = do b <- p x ; if b then return (Just x) else findM p xs 
 
-symbolExpr :: Type -> F.Symbol -> SM CoreExpr 
-symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)
 
 ----------------------------------------------------------------------------
 ----------------------------Printing----------------------------------------
@@ -69,4 +67,4 @@ showGoals (goal : goals) =
     replicate 12 ' ' ++ 
     showGoals goals
 
-takeExprs = map snd 
+takeExprs = map (\(_, b, _) -> b) -- map snd
