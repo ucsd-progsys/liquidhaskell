@@ -112,7 +112,8 @@ addsEnv xts =
 addsEmem :: [(Var, SpecType)] -> SM () 
 addsEmem xts = do 
   curAppDepth <- sAppDepth <$> get
-  trace (" [ addsEmem ] " ++ show curAppDepth) $ mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})) xts  
+  {- trace (" [ addsEmem ] " ++ show curAppDepth) $ -}
+  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})) xts  
   
 
 addEnv :: Var -> SpecType -> SM ()
@@ -124,7 +125,8 @@ addEmem :: Var -> SpecType -> SM ()
 addEmem x t = do 
   curAppDepth <- sAppDepth <$> get
   liftCG0 (\γ -> γ += ("arg", symbol x, t))
-  trace (" [ addElem ] " ++ show curAppDepth) $ modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})
+  {- trace (" [ addElem ] " ++ show curAppDepth) $ -} 
+  modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})
 
 
 
@@ -158,8 +160,12 @@ liftCG act = do
   return x 
 
 
+freshVarType :: Type -> SM Var
+freshVarType t = (\i -> mkVar (Just "x") i t) <$> incrSM
+
+
 freshVar :: SpecType -> SM Var
-freshVar t = (\i -> mkVar (Just "x") i (toType t)) <$> incrSM
+freshVar = freshVarType . toType
 
 withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
@@ -187,19 +193,10 @@ incrSM = do s <- get
 symbolExpr :: Type -> F.Symbol -> SM CoreExpr 
 symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)
 
--- to be removed
--- initExprMemory :: Type -> SSEnv -> ExprMemory
--- initExprMemory τ ssenv = 
---   let senv    = M.toList ssenv 
---       senv'   = filter (\(_, (t, _)) -> isBasic (toType t)) senv 
---       senv''  = map (\(_, (t, v)) -> (toType t, GHC.Var v)) senv' 
---       senv''' = map (\(t, e) -> (instantiateType τ t, e)) senv''
---   in  senv'''
 
 initExprMem :: SSEnv -> ExprMemory
 initExprMem ssenv = 
   let senv  = M.toList ssenv 
-      -- Init `ExprMemory` with 0
       senv'  = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) senv
   in  senv'
 

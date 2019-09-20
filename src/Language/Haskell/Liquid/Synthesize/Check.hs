@@ -24,16 +24,35 @@ import CoreSyn
 import Var 
 
 import Control.Monad.State.Lazy
+import Debug.Trace 
+
+import System.Console.CmdArgs.Verbosity
+import CoreUtils
+import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.Types hiding (SVar)
 
 hasType :: SpecType -> CoreExpr -> SM Bool
 hasType t !e' = do 
   x  <- freshVar t 
   st <- get 
-  r <- liftIO $ check (sCGI st) (sCGEnv st) (sFCfg st) x e t 
+  let tpOfE = exprType e'
+      ht    = toType t
+  if tpOfE == ht
+    then liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
+    else trace (" [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t) (return False)
   -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
-  return r 
+  -- return r 
  where e = tx e' 
 
+isWellTyped :: CoreExpr -> SM Bool
+isWellTyped e' = do 
+  x  <- freshVarType (exprType e')
+  st <- get 
+  r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e Nothing 
+  -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+  return r 
+ where e = tx e'
+  
 {-
 tx turns 
 let x1 = 
@@ -61,19 +80,33 @@ unbind (Let (NonRec x ex) e) = let (bs,e') = unbind ex in (bs ++ [NonRec x e'],e
 unbind e = ([], e)
 
 
-check :: CGInfo -> CGEnv -> F.Config -> Var -> CoreExpr -> SpecType -> IO Bool 
-check cgi γ cfg x e t = do 
+check :: CGInfo -> CGEnv -> F.Config -> Var -> CoreExpr -> Maybe SpecType -> IO Bool 
+check cgi γ cfg x e t = do
     finfo <- cgInfoFInfo info' cs
     isSafe <$> solve cfg{F.srcFile = "SCheck" <> F.srcFile cfg} finfo 
   where 
-    cs = generateConstraintsWithEnv info' cgi (γ{grtys = insertREnv (F.symbol x) t (grtys γ)}) 
+    cs = generateConstraintsWithEnv info' cgi (γ{grtys = insertREnv' (F.symbol x) t (grtys γ)}) 
     info' = info {giSrc = giSrc', giSpec = giSpec'}
     giSrc' = (giSrc info) {giCbs = [Rec [(x, e)]]}
     giSpec' = giSpecOld{gsSig = gsSig'}
     giSpecOld = giSpec info 
     gsSigOld  = gsSig giSpecOld
-    gsSig' = gsSigOld {gsTySigs = (x,dummyLoc t):(gsTySigs gsSigOld)}
+    gsSig' = gsSigOld {gsTySigs = addTySig x t (gsTySigs gsSigOld)}
     info = ghcI cgi 
 
+    insertREnv' x Nothing g = g 
+    insertREnv' x (Just t) g = insertREnv x t g
+    
+    addTySig x Nothing  ts = ts 
+    addTySig x (Just t) ts = (x,dummyLoc t):ts
+    
+
+quietly :: IO a -> IO a
+quietly act = do
+  vb <- getVerbosity
+  setVerbosity Quiet
+  r  <- act
+  setVerbosity vb
+  return r
 
 
