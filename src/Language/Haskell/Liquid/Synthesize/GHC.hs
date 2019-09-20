@@ -58,6 +58,8 @@ createSubgoals t                  = [t]
 -- Removes forall from type and replaces
 -- type variables from the first argument to the second argument.
 -- Returns the new type.
+-- TODO: Instead of substituting type variables, perform type applications
+-- and then, get the type.
 instantiateType :: Type -> Type -> Type 
 instantiateType τ t = 
   let t' = substInType t (varsInType τ)
