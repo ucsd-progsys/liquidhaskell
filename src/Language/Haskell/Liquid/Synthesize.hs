@@ -69,7 +69,12 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
     goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
 
     go (x, HoleInfo t loc env (cgi,cge)) = do 
-      fills <- synthesize' tgt fcfg cgi cge env (initSSEnv cginfo) x t 
+      let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
+          -- We also need to generate its type for non-termination check.
+          typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
+          senv0 = initSSEnv cginfo
+          senv1 = trace (" Top-level function " ++ show topLvlBndr ++ ", spectype " ++ show typeOfTopLvlBnd) $ M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv0
+      fills <- synthesize' tgt fcfg cgi cge env senv0 x t 
       return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
                        mempty (symbol x) t 
 
@@ -113,7 +118,7 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
     
 
 synthesizeBasic :: SpecType -> SM [CoreExpr]
-synthesizeBasic t = do
+synthesizeBasic t = {- trace ("[ synthesizeBasic ] goalType " ++ show t) $ -} do
   es <- genTerms t
   filterElseM (hasType t) es $ do
     senv <- getSEnv
@@ -170,8 +175,7 @@ makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   addsEnv $ zip xs ts 
   addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  -- es <- synthesizeBasic t -- Maybe not the right spot
-  es <- genTerms t
+  es <- synthesizeBasic t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)
