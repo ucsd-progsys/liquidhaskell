@@ -15,7 +15,7 @@ import Var
 
 
 decrType :: Var -> SpecType -> [Var] -> [(F.Symbol, SpecType)] -> SpecType
-decrType x ti xs xts = F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) $ go [] [] xs ti 
+decrType x ti xs xts = {- F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) $ -} go [] [] xs ti 
   where
     go accvs accxts (v:vs) (RFun x tx t r) 
       | isDecreasing mempty mempty tx  = let (x', tx') = R.makeDecrType mempty (zip (v:accvs) ((x,tx):accxts)) 
