@@ -42,7 +42,7 @@ _ `eq` x = x
 
 infixl 3 ?
 
-{-@ (?) :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
+{-@ (?) :: forall a b <pa :: a -> Bool>. a<pa> -> b -> a<pa> @-}
 (?) :: a -> b -> a 
 x ? _ = x 
 {-# INLINE (?)   #-} 
