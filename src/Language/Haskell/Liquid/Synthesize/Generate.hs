@@ -23,24 +23,28 @@ import           Debug.Trace
 
 import           System.IO.Unsafe
 
+import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
+
 -- Generate terms that have type t
 genTerms :: SpecType -> SM [CoreExpr] 
 genTerms specTy = 
   do  senv <- ssEnv <$> get
       let τ            = toType specTy
+          noHolesEnv   = M.fromList $ filter (\(_, (_, v)) -> not $ isHoleVar v) (M.toList senv)
           cands        = findCandidates senv τ
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
           funTyCands'  = filter filterFunFun cands
-          funTyCands   = map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands'
-
+          funTyCands   = 
+            {- trace (" [ funTyCands' ] " ++ show (map (\(_, (t, v)) -> (showTy t, v)) funTyCands') ++ "\n") $ -}
+              map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands'
+          noHoles      = filter (\(_, (_, v)) -> not $ isHoleVar v) funTyCands 
 
           initEMem'    = initExprMem senv
           initEMem     = map (\(t, e, i) -> (instantiateType τ t, e, i)) initEMem' 
 
       modify (\s -> s { sAppDepth = 0 })
       finalEMem <- withDepthFill 0 initEMem funTyCands
-      let result       = takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
-
+      let result       = {- trace (" [ funTyCands ] " ++ show (map (\(_, (t, v)) -> (showTy t, v)) funTyCands)) $ -} takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
       -- trace ("\n[ Expressions ] " ++ show result) $
       return result
 
@@ -50,7 +54,7 @@ withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> SM ExprMemory
 withDepthFill depth exprMem funTyCands = do 
   exprMem' <- fillMany depth exprMem funTyCands exprMem
   curAppDepth <- sAppDepth <$> get
-  if depth < maxAppDepth {- curAppDepth <= maxAppDepth -}
+  if depth < maxAppDepth
     then do
       modify (\s -> s { sAppDepth = curAppDepth + 1 })
       withDepthFill (depth + 1) exprMem' funTyCands
@@ -72,22 +76,17 @@ updateIthElem i depth lst =
 
 
 pruneCands :: Int -> [(CoreExpr, Int)] -> [(CoreExpr, Int)]
-pruneCands depth lst = filter (\(e, i) -> i >= depth) lst
+pruneCands depth lst = filter (\(_, i) -> i >= depth) lst
 
--- depth, down limit, up limit, candidates: input
-repeatPrune :: Int -> Int -> Int -> (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
-repeatPrune depth down up toBeFilled cands acc = do
+type Depth = Int
+type Up    = Int
+type Down  = Int
+repeatPrune :: Depth -> Up -> Down -> (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
+repeatPrune depth down up toBeFilled cands acc =
   if down <= up 
     then do 
-      curState <- get
       let cands' = updateIthElem down depth cands 
-          (acc', st1) = 
-            case cands' of 
-              [] -> (acc, curState)
-              _  -> 
-                let (exprs', st') = unsafePerformIO $ runStateT (fillOne toBeFilled cands') curState
-                in  (exprs' ++ acc, st')
-      put st1
+      acc' <- (++ acc) <$> fillOne toBeFilled cands'
       repeatPrune depth (down + 1) up toBeFilled cands acc'
     else return acc
 
@@ -108,19 +107,9 @@ fillMany depth exprMem (cand : cands) accExprs = do
   if check 
     then fillMany depth exprMem cands accExprs 
     else do 
-
-      curState <- get
-      let (newExprs, st)    = 
-            case argCands of 
-              [] -> ([], curState)
-              _  ->
-                if (maximum . map (maximum . map snd)) argCands < depth
-                  then ([], curState)
-                  else 
-                    let (withType, st') = unsafePerformIO $ runStateT (repeatPrune depth 1 (length argCands) cand argCands []) curState
-                    in  (map (resultTy, , depth + 1) withType, st')
-          accExprs'         = accExprs ++ newExprs
-      put st
+      withType <- repeatPrune depth 1 (length argCands) cand argCands []
+      let newExprs  = map (resultTy, , depth + 1) withType
+          accExprs' = newExprs ++ accExprs
       -- trace (
       --   " [ expressions " ++ show depth ++ 
       --   ", arguments = " ++ show (length argCands) ++ 
@@ -133,13 +122,13 @@ applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
 applyOne v args typeOfArgs = do
   idx <- incrSM
   let v'' = case varType v of
-              ForAllTy{} -> GHC.App (GHC.Var v) (GHC.Type typeOfArgs)
+              ForAllTy{} -> GHC.App (GHC.Var v) (GHC.Type typeOfArgs) -- TODO: Fix it! Wrong instantiation...
               _          -> GHC.Var v
   return 
     [ let letv' = mkVar (Just "x") idx typeOfArgs
       in  case v' of 
             GHC.Var _ -> GHC.App v'' v' 
-            _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App v'' (GHC.Var letv')) | (v', i) <- args ] 
+            _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App v'' (GHC.Var letv')) | (v', _) <- args ] 
 
 applyNext :: [CoreExpr] -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
 applyNext apps args typeOfArgs = do 
@@ -150,29 +139,26 @@ applyNext apps args typeOfArgs = do
         _         ->
           let letv'' = mkVar (Just "x") idx typeOfArgs 
           in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App v' (GHC.Var letv''))
-    | v' <- apps, (v'', i) <- args
+    | v' <- apps, (v'', _) <- args
     ]
 
-applyMany :: [CoreExpr] -> [[(CoreExpr, Int)]] -> [Type] -> SState -> ([CoreExpr], SState)
-applyMany exprs []             []                         st = (exprs, st)
-applyMany exprs (args : args') (typeOfArgs : typeOfArgs') st = 
-  let (exprs', st') = unsafePerformIO $ runStateT (applyNext exprs args typeOfArgs) st 
-  in  applyMany exprs' args' typeOfArgs' st'
-applyMany _     _              _                          _  = error "applyMany wildcard"
+applyMany :: [CoreExpr] -> [[(CoreExpr, Int)]] -> [Type] -> SM [CoreExpr] 
+applyMany exprs []             []                         = return exprs
+applyMany exprs (args : args') (typeOfArgs : typeOfArgs') = do
+  exprs' <- applyNext exprs args typeOfArgs
+  applyMany exprs' args' typeOfArgs'
+applyMany _     _              _                          = error "applyMany wildcard"
 
 -- Takes a function and a list of correct expressions for every argument
 -- and returns a list of new expressions.
 fillOne :: (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> SM [CoreExpr] 
-fillOne funTyCand argCands = do 
-  let (_, (t, v)) = funTyCand 
-      sg'         = createSubgoals t 
+fillOne _           []                   = return []
+fillOne (_, (t, v)) (argCand : argCands) = do 
+  let sg'         = createSubgoals t 
       sg          = take (length sg' - 1) sg'
       withTypeIns = head sg 
-  exprs <- applyOne v (head argCands) withTypeIns 
-  st <- get 
-  let (exprs', st') = applyMany exprs (tail argCands) (tail sg) st
-  put st'
-  return exprs'
+  exprs <- applyOne v argCand withTypeIns 
+  applyMany exprs argCands (tail sg) 
 
 
 -- withSubgoal :: a type from subgoals 
