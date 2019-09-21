@@ -122,9 +122,9 @@ fillMany depth exprMem (cand : cands) accExprs = do
   if check 
     then fillMany depth exprMem cands accExprs 
     else do 
-      withType <- repeatPrune depth 1 (length argCands) cand argCands []
-      let newExprs  = map (resultTy, , depth + 1) withType
-          accExprs' = newExprs ++ accExprs
+      accExprs'  <- 
+        (++ accExprs) <$> 
+          map (resultTy, , depth + 1) <$> repeatPrune depth 1 (length argCands) cand argCands []
       -- trace (
       --   " [ expressions " ++ show depth ++ 
       --   ", arguments = " ++ show (length argCands) ++ 
