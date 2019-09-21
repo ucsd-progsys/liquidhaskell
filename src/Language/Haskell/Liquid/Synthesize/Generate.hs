@@ -11,17 +11,17 @@ import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.Misc
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 
+import CoreUtils (exprType)
 import CoreSyn (CoreExpr)
 import qualified CoreSyn as GHC
 import Var 
 
+import           Data.Maybe
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Language.Haskell.Liquid.GHC.TypeRep
 
 import           Debug.Trace 
-
-import           System.IO.Unsafe
 
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 
@@ -29,25 +29,40 @@ import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 genTerms :: SpecType -> SM [CoreExpr] 
 genTerms specTy = 
   do  senv <- ssEnv <$> get
-      let τ            = toType specTy
+      mbTyVar <- sGoalTyVar <$> get
+      let goalTyVar = fromJust mbTyVar
+          τ            = toType specTy
           noHolesEnv   = M.fromList $ filter (\(_, (_, v)) -> not $ isHoleVar v) (M.toList senv)
           cands        = findCandidates senv τ
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
           funTyCands'  = filter filterFunFun cands
-          funTyCands   = 
-            {- trace (" [ funTyCands' ] " ++ show (map (\(_, (t, v)) -> (showTy t, v)) funTyCands') ++ "\n") $ -}
-              map (\(s, (ty, v)) -> (s, (instantiateType τ ty, v))) funTyCands'
+
+          funTyCands  = 
+            map (\(s, (ty, v)) -> 
+                let e = instantiate (GHC.Var v) (TyVarTy goalTyVar)
+                    ty' = exprType e
+                in (s, (ty', v))) funTyCands' 
+          
           noHoles      = filter (\(_, (_, v)) -> not $ isHoleVar v) funTyCands 
 
           initEMem'    = initExprMem senv
-          initEMem     = map (\(t, e, i) -> (instantiateType τ t, e, i)) initEMem' 
+          initEMem     = 
+            map (\(t, e, i) -> 
+              let e' = instantiate e (TyVarTy goalTyVar)
+                  t' = exprType e'
+              in  (t', e', i)) initEMem' 
 
       modify (\s -> s { sAppDepth = 0 })
       finalEMem <- withDepthFill 0 initEMem funTyCands
-      let result       = {- trace (" [ funTyCands ] " ++ show (map (\(_, (t, v)) -> (showTy t, v)) funTyCands)) $ -} takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
+      let result = takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
       -- trace ("\n[ Expressions ] " ++ show result) $
       return result
 
+instantiate :: CoreExpr -> Type -> CoreExpr
+instantiate e t = 
+  case exprType e of 
+    ForAllTy {} -> GHC.App e (GHC.Type t)
+    _           -> e
 
 -- PB: We need to combine that with genTerms and synthesizeBasic
 withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> SM ExprMemory
@@ -121,8 +136,10 @@ fillMany depth exprMem (cand : cands) accExprs = do
 applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
 applyOne v args typeOfArgs = do
   idx <- incrSM
+  mbTyVar <- sGoalTyVar <$> get
+  let tyvar = fromMaybe (error "No type variables in the monad!") mbTyVar
   let v'' = case varType v of
-              ForAllTy{} -> GHC.App (GHC.Var v) (GHC.Type typeOfArgs) -- TODO: Fix it! Wrong instantiation...
+              ForAllTy{} -> GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
               _          -> GHC.Var v
   return 
     [ let letv' = mkVar (Just "x") idx typeOfArgs
@@ -154,10 +171,10 @@ applyMany _     _              _                          = error "applyMany wil
 fillOne :: (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> SM [CoreExpr] 
 fillOne _           []                   = return []
 fillOne (_, (t, v)) (argCand : argCands) = do 
-  let sg'         = createSubgoals t 
-      sg          = take (length sg' - 1) sg'
-      withTypeIns = head sg 
-  exprs <- applyOne v argCand withTypeIns 
+  let sg'     = createSubgoals t 
+      sg      = take (length sg' - 1) sg'
+      argType = head sg 
+  exprs <- applyOne v argCand argType
   applyMany exprs argCands (tail sg) 
 
 

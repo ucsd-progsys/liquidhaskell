@@ -52,12 +52,12 @@ notrace _ a = a
 
 -- containt GHC primitives
 -- JP: Should we get this from REnv instead?
-initSSEnv :: CGInfo -> SSEnv
-initSSEnv info = M.fromList (filter iNeedIt (mkElem <$> prims))
+initSSEnv :: CGInfo -> SSEnv -> SSEnv
+initSSEnv info senv = M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
   where
     mkElem (v, lt) = (F.symbol v, (val lt, v))
     prims = gsCtors $ gsData $ giSpec $ ghcI info
-    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [{- nilDataCon, -} consDataCon]) -- PB: I'm not sure that we need `[]`.
+    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [ nilDataCon, consDataCon ]) 
 
 
 
@@ -72,15 +72,29 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           -- We also need to generate its type for non-termination check.
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
-          senv0 = initSSEnv cginfo
-          senv1 = trace (" Top-level function " ++ show topLvlBndr ++ ", spectype " ++ show typeOfTopLvlBnd) $ M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv0
-      fills <- synthesize' tgt fcfg cgi cge env senv0 x t 
-      return $ ErrHole loc (if length fills > 0 then text "\n Hole Fills: " <+> pprintMany fills else mempty)
-                       mempty (symbol x) t 
+          (_, (xs, txs, _), to) = bkArrow t
+      ctx <- SMT.makeContext fcfg tgt
+      state0 <- initState ctx fcfg cgi cge env M.empty
+
+      -- (ys, st1) <- runStateT (mapM freshVar txs) state0
+      -- let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
+      -- ((), st2) <- (mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))) st1
+      -- ((), st3) <- runStateT (addEnv topLvlBndr $ decrType topLvlBndr typeOfTopLvlBnd ys (zip xs txs)) st2
+      -- let senv0 = ssEnv st3
+
+      let senv1 = initSSEnv cginfo M.empty
+          senv2 = M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv1
+      fills <- synthesize' tgt ctx fcfg cgi cge env senv2 x t state0
+
+      -- SMT.cleanupContext ctx
+      return $ ErrHole loc (
+        if length fills > 0 
+          then text "\n Hole Fills: " <+> pprintMany fills 
+          else mempty) mempty (symbol x) t 
 
 
-synthesize' :: FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType -> IO [CoreExpr]
-synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx renv senv
+synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType -> SState -> IO [CoreExpr]
+synthesize' tgt ctx fcfg cgi cge renv senv x tx st2 = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
     go :: SpecType -> SM [CoreExpr] -- JP: [SM CoreExpr] ???
@@ -119,8 +133,13 @@ synthesize' tgt fcfg cgi ctx renv senv x tx = evalSM (go tx) tgt fcfg cgi ctx re
 
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = {- trace ("[ synthesizeBasic ] goalType " ++ show t) $ -} do
+  let ht     = toType t
+      tyvars = varsInType ht
+  case tyvars of
+    [x] -> modify (\s -> s { sGoalTyVar = Just x })
+    _   -> error $ "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )."
   es <- genTerms t
-  filterElseM (hasType t) es $ do
+  filterElseM (hasType t) es $ trace (" ty-vars " ++ show tyvars) $ do
     senv <- getSEnv
     lenv <- getLocalEnv 
     es' <- synthesizeMatch lenv senv t
@@ -137,7 +156,7 @@ synthesizeMatch lenv γ t
 
   -- | otherwise 
   -- = maybe def id <$> monadicFirst 
-  = notrace ("[synthesizeMatch] es = " ++ show es) $ 
+  = trace ("[synthesizeMatch] es = " ++ show es) $ 
       join <$> mapM (withIncrDepth . matchOn t) (es <> ls)
 
   where 
@@ -176,6 +195,7 @@ makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic t
+  -- es <- genTerms t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)

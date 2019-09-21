@@ -38,10 +38,11 @@ hasType t !e' = do
   let tpOfE = exprType e'
       ht    = toType t
   if tpOfE == ht
-    then liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-    else trace (" [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t) (return False)
-  -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
-  -- return r 
+    then do
+      r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
+      liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+      return r
+    else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
 
 isWellTyped :: CoreExpr -> SM Bool

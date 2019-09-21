@@ -72,6 +72,7 @@ data SState
            , sDepth     :: Int
            , sExprMem   :: ExprMemory 
            , sAppDepth  :: Int
+           , sGoalTyVar :: Maybe TyVar
            }
 type SM = StateT SState IO
 
@@ -86,12 +87,20 @@ locally act = do
   return r 
 
 
-evalSM :: SM a -> FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> IO a 
-evalSM act tgt fcfg cgi cgenv renv env = do 
-  ctx <- SMT.makeContext fcfg tgt  
-  r <- evalStateT act (SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0)
+evalSM :: SM a -> SMT.Context -> FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> SState -> IO a 
+evalSM act ctx tgt fcfg cgi cgenv renv env st = do 
+  -- ctx <- SMT.makeContext fcfg tgt 
+  let st' = st {ssEnv = env}
+  state0 <- initState ctx fcfg cgi cgenv renv env 
+  r <- evalStateT act st' -- (SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 Nothing)
   SMT.cleanupContext ctx 
   return r 
+  -- where exprMem0 = initExprMem env
+
+initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> IO SState 
+initState ctx fcfg cgi cgenv renv env = do
+  -- ctx <- SMT.makeContext fcfg tgt
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 Nothing
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
