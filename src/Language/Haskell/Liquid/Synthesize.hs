@@ -136,6 +136,7 @@ synthesizeBasic t = {- trace ("[ synthesizeBasic ] goalType " ++ show t) $ -} do
   let ht     = toType t
       tyvars = varsInType ht
   case tyvars of
+    []  -> modify (\s -> s { sGoalTyVar = Nothing})
     [x] -> modify (\s -> s { sGoalTyVar = Just x })
     _   -> error $ "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )."
   es <- genTerms t

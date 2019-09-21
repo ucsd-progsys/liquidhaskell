@@ -70,6 +70,7 @@ instantiateType τ t =
 -- TODO: More than one type variables in type (what happens in forall case with that?).
 -- use Language.Haskell.Liquid.GHC.TypeRep.subst instead 
 substInType :: Type -> [TyVar] -> Type 
+substInType t []   = t
 substInType t [tv] = substInType' tv t
   where 
     substInType' tv (TyVarTy var)                = TyVarTy tv
