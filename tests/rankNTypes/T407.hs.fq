@@ -1,0 +1,17 @@
+
+// test is an existential data type 
+//  data Test a b = Test {forall z. z}
+// @(2) is not bound by the two top variables
+
+data Test 2 = [
+       | test { vtest : func(1 , [@(2)])}
+     ]
+
+bind 0 f : {v:int | true}
+bind 1 g : {v:int | true}
+
+constraint:
+  env [0; 1]
+  lhs {v:int | test f = test g }
+  rhs {v:int | f = g }
+  id 1 tag []
