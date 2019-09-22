@@ -1101,8 +1101,9 @@ subsFree m s z@(α, τ, _) (RImpF x t t' r)
 subsFree m s z@(α, τ, _) (RFun x t t' r)
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RApp c ts rs r)
-  = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt (α, τ) r)
+  = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt (α, τ) r)
     where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
+          c' = if α `S.member` s then c else subt z' c
 subsFree meet s (α', τ, t') (RVar α r)
   | α == α' && not (α `S.member` s)
   = if meet then t' `strengthen` (subt (α, τ) r) else t'
