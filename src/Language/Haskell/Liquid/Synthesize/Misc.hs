@@ -18,6 +18,7 @@ import           TyCoRep
 -- import Language.Haskell.Liquid.Synthesize.Monad
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.GHC.TypeRep
 
 -- can we replace it with Language.Haskell.Liquid.GHC.Misc.isBaseType ? 
 isBasic :: Type -> Bool
@@ -67,4 +68,17 @@ showGoals (goal : goals) =
     replicate 12 ' ' ++ 
     showGoals goals
 
-takeExprs = map (\(_, b, _) -> b) -- map snd
+takeExprs :: [(a, b, c)] -> [b]
+takeExprs = map (\(_, b, _) -> b)
+
+showEmem :: (Show a1, Show a2) => [(Type, a1, a2)] -> String
+showEmem  emem = show $ showEmem' emem
+
+showEmem' :: (Show a1, Show a2) => [(Type, a1, a2)] -> [(String, String, String)]
+showEmem' emem = map (\(t, e, i) -> (showTy t, show e, show i)) emem
+
+showCand :: (a, (Type, b)) -> (String, b)
+showCand (_, (t, v)) = (showTy t, v)
+
+showCands :: [(a, (Type, b))] -> [(String, b)]
+showCands = map showCand 

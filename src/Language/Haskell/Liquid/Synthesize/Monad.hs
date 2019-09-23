@@ -194,6 +194,17 @@ withIncrDepth m = do
         return r
 
 
+withDecrAdd :: Var -> SpecType -> SM ()
+withDecrAdd x t = do 
+  ys <- mapM freshVar txs
+  let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
+  mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))
+  mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs))
+  addEnv x $ decrType x t ys (zip xs txs)
+  addEmem x $ decrType x t ys (zip xs txs)
+  where (_, (xs, txs, _), to) = bkArrow t
+        
+  
 incrSM :: SM Int 
 incrSM = do s <- get 
             put s{ssIdx = ssIdx s + 1}
@@ -209,7 +220,4 @@ initExprMem ssenv =
       senv'  = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) senv
   in  senv'
 
--- Misc
-showEmem  emem = show $ showEmem' emem
-showEmem' emem = map (\(t, e, i) -> (showTy t, show e, show i)) emem
   

@@ -10,6 +10,8 @@ import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.Misc
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
+import           Language.Haskell.Liquid.Constraint.Generate (consE)
+import           Language.Haskell.Liquid.Synthesize.Check
 
 import CoreUtils (exprType)
 import CoreSyn (CoreExpr)
@@ -55,7 +57,8 @@ genTerms specTy =
       modify (\s -> s { sAppDepth = 0 })
       finalEMem <- withDepthFill 0 initEMem funTyCands
       let result = takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
-      -- trace ("\n[ Expressions ] " ++ show result) $
+      -- wellTyped <- filterM isWellTyped result
+      -- trace ("\n[ Well-typed expressions ] " ++ show wellTyped) $
       return result
 
 instantiate :: CoreExpr -> Type -> CoreExpr
@@ -123,8 +126,8 @@ fillMany depth exprMem (cand : cands) accExprs = do
     then fillMany depth exprMem cands accExprs 
     else do 
       accExprs'  <- 
-        (++ accExprs) <$> 
-          map (resultTy, , depth + 1) <$> repeatPrune depth 1 (length argCands) cand argCands []
+        (++ accExprs) . map (resultTy, , depth + 1) <$> 
+          repeatPrune depth 1 (length argCands) cand argCands []
       -- trace (
       --   " [ expressions " ++ show depth ++ 
       --   ", arguments = " ++ show (length argCands) ++ 
@@ -138,9 +141,9 @@ applyOne v args typeOfArgs = do
   idx <- incrSM
   mbTyVar <- sGoalTyVar <$> get
   let tyvar = fromMaybe (error "No type variables in the monad!") mbTyVar
-  let v'' = case varType v of
-              ForAllTy{} -> GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
-              _          -> GHC.Var v
+  v'' <- case varType v of
+            ForAllTy{} -> return $ GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
+            _          -> return $ GHC.Var v
   return 
     [ let letv' = mkVar (Just "x") idx typeOfArgs
       in  case v' of 

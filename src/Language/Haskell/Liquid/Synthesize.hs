@@ -76,17 +76,10 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env M.empty
 
-      -- (ys, st1) <- runStateT (mapM freshVar txs) state0
-      -- let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
-      -- ((), st2) <- (mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))) st1
-      -- ((), st3) <- runStateT (addEnv topLvlBndr $ decrType topLvlBndr typeOfTopLvlBnd ys (zip xs txs)) st2
-      -- let senv0 = ssEnv st3
-
       let senv1 = initSSEnv cginfo M.empty
           senv2 = M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv1
       fills <- synthesize' tgt ctx fcfg cgi cge env senv2 x t state0
 
-      -- SMT.cleanupContext ctx
       return $ ErrHole loc (
         if length fills > 0 
           then text "\n Hole Fills: " <+> pprintMany fills 
@@ -97,7 +90,7 @@ synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv ->
 synthesize' tgt ctx fcfg cgi cge renv senv x tx st2 = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
-    go :: SpecType -> SM [CoreExpr] -- JP: [SM CoreExpr] ???
+    go :: SpecType -> SM [CoreExpr]
 
     -- Type Abstraction 
     go (RAllT a t)       = GHC.Lam (tyVarVar a) <$$> go t
@@ -196,7 +189,6 @@ makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic t
-  -- es <- genTerms t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)

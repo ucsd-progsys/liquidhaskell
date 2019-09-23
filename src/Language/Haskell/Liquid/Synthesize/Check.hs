@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE BangPatterns #-}
-module Language.Haskell.Liquid.Synthesize.Check (check, hasType) where
+module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped) where
 
 
 import Language.Fixpoint.Types.Constraints
@@ -45,6 +45,7 @@ hasType t !e' = do
     else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
 
+-- Returns true if the expression is well-typed.
 isWellTyped :: CoreExpr -> SM Bool
 isWellTyped e' = do 
   x  <- freshVarType (exprType e')
