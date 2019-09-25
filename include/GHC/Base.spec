@@ -18,6 +18,11 @@ len (y:ys) = 1 + len ys
 // null []     = true 
 // null (y:ys) = false
 
+
+// WiredIn in Language.Haskell.Liquid.Types.Names
+measure liquidCompose :: (b -> c) -> (a -> b) -> a -> c
+(.) :: {o3:(f:(b -> c) -> {o2: (g:(a -> b) -> {o1: (x:a -> {o:c | o == liquidCompose f g x && o == f (g x)}) | o1 == liquidCompose f g}) | o2 == liquidCompose f}) | o3 = liquidCompose }
+
 measure fst :: (a, b) -> a
 fst (a, b) = a
 

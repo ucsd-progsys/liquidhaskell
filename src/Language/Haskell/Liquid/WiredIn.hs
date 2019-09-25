@@ -64,7 +64,7 @@ isWiredInName :: F.Symbol -> Bool
 isWiredInName x = x `S.member` wiredInNames
 
 wiredInNames :: S.HashSet F.Symbol
-wiredInNames = S.fromList [ "head", "tail", "fst", "snd", "len" ]
+wiredInNames = S.fromList [ "head", "tail", "fst", "snd", "len"]
 
 isWiredInShape :: F.LocSymbol -> Bool
 isWiredInShape x = any (`F.isPrefixOfSym` (val x)) [F.anfPrefix, F.tempPrefix, dcPrefix]
