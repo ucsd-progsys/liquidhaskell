@@ -41,6 +41,7 @@ import           Text.PrettyPrint.HughesPJ.Compat       ((<+>))
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types          
+import           Language.Haskell.Liquid.Types.Names (functionComposisionSymbol)          
 import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
@@ -80,9 +81,11 @@ hsSpecificationP modName specComments specQuotes =
 
 initPStateWithList :: PState
 initPStateWithList 
-  = initPState { empList  = Just (EVar ("GHC.Types.[]" :: Symbol))
-               , singList = Just (\e -> EApp (EApp (EVar ("GHC.Types.:"  :: Symbol)) e) (EVar ("GHC.Types.[]" :: Symbol)))
+  = (initPState composeFun)
+               { empList    = Just (EVar ("GHC.Types.[]" :: Symbol))
+               , singList   = Just (\e -> EApp (EApp (EVar ("GHC.Types.:"  :: Symbol)) e) (EVar ("GHC.Types.[]" :: Symbol)))
                }
+  where composeFun = Just $ EVar functionComposisionSymbol
 
 --------------------------------------------------------------------------
 specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
