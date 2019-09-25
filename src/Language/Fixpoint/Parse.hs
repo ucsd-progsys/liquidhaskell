@@ -475,8 +475,8 @@ insertOperator i op = go (9 - i)
 initOpTable :: OpTable
 initOpTable = replicate 10 [] 
 
-bops :: OpTable
-bops = foldl (flip addOperator) initOpTable buildinOps
+bops :: Maybe Expr -> OpTable
+bops cmpFun = foldl (flip addOperator) initOpTable buildinOps
   where
 -- Build in Haskell ops https://www.haskell.org/onlinereport/decls.html#fixity
     buildinOps = [ FPrefix (Just 9) "-"   (Just ENeg)
@@ -485,7 +485,9 @@ bops = foldl (flip addOperator) initOpTable buildinOps
                  , FInfix  (Just 6) "-"   (Just $ EBin Minus) AssocLeft
                  , FInfix  (Just 6) "+"   (Just $ EBin Plus)  AssocLeft
                  , FInfix  (Just 5) "mod" (Just $ EBin Mod)   AssocLeft -- Haskell gives mod 7
+                 , FInfix  (Just 9) "."   applyCompose        AssocRight
                  ]
+    applyCompose = (\f x y -> (f `eApps` [x,y])) <$> cmpFun
 
 -- | Function Applications
 funAppP :: Parser Expr
@@ -961,12 +963,12 @@ remainderP p
        return (res, str, pos)
 
 
-initPState :: PState
-initPState = PState {fixityTable = bops, empList = Nothing, singList = Nothing}
+initPState :: Maybe Expr -> PState
+initPState cmpFun = PState {fixityTable = bops cmpFun, empList = Nothing, singList = Nothing }
 
 doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
-  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) initPState of
+  = case evalState (runParserT (remainderP (whiteSpace >> parser)) 0 f s) $ initPState Nothing of
       Left e            -> die $ err (errorSpan e) (dErr e)
       Right (r, "", _)  -> r
       Right (_, r, l)   -> die $ err (SS l l) (dRem r)
