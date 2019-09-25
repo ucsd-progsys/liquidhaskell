@@ -218,6 +218,9 @@ nubOrd xs     = xs
 hashNubWith :: (Eq b, Hashable b) => (a -> b) -> [a] -> [a]
 hashNubWith f xs = M.elems $ M.fromList [ (f x, x) | x <- xs ]
 
+mFromList :: (Eq k, Hashable k) => [(k, v)] -> M.HashMap k v
+mFromList = M.fromList 
+
 duplicates :: (Eq k, Hashable k) => [k] -> [k]
 duplicates xs = [ x | (x, n) <- count xs, 1 < n ]
 
