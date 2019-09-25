@@ -13,4 +13,4 @@ anyTypeSymbol = symbol ("GHC.Prim.Any" :: String)
 
 --  defined in include/GHC/Base.hs
 functionComposisionSymbol :: Symbol
-functionComposisionSymbol = symbol ("liquidCompose" :: String)
+functionComposisionSymbol = symbol ("GHC.Base.." :: String)
