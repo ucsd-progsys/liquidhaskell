@@ -14,6 +14,7 @@ import Language.Haskell.Liquid.Types.Specs
 import Language.Haskell.Liquid.Constraint.Env 
 import Language.Haskell.Liquid.Constraint.Generate 
 import Language.Haskell.Liquid.Constraint.Types 
+import Language.Haskell.Liquid.Constraint.Fresh (trueTy) 
 import Language.Haskell.Liquid.Constraint.ToFixpoint
 import Language.Haskell.Liquid.Synthesize.Monad
 import Language.Haskell.Liquid.Synthesize.GHC
@@ -47,14 +48,21 @@ hasType t !e' = do
 
 -- Returns true if the expression is well-typed.
 isWellTyped :: CoreExpr -> SM Bool
-isWellTyped e' = do 
+isWellTyped e =  do 
+  t <- liftCG $ trueTy $ exprType e 
+  hasType t e 
+  
+{-  
+  do 
   x  <- freshVarType (exprType e')
   st <- get 
   r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e Nothing 
   -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
-  return r 
+  return $ F.tracepp ("IsWellTyped " ++ showpp e) r 
  where e = tx e'
-  
+ -} 
+
+ 
 {-
 tx turns 
 let x1 = 
