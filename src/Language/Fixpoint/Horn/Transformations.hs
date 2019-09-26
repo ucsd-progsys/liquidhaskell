@@ -20,7 +20,7 @@ import qualified Language.Fixpoint.Types.Config as F
 import           Language.Fixpoint.Graph      as FG
 import qualified Data.HashMap.Strict          as M
 import           Data.String                  (IsString (..))
-import           Data.Either                  (partitionEithers)
+import           Data.Either                  (partitionEithers, rights)
 import           Data.List                    (nub)
 import qualified Data.Set                     as S
 import qualified Data.HashSet                 as HS
@@ -180,7 +180,7 @@ piDefConstr k c = fromJust 2 $ go c
     go (All (Bind n _ (Var k' xs)) c')
       | k == k' = Just ((n, S.toList $ S.fromList xs `S.difference` S.singleton n), c')
       | otherwise = go c'
-    go (All _ c') = go c'
+    go (All b c') = fmap (fmap (All b)) go c'
     go _ = Nothing
 
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
@@ -947,25 +947,28 @@ elim1 c k = simplify $ doelim k sol c
 -- >>> sc
 -- (forall ((x ... (and (forall ((y ... (forall ((v ... ((k0 v)))) (forall ((z ...
 
--- scope prunes out branches that don't have k
--- and removes assumptions that appear over every instance of k in guard position
+-- scope is lca
 scope :: F.Symbol -> Cstr a -> Cstr a
-scope k cstr = go $ either (Head (Reft F.PTrue)) id (prune k cstr)
+scope k cstr = case go cstr of
+                 Right c -> c
+                 Left l -> Head (Reft F.PTrue) l
   where
-    go (All _ c') = c'
-    go c = c
+    go c@(Head (Var k' _) _)
+       | k' == k              = Right c
+    go   (Head _ l)           = Left l
+    go c@(All (Bind _ _ (Var k' _)) _)
+       | k' == k              = Right c
+    go   (All _ c)            = go c
+    go   Any{}                = error "any should no appear after poke"
 
-prune :: F.Symbol -> Cstr a -> Either a (Cstr a)
-prune k c@(CAnd cs) = if null cs' then Left $ cLabel c else Right $ CAnd cs'
-  where cs' = [c | Right c <- prune k <$> cs]
-prune k c@(Head (Var k' _) l)
-  | k == k' = Right c
-  | otherwise = Left l
-prune _ (Head _ l) = Left l
-prune k (All b c) = do
-  c' <- prune k c
-  pure (All b c')
-prune _ Any{} = error "existential binders should not be around during kvar elim"
+    -- if kvar doesn't appear, then just return the left
+    -- if kvar appears in one child, that is the lca
+    -- but if kvar appear in multiple chlidren, this is the lca
+    go c@(CAnd cs) = case rights (go <$> cs) of
+                       [] -> Left $ cLabel c
+                       [c] -> Right c
+                       _ -> Right c
+
 
 -- | A solution is a Hyp of binders (including one anonymous binder
 -- that I've singled out here).
