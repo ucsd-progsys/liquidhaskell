@@ -58,7 +58,7 @@ genTerms specTy =
       finalEMem <- withDepthFill 0 initEMem funTyCands
       let result = takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
       notWellTyped <- filterM (composeM isWellTyped not) result
-      trace ("\n[ Well-typed expressions ] " ++ show notWellTyped ++ "\n expressions " ++ show (map (\e -> show (fst $ fromAnf e [])) result)) $
+      trace ("\n[ Not well-typed expressions ] " ++ show notWellTyped ++ "\n well-typed expressions " ++ show (map (\e -> show (fst $ fromAnf e [])) result)) $
         return result
 
 instantiate :: CoreExpr -> Type -> CoreExpr
