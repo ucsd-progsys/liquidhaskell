@@ -431,6 +431,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl
   , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
   , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
   , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
+  , gsWiredReft  = wReflects
   }
   where
     wReflects    = Bare.wiredReflects cfg env name sig
@@ -916,7 +917,7 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
     xbs           = toBare <$> reflTySigs 
     sigVars       = S.difference defVars reflVars
     defVars       = S.fromList (giDefVars src)
-    reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl]
+    reflTySigs    = [(x, t) | (x,t,_) <- gsHAxioms refl, x `notElem` gsWiredReft refl]
     reflVars      = S.fromList (fst <$> reflTySigs)
     -- myAliases fld = M.elems . fld $ myRTE 
     srcF          = giTarget src 
