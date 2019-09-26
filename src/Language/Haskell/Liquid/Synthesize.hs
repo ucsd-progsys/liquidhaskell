@@ -78,7 +78,7 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
 
       let senv1 = initSSEnv cginfo M.empty
           senv2 = M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv1
-      fills <- synthesize' tgt ctx fcfg cgi cge env senv2 x t state0
+      fills <- synthesize' tgt ctx fcfg cgi cge env senv2 x t topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -86,8 +86,9 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
           else mempty) mempty (symbol x) t 
 
 
-synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType -> SState -> IO [CoreExpr]
-synthesize' tgt ctx fcfg cgi cge renv senv x tx st2 = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
+synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
+synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
+ = evalSM (addEnv xtop ttop >> go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
     go :: SpecType -> SM [CoreExpr]
