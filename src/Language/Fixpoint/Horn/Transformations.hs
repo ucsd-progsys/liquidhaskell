@@ -31,10 +31,19 @@ import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 
--- import Debug.Trace
--- traceShowId = id
-trace :: a -> b -> b
-trace _msg v = v
+import System.IO (hFlush, stdout)
+import qualified Debug.Trace as DBG
+trace _msg v = DBG.trace _msg v
+-- trace _msg v = v
+
+printPiSols piSols =
+  sequence_ $ ((\(piVar, ((_, args), cstr)) -> do
+                  putStr $ F.showpp piVar
+                  putStr " := "
+                  putStrLn $ F.showpp args
+                  putStrLn $ F.showpp cstr
+                  putStr "\n"
+                  hFlush stdout) <$> M.toList piSols)
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -133,28 +142,25 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
   whenLoud $ putStrLn $ F.showpp (horn, side)
 
   let pivars = boundKvars poked `S.difference` kvars
-  let piSols = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn)) (S.toList pivars)
-  whenLoud $ putStrLn "pi defining constraints:"
-  whenLoud $ putStrLn $ F.showpp piSols
 
   let cuts = calculateCuts cfg query (forgetPiVars pivars horn)
   let acyclicKs = kvars `S.difference` cuts
-  whenLoud $ putStrLn "kvars (cuts, acyclic, all):"
-  whenLoud $ print $ (cuts, acyclicKs, kvars)
 
-  let (horn', side', piSols') = elimKs' (S.toList acyclicKs) (horn, side, piSols)
+  let (horn', side') = elimKs' (S.toList acyclicKs) (horn, side)
   whenLoud $ putStrLn "solved acyclic kvars:"
   whenLoud $ putStrLn $ F.showpp horn'
   whenLoud $ putStrLn $ F.showpp side'
-  whenLoud $ putStrLn $ F.showpp piSols'
 
   -- if not $ S.null cuts then error $ F.showpp $ S.toList cuts else pure ()
   let elimCutK k c = doelim k [] c
   horn' <- pure $ foldr elimCutK horn' cuts
   side' <- pure $ foldr elimCutK side' cuts
-  piSols' <- pure $ fmap (fmap (flip (foldr elimCutK) cuts)) piSols'
 
-  let solvedPiCstrs = solPis (S.fromList $ M.keys cons ++ M.keys dist) piSols'
+  let piSols = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn')) (S.toList pivars)
+  whenLoud $ putStrLn "pi defining constraints:"
+  whenLoud $ printPiSols piSols
+
+  let solvedPiCstrs = solPis (S.fromList $ M.keys cons ++ M.keys dist) piSols
   whenLoud $ putStrLn "solved pis:"
   whenLoud $ putStrLn $ F.showpp solvedPiCstrs
 
@@ -171,17 +177,20 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
 -- | Collects the defining constraint for π AKA c in forall n.π => c
 -- additionally collects the variable name n
 piDefConstr :: F.Symbol -> Cstr a -> ((F.Symbol, [F.Symbol]), Cstr a)
-piDefConstr k c = fromJust 2 $ go c
+piDefConstr k c = ((head ns, head formals), CAnd cs)
   where
-    go (CAnd cs) =
-      case mapMaybe go cs of
-        [c'] -> Just c'
-        _ -> Nothing
+    foo@(ns, formals, cs) = go c
+
+    go :: Cstr a -> ([F.Symbol], [[F.Symbol]], [Cstr a])
+    go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, concat cs)) $ unzip3 $ go <$> cs
     go (All (Bind n _ (Var k' xs)) c')
-      | k == k' = Just ((n, S.toList $ S.fromList xs `S.difference` S.singleton n), c')
+      | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], [c'])
       | otherwise = go c'
-    go (All b c') = fmap (fmap (All b)) go c'
-    go _ = Nothing
+    go (All b c') = fmap (fmap (All b)) (go c')
+    go _ = ([], [], [])
+
+instance Functor ((,,) a b) where
+    fmap f (a,b,c) = (a,b,f c)
 
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
 solPis measures piSols = go (M.toList piSols) piSols
@@ -191,14 +200,14 @@ solPis measures piSols = go (M.toList piSols) piSols
     go [] _ = mempty
 
 solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
-solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp reachableN <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
+solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> {- F.showpp reachableN <> "\n" <> -} F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
   where
     rewritten = rewriteWithEqualities measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) c
     edges = eqEdges args mempty equalities
     (eGraph, vf, lookupVertex) = DG.graphFromEdges edges
     -- reachableN = nub $ filter (/= F.EVar n) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)]
-    reachableN = vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)
+    -- reachableN = vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)
 
     go :: S.Set F.Symbol -> Cstr a -> ([(F.Symbol, F.Expr)], S.Set F.Symbol)
     go visited (Head p _) = (collectEqualities p, visited)
@@ -626,16 +635,13 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 
 -- TODO: make this elimKs and update tests for elimKs
 -- | Takes noside, side, piSols and solves a set of kvars in them
-elimKs' :: [F.Symbol]
-        -> (Cstr a, Cstr a, M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a))
-        -> (Cstr a, Cstr a, M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a))
+elimKs' :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimKs' [] cstrs = cstrs
-elimKs' (k:ks) (noside, side, piSols) = elimKs' (trace (F.showpp k ++ F.showpp sol) ks) (noside', side', piSols')
+elimKs' (k:ks) (noside, side) = elimKs' (trace ("solved kvar " <> F.showpp k <> ":\n" <> F.showpp sol) ks) (noside', side')
   where
-    sol = sol1 k (scope k noside)
+    sol = sol1 k $ scope k noside
     noside' = simplify $ doelim k sol noside
     side' = simplify $ doelim k sol side
-    piSols' = (second $ simplify . (doelim k sol)) <$> piSols
 
 -- doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
 -- doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
@@ -1009,8 +1015,8 @@ kargs k = fromString . (("κarg$" ++ F.symbolString k ++ "#") ++) . show <$> [1.
 -- (forall ((v bool) (v)) (forall ((z int) (donkey)) ((z == x))))
 
 doelim :: F.Symbol -> [([Bind], [F.Expr])] -> Cstr a -> Cstr a
-doelim k bp (CAnd cs)
-  = CAnd $ doelim k bp <$> cs
+doelim k bss (CAnd cs)
+  = CAnd $ doelim k bss <$> cs
 doelim k bss (All (Bind x t p) c) =
   case findKVarInGuard k p of
     Right _ -> All (Bind x t p) (doelim k bss c)
