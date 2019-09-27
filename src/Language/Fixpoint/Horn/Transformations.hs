@@ -183,9 +183,9 @@ piDefConstr k c = ((head ns, head formals), defC)
 
     go :: Cstr a -> ([F.Symbol], [[F.Symbol]], Maybe (Cstr a))
     go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, cAndMaybes cs)) $ unzip3 $ go <$> cs
-    go (All (Bind n _ (Var k' xs)) c')
+    go (All b@(Bind n _ (Var k' xs)) c')
       | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], Just c')
-      | otherwise = go c'
+      | otherwise = fmap (fmap (All b)) (go c')
     go (All b c') = fmap (fmap (All b)) (go c')
     go _ = ([], [], Nothing)
 
