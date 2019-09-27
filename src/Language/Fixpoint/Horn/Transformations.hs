@@ -177,20 +177,25 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
 -- | Collects the defining constraint for π AKA c in forall n.π => c
 -- additionally collects the variable name n
 piDefConstr :: F.Symbol -> Cstr a -> ((F.Symbol, [F.Symbol]), Cstr a)
-piDefConstr k c = ((head ns, head formals), CAnd cs)
+piDefConstr k c = ((head ns, head formals), defC)
   where
-    foo@(ns, formals, cs) = go c
+    (ns, formals, Just defC) = go c
 
-    go :: Cstr a -> ([F.Symbol], [[F.Symbol]], [Cstr a])
-    go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, concat cs)) $ unzip3 $ go <$> cs
+    go :: Cstr a -> ([F.Symbol], [[F.Symbol]], Maybe (Cstr a))
+    go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, cAndMaybes cs)) $ unzip3 $ go <$> cs
     go (All (Bind n _ (Var k' xs)) c')
-      | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], [c'])
+      | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], Just c')
       | otherwise = go c'
     go (All b c') = fmap (fmap (All b)) (go c')
-    go _ = ([], [], [])
+    go _ = ([], [], Nothing)
+
+    cAndMaybes :: [Maybe (Cstr a)] -> Maybe (Cstr a)
+    cAndMaybes maybeCs = case catMaybes maybeCs of
+      [] -> Nothing
+      cs -> Just $ CAnd cs
 
 instance Functor ((,,) a b) where
-    fmap f (a,b,c) = (a,b,f c)
+    fmap f (a, b, c) = (a, b, f c)
 
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
 solPis measures piSols = go (M.toList piSols) piSols
