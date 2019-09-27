@@ -83,18 +83,19 @@ makeAssumeType
 makeAssumeType tce lmap dm x mbT v def
   = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts (F.subst su le) out)
   where
-    t     = Mb.fromMaybe (ofType $ Ghc.varType v) mbT
+    t     = Mb.fromMaybe (ofType τ) mbT
+    τ     = Ghc.varType v
     at    = axiomType x t
     out   = rTypeSort tce $ ares at 
     xArgs = (F.EVar . fst) <$> aargs at
     _msg  = unwords [showpp x, showpp mbT]
-    le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic def') of
+    le    = case runToLogicWithBoolBinds bbs tce lmap dm mkErr (coreToLogic  def') of
               Right e -> e
               Left  e -> panic Nothing (show e)
     ref        = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text s)
     bbs        = filter isBoolBind xs
-    (xs, def') = grabBody (normalize def)
+    (xs, def') = grabBody τ $ normalize def
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
@@ -102,10 +103,26 @@ makeAssumeType tce lmap dm x mbT v def
 rTypeSortExp :: F.TCEmb Ghc.TyCon -> SpecType -> F.Sort
 rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
 
-grabBody :: Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
-grabBody (Ghc.Lam x e)  = (x:xs, e') where (xs, e') = grabBody e
-grabBody (Ghc.Tick _ e) = grabBody e
-grabBody e              = ([], e)
+grabBody :: Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
+grabBody (Ghc.ForAllTy _ t) e 
+  = grabBody t e 
+grabBody (Ghc.FunTy _ t) (Ghc.Lam x e) 
+  = (x:xs, e') where (xs, e') = grabBody t e
+grabBody t (Ghc.Tick _ e) 
+  = grabBody t e
+grabBody t@(Ghc.FunTy _ _) e               
+  = (txs++xs, e') 
+   where (ts,tr)  = splitFun t 
+         (xs, e') = grabBody tr (foldl Ghc.App e (Ghc.Var <$> txs))
+         txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [1..]]
+grabBody _ e              
+  = ([], e)
+
+splitFun :: Ghc.Type -> ([Ghc.Type], Ghc.Type)
+splitFun = go [] 
+  where go acc (Ghc.FunTy tx t) = go (tx:acc) t 
+        go acc t                = (reverse acc, t)
+
 
 isBoolBind :: Ghc.Var -> Bool
 isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType ()))
