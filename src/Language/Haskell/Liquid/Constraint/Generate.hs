@@ -1511,7 +1511,7 @@ isType a                        = eqType (exprType a) predType
 
 -- | @isGeneric@ determines whether the @RTyVar@ CAN and SHOULD be instantiated in a refined manner.
 isGeneric :: CGEnv -> RTyVar -> SpecType -> Bool
-isGeneric γ α t = isGenericVar α t && not (isPLETerm γ)
+isGeneric γ α t = not (reflection $ getConfig γ) && not (isPLETerm γ) && isGenericVar α t  
 
 -- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
 isPLETerm :: CGEnv -> Bool  
