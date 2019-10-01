@@ -44,7 +44,7 @@ nnf' (And p q) = Or  (nnf (Not p)) (nnf (Not q))   -- PLE-DIVERGES
 
 -- ODDLY, you need BOTH the PLE-DIVERGES cases to tickle the divergence...
 
-{-@ thm :: s:[Bool] -> p:Pred -> { eval s p = eval s (nnf p) } @-}
+{-@ assume thm :: s:[Bool] -> p:Pred -> { eval s p = eval s (nnf p) } @-}
 thm :: [Bool] -> Pred -> Bool
 thm s (Var i)         = True
 -- thm s (And p q)       = thm s p && thm s q

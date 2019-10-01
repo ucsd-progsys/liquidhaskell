@@ -87,6 +87,8 @@ data Config = Config
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   , proofLogicEvalLocal  :: Bool   -- ^ Enable proof-by-logical-evaluation locally, per function
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
+  , unsafePolymorphism   :: Bool   -- ^ Polymorphic instantiation when "reflection" in on; 
+                                   -- ^ this makes natural deductive reasoning unsound
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  
   , typedHoles      :: Bool        -- ^ Warn about "typed-holes"

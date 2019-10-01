@@ -85,7 +85,7 @@ lemma_app_assoc2 (Cons x xs) ys zs
 
 {-@ foo :: forall a b <pa :: a -> Bool, pb :: b -> Bool>. a<pa> -> b<pb> -> a<pa> @-}
 foo :: a -> b -> a 
-foo = undefined
+foo x _ = x
 
 infixl 3 ???
 

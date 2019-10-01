@@ -261,6 +261,16 @@ liquid annotation
 {-@ automatic-instances theorem @-}
 ```
 
+
+The option
+
+```haskell
+    {-@ LIQUID "--unsafe-polymorphism" @-}
+```
+is only for backwards compatibility and should not be used. 
+The standard type variable instantiation makes theorem proving (i.e., natural deduction rules) unsound so it is by default deactivated under the reflection flag. 
+`unsafePolymorphism` activated the standard type instantiation rule for backwards compatibility but can lead to unsoundness. 
+
 Incremental Checking
 --------------------
 

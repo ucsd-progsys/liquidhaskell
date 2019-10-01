@@ -3,6 +3,7 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--unsafe-polymorphism" @-}
 
 {-# LANGUAGE GADTs #-}
 
@@ -254,6 +255,6 @@ eval_safe (EBin o e1 e2) t (E_Bin _ _ _ et1 et2)
 {-@ measure prop :: a -> b           @-}
 {-@ type Prop E = {v:_ | prop v = E} @-}
 
-{-@ trivial :: {v:a | false} -> b @-}
+{-@ trivial :: {v:a | false} -> {v:b | false } @-}
 trivial :: a -> b
 trivial x = trivial x  

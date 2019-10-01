@@ -338,6 +338,13 @@ config = cmdArgsMode $ Config {
         &= help "Enable reflection of Haskell functions and theorem proving" 
         &= name "reflection"
 
+
+
+  , unsafePolymorphism 
+    = def 
+        &= help "Polymorphic instantations on type variable when reflection is on"
+        &= name "unsafe-polymorphism"
+
   , compileSpec 
     = def 
         &= name "compile-spec"
@@ -579,6 +586,7 @@ defConfig = Config
   , proofLogicEval    = False
   , proofLogicEvalLocal = False
   , reflection        = False
+  , unsafePolymorphism = False 
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False
