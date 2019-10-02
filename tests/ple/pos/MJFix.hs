@@ -90,7 +90,7 @@ replace (LLet x e1 e2) s = let
     replace e2 newS
 
 -- Bug also goes away if the below liquid line is commented out.
-{-@ lem_inlyne :: l:_ -> s:_ -> { lval l s = aval (inlyne l) s } @-}
+{-@ assume lem_inlyne :: l:_ -> s:_ -> { lval l s = aval (inlyne l) s } @-}
 lem_inlyne :: LExp -> State -> Proof
 lem_inlyne = undefined -- impossible "TODO"
 

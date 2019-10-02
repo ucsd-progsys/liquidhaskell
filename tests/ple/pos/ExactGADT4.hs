@@ -2,6 +2,7 @@
 {-@ LIQUID "--ple"            @-} 
 {-@ LIQUID "--no-adt" 	      @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--unsafe-polymorphism" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

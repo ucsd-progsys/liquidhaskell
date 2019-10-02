@@ -135,7 +135,7 @@ thmSplitAppend (x:xs) i = thmSplitAppend xs (i - 1)
 
 -- type SuffixAt a I Xs = {v:[a] | v = drop I Xs && len v > 0} 
 
-{-@ thmDrop :: xs:[a] -> i:Nat -> ys:SuffixAt _ i xs -> { drop (i+1) xs == tail ys } @-}
+{-@ assume thmDrop :: xs:[a] -> i:Nat -> ys:SuffixAt _ i xs -> { drop (i+1) xs == tail ys } @-}
 thmDrop (x:xs) 0 ys = () 
 thmDrop _      _ _  = undefined
 -- thmDrop []     i ys = thmSuffixAt [] i ys 
