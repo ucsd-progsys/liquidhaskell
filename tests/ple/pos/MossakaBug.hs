@@ -21,7 +21,7 @@ nnf (Not (And p q)) = Or (nnf $ Not p) (nnf $ Not q)
 nnf (Not (Or p q)) = And (nnf $ Not p) (nnf $ Not q)
 nnf (Not (Var v)) = Not (Var v)
 
-{-@ lem_nnf :: s:_ -> p:_ -> { pval p s = pval (nnf p) s } @-}
+{-@ assume lem_nnf :: s:_ -> p:_ -> { pval p s = pval (nnf p) s } @-}
 lem_nnf :: BState -> Pred -> () 
 lem_nnf s (Var v) = pval (nnf (Var v)) s 
 		`seq` pval (Var v) s

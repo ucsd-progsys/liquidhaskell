@@ -2,6 +2,7 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--unsafe-polymorphism" @-}
 {-@ infixr ++             @-}
 
 {-# LANGUAGE GADTs #-}
