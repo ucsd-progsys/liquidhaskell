@@ -2,6 +2,7 @@
 {-@ LIQUID "--reflection"      @-}
 {-@ LIQUID "--no-termination"  @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--unsafe-polymorphism" @-}
 
 module Query where
 
