@@ -7,6 +7,7 @@
 
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--pruneunsorted"   @-}
+{-@ LIQUID "--unsafe-polymorphism" @-}
 
 module Solver where
 

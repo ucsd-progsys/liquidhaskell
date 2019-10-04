@@ -1,5 +1,7 @@
 {-@ LIQUID "--reflection" @-} 
 {-@ LIQUID "--ple"        @-} 
+{-@ LIQUID "--unsafe-polymorphism" @-}
+
 
 module Lists where
 

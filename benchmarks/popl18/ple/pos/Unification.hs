@@ -7,6 +7,7 @@
 
 {-@ LIQUID "--reflection"      @-}
 {-@ LIQUID "--ple-local" @-}
+{-@ LIQUID "--unsafe-polymorphism" @-}
 
 module Unify where
 

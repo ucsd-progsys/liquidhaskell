@@ -42,9 +42,6 @@ thm_mirror_contents (Node l a r)
    *** ()
 
 
-{}
-todo = todo 
-
 infixl 3 ===
 {-@ (===) :: x:a -> y:{a | y == x} -> {v:a | v == x && v == y} @-}
 (===) :: a -> a -> a
