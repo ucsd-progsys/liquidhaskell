@@ -26,9 +26,10 @@ compareRType i1 i2 = res && unify vs
 
     (res, vs) = runWriter (go i1 i2)
     go :: SpecType -> SpecType -> Writer [(RTyVar, RTyVar)] Bool  
-    go (RAllT x1 t1) (RAllT x2 t2)
+    go (RAllT x1 t1 r1) (RAllT x2 t2 r2)
       | RTV v1 <- ty_var_value x1
       , RTV v2 <- ty_var_value x2 
+      , r1 =*= r2
       = go t1 (subt (v2, Ghc.mkTyVarTy v1) t2) 
 
     go (RVar v1 r1) (RVar v2 r2) 

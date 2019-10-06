@@ -101,7 +101,7 @@ measureSpecType v = go mkT [] [1..] t
     t               = ofType (GM.expandVarType v) :: SpecType
     boolRes         =  isBool $ ty_res $ toRTypeRep t 
 
-    go f args i (RAllT a t)      = RAllT a $ go f args i t
+    go f args i (RAllT a t r)    = RAllT a (go f args i t) r 
     go f args i (RAllP p t)      = RAllP p $ go f args i t
     go f args i (RFun x t1 t2 r)
      | isClassType t1           = RFun x t1 (go f args i t2) r

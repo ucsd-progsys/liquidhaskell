@@ -490,7 +490,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = SpSig
     asmSigs    = Bare.tcSelVars tycEnv 
               ++ makeAsmSigs env sigEnv name specs 
               ++ [ (x,t) | (_, x, t) <- concat $ map snd (Bare.meCLaws measEnv)]
-    tySigs     = strengthenSigs . concat $
+    tySigs     = strengthenSigs . concat $ 
                   [ [(v, (0, t)) | (v, t,_) <- mySigs                         ]   -- NOTE: these weights are to priortize 
                   , [(v, (1, t)) | (v, t  ) <- makeMthSigs measEnv            ]   -- user defined sigs OVER auto-generated 
                   , [(v, (2, t)) | (v, t  ) <- makeInlSigs env rtEnv allSpecs ]   -- during the strengthening, i.e. to KEEP 

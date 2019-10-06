@@ -273,7 +273,7 @@ mapArgumens lc t1 t2 = go xts1' xts2'
 -- should constructors have implicits? probably not
 defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f dc mt xs body)
-                    = generalize $ mkArrow as [] [] [] xts t'
+                    = generalize $ mkArrow as' [] [] [] xts t'
   where
     xts             = notracepp ("STITCHARGS" ++ showpp (dc, xs, ts)) 
                     $ stitchArgs (fSrcSpan f) dc xs ts 
@@ -281,6 +281,7 @@ defRefType tdc (Def f dc mt xs body)
     t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
     as              = if Mb.isJust mt then [] else makeRTVar . rTyVar <$> αs
+    as'             = zip as (repeat mempty)
 
 splitType :: Type -> ([TyVar],[Type], Type)
 splitType t  = (αs, ts, tr)

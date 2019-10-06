@@ -86,8 +86,8 @@ instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRT
 -----------------------------------------------------------------------------------------------
 trueRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-trueRefType (RAllT α t)
-  = RAllT α <$> true t
+trueRefType (RAllT α t r)
+  = RAllT α <$> true t <*> true r 
 
 trueRefType (RAllP π t)
   = RAllP π <$> true t
@@ -140,8 +140,8 @@ trueRef (RProp s t) = RProp s <$> trueRefType t
 -----------------------------------------------------------------------------------------------
 refreshRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-refreshRefType (RAllT α t)
-  = RAllT α <$> refresh t
+refreshRefType (RAllT α t r)
+  = RAllT α <$> refresh t <*> refresh r
 
 refreshRefType (RAllP π t)
   = RAllP π <$> refresh t
@@ -199,8 +199,8 @@ type FreshM m = Freshable m Integer
 --------------------------------------------------------------------------------
 refreshVV :: FreshM m => SpecType -> m SpecType
 --------------------------------------------------------------------------------
-refreshVV (RAllT a t) = 
-  RAllT a <$> refreshVV t
+refreshVV (RAllT a t r) = 
+  RAllT a <$> refreshVV t <*> return r 
 
 refreshVV (RAllP p t) = 
   RAllP p <$> refreshVV t

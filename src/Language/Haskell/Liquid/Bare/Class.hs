@@ -66,8 +66,8 @@ addCC :: Ghc.Var -> LocSpecType -> LocSpecType
 addCC x t = t{val = go (ofType $ Ghc.varType x) (val t)} 
   where
     go :: SpecType -> SpecType -> SpecType
-    go (RAllT (RTVar a1 _) t1) (RAllT a2 t2) = RAllT a2 (go (subsTyVar_meet' (a1,RVar a1 mempty) t1) t2)
-    go (RFun x1 t11 t12 r) t | isClassType t11 = (RFun x1 t11 (go t12 t) r) 
+    go (RAllT (RTVar a1 _) t1 _) (RAllT a2 t2 r) = RAllT a2 (go (subsTyVar_meet' (a1,RVar a1 mempty) t1) t2) r
+    go (RFun x1 t11 t12 r) t | isClassType t11   = (RFun x1 t11 (go t12 t) r) 
     go _ t = t 
 
 splitDictionary :: Ghc.CoreExpr -> Maybe (Ghc.Var, [Ghc.Type], [Ghc.Var])

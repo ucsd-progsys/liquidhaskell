@@ -73,12 +73,12 @@ unify mkError c li t1 t2
     esubst1 = zip  (fst <$> args1) ((F.EVar . fst) <$> args2)
 
     tsubst = reverse $ zip ((\(RTV v) -> v) <$> (findTyVars tc1 ++ (ty_var_value <$> concat argVars)))
-                 (toType <$> (argBds ++ (((`RVar` mempty) . ty_var_value) <$>ty_vars trep2)))
+                 (toType <$> (argBds ++ (((`RVar` mempty) . ty_var_value) <$> (fst <$> ty_vars trep2))))
 
     (argVars, argBds) = unzip (splitForall [] . val <$> lilTyArgs li)
 
-    splitForall vs (RAllT v t) = splitForall (v:vs) t 
-    splitForall vs  t           = (vs, t) 
+    splitForall vs (RAllT v t _) = splitForall (v:vs) t 
+    splitForall vs  t            = (vs, t) 
 
     findTyVars (((_x, RApp cc as _ _):_ts)) | rtc_tc cc == classTyCon c 
       = [v | RVar v _ <- as ]

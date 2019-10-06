@@ -367,7 +367,7 @@ checkMismatch (x, t) = if ok then Nothing else Just err
     t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = F.notracepp msg (lqT == hsT)
+tyCompat x t         = lqT == hsT
   where
     lqT :: RSort     = toRSort t
     hsT :: RSort     = ofType (varType x)
@@ -407,7 +407,7 @@ tyToBind emb = go . ty_var_info
 checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go
   where
-    go (RAllT _ t)      = go t
+    go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
     go (RAllS _ t)      = go t
     go (RApp rtc ts _ _)
@@ -461,7 +461,7 @@ checkAbstractRefs t = go t
   where
     penv = mkPEnv t
 
-    go (RAllT _ t)        = go t
+    go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
     go (RAllS _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
@@ -509,9 +509,9 @@ checkAbstractRefs t = go t
                  | otherwise
                  = Nothing
 
-    mkPEnv (RAllT _ t) = mkPEnv t
-    mkPEnv (RAllP p t) = p:mkPEnv t
-    mkPEnv _           = []
+    mkPEnv (RAllT _ t _) = mkPEnv t
+    mkPEnv (RAllP p t)   = p:mkPEnv t
+    mkPEnv _             = []
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
 
 

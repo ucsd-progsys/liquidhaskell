@@ -564,8 +564,8 @@ varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of
                                 _        -> Bivariant
 
 getPsSig :: [(UsedPVar, a)] -> Bool -> SpecType -> [(a, Bool)]
-getPsSig m pos (RAllT _ t)
-  = getPsSig m pos t
+getPsSig m pos (RAllT _ t r)
+  = addps m pos r ++  getPsSig m pos t
 getPsSig m pos (RApp _ ts rs r)
   = addps m pos r ++ concatMap (getPsSig m pos) ts
     ++ concatMap (getPsSigPs m pos) rs
@@ -672,7 +672,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (makeRTVar <$> dcpFreeTyVars dcp) [] (dcpFreeLabels dcp)
+      ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) [] (dcpFreeLabels dcp)
                                  [] [(z, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct

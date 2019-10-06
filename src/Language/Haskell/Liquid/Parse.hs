@@ -565,8 +565,9 @@ bareAllP = do
   t <- bareTypeP
   case vs of
     Left ss  -> return $ foldr RAllS t ss
-    Right ps -> return $ foldr RAllT (foldr RAllP t ps) (makeRTVar <$> as)
+    Right ps -> return $ foldr rAllT (foldr RAllP t ps) (makeRTVar <$> as)
   where
+    rAllT a t = RAllT a t mempty
     inAngles =
       (
        (try  (Right <$> sepBy  predVarDefP comma))
@@ -1399,7 +1400,7 @@ tyBodyP ty
       Just bt | isPropBareType bt
                 -> P <$> predP
       _         -> E <$> exprP
-    where outTy (RAllT _ t)    = outTy t
+    where outTy (RAllT _ t _)  = outTy t
           outTy (RAllP _ t)    = outTy t
           outTy (RImpF _ _ t _)= Just t
           outTy (RFun _ _ t _) = Just t
@@ -1534,7 +1535,7 @@ adtDataConP as = do
   return $ DataCtor x (tRepVars as tr) [] (tRepFields tr) (Just $ ty_res tr)
 
 tRepVars :: Symbolic a => [Symbol] -> RTypeRep c a r -> [Symbol]
-tRepVars as tr = case ty_vars tr of 
+tRepVars as tr = case fst <$> ty_vars tr of 
   [] -> as 
   vs -> symbol . ty_var_value <$> vs 
 
