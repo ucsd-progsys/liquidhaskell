@@ -833,7 +833,9 @@ consE γ e
 -- reflected functions inside proofs.
 consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
+       t          <- {- PLE-OPT -} if rtv_is_pol (ty_var_info α) 
+                                       && isGeneric γ (ty_var_value α) te 
+                                       && not (isPLETerm γ) 
                                      then freshTy_type TypeInstE e τ 
                                      else trueTy τ
        addW        $ WfC γ t
@@ -854,7 +856,7 @@ consE _ (Lit c)
 
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- if isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t          <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW        $ WfC γ t
        t'         <- refreshVV t
        tt0        <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)

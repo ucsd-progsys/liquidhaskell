@@ -82,6 +82,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , isBaseTy
   , updateRTVar, isValKind, kindToRType
   , rTVarInfo
+  
+  , tyVarsPosition, Positions(..)
 
   ) where
 
@@ -526,6 +528,7 @@ mkTVarInfo k2t a = RTVInfo
   { rtv_name   = symbol    $ varName a
   , rtv_kind   = k2t       $ tyVarKind a
   , rtv_is_val = isValKind $ tyVarKind a
+  , rtv_is_pol = True 
   }
 
 kindToRType :: Monoid r => Type -> RRType r
@@ -2016,3 +2019,37 @@ instance PPrint (RType c tv r) => Show (RType c tv r) where
 instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
+
+-------------------------------------------------------------------------------
+-- | tyVarsPosition t returns the type variables appearing 
+-- | (in positive positions, in negative positions, in undetermined positions)
+-- | undetermined positions are due to type constructors and type application
+-------------------------------------------------------------------------------
+tyVarsPosition :: RType c tv r -> Positions tv 
+tyVarsPosition = go (Just True)
+  where 
+    go p (RVar t _)        = report p t
+    go p (RFun _ t1 t2 _)  = go (flip p) t1 <> go p t2 
+    go p (RImpF _ t1 t2 _) = go (flip p) t1 <> go p t2 
+    go p (RAllT _ t)       = go p t 
+    go p (RAllP _ t)       = go p t 
+    go p (RAllS _ t)       = go p t 
+    go p (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
+    go p (RAllE _ t1 t2)   = go p t1 <> go p t2 
+    go p (REx _ t1 t2)     = go p t1 <> go p t2
+    go p (RExprArg _)      = mempty
+    go p (RAppTy t1 t2 _)  = go p t1 <> go p t2 
+    go p (RRTy _ _ _ t)    = go p t 
+    go p (RHole _)         = mempty
+
+    report Nothing v      = (Pos [] [] [v])
+    report (Just True) v  = (Pos [v] [] [])
+    report (Just False) v = (Pos [] [v] [])
+    flip = fmap not
+
+data Positions a = Pos {ppos :: [a], pneg ::  [a], punknown :: [a]}
+
+instance Monoid (Positions a) where 
+  mempty = Pos [] [] []
+instance Semigroup (Positions a) where 
+  (Pos x1 x2 x3) <> (Pos y1 y2 y3) = Pos (x1 ++ y1) (x2 ++ y2) (x3 ++ y3)
