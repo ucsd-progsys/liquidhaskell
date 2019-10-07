@@ -157,7 +157,7 @@ library
                       Paths_liquidhaskell
   hs-source-dirs:     src, include
   build-depends:      base                 >= 4.11.1.0 && < 5
-                    , Diff                 >= 0.3
+                    , Diff                 >= 0.3 && < 0.4
                     , aeson
                     , binary
                     , bytestring           >= 0.10
