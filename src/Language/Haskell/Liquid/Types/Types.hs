@@ -803,7 +803,9 @@ data RTVInfo s
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
             , rtv_is_val :: Bool
-            , rtv_is_pol :: Bool 
+            , rtv_is_pol :: Bool -- true iff the type variable gets instantiated with 
+                                 -- any refinement (ie is polymorphic on refinements), 
+                                 -- false iff instantiation is with true refinement 
             } deriving (Generic, Data, Typeable, Functor)
 
             
