@@ -97,7 +97,7 @@ initEnv info
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
-    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
+    addPolyInfo' = map (mapSnd addPolyInfo) -- if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
 
 addPolyInfo :: SpecType -> SpecType
 addPolyInfo t = mkUnivs (go <$> as) ps ls t' 
