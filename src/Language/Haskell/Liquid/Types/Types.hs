@@ -74,6 +74,7 @@ module Language.Haskell.Liquid.Types.Types (
   , RTVar (..), RTVInfo (..)
   , makeRTVar, mapTyVarValue
   , dropTyVarInfo, rTVarToBind
+  , setRtvPol
 
   -- * Predicate Variables
   , PVar (PV, pname, parg, ptype, pargs), isPropPV, pvType
@@ -781,7 +782,7 @@ dropImplicitsRP (RProp as b) = RProp (second dropImplicits <$> as) (dropImplicit
 
 
 makeRTVar :: tv -> RTVar tv s
-makeRTVar a = RTVar a RTVNoInfo
+makeRTVar a = RTVar a (RTVNoInfo True)
 
 instance (Eq tv) => Eq (RTVar tv s) where
   t1 == t2 = (ty_var_value t1) == (ty_var_value t2)
@@ -795,15 +796,19 @@ mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
 mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
 
 dropTyVarInfo :: RTVar tv s1 -> RTVar tv s2
-dropTyVarInfo v = v{ty_var_info = RTVNoInfo}
+dropTyVarInfo v = v{ty_var_info = RTVNoInfo True }
 
 data RTVInfo s
-  = RTVNoInfo
+  = RTVNoInfo { rtv_is_pol :: Bool }
   | RTVInfo { rtv_name   :: Symbol
             , rtv_kind   :: s
             , rtv_is_val :: Bool
+            , rtv_is_pol :: Bool 
             } deriving (Generic, Data, Typeable, Functor)
 
+            
+setRtvPol :: RTVar tv a -> Bool -> RTVar tv a 
+setRtvPol (RTVar a i) b = RTVar a (i{rtv_is_pol = b})
 
 rTVarToBind :: RTVar RTyVar s  -> Maybe (Symbol, s)
 rTVarToBind = go . ty_var_info
@@ -815,8 +820,8 @@ ty_var_is_val :: RTVar tv s -> Bool
 ty_var_is_val = rtvinfo_is_val . ty_var_info
 
 rtvinfo_is_val :: RTVInfo s -> Bool
-rtvinfo_is_val RTVNoInfo      = False
-rtvinfo_is_val (RTVInfo {..}) = rtv_is_val
+rtvinfo_is_val (RTVNoInfo {..}) = False
+rtvinfo_is_val (RTVInfo {..})   = rtv_is_val
 
 instance (B.Binary tv, B.Binary s) => B.Binary (RTVar tv s)
 instance (NFData tv, NFData s)     => NFData   (RTVar tv s)
