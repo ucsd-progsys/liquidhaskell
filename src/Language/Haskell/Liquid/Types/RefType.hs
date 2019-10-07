@@ -1281,6 +1281,29 @@ instance SubsTy tv ty Symbol where
 instance (SubsTy tv ty Expr) => SubsTy tv ty Reft where
   subt su (Reft (x, e)) = Reft (x, subt su e)
 
+instance SubsTy Symbol Symbol (BRType r) where
+  subt (x,y) (RVar v r)
+    | BTV x == v = RVar (BTV y) r 
+    | otherwise  = RVar v r 
+  subt (x, y) (RAllT (RTVar v i) t)
+    | BTV x == v = RAllT (RTVar v i) t
+    | otherwise  = RAllT (RTVar v i) (subt (x,y) t)
+  subt su (RFun x t1 t2 r)  = RFun x (subt su t1) (subt su t2) r 
+  subt su (RImpF x t1 t2 r) = RImpF x (subt su t1) (subt su t2) r
+  subt su (RAllP p t)       = RAllP p (subt su t)
+  subt su (RAllS p t)       = RAllS p (subt su t)
+  subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r 
+  subt su (RAllE x t1 t2)   = RAllE x (subt su t1) (subt su t2)
+  subt su (REx x t1 t2)     = REx x (subt su t1) (subt su t2)
+  subt _  (RExprArg e)      = RExprArg e 
+  subt su (RAppTy t1 t2 r)  = RAppTy (subt su t1) (subt su t2) r 
+  subt su (RRTy e r o t)    = RRTy [(x, subt su p) | (x,p) <- e] r o (subt su t)
+  subt _ (RHole r)          = RHole r 
+  
+instance SubsTy Symbol Symbol (RTProp BTyCon BTyVar r) where
+  subt su (RProp e t) =  RProp [(x, subt su xt) | (x,xt) <- e] (subt su t)
+
+
 
 instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
   subt su (ELam (x, s) e) = ELam (x, subt su s) $ subt su e
