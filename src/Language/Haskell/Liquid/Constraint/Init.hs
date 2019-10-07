@@ -104,7 +104,7 @@ addPolyInfo t = mkUnivs (go <$> as) ps ls t'
   where 
     (as, ps, ls, t') = bkUniv t 
     pos              = tyVarsPosition t' 
-    go a = if ty_var_value a `elem` ppos pos && ty_var_value a `notElem` pneg pos 
+    go a = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
              then setRtvPol a False  
              else a 
 
