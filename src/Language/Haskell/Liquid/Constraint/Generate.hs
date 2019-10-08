@@ -456,6 +456,9 @@ consCB _ _ γ (NonRec x _) | isDictionary x
        isDictionary = isJust . dlookup (denv γ)
 
 
+consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
+  = return γ 
+
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
