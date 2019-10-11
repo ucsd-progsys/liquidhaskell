@@ -15,7 +15,7 @@ import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.Termination
 import           Language.Haskell.Liquid.Synthesize.Generate
-import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
 import           Language.Haskell.Liquid.Synthesize.Check
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.Misc
@@ -46,12 +46,12 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
 import           Literal
+import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 
-notrace :: String -> a -> a 
-notrace _ a = a 
 
 -- containt GHC primitives
 -- JP: Should we get this from REnv instead?
+-- TODO: Get the constructors from REnv.
 initSSEnv :: CGInfo -> SSEnv -> SSEnv
 initSSEnv info senv = M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
   where
@@ -70,15 +70,15 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
 
     go (x, HoleInfo t loc env (cgi,cge)) = do 
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
-          -- We also need to generate its type for non-termination check.
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
-          (_, (xs, txs, _), to) = bkArrow t
+          coreProgram = giCbs $ giSrc $ ghcI cgi
+          ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env M.empty
 
-      let senv1 = initSSEnv cginfo M.empty
-          senv2 = M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv1
-      fills <- synthesize' tgt ctx fcfg cgi cge env senv2 x t topLvlBndr typeOfTopLvlBnd state0
+      let senv1 = initSSEnv cginfo ssenv0
+          -- senv2 = M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv1
+      fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x t topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -88,7 +88,7 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
 
 synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
 synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
- = evalSM (addEnv xtop ttop >> go tx) ctx tgt fcfg cgi cge renv senv st2
+ = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
     go :: SpecType -> SM [CoreExpr]
@@ -96,62 +96,56 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
     -- Type Abstraction 
     go (RAllT a t)       = GHC.Lam (tyVarVar a) <$$> go t
           
-    -- Special Treatment for synthesis of integers          
-    go t@(RApp c _ts _ r)  
-      | R.isNumeric (tyConEmbed cgi) c = 
-          do  let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
-              ctx <- sContext <$> get 
-              liftIO $ SMT.smtPush ctx
-              liftIO $ SMT.smtDecl ctx x s
-              liftIO $ SMT.smtCheckSat ctx rr 
-              -- Get model and parse the value of x
-              SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
-              
-              let xNotFound = error $ "Symbol " ++ show x ++ "not found."
-                  smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
+    go t@(RApp c _ts _ r) = do  
+      let coreProgram = giCbs $ giSrc $ ghcI cgi
+          args  = case argsP coreProgram xtop of { [] -> []; (_ : xs) -> xs }
+          (_, (xs, txs, _), _) = bkArrow ttop
+      addEnv xtop $ decrType xtop ttop args (zip xs txs)
+      if R.isNumeric (tyConEmbed cgi) c
+          -- Special Treatment for synthesis of integers          
+          then do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
+                  ctx <- sContext <$> get 
+                  liftIO $ SMT.smtPush ctx
+                  liftIO $ SMT.smtDecl ctx x s
+                  liftIO $ SMT.smtCheckSat ctx rr 
+                  -- Get model and parse the value of x
+                  SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
+                  
+                  let xNotFound = error $ "Symbol " ++ show x ++ "not found."
+                      smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
-              liftIO (SMT.smtPop ctx)
-              return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))]
-
+                  liftIO (SMT.smtPop ctx)
+                  return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))] -- TODO: TypeCheck 
+          else synthesizeBasic t
 
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
-              addEnv x $ decrType x tx ys (zip xs txs)
-              addEmem x $ decrType x tx ys (zip xs txs)
+              addEmem xtop $ decrType xtop ttop ys (zip xs txs)
+              addEnv xtop $ decrType xtop ttop ys (zip xs txs)
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
       where (_, (xs, txs, _), to) = bkArrow t 
 
-    
-
 synthesizeBasic :: SpecType -> SM [CoreExpr]
-synthesizeBasic t = {- trace ("[ synthesizeBasic ] goalType " ++ show t) $ -} do
+synthesizeBasic t = do
   let ht     = toType t
       tyvars = varsInType ht
   case tyvars of
     []  -> modify (\s -> s { sGoalTyVar = Nothing})
     [x] -> modify (\s -> s { sGoalTyVar = Just x })
-    _   -> error $ "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )."
+    _   -> error errorMsg
+      where errorMsg = "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )." 
   es <- genTerms t
-  filterElseM (hasType t) es $ trace (" ty-vars " ++ show tyvars) $ do
+  filterElseM (hasType t) es $ do
     senv <- getSEnv
     lenv <- getLocalEnv 
     es' <- synthesizeMatch lenv senv t
-    cgenv <- sCGEnv <$> get
     filterM (hasType t) es'
 
 
--- Panagiotis TODO: here I only explore the first one                     
---  We need the most recent one
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch lenv γ t 
-  -- | [] <- es 
-  -- = return def
-
-  -- | otherwise 
-  -- = maybe def id <$> monadicFirst 
-  = trace ("[synthesizeMatch] es = " ++ show es) $ 
+synthesizeMatch lenv γ t = trace ("[synthesizeMatch] es = " ++ show es) $ 
       join <$> mapM (withIncrDepth . matchOn t) (es <> ls)
 
   where 
@@ -162,17 +156,6 @@ synthesizeMatch lenv γ t
     
     symbolToVar :: Symbol -> Maybe Var
     symbolToVar _ = Nothing -- TODO: Actually implement me!!! Dependent on abstract symbols? XXX
-        
-        -- -- Return first nonempty result.
-        -- -- JP: probably want to keep going up to some limit of N results.
-        -- monadicFirst :: (a -> m (Maybe b)) -> [a] -> m (Maybe b)
-        -- monadicFirst _f [] = 
-        --     return Nothing
-        -- monadicFirst f (m:ms) = do
-        --     mb <- f m
-        --     case mb of
-        --         r@(Just _) -> return r
-        --         Nothing -> monadicFirst f ms
 
 
 matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]

@@ -2,6 +2,13 @@
 {-# LANGUAGE FlexibleInstances    #-}
 module Language.Haskell.Liquid.Synthesize.GHC where
 
+import CoreSyn (CoreExpr)
+import qualified CoreSyn as GHC
+import qualified Data.HashMap.Strict as M
+import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
+import qualified Language.Fixpoint.Types        as F 
+import qualified Language.Fixpoint.Types.Config as F
+import           Language.Haskell.Liquid.Types hiding (SVar)
 import Var 
 import TyCoRep
 import CoreSyn
@@ -18,6 +25,8 @@ import Data.Maybe (fromMaybe)
 import           Data.List 
 import Language.Haskell.Liquid.GHC.TypeRep
 import Language.Fixpoint.Types
+import Debug.Trace
+
 instance Default Type where
     def = TyVarTy alphaTyVar 
     
@@ -112,3 +121,70 @@ replaceBnds (App e1 e2) bnds  = App (replaceBnds e1 bnds) (replaceBnds e2 bnds)
 replaceBnds (Type t)    _     = Type t
 replaceBnds lit@Lit{}   _     = lit 
 replaceBnds e           _     = e
+
+------------------------------------------------------------------------------------------------
+-------------------------------------- Handle REnv ---------------------------------------------
+------------------------------------------------------------------------------------------------
+-- Duplicate from Monad due to dependencies between modules.
+type SSEnv = M.HashMap Symbol (SpecType, Var)
+
+--                                      | Current top-level binding |
+filterREnv :: M.HashMap Symbol SpecType -> Var -> M.HashMap Symbol SpecType
+filterREnv renv tlVar = 
+  let renv_lst  = M.toList renv
+      renv_lst' = filter (\(_, specT) -> 
+        let ht = toType specT
+        in  showTy ht /= "(RApp   GHC.Prim.Addr# )") renv_lst
+  in  M.fromList renv_lst'
+
+getTopLvlBndrs :: GHC.CoreProgram -> [Var]
+getTopLvlBndrs = 
+  map (\cb -> 
+    case cb of 
+      GHC.NonRec b _ -> b
+      GHC.Rec{} -> error $ " [ getTopLvlBndrs ] Rec "
+  )
+
+--                       | Current top-level binder |
+varsP :: GHC.CoreProgram -> Var -> [Var]
+varsP cp tlVar = 
+  case filter (\cb -> isInCB cb tlVar) cp of
+    [cb] -> varsCB cb 
+    _    -> error " Every top-level corebind must be unique! "
+
+isInCB :: GHC.CoreBind -> Var -> Bool
+isInCB (GHC.NonRec b e) tlVar = b == tlVar 
+isInCB (GHC.Rec {}) _ = error " [ isInCB ] Rec binder. "
+
+varsCB :: GHC.CoreBind -> [Var]
+varsCB (GHC.NonRec b e) = varsE e
+varsCB (GHC.Rec ls) = trace " [ symbolToVarCB ] Rec " []
+
+varsE :: GHC.CoreExpr -> [Var]
+varsE (GHC.Lam a e) = a : varsE e
+varsE (GHC.Let (GHC.NonRec b _) e) = b : varsE e
+varsE (GHC.Case eb b _ alts) = foldr (\(_, vars, e) res -> vars ++ (varsE e) ++ res) [b] alts
+varsE (GHC.Tick _ e) = varsE e
+varsE e = []
+
+symbolToVar :: GHC.CoreProgram -> Var -> M.HashMap Symbol SpecType -> SSEnv
+symbolToVar cp tlBndr renv =
+  let vars = [(F.symbol x, x) | x <- varsP cp tlBndr]
+      tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]
+      symbolVar x = fromMaybe (fromMaybe (error $ " [ symbolToVar ] impossible ") $ lookup x tlVars) $ lookup x vars
+  in  M.fromList [ (s, (t, symbolVar s)) | (s, t) <- M.toList renv]
+
+argsP :: GHC.CoreProgram -> Var -> [Var] 
+argsP []         tlVar = error $ " [ argsP ] " ++ show tlVar
+argsP (cb : cbs) tlVar 
+  | isInCB cb tlVar = argsCB cb
+  | otherwise = argsP cbs tlVar
+
+argsCB :: GHC.CoreBind -> [Var]
+argsCB (GHC.NonRec b e) = argsE e 
+
+argsE :: GHC.CoreExpr -> [Var]
+argsE (GHC.Lam a e) = a : argsE e 
+argsE (GHC.Let (GHC.NonRec b _) e) = argsE e
+argsE _ = [] 
+

@@ -6,11 +6,10 @@
 module Language.Haskell.Liquid.Synthesize.Generate where
 
 import           Language.Haskell.Liquid.Types hiding (SVar)
-import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.Misc
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
-import           Language.Haskell.Liquid.Constraint.Generate (consE)
 import           Language.Haskell.Liquid.Synthesize.Check
 
 import CoreUtils (exprType)
@@ -34,7 +33,6 @@ genTerms specTy =
       mbTyVar <- sGoalTyVar <$> get
       let goalTyVar = fromJust mbTyVar
           τ            = toType specTy
-          noHolesEnv   = M.fromList $ filter (\(_, (_, v)) -> not $ isHoleVar v) (M.toList senv)
           cands        = findCandidates senv τ
           filterFunFun   (_, (ty, _)) = not $ isBasic ty
           funTyCands'  = filter filterFunFun cands
@@ -45,8 +43,6 @@ genTerms specTy =
                     ty' = exprType e
                 in (s, (ty', v))) funTyCands' 
           
-          noHoles      = filter (\(_, (_, v)) -> not $ isHoleVar v) funTyCands 
-
           initEMem'    = initExprMem senv
           initEMem     = 
             map (\(t, e, i) -> 
@@ -56,10 +52,7 @@ genTerms specTy =
 
       modify (\s -> s { sAppDepth = 0 })
       finalEMem <- withDepthFill 0 initEMem funTyCands
-      let result = takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
-      notWellTyped <- filterM (composeM isWellTyped not) result
-      trace ("\n[ Not well-typed expressions ] " ++ show notWellTyped ++ "\n well-typed expressions " ++ show (map (\e -> show (fst $ fromAnf e [])) result)) $
-        return result
+      return $ takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
 
 instantiate :: CoreExpr -> Type -> CoreExpr
 instantiate e t = 
@@ -104,7 +97,8 @@ repeatPrune depth down up toBeFilled cands acc =
   if down <= up 
     then do 
       let cands' = updateIthElem down depth cands 
-      acc' <- (++ acc) <$> fillOne toBeFilled cands'
+      es <- fillOne toBeFilled cands'
+      acc' <- (++ acc) <$> filterM isWellTyped es
       repeatPrune depth (down + 1) up toBeFilled cands acc'
     else return acc
 

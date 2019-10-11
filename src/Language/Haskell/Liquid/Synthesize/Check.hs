@@ -40,9 +40,8 @@ hasType t !e' = do
       ht    = toType t
   if tpOfE == ht
     then do
-      r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
-      return r
+      liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
+      -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
     else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
 
@@ -95,7 +94,7 @@ check cgi γ cfg x e t = do
     finfo <- cgInfoFInfo info' cs
     isSafe <$> solve cfg{F.srcFile = "SCheck" <> F.srcFile cfg} finfo 
   where 
-    cs = generateConstraintsWithEnv info' cgi (γ{grtys = insertREnv' (F.symbol x) t (grtys γ)}) 
+    cs = generateConstraintsWithEnv info' (cgi{hsCs = []}) (γ{grtys = insertREnv' (F.symbol x) t (grtys γ)}) 
     info' = info {giSrc = giSrc', giSpec = giSpec'}
     giSrc' = (giSrc info) {giCbs = [Rec [(x, e)]]}
     giSpec' = giSpecOld{gsSig = gsSig'}

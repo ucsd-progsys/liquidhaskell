@@ -86,4 +86,7 @@ showCand :: (a, (Type, b)) -> (String, b)
 showCand (_, (t, v)) = (showTy t, v)
 
 showCands :: [(a, (Type, b))] -> [(String, b)]
-showCands = map showCand 
+showCands = map showCand
+
+notrace :: String -> a -> a 
+notrace _ a = a 

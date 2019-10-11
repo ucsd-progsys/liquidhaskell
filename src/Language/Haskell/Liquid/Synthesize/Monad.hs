@@ -13,7 +13,7 @@ import           Language.Haskell.Liquid.Constraint.Env
 import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.Termination
-import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
 import           Language.Haskell.Liquid.Synthesize.Misc
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import qualified Language.Fixpoint.Smt.Interface as SMT
@@ -77,7 +77,7 @@ data SState
 type SM = StateT SState IO
 
 maxAppDepth :: Int 
-maxAppDepth = 4
+maxAppDepth = 3
 
 locally :: SM a -> SM a 
 locally act = do 
@@ -89,17 +89,13 @@ locally act = do
 
 evalSM :: SM a -> SMT.Context -> FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> SState -> IO a 
 evalSM act ctx tgt fcfg cgi cgenv renv env st = do 
-  -- ctx <- SMT.makeContext fcfg tgt 
   let st' = st {ssEnv = env}
-  state0 <- initState ctx fcfg cgi cgenv renv env 
-  r <- evalStateT act st' -- (SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 Nothing)
+  r <- evalStateT act st'
   SMT.cleanupContext ctx 
   return r 
-  -- where exprMem0 = initExprMem env
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> IO SState 
 initState ctx fcfg cgi cgenv renv env = do
-  -- ctx <- SMT.makeContext fcfg tgt
   return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 Nothing
   where exprMem0 = initExprMem env
 
@@ -121,7 +117,6 @@ addsEnv xts =
 addsEmem :: [(Var, SpecType)] -> SM () 
 addsEmem xts = do 
   curAppDepth <- sAppDepth <$> get
-  {- trace (" [ addsEmem ] " ++ show curAppDepth) $ -}
   mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})) xts  
   
 
@@ -133,8 +128,6 @@ addEnv x t = do
 addEmem :: Var -> SpecType -> SM ()
 addEmem x t = do 
   curAppDepth <- sAppDepth <$> get
-  liftCG0 (\γ -> γ += ("arg", symbol x, t))
-  {- trace (" [ addElem ] " ++ show curAppDepth) $ -} 
   modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})
 
 
@@ -158,7 +151,6 @@ liftCG0 act = do
   st <- get 
   let (cgenv, cgi) = runState (act (sCGEnv st)) (sCGI st) 
   modify (\s -> s {sCGI = cgi, sCGEnv = cgenv}) 
-
 
 
 liftCG :: CG a -> SM a 
