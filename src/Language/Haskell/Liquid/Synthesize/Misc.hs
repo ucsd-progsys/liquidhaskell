@@ -19,8 +19,10 @@ import           TyCoRep
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.Misc (isBaseType)
 
 -- can we replace it with Language.Haskell.Liquid.GHC.Misc.isBaseType ? 
+-- False if it s function or a polymorphic function, else true.
 isBasic :: Type -> Bool
 isBasic TyConApp{}     = True
 isBasic TyVarTy {}     = True
@@ -29,6 +31,11 @@ isBasic AppTy {}       = False
 isBasic LitTy {}       = False
 isBasic _              = False
 
+
+isFunction :: Type -> Bool
+isFunction FunTy{}        = True 
+isFunction (ForAllTy _ t) = isFunction t 
+isFunction _              = False
 
 (<$$>) :: (Functor m, Functor n) => (a -> b) -> m (n a) -> m (n b)
 (<$$>) = fmap . fmap
@@ -81,6 +88,9 @@ showEmem  emem = show $ showEmem' emem
 
 showEmem' :: (Show a1, Show a2) => [(Type, a1, a2)] -> [(String, String, String)]
 showEmem' emem = map (\(t, e, i) -> (showTy t, show e, show i)) emem
+
+exprmemToExpr :: [(a2, CoreExpr, Int)] -> String
+exprmemToExpr em = show $ map (\(_, e, i) -> show (fromAnf e, i) ++ " * ") em 
 
 showCand :: (a, (Type, b)) -> (String, b)
 showCand (_, (t, v)) = (showTy t, v)

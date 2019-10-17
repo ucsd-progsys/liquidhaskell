@@ -26,6 +26,7 @@ import           Data.List
 import Language.Haskell.Liquid.GHC.TypeRep
 import Language.Fixpoint.Types
 import Debug.Trace
+import qualified Data.HashMap.Strict as M
 
 instance Default Type where
     def = TyVarTy alphaTyVar 
@@ -101,18 +102,21 @@ varsInType t = (map head . group . sort) (varsInType' t)
     varsInType' (TyConApp c ts)              = foldr (\x y -> concatMap varsInType' ts ++ y) [] ts
     varsInType' t                            = error $ "[varsInType] Shouldn't reach that point for now " ++ showTy t
 
+fromAnf :: CoreExpr -> CoreExpr
+fromAnf e = fst $ fromAnf' e []
+
 -- If you find a binding add it to the second argument.
 --                    | (lhs, rhs)      |
-fromAnf :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
-fromAnf (Let bnd e) bnds       = 
+fromAnf' :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
+fromAnf' (Let bnd e) bnds       = 
   case bnd of
     Rec {}       -> error "No recursive bindings in let."
     NonRec rb lb -> 
-      fromAnf e ((rb, replaceBnds lb' bnds') : bnds')
-        where (lb', bnds')     = fromAnf lb bnds
-fromAnf (Case scr bnd tp alts) bnds
-  = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf e bnds)) alts), bnds)
-fromAnf e           bnds       = (replaceBnds e bnds, bnds)
+      fromAnf' e ((rb, replaceBnds lb' bnds') : bnds')
+        where (lb', bnds')     = fromAnf' lb bnds
+fromAnf' (Case scr bnd tp alts) bnds
+  = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
+fromAnf' e           bnds       = (replaceBnds e bnds, bnds)
 
 
 replaceBnds :: CoreExpr -> [(Var, CoreExpr)] -> CoreExpr 
@@ -146,19 +150,19 @@ getTopLvlBndrs =
   )
 
 --                       | Current top-level binder |
-varsP :: GHC.CoreProgram -> Var -> [Var]
-varsP cp tlVar = 
+varsP :: GHC.CoreProgram -> Var -> (GHC.CoreExpr -> [Var]) -> [Var]
+varsP cp tlVar f = 
   case filter (\cb -> isInCB cb tlVar) cp of
-    [cb] -> varsCB cb 
+    [cb] -> varsCB cb f
     _    -> error " Every top-level corebind must be unique! "
 
 isInCB :: GHC.CoreBind -> Var -> Bool
 isInCB (GHC.NonRec b e) tlVar = b == tlVar 
 isInCB (GHC.Rec {}) _ = error " [ isInCB ] Rec binder. "
 
-varsCB :: GHC.CoreBind -> [Var]
-varsCB (GHC.NonRec b e) = varsE e
-varsCB (GHC.Rec ls) = trace " [ symbolToVarCB ] Rec " []
+varsCB :: GHC.CoreBind -> (GHC.CoreExpr -> [Var]) -> [Var]
+varsCB (GHC.NonRec b e) f = f e
+varsCB (GHC.Rec ls) _ = trace " [ symbolToVarCB ] Rec " []
 
 varsE :: GHC.CoreExpr -> [Var]
 varsE (GHC.Lam a e) = a : varsE e
@@ -167,12 +171,21 @@ varsE (GHC.Case eb b _ alts) = foldr (\(_, vars, e) res -> vars ++ (varsE e) ++ 
 varsE (GHC.Tick _ e) = varsE e
 varsE e = []
 
+caseVarsE :: GHC.CoreExpr -> [Var] 
+caseVarsE (GHC.Lam a e) = caseVarsE e 
+caseVarsE (GHC.Let (GHC.NonRec b _) e) = caseVarsE e
+caseVarsE (GHC.Case eb b _ alts) = foldr (\(_, vars, e) res -> caseVarsE e ++ res) [b] alts 
+caseVarsE (GHC.Tick _ e) = caseVarsE e 
+caseVarsE e = [] 
+
 symbolToVar :: GHC.CoreProgram -> Var -> M.HashMap Symbol SpecType -> SSEnv
-symbolToVar cp tlBndr renv =
-  let vars = [(F.symbol x, x) | x <- varsP cp tlBndr]
+symbolToVar cp tlBndr renv = trace (" CaseVars " ++ show (varsP cp tlBndr caseVarsE)) $ 
+  let vars = [(F.symbol x, x) | x <- varsP cp tlBndr varsE]
+      casevars = [F.symbol x | x <- varsP cp tlBndr caseVarsE]
       tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]
       symbolVar x = fromMaybe (fromMaybe (error $ " [ symbolToVar ] impossible ") $ lookup x tlVars) $ lookup x vars
-  in  M.fromList [ (s, (t, symbolVar s)) | (s, t) <- M.toList renv]
+      renv' = foldr (\s hm -> M.delete s hm) renv casevars
+  in  M.fromList [ (s, (t, symbolVar s)) | (s, t) <- M.toList renv']
 
 argsP :: GHC.CoreProgram -> Var -> [Var] 
 argsP []         tlVar = error $ " [ argsP ] " ++ show tlVar

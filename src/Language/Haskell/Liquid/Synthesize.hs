@@ -73,12 +73,11 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi
           ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
+          senv1 = initSSEnv cginfo ssenv0
+      
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env M.empty
-
-      let senv1 = initSSEnv cginfo ssenv0
-          -- senv2 = M.insert (symbol topLvlBndr) (typeOfTopLvlBnd, topLvlBndr) senv1
-      fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x t topLvlBndr typeOfTopLvlBnd state0
+      fills <- map fromAnf <$> synthesize' tgt ctx fcfg cgi cge env senv1 x t topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -116,14 +115,19 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
 
                   liftIO (SMT.smtPop ctx)
                   return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))] -- TODO: TypeCheck 
-          else synthesizeBasic t
+          else do
+            emem0 <- withInsInitEM senv 
+            modify (\s -> s { sExprMem = emem0 })
+            synthesizeBasic t
 
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
+              addEnv xtop $ decrType xtop ttop ys (zip xs txs)
+              emem0 <- withInsInitEM senv 
+              modify (\s -> s { sExprMem = emem0 }) 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
               addEmem xtop $ decrType xtop ttop ys (zip xs txs)
-              addEnv xtop $ decrType xtop ttop ys (zip xs txs)
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
       where (_, (xs, txs, _), to) = bkArrow t 
 
@@ -137,25 +141,18 @@ synthesizeBasic t = do
     _   -> error errorMsg
       where errorMsg = "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )." 
   es <- genTerms t
-  filterElseM (hasType t) es $ do
-    senv <- getSEnv
-    lenv <- getLocalEnv 
-    es' <- synthesizeMatch lenv senv t
-    filterM (hasType t) es'
+  case es of 
+    [] -> do
+      senv <- getSEnv
+      lenv <- getLocalEnv 
+      synthesizeMatch lenv senv t
+    _  -> return es
 
 
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch lenv γ t = trace ("[synthesizeMatch] es = " ++ show es) $ 
-      join <$> mapM (withIncrDepth . matchOn t) (es <> ls)
-
-  where 
-    es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
-    ls = [(v,t,rtc_tc c) | (s, t@(RApp c _ _ _)) <- M.toList lenv
-                         , Just v <- [symbolToVar s] -- JP: Is there better syntax for this?
-         ]
-    
-    symbolToVar :: Symbol -> Maybe Var
-    symbolToVar _ = Nothing -- TODO: Actually implement me!!! Dependent on abstract symbols? XXX
+synthesizeMatch lenv γ t = -- trace ("[synthesizeMatch] es = " ++ show es) $ 
+  join <$> mapM (withIncrDepth . matchOn t) es
+  where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
 matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]

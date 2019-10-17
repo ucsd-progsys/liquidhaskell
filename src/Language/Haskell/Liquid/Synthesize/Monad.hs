@@ -42,7 +42,7 @@ import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
 import qualified Data.Map as Map 
 import           Data.List.Extra
-
+import           CoreUtils (exprType)
 
 maxDepth :: Int 
 maxDepth = 1 
@@ -212,4 +212,50 @@ initExprMem ssenv =
       senv'  = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) senv
   in  senv'
 
-  
+withInsInitEM :: SSEnv -> SM ExprMemory
+withInsInitEM senv = do
+  mbTyVar <- sGoalTyVar <$> get
+  return $ 
+    map (\(t, e, i) -> 
+      let e' = instantiate e mbTyVar
+          t' = exprType e'
+      in  (t', e', i)) (initExprMem senv)
+
+instantiate :: CoreExpr -> Maybe Var -> CoreExpr
+instantiate e mbt = 
+  case mbt of
+    Nothing    -> e
+    Just tyVar -> 
+      case exprType e of 
+        ForAllTy {} -> GHC.App e (GHC.Type (TyVarTy tyVar))
+        _           -> e
+
+withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
+withInsProdCands specTy = 
+  do  senv <- ssEnv <$> get 
+      mbTyVar <- sGoalTyVar <$> get 
+      let τ            = toType specTy 
+          cands        = findCandidates senv τ 
+          filterFn   (_, (ty, _)) = isFunction ty 
+          funTyCands'  = filter filterFn cands 
+      return $
+        map (\(s, (_, v)) -> 
+            let e  = instantiate (GHC.Var v) mbTyVar 
+                ty = exprType e 
+            in (s, (ty, v))) funTyCands' 
+
+withTypeEs :: SpecType -> SM [CoreExpr] 
+withTypeEs t = do 
+    em <- sExprMem <$> get 
+    let withTypeEM = filter (\(t', _, _) -> t' == toType t) em 
+    return (takeExprs withTypeEM) 
+
+
+findCandidates :: SSEnv -> Type -> [(Symbol, (Type, Var))]
+findCandidates senv goalTy = 
+  let senvLst   = M.toList senv
+      senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
+      filterFun (_, (specT, _)) = goalType goalTy specT
+      candTerms = filter filterFun senvLst'
+  in  candTerms
+    

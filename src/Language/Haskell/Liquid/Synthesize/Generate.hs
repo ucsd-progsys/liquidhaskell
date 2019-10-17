@@ -24,54 +24,26 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 
 import           Debug.Trace 
 
-import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
-
--- Generate terms that have type t
+-- Generate terms that have type t: This changes the ExprMem in SM state.
+-- Return expressions type checked against type t.
 genTerms :: SpecType -> SM [CoreExpr] 
 genTerms specTy = 
-  do  senv <- ssEnv <$> get
-      mbTyVar <- sGoalTyVar <$> get
-      let goalTyVar = fromJust mbTyVar
-          τ            = toType specTy
-          cands        = findCandidates senv τ
-          filterFunFun   (_, (ty, _)) = not $ isBasic ty
-          funTyCands'  = filter filterFunFun cands
+  do  funTyCands <- withInsProdCands specTy
 
-          funTyCands  = 
-            map (\(s, (ty, v)) -> 
-                let e = instantiate (GHC.Var v) (TyVarTy goalTyVar)
-                    ty' = exprType e
-                in (s, (ty', v))) funTyCands' 
-          
-          initEMem'    = initExprMem senv
-          initEMem     = 
-            map (\(t, e, i) -> 
-              let e' = instantiate e (TyVarTy goalTyVar)
-                  t' = exprType e'
-              in  (t', e', i)) initEMem' 
+      es <- withTypeEs specTy
+      filterElseM (hasType specTy) es $ 
+        withDepthFill specTy 0 funTyCands
 
-      modify (\s -> s { sAppDepth = 0 })
-      finalEMem <- withDepthFill 0 initEMem funTyCands
-      return $ takeExprs $ filter (\(t, _, _) -> t == τ) finalEMem 
+withDepthFill :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
+withDepthFill t depth funTyCands = do
+  curEm <- sExprMem <$> get
+  exprs <- fillMany depth curEm funTyCands []
 
-instantiate :: CoreExpr -> Type -> CoreExpr
-instantiate e t = 
-  case exprType e of 
-    ForAllTy {} -> GHC.App e (GHC.Type t)
-    _           -> e
-
--- PB: We need to combine that with genTerms and synthesizeBasic
-withDepthFill :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> SM ExprMemory
-withDepthFill depth exprMem funTyCands = do 
-  exprMem' <- fillMany depth exprMem funTyCands exprMem
-  curAppDepth <- sAppDepth <$> get
-  if depth < maxAppDepth
-    then do
-      modify (\s -> s { sAppDepth = curAppDepth + 1 })
-      withDepthFill (depth + 1) exprMem' funTyCands
-    else do
-      modify (\s -> s { sAppDepth = curAppDepth + 1 })
-      return exprMem 
+  filterElseM (hasType t) exprs $ do
+    modify (\s -> s { sAppDepth = sAppDepth s + 1 })
+    if depth < maxAppDepth
+      then withDepthFill t (depth + 1) funTyCands
+      else return [] -- Note: checkedEs == [] at this point
 
 
 -- Note: i should be 1-based index
@@ -106,8 +78,14 @@ repeatPrune depth down up toBeFilled cands acc =
 
 -- Produce new expressions from expressions currently in expression memory (ExprMemory).
 -- Only candidate terms with function type (funTyCands) can be passed as second argument.
-fillMany :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> ExprMemory -> SM ExprMemory 
-fillMany _ _       []             accExprs = return accExprs
+-- This function (`fillMany`) performs (full) application for candidate terms, 
+-- where candidate is a function from our environment.
+--              | expression memory  |
+--              | before the function|                   | terms that   |
+--              | is called (does    |                   | are produced |
+--              | not change)        |                   | by `fillMany |
+fillMany :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> [CoreExpr] -> SM [CoreExpr] 
+fillMany _     _       []             accExprs = return accExprs
 fillMany depth exprMem (cand : cands) accExprs = do
   let (_, (htype, _))   = cand
       subgoals'         = createSubgoals htype 
@@ -118,16 +96,19 @@ fillMany depth exprMem (cand : cands) accExprs = do
 
   if check 
     then fillMany depth exprMem cands accExprs 
-    else do 
-      accExprs'  <- 
-        (++ accExprs) . map (resultTy, , depth + 1) <$> 
-          repeatPrune depth 1 (length argCands) cand argCands []
-      -- trace (
-      --   " [ expressions " ++ show depth ++ 
-      --   ", arguments = " ++ show (length argCands) ++ 
-      --   " , candidates of arguments " ++ show (map length argCands) ++ 
-      --   " ] " ++ showEmem accExprs') $ 
-      fillMany depth exprMem cands accExprs'
+    else do
+      curAppDepth <- sAppDepth <$> get 
+      newExprs <- repeatPrune curAppDepth 1 (length argCands) cand argCands []
+      let nextEm = map (resultTy, , curAppDepth + 1) newExprs
+      modify (\s -> s {sExprMem = nextEm ++ (sExprMem s) })
+      let accExprs' = newExprs ++ accExprs
+      trace (
+        " [ expressions " ++ show depth ++ 
+        ", arguments = " ++ show (length argCands) ++ 
+        " , candidates of arguments " ++ show (map length argCands) ++ 
+        " new expressions are " ++ show (length newExprs) ++ 
+        "] \n" ++ show accExprs') $ 
+        fillMany depth exprMem cands accExprs'
 
 -- {applyOne, applyNext, applyMany} are auxiliary functions for `fillOne`
 applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
@@ -183,13 +164,3 @@ withSubgoal ((t, e, i) : exprs) τ =
   if τ == t 
     then (e, i) : withSubgoal exprs τ
     else withSubgoal exprs τ
-
-
-findCandidates :: SSEnv -> Type -> [(Symbol, (Type, Var))]
-findCandidates senv goalTy = 
-  let senvLst   = M.toList senv
-      senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
-      filterFun (_, (specT, _)) = goalType goalTy specT
-      candTerms = filter filterFun senvLst'
-  in  candTerms
-
