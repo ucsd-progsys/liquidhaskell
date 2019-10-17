@@ -32,9 +32,10 @@ import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 
 import System.IO (hFlush, stdout)
-import qualified Debug.Trace as DBG
-trace _msg v = DBG.trace _msg v
--- trace _msg v = v
+-- import qualified Debug.Trace as DBG
+-- trace _msg v = DBG.trace _msg v
+trace :: String -> a -> a
+trace _msg v = v
 
 printPiSols piSols =
   sequence_ $ ((\(piVar, ((_, args), cstr)) -> do
