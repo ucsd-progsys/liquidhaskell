@@ -26,7 +26,6 @@ import qualified Data.Set                     as S
 import qualified Data.HashSet                 as HS
 import qualified Data.Graph                   as DG
 import           Control.Monad.State
-import           Data.Bifunctor               (second)
 import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
@@ -37,6 +36,8 @@ import System.IO (hFlush, stdout)
 trace :: String -> a -> a
 trace _msg v = v
 
+printPiSols :: (F.PPrint a1, F.PPrint a2, F.PPrint a3) =>
+               M.HashMap a1 ((a4, a2), a3) -> IO ()
 printPiSols piSols =
   sequence_ $ ((\(piVar, ((_, args), cstr)) -> do
                   putStr $ F.showpp piVar
@@ -211,7 +212,7 @@ solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi 
     rewritten = rewriteWithEqualities measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) c
     edges = eqEdges args mempty equalities
-    (eGraph, vf, lookupVertex) = DG.graphFromEdges edges
+    (_eGraph, _vf, _lookupVertex) = DG.graphFromEdges edges
     -- reachableN = nub $ filter (/= F.EVar n) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)]
     -- reachableN = vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)
 
@@ -1143,5 +1144,5 @@ pruneTauts = fromMaybe (CAnd []) . go
     goP (PAnd ps) = if null ps' then Nothing else Just $ PAnd ps'
       where ps' = mapMaybe goP ps
 
-fromJust :: (Show a) => a -> Maybe b -> b
-fromJust x = fromMaybe (error $ show x)
+_fromJust :: (Show a) => a -> Maybe b -> b
+_fromJust x = fromMaybe (error $ show x)
