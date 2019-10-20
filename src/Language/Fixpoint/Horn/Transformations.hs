@@ -758,8 +758,8 @@ rewriteWithEqualities measures n args equalities = preds
   where
     (eGraph, vf, lookupVertex) = DG.graphFromEdges $ eqEdges args mempty equalities
 
-    nResult = (n, makeWellFormed 4 $ sols n)
-    argResults = map (\arg -> (arg, makeWellFormed 4 $ sols arg)) (S.toList args)
+    nResult = (n, makeWellFormed 15 $ sols n)
+    argResults = map (\arg -> (arg, makeWellFormed 15 $ sols arg)) (S.toList args)
 
     preds = (mconcat $ (\(x, es) -> mconcat $ mkEquality x <$> es) <$> (nResult:argResults))
 
