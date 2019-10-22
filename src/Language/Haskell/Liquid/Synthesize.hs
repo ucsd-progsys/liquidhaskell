@@ -45,7 +45,9 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
-import           Literal
+import           Literal 
+import           DynFlags 
+import           MkCore
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 
 
@@ -114,7 +116,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
                       smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
                   liftIO (SMT.smtPop ctx)
-                  return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))] -- TODO: TypeCheck 
+                  filterM (hasType t) [mkIntExpr unsafeGlobalDynFlags (read smtVal :: Integer)] -- TODO: TypeCheck 
           else do
             emem0 <- withInsInitEM senv 
             modify (\s -> s { sExprMem = emem0 })
