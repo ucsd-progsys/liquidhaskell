@@ -4,7 +4,9 @@ module Append where
 
 import Data.Set 
 
-{-@ append' :: xs: [a] -> ys: [a] -> {v:[a] | len v == len xs + len ys } @-}
+{-@ type OList a = [a]<{\h v -> h <= v }> @-}
+
+{-@ append' :: xs: OList a -> ys: OList a  -> {v:OList a | len v == len xs + len ys && listElts v == union (listElts xs) (listElts ys) } @-}
 append' :: [a] -> [a] -> [a]
 append' x0 x1 = -- _append
     case x0 of 

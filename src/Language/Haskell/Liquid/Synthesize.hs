@@ -99,7 +99,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
       let coreProgram = giCbs $ giSrc $ ghcI cgi
           args  = case argsP coreProgram xtop of { [] -> []; (_ : xs) -> xs }
           (_, (xs, txs, _), _) = bkArrow ttop
-      addEnv xtop $ decrType xtop ttop args (zip xs txs)
+      addEnv xtop $ fst $ decrType xtop ttop args (zip xs txs)
       if R.isNumeric (tyConEmbed cgi) c
           -- Special Treatment for synthesis of integers          
           then do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
@@ -123,11 +123,12 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
-              addEnv xtop $ decrType xtop ttop ys (zip xs txs)
+              let (dt, b) = decrType xtop ttop ys (zip xs txs)
+              addEnv xtop dt
               emem0 <- withInsInitEM senv 
               modify (\s -> s { sExprMem = emem0 }) 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
-              addEmem xtop $ decrType xtop ttop ys (zip xs txs)
+              addEmem xtop dt
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
       where (_, (xs, txs, _), to) = bkArrow t 
 

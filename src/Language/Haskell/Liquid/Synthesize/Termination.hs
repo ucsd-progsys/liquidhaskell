@@ -14,12 +14,20 @@ import qualified Language.Fixpoint.Types        as F
 import Var 
 import Debug.Trace
 
-decrType :: Var -> SpecType -> [Var] -> [(F.Symbol, SpecType)] -> SpecType
-decrType x ti xs xts = F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) $ go [] [] xs ti 
+decrType :: Var -> SpecType -> [Var] -> [(F.Symbol, SpecType)] -> (SpecType, Bool)
+decrType x ti xs xts 
+  = F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) 
+      $ go [] [] xs ti 
   where
     go accvs accxts (v:vs) (RFun x tx t r) 
-      | isDecreasing mempty mempty tx  = let (x', tx') = R.makeDecrType mempty (zip (v:accvs) ((x,tx):accxts)) 
-                                         in RFun x' tx' t r 
-    go accvs accxts (v:vs) (RFun x tx t r) = RFun x tx (go (v:accvs) ((x,tx):accxts) vs t) r
-    go accvs accxts vs (RAllT a t) = RAllT a $ go accvs accxts vs t 
-    go _     _       _     t = t 
+      | isDecreasing mempty mempty tx
+      , Left (x', tx') <- R.makeDecrType mempty (zip (v:accvs) ((x,tx):accxts)) 
+      = (RFun x' tx' t r, True) 
+
+    go accvs accxts (v:vs) (RFun x tx t r) 
+      = let (t,b) = go (v:accvs) ((x,tx):accxts) vs t in 
+           (RFun x tx t r, b)
+    go accvs accxts vs (RAllT a t) 
+      = let (t,b) = go accvs accxts vs t in (RAllT a t, b)
+    go _     _       _     t 
+      = (t, False) 

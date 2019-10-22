@@ -192,8 +192,8 @@ withDecrAdd x t = do
   let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
   mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))
   mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs))
-  addEnv x $ decrType x t ys (zip xs txs)
-  addEmem x $ decrType x t ys (zip xs txs)
+  addEnv x $ fst $ decrType x t ys (zip xs txs)
+  addEmem x $ fst $ decrType x t ys (zip xs txs)
   where (_, (xs, txs, _), to) = bkArrow t
         
   
