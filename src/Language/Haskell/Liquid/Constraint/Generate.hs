@@ -679,7 +679,7 @@ cconsE' γ (Case e x _ cases) t
 -- NV TODO: what happens to the refinement of RAllT? 
 cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
-       addForAllConstraint γ' α e (RAllT α' t r)
+       -- addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
