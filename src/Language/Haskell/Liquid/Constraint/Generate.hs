@@ -677,8 +677,9 @@ cconsE' γ (Case e x _ cases) t
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
 -- NV TODO: what happens to the refinement of RAllT? 
-cconsE' γ (Lam α e) (RAllT α' t _) | isTyVar α
+cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
+       addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
@@ -720,6 +721,15 @@ lambdaSingleton γ tce x e
     sx = typeSort tce $ varType x
 lambdaSingleton _ _ _ _
   = mempty
+
+
+addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
+addForAllConstraint γ x e (RAllT a t r)
+  = do t'       <- true t
+       let truet = RAllT a t'
+       addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
+addForAllConstraint γ _ _ _
+  = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
@@ -832,7 +842,9 @@ consE γ e
 
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
-consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
+consE γ e'@(App e (Type τ)) 
+  | Just x <- unVar e 
+  , M.member x (aenv γ)
   = do RAllT α te r <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
                                        then freshTy_type TypeInstE e τ 
@@ -842,6 +854,9 @@ consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
        tt00         <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
        let tt        = subsTyReft γ (ty_var_value α) τ tt00
        return        $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
+  where unVar (Var x)    = Just x 
+        unVar (Tick _ e) = unVar e 
+        unVar _          = Nothing 
 -- NV TODO: what happens to this r at instantiation?
 -- NV END HACK
 
