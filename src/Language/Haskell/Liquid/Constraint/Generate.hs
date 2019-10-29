@@ -854,9 +854,10 @@ consE γ e'@(App e (Type τ))
        tt00         <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
        let tt        = subsTyReft γ (ty_var_value α) τ tt00
        return        $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
-  where unVar (Var x)    = Just x 
-        unVar (Tick _ e) = unVar e 
-        unVar _          = Nothing 
+  where unVar (Var x)          = Just x 
+        unVar (Tick _ e)       = unVar e 
+        unVar (App e (Type _)) = unVar e 
+        unVar _                = Nothing 
 -- NV TODO: what happens to this r at instantiation?
 -- NV END HACK
 
