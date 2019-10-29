@@ -44,7 +44,7 @@ data-files:         include/*.hquals
                     include/System/*.spec
                     include/710/Data/*.spec
                     syntax/liquid.css
-cabal-version:      >= 1.22 && < 4 
+cabal-version:      >= 1.22 && < 2.4 
 
 source-repository head
   type:     git
