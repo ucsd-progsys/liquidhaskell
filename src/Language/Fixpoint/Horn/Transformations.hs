@@ -181,7 +181,9 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
 piDefConstr :: F.Symbol -> Cstr a -> ((F.Symbol, [F.Symbol]), Cstr a)
 piDefConstr k c = ((head ns, head formals), defC)
   where
-    (ns, formals, Just defC) = go c
+    (ns, formals, defC) = case go c of
+      (ns, formals, Just defC) -> (ns, formals, defC)
+      (_, _, Nothing) -> error $ "pi variable " <> F.showpp k <> " has no defining constraint."
 
     go :: Cstr a -> ([F.Symbol], [[F.Symbol]], Maybe (Cstr a))
     go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, cAndMaybes cs)) $ unzip3 $ go <$> cs
