@@ -677,7 +677,7 @@ cconsE' γ (Case e x _ cases) t
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
 -- NV TODO: what happens to the refinement of RAllT? 
-cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
+cconsE' γ (Lam α e) (RAllT α' t _) | isTyVar α
   = do γ' <- updateEnvironment γ α
        -- addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
@@ -722,7 +722,7 @@ lambdaSingleton γ tce x e
 lambdaSingleton _ _ _ _
   = mempty
 
-
+{- 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ x e (RAllT a t r)
   = do t'       <- true t
@@ -730,7 +730,7 @@ addForAllConstraint γ x e (RAllT a t r)
        addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
 addForAllConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
-
+-}
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)
@@ -845,7 +845,7 @@ consE γ e
 consE γ e'@(App e (Type τ)) 
   | Just x <- unVar e 
   , M.member x (aenv γ)
-  = do RAllT α te r <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
+  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
                                        then freshTy_type TypeInstE e τ 
                                        else trueTy τ
