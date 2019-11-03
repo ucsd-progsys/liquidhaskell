@@ -723,10 +723,16 @@ lambdaSingleton _ _ _ _
   = mempty
 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
-addForAllConstraint γ x e (RAllT a t r)
+addForAllConstraint γ _ _ (RAllT a t r)
+  | F.isTauto r 
+  = return ()
+  | otherwise
   = do t'       <- true t
-       let truet = RAllT a t'
+       let truet = RAllT a $ unRAllP t'
        addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
+  where unRAllP (RAllT a t r) = RAllT a (unRAllP t) r  
+        unRAllP (RAllP _ t)   = unRAllP t 
+        unRAllP t             = t 
 addForAllConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
