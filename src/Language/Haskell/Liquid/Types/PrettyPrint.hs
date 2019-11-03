@@ -175,8 +175,8 @@ type Prec = PprPrec
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
-ppr_rtype bb p t@(RAllT _ _ _)
-  = ppr_forall bb p t
+ppr_rtype bb p t@(RAllT _ _ r)
+  = F.ppTy r $ ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)
   = ppr_forall bb p t
 ppr_rtype bb p t@(RAllS _ _)

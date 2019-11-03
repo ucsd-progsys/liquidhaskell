@@ -730,7 +730,7 @@ addForAllConstraint γ x e (RAllT a t r)
        addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
 addForAllConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
--}
+-} 
 
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)

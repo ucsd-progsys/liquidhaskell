@@ -763,9 +763,10 @@ meets rs rs'
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthen (RImpF b t1 t2 r) r'  = RImpF b t1 t2 (r `F.meet` r')
+strengthen (RImpF b t1 t2 r) r' = RImpF b t1 t2 (r `F.meet` r')
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
+strengthen (RAllT a t r)    r'  = RAllT a t    (r `F.meet` r')
 strengthen t _                  = t
 
 

@@ -9,8 +9,6 @@ import Language.Haskell.Liquid.Equational
 type ForAll a  = forall z. a
 data Wrapper a = Wrapper (ForAll a)
  
-
-{-@ unsound :: ForAll a -> {v:ForAll a | false } @-}
-unsound :: ForAll a -> ForAll a 
-unsound x = x 
- 
+foo :: ForAll a -> ForAll a  -> Proof
+{-@ foo :: ff:ForAll a -> gg:{ForAll a | ff == gg } -> { Wrapper ff == Wrapper gg } @-} 
+foo g f = Wrapper g ==. Wrapper f *** QED 

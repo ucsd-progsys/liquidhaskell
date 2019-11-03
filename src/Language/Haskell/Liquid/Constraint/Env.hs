@@ -189,11 +189,12 @@ addCGEnv tx γ (_, x, t') = do
   return $ γ' { fenv = insertsFEnv (fenv γ) is }
 
 rTypeSortedReft' :: (PPrint r, F.Reftable r, SubsTy RTyVar RSort r, F.Reftable (RTProp RTyCon RTyVar r))
-                 => CGEnv -> F.Templates -> RRType r -> F.SortedReft
+    => CGEnv -> F.Templates -> RRType r -> F.SortedReft
 rTypeSortedReft' γ t 
   = pruneUnsortedReft (feEnv $ fenv γ) t . f
-  where
-    f         = rTypeSortedReft (emb γ)
+   where
+   f         = rTypeSortedReft (emb γ)
+
 
 normalize :: Integer -> SpecType -> SpecType
 normalize idx = normalizeVV idx . normalizePds
