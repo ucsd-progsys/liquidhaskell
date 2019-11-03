@@ -677,9 +677,9 @@ cconsE' γ (Case e x _ cases) t
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
 -- NV TODO: what happens to the refinement of RAllT? 
-cconsE' γ (Lam α e) (RAllT α' t _) | isTyVar α
+cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
-       -- addForAllConstraint γ' α e (RAllT α' t r)
+       addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
@@ -722,7 +722,6 @@ lambdaSingleton γ tce x e
 lambdaSingleton _ _ _ _
   = mempty
 
-{- 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ x e (RAllT a t r)
   = do t'       <- true t
@@ -730,8 +729,8 @@ addForAllConstraint γ x e (RAllT a t r)
        addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
 addForAllConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
--} 
 
+  
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty
