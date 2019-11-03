@@ -46,6 +46,8 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+
+
 testRunner :: Ingredient
 testRunner = rerunningTests
                [ listingTests
@@ -457,7 +459,7 @@ mkTest ec dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        bin <- binPath "liquid"
+        let bin = "stack exec -- liquid"
         hSetBuffering stdout LineBuffering -- or even NoBuffering
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
