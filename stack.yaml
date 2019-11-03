@@ -9,5 +9,4 @@ packages:
 - .
 extra-deps:
 - tasty-rerun-1.1.14
-- Cabal-3.0.0.0
 resolver: lts-14.12
