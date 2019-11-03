@@ -459,7 +459,7 @@ eqRSort _ (RHole _) _
   = True
 eqRSort _ _         (RHole _)
   = True
-eqRSort _ t1 t2 
+eqRSort _ _ _
   = False
 
 --------------------------------------------------------------------------------

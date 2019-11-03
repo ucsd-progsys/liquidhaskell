@@ -186,7 +186,7 @@ axiomType s t = AT to (reverse xts) res
       t' <- go t 
       return $ RFun x' tx t' r 
     go t = do 
-      (i,bs,res) <- get 
+      (i,bs,_) <- get 
       let ys = reverse $ map fst bs
       let t' = strengthen t (singletonApp s ys)
       put (i, bs, Just t')
@@ -255,3 +255,4 @@ makeCompositionExpression x
            Ghc.Lam (Ghc.binderVar b) $ 
            Ghc.Lam (Ghc.binderVar c) $ 
            Ghc.Lam f $ Ghc.Lam g $ Ghc.Lam x $ Ghc.App (Ghc.Var f) (Ghc.App (Ghc.Var g) (Ghc.Var x))
+    go _ = error "Axioms.go"
