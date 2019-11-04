@@ -1,4 +1,4 @@
-platform: x64
+platform: x64 
 
 init:
 - git --version
