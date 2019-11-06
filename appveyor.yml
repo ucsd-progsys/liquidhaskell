@@ -16,9 +16,9 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
-- nuget install z3x64win -Version 4.5.0.1	
+- nuget install z3x64win -Version 4.8.6
 
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
+- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.8.6\tools
 - z3 --version
 
 build_script:
