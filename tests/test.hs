@@ -441,8 +441,8 @@ ecAssert :: ExitCheck -> ExitCode -> T.Text -> Assertion
 ecAssert ec (ExitFailure 137) _   =
   printf "WARNING: possible OOM while testing %s: IGNORING" (ecTest ec)
 
-ecAssert (EC _ code Nothing)  c _   =
-  assertEqual "Wrong exit code" code c
+ecAssert (EC _ code Nothing)  c t   =
+  assertEqual ("Wrong exit code" <> show t) code c
 
 ecAssert (EC _ code (Just t)) c log = do
   assertEqual "Wrong exit code" code c
