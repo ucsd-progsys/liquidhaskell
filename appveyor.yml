@@ -1,27 +1,21 @@
-platform: x64 
+build: off
 
-init:
-- git --version
-  
-install:
-# http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
-- set PATH=%PATH%;C:\Program Files\Git\mingw64\bin
+environment:
+    LIQUIDHASKELL_TEST_ENVIRONMENT: win
+    LIQUIDHASKELL_HEAVYTEST_PERCENTAGE: 0
+    TASTY_HIDE_SUCCESSES: True
 
-# Update GIT submodules
-- git submodule update --init --recursive
-
-# Download latest stable Stack tool
-- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-x86_64.zip
-- 7z x stack.zip stack.exe
-- stack --version
-
-# Install Microsoft Z3 from NuGet
+before_build:
 - curl -fsSL https://github.com/Z3Prover/z3/releases/download/Nightly/z3-4.8.7-x64-win.zip -o z3-4.8.7-x64-win.zip
 - 7z e z3-4.8.7-x64-win.zip -oc:\projects\sbv\z3_downloaded -r -y
+- choco install -y cabal
+- choco install -y ghc --version 8.6.5
 - refreshenv
-
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.8.7\tools
+- set PATH=C:\projects\liquidhaskell\z3_downloaded;%PATH%
+- ghc --version
 - z3 --version
+
+skip_tags: true
 
 build_script:
 # Build LiquidHaskell
