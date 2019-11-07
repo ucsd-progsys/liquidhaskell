@@ -31,9 +31,10 @@ import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 
 import System.IO (hFlush, stdout)
--- import qualified Debug.Trace as DBG
--- trace _msg v = DBG.trace _msg v
+import qualified Debug.Trace as DBG
+
 trace :: String -> a -> a
+-- trace _msg v = DBG.trace _msg v
 trace _msg v = v
 
 printPiSols :: (F.PPrint a1, F.PPrint a2, F.PPrint a3) =>
