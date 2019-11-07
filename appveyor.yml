@@ -1,23 +1,28 @@
-build: off
+platform: x64 
 
-environment:
-    LIQUIDHASKELL_TEST_ENVIRONMENT: win
-    LIQUIDHASKELL_HEAVYTEST_PERCENTAGE: 0
-    TASTY_HIDE_SUCCESSES: True
+init:
+- git --version
+  
+install:
+# http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
+- set PATH=%PATH%;C:\Program Files\Git\mingw64\bin
 
-before_build:
-- curl -fsSL https://github.com/Z3Prover/z3/releases/download/Nightly/z3-4.8.7-x64-win.zip -o z3-4.8.7-x64-win.zip
-- 7z e z3-4.8.7-x64-win.zip -oc:\projects\liquidhaskell\z3_downloaded -r -y
+# Update GIT submodules
+- git submodule update --init --recursive
 
 # Download latest stable Stack tool
 - curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-x86_64.zip
 - 7z x stack.zip stack.exe
-- refreshenv
-- set PATH=C:\projects\liquidhaskell\z3_downloaded;%PATH%
-- z3 --version
 - stack --version
 
-skip_tags: true
+# Install Microsoft Z3 from NuGet
+- curl -fsSL https://github.com/Z3Prover/z3/releases/download/Nightly/z3-4.8.7-x64-win.zip -o z3-4.8.7-x64-win.zip
+- 7z e z3-4.8.7-x64-win.zip -oc:\projects\liquidhaskell\z3_downloaded -r -y
+
+- refreshenv
+
+- set PATH=C:\projects\liquidhaskell\z3_downloaded;%PATH%
+- z3 --version
 
 build_script:
 # Build LiquidHaskell
