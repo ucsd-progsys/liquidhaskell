@@ -910,7 +910,7 @@ consE γ e'@(App e a)
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        pushConsBind      $ cconsE γ'' a tx
-       tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
        if hasGhost
           then do
            tk   <- freshTy_type ImplictE e' $ exprType e'
@@ -1452,16 +1452,16 @@ makeSingleton γ e t
   = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
                  | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
-                 -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
+                 -> F.tracepp ("makeSingleton 1 for " ++ GM.showPpr e ++ "\n expr = " ++ showpp (F.EApp f' x') ) $ strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
-                 -> strengthenMeet t (uTop $ F.exprReft f' )
-      _ -> t
+                 -> F.tracepp ("makeSingleton 2 for " ++ GM.showPpr e) $ strengthenMeet t (uTop $ F.exprReft f' )
+      _ -> F.tracepp ("makeSingleton 3 for " ++ GM.showPpr e) t
   | rankNTypes (getConfig γ)
   = case argExpr γ (simplify e) of 
-       Just e' -> strengthenMeet t $ (uTop $ F.exprReft e')
-       _       -> t  
+       Just e' -> F.tracepp ("makeSingleton 4 for " ++ GM.showPpr e) $ strengthenMeet t $ (uTop $ F.exprReft e')
+       _       -> F.tracepp ("makeSingleton 5 for " ++ GM.showPpr e) t  
   | otherwise
-  = t
+  = F.tracepp ("makeSingleton 6 for " ++ GM.showPpr e) t
   where 
     argForAllExpr (Var x)
       | rankNTypes (getConfig γ)
@@ -1496,6 +1496,7 @@ simplify :: CoreExpr -> CoreExpr
 simplify (Tick _ e)       = simplify e
 simplify (App e (Type _)) = simplify e
 simplify (App e1 e2)      = App (simplify e1) (simplify e2)
+simplify (Lam x e) | isTyVar x = simplify e 
 simplify e                = e
 
 
@@ -1520,7 +1521,7 @@ strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthenMeet (RVar a r) r'        = RVar a       (r `F.meet` r')
 strengthenMeet (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
 strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
-strengthenMeet (RAllT a t r) r'     = RAllT a t (r `F.meet` r')
+strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `F.meet` r')
 strengthenMeet t _                  = t
 
 -- topMeet :: (PPrint r, F.Reftable r) => r -> r -> r
