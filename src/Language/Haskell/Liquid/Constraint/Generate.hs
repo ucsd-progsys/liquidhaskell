@@ -849,7 +849,7 @@ consE γ e
 -- reflected functions inside proofs.
 consE γ e'@(App e (Type τ)) 
   | Just x <- unVar e 
-  , M.member x (aenv γ)
+  , M.member x (aenv γ) || S.member x (fargs γ)
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
                                        then freshTy_type TypeInstE e τ 
