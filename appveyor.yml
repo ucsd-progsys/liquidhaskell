@@ -7,7 +7,7 @@ environment:
 
 before_build:
 - curl -fsSL https://github.com/Z3Prover/z3/releases/download/Nightly/z3-4.8.7-x64-win.zip -o z3-4.8.7-x64-win.zip
-- 7z e z3-4.8.7-x64-win.zip -oc:\projects\sbv\z3_downloaded -r -y
+- 7z e z3-4.8.7-x64-win.zip -oc:\projects\liquidhaskell\z3_downloaded -r -y
 - choco install -y cabal
 - choco install -y ghc --version 8.6.5
 - refreshenv
