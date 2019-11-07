@@ -849,7 +849,7 @@ consE γ e
 -- reflected functions inside proofs.
 consE γ e'@(App e (Type τ)) 
   | Just x <- unVar e 
-  , M.member x (aenv γ) || S.member x (fargs γ)
+  , M.member x (aenv γ)
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
                                        then freshTy_type TypeInstE e τ 
@@ -880,7 +880,7 @@ consE γ e'@(App e a@(Type τ))
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
-       let tt        = subsTyReft γ (ty_var_value α) τ tt0
+       let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
        -- NV TODO: embed this step with subsTyVar_meet'
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
@@ -910,7 +910,7 @@ consE γ e'@(App e a)
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        pushConsBind      $ cconsE γ'' a tx
-       tout <- makeSingleton γ'' e' <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
        if hasGhost
           then do
            tk   <- freshTy_type ImplictE e' $ exprType e'
@@ -1368,6 +1368,7 @@ argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
+argExpr γ (App e (Type _)) = argExpr γ e 
 argExpr _ _           = Nothing
 
 
@@ -1455,6 +1456,10 @@ makeSingleton γ e t
       (Just f', Just _)
                  -> strengthenMeet t (uTop $ F.exprReft f' )
       _ -> t
+  | rankNTypes (getConfig γ)
+  = case argExpr γ (simplify e) of 
+       Just e' -> strengthenMeet t $ (uTop $ F.exprReft e')
+       _       -> t  
   | otherwise
   = t
   where 
