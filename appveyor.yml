@@ -19,7 +19,7 @@ install:
 - curl -fsSL https://github.com/Z3Prover/z3/releases/download/Nightly/z3-4.8.7-x64-win.zip -o z3-4.8.7-x64-win.zip
 - 7z e z3-4.8.7-x64-win.zip -oc:\projects\sbv\z3_downloaded -r -y
 
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.8.6\tools
+- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.8.7\tools
 - z3 --version
 
 build_script:
