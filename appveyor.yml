@@ -10,10 +10,15 @@ before_build:
 - 7z e z3-4.8.7-x64-win.zip -oc:\projects\liquidhaskell\z3_downloaded -r -y
 - choco install -y cabal
 - choco install -y ghc --version 8.6.5
+
+# Download latest stable Stack tool
+- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-x86_64.zip
+- 7z x stack.zip stack.exe
 - refreshenv
 - set PATH=C:\projects\liquidhaskell\z3_downloaded;%PATH%
 - ghc --version
 - z3 --version
+- stack --version
 
 skip_tags: true
 
