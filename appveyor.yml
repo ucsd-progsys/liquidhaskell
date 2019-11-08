@@ -16,9 +16,9 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
-- nuget install z3x64win -Version 4.5.0.1	
+- nuget install Microsoft.Z3.x64 -Version 4.8.6
 
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
+- set PATH=%PATH%;%cd%;%cd%\Microsoft.Z3.x64.4.8.6\tools
 - z3 --version
 
 build_script:
@@ -33,7 +33,7 @@ build_script:
 - liquid --version
 
 # ZIP execturable 
-- 7z a liquidhaskell.zip liquid.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
+- 7z a liquidhaskell.zip liquid.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll %APPVEYOR_BUILD_FOLDER%\Microsoft.Z3.x64.4.8.6\tools\*.exe %APPVEYOR_BUILD_FOLDER%\Microsoft.Z3.x64.4.8.6\lib\*.dll %APPVEYOR_BUILD_FOLDER%\Microsoft.Z3.x64.4.8.6\*.dll
 
 test_script:
 - echo "" | stack --no-terminal test liquidhaskell --fast --test-arguments "-p Micro"
