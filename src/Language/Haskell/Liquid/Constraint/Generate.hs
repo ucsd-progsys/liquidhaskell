@@ -1380,23 +1380,6 @@ lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of
                             _ -> Nothing
 lamExpr _ _           = Nothing
 
-
-
-forallExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-forallExpr γ (Var v)          | M.member v $ aenv γ, higherOrderFlag γ
-                              = F.EVar <$> (M.lookup v $ aenv γ)
-forallExpr _ (Var vy)         = Just $ F.eVar vy
-forallExpr γ (Lit c)          = snd  $ literalConst (emb γ) c
-forallExpr γ (Lam a e)        | isTyVar a 
-                              = forallExpr γ e 
-forallExpr γ (Tick _ e)       = forallExpr γ e
-forallExpr γ (App e (Type _)) = forallExpr γ e
-forallExpr γ (App e1 e2)      = case (forallExpr γ e1, forallExpr γ e2) of
-                                  (Just p1, Just p2) -> Just $ F.EApp p1 p2 
-                                  _                  -> Nothing 
-forallExpr _ _                = Nothing
-
-
 --------------------------------------------------------------------------------
 (??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
