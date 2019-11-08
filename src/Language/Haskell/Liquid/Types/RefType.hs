@@ -1291,9 +1291,9 @@ instance SubsTy Symbol Symbol (BRType r) where
   subt (x,y) (RVar v r)
     | BTV x == v = RVar (BTV y) r 
     | otherwise  = RVar v r 
-  subt (x, y) (RAllT (RTVar v i) t)
-    | BTV x == v = RAllT (RTVar v i) t
-    | otherwise  = RAllT (RTVar v i) (subt (x,y) t)
+  subt (x, y) (RAllT (RTVar v i) t r)
+    | BTV x == v = RAllT (RTVar v i) t r
+    | otherwise  = RAllT (RTVar v i) (subt (x,y) t) r
   subt su (RFun x t1 t2 r)  = RFun x (subt su t1) (subt su t2) r 
   subt su (RImpF x t1 t2 r) = RImpF x (subt su t1) (subt su t2) r
   subt su (RAllP p t)       = RAllP p (subt su t)
@@ -2034,7 +2034,7 @@ tyVarsPosition = go (Just True)
     go p (RVar t _)        = report p t
     go p (RFun _ t1 t2 _)  = go (flip p) t1 <> go p t2 
     go p (RImpF _ t1 t2 _) = go (flip p) t1 <> go p t2 
-    go p (RAllT _ t)       = go p t 
+    go p (RAllT _ t _)     = go p t 
     go p (RAllP _ t)       = go p t 
     go p (RAllS _ t)       = go p t 
     go p (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
