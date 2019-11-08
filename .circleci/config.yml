@@ -1,16 +1,16 @@
 ---
-version: 2.0
+version: 2.1
 
 jobs:
   build:
     docker:
-      - image: fpco/stack-build:lts-13.30
+      - image: fpco/stack-build:lts
     steps:
+      - checkout
       - add_ssh_keys
       - run: apt-get install z3
       #- run: find .git
       #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
-      - checkout
       - run: git submodule sync
       - run: git submodule update --init
       - restore_cache:
