@@ -108,7 +108,6 @@ data CGEnv = CGE
   , tgKey  :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
   , trec   :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
   , lcb    :: !(M.HashMap F.Symbol CoreExpr)         -- ^ Let binding that have not been checked (c.f. LAZYVARs)
-  , forallcb :: !(M.HashMap Var F.Expr)              -- ^ Polymorhic let bindings 
   , holes  :: !HEnv                                  -- ^ Types with holes, will need refreshing
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
   , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps reflected Haskell functions to the logical functions
