@@ -459,7 +459,7 @@ mkTest ec dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        let bin = binPath "liquid" -- "stack exec -- liquid"
+        bin <- binPath "liquid" -- "stack exec -- liquid"
         hSetBuffering stdout LineBuffering -- or even NoBuffering
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
