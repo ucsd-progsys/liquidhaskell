@@ -878,7 +878,7 @@ substPiSols piSols (Any (Bind n _ p) c)
   | Head (Var pi _) label <- c, Just sol <- M.lookup pi piSols =
     case findSol n sol of
       Just e -> Head (flatten $ PAnd $ (\pred -> F.subst1 pred (n, e)) <$> [p, sol]) label
-      Nothing -> Head (Reft $ F.POr []) label
+      Nothing -> Head (Reft $ F.PAnd []) label
   | otherwise = error "missing piSol"
 
 findSol :: F.Symbol -> Pred -> Maybe F.Expr
