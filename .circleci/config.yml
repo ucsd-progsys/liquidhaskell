@@ -4,7 +4,7 @@ version: 2.0
 jobs:
   build:
     docker:
-      - image: fpco/stack-build:lts-14.13
+      - image: fpco/stack-build:lts-13.30
     steps:
       - add_ssh_keys
       - run: apt-get install z3
