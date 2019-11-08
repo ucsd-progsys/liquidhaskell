@@ -190,7 +190,7 @@ library
                     , time
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
-                    , vector               >= 0.10
+                    , vector               >= 0.12
   default-language:   Haskell98
   default-extensions: PatternGuards
   ghc-options:        -W -fwarn-missing-signatures
@@ -251,6 +251,7 @@ test-suite test
                   , tasty-rerun          >= 1.1
                   , text
                   , transformers         >= 0.3
+                  , vector               >= 0.12
   default-language: Haskell98
   ghc-options:      -W -threaded
 
