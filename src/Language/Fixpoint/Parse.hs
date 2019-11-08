@@ -40,6 +40,7 @@ module Language.Fixpoint.Parse (
   , bindP       -- Binder (lowerIdP <* colon)
   , sortP       -- Sort
   , mkQual      -- constructing qualifiers
+  , infixSymbolP -- parse infix symbols 
 
   -- * Parsing recursive entities
   , exprP       -- Expressions
@@ -109,6 +110,7 @@ type Parser = ParsecT String Integer (State PState)
 type ParserT u a = ParsecT String u (State PState) a
 
 data PState = PState { fixityTable :: OpTable
+                     , fixityOps   :: [Fixity]
                      , empList     :: Maybe Expr
                      , singList    :: Maybe (Expr -> Expr)}
 
@@ -446,7 +448,17 @@ type OpTable = OperatorTable String Integer (State PState) Expr
 
 addOperatorP :: Fixity -> Parser ()
 addOperatorP op
-  = modify $ \s -> s{fixityTable =  addOperator op (fixityTable s)}
+  = modify $ \s -> s{ fixityTable =  addOperator op (fixityTable s)
+                    , fixityOps   =  op:fixityOps s 
+                    }
+
+infixSymbolP :: Parser Symbol
+infixSymbolP = do 
+  ops <- infixOps <$> get 
+  choice (reserved' <$> ops)
+  where 
+    infixOps st = [s | FInfix _ s _ _ <- fixityOps st]
+    reserved' x = reserved x >> return (symbol x) 
 
 addOperator :: Fixity -> OpTable -> OpTable
 addOperator (FInfix p x f assoc) ops
@@ -964,7 +976,11 @@ remainderP p
 
 
 initPState :: Maybe Expr -> PState
-initPState cmpFun = PState {fixityTable = bops cmpFun, empList = Nothing, singList = Nothing }
+initPState cmpFun = PState { fixityTable = bops cmpFun
+                           , empList     = Nothing
+                           , singList    = Nothing
+                           , fixityOps   = [] 
+                           }
 
 doParse' :: Parser a -> SourceName -> String -> a
 doParse' parser f s
