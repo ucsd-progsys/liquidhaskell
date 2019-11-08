@@ -18,7 +18,6 @@ install:
 # Install Microsoft Z3 from GitHub
 - curl -sS -oz3.zip -L --insecure https://github.com/Z3Prover/z3/releases/download/z3-4.8.6/z3-4.8.6-x64-win.zip
 - 7z x z3.zip
-- dir /s %cd%\z3-4.8.6-x64-win
 - copy %cd%\z3-4.8.6-x64-win\LICENSE.txt %cd%\z3-4.8.6-x64-win\LICENSE_Z3
 - set PATH=%PATH%;%cd%;%cd%\z3-4.8.6-x64-win\bin
 - z3 --version
