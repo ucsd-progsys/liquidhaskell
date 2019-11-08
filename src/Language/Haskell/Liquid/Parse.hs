@@ -261,6 +261,13 @@ btP = do
             PC _ t2 <- btP
             -- TODO:AZ return an error if s == PcExplicit
             return $ PC sb $ foldr (rFun dummySymbol) t2 (getClasses t1))
+         <|> 
+          (do 
+             spaces 
+             b <- locParserP infixSymbolP
+             spaces
+             PC _ t2 <- btP 
+             return $ PC sb $ (RApp (mkBTyCon b) [t1,t2] [] mempty))
          <|> return c)
 
 
@@ -1444,6 +1451,7 @@ binderP    = pwr    <$> parens (idP bad)
     badc c = (c == ':') || (c == ',') || bad c
     bad c  = isSpace c || c `elem` ("(,)" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
+
 
 grabs :: ParsecT s u m a -> ParsecT s u m [a]
 grabs p = try (liftM2 (:) p (grabs p))
