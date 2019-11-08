@@ -970,12 +970,11 @@ scope k cstr = case go cstr of
                  Left l -> Head (Reft F.PTrue) l
   where
     go c@(Head (Var k' _) _)
-       | k' == k              = Right c
-    go   (Head _ l)           = Left l
-    go c@(All (Bind _ _ (Var k' _)) _)
-       | k' == k              = Right c
-    go   (All _ c)            = go c
-    go   Any{}                = error "any should no appear after poke"
+      | k' == k = Right c
+    go (Head _ l) = Left l
+    go c@(All (Bind _ _ p) c') =
+      if k `S.member` (pKVars p) then Right c else go c'
+    go Any{} = error "any should not appear after poke"
 
     -- if kvar doesn't appear, then just return the left
     -- if kvar appears in one child, that is the lca
