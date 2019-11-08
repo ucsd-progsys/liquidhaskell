@@ -842,6 +842,7 @@ consE γ e
   , Just p <- Rs.lift e
   = consPattern γ (F.notracepp "CONSE-PATTERN: " p) (exprType e)
 
+-- NV CHECK 3 (unVar and does this hack even needed?)
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
 -- is empty if there is no axiomatization. 
@@ -849,7 +850,7 @@ consE γ e
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
 consE γ e'@(App e (Type τ)) 
-  | Just x <- unVar e  -- NV TODO: check3
+  | Just x <- unVar e  
   , M.member x (aenv γ)
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
@@ -865,7 +866,6 @@ consE γ e'@(App e (Type τ))
         unVar (App e (Type _)) = unVar e 
         unVar _                = Nothing 
 -- NV TODO: what happens to this r at instantiation?
--- NV END HACK
 
 consE γ (Var x)
   = do t <- varRefType γ x
@@ -877,12 +877,11 @@ consE _ (Lit c)
 
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t            <- if isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
        let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
-       -- NV TODO: embed this step with subsTyVar_meet'
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> return tt
@@ -1436,7 +1435,7 @@ varRefType' γ x t'
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
-  = case (funExpr γ f, argExpr γ x) of
+  = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
                  | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
@@ -1449,6 +1448,14 @@ makeSingleton γ e t
        _       -> t  
   | otherwise
   = t
+  where 
+    argForAllExpr (Var x)
+      | rankNTypes (getConfig γ)
+      , Just e <- M.lookup x (forallcb γ)
+      = Just e 
+    argForAllExpr e
+      = argExpr γ e
+
 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr

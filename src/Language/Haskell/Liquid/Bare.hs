@@ -959,7 +959,7 @@ mkRTE tAs eAs   = RTE
 
 normalizeBareAlias :: Bare.Env -> Bare.SigEnv -> ModName -> Located BareRTAlias 
                    -> Located BareRTAlias 
-normalizeBareAlias env sigEnv name lx = fixRTA <$> lx 
+normalizeBareAlias env sigEnv name lx = fixRTA <$> lx
   where 
     fixRTA  :: BareRTAlias -> BareRTAlias 
     fixRTA  = mapRTAVars fixArg . fmap fixBody 

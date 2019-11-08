@@ -401,8 +401,8 @@ checkRType allowHO emb env lt
 tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]
 tyToBind emb = go . ty_var_info
   where
-    go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
-    go RTVNoInfo      = []
+    go (RTVInfo {..})   = [(rtv_name, rTypeSortedReft emb rtv_kind)]
+    go (RTVNoInfo {..}) = []
 
 checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go

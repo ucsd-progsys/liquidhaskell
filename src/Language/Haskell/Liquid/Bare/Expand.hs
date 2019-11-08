@@ -72,14 +72,25 @@ makeRTEnv env m mySpec iSpecs lmap
 --   hidden inside @RExprArg@ or as strange type parameters. 
 renameRTArgs :: BareRTEnv -> BareRTEnv 
 renameRTArgs rte = RTE 
-  { typeAliases = M.map (fmap (renameVV . renameRTVArgs)) (typeAliases rte) 
-  , exprAliases = M.map (fmap (           renameRTVArgs)) (exprAliases rte) 
+  { typeAliases = M.map (fmap ( renameTys . renameVV . renameRTVArgs)) (typeAliases rte) 
+  , exprAliases = M.map (fmap (                        renameRTVArgs)) (exprAliases rte) 
   } 
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
   where
     f rtEnv xt = setREAlias rtEnv (expandLoc rtEnv xt)
+
+
+-- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names 
+--   to avoid variable capture e.g. as in T1556.hs
+renameTys :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
+renameTys rt = rt { rtTArgs = ys, rtBody = subts (rtBody rt) (zip xs ys) }
+  where 
+    xs    = rtTArgs rt 
+    ys    = (`F.suffixSymbol` rtName rt) <$> xs
+    subts = foldl (flip subt)
+
 
 renameVV :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
 renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
@@ -556,7 +567,7 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
-  . fmap (specExpandType rtEnv)                         
+  . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
   . fmap (maybePlug       sigEnv name x)
   . fmap (Bare.qualifyTop    env name l) 
