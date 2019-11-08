@@ -15,7 +15,7 @@ jobs:
           name: Submodules 
           command: |
             git submodule init
-            git submodule update
+            git submodule update --remote
       - restore_cache:
           keys:
             - stack-{{ checksum "stack.yaml" }}
