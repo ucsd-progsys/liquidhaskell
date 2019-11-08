@@ -9,10 +9,13 @@ jobs:
       - add_ssh_keys
       - run: apt-get install z3
       - checkout
-      - run: git submodule init
       #- run: find .git
       #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
-      - run: git submodule update
+      - run:
+          name: Submodules 
+          command: |
+            git submodule init
+            git submodule update
       - restore_cache:
           keys:
             - stack-{{ checksum "stack.yaml" }}
