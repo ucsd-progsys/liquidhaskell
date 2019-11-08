@@ -8,12 +8,12 @@ jobs:
     steps:
       - add_ssh_keys
       - run: apt-get install z3
-      - checkout
       #- run: find .git
       #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
       - run:
           name: Submodules 
           command: |
+            checkout
             git submodule init
             git submodule update 
       - restore_cache:
