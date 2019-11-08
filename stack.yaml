@@ -9,4 +9,6 @@ packages:
 - .
 extra-deps:
 - tasty-rerun-1.1.14
+- fgl-visualize-0.1.0.1
+- located-base-0.1.1.1
 resolver: lts-14.12
