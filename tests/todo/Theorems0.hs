@@ -12,7 +12,6 @@ import Equational
 data StackFun a b = SF (forall z. (a,z) -> (b,z))
 
 
-
 {-@ injectiveProp' :: f:(forall b. (a,b) -> (c,b)) -> f':(forall b. (a,b) -> (c,b)) 
                    -> { SF f == SF f' => f ==  f' } @-}
 injectiveProp' :: (forall b. (a,b) -> (c,b)) -> (forall b. (a,b) -> (c,b)) -> ()

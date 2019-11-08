@@ -476,7 +476,7 @@ consCB _ _ γ (NonRec x def)
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
-       extender (addRankNBind γ x e) (x, to')
+       extender (addRankNBind γ x e) (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, Type)
 grepDictionary (App (Var w) (Type t)) = Just (w, t)
@@ -1452,16 +1452,16 @@ makeSingleton γ e t
   = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
                  | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
-                 -> F.tracepp ("makeSingleton 1 for " ++ GM.showPpr e ++ "\n expr = " ++ showpp (F.EApp f' x') ) $ strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
+                 -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
-                 -> F.tracepp ("makeSingleton 2 for " ++ GM.showPpr e) $ strengthenMeet t (uTop $ F.exprReft f' )
-      _ -> F.tracepp ("makeSingleton 3 for " ++ GM.showPpr e) t
+                 -> strengthenMeet t (uTop $ F.exprReft f')
+      _ -> t
   | rankNTypes (getConfig γ)
   = case argExpr γ (simplify e) of 
-       Just e' -> F.tracepp ("makeSingleton 4 for " ++ GM.showPpr e) $ strengthenMeet t $ (uTop $ F.exprReft e')
-       _       -> F.tracepp ("makeSingleton 5 for " ++ GM.showPpr e) t  
+       Just e' -> strengthenMeet t $ (uTop $ F.exprReft e')
+       _       -> t  
   | otherwise
-  = F.tracepp ("makeSingleton 6 for " ++ GM.showPpr e) t
+  = t
   where 
     argForAllExpr (Var x)
       | rankNTypes (getConfig γ)

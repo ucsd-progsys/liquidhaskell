@@ -141,7 +141,7 @@ trueRef (RProp s t) = RProp s <$> trueRefType t
 refreshRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
 refreshRefType (RAllT α t r)
-  = RAllT α <$> refresh t <*> refresh r
+  = RAllT α <$> refresh t <*> true r
 
 refreshRefType (RAllP π t)
   = RAllP π <$> refresh t
