@@ -17,7 +17,7 @@ install:
 
 # Install Microsoft Z3 from NuGet
 - nuget install Microsoft.Z3.x64 -Version 4.8.6
-
+- dir /s %cd%\Microsoft.Z3.x64.4.8.6\
 - set PATH=%PATH%;%cd%;%cd%\Microsoft.Z3.x64.4.8.6\tools
 - z3 --version
 
