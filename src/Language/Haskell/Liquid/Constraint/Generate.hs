@@ -476,7 +476,7 @@ consCB _ _ γ (NonRec x def)
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
-       extender (addRankNBind γ x e) (x, makeSingleton γ (simplify e) <$> to')
+       extender γ (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, Type)
 grepDictionary (App (Var w) (Type t)) = Just (w, t)
@@ -722,6 +722,7 @@ lambdaSingleton γ tce x e
 lambdaSingleton _ _ _ _
   = mempty
 
+-- NV TODO: CHECK2 
 addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addForAllConstraint γ _ _ (RAllT a t r)
   | F.isTauto r 
@@ -848,7 +849,7 @@ consE γ e
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
 consE γ e'@(App e (Type τ)) 
-  | Just x <- unVar e 
+  | Just x <- unVar e  -- NV TODO: check3
   , M.member x (aenv γ)
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
        t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
@@ -1332,20 +1333,6 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 
 
 --------------------------------------------------------------------------------
--- | Helpers: Keep track of polymorphic let bindings  --------------------------
---------------------------------------------------------------------------------
-
-addRankNBind :: CGEnv -> Var -> CoreExpr -> CGEnv     
-addRankNBind γ x e 
-  | rankNTypes (getConfig γ)
-  , isForAllTy (varType x)
-  , Just e' <- forallExpr γ e 
-  = γ {forallcb = M.insert x e' (forallcb γ)}
-addRankNBind γ _ _  
-  = γ
-
-
---------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
 argType :: Type -> Maybe F.Expr
@@ -1449,7 +1436,7 @@ varRefType' γ x t'
 makeSingleton :: CGEnv -> CoreExpr -> SpecType -> SpecType
 makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
-  = case (funExpr γ f, argForAllExpr x) of
+  = case (funExpr γ f, argExpr γ x) of
       (Just f', Just x')
                  | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
@@ -1462,13 +1449,6 @@ makeSingleton γ e t
        _       -> t  
   | otherwise
   = t
-  where 
-    argForAllExpr (Var x)
-      | rankNTypes (getConfig γ)
-      , Just e <- M.lookup x (forallcb γ)
-      = Just e 
-    argForAllExpr e
-      = argExpr γ e
 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
