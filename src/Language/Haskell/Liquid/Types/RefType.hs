@@ -2037,13 +2037,13 @@ tyVarsPosition = go (Just True)
     go p (RAllT _ t _)     = go p t 
     go p (RAllP _ t)       = go p t 
     go p (RAllS _ t)       = go p t 
-    go p (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
+    go _ (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
     go p (RAllE _ t1 t2)   = go p t1 <> go p t2 
     go p (REx _ t1 t2)     = go p t1 <> go p t2
-    go p (RExprArg _)      = mempty
+    go _ (RExprArg _)      = mempty
     go p (RAppTy t1 t2 _)  = go p t1 <> go p t2 
     go p (RRTy _ _ _ t)    = go p t 
-    go p (RHole _)         = mempty
+    go _ (RHole _)         = mempty
 
     report Nothing v      = (Pos [] [] [v])
     report (Just True) v  = (Pos [v] [] [])
