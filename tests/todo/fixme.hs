@@ -13,12 +13,3 @@
  {-@ naturality :: g:(f ==> g) -> h:(q -> r) -> p:f q 
                        -> { true } @-} 
  naturality _ _ _ = () 
-  
- -- /Users/conal/Haskell/liquid-ccc/src/Theorems.hs:124:31: Error: Cannot parse specification: 
- --   
- -- 124 | {-@ assume naturality :: g:(f ==> g) -> h:(q -> r) -> p:f q 
- --                                     ^ 
- --   
- --     unexpected "=" 
- --     expecting ":", bareTyArgP, stratumP, monoPredicateP, "->", "~>", "=>", "," or ")" 
-  
