@@ -211,14 +211,14 @@ makeRecType autoenv t vs dxs is
     trep       = toRTypeRep $ unOCons t
 
 unOCons :: RType c tv r -> RType c tv r
-unOCons (RAllT v t)        = RAllT v $ unOCons t
+unOCons (RAllT v t r)      = RAllT v (unOCons t) r 
 unOCons (RAllP p t)        = RAllP p $ unOCons t
 unOCons (RFun x tx t r)    = RFun x (unOCons tx) (unOCons t) r
 unOCons (RRTy _ _ OCons t) = unOCons t
 unOCons t                  = t
 
 mergecondition :: RType c tv r -> RType c tv r -> RType c tv r
-mergecondition (RAllT _ t1) (RAllT v t2)               = RAllT v (mergecondition t1 t2)
+mergecondition (RAllT _ t1 _) (RAllT v t2 r2)          = RAllT v (mergecondition t1 t2) r2 
 mergecondition (RAllP _ t1) (RAllP p t2)               = RAllP p (mergecondition t1 t2)
 mergecondition (RRTy xts r OCons t1) t2                = RRTy xts r OCons (mergecondition t1 t2)
 mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2) = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
@@ -470,13 +470,13 @@ consCB _ _ γ (NonRec x def)
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
-    f t' (RAllT α te) = subsTyVar_meet' (ty_var_value α, t') te
+    f t' (RAllT α te _) = subsTyVar_meet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
   = do to  <- varTemplate γ (x, Nothing)
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
-       extender (addRankNBind γ x e) (x, to')
+       extender γ (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, Type)
 grepDictionary (App (Var w) (Type t)) = Just (w, t)
@@ -676,8 +676,10 @@ cconsE' γ (Case e x _ cases) t
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
 
-cconsE' γ (Lam α e) (RAllT α' t) | isTyVar α
+-- NV TODO: what happens to the refinement of RAllT? 
+cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
   = do γ' <- updateEnvironment γ α
+       addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
 cconsE' γ (Lam x e) (RFun y ty t r)
@@ -720,7 +722,22 @@ lambdaSingleton γ tce x e
 lambdaSingleton _ _ _ _
   = mempty
 
+-- NV TODO: CHECK2 
+addForAllConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
+addForAllConstraint γ _ _ (RAllT a t r)
+  | F.isTauto r 
+  = return ()
+  | otherwise
+  = do t'       <- true t
+       let truet = RAllT a $ unRAllP t'
+       addC (SubC γ (truet mempty) $ truet r) "forall constraint true"
+  where unRAllP (RAllT a t r) = RAllT a (unRAllP t) r  
+        unRAllP (RAllP _ t)   = unRAllP t 
+        unRAllP t             = t 
+addForAllConstraint γ _ _ _
+  = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
+  
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
 addFunctionConstraint γ x e (RFun y ty t r)
   = do ty'      <- true ty
@@ -825,26 +842,30 @@ consE γ e
   , Just p <- Rs.lift e
   = consPattern γ (F.notracepp "CONSE-PATTERN: " p) (exprType e)
 
+-- NV CHECK 3 (unVar and does this hack even needed?)
 -- NV (below) is a hack to type polymorphic axiomatized functions
 -- no need to check this code with flag, the axioms environment with
 -- is empty if there is no axiomatization. 
 
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
-consE γ e'@(App e@(Var x) (Type τ)) | M.member x (aenv γ)
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- {- PLE-OPT -} if rtv_is_pol (ty_var_info α) 
-                                       && isGeneric γ (ty_var_value α) te 
-                                       && not (isPLETerm γ) 
-                                     then freshTy_type TypeInstE e τ 
-                                     else trueTy τ
-       addW        $ WfC γ t
-       t'         <- refreshVV t
-       tt00       <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
-       let tt      = subsTyReft γ (ty_var_value α) τ tt00
-       return      $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
-
--- NV END HACK
+consE γ e'@(App e (Type τ)) 
+  | Just x <- unVar e  
+  , M.member x (aenv γ)
+  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
+       t            <- {- PLE-OPT -} if isGeneric γ (ty_var_value α) te && not (isPLETerm γ) 
+                                       then freshTy_type TypeInstE e τ 
+                                       else trueTy τ
+       addW          $ WfC γ t
+       t'           <- refreshVV t
+       tt00         <- instantiatePreds γ e' $ subsTyVar_meet' (ty_var_value α, t') te
+       let tt        = subsTyReft γ (ty_var_value α) τ tt00
+       return        $ strengthenMeet tt (singletonReft (M.lookup x $ aenv γ) x)
+  where unVar (Var x)          = Just x 
+        unVar (Tick _ e)       = unVar e 
+        unVar (App e (Type _)) = unVar e 
+        unVar _                = Nothing 
+-- NV TODO: what happens to this r at instantiation?
 
 consE γ (Var x)
   = do t <- varRefType γ x
@@ -855,13 +876,12 @@ consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
 consE γ e'@(App e a@(Type τ))
-  = do RAllT α te <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t          <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
-       addW        $ WfC γ t
-       t'         <- refreshVV t
-       tt0        <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
-       let tt      = subsTyReft γ (ty_var_value α) τ tt0
-       -- NV TODO: embed this step with subsTyVar_meet'
+  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
+       t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       addW          $ WfC γ t
+       t'           <- refreshVV t
+       tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> return tt
@@ -890,7 +910,7 @@ consE γ e'@(App e a)
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        pushConsBind      $ cconsE γ'' a tx
-       tout <- makeSingleton γ'' e' <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ a))
+       tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
        if hasGhost
           then do
            tk   <- freshTy_type ImplictE e' $ exprType e'
@@ -901,7 +921,8 @@ consE γ e'@(App e a)
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
-       liftM (RAllT (makeRTVar $ rTyVar α)) (consE γ' e)
+       t' <- consE γ' e
+       return $ RAllT (makeRTVar $ rTyVar α) t' mempty
 
 consE γ  e@(Lam x e1)
   = do tx      <- freshTy_type LamE (Var x) τx
@@ -1263,8 +1284,8 @@ unfoldR _  _                _  = panic Nothing "Constraint.hs : unfoldR"
 instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
   where 
-    go (RAllT α tbody) t = subsTyVar_meet' (ty_var_value α, t) tbody
-    go _ _               = panic Nothing "Constraint.instantiateTy"
+    go (RAllT α tbody _) t = subsTyVar_meet' (ty_var_value α, t) tbody
+    go _ _                 = panic Nothing "Constraint.instantiateTy"
 
 instantiatePvs :: SpecType -> [SpecProp] -> SpecType
 instantiatePvs           = L.foldl' go
@@ -1281,7 +1302,7 @@ checkFun _ _ t@(RFun _ _ _ _) = t
 checkFun x g t                = checkErr x g t
 
 checkAll :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkAll _ _ t@(RAllT _ _)    = t
+checkAll _ _ t@(RAllT _ _ _)  = t
 checkAll x g t                = checkErr x g t
 
 checkErr :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
@@ -1311,20 +1332,6 @@ freshPredRef _ _ (PV _ PVHProp _ _)
 
 
 --------------------------------------------------------------------------------
--- | Helpers: Keep track of polymorphic let bindings  --------------------------
---------------------------------------------------------------------------------
-
-addRankNBind :: CGEnv -> Var -> CoreExpr -> CGEnv     
-addRankNBind γ x e 
-  | rankNTypes (getConfig γ)
-  , isForAllTy (varType x)
-  , Just e' <- forallExpr γ e 
-  = γ {forallcb = M.insert x e' (forallcb γ)}
-addRankNBind γ _ _  
-  = γ
-
-
---------------------------------------------------------------------------------
 -- | Helpers: Creating Refinement Types For Various Things ---------------------
 --------------------------------------------------------------------------------
 argType :: Type -> Maybe F.Expr
@@ -1347,6 +1354,7 @@ argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ
 argExpr _ (Var vy)    = Just $ F.eVar vy
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
+argExpr γ (App e (Type _)) = argExpr γ e 
 argExpr _ _           = Nothing
 
 
@@ -1371,23 +1379,6 @@ lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of
                             Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
-
-
-
-forallExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-forallExpr γ (Var v)          | M.member v $ aenv γ, higherOrderFlag γ
-                              = F.EVar <$> (M.lookup v $ aenv γ)
-forallExpr _ (Var vy)         = Just $ F.eVar vy
-forallExpr γ (Lit c)          = snd  $ literalConst (emb γ) c
-forallExpr γ (Lam a e)        | isTyVar a 
-                              = forallExpr γ e 
-forallExpr γ (Tick _ e)       = forallExpr γ e
-forallExpr γ (App e (Type _)) = forallExpr γ e
-forallExpr γ (App e1 e2)      = case (forallExpr γ e1, forallExpr γ e2) of
-                                  (Just p1, Just p2) -> Just $ F.EApp p1 p2 
-                                  _                  -> Nothing 
-forallExpr _ _                = Nothing
-
 
 --------------------------------------------------------------------------------
 (??=) :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
@@ -1432,8 +1423,12 @@ makeSingleton γ e t
                  | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
-                 -> strengthenMeet t (uTop $ F.exprReft f' )
+                 -> strengthenMeet t (uTop $ F.exprReft f')
       _ -> t
+  | rankNTypes (getConfig γ)
+  = case argExpr γ (simplify e) of 
+       Just e' -> strengthenMeet t $ (uTop $ F.exprReft e')
+       _       -> t  
   | otherwise
   = t
   where 
@@ -1443,6 +1438,7 @@ makeSingleton γ e t
       = Just e 
     argForAllExpr e
       = argExpr γ e
+
 
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
@@ -1470,6 +1466,7 @@ simplify :: CoreExpr -> CoreExpr
 simplify (Tick _ e)       = simplify e
 simplify (App e (Type _)) = simplify e
 simplify (App e1 e2)      = App (simplify e1) (simplify e2)
+simplify (Lam x e) | isTyVar x = simplify e 
 simplify e                = e
 
 
@@ -1485,6 +1482,7 @@ strengthenTop (RApp c ts rs r) r'  = RApp c ts rs $ F.meet r r'
 strengthenTop (RVar a r) r'        = RVar a       $ F.meet r r'
 strengthenTop (RFun b t1 t2 r) r'  = RFun b t1 t2 $ F.meet r r'
 strengthenTop (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ F.meet r r'
+strengthenTop (RAllT a t r)    r'  = RAllT a t    $ F.meet r r'
 strengthenTop t _                  = t
 
 -- TODO: this is almost identical to RT.strengthen! merge them!
@@ -1493,7 +1491,7 @@ strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthenMeet (RVar a r) r'        = RVar a       (r `F.meet` r')
 strengthenMeet (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
 strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
-strengthenMeet (RAllT a t) r'       = RAllT a $ strengthenMeet t r'
+strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `F.meet` r')
 strengthenMeet t _                  = t
 
 -- topMeet :: (PPrint r, F.Reftable r) => r -> r -> r

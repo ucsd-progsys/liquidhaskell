@@ -132,7 +132,7 @@ isBoolBind v = isBool (ty_res $ toRTypeRep ((ofType $ Ghc.varType v) :: RRType (
 strengthenRes :: SpecType -> F.Reft -> SpecType
 strengthenRes t r = go t 
   where 
-    go (RAllT a t)     = RAllT a $ go t 
+    go (RAllT a t r)   = RAllT a (go t) r  
     go (RAllP p t)     = RAllP p $ go t
     go (RFun x tx t r) = RFun x tx (go t) r 
     go t               =  t `strengthen` F.ofReft r 
@@ -176,7 +176,7 @@ axiomType :: LocSymbol -> SpecType -> AxiomType
 axiomType s t = AT to (reverse xts) res  
   where
     (to, (_,xts, Just res)) = runState (go t) (1,[], Nothing)
-    go (RAllT a t) = RAllT a <$> go t
+    go (RAllT a t r) = RAllT a <$> go t <*> return r 
     go (RAllP p t) = RAllP p <$> go t 
     go (RFun x tx t r) | isClassType tx = (\t' -> RFun x tx t' r) <$> go t
     go (RFun x tx t r) = do 
@@ -186,7 +186,7 @@ axiomType s t = AT to (reverse xts) res
       t' <- go t 
       return $ RFun x' tx t' r 
     go t = do 
-      (i,bs,res) <- get 
+      (i,bs,_) <- get 
       let ys = reverse $ map fst bs
       let t' = strengthen t (singletonApp s ys)
       put (i, bs, Just t')
@@ -255,3 +255,4 @@ makeCompositionExpression x
            Ghc.Lam (Ghc.binderVar b) $ 
            Ghc.Lam (Ghc.binderVar c) $ 
            Ghc.Lam f $ Ghc.Lam g $ Ghc.Lam x $ Ghc.App (Ghc.Var f) (Ghc.App (Ghc.Var g) (Ghc.Var x))
+    go _ = error "Axioms.go"

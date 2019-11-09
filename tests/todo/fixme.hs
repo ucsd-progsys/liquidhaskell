@@ -1,32 +1,24 @@
-{-# LANGUAGE GADTs, TypeFamilies #-}
-{-@ LIQUID "--exact-data-cons" @-}
--- * Models
-class PersistEntity record where
-  data EntityField record :: * -> *
+{-# LANGUAGE RankNTypes    #-}
+{-# LANGUAGE TypeOperators #-}
 
--- ** User
-{-@
-data User = User
-  { userId :: Int
-  }
-@-}
-data User = User
-  { userId :: Int
---   , userName :: String
---   , userFriend :: Int
---   , userSSN :: String
-  } 
+-- Natural transformation 
 
-instance PersistEntity User where
-  data EntityField User typ where
-    UserId :: EntityField User Int
---     UserName :: EntityField User String
---     UserFriend :: EntityField User Int
---     UserSSN :: EntityField User String
+ {-@ infixr 1 ==> @-} 
+ infixr 1 ==> 
+ type f ==> g = forall z. f z -> g z 
+  
 
-{-@ inline policy @-}
-policy :: EntityField User typ -> User -> User -> Bool
-policy UserId row viewer = True
---  policy UserName row viewer = userId viewer == userFriend row
--- policy UserFriend row viewer = userId viewer == userFriend row
--- policy UserSSN row viewer = userId viewer == userId row
+
+ naturality :: (Functor f, Functor g) => (f ==> g) -> (q -> r) -> f q -> () 
+ {-@ naturality :: g:(f ==> g) -> h:(q -> r) -> p:f q 
+                       -> { true } @-} 
+ naturality _ _ _ = () 
+  
+ -- /Users/conal/Haskell/liquid-ccc/src/Theorems.hs:124:31: Error: Cannot parse specification: 
+ --   
+ -- 124 | {-@ assume naturality :: g:(f ==> g) -> h:(q -> r) -> p:f q 
+ --                                     ^ 
+ --   
+ --     unexpected "=" 
+ --     expecting ":", bareTyArgP, stratumP, monoPredicateP, "->", "~>", "=>", "," or ")" 
+  

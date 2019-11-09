@@ -210,6 +210,10 @@ normalize γ e
   , Just p <- Rs.lift e
   = normalizePattern γ p
 
+normalize γ (Lam x e) | isTyVar x 
+  = do e' <- normalize γ e
+       return $ Lam x e'
+
 normalize γ (Lam x e)
   = do e' <- stitch γ e
        return $ Lam x e'
@@ -241,6 +245,11 @@ normalize _ e@(Type _)
 normalize γ (Cast e τ)
   = do e' <- normalizeName γ e
        return $ Cast e' τ
+
+normalize γ (App e1 e2@(Type _))
+  = do e1' <- normalize γ e1
+       e2' <- normalize γ e2
+       return $ App e1' e2'
 
 normalize γ (App e1 e2)
   = do e1' <- normalize γ e1

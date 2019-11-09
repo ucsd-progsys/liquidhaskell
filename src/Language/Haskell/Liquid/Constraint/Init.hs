@@ -104,9 +104,9 @@ addPolyInfo t = mkUnivs (go <$> as) ps ls t'
   where 
     (as, ps, ls, t') = bkUniv t 
     pos              = tyVarsPosition t' 
-    go a = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
-             then setRtvPol a False  
-             else a 
+    go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
+               then (setRtvPol a False,r)  
+               else (a,r) 
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)

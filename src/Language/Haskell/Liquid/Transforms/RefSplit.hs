@@ -39,9 +39,10 @@ splitRType f (RFun x tx t r) = (RFun x tx1 t1 r1, RFun x tx2 t2 r2)
         (tx1, tx2) = splitRType f tx
         (t1,  t2)  = splitRType f t
         (r1,  r2)  = splitRef   f r
-splitRType f (RAllT v t) = (RAllT v t1, RAllT v t2)
+splitRType f (RAllT v t r) = (RAllT v t1 r1, RAllT v t2 r2)
   where
         (t1, t2) = splitRType f t
+        (r1,  r2)  = splitRef   f r
 splitRType f (RAllP p t) = (RAllP p t1, RAllP p t2)
   where
         (t1, t2) = splitRType f t

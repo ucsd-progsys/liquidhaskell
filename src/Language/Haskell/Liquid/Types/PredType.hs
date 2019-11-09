@@ -171,7 +171,7 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
 dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
-    mkArrow makeVars ps ls [] ts' rt'
+    mkArrow makeVars' ps ls [] ts' rt'
   where
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
@@ -185,6 +185,7 @@ dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
     su       = F.mkSubst [(x, F.EVar y) | (x, y) <- zip xs ys]
     rt'      = F.subst su rt
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
+    makeVars' = zip makeVars (repeat mempty)
 
 instance PPrint TyConP where
   pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
@@ -227,7 +228,7 @@ dataConTy m (TyVarTy v)
 dataConTy m (FunTy t1 t2)
   = rFun F.dummySymbol (dataConTy m t1) (dataConTy m t2)
 dataConTy m (ForAllTy (TvBndr α _) t) -- α :: TyVar
-  = RAllT (makeRTVar (RTV α)) (dataConTy m t)
+  = RAllT (makeRTVar (RTV α)) (dataConTy m t) mempty
 dataConTy m (TyConApp c ts)
   = rApp c (dataConTy m <$> ts) [] mempty
 dataConTy _ _
@@ -335,7 +336,7 @@ substPred msg (p, tp) (RAllP (q@(PV _ _ _ _)) t)
   | p /= q                      = RAllP q $ substPred msg (p, tp) t
   | otherwise                   = RAllP q t
 
-substPred msg su (RAllT a t)    = RAllT a (substPred msg su t)
+substPred msg su (RAllT a t r)  = RAllT a (substPred msg su t) r
 
 substPred msg su@(π,prop) (RFun x t t' r)
 --                        = RFun x (substPred msg su t) (substPred msg su t') r
@@ -434,8 +435,8 @@ freeArgsPs p (RImpF _ t1 t2 r)
   = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RFun _ t1 t2 r)
   = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
-freeArgsPs p (RAllT _ t)
-  = freeArgsPs p t
+freeArgsPs p (RAllT _ t r)
+  = L.nub $  freeArgsPs p t ++ freeArgsPsRef p r
 freeArgsPs p (RAllS _ t)
   = freeArgsPs p t
 freeArgsPs p (RAllP p' t)

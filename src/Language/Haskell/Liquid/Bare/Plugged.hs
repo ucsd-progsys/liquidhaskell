@@ -149,7 +149,7 @@ plugHoles_old, plugHoles_new
 -- NOTE: this use of toType is safe as rt' is derived from t.
 plugHoles_old tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
-    . mkArrow (updateRTVar <$> αs) ps' (ls1 ++ ls2) [] [] 
+    . mkArrow (zip (updateRTVar <$> αs') rs) ps' (ls1 ++ ls2) [] [] 
     . makeCls cs' 
     . goPlug tce tyi err f (subts su rt) 
     . mapExprReft (\_ -> F.applyCoSub coSub) 
@@ -164,6 +164,7 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
     coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'               = fmap (subts su') <$> ps
     cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
+    (αs', rs)         = unzip αs
     (αs,_,ls1,cs,rt)  = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,ls2,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
     -- msg i             = "plugHoles_old: " ++ F.showpp x ++ " " ++ i 
@@ -179,13 +180,14 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
 
 plugHoles_new tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
-    . mkArrow (updateRTVar <$> as') ps (ls1 ++ ls2) [] [] 
+    . mkArrow (zip (updateRTVar <$> as'') rs) ps (ls1 ++ ls2) [] [] 
     . makeCls cs' 
     . goPlug tce tyi err f rt' 
     $ st 
   where 
     rt'               = tx rt
-    as'               = subRTVar su <$> as
+    as''              = subRTVar su <$> as'
+    (as',rs)          = unzip as 
     cs'               = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx                = subts su
     su                = case Bare.runMapTyVars (toType rt) st err of
@@ -207,7 +209,7 @@ subRTVar su a@(RTVar v i) = Mb.maybe a (`RTVar` i) (lookup v su)
 
 
 
-bkUnivClass :: SpecType -> ([SpecRTVar],[PVar RSort], [F.Symbol], [(RTyCon, [SpecType])], SpecType )
+bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [F.Symbol], [(RTyCon, [SpecType])], SpecType )
 bkUnivClass t        = (as, ps, ls, cs, t2) 
   where 
     (as, ps, ls, t1) = bkUniv  t
@@ -230,8 +232,8 @@ goPlug tce tyi err f = go
     go (RVar _ _)       v@(RVar _ _)       = v
     go t'               (RImpF x i o r)    = RImpF x i  (go t' o)             r
     go (RFun _ i o _)   (RFun x i' o' r)   = RFun x     (go i i')   (go o o') r
-    go (RAllT _ t)      (RAllT a t')       = RAllT a    (go t t')
-    go (RAllT a t)      t'                 = RAllT a    (go t t')
+    go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
+    go (RAllT a t r)    t'                 = RAllT a    (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')
     go t                (RAllS s t')       = RAllS s    (go t t')
     go t                (RAllE b a t')     = RAllE b a  (go t t')

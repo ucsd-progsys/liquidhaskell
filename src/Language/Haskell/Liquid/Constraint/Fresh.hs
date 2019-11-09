@@ -129,7 +129,7 @@ exprRefType_ γ (Let b e)
   = exprRefType_ (bindRefType_ γ b) e
 
 exprRefType_ γ (Lam α e) | isTyVar α
-  = RAllT (makeRTVar $ rTyVar α) (exprRefType_ γ e)
+  = RAllT (makeRTVar $ rTyVar α) (exprRefType_ γ e) mempty
 
 exprRefType_ γ (Lam x e)
   = rFun (F.symbol x) (ofType $ varType x) (exprRefType_ γ e)

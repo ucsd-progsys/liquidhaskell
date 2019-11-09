@@ -175,8 +175,8 @@ type Prec = PprPrec
 --------------------------------------------------------------------------------
 ppr_rtype :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 --------------------------------------------------------------------------------
-ppr_rtype bb p t@(RAllT _ _)
-  = ppr_forall bb p t
+ppr_rtype bb p t@(RAllT _ _ r)
+  = F.ppTy r $ ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)
   = ppr_forall bb p t
 ppr_rtype bb p t@(RAllS _ _)
@@ -325,7 +325,7 @@ brkFun out              = ([], out)
 
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 ppr_forall bb p t = maybeParen p funPrec $ sep [
-                      ppr_foralls (ppPs bb) (ty_vars trep) (ty_preds trep) (ty_labels trep)
+                      ppr_foralls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep) (ty_labels trep)
                     , ppr_clss cls
                     , ppr_rtype bb topPrec t'
                     ]

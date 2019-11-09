@@ -80,10 +80,11 @@ splitW (WfC γ t@(RAppTy t1 t2 _))
         ws'' <- splitW (WfC γ t2)
         return $ ws ++ ws' ++ ws''
 
-splitW (WfC γ (RAllT a r))
-  = do γ' <- updateEnv γ a
-       splitW (WfC γ' r)
-
+splitW (WfC γ t'@(RAllT a t _))
+  = do γ'  <- updateEnv γ a
+       ws  <- bsplitW γ t'
+       ws' <- splitW (WfC γ' t)
+       return $ ws ++ ws'
 
 splitW (WfC γ (RAllP _ r))
   = splitW (WfC γ r)
@@ -209,15 +210,19 @@ splitS (SubC _ t1@(RAllP _ _) t2)
   = panic Nothing $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
 
-splitS (SubC γ (RAllT α1 t1) (RAllT α2 t2))
+splitS (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
   |  α1 ==  α2
-  = do γ' <- updateEnv γ α2
-       splitS $ SubC γ' t1 (F.subst su t2)
+  = do γ'  <- updateEnv γ α2
+       cs  <- splitS $ SubC γ' t1 (F.subst su t2)
+       cs' <- bsplitS t1' t2'
+       return $ cs ++ cs'
   | otherwise
-  = do γ' <- updateEnv γ α2
-       splitS $ SubC γ' t1 (F.subst su t2')
+  = do γ'  <- updateEnv γ α2
+       cs  <- splitS $ SubC γ' t1 (F.subst su t2'')
+       cs' <- bsplitS t1' t2'
+       return $ cs ++ cs'
   where
-    t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    t2'' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
     su = case (rTVarToBind α1, rTVarToBind α2) of
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []
@@ -384,15 +389,19 @@ splitC (SubC γ t1 (RAllP p t))
 splitC (SubC γ t1@(RAllP _ _) t2)
   = panic (Just $ getLocation γ) $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
-splitC (SubC γ (RAllT α1 t1) (RAllT α2 t2))
+splitC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
   |  α1 ==  α2
-  = do γ' <- updateEnv γ α2
-       splitC $ SubC γ' t1 (F.subst su t2)
+  = do γ'  <- updateEnv γ α2
+       cs  <- bsplitC γ t1' t2'
+       cs' <- splitC $ SubC γ' t1 (F.subst su t2)
+       return (cs ++ cs')
   | otherwise
-  = do γ' <- updateEnv γ α2
-       splitC $ SubC γ' t1 (F.subst su t2')
+  = do γ'  <- updateEnv γ α2
+       cs  <- bsplitC γ t1' t2'
+       cs' <- splitC $ SubC γ' t1 (F.subst su t2'')
+       return (cs ++ cs')
   where
-    t2' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
+    t2'' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
     su = case (rTVarToBind α1, rTVarToBind α2) of
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []
@@ -441,7 +450,7 @@ traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
 traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts)) 
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
 traceTy (RAllS _ t)     = parens ("RAllS " ++ traceTy t)
-traceTy (RAllT _ t)     = parens ("RAllT " ++ traceTy t)
+traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
 traceTy (RImpF _ t t' _) = parens ("RImpF " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RFun _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RAllE _ tx t)  = parens ("RAllE " ++ parens (traceTy tx) ++ parens (traceTy t))
