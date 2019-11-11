@@ -334,8 +334,8 @@ makeDataFields :: F.TCEmb Ghc.TyCon -> F.FTycon -> [RTyVar] -> [(F.LocSymbol, Sp
                -> [F.DataField]
 makeDataFields tce _c as xts = [ F.DField x (fSort t) | (x, t) <- xts]
   where
-    su                      = zip (F.symbol <$> as) [0..]
-    fSort                   = {- muSort c (length as) . -}  F.substVars su . RT.rTypeSort tce
+    su    = zip (F.symbol <$> as) [0..]
+    fSort = F.substVars su . F.mapFVar (+ (length as)) . RT.rTypeSort tce
 
 {- 
 muSort :: F.FTycon -> Int -> F.Sort -> F.Sort
@@ -564,8 +564,8 @@ varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of
                                 _        -> Bivariant
 
 getPsSig :: [(UsedPVar, a)] -> Bool -> SpecType -> [(a, Bool)]
-getPsSig m pos (RAllT _ t)
-  = getPsSig m pos t
+getPsSig m pos (RAllT _ t r)
+  = addps m pos r ++  getPsSig m pos t
 getPsSig m pos (RApp _ ts rs r)
   = addps m pos r ++ concatMap (getPsSig m pos) ts
     ++ concatMap (getPsSigPs m pos) rs
@@ -662,7 +662,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
     | null fls                    --    no field labels
-    || any (isFunTy . snd) args   -- OR function-valued fields
+    || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
     | otherwise 
@@ -672,7 +672,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (makeRTVar <$> dcpFreeTyVars dcp) [] (dcpFreeLabels dcp)
+      ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) [] (dcpFreeLabels dcp)
                                  [] [(z, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct

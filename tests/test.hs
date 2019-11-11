@@ -46,6 +46,8 @@ import Paths_liquidhaskell
 
 import Text.Printf
 
+
+
 testRunner :: Ingredient
 testRunner = rerunningTests
                [ listingTests
@@ -238,6 +240,7 @@ microTests = group "Micro"
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
   , mkMicro "ple-pos"        "tests/ple/pos"         ExitSuccess
   , mkMicro "ple-neg"        "tests/ple/neg"         (ExitFailure 1)
+  , mkMicro "rankN-pos"      "tests/RankNTypes/pos"         ExitSuccess
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
@@ -438,8 +441,8 @@ ecAssert :: ExitCheck -> ExitCode -> T.Text -> Assertion
 ecAssert ec (ExitFailure 137) _   =
   printf "WARNING: possible OOM while testing %s: IGNORING" (ecTest ec)
 
-ecAssert (EC _ code Nothing)  c _   =
-  assertEqual "Wrong exit code" code c
+ecAssert (EC _ code Nothing)  c t   =
+  assertEqual ("Wrong exit code" <> show t) code c
 
 ecAssert (EC _ code (Just t)) c log = do
   assertEqual "Wrong exit code" code c
@@ -456,7 +459,7 @@ mkTest ec dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        bin <- binPath "liquid"
+        let bin = "stack exec -- liquid" -- binPath "liquid"
         hSetBuffering stdout LineBuffering -- or even NoBuffering
         withFile log WriteMode $ \h -> do
           let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts

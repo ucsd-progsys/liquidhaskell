@@ -135,6 +135,7 @@ data GhcSpecRefl = SpRefl
   , gsMyAxioms   :: ![F.Equation]                     -- ^ Axioms from my reflected functions
   , gsReflects   :: ![Var]                            -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
+  , gsWiredReft  :: ![Var]
   }
 
 data GhcSpecLaws = SpLaws 

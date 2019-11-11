@@ -1,4 +1,5 @@
-## FAILING TESTS for GHC-863
-
-
-
+   T1459.hs:                               FAIL (0.61s)
+      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (1.35s)
+      Data/ByteString/Char8.hs:               FAIL (4.06s)
+      Data/Text/Encoding.hs:                  FAIL (5.67s)
+      Data/Text/Lazy/Encoding.hs:             FAIL (7.13s)

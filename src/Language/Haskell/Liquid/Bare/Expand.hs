@@ -72,14 +72,25 @@ makeRTEnv env m mySpec iSpecs lmap
 --   hidden inside @RExprArg@ or as strange type parameters. 
 renameRTArgs :: BareRTEnv -> BareRTEnv 
 renameRTArgs rte = RTE 
-  { typeAliases = M.map (fmap (renameVV . renameRTVArgs)) (typeAliases rte) 
-  , exprAliases = M.map (fmap (           renameRTVArgs)) (exprAliases rte) 
+  { typeAliases = M.map (fmap ( renameTys . renameVV . renameRTVArgs)) (typeAliases rte) 
+  , exprAliases = M.map (fmap (                        renameRTVArgs)) (exprAliases rte) 
   } 
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
   where
     f rtEnv xt = setREAlias rtEnv (expandLoc rtEnv xt)
+
+
+-- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names 
+--   to avoid variable capture e.g. as in T1556.hs
+renameTys :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
+renameTys rt = rt { rtTArgs = ys, rtBody = subts (rtBody rt) (zip xs ys) }
+  where 
+    xs    = rtTArgs rt 
+    ys    = (`F.suffixSymbol` rtName rt) <$> xs
+    subts = foldl (flip subt)
+
 
 renameVV :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
 renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
@@ -202,7 +213,7 @@ buildTypeEdges table = ordNub . go
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
     go (REx _ t1 t2)    = go t1 ++ go t2
-    go (RAllT _ t)      = go t
+    go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
     go (RAllS _ t)      = go t
     go (RVar _ _)       = []
@@ -369,7 +380,7 @@ expandBareType rtEnv _ = go
     go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) r
     go (RImpF x t1 t2 r) = RImpF x (go t1) (go t2) r 
     go (RFun  x t1 t2 r) = RFun  x (go t1) (go t2) r 
-    go (RAllT a t)       = RAllT a (go t) 
+    go (RAllT a t r)     = RAllT a (go t) r
     go (RAllP a t)       = RAllP a (go t) 
     go (RAllS x t)       = RAllS x (go t)
     go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
@@ -556,7 +567,7 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
-  . fmap (specExpandType rtEnv)                         
+  . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
   . fmap (maybePlug       sigEnv name x)
   . fmap (Bare.qualifyTop    env name l) 
@@ -579,7 +590,7 @@ generalizeWith  Bare.RawTV   t = t
 generalizeWith _             t = RT.generalize t 
 
 generalizeVar :: Ghc.Var -> SpecType -> SpecType 
-generalizeVar v t = mkUnivs as [] [] t 
+generalizeVar v t = mkUnivs (zip as (repeat mempty)) [] [] t 
   where 
     as            = filter isGen (freeTyVars t)
     (vas,_)       = Ghc.splitForAllTys (GM.expandVarType v) 
@@ -757,8 +768,9 @@ expToBindT (RFun x t1 t2 r)
   = do t1' <- expToBindT t1
        t2' <- expToBindT t2
        expToBindRef r >>= addExists . RFun x t1' t2'
-expToBindT (RAllT a t)
-  = liftM (RAllT a) (expToBindT t)
+expToBindT (RAllT a t r)
+  = do t' <- expToBindT t 
+       expToBindRef r >>= addExists . RAllT a t' 
 expToBindT (RAllP p t)
   = liftM (RAllP p) (expToBindT t)
 expToBindT (RAllS s t)

@@ -54,7 +54,7 @@ txRType cF vF = go
   where
     -- go :: RType c1 tv1 r -> RType c2 tv2 r
     go (RVar α r)          = RVar  (vF α) r
-    go (RAllT α t)         = RAllT (goRTV α) (go t)
+    go (RAllT α t r)       = RAllT (goRTV α) (go t) r
     go (RAllP π t)         = RAllP (goPV  π) (go t)
     go (RAllS s t)         = RAllS s         (go t)
     go (RImpF x t t' r)     = RImpF  x         (go t) (go t') r

@@ -82,6 +82,8 @@ module Language.Haskell.Liquid.Types.RefType (
   , isBaseTy
   , updateRTVar, isValKind, kindToRType
   , rTVarInfo
+  
+  , tyVarsPosition, Positions(..)
 
   ) where
 
@@ -426,25 +428,26 @@ instance FreeVar BTyCon BTyVar where
 -- Eq Instances ------------------------------------------------------
 
 -- MOVE TO TYPES
-instance (Eq c, Eq tv, Hashable tv) => Eq (RType c tv ()) where
+instance (Eq c, Eq tv, Hashable tv, PPrint tv, TyConable c, PPrint c, Reftable (RTProp c tv ())) 
+      => Eq (RType c tv ()) where
   (==) = eqRSort M.empty
 
-eqRSort :: (Eq a, Eq k, Hashable k)
-        => M.HashMap k k -> RType a k t -> RType a k t1 -> Bool
+eqRSort :: (Eq a, Eq k, Hashable k, TyConable a, PPrint a, PPrint k, Reftable (RTProp a k ()))
+        => M.HashMap k k -> RType a k () -> RType a k () -> Bool
 eqRSort m (RAllP _ t) (RAllP _ t')
   = eqRSort m t t'
 eqRSort m (RAllS _ t) (RAllS _ t')
   = eqRSort m t t'
 eqRSort m (RAllP _ t) t'
   = eqRSort m t t'
-eqRSort m (RAllT a t) (RAllT a' t')
+eqRSort m (RAllT a t _) (RAllT a' t' _)
   | a == a'
   = eqRSort m t t'
   | otherwise
   = eqRSort (M.insert (ty_var_value a') (ty_var_value a) m) t t'
-eqRSort m (RAllT _ t) t'
+eqRSort m (RAllT _ t _) t'
   = eqRSort m t t'
-eqRSort m t (RAllT _ t')
+eqRSort m t (RAllT _ t' _)
   = eqRSort m t t'
 eqRSort m (RFun _ t1 t2 _) (RFun _ t1' t2' _)
   = eqRSort m t1 t1' && eqRSort m t2 t2'
@@ -526,6 +529,7 @@ mkTVarInfo k2t a = RTVInfo
   { rtv_name   = symbol    $ varName a
   , rtv_kind   = k2t       $ tyVarKind a
   , rtv_is_val = isValKind $ tyVarKind a
+  , rtv_is_pol = True 
   }
 
 kindToRType :: Monoid r => Type -> RRType r
@@ -597,8 +601,8 @@ tyConBTyCon = mkBTyCon . fmap tyConName . GM.locNamedThing
 
 addPds :: Foldable t
        => t (PVar (RType c tv ())) -> RType c tv r -> RType c tv r
-addPds ps (RAllT v t) = RAllT v $ addPds ps t
-addPds ps t           = foldl' (flip rPred) t ps
+addPds ps (RAllT v t r) = RAllT v (addPds ps t) r 
+addPds ps t             = foldl' (flip rPred) t ps
 
 nlzP :: (OkRT c tv r) => [PVar (RType c tv ())] -> RType c tv r -> (RType c tv r, [PVar (RType c tv ())])
 nlzP ps t@(RVar _ _ )
@@ -615,8 +619,8 @@ nlzP ps (RAppTy t1 t2 r)
  = (RAppTy t1' t2' r, ps ++ ps1 ++ ps2)
   where (t1', ps1) = nlzP [] t1
         (t2', ps2) = nlzP [] t2
-nlzP ps (RAllT v t )
- = (RAllT v t', ps ++ ps')
+nlzP ps (RAllT v t r)
+ = (RAllT v t' r, ps ++ ps')
   where (t', ps') = nlzP [] t
 nlzP ps t@(RApp _ _ _ _)
  = (t, ps)
@@ -692,15 +696,15 @@ strengthenRefType t1 t2
 _meetable :: (OkRT c tv r) => RType c tv r -> RType c tv r -> Bool
 _meetable t1 t2 = toRSort t1 == toRSort t2
 
-strengthenRefType_ f (RAllT a1 t1) (RAllT a2 t2)
-  = RAllT a1 $ strengthenRefType_ f t1 (subsTyVar_meet (ty_var_value a2, toRSort t, t) t2)
+strengthenRefType_ f (RAllT a1 t1 r1) (RAllT a2 t2 r2)
+  = RAllT a1 (strengthenRefType_ f t1 (subsTyVar_meet (ty_var_value a2, toRSort t, t) t2)) (r1 `meet` r2)
   where t = RVar (ty_var_value a1) mempty
 
-strengthenRefType_ f (RAllT a t1) t2
-  = RAllT a $ strengthenRefType_ f t1 t2
+strengthenRefType_ f (RAllT a t1 r1) t2
+  = RAllT a (strengthenRefType_ f t1 t2) r1
 
-strengthenRefType_ f t1 (RAllT a t2)
-  = RAllT a $ strengthenRefType_ f t1 t2
+strengthenRefType_ f t1 (RAllT a t2 r2)
+  = RAllT a (strengthenRefType_ f t1 t2) r2
 
 strengthenRefType_ f (RAllP p1 t1) (RAllP _ t2)
   = RAllP p1 $ strengthenRefType_ f t1 t2
@@ -762,16 +766,18 @@ meets rs rs'
 strengthen :: Reftable r => RType c tv r -> r -> RType c tv r
 strengthen (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthen (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthen (RImpF b t1 t2 r) r'  = RImpF b t1 t2 (r `F.meet` r')
+strengthen (RImpF b t1 t2 r) r' = RImpF b t1 t2 (r `F.meet` r')
 strengthen (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
 strengthen (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
+strengthen (RAllT a t r)    r'  = RAllT a t    (r `F.meet` r')
 strengthen t _                  = t
 
 
-quantifyRTy :: Eq tv => [RTVar tv (RType c tv ())] -> RType c tv r -> RType c tv r
-quantifyRTy tvs ty = foldr RAllT ty tvs
+quantifyRTy :: (Monoid r, Eq tv) => [RTVar tv (RType c tv ())] -> RType c tv r -> RType c tv r
+quantifyRTy tvs ty = foldr rAllT ty tvs
+  where rAllT a t = RAllT a t mempty
 
-quantifyFreeRTy :: Eq tv => RType c tv r -> RType c tv r
+quantifyFreeRTy :: (Monoid r, Eq tv) => RType c tv r -> RType c tv r
 quantifyFreeRTy ty = quantifyRTy (freeTyVars ty) ty
 
 
@@ -960,19 +966,19 @@ addNumSizeFun c
   = c {rtc_info = (rtc_info c) {sizeFunction = Just IdSizeFun } }
 
 
-generalize :: (Eq tv) => RType c tv r -> RType c tv r
-generalize t = mkUnivs (freeTyVars t) [] [] t
+generalize :: (Eq tv, Monoid r) => RType c tv r -> RType c tv r
+generalize t = mkUnivs (zip (freeTyVars t) (repeat mempty)) [] [] t
 
 allTyVars :: (Ord tv) => RType c tv r -> [tv]
 allTyVars t = sortNub . fmap ty_var_value $ vs ++ vs'
   where
-    vs      = fst4 . bkUniv $ t
+    vs      = map fst . fst4 . bkUniv $ t
     vs'     = freeTyVars    $ t
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
 freeTyVars (RAllS _ t)     = freeTyVars t
-freeTyVars (RAllT α t)     = freeTyVars t L.\\ [α]
+freeTyVars (RAllT α t _)   = freeTyVars t L.\\ [α]
 freeTyVars (RImpF _ t t' _)= freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RApp _ ts _ _) = L.nub $ concatMap freeTyVars ts
@@ -988,7 +994,7 @@ freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
 tyClasses :: (OkRT RTyCon tv r) => RType RTyCon tv r -> [(Class, [RType RTyCon tv r])]
 tyClasses (RAllP _ t)     = tyClasses t
 tyClasses (RAllS _ t)     = tyClasses t
-tyClasses (RAllT _ t)     = tyClasses t
+tyClasses (RAllT _ t _)   = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
 tyClasses (RImpF _ t t' _) = tyClasses t ++ tyClasses t'
@@ -1093,16 +1099,17 @@ subsFree m s z (RAllS l t)
   = RAllS l (subsFree m s z t)
 subsFree m s z@(α, τ,_) (RAllP π t)
   = RAllP (subt (α, τ) π) (subsFree m s z t)
-subsFree m s z@(a, τ, _) (RAllT α t)
+subsFree m s z@(a, τ, _) (RAllT α t r)
   -- subt inside the type variable instantiates the kind of the variable
-  = RAllT (subt (a, τ) α) $ subsFree m (ty_var_value α `S.insert` s) z t
+  = RAllT (subt (a, τ) α) (subsFree m (ty_var_value α `S.insert` s) z t) (subt (a, τ) r)
 subsFree m s z@(α, τ, _) (RImpF x t t' r)
   = RImpF x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RFun x t t' r)
   = RFun x (subsFree m s z t) (subsFree m s z t') (subt (α, τ) r)
 subsFree m s z@(α, τ, _) (RApp c ts rs r)
-  = RApp (subt z' c) (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt (α, τ) r)
+  = RApp c' (subsFree m s z <$> ts) (subsFreeRef m s z <$> rs) (subt (α, τ) r)
     where z' = (α, τ) -- UNIFY: why instantiating INSIDE parameters?
+          c' = if α `S.member` s then c else subt z' c
 subsFree meet s (α', τ, t') (RVar α r)
   | α == α' && not (α `S.member` s)
   = if meet then t' `strengthen` (subt (α, τ) r) else t'
@@ -1280,6 +1287,29 @@ instance SubsTy tv ty Symbol where
 instance (SubsTy tv ty Expr) => SubsTy tv ty Reft where
   subt su (Reft (x, e)) = Reft (x, subt su e)
 
+instance SubsTy Symbol Symbol (BRType r) where
+  subt (x,y) (RVar v r)
+    | BTV x == v = RVar (BTV y) r 
+    | otherwise  = RVar v r 
+  subt (x, y) (RAllT (RTVar v i) t r)
+    | BTV x == v = RAllT (RTVar v i) t r
+    | otherwise  = RAllT (RTVar v i) (subt (x,y) t) r
+  subt su (RFun x t1 t2 r)  = RFun x (subt su t1) (subt su t2) r 
+  subt su (RImpF x t1 t2 r) = RImpF x (subt su t1) (subt su t2) r
+  subt su (RAllP p t)       = RAllP p (subt su t)
+  subt su (RAllS p t)       = RAllS p (subt su t)
+  subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r 
+  subt su (RAllE x t1 t2)   = RAllE x (subt su t1) (subt su t2)
+  subt su (REx x t1 t2)     = REx x (subt su t1) (subt su t2)
+  subt _  (RExprArg e)      = RExprArg e 
+  subt su (RAppTy t1 t2 r)  = RAppTy (subt su t1) (subt su t2) r 
+  subt su (RRTy e r o t)    = RRTy [(x, subt su p) | (x,p) <- e] r o (subt su t)
+  subt _ (RHole r)          = RHole r 
+  
+instance SubsTy Symbol Symbol (RTProp BTyCon BTyVar r) where
+  subt su (RProp e t) =  RProp [(x, subt su xt) | (x,xt) <- e] (subt su t)
+
+
 
 instance (SubsTy tv ty Sort) => SubsTy tv ty Expr where
   subt su (ELam (x, s) e) = ELam (x, subt su s) $ subt su e
@@ -1407,7 +1437,7 @@ ofType_ tx = go . expandTypeSynonyms
     go (FunTy τ τ')
       = rFun dummySymbol (go τ) (go τ')
     go (ForAllTy (TvBndr α _) τ)
-      = RAllT (tcFTVar tx α) $ go τ
+      = RAllT (tcFTVar tx α) (go τ) mempty
     go (TyConApp c τs)
       | Just (αs, τ) <- TC.synTyConDefn_maybe c
       = go (substTyWith αs τs τ)
@@ -1503,7 +1533,7 @@ toType (RImpF x t t' r)
  = toType (RFun x t t' r)
 toType (RFun _ t t' _)
   = FunTy (toType t) (toType t')
-toType (RAllT a t) | RTV α <- ty_var_value a
+toType (RAllT a t _) | RTV α <- ty_var_value a
   = ForAllTy (TvBndr α Required) (toType t)
 toType (RAllP _ t)
   = toType t
@@ -1661,13 +1691,15 @@ typeUniqueSymbol :: Type -> Symbol
 typeUniqueSymbol = symbol . GM.typeUniqueString
 
 typeSortForAll :: TCEmb TyCon -> Type -> Sort
-typeSortForAll tce τ  = genSort $ typeSort tce tbody
+typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort sbody
   where
-    genSort t         = foldl' (flip FAbs) (sortSubst su t) [0..n-1]
+    sbody             = typeSort tce tbody
+    genSort t         = foldl' (flip FAbs) (sortSubst su t) [i..n+i-1]
     (as, tbody)       = F.notracepp ("splitForallTys" ++ GM.showPpr τ) (splitForAllTys τ)
-    su                = M.fromList $ zip sas (FVar <$>  [0..])
+    su                = M.fromList $ zip sas (FVar <$>  [i..])
     sas               = symbol <$> as
     n                 = length as
+    i                 = sortAbs sbody + 1
 
 -- RJ: why not make this the Symbolic instance?
 tyConName :: TyCon -> Symbol
@@ -1990,3 +2022,37 @@ instance PPrint (RType c tv r) => Show (RType c tv r) where
 instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
   show = showpp
 
+
+-------------------------------------------------------------------------------
+-- | tyVarsPosition t returns the type variables appearing 
+-- | (in positive positions, in negative positions, in undetermined positions)
+-- | undetermined positions are due to type constructors and type application
+-------------------------------------------------------------------------------
+tyVarsPosition :: RType c tv r -> Positions tv 
+tyVarsPosition = go (Just True)
+  where 
+    go p (RVar t _)        = report p t
+    go p (RFun _ t1 t2 _)  = go (flip p) t1 <> go p t2 
+    go p (RImpF _ t1 t2 _) = go (flip p) t1 <> go p t2 
+    go p (RAllT _ t _)     = go p t 
+    go p (RAllP _ t)       = go p t 
+    go p (RAllS _ t)       = go p t 
+    go _ (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
+    go p (RAllE _ t1 t2)   = go p t1 <> go p t2 
+    go p (REx _ t1 t2)     = go p t1 <> go p t2
+    go _ (RExprArg _)      = mempty
+    go p (RAppTy t1 t2 _)  = go p t1 <> go p t2 
+    go p (RRTy _ _ _ t)    = go p t 
+    go _ (RHole _)         = mempty
+
+    report Nothing v      = (Pos [] [] [v])
+    report (Just True) v  = (Pos [v] [] [])
+    report (Just False) v = (Pos [] [v] [])
+    flip = fmap not
+
+data Positions a = Pos {ppos :: [a], pneg ::  [a], punknown :: [a]}
+
+instance Monoid (Positions a) where 
+  mempty = Pos [] [] []
+instance Semigroup (Positions a) where 
+  (Pos x1 x2 x3) <> (Pos y1 y2 y3) = Pos (x1 ++ y1) (x2 ++ y2) (x3 ++ y3)

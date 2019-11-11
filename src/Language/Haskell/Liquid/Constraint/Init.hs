@@ -71,7 +71,7 @@ initEnv info
        f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
        f3'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
-       f3       <- refreshArgs' $ vals gsAsmSigs (gsSig sp)                  -- assumed refinedments     (with `assume`)
+       f3       <- addPolyInfo' <$> (refreshArgs' $ vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
@@ -81,7 +81,7 @@ initEnv info
        sflag    <- scheck <$> get
        let senv  = if sflag then f2 else []
        let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
+       let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, (F.notracepp "assumed" f3) ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
@@ -97,6 +97,16 @@ initEnv info
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
     makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
+    addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
+
+addPolyInfo :: SpecType -> SpecType
+addPolyInfo t = mkUnivs (go <$> as) ps ls t' 
+  where 
+    (as, ps, ls, t') = bkUniv t 
+    pos              = tyVarsPosition t' 
+    go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
+               then (setRtvPol a False,r)  
+               else (a,r) 
 
 makeDataConTypes :: Var -> CG (Var, SpecType)
 makeDataConTypes x = (x,) <$> (trueTy $ varType x)
@@ -201,6 +211,7 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , tgKey    = Nothing
   , trec     = Nothing
   , lcb      = M.empty
+  , forallcb = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
   , aenv     = axEnv (gsRefl sp)

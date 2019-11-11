@@ -314,9 +314,6 @@ qualifySymbol env name l bs x
   where 
     isSpl     = isSplSymbol env bs x
 
--- resolveSym :: (ResolveSym a) => Env -> ModName -> String -> LocSymbol -> Either UserError a 
--- resolveSym env name kind lx = resolveLocSym env name kind lx 
-
 isSplSymbol :: Env -> [F.Symbol] -> F.Symbol -> Bool 
 isSplSymbol env bs x 
   =  isWiredInName x 
@@ -422,12 +419,6 @@ instance Qualify BareType where
 -- Do not substitute variables bound e.g. by function types
 substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 
-
-
-
-
-
-
 
 -------------------------------------------------------------------------------
 lookupGhcNamedVar :: (Ghc.NamedThing a, F.Symbolic a) => Env -> ModName -> a -> Maybe Ghc.Var
@@ -535,7 +526,7 @@ instance ResolveSym Ghc.Var where
 
 instance ResolveSym Ghc.TyCon where 
   resolveLocSym = resolveWith "type constructor" $ \case 
-                    Ghc.ATyCon x             -> Just x -- (0, x)
+                    Ghc.ATyCon x             -> Just x
                     _                        -> Nothing
 
 instance ResolveSym Ghc.DataCon where 
@@ -551,15 +542,25 @@ instance ResolveSym F.Symbol where
 resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
 resolveWith kind f env name str lx =
-  case Mb.mapMaybe f things of 
+  -- case Mb.mapMaybe f things of 
+  case rankedThings f things of
     []  -> Left  (errResolve kind str lx) 
     [x] -> Right x 
     xs  -> Left $ ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)
+  where
+    -- oThings = Mb.mapMaybe (\(x, y) -> (x,) <$> f y) things
+    _xSym   = (F.val lx)
+    sp      = GM.fSrcSpanSrcSpan (F.srcSpan lx)
+    things  = myTracepp msg $ lookupTyThing env name lx 
+    msg     = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
+
+
+rankedThings :: (Misc.EqHash k) => (a -> Maybe b) -> [(k, a)] -> [b]
+rankedThings f ias = case Misc.sortOn fst (Misc.groupList ibs) of 
+                       (_,ts):_ -> ts
+                       []       -> []
   where 
-    _xSym  = (F.val lx)
-    sp     = GM.fSrcSpanSrcSpan (F.srcSpan lx)
-    things = myTracepp msg $ lookupTyThing env name lx 
-    msg    = "resolveWith: " ++ str ++ " " ++ F.showpp (val lx)
+    ibs            = Mb.mapMaybe (\(k, x) -> (k,) <$> f x) ias
 
 -------------------------------------------------------------------------------
 -- | @lookupTyThing@ is the central place where we lookup the @Env@ to find 
@@ -568,13 +569,14 @@ resolveWith kind f env name str lx =
 --   see tests-names-pos-*.hs, esp. vector04.hs where we need the name `Vector` 
 --   to resolve to `Data.Vector.Vector` and not `Data.Vector.Generic.Base.Vector`... 
 -------------------------------------------------------------------------------
-lookupTyThing :: Env -> ModName -> LocSymbol -> [Ghc.TyThing]
+lookupTyThing :: Env -> ModName -> LocSymbol -> [((Int, F.Symbol), Ghc.TyThing)]
 -------------------------------------------------------------------------------
-lookupTyThing env name lsym = case Misc.sortOn fst (Misc.groupList matches) of 
-                               (_,ts):_ -> ts
-                               []       -> []
+lookupTyThing env name lsym = [ (k, t) | (k, ts) <- ordMatches, t <- ts] 
+                              
   where 
-    matches                = [ ((k, m), t) | (m, t) <- lookupThings env x
+    ordMatches             = Misc.sortOn fst (Misc.groupList matches)
+    matches                = myTracepp ("matches-" ++ msg)
+                             [ ((k, m), t) | (m, t) <- lookupThings env x
                                            , k      <- myTracepp msg $ mm nameSym m mods ]
     msg                    = "lookupTyThing: " ++ F.showpp (lsym, x, mods)
     (x, mods)              = symbolModules env (F.val lsym)
@@ -765,7 +767,7 @@ ofBRType env name f l t  = go [] t
     go bs (RImpF x t1 t2 r) = goRImpF bs x t1 t2 r 
     go bs (RFun  x t1 t2 r) = goRFun  bs x t1 t2 r 
     go bs (RVar a r)        = RVar (RT.bareRTyVar a) <$> goReft bs r
-    go bs (RAllT a t)       = RAllT a' <$> go bs t 
+    go bs (RAllT a t r)     = RAllT a' <$> go bs t <*> goReft bs r 
       where a'              = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a) 
     go bs (RAllP a t)       = RAllP a' <$> go bs t 
       where a'              = ofBPVar env name l a 

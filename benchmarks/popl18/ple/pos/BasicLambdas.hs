@@ -43,14 +43,6 @@ id :: a -> a
 id x = x
 
 
-{-@ fmap_id' 
-  :: x:(r -> a)
-  -> {v:Proof | (\r:r -> id (x r)) ==  (\r:r -> (x r) ) } @-}
-fmap_id' :: (r -> a) ->  Proof
-fmap_id' x
-   =   fun_eq (\rrr1 -> x rrr1) (\rrr2 -> id (x rrr2)) (\r -> x  r === id (x r) *** QED)
-
-
 
 {-@ assume fun_eq :: f:(a -> b) -> g:(a -> b) 
    -> (x:a -> {f x == g x}) -> {f == g} 
