@@ -207,14 +207,6 @@ plugHoles_new tce tyi x f t0 zz@(Loc l l' st0)
 subRTVar :: [(RTyVar, RTyVar)] -> SpecRTVar -> SpecRTVar 
 subRTVar su a@(RTVar v i) = Mb.maybe a (`RTVar` i) (lookup v su)
 
-
-
-bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [F.Symbol], [(RTyCon, [SpecType])], SpecType )
-bkUnivClass t        = (as, ps, ls, cs, t2) 
-  where 
-    (as, ps, ls, t1) = bkUniv  t
-    (cs, t2)         = bkClass t1
-
 goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (Doc -> Doc -> Error) -> (SpecType -> RReft -> RReft) -> SpecType -> SpecType
        -> SpecType
 goPlug tce tyi err f = go 
