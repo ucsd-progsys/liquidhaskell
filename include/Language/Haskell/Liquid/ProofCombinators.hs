@@ -26,7 +26,7 @@ module Language.Haskell.Liquid.ProofCombinators (
   , (==.) 
 
   -- Uncheck operator used only for proof debugging
-  , (==!) -- x ==! y always succeds
+  , (==!) -- x ==! y always succeeds
 
   -- * Combining Proofs
   , (&&&)
