@@ -206,10 +206,21 @@ makeSpecDictionaryOne :: Bare.Env -> Bare.SigEnv -> ModName
                       -> RInstance LocBareType 
                       -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
 makeSpecDictionaryOne env sigEnv name (RI x t xts)
-         = makeDictionary $ F.tracepp "RI" $ RI x (mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
+         = makeDictionary $ F.notracepp "RI" $ RI x ts [(x, mkLSpecIType t) | (x, t) <- xts ] 
   where
+    ts      = mkTy' <$> t
+    as      = concatMap (univs . val) ts
+    univs t = (\(RTVar tv _, _) -> tv) <$> as where (as, _, _, _) = bkUniv t 
+
+    mkTy' :: LocBareType -> LocSpecType
+    mkTy' = Bare.cookSpecType env sigEnv name Bare.GenTV
     mkTy :: LocBareType -> LocSpecType
-    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV
+    mkTy = fmap (mapUnis tidy) . Bare.cookSpecType env sigEnv name 
+               Bare.GenTV -- (Bare.HsTV (Bare.lookupGhcVar env name "rawDictionaries" x))
+    mapUnis f t = mkUnivs (f as) ps ls t0 where (as, ps, ls, t0) = bkUniv t
+
+    tidy vs = l ++ r 
+      where (l,r) = L.partition (\(RTVar tv _,_) -> tv `elem` as) vs 
 
     mkLSpecIType :: RISig LocBareType -> RISig LocSpecType
     mkLSpecIType t = fmap mkTy t
