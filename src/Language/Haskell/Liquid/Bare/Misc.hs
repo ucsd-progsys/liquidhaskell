@@ -95,6 +95,9 @@ data MapTyVarST = MTVST
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars t (RImpF _ _ t' _)
    = mapTyVars t t'
+mapTyVars (FunTy τ τ') t 
+  | isClassPred τ
+  = mapTyVars τ' t
 mapTyVars (FunTy τ τ') (RFun _ t t' _)
    = mapTyVars τ t >> mapTyVars τ' t'
 mapTyVars τ (RAllT _ t _)

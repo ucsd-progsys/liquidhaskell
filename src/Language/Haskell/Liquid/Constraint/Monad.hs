@@ -50,7 +50,7 @@ addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
   | toType t1 /= toType t2
-  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
+  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ _msg ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
   --     ++ "\n\n" ++ showTy (toType t1) ++ "\n /=\n" ++ showTy (toType t2)
   | otherwise
   = do modify $ \s -> s { hsCs  = c : (hsCs s) }

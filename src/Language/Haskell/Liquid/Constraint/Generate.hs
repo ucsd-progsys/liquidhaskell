@@ -710,7 +710,7 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
 cconsE' γ e t
   = do te  <- consE γ e
        te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE: " ++ GM.showPpr e)
+       addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
 lambdaSingleton γ tce x e
@@ -868,7 +868,7 @@ consE γ e'@(App e a@(Type τ))
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
-      Just riSig -> return (fromRISig riSig)
+      Just riSig -> return $ fromRISig riSig
       _          -> do
         ([], πs, ls, te) <- bkUniv <$> consE γ e
         te0              <- instantiatePreds γ e' $ foldr RAllP te πs

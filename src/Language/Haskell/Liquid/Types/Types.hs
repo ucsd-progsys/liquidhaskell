@@ -113,7 +113,7 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow
-  , mkUnivs, bkUniv, bkClass
+  , mkUnivs, bkUniv, bkClass, bkUnivClass
   , rImpF, rFun, rCls, rRCls
 
   -- * Manipulating `Predicates`
@@ -1361,6 +1361,13 @@ mkUnivs :: (Foldable t, Foldable t1, Foldable t2)
         -> RType c tv r
         -> RType c tv r
 mkUnivs αs πs ls t = foldr (\(a,r) t -> RAllT a t r) (foldr RAllP (foldr RAllS t ls) πs) αs
+
+bkUnivClass :: SpecType -> ([(SpecRTVar, RReft)],[PVar RSort], [F.Symbol], [(RTyCon, [SpecType])], SpecType )
+bkUnivClass t        = (as, ps, ls, cs, t2) 
+  where 
+    (as, ps, ls, t1) = bkUniv  t
+    (cs, t2)         = bkClass t1
+
 
 bkUniv :: RType tv c r -> ([(RTVar c (RType tv c ()), r)], [PVar (RType tv c ())], [Symbol], RType tv c r)
 bkUniv (RAllT α t r) = let (αs, πs, ls, t') = bkUniv t in ((α, r):αs, πs, ls, t')
