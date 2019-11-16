@@ -29,6 +29,7 @@ import           Control.Monad.State
 import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
+import           Data.Bifunctor (second)
 
 import System.IO (hFlush, stdout)
 import qualified Debug.Trace as DBG
@@ -210,14 +211,15 @@ solPis measures piSols = go (M.toList piSols) piSols
     go [] _ = mempty
 
 solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
-solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> {- F.showpp reachableN <> "\n" <> -} F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
+solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
   where
     rewritten = rewriteWithEqualities measures n args equalities
     equalities = (nub . fst) $ go (S.singleton basePi) c
     edges = eqEdges args mempty equalities
-    (_eGraph, _vf, _lookupVertex) = DG.graphFromEdges edges
-    -- reachableN = nub $ filter (/= F.EVar n) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)]
-    -- reachableN = vf <$> DG.reachable eGraph (fromJust 50 $ lookupVertex n)
+    (eGraph, vf, lookupVertex) = DG.graphFromEdges edges
+    sols x = case lookupVertex x of
+      Nothing -> []
+      Just vertex -> nub $ filter (/= F.EVar x) $ mconcat [es | ((_, es), _, _) <- vf <$> DG.reachable eGraph vertex]
 
     go :: S.Set F.Symbol -> Cstr a -> ([(F.Symbol, F.Expr)], S.Set F.Symbol)
     go visited (Head p _) = (collectEqualities p, visited)
@@ -898,7 +900,7 @@ findSol x = go
 ------------------------------------------------------------------------------
 -- | uniq makes sure each binder has a unique name
 ------------------------------------------------------------------------------
-type RenameMap = M.HashMap F.Symbol Integer
+type RenameMap = M.HashMap F.Symbol (Integer, [Integer]) -- the first component is how many times we've seen this name. the second is the name mappings
 
 uniq :: Cstr a -> Cstr a
 uniq c = evalState (uniq' c) M.empty
@@ -906,26 +908,41 @@ uniq c = evalState (uniq' c) M.empty
 uniq' :: Cstr a -> State RenameMap (Cstr a)
 uniq' (Head c a) = Head <$> gets (rename c) <*> pure a
 uniq' (CAnd c) = CAnd <$> mapM uniq' c
-uniq' (All b c2) = do
+uniq' (All b@(Bind x _ _) c2) = do
     b' <- uBind b
-    All b' <$> uniq' c2
-uniq' (Any b c2) = do
+    c2' <- uniq' c2
+    modify $ popName x
+    pure $ All b' c2'
+uniq' (Any b@(Bind x _ _) c2) = do
     b' <- uBind b
-    Any b' <$> uniq' c2
+    c2' <- uniq' c2
+    modify $ popName x
+    pure $ Any b' c2'
+
+popName :: F.Symbol -> RenameMap -> RenameMap
+popName x m = M.adjust (second tail) x m
+
+pushName :: Maybe (Integer, [Integer]) -> Maybe (Integer, [Integer])
+pushName Nothing = Just (0, [0])
+pushName (Just (i, is)) = Just (i + 1, (i + 1):is)
 
 uBind :: Bind -> State RenameMap Bind
 uBind (Bind x t p) = do
    x' <- uVariable x
-   Bind x' t <$> gets (rename p)
+   nmap <- get
+   p' <- gets (rename p)
+   pure $ Bind x' t p'
 
 uVariable :: IsString a => F.Symbol -> State RenameMap a
 uVariable x = do
-   i <- gets (M.lookupDefault (-1) x)
-   modify (M.insert x (i+1))
-   pure $ numSym x (i+1)
+   modify (M.alter pushName x)
+   i <- gets (head . snd . (M.! x))
+   pure $ numSym x i
 
 rename :: Pred -> RenameMap -> Pred
-rename e m = substPred (M.mapWithKey numSym m) e
+rename e m = substPred (M.mapMaybeWithKey (\k v -> case v of
+                                              (_, n:_) -> Just $ numSym k n
+                                              _ -> Nothing) m) e
 
 numSym :: IsString a => F.Symbol -> Integer -> a
 numSym s 0 = fromString $ F.symbolString s
