@@ -203,7 +203,7 @@ data ExprTy where
 
 evalOp_safe :: Op -> Val -> Val -> ValTy -> ValTy -> (Val, ((), ValTy))
 evalOp_safe Add (VInt n1) (VInt n2) _ _   = (VInt n, ((), V_Int n))   where n = n1 + n2 
-evalOp_safe Add (VBool _) _ (V_Int _) _   = trivial ()  -- wierd join point, early break shenanigans 
+evalOp_safe Add (VBool _) _ (V_Int _) _   = trivial ()  -- weird join point, early break shenanigans 
 evalOp_safe Add _ (VBool _) _ (V_Int _)   = trivial () 
 
 evalOp_safe Leq (VInt n1) (VInt n2) _ _   = (VBool b, ((), V_Bool b)) where b = n1 <= n2 

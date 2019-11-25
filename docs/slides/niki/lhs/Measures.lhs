@@ -97,7 +97,7 @@ data L a where
 Multiple measures for List
 --------------------------
 
-The types of data constructors will be the **conjuction** of all the inferred types:
+The types of data constructors will be the **conjunction** of all the inferred types:
 
 
 \begin{code} The types from `llen` definition

@@ -11,7 +11,7 @@ llen (C x xs) = 1 + llen xs
 rev               = go N 
   where 
     {-@ go :: _ -> xs:_ -> _ / [llen xs] @-}  
-    go :: L a -> L a -> L a  ----------------- >>> We need this GHC-tysig, maybe because the CORE is wierd otherwise?
+    go :: L a -> L a -> L a  ----------------- >>> We need this GHC-tysig, maybe because the CORE is weird otherwise?
     go acc N        = acc
     go acc (C x xs) = go (C x acc) xs
 
