@@ -106,7 +106,7 @@ the output is an `Int` satisfying `p`. We can coax SMT solvers into
 proving the above type by encoding `p v` as an [uninterpreted function](https://en.wikipedia.org/wiki/Uninterpreted_function)
 in the refinement logic.
 
-Thus, refinement abstraction is analagous to type abstraction: it lets us
+Thus, refinement abstraction is analogous to type abstraction: it lets us
 parameterize signatures over *all* refinements (analogously, types) that
 may be _passed in_ at the call-site.
 

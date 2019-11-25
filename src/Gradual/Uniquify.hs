@@ -31,7 +31,7 @@ import Control.Monad.State.Lazy
 import Gradual.Types (GSpan)
 
 -------------------------------------------------------------------------------
--- |  Make each gradual appearence unique -------------------------------------
+-- |  Make each gradual appearance unique -------------------------------------
 -------------------------------------------------------------------------------
 
 uniquify :: (NFData a, Fixpoint a, Loc a) => SInfo a -> (GSpan, SInfo a)
@@ -143,7 +143,7 @@ freshK k  = do
   setChange
   cached <- cache <$> get
   case M.lookup k cached of
-    {- OPTIMIZATION: Only create one fresh occurence of ? per constraint environment. -}
+    {- OPTIMIZATION: Only create one fresh occurrence of ? per constraint environment. -}
     Just k' -> return  k'
     Nothing -> freshK'' k
 
