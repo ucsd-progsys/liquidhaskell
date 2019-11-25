@@ -70,12 +70,14 @@ makeMethodTypes (DEnv m) cls cbs
 addCC :: Ghc.Var -> LocSpecType -> LocSpecType
 addCC x zz@(Loc l l' st0) 
   = Loc l l' 
-  . mkArrow (zip (updateRTVar <$> αs') rs) ps' (ls1 ++ ls2) [] [] 
+  . addForall hst  
+  . mkArrow [] ps' (ls1 ++ ls2) [] [] 
   . makeCls cs' 
   . mapExprReft (\_ -> F.applyCoSub coSub) 
   . subts su 
-  $ st 
+  $ st  
   where
+    hst               = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
     t0                = Ghc.varType x 
     tyvsmap           = case Bare.runMapTyVars t0 st err of
                           Left e  -> Ex.throw e 
@@ -97,8 +99,26 @@ addCC x zz@(Loc l l' st0)
       (Just (hsT, lqT))
       (Ghc.getSrcSpan x) 
 
+    addForall (RAllT v t r) tt@(RAllT v' _ _)
+      | v == v'
+      = tt
+      | otherwise 
+      = RAllT (updateRTVar v) (addForall t tt) r
+    addForall (RAllT v t r) t' 
+      = RAllT (updateRTVar v) (addForall t t') r 
+    addForall (RAllP _ t) t' 
+      = addForall t t'
+    addForall t (RAllP p t')
+      = RAllP (fmap (subts su') p) t' 
+    addForall (RAllS s t) t'
+      = RAllS s (addForall t t')
+    addForall t (RAllS s t')
+      = RAllS s (addForall t t')
+    addForall (RFun _ t1 t2 _) (RFun x t1' t2' r)
+      = RFun x (addForall t1 t1') (addForall t2 t2') r  
+    addForall _ t 
+      = t 
 
-                          
 
 splitDictionary :: Ghc.CoreExpr -> Maybe (Ghc.Var, [Ghc.Type], [Ghc.Var])
 splitDictionary = go [] [] 
