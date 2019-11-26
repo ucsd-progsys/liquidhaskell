@@ -48,6 +48,7 @@ sanitize =    -- banIllScopedKvars
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
          >=> Misc.fM addLiterals
+         >=> Misc.fM eliminateEta
 
 
 --------------------------------------------------------------------------------
@@ -78,6 +79,41 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
                     }
   where
     lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]
+
+
+--------------------------------------------------------------------------------
+-- | `eliminateEta` converts equations of the form f x = g x into f = g
+--------------------------------------------------------------------------------
+eliminateEta :: F.SInfo a -> F.SInfo a
+--------------------------------------------------------------------------------
+eliminateEta si = si { F.ae = ae'
+                    }
+  where
+    ae' = ae {F.aenvEqs = eqs}
+    ae = F.ae si
+    eqs = fmap etaElim (F.aenvEqs ae)
+    etaElim eq = F.notracepp "Eliminating" $
+                 case body of
+                   F.PAtom F.Eq e0 e1 ->
+                     let (f0, args0) = fapp e0
+                         (f1, args1) = fapp e1 in
+                     if args0 == args1 && reverse args0 == (fst <$> args)
+                     then eq {F.eqArgs = [], F.eqSort = sort', F.eqBody = F.PAtom F.Eq f0 f1}
+                     else eq
+                   _ -> eq
+      where args = F.eqArgs eq
+            body = F.eqBody eq
+            sort = F.eqSort eq
+            sort' = foldr F.FFunc sort (snd <$> args) 
+            args'' = reverse args'
+            (fvar,args') = fapp body
+
+    fapp :: F.Expr -> (F.Expr, [F.Symbol])
+    fapp (F.EApp e0 (F.EVar arg)) =
+      let (fvar, args) = fapp e0 in
+      (fvar, arg:args)
+    fapp e = (e, [])
+
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
