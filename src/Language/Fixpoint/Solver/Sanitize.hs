@@ -15,7 +15,7 @@ module Language.Fixpoint.Solver.Sanitize
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts)
+import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts, stripCasts)
 import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize 
 import qualified Language.Fixpoint.Misc                            as Misc
@@ -86,8 +86,8 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
 --------------------------------------------------------------------------------
 eliminateEta :: F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
-eliminateEta si = si { F.ae = ae'
-                    }
+eliminateEta si = si { F.ae = ae'  
+                         }
   where
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
@@ -95,8 +95,8 @@ eliminateEta si = si { F.ae = ae'
     etaElim eq = F.notracepp "Eliminating" $
                  case body of
                    F.PAtom F.Eq e0 e1 ->
-                     let (f0, args0) = fapp e0
-                         (f1, args1) = fapp e1 in
+                     let (f0, args0) = fapp e0 e0
+                         (f1, args1) = fapp e1 e1 in
                      if args0 == args1 && reverse args0 == (fst <$> args)
                      then eq {F.eqArgs = [], F.eqSort = sort', F.eqBody = F.PAtom F.Eq f0 f1}
                      else eq
@@ -106,12 +106,19 @@ eliminateEta si = si { F.ae = ae'
             sort = F.eqSort eq
             sort' = foldr F.FFunc sort (snd <$> args) 
 
-    fapp :: F.Expr -> (F.Expr, [F.Symbol])
-    fapp (F.EApp e0 (F.EVar arg)) =
-      let (fvar, args) = fapp e0 in
-      (fvar, arg:args)
-    fapp e = (e, [])
+    fapp :: F.Expr -> F.Expr -> (F.Expr, [F.Symbol])
+    fapp ee (F.EApp e0 (F.EVar arg)) =
+      let (fvar, args) = fapp ee e0 in
+      splitApp ee (fvar, arg:args)
+    fapp _ e = (e, [])
 
+    theorySymbols = F.notracepp "theorySymbols" $ Thy.theorySymbols $ F.ddecls si
+
+    splitApp ee (e, es)
+      | isNothing $ F.notracepp ("isSmt2App? " ++ showpp e) $ Thy.isSmt2App theorySymbols $ stripCasts e
+      = (e,es)
+      | otherwise
+      = (ee,[])
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
