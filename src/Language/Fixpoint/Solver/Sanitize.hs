@@ -86,8 +86,7 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
 --------------------------------------------------------------------------------
 eliminateEta :: F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
-eliminateEta si = si { F.ae = ae'  
-                         }
+eliminateEta si = si { F.ae = ae' }
   where
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
