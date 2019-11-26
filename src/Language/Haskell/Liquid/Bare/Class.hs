@@ -87,8 +87,7 @@ addCC x zz@(Loc l l' st0)
     coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
     ps'               = fmap (subts su') <$> ps
     cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
-    (αs', rs)         = unzip αs
-    (αs,_,ls1,cs,rt)  = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,_,ls1,cs,_)    = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,ls2,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
 
     makeCls cs t      = foldr (uncurry rFun) t cs
@@ -108,7 +107,7 @@ addCC x zz@(Loc l l' st0)
       = RAllT (updateRTVar v) (addForall t t') r 
     addForall (RAllP _ t) t' 
       = addForall t t'
-    addForall t (RAllP p t')
+    addForall _ (RAllP p t')
       = RAllP (fmap (subts su') p) t' 
     addForall (RAllS s t) t'
       = RAllS s (addForall t t')
