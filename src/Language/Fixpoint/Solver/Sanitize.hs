@@ -105,8 +105,6 @@ eliminateEta si = si { F.ae = ae'
             body = F.eqBody eq
             sort = F.eqSort eq
             sort' = foldr F.FFunc sort (snd <$> args) 
-            args'' = reverse args'
-            (fvar,args') = fapp body
 
     fapp :: F.Expr -> (F.Expr, [F.Symbol])
     fapp (F.EApp e0 (F.EVar arg)) =
