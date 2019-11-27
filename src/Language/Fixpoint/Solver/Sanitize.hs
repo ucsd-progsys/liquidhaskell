@@ -28,7 +28,7 @@ import qualified Data.HashMap.Strict                               as M
 import qualified Data.HashSet                                      as S
 import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
-import           Data.Maybe          (isNothing, mapMaybe)
+import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 
@@ -94,30 +94,45 @@ eliminateEta si = si { F.ae = ae' }
     etaElim eq = F.notracepp "Eliminating" $
                  case body of
                    F.PAtom F.Eq e0 e1 ->
-                     let (f0, args0) = fapp e0 e0
-                         (f1, args1) = fapp e1 e1 in
-                     if args0 == args1 && reverse args0 == (fst <$> args)
-                     then eq {F.eqArgs = [], F.eqSort = sort', F.eqBody = F.PAtom F.Eq f0 f1}
+                     let (f0, args0) = fapp e0
+                         (f1, args1) = F.notracepp "f1" $ fapp e1 in
+                     if reverse args0 == args
+                     then let commonArgs = F.notracepp "commonArgs" .
+                                           fmap fst .
+                                           takeWhile (uncurry (==)) $
+                                           zip args0 args1
+                              commonLength = length commonArgs
+                              (newArgsAndSorts, elimedArgsAndSorts) =
+                                splitAt (length args - commonLength) argsAndSorts
+                              args0' = F.eVar <$> reverse (drop commonLength args0)
+                              args1' = F.eVar <$> reverse (drop commonLength args1) in
+                       eq { F.eqArgs = newArgsAndSorts
+                          , F.eqSort = foldr F.FFunc sort
+                                       (snd <$> elimedArgsAndSorts)
+                          , F.eqBody = F.PAtom F.Eq (F.eApps f0 args0') (F.eApps f1 args1')}
                      else eq
                    _ -> eq
-      where args = F.eqArgs eq
+      where argsAndSorts = F.eqArgs eq
+            args = fst <$> argsAndSorts
             body = F.eqBody eq
             sort = F.eqSort eq
-            sort' = foldr F.FFunc sort (snd <$> args) 
-
-    fapp :: F.Expr -> F.Expr -> (F.Expr, [F.Symbol])
-    fapp ee (F.EApp e0 (F.EVar arg)) =
-      let (fvar, args) = fapp ee e0 in
-      splitApp ee (fvar, arg:args)
-    fapp _ e = (e, [])
+            
+    fapp :: F.Expr -> (F.Expr, [F.Symbol])
+    fapp ee = fromMaybe (ee, []) (fapp' ee)
+    
+    fapp' :: F.Expr -> Maybe (F.Expr, [F.Symbol])
+    fapp' (F.EApp e0 (F.EVar arg)) = do
+      (fvar, args) <- fapp' e0
+      splitApp (fvar, arg:args)
+    fapp' e = pure (e, [])
 
     theorySymbols = F.notracepp "theorySymbols" $ Thy.theorySymbols $ F.ddecls si
 
-    splitApp ee (e, es)
+    splitApp (e, es)
       | isNothing $ F.notracepp ("isSmt2App? " ++ showpp e) $ Thy.isSmt2App theorySymbols $ stripCasts e
-      = (e,es)
+      = pure (e,es)
       | otherwise
-      = (ee,[])
+      = Nothing
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
