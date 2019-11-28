@@ -1,15 +1,14 @@
 fixpoint "--rewrite"
 
 constant g : (func(0 , [int; int; int]))
-constant k : (func(0 , [int; int; int]))
 constant f : (func(0 , [int; int; int]))
 constant h : (func(0 , [int; int]))
 
 define f (x : int, y: int) : int = 
   ((f x y) = (g x y))
 
-define k (x : int, y: int) : int = 
-  ((k x y) = (h y))
+define g (x : int, y: int) : int = 
+  ((g x y) = (h y))
 
 bind 0 x : {x : int | []}
 bind 1 y : {y : int | []}
@@ -25,5 +24,5 @@ constraint:
 constraint:
   env [0;1]
   lhs {v : int | true }
-  rhs {v : int | k x y = h x }
+  rhs {v : int | g x = h }
   id 1 tag []
