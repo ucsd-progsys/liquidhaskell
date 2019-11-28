@@ -1,0 +1,28 @@
+fixpoint "--rewrite"
+
+constant g : (func(0 , [int; int; int]))
+constant f : (func(0 , [int; int; int]))
+constant h : (func(0 , [int; int]))
+
+define f (x : int, y: int) : int = 
+  ((f x y) = (g x y))
+
+define g (x : int, y: int) : int = 
+  ((g x y) = (h y))
+
+bind 0 x : {x : int | []}
+bind 1 y : {y : int | []}
+
+expand [1 : True; 2 : True ]
+
+constraint:
+  env [0;1]
+  lhs {v : int | true }
+  rhs {v : int | f = g }
+  id 2 tag []
+
+constraint:
+  env [0;1]
+  lhs {v : int | true }
+  rhs {v : int | g x = h }
+  id 1 tag []

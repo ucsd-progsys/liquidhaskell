@@ -15,7 +15,7 @@ module Language.Fixpoint.Solver.Sanitize
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts)
+import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts, stripCasts)
 import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize 
 import qualified Language.Fixpoint.Misc                            as Misc
@@ -28,7 +28,7 @@ import qualified Data.HashMap.Strict                               as M
 import qualified Data.HashSet                                      as S
 import qualified Data.List                                         as L
 import qualified Data.Text                                         as T
-import           Data.Maybe          (isNothing, mapMaybe)
+import           Data.Maybe          (isNothing, mapMaybe, fromMaybe)
 import           Control.Monad       ((>=>))
 import           Text.PrettyPrint.HughesPJ
 
@@ -48,6 +48,7 @@ sanitize =    -- banIllScopedKvars
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
          >=> Misc.fM addLiterals
+         >=> Misc.fM eliminateEta
 
 
 --------------------------------------------------------------------------------
@@ -78,6 +79,60 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
                     }
   where
     lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]
+
+
+--------------------------------------------------------------------------------
+-- | `eliminateEta` converts equations of the form f x = g x into f = g
+--------------------------------------------------------------------------------
+eliminateEta :: F.SInfo a -> F.SInfo a
+--------------------------------------------------------------------------------
+eliminateEta si = si { F.ae = ae' }
+  where
+    ae' = ae {F.aenvEqs = eqs}
+    ae = F.ae si
+    eqs = fmap etaElim (F.aenvEqs ae)
+    etaElim eq = F.notracepp "Eliminating" $
+                 case body of
+                   F.PAtom F.Eq e0 e1 ->
+                     let (f0, args0) = fapp e0
+                         (f1, args1) = F.notracepp "f1" $ fapp e1 in
+                     if reverse args0 == args
+                     then let commonArgs = F.notracepp "commonArgs" .
+                                           fmap fst .
+                                           takeWhile (uncurry (==)) $
+                                           zip args0 args1
+                              commonLength = length commonArgs
+                              (newArgsAndSorts, elimedArgsAndSorts) =
+                                splitAt (length args - commonLength) argsAndSorts
+                              args0' = F.eVar <$> reverse (drop commonLength args0)
+                              args1' = F.eVar <$> reverse (drop commonLength args1) in
+                       eq { F.eqArgs = newArgsAndSorts
+                          , F.eqSort = foldr F.FFunc sort
+                                       (snd <$> elimedArgsAndSorts)
+                          , F.eqBody = F.PAtom F.Eq (F.eApps f0 args0') (F.eApps f1 args1')}
+                     else eq
+                   _ -> eq
+      where argsAndSorts = F.eqArgs eq
+            args = fst <$> argsAndSorts
+            body = F.eqBody eq
+            sort = F.eqSort eq
+            
+    fapp :: F.Expr -> (F.Expr, [F.Symbol])
+    fapp ee = fromMaybe (ee, []) (fapp' ee)
+    
+    fapp' :: F.Expr -> Maybe (F.Expr, [F.Symbol])
+    fapp' (F.EApp e0 (F.EVar arg)) = do
+      (fvar, args) <- fapp' e0
+      splitApp (fvar, arg:args)
+    fapp' e = pure (e, [])
+
+    theorySymbols = F.notracepp "theorySymbols" $ Thy.theorySymbols $ F.ddecls si
+
+    splitApp (e, es)
+      | isNothing $ F.notracepp ("isSmt2App? " ++ showpp e) $ Thy.isSmt2App theorySymbols $ stripCasts e
+      = pure (e,es)
+      | otherwise
+      = Nothing
 
 --------------------------------------------------------------------------------
 -- | See issue liquid-fixpoint issue #230. This checks that whenever we have,
