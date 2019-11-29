@@ -80,6 +80,7 @@ data Config = Config
   , minimizeQs  :: Bool                -- ^ min .fq by delta debug (sat with min qualifiers)
   , minimizeKs  :: Bool                -- ^ min .fq by delta debug (sat with min kvars)
   , minimalSol  :: Bool                -- ^ shrink final solution by pruning redundant qualfiers from fixpoint
+  , etaElim     :: Bool                -- ^ eta eliminate function definitions 
   , gradual     :: Bool                -- ^ solve "gradual" constraints
   , ginteractive :: Bool                -- ^ interactive gradual solving
   , autoKuts         :: Bool           -- ^ ignore given kut variables
@@ -157,6 +158,7 @@ defConfig = Config {
   , save             = False   &= help "Save Query as .fq and .bfq files"
   , metadata         = False   &= help "Print meta-data associated with constraints"
   , stats            = False   &= help "Compute constraint statistics"
+  , etaElim          = False   &= help "eta elimination in function definition"
   , parts            = False   &= help "Partition constraints into indepdendent .fq files"
   , cores            = def     &= help "(numeric) Number of threads to use"
   , minPartSize      = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
