@@ -21,6 +21,7 @@ import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirst
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
 import           Language.Fixpoint.Types.Config (Config, allowHO)
+import qualified Language.Fixpoint.Types.Config as Cfg 
 import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
 import           Language.Fixpoint.Graph (kvEdges, CVertex (..))
@@ -35,9 +36,9 @@ import           Text.PrettyPrint.HughesPJ
 type SanitizeM a = Either E.Error a
 
 --------------------------------------------------------------------------------
-sanitize :: F.SInfo a -> SanitizeM (F.SInfo a)
+sanitize :: Config -> F.SInfo a -> SanitizeM (F.SInfo a)
 --------------------------------------------------------------------------------
-sanitize =    -- banIllScopedKvars
+sanitize cfg =    -- banIllScopedKvars
         --      Misc.fM dropAdtMeasures
         --      >=>
              Misc.fM dropFuncSortedShadowedBinders
@@ -48,7 +49,7 @@ sanitize =    -- banIllScopedKvars
          >=>         banQualifFreeVars
          >=>         banConstraintFreeVars
          >=> Misc.fM addLiterals
-         >=> Misc.fM eliminateEta
+         >=> Misc.fM (eliminateEta cfg)
 
 
 --------------------------------------------------------------------------------
@@ -84,9 +85,13 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
 --------------------------------------------------------------------------------
 -- | `eliminateEta` converts equations of the form f x = g x into f = g
 --------------------------------------------------------------------------------
-eliminateEta :: F.SInfo a -> F.SInfo a
+eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
-eliminateEta si = si { F.ae = ae' }
+eliminateEta cfg si
+  | Cfg.etaElim cfg  
+  = si { F.ae = ae' }
+  | otherwise 
+  = si 
   where
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si

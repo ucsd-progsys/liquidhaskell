@@ -1,13 +1,12 @@
 fixpoint "--rewrite"
 
 constant maker    : (func(0, [int; QQ]))
+constant QQ       : (func(0, [int; QQ]))
+constant selector : (func(0, [QQ; int]))
 
-data QQ 0 = [
-  | QQ { selector : int }
-]
-
-
+match selector QQ x = (x)
 define maker(n : int) : QQ = (((maker n) = (QQ n)))
+define QQ(z : int) : QQ   = ((selector (QQ z)) = z)
 
 expand [1 : True]
 
