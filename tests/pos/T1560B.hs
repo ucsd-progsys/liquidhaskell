@@ -1,7 +1,6 @@
 {-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--reflection" @-}
 
-
 module T1560 where 
 
 k :: a -> b -> b
