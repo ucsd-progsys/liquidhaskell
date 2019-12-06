@@ -95,29 +95,20 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
 consAct :: Config -> GhcInfo -> CG ()
 consAct cfg info = do
   γ       <- initEnv      info
-  sflag   <- scheck   <$> get
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   foldM_ (consCBTop cfg info) γ (giCbs gSrc)
   mapM (consClass γ) (gsMethods $ gsSig $ giSpec info) 
-  hcs    <- hsCs  <$> get
-  hws    <- hsWfs <$> get
-  scss   <- sCs   <$> get
-  annot  <- annotMap <$> get
-  scs    <- if sflag then concat <$> mapM splitS (hcs ++ scss)
-                    else return []
-  let smap = if sflag then solveStrata scs else []
-  let hcs' = if sflag then subsS smap hcs else hcs
-  fcs <- concat <$> mapM splitC (subsS smap hcs')
+  hcs <- hsCs  <$> get
+  hws <- hsWfs <$> get
+  fcs <- concat <$> mapM splitC hcs
   fws <- concat <$> mapM splitW hws
-  let annot' = if sflag then subsS smap <$> annot else annot
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
                      , cgConsts = (cgConsts st) `mappend` (constEnv γ)
                      , fixCs    = fcs
-                     , fixWfs   = fws
-                     , annotMap = annot' }
+                     , fixWfs   = fws }
 
 
 
@@ -182,7 +173,7 @@ recType autoenv ((vs, indexc), (_, index, t))
         xts  = zip (ty_binds trep) (ty_args trep)
         trep = toRTypeRep $ unOCons t
 
-checkIndex :: (NamedThing t, PPrint t, PPrint [a])
+checkIndex :: (NamedThing t, PPrint t, PPrint a)
            => (t, [a], Template (RType c tv r), [Int])
            -> CG [Maybe (RType c tv r)]
 checkIndex (x, vs, t, index)
@@ -229,7 +220,7 @@ safeLogIndex err ls n
   | n >= length ls = addWarning err >> return Nothing
   | otherwise      = return $ Just $ ls !! n
 
-checkHint :: (NamedThing a, PPrint a, PPrint [a1])
+checkHint :: (NamedThing a, PPrint a, PPrint a1)
           => a -> [a1] -> (a1 -> Bool) -> Maybe [Int] -> CG (Maybe [Int])
 checkHint _ _ _ Nothing
   = return Nothing
@@ -243,7 +234,7 @@ checkHint x _ _ (Just ns) | L.sort ns /= ns
 checkHint x ts f (Just ns)
   = (mapM (checkValidHint x ts f) ns) >>= (return . Just . catMaybes)
 
-checkValidHint :: (NamedThing a, PPrint a, PPrint [a1])
+checkValidHint :: (NamedThing a, PPrint a, PPrint a1)
                => a -> [a1] -> (a1 -> Bool) -> Int -> CG (Maybe Int)
 checkValidHint x ts f n
   | n < 0 || n >= length ts = addWarning err >> return Nothing
@@ -317,16 +308,11 @@ doTermCheck cfg bind = do
 -- RJ: AAAAAAARGHHH!!!!!! THIS CODE IS HORRIBLE!!!!!!!!!
 consCBSizedTys :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBSizedTys γ xes
-  = do xets''    <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
-       sflag     <- scheck <$> get
-       autoenv   <- autoSize <$> get
-       let cmakeFinType = if sflag then makeFinType else id
-       let cmakeFinTy   = if sflag then makeFinTy   else snd
-       let xets = mapThd3 (fmap cmakeFinType) <$> xets''
-       ts'      <- mapM (T.mapM refreshArgs) $ (thd3 <$> xets)
-       let vs    = zipWith collectArgs ts' es
-       is       <- mapM makeDecrIndex (zip3 xs ts' vs) >>= checkSameLens
-       let ts = cmakeFinTy  <$> zip is ts'
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+       autoenv  <- autoSize <$> get
+       ts       <- mapM (T.mapM refreshArgs) $ (thd3 <$> xets)
+       let vs    = zipWith collectArgs ts es
+       is       <- mapM makeDecrIndex (zip3 xs ts vs) >>= checkSameLens
        let xeets = (\vis -> [(vis, x) | x <- zip3 xs is $ map unTemplate ts]) <$> (zip vs is)
        (L.transpose <$> mapM checkIndex (zip4 xs vs ts is)) >>= checkEqTypes
        let rts   = (recType autoenv <$>) <$> xeets
@@ -354,12 +340,9 @@ consCBSizedTys γ xes
 
 consCBWithExprs :: CGEnv -> [(Var, CoreExpr)] -> CG CGEnv
 consCBWithExprs γ xes
-  = do xets'     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
+  = do xets     <- forM xes $ \(x, e) -> liftM (x, e,) (varTemplate γ (x, Just e))
        texprs    <- termExprs <$> get
        let xtes   = catMaybes $ (`lookup` texprs) <$> xs
-       sflag     <- scheck <$> get
-       let cmakeFinType = if sflag then makeFinType else id
-       let xets  = mapThd3 (fmap cmakeFinType) <$> xets'
        let ts    = safeFromAsserted err . thd3 <$> xets
        ts'      <- mapM refreshArgs ts
        let xts   = zip xs (Asserted <$> ts')
@@ -372,16 +355,6 @@ consCBWithExprs γ xes
         lookup k m | Just x <- M.lookup k m = Just (k, x)
                    | otherwise              = Nothing
         err      = "Constant: consCBWithExprs"
-
-makeFinTy :: (Eq a, Functor f, Num a, Foldable t)
-          => (t a, f SpecType)
-          -> f SpecType
-makeFinTy (ns, t) = fmap go t
-  where
-    go t = fromRTypeRep $ trep {ty_args = args'}
-      where
-        trep = toRTypeRep t
-        args' = mapNs ns makeFinType $ ty_args trep
 
 makeTermEnvs :: CGEnv -> [(Var, [F.Located F.Expr])] -> [(Var, CoreExpr)]
              -> [SpecType] -> [SpecType]
@@ -404,9 +377,9 @@ makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
     err x        = "Constant: makeTermEnvs: no terminating expression for " ++ GM.showPpr x
 
 addObligation :: Oblig -> SpecType -> RReft -> SpecType
-addObligation o t r  = mkArrow αs πs ls yts xts $ RRTy [] r o t2
+addObligation o t r  = mkArrow αs πs yts xts $ RRTy [] r o t2
   where
-    (αs, πs, ls, t1) = bkUniv t
+    (αs, πs, t1) = bkUniv t
     ((xs',ts',rs'),(xs, ts, rs), t2) = bkArrow t1
     xts              = zip3 xs ts rs
     yts              = zip3 xs' ts' rs'
@@ -432,10 +405,7 @@ consCB True _ γ (Rec xes)
 
 -- don't do termination checking, but some strata checks?
 consCB _ False γ (Rec xes)
-  = do xets'     <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
-       sflag     <- scheck <$> get
-       let mkDivT = if sflag then makeDivType else id
-       let xets   = mapThd3 (fmap mkDivT) <$> xets'
+  = do xets     <- forM xes $ \(x, e) -> (x, e,) <$> varTemplate γ (x, Just e)
        modify     $ \i -> i { recCount = recCount i + length xes }
        let xts    = [(x, to) | (x, _, to) <- xets]
        γ'        <- foldM extender (γ `setRecs` (fst <$> xts)) xts
@@ -491,8 +461,8 @@ consBind _ _ (x, _, Assumed t)
   = return $ F.notracepp ("TYPE FOR SELECTOR " ++ show x) $ Assumed t
 
 consBind isRec γ (x, e, Asserted spect)
-  = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv spect
+  = do let γ'       = γ `setBind` x
+           (_,πs,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
 
        -- take implcits out of the function's SpecType and into the env
@@ -508,8 +478,8 @@ consBind isRec γ (x, e, Asserted spect)
        return $ Asserted spect
 
 consBind isRec γ (x, e, Internal spect)
-  = do let γ'         = γ `setBind` x
-           (_,πs,_,_) = bkUniv spect
+  = do let γ'       = γ `setBind` x
+           (_,πs,_) = bkUniv spect
        γπ    <- foldM addPToEnv γ' πs
        let γπ' = γπ {cerr = Just $ ErrHMeas (getLocation γπ) (pprint x) (text explanation)}
        cconsE γπ' e spect
@@ -801,19 +771,6 @@ instantiatePreds γ e (RAllP π t)
 instantiatePreds _ _ t0
   = return t0
 
--------------------------------------------------------------------
--- | @instantiateStrata@ generates fresh @Strata@ vars and substitutes
---   them inside the body of the type.
--------------------------------------------------------------------
-
-instantiateStrata :: (F.Subable b, Freshable f Integer) => [F.Symbol] -> b -> f b
-instantiateStrata ls t = substStrata t ls <$> mapM (\_ -> fresh) ls
-
-substStrata :: F.Subable a => a -> [F.Symbol] -> [F.Symbol] -> a
-substStrata t ls ls'   = F.substa f t
-  where
-    f x                = fromMaybe x $ L.lookup x su
-    su                 = zip ls ls'
 
 -------------------------------------------------------------------
 cconsLazyLet :: CGEnv
@@ -870,26 +827,24 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
       Just riSig -> return $ fromRISig riSig
       _          -> do
-        ([], πs, ls, te) <- bkUniv <$> consE γ e
-        te0              <- instantiatePreds γ e' $ foldr RAllP te πs
-        te'              <- instantiateStrata ls te0
-        (γ', te''')      <- dropExists γ te'
-        te''             <- dropConstraints γ te'''
+        ([], πs, te) <- bkUniv <$> consE γ e
+        te'          <- instantiatePreds γ e' $ foldr RAllP te πs
+        (γ', te''')  <- dropExists γ te'
+        te''         <- dropConstraints γ te'''
         updateLocA {- πs -}  (exprLoc e) te''
         let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
-        pushConsBind      $ cconsE γ' a tx
+        cconsE γ' a tx
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
 consE γ e'@(App e a)
-  = do ([], πs, ls, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
-       te0              <- instantiatePreds γ e' $ foldr RAllP te πs
-       te'              <- instantiateStrata ls te0
-       (γ', te''')      <- dropExists γ te'
-       te''             <- dropConstraints γ te'''
+  = do ([], πs, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
+       te'          <- instantiatePreds γ e' $ foldr RAllP te πs
+       (γ', te''')  <- dropExists γ te'
+       te''         <- dropConstraints γ te'''
        updateLocA (exprLoc e) te''
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
-       pushConsBind      $ cconsE γ'' a tx
+       cconsE γ'' a tx
        tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
        if hasGhost
           then do

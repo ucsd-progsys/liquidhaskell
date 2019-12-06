@@ -469,7 +469,7 @@ getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDa
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
             -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
-ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts pos sfun pt _)) maybe_invariance_info
+ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
   = uError err
   | otherwise
@@ -478,14 +478,14 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts pos sfun pt _)) maybe_in
     πs         = Bare.ofBPVar env name pos <$> ps
     tc'        = getDnTyCon env name tc
     -- cts        = checkDataCtors env name tc' cts0
-    cts'       = ofBDataCtor env name lc lc' tc' αs ps ls πs <$> cts
+    cts'       = ofBDataCtor env name lc lc' tc' αs ps πs <$> cts
     pd         = Bare.ofBareType env name lc (Just []) <$> pt
     tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
     initmap    = zip (RT.uPVar <$> πs) [0..]
     varInfo    = L.nub $  concatMap (getPsSig initmap True) tys
     defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
     (tvi, pvi) = f defPs
-    tcp          = TyConP lc tc' αs πs ls tvi pvi sfun
+    tcp          = TyConP lc tc' αs πs tvi pvi sfun
     err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
     αs           = RTV . GM.symbolTyVar <$> as
     n            = length αs
@@ -495,7 +495,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps ls cts pos sfun pt _)) maybe_in
                      Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))
 
 ofBDataDecl env name Nothing (Just (tc, is))
-  = ((name, TyConP srcpos tc' [] [] [] tcov tcontr Nothing, Nothing), [])
+  = ((name, TyConP srcpos tc' [] [] tcov tcontr Nothing, Nothing), [])
   where
     tc'            = Bare.lookupGhcTyCon env name "ofBDataDecl-2" tc
     (tcov, tcontr) = (is, [])
@@ -512,16 +512,14 @@ ofBDataCtor :: Bare.Env
             -> Ghc.TyCon
             -> [RTyVar]
             -> [PVar BSort]
-            -> [F.Symbol]
             -> [PVar RSort]
             -> DataCtor
             -> DataConP
-ofBDataCtor env name l l' tc αs ps ls πs _ctor@(DataCtor c as _ xts res) = DataConP 
+ofBDataCtor env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) = DataConP 
   { dcpLoc        = l                
   , dcpCon        = c'                
   , dcpFreeTyVars = RT.symbolRTyVar <$> as 
   , dcpFreePred   = πs                 
-  , dcpFreeLabels = ls                
   , dcpTyConstrs  = cs                
   , dcpTyArgs     = zts                 
   , dcpTyRes      = ot                
@@ -585,7 +583,7 @@ getPsSigPs m pos (RProp _ (RHole r)) = addps m pos r
 getPsSigPs m pos (RProp _ t) = getPsSig m pos t
 
 addps :: [(UsedPVar, a)] -> b -> UReft t -> [(a, b)]
-addps m pos (MkUReft _ ps _) = (flip (,)) pos . f  <$> pvars ps
+addps m pos (MkUReft _ ps) = (flip (,)) pos . f  <$> pvars ps
   where 
     f = Mb.fromMaybe (panic Nothing "Bare.addPs: notfound") . (`L.lookup` m) . RT.uPVar
 
@@ -672,7 +670,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
-      ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) [] (dcpFreeLabels dcp)
+      ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
                                  [] [(z, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
@@ -689,4 +687,4 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem
       -- to be malformed. If we leave them in, tests/pos/kmp.hs fails with
       -- a malformed predicate application. Niki, help!!
-      dropPreds = fmap (\(MkUReft r _ps ss) -> MkUReft r mempty ss)
+      dropPreds = fmap (\(MkUReft r _ps) -> MkUReft r mempty)

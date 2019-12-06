@@ -184,9 +184,6 @@ config = cmdArgsMode $ Config {
     = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
           &= name "max-case-expand"
 
- , strata
-    = def &= help "Enable Strata Analysis"
-
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
@@ -544,7 +541,6 @@ defConfig = Config
   , noannotations     = def
   , checkDerived      = False
   , caseExpandDepth   = 2 
-  , strata            = def
   , notruetypes       = def
   , nototality        = False
   , pruneUnsorted     = def

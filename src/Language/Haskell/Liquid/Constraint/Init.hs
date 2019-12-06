@@ -78,9 +78,7 @@ initEnv info
        (invs1, f41) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty  (gsAutosize (gsTerm sp)) dcs
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
-       sflag    <- scheck <$> get
-       let senv  = if sflag then f2 else []
-       let tx    = mapFst F.symbol . addRInv ialias . strataUnify senv . predsUnify sp
+       let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
        let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, (F.notracepp "assumed" f3) ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
@@ -100,10 +98,10 @@ initEnv info
     addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
 
 addPolyInfo :: SpecType -> SpecType
-addPolyInfo t = mkUnivs (go <$> as) ps ls t' 
+addPolyInfo t = mkUnivs (go <$> as) ps t' 
   where 
-    (as, ps, ls, t') = bkUniv t 
-    pos              = tyVarsPosition t' 
+    (as, ps, t') = bkUniv t 
+    pos          = tyVarsPosition t' 
     go (a,r) = if {- ty_var_value a `elem` ppos pos && -}  ty_var_value a `notElem` pneg pos 
                then (setRtvPol a False,r)  
                else (a,r) 
@@ -124,7 +122,7 @@ makeAutoDecrDataCons dcts specenv dcs
       = []
 
     simplify invs = dummyLoc . (`strengthen` invariant) .  fmap (\_ -> mempty) <$> L.nub invs
-    invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty mempty
+    invariant = MkUReft (F.Reft (F.vv_, F.PAtom F.Ge (lenOf F.vv_) (F.ECon $ F.I 0)) ) mempty
 
 idTyCon :: Id -> Maybe TyCon
 idTyCon = fmap dataConTyCon . idDataConM
@@ -138,7 +136,7 @@ makeSizedDataCons dcts x' n = (toRSort $ ty_res trep, (x, fromRTypeRep trep{ty_r
       x      = dataConWorkId x'
       t      = fromMaybe (impossible Nothing "makeSizedDataCons: this should never happen") $ L.lookup x dcts
       trep   = toRTypeRep t
-      tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty mempty
+      tres   = ty_res trep `strengthen` MkUReft (F.Reft (F.vv_, F.PAtom F.Eq (lenOf F.vv_) computelen)) mempty
 
       recarguments = filter (\(t,_) -> (toRSort t == toRSort tres)) (zip (ty_args trep) (ty_binds trep))
       computelen   = foldr (F.EBin F.Plus) (F.ECon $ F.I n) (lenOf .  snd <$> recarguments)
@@ -157,11 +155,6 @@ mergeDataConTypes tce xts yts = merge (L.sortBy f xts) (L.sortBy f yts)
 
 refreshArgs' :: [(a, SpecType)] -> CG [(a, SpecType)]
 refreshArgs' = mapM (mapSndM refreshArgs)
-
-strataUnify :: [(Var, SpecType)] -> (Var, SpecType) -> (Var, SpecType)
-strataUnify senv (x, t) = (x, maybe t (mappend t) pt)
-  where
-    pt                  = fmap (\(MkUReft _ _ l) -> MkUReft mempty mempty l) <$> L.lookup x senv
 
 
 -- | TODO: All this *should* happen inside @Bare@ but appears
@@ -273,10 +266,8 @@ initCGI :: Config -> GhcInfo -> CGInfo
 initCGI cfg info = CGInfo {
     fEnv       = F.emptySEnv
   , hsCs       = []
-  , sCs        = []
   , hsWfs      = []
   , fixCs      = []
-  , isBind     = []
   , fixWfs     = []
   , freshIndex = 0
   , dataConTys = []
@@ -298,7 +289,6 @@ initCGI cfg info = CGInfo {
   , specLazy   = dictionaryVar `S.insert` (gsLazy tspc)
   , specTmVars = gsNonStTerm tspc
   , tcheck     = terminationCheck cfg
-  , scheck     = strata cfg
   , pruneRefs  = pruneUnsorted cfg
   , logErrors  = []
   , kvProf     = emptyKVProf

@@ -109,15 +109,13 @@ shortSymbol Lossy = GM.dropModuleNames
 shortSymbol _     = id 
 
 tidyLocalRefas   :: Tidy -> SpecType -> SpecType
-tidyLocalRefas k = mapReft (txStrata . txReft' k)
+tidyLocalRefas k = mapReft (txReft' k)
   where
     txReft' Full                  = id
     txReft' Lossy                 = txReft
-    txStrata (MkUReft r p l)      = MkUReft r p (txStr l)
     txReft u                      = u { ur_reft = mapPredReft dropLocals $ ur_reft u }
     dropLocals                    = pAnd . filter (not . any isTmp . syms) . conjuncts
     isTmp x                       = any (`isPrefixOfSym` x) [anfPrefix, "ds_"]
-    txStr                         = filter (not . isSVar)
 
 tidyEqual :: SpecType -> SpecType
 tidyEqual = mapReft txReft
@@ -162,7 +160,6 @@ bindersTx ds   = \y -> M.lookupDefault y y m
 
 tyVars :: RType c tv r -> [tv]
 tyVars (RAllP _ t)     = tyVars t
-tyVars (RAllS _ t)     = tyVars t
 tyVars (RAllT α t _)   = ty_var_value α : tyVars t
 tyVars (RImpF _ t t' _) = tyVars t ++ tyVars t'
 tyVars (RFun _ t t' _) = tyVars t ++ tyVars t'
@@ -194,7 +191,6 @@ subsTyVarsAll ats = go
 funBinds :: RType t t1 t2 -> [Symbol]
 funBinds (RAllT _ t _)    = funBinds t
 funBinds (RAllP _ t)      = funBinds t
-funBinds (RAllS _ t)      = funBinds t
 funBinds (RImpF b t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RFun b t1 t2 _) = b : funBinds t1 ++ funBinds t2
 funBinds (RApp _ ts _ _)  = concatMap funBinds ts

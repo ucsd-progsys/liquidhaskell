@@ -135,7 +135,7 @@ import Data.List (sort, foldl')
 strengthenDataConType :: (Var, SpecType) -> (Var, SpecType)
 strengthenDataConType (x, t) = (x, fromRTypeRep trep {ty_res = tres})
   where
-    tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
+    tres     = F.notracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty
     trep     = toRTypeRep t
     _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
     (xs, ts) = dataConArgs trep
@@ -149,39 +149,9 @@ dataConArgs :: SpecRep -> ([Symbol], [SpecType])
 dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
-    -- xs           = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
     ts           = ty_args trep
     isValTy      = not . GM.isPredType . toType
 
--- RJ: AAAAAAARGHHH: this is duplicate of RT.strengthenDataConType
-{-
-makeDataConCtor :: Var -> SpecType
-makeDataConCtor x = (dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
-  where
-    tres     = F.tracepp _msg $ ty_res trep `strengthen` MkUReft (exprReft expr) mempty mempty
-    trep     = toRTypeRep . ofType . varType $ x
-    _msg     = "STRENGTHEN-DATACONTYPE x = " ++ F.showpp (x, (zip xs ts))
-    (xs, ts) = dataConArgs trep
-    as       = ty_vars  trep
-    x'       = symbol x
-    expr | null xs && null as = EVar x'
-         | otherwise          = mkEApp (dummyLoc x') (EVar <$> xs)
-
-makeDataConCtor :: Var -> (Var, LocSpecType)
-makeDataConCtor x = (x, dummyLoc . fromRTypeRep $ trep {ty_res = res, ty_binds = xs})
-  where
-    t    :: SpecType
-    t    = ofType $ varType x
-    trep = toRTypeRep t
-    xs   = zipWith (\_ i -> (symbol ("x" ++ show i))) (ty_args trep) [1..]
-
-    res  = ty_res trep `strengthen` MkUReft ref mempty mempty
-    vv   = vv_
-    x'   = symbol x
-    ref  = Reft (vv, PAtom Eq (EVar vv) eq)
-    eq   | null (ty_vars trep) && null xs = EVar x'
-         | otherwise = mkEApp (dummyLoc x') (EVar <$> xs)
--}
 
 pdVar :: PVar t -> Predicate
 pdVar v        = Pr [uPVar v]
@@ -210,7 +180,7 @@ uReft           :: (Symbol, Expr) -> UReft Reft
 uReft           = uTop . Reft
 
 uTop            ::  r -> UReft r
-uTop r          = MkUReft r mempty mempty
+uTop r          = MkUReft r mempty
 
 --------------------------------------------------------------------
 -------------- (Class) Predicates for Valid Refinement Types -------
@@ -436,8 +406,6 @@ eqRSort :: (Eq a, Eq k, Hashable k, TyConable a, PPrint a, PPrint k, Reftable (R
         => M.HashMap k k -> RType a k () -> RType a k () -> Bool
 eqRSort m (RAllP _ t) (RAllP _ t')
   = eqRSort m t t'
-eqRSort m (RAllS _ t) (RAllS _ t')
-  = eqRSort m t t'
 eqRSort m (RAllP _ t) t'
   = eqRSort m t t'
 eqRSort m (RAllT a t _) (RAllT a' t' _)
@@ -584,7 +552,7 @@ gApp tc αs πs = rApp tc
                   mempty
 
 pdVarReft :: PVar t -> UReft Reft
-pdVarReft = (\p -> MkUReft mempty p mempty) . pdVar
+pdVarReft = (\p -> MkUReft mempty p) . pdVar
 
 tyConRTyCon :: TyCon -> RTyCon
 tyConRTyCon c = RTyCon c [] (mkTyConInfo c [] [] Nothing)
@@ -623,8 +591,6 @@ nlzP ps (RAllT v t r)
  = (RAllT v t' r, ps ++ ps')
   where (t', ps') = nlzP [] t
 nlzP ps t@(RApp _ _ _ _)
- = (t, ps)
-nlzP ps (RAllS _ t)
  = (t, ps)
 nlzP ps (RAllP p t)
  = (t', [p] ++ ps ++ ps')
@@ -714,12 +680,6 @@ strengthenRefType_ f (RAllP p t1) t2
 
 strengthenRefType_ f t1 (RAllP p t2)
   = RAllP p $ strengthenRefType_ f t1 t2
-
-strengthenRefType_ f (RAllS s t1) t2
-  = RAllS s $ strengthenRefType_ f t1 t2
-
-strengthenRefType_ f t1 (RAllS s t2)
-  = RAllS s $ strengthenRefType_ f t1 t2
 
 strengthenRefType_ f (RAllE x tx t1) (RAllE y ty t2) | x == y
   = RAllE x (strengthenRefType_ f tx ty) $ strengthenRefType_ f t1 t2
@@ -967,17 +927,16 @@ addNumSizeFun c
 
 
 generalize :: (Eq tv, Monoid r) => RType c tv r -> RType c tv r
-generalize t = mkUnivs (zip (freeTyVars t) (repeat mempty)) [] [] t
+generalize t = mkUnivs (zip (freeTyVars t) (repeat mempty)) [] t
 
 allTyVars :: (Ord tv) => RType c tv r -> [tv]
 allTyVars t = sortNub . fmap ty_var_value $ vs ++ vs'
   where
-    vs      = map fst . fst4 . bkUniv $ t
+    vs      = map fst . fst3 . bkUniv $ t
     vs'     = freeTyVars    $ t
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
-freeTyVars (RAllS _ t)     = freeTyVars t
 freeTyVars (RAllT α t _)   = freeTyVars t L.\\ [α]
 freeTyVars (RImpF _ t t' _)= freeTyVars t `L.union` freeTyVars t'
 freeTyVars (RFun _ t t' _) = freeTyVars t `L.union` freeTyVars t'
@@ -993,7 +952,6 @@ freeTyVars (RRTy e _ _ t)  = L.nub $ concatMap freeTyVars (t:(snd <$> e))
 
 tyClasses :: (OkRT RTyCon tv r) => RType RTyCon tv r -> [(Class, [RType RTyCon tv r])]
 tyClasses (RAllP _ t)     = tyClasses t
-tyClasses (RAllS _ t)     = tyClasses t
 tyClasses (RAllT _ t _)   = tyClasses t
 tyClasses (RAllE _ _ t)   = tyClasses t
 tyClasses (REx _ _ t)     = tyClasses t
@@ -1095,8 +1053,6 @@ subsFree
   -> (tv, RType c tv (), RType c tv r)
   -> RType c tv r
   -> RType c tv r
-subsFree m s z (RAllS l t)
-  = RAllS l (subsFree m s z t)
 subsFree m s z@(α, τ,_) (RAllP π t)
   = RAllP (subt (α, τ) π) (subsFree m s z t)
 subsFree m s z@(a, τ, _) (RAllT α t r)
@@ -1297,7 +1253,6 @@ instance SubsTy Symbol Symbol (BRType r) where
   subt su (RFun x t1 t2 r)  = RFun x (subt su t1) (subt su t2) r 
   subt su (RImpF x t1 t2 r) = RImpF x (subt su t1) (subt su t2) r
   subt su (RAllP p t)       = RAllP p (subt su t)
-  subt su (RAllS p t)       = RAllS p (subt su t)
   subt su (RApp c ts ps r)  = RApp c (subt su <$> ts) (subt su <$> ps) r 
   subt su (RAllE x t1 t2)   = RAllE x (subt su t1) (subt su t2)
   subt su (REx x t1 t2)     = REx x (subt su t1) (subt su t2)
@@ -1402,7 +1357,7 @@ instance (SubsTy tv ty (UReft r), SubsTy tv ty (RType c tv ())) => SubsTy tv ty 
   subt m (RProp ss t) = RProp ((mapSnd (subt m)) <$> ss) $ fmap (subt m) t
 
 subvUReft     :: (UsedPVar -> UsedPVar) -> UReft Reft -> UReft Reft
-subvUReft f (MkUReft r p s) = MkUReft r (subvPredicate f p) s
+subvUReft f (MkUReft r p) = MkUReft r (subvPredicate f p)
 
 subvPredicate :: (UsedPVar -> UsedPVar) -> Predicate -> Predicate
 subvPredicate f (Pr pvs) = Pr (f <$> pvs)
@@ -1537,8 +1492,6 @@ toType (RAllT a t _) | RTV α <- ty_var_value a
   = ForAllTy (TvBndr α Required) (toType t)
 toType (RAllP _ t)
   = toType t
-toType (RAllS _ t)
-  = toType t
 toType (RVar (RTV α) _)
   = TyVarTy α
 toType (RApp (RTyCon {rtc_tc = c}) ts _ _)
@@ -1612,7 +1565,7 @@ applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
 --------------------------------------------------------------------------------
 applySolution = fmap . fmap . mapReft . appSolRefa
   where
-    mapReft f (MkUReft (Reft (x, z)) p s) = MkUReft (Reft (x, f z)) p s
+    mapReft f (MkUReft (Reft (x, z)) p) = MkUReft (Reft (x, f z)) p
 
 appSolRefa :: Visitable t
            => M.HashMap KVar Expr -> t -> t
@@ -2036,7 +1989,6 @@ tyVarsPosition = go (Just True)
     go p (RImpF _ t1 t2 _) = go (flip p) t1 <> go p t2 
     go p (RAllT _ t _)     = go p t 
     go p (RAllP _ t)       = go p t 
-    go p (RAllS _ t)       = go p t 
     go _ (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
     go p (RAllE _ t1 t2)   = go p t1 <> go p t2 
     go p (REx _ t1 t2)     = go p t1 <> go p t2

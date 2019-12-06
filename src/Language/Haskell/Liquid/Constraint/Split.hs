@@ -15,9 +15,6 @@ module Language.Haskell.Liquid.Constraint.Split (
   -- * Split Well-formedness Constraints
   , splitW
 
-  -- * Split Strata Constraints
-  , splitS
-
   -- * ???
   , envToSub
 
@@ -32,7 +29,7 @@ import           Prelude hiding (error)
 import           Text.PrettyPrint.HughesPJ hiding (first, parens)
 import qualified TyCon  as TC
 
-import           Data.Maybe          (fromMaybe) -- catMaybes, fromJust, isJust)
+import           Data.Maybe          (fromMaybe) 
 import           Control.Monad
 import           Control.Monad.State (get)
 import qualified Control.Exception as Ex
@@ -45,14 +42,9 @@ import           Language.Haskell.Liquid.Misc -- (concatMapM)
 import qualified Language.Haskell.Liquid.UX.CTags       as Tg
 import           Language.Haskell.Liquid.Types hiding (loc)
 
--- import           Language.Haskell.Liquid.Types.Variance
--- import           Language.Haskell.Liquid.Types.Strata
--- import           Language.Haskell.Liquid.Types.PredType         hiding (freeTyVars)
--- import           Language.Haskell.Liquid.Types.RefType
 
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
--- import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Constraint
 
@@ -87,9 +79,6 @@ splitW (WfC γ t'@(RAllT a t _))
        return $ ws ++ ws'
 
 splitW (WfC γ (RAllP _ r))
-  = splitW (WfC γ r)
-
-splitW (WfC γ (RAllS _ r))
   = splitW (WfC γ r)
 
 splitW (WfC γ t@(RVar _ _))
@@ -147,150 +136,6 @@ bsplitW' γ t temp isHO
   where
     r'                = rTypeSortedReft' γ temp t
     ci                = Ci (getLocation γ) Nothing (cgVar γ)
-
---------------------------------------------------------------------------------
-splitS  :: SubC -> CG [([Stratum], [Stratum])]
-bsplitS :: SpecType -> SpecType -> CG [([Stratum], [Stratum])]
---------------------------------------------------------------------------------
-splitS (SubC γ (REx x _ t1) (REx x2 _ t2)) | x == x2
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ t1 (REx _ _ t2))
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ (REx _ _ t1) t2)
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ (RAllE x _ t1) (RAllE x2 _ t2)) | x == x2
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ (RAllE _ _ t1) t2)
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ t1 (RAllE _ _ t2))
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ (RRTy _ _ _ t1) t2)
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ t1 (RRTy _ _ _ t2))
-  = splitS (SubC γ t1 t2)
-
-splitS (SubC γ t1@(RFun x1 r1 r1' _) t2@(RFun x2 r2 r2' _))
-  =  do cs       <- bsplitS t1 t2
-        cs'      <- splitS  (SubC γ r2 r1)
-        γ'       <- γ += ("splitS1", x2, r2)
-        let r1x2' = r1' `F.subst1` (x1, F.EVar x2)
-        cs''     <- splitS  (SubC γ' r1x2' r2')
-        return    $ cs ++ cs' ++ cs''
-
-splitS (SubC γ t1@(RImpF x1 r1 r1' _) t2@(RImpF x2 r2 r2' _))
-  =  do cs       <- bsplitS t1 t2
-        cs'      <- splitS  (SubC γ r2 r1)
-        γ'       <- γ += ("splitS1", x2, r2)
-        let r1x2' = r1' `F.subst1` (x1, F.EVar x2)
-        cs''     <- splitS  (SubC γ' r1x2' r2')
-        return    $ cs ++ cs' ++ cs''
-
-
-splitS (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
-  =  do cs    <- bsplitS t1 t2
-        cs'   <- splitS  (SubC γ r1 r2)
-        cs''  <- splitS  (SubC γ r1' r2')
-        cs''' <- splitS  (SubC γ r2' r1')
-        return $ cs ++ cs' ++ cs'' ++ cs'''
-
-splitS (SubC γ t1 (RAllP p t))
-  = splitS $ SubC γ t1 t'
-  where
-    t' = fmap (replacePredsWithRefs su) t
-    su = (uPVar p, pVartoRConc p)
-
-splitS (SubC _ t1@(RAllP _ _) t2)
-  = panic Nothing $ "Predicate in lhs of constrain:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
-
-
-splitS (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
-  |  α1 ==  α2
-  = do γ'  <- updateEnv γ α2
-       cs  <- splitS $ SubC γ' t1 (F.subst su t2)
-       cs' <- bsplitS t1' t2'
-       return $ cs ++ cs'
-  | otherwise
-  = do γ'  <- updateEnv γ α2
-       cs  <- splitS $ SubC γ' t1 (F.subst su t2'')
-       cs' <- bsplitS t1' t2'
-       return $ cs ++ cs'
-  where
-    t2'' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
-    su = case (rTVarToBind α1, rTVarToBind α2) of
-          (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
-          _                            -> F.mkSubst []
-
-
-splitS (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
-  = return []
-
-
-splitS (SubC γ t1@(RApp {}) t2@(RApp {}))
-  = do (t1',t2') <- unifyVV t1 t2
-       cs    <- bsplitS t1' t2'
-       γ'    <- γ `extendEnvWithVV` t1'
-       let RApp c t1s r1s _ = t1'
-       let RApp _ t2s r2s _ = t2'
-       let isapplied = TC.tyConArity (rtc_tc c) == length t1s
-       let tyInfo = rtc_info c
-       csvar  <-  splitsSWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsSWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
-       return $ cs ++ csvar ++ csvar'
-
-splitS (SubC _ t1@(RVar a1 _) t2@(RVar a2 _))
-  | a1 == a2
-  = bsplitS t1 t2
-
-splitS (SubC _ t1 t2)
-  = panic Nothing $ "(Another Broken Test1!!!) splitS unexpected: " ++ showpp t1 ++ "\n\n" ++ showpp t2
-
-splitS (SubR _ _ _)
-  = return []
-
-splitsSWithVariance :: CGEnv
-                    -> [SpecType]
-                    -> [SpecType]
-                    -> [Variance]
-                    -> CG [([Stratum], [Stratum])]
-splitsSWithVariance γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> splitS (SubC γ s1 s2)) t1 t2 v) (zip3 t1s t2s variants)
-
-rsplitsSWithVariance :: Bool
-                     -> CGEnv
-                     -> [Ref t (RType RTyCon RTyVar RReft)]
-                     -> [Ref t (RType RTyCon RTyVar RReft)]
-                     -> [Variance]
-                     -> CG [([Stratum], [Stratum])]
-rsplitsSWithVariance False _ _ _ _
-  = return []
-
-rsplitsSWithVariance _ γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitS γ) t1 t2 v) (zip3 t1s t2s variants)
-
-bsplitS t1 t2
-  = return $ [(s1, s2)]
-  where [s1, s2]   = getStrata <$> [t1, t2]
-
-rsplitS :: CGEnv
-        -> Ref t (RType RTyCon RTyVar RReft)
-        -> Ref t1 (RType RTyCon RTyVar RReft)
-        -> CG [([Stratum], [Stratum])]
-rsplitS _ (RProp _ (RHole _)) _
-   = panic Nothing "rsplitS RProp _ (RHole _)"
-
-rsplitS _ _ (RProp _ (RHole _))
-   = panic Nothing "rsplitS RProp _ (RHole _)"
-
-rsplitS γ (RProp s1 r1) (RProp s2 r2)
-  = splitS (SubC γ (F.subst su r1) r2)
-  where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
 splitfWithVariance :: Applicative f
                    => (t -> t -> f [a]) -> t -> t -> Variance -> f [a]
@@ -449,7 +294,6 @@ traceTy :: SpecType -> String
 traceTy (RVar v _)      = parens ("RVar " ++ showpp v)
 traceTy (RApp c ts _ _) = parens ("RApp " ++ showpp c ++ unwords (traceTy <$> ts)) 
 traceTy (RAllP _ t)     = parens ("RAllP " ++ traceTy t)
-traceTy (RAllS _ t)     = parens ("RAllS " ++ traceTy t)
 traceTy (RAllT _ t _)   = parens ("RAllT " ++ traceTy t)
 traceTy (RImpF _ t t' _) = parens ("RImpF " ++ parens (traceTy t) ++ parens (traceTy t'))
 traceTy (RFun _ t t' _) = parens ("RFun " ++ parens (traceTy t) ++ parens (traceTy t'))
@@ -492,7 +336,6 @@ bsplitC :: CGEnv
         -> SpecType
         -> CG [F.SubC Cinfo]
 bsplitC γ t1 t2 = do
-  checkStratum γ t1 t2
   temp   <- getTemplates
   isHO   <- allowHO   <$> get
   t1'    <- addLhsInv γ <$> refreshVV t1
@@ -506,16 +349,6 @@ addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
     rE'       = insertREnv v t (renv γ)
     v         = rTypeValueVar t
 
-checkStratum :: CGEnv
-             -> RType t t1 (UReft r)
-             -> RType t t1 (UReft r)
-             -> CG ()
-checkStratum γ t1 t2
-  | s1 <:= s2 = return ()
-  | otherwise = addWarning wrn
-  where
-    [s1, s2]  = getStrata <$> [t1, t2]
-    wrn       =  ErrOther (getLocation γ) (text $ "Stratum Error : " ++ show s1 ++ " > " ++ show s2)
 
 bsplitC' :: CGEnv -> SpecType -> SpecType -> F.Templates -> Bool -> [F.SubC Cinfo]
 bsplitC' γ t1 t2 tem isHO
@@ -597,7 +430,7 @@ forallExprReftLookup :: CGEnv
                      -> Maybe ([F.Symbol], [SpecType], [RReft], SpecType)
 forallExprReftLookup γ x = snap <$> F.lookupSEnv x (syenv γ)
   where
-    snap     = mapFourth4 ignoreOblig . (\(_,(a,b,c),t)->(a,b,c,t)) . bkArrow . fourth4 . bkUniv . lookup
+    snap     = mapFourth4 ignoreOblig . (\(_,(a,b,c),t)->(a,b,c,t)) . bkArrow . thd3 . bkUniv . lookup
     lookup z = fromMaybe (panicUnbound γ z) (γ ?= F.symbol z)
 
 

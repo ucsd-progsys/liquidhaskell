@@ -771,7 +771,6 @@ ofBRType env name f l t  = go [] t
       where a'              = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a) 
     go bs (RAllP a t)       = RAllP a' <$> go bs t 
       where a'              = ofBPVar env name l a 
-    go bs (RAllS x t)       = RAllS x  <$> go bs t
     go bs (RAllE x t1 t2)   = RAllE x  <$> go bs t1    <*> go bs t2
     go bs (REx x t1 t2)     = REx   x  <$> go bs t1    <*> go (x:bs) t2
     go bs (RRTy xts r o t)  = RRTy  <$> xts' <*> (goReft bs r) <*> (pure o) <*> go bs t
@@ -906,7 +905,7 @@ addSymSortRef' _ _ _ p (RProp s (RVar v r)) | isDummy v
       t  = ofRSort (pvType p) `RT.strengthen` r
       xs = spliceArgs "addSymSortRef 1" s p
 
-addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]) _)))
+addSymSortRef' sp rc i p (RProp _ (RHole r@(MkUReft _ (Pr [up]))))
   | length xs == length ts
   = RProp xts (RHole r)
   | otherwise

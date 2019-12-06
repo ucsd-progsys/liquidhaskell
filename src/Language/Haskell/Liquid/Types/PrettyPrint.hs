@@ -179,8 +179,6 @@ ppr_rtype bb p t@(RAllT _ _ r)
   = F.ppTy r $ ppr_forall bb p t
 ppr_rtype bb p t@(RAllP _ _)
   = ppr_forall bb p t
-ppr_rtype bb p t@(RAllS _ _)
-  = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = F.ppTy r $ pprint a
 ppr_rtype bb p t@(RImpF _ _ _ _)
@@ -325,17 +323,17 @@ brkFun out              = ([], out)
 
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 ppr_forall bb p t = maybeParen p funPrec $ sep [
-                      ppr_foralls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep) (ty_labels trep)
+                      ppr_foralls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep)
                     , ppr_clss cls
                     , ppr_rtype bb topPrec t'
                     ]
   where
     trep          = toRTypeRep t
-    (cls, t')     = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = [], ty_labels = []}
+    (cls, t')     = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
 
-    ppr_foralls False _ _  _  = empty
-    ppr_foralls _    [] [] [] = empty
-    ppr_foralls True αs πs ss = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <+> ppr_symbols ss <-> dot
+    ppr_foralls False _ _  = empty
+    ppr_foralls _    [] [] = empty
+    ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <-> dot
 
     ppr_clss []               = empty
     ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
@@ -398,7 +396,7 @@ dot :: Doc
 dot                = char '.'
 
 instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
-  pprintTidy k (MkUReft r p _)
+  pprintTidy k (MkUReft r p)
     | F.isTauto r  = pprintTidy k p
     | F.isTauto p  = pprintTidy k r
     | otherwise  = pprintTidy k p <-> text " & " <-> pprintTidy k r

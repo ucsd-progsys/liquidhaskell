@@ -126,7 +126,6 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
                      = F.notracepp msg (drop nTyVars (zip xs ts), t) 
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
-    -- pRep             = toRTypeRep (val pT)
     pT               = plugHoles (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr Ghc.mkFunTy    hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
@@ -149,28 +148,27 @@ plugHoles_old, plugHoles_new
 -- NOTE: this use of toType is safe as rt' is derived from t.
 plugHoles_old tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
-    . mkArrow (zip (updateRTVar <$> αs') rs) ps' (ls1 ++ ls2) [] [] 
+    . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] [] 
     . makeCls cs' 
     . goPlug tce tyi err f (subts su rt) 
     . mapExprReft (\_ -> F.applyCoSub coSub) 
     . subts su 
     $ st 
   where 
-    tyvsmap           = case Bare.runMapTyVars (toType rt) st err of
+    tyvsmap      = case Bare.runMapTyVars (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
-    su                = [(y, rTyVar x)           | (x, y) <- tyvsmap]
-    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-    coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
-    ps'               = fmap (subts su') <$> ps
-    cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
-    (αs', rs)         = unzip αs
-    (αs,_,ls1,cs,rt)  = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,ls2,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
-    -- msg i             = "plugHoles_old: " ++ F.showpp x ++ " " ++ i 
+    su           = [(y, rTyVar x)           | (x, y) <- tyvsmap]
+    su'          = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+    coSub        = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    ps'          = fmap (subts su') <$> ps
+    cs'          = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
+    (αs', rs)    = unzip αs
+    (αs,_,cs,rt) = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,_ ,st) = bkUnivClass (F.notracepp "lq-spec" st0)
 
-    makeCls cs t      = foldr (uncurry rFun) t cs
-    err hsT lqT       = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    makeCls cs t = foldr (uncurry rFun) t cs
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types old")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
@@ -180,24 +178,24 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
 
 plugHoles_new tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
-    . mkArrow (zip (updateRTVar <$> as'') rs) ps (ls1 ++ ls2) [] [] 
+    . mkArrow (zip (updateRTVar <$> as'') rs) ps [] [] 
     . makeCls cs' 
     . goPlug tce tyi err f rt' 
     $ st 
   where 
-    rt'               = tx rt
-    as''              = subRTVar su <$> as'
-    (as',rs)          = unzip as 
-    cs'               = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
-    tx                = subts su
-    su                = case Bare.runMapTyVars (toType rt) st err of
+    rt'          = tx rt
+    as''         = subRTVar su <$> as'
+    (as',rs)     = unzip as 
+    cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
+    tx           = subts su
+    su           = case Bare.runMapTyVars (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
-    (as,_,ls1,cs,rt)  = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,ls2,_ ,st)  = bkUnivClass st0
+    (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,_ ,st) = bkUnivClass st0
 
-    makeCls cs t      = foldr (uncurry rFun) t cs
-    err hsT lqT       = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    makeCls cs t = foldr (uncurry rFun) t cs
+    err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
                           (pprint $ toRSort st0)
@@ -227,7 +225,6 @@ goPlug tce tyi err f = go
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
     go (RAllT a t r)    t'                 = RAllT a    (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')
-    go t                (RAllS s t')       = RAllS s    (go t t')
     go t                (RAllE b a t')     = RAllE b a  (go t t')
     go t                (REx b x t')       = REx b x    (go t t')
     go t                (RRTy e r o t')    = RRTy e r o (go t t')

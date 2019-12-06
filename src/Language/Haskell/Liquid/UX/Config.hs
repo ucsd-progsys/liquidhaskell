@@ -52,7 +52,6 @@ data Config = Config
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
   , checkDerived   :: Bool       -- ^ check internal (GHC-derived) binders 
   , caseExpandDepth :: Int       -- ^ maximum case expand nesting depth. 
-  , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , nototality     :: Bool       -- ^ disable totality check in definitions
   , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements

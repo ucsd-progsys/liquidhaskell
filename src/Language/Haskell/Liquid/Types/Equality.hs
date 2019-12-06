@@ -45,9 +45,6 @@ compareRType i1 i2 = res && unify vs
     go (RAllP x1 t1) (RAllP x2 t2)
       | x1 == x2 
       = go t1 t2 
-    go (RAllS x1 t1) (RAllS x2 t2)
-      | x1 == x2 
-      = go t1 t2 
     go (RApp x1 ts1 ps1 r1) (RApp x2 ts2 ps2 r2)
       | x1 == x2 &&  
         r1 =*= r2 && and (zipWith (=*=) ps1 ps2) 
@@ -74,7 +71,7 @@ instance REq t2 => REq (Ref t1 t2) where
     (RProp _ t1) =*= (RProp _ t2) = t1 =*= t2 
 
 instance REq (UReft F.Reft) where
-  (MkUReft r1 p1 _) =*= (MkUReft r2 p2 _)
+  (MkUReft r1 p1) =*= (MkUReft r2 p2)
      = r1 =*= r2 && p1 == p2
   
 instance REq F.Reft where 

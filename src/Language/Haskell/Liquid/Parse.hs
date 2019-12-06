@@ -290,7 +290,7 @@ anglesCircleP
   = angles $ do
       PC sb t <- parens btP
       p       <- monoPredicateP
-      return   $ PC sb (t `strengthen` MkUReft mempty p mempty)
+      return   $ PC sb (t `strengthen` MkUReft mempty p)
 
 holePC :: Parser ParamComp
 holePC = do
@@ -461,7 +461,7 @@ bbaseP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> try parseHelper  -- starts with lower
- <|> liftM5 bCon bTyConP stratumP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
+ <|> liftM4 bCon bTyConP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
            -- starts with "'" or upper case char
  <?> "bbaseP"
  where
@@ -478,7 +478,7 @@ maybeBind p = do {bd <- maybeP' bbindP; ty <- p ; return (bd, ty)}
 lowerIdTail :: Symbol -> Parser (Reft -> BareType)
 lowerIdTail l =
      (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP blanks))
-      <|> (liftM3 bRVar  (return $ bTyVar l) stratumP monoPredicateP))
+      <|> (liftM2 bRVar  (return $ bTyVar l) monoPredicateP))
 
 bTyConP :: Parser BTyCon
 bTyConP
@@ -495,24 +495,13 @@ classBTyConP = mkClassBTyCon <$> locUpperIdP
 mkClassBTyCon :: LocSymbol -> BTyCon
 mkClassBTyCon x = BTyCon x True False
 
-stratumP :: Parser Strata
-stratumP
-  = do reservedOp "^"
-       bstratumP
- <|> return mempty
- <?> "stratumP"
-
-bstratumP :: Parser [Stratum]
-bstratumP
-  = ((:[]) . SVar) <$> symbolP
-
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  holeRefP
  <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
- <|> try (liftM5 bCon bTyConP stratumP predicatesP (return []) (return mempty))
- <|> liftM3 bRVar (bTyVar <$> lowerIdP) stratumP monoPredicateP
+ <|> try (liftM4 bCon bTyConP predicatesP (return []) (return mempty))
+ <|> liftM2 bRVar (bTyVar <$> lowerIdP) monoPredicateP
  <?> "bbaseNoAppP"
 
 maybeP :: ParsecT s u m a -> ParsecT s u m (Maybe a)
@@ -540,7 +529,7 @@ constraintP
        reservedOp "<:"
        t2  <- bareTypeP
        return $ fromRTypeRep $ RTypeRep [] [] []
-                                        [] [] []
+                                        [] [] 
                                         ((val . fst <$> xts) ++ [dummySymbol])
                                         (replicate (length xts + 1) mempty)
                                         ((snd <$> xts) ++ [t1]) t2
@@ -566,19 +555,16 @@ rrTy ct = RRTy (xts ++ [(dummySymbol, tr)]) mempty OCons
 bareAllP :: Parser BareType
 bareAllP = do
   as <- tyVarDefsP
-  vs <- angles inAngles
-        <|> (return $ Right [])
+  ps <- angles inAngles
+        <|> (return [])
   dot
   t <- bareTypeP
-  case vs of
-    Left ss  -> return $ foldr RAllS t ss
-    Right ps -> return $ foldr rAllT (foldr RAllP t ps) (makeRTVar <$> as)
+  return $ foldr rAllT (foldr RAllP t ps) (makeRTVar <$> as)
   where
     rAllT a t = RAllT a t mempty
     inAngles =
       (
-       (try  (Right <$> sepBy  predVarDefP comma))
-        <|> ((Left  <$> sepBy1 symbolP     comma))
+       (try  (sepBy  predVarDefP comma))
        )
 
 tyVarDefsP :: Parser [BTyVar]
@@ -787,15 +773,15 @@ maybeDigit
 bRProp :: [((Symbol, τ), Symbol)]
        -> Expr -> Ref τ (RType c BTyVar (UReft Reft))
 bRProp []    _    = panic Nothing "Parse.bRProp empty list"
-bRProp syms' expr = RProp ss $ bRVar (BTV dummyName) mempty mempty r
+bRProp syms' expr = RProp ss $ bRVar (BTV dummyName) mempty r
   where
     (ss, (v, _))  = (init syms, last syms)
     syms          = [(y, s) | ((_, s), y) <- syms']
     su            = mkSubst [(x, EVar y) | ((x, _), y) <- syms']
     r             = su `subst` Reft (v, expr)
 
-bRVar :: tv -> Strata -> Predicate -> r -> RType c tv (UReft r)
-bRVar α s p r             = RVar α (MkUReft r p s)
+bRVar :: tv -> Predicate -> r -> RType c tv (UReft r)
+bRVar α p r = RVar α (MkUReft r p)
 
 bLst :: Maybe (RType BTyCon tv (UReft r))
      -> [RTProp BTyCon tv (UReft r)]
@@ -828,13 +814,12 @@ bTup ts rs r
 -- TODO RApp Int [] [p] true should be syntactically different than RApp Int [] [] p
 -- bCon b s [RProp _ (RHole r1)] [] _ r = RApp b [] [] $ r1 `meet` (MkUReft r mempty s)
 bCon :: c
-     -> Strata
      -> [RTProp c tv (UReft r)]
      -> [RType c tv (UReft r)]
      -> Predicate
      -> r
      -> RType c tv (UReft r)
-bCon b s rs            ts p r = RApp b ts rs $ MkUReft r p s
+bCon b rs ts p r = RApp b ts rs $ MkUReft r p
 
 bAppTy :: (Foldable t, PPrint r, Reftable r)
        => tv -> t (RType c tv (UReft r)) -> r -> RType c tv (UReft r)
@@ -843,10 +828,10 @@ bAppTy v ts r  = ts' `strengthen` reftUReft r
     ts'        = foldl' (\a b -> RAppTy a b mempty) (RVar v mempty) ts
 
 reftUReft :: r -> UReft r
-reftUReft r    = MkUReft r mempty mempty
+reftUReft r    = MkUReft r mempty
 
 predUReft :: Monoid r => Predicate -> UReft r
-predUReft p    = MkUReft dummyReft p mempty
+predUReft p    = MkUReft dummyReft p
 
 dummyReft :: Monoid a => a
 dummyReft      = mempty
@@ -1575,7 +1560,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize@(Just _)
-  = DataDecl (DnName x) [] [] [] [] pos fsize Nothing DataUser
+  = DataDecl (DnName x) [] [] [] pos fsize Nothing DataUser
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
@@ -1589,7 +1574,7 @@ dataDeclBodyP pos x fsize = do
   (pTy, dcs) <- dataCtorsP as
   let dn      = dataDeclName pos x vanilla dcs
   whiteSpace
-  return      $ DataDecl dn as ps [] dcs pos fsize pTy DataUser
+  return      $ DataDecl dn as ps dcs pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
 dataDeclName _ x True  _     = DnName x               -- vanilla data    declaration
