@@ -839,20 +839,24 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
 consE γ e'@(App e a)
   = do ([], πs, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
        te'          <- instantiatePreds γ e' $ foldr RAllP te πs
-       (γ', te''')  <- dropExists γ te'
+       let (te''', exs0) = splitExists te'
        te''         <- dropConstraints γ te'''
        updateLocA (exprLoc e) te''
-       (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
+       (hasGhost, γ'', te''')     <- instantiateGhosts γ te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
-       cconsE γ'' a tx
-       tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
+       y    <- fresh 
+       ty   <- consE γ'' a
+       γEx  <- foldM addEEnv γ'' exs0 
+       addC (SubC γEx ty tx) "application"
+       let exs = (y,ty):exs0 
+       tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ F.subst1 t (x,F.EVar y))
        if hasGhost
           then do
            tk   <- freshTy_type ImplictE e' $ exprType e'
            addW $ WfC γ tk
            addC (SubC γ'' tout tk) ""
-           return tk
-          else return tout
+           return $ rEx exs tk
+          else return $ rEx exs tout
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
@@ -1114,6 +1118,12 @@ checkUnbound γ e x t a
     msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
                   , "In", GM.showPpr e, "Arg = " , show a ]
 
+
+splitExists :: SpecType -> (SpecType, [(F.Symbol, SpecType)])
+splitExists = go [] 
+  where 
+    go acc (REx x tx t) = go ((x,tx):acc) t 
+    go acc t            = (t, reverse acc)
 
 dropExists :: CGEnv -> SpecType -> CG (CGEnv, SpecType)
 dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)

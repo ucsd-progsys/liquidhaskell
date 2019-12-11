@@ -253,8 +253,8 @@ normalize γ (App e1 e2@(Type _))
 
 normalize γ (App e1 e2)
   = do e1' <- normalize γ e1
-       n2  <- normalizeName γ e2
-       return $ App e1' n2
+       e2' <- normalize γ e2
+       return $ App e1' e2'
 
 normalize γ (Tick tt e)
   = do e' <- normalize (γ `at` tt) e
