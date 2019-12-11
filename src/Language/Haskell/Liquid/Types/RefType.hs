@@ -536,6 +536,8 @@ rPred     = RAllP
 
 rEx :: Foldable t
     => t (Symbol, RType c tv r) -> RType c tv r -> RType c tv r
+rEx xts (RAllT a t r) = RAllT a (rEx xts t) r 
+rEx xts (RAllP p t)   = RAllP p (rEx xts t)
 rEx xts t = foldr (\(x, tx) t -> REx x tx t) t xts
 
 rApp :: TyCon
