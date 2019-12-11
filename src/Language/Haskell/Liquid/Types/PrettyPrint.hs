@@ -348,10 +348,6 @@ ppr_forall bb p t = maybeParen p funPrec $ sep [
 ppr_rtvar_def :: (PPrint tv) => [RTVar tv (RType c tv ())] -> Doc
 ppr_rtvar_def = sep . map (pprint . ty_var_value)
 
-ppr_symbols :: [F.Symbol] -> Doc
-ppr_symbols [] = empty
-ppr_symbols ss = angleBrackets $ intersperse comma $ pprint <$> ss
-
 ppr_cls
   :: (OkRT c tv r, PPrint a, PPrint (RType c tv r),
       PPrint (RType c tv ()))
