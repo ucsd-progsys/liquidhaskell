@@ -1015,6 +1015,7 @@ checkMonad x g = go . unRRTy
 
 unRRTy :: SpecType -> SpecType
 unRRTy (RRTy _ _ _ t) = unRRTy t
+unRRTy (REx _ _ t)    = unRRTy t 
 unRRTy t              = t
 
 --------------------------------------------------------------------------------
