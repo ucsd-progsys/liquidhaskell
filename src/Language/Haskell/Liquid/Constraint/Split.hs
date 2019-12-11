@@ -27,7 +27,6 @@ import           Prelude hiding (error)
 
 
 import           Text.PrettyPrint.HughesPJ hiding (first, parens)
-import qualified TyCon  as TC
 
 import           Data.Maybe          (fromMaybe) 
 import           Control.Monad
@@ -45,7 +44,6 @@ import           Language.Haskell.Liquid.Types hiding (loc)
 
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
-import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Constraint
 
 --------------------------------------------------------------------------------
