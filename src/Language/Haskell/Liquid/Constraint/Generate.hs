@@ -840,13 +840,14 @@ consE γ e'@(App e a)
   = do ([], πs, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
        te'          <- instantiatePreds γ e' $ foldr RAllP te πs
        let (te''', exs0) = splitExists te'
-       te''         <- dropConstraints γ te'''
-       updateLocA (exprLoc e) te''
-       (hasGhost, γ'', te''')     <- instantiateGhosts γ te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        y    <- fresh 
-       ty   <- makeSingleton γ'' (simplify a) <$>  consE γ'' a
-       γEx  <- foldM (+=) γ'' [("addBinders", x, t) | (x, t) <- exs0]  
+       ty   <- makeSingleton γ (simplify a) <$>  consE γ a
+       let exs = (y,ty):exs0 
+       γEx  <- foldM (+=) γ [("addBinders", x, t) | (x, t) <- exs]  
+       te''         <- dropConstraints γEx te'''
+       updateLocA (exprLoc e) te''
+       (hasGhost, γ'', te''')     <- instantiateGhosts γEx te''
+       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        addC (SubC γEx ty tx) "application"
        let exs = (y,ty):exs0 
        tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ F.subst1 t (x,F.EVar y))
@@ -856,7 +857,7 @@ consE γ e'@(App e a)
            addW $ WfC γ tk
            addC (SubC γ'' tout tk) ""
            return $ rEx exs tk
-          else return $ rEx exs tout
+          else return $ F.notracepp ("type for " ++ GM.showPpr e') $ rEx exs tout
 
 consE γ (Lam α e) | isTyVar α
   = do γ' <- updateEnvironment γ α
