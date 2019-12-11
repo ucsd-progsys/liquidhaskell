@@ -845,8 +845,8 @@ consE γ e'@(App e a)
        (hasGhost, γ'', te''')     <- instantiateGhosts γ te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        y    <- fresh 
-       ty   <- consE γ'' a
-       γEx  <- foldM addEEnv γ'' exs0 
+       ty   <- makeSingleton γ'' (simplify a) <$>  consE γ'' a
+       γEx  <- foldM (+=) γ'' [("addBinders", x, t) | (x, t) <- exs0]  
        addC (SubC γEx ty tx) "application"
        let exs = (y,ty):exs0 
        tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ F.subst1 t (x,F.EVar y))
@@ -1118,12 +1118,14 @@ checkUnbound γ e x t a
     msg = unlines [ "checkUnbound: " ++ show x ++ " is elem of syms of " ++ show t
                   , "In", GM.showPpr e, "Arg = " , show a ]
 
-
 splitExists :: SpecType -> (SpecType, [(F.Symbol, SpecType)])
 splitExists = go [] 
   where 
     go acc (REx x tx t) = go ((x,tx):acc) t 
-    go acc t            = (t, reverse acc)
+    go acc t            = (t, concatMap flattenEx $ reverse acc)
+    flattenEx :: (F.Symbol, SpecType) -> [(F.Symbol, SpecType)]
+    flattenEx (y, REx x tx t) = (x,tx):flattenEx (y,t)
+    flattenEx t            = [t]
 
 dropExists :: CGEnv -> SpecType -> CG (CGEnv, SpecType)
 dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
