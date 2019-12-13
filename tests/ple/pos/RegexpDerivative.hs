@@ -229,9 +229,13 @@ lemEmp None     MEmpty                    = ()
 lemEmp Empty    _                         = ()
 lemEmp (Star _) _                         = ()
 lemEmp (Char c) (MChar _)                 = ()
-lemEmp (Cat r1 r2) (MCat s1 _ s2 _ e1 e2) = app_nil_nil s1 s2 & lemEmp r1 e1 & lemEmp r2 e2
+lemEmp (Cat r1 r2) (MCat s1 _ s2 _ e1 e2) 
+  =   lemEmp r1 (app_nil_nil s1 s2 `with` e1) 
+    & lemEmp r2 (app_nil_nil s1 s2 `with` e2)
 lemEmp (Alt r1 r2) (MAltL _ _ _ e1)       = lemEmp r1 e1
 lemEmp (Alt r1 r2) (MAltR _ _ _ e2)       = lemEmp r2 e2
+
+with _ x = x 
 
 {-@ lemEmp' :: r:{empty r} -> Prop (Match Nil r) @-}
 lemEmp' :: RE a -> Match a
