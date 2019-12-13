@@ -205,7 +205,7 @@ executable liquid
   build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
   default-language:   Haskell98
   default-extensions: PatternGuards
-  ghc-options:        -W -threaded -fdefer-typed-holes -Werror
+  ghc-options:        -W -threaded -fdefer-typed-holes
 
   if flag(devel)
     ghc-options: -Werror
