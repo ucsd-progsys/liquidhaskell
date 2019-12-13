@@ -73,10 +73,12 @@ data GhcSpec = SP
   }
 
 instance HasConfig GhcSpec where
-  getConfig = gsConfig
+  getConfig     = gsConfig
+  mapConfig f x = x{gsConfig = mapConfig f $ gsConfig x}
 
 instance HasConfig GhcInfo where
   getConfig = getConfig . giSpec
+  mapConfig f x = x{giSpec = mapConfig f (giSpec x)}
 
 data GhcSpecVars = SpVar 
   { gsTgtVars    :: ![Var]                        -- ^ Top-level Binders To Verify (empty means ALL binders)

@@ -117,6 +117,7 @@ data CGEnv = CGE
 
 instance HasConfig CGEnv where
   getConfig = getConfig . cgInfo
+  mapConfig f x = x {cgInfo = mapConfig f (cgInfo x)}
 
 data LConstraint = LC [[(F.Symbol, SpecType)]]
 

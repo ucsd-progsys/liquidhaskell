@@ -16,6 +16,8 @@ module Language.Haskell.Liquid.UX.Config (
    , totalityCheck
    , terminationCheck 
    , structuralTerm
+   , setANF
+   , anfFlag
    ) where
 
 import Prelude hiding (error)
@@ -100,6 +102,13 @@ allowPLE cfg
   =  allowGlobalPLE cfg 
   || allowLocalPLE cfg
 
+anfFlag :: HasConfig t => t -> Bool   
+anfFlag cfg = anf cfg' || noPatternInline cfg' 
+  where cfg' = getConfig cfg 
+
+setANF :: Config -> Config
+setANF cfg = cfg{anf = True}
+
 allowGlobalPLE :: Config -> Bool
 allowGlobalPLE cfg = proofLogicEval  cfg
 
@@ -108,9 +117,11 @@ allowLocalPLE cfg = proofLogicEvalLocal  cfg
 
 instance HasConfig  Config where
   getConfig x = x
+  mapConfig f = f 
 
 class HasConfig t where
   getConfig :: t -> Config
+  mapConfig :: (Config -> Config) -> t -> t 
 
 patternFlag :: (HasConfig t) => t -> Bool
 patternFlag = not . noPatternInline . getConfig

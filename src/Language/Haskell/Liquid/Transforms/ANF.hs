@@ -253,7 +253,7 @@ normalize γ (App e1 e2@(Type _))
 
 normalize γ (App e1 e2)
   = do e1' <- normalize γ e1
-       e2' <- if anf (getConfig γ) then normalizeName γ e2 else normalize γ e2
+       e2' <- if anfFlag γ then normalizeName γ e2 else normalize γ e2
        return $ App e1' e2'
 
 normalize γ (Tick tt e)
