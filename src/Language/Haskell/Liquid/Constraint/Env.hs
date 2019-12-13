@@ -43,7 +43,7 @@ module Language.Haskell.Liquid.Constraint.Env (
  , rTypeSortedReft'
 
   -- * Extend CGEnv
- , setLocation, setBind, setRecs, setTRec
+ , setLocation, setBind, setRecs, setTRec, setLocationMaybe
 
   -- * Lookup CGEnv
  , getLocation
@@ -268,8 +268,12 @@ addEEnv γ (x,t')= do
 
 ------------------------------------------------------------------------
 setLocation :: CGEnv -> Sp.Span -> CGEnv
+setLocationMaybe :: CGEnv -> Maybe Sp.Span -> CGEnv
 ------------------------------------------------------------------------
 setLocation γ p = γ { cgLoc = Sp.push p $ cgLoc γ }
+setLocationMaybe γ (Just p) = setLocation γ p
+setLocationMaybe γ _        = γ 
+
 
 ------------------------------------------------------------------------
 setBind :: CGEnv -> Var -> CGEnv

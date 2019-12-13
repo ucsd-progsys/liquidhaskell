@@ -1,3 +1,5 @@
+{-@ LIQUID "--anf" @-}
+
 {-@ type IntN N = {v:Int | v = N} @-}
 
 {-@ foo :: n:Int ~> m:Int ~> (() -> IntN n) -> (() -> IntN m) -> IntN {n+m} @-}

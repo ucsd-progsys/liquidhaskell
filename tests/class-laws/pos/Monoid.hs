@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--anf"        @-}
 
 module Monoid where
 

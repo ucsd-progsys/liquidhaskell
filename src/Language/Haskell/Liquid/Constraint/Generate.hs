@@ -869,7 +869,7 @@ consE γ e'@(App e a)
        updateLocA (exprLoc e) te''
        (hasGhost, γ'', te''')     <- instantiateGhosts γEx te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
-       addC (SubC γEx ty tx) "application"
+       addC (SubC (γEx `setLocationMaybe` (Sp.Span <$> exprLoc a)) (F.tracepp ("arg loc = " ++ GM.showPpr (exprLoc a) ++ "\nexpr = " ++ GM.showPpr a) ty) tx) "application"
        let exs = (y,ty):exs0 
        tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ F.subst1 t (x,F.EVar y))
        if hasGhost
@@ -1476,9 +1476,9 @@ strengthenMeet t _                  = t
 -- | Cleaner Signatures For Rec-bindings ---------------------------------------
 --------------------------------------------------------------------------------
 exprLoc                         :: CoreExpr -> Maybe SrcSpan
-exprLoc (Tick tt _)             = Just $ GM.tickSrcSpan tt
+exprLoc (Tick tt _)             = F.tracepp ("something for " ++ GM.showPpr t) $ Just $ GM.tickSrcSpan tt
 exprLoc (App e a) | isType a    = exprLoc e
-exprLoc _                       = Nothing
+exprLoc t                       = F.tracepp ("nothing for " ++ GM.showPpr t) Nothing
 
 isType :: Expr CoreBndr -> Bool
 isType (Type _)                 = True
