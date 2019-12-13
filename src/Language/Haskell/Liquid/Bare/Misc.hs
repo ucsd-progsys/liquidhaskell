@@ -110,8 +110,6 @@ mapTyVars (TyVarTy α) (RVar a _)
         put s'
 mapTyVars τ (RAllP _ t)
   = mapTyVars τ t
-mapTyVars τ (RAllS _ t)
-  = mapTyVars τ t
 mapTyVars τ (RAllE _ _ t)
   = mapTyVars τ t
 mapTyVars τ (RRTy _ _ _ t)

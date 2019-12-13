@@ -777,7 +777,7 @@ measureTypeToInv env name (x, (v, t))
     isSimpleADT _               = False 
 
 mkInvariant :: LocSymbol -> Symbol -> SpecType -> SpecType -> SpecType
-mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty mempty)
+mkInvariant x z t tr = strengthen (top <$> t) (MkUReft reft mempty)
       where
         reft  = Mb.maybe mempty Reft mreft
         mreft = mkReft x z t tr 

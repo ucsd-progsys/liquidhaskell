@@ -68,15 +68,8 @@ instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Reft whe
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = panic Nothing "fresh RReft"
-  true (MkUReft r _ s)    = MkUReft <$> true r    <*> return mempty <*> true s
-  refresh (MkUReft r _ s) = MkUReft <$> refresh r <*> return mempty <*> refresh s
-
-instance Freshable m Integer => Freshable m Strata where
-  fresh      = (:[]) . SVar <$> fresh
-  true []    = fresh
-  true s     = return s
-  refresh [] = fresh
-  refresh s  = return s
+  true (MkUReft r _)    = MkUReft <$> true r    <*> return mempty
+  refresh (MkUReft r _) = MkUReft <$> refresh r <*> return mempty
 
 instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRType r) where
   fresh   = panic Nothing "fresh RefType"
@@ -127,9 +120,6 @@ trueRefType t@(RExprArg _)
 
 trueRefType t@(RHole _)
   = return t
-
-trueRefType (RAllS _ t)
-  = RAllS <$> fresh <*> true t
 
 trueRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
         => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))

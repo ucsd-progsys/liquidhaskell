@@ -71,27 +71,27 @@ addCC :: Ghc.Var -> LocSpecType -> LocSpecType
 addCC x zz@(Loc l l' st0) 
   = Loc l l' 
   . addForall hst  
-  . mkArrow [] ps' (ls1 ++ ls2) [] [] 
+  . mkArrow [] ps' [] [] 
   . makeCls cs' 
   . mapExprReft (\_ -> F.applyCoSub coSub) 
   . subts su 
   $ st  
   where
-    hst               = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
-    t0                = Ghc.varType x 
-    tyvsmap           = case Bare.runMapTyVars t0 st err of
+    hst           = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
+    t0            = Ghc.varType x 
+    tyvsmap       = case Bare.runMapTyVars t0 st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
-    su                = [(y, rTyVar x)           | (x, y) <- tyvsmap]
-    su'               = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
-    coSub             = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
-    ps'               = fmap (subts su') <$> ps
-    cs'               = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
-    (_,_,ls1,cs,_)    = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,ls2,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
+    su            = [(y, rTyVar x)           | (x, y) <- tyvsmap]
+    su'           = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+    coSub         = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    ps'           = fmap (subts su') <$> ps
+    cs'           = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
+    (_,_,cs,_)    = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
 
-    makeCls cs t      = foldr (uncurry rFun) t cs
-    err hsT lqT       = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+    makeCls cs t  = foldr (uncurry rFun) t cs
+    err hsT lqT   = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
       (text "makeMethodTypes")
       (pprint $ Ghc.expandTypeSynonyms t0)
       (pprint $ toRSort st0)
@@ -109,10 +109,6 @@ addCC x zz@(Loc l l' st0)
       = addForall t t'
     addForall _ (RAllP p t')
       = RAllP (fmap (subts su') p) t' 
-    addForall (RAllS s t) t'
-      = RAllS s (addForall t t')
-    addForall t (RAllS s t')
-      = RAllS s (addForall t t')
     addForall (RFun _ t1 t2 _) (RFun x t1' t2' r)
       = RFun x (addForall t1 t1') (addForall t2 t2') r  
     addForall _ t 
@@ -173,7 +169,7 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     meths  <- mapM (makeMethod env sigEnv name) ms'
     let vts = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
     let sts = [(val s, unClass $ val t) | (s, _) <- ms | (_, _, t) <- meths]
-    let dcp = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
+    let dcp = DataConP l dc αs [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
     return  $ F.notracepp msg (dcp, vts)
   where
     c      = btc_tc cc
@@ -189,11 +185,11 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Either UserError LocSpecType     
 mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
   where 
-    dropUniv t           = t' where (_, _, _, t') = bkUniv t
+    dropUniv t           = t' where (_, _, t') = bkUniv t
 
    --FIXME: cleanup this code
 unClass :: SpecType -> SpecType 
-unClass = snd . bkClass . fourth4 . bkUniv
+unClass = snd . bkClass . thrd3 . bkUniv
 
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
          -> Either UserError (ModName, PlugTV Ghc.Var, LocSpecType)
@@ -229,14 +225,14 @@ makeSpecDictionaryOne env sigEnv name (RI x t xts)
   where
     ts      = mkTy' <$> t
     as      = concatMap (univs . val) ts
-    univs t = (\(RTVar tv _, _) -> tv) <$> as where (as, _, _, _) = bkUniv t 
+    univs t = (\(RTVar tv _, _) -> tv) <$> as where (as, _, _) = bkUniv t 
 
     mkTy' :: LocBareType -> LocSpecType
     mkTy' = Bare.cookSpecType env sigEnv name Bare.GenTV
     mkTy :: LocBareType -> LocSpecType
     mkTy = fmap (mapUnis tidy) . Bare.cookSpecType env sigEnv name 
                Bare.GenTV -- (Bare.HsTV (Bare.lookupGhcVar env name "rawDictionaries" x))
-    mapUnis f t = mkUnivs (f as) ps ls t0 where (as, ps, ls, t0) = bkUniv t
+    mapUnis f t = mkUnivs (f as) ps t0 where (as, ps, t0) = bkUniv t
 
     tidy vs = l ++ r 
       where (l,r) = L.partition (\(RTVar tv _,_) -> tv `elem` as) vs 

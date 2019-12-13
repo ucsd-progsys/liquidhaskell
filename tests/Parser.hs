@@ -304,14 +304,10 @@ testSucceeds =
           "bar :: t Nothing"
 
     , testCase "type spec 4" $
-       parseSingleSpec "Cons :: forall <l>.a -> L^l a -> L^l a" @?==
-          "Cons :: forall <l>. lq_tmp$db##0:a -> lq_tmp$db##1:(L a) -> (L a)"
-
-    , testCase "type spec 5" $
        parseSingleSpec "mapKeysWith :: (Ord k2) => (a -> a -> a) -> (k1->k2) -> OMap k1 a -> OMap k2 a" @?==
           "mapKeysWith :: (Ord k2) -> lq_tmp$db##2:(lq_tmp$db##3:a -> lq_tmp$db##4:a -> a) -> lq_tmp$db##6:(lq_tmp$db##7:k1 -> k2) -> lq_tmp$db##9:(OMap k1 a) -> (OMap k2 a)"
 
-    , testCase "type spec 6 " $
+    , testCase "type spec 5 " $
        parseSingleSpec (unlines $
          [ "data Tree [ht] a = Nil"
          , "            | Tree { key :: a"
@@ -324,15 +320,15 @@ testSucceeds =
            \     | Nil :: forall a . -> * \
            \     | Tree :: forall a . key : a ->l : (Tree {v : a | v < key}) ->r : (Tree {v : a | key < v}) -> *"    
 
-    , testCase "type spec 7" $
+    , testCase "type spec 6" $
        parseSingleSpec "type AVLL a X    = AVLTree {v:a | v < X}" @?==
          "type AVLL a X  =  (AVLTree {v : a | v < X})"
 
-    , testCase "type spec 8" $
+    , testCase "type spec 7" $
        parseSingleSpec "type AVLR a X    = AVLTree {v:a |X< v} " @?==
          "type AVLR a X  =  (AVLTree {v : a | X < v})"
 
-    , testCase "type spec 9 " $
+    , testCase "type spec 8 " $
        parseSingleSpec (unlines $
       [ "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool>."
       , "  {x::a<p> |- a<q> <: {v:a| x <= v}} "
@@ -342,7 +338,7 @@ testSucceeds =
         @?==
           "assume (++) :: forall <p :: a -> Bool, q :: a -> Bool, r :: a -> Bool> .\n               (Ord a) =>\n               {x :: {VV : a<p> | true} |- {VV : a<q> | true} <: {v : a | x <= v}} =>\n               {|- {VV : a<p> | true} <: {VV : a<r> | true}} =>\n               {|- {VV : a<q> | true} <: {VV : a<r> | true}} =>\n               lq_tmp$db##13:(OList {VV : a<p> | true}) -> lq_tmp$db##15:(OList {VV : a<q> | true}) -> (OList {VV : a<r> | true})"
 
-    , testCase "type spec 10" $
+    , testCase "type spec 9" $
        parseSingleSpec (unlines $
           [ "data AstF f <ix :: AstIndex -> Bool>"
           , "  = Lit Int    (i :: AstIndex<ix>)"
@@ -356,11 +352,11 @@ testSucceeds =
             \   | Paren :: forall f . ast : f -> * \
             \   | Var :: forall f . lq_tmp$db##5 : (String (AstIndex <{VV : _<ix> | true}>)) -> *"
 
-    , testCase "type spec 11" $
+    , testCase "type spec 10" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?==
           "assume :: b:{VV : _ | $HOLE} -> lq_tmp$db##0:a -> {v : a | b}"
 
-    , testCase "type spec 12" $
+    , testCase "type spec 11" $
        parseSingleSpec (unlines $
           [ "app :: forall <p :: Int -> Bool, q :: Int -> Bool>. "
           , "       {Int<q> <: Int<p>}"
@@ -369,7 +365,7 @@ testSucceeds =
           @?==
             "app :: forall <p :: Int -> Bool, q :: Int -> Bool> .\n       {|- (Int <{VV : _<q> | true}>) <: (Int <{VV : _<p> | true}>)} =>\n       {x :: (Int <{VV : _<q> | true}>) |- {v : Int | v == x + 1} <: (Int <{VV : _<q> | true}>)} =>\n       lq_tmp$db##8:(lq_tmp$db##9:(Int <{VV : _<p> | true}>) -> ()) -> x:(Int <{VV : _<q> | true}>) -> ()"
 
-    , testCase "type spec 13" $
+    , testCase "type spec 12" $
        parseSingleSpec (unlines $
           [ " ssum :: forall<p :: a -> Bool, q :: a -> Bool>. "
           , "         {{v:a | v == 0} <: a<q>}"
@@ -378,7 +374,7 @@ testSucceeds =
           @?==
             "ssum :: forall <p :: a -> Bool, q :: a -> Bool> .\n        {|- {v : a | v == 0} <: {VV : a<q> | true}} =>\n        {x :: {VV : a<p> | true} |- {v : a | x <= v} <: {VV : a<q> | true}} =>\n        xs:[{v : a<p> | 0 <= v}] -> {v : a<q> | len xs >= 0\n                                                && 0 <= v}"
 
-    , testCase "type spec 14" $
+    , testCase "type spec 13" $
        parseSingleSpec (unlines $
           [ " predicate ValidChunk V XS N "
           , " = if len XS == 0 "
@@ -389,27 +385,27 @@ testSucceeds =
           "predicate ValidChunk V  XS  N  =  (len XS == 0 => len V == 0)\n                                  && (not (len XS == 0) => (1 < len XS\n                                                            && 1 < N => len V < len XS)\n                                                           && (len XS <= N => len V == 1))"
 
 
-    , testCase "type spec 15" $
+    , testCase "type spec 14" $
        parseSingleSpec "assume (=*=.) :: Arg a => f:(a -> b) -> g:(a -> b) -> (r:a -> {f r == g r}) -> {v:(a -> b) | f == g}" @?==
             "assume (=*=.) :: (Arg a) -> f:(lq_tmp$db##1:a -> b) -> g:(lq_tmp$db##3:a -> b) -> lq_tmp$db##5:(r:a -> {VV : _ | f r == g r}) -> lq_tmp$db##6:a -> b"
 
-    , testCase "type spec 16" $
+    , testCase "type spec 15" $
        parseSingleSpec "sort :: (Ord a) => xs:[a] -> OListN a {len xs}" @?==
            "sort :: (Ord a) -> xs:[a] -> (OListN a {len xs})"
 
-    , testCase "type spec 17" $
+    , testCase "type spec 16" $
        parseSingleSpec " ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y } " @?==
             "==. :: x:a -> y:{y : a | x == y} -> {v : b | v ~~ x\n                                             && v ~~ y}"
 
-    , testCase "type spec 18" $
+    , testCase "type spec 17" $
        parseSingleSpec "measure snd :: (a,b) -> b" @?==
             "measure snd :: lq_tmp$db##0:(a, b) -> b"
 
-    , testCase "type spec 19" $
+    , testCase "type spec 18" $
        parseSingleSpec "returnST :: xState:a \n             -> ST <{\\xs xa v -> (xa = xState)}> a s " @?==
            "returnST :: xState:a -> (ST <\\xs##1 xa##2 VV -> {v##3 : LIQUID$dummy | xa##2 == xState}> a s)"
 
-    , testCase "type spec 20" $
+    , testCase "type spec 19" $
        parseSingleSpec "makeq :: l:_ -> r:{ _ | size r <= size l + 1} -> _ " @?==
            "makeq :: l:{VV : _ | $HOLE} -> r:{r : _ | size r <= size l + 1} -> {VV : _ | $HOLE}"
 
@@ -417,27 +413,27 @@ testSucceeds =
        parseSingleSpec "newRGRef :: forall <p :: a -> Bool, r :: a -> a -> Bool >.\n   e:a<p> ->\n  e2:a<r e> ->\n  f:(x:a<p> -> y:a<r x> -> {v:a<p> | (v = y)}) ->\n IO (RGRef <p, r> a)" @?==
             "newRGRef :: forall <p :: a -> Bool, r :: a a -> Bool> .\n            e:{VV : a<p> | true} -> e2:{VV : a<r e> | true} -> f:(x:{VV : a<p> | true} -> y:{VV : a<r x> | true} -> {v : a<p> | v == y}) -> (IO (RGRef <{VV : _<p> | true}, {VV : _<r> | true}> a))"
 
-    , testCase "type spec 22" $
+    , testCase "type spec 21" $
        parseSingleSpec "cycle        :: {v: [a] | len(v) > 0 } -> [a]" @?==
             "cycle :: v:{v : [a] | len v > 0} -> [a]"
 
-    , testCase "type spec 23" $
+    , testCase "type spec 22" $
        parseSingleSpec "cons :: x:a -> _ -> {v:[a] | hd v = x} " @?==
          "cons :: x:a -> lq_tmp$db##0:{VV : _ | $HOLE} -> {v : [a] | hd v == x}"
 
-    , testCase "type spec 24" $
+    , testCase "type spec 23" $
        parseSingleSpec "set :: a:Vector a -> i:Idx a -> a -> {v:Vector a | vlen v = vlen a}" @?==
          "set :: a:(Vector a) -> i:(Idx a) -> lq_tmp$db##0:a -> {v : (Vector a) | vlen v == vlen a}"
 
-    , testCase "type spec 25" $
+    , testCase "type spec 24" $
        parseSingleSpec "assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}" @?==
          "assume GHC.Prim.+# :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v : GHC.Prim.Int# | v == x + y}"
 
-    , testCase "type spec 26" $
+    , testCase "type spec 25" $
        parseSingleSpec " measure isEVar " @?==
          "measure isEVar"
 
-    , testCase "type spec 27" $
+    , testCase "type spec 26" $
        parseSingleSpec (unlines $
          [ "data List a where"
          , "    Nil  :: List a "
@@ -445,7 +441,7 @@ testSucceeds =
         @?==
             "data List  [a] =\n    | Cons :: forall a . listHead : a ->listTail : (List a) -> (List a)\n    | Nil :: forall a . -> (List a)"
 
-    , testCase "type spec 28" $
+    , testCase "type spec 27" $
        parseSingleSpec (unlines $
          [ "data List2 a b <p :: a -> Bool> where"
          , "    Nil2  :: List2 a "
@@ -455,7 +451,7 @@ testSucceeds =
             \  | Cons2 :: forall a b . listHead : a ->listTail : (List a) -> (List2 a b) \
             \  | Nil2 :: forall a b . -> (List2 a)"
 
-    , testCase "type spec 29" $
+    , testCase "type spec 28" $
        parseSingleSpec (unlines $
          [ "data Ev :: Peano -> Prop where"
          , "  EZ  :: Prop (Ev Z)"
@@ -464,7 +460,7 @@ testSucceeds =
         @?==
             "data Ev  [] =\n    | ESS :: forall . n : Peano ->lq_tmp$db##4 : (Prop (Ev n)) -> (Prop (Ev (S (S n))))\n    | EZ :: forall . -> (Prop (Ev Z))"
 
-    , testCase "type spec 30" $
+    , testCase "type spec 29" $
        parseSingleSpec (unlines $
          [ "measure fst :: (a,b) -> a"
          , "fst (a,b) = a"
@@ -480,7 +476,7 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?==
-            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting stratumP, monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"~>\", \"=>\", \"/\" or end of input"
+            "<test>:1:13: Error: Cannot parse specification:\n    unexpected ':'\n    expecting monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"~>\", \"=>\", \"/\" or end of input"
     ]
 
 

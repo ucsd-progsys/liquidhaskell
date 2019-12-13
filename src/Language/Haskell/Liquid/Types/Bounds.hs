@@ -103,9 +103,9 @@ makeBoundType penv (q:qs) xts = go xts
     go ((x, t):xtss) = (val x, mkt t x) : go xtss
 
     mkt t x = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, mempty))
-                                                (Pr $ M.lookupDefault [] (val x) ps) mempty)
+                                                (Pr $ M.lookupDefault [] (val x) ps))
     tp t x  = ofRSort t `strengthen` ofUReft (MkUReft (F.Reft (val x, F.pAnd rs))
-                                                (Pr $ M.lookupDefault [] (val x) ps) mempty)
+                                                (Pr $ M.lookupDefault [] (val x) ps))
     tq t x  = ofRSort t `strengthen` makeRef penv x q
 
     (ps, rs) = partitionPs penv qs
@@ -147,13 +147,13 @@ toUsedPVar _ _ = impossible Nothing "This cannot happen"
 -- thus it can contain both concrete and abstract refinements
 
 makeRef :: (UReftable r) => [(F.Symbol, F.Symbol)] -> LocSymbol -> F.Expr -> r
-makeRef penv v (F.PAnd rs) = ofUReft (MkUReft (F.Reft (val v, F.pAnd rrs)) r mempty)
+makeRef penv v (F.PAnd rs) = ofUReft (MkUReft (F.Reft (val v, F.pAnd rrs)) r)
   where
     r                    = Pr  (toUsedPVar penv <$> pps)
     (pps, rrs)           = partition (isPApp penv) rs
 
 makeRef penv v rr
-  | isPApp penv rr       = ofUReft (MkUReft (F.Reft(val v, mempty)) r mempty)
+  | isPApp penv rr       = ofUReft (MkUReft (F.Reft(val v, mempty)) r)
   where
     r                    = Pr [toUsedPVar penv rr]
 

@@ -75,7 +75,7 @@ mkFInstRTyCon tce fiTcs tcm = M.fromList
   ] 
 
 mkRTyCon ::  TyConP -> RTyCon
-mkRTyCon (TyConP _ tc αs' ps _ tyvariance predvariance size)
+mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
   = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
   where
     τs   = [rVar α :: RSort |  α <- tyConTyVarsDef tc]
@@ -169,9 +169,9 @@ strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ _ vs ps ls cs yts rt _ _ _)
+dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
-    mkArrow makeVars' ps ls [] ts' rt'
+    mkArrow makeVars' ps [] ts' rt'
   where
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
@@ -191,7 +191,6 @@ instance PPrint TyConP where
   pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
                            <+> ppComm     k (tcpFreeTyVarsTy tc) 
                            <+> ppComm     k (tcpFreePredTy   tc) 
-                           <+> ppComm     k (tcpFreeLabelTy  tc)
       --  (parens $ hsep (punctuate comma (pprintTidy k <$> vs))) <+>
       -- (parens $ hsep (punctuate comma (pprintTidy k <$> ps))) <+>
       -- (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
@@ -206,11 +205,10 @@ instance Show TyConP where
  show = showpp -- showSDoc . ppr
 
 instance PPrint DataConP where
-  pprintTidy k (DataConP _ dc vs ps ls cs yts t isGadt mname _)
+  pprintTidy k (DataConP _ dc vs ps cs yts t isGadt mname _)
      =  pprintTidy k dc
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> vs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ps)))
-    <+> (parens $ hsep (punctuate comma (pprintTidy k <$> ls)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> cs)))
     <+> (parens $ hsep (punctuate comma (pprintTidy k <$> yts)))
     <+> (pprintTidy k isGadt)
@@ -239,8 +237,8 @@ dataConTy _ _
 ----------------------------------------------------------------------------
 replacePredsWithRefs :: (UsedPVar, (F.Symbol, [((), F.Symbol, F.Expr)]) -> F.Expr)
                      -> UReft F.Reft -> UReft F.Reft
-replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps) s)
-  = MkUReft (F.Reft (v, rs'')) (Pr ps2) s
+replacePredsWithRefs (p, r) (MkUReft (F.Reft(v, rs)) (Pr ps))
+  = MkUReft (F.Reft (v, rs'')) (Pr ps2)
   where
     rs''             = mconcat $ rs : rs'
     rs'              = r . (v,) . pargs <$> ps1
@@ -423,7 +421,7 @@ substPredP msg (p, RProp ss prop) (RProp s t)
 
 
 splitRPvar :: PVar t -> UReft r -> (UReft r, [UsedPVar])
-splitRPvar pv (MkUReft x (Pr pvs) s) = (MkUReft x (Pr pvs') s, epvs)
+splitRPvar pv (MkUReft x (Pr pvs)) = (MkUReft x (Pr pvs'), epvs)
   where
     (epvs, pvs')               = L.partition (uPVar pv ==) pvs
 
@@ -437,8 +435,6 @@ freeArgsPs p (RFun _ t1 t2 r)
   = L.nub $  freeArgsPsRef p r ++ freeArgsPs p t1 ++ freeArgsPs p t2
 freeArgsPs p (RAllT _ t r)
   = L.nub $  freeArgsPs p t ++ freeArgsPsRef p r
-freeArgsPs p (RAllS _ t)
-  = freeArgsPs p t
 freeArgsPs p (RAllP p' t)
   | p == p'   = []
   | otherwise = freeArgsPs p t
@@ -458,7 +454,7 @@ freeArgsPs p (RRTy env r _ t)
   = L.nub $ concatMap (freeArgsPs p) (snd <$> env) ++ freeArgsPsRef p r ++ freeArgsPs p t
 
 freeArgsPsRef :: PVar t1 -> UReft t -> [F.Symbol]
-freeArgsPsRef p (MkUReft _ (Pr ps) _) = [x | (_, x, w) <- (concatMap pargs ps'),  (F.EVar x) == w]
+freeArgsPsRef p (MkUReft _ (Pr ps)) = [x | (_, x, w) <- (concatMap pargs ps'),  (F.EVar x) == w]
   where
    ps' = f <$> filter (uPVar p ==) ps
    f q = q {pargs = pargs q ++ drop (length (pargs q)) (pargs $ uPVar p)}

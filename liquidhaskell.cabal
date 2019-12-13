@@ -139,7 +139,6 @@ library
                       Language.Haskell.Liquid.Types.PrettyPrint
                       Language.Haskell.Liquid.Types.RefType
                       Language.Haskell.Liquid.Types.Specs
-                      Language.Haskell.Liquid.Types.Strata
                       Language.Haskell.Liquid.Types.Types
                       Language.Haskell.Liquid.Types.Variance
                       Language.Haskell.Liquid.Types.Visitors
@@ -220,7 +219,7 @@ executable gradual
                   , liquidhaskell
   default-language: Haskell2010
   buildable:        False
-  ghc-options:      -W -threaded
+  ghc-options:      -W -threaded 
 
   if flag(devel)
     ghc-options: -Werror

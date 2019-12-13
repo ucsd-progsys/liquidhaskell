@@ -194,9 +194,9 @@ refTopQuals lEnv l tce t0 γ t
                      $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++
-    [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
-              , p                        <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
-              , (s, _, e)                <- pargs p
+    [ mkP s e | let (MkUReft _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
+              , p                      <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
+              , (s, _, e)              <- pargs p
     ]
     where
       mkQ   = mkQual  lEnv l     t0 γ

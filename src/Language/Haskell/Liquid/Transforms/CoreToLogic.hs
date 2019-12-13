@@ -73,7 +73,7 @@ logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = r
 inlineSpecType :: Var -> SpecType
 inlineSpecType v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty_binds = xs}
   where
-    r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty mempty
+    r              = MkUReft (mkR (mkEApp f (mkA <$> vxs))) mempty
     rep            = toRTypeRep t
     res            = ty_res rep
     xs             = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
@@ -96,7 +96,7 @@ measureSpecType v = go mkT [] [1..] t
   where 
     mkR | boolRes   = propReft 
         | otherwise = exprReft  
-    mkT xs          = MkUReft (mkR $ mkEApp f (EVar <$> reverse xs)) mempty mempty
+    mkT xs          = MkUReft (mkR $ mkEApp f (EVar <$> reverse xs)) mempty
     f               = dummyLoc (symbol v) 
     t               = ofType (GM.expandVarType v) :: SpecType
     boolRes         =  isBool $ ty_res $ toRTypeRep t 

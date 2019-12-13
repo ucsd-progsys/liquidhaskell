@@ -72,16 +72,13 @@ import qualified Data.List           as L
 import           Control.DeepSeq
 import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
--- import           Control.Monad.Fail 
 
 import           Language.Haskell.Liquid.GHC.SpanStack
 import           Language.Haskell.Liquid.Types hiding   (binds)
--- import           Language.Haskell.Liquid.Types.Strata
-import           Language.Haskell.Liquid.Misc           (fourth4)
--- import           Language.Haskell.Liquid.Types.RefType  (shiftVV, toType)
+import           Language.Haskell.Liquid.Misc           (thrd3)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
-import Language.Fixpoint.Misc
+import           Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 
@@ -175,10 +172,6 @@ instance PPrint WfC where
   pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
 
 
-instance SubStratum SubC where
-  subS su (SubC γ t1 t2) = SubC γ (subS su t1) (subS su t2)
-  subS _  c              = c
-
 --------------------------------------------------------------------------------
 -- | Generation: Types ---------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -186,9 +179,7 @@ data CGInfo = CGInfo
   { fEnv       :: !(F.SEnv F.Sort)             -- ^ top-level fixpoint env
   , hsCs       :: ![SubC]                      -- ^ subtyping constraints over RType
   , hsWfs      :: ![WfC]                       -- ^ wellformedness constraints over RType
-  , sCs        :: ![SubC]                      -- ^ additional stratum constrains for let bindings
   , fixCs      :: ![FixSubC]                   -- ^ subtyping over Sort (post-splitting)
-  , isBind     :: ![Bool]                      -- ^ tracks constraints that come from let-bindings
   , fixWfs     :: ![FixWfC]                    -- ^ wellformedness constraints over Sort (post-splitting)
   , freshIndex :: !Integer                     -- ^ counter for generating fresh KVars
   , binds      :: !F.BindEnv                   -- ^ set of environment binders
@@ -210,7 +201,6 @@ data CGInfo = CGInfo
   , cgConsts   :: !(F.SEnv F.Sort)             -- ^ Distinct constant symbols in the refinement logic
   , cgADTs     :: ![F.DataDecl]                -- ^ ADTs extracted from Haskell 'data' definitions
   , tcheck     :: !Bool                        -- ^ Check Termination (?)
-  , scheck     :: !Bool                        -- ^ Check Strata (?)
   , pruneRefs  :: !Bool                        -- ^ prune unsorted refinements
   , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
@@ -297,7 +287,7 @@ mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
 --------------------------------------------------------------------------------
 mkRTyConInv ts = group [ (c, RInv (go ts) t v) | (v, t@(RApp c ts _ _)) <- strip <$> ts]
   where
-    strip = mapSnd (fourth4 . bkUniv . val)
+    strip = mapSnd (thrd3 . bkUniv . val)
     go ts | generic (toRSort <$> ts) = []
           | otherwise                = toRSort <$> ts
 
@@ -388,7 +378,7 @@ makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
 
     guard (RApp c ts rs r)
       | Just f <- szFun <$> sizeFunction (rtc_info c)
-      = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty mempty)
+      = RApp c ts rs (MkUReft (ref f $ F.toReft r) mempty)
       | otherwise
       = RApp c ts rs mempty
     guard t

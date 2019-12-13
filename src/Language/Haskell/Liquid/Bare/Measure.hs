@@ -205,7 +205,6 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       { tycName   = dn
       , tycTyVars = F.symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
-      , tycTyLabs = []
       , tycDCons  = decls tc
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
@@ -278,11 +277,11 @@ makeMeasureSelectors cfg dm (Loc l l' c)
     checkT   = dataConSel dc n Check
 
 dataConSel :: Ghc.DataCon -> Int -> DataConSel -> SpecType
-dataConSel dc n Check    = mkArrow (zip as (repeat mempty)) [] [] [] [xt] bareBool
+dataConSel dc n Check    = mkArrow (zip as (repeat mempty)) [] [] [xt] bareBool
   where
     (as, _, xt)          = {- traceShow ("dataConSel: " ++ show dc) $ -} bkDataCon dc n
 
-dataConSel dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [] [xt] (mempty <$> ti)
+dataConSel dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] (mempty <$> ti)
   where
     ti                   = Mb.fromMaybe err $ Misc.getNth (i-1) ts
     (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
