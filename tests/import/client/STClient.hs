@@ -3,6 +3,7 @@
 
 {-@ LIQUID "--no-pattern-inline" @-}
 {-@ LIQUID "--higherorder"       @-}
+{-@ LIQUID "--anf"               @-}
 
 module STClient where
 

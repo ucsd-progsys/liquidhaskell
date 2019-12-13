@@ -310,6 +310,10 @@ config = cmdArgsMode $ Config {
     = False &= name "no-pattern-inline"
             &= help "Don't inline special patterns (e.g. `>>=` and `return`) during constraint generation."
 
+  , anf 
+    = False &= name "anf"
+            &= help "Tranform code to administrative normal form. Should be used with refined type classes and instances." 
+
   , noSimplifyCore
     = False &= name "no-simplify-core"
             &= help "Don't simplify GHC core before constraint generation"
@@ -568,6 +572,7 @@ defConfig = Config
   , untidyCore        = False
   , eliminate         = FC.Some
   , noPatternInline   = False
+  , anf               = False 
   , noSimplifyCore    = False
   -- PLE-OPT , autoInstantiate   = def
   , noslice           = False

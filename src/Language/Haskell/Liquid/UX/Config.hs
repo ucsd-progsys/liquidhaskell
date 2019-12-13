@@ -78,6 +78,7 @@ data Config = Config
   , counterExamples :: Bool       -- ^ attempt to generate counter-examples to type errors
   , timeBinds       :: Bool       -- ^ check and time each (asserted) type-sig separately
   , noPatternInline :: Bool       -- ^ treat code patterns (e.g. e1 >>= \x -> e2) specially for inference
+  , anf             :: Bool       -- ^ perform ANF -- should be used with refined classes and instances 
   , untidyCore      :: Bool       -- ^ print full blown core (with untidy names) in verbose mode
   , noSimplifyCore  :: Bool       -- ^ simplify GHC core before constraint-generation
   -- PLE-OPT , autoInstantiate :: Instantiate -- ^ How to instantiate axioms

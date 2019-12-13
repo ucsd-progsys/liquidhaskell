@@ -599,6 +599,13 @@ topSpecType x t = do
   info  <- ghcI <$> get
   return $ if derivedVar (giSrc info) x then topRTypeBase t else t
 
+
+consEExact :: CGEnv -> CoreExpr -> CG SpecType
+consEExact γ a = do 
+  ty0  <- makeSingleton γ (simplify a) <$>  consE γ a
+  ty1  <- instantiatePreds γ a ty0 
+  dropConstraints γ ty1
+
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: CHECKING -----------------------------
 --------------------------------------------------------------------------------
@@ -804,6 +811,7 @@ consE γ e
 
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
+
 consE γ (Var x)
   = do t <- varRefType γ x
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
@@ -841,10 +849,10 @@ consE γ e'@(App e a)
        te'          <- instantiatePreds γ e' $ foldr RAllP te πs
        let (te''', exs0) = splitExists te'
        y    <- fresh 
-       ty   <- makeSingleton γ (simplify a) <$>  consE γ a
+       ty   <- consEExact γ a
        let exs = (y,ty):exs0 
        γEx  <- foldM (+=) γ [("addBinders", x, t) | (x, t) <- exs]  
-       te''         <- dropConstraints γEx te'''
+       te'' <- dropConstraints γEx te'''
        updateLocA (exprLoc e) te''
        (hasGhost, γ'', te''')     <- instantiateGhosts γEx te''
        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
@@ -1134,6 +1142,9 @@ dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
+dropConstraints γ (REx x tx t)
+  =  do γEx  <- γ += ("addBinders", x, tx)
+        dropConstraints γEx t 
 dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
   = (flip (RFun x tx)) r <$> dropConstraints γ t
 dropConstraints γ (RRTy cts _ OCons t)
