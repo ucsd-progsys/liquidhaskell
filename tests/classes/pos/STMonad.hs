@@ -2,6 +2,7 @@
 -- TAG: bounds 
 
 {-@ LIQUID "--no-pattern-inline" @-}
+{-@ LIQUID "--anf"               @-}
 {-@ LIQUID "--higherorder"       @-}
 
 module STMonad where

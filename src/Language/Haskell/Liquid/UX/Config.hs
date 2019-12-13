@@ -103,7 +103,7 @@ allowPLE cfg
   || allowLocalPLE cfg
 
 anfFlag :: HasConfig t => t -> Bool   
-anfFlag cfg = anf cfg' || noPatternInline cfg' 
+anfFlag cfg = anf cfg' -- || noPatternInline cfg' 
   where cfg' = getConfig cfg 
 
 setANF :: Config -> Config

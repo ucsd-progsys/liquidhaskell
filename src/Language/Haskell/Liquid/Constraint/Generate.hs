@@ -621,10 +621,10 @@ cconsE' :: CGEnv -> CoreExpr -> SpecType -> CG ()
 --------------------------------------------------------------------------------
 cconsE' γ e t
   | Just (Rs.PatSelfBind _x e') <- Rs.lift e
-  = cconsE' (mapConfig setANF γ) e' t
+  = cconsE' γ e' t
 
   | Just (Rs.PatSelfRecBind x e') <- Rs.lift e
-  = let γ' = mapConfig setANF (γ { grtys = insertREnv (F.symbol x) t (grtys γ)})
+  = let γ' = γ { grtys = insertREnv (F.symbol x) t (grtys γ)}
     in void $ consCBLet γ' (Rec [(x, e')])
 
 cconsE' γ e@(Let b@(NonRec x _) ee) t
@@ -802,12 +802,7 @@ consE :: CGEnv -> CoreExpr -> CG SpecType
 consE γ e
   | patternFlag γ
   , Just p <- Rs.lift e
-  = consPattern (mapConfig setANF γ) (F.notracepp "CONSE-PATTERN: " p) (exprType e)
-
--- NV CHECK 3 (unVar and does this hack even needed?)
--- NV (below) is a hack to type polymorphic axiomatized functions
--- no need to check this code with flag, the axioms environment with
--- is empty if there is no axiomatization. 
+  = consPattern γ (F.notracepp "CONSE-PATTERN: " p) (exprType e)
 
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
@@ -844,10 +839,11 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         cconsE γ' a tx
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
-consE γ e'@(App e a) | anfFlag γ -- todo: or no existential is required 
+consE γ e'@(App e a) | anfFlag γ || isJust (argExpr γ a) -- todo: or no existential is required 
   = do ([], πs, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
        te'          <- instantiatePreds γ e' $ foldr RAllP te πs
-       (γ', te''')  <- dropExists γ te'
+       let (te''', exs) = splitExists te'
+       γ'  <- foldM (+=) γ [("addBinders", x, t) | (x, t) <- exs]  
        te''         <- dropConstraints γ' te'''
        updateLocA (exprLoc e) te''
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
@@ -858,8 +854,8 @@ consE γ e'@(App e a) | anfFlag γ -- todo: or no existential is required
            tk   <- freshTy_type ImplictE e' $ exprType e'
            addW $ WfC γ tk
            addC (SubC γ'' tout tk) ""
-           return tk
-          else return tout
+           return $ rEx exs tk
+          else return $ rEx exs tout
 
 consE γ e'@(App e a)
   = do ([], πs, te) <- bkUniv <$> consE γ ({- GM.tracePpr ("APP-EXPR: " ++ GM.showPpr (exprType e)) -} e)
@@ -985,8 +981,10 @@ consPattern :: CGEnv -> Rs.Pattern -> Type -> CG SpecType
  -}
 
 consPattern γ (Rs.PatBind e1 x e2 _ _ _ _ _) _ = do
-  tx <- checkMonad (msg, e1) γ <$> consE γ e1
-  γ' <- γ += ("consPattern", F.symbol x, tx)
+  (tx0, exs) <- splitExists . unRRTy <$> consE γ e1
+  γEx  <- foldM (+=) γ [("addBinders", x, t) | (x, t) <- exs]  
+  let tx = checkMonad (msg, e1) γEx tx0
+  γ' <- γEx += ("consPattern", F.symbol x, tx)
   addIdA x (AnnDef tx)
   mt <- consE γ' e2
   return mt
