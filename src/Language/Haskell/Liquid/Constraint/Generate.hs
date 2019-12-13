@@ -602,10 +602,10 @@ topSpecType x t = do
 
 consEExact :: CGEnv -> CoreExpr -> CG SpecType
 consEExact γ a = do 
-  ty0  <- makeSingleton γ (simplify a) <$>  consE γ a
-  ty1  <- instantiatePreds γ a ty0 
-  dropConstraints γ ty1
-
+  ty0 <- makeSingleton γ (simplify a) <$> consE γ a
+  ty1 <- instantiatePreds γ a ty0 
+  return ty1
+ 
 --------------------------------------------------------------------------------
 -- | Bidirectional Constraint Generation: CHECKING -----------------------------
 --------------------------------------------------------------------------------
