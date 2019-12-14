@@ -38,6 +38,7 @@ module Language.Fixpoint.SortCheck  (
 
   -- * Apply Substitution
   , apply
+  , defuncEApp
 
   -- * Exported Sorts
   , boolSort
@@ -46,7 +47,7 @@ module Language.Fixpoint.SortCheck  (
   -- * Sort-Directed Transformations
   , Elaborate (..)
   , applySorts
-  , unApplyAt
+  , unElab, unApplyAt
   , toInt
 
   -- * Predicates on Sorts
@@ -629,6 +630,17 @@ isInt env s = case sortSmtSort False (seData env) s of
 
 toIntAt :: Sort -> Expr
 toIntAt s = ECst (EVar toIntName) (FFunc s FInt)
+
+unElab :: (Vis.Visitable t) => t -> t
+unElab = Vis.stripCasts . unApply
+
+unApply :: (Vis.Visitable t) => t -> t
+unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
+  where
+    go (ECst (EApp (EApp f e1) e2) _)
+      | Just _ <- unApplyAt f = EApp e1 e2
+    go e                      = e
+
 
 unApplyAt :: Expr -> Maybe Sort
 unApplyAt (ECst (EVar f) t@(FFunc {}))
