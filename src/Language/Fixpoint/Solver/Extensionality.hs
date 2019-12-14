@@ -78,5 +78,5 @@ freshArg s = do
   st   <- get 
   let x = symbol ("ext$" ++ show (unique st))
   let (id, benv') = insertBindEnv x (trueSortedReft s) (exbenv st)
-  modify (\st -> st{exenv = insertSymEnv x s (exenv st), exbenv = benv', exbinds = id:exbinds st })
+  modify (\st -> st{exenv = insertSymEnv x s (exenv st), exbenv = benv', exbinds = id:exbinds st, unique = 1 + (unique st) })
   return x 
