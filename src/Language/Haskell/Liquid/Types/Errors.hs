@@ -223,6 +223,13 @@ data TError t =
                , texp :: !t
                } -- ^ liquid type error
 
+  | ErrUnsafe  { pos :: !SrcSpan
+               -- , msg :: !Doc
+               , ctx :: !(M.HashMap Symbol t)
+               , var :: !Doc 
+               , thl :: !t 
+               } -- ^ unsound behavior warning
+
   | ErrHole    { pos :: !SrcSpan
                , msg :: !Doc
                , ctx :: !(M.HashMap Symbol t)
@@ -733,6 +740,10 @@ ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
         $+$ dCtx
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
+
+ppError' _td dSp _dCtx (ErrUnsafe _ _ x t)
+  = dSp <+> "Unsafe function used"
+        $+$ pprint x <+> "::" <+> pprint t 
 
 ppError' _td dSp _dCtx (ErrHole _ _ _ x t)
   = dSp <+> "Hole Found"

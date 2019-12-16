@@ -3,15 +3,17 @@
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE PatternSynonyms           #-}
+{-# LANGUAGE TemplateHaskell           #-}
 
 module Language.Haskell.Liquid.GHC.Play where
 
 import Prelude hiding (error)
-import GHC
 import CoreSyn
+import DataCon
+import GHC
+import qualified PrelNames as GHC
 import Var
 import TyCoRep hiding (substTysWith)
-import DataCon
 
 import TyCon
 import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe, binderVar)
@@ -20,13 +22,24 @@ import PrelNames (isStringClassName)
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
+-- import qualified Data.Set            as Set
 
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 
+import Debug.Trace
 
 isHoleVar :: Var -> Bool 
 isHoleVar x = L.isPrefixOf "_" (show x)
+
+isUnsafeVar :: Var -> Bool
+isUnsafeVar x = (varUnique $ trace (show (varUnique x) ++ ": " ++ show x) x) `L.elem` traceShowId unsafeList
+  where
+    unsafeList = [ GHC.undefinedKey]
+-- TODO: How can we get the `Var` for arbitrary variables? FIXME XXX
+-- isUnsafeVar x = x `Set.member` unsafeList
+--   where
+--     unsafeList = Set.fromList ['undefined]
 
 dataConImplicitIds :: DataCon -> [Id]
 dataConImplicitIds dc = [ x | AnId x <- dataConImplicitTyThings dc]

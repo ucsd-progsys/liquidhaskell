@@ -7,6 +7,7 @@ module Language.Haskell.Liquid.UX.Config (
      Config (..)
    , HasConfig (..)
    , allowPLE, allowLocalPLE, allowGlobalPLE
+   , detectUnsafe
    , patternFlag
    , higherOrderFlag
    , pruneFlag
@@ -89,6 +90,8 @@ data Config = Config
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  
   , typedHoles      :: Bool        -- ^ Warn about "typed-holes"
+  , warnDetectUnsafe :: Bool       -- ^ Detect unsafe behavior.
+  , warnNoDetectUnsafe :: Bool     -- ^ Do not detect unsafe behavior.
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
@@ -148,3 +151,10 @@ terminationCheck' cfg = (totalHaskell cfg || not (notermination cfg))
 structuralTerm :: (HasConfig a) => a -> Bool 
 structuralTerm = not . nostructuralterm . getConfig
 
+detectUnsafe :: (HasConfig a) => a -> Bool 
+detectUnsafe a 
+  | warnDetectUnsafe c   = True
+  | warnNoDetectUnsafe c = False
+  | otherwise            = True
+    where
+        c = getConfig a

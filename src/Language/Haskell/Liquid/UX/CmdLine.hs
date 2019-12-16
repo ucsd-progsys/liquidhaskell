@@ -349,6 +349,18 @@ config = cmdArgsMode $ Config {
     = def 
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+
+  -- JP: cmdargs is adding two dashes (--) in front of warning arguments... Perhaps use `enum`? FIXME XXX
+  , warnDetectUnsafe
+    = def
+        &= name "Wdetect-unsafe"
+        &= help "Detect unsafe behavior "
+        &= explicit
+  , warnNoDetectUnsafe
+    = def
+        &= name "Wno-detect-unsafe"
+        &= help "Do not detect unsafe behavior. Overridden by -Wdetect-unsafe."
+        &= explicit
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -578,6 +590,8 @@ defConfig = Config
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False
+  , warnDetectUnsafe   = False
+  , warnNoDetectUnsafe = False
   }
 
 ------------------------------------------------------------------------

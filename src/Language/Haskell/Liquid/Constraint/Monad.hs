@@ -108,6 +108,16 @@ addHole x t γ = do
       env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
       x'    = text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
 
+-- TODO: Make this a warning instead of an error. FIXME XXX
+addUnsafeWarning :: Var -> SpecType -> CGEnv -> CG () 
+addUnsafeWarning x t γ = do 
+  addWarning $ ErrUnsafe loc (reGlobal env <> reLocal env) x' t
+    where 
+      loc   = srcSpan $ cgLoc γ
+      env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
+      x'    = text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
+    
+
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications
 --------------------------------------------------------------------------------
