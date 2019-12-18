@@ -436,10 +436,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   runWarnings cfg $ checkWarnings cfg bareSpec ghcSrc -- JP: Not sure if this is the right spot for this.
   return      $ GI ghcSrc ghcSpec
 
--- runWarnings :: 
--- TODO: Check for Werror and throw warnings
--- runWarnings cfg warnings | warningToError cfg = 
-runWarnings _ warnings = liftIO $ mapM_ (putStrLn . showpp) warnings
+runWarnings :: Config -> [TError Doc] -> Ghc ()
+runWarnings cfg warnings | wError cfg = mapM_ throw warnings -- JP: Can we show all the warnings?
+runWarnings _   warnings              = liftIO $ mapM_ (putStrLn . showpp) warnings
 
 -- JP: Separate Warning type?
 checkWarnings :: Config -> Ms.BareSpec -> GhcSrc -> [TError Doc]

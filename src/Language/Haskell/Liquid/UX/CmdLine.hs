@@ -361,6 +361,11 @@ config = cmdArgsMode $ Config {
         &= name "Wno-detect-unsafe"
         &= help "Do not detect unsafe behavior. Overridden by -Wdetect-unsafe."
         &= explicit
+  , wError
+    = def
+        &= name "Werror"
+        &= help "Make warnings fatal."
+        &= explicit
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -592,6 +597,7 @@ defConfig = Config
   , typedHoles        = False
   , warnDetectUnsafe   = False
   , warnNoDetectUnsafe = False
+  , wError = False
   }
 
 ------------------------------------------------------------------------

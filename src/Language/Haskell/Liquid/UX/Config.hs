@@ -92,6 +92,7 @@ data Config = Config
   , typedHoles      :: Bool        -- ^ Warn about "typed-holes"
   , warnDetectUnsafe :: Bool       -- ^ Detect unsafe behavior.
   , warnNoDetectUnsafe :: Bool     -- ^ Do not detect unsafe behavior.
+  , wError          :: Bool        -- ^ Make warnings fatal.
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
