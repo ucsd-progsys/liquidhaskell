@@ -436,12 +436,12 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   runWarnings cfg $ checkWarnings cfg bareSpec ghcSrc -- JP: Not sure if this is the right spot for this.
   return      $ GI ghcSrc ghcSpec
 
-runWarnings :: Config -> [TError Doc] -> Ghc ()
-runWarnings cfg warnings | wError cfg = mapM_ throw warnings -- JP: Can we show all the warnings?
+runWarnings :: Config -> [TWarning Doc] -> Ghc ()
+runWarnings cfg warnings | wError cfg = mapM_ (\w -> throw $ ErrWError (wrnPos w) w) warnings -- JP: Can we show all the warnings?
 runWarnings _   warnings              = liftIO $ mapM_ (putStrLn . showpp) warnings
 
 -- JP: Separate Warning type?
-checkWarnings :: Config -> Ms.BareSpec -> GhcSrc -> [TError Doc]
+checkWarnings :: Config -> Ms.BareSpec -> GhcSrc -> [TWarning Doc]
 checkWarnings cfg bareSpec ghcSrc = unsafeWarnings
   where
     unsafeWarnings = if detectUnsafe cfg then
@@ -449,7 +449,7 @@ checkWarnings cfg bareSpec ghcSrc = unsafeWarnings
       else
         mempty
 
-checkUnsafeWarning :: Ms.BareSpec -> GhcSrc -> [TError Doc]
+checkUnsafeWarning :: Ms.BareSpec -> GhcSrc -> [TWarning Doc]
 checkUnsafeWarning bareSpec ghcSrc = 
        checkUnsafeAssume bareSpec
     <> checkUnsafeLazy bareSpec
@@ -459,7 +459,7 @@ checkUnsafeWarning bareSpec ghcSrc =
         let toWarning (ls, lt) =
               -- let span = srcSpan ls in TODO: How do we get a GHC src span?
               let span = noSrcSpan in
-              ErrUnsafeAssumed span (pprint ls) (pprint lt)
+              WrnUnsafeAssumed span (pprint ls) (pprint lt)
         in
         map toWarning $ asmSigs bareSpec
     
@@ -467,7 +467,7 @@ checkUnsafeWarning bareSpec ghcSrc =
         let toWarning ls =
               -- let span = srcSpan ls in TODO: How do we get a GHC src span?
               let span = noSrcSpan in
-              ErrUnsafeLazy span (pprint ls) -- (pprint lt)
+              WrnUnsafeLazy span (pprint ls) -- (pprint lt)
         in
         map toWarning $ S.toList $ lazy bareSpec
 
@@ -481,7 +481,7 @@ checkUnsafeWarning bareSpec ghcSrc =
     checkUnsafeVarCB' x e = 
         let vars = readVars e in
         let unsafeVars = filter isUnsafeVar vars in
-        map (\unsafeVar -> ErrUnsafeVar noSrcSpan (pprint x) (pprint unsafeVar)) unsafeVars
+        map (\unsafeVar -> WrnUnsafeVar noSrcSpan (pprint x) (pprint unsafeVar)) unsafeVars
         -- TODO: How do we get a src span?
 
 
