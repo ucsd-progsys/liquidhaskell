@@ -1,4 +1,4 @@
-{-# LIQUID "--Werror" #-}
+{-@ LIQUID "--Werror" @-}
 
 module Var1 where
 
