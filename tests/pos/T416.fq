@@ -19,6 +19,10 @@ constant first : (func(3 , [func(0 , [@(1); @(2)]);
 bind 0 g : {VV : func(0 , [b; c]) | []}
 bind 1 f : {VV : func(0 , [a; b]) | []}
 
+bind 2 g : {VV : func(0 , [a; b]) | []}
+bind 3 f : {VV : func(0 , [a; b]) | []}
+
+
 
 constraint:
   env [0; 1]
@@ -27,3 +31,12 @@ constraint:
   id 1 tag []
 
 expand [ 1 : True ]
+
+
+constraint:
+  env [2; 3]
+  lhs {v : Tuple | true }
+  rhs {v : Tuple | [ (first f == first g) => (f = g) ]}
+  id 2 tag []
+
+expand [ 2 : True ]
