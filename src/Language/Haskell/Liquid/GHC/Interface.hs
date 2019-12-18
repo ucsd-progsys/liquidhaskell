@@ -433,7 +433,58 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   bareSpecs  <- makeBareSpecs cfg depGraph specEnv     modSum bareSpec
   let ghcSpec = makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs  
   _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec 
+  runWarnings cfg $ checkWarnings cfg bareSpec ghcSrc -- JP: Not sure if this is the right spot for this.
   return      $ GI ghcSrc ghcSpec
+
+-- runWarnings :: 
+-- TODO: Check for Werror and throw warnings
+-- runWarnings cfg warnings | warningToError cfg = 
+runWarnings _ warnings = liftIO $ mapM_ (putStrLn . showpp) warnings
+
+-- JP: Separate Warning type?
+checkWarnings :: Config -> Ms.BareSpec -> GhcSrc -> [TError Doc]
+checkWarnings cfg bareSpec ghcSrc = unsafeWarnings
+  where
+    unsafeWarnings = if detectUnsafe cfg then
+        checkUnsafeWarning bareSpec ghcSrc
+      else
+        mempty
+
+checkUnsafeWarning :: Ms.BareSpec -> GhcSrc -> [TError Doc]
+checkUnsafeWarning bareSpec ghcSrc = 
+       checkUnsafeAssume bareSpec
+    <> checkUnsafeLazy bareSpec
+    <> checkUnsafeVar ghcSrc
+  where
+    checkUnsafeAssume bareSpec = 
+        let toWarning (ls, lt) =
+              -- let span = srcSpan ls in TODO: How do we get a GHC src span?
+              let span = noSrcSpan in
+              ErrUnsafeAssumed span (pprint ls) (pprint lt)
+        in
+        map toWarning $ asmSigs bareSpec
+    
+    checkUnsafeLazy bareSpec = 
+        let toWarning ls =
+              -- let span = srcSpan ls in TODO: How do we get a GHC src span?
+              let span = noSrcSpan in
+              ErrUnsafeLazy span (pprint ls) -- (pprint lt)
+        in
+        map toWarning $ S.toList $ lazy bareSpec
+
+    checkUnsafeVar ghcSrc = 
+        let cbs = giCbs ghcSrc in
+        concatMap checkUnsafeVarCB cbs
+        
+    checkUnsafeVarCB (NonRec x e) = checkUnsafeVarCB' x e
+    checkUnsafeVarCB (Rec xes)    = concatMap (uncurry checkUnsafeVarCB') xes
+
+    checkUnsafeVarCB' x e = 
+        let vars = readVars e in
+        let unsafeVars = filter isUnsafeVar vars in
+        map (\unsafeVar -> ErrUnsafeVar noSrcSpan (pprint x) (pprint unsafeVar)) unsafeVars
+        -- TODO: How do we get a src span?
+
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 

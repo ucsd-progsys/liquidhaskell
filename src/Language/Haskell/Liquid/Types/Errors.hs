@@ -223,12 +223,27 @@ data TError t =
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrUnsafe  { pos :: !SrcSpan
-               -- , msg :: !Doc
-               , ctx :: !(M.HashMap Symbol t)
-               , var :: !Doc 
-               , thl :: !t 
-               } -- ^ unsound behavior warning
+  | ErrUnsafeAssumed  { pos :: !SrcSpan
+                      -- , msg :: !Doc
+                      -- , ctx :: !(M.HashMap Symbol t)
+                      , var :: !Doc 
+                      , thl :: !t 
+                      } -- ^ unsound behavior warning
+
+  | ErrUnsafeLazy  { pos :: !SrcSpan
+                   -- , msg :: !Doc
+                   -- , ctx :: !(M.HashMap Symbol t)
+                   , var :: !Doc 
+                   -- , thl :: !t 
+                   } -- ^ unsound behavior warning
+
+  | ErrUnsafeVar  { pos :: !SrcSpan
+                  -- , msg :: !Doc
+                  -- , ctx :: !(M.HashMap Symbol t)
+                  , var :: !Doc 
+                  , unsafeVar :: !Doc 
+                  -- , thl :: !t 
+                  } -- ^ unsound behavior warning
 
   | ErrHole    { pos :: !SrcSpan
                , msg :: !Doc
@@ -449,6 +464,58 @@ data TError t =
   
   deriving (Typeable, Generic , Functor )
 
+-- | Whether an error is a warning.
+-- JP: It might make sense to make a separate Warning type.
+errIsWarning :: TError t -> Bool
+errIsWarning ErrSubType{} = False
+errIsWarning ErrSubTypeModel{} = False
+errIsWarning ErrFCrash{} = False
+errIsWarning ErrUnsafeAssumed{} = True
+errIsWarning ErrUnsafeLazy{} = True
+errIsWarning ErrUnsafeVar{} = True
+errIsWarning ErrHole{} = False
+errIsWarning ErrAssType{} = False
+errIsWarning ErrParse{} = False
+errIsWarning ErrTySpec{} = False
+errIsWarning ErrTermSpec{} = False
+errIsWarning ErrDupAlias{} = False
+errIsWarning ErrDupSpecs{} = False
+errIsWarning ErrDupIMeas{} = False
+errIsWarning ErrDupMeas{} = False
+errIsWarning ErrDupField{} = False
+errIsWarning ErrDupNames{} = False
+errIsWarning ErrBadData{} = False
+errIsWarning ErrBadGADT{} = False
+errIsWarning ErrDataCon{} = False
+errIsWarning ErrInvt{} = False
+errIsWarning ErrIAl{} = False
+errIsWarning ErrIAlMis{} = False
+errIsWarning ErrMeas{} = False
+errIsWarning ErrHMeas{} = False
+errIsWarning ErrUnbound{} = False
+errIsWarning ErrUnbPred{} = False
+errIsWarning ErrGhc{} = False
+errIsWarning ErrResolve{} = False
+errIsWarning ErrMismatch{} = False
+errIsWarning ErrPartPred{} = False
+errIsWarning ErrAliasCycle{} = False
+errIsWarning ErrIllegalAliasApp{} = False
+errIsWarning ErrAliasApp{} = False
+errIsWarning ErrTermin{} = False
+errIsWarning ErrStTerm{} = False
+errIsWarning ErrILaw{} = False
+errIsWarning ErrRClass{} = False
+errIsWarning ErrMClass{} = False
+errIsWarning ErrBadQual{} = False
+errIsWarning ErrSaved{} = False
+errIsWarning ErrFilePragma{} = False
+errIsWarning ErrTyCon{} = False
+errIsWarning ErrLiftExp{} = False
+errIsWarning ErrParseAnn{} = False
+errIsWarning ErrNoSpec{} = False
+errIsWarning ErrOther{} = False
+
+
 errDupSpecs :: Doc -> Misc.ListNE SrcSpan -> TError t
 errDupSpecs d spans@(sp:_) = ErrDupSpecs sp d spans
 errDupSpecs _ _            = impossible Nothing "errDupSpecs with empty spans!"
@@ -573,7 +640,11 @@ ppError :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError k dCtx e = ppError' k dSp dCtx e
   where
-    dSp          = pprint (pos e) <-> text ": Error:"
+    dSp          = pprint (pos e) <-> text errText
+    errText      = if errIsWarning e then
+                     ": Warning:"
+                   else
+                     ": Error:"
 
 nests :: Foldable t => Int -> t Doc -> Doc
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
@@ -720,11 +791,16 @@ totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 hint :: TError a -> Doc 
 hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e) 
   where 
-    go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
-    go (ErrBadGADT {})  = Just "Use the hole '_' to specify the type of the constructor" 
-    go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
-    go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
-    go _                = Nothing 
+    go (ErrMismatch {})       = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go (ErrBadGADT {})        = Just "Use the hole '_' to specify the type of the constructor" 
+    go (ErrSubType {})        = Just "Use \"--no-totality\" to deactivate totality checking."
+    go (ErrNoSpec {})         = Just "Run 'liquid' on the source file first."
+    go (ErrUnsafeLazy {})     = Just unsafeHint
+    go (ErrUnsafeAssumed {})  = Just unsafeHint
+    go (ErrUnsafeVar {})      = Just unsafeHint
+    go _                      = Nothing 
+
+    unsafeHint = "Enabled by \"-Wdetect-error\""
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
@@ -741,9 +817,18 @@ ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
 
-ppError' _td dSp _dCtx (ErrUnsafe _ _ x t)
-  = dSp <+> "Unsafe function used"
-        $+$ pprint x <+> "::" <+> pprint t 
+ppError' _td dSp _dCtx err@(ErrUnsafeAssumed _ x t)
+  = dSp <+> "The refinement type for `" <+> pprint x <+> "` is assumed, which is unsafe."
+        $+$ text "assume" <+> pprint x <+> "::" <+> pprint t 
+        $+$ hint err
+
+ppError' _td dSp _dCtx err@(ErrUnsafeLazy _ x)
+  = dSp <+> "`" <+> pprint x <+> "` is declared as lazy, which is unsafe."
+        $+$ hint err
+
+ppError' _td dSp _dCtx err@(ErrUnsafeVar _ x unsafeX)
+  = dSp <+> "`" <+> pprint unsafeX <+> "` is used in `" <+> pprint x <+> "`, which is unsafe."
+        $+$ hint err
 
 ppError' _td dSp _dCtx (ErrHole _ _ _ x t)
   = dSp <+> "Hole Found"

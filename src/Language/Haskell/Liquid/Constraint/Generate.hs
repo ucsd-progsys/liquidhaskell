@@ -64,7 +64,7 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Language.Haskell.Liquid.GHC.Play          (isHoleVar, isUnsafeVar) 
+import           Language.Haskell.Liquid.GHC.Play          (isHoleVar) 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, Def)
@@ -673,9 +673,6 @@ cconsE' γ (Cast e co) t
 cconsE' γ e@(Cast e' c) t
   = do t' <- castTy γ (exprType e) e' c
        addC (SubC γ t' t) ("cconsE Cast: " ++ GM.showPpr e)
-
-cconsE' γ (Var x) t | isUnsafeVar x && detectUnsafe (getConfig γ)
-  = addUnsafeWarning x t γ
 
 cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 

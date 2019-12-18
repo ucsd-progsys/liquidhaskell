@@ -11,7 +11,7 @@ import Prelude hiding (error)
 import CoreSyn
 import DataCon
 import GHC
-import qualified PrelNames as GHC
+-- import qualified PrelNames as GHC
 import Var
 import TyCoRep hiding (substTysWith)
 
@@ -22,20 +22,23 @@ import PrelNames (isStringClassName)
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
--- import qualified Data.Set            as Set
+import qualified Data.Set            as Set
 
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 
-import Debug.Trace
+-- import Debug.Trace
 
 isHoleVar :: Var -> Bool 
 isHoleVar x = L.isPrefixOf "_" (show x)
 
 isUnsafeVar :: Var -> Bool
-isUnsafeVar x = (varUnique $ trace (show (varUnique x) ++ ": " ++ show x) x) `L.elem` traceShowId unsafeList
+isUnsafeVar x = show x `Set.member` unsafeList
   where
-    unsafeList = [ GHC.undefinedKey]
+    unsafeList = Set.fromList ["GHC.Err.undefined"]
+-- isUnsafeVar x = (varUnique $ trace (show (varUnique x) ++ ": " ++ show x) x) `L.elem` traceShowId unsafeList
+--   where
+--     unsafeList = [ GHC.undefinedKey]
 -- TODO: How can we get the `Var` for arbitrary variables? FIXME XXX
 -- isUnsafeVar x = x `Set.member` unsafeList
 --   where
