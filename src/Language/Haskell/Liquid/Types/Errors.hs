@@ -739,7 +739,7 @@ hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
     go (ErrBadGADT {})        = Just "Use the hole '_' to specify the type of the constructor" 
     go (ErrSubType {})        = Just "Use \"--no-totality\" to deactivate totality checking."
     go (ErrNoSpec {})         = Just "Run 'liquid' on the source file first."
-    go (ErrWError {})         = Just "Warning made fatal by \"-Werror\"."
+    go (ErrWError {})         = Just "Warning made fatal by \"--Werror\"."
     go _                      = Nothing 
 
 --------------------------------------------------------------------------------

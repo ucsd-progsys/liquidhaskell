@@ -57,25 +57,25 @@ data TWarning t =
   deriving (Typeable, Generic , Functor )
 
 ppWarning' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TWarning a -> Doc
-ppWarning' _td dSp _dCtx err@(WrnUnsafeAssumed _ x t)
-  = dSp <+> "The refinement type for `" <-> pprint x <-> "` is assumed, which is unsafe."
-        $+$ text "assume" <-> pprint x <-> "::" <+> pprint t 
+ppWarning' _td dSp _dCtx (WrnUnsafeAssumed _ x t)
+  = dSp $+$ "The refinement type for `" <-> pprint x <-> "` is assumed, which is unsafe."
+        $+$ text "assume" <+> pprint x <+> "::" <+> pprint t 
 
-ppWarning' _td dSp _dCtx err@(WrnUnsafeLazy _ x)
-  = dSp <+> "`" <-> pprint x <-> "` is declared as lazy, which is unsafe."
+ppWarning' _td dSp _dCtx (WrnUnsafeLazy _ x)
+  = dSp $+$ "`" <-> pprint x <-> "` is declared as lazy, which is unsafe."
 
-ppWarning' _td dSp _dCtx err@(WrnUnsafeVar _ x unsafeX)
-  = dSp <+> "`" <-> pprint unsafeX <-> "` is used in `" <+> pprint x <+> "`, which is unsafe."
+ppWarning' _td dSp _dCtx (WrnUnsafeVar _ x unsafeX)
+  = dSp $+$ "`" <-> pprint unsafeX <-> "` is used in `" <-> pprint x <-> "`, which is unsafe."
 
 hint :: TWarning a -> Doc 
-hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e) 
+hint e = maybe empty (\d -> "" $+$ ("INFO:" <+> d)) (go e) 
   where
     go (WrnUnsafeLazy {})     = Just unsafeHint
     go (WrnUnsafeAssumed {})  = Just unsafeHint
     go (WrnUnsafeVar {})      = Just unsafeHint
     -- go _                      = Nothing 
 
-    unsafeHint = "Enabled by \"-Wdetect-error\"."
+    unsafeHint = "Enabled by \"--Wdetect-unsafe\"."
 
 
 instance PPrint SrcSpan where

@@ -440,7 +440,6 @@ runWarnings :: Config -> [TWarning Doc] -> Ghc ()
 runWarnings cfg warnings | wError cfg = mapM_ (\w -> throw $ ErrWError (wrnPos w) w) warnings -- JP: Can we show all the warnings?
 runWarnings _   warnings              = liftIO $ mapM_ (putStrLn . showpp) warnings
 
--- JP: Separate Warning type?
 checkWarnings :: Config -> Ms.BareSpec -> GhcSrc -> [TWarning Doc]
 checkWarnings cfg bareSpec ghcSrc = unsafeWarnings
   where
@@ -457,16 +456,14 @@ checkUnsafeWarning bareSpec ghcSrc =
   where
     checkUnsafeAssume bareSpec = 
         let toWarning (ls, lt) =
-              -- let span = srcSpan ls in TODO: How do we get a GHC src span?
-              let span = noSrcSpan in
+              let span = fSrcSpan ls in
               WrnUnsafeAssumed span (pprint ls) (pprint lt)
         in
         map toWarning $ asmSigs bareSpec
     
     checkUnsafeLazy bareSpec = 
         let toWarning ls =
-              -- let span = srcSpan ls in TODO: How do we get a GHC src span?
-              let span = noSrcSpan in
+              let span = fSrcSpan ls in
               WrnUnsafeLazy span (pprint ls) -- (pprint lt)
         in
         map toWarning $ S.toList $ lazy bareSpec
