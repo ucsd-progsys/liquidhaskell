@@ -1534,4 +1534,11 @@ Here's the magic diff that we did at some point that we keep bumping up to new G
 
 https://github.com/ucsd-progsys/liquidhaskell/commit/d380018850297b8f1878c33d0e4c586a1fddc2b8#diff-3644b76a8e6b3405f5492d8194da3874R224 
 
+Warnings
+========
+
+Liquid Haskell provides the following warnings:
+
+- `--Wdetect-unsafe` warns if your program includes any unsafe functionality, including `undefined`, `lazy`, or `assume`. Liquid Haskell will admit such functionality even if the implementation is not correct. Disable with `--Wno-detect-unsafe`.
+- `--Werror` makes warnings fatal. 
 
