@@ -478,8 +478,10 @@ checkUnsafeWarning bareSpec ghcSrc =
     checkUnsafeVarCB' x e = 
         let vars = readVars e in
         let unsafeVars = filter isUnsafeVar vars in
-        map (\unsafeVar -> WrnUnsafeVar noSrcSpan (pprint x) (pprint unsafeVar)) unsafeVars
-        -- TODO: How do we get a src span?
+        map (\unsafeVar -> 
+            let span = Ghc.getSrcSpan x in
+            WrnUnsafeVar span (pprint x) (pprint unsafeVar)
+          ) unsafeVars
 
 
 ---------------------------------------------------------------------------------------
