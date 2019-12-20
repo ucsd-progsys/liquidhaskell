@@ -59,12 +59,12 @@ extendExpr p e
       goP Pos (PAtom b e1 e2)
        | b == Eq || b == Ne  
        , Just s <- getArg (exprSort "extensionality" e1)
-       = extendRHS b e1 e2 s >>= goP Pos  
+       = mytracepp ("extending POS = " ++ showpp e) <$> (extendRHS b e1 e2 s >>= goP Pos) 
       goP _ e = return e 
       goN Neg (PAtom b e1 e2)
        | b == Eq || b == Ne
        , Just s <- getArg (exprSort "extensionality" e1)
-       = extendLHS b e1 e2 s >>= goN Neg 
+       = mytracepp ("extending NEG = " ++ showpp e) <$> (extendLHS b e1 e2 s >>= goN Neg) 
       goN _ e = return e 
 
 getArg :: Sort -> Maybe Sort 
@@ -170,14 +170,13 @@ normalize e = mytracepp ("normalize: " ++ showpp e) $ go e
     go e@(PAtom _ _ _)   = e 
     go (EIte e e1 e2)    = go $ PAnd [PImp e e1, PImp (PNot e) e2]
     go (PAnd ps)         = pAnd (go <$> ps)
-    go (POr  ps)         = go $ foldl (\p q -> PImp (PImp p PFalse) (go q)) PTrue ps 
+    go (POr  ps)         = foldl (\x y -> PImp (PImp (go x) PFalse) y) PFalse ps 
     go e@(PAll _ _)      = e -- Cannot appear
     go e@(ELam _ _)      = e -- Cannot appear
     go e@(PExist _ _)    = e -- Cannot appear
     go e@(ETApp _ _)     = e -- Cannot appear
     go e@(ETAbs _ _)     = e -- Cannot appear
     go e@(PGrad _ _ _ _) = e -- Cannot appear
-
 
     
 type Ex    = State ExSt
