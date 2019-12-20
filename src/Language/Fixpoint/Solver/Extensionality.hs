@@ -9,15 +9,17 @@ import           Control.Monad.State
 import qualified Data.HashMap.Strict       as M
 import           Data.Maybe  (fromMaybe)
 
+import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
 import           Language.Fixpoint.Types hiding (mapSort)
 import           Language.Fixpoint.Types.Visitor ( (<$$>), mapSort )
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp 
 
-expand :: SymEnv -> SInfo a -> SInfo a
-expand senv si = evalState (extend si) $ initST senv (ddecls si)
+expand :: Config -> SInfo a -> SInfo a
+expand cfg si = evalState (extend si) $ initST (symbolEnv cfg si) (ddecls si)
 
 
 class Extend a where

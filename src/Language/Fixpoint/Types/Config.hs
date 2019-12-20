@@ -89,6 +89,7 @@ data Config = Config
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
+  , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality 
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -175,6 +176,7 @@ defConfig = Config {
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
   , noIncrPle        = False &= help "Don't use incremental PLE"
   , checkCstr        = []    &= help "Only check these specific constraint-ids" 
+  , extensionality   = False &= help "Allow extensional interpretation of extensionality"
   }
   &= verbosity
   &= program "fixpoint"

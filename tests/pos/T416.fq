@@ -1,4 +1,5 @@
 fixpoint "--rewrite"
+fixpoint "--extensionality"
 
 
 data Pair 2 = [
