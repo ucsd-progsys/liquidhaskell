@@ -75,7 +75,7 @@ extendLHS b e1 e2 s =
   do es  <- generateArguments s 
      dds <- exddecl <$> get 
      is  <- instantiate dds s 
-     (mytracepp "extendLHS = " . pAnd) <$> mapM (makeEq b e1 e2) (es ++ is)
+     (mytracepp "extendLHS = " . pAnd . (PAtom b e1 e2:)) <$> mapM (makeEq b e1 e2) (es ++ is)
 
 
 generateArguments :: Sort -> Ex [Expr]
