@@ -43,13 +43,19 @@ instance Extend SubcId where
 instance Extend (SimpC a) where
   extend c = do 
     setExBinds (_cenv c)
-    rhs <- extend (_crhs c)
+    rhs <- extendExpr Pos (_crhs c)
     is  <- exbinds <$> get 
     return $ c{_crhs = rhs, _cenv = is }
 
-instance Extend Expr where 
-  extend e = mapMPosExpr Pos goP (normalize e) >>= mapMPosExpr Pos goN 
+
+extendExpr :: Pos -> Expr -> Ex Expr 
+extendExpr p e 
+  | p == Pos 
+  = mapMPosExpr Pos goP e' >>= mapMPosExpr Pos goN 
+  | otherwise
+  = mapMPosExpr Neg goP e' >>= mapMPosExpr Neg goN 
     where  
+      e' = normalize e
       goP Pos (PAtom b e1 e2)
        | b == Eq || b == Ne  
        , Just s <- getArg (exprSort "extensionality" e1)
@@ -110,7 +116,7 @@ combine ([]:_)      = []
 combine ((x:xs):ys) = map (x:) (combine ys) ++ combine (xs:ys)
 
 
-data Pos = Pos | Neg 
+data Pos = Pos | Neg deriving Eq 
 negatePos :: Pos -> Pos 
 negatePos Pos = Neg 
 negatePos Neg = Pos 
