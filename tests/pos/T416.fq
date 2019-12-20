@@ -7,6 +7,11 @@ data Pair 2 = [
 
 define compose (lq1:func(0,[b;c]), lq2:func(0,[a;b]), lq3:a) : c = (((compose lq1 lq2 lq3) = (lq1 (lq2 lq3))))
 define first (lq1:func(0,[a;c]),  lq2:(Pair a b)) : Pair a c = (((first lq1 lq2) = (Pair (lq1 (pfst lq2)) (psnd lq2))))
+define plus1 (x:int) : int = (plus1 x = x + 1)
+define plus2 (x:int) : int = (plus2 x = x + 2 )
+
+constant plus1 : (func(0, [int;int]))
+constant plus2 : (func(0, [int;int]))
 
 constant compose : (func(3 , [func(0 , [@(0); @(1)]);
                                  func(0 , [@(2); @(0)]);
@@ -21,6 +26,8 @@ bind 1 f : {VV : func(0 , [a; b]) | []}
 
 bind 2 g : {VV : func(0 , [a; b]) | []}
 bind 3 f : {VV : func(0 , [a; b]) | []}
+
+bind 4 x : {VV:Int | [] }
 
 
 
@@ -40,3 +47,12 @@ constraint:
   id 2 tag []
 
 expand [ 2 : True ]
+
+
+constraint:
+  env []
+  lhs {v : Tuple | true }
+  rhs {v : Tuple | [ not (plus1 == plus2) ]}
+  id 3 tag []
+
+expand [ 3 : True ]
