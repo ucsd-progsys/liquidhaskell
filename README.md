@@ -261,6 +261,12 @@ liquid annotation
 {-@ automatic-instances theorem @-}
 ```
 
+To allow reasoning about function extensionality use the `extensionality flag`. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs)
+
+```
+{-@ LIQUID "--extensionality" @-}
+```
+
 Incremental Checking
 --------------------
 
