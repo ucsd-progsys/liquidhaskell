@@ -329,6 +329,10 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
+  , extensionality
+    = def 
+        &= help "Enable extensional interpretation of function equality"
+        &= name "extensionality"
 
   , reflection 
     = def 
@@ -575,6 +579,7 @@ defConfig = Config
   , proofLogicEval    = False
   , proofLogicEvalLocal = False
   , reflection        = False
+  , extensionality    = False 
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False
