@@ -74,6 +74,7 @@ library
                     Language.Fixpoint.Solver.UniqifyBinds
                     Language.Fixpoint.Solver.UniqifyKVars
                     Language.Fixpoint.Solver.Worklist
+                    Language.Fixpoint.Solver.Extensionality
                     Language.Fixpoint.SortCheck
                     Language.Fixpoint.Types
                     Language.Fixpoint.Types.Config

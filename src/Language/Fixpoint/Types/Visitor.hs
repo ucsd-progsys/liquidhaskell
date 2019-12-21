@@ -45,6 +45,8 @@ module Language.Fixpoint.Types.Visitor (
   , mapSort
   , foldDataDecl
 
+  , (<$$>)
+
 
   ) where
 
