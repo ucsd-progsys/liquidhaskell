@@ -742,7 +742,9 @@ getDC _ _
   = Nothing
 
 isUpperSymbol :: Symbol -> Bool
-isUpperSymbol = isUpper . headSym . dropModuleNames
+isUpperSymbol x = (0 < lengthSym x') && (isUpper $ headSym x')
+  where 
+    x' = dropModuleNames x 
 
 dropModuleNames :: Symbol -> Symbol
 dropModuleNames = mungeNames (symbol . last) "."
