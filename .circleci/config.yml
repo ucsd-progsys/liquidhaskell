@@ -8,7 +8,7 @@ jobs:
     steps:
       - checkout
       - add_ssh_keys
-      - run: apt-get install z3
+      - run: apt-get update && apt-get install -y z3 git ssh
       #- run: find .git
       #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
       - run: git submodule sync
