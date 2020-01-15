@@ -243,9 +243,11 @@ test-suite test
                   , optparse-applicative >= 0.11
                   , process              >= 1.2
                   , stm                  >= 2.4
+                  , string-conv          >= 0.1
                   , tagged               >= 0.7.3
                   , tasty                >= 0.10
                   , tasty-ant-xml
+                  , tasty-golden         >= 2.0.0
                   , tasty-hunit          >= 0.9
                   , tasty-rerun          >= 1.1
                   , text
