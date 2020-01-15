@@ -73,6 +73,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                 testRunner
               , includingOptions [ Option (Proxy :: Proxy NumThreads)
                                  , Option (Proxy :: Proxy LiquidOpts)
+                                 , Option (Proxy :: Proxy LiquidRunner)
                                  , Option (Proxy :: Proxy SmtSolver) ]
               ]
     tests = group "Tests" $ microTests  :
@@ -122,6 +123,29 @@ instance IsOption LiquidOpts where
     option (fmap LO str)
       (  long (untag (optionName :: Tagged LiquidOpts String))
       <> help (untag (optionHelp :: Tagged LiquidOpts String))
+      )
+
+-- 
+-- Controlling the invocation of \"liquid\"
+--
+-- During the tests we require the executable \"liquid\" to be reachable and in the PATH in order to be
+-- able to run the tests. However, \"liquid\" might require to be run with a proper configuration, for
+-- example with the correct \"-package-db\" in order to check some files. To do so we can use something like
+-- \"stack exec -- liquid\", which would work for Stack but not \"cabal new-*\". To mitigate this, we introduce
+-- the \"liquid-runner\" option which can be used to override this choice.
+
+newtype LiquidRunner = LiquidRunner String
+  deriving (Show, Read, Eq, Ord, Typeable, IsString, Semigroup, Monoid)
+
+instance IsOption LiquidRunner where
+  defaultValue = LiquidRunner "stack exec -- liquid"
+  parseValue = Just . LiquidRunner
+  optionName = return "liquid-runner"
+  optionHelp = return "Specifies the full path or command which will run 'liquid'."
+  optionCLParser =
+    option (fmap LiquidRunner str)
+      (  long (untag (optionName :: Tagged LiquidRunner String))
+      <> help (untag (optionHelp :: Tagged LiquidRunner String))
       )
 
 errorTests :: IO TestTree
@@ -230,10 +254,12 @@ goldenTests = group "Golden tests"
 
 goldenTest :: TestName -> FilePath -> FilePath -> [LiquidOpts] -> TestTree
 goldenTest testName dir filePrefix testOpts =
-  askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) ->
+  askOption $ \(smt  :: SmtSolver) -> 
+  askOption $ \(opts :: LiquidOpts) ->
+  askOption $ \(bin  :: LiquidRunner) ->
     goldenVsString testName
                    (dir </> filePrefix <> ".golden") 
-                   (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) dir (filePrefix <> ".hs"))
+                   (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) bin dir (filePrefix <> ".hs"))
 
 
 microTests :: IO TestTree
@@ -469,12 +495,14 @@ ecAssert (EC _ code (Just t)) c log = do
 mkTest :: ExitCheck -> FilePath -> FilePath -> TestTree
 --------------------------------------------------------------------------------
 mkTest ec dir file
-  = askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) -> testCase file $
+  = askOption $ \(smt :: SmtSolver)   ->
+    askOption $ \(opts :: LiquidOpts) ->
+    askOption $ \(bin  :: LiquidRunner)   -> testCase file $
       if test `elem` knownToFail smt
       then do
         printf "%s is known to fail with %s: SKIPPING" test (show smt)
         assertEqual "" True True
-      else runLiquidOn smt opts dir file >>= uncurry (ecAssert ec)
+      else runLiquidOn smt opts bin dir file >>= uncurry (ecAssert ec)
   where
     test = dir </> file
 
@@ -482,14 +510,14 @@ mkTest ec dir file
 --------------------------------------------------------------------------------
 runLiquidOn :: SmtSolver 
             -> LiquidOpts 
+            -> LiquidRunner
             -> FilePath
             -> FilePath 
             -> IO (ExitCode, T.Text)
 --------------------------------------------------------------------------------
-runLiquidOn smt opts dir file = do
+runLiquidOn smt opts (LiquidRunner bin) dir file = do
   createDirectoryIfMissing True $ takeDirectory log
-  let bin = "stack exec -- liquid"
-  hSetBuffering stdout LineBuffering
+  hSetBuffering stdout NoBuffering
   withFile log WriteMode $ \h -> do
     let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
     (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
