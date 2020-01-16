@@ -12,7 +12,7 @@ commands:
       - run: git submodule update --init
 
 jobs:
-  stack_build:
+  stack:
     docker:
       - image: fpco/stack-build:lts
     steps:
@@ -31,14 +31,6 @@ jobs:
           paths:
             - ~/.stack
             - ./.stack-work
-
-  stack_test:
-    docker:
-      - image: fpco/stack-build:lts
-    steps:
-      - restore_cache:
-          keys:
-            - stack-{{ checksum "stack.yaml" }}
       - run:
           name: Test
           command: |
@@ -57,9 +49,9 @@ jobs:
           name: Dist
           command: stack sdist
 
-  cabal_build:
+  cabal_865:
     docker:
-      - image: haskell:8.6.5
+      - image: phadej/ghc:8.6.5-bionic-slim
     steps:
       - setup_project
       - restore_cache:
@@ -68,28 +60,22 @@ jobs:
       - run:
           name: Dependencies
           command: |
-            cabal new-build all
+            cabal v2-update
+            cabal v2-build all
       - save_cache:
           key: cabal-{{ checksum "liquidhaskell.cabal" }}
           paths:
             - ~/.cabal/store
             - ./dist-newstyle
-
-  cabal_test:
-    docker:
-      - image: haskell:8.6.5
-    steps:
-      - restore_cache:
-          keys:
-            - cabal-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Test
           command: |
-            cabal new-clean
+            cabal v2-clean
             mkdir -p /tmp/junit/cabal
-            cabal new-test 
-            cabal new-test -j1 liquidhaskell:test --flag include --flag devel --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml":
-            cabal new-test -j1 liquidhaskell:liquidhaskell-parser --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml":
+            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
+            find include -type f -name '*.hs' | grep -v Old | grep -v RTick | xargs -n 1 cabal v2-run liquid -- --compile-spec
+            cabal v2-test liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="--liquid-runner=cabal v2-run liquid -- " --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            cabal v2-test liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
       - store_test_results:
           path: /tmp/junit/cabal
       - store_artifacts:
@@ -99,12 +85,5 @@ workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_build
-      - cabal_build
-      - stack_test:
-          requires:
-              - stack_build
-      - cabal_test:
-          requires:
-              - cabal_build
-              - stack_test
+      - stack
+      - cabal_865
