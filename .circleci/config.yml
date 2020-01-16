@@ -119,6 +119,33 @@ jobs:
       - image: phadej/ghc:8.10.1-bionic-slim
     steps:
       - cabal_build_and_test
+      - setup_project
+      - restore_cache:
+          keys:
+            - cabal-{{ checksum "liquidhaskell.cabal" }}
+      - run:
+          name: Dependencies
+          command: |
+            cabal v2-update
+            cabal v2-build all
+      - save_cache:
+          key: cabal-{{ checksum "liquidhaskell.cabal" }}
+          paths:
+            - ~/.cabal/store
+            - ./dist-newstyle
+      - run:
+          name: Test
+          command: |
+            cabal v2-clean
+            mkdir -p /tmp/junit/cabal
+            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
+            find include -type f -name '*.hs' | grep -v Old | grep -v RTick | xargs -n 1 cabal v2-run liquid -- --compile-spec
+            cabal v2-test liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="--liquid-runner=cabal v2-run liquid -- " --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            cabal v2-test liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+      - store_test_results:
+          path: /tmp/junit/cabal
+      - store_artifacts:
+          path: tests/logs/cur
 
   stack_865:
     docker:
