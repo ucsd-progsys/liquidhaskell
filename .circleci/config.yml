@@ -36,6 +36,9 @@ jobs:
     docker:
       - image: fpco/stack-build:lts
     steps:
+      - restore_cache:
+          keys:
+            - stack-{{ checksum "stack.yaml" }}
       - run:
           name: Test
           command: |
@@ -76,6 +79,9 @@ jobs:
     docker:
       - image: haskell:8.6.5
     steps:
+      - restore_cache:
+          keys:
+            - cabal-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Test
           command: |
