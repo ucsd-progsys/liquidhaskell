@@ -33,7 +33,7 @@ import           Language.Fixpoint.Types (symbol)
 -- e368f3265b80aeb337fbac3f6a70ee54ab14edfd
 
 mkTyArg :: TyVar -> TyVarBinder
-mkTyArg v = TvBndr v Required
+mkTyArg v = Bndr v Required
 
 instance Eq Type where
   t1 == t2 = eqType' t1 t2
@@ -45,9 +45,9 @@ eqType' (CoercionTy c1) (CoercionTy c2)
   = c1 == c2  
 eqType'(CastTy t1 c1) (CastTy t2 c2) 
   = eqType' t1 t2 && c1 == c2 
-eqType' (FunTy t11 t12) (FunTy t21 t22)
+eqType' (FunTy _ t11 t12) (FunTy _ t21 t22)
   = eqType' t11 t21 && eqType' t12 t22  
-eqType' (ForAllTy (TvBndr v1 _) t1) (ForAllTy (TvBndr v2 _) t2) 
+eqType' (ForAllTy (Bndr v1 _) t1) (ForAllTy (Bndr v2 _) t2) 
   = eqType' t1 (subst v2 (TyVarTy v1) t2) 
 eqType' (TyVarTy v1) (TyVarTy v2) 
   = v1 == v2 
@@ -59,7 +59,7 @@ eqType' _ _
   = False 
 
 
-deriving instance (Eq tyvar, Eq argf) => Eq (TyVarBndr tyvar argf)
+deriving instance (Eq tyvar, Eq argf) => Eq (VarBndr tyvar argf)
 
 instance Eq Coercion where
   _ == _ = True 
@@ -69,8 +69,8 @@ showTy :: Type -> String
 showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$> ts) ++ ")"
 showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
 showTy (TyVarTy v)   = "(RVar " ++ show (symbol v)  ++ ")" 
-showTy (ForAllTy (TvBndr v _) t)  = "ForAllTy " ++ show (symbol v) ++ ". (" ++  showTy t ++ ")"
-showTy (FunTy t1 t2)   = "FunTy " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
+showTy (ForAllTy (Bndr v _) t)  = "ForAllTy " ++ show (symbol v) ++ ". (" ++  showTy t ++ ")"
+showTy (FunTy _ t1 t2) = "FunTy _ " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
 showTy (CastTy _ _)    = "CastTy"
 showTy (CoercionTy _)  = "CoercionTy"
 showTy (LitTy _)       = "LitTy"
@@ -103,9 +103,9 @@ substType x tx (TyVarTy y)
   = tx 
   | otherwise
   = TyVarTy y 
-substType x tx (FunTy t1 t2)
-  = FunTy (subst x tx t1) (subst x tx t2)
-substType x tx f@(ForAllTy b@(TvBndr y _) t)  
+substType x tx (FunTy aaf t1 t2)
+  = FunTy aaf (subst x tx t1) (subst x tx t2)
+substType x tx f@(ForAllTy b@(Bndr y _) t)  
   | symbol x == symbol y 
   = f
   | otherwise 
@@ -122,8 +122,11 @@ instance SubstTy Coercion where
   subst = substCoercion
 
 substCoercion :: TyVar -> Type -> Coercion -> Coercion
-substCoercion x tx (Refl r t)
-  = Refl (subst x tx r) (subst x tx t)
+substCoercion _x _tx (Refl _t)
+  = error "substCoercion TODO(adinapoli): Handle Refl t"
+  -- = Refl (subst x tx r) (subst x tx t)
+substCoercion _x _tx (GRefl _r _t _)
+  = error "substCoercion TODO(adinapoli): Handle GRefl t"
 substCoercion x tx (TyConAppCo r c cs)
   = TyConAppCo (subst x tx r) c (subst x tx <$> cs)
 substCoercion x tx (AppCo c1 c2)
@@ -153,8 +156,6 @@ substCoercion x tx (LRCo i c)
   = LRCo i (subst x tx c)
 substCoercion x tx (InstCo c1 c2)
   = InstCo (subst x tx c1) (subst x tx c2)
-substCoercion x tx (CoherenceCo c1 c2)
-  = CoherenceCo (subst x tx c1) (subst x tx c2)
 substCoercion x tx (KindCo c)
   = KindCo (subst x tx c)
 substCoercion x tx (SubCo c)

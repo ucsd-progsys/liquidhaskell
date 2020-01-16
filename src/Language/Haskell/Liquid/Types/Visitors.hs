@@ -22,7 +22,7 @@ import           TysPrim                          (intPrimTy)
 import           Data.Hashable
 import           DataCon
 import           Literal
-import           FastString                       (fastStringToByteString)
+import           FastString                       (bytesFS)
 import           Var
 
 import           Data.List                        (foldl', (\\), delete)
@@ -132,7 +132,7 @@ exprLiterals = go
     go' _                  = []
 
 
-    tyLitToLit (StrTyLit fs) = MachStr (fastStringToByteString fs)
+    tyLitToLit (StrTyLit fs) = LitString (bytesFS fs)
     tyLitToLit (NumTyLit i)  = LitNumber LitNumInt (fromIntegral i) intPrimTy
 
 

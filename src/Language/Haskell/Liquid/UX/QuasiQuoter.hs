@@ -45,7 +45,8 @@ lq = QuasiQuoter
   , quoteDec  = lqDec
   }
   where
-    bad = fail "`lq` quasiquoter can only be used as a top-level declaration"
+    -- FIME(adinapoli) Should we preserve 'fail' here?
+    bad = error "`lq` quasiquoter can only be used as a top-level declaration"
 
 lqDec :: String -> Q [Dec]
 lqDec src = do

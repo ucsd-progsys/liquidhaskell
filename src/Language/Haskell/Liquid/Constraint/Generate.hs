@@ -33,6 +33,7 @@ import           SrcLoc                                 hiding (Located)
 import           Type
 import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
+import           TcType (isClassPred)
 import           CoAxiom
 import           PrelNames
 import           Language.Haskell.Liquid.GHC.TypeRep
@@ -873,7 +874,7 @@ consE γ  e@(Lam x e1)
        tce     <- tyConEmbed <$> get
        return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton γ tce x e1
     where
-      FunTy τx _ = exprType e
+      FunTy _ τx _ = exprType e
 
 consE γ e@(Let _ _)
   = cconsFreshE LetE γ e

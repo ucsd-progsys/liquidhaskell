@@ -10,7 +10,7 @@ import Prelude hiding (error)
 import GHC
 import CoreSyn
 import Var
-import TyCoRep hiding (substTysWith)
+import TyCoRep
 import DataCon
 
 import TyCon
@@ -108,14 +108,14 @@ instance Subable Type where
  subTy     = substTysWith
 
 substTysWith :: M.HashMap Var Type -> Type -> Type
-substTysWith s tv@(TyVarTy v)  = M.lookupDefault tv v s
-substTysWith s (FunTy t1 t2)   = FunTy (substTysWith s t1) (substTysWith s t2)
-substTysWith s (ForAllTy v t)  = ForAllTy v (substTysWith (M.delete (binderVar v) s) t)
-substTysWith s (TyConApp c ts) = TyConApp c (map (substTysWith s) ts)
-substTysWith s (AppTy t1 t2)   = AppTy (substTysWith s t1) (substTysWith s t2)
-substTysWith _ (LitTy t)       = LitTy t
-substTysWith s (CastTy t c)    = CastTy (substTysWith s t) c
-substTysWith _ (CoercionTy c)  = CoercionTy c 
+substTysWith s tv@(TyVarTy v)    = M.lookupDefault tv v s
+substTysWith s (FunTy aaf t1 t2) = FunTy aaf (substTysWith s t1) (substTysWith s t2)
+substTysWith s (ForAllTy v t)    = ForAllTy v (substTysWith (M.delete (binderVar v) s) t)
+substTysWith s (TyConApp c ts)   = TyConApp c (map (substTysWith s) ts)
+substTysWith s (AppTy t1 t2)     = AppTy (substTysWith s t1) (substTysWith s t2)
+substTysWith _ (LitTy t)         = LitTy t
+substTysWith s (CastTy t c)      = CastTy (substTysWith s t) c
+substTysWith _ (CoercionTy c)    = CoercionTy c 
 
 substExpr :: M.HashMap Var Var -> CoreExpr -> CoreExpr
 substExpr s = go 
@@ -136,14 +136,14 @@ substExpr s = go
 mapType :: (Type -> Type) -> Type -> Type
 mapType f = go
   where
-    go t@(TyVarTy _)   = f t
-    go (AppTy t1 t2)   = f $ AppTy (go t1) (go t2)
-    go (TyConApp c ts) = f $ TyConApp c (go <$> ts)
-    go (FunTy t1 t2)   = f $ FunTy (go t1) (go t2)
-    go (ForAllTy v t)  = f $ ForAllTy v (go t)
-    go t@(LitTy _)     = f t
-    go (CastTy t c)    = CastTy (go t) c
-    go (CoercionTy c)  = f $ CoercionTy c 
+    go t@(TyVarTy _)      = f t
+    go (AppTy t1 t2)      = f $ AppTy (go t1) (go t2)
+    go (TyConApp c ts)    = f $ TyConApp c (go <$> ts)
+    go (FunTy aaf t1 t2)  = f $ FunTy aaf (go t1) (go t2)
+    go (ForAllTy v t)     = f $ ForAllTy v (go t)
+    go t@(LitTy _)        = f t
+    go (CastTy t c)       = CastTy (go t) c
+    go (CoercionTy c)     = f $ CoercionTy c 
 
 
 stringClassArg :: Type -> Maybe Type

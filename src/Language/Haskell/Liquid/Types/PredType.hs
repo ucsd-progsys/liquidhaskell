@@ -223,9 +223,9 @@ dataConTy :: Monoid r
           -> Type -> RType RTyCon RTyVar r
 dataConTy m (TyVarTy v)
   = M.lookupDefault (rVar v) (RTV v) m
-dataConTy m (FunTy t1 t2)
+dataConTy m (FunTy _ t1 t2)
   = rFun F.dummySymbol (dataConTy m t1) (dataConTy m t2)
-dataConTy m (ForAllTy (TvBndr α _) t) -- α :: TyVar
+dataConTy m (ForAllTy (Bndr α _) t) -- α :: TyVar
   = RAllT (makeRTVar (RTV α)) (dataConTy m t) mempty
 dataConTy m (TyConApp c ts)
   = rApp c (dataConTy m <$> ts) [] mempty

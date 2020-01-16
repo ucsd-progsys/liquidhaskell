@@ -223,11 +223,11 @@ mkFreshIds :: [TyVar]
 mkFreshIds tvs ids x
   = do ids'  <- mapM fresh ids
        let ids'' = map setIdTRecBound ids'
-       let t  = mkForAllTys ((`TvBndr` Required) <$> tvs) $ mkType (reverse ids'') $ varType x
+       let t  = mkForAllTys ((`Bndr` Required) <$> tvs) $ mkType (reverse ids'') $ varType x
        let x' = setVarType x t
        return (ids'', x')
   where
-    mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
+    mkType ids ty = foldl (\t x -> FunTy VisArg (varType x) t) ty ids -- FIXME(adinapoli): Is 'VisArg' OK here?
 
 -- NOTE [Don't choose transform-rec binders as decreasing params]
 -- --------------------------------------------------------------

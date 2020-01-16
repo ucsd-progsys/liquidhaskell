@@ -247,8 +247,8 @@ import           Prelude                          hiding  (error)
 import qualified Prelude
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
-import           Type                                   (getClassPredTys_maybe)
-import           Language.Haskell.Liquid.GHC.TypeRep    hiding  (maybeParen)
+import           Language.Haskell.Liquid.GHC.TypeRep
+import           Predicate                              (getClassPredTys_maybe)
 import           TysPrim                                (eqReprPrimTyCon, eqPrimTyCon)
 import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var

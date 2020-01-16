@@ -13,6 +13,7 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import TyCon          as Ghc 
 import NameSet        as Ghc
 import InstEnv        as Ghc 
+import TcType         as Ghc (isClassPred)
 import Type           as Ghc hiding (typeKind) 
 import TyCoRep        as Ghc 
 import Class          as Ghc
