@@ -33,6 +33,7 @@ import           SrcLoc                                 hiding (Located)
 import           Type
 import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
+import           TcType (isClassPred)
 import           CoAxiom
 import           PrelNames
 import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (exprType)
