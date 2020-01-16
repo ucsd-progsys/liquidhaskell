@@ -1,18 +1,22 @@
 ---
 version: 2.1
 
-jobs:
-  build:
-    docker:
-      - image: fpco/stack-build:lts
+commands:
+  setup_project:
+    description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
       - run: apt-get update && apt-get install -y z3 git ssh
       - checkout
       - add_ssh_keys
-      #- run: find .git
-      #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
       - run: git submodule sync
       - run: git submodule update --init
+
+jobs:
+  stack:
+    docker:
+      - image: fpco/stack-build:lts
+    steps:
+      - setup_project
       - restore_cache:
           keys:
             - stack-{{ checksum "stack.yaml" }}
@@ -31,16 +35,55 @@ jobs:
           name: Test
           command: |
             stack clean
-            mkdir -p /tmp/junit
-            stack test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s --xml=/tmp/junit/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack test -j1 liquidhaskell:liquidhaskell-parser --test-arguments="--xml=/tmp/junit/parser-test-results.xml":
+            mkdir -p /tmp/junit/stack
+            stack test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack test -j1 liquidhaskell:liquidhaskell-parser --test-arguments="--xml=/tmp/junit/stack/parser-test-results.xml":
             stack sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
             stack haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - store_test_results:
-          path: /tmp/junit
+          path: /tmp/junit/stack
       - store_artifacts:
           path: tests/logs/cur
       - run:
           name: Dist
           command: stack sdist
+
+  cabal_865:
+    docker:
+      - image: phadej/ghc:8.6.5-bionic-slim
+    steps:
+      - setup_project
+      - restore_cache:
+          keys:
+            - cabal-{{ checksum "liquidhaskell.cabal" }}
+      - run:
+          name: Dependencies
+          command: |
+            cabal v2-update
+            cabal v2-build all
+      - save_cache:
+          key: cabal-{{ checksum "liquidhaskell.cabal" }}
+          paths:
+            - ~/.cabal/store
+            - ./dist-newstyle
+      - run:
+          name: Test
+          command: |
+            cabal v2-clean
+            mkdir -p /tmp/junit/cabal
+            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
+            find include -type f -name '*.hs' | grep -v Old | grep -v RTick | xargs -n 1 cabal v2-run liquid -- --compile-spec
+            cabal v2-test liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="--liquid-runner=cabal v2-run liquid -- " --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            cabal v2-test liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+      - store_test_results:
+          path: /tmp/junit/cabal
+      - store_artifacts:
+          path: tests/logs/cur
+
+workflows:
+  version: 2
+  build_stack_and_cabal:
+    jobs:
+      - stack
+      - cabal_865
