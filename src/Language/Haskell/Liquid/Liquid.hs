@@ -52,6 +52,10 @@ import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 
 import           Language.Haskell.Liquid.Types
 
+import GhcPlugins (showSDocUnsafe, ppr)
+import qualified Debug.Trace as Debug
+
+type MbEnv = Maybe HscEnv
 
 type MbEnv = Maybe HscEnv
 
@@ -171,7 +175,7 @@ liquidOne info
   where 
     cfg  = getConfig info
     tgt  = giTarget (giSrc info)
-    cbs' = giCbs (giSrc info) 
+    cbs' = Debug.traceShow ("coreBinds ==> " ++ showSDocUnsafe (ppr $ giCbs (giSrc info))) (giCbs (giSrc info) )
 
 newPrune :: Config -> [CoreBind] -> FilePath -> TargetInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
