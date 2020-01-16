@@ -188,7 +188,7 @@ normalizeName γ e
 
 shouldNormalize :: Literal -> Bool
 shouldNormalize (LitNumber {})  = True 
-shouldNormalize (MachStr {})    = True 
+shouldNormalize (LitString {})    = True 
 shouldNormalize _               = False
 
 add :: [CoreBind] -> DsMW ()

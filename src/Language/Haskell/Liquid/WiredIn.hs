@@ -82,7 +82,7 @@ wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 --------------------------------------------------------------------------------
 
 dictionaryVar :: Var
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (TvBndr dictionaryTyVar Required) $ TyVarTy dictionaryTyVar)
+dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (Bndr dictionaryTyVar Required) $ TyVarTy dictionaryTyVar)
 
 dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"

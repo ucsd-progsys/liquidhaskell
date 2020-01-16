@@ -37,6 +37,7 @@ import           HscTypes                                   (ModGuts(..), HscEnv
                                                              Dependencies(..))
 import           TysWiredIn                                 (anyTy)
 import           NameSet                                    (NameSet)
+import           Predicate                                  (isEqPred, isClassPred)
 import           SrcLoc                                     hiding (L)
 import           Bag
 import           ErrUtils
@@ -56,7 +57,7 @@ import           TcRnDriver
 
 
 import           RdrName
-import           Type                                       (expandTypeSynonyms, isClassPred, isEqPred, liftedTypeKind)
+import           Type                                       (expandTypeSynonyms, liftedTypeKind)
 import           TyCoRep
 import           Var
 import           IdInfo
@@ -83,12 +84,12 @@ import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 -- import           Language.Haskell.Liquid.Desugar.HscMain
 import           HscMain
-import           Id                                         (isExportedId, idOccInfo, setIdInfo)
+import           Id                                         (idOccInfo, setIdInfo)
 
 
 isAnonBinder :: TC.TyConBinder -> Bool
-isAnonBinder (TvBndr _ TC.AnonTCB) = True
-isAnonBinder (TvBndr _ _)          = False
+isAnonBinder (Bndr _ (TC.AnonTCB _)) = True
+isAnonBinder (Bndr _ _)              = False
 
 mkAlive :: Var -> Id
 mkAlive x
@@ -180,7 +181,7 @@ hasBaseTypeVar = isBaseType . varType
 -- same as Constraint isBase
 isBaseType :: Type -> Bool
 isBaseType (ForAllTy _ _)  = False
-isBaseType (FunTy t1 t2)   = isBaseType t1 && isBaseType t2
+isBaseType (FunTy _ t1 t2) = isBaseType t1 && isBaseType t2
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
@@ -447,8 +448,8 @@ realTcArity = tyConArity
 kindTCArity :: TyCon -> Arity
 kindTCArity = go . tyConKind
   where
-    go (FunTy _ res) = 1 + go res
-    go _             = 0
+    go (FunTy _ _ res) = 1 + go res
+    go _               = 0
 
 
 kindArity :: Kind -> Arity
@@ -546,7 +547,7 @@ instance Symbolic FastString where
   symbol = symbol . fastStringText
 
 fastStringText :: FastString -> T.Text
-fastStringText = T.decodeUtf8With TE.lenientDecode . fastStringToByteString
+fastStringText = T.decodeUtf8With TE.lenientDecode . bytesFS
 
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c
@@ -807,7 +808,6 @@ expandVarType = expandTypeSynonyms . varType
 --   in disguise, e.g. have `PredType` (in the GHC sense of the word), and so
 --   shouldn't appear in refinements.
 --------------------------------------------------------------------------------
-
 isPredExpr :: CoreExpr -> Bool
 isPredExpr = isPredType . CoreUtils.exprType
 

@@ -98,7 +98,8 @@ import Var
 import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred, isEqPred, isNomEqPred)
+import Predicate        (isClassPred, isEqPred)
+import Type             (splitFunTys, expandTypeSynonyms, substTyWith)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
@@ -1119,7 +1120,7 @@ subsFreeRAppTy _ _ t t' r'
 
 -- | @mkRApp@ is the refined variant of GHC's @mkTyConApp@ which ensures that 
 --    that applications of the "function" type constructor are normalized to 
---    the special case @FunTy@ representation. The extra `_rep1`, and `_rep2` 
+--    the special case @FunTy _@ representation. The extra `_rep1`, and `_rep2` 
 --    parameters come from the "levity polymorphism" changes in GHC 8.6 (?)
 --    See [NOTE:Levity-Polymorphism]
 
@@ -1160,7 +1161,7 @@ mkRApp m s c ts rs r r'
         https://hackage.haskell.org/package/ghc-8.6.4/docs/src/Type.html#mkTyConApp
 
      which normalizes applications of the `FunTyCon` constructor to use the special 
-     case `FunTy` representation thus, so that we are not stuck with incompatible 
+     case `FunTy _` representation thus, so that we are not stuck with incompatible 
      representations e.g. 
 
         thing -> thing                                                  ... (using RFun)
@@ -1389,9 +1390,9 @@ ofType_ tx = go . expandTypeSynonyms
   where
     go (TyVarTy α)
       = tcFVar tx α
-    go (FunTy τ τ')
+    go (FunTy _ τ τ')
       = rFun dummySymbol (go τ) (go τ')
-    go (ForAllTy (TvBndr α _) τ)
+    go (ForAllTy (Bndr α _) τ)
       = RAllT (tcFTVar tx α) (go τ) mempty
     go (TyConApp c τs)
       | Just (αs, τ) <- TC.synTyConDefn_maybe c
@@ -1461,7 +1462,7 @@ isBaseTy :: Type -> Bool
 isBaseTy (TyVarTy _)     = True
 isBaseTy (AppTy _ _)     = False
 isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
-isBaseTy (FunTy _ _)     = False
+isBaseTy (FunTy  _ _ _)  = False
 isBaseTy (ForAllTy _ _)  = False
 isBaseTy (LitTy _)       = True
 isBaseTy (CastTy _ _)    = False
@@ -1487,9 +1488,9 @@ toType  :: (ToTypeable r) => RRType r -> Type
 toType (RImpF x t t' r)
  = toType (RFun x t t' r)
 toType (RFun _ t t' _)
-  = FunTy (toType t) (toType t')
+  = FunTy VisArg (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType (RAllT a t _) | RTV α <- ty_var_value a
-  = ForAllTy (TvBndr α Required) (toType t)
+  = ForAllTy (Bndr α Required) (toType t)
 toType (RAllP _ t)
   = toType t
 toType (RVar (RTV α) _)
@@ -1618,7 +1619,7 @@ typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce = go
   where
     go :: Type -> Sort
-    go t@(FunTy _ _)    = typeSortFun tce t
+    go t@(FunTy  _ _ _) = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)  
@@ -1673,7 +1674,7 @@ typeSortFun tce t = mkFFunc 0 sos
     τs            = grabArgs [] t
 
 grabArgs :: [Type] -> Type -> [Type]
-grabArgs τs (FunTy τ1 τ2)
+grabArgs τs (FunTy _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
   | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
@@ -1765,8 +1766,23 @@ that returns `True` for values (i.e. `Type`s) that print out as:
  and which is what `isEqualityConstr` below is doing, but alas it doesn't work.
 -}
 
+{- [NOTE: ghc810-compatibility]
+
+In GHC > 8.8 'isNomEqPred' is gone, but using it here in a disjunction doesn't
+buy us much, due to the way 'isEqPred' and 'isNomEqPred' are implemented:
+
+> isEqPred ty = case tyConAppTyCon_maybe ty of
+>     Just tyCon -> tyCon `hasKey` eqPrimTyConKey
+>                || tyCon `hasKey` eqReprPrimTyConKey
+>     _          -> False
+> 
+> isNomEqPred ty = case tyConAppTyCon_maybe ty of
+>     Just tyCon -> tyCon `hasKey` eqPrimTyConKey
+>     _          -> False
+
+-}
 isEqualityConstr :: SpecType -> Bool
-isEqualityConstr = (isEqPred  .||. isNomEqPred) . toType
+isEqualityConstr = isEqPred . toType
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------
@@ -1887,7 +1903,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
     goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
 
-    go pos (FunTy t1 t2)   = go (not pos) t1 ++ go pos t2
+    go pos (FunTy _ t1 t2) = go (not pos) t1 ++ go pos t2
     go pos (ForAllTy _ t)  = go pos t
     go pos (TyVarTy v)     = [(v, pos)]
     go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
@@ -1919,7 +1935,7 @@ dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon = dcs S.empty
   where
     dcs vis c               = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
-    go  vis (FunTy t1 t2)   = go vis t1 `S.union` go vis t2
+    go  vis (FunTy _ t1 t2) = go vis t1 `S.union` go vis t2
     go  vis (ForAllTy _ t)  = go vis t
     go  _   (TyVarTy _)     = S.empty
     go  vis (AppTy t1 t2)   = go vis t1 `S.union` go vis t2
