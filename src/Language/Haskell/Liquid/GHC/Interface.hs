@@ -22,6 +22,12 @@ module Language.Haskell.Liquid.GHC.Interface (
   -- * predicates
   -- , isExportedVar
   -- , exportedVars
+
+  -- * Internal exports (provisional)
+  , extractSpecComments
+  , extractSpecQuotes'
+  , makeLogicMap
+
   ) where
 
 import Prelude hiding (error)
@@ -377,19 +383,23 @@ processModules cfg logicMap tgtFiles depGraph homeModules = do
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
+  Debug.traceShow ("Module ==> " ++ show (moduleName $ ms_mod $ modSummary)) $ return ()
   let mod              = ms_mod modSummary
   -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
-  let specComments     = extractSpecComments parsed
+  let specComments     = extractSpecComments (pm_annotations parsed)
   typechecked         <- typecheckModule $ ignoreInline parsed
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
+  Debug.trace ("commSpec ==> " ++ show commSpec) $ return ()
   liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
+  Debug.trace ("liftedSpec ==> " ++ show liftedSpec) $ return ()
   let bareSpec         = updLiftedSpec commSpec liftedSpec
+  Debug.trace ("bareSpec ==> " ++ show bareSpec) $ return ()
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
@@ -616,12 +626,11 @@ getFamInstances env = do
 --------------------------------------------------------------------------------
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
-extractSpecComments :: ParsedModule -> [(SourcePos, String)]
+extractSpecComments :: ApiAnns -> [(SourcePos, String)]
 extractSpecComments = mapMaybe extractSpecComment
                     . concat
                     . M.elems
                     . snd
-                    . pm_annotations
 
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
@@ -641,16 +650,19 @@ extractSpecComment (GHC.L sp (AnnBlockComment text))
 extractSpecComment _ = Nothing
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
-extractSpecQuotes typechecked = mapMaybe extractSpecQuote anns
+extractSpecQuotes = 
+  extractSpecQuotes' (ms_mod . pm_mod_summary . tm_parsed_module) 
+                     (tcg_anns . fst . tm_internals_)
+
+extractSpecQuotes' :: (a -> Module) -> (a -> [Annotation]) -> a -> [BPspec]
+extractSpecQuotes' thisModule getAnns a = mapMaybe extractSpecQuote anns
   where
     anns = map ann_value $
            filter (isOurModTarget . ann_target) $
-           tcg_anns $ fst $ tm_internals_ typechecked
+           getAnns a
 
-    isOurModTarget (ModuleTarget mod1) = mod1 == mod
+    isOurModTarget (ModuleTarget mod1) = mod1 == thisModule a
     isOurModTarget _ = False
-
-    mod = ms_mod $ pm_mod_summary $ tm_parsed_module typechecked
 
 extractSpecQuote :: AnnPayload -> Maybe BPspec
 extractSpecQuote payload = 

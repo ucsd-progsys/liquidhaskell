@@ -49,7 +49,7 @@ import           Language.Fixpoint.Parse                hiding (stringLiteral, d
 
 import Control.Monad.State
 
--- import Debug.Trace
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Top Level Parsing API -----------------------------------------------------
@@ -63,7 +63,7 @@ hsSpecificationP :: ModuleName
                  -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
 -------------------------------------------------------------------------------
-hsSpecificationP modName specComments specQuotes =
+hsSpecificationP modName specComments specQuotes = traceShow specComments $ traceShow (pprintTidy Full specQuotes) $
   case go ([], []) initPStateWithList $ reverse specComments of
     ([], specs) ->
       Right $ mkSpec (ModName SrcImport modName) (specs ++ specQuotes)
