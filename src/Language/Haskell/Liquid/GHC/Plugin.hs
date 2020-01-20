@@ -5,34 +5,19 @@
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE PartialTypeSignatures      #-}
 {-# LANGUAGE ViewPatterns               #-}
 
-module Language.Haskell.Liquid.GHC.Interface (
+module Language.Haskell.Liquid.GHC.Plugin (
 
-  -- * Determine the build-order for target files
-   realTargets
-
-  -- * Extract all information needed for verification
-  , getGhcInfos
-  , runLiquidGhc
-
-  -- * Printer
-  , pprintCBs
-
-  -- * predicates
-  -- , isExportedVar
-  -- , exportedVars
+  -- * The Plugin
+  plugin
 
   -- * Internal exports (provisional)
   , extractSpecComments
   , extractSpecQuotes'
   , makeLogicMap
-  , classCons
-  , derivedVars
-  , importVars
-  , makeGhcSrc
-  , qImports
 
   ) where
 
@@ -43,6 +28,24 @@ import GHC hiding (Target, Located, desugarModule)
 import qualified GHC
 import GHC.Paths (libdir)
 import GHC.Serialized
+
+import Plugins as GHC
+import GHC.Hs as GHC
+import TcRnTypes as GHC
+import TcRnMonad as GHC
+import TcRnDriver as GHC
+import Finder as GHC
+import GHC.ThToHs as GHC
+import HscMain (hscGetModuleInterface)
+
+import qualified Language.Haskell.Liquid.GHC.Misc as LH
+import qualified Language.Haskell.Liquid.Parse as LH
+import qualified Language.Haskell.Liquid.UX.CmdLine as LH
+import qualified Language.Haskell.Liquid.UX.Config as LH
+import qualified Language.Haskell.Liquid.GHC.Interface as LH
+
+import Language.Haskell.Liquid.GHC.Plugin.Types
+import Language.Haskell.Liquid.GHC.Plugin.Util (partitionMaybe, findSpecComments)
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Annotations
@@ -59,11 +62,9 @@ import HscTypes hiding (Target)
 import IdInfo
 import InstEnv
 import Module
-import Panic (throwGhcExceptionIO)
--- import Serialized
+import Panic (throwGhcExceptionIO, throwGhcException)
 import TcRnTypes
 import Var
--- import NameSet
 import FastString
 import FamInstEnv
 import FamInst
@@ -74,6 +75,7 @@ import Control.Exception
 import Control.Monad
 
 import Data.Bifunctor
+import Data.Coerce
 import Data.Data
 import Data.List hiding (intersperse)
 import Data.Maybe
@@ -92,6 +94,8 @@ import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
+
+import qualified Language.Haskell.TH.Syntax as TH
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
@@ -101,8 +105,6 @@ import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
--- import Language.Haskell.Liquid.Types.PrettyPrint
--- import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
 import Language.Haskell.Liquid.UX.Config (totalityCheck)
 import Language.Haskell.Liquid.UX.QuasiQuoter
@@ -111,94 +113,162 @@ import Language.Fixpoint.Utils.Files
 
 import qualified Debug.Trace as Debug 
 
---------------------------------------------------------------------------------
-{- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to 
-     return a list of files
 
-       [i1, i2, ... ] ++ [f1, f2, ...]
+-- | Data which can be \"safely\" passed to the \"Core\" stage of the pipeline.
+-- The notion of \"safely\" here is a bit vague: things like imports are somewhat
+-- guaranteed not to change, but things like identifiers might, so they shouldn't
+-- land here.
+data TcStableData = TcStableData {
+  tcStableImports :: [LImportDecl GhcRn]
+}
 
-     1. Where each file only (transitively imports) PRECEDIING ones; 
-     2. `f1..` are a permutation of the original `targets`;
-     3. `i1..` either don't have "fresh" .bspec files. 
-
- -}
---------------------------------------------------------------------------------
-realTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
-realTargets  mbEnv cfg tgtFs 
-  | noCheckImports cfg = return tgtFs
-  | otherwise          = do 
-    incDir   <- Misc.getIncludeDir 
-    allFs    <- orderTargets mbEnv cfg tgtFs
-    let srcFs = filter (not . Misc.isIncludeFile incDir) allFs
-    realFs   <- filterM check srcFs
-    dir      <- getCurrentDirectory
-    return      (makeRelative dir <$> realFs)
-  where 
-    check f    = not <$> skipTarget tgts f 
-    tgts       = S.fromList tgtFs
-
-orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
-orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
-  homeModules <- configureGhcTargets tgtFiles
-  return         (modSummaryHsFile <$> mgModSummaries homeModules)
-
-
-skipTarget :: S.HashSet FilePath -> FilePath -> IO Bool
-skipTarget tgts f 
-  | S.member f tgts = return False          -- Always check target file 
-  | otherwise       = hasFreshBinSpec f     -- But skip an import with fresh .bspec
-
-hasFreshBinSpec :: FilePath -> IO Bool
-hasFreshBinSpec srcF = do 
-  let specF = extFileName BinSpec srcF
-  srcMb    <- Misc.lastModified srcF 
-  specMb   <- Misc.lastModified specF 
-  case (srcMb, specMb) of 
-    (Just srcT, Just specT) -> return (srcT < specT)
-    _                       -> return False
-
-
+-- | Constructs a 'TcStableData' out of a 'TcGblEnv'.
+mkTcStableData :: TcGblEnv -> TcStableData
+mkTcStableData tcGblEnv = TcStableData {
+  tcStableImports = tcg_rn_imports tcGblEnv
+  }
 
 --------------------------------------------------------------------------------
--- | GHC Interface Pipeline ----------------------------------------------------
+-- | The Plugin entrypoint ------------------------------------------------------
+---------------------------------------------------------------------------------
+
+plugin :: GHC.Plugin 
+plugin = GHC.defaultPlugin {
+    parsedResultAction = parseHook
+  , typeCheckResultAction = typecheckHook
+  , installCoreToDos = coreHook
+  , dynflagsPlugin = customHooks
+  , pluginRecompile = \_ -> pure NoForceRecompile
+  , interfaceLoadAction = loadInterfaceHook
+  }
+
+-- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
+-- lexer not to throw away block comments, as this is where the LH spec comments
+-- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
+customHooks :: [CommandLineOption] -> DynFlags -> IO DynFlags
+customHooks opts dflags = return $ gopt_set dflags Opt_KeepRawTokenStream
+
+--
+-- Parsing phase
+--
+
+-- | Hook into the parsing phase and extract \"LiquidHaskell\"'s spec comments, turning them into
+-- module declarations (i.e. 'LhsDecl GhcPs') which can be later be consumed in the typechecking phase.
+-- The goal for this phase is /not/ to turn spec comments into a fully-fledged data structure, but rather
+-- carry those string fragments (together with their 'SourcePos') into the next phase.
+parseHook :: [CommandLineOption] 
+          -> ModSummary 
+          -> HsParsedModule 
+          -> Hsc HsParsedModule
+parseHook opts modSummary parsedModule = do
+  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
+  liftIO $ putStrLn $ "extractSpecComments ==> " ++ show comments
+
+  commentsExps <- mapM (liftIO . TH.runQ . TH.liftData . SpecComment) comments
+
+  let module' = parsedModule { 
+      hpm_module = 
+          fmap (specCommentsToModuleAnnotations (zip comments commentsExps)) 
+               (hpm_module parsedModule) 
+  }
+  pure module'
+
+specCommentsToModuleAnnotations :: [((SourcePos, String), TH.Exp)] 
+                                -> HsModule GhcPs 
+                                -> HsModule GhcPs
+specCommentsToModuleAnnotations comments m = 
+  m { hsmodDecls = map toAnnotation comments ++ hsmodDecls m }
+  where
+    toAnnotation :: ((SourcePos, String), TH.Exp) -> LHsDecl GhcPs
+    toAnnotation ((pos, specContent), expr) = 
+        let located = GHC.L (LH.sourcePosSrcSpan pos)
+            hsExpr = either (throwGhcException . ProgramError . O.showSDocUnsafe) id $ 
+                       convertToHsExpr (LH.sourcePosSrcSpan pos) expr
+            annDecl = HsAnnotation @GhcPs noExtField Ghc.NoSourceText ModuleAnnProvenance hsExpr
+        in located $ AnnD noExtField annDecl
+
+--
+-- Typechecking phase
+--
+
+-- | Currently we don't do anything in this phase.
+typecheckHook :: [CommandLineOption] 
+              -> ModSummary 
+              -> TcGblEnv 
+              -> TcM TcGblEnv
+typecheckHook opts modSummary tcGblEnv = do
+  -- let stableData = mkTcStableData tcGblEnv
+  -- writeIORef stableDataRef stableData
+  pure tcGblEnv
+
+--
+-- Core phase
+--
+
+coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
+coreHook opts passes = do
+  cfg <- liftIO $ LH.getOpts opts
+  pure (CoreDoPluginPass "Language.Haskell.Liquid.GHC.Plugin" (liquidHaskellPass cfg) : passes)
+
+-- | Calls into LiquidHaskell's GHC API to transform the 'Core'.
+liquidHaskellPass :: LH.Config -> ModGuts -> CoreM ModGuts
+liquidHaskellPass cfg modGuts = do
+  dynFlags <- getDynFlags
+  -- Generate the bare-specs. Here we call 'findSpecComments' which is what allows us to
+  -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
+  let (guts', specComments) = findSpecComments modGuts
+  let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
+  (modName, commSpec) <- either (throwGhcException . ProgramError . show) return $ 
+    LH.hsSpecificationP (moduleName $ mg_module guts') (coerce specComments) specQuotes
+
+  env <- getHscEnv
+  logicMap <- liftIO $ LH.makeLogicMap
+  let modGraph = hsc_mod_graph env
+
+  pure guts'
+
+--
+-- Interface phase
+--
+-- This allows us to modify an interface that have been loaded.
+--
+
+loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
+loadInterfaceHook opts iface = do
+    liftIO $ print $ moduleName $ mi_module iface
+    pure iface
+
+--------------------------------------------------------------------------------
+-- | GHC Plugin Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-getGhcInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
-getGhcInfos hscEnv cfg tgtFiles' = do
-  tgtFiles <- mapM canonicalizePath tgtFiles'
-  _        <- mapM checkFilePresent tgtFiles
-  _        <- mapM_ createTempDirectoryIfMissing tgtFiles
-  logicMap <- liftIO makeLogicMap
-  runLiquidGhc hscEnv cfg (getGhcInfos' cfg logicMap tgtFiles)
-
-checkFilePresent :: FilePath -> IO ()
-checkFilePresent f = do
-  b <- doesFileExist f
-  unless b $ panic Nothing ("Cannot find file: " ++ f)
-
-getGhcInfos' :: Config -> LogicMap -> [FilePath] -> Ghc ([GhcInfo], HscEnv)
-getGhcInfos' cfg logicMap tgtFiles = do
-  _           <- compileCFiles cfg
-  homeModules <- configureGhcTargets tgtFiles
-  depGraph    <- buildDepGraph homeModules
-  ghcInfos    <- processModules cfg logicMap tgtFiles depGraph homeModules
-  hscEnv      <- getSession
-  return (ghcInfos, hscEnv)
-
-createTempDirectoryIfMissing :: FilePath -> IO ()
-createTempDirectoryIfMissing tgtFile = Misc.tryIgnore "create temp directory" $
-  createDirectoryIfMissing False $ tempDirectory tgtFile
+--getGhcInfos :: TcStableData -> Config -> [FilePath] -> CoreM [GhcInfo]
+--getGhcInfos tcStableData cfg tgtFiles' = do
+--  tgtFiles <- liftIO $ mapM canonicalizePath tgtFiles'
+--  _        <- liftIO $ mapM checkFilePresent tgtFiles
+--  _        <- liftIO $ mapM_ createTempDirectoryIfMissing tgtFiles
+--  logicMap <- liftIO makeLogicMap
+--  getGhcInfos' tcStableData cfg logicMap tgtFiles
+--
+--checkFilePresent :: FilePath -> IO ()
+--checkFilePresent f = do
+--  b <- doesFileExist f
+--  unless b $ panic Nothing ("Cannot find file: " ++ f)
+--
+--getGhcInfos' :: TcStableData -> Config -> LogicMap -> [FilePath] -> CoreM [GhcInfo]
+--getGhcInfos' tcStableData cfg logicMap tgtFiles = do
+--  homeModules <- configureGhcTargets tgtFiles
+--  depGraph    <- buildDepGraph homeModules
+--  ghcInfos    <- processModules tcStableData cfg logicMap tgtFiles depGraph homeModules
+--  return ghcInfos
+--
+--createTempDirectoryIfMissing :: FilePath -> IO ()
+--createTempDirectoryIfMissing tgtFile = Misc.tryIgnore "create temp directory" $
+--  createDirectoryIfMissing False $ tempDirectory tgtFile
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
-runLiquidGhc :: Maybe HscEnv -> Config -> Ghc a -> IO a
-runLiquidGhc hscEnv cfg act =
-  withSystemTempDirectory "liquid" $ \tmp ->
-    runGhc (Just libdir) $ do
-      maybe (return ()) setSession hscEnv
-      df <- configureDynFlags cfg tmp
-      prettyPrintGhcErrors df act
 
 updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
 updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
@@ -324,92 +394,47 @@ importDeclModule fromMod (pkgQual, locModName) = do
         O.showSDoc dflags (cannotFindModule dflags modName result)
 
 --------------------------------------------------------------------------------
--- | Extract Ids ---------------------------------------------------------------
---------------------------------------------------------------------------------
-
-classCons :: Maybe [ClsInst] -> [Id]
-classCons Nothing   = []
-classCons (Just cs) = concatMap (dataConImplicitIds . head . tyConDataCons . classTyCon . is_cls) cs
-
-derivedVars :: Config -> MGIModGuts -> [Var]  
-derivedVars cfg mg  = concatMap (dFunIdVars cbs . is_dfun) derInsts 
-  where 
-    derInsts        
-      | checkDer    = insts 
-      | otherwise   = filter isDerivedInstance insts
-    insts           = mgClsInstances mg 
-    checkDer        = checkDerived cfg
-    cbs             = mgi_binds mg
-               
-
-mgClsInstances :: MGIModGuts -> [ClsInst]
-mgClsInstances = fromMaybe [] . mgi_cls_inst 
-
-dFunIdVars :: CoreProgram -> DFunId -> [Id]
-dFunIdVars cbs fd  = notracepp msg $ concatMap bindersOf cbs' ++ deps
-  where
-    msg            = "DERIVED-VARS-OF: " ++ showpp fd
-    cbs'           = filter f cbs
-    f (NonRec x _) = eqFd x
-    f (Rec xes)    = any eqFd (fst <$> xes)
-    eqFd x         = varName x == varName fd
-    deps           = concatMap unfoldDep unfolds
-    unfolds        = unfoldingInfo . idInfo <$> concatMap bindersOf cbs'
-
-unfoldDep :: Unfolding -> [Id]
-unfoldDep (DFunUnfolding _ _ e)       = concatMap exprDep e
-unfoldDep CoreUnfolding {uf_tmpl = e} = exprDep e
-unfoldDep _                           = []
-
-exprDep :: CoreExpr -> [Id]
-exprDep = freeVars S.empty
-
-importVars :: CoreProgram -> [Id]
-importVars = freeVars S.empty
-
-_definedVars :: CoreProgram -> [Id]
-_definedVars = concatMap defs
-  where
-    defs (NonRec x _) = [x]
-    defs (Rec xes)    = map fst xes
-
---------------------------------------------------------------------------------
 -- | Per-Module Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
 type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 
-processModules :: Config -> LogicMap -> [FilePath] -> DepGraph -> ModuleGraph -> Ghc [GhcInfo]
-processModules cfg logicMap tgtFiles depGraph homeModules = do
-  -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
-  catMaybes . snd <$> Misc.mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
-  where                                             
-    go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
+--processModules :: TcStableData
+--               -> Config 
+--               -> LogicMap 
+--               -> [FilePath] 
+--               -> DepGraph 
+--               -> ModuleGraph 
+--               -> CoreM [GhcInfo]
+--processModules tcStableData cfg logicMap tgtFiles depGraph homeModules = do
+--  -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
+--  catMaybes . snd <$> Misc.mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
+--  where
+--    go = processModule tcStableData cfg logicMap (S.fromList tgtFiles) depGraph
 
-processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
-              -> Ghc (SpecEnv, Maybe GhcInfo)
-processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
+processModule :: Config
+              -> LogicMap
+              -> S.HashSet FilePath
+              -> DepGraph
+              -> SpecEnv
+              -> ModSummary
+              -> TcStableData
+              -> ModGuts
+              -> [SpecComment]
+              -> [BPspec]
+              -> CoreM (SpecEnv, Maybe GhcInfo)
+processModule cfg logicMap tgtFiles depGraph specEnv modSummary tcStableData modGuts specComments specQuotes = do
   Debug.traceShow ("Module ==> " ++ show (moduleName $ ms_mod $ modSummary)) $ return ()
   let mod              = ms_mod modSummary
-  -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
   let isTarget         = file `S.member` tgtFiles
-  _                   <- loadDependenciesOf $ moduleName mod
-  parsed              <- parseModule $ keepRawTokenStream modSummary
-  let specComments     = extractSpecComments (pm_annotations parsed)
-  typechecked         <- typecheckModule $ ignoreInline parsed
-  let specQuotes       = extractSpecQuotes typechecked
-  _                   <- loadModule' typechecked
-  (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  Debug.trace ("commSpec ==> " ++ show commSpec) $ return ()
+  (modName, commSpec) <- either throw return $ 
+    hsSpecificationP (moduleName $ mg_module modGuts) (coerce specComments) specQuotes
   liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
-  Debug.trace ("liftedSpec ==> " ++ show liftedSpec) $ return ()
   let bareSpec         = updLiftedSpec commSpec liftedSpec
-  Debug.trace ("bareSpec ==> " ++ show bareSpec) $ return ()
-  _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
-                     then Just <$> processTargetModule cfg logicMap depGraph specEnv file typechecked bareSpec
+                     then Just <$> processTargetModule cfg logicMap depGraph specEnv file tcStableData modGuts bareSpec
                      else return Nothing
 
 updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
@@ -422,100 +447,74 @@ keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
   { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
 
-loadDependenciesOf :: ModuleName -> Ghc ()
-loadDependenciesOf modName = do
-  loadResult <- load $ LoadDependenciesOf modName
-  when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
-   "Failed to load dependencies of module " ++ showPpr modName
-
-loadModule' :: TypecheckedModule -> Ghc TypecheckedModule
-loadModule' tm = loadModule tm'
-  where
-    pm   = tm_parsed_module tm
-    ms   = pm_mod_summary pm
-    df   = ms_hspp_opts ms
-    df'  = df { hscTarget = HscNothing, ghcLink = NoLink }
-    ms'  = ms { ms_hspp_opts = df' }
-    pm'  = pm { pm_mod_summary = ms' }
-    tm'  = tm { tm_parsed_module = pm' }
-
-
-processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
-                    -> Ghc GhcInfo
-processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
+processTargetModule :: Config 
+                    -> LogicMap 
+                    -> DepGraph 
+                    -> SpecEnv 
+                    -> FilePath 
+                    -> TcStableData
+                    -> ModGuts
+                    -> Ms.BareSpec
+                    -> CoreM GhcInfo
+processTargetModule cfg0 logicMap depGraph specEnv file tcStableData modGuts bareSpec = do
+  hscEnv     <- getHscEnv
   cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  let modSum  = pm_mod_summary (tm_parsed_module typechecked)
-  ghcSrc     <- makeGhcSrc    cfg file     typechecked modSum
-  bareSpecs  <- makeBareSpecs cfg depGraph specEnv     modSum bareSpec
-  let ghcSpec = makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs  
-  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec 
+  ghcSrc     <- liftIO $ makeGhcSrc cfg file tcStableData modGuts hscEnv
+  bareSpecs  <- makeBareSpecs' cfg depGraph specEnv modGuts bareSpec
+  let ghcSpec = makeGhcSpec    cfg ghcSrc   logicMap        bareSpecs
+  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec -- TODO(and) Persist as an annotation in the interface.
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
 ---------------------------------------------------------------------------------------
 
-makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
-makeGhcSrc cfg file typechecked modSum = do
-  desugared         <- desugarModule  typechecked
-  let modGuts        = makeMGIModGuts (coreModule desugared)
-  let modGuts'       = dm_core_module desugared
-  hscEnv            <- getSession
-  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
-  _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
-  let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-  (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
-  things            <- lookupTyThings hscEnv typechecked modGuts 
-  let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
-  incDir            <- liftIO $ Misc.getIncludeDir
-  return $ Src 
-    { giIncDir    = incDir 
+makeGhcSrc :: Config
+           -> FilePath 
+           -> TcStableData
+           -> ModGuts
+           -> HscEnv
+           -> IO GhcSrc
+makeGhcSrc cfg file tcStableData modGuts hscEnv = do
+  let mgiModGuts    = makeMGIModGuts modGuts
+  coreBinds         <- anormalize cfg hscEnv modGuts
+  let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
+  (fiTcs, fiDcs)    <- makeFamInstEnv hscEnv
+  things            <- lookupTyThings' hscEnv mgiModGuts
+  let impVars        = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
+  incDir            <- Misc.getIncludeDir
+  return $ Src
+    { giIncDir    = incDir
     , giTarget    = file
-    , giTargetMod = ModName Target (moduleName (ms_mod modSum))
+    , giTargetMod = ModName Target (moduleName (mg_module modGuts))
     , giCbs       = coreBinds
-    , giImpVars   = impVars 
-    , giDefVars   = dataCons ++ (letVars coreBinds) 
+    , giImpVars   = impVars
+    , giDefVars   = dataCons ++ (letVars coreBinds)
     , giUseVars   = readVars coreBinds
-    , giDerVars   = S.fromList (derivedVars cfg modGuts) 
-    , gsExports   = mgi_exports  modGuts 
-    , gsTcs       = mgi_tcs      modGuts
-    , gsCls       = mgi_cls_inst modGuts 
-    , gsFiTcs     = fiTcs 
+    , giDerVars   = S.fromList (LH.derivedVars cfg mgiModGuts)
+    , gsExports   = mgi_exports  mgiModGuts
+    , gsTcs       = mgi_tcs      mgiModGuts
+    , gsCls       = mgi_cls_inst mgiModGuts
+    , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
-    , gsQualImps  = qualifiedImports typechecked 
-    , gsAllImps   = allImports       typechecked
-    , gsTyThings  = [ t | (_, Just t) <- things ] 
+    , gsQualImps  = qualifiedImports' tcStableData
+    , gsAllImps   = allImports'       tcStableData
+    , gsTyThings  = [ t | (_, Just t) <- things ]
     }
 
-_impThings :: [Var] -> [TyThing] -> [TyThing]
-_impThings vars  = filter ok
-  where
-    vs          = S.fromList vars 
-    ok (AnId x) = S.member x vs  
-    ok _        = True 
+allImports' :: TcStableData -> S.HashSet Symbol 
+allImports' tcStableData =
+  S.fromList (symbol . unLoc . ideclName . unLoc <$> tcStableImports tcStableData) 
 
-allImports :: TypecheckedModule -> S.HashSet Symbol 
-allImports tm = case tm_renamed_source tm of 
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
-  Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps) 
-
-qualifiedImports :: TypecheckedModule -> QImports 
-qualifiedImports tm = case tm_renamed_source tm of 
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
-  Just (_,imps,_,_) -> qImports [ (qn, n) | i         <- imps
-                                          , let decl   = unLoc i
-                                          , let m      = unLoc (ideclName decl)  
-                                          , qm        <- maybeToList (unLoc <$> ideclAs decl) 
-                                          , let [n,qn] = symbol <$> [m, qm] 
-                                          ]
-
-qImports :: [(Symbol, Symbol)] -> QImports 
-qImports qns  = QImports 
-  { qiNames   = Misc.group qns 
-  , qiModules = S.fromList (snd <$> qns) 
-  }
-
+qualifiedImports' :: TcStableData -> QImports 
+qualifiedImports' (tcStableImports -> imps) =
+  LH.qImports [ (qn, n) | i         <- imps
+                        , let decl   = unLoc i
+                        , let m      = unLoc (ideclName decl)  
+                        , qm        <- maybeToList (unLoc <$> ideclAs decl) 
+                        , let [n,qn] = symbol <$> [m, qm] 
+                        ]
 
 ---------------------------------------------------------------------------------------
 -- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC 
@@ -533,36 +532,12 @@ lookupTyThings hscEnv tcm mg =
     where 
       mi = tm_checked_module_info tcm
 
--- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
--- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
--- modInfoLookupName :: GhcMonad m => ModuleInfo -> Name -> m (Maybe TyThing)  
--- lookupGlobalName  :: GhcMonad m => Name -> m (Maybe TyThing)  
-
-_dumpTypeEnv :: TypecheckedModule -> IO () 
-_dumpTypeEnv tm = do 
-  print "DUMP-TYPE-ENV"
-  print (showpp <$> tcmTyThings tm)
-
-tcmTyThings :: TypecheckedModule -> Maybe [Name] 
-tcmTyThings 
-  = id 
-  -- typeEnvElts 
-  -- . tcg_type_env . fst 
-  -- . md_types . snd
-  -- . tm_internals_
-  . modInfoTopLevelScope
-  . tm_checked_module_info
-
-
-_dumpRdrEnv :: HscEnv -> MGIModGuts -> IO () 
-_dumpRdrEnv _hscEnv modGuts = do 
-  print "DUMP-RDR-ENV" 
-  print (mgNames modGuts)
-  -- print (hscNames hscEnv) 
-  -- print (mgDeps modGuts) 
-  where 
-    _mgDeps   = Ghc.dep_mods . mgi_deps 
-    _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
+lookupTyThings' :: HscEnv -> MGIModGuts -> IO [(Name, Maybe TyThing)] 
+lookupTyThings' hscEnv mg =
+  forM (mgNames mg) $ \n -> do 
+    -- TODO: lookup in the current module
+    mbTy <- lookupTypeHscEnv hscEnv n
+    return (n, mbTy)
 
 mgNames :: MGIModGuts -> [Ghc.Name] 
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
@@ -570,7 +545,11 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
-makeBareSpecs :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
+makeBareSpecs :: Config 
+              -> DepGraph 
+              -> SpecEnv 
+              -> ModSummary 
+              -> Ms.BareSpec 
               -> Ghc [(ModName, Ms.BareSpec)]
 makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do 
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
@@ -581,6 +560,15 @@ makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do
   let impSpecs  = specSpecs ++ homeSpecs
   let tgtMod    = ModName Target (moduleName (ms_mod modSum))
   return        $ (tgtMod, tgtSpec) : impSpecs
+
+-- This will use annotations to return the specs.
+makeBareSpecs' :: Config 
+               -> DepGraph 
+               -> SpecEnv 
+               -> ModGuts
+               -> Ms.BareSpec 
+               -> CoreM [(ModName, Ms.BareSpec)]
+makeBareSpecs' cfg depGraph specEnv modGuts tgtSpec = pure mempty -- TODO(adn) Implement this.
 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
@@ -595,19 +583,6 @@ cachedBareSpecs specEnv mods = lookupBareSpec <$> mods
   where
     lookupBareSpec m         = fromMaybe (err m) (lookupModuleEnv specEnv m)
     err m                    = impossible Nothing ("lookupBareSpec: missing module " ++ showPpr m)
-
-checkFilePragmas :: [Located String] -> Ghc ()
-checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
-  where
-    err pragma
-      | check (val pragma) = Just (ErrFilePragma $ fSrcSpan pragma :: Error)
-      | otherwise          = Nothing
-    check pragma           = any (`isPrefixOf` pragma) bad
-    bad =
-      [ "-i", "--idirs"
-      , "-g", "--ghc-option"
-      , "--c-files", "--cfiles"
-      ]
 
 --------------------------------------------------------------------------------
 -- | Family instance information
@@ -694,11 +669,6 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
   fs'      <- moduleFiles Spec paths imps
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-imps  : "  ++ show imps)
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-Paths : "  ++ show paths)
-  -- liftIO  $ whenLoud  $ print ("moduleFiles-Specs : "  ++ show fs')
   patSpec  <- getPatSpec paths  $ totalityCheck cfg
   rlSpec   <- getRealSpec paths $ not (linear cfg)
   let fs    = patSpec ++ rlSpec ++ fs'
@@ -728,7 +698,6 @@ transParseSpecs :: [FilePath]
                 -> Ghc [(ModName, Ms.BareSpec)]
 transParseSpecs _ _ specs [] = return specs
 transParseSpecs paths seenFiles specs newFiles = do
-  -- liftIO $ print ("TRANS-PARSE-SPECS", seenFiles, newFiles)
   newSpecs      <- liftIO $ mapM parseSpecFile newFiles
   impFiles      <- moduleFiles Spec paths $ specsImports newSpecs
   let seenFiles' = seenFiles `S.union` S.fromList newFiles
@@ -744,20 +713,6 @@ noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
 parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
 parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayReadFile file
 
--- Find Hquals Files -----------------------------------------------------------
-
-_moduleHquals :: MGIModGuts
-             -> [FilePath]
-             -> FilePath
-             -> [String]
-             -> [FilePath]
-             -> Ghc [FilePath]
-_moduleHquals mgi paths target imps incs = do
-  hqs   <- specIncludes Hquals paths incs
-  hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
-  hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
-  return $ Misc.sortNub $ hqs'' ++ hqs ++ hqs'
-
 -- Find Files for Modules ------------------------------------------------------
 
 moduleFiles :: Ext -> [FilePath] -> [String] -> Ghc [FilePath]
@@ -772,21 +727,6 @@ moduleFile ext paths name
       Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
       Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise = liftIO $ getFileInDirs (extModuleName name ext) paths
-
-specIncludes :: Ext -> [FilePath] -> [FilePath] -> Ghc [FilePath]
-specIncludes ext paths reqs = do
-  let libFile = extFileNameR ext $ symbolString preludeName
-  let incFiles = catMaybes $ reqFile ext <$> reqs
-  liftIO $ forM (libFile : incFiles) $ \f -> do
-    mfile <- getFileInDirs f paths
-    case mfile of
-      Just file -> return file
-      Nothing   -> panic Nothing $ "cannot find " ++ f ++ " in " ++ show paths
-
-reqFile :: Ext -> FilePath -> Maybe FilePath
-reqFile ext s
-  | isExtFile ext s = Just s
-  | otherwise = Nothing
 
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------
@@ -814,60 +754,3 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
     hNil  = mkEApp (dcSym Ghc.nilDataCon ) []
     hCons = mkEApp (dcSym Ghc.consDataCon)
     dcSym = dummyLoc . dropModuleUnique . symbol
-
-
-
---------------------------------------------------------------------------------
--- | Pretty Printing -----------------------------------------------------------
---------------------------------------------------------------------------------
-
-instance PPrint GhcSpec where
-  pprintTidy k spec = vcat
-    [ "******* Target Variables ********************"
-    , pprintTidy k $ gsTgtVars (gsVars spec)
-    , "******* Type Signatures *********************"
-    , pprintLongList k (gsTySigs (gsSig spec))
-    , "******* Assumed Type Signatures *************"
-    , pprintLongList k (gsAsmSigs (gsSig spec))
-    , "******* DataCon Specifications (Measure) ****"
-    , pprintLongList k (gsCtors (gsData spec))
-    , "******* Measure Specifications **************"
-    , pprintLongList k (gsMeas (gsData spec))       ]
-
-instance PPrint GhcInfo where
-  pprintTidy k info = vcat
-    [ -- "*************** Imports *********************"
-      -- , intersperse comma $ text <$> imports info
-      -- , "*************** Includes ********************"
-      -- , intersperse comma $ text <$> includes info
-      "*************** Imported Variables **********"
-    , pprDoc $ giImpVars (giSrc info)
-    , "*************** Defined Variables ***********"
-    , pprDoc $ giDefVars (giSrc info)
-    , "*************** Specification ***************"
-    , pprintTidy k $ giSpec info
-    , "*************** Core Bindings ***************"
-    , pprintCBs $ giCbs (giSrc info)                ]
-
--- RJ: the silly guards below are to silence the unused-var checker
-pprintCBs :: [CoreBind] -> Doc
-pprintCBs
-  | otherwise = pprintCBsTidy
-  | otherwise = pprintCBsVerbose
-  where
-    pprintCBsTidy    = pprDoc . tidyCBs
-    pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
-
-instance Show GhcInfo where
-  show = showpp
-
-instance PPrint TargetVars where
-  pprintTidy _ AllVars   = text "All Variables"
-  pprintTidy k (Only vs) = text "Only Variables: " <+> pprintTidy k vs
-
-------------------------------------------------------------------------
--- Dealing with Errors ---------------------------------------------------
-------------------------------------------------------------------------
-
-instance Result SourceError where
-  result = (`Crash` "Invalid Source") . sourceErrors ""
