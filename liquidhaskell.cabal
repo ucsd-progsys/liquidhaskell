@@ -105,6 +105,9 @@ library
                       Language.Haskell.Liquid.Foreign
                       Language.Haskell.Liquid.GHC.API
                       Language.Haskell.Liquid.GHC.Interface
+                      Language.Haskell.Liquid.GHC.Plugin
+                      Language.Haskell.Liquid.GHC.Plugin.Types
+                      Language.Haskell.Liquid.GHC.Plugin.Util
                       Language.Haskell.Liquid.GHC.Misc
                       Language.Haskell.Liquid.GHC.Play
                       Language.Haskell.Liquid.GHC.Resugar

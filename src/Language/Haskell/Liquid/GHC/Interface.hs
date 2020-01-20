@@ -6,6 +6,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PartialTypeSignatures      #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
 
@@ -27,6 +28,11 @@ module Language.Haskell.Liquid.GHC.Interface (
   , extractSpecComments
   , extractSpecQuotes'
   , makeLogicMap
+  , classCons
+  , derivedVars
+  , importVars
+  , makeGhcSrc
+  , qImports
 
   ) where
 
@@ -476,18 +482,14 @@ makeGhcSrc cfg file typechecked originalModSum = do
   let typechecked'   = typechecked { tm_parsed_module = parsedMod' }
   desugared         <- desugarModule  typechecked'
 
-  let modGuts        = makeMGIModGuts desugared   
+  let modGuts        = makeMGIModGuts (coreModule desugared)
   let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
-  -- _                 <- liftIO $ whenLoud $ dumpRdrEnv hscEnv modGuts
-  -- _                 <- liftIO $ whenLoud $ dumpTypeEnv typechecked 
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-  -- let defVs          = definedVars coreBinds
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
   things            <- lookupTyThings hscEnv typechecked modGuts 
-  -- _                 <- liftIO $ print (showpp things)
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src 
@@ -507,10 +509,9 @@ makeGhcSrc cfg file typechecked originalModSum = do
     , _gsPrimTcs   = TysPrim.primTyCons
     , _gsQualImps  = qualifiedImports typechecked 
     , _gsAllImps   = allImports       typechecked
-    , _gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
+    , _gsTyThings  = [ t | (_, Just t) <- things ] 
     }
 
-    
 _impThings :: [Var] -> [TyThing] -> [TyThing]
 _impThings vars  = filter ok
   where
@@ -838,10 +839,9 @@ reqFile ext s
 -- Assemble Information for Spec Extraction ------------------------------------
 --------------------------------------------------------------------------------
 
-makeMGIModGuts :: DesugaredModule -> MGIModGuts
-makeMGIModGuts desugared = miModGuts deriv modGuts
+makeMGIModGuts :: ModGuts -> MGIModGuts
+makeMGIModGuts modGuts = miModGuts deriv modGuts
   where
-    modGuts = coreModule desugared
     deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
 makeLogicMap :: IO LogicMap
