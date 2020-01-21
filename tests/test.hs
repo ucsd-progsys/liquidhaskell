@@ -3,6 +3,7 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -23,6 +24,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..), (<>))
 import Data.Proxy
 import Data.String
+import Data.String.Conv
 import Data.Tagged
 import Data.Typeable
 -- import Data.List (sort, reverse)
@@ -37,6 +39,7 @@ import System.IO
 import System.IO.Error
 import System.Process
 import Test.Tasty
+import Test.Tasty.Golden
 import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
@@ -76,6 +79,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                             errorTests  : 
                             macroTests  :
                             proverTests :
+                            goldenTests :
                             benchTests  : 
                             []
                            
@@ -218,6 +222,19 @@ macroTests = group "Macro"
    [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
    , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
    ] 
+
+goldenTests :: IO TestTree
+goldenTests = group "Golden tests"
+   [ pure $ goldenTest "--json output" "tests/golden" "json_output" [LO "--json"]
+   ] 
+
+goldenTest :: TestName -> FilePath -> FilePath -> [LiquidOpts] -> TestTree
+goldenTest testName dir filePrefix testOpts =
+  askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) ->
+    goldenVsString testName
+                   (dir </> filePrefix <> ".golden") 
+                   (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) dir (filePrefix <> ".hs"))
+
 
 microTests :: IO TestTree
 microTests = group "Micro"
@@ -457,23 +474,31 @@ mkTest ec dir file
       then do
         printf "%s is known to fail with %s: SKIPPING" test (show smt)
         assertEqual "" True True
-      else do
-        createDirectoryIfMissing True $ takeDirectory log
-        let bin = "stack exec -- liquid" -- binPath "liquid"
-        hSetBuffering stdout LineBuffering -- or even NoBuffering
-        withFile log WriteMode $ \h -> do
-          let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
-          -- let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) $ mappend "-v" opts
-          (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
-          c          <- waitForProcess ph
-          ecAssert ec c =<< T.readFile log
-          -- renameFile log $ log <.> (if code == c then "pass" else "fail")
-          -- if c == ExitFailure 137
-            -- then printf "WARNING: possible OOM while testing %s: IGNORING" test
-            -- else assertEqual "Wrong exit code" code c
+      else runLiquidOn smt opts dir file >>= uncurry (ecAssert ec)
+  where
+    test = dir </> file
+
+
+--------------------------------------------------------------------------------
+runLiquidOn :: SmtSolver 
+            -> LiquidOpts 
+            -> FilePath
+            -> FilePath 
+            -> IO (ExitCode, T.Text)
+--------------------------------------------------------------------------------
+runLiquidOn smt opts dir file = do
+  createDirectoryIfMissing True $ takeDirectory log
+  let bin = "stack exec -- liquid"
+  hSetBuffering stdout LineBuffering
+  withFile log WriteMode $ \h -> do
+    let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
+    (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
+    exitCode   <- waitForProcess ph
+    (exitCode,) <$> T.readFile log
   where
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
+
 
 binPath :: FilePath -> IO FilePath
 binPath pkgName = (</> pkgName) <$> getBinDir
