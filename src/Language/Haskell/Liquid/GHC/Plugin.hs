@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
@@ -35,6 +36,7 @@ import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine as LH
 import qualified Language.Haskell.Liquid.UX.Config as LH
 import qualified Language.Haskell.Liquid.GHC.Interface as LH
+import qualified Language.Haskell.Liquid.Liquid as LH
 
 import Language.Haskell.Liquid.GHC.Plugin.Types (SpecComment(..), TcStableData, mkTcStableData, tcStableImports)
 import Language.Haskell.Liquid.GHC.Plugin.Util as Util
@@ -131,7 +133,10 @@ plugin = GHC.defaultPlugin {
 -- lexer not to throw away block comments, as this is where the LH spec comments
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
 customHooks :: [CommandLineOption] -> DynFlags -> IO DynFlags
-customHooks opts dflags = return $ gopt_set dflags Opt_KeepRawTokenStream
+customHooks opts dflags = do
+  cfg <- liftIO $ LH.getOpts opts
+  dflags' <- configureDynFlags cfg dflags
+  return $ gopt_set dflags' Opt_KeepRawTokenStream
 
 --
 -- Parsing phase
@@ -234,7 +239,14 @@ liquidHaskellPass cfg modGuts = do
      -- Call into the interface
      thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
 
-     ghcInfo  <- processModule lhModGuts (S.singleton thisFile) emptyModuleEnv specComments specQuotes
+     (_, mbGhcInfo) <- processModule lhModGuts (S.singleton thisFile) emptyModuleEnv specComments specQuotes
+     case mbGhcInfo of
+       Just info -> do
+         res <- liftIO $ LH.liquidOne info
+         case o_result res of
+           Safe -> pure ()
+           _    -> pluginAbort dynFlags (O.text "Unsafe.")
+       Nothing   -> pure ()
 
      pure guts'
 
@@ -250,12 +262,14 @@ data LiquidHaskellModGuts = LiquidHaskellModGuts {
 --
 -- Interface phase
 --
--- This allows us to modify an interface that have been loaded.
+-- This allows us to modify an interface that have been loaded. This is crucial to find
+-- specs which has been already extracted and processed, because the plugin architecture will
+-- call this for dependencies /before/ entering the /Core/ pipeline for the module being compiled.
 --
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook opts iface = do
-    liftIO $ print $ moduleName $ mi_module iface
+    liftIO $ print $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
     pure iface
 
 --------------------------------------------------------------------------------
@@ -265,39 +279,23 @@ loadInterfaceHook opts iface = do
 updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
 updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
 
-configureDynFlags :: Config -> FilePath -> Ghc DynFlags
-configureDynFlags cfg tmp = do
-  df <- getSessionDynFlags
+configureDynFlags :: Config -> DynFlags -> IO DynFlags
+configureDynFlags cfg df = do
   (df',_,_) <- parseDynamicFlags df $ map noLoc $ ghcOptions cfg
-  loud <- liftIO isLoud
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
-                 , includePaths = updateIncludePaths df' (idirs cfg) -- addGlobalInclude (includePaths df') (idirs cfg) 
+                 , includePaths = updateIncludePaths df' (idirs cfg)
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
                                 : (packageFlags df')
 
-                 , debugLevel   = 1               -- insert SourceNotes
-                 -- , profAuto     = ProfAutoCalls
-                 , ghcLink      = LinkInMemory
-                 , hscTarget    = HscInterpreted
-                 , ghcMode      = CompManager
-                 -- prevent GHC from printing anything, unless in Loud mode
-                 , log_action   = if loud
-                                    then defaultLogAction
-                                    else \_ _ _ _ _ _ -> return ()
-                 -- redirect .hi/.o/etc files to temp directory
-                 , objectDir    = Just tmp
-                 , hiDir        = Just tmp
-                 , stubDir      = Just tmp
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
                    `gopt_set` Opt_DeferTypedHoles
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving
-  _ <- setSessionDynFlags df''
   return df''
 
 configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
@@ -446,7 +444,12 @@ processTargetModule cfg0 logicMap specEnv file tcStableData modGuts bareSpec = d
   ghcSrc     <- liftIO $ makeGhcSrc cfg file tcStableData modGuts hscEnv
   bareSpecs  <- makeBareSpecs' cfg specEnv modGuts bareSpec
   let ghcSpec = makeGhcSpec    cfg ghcSrc   logicMap        bareSpecs
-  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec -- TODO(and) Persist as an annotation in the interface.
+  -- ghc: panic! (the 'impossible' happened)
+  -- (GHC version 8.10.0.20191210:
+  --       [LH.Bare.listTyDataCons:0:0: Error: Illegal data refinement for `[]`
+  --   Size function len x should have type int.
+  --   Unbound symbol len --- perhaps you meant: head, x ?]
+  -- _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec -- TODO(and) Persist as an annotation in the interface.
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------
@@ -529,6 +532,7 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
+{-
 makeBareSpecs :: Config 
               -> DepGraph 
               -> SpecEnv 
@@ -539,19 +543,31 @@ makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)
-  specSpecs    <- findAndParseSpecFiles cfg paths modSum reachable
+  specSpecs    <- LH.findAndParseSpecFiles cfg paths modSum reachable
   let homeSpecs = cachedBareSpecs specEnv reachable
   let impSpecs  = specSpecs ++ homeSpecs
   let tgtMod    = ModName Target (moduleName (ms_mod modSum))
   return        $ (tgtMod, tgtSpec) : impSpecs
+-}
 
 -- This will use annotations to return the specs.
 makeBareSpecs' :: Config 
-               -> SpecEnv 
+               -> SpecEnv
                -> ModGuts
                -> Ms.BareSpec 
                -> CoreM [(ModName, Ms.BareSpec)]
-makeBareSpecs' cfg specEnv modGuts tgtSpec = pure mempty -- TODO(adn) Implement this.
+makeBareSpecs' cfg specEnv modGuts tgtSpec = do
+  let tgtMod = ModName Target (moduleName (mg_module modGuts))
+
+  -- NOTE(adn) Consider also 'dep_pkgs'?
+  dependenciesSpecs <- foldlM getSpec mempty (dep_mods $ mg_deps modGuts)
+
+  pure $ (tgtMod, tgtSpec) : dependenciesSpecs
+
+  where
+    getSpec :: [(ModName, Ms.BareSpec)] -> (ModuleName, IsBootInterface) -> CoreM [(ModName, Ms.BareSpec)]
+    getSpec !allSpecs (_, True)        = pure allSpecs
+    getSpec !allSpecs (modName, False) = pure allSpecs
 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
@@ -591,26 +607,6 @@ refreshSymbol = symbol . symbolText
 --------------------------------------------------------------------------------
 -- | Finding & Parsing Files ---------------------------------------------------
 --------------------------------------------------------------------------------
-
--- | Handle Spec Files ---------------------------------------------------------
-
-findAndParseSpecFiles :: Config
-                      -> [FilePath]
-                      -> ModSummary
-                      -> [Module]
-                      -> Ghc [(ModName, Ms.BareSpec)]
-findAndParseSpecFiles cfg paths modSummary reachable = do
-  impSumms <- mapM getModSummary (moduleName <$> reachable)
-  imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
-  imps'    <- filterM ((not <$>) . isHomeModule) imps''
-  let imps  = m2s <$> imps'
-  fs'      <- moduleFiles Spec paths imps
-  patSpec  <- getPatSpec paths  $ totalityCheck cfg
-  rlSpec   <- getRealSpec paths $ not (linear cfg)
-  let fs    = patSpec ++ rlSpec ++ fs'
-  transParseSpecs paths mempty mempty fs
-  where
-    m2s = moduleNameString . moduleName
 
 getPatSpec :: [FilePath] -> Bool -> Ghc [FilePath]
 getPatSpec paths totalitycheck

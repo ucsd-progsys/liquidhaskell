@@ -16,6 +16,9 @@ module Language.Haskell.Liquid.Liquid (
 
    -- * Liquid Constraint Generation 
   , liquidConstraints
+
+  -- * Internal (provisional)
+  , liquidOne
   ) where
 
 import           Prelude hiding (error)
