@@ -1,15 +1,21 @@
-
+{-# LANGUAGE ScopedTypeVariables #-}
 module Language.Haskell.Liquid.GHC.Plugin.Util (
         partitionMaybe
       , extractSpecComments
-      , findSpecComments
+      , lookupTcStableData
       ) where
 
 import GhcPlugins as GHC
 
-import Data.Either (partitionEithers)
+import           Data.Typeable
+import           Data.Bifunctor                           ( second )
+import           Data.Maybe                               ( listToMaybe )
+import           Data.Data
+import           Data.Either                              ( partitionEithers )
 
-import Language.Haskell.Liquid.GHC.Plugin.Types (SpecComment)
+import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
+                                                          , TcStableData
+                                                          )
 
 -- | Courtesy of [inspection testing](https://github.com/nomeata/inspection-testing/blob/master/src/Test/Inspection/Plugin.hs)
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
@@ -20,30 +26,27 @@ partitionMaybe f = partitionEithers . map (\x -> maybe (Left x) Right (f x))
 -- This also means that these 'Annotation's /won't/ land into an interface file,
 -- and we won't be able to retrieve them back later on.
 extractSpecComments :: ModGuts -> (ModGuts, [SpecComment])
-extractSpecComments = extractSpecComments' True
+extractSpecComments = extractModuleAnnotations
 
--- | Like 'extractSpecComments', but preserve the 'Annotation's.
-findSpecComments :: ModGuts -> (ModGuts, [SpecComment])
-findSpecComments = extractSpecComments' False
+lookupTcStableData :: ModGuts -> (ModGuts, Maybe TcStableData)
+lookupTcStableData = second listToMaybe . extractModuleAnnotations
 
--- | General version of 'extractSpecComments' which allows to specify whether or
--- not the found annotations needs to be pruned from the input 'ModGuts'.
-extractSpecComments' :: Bool 
-                     -- ^ Remove the found specs from the annotations.
-                     -> ModGuts 
-                     -> (ModGuts, [SpecComment])
-extractSpecComments' cleanAnnotations guts = (guts', specComments)
+-- | Tries to deserialise the 'Annotation's in the input 'ModGuts', pruning the latter
+-- upon successful deserialisation.
+extractModuleAnnotations :: forall a. (Typeable a, Data a) => ModGuts -> (ModGuts, [a])
+extractModuleAnnotations guts = (guts', extracted)
   where
-    (anns_clean, specComments) = partitionMaybe lookupSpecComments (mg_anns guts)
-    guts' = if cleanAnnotations then guts { mg_anns = anns_clean } else guts
+    thisModule = mg_module guts
+    (anns_clean, extracted) = partitionMaybe tryDeserialise (mg_anns guts)
+    guts' = guts { mg_anns = anns_clean }
 
-    lookupSpecComments :: Annotation -> Maybe SpecComment
-    lookupSpecComments (Annotation (ModuleTarget _) payload)
-        | Just specComment <- fromSerialized deserializeWithData payload
-        = Just specComment
-    lookupSpecComments (Annotation (NamedTarget _) payload)
-        | Just specComment <- fromSerialized deserializeWithData payload
-        = Just specComment
-    lookupSpecComments _
+    tryDeserialise :: Annotation -> Maybe a
+    tryDeserialise (Annotation (ModuleTarget m) payload)
+        | thisModule == m = fromSerialized deserializeWithData payload
+        | otherwise       = Nothing
+    tryDeserialise (Annotation (NamedTarget _) payload) --NOTE(adn) What is the correct behaviour here?
+        | Just a <- fromSerialized deserializeWithData payload
+        = Just a
+    tryDeserialise _
         = Nothing
 
