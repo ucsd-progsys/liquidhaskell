@@ -3,9 +3,18 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
         partitionMaybe
       , extractSpecComments
       , lookupTcStableData
+
+      -- * Aborting the plugin execution
+      , pluginAbort
       ) where
 
-import GhcPlugins as GHC
+import           GhcPlugins                              as GHC
+import           Outputable                               ( SDoc
+                                                          , showSDoc
+                                                          )
+import           GHC                                      ( DynFlags )
+import           CoreMonad                                ( CoreM )
+import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
 
 import           Data.Typeable
 import           Data.Bifunctor                           ( second )
@@ -16,6 +25,10 @@ import           Data.Either                              ( partitionEithers )
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           , TcStableData
                                                           )
+
+pluginAbort :: DynFlags -> SDoc -> CoreM a
+pluginAbort dynFlags msg =
+  liftIO $ throwGhcExceptionIO $ ProgramError (showSDoc dynFlags msg)
 
 -- | Courtesy of [inspection testing](https://github.com/nomeata/inspection-testing/blob/master/src/Test/Inspection/Plugin.hs)
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])

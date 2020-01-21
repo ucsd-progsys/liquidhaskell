@@ -33,6 +33,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , importVars
   , makeGhcSrc
   , qImports
+  , modSummaryHsFile
 
   ) where
 

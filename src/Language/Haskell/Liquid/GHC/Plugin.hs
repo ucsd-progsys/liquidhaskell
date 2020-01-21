@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE TypeApplications           #-}
 {-# LANGUAGE ViewPatterns               #-}
-{-# LANGUAGE TupleSections              #-}
-{-# LANGUAGE OverloadedStrings          #-}
 
 module Language.Haskell.Liquid.GHC.Plugin (
 
@@ -36,7 +37,7 @@ import qualified Language.Haskell.Liquid.UX.Config as LH
 import qualified Language.Haskell.Liquid.GHC.Interface as LH
 
 import Language.Haskell.Liquid.GHC.Plugin.Types (SpecComment(..), TcStableData, mkTcStableData, tcStableImports)
-import Language.Haskell.Liquid.GHC.Plugin.Util as Util (partitionMaybe, lookupTcStableData, extractSpecComments)
+import Language.Haskell.Liquid.GHC.Plugin.Util as Util
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Annotations
@@ -198,32 +199,53 @@ coreHook opts passes = do
   cfg <- liftIO $ LH.getOpts opts
   pure (CoreDoPluginPass "Language.Haskell.Liquid.GHC.Plugin" (liquidHaskellPass cfg) : passes)
 
--- | Calls into LiquidHaskell's GHC API to transform the 'Core'.
+-- | Partially calls into LiquidHaskell's GHC API.
 liquidHaskellPass :: LH.Config -> ModGuts -> CoreM ModGuts
 liquidHaskellPass cfg modGuts = do
   let thisModule = mg_module modGuts
   dynFlags <- getDynFlags
-  -- Generate the bare-specs. Here we call 'findSpecComments' which is what allows us to
+  env <- getHscEnv
+
+  -- Generate the bare-specs. Here we call 'extractSpecComments' which is what allows us to
   -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
   let (guts', specComments) = Util.extractSpecComments modGuts
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
 
   mbTcStableData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
-  liftIO $ print (O.showSDocUnsafe $ O.ppr mbTcStableData)
+  let mbModSummary = mgLookupModule (hsc_mod_graph env) thisModule
 
-  env <- getHscEnv
+  case (mbTcStableData, mbModSummary) of
+    (Nothing, _) -> Util.pluginAbort dynFlags (O.text "No tcStableData found for " O.<+> O.ppr thisModule)
+    (_, Nothing) -> Util.pluginAbort dynFlags (O.text "No modSummary found for " O.<+> O.ppr thisModule)
+    (Just tcStableData, Just modSummary) -> do
 
-  -- The targets of the current compilation. This list doesn't include dependencies of these targets.
-  let targets = hsc_targets env
+     -- The targets of the current compilation. This list doesn't include dependencies of these targets.
+     let targets = hsc_targets env
+     logicMap <- liftIO $ LH.makeLogicMap
+
+     let lhModGuts = LiquidHaskellModGuts {
+           lhModuleCfg          = cfg
+         , lhModuleLogicMap     = logicMap
+         , lhModuleSummary      = modSummary
+         , lhModuleTcStableData = tcStableData
+         , lhModuleGuts         = guts'
+         }
+
+     -- Call into the interface
+     thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
+
+     ghcInfo  <- processModule lhModGuts (S.singleton thisFile) emptyModuleEnv specComments specQuotes
+
+     pure guts'
 
 
-  logicMap <- liftIO $ LH.makeLogicMap
-  let modGraph = hsc_mod_graph env
-
-  -- Call into the interface
-  -- ghcInfo <- processModules cfg logicMap files depGraph specEnv modSummary tcStableData guts' specComments specQuotes
-
-  pure guts'
+data LiquidHaskellModGuts = LiquidHaskellModGuts {
+    lhModuleCfg          :: Config
+  , lhModuleLogicMap     :: LogicMap
+  , lhModuleSummary      :: ModSummary
+  , lhModuleTcStableData :: TcStableData
+  , lhModuleGuts         :: ModGuts
+  }
 
 --
 -- Interface phase
@@ -382,28 +404,26 @@ type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 --  where
 --    go = processModule tcStableData cfg logicMap (S.fromList tgtFiles) depGraph
 
-processModule :: Config
-              -> LogicMap
+processModule :: LiquidHaskellModGuts
               -> S.HashSet FilePath
               -> SpecEnv
-              -> ModSummary
-              -> TcStableData
-              -> ModGuts
               -> [SpecComment]
               -> [BPspec]
               -> CoreM (SpecEnv, Maybe GhcInfo)
-processModule cfg logicMap targets specEnv modSummary tcStableData modGuts specComments specQuotes = do
-  Debug.traceShow ("Module ==> " ++ show (moduleName $ ms_mod $ modSummary)) $ return ()
-  let mod              = ms_mod modSummary
-  file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
+processModule LiquidHaskellModGuts{..} targets specEnv specComments specQuotes = do
+  let modGuts = lhModuleGuts
+  Debug.traceShow ("Module ==> " ++ show (moduleName $ mg_module $ modGuts)) $ return ()
+  let mod              = mg_module modGuts
+  file                <- liftIO $ canonicalizePath $ modSummaryHsFile lhModuleSummary
   let isTarget         = file `S.member` targets
   (modName, commSpec) <- either throw return $ 
-    hsSpecificationP (moduleName $ mg_module modGuts) (coerce specComments) specQuotes
-  liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
+    hsSpecificationP (moduleName mod) (coerce specComments) specQuotes
+  liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing 
+                                                                   else loadLiftedSpec lhModuleCfg file 
   let bareSpec         = updLiftedSpec commSpec liftedSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
-                     then Just <$> processTargetModule cfg logicMap specEnv file tcStableData modGuts bareSpec
+                     then Just <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcStableData lhModuleGuts bareSpec
                      else return Nothing
 
 updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
