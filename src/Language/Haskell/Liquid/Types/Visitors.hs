@@ -21,14 +21,12 @@ import           CoreSyn
 import           TysPrim                          (intPrimTy)
 import           Data.Hashable
 import           DataCon
-import           Literal
-import           FastString                       (bytesFS)
-import           Var
 
 import           Data.List                        (foldl', (\\), delete)
 import qualified Data.HashSet                     as S
 import           Prelude                          hiding (error)
 import           Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.GHC.Misc ()
 

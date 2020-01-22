@@ -26,6 +26,7 @@ import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
 import           Var                              (varType, setVarType)
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg)
 import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
 import           TyCon                            (tyConDataCons_maybe)
 -- import           DataCon                          (dataConInstArgTys)

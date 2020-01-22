@@ -79,8 +79,8 @@ makeUnSorted t defs
     ta = go $ Ghc.expandTypeSynonyms t
 
     go (Ghc.ForAllTy _ t) = go t 
-    go (Ghc.FunTy _ p t) | Ghc.isClassPred p = go t 
-    go (Ghc.FunTy _ t _)    = t 
+    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | Ghc.isClassPred p = go t 
+    go (Ghc.FunTy { Ghc.ft_arg = t }) = t 
     go t                  = t -- this should never happen!
 
     isMeasureType (Ghc.TyConApp _ ts) = all Ghc.isTyVarTy ts

@@ -32,13 +32,11 @@ import           BasicTypes                                 (Arity, noOccInfo)
 import           CoreSyn                                    hiding (Expr, sourceName)
 import qualified CoreSyn                                    as Core
 import           CostCentre
-import           GHC                                        hiding (L)
+import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
 import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..),
                                                              Dependencies(..))
 import           TysWiredIn                                 (anyTy)
 import           NameSet                                    (NameSet)
-import           Predicate                                  (isEqPred, isClassPred)
-import           SrcLoc                                     hiding (L)
 import           Bag
 import           ErrUtils
 import           CoreLint
@@ -46,20 +44,14 @@ import           CoreMonad
 
 import           Text.Parsec.Pos                            (incSourceColumn, sourceName, sourceLine, sourceColumn, newPos)
 
-import           Name
 import           Module                                     (moduleNameFS)
-import           Unique
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
-import           FastString
 import           TcRnDriver
 -- import           TcRnTypes
 
 
-import           RdrName
 import           Type                                       (expandTypeSynonyms, liftedTypeKind)
-import           TyCoRep
-import           Var
 import           IdInfo
 import qualified TyCon                                      as TC
 import           Data.Char                                  (isLower, isSpace, isUpper)
@@ -82,14 +74,11 @@ import           Language.Fixpoint.Misc                     (safeHead) -- , safe
 import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
--- import           Language.Haskell.Liquid.Desugar.HscMain
-import           HscMain
-import           Id                                         (idOccInfo, setIdInfo)
 
 
 isAnonBinder :: TC.TyConBinder -> Bool
-isAnonBinder (Bndr _ (TC.AnonTCB _)) = True
-isAnonBinder (Bndr _ _)              = False
+isAnonBinder (Bndr _ (AnonTCB _)) = True
+isAnonBinder (Bndr _ _)           = False
 
 mkAlive :: Var -> Id
 mkAlive x
@@ -181,7 +170,7 @@ hasBaseTypeVar = isBaseType . varType
 -- same as Constraint isBase
 isBaseType :: Type -> Bool
 isBaseType (ForAllTy _ _)  = False
-isBaseType (FunTy _ t1 t2) = isBaseType t1 && isBaseType t2
+isBaseType (FunTy { ft_arg = t1, ft_res = t2}) = isBaseType t1 && isBaseType t2
 isBaseType (TyVarTy _)     = True
 isBaseType (TyConApp _ ts) = all isBaseType ts
 isBaseType (AppTy t1 t2)   = isBaseType t1 && isBaseType t2
@@ -448,7 +437,7 @@ realTcArity = tyConArity
 kindTCArity :: TyCon -> Arity
 kindTCArity = go . tyConKind
   where
-    go (FunTy _ _ res) = 1 + go res
+    go (FunTy { ft_res = res}) = 1 + go res
     go _               = 0
 
 
@@ -759,7 +748,7 @@ lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefin
 synTyConRhs_maybe :: TyCon -> Maybe Type
 synTyConRhs_maybe = TC.synTyConRhs_maybe
 
-tcRnLookupRdrName :: HscEnv -> GHC.Located RdrName -> IO (Messages, Maybe [Name])
+tcRnLookupRdrName :: HscEnv -> Ghc.Located RdrName -> IO (Messages, Maybe [Name])
 tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 showCBs :: Bool -> [CoreBind] -> String

@@ -14,20 +14,16 @@
 -- | This module contains a wrappers and utility functions for
 -- accessing GHC module information. It should NEVER depend on
 module Language.Haskell.Liquid.GHC.TypeRep (
-  module TyCoRep, 
-
   mkTyArg, 
 
   showTy
   ) where
 
-import TyCoRep
 import Coercion
 import CoAxiom
-import Type 
-import Var
 
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding (mkTyArg)
 import           Language.Fixpoint.Types (symbol)
 
 -- e368f3265b80aeb337fbac3f6a70ee54ab14edfd
@@ -122,11 +118,6 @@ instance SubstTy Coercion where
   subst = substCoercion
 
 substCoercion :: TyVar -> Type -> Coercion -> Coercion
-substCoercion _x _tx (Refl _t)
-  = error "substCoercion TODO(adinapoli): Handle Refl t"
-  -- = Refl (subst x tx r) (subst x tx t)
-substCoercion _x _tx (GRefl _r _t _)
-  = error "substCoercion TODO(adinapoli): Handle GRefl t"
 substCoercion x tx (TyConAppCo r c cs)
   = TyConAppCo (subst x tx r) c (subst x tx <$> cs)
 substCoercion x tx (AppCo c1 c2)
@@ -160,8 +151,22 @@ substCoercion x tx (KindCo c)
   = KindCo (subst x tx c)
 substCoercion x tx (SubCo c)
   = SubCo (subst x tx c)
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+substCoercion x tx (Refl r t)
+  = Refl (subst x tx r) (subst x tx t)
+substCoercion x tx (CoherenceCo c1 c2)
+  = CoherenceCo (subst x tx c1) (subst x tx c2)
+#endif
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+substCoercion _x _tx (Refl _t)
+  = error "substCoercion TODO(adinapoli): Handle Refl t"
+substCoercion _x _tx (GRefl _r _t _)
+  = error "substCoercion TODO(adinapoli): Handle GRefl t"
 substCoercion _ _ (HoleCo _)
   = error "substCoercion: TODO handle HoleCo"
+#endif
+#endif
 
 instance SubstTy Role where
 instance SubstTy (CoAxiom Branched) where

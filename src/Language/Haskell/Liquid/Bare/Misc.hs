@@ -13,17 +13,10 @@ module Language.Haskell.Liquid.Bare.Misc
   , isKind
   ) where
 
-import           Name
 import           Prelude                               hiding (error)
-import           TysWiredIn
 
-import           Id
-import           Type
-import           TcType                                (classifiesTypeWithValues, isClassPred) 
-import           Language.Haskell.Liquid.GHC.TypeRep
-import           Var
+import           Language.Haskell.Liquid.GHC.API       as Ghc  hiding (Located)
 
--- import           DataCon
 import           Control.Monad.Except                  (MonadError, throwError)
 import           Control.Monad.State
 import qualified Data.Maybe                            as Mb --(fromMaybe, isNothing)
@@ -95,10 +88,10 @@ data MapTyVarST = MTVST
 mapTyVars :: Type -> SpecType -> StateT MapTyVarST (Either Error) ()
 mapTyVars t (RImpF _ _ t' _)
    = mapTyVars t t'
-mapTyVars (FunTy _ τ τ') t 
+mapTyVars (FunTy { ft_arg = τ, ft_res = τ'}) t 
   | isClassPred τ
   = mapTyVars τ' t
-mapTyVars (FunTy _ τ τ') (RFun _ t t' _)
+mapTyVars (FunTy { ft_arg = τ, ft_res = τ'}) (RFun _ t t' _)
    = mapTyVars τ t >> mapTyVars τ' t'
 mapTyVars τ (RAllT _ t _)
   = mapTyVars τ t
@@ -186,6 +179,6 @@ simpleSymbolVar  = dropModuleNames . F.symbol . showPpr . getName
 
 hasBoolResult :: Type -> Bool
 hasBoolResult (ForAllTy _ t) = hasBoolResult t
-hasBoolResult (FunTy _ _ t)    | eqType boolTy t = True
-hasBoolResult (FunTy _ _ t)    = hasBoolResult t
+hasBoolResult (FunTy { ft_res = t} )    | eqType boolTy t = True
+hasBoolResult (FunTy { ft_res = t} )    = hasBoolResult t
 hasBoolResult _              = False
