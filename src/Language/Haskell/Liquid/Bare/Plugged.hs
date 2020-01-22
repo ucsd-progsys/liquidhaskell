@@ -127,7 +127,6 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
     pT               = plugHoles (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
-    -- TODO(adinapoli) Is 'VisArg' what we really want here?
     hsT              = foldr (Ghc.mkFunTy Ghc.VisArg) hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 

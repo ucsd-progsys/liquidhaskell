@@ -82,13 +82,13 @@ wiredSortedSyms = [(pappSym n, pappSort n) | n <- [1..pappArity]]
 --------------------------------------------------------------------------------
 
 dictionaryVar :: Var
-dictionaryVar   = stringVar "tmp_dictionary_var" (ForAllTy (Bndr dictionaryTyVar Required) $ TyVarTy dictionaryTyVar)
+dictionaryVar   = stringVar "tmp_dictionary_var" (Ghc.ForAllTy (Ghc.Bndr dictionaryTyVar Required) $ Ghc.TyVarTy dictionaryTyVar)
 
 dictionaryTyVar :: TyVar
 dictionaryTyVar = stringTyVar "da"
 
 dictionaryBind :: Bind Var
-dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ TyVarTy a))]
+dictionaryBind = Rec [(v, Lam a $ App (Var v) (Type $ Ghc.TyVarTy a))]
   where
    v = dictionaryVar
    a = dictionaryTyVar

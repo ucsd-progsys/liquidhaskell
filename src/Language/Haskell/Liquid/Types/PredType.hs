@@ -33,10 +33,7 @@ import           Prelude                         hiding (error)
 import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
--- import qualified TyCon                           as TC
--- import qualified Var
-import           Type
-import           Var
+import           Language.Haskell.Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M

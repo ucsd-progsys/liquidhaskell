@@ -23,6 +23,7 @@ import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
 import           Id
 import           IdInfo
+import           Language.Haskell.Liquid.GHC.API      hiding (exprType)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
@@ -30,13 +31,8 @@ import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
 import           Name                                 (isSystemName)
--- import           Outputable                           (SDoc)
 import           Prelude                              hiding (error)
-import           SrcLoc
 import           Type                                 (mkForAllTys, splitForAllTys)
-import           TyCoRep
-import           Unique                               hiding (deriveUnique)
-import           Var
 
 -- import qualified Data.List                            (foldl', isInfixOf)
 

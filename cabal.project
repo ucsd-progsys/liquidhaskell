@@ -9,5 +9,3 @@ package liquid-fixpoint
 
 package liquidhaskell
   flags: devel
-
-with-compiler: ghc-8.10.0.20191210

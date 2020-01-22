@@ -106,13 +106,13 @@ rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
 grabBody :: Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
 grabBody (Ghc.ForAllTy _ t) e 
   = grabBody t e 
-grabBody (Ghc.FunTy _ tx t) e | Ghc.isClassPred tx 
+grabBody (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | Ghc.isClassPred tx 
   = grabBody t e 
-grabBody (Ghc.FunTy _ _ t) (Ghc.Lam x e) 
+grabBody (Ghc.FunTy { Ghc.ft_res = t}) (Ghc.Lam x e) 
   = (x:xs, e') where (xs, e') = grabBody t e
 grabBody t (Ghc.Tick _ e) 
   = grabBody t e
-grabBody t@(Ghc.FunTy _ _ _) e               
+grabBody t@(Ghc.FunTy {}) e               
   = (txs++xs, e') 
    where (ts,tr)  = splitFun t 
          (xs, e') = grabBody tr (foldl Ghc.App e (Ghc.Var <$> txs))
@@ -122,8 +122,8 @@ grabBody _ e
 
 splitFun :: Ghc.Type -> ([Ghc.Type], Ghc.Type)
 splitFun = go [] 
-  where go acc (Ghc.FunTy _ tx t) = go (tx:acc) t 
-        go acc t                = (reverse acc, t)
+  where go acc (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) = go (tx:acc) t 
+        go acc t                                              = (reverse acc, t)
 
 
 isBoolBind :: Ghc.Var -> Bool
@@ -247,7 +247,7 @@ makeCompositionExpression x
       "\n inline spec = " ++ GM.showPpr (inl_inline $ inlinePragInfo $ Ghc.idInfo x)  
      ) x 
    where  
-    go (Ghc.ForAllTy a (Ghc.ForAllTy b (Ghc.ForAllTy c (Ghc.FunTy _ tf (Ghc.FunTy _ tg tx)))))
+    go (Ghc.ForAllTy a (Ghc.ForAllTy b (Ghc.ForAllTy c (Ghc.FunTy { Ghc.ft_arg = tf, Ghc.ft_res = Ghc.FunTy { Ghc.ft_arg = tg, Ghc.ft_res = tx}}))))
       = let f = stringVar "f" tf 
             g = stringVar "g" tg
             x = stringVar "x" tx 

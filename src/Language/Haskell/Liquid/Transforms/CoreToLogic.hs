@@ -19,10 +19,9 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   ) where
 
 import           Data.ByteString                       (ByteString)
-import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
-import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
 -- import qualified Id 
 import qualified Var
 import qualified TyCon 

@@ -88,17 +88,14 @@ module Language.Haskell.Liquid.Types.RefType (
   ) where
 
 -- import           GHC.Stack
-import TyCoRep
 import Prelude hiding (error)
 -- import qualified Prelude
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
 import Var
-import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import Predicate        (isClassPred, isEqPred)
 import Type             (splitFunTys, expandTypeSynonyms, substTyWith)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
@@ -123,7 +120,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, Located, mapType, tyConName)
 
 import Data.List (sort, foldl')
 
@@ -841,7 +838,7 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
 appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'') 
   where
-    _msg  = "appRTyCon-family: " ++ showpp (GHC.isFamilyTyCon c, GHC.tyConArity c, toType <$> ts)
+    _msg  = "appRTyCon-family: " ++ showpp (Ghc.isFamilyTyCon c, Ghc.tyConArity c, toType <$> ts)
     resTc = RTyCon c ps'' (rtc_info rc'')
     c     = rtc_tc rc
    
