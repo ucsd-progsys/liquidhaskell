@@ -2,7 +2,10 @@
 module Language.Haskell.Liquid.GHC.Plugin.Util (
         partitionMaybe
       , extractSpecComments
-      , lookupTcStableData
+
+      -- * Serialising and deserialising things from/to annotations.
+      , serialiseBareSpecsFor
+      , deserialiseBareSpecsFor
 
       -- * Aborting the plugin execution
       , pluginAbort
@@ -15,16 +18,24 @@ import           Outputable                               ( SDoc
 import           GHC                                      ( DynFlags )
 import           CoreMonad                                ( CoreM )
 import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
+import           HscTypes                                 ( ModIface )
+import           IfaceSyn                                 ( IfaceAnnotation(..) )
 
+import qualified Data.Binary                             as B
+import qualified Data.Binary.Get                         as B
+import           Data.ByteString.Lazy                     ( ByteString )
+import qualified Data.ByteString.Lazy                    as B
 import           Data.Typeable
 import           Data.Bifunctor                           ( second )
-import           Data.Maybe                               ( listToMaybe )
+import           Data.Maybe                               ( listToMaybe, catMaybes )
 import           Data.Data
 import           Data.Either                              ( partitionEithers )
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           , TcStableData
                                                           )
+import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
+
 
 pluginAbort :: DynFlags -> SDoc -> CoreM a
 pluginAbort dynFlags msg =
@@ -40,9 +51,6 @@ partitionMaybe f = partitionEithers . map (\x -> maybe (Left x) Right (f x))
 -- and we won't be able to retrieve them back later on.
 extractSpecComments :: ModGuts -> (ModGuts, [SpecComment])
 extractSpecComments = extractModuleAnnotations
-
-lookupTcStableData :: ModGuts -> (ModGuts, Maybe TcStableData)
-lookupTcStableData = second listToMaybe . extractModuleAnnotations
 
 -- | Tries to deserialise the 'Annotation's in the input 'ModGuts', pruning the latter
 -- upon successful deserialisation.
@@ -63,3 +71,25 @@ extractModuleAnnotations guts = (guts', extracted)
     tryDeserialise _
         = Nothing
 
+deserialiseBareSpecsFor :: Module -> ExternalPackageState -> [BareSpec]
+deserialiseBareSpecsFor thisModule eps = extracted
+  where
+    extracted = catMaybes $ findAnns tryDeserialise (eps_ann_env eps) (ModuleTarget thisModule)
+
+    tryDeserialise :: [B.Word8] -> Maybe BareSpec
+    tryDeserialise payload = hush $ B.decodeOrFail (B.pack payload)
+
+    hush :: Either (ByteString, B.ByteOffset, String) (ByteString, B.ByteOffset, a) -> Maybe a
+    hush (Left _)        = Nothing
+    hush (Right (_,_,x)) = Just x
+
+serialiseBareSpecsFor :: [BareSpec] -> ModGuts -> ModGuts
+serialiseBareSpecsFor specs modGuts = annotated
+  where
+    thisModule     = mg_module modGuts
+    annotated      = modGuts { mg_anns = newAnnotations ++ mg_anns modGuts }
+    newAnnotations = map serialise specs
+
+    serialise :: BareSpec -> Annotation
+    serialise spec = 
+      Annotation (ModuleTarget thisModule) (Serialized (typeRep spec) (B.unpack $ B.encode spec))

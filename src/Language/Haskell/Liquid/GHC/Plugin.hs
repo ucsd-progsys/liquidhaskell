@@ -114,6 +114,12 @@ tcStableRef :: IORef (ModuleEnv TcStableData)
 tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 {-# NOINLINE tcStableRef #-}
 
+-- Used to carry around all the specs we discover while processing interface files and their
+-- annotations.
+ifaceStableRef :: IORef SpecEnv
+ifaceStableRef = unsafePerformIO $ newIORef emptyModuleEnv
+{-# NOINLINE ifaceStableRef #-}
+
 
 --------------------------------------------------------------------------------
 -- | The Plugin entrypoint ------------------------------------------------------
@@ -135,8 +141,7 @@ plugin = GHC.defaultPlugin {
 customHooks :: [CommandLineOption] -> DynFlags -> IO DynFlags
 customHooks opts dflags = do
   cfg <- liftIO $ LH.getOpts opts
-  dflags' <- configureDynFlags cfg dflags
-  return $ gopt_set dflags' Opt_KeepRawTokenStream
+  configureDynFlags cfg dflags
 
 --
 -- Parsing phase
@@ -188,7 +193,7 @@ typecheckHook :: [CommandLineOption]
               -> TcM TcGblEnv
 typecheckHook opts modSummary tcGblEnv = do
   let stableData = mkTcStableData tcGblEnv
-  let thisModule     = ms_mod modSummary
+  let thisModule = ms_mod modSummary
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -270,7 +275,28 @@ data LiquidHaskellModGuts = LiquidHaskellModGuts {
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook opts iface = do
     liftIO $ print $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
+    specEnv <- liftIO $ readIORef ifaceStableRef
+
+    -- Check if we have this spec already in our SpecEnv
+    case lookupModuleEnv specEnv thisModule of
+      Just _  -> liftIO $ print $ "loadInterfaceHook, module found in SpecEnv, skipping..."
+      Nothing -> do
+        unless (isHsBootOrSig $ mi_hsc_src iface) $ do
+          eps             <- getEps
+          let entries     = Util.deserialiseBareSpecsFor thisModule eps
+
+          case listToMaybe entries of
+            Nothing -> pure ()
+            Just ((ModName SrcImport (moduleName thisModule),) -> bareSpec) ->
+              liftIO $ atomicModifyIORef' ifaceStableRef 
+                                          (\old -> (extendModuleEnv old thisModule bareSpec, ()))
+
     pure iface
+
+  where
+    thisModule :: Module
+    thisModule = mi_module iface
+
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
@@ -293,54 +319,12 @@ configureDynFlags cfg df = do
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
                    `gopt_set` Opt_DeferTypedHoles
+                   `gopt_set` Opt_KeepRawTokenStream
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving
   return df''
 
-configureGhcTargets :: [FilePath] -> Ghc ModuleGraph
-configureGhcTargets tgtFiles = do
-  targets         <- mapM (`guessTarget` Nothing) tgtFiles
-  _               <- setTargets targets
-  moduleGraph     <- depanal [] False -- see [NOTE:DROP-BOOT-FILES]
-
-  let homeModules  = filter (not . isBootSummary) $
-                     flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
-  let homeNames    = moduleName . ms_mod <$> homeModules
-  _               <- setTargetModules homeNames
-  liftIO $ whenLoud $ print    ("Module Dependencies", homeNames)
-  return $ mkModuleGraph homeModules
-
-setTargetModules :: [ModuleName] -> Ghc ()
-setTargetModules modNames = setTargets $ mkTarget <$> modNames
-  where
-    mkTarget modName = GHC.Target (TargetModule modName) True Nothing
-
-compileCFiles :: Config -> Ghc ()
-compileCFiles cfg = do
-  df  <- getSessionDynFlags
-  _   <- setSessionDynFlags $
-           df { includePaths = updateIncludePaths df (idirs cfg) 
-              , importPaths  = nub $ idirs cfg ++ importPaths df
-              , libraryPaths = nub $ idirs cfg ++ libraryPaths df }
-  hsc <- getSession
-  os  <- mapM (\x -> liftIO $ compileFile hsc StopLn (x,Nothing)) (nub $ cFiles cfg)
-  df  <- getSessionDynFlags
-  void $ setSessionDynFlags $ df { ldInputs = nub $ map (FileOption "") os ++ ldInputs df }
-
-{- | [NOTE:DROP-BOOT-FILES] Drop hs-boot files from the graph.
-      We do it manually rather than using the flag to topSortModuleGraph
-      because otherwise the order of mutually recursive modules depends
-      on the modulename, e.g. given
-
-      Bar.hs --> Foo.hs --> Bar.hs-boot
-
-      we'll get
-      
-      [Bar.hs, Foo.hs]
-    
-      which is backwards..
- -}
 --------------------------------------------------------------------------------
 -- Home Module Dependency Graph ------------------------------------------------
 --------------------------------------------------------------------------------
