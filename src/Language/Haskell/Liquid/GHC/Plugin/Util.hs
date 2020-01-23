@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 module Language.Haskell.Liquid.GHC.Plugin.Util (
         partitionMaybe
       , extractSpecComments
@@ -6,6 +7,9 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       -- * Serialising and deserialising things from/to annotations.
       , serialiseBareSpecsFor
       , deserialiseBareSpecsFor
+      , serialiseTest
+      , deserialiseTest
+      , Foo(..)
 
       -- * Aborting the plugin execution
       , pluginAbort
@@ -20,6 +24,8 @@ import           CoreMonad                                ( CoreM )
 import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
 import           HscTypes                                 ( ModIface )
 import           IfaceSyn                                 ( IfaceAnnotation(..) )
+
+import           Control.Monad.IO.Class
 
 import qualified Data.Binary                             as B
 import qualified Data.Binary.Get                         as B
@@ -37,9 +43,9 @@ import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
 
 
-pluginAbort :: DynFlags -> SDoc -> CoreM a
+pluginAbort :: MonadIO m => DynFlags -> SDoc -> m a
 pluginAbort dynFlags msg =
-  liftIO $ throwGhcExceptionIO $ ProgramError (showSDoc dynFlags msg)
+  liftIO $ throwGhcExceptionIO $ Panic ("LiquidHaskell: " ++ showSDoc dynFlags msg)
 
 -- | Courtesy of [inspection testing](https://github.com/nomeata/inspection-testing/blob/master/src/Test/Inspection/Plugin.hs)
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
@@ -74,10 +80,10 @@ extractModuleAnnotations guts = (guts', extracted)
 deserialiseBareSpecsFor :: Module -> ExternalPackageState -> [BareSpec]
 deserialiseBareSpecsFor thisModule eps = extracted
   where
-    extracted = catMaybes $ findAnns tryDeserialise (eps_ann_env eps) (ModuleTarget thisModule)
+    extracted = findAnns deserialise (eps_ann_env eps) (ModuleTarget thisModule)
 
-    tryDeserialise :: [B.Word8] -> Maybe BareSpec
-    tryDeserialise payload = hush $ B.decodeOrFail (B.pack payload)
+    deserialise :: [B.Word8] -> BareSpec
+    deserialise payload = B.decode (B.pack payload)
 
     hush :: Either (ByteString, B.ByteOffset, String) (ByteString, B.ByteOffset, a) -> Maybe a
     hush (Left _)        = Nothing
@@ -91,5 +97,20 @@ serialiseBareSpecsFor specs modGuts = annotated
     newAnnotations = map serialise specs
 
     serialise :: BareSpec -> Annotation
-    serialise spec = 
-      Annotation (ModuleTarget thisModule) (Serialized (typeRep spec) (B.unpack $ B.encode spec))
+    serialise spec = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) spec)
+
+data Foo = Foo Int deriving (Show, Data)
+
+deserialiseTest :: Module -> ExternalPackageState -> [Foo]
+deserialiseTest thisModule eps = extracted
+  where
+    extracted = findAnns deserializeWithData (eps_ann_env eps) (ModuleTarget thisModule)
+
+serialiseTest :: Foo -> ModGuts -> ModGuts
+serialiseTest foo modGuts = annotated
+  where
+    thisModule     = mg_module modGuts
+    annotated      = modGuts { mg_anns = serialise : mg_anns modGuts }
+
+    serialise :: Annotation
+    serialise = Annotation (ModuleTarget thisModule) (toSerialized serializeWithData foo)
