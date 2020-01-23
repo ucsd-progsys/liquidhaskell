@@ -1,5 +1,6 @@
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE TupleSections              #-}
@@ -20,6 +21,9 @@ import GHC hiding (Target, Located, desugarModule)
 import qualified GHC
 import GHC.Paths (libdir)
 import GHC.Serialized
+
+import qualified Data.Binary as B
+import qualified Data.ByteString.Lazy as B
 
 import Plugins as GHC
 import Annotations as GHC
@@ -207,6 +211,7 @@ typecheckHook opts modSummary tcGblEnv = do
 coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 coreHook opts passes = do
   cfg <- liftIO $ LH.getOpts opts
+  liftIO $ putStrLn $ "coreHook: idirs ==> " ++ show (idirs cfg)
   pure (CoreDoPluginPass "Language.Haskell.Liquid.GHC.Plugin" (liquidHaskellPass cfg) : passes)
 
 -- | Partially calls into LiquidHaskell's GHC API.
@@ -214,7 +219,9 @@ liquidHaskellPass :: LH.Config -> ModGuts -> CoreM ModGuts
 liquidHaskellPass cfg modGuts = do
   let thisModule = mg_module modGuts
   dynFlags <- getDynFlags
-  env <- getHscEnv
+  hscEnv   <- getHscEnv
+
+  specEnv  <- liftIO $ readIORef ifaceStableRef
 
   -- Generate the bare-specs. Here we call 'extractSpecComments' which is what allows us to
   -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
@@ -222,7 +229,7 @@ liquidHaskellPass cfg modGuts = do
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
 
   mbTcStableData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
-  let mbModSummary = mgLookupModule (hsc_mod_graph env) thisModule
+  let mbModSummary = mgLookupModule (hsc_mod_graph hscEnv) thisModule
 
   case (mbTcStableData, mbModSummary) of
     (Nothing, _) -> Util.pluginAbort dynFlags (O.text "No tcStableData found for " O.<+> O.ppr thisModule)
@@ -230,7 +237,7 @@ liquidHaskellPass cfg modGuts = do
     (Just tcStableData, Just modSummary) -> do
 
      -- The targets of the current compilation. This list doesn't include dependencies of these targets.
-     let targets = hsc_targets env
+     let targets = hsc_targets hscEnv
      logicMap <- liftIO $ LH.makeLogicMap
 
      let lhModGuts = LiquidHaskellModGuts {
@@ -244,7 +251,15 @@ liquidHaskellPass cfg modGuts = do
      -- Call into the interface
      thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
 
-     (_, mbGhcInfo) <- processModule lhModGuts (S.singleton thisFile) emptyModuleEnv specComments specQuotes
+     let usedModules = foldl' collectUsage mempty (mg_usages modGuts)
+     liftIO $ putStrLn $ "Usages ==> " ++ (unlines $ map (O.showSDocUnsafe . O.ppr) usedModules)
+
+     eps <- liftIO $ readIORef (hsc_EPS hscEnv)
+
+     let foos = map (`Util.deserialiseTest` eps) usedModules
+     liftIO $ putStrLn $ "Anns ==> " ++ show foos
+
+     (finalGuts, newSpecEnv, mbGhcInfo) <- processModule lhModGuts (S.singleton thisFile) emptyModuleEnv specComments specQuotes
      case mbGhcInfo of
        Just info -> do
          res <- liftIO $ LH.liquidOne info
@@ -253,7 +268,17 @@ liquidHaskellPass cfg modGuts = do
            _    -> pluginAbort dynFlags (O.text "Unsafe.")
        Nothing   -> pure ()
 
-     pure guts'
+     liftIO $ atomicModifyIORef' ifaceStableRef (\old -> (newSpecEnv, ()))
+
+     liftIO $ print (map (O.showSDocUnsafe . O.ppr) $ mg_anns finalGuts)
+     pure finalGuts
+
+
+collectUsage :: [Module] -> Usage -> [Module]
+collectUsage acc = \case
+  UsagePackageModule     { usg_mod = mod } -> mod : acc
+  UsageMergedRequirement { usg_mod = mod } -> mod : acc
+  _ -> acc
 
 
 data LiquidHaskellModGuts = LiquidHaskellModGuts {
@@ -274,29 +299,29 @@ data LiquidHaskellModGuts = LiquidHaskellModGuts {
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook opts iface = do
-    liftIO $ print $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
+    liftIO $ putStrLn $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
+    dynFlags <- getDynFlags
     specEnv <- liftIO $ readIORef ifaceStableRef
 
     -- Check if we have this spec already in our SpecEnv
     case lookupModuleEnv specEnv thisModule of
-      Just _  -> liftIO $ print $ "loadInterfaceHook, module found in SpecEnv, skipping..."
+      Just _  -> liftIO $ putStrLn $ "loadInterfaceHook, module found in SpecEnv, skipping..."
       Nothing -> do
         unless (isHsBootOrSig $ mi_hsc_src iface) $ do
           eps             <- getEps
           let entries     = Util.deserialiseBareSpecsFor thisModule eps
+          liftIO $ putStrLn $ "===specs==> " ++ show entries
 
           case listToMaybe entries of
-            Nothing -> pure ()
+            Nothing -> pure () -- Util.pluginAbort dynFlags (O.text "No BareSpec found for" O.<+> O.ppr thisModule)
             Just ((ModName SrcImport (moduleName thisModule),) -> bareSpec) ->
               liftIO $ atomicModifyIORef' ifaceStableRef 
                                           (\old -> (extendModuleEnv old thisModule bareSpec, ()))
-
     pure iface
 
   where
     thisModule :: Module
     thisModule = mi_module iface
-
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
@@ -326,72 +351,17 @@ configureDynFlags cfg df = do
   return df''
 
 --------------------------------------------------------------------------------
--- Home Module Dependency Graph ------------------------------------------------
---------------------------------------------------------------------------------
-
-type DepGraph = Graph DepGraphNode
-type DepGraphNode = Node Module ()
-
-reachableModules :: DepGraph -> Module -> [Module]
-reachableModules depGraph mod =
-  node_key <$> tail (reachableG depGraph (DigraphNode () mod []))
-
-buildDepGraph :: ModuleGraph -> Ghc DepGraph
-buildDepGraph homeModules =
-  graphFromEdgedVerticesOrd <$> mapM mkDepGraphNode (mgModSummaries homeModules)
-
-mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
-mkDepGraphNode modSummary = 
-  DigraphNode () (ms_mod modSummary) <$> (filterM isHomeModule =<< modSummaryImports modSummary)
-
-isHomeModule :: Module -> Ghc Bool
-isHomeModule mod = do
-  homePkg <- thisPackage <$> getSessionDynFlags
-  return   $ moduleUnitId mod == homePkg
-
-modSummaryImports :: ModSummary -> Ghc [Module]
-modSummaryImports modSummary =
-  mapM (importDeclModule (ms_mod modSummary))
-       (ms_textual_imps modSummary)
-
-importDeclModule :: Module -> (Maybe FastString,  GHC.Located ModuleName) -> Ghc Module
-importDeclModule fromMod (pkgQual, locModName) = do
-  hscEnv <- getSession
-  let modName = unLoc locModName
-  result <- liftIO $ findImportedModule hscEnv modName pkgQual
-  case result of
-    Finder.Found _ mod -> return mod
-    _ -> do
-      dflags <- getSessionDynFlags
-      liftIO $ throwGhcExceptionIO $ ProgramError $
-        O.showPpr dflags (moduleName fromMod) ++ ": " ++
-        O.showSDoc dflags (cannotFindModule dflags modName result)
-
---------------------------------------------------------------------------------
 -- | Per-Module Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
 type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
-
---processModules :: TcStableData
---               -> Config 
---               -> LogicMap 
---               -> [FilePath] 
---               -> DepGraph 
---               -> ModuleGraph 
---               -> CoreM [GhcInfo]
---processModules tcStableData cfg logicMap tgtFiles depGraph homeModules = do
---  -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
---  catMaybes . snd <$> Misc.mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
---  where
---    go = processModule tcStableData cfg logicMap (S.fromList tgtFiles) depGraph
 
 processModule :: LiquidHaskellModGuts
               -> S.HashSet FilePath
               -> SpecEnv
               -> [SpecComment]
               -> [BPspec]
-              -> CoreM (SpecEnv, Maybe GhcInfo)
+              -> CoreM (ModGuts, SpecEnv, Maybe GhcInfo)
 processModule LiquidHaskellModGuts{..} targets specEnv specComments specQuotes = do
   let modGuts = lhModuleGuts
   Debug.traceShow ("Module ==> " ++ show (moduleName $ mg_module $ modGuts)) $ return ()
@@ -404,9 +374,14 @@ processModule LiquidHaskellModGuts{..} targets specEnv specComments specQuotes =
                                                                    else loadLiftedSpec lhModuleCfg file 
   let bareSpec         = updLiftedSpec commSpec liftedSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
-  (specEnv', ) <$> if isTarget
-                     then Just <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcStableData lhModuleGuts bareSpec
-                     else return Nothing
+
+  -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
+  let modGuts'         = Util.serialiseBareSpecsFor [noTerm bareSpec] modGuts
+
+  (modGuts', specEnv', ) 
+    <$> if isTarget
+           then Just <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcStableData lhModuleGuts bareSpec
+           else return Nothing
 
 updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
 updLiftedSpec s1 Nothing   = s1 

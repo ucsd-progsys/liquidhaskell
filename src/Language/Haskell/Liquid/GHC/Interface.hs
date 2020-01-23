@@ -34,6 +34,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , makeGhcSrc
   , qImports
   , modSummaryHsFile
+  , transParseSpecs
 
   ) where
 
@@ -690,52 +691,54 @@ findAndParseSpecFiles :: Config
                       -> [Module]
                       -> Ghc [(ModName, Ms.BareSpec)]
 findAndParseSpecFiles cfg paths modSummary reachable = do
+  modGraph <- getModuleGraph
   impSumms <- mapM getModSummary (moduleName <$> reachable)
   imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
-  fs'      <- moduleFiles Spec paths imps
+  fs'      <- liftIO $ moduleFiles modGraph Spec paths imps
   -- liftIO  $ whenLoud  $ print ("moduleFiles-imps'': "  ++ show (m2s <$> imps''))
   -- liftIO  $ whenLoud  $ print ("moduleFiles-imps' : "  ++ show (m2s <$> imps'))
   -- liftIO  $ whenLoud  $ print ("moduleFiles-imps  : "  ++ show imps)
   -- liftIO  $ whenLoud  $ print ("moduleFiles-Paths : "  ++ show paths)
   -- liftIO  $ whenLoud  $ print ("moduleFiles-Specs : "  ++ show fs')
-  patSpec  <- getPatSpec paths  $ totalityCheck cfg
-  rlSpec   <- getRealSpec paths $ not (linear cfg)
+  patSpec  <- liftIO $ getPatSpec  modGraph paths $ totalityCheck cfg
+  rlSpec   <- liftIO $ getRealSpec modGraph paths $ not (linear cfg)
   let fs    = patSpec ++ rlSpec ++ fs'
-  transParseSpecs paths mempty mempty fs
+  liftIO $ transParseSpecs modGraph paths mempty mempty fs
   where
     m2s = moduleNameString . moduleName
 
-getPatSpec :: [FilePath] -> Bool -> Ghc [FilePath]
-getPatSpec paths totalitycheck
- | totalitycheck = moduleFiles Spec paths [patErrorName]
+getPatSpec :: ModuleGraph -> [FilePath] -> Bool -> IO [FilePath]
+getPatSpec modGraph paths totalitycheck
+ | totalitycheck = moduleFiles modGraph Spec paths [patErrorName]
  | otherwise     = return []
  where
   patErrorName   = "PatErr"
 
-getRealSpec :: [FilePath] -> Bool -> Ghc [FilePath]
-getRealSpec paths freal
-  | freal     = moduleFiles Spec paths [realSpecName]
-  | otherwise = moduleFiles Spec paths [notRealSpecName]
+getRealSpec :: ModuleGraph -> [FilePath] -> Bool -> IO [FilePath]
+getRealSpec modGraph paths freal
+  | freal     = moduleFiles modGraph Spec paths [realSpecName]
+  | otherwise = moduleFiles modGraph Spec paths [notRealSpecName]
   where
     realSpecName    = "Real"
     notRealSpecName = "NotReal"
 
-transParseSpecs :: [FilePath]
+transParseSpecs :: ModuleGraph
+                -> [FilePath]
                 -> S.HashSet FilePath 
                 -> [(ModName, Ms.BareSpec)]
                 -> [FilePath]
-                -> Ghc [(ModName, Ms.BareSpec)]
-transParseSpecs _ _ specs [] = return specs
-transParseSpecs paths seenFiles specs newFiles = do
+                -> IO [(ModName, Ms.BareSpec)]
+transParseSpecs _ _ _ specs [] = return specs
+transParseSpecs modGraph paths seenFiles specs newFiles = do
   -- liftIO $ print ("TRANS-PARSE-SPECS", seenFiles, newFiles)
   newSpecs      <- liftIO $ mapM parseSpecFile newFiles
-  impFiles      <- moduleFiles Spec paths $ specsImports newSpecs
+  impFiles      <- moduleFiles modGraph Spec paths $ specsImports newSpecs
   let seenFiles' = seenFiles `S.union` S.fromList newFiles
   let specs'     = specs ++ map (second noTerm) newSpecs
   let newFiles'  = filter (not . (`S.member` seenFiles')) impFiles
-  transParseSpecs paths seenFiles' specs' newFiles'
+  transParseSpecs modGraph paths seenFiles' specs' newFiles'
   where
     specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
 
@@ -747,32 +750,32 @@ parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayR
 
 -- Find Hquals Files -----------------------------------------------------------
 
-_moduleHquals :: MGIModGuts
-             -> [FilePath]
-             -> FilePath
-             -> [String]
-             -> [FilePath]
-             -> Ghc [FilePath]
-_moduleHquals mgi paths target imps incs = do
-  hqs   <- specIncludes Hquals paths incs
-  hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
-  hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
-  return $ Misc.sortNub $ hqs'' ++ hqs ++ hqs'
+-- _moduleHquals :: MGIModGuts
+--              -> [FilePath]
+--              -> FilePath
+--              -> [String]
+--              -> [FilePath]
+--              -> Ghc [FilePath]
+-- _moduleHquals mgi paths target imps incs = do
+--   hqs   <- specIncludes Hquals paths incs
+--   hqs'  <- moduleFiles Hquals paths (mgi_namestring mgi : imps)
+--   hqs'' <- liftIO $ filterM doesFileExist [extFileName Hquals target]
+--   return $ Misc.sortNub $ hqs'' ++ hqs ++ hqs'
 
 -- Find Files for Modules ------------------------------------------------------
 
-moduleFiles :: Ext -> [FilePath] -> [String] -> Ghc [FilePath]
-moduleFiles ext paths names = catMaybes <$> mapM (moduleFile ext paths) names
+moduleFiles :: ModuleGraph -> Ext -> [FilePath] -> [String] -> IO [FilePath]
+moduleFiles modGraph ext paths names = catMaybes <$> mapM (moduleFile modGraph ext paths) names
 
-moduleFile :: Ext -> [FilePath] -> String -> Ghc (Maybe FilePath)
-moduleFile ext paths name
+moduleFile :: ModuleGraph -> Ext -> [FilePath] -> String -> IO (Maybe FilePath)
+moduleFile modGraph ext paths name
   | ext `elem` [Hs, LHs] = do
-    graph <- mgModSummaries <$> getModuleGraph
+    let graph = mgModSummaries modGraph
     case find (\m -> not (isBootSummary m) &&
                      name == moduleNameString (ms_mod_name m)) graph of
-      Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
+      Nothing -> getFileInDirs (extModuleName name ext) paths
       Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
-  | otherwise = liftIO $ getFileInDirs (extModuleName name ext) paths
+  | otherwise = getFileInDirs (extModuleName name ext) paths
 
 specIncludes :: Ext -> [FilePath] -> [FilePath] -> Ghc [FilePath]
 specIncludes ext paths reqs = do
