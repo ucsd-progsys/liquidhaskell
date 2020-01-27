@@ -55,7 +55,6 @@ import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 
 import GhcPlugins (showSDocUnsafe, ppr)
-import qualified Debug.Trace as Debug
 
 type MbEnv = Maybe HscEnv
 
@@ -176,7 +175,7 @@ liquidOne info
   where 
     cfg  = getConfig info
     tgt  = giTarget (giSrc info)
-    cbs' = Debug.traceShow ("coreBinds ==> " ++ showSDocUnsafe (ppr $ giCbs (giSrc info))) (giCbs (giSrc info) )
+    cbs' = giCbs (giSrc info)
 
 newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info

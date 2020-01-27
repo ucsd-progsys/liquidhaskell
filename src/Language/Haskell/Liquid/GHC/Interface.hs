@@ -35,6 +35,9 @@ module Language.Haskell.Liquid.GHC.Interface (
   , qImports
   , modSummaryHsFile
   , transParseSpecs
+  , cachedBareSpecs
+  , makeFamInstEnv
+  , findAndParseSpecFiles
 
   ) where
 
@@ -97,6 +100,8 @@ import qualified Language.Fixpoint.Misc as Misc
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
+import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
+import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
@@ -112,6 +117,7 @@ import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
 import qualified Debug.Trace as Debug 
+
 
 --------------------------------------------------------------------------------
 {- | @realTargets mE cfg targets@ uses `Interface.configureGhcTargets` to 
@@ -302,25 +308,25 @@ mkDepGraphNode :: ModSummary -> Ghc DepGraphNode
 mkDepGraphNode modSummary = 
   DigraphNode () (ms_mod modSummary) <$> (filterM isHomeModule =<< modSummaryImports modSummary)
 
-isHomeModule :: Module -> Ghc Bool
+isHomeModule :: GhcMonadLike m => Module -> m Bool
 isHomeModule mod = do
-  homePkg <- thisPackage <$> getSessionDynFlags
+  homePkg <- thisPackage <$> getDynFlags
   return   $ moduleUnitId mod == homePkg
 
-modSummaryImports :: ModSummary -> Ghc [Module]
+modSummaryImports :: GhcMonadLike m => ModSummary -> m [Module]
 modSummaryImports modSummary =
   mapM (importDeclModule (ms_mod modSummary))
        (ms_textual_imps modSummary)
 
-importDeclModule :: Module -> (Maybe FastString,  GHC.Located ModuleName) -> Ghc Module
+importDeclModule :: GhcMonadLike m => Module -> (Maybe FastString,  GHC.Located ModuleName) -> m Module
 importDeclModule fromMod (pkgQual, locModName) = do
-  hscEnv <- getSession
+  hscEnv <- askHscEnv
   let modName = unLoc locModName
   result <- liftIO $ findImportedModule hscEnv modName pkgQual
   case result of
     Finder.Found _ mod -> return mod
     _ -> do
-      dflags <- getSessionDynFlags
+      dflags <- getDynFlags
       liftIO $ throwGhcExceptionIO $ ProgramError $
         O.showPpr dflags (moduleName fromMod) ++ ": " ++
         O.showSDoc dflags (cannotFindModule dflags modName result)
@@ -578,6 +584,7 @@ makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)
+  liftIO $ putStrLn $ "Reachable ==> " ++ (concatMap ((flip mappend) "," . O.showSDocUnsafe . O.ppr) reachable)
   specSpecs    <- findAndParseSpecFiles cfg paths modSum reachable
   let homeSpecs = cachedBareSpecs specEnv reachable
   let impSpecs  = specSpecs ++ homeSpecs
@@ -685,14 +692,15 @@ refreshSymbol = symbol . symbolText
 
 -- | Handle Spec Files ---------------------------------------------------------
 
-findAndParseSpecFiles :: Config
+findAndParseSpecFiles :: GhcMonadLike m
+                      => Config
                       -> [FilePath]
                       -> ModSummary
                       -> [Module]
-                      -> Ghc [(ModName, Ms.BareSpec)]
+                      -> m [(ModName, Ms.BareSpec)]
 findAndParseSpecFiles cfg paths modSummary reachable = do
-  modGraph <- getModuleGraph
-  impSumms <- mapM getModSummary (moduleName <$> reachable)
+  modGraph <- GhcMonadLike.getModuleGraph
+  impSumms <- mapM GhcMonadLike.getModSummary (moduleName <$> reachable)
   imps''   <- nub . concat <$> mapM modSummaryImports (modSummary : impSumms)
   imps'    <- filterM ((not <$>) . isHomeModule) imps''
   let imps  = m2s <$> imps'
