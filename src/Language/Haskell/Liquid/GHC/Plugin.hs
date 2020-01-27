@@ -46,6 +46,8 @@ import Language.Haskell.Liquid.GHC.Plugin.Types (SpecComment(..), TcStableData, 
 import Language.Haskell.Liquid.GHC.Plugin.Util as Util
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
+import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
+import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Annotations
 import Class
 import CoreMonad
@@ -366,7 +368,7 @@ processModule LiquidHaskellModGuts{..} targets specEnv specComments specQuotes =
   let modGuts = lhModuleGuts
   Debug.traceShow ("Module ==> " ++ show (moduleName $ mg_module $ modGuts)) $ return ()
   let mod              = mg_module modGuts
-  file                <- liftIO $ canonicalizePath $ modSummaryHsFile lhModuleSummary
+  file                <- liftIO $ canonicalizePath $ LH.modSummaryHsFile lhModuleSummary
   let isTarget         = file `S.member` targets
   (modName, commSpec) <- either throw return $ 
     hsSpecificationP (moduleName mod) (coerce specComments) specQuotes
@@ -400,35 +402,30 @@ processTargetModule :: Config
 processTargetModule cfg0 logicMap specEnv file tcStableData modGuts bareSpec = do
   hscEnv     <- getHscEnv
   cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  ghcSrc     <- liftIO $ makeGhcSrc cfg file tcStableData modGuts hscEnv
-  bareSpecs  <- makeBareSpecs' cfg specEnv modGuts bareSpec
-  let ghcSpec = makeGhcSpec    cfg ghcSrc   logicMap        bareSpecs
-  -- ghc: panic! (the 'impossible' happened)
-  -- (GHC version 8.10.0.20191210:
-  --       [LH.Bare.listTyDataCons:0:0: Error: Illegal data refinement for `[]`
-  --   Size function len x should have type int.
-  --   Unbound symbol len --- perhaps you meant: head, x ?]
-  -- _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec -- TODO(and) Persist as an annotation in the interface.
+  ghcSrc     <- makeGhcSrc cfg file tcStableData modGuts hscEnv
+  bareSpecs  <- makeBareSpecs cfg specEnv (moduleName $ mg_module modGuts) bareSpec
+  let ghcSpec = makeGhcSpec   cfg ghcSrc  logicMap                         bareSpecs
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
 ---------------------------------------------------------------------------------------
 
-makeGhcSrc :: Config
+makeGhcSrc :: GhcMonadLike m
+           => Config
            -> FilePath 
            -> TcStableData
            -> ModGuts
            -> HscEnv
-           -> IO GhcSrc
+           -> m GhcSrc
 makeGhcSrc cfg file tcStableData modGuts hscEnv = do
   let mgiModGuts    = makeMGIModGuts modGuts
-  coreBinds         <- anormalize cfg hscEnv modGuts
+  coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
-  (fiTcs, fiDcs)    <- makeFamInstEnv hscEnv
+  (fiTcs, fiDcs)    <- liftIO $ LH.makeFamInstEnv hscEnv
   things            <- lookupTyThings' hscEnv mgiModGuts
   let impVars        = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
-  incDir            <- Misc.getIncludeDir
+  incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src
     { giIncDir    = incDir
     , giTarget    = file
@@ -444,17 +441,17 @@ makeGhcSrc cfg file tcStableData modGuts hscEnv = do
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
-    , gsQualImps  = qualifiedImports' tcStableData
-    , gsAllImps   = allImports'       tcStableData
+    , gsQualImps  = qualifiedImports tcStableData
+    , gsAllImps   = allImports       tcStableData
     , gsTyThings  = [ t | (_, Just t) <- things ]
     }
 
-allImports' :: TcStableData -> S.HashSet Symbol 
-allImports' tcStableData =
+allImports :: TcStableData -> S.HashSet Symbol 
+allImports tcStableData =
   S.fromList (symbol . unLoc . ideclName . unLoc <$> tcStableImports tcStableData) 
 
-qualifiedImports' :: TcStableData -> QImports 
-qualifiedImports' (tcStableImports -> imps) =
+qualifiedImports :: TcStableData -> QImports 
+qualifiedImports (tcStableImports -> imps) =
   LH.qImports [ (qn, n) | i         <- imps
                         , let decl   = unLoc i
                         , let m      = unLoc (ideclName decl)  
@@ -478,12 +475,14 @@ lookupTyThings hscEnv tcm mg =
     where 
       mi = tm_checked_module_info tcm
 
-lookupTyThings' :: HscEnv -> MGIModGuts -> IO [(Name, Maybe TyThing)] 
+lookupTyThings' :: GhcMonadLike m => HscEnv -> MGIModGuts -> m [(Name, Maybe TyThing)] 
 lookupTyThings' hscEnv mg =
   forM (mgNames mg) $ \n -> do 
-    -- TODO: lookup in the current module
-    mbTy <- lookupTypeHscEnv hscEnv n
-    return (n, mbTy)
+    tt1 <-          GhcMonadLike.lookupName      n 
+    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
+    -- tt3 <-          modInfoLookupName mi         n 
+    tt4 <-          GhcMonadLike.lookupGlobalName n 
+    return (n, Misc.firstMaybes [tt1, tt2, tt4])
 
 mgNames :: MGIModGuts -> [Ghc.Name] 
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
@@ -491,66 +490,44 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
-{-
-makeBareSpecs :: Config 
-              -> DepGraph 
+makeBareSpecs :: GhcMonadLike m
+              => Config 
               -> SpecEnv 
-              -> ModSummary 
+              -> ModuleName
               -> Ms.BareSpec 
-              -> Ghc [(ModName, Ms.BareSpec)]
-makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do 
+              -> m [(ModName, Ms.BareSpec)]
+makeBareSpecs cfg specEnv thisModule tgtSpec = do 
+  modSum       <- GhcMonadLike.getModSummary thisModule
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
-  _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
-  let reachable = reachableModules depGraph (ms_mod modSum)
+  let reachable = mempty -- reachableModules depGraph (ms_mod modSum)
   specSpecs    <- LH.findAndParseSpecFiles cfg paths modSum reachable
-  let homeSpecs = cachedBareSpecs specEnv reachable
+  let homeSpecs = LH.cachedBareSpecs specEnv reachable
   let impSpecs  = specSpecs ++ homeSpecs
-  let tgtMod    = ModName Target (moduleName (ms_mod modSum))
+  let tgtMod    = ModName Target thisModule
   return        $ (tgtMod, tgtSpec) : impSpecs
--}
 
--- This will use annotations to return the specs.
-makeBareSpecs' :: Config 
-               -> SpecEnv
-               -> ModGuts
-               -> Ms.BareSpec 
-               -> CoreM [(ModName, Ms.BareSpec)]
-makeBareSpecs' cfg specEnv modGuts tgtSpec = do
-  let tgtMod = ModName Target (moduleName (mg_module modGuts))
-
-  -- NOTE(adn) Consider also 'dep_pkgs'?
-  dependenciesSpecs <- foldlM getSpec mempty (dep_mods $ mg_deps modGuts)
-
-  pure $ (tgtMod, tgtSpec) : dependenciesSpecs
-
-  where
-    getSpec :: [(ModName, Ms.BareSpec)] -> (ModuleName, IsBootInterface) -> CoreM [(ModName, Ms.BareSpec)]
-    getSpec !allSpecs (_, True)        = pure allSpecs
-    getSpec !allSpecs (modName, False) = pure allSpecs
-
-modSummaryHsFile :: ModSummary -> FilePath
-modSummaryHsFile modSummary =
-  fromMaybe
-    (panic Nothing $
-      "modSummaryHsFile: missing .hs file for " ++
-      showPpr (ms_mod modSummary))
-    (ml_hs_file $ ms_location modSummary)
-
-cachedBareSpecs :: SpecEnv -> [Module] -> [(ModName, Ms.BareSpec)]
-cachedBareSpecs specEnv mods = lookupBareSpec <$> mods
-  where
-    lookupBareSpec m         = fromMaybe (err m) (lookupModuleEnv specEnv m)
-    err m                    = impossible Nothing ("lookupBareSpec: missing module " ++ showPpr m)
+-- This will use interface annotations to return the specs.
+--makeBareSpecs :: Config 
+--              -> SpecEnv
+--              -> ModGuts
+--              -> Ms.BareSpec 
+--              -> CoreM [(ModName, Ms.BareSpec)]
+--makeBareSpecs cfg specEnv modGuts tgtSpec = do
+--  let tgtMod = ModName Target (moduleName (mg_module modGuts))
+--
+--  -- NOTE(adn) Consider also 'dep_pkgs'?
+--  dependenciesSpecs <- foldlM getSpec mempty (dep_mods $ mg_deps modGuts)
+--
+--  pure $ (tgtMod, tgtSpec) : dependenciesSpecs
+--
+--  where
+--    getSpec :: [(ModName, Ms.BareSpec)] -> (ModuleName, IsBootInterface) -> CoreM [(ModName, Ms.BareSpec)]
+--    getSpec !allSpecs (_, True)        = pure allSpecs
+--    getSpec !allSpecs (modName, False) = pure allSpecs
 
 --------------------------------------------------------------------------------
 -- | Family instance information
 --------------------------------------------------------------------------------
-makeFamInstEnv :: HscEnv -> IO ([GHC.TyCon], [(Symbol, DataCon)])
-makeFamInstEnv env = do
-  famInsts <- getFamInstances env
-  let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
-  let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return (fiTcs, fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
