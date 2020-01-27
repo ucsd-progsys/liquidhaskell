@@ -1,4 +1,5 @@
-
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances #-}
 -- | This module introduces a \"lighter\" "GhcMonad" typeclass which doesn't require an instance of
 -- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
 --
@@ -12,6 +13,7 @@ import Control.Exception (throwIO)
 import Language.Haskell.Liquid.GHC.API
 import qualified CoreMonad
 import DynFlags (HasDynFlags(..))
+import TcRnMonad
 import Outputable (ppr, text, (<+>))
 
 class HasHscEnv m where
@@ -23,12 +25,16 @@ instance HasHscEnv CoreMonad.CoreM where
 instance HasHscEnv Ghc where
   askHscEnv = getSession
 
+instance HasHscEnv (IfM lcl) where
+  askHscEnv = getTopEnv
+
 -- | A typeclass which is /very/ similar to the existing 'GhcMonad', but it doesn't impose a
 -- 'ExceptionMonad' constraint.
 class (Functor m, MonadIO m, HasHscEnv m, HasDynFlags m) => GhcMonadLike m
 
-instance GhcMonadLike CoreMonad.CoreM where
-instance GhcMonadLike Ghc where
+instance GhcMonadLike CoreMonad.CoreM
+instance GhcMonadLike Ghc
+instance GhcMonadLike (IfM lcl)
 
 getModuleGraph :: GhcMonadLike m => m ModuleGraph
 getModuleGraph = liftM hsc_mod_graph askHscEnv

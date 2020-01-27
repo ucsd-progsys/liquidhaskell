@@ -5,8 +5,8 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       , extractSpecComments
 
       -- * Serialising and deserialising things from/to annotations.
-      , serialiseBareSpecsFor
-      , deserialiseBareSpecsFor
+      , serialiseBareSpecs
+      , deserialiseBareSpecs
       , serialiseTest
       , deserialiseTest
       , Foo(..)
@@ -77,8 +77,8 @@ extractModuleAnnotations guts = (guts', extracted)
     tryDeserialise _
         = Nothing
 
-deserialiseBareSpecsFor :: Module -> ExternalPackageState -> [BareSpec]
-deserialiseBareSpecsFor thisModule eps = extracted
+deserialiseBareSpecs :: Module -> ExternalPackageState -> [BareSpec]
+deserialiseBareSpecs thisModule eps = extracted
   where
     extracted = findAnns deserialise (eps_ann_env eps) (ModuleTarget thisModule)
 
@@ -89,8 +89,8 @@ deserialiseBareSpecsFor thisModule eps = extracted
     hush (Left _)        = Nothing
     hush (Right (_,_,x)) = Just x
 
-serialiseBareSpecsFor :: [BareSpec] -> ModGuts -> ModGuts
-serialiseBareSpecsFor specs modGuts = annotated
+serialiseBareSpecs :: [BareSpec] -> ModGuts -> ModGuts
+serialiseBareSpecs specs modGuts = annotated
   where
     thisModule     = mg_module modGuts
     annotated      = modGuts { mg_anns = newAnnotations ++ mg_anns modGuts }

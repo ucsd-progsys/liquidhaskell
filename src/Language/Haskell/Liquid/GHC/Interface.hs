@@ -38,6 +38,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , cachedBareSpecs
   , makeFamInstEnv
   , findAndParseSpecFiles
+  , parseSpecFile
 
   ) where
 
