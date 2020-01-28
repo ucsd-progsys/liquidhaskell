@@ -39,6 +39,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   , makeFamInstEnv
   , findAndParseSpecFiles
   , parseSpecFile
+  , noTerm
+  , updLiftedSpec
 
   ) where
 

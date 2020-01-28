@@ -278,7 +278,7 @@ liquidHaskellPass cfg modGuts = do
      eps <- liftIO $ readIORef (hsc_EPS hscEnv)
 
      updatedSpecEnv <- loadRelevantSpecs cfg specEnv (relevantModules modGuts)
-     (finalGuts, newSpecEnv, ghcInfo) <- processModule lhModGuts (S.singleton thisFile) updatedSpecEnv specComments specQuotes
+     (finalGuts, newSpecEnv, ghcInfo) <- processModule lhModGuts updatedSpecEnv specComments specQuotes
      res <- liftIO $ LH.liquidOne ghcInfo
      case o_result res of
        Safe -> pure ()
@@ -444,35 +444,23 @@ configureDynFlags cfg df = do
 type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 
 processModule :: LiquidHaskellModGuts
-              -> S.HashSet FilePath
               -> SpecEnv
               -> [SpecComment]
               -> [BPspec]
               -> CoreM (ModGuts, SpecEnv, GhcInfo)
-processModule LiquidHaskellModGuts{..} targets specEnv specComments specQuotes = do
+processModule LiquidHaskellModGuts{..} specEnv specComments specQuotes = do
   let modGuts = lhModuleGuts
   Debug.traceShow ("Module ==> " ++ show (moduleName $ mg_module $ modGuts)) $ return ()
   let mod              = mg_module modGuts
   file                <- liftIO $ canonicalizePath $ LH.modSummaryHsFile lhModuleSummary
-  let isTarget         = file `S.member` targets
-  (modName, commSpec) <- either throw return $ 
-    hsSpecificationP (moduleName mod) (coerce specComments) specQuotes
-  liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing 
-                                                                   else loadLiftedSpec lhModuleCfg file 
-  let bareSpec         = updLiftedSpec commSpec liftedSpec
-  let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
+  (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) (coerce specComments) specQuotes
+  let specEnv'         = extendModuleEnv specEnv mod (modName, LH.noTerm bareSpec)
 
   -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
-  let modGuts'         = Util.serialiseBareSpecs [noTerm bareSpec] modGuts
+  let modGuts'         = Util.serialiseBareSpecs [LH.noTerm bareSpec] modGuts
 
   (modGuts', specEnv', ) 
     <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcStableData lhModuleGuts bareSpec
-
-updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
-updLiftedSpec s1 Nothing   = s1 
-updLiftedSpec s1 (Just s2) = (clear s1) `mappend` s2 
-  where 
-    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
 processTargetModule :: Config 
                     -> LogicMap 
@@ -528,6 +516,11 @@ makeGhcSrc cfg file tcStableData modGuts hscEnv = do
     , gsAllImps   = allImports       tcStableData
     , gsTyThings  = [ t | (_, Just t) <- things ]
     }
+  where
+    makeMGIModGuts :: ModGuts -> MGIModGuts
+    makeMGIModGuts modGuts = miModGuts deriv modGuts
+      where
+        deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
 allImports :: TcStableData -> S.HashSet Symbol 
 allImports tcStableData =
@@ -555,10 +548,9 @@ lookupTyThings hscEnv mg =
     -- tt3 <-          modInfoLookupName mi         n 
     tt4 <-          GhcMonadLike.lookupGlobalName n 
     return (n, Misc.firstMaybes [tt1, tt2, tt4])
-
-mgNames :: MGIModGuts -> [Ghc.Name] 
-mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
-
+  where
+    mgNames :: MGIModGuts -> [Ghc.Name] 
+    mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
 
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
@@ -585,121 +577,3 @@ findExternalSpecs :: GhcMonadLike m
 findExternalSpecs cfg modSum =
   let paths = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   in LH.findAndParseSpecFiles cfg paths modSum mempty -- reachable: mempty
-
-
--- This will use interface annotations to return the specs.
---makeBareSpecs :: Config 
---              -> SpecEnv
---              -> ModGuts
---              -> Ms.BareSpec 
---              -> CoreM [(ModName, Ms.BareSpec)]
---makeBareSpecs cfg specEnv modGuts tgtSpec = do
---  let tgtMod = ModName Target (moduleName (mg_module modGuts))
---
---  -- NOTE(adn) Consider also 'dep_pkgs'?
---  dependenciesSpecs <- foldlM getSpec mempty (dep_mods $ mg_deps modGuts)
---
---  pure $ (tgtMod, tgtSpec) : dependenciesSpecs
---
---  where
---    getSpec :: [(ModName, Ms.BareSpec)] -> (ModuleName, IsBootInterface) -> CoreM [(ModName, Ms.BareSpec)]
---    getSpec !allSpecs (_, True)        = pure allSpecs
---    getSpec !allSpecs (modName, False) = pure allSpecs
-
---------------------------------------------------------------------------------
--- | Family instance information
---------------------------------------------------------------------------------
-
-getFamInstances :: HscEnv -> IO [FamInst]
-getFamInstances env = do
-  (_, Just (pkg_fie, home_fie)) <- runTcInteractive env tcGetFamInstEnvs
-  return $ famInstEnvElts home_fie ++ famInstEnvElts pkg_fie
- 
-refreshSymbols :: Data a => a -> a
-refreshSymbols = everywhere (mkT refreshSymbol)
-
-refreshSymbol :: Symbol -> Symbol
-refreshSymbol = symbol . symbolText
-
---------------------------------------------------------------------------------
--- | Finding & Parsing Files ---------------------------------------------------
---------------------------------------------------------------------------------
-
-getPatSpec :: [FilePath] -> Bool -> Ghc [FilePath]
-getPatSpec paths totalitycheck
- | totalitycheck = moduleFiles Spec paths [patErrorName]
- | otherwise     = return []
- where
-  patErrorName   = "PatErr"
-
-getRealSpec :: [FilePath] -> Bool -> Ghc [FilePath]
-getRealSpec paths freal
-  | freal     = moduleFiles Spec paths [realSpecName]
-  | otherwise = moduleFiles Spec paths [notRealSpecName]
-  where
-    realSpecName    = "Real"
-    notRealSpecName = "NotReal"
-
-transParseSpecs :: [FilePath]
-                -> S.HashSet FilePath 
-                -> [(ModName, Ms.BareSpec)]
-                -> [FilePath]
-                -> Ghc [(ModName, Ms.BareSpec)]
-transParseSpecs _ _ specs [] = return specs
-transParseSpecs paths seenFiles specs newFiles = do
-  newSpecs      <- liftIO $ mapM parseSpecFile newFiles
-  impFiles      <- moduleFiles Spec paths $ specsImports newSpecs
-  let seenFiles' = seenFiles `S.union` S.fromList newFiles
-  let specs'     = specs ++ map (second noTerm) newSpecs
-  let newFiles'  = filter (not . (`S.member` seenFiles')) impFiles
-  transParseSpecs paths seenFiles' specs' newFiles'
-  where
-    specsImports ss = nub $ concatMap (map symbolString . Ms.imports . snd) ss
-
-noTerm :: Ms.BareSpec -> Ms.BareSpec
-noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
-
-parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
-parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayReadFile file
-
--- Find Files for Modules ------------------------------------------------------
-
-moduleFiles :: Ext -> [FilePath] -> [String] -> Ghc [FilePath]
-moduleFiles ext paths names = catMaybes <$> mapM (moduleFile ext paths) names
-
-moduleFile :: Ext -> [FilePath] -> String -> Ghc (Maybe FilePath)
-moduleFile ext paths name
-  | ext `elem` [Hs, LHs] = do
-    graph <- mgModSummaries <$> getModuleGraph
-    case find (\m -> not (isBootSummary m) &&
-                     name == moduleNameString (ms_mod_name m)) graph of
-      Nothing -> liftIO $ getFileInDirs (extModuleName name ext) paths
-      Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
-  | otherwise = liftIO $ getFileInDirs (extModuleName name ext) paths
-
---------------------------------------------------------------------------------
--- Assemble Information for Spec Extraction ------------------------------------
---------------------------------------------------------------------------------
-
-makeMGIModGuts :: ModGuts -> MGIModGuts
-makeMGIModGuts modGuts = miModGuts deriv modGuts
-  where
-    deriv   = Just $ instEnvElts $ mg_inst_env modGuts
-
-makeLogicMap :: IO LogicMap
-makeLogicMap = do
-  lg    <- Misc.getCoreToLogicPath
-  lspec <- Misc.sayReadFile lg
-  case parseSymbolToLogic lg lspec of 
-    Left e   -> throw e 
-    Right lm -> return (lm <> listLMap)
-
-listLMap :: LogicMap -- TODO-REBARE: move to wiredIn
-listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
-                       , (dummyLoc consName, [x, xs], hCons (EVar <$> [x, xs])) ]
-  where
-    x     = "x"
-    xs    = "xs"
-    hNil  = mkEApp (dcSym Ghc.nilDataCon ) []
-    hCons = mkEApp (dcSym Ghc.consDataCon)
-    dcSym = dummyLoc . dropModuleUnique . symbol
