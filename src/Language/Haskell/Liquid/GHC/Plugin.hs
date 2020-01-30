@@ -43,7 +43,7 @@ import qualified Language.Haskell.Liquid.UX.Config as LH
 import qualified Language.Haskell.Liquid.GHC.Interface as LH
 import qualified Language.Haskell.Liquid.Liquid as LH
 
-import Language.Haskell.Liquid.GHC.Plugin.Types (SpecComment(..), TcStableData, mkTcStableData, tcStableImports)
+import Language.Haskell.Liquid.GHC.Plugin.Types
 import Language.Haskell.Liquid.GHC.Plugin.Util as Util
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
@@ -82,13 +82,15 @@ import Data.Bifunctor
 import Data.Coerce
 import Data.Data
 import Data.List as L hiding (intersperse)
+import qualified Data.Set as S
+import Data.Set (Set)
 import Data.Maybe
 import Data.IORef
 
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
-import qualified Data.HashSet        as S
+import qualified Data.HashSet        as HS
 import qualified Data.Map            as M
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
@@ -124,7 +126,7 @@ cfgRef :: IORef Config
 cfgRef = unsafePerformIO $ newIORef defConfig
 {-# NOINLINE cfgRef #-}
 
-tcStableRef :: IORef (ModuleEnv TcStableData)
+tcStableRef :: IORef (ModuleEnv TcData)
 tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 {-# NOINLINE tcStableRef #-}
 
@@ -133,10 +135,6 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 ifaceStableRef :: IORef SpecEnv
 ifaceStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 {-# NOINLINE ifaceStableRef #-}
-
-testRef :: IORef Int
-testRef = unsafePerformIO $ newIORef 0
-{-# NOINLINE testRef #-}
 
 -- | Reads the 'Config' out of a 'IORef'.
 getConfig :: IO Config
@@ -150,9 +148,10 @@ plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
     parsedResultAction = parseHook
   , typeCheckResultAction = typecheckHook
+  , renamedResultAction = keepRenamedSource
   , installCoreToDos = coreHook
   , dynflagsPlugin = customHooks
-  , pluginRecompile = \_ -> pure NoForceRecompile
+  , pluginRecompile = \_ -> pure ForceRecompile
   , interfaceLoadAction = loadInterfaceHook
   }
 
@@ -161,7 +160,6 @@ plugin = GHC.defaultPlugin {
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
 customHooks :: [CommandLineOption] -> DynFlags -> IO DynFlags
 customHooks opts dflags = do
-  liftIO $ putStrLn "CustomHook"
   cfg <- liftIO $ LH.getOpts opts
   writeIORef cfgRef cfg
   configureDynFlags cfg dflags
@@ -179,7 +177,7 @@ parseHook :: [CommandLineOption]
           -> HsParsedModule 
           -> Hsc HsParsedModule
 parseHook opts modSummary parsedModule = do
-  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
+  let comments  = L.reverse $ LH.extractSpecComments (hpm_annotations parsedModule)
   liftIO $ putStrLn $ "extractSpecComments ==> " ++ show comments
 
   commentsExps <- mapM (liftIO . TH.runQ . TH.liftData . SpecComment) comments
@@ -189,7 +187,17 @@ parseHook opts modSummary parsedModule = do
           fmap (specCommentsToModuleAnnotations (zip comments commentsExps)) 
                (hpm_module parsedModule) 
   }
-  pure module'
+  pure $ ignoreInline module'
+  where
+    ignoreInline :: HsParsedModule -> HsParsedModule
+    ignoreInline x = x { hpm_module = go <$> hpm_module x}
+      where 
+        go :: HsModule GhcPs -> HsModule GhcPs
+        go  x      = x {hsmodDecls = filter go' (hsmodDecls x) }
+        go' :: LHsDecl GhcPs -> Bool
+        go' x 
+          | SigD _ (InlineSig {}) <-  unLoc x = False
+          | otherwise                         = True
 
 specCommentsToModuleAnnotations :: [((SourcePos, String), TH.Exp)] 
                                 -> HsModule GhcPs 
@@ -215,15 +223,18 @@ typecheckHook :: [CommandLineOption]
               -> TcGblEnv 
               -> TcM TcGblEnv
 typecheckHook opts modSummary tcGblEnv = do
-  let stableData = mkTcStableData tcGblEnv
+  env <- askHscEnv
+  resolvedNames <- resolveNames env modSummary tcGblEnv
+  let stableData = mkTcData tcGblEnv resolvedNames
   let thisModule = ms_mod modSummary
+
+  -- let hsc_env_tmp = env { hsc_dflags = ms_hspp_opts modSummary }
+  -- preSimplifyCoreBinds <- liftIO $ Ghc.hscDesugar hsc_env_tmp modSummary tcGblEnv
+  -- liftIO $ putStrLn 
+  --        $ "coreBinds pre-simplify  ==> " ++ (O.showSDocUnsafe $ O.vcat (map O.ppr $ mg_binds preSimplifyCoreBinds))
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
-
-  liftIO $ do
-    readIORef testRef >>= (\x -> putStrLn $ "COUNTER ===> " ++ show x)
-    atomicModifyIORef' testRef (\old -> (succ old, ()))
 
   pure tcGblEnv
 
@@ -246,30 +257,28 @@ liquidHaskellPass cfg modGuts = do
 
   liftIO $ putStrLn $ "My UnitId = " ++ (O.showSDocUnsafe . O.ppr . moduleUnitId $ thisModule)
 
-  liftIO $ putStrLn $ "Relevant ===> " ++ (unlines $ map (O.showSDocUnsafe . O.ppr) (relevantModules modGuts))
+  liftIO $ putStrLn $ "Relevant ===> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ (S.toList $ relevantModules modGuts))
 
   -- Generate the bare-specs. Here we call 'extractSpecComments' which is what allows us to
   -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
   let (guts', specComments) = Util.extractSpecComments modGuts
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
 
-  mbTcStableData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
+  mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
   let mbModSummary = mgLookupModule (hsc_mod_graph hscEnv) thisModule
 
-  case (mbTcStableData, mbModSummary) of
-    (Nothing, _) -> Util.pluginAbort dynFlags (O.text "No tcStableData found for " O.<+> O.ppr thisModule)
+  case (mbTcData, mbModSummary) of
+    (Nothing, _) -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
     (_, Nothing) -> Util.pluginAbort dynFlags (O.text "No modSummary found for " O.<+> O.ppr thisModule)
-    (Just tcStableData, Just modSummary) -> do
+    (Just tcData, Just modSummary) -> do
 
-     -- The targets of the current compilation. This list doesn't include dependencies of these targets.
-     let targets = hsc_targets hscEnv
      logicMap <- liftIO $ LH.makeLogicMap
 
      let lhModGuts = LiquidHaskellModGuts {
            lhModuleCfg          = cfg
          , lhModuleLogicMap     = logicMap
          , lhModuleSummary      = modSummary
-         , lhModuleTcStableData = tcStableData
+         , lhModuleTcData = tcData
          , lhModuleGuts         = guts'
          }
 
@@ -277,7 +286,7 @@ liquidHaskellPass cfg modGuts = do
      thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
      eps <- liftIO $ readIORef (hsc_EPS hscEnv)
 
-     updatedSpecEnv <- loadRelevantSpecs cfg specEnv (relevantModules modGuts)
+     updatedSpecEnv <- loadRelevantSpecs cfg specEnv (S.toList $ relevantModules modGuts)
      (finalGuts, newSpecEnv, ghcInfo) <- processModule lhModGuts updatedSpecEnv specComments specQuotes
      res <- liftIO $ LH.liquidOne ghcInfo
      case o_result res of
@@ -291,17 +300,24 @@ liquidHaskellPass cfg modGuts = do
 
 
 usedModules :: ModGuts -> [Module]
-usedModules = foldl' collectUsage mempty . mg_usages
- where
-   collectUsage :: [Module] -> Usage -> [Module]
-   collectUsage acc = \case
-     UsagePackageModule     { usg_mod = mod } -> mod : acc
-     UsageMergedRequirement { usg_mod = mod } -> mod : acc
-     _ -> acc
+usedModules modGuts = foldl' collectUsage mempty . mg_usages $ modGuts
+  where
+    collectUsage :: [Module] -> Usage -> [Module]
+    collectUsage acc = \case
+      UsagePackageModule     { usg_mod      = modl    } -> modl : acc
+      UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
+      UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
+      _ -> acc
+
+    thisModule :: Module
+    thisModule = mg_module modGuts
+
+    toModule :: ModuleName -> Module
+    toModule = Module (moduleUnitId thisModule)
 
 -- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModGuts -> [Module]
-relevantModules modGuts = 
+relevantModules :: ModGuts -> Set Module
+relevantModules modGuts = S.fromList $
  (map (toModule . fst) . filter (not . snd) . dep_mods $ deps) <> usedModules modGuts
  where
   deps :: Dependencies
@@ -318,7 +334,7 @@ data LiquidHaskellModGuts = LiquidHaskellModGuts {
     lhModuleCfg          :: Config
   , lhModuleLogicMap     :: LogicMap
   , lhModuleSummary      :: ModSummary
-  , lhModuleTcStableData :: TcStableData
+  , lhModuleTcData :: TcData
   , lhModuleGuts         :: ModGuts
   }
 
@@ -423,6 +439,10 @@ configureDynFlags cfg df = do
   let df'' = df' { importPaths  = nub $ idirs cfg ++ importPaths df'
                  , libraryPaths = nub $ idirs cfg ++ libraryPaths df'
                  , includePaths = updateIncludePaths df' (idirs cfg)
+                 -- , debugLevel   = 1               -- insert SourceNotes
+                 --, ghcLink      = LinkInMemory
+                 --, hscTarget    = HscInterpreted
+                 --, ghcMode      = CompManager
                  , packageFlags = ExposePackage ""
                                                 (PackageArg "ghc-prim")
                                                 (ModRenaming True [])
@@ -454,26 +474,28 @@ processModule LiquidHaskellModGuts{..} specEnv specComments specQuotes = do
   let mod              = mg_module modGuts
   file                <- liftIO $ canonicalizePath $ LH.modSummaryHsFile lhModuleSummary
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) (coerce specComments) specQuotes
+  _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, LH.noTerm bareSpec)
 
   -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
   let modGuts'         = Util.serialiseBareSpecs [LH.noTerm bareSpec] modGuts
+  Debug.trace ("bareSpec ==> " ++ show bareSpec) $ return ()
 
   (modGuts', specEnv', ) 
-    <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcStableData lhModuleGuts bareSpec
+    <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcData lhModuleGuts bareSpec
 
 processTargetModule :: Config 
                     -> LogicMap 
                     -> SpecEnv 
                     -> FilePath 
-                    -> TcStableData
+                    -> TcData
                     -> ModGuts
                     -> Ms.BareSpec
                     -> CoreM GhcInfo
-processTargetModule cfg0 logicMap specEnv file tcStableData modGuts bareSpec = do
+processTargetModule cfg0 logicMap specEnv file tcData modGuts bareSpec = do
   hscEnv     <- getHscEnv
   cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  ghcSrc     <- makeGhcSrc cfg file tcStableData modGuts hscEnv
+  ghcSrc     <- makeGhcSrc cfg file tcData modGuts hscEnv
   bareSpecs  <- makeBareSpecs cfg specEnv (moduleName $ mg_module modGuts) bareSpec
   let ghcSpec = makeGhcSpec   cfg ghcSrc  logicMap                         bareSpecs
   return      $ GI ghcSrc ghcSpec
@@ -485,16 +507,19 @@ processTargetModule cfg0 logicMap specEnv file tcStableData modGuts bareSpec = d
 makeGhcSrc :: GhcMonadLike m
            => Config
            -> FilePath 
-           -> TcStableData
+           -> TcData
            -> ModGuts
            -> HscEnv
            -> m GhcSrc
-makeGhcSrc cfg file tcStableData modGuts hscEnv = do
+makeGhcSrc cfg file tcData modGuts hscEnv = do
   let mgiModGuts    = makeMGIModGuts modGuts
+  -- liftIO $ putStrLn $ "coreBinds pre-anormalize ==> " ++ (O.showSDocUnsafe $ O.vcat (map O.ppr $ mg_binds modGuts))
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts
+  -- liftIO $ putStrLn $ "===> CoreBinds ==> " ++ (O.showSDocUnsafe $ O.vcat $ map O.ppr coreBinds)
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
   (fiTcs, fiDcs)    <- liftIO $ LH.makeFamInstEnv hscEnv
-  things            <- lookupTyThings hscEnv mgiModGuts
+  let things        = tcResolvedNames tcData
+  -- liftIO $ putStrLn $ "Things ==> " ++ (O.showSDocUnsafe . O.ppr $ things)
   let impVars        = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src
@@ -505,15 +530,15 @@ makeGhcSrc cfg file tcStableData modGuts hscEnv = do
     , giImpVars   = impVars
     , giDefVars   = dataCons ++ (letVars coreBinds)
     , giUseVars   = readVars coreBinds
-    , giDerVars   = S.fromList (LH.derivedVars cfg mgiModGuts)
+    , giDerVars   = HS.fromList (LH.derivedVars cfg mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts
     , gsTcs       = mgi_tcs      mgiModGuts
     , gsCls       = mgi_cls_inst mgiModGuts
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
-    , gsQualImps  = qualifiedImports tcStableData
-    , gsAllImps   = allImports       tcStableData
+    , gsQualImps  = qualifiedImports tcData
+    , gsAllImps   = allImports       tcData
     , gsTyThings  = [ t | (_, Just t) <- things ]
     }
   where
@@ -522,35 +547,67 @@ makeGhcSrc cfg file tcStableData modGuts hscEnv = do
       where
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
-allImports :: TcStableData -> S.HashSet Symbol 
-allImports tcStableData =
-  S.fromList (symbol . unLoc . ideclName . unLoc <$> tcStableImports tcStableData) 
+allImports :: TcData -> HS.HashSet Symbol 
+allImports tcData =
+  let x = symbol . unLoc . ideclName . unLoc <$> tcImports tcData
+  in Debug.trace ("allImports => " ++ show x) (HS.fromList x)
 
-qualifiedImports :: TcStableData -> QImports 
-qualifiedImports (tcStableImports -> imps) =
-  LH.qImports [ (qn, n) | i         <- imps
+qualifiedImports :: TcData -> QImports 
+qualifiedImports (tcImports -> imps) =
+  let x = LH.qImports [ (qn, n) | i         <- imps
                         , let decl   = unLoc i
                         , let m      = unLoc (ideclName decl)  
                         , qm        <- maybeToList (unLoc <$> ideclAs decl) 
                         , let [n,qn] = symbol <$> [m, qm] 
                         ]
+  in Debug.trace ("qualifiedImports => " ++ show x) x
 
 ---------------------------------------------------------------------------------------
 -- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC 
 --   for this module; we will use this to create our name-resolution environment 
 --   (see `Bare.Resolve`)                                          
 ---------------------------------------------------------------------------------------
-lookupTyThings :: GhcMonadLike m => HscEnv -> MGIModGuts -> m [(Name, Maybe TyThing)] 
-lookupTyThings hscEnv mg =
+lookupTyThings :: GhcMonadLike m 
+               => HscEnv 
+               -> GhcMonadLike.ModuleInfo 
+               -> MGIModGuts 
+               -> m [(Name, Maybe TyThing)] 
+lookupTyThings hscEnv mi mg = do
   forM (mgNames mg) $ \n -> do 
-    tt1 <-          GhcMonadLike.lookupName      n 
-    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
-    -- tt3 <-          modInfoLookupName mi         n 
+    tt1 <-          GhcMonadLike.lookupName      n
+    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
+    tt3 <-          GhcMonadLike.modInfoLookupName mi n
     tt4 <-          GhcMonadLike.lookupGlobalName n 
-    return (n, Misc.firstMaybes [tt1, tt2, tt4])
+    return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
   where
     mgNames :: MGIModGuts -> [Ghc.Name] 
     mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
+
+resolveNames :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
+resolveNames hscEnv modSum tcGblEnv = do
+  mi <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
+  forM (Debug.trace ("Names ==> " ++ show names) names) $ \n -> do 
+    tt1 <- spy "tt1" n $         GhcMonadLike.lookupName      n
+    tt2 <- spy "tt2" n $ liftIO $ Ghc.hscTcRcLookupName hscEnv n
+    tt3 <- spy "tt3" n $         GhcMonadLike.modInfoLookupName mi n
+    tt4 <- spy "tt4" n $         GhcMonadLike.lookupGlobalName n 
+    return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+  where
+    names :: [Ghc.Name] 
+    names  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
+
+    spy :: forall n. MonadIO n => String -> Name -> n (Maybe TyThing) -> n (Maybe TyThing)
+    spy label name m = do
+      r <- m
+      liftIO $ putStrLn $ label ++ (O.showSDocUnsafe $ O.text "(" O.<+> O.ppr name O.<+> O.text ")" O.<+> O.text (toUniqueId r))
+      pure r
+
+    toUniqueId :: Maybe TyThing -> String
+    toUniqueId Nothing = "Nothing"
+    toUniqueId (Just (AnId anId)) = O.showSDocUnsafe (O.ppr $ Ghc.getUnique anId)
+    toUniqueId (Just (AConLike aConLike)) = O.showSDocUnsafe (O.ppr $ Ghc.getUnique aConLike)
+    toUniqueId (Just (ATyCon aTyCon))     = O.showSDocUnsafe (O.ppr $ Ghc.getUnique aTyCon)
+    toUniqueId (Just _otherwise) = "Just NotInteresting"
 
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
@@ -565,7 +622,8 @@ makeBareSpecs cfg specEnv thisModule tgtSpec = do
   modSum        <- GhcMonadLike.getModSummary thisModule
   externalSpecs <- findExternalSpecs cfg modSum
   let cachedSpecs = moduleEnvElts specEnv
-  let allSpecs  = cachedSpecs <> externalSpecs
+  let allSpecs  = externalSpecs <> cachedSpecs
+  liftIO $ putStrLn $ "finalSpecs ==> " ++ (unlines $ map (show . fst) allSpecs)
   let tgtMod    = ModName Target thisModule
   return        $ (tgtMod, tgtSpec) : allSpecs
 

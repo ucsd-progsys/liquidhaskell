@@ -4,15 +4,18 @@
 module Language.Haskell.Liquid.GHC.Plugin.Types
     ( SpecComment(..)
     -- * Threading state from the typechecking phase
-    , TcStableData
-    , tcStableImports
-    , mkTcStableData
+    , TcData
+    , tcImports
+    , tcResolvedNames
+    -- , tcCoreBinds
+    , mkTcData
     ) where
 
 import Data.Data (Data)
 import Text.Parsec (SourcePos)
 import Outputable
-import GHC (LImportDecl, GhcRn)
+import GHC (LImportDecl, GhcRn, Name, TyThing)
+import CoreSyn
 import TcRnTypes (TcGblEnv(tcg_rn_imports))
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
@@ -24,16 +27,24 @@ newtype SpecComment =
 -- The notion of \"safely\" here is a bit vague: things like imports are somewhat
 -- guaranteed not to change, but things like identifiers might, so they shouldn't
 -- land here.
-data TcStableData = TcStableData {
-  tcStableImports :: [LImportDecl GhcRn]
-  } deriving Data
+data TcData = TcData {
+    tcImports       :: [LImportDecl GhcRn]
+  , tcResolvedNames :: [(Name, Maybe TyThing)]
+  -- , tcCoreBinds     :: [CoreBind]
+  }
 
-instance Outputable TcStableData where
-    ppr (TcStableData imports) = text "TcStableData { imports = " <+> ppr imports <+> text " }"
+instance Outputable TcData where
+    ppr (TcData imports _) = 
+      text "TcData { imports = " <+> ppr imports 
+              <+> text "modInfo   = <someModInfo>"
+              -- <+> text "coreBinds = <someCoreBinds>"
+              <+> text " }"
 
--- | Constructs a 'TcStableData' out of a 'TcGblEnv'.
-mkTcStableData :: TcGblEnv -> TcStableData
-mkTcStableData tcGblEnv = TcStableData {
-  tcStableImports = tcg_rn_imports tcGblEnv
+-- | Constructs a 'TcData' out of a 'TcGblEnv'.
+mkTcData :: TcGblEnv -> [(Name, Maybe TyThing)] -> TcData
+mkTcData tcGblEnv resolvedNames = TcData {
+    tcImports        = tcg_rn_imports tcGblEnv
+  , tcResolvedNames  = resolvedNames
+  -- , tcCoreBinds      = coreBinds
   }
 
