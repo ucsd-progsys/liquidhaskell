@@ -34,13 +34,11 @@ module Language.Haskell.Liquid.GHC.Interface (
   , makeGhcSrc
   , qImports
   , modSummaryHsFile
-  , transParseSpecs
-  , cachedBareSpecs
   , makeFamInstEnv
   , findAndParseSpecFiles
   , parseSpecFile
   , noTerm
-  , updLiftedSpec
+  , checkFilePragmas
 
   ) where
 
@@ -80,6 +78,7 @@ import GHC.LanguageExtensions
 
 import Control.Exception
 import Control.Monad
+import Control.Monad.IO.Class
 
 import Data.Bifunctor
 import Data.Data
@@ -412,11 +411,8 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
-  Debug.trace ("commSpec ==> " ++ show commSpec) $ return ()
   liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
-  Debug.trace ("liftedSpec ==> " ++ show liftedSpec) $ return ()
   let bareSpec         = updLiftedSpec commSpec liftedSpec
-  Debug.trace ("bareSpec ==> " ++ show bareSpec) $ return ()
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, noTerm bareSpec)
   (specEnv', ) <$> if isTarget
@@ -469,8 +465,8 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
 makeGhcSrc cfg file typechecked modSum = do
   desugared         <- desugarModule  typechecked
-  let modGuts        = makeMGIModGuts (coreModule desugared)
   let modGuts'       = dm_core_module desugared
+  let modGuts        = makeMGIModGuts modGuts'
   hscEnv            <- getSession
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
@@ -509,7 +505,7 @@ _impThings vars  = filter ok
 allImports :: TypecheckedModule -> S.HashSet Symbol 
 allImports tm = case tm_renamed_source tm of 
   Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
-  Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps) 
+  Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
 qualifiedImports :: TypecheckedModule -> QImports 
 qualifiedImports tm = case tm_renamed_source tm of 
@@ -587,7 +583,6 @@ makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)
-  liftIO $ putStrLn $ "Reachable ==> " ++ (concatMap ((flip mappend) "," . O.showSDocUnsafe . O.ppr) reachable)
   specSpecs    <- findAndParseSpecFiles cfg paths modSum reachable
   let homeSpecs = cachedBareSpecs specEnv reachable
   let impSpecs  = specSpecs ++ homeSpecs
@@ -608,7 +603,7 @@ cachedBareSpecs specEnv mods = lookupBareSpec <$> mods
     lookupBareSpec m         = fromMaybe (err m) (lookupModuleEnv specEnv m)
     err m                    = impossible Nothing ("lookupBareSpec: missing module " ++ showPpr m)
 
-checkFilePragmas :: [Located String] -> Ghc ()
+checkFilePragmas :: GhcMonadLike m => [Located String] -> m ()
 checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
   where
     err pragma

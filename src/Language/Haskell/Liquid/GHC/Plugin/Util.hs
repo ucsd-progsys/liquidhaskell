@@ -23,7 +23,6 @@ import           GHC                                      ( DynFlags )
 import           CoreMonad                                ( CoreM )
 import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
 import           HscTypes                                 ( ModIface )
-import           IfaceSyn                                 ( IfaceAnnotation(..) )
 
 import           Control.Monad.IO.Class
 
@@ -32,13 +31,11 @@ import qualified Data.Binary.Get                         as B
 import           Data.ByteString.Lazy                     ( ByteString )
 import qualified Data.ByteString.Lazy                    as B
 import           Data.Typeable
-import           Data.Bifunctor                           ( second )
 import           Data.Maybe                               ( listToMaybe, catMaybes )
 import           Data.Data
 import           Data.Either                              ( partitionEithers )
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
-                                                          , TcStableData
                                                           )
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
 
@@ -84,10 +81,6 @@ deserialiseBareSpecs thisModule eps = extracted
 
     deserialise :: [B.Word8] -> BareSpec
     deserialise payload = B.decode (B.pack payload)
-
-    hush :: Either (ByteString, B.ByteOffset, String) (ByteString, B.ByteOffset, a) -> Maybe a
-    hush (Left _)        = Nothing
-    hush (Right (_,_,x)) = Just x
 
 serialiseBareSpecs :: [BareSpec] -> ModGuts -> ModGuts
 serialiseBareSpecs specs modGuts = annotated
