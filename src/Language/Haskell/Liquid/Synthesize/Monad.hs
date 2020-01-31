@@ -186,15 +186,16 @@ withIncrDepth m = do
         return r
 
 
-withDecrAdd :: Var -> SpecType -> SM ()
-withDecrAdd x t = do 
-  ys <- mapM freshVar txs
-  let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
-  mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))
-  mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs))
-  addEnv x $ fst $ decrType x t ys (zip xs txs)
-  addEmem x $ fst $ decrType x t ys (zip xs txs)
-  where (_, (xs, txs, _), to) = bkArrow t
+-- withDecrAdd :: Var -> SpecType -> SM ()
+-- withDecrAdd x t = do 
+--   ys <- mapM freshVar txs
+--   let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
+--   mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))
+--   mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs))
+--   let (dt, b) = decrType x t ys (zip xs txs) 
+--   addEnv x dt 
+--   addEmem x dt 
+--   where (_, (xs, txs, _), to) = bkArrow t
         
   
 incrSM :: SM Int 
@@ -231,7 +232,7 @@ instantiate e mbt =
         _           -> e
 
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
-withInsProdCands specTy = 
+withInsProdCands specTy =  
   do  senv <- ssEnv <$> get 
       mbTyVar <- sGoalTyVar <$> get 
       let τ            = toType specTy 
@@ -256,6 +257,7 @@ findCandidates senv goalTy =
   let senvLst   = M.toList senv
       senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
       filterFun (_, (specT, _)) = goalType goalTy specT
-      candTerms = filter filterFun senvLst'
+      candTerms = filter (\x -> goalType goalTy (go x)) senvLst'
   in  candTerms
-    
+
+go (_, (t, _)) = t 

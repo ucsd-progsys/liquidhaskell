@@ -179,7 +179,7 @@ caseVarsE (GHC.Tick _ e) = caseVarsE e
 caseVarsE e = [] 
 
 symbolToVar :: GHC.CoreProgram -> Var -> M.HashMap Symbol SpecType -> SSEnv
-symbolToVar cp tlBndr renv = trace (" CaseVars " ++ show (varsP cp tlBndr caseVarsE)) $ 
+symbolToVar cp tlBndr renv = -- trace (" CaseVars " ++ show (varsP cp tlBndr caseVarsE)) $ 
   let vars = [(F.symbol x, x) | x <- varsP cp tlBndr varsE]
       casevars = [F.symbol x | x <- varsP cp tlBndr caseVarsE]
       tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]

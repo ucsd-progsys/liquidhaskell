@@ -47,31 +47,37 @@ withDepthFill t depth funTyCands = do
 
 
 -- Note: i should be 1-based index
-updateIthElem :: Int -> Int -> [[(CoreExpr, Int)]] -> [[(CoreExpr, Int)]]
+updateIthElem :: Int -> Int -> [[(CoreExpr, Int)]] -> ([[(CoreExpr, Int)]], [[(CoreExpr, Int)]])
+updateIthElem _ _     []  = ([], [])
 updateIthElem i depth lst = 
   case pruned of 
-    [] -> []
-    _  -> left ++ [pruned] ++ right
+    [] -> ([], [])
+    _  -> (left ++ [pruned] ++ right, left ++ [others] ++ right)
   where left   = take (i-1) lst
         cur    = lst !! (i-1)
         right  = drop i lst
         pruned = pruneCands depth cur
+        others = noDuples depth cur
 
 
 pruneCands :: Int -> [(CoreExpr, Int)] -> [(CoreExpr, Int)]
 pruneCands depth lst = filter (\(_, i) -> i >= depth) lst
 
+noDuples :: Int -> [(CoreExpr, Int)] -> [(CoreExpr, Int)]
+noDuples depth lst = filter (\(_, i) -> i < depth) lst
+
 type Depth = Int
 type Up    = Int
 type Down  = Int
 repeatPrune :: Depth -> Up -> Down -> (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
-repeatPrune depth down up toBeFilled cands acc =
+repeatPrune depth down up toBeFilled cands acc = 
+ trace (" [ repeatPrune " ++ show depth ++"] for " ++ show (fst toBeFilled) ++ " Cands " ++ show cands) $ 
   if down <= up 
     then do 
-      let cands' = updateIthElem down depth cands 
+      let (cands', cands'') = updateIthElem down depth cands 
       es <- fillOne toBeFilled cands'
       acc' <- (++ acc) <$> filterM isWellTyped es
-      repeatPrune depth (down + 1) up toBeFilled cands acc'
+      trace ("For down = " ++ show down ++ " cs' " ++ show cands' ++ " cs'' " ++ show cands'') $ repeatPrune depth (down + 1) up toBeFilled cands'' acc'
     else return acc
 
 
@@ -100,13 +106,13 @@ fillMany depth exprMem (cand : cands) accExprs = do
       curAppDepth <- sAppDepth <$> get 
       newExprs <- repeatPrune curAppDepth 1 (length argCands) cand argCands []
       let nextEm = map (resultTy, , curAppDepth + 1) newExprs
-      modify (\s -> s {sExprMem = nextEm ++ (sExprMem s) })
+      modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
       let accExprs' = newExprs ++ accExprs
       trace (
-        " [ expressions " ++ show depth ++ 
-        ", arguments = " ++ show (length argCands) ++ 
-        " , candidates of arguments " ++ show (map length argCands) ++ 
-        " new expressions are " ++ show (length newExprs) ++ 
+        " [ fillMany <" ++ show depth ++ 
+        "> for cand " ++ show (fst cand) ++ 
+        " argCands "  ++ show argCands ++
+        " Expressions: " ++ show (length newExprs) ++ 
         "] \n" ++ show accExprs') $ 
         fillMany depth exprMem cands accExprs'
 

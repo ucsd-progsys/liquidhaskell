@@ -45,9 +45,7 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
-import           Literal 
-import           DynFlags 
-import           MkCore
+import           Literal
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 
 
@@ -79,7 +77,7 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo --
       
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env M.empty
-      fills <- map fromAnf <$> synthesize' tgt ctx fcfg cgi cge env senv1 x t topLvlBndr typeOfTopLvlBnd state0
+      fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x t topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -101,35 +99,37 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
       let coreProgram = giCbs $ giSrc $ ghcI cgi
           args  = case argsP coreProgram xtop of { [] -> []; (_ : xs) -> xs }
           (_, (xs, txs, _), _) = bkArrow ttop
-      addEnv xtop $ fst $ decrType xtop ttop args (zip xs txs)
+      addEnv xtop $ decrType xtop ttop args (zip xs txs)
       if R.isNumeric (tyConEmbed cgi) c
           -- Special Treatment for synthesis of integers          
-          then error " [ Synthesize numeric ] Update liquid-fixpoint. " 
-              -- do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
-              --     ctx <- sContext <$> get 
-              --     liftIO $ SMT.smtPush ctx
-              --     liftIO $ SMT.smtDecl ctx x s
-              --     liftIO $ SMT.smtCheckSat ctx rr 
-              --     -- Get model and parse the value of x
-              --     SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
+          then error " [ Numeric in synthesize ] Update liquid fixpoint. "
+          --------------------------------------------------------------------------------------
+          -- then do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
+          --         ctx <- sContext <$> get 
+          --         liftIO $ SMT.smtPush ctx
+          --         liftIO $ SMT.smtDecl ctx x s
+          --         liftIO $ SMT.smtCheckSat ctx rr 
+          --         -- Get model and parse the value of x
+          --         SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
                   
-              --     let xNotFound = error $ "Symbol " ++ show x ++ "not found."
-              --         smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
+          --         let xNotFound = error $ "Symbol " ++ show x ++ "not found."
+          --             smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
-              --     liftIO (SMT.smtPop ctx)
-              --     filterM (hasType t) [mkIntExpr unsafeGlobalDynFlags (read smtVal :: Integer)] -- TODO: TypeCheck 
+          --         liftIO (SMT.smtPop ctx)
+          --         return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))] -- TODO: TypeCheck 
+          --------------------------------------------------------------------------------------
           else do
-            eMem0 <- withInsInitEM senv 
-            modify (\s -> s { sExprMem = eMem0 })
+            emem0 <- withInsInitEM senv 
+            modify (\s -> s { sExprMem = emem0 })
             synthesizeBasic t
 
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
-              let (dt, b) = decrType xtop ttop ys (zip xs txs)
+              let dt = decrType xtop ttop ys (zip xs txs)
               addEnv xtop dt
-              eMem0 <- withInsInitEM senv 
-              modify (\s -> s { sExprMem = eMem0 }) 
+              emem0 <- withInsInitEM senv 
+              modify (\s -> s { sExprMem = emem0 }) 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
               addEmem xtop dt
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
