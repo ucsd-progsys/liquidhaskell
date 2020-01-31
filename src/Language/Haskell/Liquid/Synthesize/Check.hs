@@ -41,7 +41,7 @@ hasType t !e' = do
   if tpOfE == ht
     then do
       r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+      liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ " SpecType " ++ "\n Res = " ++ show r)
       return r
     else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 

@@ -21,7 +21,7 @@ import           Data.Maybe
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Language.Haskell.Liquid.GHC.TypeRep
-
+import           Language.Fixpoint.Types.PrettyPrint
 import           Debug.Trace 
 
 -- Generate terms that have type t: This changes the ExprMem in SM state.
@@ -31,9 +31,12 @@ genTerms specTy =
   do  funTyCands <- withInsProdCands specTy
 
       es <- withTypeEs specTy
-      filterElseM (hasType specTy) es $ 
+
+      filterElseM (hasType specTy) (tracepp " [ genTerms ] es = " es) $ 
+
         withDepthFill specTy 0 funTyCands
 
+--  | @withDepthFill@
 withDepthFill :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
 withDepthFill t depth funTyCands = do
   curEm <- sExprMem <$> get
