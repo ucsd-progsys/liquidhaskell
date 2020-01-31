@@ -5,7 +5,7 @@ module Language.Haskell.Liquid.Synthesize.Termination (
     decrType
   ) where
 
-import           Language.Haskell.Liquid.Types hiding (SVar)
+import           Language.Haskell.Liquid.Types hiding (SVar) 
 import qualified Language.Haskell.Liquid.Types.RefType as R
 
 import qualified Language.Fixpoint.Types        as F 

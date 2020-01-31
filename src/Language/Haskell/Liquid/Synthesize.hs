@@ -51,7 +51,7 @@ import           MkCore
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 
 
--- containt GHC primitives
+-- contains GHC primitives
 -- JP: Should we get this from REnv instead?
 -- TODO: Get the constructors from REnv.
 initSSEnv :: CGInfo -> SSEnv -> SSEnv
