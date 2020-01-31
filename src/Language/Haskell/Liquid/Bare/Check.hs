@@ -409,7 +409,6 @@ checkAppTys = go
   where
     go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
-    go (RAllS _ t)      = go t
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
@@ -435,24 +434,6 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   where
     expectedArity = tyConArity tc
 
-{-
-checkFunRefs t = go t
-  where
-    go (RAllT _ t)      = go t
-    go (RAllP _ t)      = go t
-    go (RAllS _ t)      = go t
-    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
-    go (RVar _ _)       = Nothing
-    go (RAllE _ t1 t2)  = go t1 <|> go t2
-    go (REx _ t1 t2)    = go t1 <|> go t2
-    go (RAppTy t1 t2 _) = go t1 <|> go t2
-    go (RRTy _ _ _ t)   = go t
-    go (RExprArg _)     = Nothing
-    go (RHole _)        = Nothing
-    go (RFun _ t1 t2 r)
-      | isTauto r       = go t1 <|> go t2
-      | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
--}
 
 checkAbstractRefs
   :: (PPrint t, F.Reftable t, SubsTy RTyVar RSort t, F.Reftable (RTProp RTyCon RTyVar (UReft t))) =>
@@ -463,7 +444,6 @@ checkAbstractRefs t = go t
 
     go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
-    go (RAllS _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
     go t@(RImpF _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RFun _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
@@ -497,7 +477,7 @@ checkAbstractRefs t = go t
 
     efold f = L.foldl' (\acc x -> acc <|> f x) Nothing
 
-    check s (MkUReft _ (Pr ps) _) = L.foldl' (\acc pp -> acc <|> checkOne s pp) Nothing ps
+    check s (MkUReft _ (Pr ps)) = L.foldl' (\acc pp -> acc <|> checkOne s pp) Nothing ps
 
     checkOne s p | pvType' p /= s
                  = Just $ text "Incorrect Sort:\n\t"

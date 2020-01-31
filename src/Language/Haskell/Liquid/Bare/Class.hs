@@ -20,6 +20,7 @@ import qualified Data.HashMap.Strict                        as M
 
 import qualified Language.Fixpoint.Misc                     as Misc
 import qualified Language.Fixpoint.Types                    as F
+import qualified Language.Fixpoint.Types.Visitor            as F
 
 import           Language.Haskell.Liquid.Types.Dictionaries
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
@@ -32,6 +33,10 @@ import qualified Language.Haskell.Liquid.Measure            as Ms
 import           Language.Haskell.Liquid.Bare.Types         as Bare 
 import           Language.Haskell.Liquid.Bare.Resolve       as Bare
 import           Language.Haskell.Liquid.Bare.Expand        as Bare
+import           Language.Haskell.Liquid.Bare.Misc         as Bare
+
+import           Text.PrettyPrint.HughesPJ (text)
+import qualified Control.Exception                 as Ex
 
 
 
@@ -63,12 +68,52 @@ makeMethodTypes (DEnv m) cls cbs
       subst ((a,ta):su) t = subsTyVar_meet' (a,ofType ta) (subst su t)
 
 addCC :: Ghc.Var -> LocSpecType -> LocSpecType
-addCC x t = t{val = go (ofType $ Ghc.varType x) (val t)} 
+addCC x zz@(Loc l l' st0) 
+  = Loc l l' 
+  . addForall hst  
+  . mkArrow [] ps' [] [] 
+  . makeCls cs' 
+  . mapExprReft (\_ -> F.applyCoSub coSub) 
+  . subts su 
+  $ st  
   where
-    go :: SpecType -> SpecType -> SpecType
-    go (RAllT (RTVar a1 _) t1 _) (RAllT a2 t2 r) = RAllT a2 (go (subsTyVar_meet' (a1,RVar a1 mempty) t1) t2) r
-    go (RFun x1 t11 t12 r) t | isClassType t11   = (RFun x1 t11 (go t12 t) r) 
-    go _ t = t 
+    hst           = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
+    t0            = Ghc.varType x 
+    tyvsmap       = case Bare.runMapTyVars t0 st err of
+                          Left e  -> Ex.throw e 
+                          Right s -> Bare.vmap s
+    su            = [(y, rTyVar x)           | (x, y) <- tyvsmap]
+    su'           = [(y, RVar (rTyVar x) ()) | (x, y) <- tyvsmap] :: [(RTyVar, RSort)]
+    coSub         = M.fromList [(F.symbol y, F.FObj (F.symbol x)) | (y, x) <- su]
+    ps'           = fmap (subts su') <$> ps
+    cs'           = [(F.dummySymbol, RApp c ts [] mempty) | (c, ts) <- cs ] 
+    (_,_,cs,_)    = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,_ ,st)  = bkUnivClass (F.notracepp "lq-spec" st0)
+
+    makeCls cs t  = foldr (uncurry rFun) t cs
+    err hsT lqT   = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
+      (text "makeMethodTypes")
+      (pprint $ Ghc.expandTypeSynonyms t0)
+      (pprint $ toRSort st0)
+      (Just (hsT, lqT))
+      (Ghc.getSrcSpan x) 
+
+    addForall (RAllT v t r) tt@(RAllT v' _ _)
+      | v == v'
+      = tt
+      | otherwise 
+      = RAllT (updateRTVar v) (addForall t tt) r
+    addForall (RAllT v t r) t' 
+      = RAllT (updateRTVar v) (addForall t t') r 
+    addForall (RAllP _ t) t' 
+      = addForall t t'
+    addForall _ (RAllP p t')
+      = RAllP (fmap (subts su') p) t' 
+    addForall (RFun _ t1 t2 _) (RFun x t1' t2' r)
+      = RFun x (addForall t1 t1') (addForall t2 t2') r  
+    addForall _ t 
+      = t 
+
 
 splitDictionary :: Ghc.CoreExpr -> Maybe (Ghc.Var, [Ghc.Type], [Ghc.Var])
 splitDictionary = go [] [] 
@@ -124,7 +169,7 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
     meths  <- mapM (makeMethod env sigEnv name) ms'
     let vts = [ (m, v, t) | (m, kv, t) <- meths, v <- Mb.maybeToList (plugSrc kv) ]
     let sts = [(val s, unClass $ val t) | (s, _) <- ms | (_, _, t) <- meths]
-    let dcp = DataConP l dc αs [] [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
+    let dcp = DataConP l dc αs [] (val <$> ss') (reverse sts) t False (F.symbol name) l'
     return  $ F.notracepp msg (dcp, vts)
   where
     c      = btc_tc cc
@@ -140,11 +185,11 @@ mkClassE env sigEnv _myName name (RClass cc ss as ms) tc = do
 mkConstr :: Bare.Env -> Bare.SigEnv -> ModName -> LocBareType -> Either UserError LocSpecType     
 mkConstr env sigEnv name = fmap (fmap dropUniv) . Bare.cookSpecTypeE env sigEnv name Bare.GenTV 
   where 
-    dropUniv t           = t' where (_, _, _, t') = bkUniv t
+    dropUniv t           = t' where (_, _, t') = bkUniv t
 
    --FIXME: cleanup this code
 unClass :: SpecType -> SpecType 
-unClass = snd . bkClass . fourth4 . bkUniv
+unClass = snd . bkClass . thrd3 . bkUniv
 
 makeMethod :: Bare.Env -> Bare.SigEnv -> ModName -> (LocSymbol, LocBareType) 
          -> Either UserError (ModName, PlugTV Ghc.Var, LocSpecType)
@@ -176,10 +221,21 @@ makeSpecDictionaryOne :: Bare.Env -> Bare.SigEnv -> ModName
                       -> RInstance LocBareType 
                       -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
 makeSpecDictionaryOne env sigEnv name (RI x t xts)
-         = makeDictionary $ RI x (mkTy <$> t) [(x, mkLSpecIType t) | (x, t) <- xts ] 
+         = makeDictionary $ F.notracepp "RI" $ RI x ts [(x, mkLSpecIType t) | (x, t) <- xts ] 
   where
+    ts      = mkTy' <$> t
+    as      = concatMap (univs . val) ts
+    univs t = (\(RTVar tv _, _) -> tv) <$> as where (as, _, _) = bkUniv t 
+
+    mkTy' :: LocBareType -> LocSpecType
+    mkTy' = Bare.cookSpecType env sigEnv name Bare.GenTV
     mkTy :: LocBareType -> LocSpecType
-    mkTy = Bare.cookSpecType env sigEnv name Bare.GenTV
+    mkTy = fmap (mapUnis tidy) . Bare.cookSpecType env sigEnv name 
+               Bare.GenTV -- (Bare.HsTV (Bare.lookupGhcVar env name "rawDictionaries" x))
+    mapUnis f t = mkUnivs (f as) ps t0 where (as, ps, t0) = bkUniv t
+
+    tidy vs = l ++ r 
+      where (l,r) = L.partition (\(RTVar tv _,_) -> tv `elem` as) vs 
 
     mkLSpecIType :: RISig LocBareType -> RISig LocSpecType
     mkLSpecIType t = fmap mkTy t

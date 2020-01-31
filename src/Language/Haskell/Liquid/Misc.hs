@@ -72,6 +72,10 @@ fst4 (a,_,_,_) = a
 snd4 :: (t, t1, t2, t3) -> t1
 snd4 (_,b,_,_) = b
 
+thrd3 :: (t1, t2, t3) -> t3
+thrd3 (_,_,c) = c
+
+
 mapFourth4 :: (t -> t4) -> (t1, t2, t3, t) -> (t1, t2, t3, t4)
 mapFourth4 f (x, y, z, w) = (x, y, z, f w)
 

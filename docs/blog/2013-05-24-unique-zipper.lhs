@@ -191,7 +191,7 @@ Unique Zipper
 
 That was easy enough! Now, lets look at a slightly more interesting
 structure fashioned from lists.  A [zipper][wiki-zipper] is an aggregate
-data stucture that is used to arbitrary traverse the structure and update
+data structure that is used to arbitrary traverse the structure and update
 its contents.
 
 We define a zipper as a data type that contains an element (called `focus`)

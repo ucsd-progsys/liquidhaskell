@@ -52,7 +52,6 @@ data Config = Config
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
   , checkDerived   :: Bool       -- ^ check internal (GHC-derived) binders 
   , caseExpandDepth :: Int       -- ^ maximum case expand nesting depth. 
-  , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , nototality     :: Bool       -- ^ disable totality check in definitions
   , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
@@ -86,6 +85,7 @@ data Config = Config
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   , proofLogicEvalLocal  :: Bool   -- ^ Enable proof-by-logical-evaluation locally, per function
+  , extensionality  :: Bool        -- ^ Enable extensional interpretation of function equality 
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  

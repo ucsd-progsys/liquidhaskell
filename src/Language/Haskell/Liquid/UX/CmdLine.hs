@@ -184,9 +184,6 @@ config = cmdArgsMode $ Config {
     = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
           &= name "max-case-expand"
 
- , strata
-    = def &= help "Enable Strata Analysis"
-
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
           &= name "no-true-types"
@@ -332,6 +329,10 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
+  , extensionality
+    = def 
+        &= help "Enable extensional interpretation of function equality"
+        &= name "extensionality"
 
   , reflection 
     = def 
@@ -544,7 +545,6 @@ defConfig = Config
   , noannotations     = def
   , checkDerived      = False
   , caseExpandDepth   = 2 
-  , strata            = def
   , notruetypes       = def
   , nototality        = False
   , pruneUnsorted     = def
@@ -579,6 +579,7 @@ defConfig = Config
   , proofLogicEval    = False
   , proofLogicEvalLocal = False
   , reflection        = False
+  , extensionality    = False 
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False

@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -cpp -fglasgow-exts -fno-warn-orphans #-}
 
 -- look for `n0` and `n1` below. Why does this work with `n1` but not `n0` or `0-1` ?
--- the latter is likely some wierd qualifier issue.
+-- the latter is likely some weird qualifier issue.
 
 
 module Data.ByteString (

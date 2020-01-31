@@ -199,7 +199,7 @@ new n
 `new n` is an `ST` action that produces an `MArray s` with `n` slots,
 denoted by the type alias `MArrayN s n`. Note that we are not talking
 about bytes here, `text` deals with `Word16`s internally and as such
-we actualy allocate `2*n` bytes.  While this may seem like a lot of
+we actually allocate `2*n` bytes.  While this may seem like a lot of
 code to just create an array, the verification process here is quite
 simple. LiquidHaskell simply recognizes that the `n` used to construct
 the returned array (`MArray marr# n`) is the same `n` passed to
@@ -257,7 +257,7 @@ that a valid offset is **not** necessarily a valid *index*, it may
 be one element out-of-bounds -- and a `count` of elements to copy.
 The `count` must represent a valid region in each `MArray`, in 
 other words `offset + count <= length` must hold for each array. 
-`memcpyM` is an FFI function writen in C, which we don't currently
+`memcpyM` is an FFI function written in C, which we don't currently
 support, so we simply leave it `undefined`.
 
 Before we can package up our `MArray` into a `Text`, we need to

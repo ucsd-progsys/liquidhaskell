@@ -23,7 +23,7 @@ type Substitution = L (P Int Term)
 data P a b = P a b
 
 -- | Unification
--- | If unification succeds then the returned substitution makes input terms equal
+-- | If unification succeeds then the returned substitution makes input terms equal
 -- | Unification may fail with Nothing, or diverge
 
 {-@ lazy unify @-}

@@ -47,6 +47,8 @@ fixConfig tgt cfg = def
   , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
   , FC.rewriteAxioms    = Config.allowPLE   cfg
+  , FC.etaElim          = not (exactDC cfg)
+  , FC.extensionality   = extensionality    cfg 
   }
 
 

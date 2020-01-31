@@ -860,7 +860,7 @@ Haskell has a class (and related functions)
     toDyn   :: (Typeable a) => a -> Dynamic
     fromDyn :: (Typeable a) => Dynamic -> Maybe a
 
-Q: How to encode *heterogenous* maps like:
+Q: How to encode *heterogeneous* maps like:
 
     d1 = { "name"  : "Ranjit"
          , "age"   : 36

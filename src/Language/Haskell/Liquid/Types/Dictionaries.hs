@@ -59,7 +59,7 @@ makeDicTypeName _ (RVar (RTV a) _) = show (getName a)
 makeDicTypeName sp t               = panic (Just sp) ("makeDicTypeName: called with invalid type " ++ show t)
 
 dropUniv :: SpecType -> SpecType 
-dropUniv t = t' where (_,_,_,t') = bkUniv t 
+dropUniv t = t' where (_,_,t') = bkUniv t 
 
 --------------------------------------------------------------------------------
 -- | Dictionary Environment ----------------------------------------------------

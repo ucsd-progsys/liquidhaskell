@@ -100,7 +100,7 @@ Well, guess what. The first type (with `v >= 0`) one would tell us that
 the output was non-negative, losing the upper bound. The second type (with
 `v < 10`) would cause LiquidHaskell to bellyache about `maxInt` being 
 called with improper arguments -- muttering darkly that an RGB value 
-is not necesarily less than `10`. As for the third type ... well, you get the idea.
+is not necessarily less than `10`. As for the third type ... well, you get the idea.
 
 So alas, the choice of type *does* matter. 
 

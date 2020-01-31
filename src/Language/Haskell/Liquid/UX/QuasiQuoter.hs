@@ -136,8 +136,6 @@ simplifyBareType'' _ (RHole _) =
 
 simplifyBareType'' s(RAllP _ t) =
   simplifyBareType'' s t
-simplifyBareType'' s (RAllS _ t) =
-  simplifyBareType'' s t
 simplifyBareType'' s (RAllE _ _ t) =
   simplifyBareType'' s t
 simplifyBareType'' s (REx _ _ t) =
