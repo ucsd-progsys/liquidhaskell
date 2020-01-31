@@ -306,6 +306,7 @@ isFunction _           = False
 
 isNumeric :: Sort -> Bool
 isNumeric FInt           = True
+isNumeric FReal          = True
 isNumeric (FApp s _)     = isNumeric s
 isNumeric (FTC (TC _ i)) = tc_isNum i
 isNumeric (FAbs _ s)     = isNumeric s
