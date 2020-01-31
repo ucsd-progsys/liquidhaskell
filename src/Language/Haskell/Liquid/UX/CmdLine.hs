@@ -106,26 +106,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow higher order binders into the logic"
 
- , extensionality
-    = def
-          &= help "Allow function extensionality axioms"
-
  , smtTimeout 
     = def
           &= help "Timeout of smt queries in msec"    
       
- , alphaEquivalence
-    = def
-          &= help "Allow lambda alpha-equivalence axioms"
-
- , betaEquivalence
-    = def
-          &= help "Allow lambda beta-equivalence axioms"
-
- , normalForm
-    = def
-          &= help "Allow lambda normalization-equivalence axioms"
-
  , higherorderqs
     = def
           &= help "Allow higher order qualifiers to get automatically instantiated"
@@ -153,6 +137,15 @@ config = cmdArgsMode $ Config {
     = def 
           &= help "Disable Termination Check"
           &= name "no-termination-check"
+
+ , rankNTypes 
+    = def &= help "Adds precise reasoning on presence of rankNTypes"
+          &= name "rankNTypes" 
+
+ , noclasscheck
+    = def 
+          &= help "Disable Class Instance Check"
+          &= name "no-class-check"
 
  , nostructuralterm
     = def &= name "no-structural-termination"
@@ -190,9 +183,6 @@ config = cmdArgsMode $ Config {
  , caseExpandDepth 
     = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
           &= name "max-case-expand"
-
- , strata
-    = def &= help "Enable Strata Analysis"
 
  , notruetypes
     = def &= help "Disable Trueing Top Level Types"
@@ -339,6 +329,10 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
+  , extensionality
+    = def 
+        &= help "Enable extensional interpretation of function equality"
+        &= name "extensionality"
 
   , reflection 
     = def 
@@ -533,11 +527,7 @@ defConfig = Config
   , linear            = def
   , stringTheory      = def
   , higherorder       = def
-  , extensionality    = def
   , smtTimeout        = def 
-  , alphaEquivalence  = def
-  , betaEquivalence   = def
-  , normalForm        = def
   , higherorderqs     = def
   , diffcheck         = def
   , saveQuery         = def
@@ -545,6 +535,8 @@ defConfig = Config
   , nostructuralterm  = def 
   , noCheckUnknown    = def
   , notermination     = False 
+  , rankNTypes        = False 
+  , noclasscheck      = False 
   , gradual           = False
   , gdepth            = 1
   , ginteractive      = False
@@ -553,7 +545,6 @@ defConfig = Config
   , noannotations     = def
   , checkDerived      = False
   , caseExpandDepth   = 2 
-  , strata            = def
   , notruetypes       = def
   , nototality        = False
   , pruneUnsorted     = def
@@ -588,6 +579,7 @@ defConfig = Config
   , proofLogicEval    = False
   , proofLogicEvalLocal = False
   , reflection        = False
+  , extensionality    = False 
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False

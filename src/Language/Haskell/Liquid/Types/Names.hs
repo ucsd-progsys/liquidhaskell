@@ -1,5 +1,5 @@
 module Language.Haskell.Liquid.Types.Names
-  (lenLocSymbol, anyTypeSymbol) where
+  (lenLocSymbol, anyTypeSymbol, functionComposisionSymbol) where
 
 import Language.Fixpoint.Types
 
@@ -9,3 +9,8 @@ lenLocSymbol = dummyLoc $ symbol ("autolen" :: String)
 
 anyTypeSymbol :: Symbol
 anyTypeSymbol = symbol ("GHC.Prim.Any" :: String)
+
+
+--  defined in include/GHC/Base.hs
+functionComposisionSymbol :: Symbol
+functionComposisionSymbol = symbol ("GHC.Base.." :: String)

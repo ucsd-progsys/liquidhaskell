@@ -136,8 +136,6 @@ simplifyBareType'' _ (RHole _) =
 
 simplifyBareType'' s(RAllP _ t) =
   simplifyBareType'' s t
-simplifyBareType'' s (RAllS _ t) =
-  simplifyBareType'' s t
 simplifyBareType'' s (RAllE _ _ t) =
   simplifyBareType'' s t
 simplifyBareType'' s (REx _ _ t) =
@@ -147,7 +145,7 @@ simplifyBareType'' s (RRTy _ _ _ t) =
 
 simplifyBareType'' (tvs, cls) (RFun _ i o _)
   | isClassType i = simplifyBareType'' (tvs, i : cls) o
-simplifyBareType'' (tvs, cls) (RAllT tv t) =
+simplifyBareType'' (tvs, cls) (RAllT tv t _) =
   simplifyBareType'' (ty_var_value tv : tvs, cls) t
 
 simplifyBareType'' (tvs, cls) t =

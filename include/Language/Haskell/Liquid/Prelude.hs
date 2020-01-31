@@ -109,7 +109,7 @@ choose = undefined
 ----------- Modular Arithmetic Wrappers ---------------------------
 -------------------------------------------------------------------
 
--- tedium because fixpoint doesnt want to deal with (x mod y) only (x mod c)
+-- tedium because fixpoint doesn't want to deal with (x mod y) only (x mod c)
 {-@ assume isEven :: x:Int -> {v:Bool | ((v) <=> ((x mod 2) = 0))} @-}
 {-# NOINLINE isEven #-}
 isEven   :: Int -> Bool

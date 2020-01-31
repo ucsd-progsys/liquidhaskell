@@ -3,6 +3,7 @@
 {-# LANGUAGE DoAndIfThenElse     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TupleSections #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -23,6 +24,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Sum(..), (<>))
 import Data.Proxy
 import Data.String
+import Data.String.Conv
 import Data.Tagged
 import Data.Typeable
 -- import Data.List (sort, reverse)
@@ -37,6 +39,7 @@ import System.IO
 import System.IO.Error
 import System.Process
 import Test.Tasty
+import Test.Tasty.Golden
 import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
@@ -45,6 +48,8 @@ import Test.Tasty.Runners.AntXML
 import Paths_liquidhaskell
 
 import Text.Printf
+
+
 
 testRunner :: Ingredient
 testRunner = rerunningTests
@@ -74,6 +79,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                             errorTests  : 
                             macroTests  :
                             proverTests :
+                            goldenTests :
                             benchTests  : 
                             []
                            
@@ -151,6 +157,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/Fractional.hs"          2 "Illegal type specification for `Crash.f`"
   , errorTest "tests/errors/T773.hs"                2 "Illegal type specification for `LiquidR.incr`"
   , errorTest "tests/errors/T774.hs"                2 "Illegal type specification for `LiquidR.incr`"
+  , errorTest "tests/errors/T1498.hs"               2 "Standalone class method refinement"
+  , errorTest "tests/errors/T1498A.hs"              2 "Error: Bad Data Specification"
   , errorTest "tests/errors/Inconsistent0.hs"       2 "Specified type does not refine Haskell type for `Ast.id1`" 
   , errorTest "tests/errors/Inconsistent1.hs"       2 "Specified type does not refine Haskell type for `Boo.incr` (Checked)"
   , errorTest "tests/errors/Inconsistent2.hs"       2 "Specified type does not refine Haskell type for `Mismatch.foo` (Checked)"
@@ -215,6 +223,19 @@ macroTests = group "Macro"
    , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
    ] 
 
+goldenTests :: IO TestTree
+goldenTests = group "Golden tests"
+   [ pure $ goldenTest "--json output" "tests/golden" "json_output" [LO "--json"]
+   ] 
+
+goldenTest :: TestName -> FilePath -> FilePath -> [LiquidOpts] -> TestTree
+goldenTest testName dir filePrefix testOpts =
+  askOption $ \(smt :: SmtSolver) -> askOption $ \(opts :: LiquidOpts) ->
+    goldenVsString testName
+                   (dir </> filePrefix <> ".golden") 
+                   (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) dir (filePrefix <> ".hs"))
+
+
 microTests :: IO TestTree
 microTests = group "Micro"
   [ mkMicro "parser-pos"     "tests/parser/pos"      ExitSuccess
@@ -236,6 +257,7 @@ microTests = group "Micro"
   , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
   , mkMicro "ple-pos"        "tests/ple/pos"         ExitSuccess
   , mkMicro "ple-neg"        "tests/ple/neg"         (ExitFailure 1)
+  , mkMicro "rankN-pos"      "tests/RankNTypes/pos"         ExitSuccess
   , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
@@ -436,8 +458,8 @@ ecAssert :: ExitCheck -> ExitCode -> T.Text -> Assertion
 ecAssert ec (ExitFailure 137) _   =
   printf "WARNING: possible OOM while testing %s: IGNORING" (ecTest ec)
 
-ecAssert (EC _ code Nothing)  c _   =
-  assertEqual "Wrong exit code" code c
+ecAssert (EC _ code Nothing)  c t   =
+  assertEqual ("Wrong exit code" <> show t) code c
 
 ecAssert (EC _ code (Just t)) c log = do
   assertEqual "Wrong exit code" code c
@@ -452,23 +474,31 @@ mkTest ec dir file
       then do
         printf "%s is known to fail with %s: SKIPPING" test (show smt)
         assertEqual "" True True
-      else do
-        createDirectoryIfMissing True $ takeDirectory log
-        bin <- binPath "liquid"
-        hSetBuffering stdout LineBuffering -- or even NoBuffering
-        withFile log WriteMode $ \h -> do
-          let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
-          -- let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) $ mappend "-v" opts
-          (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
-          c          <- waitForProcess ph
-          ecAssert ec c =<< T.readFile log
-          -- renameFile log $ log <.> (if code == c then "pass" else "fail")
-          -- if c == ExitFailure 137
-            -- then printf "WARNING: possible OOM while testing %s: IGNORING" test
-            -- else assertEqual "Wrong exit code" code c
+      else runLiquidOn smt opts dir file >>= uncurry (ecAssert ec)
+  where
+    test = dir </> file
+
+
+--------------------------------------------------------------------------------
+runLiquidOn :: SmtSolver 
+            -> LiquidOpts 
+            -> FilePath
+            -> FilePath 
+            -> IO (ExitCode, T.Text)
+--------------------------------------------------------------------------------
+runLiquidOn smt opts dir file = do
+  createDirectoryIfMissing True $ takeDirectory log
+  let bin = "stack exec -- liquid"
+  hSetBuffering stdout LineBuffering
+  withFile log WriteMode $ \h -> do
+    let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
+    (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
+    exitCode   <- waitForProcess ph
+    (exitCode,) <$> T.readFile log
   where
     test = dir </> file
     log = "tests/logs/cur" </> test <.> "log"
+
 
 binPath :: FilePath -> IO FilePath
 binPath pkgName = (</> pkgName) <$> getBinDir
@@ -497,10 +527,10 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-        , "-iinclude --c-files=cbits/fpstring.c"
+        , "-iinclude"
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "--no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include --c-files=../bytestring-0.9.2.1/cbits/fpstring.c -i../../include --c-files=cbits/cbits.c"
+        , "--no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include -i../../include"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."

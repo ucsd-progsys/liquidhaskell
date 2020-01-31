@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleContexts     #-}
-
+{-# LANGUAGE TupleSections        #-}
 module Language.Haskell.Liquid.Types.Dictionaries (
     makeDictionaries
   , makeDictionary
@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.Types.Dictionaries (
   ) where
 
 import           Data.Hashable
+-- import           Data.Maybe (catMaybes)
+
 import           Prelude                                   hiding (error)
 import           Var
 import           Name                                      (getName)
@@ -22,22 +24,27 @@ import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 import           Language.Haskell.Liquid.Types.Types
+-- import           Language.Haskell.Liquid.Types.Visitors (freeVars)
 import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Fixpoint.Misc                (mapFst)
 import qualified Data.HashMap.Strict                       as M
 
-makeDictionaries :: [RInstance SpecType] -> DEnv F.Symbol SpecType
+
+
+
+
+makeDictionaries :: [RInstance LocSpecType] -> DEnv F.Symbol LocSpecType
 makeDictionaries = DEnv . M.fromList . map makeDictionary
 
 
-makeDictionary :: RInstance SpecType -> (F.Symbol, M.HashMap F.Symbol (RISig SpecType))
+makeDictionary :: RInstance LocSpecType -> (F.Symbol, M.HashMap F.Symbol (RISig LocSpecType))
 makeDictionary (RI c ts xts) = (makeDictionaryName (btc_tc c) ts, M.fromList (mapFst val <$> xts))
 
-makeDictionaryName :: LocSymbol -> [SpecType] -> F.Symbol
+makeDictionaryName :: LocSymbol -> [LocSpecType] -> F.Symbol
 makeDictionaryName t ts
   = F.notracepp _msg $ F.symbol ("$f" ++ F.symbolString (val t) ++ concatMap mkName ts)
   where
-    mkName = makeDicTypeName sp . dropUniv
+    mkName = makeDicTypeName sp . dropUniv . val 
     sp     = GM.fSrcSpan t
     _msg   = "MAKE-DICTIONARY " ++ F.showpp (val t, ts)
 
@@ -52,7 +59,7 @@ makeDicTypeName _ (RVar (RTV a) _) = show (getName a)
 makeDicTypeName sp t               = panic (Just sp) ("makeDicTypeName: called with invalid type " ++ show t)
 
 dropUniv :: SpecType -> SpecType 
-dropUniv t = t' where (_,_,_,t') = bkUniv t 
+dropUniv t = t' where (_,_,t') = bkUniv t 
 
 --------------------------------------------------------------------------------
 -- | Dictionary Environment ----------------------------------------------------

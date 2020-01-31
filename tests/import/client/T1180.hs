@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
 {-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--noadt" @-}
 
 module Ev where
 

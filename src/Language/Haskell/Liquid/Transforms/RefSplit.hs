@@ -39,13 +39,11 @@ splitRType f (RFun x tx t r) = (RFun x tx1 t1 r1, RFun x tx2 t2 r2)
         (tx1, tx2) = splitRType f tx
         (t1,  t2)  = splitRType f t
         (r1,  r2)  = splitRef   f r
-splitRType f (RAllT v t) = (RAllT v t1, RAllT v t2)
+splitRType f (RAllT v t r) = (RAllT v t1 r1, RAllT v t2 r2)
   where
         (t1, t2) = splitRType f t
+        (r1,  r2)  = splitRef   f r
 splitRType f (RAllP p t) = (RAllP p t1, RAllP p t2)
-  where
-        (t1, t2) = splitRType f t
-splitRType f (RAllS s t) = (RAllS s t1, RAllS s t2)
   where
         (t1, t2) = splitRType f t
 splitRType f (RApp c ts rs r) = (RApp c ts1 rs1 r1, RApp c ts2 rs2 r2)
@@ -88,7 +86,7 @@ splitUReft x (RProp xs t) = (RProp xs t1, RProp xs t2)
         (t1, t2) = splitRType x t
 
 splitRef :: Symbol -> UReft Reft -> (UReft Reft, UReft Reft)
-splitRef f (MkUReft r p s) = (MkUReft r1 p1 s, MkUReft r2 p2 s)
+splitRef f (MkUReft r p) = (MkUReft r1 p1, MkUReft r2 p2)
         where
                 (r1, r2) = splitReft f r
                 (p1, p2) = splitPred f p

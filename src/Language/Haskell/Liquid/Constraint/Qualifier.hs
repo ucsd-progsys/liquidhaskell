@@ -162,7 +162,7 @@ refTypeQuals lEnv l tce t0    = go emptySEnv t0
     add x t γ                 = insertSEnv x (rTypeSort tce t) γ
     goBind x t γ t'           = go (add x t γ) t'
     go γ t@(RVar _ _)         = scrape γ t
-    go γ (RAllT _ t)          = go γ t
+    go γ (RAllT _ t _)        = go γ t
     go γ (RAllP p t)          = go (insertSEnv (pname p) (rTypeSort tce $ (pvarRType p :: RSort)) γ) t
     go γ t@(RAppTy t1 t2 _)   = go γ t1 ++ go γ t2 ++ scrape γ t
     go γ (RFun x t t' _)      = go γ t ++ goBind x t γ t'
@@ -194,9 +194,9 @@ refTopQuals lEnv l tce t0 γ t
                      $ isNothing $ checkSorted (srcSpan l) (insertSEnv v so γ') pa
     ]
     ++
-    [ mkP s e | let (MkUReft _ (Pr ps) _) = fromMaybe (msg t) $ stripRTypeBase t
-              , p                        <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
-              , (s, _, e)                <- pargs p
+    [ mkP s e | let (MkUReft _ (Pr ps)) = fromMaybe (msg t) $ stripRTypeBase t
+              , p                      <- findPVar (ty_preds $ toRTypeRep t0) <$> ps
+              , (s, _, e)              <- pargs p
     ]
     where
       mkQ   = mkQual  lEnv l     t0 γ

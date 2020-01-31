@@ -35,15 +35,13 @@ data Config = Config
   , higherorder    :: Bool       -- ^ allow higher order binders into the logic
   , higherorderqs  :: Bool       -- ^ allow higher order qualifiers
   , smtTimeout     :: Maybe Int  -- ^ smt timeout 
-  , extensionality :: Bool       -- ^ allow function extensionality axioms
-  , alphaEquivalence :: Bool     -- ^ allow lambda alpha-equivalence axioms
-  , betaEquivalence  :: Bool     -- ^ allow lambda beta-equivalence axioms
-  , normalForm     :: Bool       -- ^ allow lambda normalization-equivalence axioms
   , fullcheck      :: Bool       -- ^ check all binders (overrides diffcheck)
   , saveQuery      :: Bool       -- ^ save fixpoint query
   , checks         :: [String]   -- ^ set of binders to check
   , noCheckUnknown :: Bool       -- ^ whether to complain about specifications for unexported and unused values
   , notermination  :: Bool       -- ^ disable termination check
+  , rankNTypes     :: Bool       -- ^ Adds precise reasoning on presence of rankNTypes
+  , noclasscheck   :: Bool       -- ^ disable checking class instances 
   -- , structuralTerm :: Bool       -- ^ use structural termination checker
   , nostructuralterm :: Bool    -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
@@ -54,7 +52,6 @@ data Config = Config
   , noannotations  :: Bool       -- ^ disable creation of intermediate annotation files
   , checkDerived   :: Bool       -- ^ check internal (GHC-derived) binders 
   , caseExpandDepth :: Int       -- ^ maximum case expand nesting depth. 
-  , strata         :: Bool       -- ^ enable strata analysis
   , notruetypes    :: Bool       -- ^ disable truing top level types
   , nototality     :: Bool       -- ^ disable totality check in definitions
   , pruneUnsorted  :: Bool       -- ^ enable prunning unsorted Refinements
@@ -88,6 +85,7 @@ data Config = Config
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
   , proofLogicEvalLocal  :: Bool   -- ^ Enable proof-by-logical-evaluation locally, per function
+  , extensionality  :: Bool        -- ^ Enable extensional interpretation of function equality 
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  

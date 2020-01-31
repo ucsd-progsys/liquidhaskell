@@ -37,7 +37,7 @@ thm_mirror_contents (Node l a r)
    = contents (mirror (Node l a r))
       ? thm_mirror_contents r
       ? thm_mirror_contents l
-   === undefined                   -- <<<<< Adding this line yields "Termination Error?"
+--    === undefined                   -- <<<<< Adding this line yields "Termination Error?"
    ==! rev (contents (Node l a r))
    *** ()
 

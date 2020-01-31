@@ -41,16 +41,14 @@ fixConfig tgt cfg = def
   , FC.elimBound        = elimBound         cfg
   , FC.allowHO          = higherOrderFlag   cfg
   , FC.allowHOqs        = higherorderqs     cfg
-  , FC.extensionality   = extensionality    cfg || gradual cfg
   , FC.smtTimeout       = smtTimeout        cfg 
-  , FC.alphaEquivalence = alphaEquivalence  cfg
-  , FC.betaEquivalence  = betaEquivalence   cfg
-  , FC.normalForm       = normalForm        cfg
   , FC.stringTheory     = stringTheory      cfg
   , FC.gradual          = gradual           cfg
   , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
   , FC.rewriteAxioms    = Config.allowPLE   cfg
+  , FC.etaElim          = not (exactDC cfg)
+  , FC.extensionality   = extensionality    cfg 
   }
 
 

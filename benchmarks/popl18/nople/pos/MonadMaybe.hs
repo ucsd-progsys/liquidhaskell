@@ -1,6 +1,4 @@
 {-@ LIQUID "--reflection"      @-}
-{-@ LIQUID "--alphaequivalence" @-}
-{-@ LIQUID "--betaequivalence"  @-}
 
 module MonadMaybe where
 
@@ -72,7 +70,7 @@ associativity (Just x) f g
 
 
 beta_reduce :: a -> (a -> Maybe b) -> (b -> Maybe c) -> Proof 
-{-@ beta_reduce :: x:a -> f:(a -> Maybe b) -> g:(b -> Maybe c)
+{-@ assume beta_reduce :: x:a -> f:(a -> Maybe b) -> g:(b -> Maybe c)
                 -> {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
 beta_reduce x f g = trivial 
 

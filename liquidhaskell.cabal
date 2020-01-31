@@ -146,7 +146,6 @@ library
                       Language.Haskell.Liquid.Types.PrettyPrint
                       Language.Haskell.Liquid.Types.RefType
                       Language.Haskell.Liquid.Types.Specs
-                      Language.Haskell.Liquid.Types.Strata
                       Language.Haskell.Liquid.Types.Types
                       Language.Haskell.Liquid.Types.Variance
                       Language.Haskell.Liquid.Types.Visitors
@@ -165,7 +164,7 @@ library
                       Paths_liquidhaskell
   hs-source-dirs:     src, include
   build-depends:      base                 >= 4.11.1.0 && < 5
-                    , Diff                 >= 0.3
+                    , Diff                 >= 0.3 && < 0.4
                     , aeson
                     , binary
                     , bytestring           >= 0.10
@@ -229,7 +228,7 @@ executable gradual
                   , liquidhaskell
   default-language: Haskell2010
   buildable:        False
-  ghc-options:      -W -threaded
+  ghc-options:      -W -threaded 
 
   if flag(devel)
     ghc-options: -Werror
@@ -253,9 +252,11 @@ test-suite test
                   , optparse-applicative >= 0.11
                   , process              >= 1.2
                   , stm                  >= 2.4
+                  , string-conv          >= 0.1
                   , tagged               >= 0.7.3
                   , tasty                >= 0.10
                   , tasty-ant-xml
+                  , tasty-golden         >= 2.0.0
                   , tasty-hunit          >= 0.9
                   , tasty-rerun          >= 1.1
                   , text

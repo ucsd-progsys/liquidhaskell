@@ -129,7 +129,7 @@ simpleProof = ()
 
 
 -- | ToProve is undefined and is only used to assume some equalities in
--- | the proof proccess. It is a cut, a la Coq
+-- | the proof process. It is a cut, a la Coq
 
 class ToProve a r where
   (==?) :: a -> a -> r

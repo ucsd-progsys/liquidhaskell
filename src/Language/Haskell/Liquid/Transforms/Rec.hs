@@ -45,10 +45,10 @@ import qualified Data.List                            as L
 
 transformRecExpr :: CoreProgram -> CoreProgram
 transformRecExpr cbs = pg
-  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs | isEmptyBag $ filterBag isTypeError e
-  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs = pg
-  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs | otherwise
-  -- TODO-REBARE wierd GHC crash on Data/Text/Array.hs = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
+  -- TODO-REBARE weird GHC crash on Data/Text/Array.hs | isEmptyBag $ filterBag isTypeError e
+  -- TODO-REBARE weird GHC crash on Data/Text/Array.hs = pg
+  -- TODO-REBARE weird GHC crash on Data/Text/Array.hs | otherwise
+  -- TODO-REBARE weird GHC crash on Data/Text/Array.hs = panic Nothing ("Type-check" ++ showSDoc (pprMessageBag e))
   where 
     pg     = inlineFailCases pg0
     pg0    = evalState (transPg (inlineLoopBreaker <$> cbs)) initEnv

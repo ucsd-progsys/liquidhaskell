@@ -261,6 +261,12 @@ liquid annotation
 {-@ automatic-instances theorem @-}
 ```
 
+To allow reasoning about function extensionality use the `extensionality flag`. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs)
+
+```
+{-@ LIQUID "--extensionality" @-}
+```
+
 Incremental Checking
 --------------------
 
@@ -1060,16 +1066,25 @@ see [tests/pos/Map.hs](tests/pos/Map.hs)
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
-Infix Logic Operators
+Infix  Operators
 ---------------------
 
-You can define infix operators in logic, following [Haskell's infix notation](https://www.haskell.org/onlinereport/decls.html#fixity).
+You can define infix types and logical operators in logic [Haskell's infix notation](https://www.haskell.org/onlinereport/decls.html#fixity).
 For example, if `(+++)` is defined as a measure or reflected function, you can use it infix by declaring
 
     {-@ infixl 9 +++ @-}
 
 
 Note: infix operators cannot contain the dot character `.`.
+
+If `(==>)` is a Haskell infix type ([see](tests/pos/T1567.hs)) 
+
+    infixr 1 ==> 
+
+then to use it as infix in the refinements types you need to add the refinement infix notation. 
+
+    {-@ infixr 1 ==> @-}
+    {-@ test :: g:(f ==> g) -> f x -> f y -> ()  @-} 
 
 
 Specifying Measures

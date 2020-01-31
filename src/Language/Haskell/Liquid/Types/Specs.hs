@@ -82,6 +82,7 @@ data GhcSpecVars = SpVar
   { gsTgtVars    :: ![Var]                        -- ^ Top-level Binders To Verify (empty means ALL binders)
   , gsIgnoreVars :: !(S.HashSet Var)              -- ^ Top-level Binders To NOT Verify (empty means ALL binders)
   , gsLvars      :: !(S.HashSet Var)              -- ^ Variables that should be checked "lazily" in the environment they are used
+  , gsCMethods   :: ![Var]                        -- ^ Refined Class methods 
   }
 
 data GhcSpecQual = SpQual 
@@ -95,7 +96,8 @@ data GhcSpecSig = SpSig
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
-  , gsDicts    :: !(DEnv Var SpecType)            -- ^ Refined Classes 
+  , gsDicts    :: !(DEnv Var LocSpecType)            -- ^ Refined Classes from Instances 
+  , gsMethods  :: ![(Var, MethodType LocSpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   }
 
@@ -133,6 +135,7 @@ data GhcSpecRefl = SpRefl
   , gsMyAxioms   :: ![F.Equation]                     -- ^ Axioms from my reflected functions
   , gsReflects   :: ![Var]                            -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
+  , gsWiredReft  :: ![Var]
   }
 
 data GhcSpecLaws = SpLaws 

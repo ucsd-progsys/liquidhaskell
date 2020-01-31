@@ -14,7 +14,7 @@ x = getTails' 1 []
 {- decrease ds_d258 3 @-}
 {- decrease ds_d25g 3 @-}
 
--- TransformRec BUG: this causes some wierd unused variable error (occurrence of DEAD ID)?
+-- TransformRec BUG: this causes some weird unused variable error (occurrence of DEAD ID)?
 getTails'' :: Int -> [[a]] -> [[a]]
 getTails'' n xss = [t | (_:t) <- xss]
 

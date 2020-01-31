@@ -187,12 +187,12 @@ instance (Radix i, Radix j) => Radix (i, j) where
 
 {-@ measure radixSize :: a -> Int @-}
 
-{-@ Data.Vector.Algorithms.Radix.radix 
+{-@ assume Data.Vector.Algorithms.Radix.radix 
       :: (Data.Vector.Algorithms.Radix.Radix e) 
       => Int -> x:e -> {v:Nat | v < (radixSize x)} 
   @-}
 
-{-@ Data.Vector.Algorithms.Radix.size  
+{-@ assume Data.Vector.Algorithms.Radix.size  
       :: (Data.Vector.Algorithms.Radix.Radix e) 
       => x:e -> {v:Nat | v = (radixSize x)}        
   @-}

@@ -1,6 +1,6 @@
 
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/716
---   due to the wierd case-of thwarting ANF, you need the qualifier from the
+--   due to the weird case-of thwarting ANF, you need the qualifier from the
 --   output type of `narrow16Word` (apparently we don't scrape assumes?) 
 --   ELIMINATE does not cut it, as the relevant kvar happens to be non-linear...
 

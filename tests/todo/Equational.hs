@@ -1,35 +1,68 @@
-module Equational where
+
+module Equational where 
 
 
-import Language.Haskell.Liquid.Prelude
-import Axiomatize
+-------------------------------------------------------------------------------
+-- | Proof is just unit
+-------------------------------------------------------------------------------
+
+type Proof = ()
+
+-------------------------------------------------------------------------------
+-- | Casting expressions to Proof using the "postfix" `-*- QED` 
+-------------------------------------------------------------------------------
+
+data QED = QED 
+
+infixl 2 -*-
+(-*-) :: a -> QED -> Proof
+_ -*- QED = () 
+
+-------------------------------------------------------------------------------
+-- | Equational and Implication Reasoning operators 
+-------------------------------------------------------------------------------
+
+infixl 3 ==., ==> 
 
 
-{-@ toProof :: l:a -> r:{a | l == r} -> {v:Proof | l == r } @-}
-toProof :: a -> a -> Proof
-toProof x y = Proof
+{-@ (==.) :: x:a -> y:{a | x == y} -> {v:a | v == y && v == x} @-}
+(==.) :: a -> a -> a 
+_ ==. x = x 
+{-# INLINE (==.) #-} 
 
 
-{-@ (===) :: l:a -> r:a -> {v:Proof | l = r} -> {v:a | v = l } @-}
-(===) :: a -> a -> Proof -> a
-(===) x y _ = y
+{-@ (==>) :: x:Bool -> y:{Bool | x => y} -> {b:Bool | (x => b) && (y == b) }  @-}
+(==>) :: Bool -> Bool -> Bool 
+_ ==> y = y  
 
 
+-------------------------------------------------------------------------------
+-- | Use `x === y` to state equality when `x` and `y` are not Eq, 
+-- | e.g., are functions
+-------------------------------------------------------------------------------
 
-{-@ type Equal X Y = {v:Proof | X == Y} @-}
+{-@ assume (===) :: x:a -> y:a -> {p:Bool | (x == y) <=> p } @-}
+(===) :: a -> a -> Bool
+_ === _ = True  
 
-{-@ bound chain @-}
-chain :: (Proof -> Bool) -> (Proof -> Bool) -> (Proof -> Bool)
-      -> Proof -> Proof -> Proof -> Bool
-chain p q r = \v1 v2 v3 -> p v1 ==> q v2 ==> r v3
+-------------------------------------------------------------------------------
+-- | Explanations
+-------------------------------------------------------------------------------
 
-{-@  by :: forall <p :: Proof -> Prop, q :: Proof -> Prop, r :: Proof -> Prop>.
-                 {vp::Proof<p> |- Proof<q> <: Proof<r> }
-                 Proof<p> -> Proof<q> -> Proof<r>
-@-}
-by :: Proof -> Proof -> Proof
-by _ r = r
+infixl 3 ?
 
-{-@ refl :: x:a -> Equal x x @-}
-refl :: a -> Proof
-refl x = Proof
+{-@ (?) :: forall a b <pa :: a -> Bool>. x:a<pa> -> b -> {o:a<pa> | x == o} @-}
+(?) :: a -> b -> a 
+x ? _ = x 
+{-# INLINE (?)   #-} 
+
+-- For the type of (?), see
+-- https://github.com/nikivazou/ccc/issues/11
+
+-------------------------------------------------------------------------------
+-- | Assert intermediate steps of the proof 
+-------------------------------------------------------------------------------
+
+{-@ assert :: b:{Bool | b}  -> () @-} 
+assert :: Bool -> () 
+assert _ = ()

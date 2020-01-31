@@ -1,0 +1,2 @@
+RESULT
+[{"start":{"line":9,"column":1},"stop":{"line":9,"column":12},"message":"Error: Liquid Type Mismatch\n  Inferred type\n    VV : {v : GHC.Types.Int | v == 7}\n \n  not a subtype of Required type\n    VV : {VV : GHC.Types.Int | VV mod 2 == 0}\n "}]

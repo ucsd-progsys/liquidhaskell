@@ -14,7 +14,7 @@ import TyCoRep hiding (substTysWith)
 import DataCon
 
 import TyCon
-import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe, binderVar)
+import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe, binderVar, isFunTy)
 import PrelNames (isStringClassName)
 
 import           Control.Arrow       ((***))
@@ -132,6 +132,8 @@ mapType f = go
 
 
 stringClassArg :: Type -> Maybe Type
+stringClassArg t | isFunTy t 
+  = Nothing
 stringClassArg t
   = case (tyConAppTyCon_maybe t, tyConAppArgs_maybe t) of
       (Just c, Just [t]) | isStringClassName == tyConName c

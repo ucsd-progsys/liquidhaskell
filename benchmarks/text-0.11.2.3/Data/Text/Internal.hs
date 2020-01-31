@@ -89,7 +89,7 @@ import Language.Haskell.Liquid.Prelude
   @-}
 
 {-@ measure tlength :: Text -> Int
-    tlength (Text a o l) = numchars(a,o,l)
+    tlength (Text a o l) = numchars a o l
   @-}
 
 {-@ type IncrTList a = [a]<{\x y -> (tlength x) < (tlength y)}> @-}

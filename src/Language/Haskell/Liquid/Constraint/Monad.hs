@@ -23,26 +23,13 @@ import qualified Data.Text           as T
 import           Control.Monad
 import           Control.Monad.State (get, modify)
 import           Language.Haskell.Liquid.Types hiding (loc)
--- import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
--- import qualified Language.Fixpoint.Types.PrettyPrint as F 
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import qualified Language.Fixpoint.Types                    as F
-
---------------------------------------------------------------------------------
--- RJ: What is this `isBind` business?
---------------------------------------------------------------------------------
-pushConsBind :: CG a -> CG a
---------------------------------------------------------------------------------
-pushConsBind act
-  = do modify $ \s -> s { isBind = False : isBind s }
-       z <- act
-       modify $ \s -> s { isBind = tail (isBind s) }
-       return z
 
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.
@@ -51,18 +38,10 @@ addC :: SubC -> String -> CG ()
 --------------------------------------------------------------------------------
 addC c@(SubC γ t1 t2) _msg
   | toType t1 /= toType t2
-  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
-  --     ++ "\n\n" ++ showTy (toType t1) ++ "\n /=\n" ++ showTy (toType t2)
+  = panic (Just $ getLocation γ) $ "addC: malformed constraint:\n" ++ _msg ++ showpp t1 ++ "\n <: \n" ++ showpp t2 
   | otherwise
-  = do modify $ \s -> s { hsCs  = c : (hsCs s) }
-       bflag <- headDefault True . isBind <$> get
-       sflag <- scheck                    <$> get
-       if bflag && sflag
-         then modify $ \s -> s {sCs = (SubC γ t2 t1) : (sCs s) }
-         else return ()
-  where
-    headDefault a []    = a
-    headDefault _ (x:_) = x
+  = modify $ \s -> s { hsCs  = c : (hsCs s) }
+ 
 
 addC c _msg
   = modify $ \s -> s { hsCs  = c : hsCs s }

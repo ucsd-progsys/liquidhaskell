@@ -72,14 +72,25 @@ makeRTEnv env m mySpec iSpecs lmap
 --   hidden inside @RExprArg@ or as strange type parameters. 
 renameRTArgs :: BareRTEnv -> BareRTEnv 
 renameRTArgs rte = RTE 
-  { typeAliases = M.map (fmap (renameVV . renameRTVArgs)) (typeAliases rte) 
-  , exprAliases = M.map (fmap (           renameRTVArgs)) (exprAliases rte) 
+  { typeAliases = M.map (fmap ( renameTys . renameVV . renameRTVArgs)) (typeAliases rte) 
+  , exprAliases = M.map (fmap (                        renameRTVArgs)) (exprAliases rte) 
   } 
 
 makeREAliases :: [Located (RTAlias F.Symbol F.Expr)] -> BareRTEnv 
 makeREAliases = graphExpand buildExprEdges f mempty 
   where
     f rtEnv xt = setREAlias rtEnv (expandLoc rtEnv xt)
+
+
+-- | @renameTys@ ensures that @RTAlias@ type parameters have distinct names 
+--   to avoid variable capture e.g. as in T1556.hs
+renameTys :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
+renameTys rt = rt { rtTArgs = ys, rtBody = subts (rtBody rt) (zip xs ys) }
+  where 
+    xs    = rtTArgs rt 
+    ys    = (`F.suffixSymbol` rtName rt) <$> xs
+    subts = foldl (flip subt)
+
 
 renameVV :: RTAlias F.Symbol BareType -> RTAlias F.Symbol BareType 
 renameVV rt = rt { rtBody = RT.shiftVV (rtBody rt) (F.vv (Just 0)) }
@@ -202,9 +213,8 @@ buildTypeEdges table = ordNub . go
     go (RAppTy t1 t2 _) = go t1 ++ go t2
     go (RAllE _ t1 t2)  = go t1 ++ go t2
     go (REx _ t1 t2)    = go t1 ++ go t2
-    go (RAllT _ t)      = go t
+    go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
-    go (RAllS _ t)      = go t
     go (RVar _ _)       = []
     go (RExprArg _)     = []
     go (RHole _)        = []
@@ -369,9 +379,8 @@ expandBareType rtEnv _ = go
     go (RAppTy t1 t2 r)  = RAppTy (go t1) (go t2) r
     go (RImpF x t1 t2 r) = RImpF x (go t1) (go t2) r 
     go (RFun  x t1 t2 r) = RFun  x (go t1) (go t2) r 
-    go (RAllT a t)       = RAllT a (go t) 
+    go (RAllT a t r)     = RAllT a (go t) r
     go (RAllP a t)       = RAllP a (go t) 
-    go (RAllS x t)       = RAllS x (go t)
     go (RAllE x t1 t2)   = RAllE x (go t1) (go t2)
     go (REx x t1 t2)     = REx   x (go t1) (go t2)
     go (RRTy e r o t)    = RRTy  e r o     (go t)
@@ -380,86 +389,6 @@ expandBareType rtEnv _ = go
     go t@(RExprArg {})   = t 
     goRef (RProp ss t)   = RProp ss (go t)
 
-
-
-{- TODO-REBARE
-ofBRType :: (PPrint r, UReftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, SubsTy BTyVar BSort r, F.Reftable (RTProp RTyCon RTyVar r), F.Reftable (RTProp BTyCon BTyVar r))
-         => (SourcePos -> RTAlias RTyVar SpecType -> [BRType r] -> r -> BareM (RRType r))
-         -> (r -> BareM r)
-         -> BRType r
-         -> BareM (RRType r)
-ofBRType appRTAlias resolveReft !t
-  = go t
-  where
-    go t@(RApp _ _ _ _)
-      = do aliases <- (typeAliases . rtEnv) <$> get
-           goRApp aliases t
-    go (RAppTy t1 t2 r)
-      = RAppTy <$> go t1 <*> go t2 <*> resolveReft r
-    go (RImpF x t1 t2 r)
-      =  do env <- get
-            goRImpF (bounds env) x t1 t2 r
-    go (RFun x t1 t2 r)
-      =  do env <- get
-            goRFun (bounds env) x t1 t2 r
-    go (RVar a r)
-      = RVar (bareRTyVar a) <$> resolveReft r
-    go (RAllT a t)
-      = RAllT (dropTyVarInfo $ mapTyVarValue bareRTyVar a) <$> go t
-    go (RAllP a t)
-      = RAllP <$> ofBPVar a <*> go t
-    go (RAllS x t)
-      = RAllS x <$> go t
-    go (RAllE x t1 t2)
-      = RAllE x <$> go t1 <*> go t2
-    go (REx x t1 t2)
-      = REx x <$> go t1 <*> go t2
-    go (RRTy e r o t)
-      = RRTy <$> mapM (secondM go) e <*> resolveReft r <*> pure o <*> go t
-    go (RHole r)
-      = RHole <$> resolveReft r
-    go (RExprArg (Loc l l' e))
-      = RExprArg . Loc l l' <$> resolve l e
-    go_ref (RProp ss (RHole r))
-      = rPropP <$> mapM go_syms ss <*> resolveReft r
-    go_ref (RProp ss t)
-      = RProp <$> mapM go_syms ss <*> go t
-    go_syms
-      = secondM ofBSort
-
-    goRImpF bounds _ (RApp c ps' _ _) t _
-      | Just bnd <- M.lookup (btc_tc c) bounds
-      = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
-           ts <- mapM go ts'
-           makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
-    goRImpF _ x t1 t2 r
-      = RImpF x <$> (rebind x <$> go t1) <*> go t2 <*> resolveReft r
-
-    goRFun bounds _ (RApp c ps' _ _) t _
-      | Just bnd <- M.lookup (btc_tc c) bounds
-      = do let (ts', ps) = splitAt (length $ tyvars bnd) ps'
-           ts <- mapM go ts'
-           makeBound bnd ts [x | RVar (BTV x) _ <- ps] <$> go t
-    goRFun _ x t1 t2 r
-      = RFun x <$> (rebind x <$> go t1) <*> go t2 <*> resolveReft r
-
-    rebind x t = F.subst1 t (x, F.EVar $ rTypeValueVar t)
-
-    goRApp aliases !(RApp tc ts _ r)
-      | Loc l _ c <- btc_tc tc
-      , Just rta <- M.lookup c aliases
-      = appRTAlias l rta ts =<< resolveReft r
-    goRApp _ !(RApp tc ts rs r)
-      =  do let lc = btc_tc tc
-            let l = loc lc
-            r'  <- resolveReft r
-            lc' <- Loc l l <$> matchTyCon lc (length ts)
-            rs' <- mapM go_ref rs
-            ts' <- mapM go ts
-            bareTCApp r' lc' rs' ts'
-    goRApp _ _ = impossible Nothing "goRApp failed through to final case"
-
- -}
 lookupRTEnv :: BTyCon -> BareRTEnv -> Maybe (Located BareRTAlias)
 lookupRTEnv c rtEnv = M.lookup (F.symbol c) (typeAliases rtEnv)
 
@@ -552,10 +481,11 @@ cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Lo
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name x bt
   = id 
+  . fmap (plugHoles sigEnv name x)
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
-  . fmap (specExpandType rtEnv)                         
+  . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
   . fmap (maybePlug       sigEnv name x)
   . fmap (Bare.qualifyTop    env name l) 
@@ -578,7 +508,7 @@ generalizeWith  Bare.RawTV   t = t
 generalizeWith _             t = RT.generalize t 
 
 generalizeVar :: Ghc.Var -> SpecType -> SpecType 
-generalizeVar v t = mkUnivs as [] [] t 
+generalizeVar v t = mkUnivs (zip as (repeat mempty)) [] t 
   where 
     as            = filter isGen (freeTyVars t)
     (vas,_)       = Ghc.splitForAllTys (GM.expandVarType v) 
@@ -603,7 +533,7 @@ bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (va
 
 maybePlug :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
 maybePlug sigEnv name kx = case Bare.plugSrc kx of 
-                             Nothing -> id 
+                             Nothing -> id  
                              Just _  -> plugHoles sigEnv name kx 
 
 plugHoles :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
@@ -756,12 +686,11 @@ expToBindT (RFun x t1 t2 r)
   = do t1' <- expToBindT t1
        t2' <- expToBindT t2
        expToBindRef r >>= addExists . RFun x t1' t2'
-expToBindT (RAllT a t)
-  = liftM (RAllT a) (expToBindT t)
+expToBindT (RAllT a t r)
+  = do t' <- expToBindT t 
+       expToBindRef r >>= addExists . RAllT a t' 
 expToBindT (RAllP p t)
   = liftM (RAllP p) (expToBindT t)
-expToBindT (RAllS s t)
-  = liftM (RAllS s) (expToBindT t)
 expToBindT (RApp c ts rs r)
   = do ts' <- mapM expToBindT ts
        rs' <- mapM expToBindReft rs
@@ -801,8 +730,8 @@ addExist t x (tx, e) = REx x t' t
     r                = F.exprReft e
 
 expToBindRef :: UReft r -> State ExSt (UReft r)
-expToBindRef (MkUReft r (Pr p) l)
-  = mapM expToBind p >>= return . (\p -> MkUReft r p l). Pr
+expToBindRef (MkUReft r (Pr p))
+  = mapM expToBind p >>= return . (MkUReft r) . Pr
 
 expToBind :: UsedPVar -> State ExSt UsedPVar
 expToBind p = do 

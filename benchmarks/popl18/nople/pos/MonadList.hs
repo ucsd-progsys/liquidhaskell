@@ -1,5 +1,4 @@
 {-@ LIQUID "--reflection"      @-}
-{-@ LIQUID "--betaequivalence" @-}
 
 module MonadList where
 
@@ -85,7 +84,7 @@ associativity (x ::: xs) f g
 
 
 
-{-@ βequivalence :: f:(a -> L b) -> g:(b -> L c) -> x:a -> 
+{-@ assume βequivalence :: f:(a -> L b) -> g:(b -> L c) -> x:a -> 
      {bind (f x) g == (\y:a -> bind (f y) g) (x)}  @-}
 βequivalence :: (a -> L b) -> (b -> L c) -> a -> Proof
 βequivalence f g x = trivial 

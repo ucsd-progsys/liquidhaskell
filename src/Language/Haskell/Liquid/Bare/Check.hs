@@ -99,12 +99,13 @@ checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2)
 ----------------------------------------------------------------------------------------------
 
 checkGhcSpec :: [(ModName, Ms.BareSpec)]
+             -> GhcSrc
              -> F.SEnv F.SortedReft
              -> [CoreBind]
              -> GhcSpec
              -> Either [Error] GhcSpec
 
-checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
+checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune 
@@ -117,6 +118,7 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
+                     ++ checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
                      ++ mapMaybe checkMismatch                     sigs
                      ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
@@ -129,7 +131,9 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
                      ++ checkSizeFun emb env                                      (gsTconsP (gsName sp))
+                     ++ checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
                      ++ checkLawInstances (gsLaws sp)
+
     _rClasses         = concatMap (Ms.classes   . snd) specs
     _rInsts           = concatMap (Ms.rinstance . snd) specs
     tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
@@ -145,6 +149,15 @@ checkGhcSpec specs env cbs sp = Misc.applyNonNull (Right sp) Left errors
     temps            = F.makeTemplates $ gsUnsorted $ gsData sp
     -- env'             = L.foldl' (\e (x, s) -> insertSEnv x (RR s mempty) e) env wiredSortedSyms
 
+
+
+
+
+checkPlugged :: PPrint v => [(v, LocSpecType)] -> [Error] 
+checkPlugged xs = mkErr <$> filter (hasHoleTy . val . snd) xs 
+  where 
+    mkErr (x,t) = ErrBadData (GM.sourcePosSrcSpan $ loc t) (pprint x) msg 
+    msg        = "Cannot resolve type hole `_`. Use explicit type instead."
 
 
 --------------------------------------------------------------------------------
@@ -317,14 +330,23 @@ checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
     -- msg1             = "\nCheckd-SIGS:\n" ++ showpp (M.fromList xts)
     -- msg2             = "\nAssume-SIGS:\n" ++ showpp (M.fromList asmSigs)
 
+
 checkDuplicate :: [(Var, LocSpecType)] -> [Error]
 checkDuplicate = checkUnique' fst (GM.fSrcSpan . snd)
+
+checkClassMethods :: Maybe [ClsInst] -> [Var] ->  [(Var, LocSpecType)] -> [Error]
+checkClassMethods Nothing      _   _   = [] 
+checkClassMethods (Just clsis) cms xts = [ErrMClass (GM.sourcePosSrcSpan $ loc t) (pprint x)| (x,t) <- dups ]
+  where 
+    dups = F.notracepp "DPS" $ filter ((`elem` ms) . fst) xts' 
+    ms   = F.notracepp "MS"  $ concatMap (classMethods . is_cls) clsis
+    xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts 
+    cls  = F.notracepp "CLS" cms   
 
 -- checkDuplicate xts = mkErr <$> dups
   -- where
     -- mkErr (x, ts) = ErrDupSpecs (getSrcSpan x) (pprint x) (GM.fSrcSpan <$> ts)
     -- dups          = [z | z@(_, _:_:_) <- M.toList $ group xts ]
-
 
 checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> [Error]
 checkDuplicateRTAlias s tas = mkErr <$> dups
@@ -345,11 +367,11 @@ checkMismatch (x, t) = if ok then Nothing else Just err
     t'               = dropImplicits <$> t
 
 tyCompat :: Var -> RType RTyCon RTyVar r -> Bool
-tyCompat x t         = F.notracepp msg (lqT == hsT)
+tyCompat x t         = lqT == hsT
   where
     lqT :: RSort     = toRSort t
     hsT :: RSort     = ofType (varType x)
-    msg              = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
+    _msg             = "TY-COMPAT: " ++ GM.showPpr x ++ ": hs = " ++ F.showpp hsT ++ " :lq = " ++ F.showpp lqT
 
 errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
@@ -379,15 +401,14 @@ checkRType allowHO emb env lt
 tyToBind :: F.TCEmb TyCon -> RTVar RTyVar RSort  -> [(F.Symbol, F.SortedReft)]
 tyToBind emb = go . ty_var_info
   where
-    go (RTVInfo {..}) = [(rtv_name, rTypeSortedReft emb rtv_kind)]
-    go RTVNoInfo      = []
+    go (RTVInfo {..})   = [(rtv_name, rTypeSortedReft emb rtv_kind)]
+    go (RTVNoInfo {..}) = []
 
 checkAppTys :: RType RTyCon t t1 -> Maybe Doc
 checkAppTys = go
   where
-    go (RAllT _ t)      = go t
+    go (RAllT _ t _)    = go t
     go (RAllP _ t)      = go t
-    go (RAllS _ t)      = go t
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
@@ -413,24 +434,6 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   where
     expectedArity = tyConArity tc
 
-{-
-checkFunRefs t = go t
-  where
-    go (RAllT _ t)      = go t
-    go (RAllP _ t)      = go t
-    go (RAllS _ t)      = go t
-    go (RApp _ ts _ _)  = foldl (\merr t -> merr <|> go t) Nothing ts
-    go (RVar _ _)       = Nothing
-    go (RAllE _ t1 t2)  = go t1 <|> go t2
-    go (REx _ t1 t2)    = go t1 <|> go t2
-    go (RAppTy t1 t2 _) = go t1 <|> go t2
-    go (RRTy _ _ _ t)   = go t
-    go (RExprArg _)     = Nothing
-    go (RHole _)        = Nothing
-    go (RFun _ t1 t2 r)
-      | isTauto r       = go t1 <|> go t2
-      | otherwise       = Just $ text "Function types cannot have refinements:" <+> (pprint r)
--}
 
 checkAbstractRefs
   :: (PPrint t, F.Reftable t, SubsTy RTyVar RSort t, F.Reftable (RTProp RTyCon RTyVar (UReft t))) =>
@@ -439,9 +442,8 @@ checkAbstractRefs t = go t
   where
     penv = mkPEnv t
 
-    go (RAllT _ t)        = go t
+    go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
-    go (RAllS _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
     go t@(RImpF _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RFun _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
@@ -475,7 +477,7 @@ checkAbstractRefs t = go t
 
     efold f = L.foldl' (\acc x -> acc <|> f x) Nothing
 
-    check s (MkUReft _ (Pr ps) _) = L.foldl' (\acc pp -> acc <|> checkOne s pp) Nothing ps
+    check s (MkUReft _ (Pr ps)) = L.foldl' (\acc pp -> acc <|> checkOne s pp) Nothing ps
 
     checkOne s p | pvType' p /= s
                  = Just $ text "Incorrect Sort:\n\t"
@@ -487,9 +489,9 @@ checkAbstractRefs t = go t
                  | otherwise
                  = Nothing
 
-    mkPEnv (RAllT _ t) = mkPEnv t
-    mkPEnv (RAllP p t) = p:mkPEnv t
-    mkPEnv _           = []
+    mkPEnv (RAllT _ t _) = mkPEnv t
+    mkPEnv (RAllP p t)   = p:mkPEnv t
+    mkPEnv _             = []
     pvType' p          = Misc.safeHead (showpp p ++ " not in env of " ++ showpp t) [pvType q | q <- penv, pname p == pname q]
 
 

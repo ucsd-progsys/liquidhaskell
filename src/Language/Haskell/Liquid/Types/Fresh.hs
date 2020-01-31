@@ -68,15 +68,8 @@ instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Reft whe
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = panic Nothing "fresh RReft"
-  true (MkUReft r _ s)    = MkUReft <$> true r    <*> return mempty <*> true s
-  refresh (MkUReft r _ s) = MkUReft <$> refresh r <*> return mempty <*> refresh s
-
-instance Freshable m Integer => Freshable m Strata where
-  fresh      = (:[]) . SVar <$> fresh
-  true []    = fresh
-  true s     = return s
-  refresh [] = fresh
-  refresh s  = return s
+  true (MkUReft r _)    = MkUReft <$> true r    <*> return mempty
+  refresh (MkUReft r _) = MkUReft <$> refresh r <*> return mempty
 
 instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRType r) where
   fresh   = panic Nothing "fresh RefType"
@@ -86,8 +79,8 @@ instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRT
 -----------------------------------------------------------------------------------------------
 trueRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-trueRefType (RAllT α t)
-  = RAllT α <$> true t
+trueRefType (RAllT α t r)
+  = RAllT α <$> true t <*> true r 
 
 trueRefType (RAllP π t)
   = RAllP π <$> true t
@@ -128,9 +121,6 @@ trueRefType t@(RExprArg _)
 trueRefType t@(RHole _)
   = return t
 
-trueRefType (RAllS _ t)
-  = RAllS <$> fresh <*> true t
-
 trueRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
         => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
 trueRef (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
@@ -140,8 +130,8 @@ trueRef (RProp s t) = RProp s <$> trueRefType t
 -----------------------------------------------------------------------------------------------
 refreshRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-refreshRefType (RAllT α t)
-  = RAllT α <$> refresh t
+refreshRefType (RAllT α t r)
+  = RAllT α <$> refresh t <*> true r
 
 refreshRefType (RAllP π t)
   = RAllP π <$> refresh t
@@ -199,8 +189,8 @@ type FreshM m = Freshable m Integer
 --------------------------------------------------------------------------------
 refreshVV :: FreshM m => SpecType -> m SpecType
 --------------------------------------------------------------------------------
-refreshVV (RAllT a t) = 
-  RAllT a <$> refreshVV t
+refreshVV (RAllT a t r) = 
+  RAllT a <$> refreshVV t <*> return r 
 
 refreshVV (RAllP p t) = 
   RAllP p <$> refreshVV t
