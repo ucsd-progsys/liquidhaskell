@@ -95,7 +95,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
     go :: SpecType -> SM [CoreExpr]
 
     -- Type Abstraction 
-    go (RAllT a t)       = GHC.Lam (tyVarVar a) <$$> go t
+    go (RAllT a t x)      = GHC.Lam (tyVarVar a) <$$> go t
           
     go t@(RApp c _ts _ r) = do  
       let coreProgram = giCbs $ giSrc $ ghcI cgi
@@ -104,22 +104,23 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
       addEnv xtop $ fst $ decrType xtop ttop args (zip xs txs)
       if R.isNumeric (tyConEmbed cgi) c
           -- Special Treatment for synthesis of integers          
-          then do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
-                  ctx <- sContext <$> get 
-                  liftIO $ SMT.smtPush ctx
-                  liftIO $ SMT.smtDecl ctx x s
-                  liftIO $ SMT.smtCheckSat ctx rr 
-                  -- Get model and parse the value of x
-                  SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
+          then error " [ Synthesize numeric ] Update liquid-fixpoint. " 
+              -- do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
+              --     ctx <- sContext <$> get 
+              --     liftIO $ SMT.smtPush ctx
+              --     liftIO $ SMT.smtDecl ctx x s
+              --     liftIO $ SMT.smtCheckSat ctx rr 
+              --     -- Get model and parse the value of x
+              --     SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
                   
-                  let xNotFound = error $ "Symbol " ++ show x ++ "not found."
-                      smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
+              --     let xNotFound = error $ "Symbol " ++ show x ++ "not found."
+              --         smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
-                  liftIO (SMT.smtPop ctx)
-                  filterM (hasType t) [mkIntExpr unsafeGlobalDynFlags (read smtVal :: Integer)] -- TODO: TypeCheck 
+              --     liftIO (SMT.smtPop ctx)
+              --     filterM (hasType t) [mkIntExpr unsafeGlobalDynFlags (read smtVal :: Integer)] -- TODO: TypeCheck 
           else do
-            emem0 <- withInsInitEM senv 
-            modify (\s -> s { sExprMem = emem0 })
+            eMem0 <- withInsInitEM senv 
+            modify (\s -> s { sExprMem = eMem0 })
             synthesizeBasic t
 
     go t = do ys <- mapM freshVar txs
@@ -127,8 +128,8 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               let (dt, b) = decrType xtop ttop ys (zip xs txs)
               addEnv xtop dt
-              emem0 <- withInsInitEM senv 
-              modify (\s -> s { sExprMem = emem0 }) 
+              eMem0 <- withInsInitEM senv 
+              modify (\s -> s { sExprMem = eMem0 }) 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
               addEmem xtop dt
               GHC.mkLams ys <$$> synthesizeBasic (subst su to) 

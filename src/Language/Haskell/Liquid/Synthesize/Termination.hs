@@ -27,7 +27,7 @@ decrType x ti xs xts
     go accvs accxts (v:vs) (RFun x tx t r) 
       = let (t,b) = go (v:accvs) ((x,tx):accxts) vs t in 
            (RFun x tx t r, b)
-    go accvs accxts vs (RAllT a t) 
-      = let (t,b) = go accvs accxts vs t in (RAllT a t, b)
+    go accvs accxts vs (RAllT a t x) 
+      = let (t,b) = go accvs accxts vs t in (RAllT a t x, b)
     go _     _       _     t 
       = (t, False) 

@@ -93,9 +93,16 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
     act                  = do { γ <- initEnv info; consAct γ cfg info }
     cfg                  = getConfig   info
 
-consAct :: Config -> GhcInfo -> CG ()
-consAct cfg info = do
-  γ       <- initEnv      info
+generateConstraintsWithEnv :: GhcInfo -> CGInfo -> CGEnv -> CGInfo
+--------------------------------------------------------------------------------
+generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
+  where
+    act                  = consAct γ cfg info
+    cfg                  = getConfig   info
+
+-- consAct :: Config -> GhcInfo -> CG ()
+consAct γ cfg info = do
+  -- γ       <- initEnv      info
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
