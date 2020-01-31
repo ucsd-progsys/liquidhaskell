@@ -34,7 +34,7 @@ genTerms specTy =
 
       filterElseM (hasType specTy) (tracepp " [ genTerms ] es = " es) $ 
 
-        withDepthFill specTy 0 funTyCands
+        withDepthFill specTy 0 (tracepp " [ funTyCands ] " funTyCands)
 
 --  | @withDepthFill@
 withDepthFill :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
@@ -42,14 +42,15 @@ withDepthFill t depth funTyCands = do
   curEm <- sExprMem <$> get
   exprs <- fillMany depth curEm funTyCands []
 
-  filterElseM (hasType t) exprs $ do
-    modify (\s -> s { sAppDepth = sAppDepth s + 1 })
+  filterElseM (hasType t) (tracepp " [ withDepthFill ] exprs = " exprs) $ do
+    -- TODO review the following line
+    -- modify (\s -> s { sAppDepth = sAppDepth s + 1 })
     if depth < maxAppDepth
       then withDepthFill t (depth + 1) funTyCands
       else return [] -- Note: checkedEs == [] at this point
 
 
--- Note: i should be 1-based index
+-- Note: @i@, the 1st argument of @updateIthElem@ should be an 1-based index.
 updateIthElem :: Int -> Int -> [[(CoreExpr, Int)]] -> ([[(CoreExpr, Int)]], [[(CoreExpr, Int)]])
 updateIthElem _ _     []  = ([], [])
 updateIthElem i depth lst = 
@@ -87,7 +88,7 @@ repeatPrune depth down up toBeFilled cands acc =
 
 -- Produce new expressions from expressions currently in expression memory (ExprMemory).
 -- Only candidate terms with function type (funTyCands) can be passed as second argument.
--- This function (`fillMany`) performs (full) application for candidate terms, 
+-- This function (@fillMany@) performs (full) application for candidate terms, 
 -- where candidate is a function from our environment.
 --              | expression memory  |
 --              | before the function|                   | terms that   |
