@@ -1,4 +1,5 @@
-{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--reflection"     @-}
+{-@ LIQUID "--extensionality" @-}
 
 module Example  where 
 
