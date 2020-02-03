@@ -453,11 +453,14 @@ bops = M.fromList [ (numSymbol "+", Plus)
                   , (numSymbol "-", Minus)
                   , (numSymbol "*", Times)
                   , (numSymbol "/", Div)
+                  , (realSymbol "/", Div)
                   , (numSymbol "%", Mod)
                   ]
   where
     numSymbol :: String -> Symbol
     numSymbol =  symbol . (++) "GHC.Num."
+    realSymbol :: String -> Symbol
+    realSymbol =  symbol . (++) "GHC.Real."
 
 splitArgs :: C.Expr t -> (C.Expr t, [C.Arg t])
 splitArgs e = (f, reverse es)
