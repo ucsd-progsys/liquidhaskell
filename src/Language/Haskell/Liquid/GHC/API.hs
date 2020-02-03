@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.GHC.API (
   , pattern LitFloat
   , pattern LitDouble
   , pattern LitChar
-  , ft_aaf, ft_arg, ft_res
+  , ft_af, ft_arg, ft_res
   , bytesFS
   , mkFunTy
 #endif
@@ -139,8 +139,8 @@ pattern Bndr var argf <- TvBndr var argf where
 type VarBndr = TyVarBndr
 
 pattern FunTy :: AnonArgFlag -> Type -> Type -> Type
-pattern FunTy { ft_aaf, ft_arg, ft_res } <- ((VisArg,) -> (ft_aaf, Ty.FunTy ft_arg ft_res)) where
-    FunTy _ft_aaf ft_arg ft_res = Ty.FunTy ft_arg ft_res
+pattern FunTy { ft_af, ft_arg, ft_res } <- ((VisArg,) -> (ft_af, Ty.FunTy ft_arg ft_res)) where
+    FunTy _ft_af ft_arg ft_res = Ty.FunTy ft_arg ft_res
 
 pattern AnonTCB :: AnonArgFlag -> Ty.TyConBndrVis
 pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
