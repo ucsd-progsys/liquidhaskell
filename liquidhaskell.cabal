@@ -260,6 +260,8 @@ test-suite test
                   , transformers         >= 0.3
   default-language: Haskell98
   ghc-options:      -W -threaded
+  if impl(ghc >= 8.10)
+    cpp-options: -DUSE_PLUGIN
 
 test-suite liquidhaskell-parser
   type:             exitcode-stdio-1.0
