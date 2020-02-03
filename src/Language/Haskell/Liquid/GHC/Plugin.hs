@@ -119,8 +119,6 @@ import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
-import qualified Debug.Trace as Debug 
-
 -- | A reference to cache the LH's 'Config' and produce it only /once/, during the dynFlags hook.
 cfgRef :: IORef Config
 cfgRef = unsafePerformIO $ newIORef defConfig
@@ -139,6 +137,12 @@ ifaceStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 -- | Reads the 'Config' out of a 'IORef'.
 getConfig :: IO Config
 getConfig = readIORef cfgRef
+
+debugLogs :: Bool
+debugLogs = False
+
+debugLog :: MonadIO m => String -> m ()
+debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 
 --------------------------------------------------------------------------------
 -- | The Plugin entrypoint ------------------------------------------------------
@@ -199,7 +203,9 @@ parseHook opts modSummary parsedModule = do
         toAnnotation :: ((SourcePos, String), TH.Exp) -> LHsDecl GhcPs
         toAnnotation ((pos, specContent), expr) = 
             let located = GHC.L (LH.sourcePosSrcSpan pos)
-                hsExpr = either (throwGhcException . ProgramError . O.showSDocUnsafe) id $ 
+                hsExpr = either (throwGhcException . ProgramError 
+                                                   . mappend "specCommentsToModuleAnnotations failed : " 
+                                                   . O.showSDocUnsafe) id $ 
                            convertToHsExpr Ghc.Generated (LH.sourcePosSrcSpan pos) expr
                 annDecl = HsAnnotation @GhcPs noExtField Ghc.NoSourceText ModuleAnnProvenance hsExpr
             in located $ AnnD noExtField annDecl
@@ -233,7 +239,7 @@ typecheckHook opts modSummary tcGblEnv = do
 
   let stableData = mkTcData tcGblEnv resolvedNames (mg_binds unoptimisedCoreBinds)
 
-  liftIO $ putStrLn $ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedCoreBinds))
+  debugLog $ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedCoreBinds))
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -257,7 +263,7 @@ liquidHaskellPass cfg gts = do
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
 
-  liftIO $ putStrLn $ "liquidHaskellPass => " ++ (O.showSDocUnsafe $ O.ppr (mg_binds gts))
+  debugLog $ "liquidHaskellPass => " ++ (O.showSDocUnsafe $ O.ppr (mg_binds gts))
 
   case mbTcData of
     Nothing -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
@@ -265,7 +271,7 @@ liquidHaskellPass cfg gts = do
       hscEnv   <- getHscEnv
       specEnv  <- liftIO $ readIORef ifaceStableRef
 
-      liftIO $ putStrLn $ "Relevant ===> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ (S.toList $ relevantModules modGuts))
+      debugLog $ "Relevant ===> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ (S.toList $ relevantModules modGuts))
 
       -- Generate the bare-specs. Here we call 'extractSpecComments' which is what allows us to
       -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
@@ -297,7 +303,7 @@ liquidHaskellPass cfg gts = do
 
       liftIO $ atomicModifyIORef' ifaceStableRef (\old -> (newSpecEnv, ()))
 
-      liftIO $ print (map (O.showSDocUnsafe . O.ppr) $ mg_anns finalGuts)
+      debugLog (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
       pure finalGuts
 
 
@@ -351,7 +357,7 @@ data LiquidHaskellModGuts = LiquidHaskellModGuts {
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook opts iface = do
     cfg <- liftIO getConfig
-    liftIO $ putStrLn $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
+    debugLog $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
     dynFlags <- getDynFlags
     specEnv <- liftIO $ readIORef ifaceStableRef
 
@@ -359,7 +365,7 @@ loadInterfaceHook opts iface = do
     case sp of
       Nothing -> pure ()
       Just (modName, spec)  -> do
-        liftIO $ putStrLn $ "loadInterfaceHook, module found in SpecEnv..."
+        debugLog $ "loadInterfaceHook, module found in SpecEnv..."
         liftIO $ atomicModifyIORef' ifaceStableRef (\old -> (extendModuleEnv old thisModule (modName, spec), ()))
 
     pure iface
@@ -373,7 +379,7 @@ loadInterfaceHook opts iface = do
       guard (not $ isHsBootOrSig $ mi_hsc_src iface)
       eps          <- lift getEps
       let bareSpecs = Util.deserialiseBareSpecs thisModule eps
-      liftIO $ putStrLn $ "===spec==> " ++ show bareSpecs
+      debugLog $ "===spec==> " ++ show bareSpecs
       case bareSpecs of
         []         -> MaybeT $ pure Nothing
         [bareSpec] -> pure $ (ModName SrcImport (moduleName thisModule), bareSpec)
@@ -402,10 +408,10 @@ loadRelevantSpecs cfg specEnv = foldlM loadRelevantSpec specEnv
       res <- runMaybeT (lookupCachedSpec acc mod <|> loadSpecFromDisk cfg acc mod)
       case res of
         Nothing -> do
-          liftIO $ putStrLn $ "No spec found for " ++ show (moduleName mod)
+          debugLog $ "No spec found for " ++ show (moduleName mod)
           pure acc
         Just (modName, bareSpec) -> do
-          liftIO $ putStrLn $ "Spec found for " ++ show (moduleName mod)
+          debugLog $ "Spec found for " ++ show (moduleName mod)
           pure $ extendModuleEnv acc mod (modName, bareSpec)
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
@@ -467,7 +473,7 @@ processModule :: LiquidHaskellModGuts
               -> CoreM (ModGuts, SpecEnv, GhcInfo)
 processModule LiquidHaskellModGuts{..} specEnv specComments specQuotes = do
   let modGuts = lhModuleGuts
-  Debug.traceShow ("Module ==> " ++ show (moduleName $ mg_module $ modGuts)) $ return ()
+  debugLog ("Module ==> " ++ show (moduleName $ mg_module $ modGuts))
   let mod              = mg_module modGuts
   file                <- liftIO $ canonicalizePath $ LH.modSummaryHsFile lhModuleSummary
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) (coerce specComments) specQuotes

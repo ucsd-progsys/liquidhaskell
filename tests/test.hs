@@ -589,8 +589,11 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
 testCmd bin dir file smt (LO opts)
+#ifdef USE_PLUGIN
+  = printf "cd %s && %s %s" dir bin file
+#else
   = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file opts
-  -- = printf "%s -i %s --smtsolver %s %s %s" bin dir (show smt) file opts
+#endif
 
 noPleIgnored :: [FilePath]
 noPleIgnored 

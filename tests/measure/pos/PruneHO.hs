@@ -1,3 +1,5 @@
+module PruneHO where
+
 -- test that you suitably deal with _pruned_ higher order binders.
 -- CURRENTLY, this works with --reflection because we don't nuke 
 -- the TUPLE CONTAINING `incr` from the env; note that `snd p` 

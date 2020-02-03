@@ -399,7 +399,6 @@ processModules cfg logicMap tgtFiles depGraph homeModules = do
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
               -> Ghc (SpecEnv, Maybe GhcInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
-  Debug.traceShow ("Module ==> " ++ show (moduleName $ ms_mod $ modSummary)) $ return ()
   let mod              = ms_mod modSummary
   -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
@@ -468,9 +467,6 @@ makeGhcSrc cfg file typechecked modSum = do
   let modGuts'       = dm_core_module desugared
   let modGuts        = makeMGIModGuts modGuts'
   hscEnv            <- getSession
-
-  liftIO $ putStrLn $ (O.showSDocUnsafe $ O.ppr (mg_binds modGuts'))
-
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
