@@ -24,6 +24,7 @@ import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
+import           Language.Haskell.Liquid.Synthesize.Env
 
 import CoreUtils (exprType)
 import CoreSyn (CoreExpr)
@@ -37,6 +38,7 @@ import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
+import qualified Data.HashSet as S
 import           Data.Default 
 import           Data.Graph (SCC(..))
 import qualified Data.Text as T
@@ -48,18 +50,6 @@ import           Data.List
 import           Literal
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Haskell.Liquid.Types.Types (TyConMap)
-
--- contains GHC primitives
--- JP: Should we get this from REnv instead?
--- TODO: Get the constructors from REnv.
-initSSEnv :: CGInfo -> SSEnv -> SSEnv
-initSSEnv info senv = trace (" prims " ++ show (map fst prims)) $ M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
-  where
-    mkElem (v, lt) = (F.symbol v, (val lt, v))
-    prims = gsCtors $ gsData $ giSpec $ ghcI info
-    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> [ nilDataCon, consDataCon ]) 
-
 
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
@@ -69,12 +59,12 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo
     goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
     goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
 
-    go (x, HoleInfo t loc env (cgi,cge)) = trace (" Type constructors " ++ show (map fst (dataConTys cgi)) ) $ do 
+    go (x, HoleInfo t loc env (cgi,cge)) = do 
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi
           ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
-          senv1 = initSSEnv cginfo ssenv0
+          senv1 = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env M.empty
@@ -85,9 +75,6 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo
           then text "\n Hole Fills: " <+> pprintMany fills 
           else mempty) mempty (symbol x) t 
 
--- | Get datatypes defined by the user 
--- getData :: CGInfo -> TyConMap 
-getData info = M.toList $ tcmTyRTy (tyConInfo info)
 
 -- Assuming that @tx@ is the @SpecType@ of the top level variable. I thought I had it fixed...
 synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
@@ -151,7 +138,7 @@ synthesizeBasic t = do
       where errorMsg = "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )." 
   es <- genTerms t
   case es of 
-    [] -> trace ( " Will be entering synthesizeMatch " ) $ do
+    [] -> trace " Will be entering synthesizeMatch " $ do
       senv <- getSEnv
       lenv <- getLocalEnv 
       synthesizeMatch lenv senv t
