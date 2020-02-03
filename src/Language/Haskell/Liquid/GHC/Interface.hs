@@ -468,6 +468,9 @@ makeGhcSrc cfg file typechecked modSum = do
   let modGuts'       = dm_core_module desugared
   let modGuts        = makeMGIModGuts modGuts'
   hscEnv            <- getSession
+
+  liftIO $ putStrLn $ (O.showSDocUnsafe $ O.ppr (mg_binds modGuts'))
+
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)

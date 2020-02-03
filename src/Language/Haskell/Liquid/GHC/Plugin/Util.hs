@@ -4,12 +4,12 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
         partitionMaybe
       , extractSpecComments
 
-      -- * Serialising and deserialising things from/to annotations.
+      -- * Serialising and deserialising things from/to specs.
       , serialiseBareSpecs
       , deserialiseBareSpecs
-      , serialiseTest
-      , deserialiseTest
-      , Foo(..)
+
+      -- * Combinators
+      , withUnoptimisedCoreBinds
 
       -- * Aborting the plugin execution
       , pluginAbort
@@ -38,11 +38,12 @@ import           Data.Either                              ( partitionEithers )
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           )
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
+import           Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike)
 
 
 pluginAbort :: MonadIO m => DynFlags -> SDoc -> m a
 pluginAbort dynFlags msg =
-  liftIO $ throwGhcExceptionIO $ Panic ("LiquidHaskell: " ++ showSDoc dynFlags msg)
+  liftIO $ throwGhcExceptionIO $ ProgramError ("LiquidHaskell: " ++ showSDoc dynFlags msg)
 
 -- | Courtesy of [inspection testing](https://github.com/nomeata/inspection-testing/blob/master/src/Test/Inspection/Plugin.hs)
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])
@@ -74,6 +75,10 @@ extractModuleAnnotations guts = (guts', extracted)
     tryDeserialise _
         = Nothing
 
+--
+-- Serialising and deserialising Specs
+--
+
 deserialiseBareSpecs :: Module -> ExternalPackageState -> [BareSpec]
 deserialiseBareSpecs thisModule eps = extracted
   where
@@ -92,18 +97,12 @@ serialiseBareSpecs specs modGuts = annotated
     serialise :: BareSpec -> Annotation
     serialise spec = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) spec)
 
-data Foo = Foo Int deriving (Show, Data)
+--
+-- Combinators
+--
 
-deserialiseTest :: Module -> ExternalPackageState -> [Foo]
-deserialiseTest thisModule eps = extracted
-  where
-    extracted = findAnns deserializeWithData (eps_ann_env eps) (ModuleTarget thisModule)
-
-serialiseTest :: Foo -> ModGuts -> ModGuts
-serialiseTest foo modGuts = annotated
-  where
-    thisModule     = mg_module modGuts
-    annotated      = modGuts { mg_anns = serialise : mg_anns modGuts }
-
-    serialise :: Annotation
-    serialise = Annotation (ModuleTarget thisModule) (toSerialized serializeWithData foo)
+withUnoptimisedCoreBinds :: GhcMonadLike m => [CoreBind] -> ModGuts -> (ModGuts -> m ModGuts) -> m ModGuts
+withUnoptimisedCoreBinds unoptimisedBinds oldGuts action = do
+  let guts = oldGuts { mg_binds = unoptimisedBinds }
+  new <- action guts
+  pure $ new { mg_binds = mg_binds oldGuts }
