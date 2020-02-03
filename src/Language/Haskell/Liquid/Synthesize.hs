@@ -50,10 +50,10 @@ import           Data.List
 import           Literal
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
-
+import           Language.Haskell.Liquid.Synthesize.Classes
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
-synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo
+synthesize tgt fcfg cginfo = trace (" [ Class methods ] " ++ show (map fst (toMethods cginfo))) (mapM goSCC $ holeDependencySSC $ holesMap cginfo)
   where 
     goSCC (AcyclicSCC v) = go v
     goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
