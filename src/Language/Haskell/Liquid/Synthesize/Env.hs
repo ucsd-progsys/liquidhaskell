@@ -12,6 +12,7 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet as S
 import           DataCon
 import           TyCon 
+import           Var 
 
 import           Debug.Trace
 
@@ -31,6 +32,7 @@ tpToCons (RAllT a t x)  = tpToCons t
 tpToCons (RApp c _ _ r) = tyConDataCons (rtc_tc c)
 tpToCons (RFun sym rt0 rt1 reft)
   = tpToCons rt0 ++ tpToCons rt1
+tpToCons rt = error (" [ tpToCons ] for rt = " ++ show rt)
 
 typeToCons :: SpecType -> [DataCon]
 typeToCons rt = S.toList $ S.fromList (tpToCons rt)
