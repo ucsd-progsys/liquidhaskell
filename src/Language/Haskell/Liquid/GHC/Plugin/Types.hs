@@ -1,4 +1,4 @@
- 
+{-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.Types
@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , TcData
     , tcImports
     , tcResolvedNames
-    -- , tcCoreBinds
+    , tcUnoptimisedCoreBinds
     , mkTcData
     ) where
 
@@ -28,23 +28,23 @@ newtype SpecComment =
 -- guaranteed not to change, but things like identifiers might, so they shouldn't
 -- land here.
 data TcData = TcData {
-    tcImports       :: [LImportDecl GhcRn]
-  , tcResolvedNames :: [(Name, Maybe TyThing)]
-  -- , tcCoreBinds     :: [CoreBind]
+    tcImports              :: [LImportDecl GhcRn]
+  , tcResolvedNames        :: [(Name, Maybe TyThing)]
+  , tcUnoptimisedCoreBinds :: [CoreBind]
   }
 
 instance Outputable TcData where
-    ppr (TcData imports _) = 
-      text "TcData { imports = " <+> ppr imports 
+    ppr (TcData{tcImports}) = 
+      text "TcData { imports = " <+> ppr tcImports
               <+> text "modInfo   = <someModInfo>"
-              -- <+> text "coreBinds = <someCoreBinds>"
+              <+> text "coreBinds = <someCoreBinds>"
               <+> text " }"
 
 -- | Constructs a 'TcData' out of a 'TcGblEnv'.
-mkTcData :: TcGblEnv -> [(Name, Maybe TyThing)] -> TcData
-mkTcData tcGblEnv resolvedNames = TcData {
-    tcImports        = tcg_rn_imports tcGblEnv
-  , tcResolvedNames  = resolvedNames
-  -- , tcCoreBinds      = coreBinds
+mkTcData :: TcGblEnv -> [(Name, Maybe TyThing)] -> [CoreBind] -> TcData
+mkTcData tcGblEnv resolvedNames coreBinds = TcData {
+    tcImports              = tcg_rn_imports tcGblEnv
+  , tcResolvedNames        = resolvedNames
+  , tcUnoptimisedCoreBinds = coreBinds
   }
 
