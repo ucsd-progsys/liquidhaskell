@@ -32,9 +32,9 @@ genTerms specTy =
 
       es <- withTypeEs specTy
 
-      filterElseM (hasType specTy) (tracepp " [ genTerms ] es = " es) $ 
+      filterElseM (hasType specTy) es $ 
 
-        withDepthFill specTy 0 (tracepp " [ funTyCands ] " funTyCands)
+        withDepthFill specTy 0 funTyCands 
 
 --  | @withDepthFill@
 withDepthFill :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
@@ -42,7 +42,7 @@ withDepthFill t depth funTyCands = do
   curEm <- sExprMem <$> get
   exprs <- fillMany depth curEm funTyCands []
 
-  filterElseM (hasType t) (tracepp " [ withDepthFill ] exprs = " exprs) $
+  filterElseM (hasType t) exprs $
     -- TODO review the following line
     -- modify (\s -> s { sAppDepth = sAppDepth s + 1 })
     if depth < maxAppDepth
@@ -75,13 +75,14 @@ type Up    = Int
 type Down  = Int
 repeatPrune :: Depth -> Up -> Down -> (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
 repeatPrune depth down up toBeFilled cands acc = 
- trace (" [ repeatPrune " ++ show depth ++"] for " ++ show (fst toBeFilled) ++ " Cands " ++ show cands) $ 
+--  trace (" [ repeatPrune " ++ show depth ++"] for " ++ show (fst toBeFilled) ++ " Cands " ++ show cands) $ 
   if down <= up 
     then do 
       let (cands', cands'') = updateIthElem down depth cands 
       es <- fillOne toBeFilled cands'
       acc' <- (++ acc) <$> filterM isWellTyped es
-      trace ("For down = " ++ show down ++ " cs' " ++ show cands' ++ " cs'' " ++ show cands'') $ repeatPrune depth (down + 1) up toBeFilled cands'' acc'
+      -- trace ("For down = " ++ show down ++ " cs' " ++ show cands' ++ " cs'' " ++ show cands'') $ 
+      repeatPrune depth (down + 1) up toBeFilled cands'' acc'
     else return acc
 
 
@@ -112,13 +113,13 @@ fillMany depth exprMem (cand : cands) accExprs = do
       let nextEm = map (resultTy, , curAppDepth + 1) newExprs
       modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
       let accExprs' = newExprs ++ accExprs
-      trace (
-        " [ fillMany <" ++ show depth ++ 
-        "> for cand " ++ show (fst cand) ++ 
-        " argCands "  ++ show argCands ++
-        " Expressions: " ++ show (length newExprs) ++ 
-        "] \n" ++ show accExprs') $ 
-        fillMany depth exprMem cands accExprs'
+      -- trace (
+      --   " [ fillMany <" ++ show depth ++ 
+      --   "> for cand " ++ show (fst cand) ++ 
+      --   " argCands "  ++ show argCands ++
+      --   " Expressions: " ++ show (length newExprs) ++ 
+      --   "] \n" ++ show accExprs') $ 
+      fillMany depth exprMem cands accExprs'
 
 -- {applyOne, applyNext, applyMany} are auxiliary functions for `fillOne`
 applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
