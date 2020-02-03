@@ -199,19 +199,19 @@ parseHook opts modSummary parsedModule = do
           | SigD _ (InlineSig {}) <-  unLoc x = False
           | otherwise                         = True
 
-specCommentsToModuleAnnotations :: [((SourcePos, String), TH.Exp)] 
-                                -> HsModule GhcPs 
-                                -> HsModule GhcPs
-specCommentsToModuleAnnotations comments m = 
-  m { hsmodDecls = map toAnnotation comments ++ hsmodDecls m }
-  where
-    toAnnotation :: ((SourcePos, String), TH.Exp) -> LHsDecl GhcPs
-    toAnnotation ((pos, specContent), expr) = 
-        let located = GHC.L (LH.sourcePosSrcSpan pos)
-            hsExpr = either (throwGhcException . ProgramError . O.showSDocUnsafe) id $ 
-                       convertToHsExpr (LH.sourcePosSrcSpan pos) expr
-            annDecl = HsAnnotation @GhcPs noExtField Ghc.NoSourceText ModuleAnnProvenance hsExpr
-        in located $ AnnD noExtField annDecl
+    specCommentsToModuleAnnotations :: [((SourcePos, String), TH.Exp)] 
+                                    -> HsModule GhcPs 
+                                    -> HsModule GhcPs
+    specCommentsToModuleAnnotations comments m = 
+      m { hsmodDecls = map toAnnotation comments ++ hsmodDecls m }
+      where
+        toAnnotation :: ((SourcePos, String), TH.Exp) -> LHsDecl GhcPs
+        toAnnotation ((pos, specContent), expr) = 
+            let located = GHC.L (LH.sourcePosSrcSpan pos)
+                hsExpr = either (throwGhcException . ProgramError . O.showSDocUnsafe) id $ 
+                           convertToHsExpr Ghc.Generated (LH.sourcePosSrcSpan pos) expr
+                annDecl = HsAnnotation @GhcPs noExtField Ghc.NoSourceText ModuleAnnProvenance hsExpr
+            in located $ AnnD noExtField annDecl
 
 --
 -- Typechecking phase
@@ -548,19 +548,17 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
 allImports :: TcData -> HS.HashSet Symbol 
-allImports tcData =
-  let x = symbol . unLoc . ideclName . unLoc <$> tcImports tcData
-  in Debug.trace ("allImports => " ++ show x) (HS.fromList x)
+allImports tcData = HS.fromList (symbol . unLoc . ideclName . unLoc <$> tcImports tcData)
 
 qualifiedImports :: TcData -> QImports 
 qualifiedImports (tcImports -> imps) =
-  let x = LH.qImports [ (qn, n) | i         <- imps
+  LH.qImports [ (qn, n) | i         <- imps
                         , let decl   = unLoc i
                         , let m      = unLoc (ideclName decl)  
                         , qm        <- maybeToList (unLoc <$> ideclAs decl) 
                         , let [n,qn] = symbol <$> [m, qm] 
                         ]
-  in Debug.trace ("qualifiedImports => " ++ show x) x
+
 
 ---------------------------------------------------------------------------------------
 -- | @lookupTyThings@ grabs all the @Name@s and associated @TyThing@ known to GHC 
