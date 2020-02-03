@@ -1,23 +1,27 @@
 module Language.Haskell.Liquid.Synthesize.Env where 
 
-import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
-import qualified Language.Fixpoint.Types        as F 
-import qualified Language.Fixpoint.Types.Config as F
+import           Language.Fixpoint.Types hiding ( SEnv
+                                                , SVar
+                                                , Error
+                                                )
+import qualified Language.Fixpoint.Types       as F
+import qualified Language.Fixpoint.Types.Config
+                                               as F
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Synthesize.Monad
 
-import qualified Data.HashMap.Strict as M
-import qualified Data.HashSet as S
+import qualified Data.HashMap.Strict           as M
+import qualified Data.HashSet                  as S
 import           DataCon
-import           TyCon 
-import           Var 
+import           TyCon
+import           Var
 
 import           Debug.Trace
 
 initSSEnv :: SpecType -> CGInfo -> SSEnv -> SSEnv
-initSSEnv rt info senv = trace (" prims " ++ show (map fst prims)) $ M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
+initSSEnv rt info senv = M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
   where
     dataCons = typeToCons rt 
     mkElem (v, lt) = (F.symbol v, (val lt, v))
