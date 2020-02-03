@@ -142,12 +142,9 @@ filterREnv renv tlVar =
   in  M.fromList renv_lst'
 
 getTopLvlBndrs :: GHC.CoreProgram -> [Var]
-getTopLvlBndrs = 
-  map (\cb -> 
-    case cb of 
-      GHC.NonRec b _ -> b
-      GHC.Rec{} -> error $ " [ getTopLvlBndrs ] Rec "
-  )
+getTopLvlBndrs p = 
+  concat $ map (\cb -> case cb of GHC.NonRec b _ -> [b]
+                                  GHC.Rec recs   -> map fst recs) p
 
 --                       | Current top-level binder |
 varsP :: GHC.CoreProgram -> Var -> (GHC.CoreExpr -> [Var]) -> [Var]
@@ -158,7 +155,7 @@ varsP cp tlVar f =
 
 isInCB :: GHC.CoreBind -> Var -> Bool
 isInCB (GHC.NonRec b e) tlVar = b == tlVar 
-isInCB (GHC.Rec {}) _ = error " [ isInCB ] Rec binder. "
+isInCB (GHC.Rec recs) tlVar   = foldr (\v b -> v == tlVar && b) True (map fst recs)
 
 varsCB :: GHC.CoreBind -> (GHC.CoreExpr -> [Var]) -> [Var]
 varsCB (GHC.NonRec b e) f = f e

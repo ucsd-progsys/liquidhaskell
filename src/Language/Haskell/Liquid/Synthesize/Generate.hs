@@ -42,7 +42,7 @@ withDepthFill t depth funTyCands = do
   curEm <- sExprMem <$> get
   exprs <- fillMany depth curEm funTyCands []
 
-  filterElseM (hasType t) (tracepp " [ withDepthFill ] exprs = " exprs) $ do
+  filterElseM (hasType t) (tracepp " [ withDepthFill ] exprs = " exprs) $
     -- TODO review the following line
     -- modify (\s -> s { sAppDepth = sAppDepth s + 1 })
     if depth < maxAppDepth

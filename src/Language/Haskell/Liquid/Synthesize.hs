@@ -48,12 +48,13 @@ import           Data.List
 import           Literal
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Haskell.Liquid.Types.Types (TyConMap)
 
 -- contains GHC primitives
 -- JP: Should we get this from REnv instead?
 -- TODO: Get the constructors from REnv.
 initSSEnv :: CGInfo -> SSEnv -> SSEnv
-initSSEnv info senv = M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
+initSSEnv info senv = trace (" prims " ++ show (map fst prims)) $ M.union senv (M.fromList (filter iNeedIt (mkElem <$> prims)))
   where
     mkElem (v, lt) = (F.symbol v, (val lt, v))
     prims = gsCtors $ gsData $ giSpec $ ghcI info
@@ -68,7 +69,7 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo
     goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
     goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
 
-    go (x, HoleInfo t loc env (cgi,cge)) = do 
+    go (x, HoleInfo t loc env (cgi,cge)) = trace (" Type constructors " ++ show (map fst (dataConTys cgi)) ) $ do 
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi
@@ -84,6 +85,9 @@ synthesize tgt fcfg cginfo = mapM goSCC $ holeDependencySSC $ holesMap cginfo
           then text "\n Hole Fills: " <+> pprintMany fills 
           else mempty) mempty (symbol x) t 
 
+-- | Get datatypes defined by the user 
+-- getData :: CGInfo -> TyConMap 
+getData info = M.toList $ tcmTyRTy (tyConInfo info)
 
 -- Assuming that @tx@ is the @SpecType@ of the top level variable. I thought I had it fixed...
 synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
