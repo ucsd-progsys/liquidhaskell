@@ -139,7 +139,7 @@ getConfig :: IO Config
 getConfig = readIORef cfgRef
 
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 debugLog :: MonadIO m => String -> m ()
 debugLog msg = when debugLogs $ liftIO (putStrLn msg)
@@ -181,7 +181,10 @@ parseHook :: [CommandLineOption]
           -> HsParsedModule 
           -> Hsc HsParsedModule
 parseHook opts modSummary parsedModule = do
-  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
+  -- NOTE: We need to reverse the order of the extracted spec comments because in the plugin infrastructure
+  -- those would appear in reverse order and LiquidHaskell is sensible to the order in which these
+  -- annotations appears.
+  let comments  = L.reverse $ LH.extractSpecComments (hpm_annotations parsedModule)
 
   commentsExps <- mapM (liftIO . TH.runQ . TH.liftData . SpecComment) comments
 
