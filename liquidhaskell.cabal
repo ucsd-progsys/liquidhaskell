@@ -127,6 +127,7 @@ library
                       Language.Haskell.Liquid.Synthesize.Generate
                       Language.Haskell.Liquid.Synthesize.Check
                       Language.Haskell.Liquid.Synthesize.Env
+                      Language.Haskell.Liquid.Synthesize.Classes
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic
