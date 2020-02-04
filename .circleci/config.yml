@@ -10,6 +10,45 @@ commands:
       - add_ssh_keys
       - run: git submodule sync
       - run: git submodule update --init
+  cabal_build_and_test:
+    description: "Build the project and run the tests"
+    parameters:
+      liquid_runner:
+        type: string
+        default: "--liquid-runner=cabal v2-run liquid -- "
+      ghc_options:
+        type: string
+        default: "--ghc-options=\"+RTS -M2G -RTS\""
+    steps:
+      - setup_project
+      - restore_cache:
+          keys:
+            - cabal-{{ checksum "liquidhaskell.cabal" }}
+      - run:
+          name: Dependencies
+          command: |
+            cabal v2-update
+            cabal v2-build -j1 all
+      - save_cache:
+          key: cabal-{{ checksum "liquidhaskell.cabal" }}
+          paths:
+            - ~/.cabal/store
+            - ./dist-newstyle
+      - run:
+          name: Setup Test
+          command: |
+            mkdir -p /tmp/junit/cabal
+            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
+            find include -type f -name '*.hs' | grep -v Old | grep -v Example | grep -v RTick | xargs cabal v2-run liquid -- --compile-spec
+      - run:
+          name: Test
+          command: |
+            cabal v2-test -j1 liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+      - store_test_results:
+          path: /tmp/junit/cabal
+      - store_artifacts:
+          path: tests/logs/cur
 
 jobs:
   stack:
@@ -53,33 +92,13 @@ jobs:
     docker:
       - image: phadej/ghc:8.6.5-bionic-slim
     steps:
-      - setup_project
-      - restore_cache:
-          keys:
-            - cabal-{{ checksum "liquidhaskell.cabal" }}
-      - run:
-          name: Dependencies
-          command: |
-            cabal v2-update
-            cabal v2-build all
-      - save_cache:
-          key: cabal-{{ checksum "liquidhaskell.cabal" }}
-          paths:
-            - ~/.cabal/store
-            - ./dist-newstyle
-      - run:
-          name: Test
-          command: |
-            cabal v2-clean
-            mkdir -p /tmp/junit/cabal
-            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
-            find include -type f -name '*.hs' | grep -v Old | grep -v RTick | xargs -n 1 cabal v2-run liquid -- --compile-spec
-            cabal v2-test liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="--liquid-runner=cabal v2-run liquid -- " --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
-            cabal v2-test liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
-      - store_test_results:
-          path: /tmp/junit/cabal
-      - store_artifacts:
-          path: tests/logs/cur
+      - cabal_build_and_test
+
+  cabal_810:
+    docker:
+      - image: adinapoli/ghc:8.10.1-slim
+    steps:
+      - cabal_build_and_test
 
 workflows:
   version: 2
@@ -87,3 +106,4 @@ workflows:
     jobs:
       - stack
       - cabal_865
+      - cabal_810
