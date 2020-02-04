@@ -8,9 +8,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       , serialiseBareSpecs
       , deserialiseBareSpecs
 
-      -- * Combinators
-      , withUnoptimisedCoreBinds
-
       -- * Aborting the plugin execution
       , pluginAbort
       ) where
@@ -96,13 +93,3 @@ serialiseBareSpecs specs modGuts = annotated
 
     serialise :: BareSpec -> Annotation
     serialise spec = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) spec)
-
---
--- Combinators
---
-
-withUnoptimisedCoreBinds :: GhcMonadLike m => [CoreBind] -> ModGuts -> (ModGuts -> m ModGuts) -> m ModGuts
-withUnoptimisedCoreBinds unoptimisedBinds oldGuts action = do
-  let guts = oldGuts { mg_binds = unoptimisedBinds }
-  new <- action guts
-  pure $ new { mg_binds = mg_binds oldGuts }

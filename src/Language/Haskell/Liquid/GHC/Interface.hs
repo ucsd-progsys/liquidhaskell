@@ -39,6 +39,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   , parseSpecFile
   , noTerm
   , checkFilePragmas
+  , keepRawTokenStream
+  , ignoreInline
 
   ) where
 

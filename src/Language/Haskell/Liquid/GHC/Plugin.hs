@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
@@ -14,8 +16,6 @@ module Language.Haskell.Liquid.GHC.Plugin (
   plugin
 
   ) where
-
-import Prelude hiding (error)
 
 import qualified Outputable as O
 import GHC hiding (Target, Located, desugarModule)
@@ -119,10 +119,18 @@ import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
 
+---------------------------------------------------------------------------------
+-- | State and configuration management -----------------------------------------
+---------------------------------------------------------------------------------
+
 -- | A reference to cache the LH's 'Config' and produce it only /once/, during the dynFlags hook.
 cfgRef :: IORef Config
 cfgRef = unsafePerformIO $ newIORef defConfig
 {-# NOINLINE cfgRef #-}
+
+unoptimisedRef :: IORef (Unoptimised ModGuts)
+unoptimisedRef = unsafePerformIO $ newIORef (error "Impossible, unoptimisedRef was un-initialised.")
+{-# NOINLINE unoptimisedRef #-}
 
 tcStableRef :: IORef (ModuleEnv TcData)
 tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
@@ -134,17 +142,24 @@ ifaceStableRef :: IORef SpecEnv
 ifaceStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 {-# NOINLINE ifaceStableRef #-}
 
+-- | Set to 'True' to enable debug logging.
+debugLogs :: Bool
+debugLogs = True
+
+---------------------------------------------------------------------------------
+-- | Useful functions -----------------------------------------------------------
+---------------------------------------------------------------------------------
+
 -- | Reads the 'Config' out of a 'IORef'.
 getConfig :: IO Config
 getConfig = readIORef cfgRef
 
-debugLogs :: Bool
-debugLogs = True
 
+-- | Combinator which conditionally print on the screen based on the value of 'debugLogs'.
 debugLog :: MonadIO m => String -> m ()
 debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 
---------------------------------------------------------------------------------
+---------------------------------------------------------------------------------
 -- | The Plugin entrypoint ------------------------------------------------------
 ---------------------------------------------------------------------------------
 
@@ -193,6 +208,16 @@ parseHook opts modSummary parsedModule = do
           fmap (specCommentsToModuleAnnotations (zip comments commentsExps)) 
                (hpm_module parsedModule) 
   }
+
+  -- \"The ugly hack\": grab the unoptimised core binds here.
+  parsedModule    <- GhcMonadLike.parseModule (unoptimise . LH.keepRawTokenStream $ modSummary)
+  typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsedModule)
+  unoptimisedGuts <- GhcMonadLike.desugarModule typechecked
+
+  liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
+
+  debugLog $ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
+
   pure module'
 
   where
@@ -213,18 +238,36 @@ parseHook opts modSummary parsedModule = do
                 annDecl = HsAnnotation @GhcPs noExtField Ghc.NoSourceText ModuleAnnProvenance hsExpr
             in located $ AnnD noExtField annDecl
 
+
+--
+-- \"Unoptimising\" things.
+--
+
+class Unoptimise a where
+  type UnoptimisedTarget a :: *
+  unoptimise :: a -> UnoptimisedTarget a
+
+instance Unoptimise DynFlags where
+  type UnoptimisedTarget DynFlags = DynFlags
+  unoptimise df = updOptLevel 0 df 
+    { debugLevel   = 1
+    , ghcLink      = LinkInMemory
+    , hscTarget    = HscInterpreted
+    , ghcMode      = CompManager
+    }
+
+instance Unoptimise ModSummary where
+  type UnoptimisedTarget ModSummary = ModSummary
+  unoptimise modSummary = modSummary { ms_hspp_opts = unoptimise (ms_hspp_opts modSummary) }
+
+instance Unoptimise (DynFlags, HscEnv) where
+  type UnoptimisedTarget (DynFlags, HscEnv) = HscEnv
+  unoptimise (unoptimise -> df, env) = env { hsc_dflags = df }
+
+
 --
 -- Typechecking phase
 --
-
-unoptimised :: ModSummary -> HscEnv -> (ModSummary, HscEnv)
-unoptimised modSummary env =
-  let ms' = modSummary { ms_hspp_opts = updOptLevel 0 (ms_hspp_opts modSummary) { debugLevel   = 1
-                                                                                , ghcLink      = LinkInMemory
-                                                                                , hscTarget    = HscInterpreted
-                                                                                , ghcMode      = CompManager
-                                                                                } }
-  in (ms', env { hsc_dflags = ms_hspp_opts ms' })
 
 -- | Currently we don't do anything in this phase.
 typecheckHook :: [CommandLineOption] 
@@ -233,16 +276,10 @@ typecheckHook :: [CommandLineOption]
               -> TcM TcGblEnv
 typecheckHook opts modSummary tcGblEnv = do
   env <- askHscEnv
-  let (unoptimisedEnv, unoptimisedMs) = unoptimised modSummary env
-
   resolvedNames <- resolveNames env modSummary tcGblEnv
+
   let thisModule = ms_mod modSummary
-
-  unoptimisedCoreBinds <- liftIO $ Ghc.hscDesugar unoptimisedMs unoptimisedEnv tcGblEnv
-
-  let stableData = mkTcData tcGblEnv resolvedNames (mg_binds unoptimisedCoreBinds)
-
-  debugLog $ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedCoreBinds))
+  let stableData = mkTcData tcGblEnv resolvedNames
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -260,18 +297,18 @@ coreHook opts passes = do
 
 -- | Partially calls into LiquidHaskell's GHC API.
 liquidHaskellPass :: LH.Config -> ModGuts -> CoreM ModGuts
-liquidHaskellPass cfg gts = do
-  let thisModule = mg_module gts
+liquidHaskellPass cfg modGuts = do
+  let thisModule = mg_module modGuts
   dynFlags <- getDynFlags
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
+  unoptimisedGuts <- liftIO $ readIORef unoptimisedRef
 
-  debugLog $ "liquidHaskellPass => " ++ (O.showSDocUnsafe $ O.ppr (mg_binds gts))
+  debugLog $ "liquidHaskellPass => " ++ (O.showSDocUnsafe $ O.ppr (mg_binds modGuts))
 
   case mbTcData of
     Nothing -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
-    Just tcData -> withUnoptimisedCoreBinds (tcUnoptimisedCoreBinds tcData) gts $ \modGuts -> do
-      hscEnv   <- getHscEnv
+    Just tcData -> do
       specEnv  <- liftIO $ readIORef ifaceStableRef
 
       debugLog $ "Relevant ===> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ (S.toList $ relevantModules modGuts))
@@ -282,23 +319,25 @@ liquidHaskellPass cfg gts = do
       let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
 
       mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
-      let mbModSummary = mgLookupModule (hsc_mod_graph hscEnv) thisModule
-
       logicMap <- liftIO $ LH.makeLogicMap
 
       let lhModGuts = LiquidHaskellModGuts {
             lhModuleCfg          = cfg
           , lhModuleLogicMap     = logicMap
           , lhModuleSummary      = modSummary
-          , lhModuleTcData = tcData
-          , lhModuleGuts         = guts'
+          , lhModuleTcData       = tcData
+          , lhModuleGuts         = unoptimisedGuts
           }
 
       -- Call into the interface
       thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
 
       updatedSpecEnv <- loadRelevantSpecs cfg specEnv (S.toList $ relevantModules modGuts)
-      (finalGuts, newSpecEnv, ghcInfo) <- processModule lhModGuts updatedSpecEnv specComments specQuotes
+      (bareSpec, newSpecEnv, ghcInfo) <- processModule lhModGuts updatedSpecEnv specComments specQuotes
+
+      -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
+      let finalGuts = Util.serialiseBareSpecs [bareSpec] guts'
+
       res <- liftIO $ LH.liquidOne ghcInfo
       case o_result res of
         Safe -> pure ()
@@ -342,11 +381,11 @@ relevantModules modGuts = S.fromList $
 
 
 data LiquidHaskellModGuts = LiquidHaskellModGuts {
-    lhModuleCfg          :: Config
-  , lhModuleLogicMap     :: LogicMap
-  , lhModuleSummary      :: ModSummary
-  , lhModuleTcData :: TcData
-  , lhModuleGuts         :: ModGuts
+    lhModuleCfg      :: Config
+  , lhModuleLogicMap :: LogicMap
+  , lhModuleSummary  :: ModSummary
+  , lhModuleTcData   :: TcData
+  , lhModuleGuts     :: Unoptimised ModGuts
   }
 
 --
@@ -382,7 +421,7 @@ loadInterfaceHook opts iface = do
       guard (not $ isHsBootOrSig $ mi_hsc_src iface)
       eps          <- lift getEps
       let bareSpecs = Util.deserialiseBareSpecs thisModule eps
-      debugLog $ "===spec==> " ++ show bareSpecs
+      debugLog $ "===spec (" ++ show (moduleName thisModule) ++ ") ==> " ++ show bareSpecs
       case bareSpecs of
         []         -> MaybeT $ pure Nothing
         [bareSpec] -> pure $ (ModName SrcImport (moduleName thisModule), bareSpec)
@@ -446,15 +485,9 @@ updateIncludePaths df ps = addGlobalInclude (includePaths df) ps
 
 configureDynFlags :: Config -> DynFlags -> IO DynFlags
 configureDynFlags cfg df =
-  -- (df',_,_) <- parseDynamicFlags df $ map noLoc $ ghcOptions cfg
   pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
             , libraryPaths = nub $ idirs cfg ++ libraryPaths df
             , includePaths = updateIncludePaths df (idirs cfg)
-            -- , packageFlags = ExposePackage ""
-            --                                (PackageArg "ghc-prim")
-            --                                (ModRenaming True [])
-            --                : (packageFlags df')
-
             } `gopt_set` Opt_ImplicitImportQualified
               `gopt_set` Opt_PIC
               `gopt_set` Opt_DeferTypedHoles
@@ -473,9 +506,9 @@ processModule :: LiquidHaskellModGuts
               -> SpecEnv
               -> [SpecComment]
               -> [BPspec]
-              -> CoreM (ModGuts, SpecEnv, GhcInfo)
+              -> CoreM (Ms.BareSpec, SpecEnv, GhcInfo)
 processModule LiquidHaskellModGuts{..} specEnv specComments specQuotes = do
-  let modGuts = lhModuleGuts
+  let modGuts = fromUnoptimised lhModuleGuts
   debugLog ("Module ==> " ++ show (moduleName $ mg_module $ modGuts))
   let mod              = mg_module modGuts
   file                <- liftIO $ canonicalizePath $ LH.modSummaryHsFile lhModuleSummary
@@ -483,11 +516,8 @@ processModule LiquidHaskellModGuts{..} specEnv specComments specQuotes = do
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
   let specEnv'         = extendModuleEnv specEnv mod (modName, LH.noTerm bareSpec)
 
-  -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
-  let modGuts'         = Util.serialiseBareSpecs [LH.noTerm bareSpec] modGuts
-
-  (modGuts', specEnv', ) 
-    <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcData lhModuleGuts bareSpec
+  (LH.noTerm bareSpec, specEnv', ) 
+    <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcData modGuts bareSpec
 
 processTargetModule :: Config 
                     -> LogicMap 
@@ -517,9 +547,10 @@ makeGhcSrc :: GhcMonadLike m
            -> HscEnv
            -> m GhcSrc
 makeGhcSrc cfg file tcData modGuts hscEnv = do
+  df <- unoptimise <$> getDynFlags
   let mgiModGuts    = makeMGIModGuts modGuts
   ms <- GhcMonadLike.getModSummary (moduleName $ mg_module $ modGuts)
-  coreBinds         <- liftIO $ anormalize cfg (snd $ unoptimised ms hscEnv) modGuts
+  coreBinds         <- liftIO $ anormalize cfg (unoptimise (df, hscEnv)) modGuts
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
   (fiTcs, fiDcs)    <- liftIO $ LH.makeFamInstEnv hscEnv
   let things        = tcResolvedNames tcData
