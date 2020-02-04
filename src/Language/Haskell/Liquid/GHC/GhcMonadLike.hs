@@ -36,6 +36,9 @@ instance HasHscEnv (IfM lcl) where
 instance HasHscEnv TcM where
   askHscEnv = env_top <$> getEnv
 
+instance HasHscEnv Hsc where
+  askHscEnv = Hsc $ \e w -> pure (e, w)
+
 -- | A typeclass which is /very/ similar to the existing 'GhcMonad', but it doesn't impose a
 -- 'ExceptionMonad' constraint.
 class (Functor m, MonadIO m, HasHscEnv m, HasDynFlags m) => GhcMonadLike m
@@ -44,6 +47,7 @@ instance GhcMonadLike CoreMonad.CoreM
 instance GhcMonadLike Ghc
 instance GhcMonadLike (IfM lcl)
 instance GhcMonadLike TcM
+instance GhcMonadLike Hsc
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModuleGraph :: GhcMonadLike m => m ModuleGraph
@@ -98,3 +102,35 @@ moduleInfoTc ms tcGblEnv = do
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
   details <- md_types <$> liftIO (makeSimpleDetails hsc_env_tmp tcGblEnv)
   pure ModuleInfo { minf_type_env = details }
+
+--
+-- Parsing, typechecking and desugaring a module
+--
+parseModule :: GhcMonadLike m => ModSummary -> m ParsedModule
+parseModule ms = do
+  hsc_env <- askHscEnv
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  hpm <- liftIO $ hscParse hsc_env_tmp ms
+  return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm)
+                           (hpm_annotations hpm))
+
+
+typecheckModule :: GhcMonadLike m => ParsedModule -> m (ModSummary, TcGblEnv)
+typecheckModule pmod = do
+  let ms = pm_mod_summary pmod
+  hsc_env <- askHscEnv
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  (tc_gbl_env, _)
+        <- liftIO $ hscTypecheckRename hsc_env_tmp ms $
+                       HsParsedModule { hpm_module = parsedSource pmod,
+                                        hpm_src_files = pm_extra_src_files pmod,
+                                        hpm_annotations = pm_annotations pmod }
+  return (ms, tc_gbl_env)
+
+
+-- | Desugar a typechecked module.
+desugarModule :: GhcMonadLike m => (ModSummary, TcGblEnv) -> m ModGuts
+desugarModule (ms, tcg) = do
+  hsc_env <- askHscEnv
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  liftIO $ hscDesugar hsc_env_tmp ms tcg
