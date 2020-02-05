@@ -66,10 +66,10 @@ synthesize tgt fcfg cginfo =
           coreProgram = giCbs $ giSrc $ ghcI cgi
           uniVars = getUniVars coreProgram topLvlBndr
           ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
-          senv1 = trace (" [ synthesize ] " ++ show (getVars ssenv0)) $ initSSEnv typeOfTopLvlBnd cginfo ssenv0
+          senv1 = notrace (" [ synthesize ] " ++ show (getVars ssenv0)) $ initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
-      state0 <- initState ctx fcfg cgi cge env M.empty
+      state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
       -- Instantiate @typeOfTopLvlBnd@ with @uniVars@
       fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd state0
 
@@ -82,7 +82,7 @@ synthesize tgt fcfg cginfo =
 -- Assuming that @tx@ is the @SpecType@ of the top level variable. I thought I had it fixed...
 synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
 synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
- = trace (" [ SSEnv ] Variables are " ++ show (getVars senv)) $ evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
+ = notrace (" [ SSEnv ] Variables are " ++ show (getVars senv)) $ evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
     go :: SpecType -> SM [CoreExpr]
@@ -135,16 +135,16 @@ synthesizeBasic t = do
   senv <- getSEnv
   let ht     = toType t
       tyvars = varsInType ht
-  case (tracepp " [synBasic] tyvars = " tyvars) of
+  case (notrace " [synBasic] tyvars = " tyvars) of
     -- TODO Fix it. Target: future/map.hs.
     []  -> modify (\s -> s { sGoalTyVar = Nothing})
     [x] -> modify (\s -> s { sGoalTyVar = Just x })
     _   -> error errorMsg
       where errorMsg = "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )." 
   es <- genTerms t
-  trace (" [ synthesizeBasic ] " ++ show (getVars senv)) $
+  notrace (" [ synthesizeBasic ] " ++ show (getVars senv)) $
     case es of 
-      [] -> trace " Will be entering synthesizeMatch " $ do
+      [] -> notrace " Will be entering synthesizeMatch " $ do
         senv <- getSEnv
         lenv <- getLocalEnv 
         synthesizeMatch lenv senv t
@@ -152,7 +152,7 @@ synthesizeBasic t = do
 
 
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch lenv γ t = trace ("[synthesizeMatch] es = " ++ show es) $ 
+synthesizeMatch lenv γ t = notrace ("[synthesizeMatch] es = " ++ show es) $ 
   join <$> mapM (withIncrDepth . matchOn t) es
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 

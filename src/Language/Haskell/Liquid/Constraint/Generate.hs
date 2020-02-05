@@ -82,7 +82,7 @@ import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
-
+import Debug.Trace
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
 --------------------------------------------------------------------------------
@@ -690,9 +690,10 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
 
 cconsE' γ e t
-  = do te  <- consE γ e
-       te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
+  = trace ( " [ cconsE ] For e = " ++ show e ++ " and rt = " ++ show t ++ " and t = " ++ showTy (exprType e)) $ 
+      do  te  <- consE γ e
+          te' <- instantiatePreds γ e te >>= addPost γ
+          addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
 lambdaSingleton γ tce x e

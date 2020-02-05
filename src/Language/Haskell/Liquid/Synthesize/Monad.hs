@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Language.Haskell.Liquid.Synthesize.Monad where
 
@@ -14,7 +15,7 @@ import qualified Language.Haskell.Liquid.Types.RefType as R
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.Termination
 import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
-import           Language.Haskell.Liquid.Synthesize.Misc
+import           Language.Haskell.Liquid.Synthesize.Misc hiding (notrace)
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
@@ -72,6 +73,8 @@ data SState
            , sDepth     :: Int
            , sExprMem   :: ExprMemory 
            , sAppDepth  :: Int
+           , sUniVars   :: [Var]
+           , sFix       :: Var
            , sGoalTyVar :: Maybe TyVar
            }
 type SM = StateT SState IO
@@ -95,9 +98,9 @@ evalSM act ctx tgt fcfg cgi cgenv renv env st = do
   SMT.cleanupContext ctx 
   return r 
 
-initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> IO SState 
-initState ctx fcfg cgi cgenv renv env = do
-  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 Nothing
+initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
+initState ctx fcfg cgi cgenv renv xtop uniVars env = do
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
@@ -105,6 +108,12 @@ getSEnv = ssEnv <$> get
 
 getSEMem :: SM ExprMemory
 getSEMem = sExprMem <$> get
+
+getSFix :: SM Var 
+getSFix = sFix <$> get
+
+getSUniVars :: SM [Var]
+getSUniVars = sUniVars <$> get
 
 type LEnv = M.HashMap Symbol SpecType -- | Local env.
 
@@ -131,8 +140,22 @@ addEnv x t = do
 
 addEmem :: Var -> SpecType -> SM ()
 addEmem x t = do 
+  let ht0 = toType t
   curAppDepth <- sAppDepth <$> get
-  modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})
+  xtop <- getSFix 
+  (ht1, _) <- instantiateTL
+  let ht = if x == xtop then ht1 else ht0
+  modify (\s -> s {sExprMem = (ht, GHC.Var x, curAppDepth) : (sExprMem s)})
+
+-- instantiateTL :: SM (Type, GHC.CoreExpr)
+instantiateTL = do
+  uniVars <- getSUniVars 
+  xtop <- getSFix
+  let e = apply uniVars (GHC.Var xtop)
+  return (exprType e, e)
+  where apply []     e = e
+        apply (v:vs) e 
+          = apply vs (GHC.App e (GHC.Type (TyVarTy v)))
 
 
 
@@ -188,18 +211,6 @@ withIncrDepth m = do
         modify $ \s -> s{sDepth = d}
 
         return r
-
-
--- withDecrAdd :: Var -> SpecType -> SM ()
--- withDecrAdd x t = do 
---   ys <- mapM freshVar txs
---   let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys)
---   mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs))
---   mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs))
---   let (dt, b) = decrType x t ys (zip xs txs) 
---   addEnv x dt 
---   addEmem x dt 
---   where (_, (xs, txs, _), to) = bkArrow t
         
   
 incrSM :: SM Int 
@@ -219,11 +230,19 @@ initExprMem ssenv =
 
 withInsInitEM :: SSEnv -> SM ExprMemory
 withInsInitEM senv = do
+  xtop <- getSFix
+  (ttop, _) <- instantiateTL
   mbTyVar <- sGoalTyVar <$> get
+
+-- Special handle for the top level variable: No instantiation
+  let handleIt e = case e of  GHC.Var v -> if xtop == v then (e, ttop) else change e
+                              _         -> change e
+
+      change e = let { e' = instantiate e mbTyVar; t' = exprType e' } in (e', t')
+
   return $ 
     map (\(t, e, i) -> 
-      let e' = instantiate e mbTyVar
-          t' = exprType e'
+      let (e', t') = handleIt e
       in  (t', e', i)) (initExprMem senv)
 
 instantiate :: CoreExpr -> Maybe Var -> CoreExpr
@@ -237,17 +256,27 @@ instantiate e mbt =
         _           -> e
 
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
-withInsProdCands specTy =  trace (" [ withInsProdCands ] " ++ show specTy) $
+withInsProdCands specTy =  notrace (" [ withInsProdCands ] " ++ show specTy) $
   do  senv <- ssEnv <$> get 
+      xtop <- getSFix
+      (ttop, _) <- instantiateTL
       mbTyVar <- sGoalTyVar <$> get 
       let τ            = toType specTy 
-          cands        = findCandidates senv τ 
-          filterFn   (_, (ty, _)) = isFunction ty 
-          funTyCands'  = filter filterFn cands 
+      cands <- findCandidates senv τ 
+      let filterFn   (_, (ty, _)) = isFunction ty 
+          funTyCands'  = filter filterFn cands
+
+
+      -- BOILERPLATE: TODO FIX BOTH
+      -- Special handle for the top level variable: No instantiation
+      let handleIt e = case e of  GHC.Var v -> if xtop == v then (e, ttop) else change e
+                                  _         -> change e
+
+          change e = let { e' = instantiate e mbTyVar; t' = exprType e' } in (e', t')
+
       return $
         map (\(s, (_, v)) -> 
-            let e  = instantiate (GHC.Var v) (tracepp " withInsProdCands goalVar " mbTyVar) 
-                ty = exprType e 
+            let (e, ty) = handleIt (GHC.Var v)
             in (s, (ty, v))) funTyCands' 
 
 withTypeEs :: SpecType -> SM [CoreExpr] 
@@ -257,12 +286,19 @@ withTypeEs t = do
     return (takeExprs withTypeEM) 
 
 
-findCandidates :: SSEnv -> Type -> [(Symbol, (Type, Var))]
-findCandidates senv goalTy = 
-  let senvLst   = M.toList senv
-      senvLst'  = map (\(sym, (spect, var)) -> (sym, (toType spect, var))) senvLst
-      filterFun (_, (specT, _)) = goalType goalTy specT
-      candTerms = filter (\x -> goalType goalTy (go x)) senvLst'
-  in  candTerms
+findCandidates :: SSEnv -> Type -> SM [(Symbol, (Type, Var))]
+findCandidates senv goalTy = do
+  (t0, _) <- instantiateTL
+  xtop <- getSFix
+  let s0 = M.toList senv
+      s1 = map toTypes s0
+      s2 = map change s1
+
+      -- TODO FIX: This is a hack to instantiate top level binder with type variables
+      change x@(s, (t, v)) = if v == xtop then (s, ((tracepp " FIXED " t0), v)) else x
+      toTypes (s, (t, v))  = (s, (toType t, v))
+
+      cut (_, (t, v)) = goalType goalTy t
+  return (filter cut s2)
 
 go (_, (t, _)) = t 

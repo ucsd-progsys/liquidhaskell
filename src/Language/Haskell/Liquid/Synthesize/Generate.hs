@@ -8,7 +8,7 @@ module Language.Haskell.Liquid.Synthesize.Generate where
 import           Language.Haskell.Liquid.Types hiding (SVar)
 import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
 import           Language.Haskell.Liquid.Synthesize.Monad
-import           Language.Haskell.Liquid.Synthesize.Misc
+import           Language.Haskell.Liquid.Synthesize.Misc hiding (notrace)
 import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import           Language.Haskell.Liquid.Synthesize.Check
 
@@ -31,14 +31,14 @@ getVars0 ((_, (_, v)) : vs) = v : getVars0 vs
 -- Generate terms that have type t: This changes the ExprMem in SM state.
 -- Return expressions type checked against type t.
 genTerms :: SpecType -> SM [CoreExpr] 
-genTerms specTy = trace ( " [ genTerms ] specTy = " ++ show specTy) $
+genTerms specTy = notrace ( " [ genTerms ] specTy = " ++ show specTy) $
   do  funTyCands <- withInsProdCands specTy
 
       sEMem <- getSEMem
 
       es <- withTypeEs (trace (" [ genTerms ] ExprMemory = " ++ showEmem sEMem) specTy)
 
-      filterElseM (hasType specTy) ( tracepp " [ genTerms ] es = " es) $ 
+      filterElseM (hasType specTy) (tracepp " [ genTerms ] es = " es) $ 
 
         withDepthFill specTy 0 funTyCands 
 
@@ -46,9 +46,9 @@ genTerms specTy = trace ( " [ genTerms ] specTy = " ++ show specTy) $
 withDepthFill :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
 withDepthFill t depth funTyCands = do
   curEm <- sExprMem <$> get
-  exprs <- fillMany depth curEm (trace (" [ withDepthFill ]: funTyCands " ++ show (getVars0 funTyCands)) funTyCands) []
+  exprs <- fillMany depth curEm (tracepp " [ withDepthFill ]: funTyCands " funTyCands) []
 
-  filterElseM (hasType t) (tracepp " withDepthFill: exprs = " exprs) $
+  filterElseM (hasType t) (trace " withDepthFill: exprs = " exprs) $
     -- TODO review the following line
     -- modify (\s -> s { sAppDepth = sAppDepth s + 1 })
     if depth < maxAppDepth
@@ -119,7 +119,7 @@ fillMany depth exprMem (cand : cands) accExprs = do
       let nextEm = map (resultTy, , curAppDepth + 1) newExprs
       modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
       let accExprs' = newExprs ++ accExprs
-      trace (
+      notrace (
         " [ fillMany <" ++ show depth ++ 
         "> for cand " ++ show (fst cand) ++ 
         " argCands "  ++ show argCands ++
@@ -130,12 +130,16 @@ fillMany depth exprMem (cand : cands) accExprs = do
 -- {applyOne, applyNext, applyMany} are auxiliary functions for `fillOne`
 applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
 applyOne v args typeOfArgs = do
+  xtop <- getSFix
+  (ttop, e) <- instantiateTL
   idx <- incrSM
   mbTyVar <- sGoalTyVar <$> get
   let tyvar = fromMaybe (error "No type variables in the monad!") mbTyVar
-  v'' <- case varType v of
-            ForAllTy{} -> return $ GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
-            _          -> return $ GHC.Var v
+  v'' <- if v == xtop 
+          then return (tracepp " [applyOne] e " e)
+          else case varType (tracepp " [ applyOne ] v " v) of
+                  ForAllTy{} -> return $ GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
+                  _          -> return $ GHC.Var v
   return 
     [ let letv' = mkVar (Just "x") idx typeOfArgs
       in  case v' of 
