@@ -1,10 +1,16 @@
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 
 module Language.Haskell.Liquid.GHC.Plugin.Types
     ( SpecComment(..)
-    -- * Threading state from the typechecking phase
+    -- * Dealing with accumulated specs
     , SpecEnv
+    , CachedSpec(..)
+    , WrappedSpec(..)
+    , toCached
+    , fromCached
+    -- * Acquiring and manipulating data from the typechecking phase
     , TcData
     , tcImports
     , tcResolvedNames
@@ -15,19 +21,50 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , toUnoptimised
     ) where
 
-import Data.Data (Data)
-import Text.Parsec (SourcePos)
-import Outputable
-import GHC (LImportDecl, GhcRn, Name, TyThing)
-import HscTypes (ModGuts)
-import TcRnTypes (TcGblEnv(tcg_rn_imports))
-import UniqFM
-import Module (ModuleName)
+import qualified Data.Binary                             as B
+import           Data.Data                                ( Data )
+import           Text.Parsec                              ( SourcePos )
+import           Outputable
+import           GHC.Generics
+import           GHC                                      ( LImportDecl
+                                                          , GhcRn
+                                                          , Name
+                                                          , TyThing
+                                                          , Module
+                                                          )
+import           HscTypes                                 ( ModGuts )
+import           TcRnTypes                                ( TcGblEnv(tcg_rn_imports) )
+import           UniqFM
+import           Module                                   ( ModuleName )
+import           Data.Map                                 ( Map )
 
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
 
-type SpecEnv = UniqFM (ModName, BareSpec)
+import qualified Data.HashSet                            as HS
+import           Data.HashSet                             ( HashSet )
+import           Data.Hashable
+
+type SpecEnv    = Map Module (HashSet CachedSpec)
+data CachedSpec = CachedSpec ModName WrappedSpec deriving (Generic, Eq)
+
+toCached :: (ModName, BareSpec) -> CachedSpec
+toCached s = CachedSpec (fst s) (WrappedSpec . snd $ s)
+
+fromCached :: CachedSpec -> (ModName, BareSpec)
+fromCached (CachedSpec mn (WrappedSpec s)) = (mn, s)
+
+instance Hashable CachedSpec
+
+-- Just a test.
+newtype WrappedSpec = WrappedSpec BareSpec deriving Generic
+
+-- Lame 'Eq' instance just for testing purposes.
+instance Eq WrappedSpec where
+    (==) (WrappedSpec spec1) (WrappedSpec spec2) = B.encode spec1 == B.encode spec2
+
+instance Hashable WrappedSpec where
+    hashWithSalt s (WrappedSpec spec) = hashWithSalt s (B.encode spec)
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
