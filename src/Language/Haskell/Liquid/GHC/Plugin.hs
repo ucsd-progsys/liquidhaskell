@@ -41,10 +41,12 @@ import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine as LH
 import qualified Language.Haskell.Liquid.UX.Config as LH
 import qualified Language.Haskell.Liquid.GHC.Interface as LH
+import           Language.Haskell.Liquid.GHC.Interface    ( SpecEnv )
 import qualified Language.Haskell.Liquid.Liquid as LH
 
 import Language.Haskell.Liquid.GHC.Plugin.Types
 import Language.Haskell.Liquid.GHC.Plugin.Util as Util
+import Language.Haskell.Liquid.GHC.Plugin.SpecFinder as SpecFinder
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
@@ -82,10 +84,10 @@ import Data.Bifunctor
 import Data.Coerce
 import Data.Data
 import Data.List as L hiding (intersperse)
-import qualified Data.Set as S
-import Data.Set (Set)
 import Data.Maybe
 import Data.IORef
+import qualified Data.Set as S
+import Data.Set (Set)
 
 import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
@@ -211,6 +213,9 @@ parseHook opts modSummary parsedModule = do
 
   -- \"The ugly hack\": grab the unoptimised core binds here.
   parsedModule    <- GhcMonadLike.parseModule (unoptimise . LH.keepRawTokenStream $ modSummary)
+
+  -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
+  -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere.
   typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsedModule)
   unoptimisedGuts <- GhcMonadLike.desugarModule typechecked
 
@@ -299,6 +304,7 @@ coreHook opts passes = do
 liquidHaskellPass :: LH.Config -> ModGuts -> CoreM ModGuts
 liquidHaskellPass cfg modGuts = do
   let thisModule = mg_module modGuts
+  hscEnv   <- askHscEnv
   dynFlags <- getDynFlags
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
@@ -321,7 +327,7 @@ liquidHaskellPass cfg modGuts = do
       mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
       logicMap <- liftIO $ LH.makeLogicMap
 
-      let lhModGuts = LiquidHaskellModGuts {
+      let lhContext = LiquidHaskellContext {
             lhModuleCfg          = cfg
           , lhModuleLogicMap     = logicMap
           , lhModuleSummary      = modSummary
@@ -331,9 +337,10 @@ liquidHaskellPass cfg modGuts = do
 
       -- Call into the interface
       thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
+      eps      <- liftIO $ readIORef (hsc_EPS hscEnv)
 
-      updatedSpecEnv <- loadRelevantSpecs cfg specEnv (S.toList $ relevantModules modGuts)
-      (bareSpec, newSpecEnv, ghcInfo) <- processModule lhModGuts updatedSpecEnv specComments specQuotes
+      updatedSpecEnv <- loadRelevantSpecs cfg eps specEnv (S.toList . relevantModules $ modGuts)
+      (bareSpec, newSpecEnv, ghcInfo) <- processModule lhContext updatedSpecEnv specComments specQuotes
 
       -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
       let finalGuts = Util.serialiseBareSpecs [bareSpec] guts'
@@ -348,16 +355,33 @@ liquidHaskellPass cfg modGuts = do
       debugLog (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
       pure finalGuts
 
-
-usedModules :: ModGuts -> [Module]
-usedModules modGuts = foldl' collectUsage mempty . mg_usages $ modGuts
+loadRelevantSpecs :: forall m. GhcMonadLike m 
+                  => Config 
+                  -> ExternalPackageState
+                  -> SpecEnv 
+                  -> [Module]
+                  -> m SpecEnv
+loadRelevantSpecs config eps specEnv mods = do
+  results <- SpecFinder.findRelevantSpecs config eps specEnv mods
+  foldlM processResult specEnv results
   where
-    collectUsage :: [Module] -> Usage -> [Module]
-    collectUsage acc = \case
-      UsagePackageModule     { usg_mod      = modl    } -> modl : acc
-      UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
-      UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
-      _ -> acc
+    processResult :: SpecEnv -> SpecFinderResult -> m SpecEnv
+    processResult acc (SpecNotFound modName) = do
+      debugLog $ "Spec NOT FOUND for " ++ show modName
+      pure acc
+    processResult acc (SpecFound location mod spec) = do
+      debugLog $ "Spec FOUND for " ++ show (moduleName mod) ++ ", at location " ++ show location
+      pure $ extendModuleEnv acc mod spec
+
+-- | The collection of dependencies and usages modules which are relevant for liquidHaskell
+relevantModules :: ModGuts -> Set Module
+relevantModules modGuts = used `S.union` dependencies
+  where
+    dependencies :: Set Module
+    dependencies = S.fromList $ map (toModule . fst) . filter (not . snd) . dep_mods $ deps
+
+    deps :: Dependencies
+    deps = mg_deps modGuts
 
     thisModule :: Module
     thisModule = mg_module modGuts
@@ -365,22 +389,18 @@ usedModules modGuts = foldl' collectUsage mempty . mg_usages $ modGuts
     toModule :: ModuleName -> Module
     toModule = Module (moduleUnitId thisModule)
 
--- | The collection of dependencies and usages modules which are relevant for liquidHaskell
-relevantModules :: ModGuts -> Set Module
-relevantModules modGuts = S.fromList $
- (map (toModule . fst) . filter (not . snd) . dep_mods $ deps) <> usedModules modGuts
- where
-  deps :: Dependencies
-  deps = mg_deps modGuts
-
-  thisModule :: Module
-  thisModule = mg_module modGuts
-
-  toModule :: ModuleName -> Module
-  toModule = Module (moduleUnitId thisModule)
+    used :: Set Module
+    used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
+      where
+        collectUsage :: [Module] -> Usage -> [Module]
+        collectUsage acc = \case
+          UsagePackageModule     { usg_mod      = modl    } -> modl : acc
+          UsageHomeModule        { usg_mod_name = modName } -> toModule modName : acc
+          UsageMergedRequirement { usg_mod      = modl    } -> modl : acc
+          _ -> acc
 
 
-data LiquidHaskellModGuts = LiquidHaskellModGuts {
+data LiquidHaskellContext = LiquidHaskellContext {
     lhModuleCfg      :: Config
   , lhModuleLogicMap :: LogicMap
   , lhModuleSummary  :: ModSummary
@@ -398,83 +418,8 @@ data LiquidHaskellModGuts = LiquidHaskellModGuts {
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook opts iface = do
-    cfg <- liftIO getConfig
     debugLog $ "loadInterfaceHook for " ++ (show . moduleName . mi_module $ iface)
-    dynFlags <- getDynFlags
-    specEnv <- liftIO $ readIORef ifaceStableRef
-
-    sp <- runMaybeT (lookupCachedSpec specEnv thisModule <|> deserialiseFromAnnotations specEnv)
-    case sp of
-      Nothing -> pure ()
-      Just (modName, spec)  -> do
-        debugLog $ "loadInterfaceHook, module found in SpecEnv..."
-        liftIO $ atomicModifyIORef' ifaceStableRef (\old -> (extendModuleEnv old thisModule (modName, spec), ()))
-
     pure iface
-
-  where
-    thisModule :: Module
-    thisModule = mi_module iface
-
-    deserialiseFromAnnotations :: SpecEnv -> MaybeT (IfM lcl) (ModName, Ms.BareSpec)
-    deserialiseFromAnnotations specEnv = do
-      guard (not $ isHsBootOrSig $ mi_hsc_src iface)
-      eps          <- lift getEps
-      let bareSpecs = Util.deserialiseBareSpecs thisModule eps
-      debugLog $ "===spec (" ++ show (moduleName thisModule) ++ ") ==> " ++ show bareSpecs
-      case bareSpecs of
-        []         -> MaybeT $ pure Nothing
-        [bareSpec] -> pure $ (ModName SrcImport (moduleName thisModule), bareSpec)
-        specs      -> do
-          dynFlags <- lift getDynFlags
-          let msg = O.text "More than one spec file found for" 
-                O.<+> O.ppr thisModule O.<+> O.text ":"
-                O.<+> (O.vcat $ map (O.text . show) specs)
-          lift $ pluginAbort dynFlags msg
-
-
-lookupCachedSpec :: GhcMonadLike m => SpecEnv -> Module -> MaybeT m (ModName, Ms.BareSpec)
-lookupCachedSpec specEnv mod = MaybeT $ pure (lookupModuleEnv specEnv mod)
-
--- | Load any relevant spec in the input 'SpecEnv', by updating it. The update will happen only if necessary,
--- i.e. if the spec is not already present.
-loadRelevantSpecs :: forall m. GhcMonadLike m 
-                  => Config 
-                  -> SpecEnv 
-                  -> [Module]
-                  -> m SpecEnv
-loadRelevantSpecs cfg specEnv = foldlM loadRelevantSpec specEnv 
-  where
-    loadRelevantSpec :: SpecEnv -> Module -> m SpecEnv
-    loadRelevantSpec acc mod = do
-      res <- runMaybeT (lookupCachedSpec acc mod <|> loadSpecFromDisk cfg acc mod)
-      case res of
-        Nothing -> do
-          debugLog $ "No spec found for " ++ show (moduleName mod)
-          pure acc
-        Just (modName, bareSpec) -> do
-          debugLog $ "Spec found for " ++ show (moduleName mod)
-          pure $ extendModuleEnv acc mod (modName, bareSpec)
-
--- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
-loadSpecFromDisk :: GhcMonadLike m 
-                 => Config 
-                 -> SpecEnv 
-                 -> Module 
-                 -> MaybeT m (ModName, Ms.BareSpec)
-loadSpecFromDisk cfg specEnv thisModule = do
-  env <- lift askHscEnv
-  modSummary <- MaybeT $ pure (mgLookupModule (hsc_mod_graph env) thisModule)
-  bareSpecs  <- lift $ findExternalSpecs cfg modSummary
-  case bareSpecs of
-    []         -> MaybeT $ pure Nothing
-    [bareSpec] -> pure bareSpec
-    specs      -> do
-      dynFlags <- lift getDynFlags
-      let msg = O.text "More than one spec file found for" 
-            O.<+> O.ppr thisModule O.<+> O.text ":"
-            O.<+> (O.vcat $ map (O.text . show) specs)
-      lift $ pluginAbort dynFlags msg
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
@@ -500,40 +445,31 @@ configureDynFlags cfg df =
 -- | Per-Module Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
-
-processModule :: LiquidHaskellModGuts
+processModule :: LiquidHaskellContext
               -> SpecEnv
               -> [SpecComment]
               -> [BPspec]
               -> CoreM (Ms.BareSpec, SpecEnv, GhcInfo)
-processModule LiquidHaskellModGuts{..} specEnv specComments specQuotes = do
-  let modGuts = fromUnoptimised lhModuleGuts
+processModule LiquidHaskellContext{..} specEnv specComments specQuotes = do
   debugLog ("Module ==> " ++ show (moduleName $ mg_module $ modGuts))
+  hscEnv              <- getHscEnv
   let mod              = mg_module modGuts
   file                <- liftIO $ canonicalizePath $ LH.modSummaryHsFile lhModuleSummary
   (modName, bareSpec) <- either throw return $ hsSpecificationP (moduleName mod) (coerce specComments) specQuotes
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
-  let specEnv'         = extendModuleEnv specEnv mod (modName, LH.noTerm bareSpec)
+  let termlessSpec     = LH.noTerm bareSpec
 
-  (LH.noTerm bareSpec, specEnv', ) 
-    <$> processTargetModule lhModuleCfg lhModuleLogicMap specEnv file lhModuleTcData modGuts bareSpec
+  cfg                 <- liftIO $ withPragmas lhModuleCfg file (Ms.pragmas bareSpec)
+  ghcSrc              <- makeGhcSrc cfg file lhModuleTcData modGuts hscEnv
+  bareSpecs           <- makeBareSpecs cfg specEnv (moduleName $ mg_module modGuts) bareSpec
+  let ghcSpec          = makeGhcSpec   cfg ghcSrc  lhModuleLogicMap bareSpecs
+  let ghcInfo          = GI ghcSrc ghcSpec
+  let specEnv'         = extendModuleEnv specEnv mod (modName, termlessSpec)
 
-processTargetModule :: Config 
-                    -> LogicMap 
-                    -> SpecEnv 
-                    -> FilePath 
-                    -> TcData
-                    -> ModGuts
-                    -> Ms.BareSpec
-                    -> CoreM GhcInfo
-processTargetModule cfg0 logicMap specEnv file tcData modGuts bareSpec = do
-  hscEnv     <- getHscEnv
-  cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  ghcSrc     <- makeGhcSrc cfg file tcData modGuts hscEnv
-  bareSpecs  <- makeBareSpecs cfg specEnv (moduleName $ mg_module modGuts) bareSpec
-  let ghcSpec = makeGhcSpec   cfg ghcSrc  logicMap                         bareSpecs
-  return      $ GI ghcSrc ghcSpec
+  pure (termlessSpec, specEnv', ghcInfo)
+
+  where
+    modGuts = fromUnoptimised lhModuleGuts
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
@@ -637,17 +573,9 @@ makeBareSpecs :: GhcMonadLike m
               -> Ms.BareSpec 
               -> m [(ModName, Ms.BareSpec)]
 makeBareSpecs cfg specEnv thisModule tgtSpec = do 
-  modSum         <- GhcMonadLike.getModSummary thisModule
-  externalSpecs  <- findExternalSpecs cfg modSum
+  -- externalSpecs  <- findExternalSpecs cfg modSum
   let cachedSpecs = moduleEnvElts specEnv
-  let allSpecs    = externalSpecs <> cachedSpecs
+  let allSpecs    = {- externalSpecs <> -} cachedSpecs
   let tgtMod      = ModName Target thisModule
   return          $ (tgtMod, tgtSpec) : allSpecs
 
-findExternalSpecs :: GhcMonadLike m 
-                  => Config 
-                  -> ModSummary 
-                  -> m [(ModName, Ms.BareSpec)]
-findExternalSpecs cfg modSum =
-  let paths = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
-  in LH.findAndParseSpecFiles cfg paths modSum mempty -- reachable: mempty

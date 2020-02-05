@@ -158,6 +158,7 @@ library
                       Paths_liquidhaskell
   if impl(ghc >= 8.10)
       exposed-modules:    Language.Haskell.Liquid.GHC.Plugin
+      other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                           Language.Haskell.Liquid.GHC.Plugin.Types
                           Language.Haskell.Liquid.GHC.Plugin.Util
   hs-source-dirs:     src, include

@@ -24,6 +24,9 @@ module Language.Haskell.Liquid.GHC.Interface (
   -- , isExportedVar
   -- , exportedVars
 
+  -- * Types and type synonyms
+  , SpecEnv
+
   -- * Internal exports (provisional)
   , extractSpecComments
   , extractSpecQuotes'
@@ -581,7 +584,7 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 makeBareSpecs :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
               -> Ghc [(ModName, Ms.BareSpec)]
 makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do 
-  let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
+  let paths     = S.fromList $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)
   specSpecs    <- findAndParseSpecFiles cfg paths modSum reachable
@@ -693,7 +696,7 @@ refreshSymbol = symbol . symbolText
 
 findAndParseSpecFiles :: GhcMonadLike m
                       => Config
-                      -> [FilePath]
+                      -> S.HashSet FilePath
                       -> ModSummary
                       -> [Module]
                       -> m [(ModName, Ms.BareSpec)]
@@ -716,14 +719,14 @@ findAndParseSpecFiles cfg paths modSummary reachable = do
   where
     m2s = moduleNameString . moduleName
 
-getPatSpec :: ModuleGraph -> [FilePath] -> Bool -> IO [FilePath]
+getPatSpec :: ModuleGraph -> S.HashSet FilePath -> Bool -> IO [FilePath]
 getPatSpec modGraph paths totalitycheck
  | totalitycheck = moduleFiles modGraph Spec paths [patErrorName]
  | otherwise     = return []
  where
   patErrorName   = "PatErr"
 
-getRealSpec :: ModuleGraph -> [FilePath] -> Bool -> IO [FilePath]
+getRealSpec :: ModuleGraph -> S.HashSet FilePath -> Bool -> IO [FilePath]
 getRealSpec modGraph paths freal
   | freal     = moduleFiles modGraph Spec paths [realSpecName]
   | otherwise = moduleFiles modGraph Spec paths [notRealSpecName]
@@ -732,7 +735,7 @@ getRealSpec modGraph paths freal
     notRealSpecName = "NotReal"
 
 transParseSpecs :: ModuleGraph
-                -> [FilePath]
+                -> S.HashSet FilePath
                 -> S.HashSet FilePath 
                 -> [(ModName, Ms.BareSpec)]
                 -> [FilePath]
@@ -771,11 +774,11 @@ parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayR
 
 -- Find Files for Modules ------------------------------------------------------
 
-moduleFiles :: ModuleGraph -> Ext -> [FilePath] -> [String] -> IO [FilePath]
+moduleFiles :: ModuleGraph -> Ext -> S.HashSet FilePath -> [String] -> IO [FilePath]
 moduleFiles modGraph ext paths names = catMaybes <$> mapM (moduleFile modGraph ext paths) names
 
-moduleFile :: ModuleGraph -> Ext -> [FilePath] -> String -> IO (Maybe FilePath)
-moduleFile modGraph ext paths name
+moduleFile :: ModuleGraph -> Ext -> S.HashSet FilePath -> String -> IO (Maybe FilePath)
+moduleFile modGraph ext (S.toList -> paths) name
   | ext `elem` [Hs, LHs] = do
     let graph = mgModSummaries modGraph
     case find (\m -> not (isBootSummary m) &&
