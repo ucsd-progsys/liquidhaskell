@@ -24,9 +24,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   -- , isExportedVar
   -- , exportedVars
 
-  -- * Types and type synonyms
-  , SpecEnv
-
   -- * Internal exports (provisional)
   , extractSpecComments
   , extractSpecQuotes'

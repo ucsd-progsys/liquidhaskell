@@ -6,11 +6,17 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     ( findRelevantSpecs
     , SpecFinderResult(..)
     , SearchLocation(..)
+    , TargetModule(..)
     ) where
 
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
-import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike, askHscEnv, getModSummary )
+import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
+                                                                          , askHscEnv
+                                                                          , getModSummary
+                                                                          , lookupModule 
+                                                                          )
 import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseBareSpecs )
+import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.GHC.Interface
 
@@ -19,6 +25,7 @@ import           Module                                   ( Module, lookupModule
 import           GHC
 import           HscTypes
 import           CoreMonad                                ( getDynFlags )
+import           UniqFM
 
 import qualified Data.HashSet                            as HS
 import           Data.Foldable
@@ -32,7 +39,13 @@ type SpecFinder m = GhcMonadLike m => SpecEnv -> Module -> MaybeT m SpecFinderRe
 -- | The result of searching for a spec.
 data SpecFinderResult = 
     SpecNotFound ModuleName
-  | SpecFound SearchLocation Module (ModName, BareSpec)
+  | SpecFound  SearchLocation (ModName, BareSpec)
+  -- ^ The spec was found.
+  | MultipleSpecsFound SearchLocation [(ModName, BareSpec)]
+  -- The spec was found and was fetched together with any required specs the module requires.
+
+-- | The module we are currently compiling/processing as part of the Plugin infrastructure.
+newtype TargetModule = TargetModule { getTargetModule :: Module }
 
 data SearchLocation =
     InterfaceLocation
@@ -49,41 +62,44 @@ findRelevantSpecs :: forall m. GhcMonadLike m
                   => Config 
                   -> ExternalPackageState
                   -> SpecEnv 
+                  -> TargetModule
                   -> [Module]
-                  -> m [SpecFinderResult]
-findRelevantSpecs cfg eps specEnv = foldlM loadRelevantSpec mempty
+                  -> m (SpecEnv, [SpecFinderResult])
+findRelevantSpecs cfg eps specEnv target = foldlM loadRelevantSpec (specEnv, mempty)
   where
-    loadRelevantSpec :: [SpecFinderResult] -> Module -> m [SpecFinderResult]
-    loadRelevantSpec !acc mod = do
-      let finders = asum [ lookupCachedSpec specEnv mod 
-                         , loadFromAnnotations eps specEnv mod
-                         , loadSpecFromDisk cfg specEnv mod
+    loadRelevantSpec :: (SpecEnv, [SpecFinderResult]) -> Module -> m (SpecEnv, [SpecFinderResult])
+    loadRelevantSpec (currentEnv, !acc) mod = do
+      let finders = asum [ lookupCachedSpec currentEnv mod 
+                         , loadFromAnnotations eps currentEnv mod
+                         , loadSpecFromDisk cfg (getTargetModule target) currentEnv mod
                          ]
       res <- runMaybeT finders
       case res of
-        Nothing         -> pure $ SpecNotFound (moduleName mod) : acc
-        Just specResult -> pure (specResult : acc)
+        Nothing         -> pure (currentEnv, SpecNotFound (moduleName mod) : acc)
+        Just specResult -> do
+          let env' = case specResult of
+                       SpecFound location spec -> 
+                         addToUFM currentEnv (getModName $ fst spec) spec
+                       MultipleSpecsFound location specs ->
+                         addListToUFM currentEnv (map (\s -> (getModName $ fst s, s)) specs)
+          pure (env', specResult : acc)
 
 -- | Try to load the spec from the 'SpecEnv'.
 lookupCachedSpec :: SpecFinder m
 lookupCachedSpec specEnv mod = do
-  r <- MaybeT $ pure (lookupModuleEnv specEnv mod)
-  pure $ SpecFound SpecEnvLocation mod r
+  r <- MaybeT $ pure (lookupUFM specEnv (moduleName mod))
+  pure $ SpecFound SpecEnvLocation r
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
-loadSpecFromDisk :: Config -> SpecFinder m
-loadSpecFromDisk cfg specEnv thisModule = do
-  modSummary <- lift $ GhcMonadLike.getModSummary (moduleName thisModule)
+loadSpecFromDisk :: Config -> Module -> SpecFinder m
+loadSpecFromDisk cfg targetModule specEnv thisModule = do
+  modSummary <- lift $ GhcMonadLike.getModSummary (moduleName targetModule)
   bareSpecs  <- lift $ findExternalSpecs cfg modSummary
   case bareSpecs of
     []         -> MaybeT $ pure Nothing
-    [bareSpec] -> pure $ SpecFound DiskLocation thisModule bareSpec
+    [bareSpec] -> pure $ SpecFound DiskLocation bareSpec
     specs      -> do
-      dynFlags <- lift getDynFlags
-      let msg = O.text "More than one spec file found for" 
-            O.<+> O.ppr thisModule O.<+> O.text ":"
-            O.<+> (O.vcat $ map (O.text . show) specs)
-      lift $ pluginAbort dynFlags msg
+      pure $ MultipleSpecsFound DiskLocation specs
 
 findExternalSpecs :: GhcMonadLike m 
                   => Config 
@@ -91,7 +107,7 @@ findExternalSpecs :: GhcMonadLike m
                   -> m [(ModName, BareSpec)]
 findExternalSpecs cfg modSum =
   let paths = HS.fromList $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
-  in findAndParseSpecFiles cfg paths modSum mempty -- reachable: mempty
+  in findAndParseSpecFiles cfg paths modSum mempty
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
 loadFromAnnotations :: ExternalPackageState -> SpecFinder m
@@ -99,7 +115,7 @@ loadFromAnnotations eps specEnv thisModule = do
   let bareSpecs = deserialiseBareSpecs thisModule eps
   case bareSpecs of
     []         -> MaybeT $ pure Nothing
-    [bareSpec] -> pure $ SpecFound InterfaceLocation thisModule (ModName SrcImport (moduleName thisModule), bareSpec)
+    [bareSpec] -> pure $ SpecFound InterfaceLocation (ModName SrcImport (moduleName thisModule), bareSpec)
     specs      -> do
       dynFlags <- lift getDynFlags
       let msg = O.text "More than one spec file found for" 

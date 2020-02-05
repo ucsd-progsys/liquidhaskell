@@ -4,7 +4,27 @@
 -- 'ExceptionMonad', and can therefore be used for both 'CoreM' and 'Ghc'.
 --
 
-module Language.Haskell.Liquid.GHC.GhcMonadLike where
+module Language.Haskell.Liquid.GHC.GhcMonadLike (
+  -- * Types and type classes
+    HasHscEnv
+  , GhcMonadLike
+  , ModuleInfo
+
+  -- * Functions and typeclass methods
+
+  , askHscEnv
+  , getModuleGraph
+  , getModSummary
+  , lookupGlobalName
+  , lookupName
+  , modInfoLookupName
+  , moduleInfoTc
+  , parseModule
+  , typecheckModule
+  , desugarModule
+  , findModule
+  , lookupModule
+  ) where
 
 import Control.Monad
 import Control.Monad.IO.Class
@@ -13,13 +33,28 @@ import Control.Exception (throwIO)
 import Data.IORef (readIORef)
 import Data.Maybe
 
-import Language.Haskell.Liquid.GHC.API hiding (ModuleInfo)
+import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
+                                                          , findModule
+                                                          , desugarModule
+                                                          , typecheckModule
+                                                          , parseModule
+                                                          , lookupName
+                                                          , lookupGlobalName
+                                                          , getModSummary
+                                                          , getModuleGraph
+                                                          , modInfoLookupName
+                                                          , lookupModule
+                                                          )
 import qualified CoreMonad
-import DynFlags (HasDynFlags(..))
+import DynFlags
 import TcRnMonad
-import Outputable (showSDocUnsafe, ppr, text, (<+>), vcat)
+import Outputable
 import UniqFM
+import Maybes
 import Avail
+import Panic
+import GhcMake
+import Finder
 
 class HasHscEnv m where
   askHscEnv :: m HscEnv
@@ -134,3 +169,60 @@ desugarModule (ms, tcg) = do
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
   liftIO $ hscDesugar hsc_env_tmp ms tcg
+
+
+-- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the
+-- filesystem and package database to find the corresponding 'Module',
+-- using the algorithm that is used for an @import@ declaration.
+findModule :: GhcMonadLike m => ModuleName -> Maybe FastString -> m Module
+findModule mod_name maybe_pkg = do
+  hsc_env <- askHscEnv
+  let
+    dflags   = hsc_dflags hsc_env
+    this_pkg = thisPackage dflags
+  --
+  case maybe_pkg of
+    Just pkg | fsToUnitId pkg /= this_pkg && pkg /= fsLit "this" -> liftIO $ do
+      res <- findImportedModule hsc_env mod_name maybe_pkg
+      case res of
+        Found _ m -> return m
+        err       -> throwOneError $ noModError dflags noSrcSpan mod_name err
+    _otherwise -> do
+      home <- lookupLoadedHomeModule mod_name
+      case home of
+        Just m  -> return m
+        Nothing -> liftIO $ do
+           res <- findImportedModule hsc_env mod_name maybe_pkg
+           case res of
+             Found loc m | moduleUnitId m /= this_pkg -> return m
+                         | otherwise -> modNotLoadedError dflags m loc
+             err -> throwOneError $ noModError dflags noSrcSpan mod_name err
+
+
+lookupLoadedHomeModule :: GhcMonadLike m => ModuleName -> m (Maybe Module)
+lookupLoadedHomeModule mod_name = do
+  hsc_env <- askHscEnv
+  case lookupHpt (hsc_HPT hsc_env) mod_name of
+    Just mod_info      -> return (Just (mi_module (hm_iface mod_info)))
+    _not_a_home_module -> return Nothing
+
+
+modNotLoadedError :: DynFlags -> Module -> ModLocation -> IO a
+modNotLoadedError dflags m loc = throwGhcExceptionIO $ CmdLineError $ showSDoc dflags $
+   text "module is not loaded:" <+>
+   quotes (ppr (moduleName m)) <+>
+   parens (text (expectJust "modNotLoadedError" (ml_hs_file loc)))
+
+
+lookupModule :: GhcMonadLike m => ModuleName -> Maybe FastString -> m Module
+lookupModule mod_name (Just pkg) = findModule mod_name (Just pkg)
+lookupModule mod_name Nothing = do
+  hsc_env <- askHscEnv
+  home <- lookupLoadedHomeModule mod_name
+  case home of
+    Just m  -> return m
+    Nothing -> liftIO $ do
+      res <- findExposedPackageModule hsc_env mod_name Nothing
+      case res of
+        Found _ m -> return m
+        err       -> throwOneError $ noModError (hsc_dflags hsc_env) noSrcSpan mod_name err
