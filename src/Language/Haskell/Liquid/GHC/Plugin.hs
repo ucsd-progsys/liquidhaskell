@@ -41,7 +41,6 @@ import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine as LH
 import qualified Language.Haskell.Liquid.UX.Config as LH
 import qualified Language.Haskell.Liquid.GHC.Interface as LH
-import           Language.Haskell.Liquid.GHC.Interface    ( SpecEnv )
 import qualified Language.Haskell.Liquid.Liquid as LH
 
 import Language.Haskell.Liquid.GHC.Plugin.Types
@@ -73,6 +72,7 @@ import FamInstEnv
 import FamInst
 import qualified TysPrim
 import GHC.LanguageExtensions
+import UniqFM
 
 import Control.Exception
 import Control.Monad
@@ -141,7 +141,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 -- Used to carry around all the specs we discover while processing interface files and their
 -- annotations.
 ifaceStableRef :: IORef SpecEnv
-ifaceStableRef = unsafePerformIO $ newIORef emptyModuleEnv
+ifaceStableRef = unsafePerformIO $ newIORef emptyUFM
 {-# NOINLINE ifaceStableRef #-}
 
 -- | Set to 'True' to enable debug logging.
@@ -339,7 +339,8 @@ liquidHaskellPass cfg modGuts = do
       thisFile <- liftIO $ canonicalizePath $ LH.modSummaryHsFile modSummary
       eps      <- liftIO $ readIORef (hsc_EPS hscEnv)
 
-      updatedSpecEnv <- loadRelevantSpecs cfg eps specEnv (S.toList . relevantModules $ modGuts)
+      updatedSpecEnv <- 
+        loadRelevantSpecs cfg eps specEnv (SpecFinder.TargetModule thisModule) (S.toList . relevantModules $ modGuts)
       (bareSpec, newSpecEnv, ghcInfo) <- processModule lhContext updatedSpecEnv specComments specQuotes
 
       -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
@@ -359,19 +360,22 @@ loadRelevantSpecs :: forall m. GhcMonadLike m
                   => Config 
                   -> ExternalPackageState
                   -> SpecEnv 
+                  -> TargetModule
                   -> [Module]
                   -> m SpecEnv
-loadRelevantSpecs config eps specEnv mods = do
-  results <- SpecFinder.findRelevantSpecs config eps specEnv mods
-  foldlM processResult specEnv results
+loadRelevantSpecs config eps specEnv targetModule mods = do
+  (newSpec, results) <- SpecFinder.findRelevantSpecs config eps specEnv targetModule mods
+  mapM_ processResult results
+  pure newSpec
   where
-    processResult :: SpecEnv -> SpecFinderResult -> m SpecEnv
-    processResult acc (SpecNotFound modName) = do
-      debugLog $ "Spec NOT FOUND for " ++ show modName
-      pure acc
-    processResult acc (SpecFound location mod spec) = do
-      debugLog $ "Spec FOUND for " ++ show (moduleName mod) ++ ", at location " ++ show location
-      pure $ extendModuleEnv acc mod spec
+    processResult :: SpecFinderResult -> m ()
+    processResult (SpecNotFound modName) = do
+      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) ++ "] Spec not found for " ++ show modName
+    processResult (SpecFound location spec) = do
+      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) ++ "] Spec found for " ++ show (fst spec) ++ ", at location " ++ show location
+    processResult (MultipleSpecsFound location specs) = do
+      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) ++ "] Multiple specs found : " 
+      debugLog $ unlines (map (show . fst) specs)
 
 -- | The collection of dependencies and usages modules which are relevant for liquidHaskell
 relevantModules :: ModGuts -> Set Module
@@ -433,6 +437,10 @@ configureDynFlags cfg df =
   pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
             , libraryPaths = nub $ idirs cfg ++ libraryPaths df
             , includePaths = updateIncludePaths df (idirs cfg)
+            , packageFlags = ExposePackage ""
+                                           (PackageArg "ghc-prim")
+                                           (ModRenaming True [])
+                           : (packageFlags df)
             } `gopt_set` Opt_ImplicitImportQualified
               `gopt_set` Opt_PIC
               `gopt_set` Opt_DeferTypedHoles
@@ -464,7 +472,7 @@ processModule LiquidHaskellContext{..} specEnv specComments specQuotes = do
   bareSpecs           <- makeBareSpecs cfg specEnv (moduleName $ mg_module modGuts) bareSpec
   let ghcSpec          = makeGhcSpec   cfg ghcSrc  lhModuleLogicMap bareSpecs
   let ghcInfo          = GI ghcSrc ghcSpec
-  let specEnv'         = extendModuleEnv specEnv mod (modName, termlessSpec)
+  let specEnv'         = addToUFM specEnv (getModName modName) (modName, termlessSpec)
 
   pure (termlessSpec, specEnv', ghcInfo)
 
@@ -574,7 +582,7 @@ makeBareSpecs :: GhcMonadLike m
               -> m [(ModName, Ms.BareSpec)]
 makeBareSpecs cfg specEnv thisModule tgtSpec = do 
   -- externalSpecs  <- findExternalSpecs cfg modSum
-  let cachedSpecs = moduleEnvElts specEnv
+  let cachedSpecs = eltsUFM specEnv
   let allSpecs    = {- externalSpecs <> -} cachedSpecs
   let tgtMod      = ModName Target thisModule
   return          $ (tgtMod, tgtSpec) : allSpecs

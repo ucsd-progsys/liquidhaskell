@@ -4,6 +4,7 @@
 module Language.Haskell.Liquid.GHC.Plugin.Types
     ( SpecComment(..)
     -- * Threading state from the typechecking phase
+    , SpecEnv
     , TcData
     , tcImports
     , tcResolvedNames
@@ -20,6 +21,13 @@ import Outputable
 import GHC (LImportDecl, GhcRn, Name, TyThing)
 import HscTypes (ModGuts)
 import TcRnTypes (TcGblEnv(tcg_rn_imports))
+import UniqFM
+import Module (ModuleName)
+
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Measure          ( BareSpec )
+
+type SpecEnv = UniqFM (ModName, BareSpec)
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
