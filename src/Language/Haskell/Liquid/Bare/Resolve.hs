@@ -687,7 +687,7 @@ maybeResolveSym env name kind x = case resolveLocSym env name kind x of
 -- | @ofBareType@ and @ofBareTypeE@ should be the _only_ @SpecType@ constructors
 -------------------------------------------------------------------------------
 ofBareType :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> SpecType 
-ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
+ofBareType env name l ps t = F.notracepp ("ofBareType:" ++ F.showpp name) $ either fail id (ofBareTypeE env name l ps t)
   where 
     fail                   = Ex.throw 
     -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 

@@ -431,8 +431,34 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modSum  = pm_mod_summary (tm_parsed_module typechecked)
   ghcSrc     <- makeGhcSrc    cfg file     typechecked modSum
   bareSpecs  <- makeBareSpecs cfg depGraph specEnv     modSum bareSpec
-  let ghcSpec = makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs  
-  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec 
+  -- preparing environment for evaluation
+  setContext [iimport |(modName, _) <- bareSpecs,
+              let iimport = if isTarget modName
+                            then IIModule (getModName modName)
+                            else IIDecl (simpleImportDecl (getModName modName))]
+  -- enable partial type inference
+  dflags <- getSessionDynFlags 
+  setSessionDynFlags (dflags
+                      `xopt_set`
+                      PartialTypeSignatures
+                      `xopt_set`
+                      RankNTypes)
+  void $ execStmt
+          "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+          execOptions
+  void $ execStmt
+          "let {infix 4 ==; _ == _ = undefined}"
+          execOptions
+  void $ execStmt
+          "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+          execOptions
+  void $ execStmt
+          "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+          execOptions
+  void $ execStmt
+          "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+          execOptions
+  ghcSpec <- makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------

@@ -383,7 +383,7 @@ toPredApp p = go . Misc.mapFst opSym . splitArgs $ p
       | f == symbol ("&&" :: String)
       = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("==>" :: String)
-      = PImp <$> coreToLg e1 <*> coreToLg e2
+      = F.tracepp "toPredApp" <$> (PImp <$> coreToLg e1 <*> coreToLg e2)
     go (Just f, es)
       | f == symbol ("or" :: String)
       = POr  <$> mapM coreToLg es
@@ -524,7 +524,7 @@ isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
 isBangInteger _ = False 
 
 isErasable :: Id -> Bool
-isErasable v = F.notracepp msg $ isGhcSplId v && not (isDCId v) 
+isErasable v = F.tracepp msg $ isGhcSplId v && not (isDCId v) 
   where 
     msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
 

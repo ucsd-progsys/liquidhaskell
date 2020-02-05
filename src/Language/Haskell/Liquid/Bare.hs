@@ -23,6 +23,9 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Control.Monad                              (unless)
+import           Control.Monad.Reader
+import           Control.Monad.State
+import           Control.Monad.IO.Class                     (liftIO)
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -42,7 +45,8 @@ import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
-import qualified Language.Haskell.Liquid.Bare.Types         as Bare 
+import qualified Language.Haskell.Liquid.Bare.Types         as Bare
+import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Language.Haskell.Liquid.Bare.Resolve       as Bare 
 import qualified Language.Haskell.Liquid.Bare.DataType      as Bare 
 import qualified Language.Haskell.Liquid.Bare.Expand        as Bare 
@@ -53,7 +57,8 @@ import qualified Language.Haskell.Liquid.Bare.ToBare        as Bare
 import qualified Language.Haskell.Liquid.Bare.Class         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Check         as Bare 
 import qualified Language.Haskell.Liquid.Bare.Laws          as Bare 
-import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic 
+import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
+import qualified Language.Haskell.Liquid.Transforms.ANF     as ANF
 import           Control.Arrow                    (second)
 
 --------------------------------------------------------------------------------
@@ -96,15 +101,15 @@ saveLiftedSpec src sp = do
 -- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then 
 --   validates it using @checkGhcSpec@. 
 -------------------------------------------------------------------------------------
-makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
+makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc.Ghc GhcSpec
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap mspecs0  
-           = checkThrow (Bare.checkGhcSpec mspecs src renv cbs sp)
+makeGhcSpec cfg src lmap mspecs0 = do
+           sp <- makeGhcSpec0 cfg src lmap mspecs
+           let renv = ghcSpecEnv sp 
+           pure $ checkThrow (Bare.checkGhcSpec mspecs src renv cbs sp)
   where 
     mspecs =  [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0, isTarget m ] 
            ++ [ (m, sp) | (m, sp) <- mspecs0, not (isTarget m)]
-    sp     = makeGhcSpec0 cfg src lmap mspecs 
-    renv   = ghcSpecEnv sp 
     cbs    = giCbs src
 
 checkThrow :: Ex.Exception e => Either e c -> c
@@ -125,6 +130,142 @@ ghcSpecEnv sp = fromListSEnv binds
     vSort     = Bare.varSortedReft emb
     rSort     = rTypeSortedReft    emb
 
+-- witness of the isomorphism between elaboration binders and safe text
+-- toHaskellBinder :: F.Symbol -> F.Symbol
+-- toHaskellBinder =  F.symbol . ('_':) . fmap
+--   (\x -> case x of
+--      '$' -> '_'
+--      '#' -> '_'
+--      _ -> x) . F.symbolString
+
+-- toGhcExpr :: F.Expr -> String
+-- toGhcExpr e =
+--   paren $ case e of
+--     F.ECon (F.I c) -> show c
+--     F.ECon (F.R c) -> show c
+--     -- F.ECon (F.L _ _) -> todo Nothing "Don't know how to handle F.ECon (F.L _ _)"
+--     F.EVar x -> F.symbolString x
+--     F.EApp e0 e1 -> toGhcExpr e0 ++ toGhcExpr e1
+--     F.ENeg e0 -> "-" ++ toGhcExpr e0
+--     F.EBin bop e0 e1 -> bopToExpr bop ++ toGhcExpr e0 ++ toGhcExpr e1
+--     F.EIte p e0 e1 -> "if" ++ toGhcExpr p ++ "then" ++ toGhcExpr e0 ++ "else" ++ toGhcExpr e1
+--     F.ECst e0 _ -> toGhcExpr e0
+--     F.PAnd es -> "and" ++ bracket (L.intercalate "," $ toGhcExpr <$> es )
+--     F.POr es -> "or" ++ bracket (L.intercalate "," $ toGhcExpr <$> es)
+--     F.PNot e -> "not" ++ toGhcExpr e
+--     F.PImp e0 e1 -> "(==>)" ++ toGhcExpr e0 ++ toGhcExpr e1
+--     F.PAtom brel e0 e1 -> brelToExpr brel ++ toGhcExpr e0 ++ toGhcExpr e1
+--     _ -> todo Nothing ("toGhcExpr: Don't know how to handle " ++ show e)
+--   where paren x = "(" ++ x ++ ")"
+--         bracket x = "["++ x ++ "]"
+--         bopToExpr :: F.Bop -> String
+--         bopToExpr bop = case bop of
+--           F.Plus -> "(+)"
+--           F.Minus -> "(-)"
+--           F.Times -> "(*)"
+--           F.Div -> "(/)"
+--           F.Mod -> "mod"
+--           F.RTimes -> "(*)"
+--           F.RDiv -> "(/)"
+--         brelToExpr :: F.Brel -> String
+--         brelToExpr brel = case brel of
+--           Eq -> "(==)"
+--           Ne -> "(/=)"
+--           Gt -> "(>)"
+--           Lt -> "(<)"
+--           Ge -> "(>=)"
+--           Le -> "(<=)"
+--           _  -> impossible Nothing "brelToExpr: Unsupported operation"
+          
+-- -- FROM double [int, semigroup a] TO semigroup a => int -> double
+-- buildTypeAnn :: String -> [SpecType] -> String
+-- buildTypeAnn vvTy = L.foldl' f (paren ("(->)"++ paren vvTy ++"(Bool)"))
+--   where f :: String -> SpecType -> String
+--         f res ty
+--           | isClassType ty = paren $ paren (GM.showPpr $ toType ty) ++ "=>" ++ res
+--           | otherwise = paren $ "(->)" ++ paren (GM.showPpr $ toType ty) ++ res
+--         paren x = "(" ++ x ++ ")"
+
+-- -- FROM (vv, x + y) [x,y]  TO \(y)(x)(vv)->((+)(x)(y))
+-- buildExpr :: F.Reft -> [F.Symbol] -> String
+-- buildExpr (F.Reft (vv, toGhcExpr -> e)) =
+--   let vv' = if F.isDummy vv then "_" else F.symbolString vv
+--   in paren . (++) "\\" . L.foldl' f (paren vv' ++ "->" ++ e)
+--   where paren x = "(" ++ x ++ ")"
+--         f res binder = paren (F.symbolString binder) ++ res
+
+-- elaborateSpecType :: [(F.Symbol,SpecType)] -- binders come in reverse order
+--                   -> (Ghc.CoreExpr -> Expr)
+--                   -> SpecType
+--                   -> Ghc.Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
+--                    -- should have returned Maybe [F.Symbol]
+-- elaborateSpecType bts coreToLogic t =
+--   case F.tracepp ("elaborateSpecType: " ++ F.showpp bts) t of
+--     RVar (RTV tv) (MkUReft reft@(F.Reft(vv,_oldE)) p) -> do
+--       elaborateReft (reft, GM.showPpr tv) (pure (t, []))
+--         (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv,ee)) p), bs'))
+--     RFun bind tin tout ureft@(MkUReft reft@(F.Reft(vv,_oldE)) p) -> do
+--       let bts' = (bind,tin):bts
+--       (eTin, bs') <- elaborateSpecType bts' coreToLogic tin
+--       (eTout, bs'') <- elaborateSpecType bts' coreToLogic tout
+--       -- eTin and eTout might have different dictionary names
+--       -- need to do a substitution to make the reference to dictionaries consistent
+--       -- if isClassType eTin
+--       elaborateReft (reft, GM.showPpr $ toType t) (pure (RFun bind eTin eTout ureft, bs')) (\bs' ee -> pure (RFun bind eTin eTout (MkUReft (F.Reft (vv,ee)) p), bs))
+--     RImpF bind tin tout ureft@(MkUReft reft@(F.Reft(vv,_oldE)) p) -> do
+--       let bts' = (bind,tin):bts
+--       (eTin, bs') <- elaborateSpecType bts' coreToLogic tin
+--       (eTout, bs'') <- elaborateSpecType bts' coreToLogic tout
+--       -- eTin and eTout might have different dictionary names
+--       -- need to do a substitution to make the reference to dictionaries consistent
+--       elaborateReft (reft, GM.showPpr $ toType t) (pure (RImpF bind eTin eTout ureft, bs'))
+--         (\bs' ee -> pure (RFun bind eTin eTout (MkUReft (F.Reft (vv,ee)) p), bs))
+--     -- support for RankNTypes/ref
+--     RAllT (RTVar tv ty) tout ref -> do
+--       (eTout, bts') <- elaborateSpecType bts coreToLogic tout
+--       pure (RAllT (RTVar tv ty) eTout ref, bts')
+--     RAllP pvbind tout -> do
+--       (eTout, bts') <- elaborateSpecType bts coreToLogic tout
+--       pure (RAllP pvbind eTout, bts')
+--     -- pargs not handled for now
+--     -- RApp tycon args pargs reft
+--     RApp tycon args pargs ureft@(MkUReft reft@(F.Reft(vv,_)) p)
+--       | isClass tycon ->
+--           pure (t, [])
+--       | otherwise ->
+--         elaborateReft (reft, GM.showPpr $ toType t) (pure (RApp tycon args pargs ureft, bs))
+--           (\bs' ee -> pure (RApp tycon args pargs (MkUReft (F.Reft (vv,ee)) p), bs'))
+    
+--     _ ->
+--       todo Nothing ("Not sure how to elaborate " ++ F.showpp t)
+--     where elaborateReft :: (F.Reft, String) -> Ghc.Ghc a -> ([F.Symbol] -> F.Expr -> Ghc.Ghc a) -> Ghc.Ghc a
+--           elaborateReft (reft, vvTy) trivial nonTrivialCont =
+--             if isTrivial reft
+--             then trivial
+--             else do
+--               let query = buildQuery reft id vvTy
+--               liftIO $ putStrLn query
+--               mbExpr <- GM.elaborateExprInst query
+--               case mbExpr of
+--                 Nothing -> panic Nothing ("Ghc is unable to elaborate the expression: " ++ query)
+--                 Just (coreToLogic -> eeWithLams) -> do
+--                   let (bs', ee) = grabLams ([], eeWithLams)
+--                   nonTrivialCont bs' ee
+--           bs = [b | (b,t) <- bts, not (isClassType t)]
+--           ts = snd <$> bts
+--           buildQuery reft f vvTy = buildExprAnn (buildExpr reft bs) (buildTypeAnn (f vvTy) ts)
+--           buildExprAnn e ann = e ++ "::" ++ ann
+--           grabLams :: ([F.Symbol], F.Expr) -> ([F.Symbol], F.Expr)
+--           grabLams (bs, F.ELam (b,_) e) = grabLams (b:bs, e)
+--           grabLams bse = bse
+--           isTrivial :: F.Reft -> Bool
+--           isTrivial (F.Reft (_,ee)) = (L.null . F.syms) ee
+                  
+
+            
+
+  
+
 
 -------------------------------------------------------------------------------------
 -- | @makeGhcSpec0@ slurps up all the relevant information needed to generate 
@@ -133,27 +274,57 @@ ghcSpecEnv sp = fromListSEnv binds
 --   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
-makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
+makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc.Ghc GhcSpec
 -------------------------------------------------------------------------------------
-makeGhcSpec0 cfg src lmap mspecs = SP 
-  { gsConfig = cfg 
-  , gsImps   = makeImports mspecs
-  , gsSig    = addReflSigs refl sig 
-  , gsRefl   = refl 
-  , gsLaws   = laws 
-  , gsData   = sData 
-  , gsQual   = qual 
-  , gsName   = makeSpecName env     tycEnv measEnv   name 
-  , gsVars   = makeSpecVars cfg src mySpec env measEnv
-  , gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
-                   impSigs   = makeImports mspecs,
-                   expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
-                   dataDecls = dataDecls mySpec2 
-                   } 
-  }
+makeGhcSpec0 cfg src lmap mspecs = do
+  -- liftIO $ mapM_ (putStrLn . F.showpp) (val.snd<$>gsTySigs sig)
+  -- liftIO $ mapM_ (mapReftM (\(MkUReft (F.Reft (vv,r)) _) -> putStrLn$(F.symbolSafeString vv ++ ":" ++ toGhcExpr r))) (val.snd<$> gsTySigs sig)
+  -- let sigs = val.snd <$>
+  --            [(x,y) | (x,y) <- gsTySigs sig, ("VerifiedMonad" `L.isPrefixOf` GM.showPpr x )] :: [SpecType]
+  let sigs = val.snd <$> gsTySigs sig
+  elaboratedSigs <- mapM (elaborateSpecType (pure ()) coreToLg) sigs
+  liftIO $ putStrLn "Before:"
+  liftIO $ putStrLn $ F.showpp sigs
+  liftIO $ putStrLn "After:"
+  liftIO $ putStrLn $ F.showpp elaboratedSigs
+
+  -- liftIO $ putStrLn "[DUMPING toType]"
+  -- liftIO $ mapM_ (putStrLn . GM.showPpr . Ghc.typeToLHsType) (toType <$> sigs)
+  -- liftIO $ putStrLn "[DUMPING toType DONE]"
+  -- mapM_ (liftIO . putStrLn . F.showpp <=< elaborateSpecType [] coreToLg) sigs
+  
+  -- e <- Mb.fromJust <$> GM.elaborateExprInst "1 + 1 :: Int"
+  -- liftIO $ putStrLn (GM.showPpr e)
+  -- hscEnv <- Ghc.getSession
+  -- e' <- liftIO $ ANF.anormalizeExpr cfg hscEnv (GM.tracePpr "OHQO" e)
+  
+  -- e <- Rec.transformRecSingleExpr. Mb.fromJust <$> GM.elaborateExprInst "let x = 10 in x"
+  -- liftIO . print $ CoreToLogic.runToLogic embs lmap dm (\x -> todo Nothing ("ctl not working " ++ x)) (CoreToLogic.coreToLogic e')
+  -- liftIO $ putStrLn ""
+  pure $ SP
+    { gsConfig = cfg 
+    , gsImps   = makeImports mspecs
+    , gsSig    = addReflSigs refl sig 
+    , gsRefl   = refl 
+    , gsLaws   = laws 
+    , gsData   = sData 
+    , gsQual   = qual 
+    , gsName   = makeSpecName env     tycEnv measEnv   name 
+    , gsVars   = makeSpecVars cfg src mySpec env measEnv
+    , gsTerm   = makeSpecTerm cfg     mySpec env       name    
+    , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
+                     impSigs   = makeImports mspecs,
+                     expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
+                     dataDecls = dataDecls mySpec2 
+                     } 
+    }
   where
-    -- build up spec components 
+    -- build up spec components
+    coreToLg = \e -> case CoreToLogic.runToLogic embs lmap dm
+                          (\x -> todo Nothing ("ctl not working " ++ x)) (CoreToLogic.coreToLogic e)
+                     of Left _ -> impossible Nothing "can't reach here"
+                        Right e -> e
+    dm       = Bare.tcDataConMap tycEnv
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
     sData    = makeSpecData  src env sigEnv measEnv sig specs 

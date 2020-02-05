@@ -529,12 +529,12 @@ ofBDataCtor env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) = DataCo
   } 
   where
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
-    ts'           = Bare.ofBareType env name l (Just ps) <$> ts
+    ts'           = F.notracepp "OHQO" $ Bare.ofBareType env name l (Just ps) <$> ts
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
     (yts, ot)     = -- F.tracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
-                      qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
+                      F.notracepp "OHQO2" $ qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]

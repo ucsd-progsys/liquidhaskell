@@ -10,13 +10,13 @@
 {-# LANGUAGE OverloadedStrings          #-}
 
 
-module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
+module Language.Haskell.Liquid.Transforms.ANF (anormalize, anormalizeExpr) where
 
 import           Prelude                          hiding (error)
 import           CoreSyn                          hiding (mkTyArg)
 import           CoreUtils                        (exprType)
 import qualified DsMonad
-import           DsMonad                          (initDsWithModGuts)
+import           DsMonad                          (initDsWithModGuts, initDsTc)
 import           GHC                              hiding (exprType)
 import           HscTypes
 import           OccName                          (OccName, mkVarOccFS)
@@ -86,9 +86,20 @@ modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
     fis            = mgi_fam_insts mg
 -}
 
+anormalizeExpr :: (UX.HasConfig cfg) => cfg -> HscEnv -> CoreExpr -> IO CoreExpr
+anormalizeExpr cfg hscEnv e = do
+  (_, mbE) <- runTcInteractive hscEnv $ initDsTc $ normalizeExpr γ0 e
+  case mbE of
+    Nothing -> panic Nothing "Oops, cannot A-Normalize Refinement Expression!"
+    Just e' -> pure e'
+  where γ0 = emptyAnfEnv (UX.getConfig cfg)
+
 --------------------------------------------------------------------------------
 -- | A-Normalize a @CoreBind@ --------------------------------------------------
 --------------------------------------------------------------------------------
+
+normalizeExpr :: AnfEnv -> CoreExpr -> DsMonad.DsM CoreExpr
+normalizeExpr γ e = runDsM $ evalStateT (stitch γ e) (DsST [])
 
 -- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings

@@ -50,7 +50,7 @@ makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> Ghc.NameSet
                -> LocSpecType
 
 makePluggedSig name embs tyi exports kx t 
-  | Just x <- kxv = mkPlug x 
+  | Just x <- kxv = F.notracepp ("makePluggedSig:" ++ F.showpp t) $ mkPlug x 
   | otherwise     = t
   where 
     kxv           = Bare.plugSrc kx
@@ -209,7 +209,7 @@ goPlug :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> (Doc -> Doc -> Error) -> (SpecTy
        -> SpecType
 goPlug tce tyi err f = go 
   where
-    go t (RHole r) = (addHoles t') { rt_reft = f t r }
+    go t (RHole r) = (F.notracepp "goPlug" $ addHoles t') { rt_reft = f t r }
       where
         t'         = everywhere (mkT $ addRefs tce tyi) t
         addHoles   = everywhere (mkT $ addHole)

@@ -90,6 +90,7 @@ library
                       Language.Haskell.Liquid.Bare.Resolve
                       Language.Haskell.Liquid.Bare.ToBare
                       Language.Haskell.Liquid.Bare.Types
+                      Language.Haskell.Liquid.Bare.Elaborate
                       Language.Haskell.Liquid.Constraint.Constraint
                       Language.Haskell.Liquid.Constraint.Env
                       Language.Haskell.Liquid.Constraint.Fresh
@@ -190,6 +191,8 @@ library
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
+                    , free
+                    , recursion-schemes
   default-language:   Haskell98
   default-extensions: PatternGuards
   ghc-options:        -W -fwarn-missing-signatures

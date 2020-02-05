@@ -19,7 +19,17 @@ module Language.Haskell.Liquid.GHC.Misc where
 import           Class                                      (classKey)
 import           Data.String
 import qualified Data.List as L
-import           PrelNames                                  (fractionalClassKeys)
+import           PrelNames                                  (fractionalClassKeys, itName)
+import           Inst
+import           GhcMonad
+import           DsMonad
+import           DsExpr
+import           RnExpr
+import           TcRnMonad
+import           TcExpr
+import           TcSimplify
+import           TcHsSyn
+import           TcEvidence
 import           FamInstEnv
 import           Debug.Trace
 -- import qualified ConLike                                    as Ghc
@@ -34,14 +44,14 @@ import qualified CoreSyn                                    as Core
 import           CostCentre
 import           GHC                                        hiding (L)
 import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..),
-                                                             Dependencies(..))
+                                                             Dependencies(..), runInteractiveHsc)
 import           TysWiredIn                                 (anyTy)
 import           NameSet                                    (NameSet)
 import           SrcLoc                                     hiding (L)
 import           Bag
 import           ErrUtils
 import           CoreLint
-import           CoreMonad
+import           CoreMonad                                  hiding (getHscEnv)
 
 import           Text.Parsec.Pos                            (incSourceColumn, sourceName, sourceLine, sourceColumn, newPos)
 
@@ -836,3 +846,65 @@ defaultDataCons (TyConApp tc argτs) ds = do
 defaultDataCons _ _ = 
   Nothing
 
+--------------------------------------------------------------------------------
+-- | Elaboration
+--------------------------------------------------------------------------------
+
+-- elaborateExprInst :: GhcMonad m => String -> m (Maybe CoreExpr)
+-- elaborateExprInst = elaborateExpr TM_Inst
+
+-- elaborateExpr :: GhcMonad m => TcRnExprMode -> String -> m (Maybe CoreExpr)
+-- elaborateExpr mode expr =
+--   withSession $ \hsc_env -> liftIO $ hscElabExpr hsc_env mode expr
+
+elaborateHsExprInst
+  :: GhcMonad m => LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+elaborateHsExprInst expr = elaborateHsExpr TM_Inst expr
+
+
+elaborateHsExpr
+  :: GhcMonad m => TcRnExprMode -> LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+elaborateHsExpr mode expr =
+  withSession $ \hsc_env -> liftIO $ hscElabHsExpr hsc_env mode expr
+
+hscElabHsExpr :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
+hscElabHsExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
+  hsc_env <- getHscEnv
+  liftIO $ elabRnExpr hsc_env mode expr
+
+
+
+-- hscElabExpr :: HscEnv -> TcRnExprMode -> String -> IO (Messages, Maybe CoreExpr)
+-- hscElabExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
+--   hsc_env     <- getHscEnv
+--   parsed_expr <- hscParseExpr expr
+--   liftIO $ elabRnExpr hsc_env mode parsed_expr
+
+elabRnExpr
+  :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
+elabRnExpr hsc_env mode rdr_expr =
+  runTcInteractive hsc_env $ do
+    (rn_expr, _fvs) <- rnLExpr rdr_expr
+    failIfErrsM
+    uniq <- newUnique
+    let fresh_it = itName uniq (getLoc rdr_expr)
+        orig     = lexprCtOrigin rn_expr
+    (tclvl, lie, (tc_expr, res_ty)) <- pushLevelAndCaptureConstraints $ do
+      (_tc_expr, expr_ty) <- tcInferSigma rn_expr
+      expr_ty'            <- if inst
+        then snd <$> deeplyInstantiate orig expr_ty
+        else return expr_ty
+      return (_tc_expr, expr_ty')
+    (_, _, evbs, residual, _) <- simplifyInfer tclvl
+                                            infer_mode
+                                            []    {- No sig vars -}
+                                            [(fresh_it, res_ty)]
+                                            lie
+    evbs' <- perhaps_disable_default_warnings $ simplifyInteractive residual
+    full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
+    initDsTc $ dsLExpr full_expr
+ where
+  (inst, infer_mode, perhaps_disable_default_warnings) = case mode of
+    TM_Inst    -> (True, NoRestrictions, id)
+    TM_NoInst  -> (False, NoRestrictions, id)
+    TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
