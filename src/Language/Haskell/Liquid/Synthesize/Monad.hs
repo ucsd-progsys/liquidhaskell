@@ -282,7 +282,7 @@ withInsProdCands specTy =  notrace (" [ withInsProdCands ] " ++ show specTy) $
 withTypeEs :: SpecType -> SM [CoreExpr] 
 withTypeEs t = do 
     em <- sExprMem <$> get 
-    let withTypeEM = filter (\(t', _, _) -> t' == toType t) em 
+    let withTypeEM = filter (\(t', _, _) -> t' == toType t) (tracepp " [ withTypeEs ] " em) 
     return (takeExprs withTypeEM) 
 
 

@@ -139,7 +139,7 @@ getUniVars cp tlVar =
 
 getUniVars0 :: GHC.CoreExpr -> [Var]
 getUniVars0 (Lam b e) = b : getUniVars0 e
-getUniVars0 e         = trace " [ getUniVars0 ] " []
+getUniVars0 e         = notrace " [ getUniVars0 ] " []
 
 getBody :: GHC.CoreBind -> Var -> GHC.CoreExpr
 getBody (GHC.NonRec b e) tlVar = if b == tlVar then e else error " [ getBody ] "
@@ -158,7 +158,7 @@ isInCB (GHC.Rec recs) tlVar   = foldr (\v b -> v == tlVar && b) True (map fst re
 
 varsCB :: GHC.CoreBind -> (GHC.CoreExpr -> [Var]) -> [Var]
 varsCB (GHC.NonRec b e) f = f e
-varsCB (GHC.Rec ls) _ = trace " [ symbolToVarCB ] Rec " []
+varsCB (GHC.Rec ls) _ = notrace " [ symbolToVarCB ] Rec " []
 
 varsE :: GHC.CoreExpr -> [Var]
 varsE (GHC.Lam a e) = a : varsE e
