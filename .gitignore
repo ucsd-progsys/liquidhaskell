@@ -50,3 +50,4 @@ css/
 .liquid
 .dir-locals.el
 .tasty-rerun-log
+**hie.yaml
