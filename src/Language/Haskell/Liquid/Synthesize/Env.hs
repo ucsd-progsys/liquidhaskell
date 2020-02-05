@@ -36,7 +36,9 @@ tpToCons (RAllT a t x)  = tpToCons t
 tpToCons (RApp c _ _ r) = tyConDataCons (rtc_tc c)
 tpToCons (RFun sym rt0 rt1 reft)
   = tpToCons rt0 ++ tpToCons rt1
-tpToCons rt = error (" [ tpToCons ] for rt = " ++ show rt)
+tpToCons (RVar v r) 
+  = []
+tpToCons rt = trace (" [ tpToCons ] for rt = " ++ show rt) []
 
 typeToCons :: SpecType -> [DataCon]
 typeToCons rt = S.toList $ S.fromList (tpToCons rt)

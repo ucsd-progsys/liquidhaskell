@@ -1,4 +1,4 @@
-module Language.Haskell.Liquid.Synthesize.Classes (toMethods) where
+module Language.Haskell.Liquid.Synthesize.Classes (toMethods, isInstanceOf) where
 
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types
@@ -14,16 +14,17 @@ import           Name
 import           ConLike
 import           PatSyn
 import           Language.Fixpoint.Types.PrettyPrint
+import           Language.Haskell.Liquid.Synthesize.Misc
 
 absTySig :: CGInfo -> Type -> Type
 absTySig i (ForAllTy v t) = ForAllTy v (absTySig i t)
 absTySig _ (TyVarTy v) =
-    trace (" Var = " ++ show v ++ " with type " ++ showTy (varType v))
+    notrace (" Var = " ++ show v ++ " with type " ++ showTy (varType v))
         $ TyVarTy v
 absTySig i (AppTy t1 t2) = AppTy (absTySig i t1) (absTySig i t2)
 absTySig i (FunTy t1 t2) = FunTy (absTySig i t1) (absTySig i t2)
 absTySig info (TyConApp tyCon what) =
-    trace
+    notrace
             (  " [ TyConApp ] "
             ++ show (map (isInstanceOf tyCon) (filterTCs info))
             ++ "\n"
@@ -99,9 +100,9 @@ tyThingsMatch (t : ts) = case tyThingMatch t of
     tyThingMatch (AnId id) = -- trace ( " [ TyThing ] " ++ show id ) $
         Nothing
     tyThingMatch (AConLike conLike) = case conLike of
-        RealDataCon dtCon -> trace (" [ AConLike ] " ++ show dtCon) Nothing
+        RealDataCon dtCon -> notrace (" [ AConLike ] " ++ show dtCon) Nothing
         PatSynCon pSyn ->
-            trace (" [ PSyn ] " ++ show (patSynName pSyn)) Nothing
+            notrace (" [ PSyn ] " ++ show (patSynName pSyn)) Nothing
     tyThingMatch _ = Nothing
 
 getClass :: TyCon -> String

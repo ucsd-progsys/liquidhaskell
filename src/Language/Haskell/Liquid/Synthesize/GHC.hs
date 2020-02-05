@@ -30,10 +30,6 @@ import qualified Data.HashMap.Strict as M
 
 instance Default Type where
     def = TyVarTy alphaTyVar 
-    
--- JP: Let's try to avoid this.
--- instance Default CoreExpr where 
---     def = Var $ mkVar (Just "undefined") 0 def
 
 mkVar :: Maybe String -> Int -> Type -> Var
 mkVar x i t = mkGlobalVar VanillaId name t vanillaIdInfo 
@@ -65,18 +61,6 @@ createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                  = [t]
 
 
--- Removes forall from type and replaces
--- type variables from the first argument to the second argument.
--- Returns the new type.
--- TODO: Instead of substituting type variables, perform type applications
--- and then, get the type.
-instantiateType :: Type -> Type -> Type 
-instantiateType τ t = 
-  let t' = substInType t (varsInType τ)
-  in  case t' of 
-        ForAllTy _ t'' -> t''
-        _              -> t' 
-
 -- TODO: More than one type variables in type (what happens in forall case with that?).
 -- use Language.Haskell.Liquid.GHC.TypeRep.subst instead 
 substInType :: Type -> [TyVar] -> Type 
@@ -93,7 +77,7 @@ substInType _ vars = error $ "My example has one type variable. Vars: " ++ show 
 
 -- Find all variables in type
 varsInType :: Type -> [TyVar] 
-varsInType t = (map head . group . sort) (varsInType' t)
+varsInType t = notrace (" [ varsInType ] for type t = " ++ showTy t) $ (map head . group . sort) (varsInType' t)
   where
     varsInType' (TyVarTy var)                = [var]
     varsInType' (ForAllTy (TvBndr var _) ty) = var : varsInType' ty
@@ -146,6 +130,21 @@ getTopLvlBndrs p =
   concat $ map (\cb -> case cb of GHC.NonRec b _ -> [b]
                                   GHC.Rec recs   -> map fst recs) p
 
+-- | That' s a hack to get the type variables we need for instantiation.
+getUniVars :: GHC.CoreProgram -> Var -> [Var]
+getUniVars cp tlVar = 
+  case filter (\cb -> isInCB cb tlVar) cp of 
+    [cb] -> getUniVars0 (getBody cb tlVar)
+    _    -> error " Every top-level corebind must be unique! "
+
+getUniVars0 :: GHC.CoreExpr -> [Var]
+getUniVars0 (Lam b e) = b : getUniVars0 e
+getUniVars0 e         = trace " [ getUniVars0 ] " []
+
+getBody :: GHC.CoreBind -> Var -> GHC.CoreExpr
+getBody (GHC.NonRec b e) tlVar = if b == tlVar then e else error " [ getBody ] "
+getBody (GHC.Rec recs)   tlVar = error "Assuming our top-level binder is non-recursive (only contains a hole)"
+
 --                       | Current top-level binder |
 varsP :: GHC.CoreProgram -> Var -> (GHC.CoreExpr -> [Var]) -> [Var]
 varsP cp tlVar f = 
@@ -180,7 +179,8 @@ symbolToVar cp tlBndr renv = -- trace (" CaseVars " ++ show (varsP cp tlBndr cas
   let vars = [(F.symbol x, x) | x <- varsP cp tlBndr varsE]
       casevars = [F.symbol x | x <- varsP cp tlBndr caseVarsE]
       tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]
-      symbolVar x = fromMaybe (fromMaybe (error $ " [ symbolToVar ] impossible ") $ lookup x tlVars) $ lookup x vars
+      lookupErrorMsg x = " [ symbolToVar ] impossible lookup for x = " ++ show x
+      symbolVar x = fromMaybe (fromMaybe (error (lookupErrorMsg x)) $ lookup x tlVars) $ lookup x vars
       renv' = foldr (\s hm -> M.delete s hm) renv casevars
   in  M.fromList [ (s, (t, symbolVar s)) | (s, t) <- M.toList renv']
 
@@ -198,3 +198,5 @@ argsE (GHC.Lam a e) = a : argsE e
 argsE (GHC.Let (GHC.NonRec b _) e) = argsE e
 argsE _ = [] 
 
+notrace :: String -> a -> a 
+notrace _ a = a

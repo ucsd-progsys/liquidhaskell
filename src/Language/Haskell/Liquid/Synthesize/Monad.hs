@@ -103,6 +103,9 @@ initState ctx fcfg cgi cgenv renv env = do
 getSEnv :: SM SSEnv
 getSEnv = ssEnv <$> get 
 
+getSEMem :: SM ExprMemory
+getSEMem = sExprMem <$> get
+
 type LEnv = M.HashMap Symbol SpecType -- | Local env.
 
 getLocalEnv :: SM LEnv
@@ -225,6 +228,7 @@ withInsInitEM senv = do
 
 instantiate :: CoreExpr -> Maybe Var -> CoreExpr
 instantiate e mbt = 
+ trace (" [ instantiate ] for e = " ++ show e ++ " and mbt = " ++ show mbt) $
   case mbt of
     Nothing    -> e
     Just tyVar -> 
@@ -233,7 +237,7 @@ instantiate e mbt =
         _           -> e
 
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
-withInsProdCands specTy =  
+withInsProdCands specTy =  trace (" [ withInsProdCands ] " ++ show specTy) $
   do  senv <- ssEnv <$> get 
       mbTyVar <- sGoalTyVar <$> get 
       let τ            = toType specTy 
@@ -242,7 +246,7 @@ withInsProdCands specTy =
           funTyCands'  = filter filterFn cands 
       return $
         map (\(s, (_, v)) -> 
-            let e  = instantiate (GHC.Var v) mbTyVar 
+            let e  = instantiate (GHC.Var v) (tracepp " withInsProdCands goalVar " mbTyVar) 
                 ty = exprType e 
             in (s, (ty, v))) funTyCands' 
 

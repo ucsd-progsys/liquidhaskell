@@ -24,15 +24,21 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Fixpoint.Types.PrettyPrint
 import           Debug.Trace 
 
+getVars0 :: [(Symbol, (Type, Var))] -> [Var] 
+getVars0 []                 = []
+getVars0 ((_, (_, v)) : vs) = v : getVars0 vs
+
 -- Generate terms that have type t: This changes the ExprMem in SM state.
 -- Return expressions type checked against type t.
 genTerms :: SpecType -> SM [CoreExpr] 
-genTerms specTy = 
+genTerms specTy = trace ( " [ genTerms ] specTy = " ++ show specTy) $
   do  funTyCands <- withInsProdCands specTy
 
-      es <- withTypeEs specTy
+      sEMem <- getSEMem
 
-      filterElseM (hasType specTy) es $ 
+      es <- withTypeEs (trace (" [ genTerms ] ExprMemory = " ++ showEmem sEMem) specTy)
+
+      filterElseM (hasType specTy) ( tracepp " [ genTerms ] es = " es) $ 
 
         withDepthFill specTy 0 funTyCands 
 
@@ -40,9 +46,9 @@ genTerms specTy =
 withDepthFill :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
 withDepthFill t depth funTyCands = do
   curEm <- sExprMem <$> get
-  exprs <- fillMany depth curEm funTyCands []
+  exprs <- fillMany depth curEm (trace (" [ withDepthFill ]: funTyCands " ++ show (getVars0 funTyCands)) funTyCands) []
 
-  filterElseM (hasType t) exprs $
+  filterElseM (hasType t) (tracepp " withDepthFill: exprs = " exprs) $
     -- TODO review the following line
     -- modify (\s -> s { sAppDepth = sAppDepth s + 1 })
     if depth < maxAppDepth
@@ -113,13 +119,13 @@ fillMany depth exprMem (cand : cands) accExprs = do
       let nextEm = map (resultTy, , curAppDepth + 1) newExprs
       modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
       let accExprs' = newExprs ++ accExprs
-      -- trace (
-      --   " [ fillMany <" ++ show depth ++ 
-      --   "> for cand " ++ show (fst cand) ++ 
-      --   " argCands "  ++ show argCands ++
-      --   " Expressions: " ++ show (length newExprs) ++ 
-      --   "] \n" ++ show accExprs') $ 
-      fillMany depth exprMem cands accExprs'
+      trace (
+        " [ fillMany <" ++ show depth ++ 
+        "> for cand " ++ show (fst cand) ++ 
+        " argCands "  ++ show argCands ++
+        " Expressions: " ++ show (length newExprs) ++ 
+        "] \n" ++ show accExprs') $ 
+        fillMany depth exprMem cands accExprs'
 
 -- {applyOne, applyNext, applyMany} are auxiliary functions for `fillOne`
 applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]

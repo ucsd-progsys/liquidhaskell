@@ -6,30 +6,16 @@
 module Language.Haskell.Liquid.Synthesize.Misc where
 
 import qualified Language.Fixpoint.Types        as F 
-import qualified Language.Fixpoint.Types.Config as F
-import qualified Language.Fixpoint.Smt.Interface as SMT
 
 
 import           Control.Monad.State.Lazy
 
 import CoreSyn (CoreExpr)
-import qualified CoreSyn as GHC
 import           TyCoRep 
--- import Language.Haskell.Liquid.Synthesize.Monad
-import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
+import           Text.PrettyPrint.HughesPJ (text, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.GHC.Misc (isBaseType)
 
--- can we replace it with Language.Haskell.Liquid.GHC.Misc.isBaseType ? 
--- False if it s function or a polymorphic function, else true.
-isBasic :: Type -> Bool
-isBasic TyConApp{}     = True
-isBasic TyVarTy {}     = True
-isBasic (ForAllTy _ t) = isBasic t
-isBasic AppTy {}       = False 
-isBasic LitTy {}       = False
-isBasic _              = False
 
 
 isFunction :: Type -> Bool
@@ -87,7 +73,7 @@ showEmem :: (Show a1, Show a2) => [(Type, a1, a2)] -> String
 showEmem  emem = show $ showEmem' emem
 
 showEmem' :: (Show a1, Show a2) => [(Type, a1, a2)] -> [(String, String, String)]
-showEmem' emem = map (\(t, e, i) -> (showTy t, show e, show i)) emem
+showEmem' emem = map (\(t, e, i) -> (show e, showTy t, show i)) emem
 
 exprmemToExpr :: [(a2, CoreExpr, Int)] -> String
 exprmemToExpr em = show $ map (\(_, e, i) -> show (fromAnf e, i) ++ " * ") em 

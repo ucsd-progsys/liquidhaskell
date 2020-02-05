@@ -41,7 +41,7 @@ hasType t !e' = do
   if tpOfE == ht
     then do
       r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ " SpecType " ++ "\n Res = " ++ show r)
+      liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ " SpecType " ++ "\n Res = " ++ show r)
       return r
     else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
@@ -51,34 +51,7 @@ isWellTyped :: CoreExpr -> SM Bool
 isWellTyped e =  do 
   t <- liftCG $ trueTy $ exprType e 
   hasType t e 
-  
-{-  
-  do 
-  x  <- freshVarType (exprType e')
-  st <- get 
-  r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e Nothing 
-  -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fst $ fromAnf e []) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
-  return $ F.tracepp ("IsWellTyped " ++ showpp e) r 
- where e = tx e'
- -} 
 
- 
-{-
-tx turns 
-let x1 = 
-    let x2 = 
-      let x3 = e3 in 
-      e2[x3] in 
-    e1[x2] in 
-e[x1]
-into 
-let x3 = e3     in 
-let x2 = e2[x3] in 
-let x1 = e1[x2] in
-e[x1] 
-
-so that the refinement type of e can refer to all bindings x1, x2, x3
--}
 
 tx :: CoreExpr -> CoreExpr
 tx (Case e b t alts) = Case e b t (mapThd3 tx <$> alts)
