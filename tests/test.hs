@@ -590,7 +590,11 @@ testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
 ---------------------------------------------------------------------------
 testCmd bin dir file smt (LO opts)
 #ifdef USE_PLUGIN
-  = printf "cd %s && %s %s" dir bin file
+  = printf "%s -i. -i%s %s %s" bin dir pluginOpts (dir </> file)
+  where
+    pluginOpts = 
+      let fullOpts = ("--smtsolver=" ++ show smt) : words opts
+      in L.intercalate " " . map (printf "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:%s") $ fullOpts
 #else
   = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file opts
 #endif
