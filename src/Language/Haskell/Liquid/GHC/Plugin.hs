@@ -478,7 +478,7 @@ processModule LiquidHaskellContext{..} = do
   bareSpecs           <- makeBareSpecs cfg updatedEnv (moduleName thisModule) bareSpec
   let ghcSpec          = makeGhcSpec   cfg ghcSrc lhModuleLogicMap (map fromCached . HS.toList $ bareSpecs)
   let ghcInfo          = GI ghcSrc ghcSpec
-  let finalEnv         = M.insert thisModule (HS.singleton $ toCached (modName, termlessSpec)) updatedEnv
+  let finalEnv         = extendSpecEnv (moduleName thisModule) (HS.singleton $ toCached (modName, termlessSpec)) updatedEnv
 
   pure (termlessSpec, finalEnv, ghcInfo)
 

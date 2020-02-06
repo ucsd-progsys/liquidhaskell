@@ -82,14 +82,18 @@ findRelevantSpecs cfg eps specEnv target = foldlM loadRelevantSpec (specEnv, mem
         Nothing         -> pure (currentEnv, SpecNotFound (moduleName mod) : acc)
         Just specResult -> do
           let env' = case specResult of
-                       SpecFound location spec           -> M.insert mod (HS.singleton spec) currentEnv
-                       MultipleSpecsFound location specs -> M.insert mod specs               currentEnv
+                       SpecFound location spec           ->
+                         extendSpecEnv (moduleName mod) (HS.singleton spec) currentEnv
+                       MultipleSpecsFound location specs ->
+                         foldl' (\m el -> 
+                           extendSpecEnv (cachedModuleName el) (HS.singleton el) m
+                         ) currentEnv specs
           pure (env', specResult : acc)
 
 -- | Try to load the spec from the 'SpecEnv'.
 lookupCachedSpec :: SpecFinder m
 lookupCachedSpec specEnv mod = do
-  r <- MaybeT $ pure (M.lookup mod specEnv)
+  r <- MaybeT $ pure (M.lookup (moduleName mod) specEnv)
   case HS.toList r of
     [b] -> pure $ SpecFound SpecEnvLocation b
     bs  -> pure $ MultipleSpecsFound SpecEnvLocation (HS.fromList bs)
