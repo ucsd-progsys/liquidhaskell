@@ -100,6 +100,13 @@ jobs:
     steps:
       - cabal_build_and_test
 
+  cabal_810_plugin:
+    docker:
+      - image: adinapoli/ghc:8.10.1-slim
+    steps:
+      - cabal_build_and_test:
+          liquid_runner: "--liquid-runner=cabal v2-exec ghc -- -package liquidhaskell -i. -fplugin=Language.Haskell.Liquid.GHC.Plugin "
+
 workflows:
   version: 2
   build_stack_and_cabal:
@@ -107,3 +114,4 @@ workflows:
       - stack
       - cabal_865
       - cabal_810
+      - cabal_810_plugin
