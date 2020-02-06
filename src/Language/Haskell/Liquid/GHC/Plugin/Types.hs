@@ -10,6 +10,8 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , WrappedSpec(..)
     , toCached
     , fromCached
+    , cachedModuleName
+    , extendSpecEnv
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
     , tcImports
@@ -41,11 +43,12 @@ import           Data.Map                                 ( Map )
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
 
+import qualified Data.Map.Strict                         as M
 import qualified Data.HashSet                            as HS
 import           Data.HashSet                             ( HashSet )
 import           Data.Hashable
 
-type SpecEnv    = Map Module (HashSet CachedSpec)
+type SpecEnv    = Map ModuleName (HashSet CachedSpec)
 data CachedSpec = CachedSpec ModName WrappedSpec deriving (Generic, Eq)
 
 toCached :: (ModName, BareSpec) -> CachedSpec
@@ -53,6 +56,16 @@ toCached s = CachedSpec (fst s) (WrappedSpec . snd $ s)
 
 fromCached :: CachedSpec -> (ModName, BareSpec)
 fromCached (CachedSpec mn (WrappedSpec s)) = (mn, s)
+
+cachedModuleName :: CachedSpec -> ModuleName
+cachedModuleName (CachedSpec mn _) = getModName mn
+
+extendSpecEnv :: ModuleName -> HashSet CachedSpec -> SpecEnv -> SpecEnv
+extendSpecEnv mn specs = M.alter f mn
+  where
+    f :: Maybe (HashSet CachedSpec) -> Maybe (HashSet CachedSpec)
+    f Nothing   = Just specs
+    f (Just sp) = Just (sp `mappend` specs)
 
 instance Hashable CachedSpec
 
