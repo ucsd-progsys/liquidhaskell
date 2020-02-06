@@ -450,8 +450,7 @@ makeGhcSrc :: GhcMonadLike m
            -> HscEnv
            -> m GhcSrc
 makeGhcSrc cfg file tcData modGuts hscEnv = do
-  df             <- unoptimise <$> getDynFlags
-  coreBinds      <- liftIO $ anormalize cfg (unoptimise (df, hscEnv)) modGuts
+  coreBinds      <- liftIO $ anormalize cfg hscEnv modGuts
   let dataCons    = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
   (fiTcs, fiDcs) <- liftIO $ LH.makeFamInstEnv hscEnv
   let things      = tcResolvedNames tcData
