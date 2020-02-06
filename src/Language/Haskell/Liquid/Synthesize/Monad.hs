@@ -247,7 +247,6 @@ withInsInitEM senv = do
 
 instantiate :: CoreExpr -> Maybe Var -> CoreExpr
 instantiate e mbt = 
- trace (" [ instantiate ] for e = " ++ show e ++ " and mbt = " ++ show mbt) $
   case mbt of
     Nothing    -> e
     Just tyVar -> 
@@ -282,7 +281,7 @@ withInsProdCands specTy =  notrace (" [ withInsProdCands ] " ++ show specTy) $
 withTypeEs :: SpecType -> SM [CoreExpr] 
 withTypeEs t = do 
     em <- sExprMem <$> get 
-    let withTypeEM = filter (\(t', _, _) -> t' == toType t) (tracepp " [ withTypeEs ] " em) 
+    let withTypeEM = filter (\(t', _, _) -> t' == toType t) em
     return (takeExprs withTypeEM) 
 
 
@@ -295,7 +294,7 @@ findCandidates senv goalTy = do
       s2 = map change s1
 
       -- TODO FIX: This is a hack to instantiate top level binder with type variables
-      change x@(s, (t, v)) = if v == xtop then (s, ((tracepp " FIXED " t0), v)) else x
+      change x@(s, (t, v)) = if v == xtop then (s, (t0, v)) else x
       toTypes (s, (t, v))  = (s, (toType t, v))
 
       cut (_, (t, v)) = goalType goalTy t

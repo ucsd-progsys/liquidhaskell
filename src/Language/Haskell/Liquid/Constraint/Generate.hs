@@ -690,7 +690,7 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
 
 cconsE' γ e t
-  = trace ( " [ cconsE ] For e = " ++ show e ++ " and rt = " ++ show t ++ " and t = " ++ showTy (exprType e)) $ 
+  = -- trace ( " [ cconsE ] For e = " ++ show e ++ " and rt = " ++ show t ++ " and t = " ++ showTy (exprType e)) $ 
       do  te  <- consE γ e
           te' <- instantiatePreds γ e te >>= addPost γ
           addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)

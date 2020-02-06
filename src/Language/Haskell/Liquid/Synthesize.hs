@@ -71,7 +71,7 @@ synthesize tgt fcfg cginfo =
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
       -- Instantiate @typeOfTopLvlBnd@ with @uniVars@
-      fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd state0
+      fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x (tracepp "**** TYPE **** " typeOfTopLvlBnd) topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -122,7 +122,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               let dt = decrType xtop ttop ys (zip xs txs)
-              addEnv xtop dt
+              addEnv xtop (tracepp "Decreasing type is " dt)
               emem0 <- withInsInitEM senv 
               modify (\s -> s { sExprMem = emem0 }) 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
@@ -144,7 +144,7 @@ synthesizeBasic t = do
   es <- genTerms t
   notrace (" [ synthesizeBasic ] " ++ show (getVars senv)) $
     case es of 
-      [] -> notrace " Will be entering synthesizeMatch " $ do
+      [] -> trace " Will be entering synthesizeMatch " $ do
         senv <- getSEnv
         lenv <- getLocalEnv 
         synthesizeMatch lenv senv t

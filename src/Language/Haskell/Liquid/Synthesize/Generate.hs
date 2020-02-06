@@ -88,10 +88,10 @@ repeatPrune depth down up toBeFilled cands acc =
       let (cands', cands'') = updateIthElem down depth cands 
       es <- fillOne toBeFilled cands'
       -- TODO Just testing...
-      -- acc' <- (++ acc) <$> filterM isWellTyped es
-      let acc' = es ++ acc
+      acc' <- (++ acc) <$> filterM isWellTyped es
+      -- let acc' = es ++ acc
       -- trace ("For down = " ++ show down ++ " cs' " ++ show cands' ++ " cs'' " ++ show cands'') $ 
-      repeatPrune depth (down + 1) up toBeFilled cands'' es -- acc'
+      repeatPrune depth (down + 1) up toBeFilled cands'' acc'
     else return acc
 
 getVarName (_, (_, vn)) = vn
@@ -114,11 +114,18 @@ fillMany depth exprMem (cand : cands) accExprs = do
       argCands          = map (withSubgoal exprMem) (notrace (" [ fillMany ] For cand " ++ show (getVarName cand) ++ " subgoals are " ) subgoals )
       check             = foldr (\l b -> null l || b) False (notrace (" [ fillMany ] For cand " ++ show (getVarName cand) ++ " argCands are " ) argCands)
 
-  --  | TODO: Document this. You started by @map :: x_S0: (a->b) -> x_S1: [a] -> v: [b]
+  --  | TODO: Document this. 
+  --    Example in progress: @map :: x_S0: (a->b) -> x_S1: [a] -> v: [b]@
   newGoals <- mapM (\t -> liftCG $ trueTy t) subgoals
-  ex <- mapM genTerms newGoals 
+  tmpCands <- mapM withInsProdCands newGoals
+  -- | Make the types stronger
+  --   For example, you have if you have (:) as cand 
+  --   then (:) :: x: b { len x = 1 } -> { xs: [b] | len xs == len v - 1 } -> v: [b]
+  --   instead of  x: b { true } -> { xs: [b] | true } -> v: [b]
 
-  if (tracepp (" [ fillMany ] For cand " ++ show (getVarName cand) ++ " newGoals = " ++ show newGoals ++ " check is " ) check) 
+  -- ex <- mapM genTerms newGoals 
+
+  if (trace (" [ fillMany ] For cand " ++ show (getVarName cand) ++ " newGoals = " ++ show newGoals ++ " and cand functions are " ++ show (map getVars0 tmpCands)) check) 
     then fillMany depth exprMem (notrace " [ fillMany ] cands " cands) accExprs 
     else do
       curAppDepth <- sAppDepth <$> get 
@@ -138,13 +145,14 @@ fillMany depth exprMem (cand : cands) accExprs = do
 applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
 applyOne v args typeOfArgs = notrace (" [ applyOne ] v = " ++ show v) $ do
   xtop <- getSFix
+  uniVars <- getSUniVars
   (ttop, e) <- instantiateTL
   idx <- incrSM
   mbTyVar <- sGoalTyVar <$> get
   let tyvar = fromMaybe (error "No type variables in the monad!") mbTyVar
-  v'' <- if v == xtop 
-          then return (notrace " [applyOne] e " e)
-          else case varType (notrace " [ applyOne ] varType " v) of
+  v'' <- if ( trace (" [ applyOne ] xtop = " ++ show xtop ++ " and uniVars = " ++ show uniVars) (v == xtop) )
+          then return (tracepp " applyOne returned " e)
+          else case varType v of
                   ForAllTy{} -> return $ GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
                   _          -> return $ GHC.Var v
   return 

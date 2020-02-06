@@ -44,7 +44,8 @@ freshName i = "lSyn$" ++ show i
 --        | goal |
 goalType :: Type -> Type -> Bool
 goalType τ t@(ForAllTy (TvBndr var _) htype) = 
-  let substHType = substInType htype (varsInType τ)
+  -- Why need substituting variables?
+  let substHType = substInType htype (varsInType (tracepp " goalType " τ))
   in  goalType τ substHType
 goalType τ t@(FunTy _ t'') -- τ: base types
   | t'' == τ  = True
@@ -62,7 +63,7 @@ createSubgoals t                  = [t]
 
 
 -- TODO: More than one type variables in type (what happens in forall case with that?).
--- use Language.Haskell.Liquid.GHC.TypeRep.subst instead 
+-- Why do we need variable substitutions? Type applications are not enough?
 substInType :: Type -> [TyVar] -> Type 
 substInType t []   = t
 substInType t [tv] = substInType' tv t
@@ -73,7 +74,7 @@ substInType t [tv] = substInType' tv t
     substInType' tv (AppTy t0 t1)                = AppTy (substInType' tv t0) (substInType' tv t1)
     substInType' tv (TyConApp c ts)              = TyConApp c (map (substInType' tv) ts)
     substInType' _  t                            = error $ "[substInType'] Shouldn't reach that point for now " ++ showTy t
-substInType _ vars = error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
+substInType t vars = t -- Hackish comment: error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
 
 -- Find all variables in type
 varsInType :: Type -> [TyVar] 
