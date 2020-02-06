@@ -15,12 +15,12 @@ import Var
 import Debug.Trace
 
 decrType :: Var -> SpecType -> [Var] -> [(F.Symbol, SpecType)] -> SpecType
-decrType x ti xs xts = -- F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) $ 
-  go [] [] xs ti 
+decrType _x ti xs _xts = -- F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) $ 
+  go xs ti 
   where
-    go accvs accxts (v:vs) (RFun x tx t r) 
-      | isDecreasing mempty mempty tx  = let Left (x', tx') = R.makeDecrType mempty (zip (v:accvs) ((x,tx):accxts)) 
+    go (v:vs) (RFun x tx t r) 
+      | isDecreasing mempty mempty tx  = let Left (x', tx') = R.makeDecrType mempty [(v,(x,tx))] 
                                          in  RFun x' tx' t r 
-    go accvs accxts (v:vs) (RFun x tx t r) = RFun x tx (go (v:accvs) ((x,tx):accxts) vs t) r
-    go accvs accxts vs (RAllT a t x) = RAllT a (go accvs accxts vs t) x
-    go _     _       _     t = t 
+    go (v:vs) (RFun x tx t r) = RFun x tx (go vs t) r
+    go vs (RAllT a t x) = RAllT a (go vs t) x
+    go _     t = t 
