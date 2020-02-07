@@ -152,7 +152,7 @@ synthesizeBasic t = do
 
 
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch lenv γ t = notrace ("[synthesizeMatch] es = " ++ show es) $ 
+synthesizeMatch lenv γ t = trace ("[synthesizeMatch] es = " ++ show es) $ 
   join <$> mapM (withIncrDepth . matchOn t) es
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
@@ -165,7 +165,7 @@ matchOn t (v, tx, c) = (GHC.Case (GHC.Var v) v (toType tx) <$$> sequence) <$> ma
 
 
 makeAlt :: Var -> SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
+makeAlt var t (x, tx@(RApp _ ts _ _)) c = trace ( " [ makeAlt ] " ++ show var) $ locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 

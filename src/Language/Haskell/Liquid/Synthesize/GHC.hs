@@ -45,7 +45,7 @@ freshName i = "lSyn$" ++ show i
 goalType :: Type -> Type -> Bool
 goalType τ t@(ForAllTy (TvBndr var _) htype) = 
   -- Why need substituting variables?
-  let substHType = substInType htype (varsInType (tracepp " goalType " τ))
+  let substHType = substInType htype (varsInType τ)
   in  goalType τ substHType
 goalType τ t@(FunTy _ t'') -- τ: base types
   | t'' == τ  = True
