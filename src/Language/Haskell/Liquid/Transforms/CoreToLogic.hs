@@ -384,13 +384,23 @@ toPredApp p = go . Misc.mapFst opSym . splitArgs $ p
       = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("==>" :: String)
       = PImp <$> coreToLg e1 <*> coreToLg e2
-    go (Just f, es)
+    go (Just f, [es])
       | f == symbol ("or" :: String)
-      = POr  <$> mapM coreToLg es
+      = POr  . deList <$> coreToLg es
       | f == symbol ("and" :: String)
-      = PAnd <$> mapM coreToLg es
+      = PAnd . deList <$> coreToLg es
     go (_, _)
       = toLogicApp p
+    
+    deList :: Expr -> [Expr]
+    deList (EApp (EApp (EVar cons) e) es)
+      | cons == symbol ("GHC.Types.:" :: String)
+      = e:deList es 
+    deList (EVar nil)
+      | nil == symbol ("GHC.Types.[]" :: String)
+      = [] 
+    deList e 
+      = [e]
 
 toLogicApp :: C.CoreExpr -> LogicM Expr
 toLogicApp e = do
