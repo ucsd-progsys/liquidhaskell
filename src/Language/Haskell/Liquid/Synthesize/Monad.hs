@@ -267,7 +267,7 @@ instantiate e mbt =
     Just tyVars -> apply tyVars e
 
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
-withInsProdCands specTy =  notrace (" [ withInsProdCands ] " ++ show specTy) $
+withInsProdCands specTy = 
   do  senv <- ssEnv <$> get 
       xtop <- getSFix
       (ttop, _) <- instantiateTL
@@ -285,10 +285,8 @@ withInsProdCands specTy =  notrace (" [ withInsProdCands ] " ++ show specTy) $
 
           change e = let { e' = instantiate e mbTyVar; t' = exprType e' } in (e', t')
 
-      return $
-        map (\(s, (_, v)) -> 
-            let (e, ty) = handleIt (GHC.Var v)
-            in (s, (ty, v))) funTyCands' 
+      return $ map (\(s, (_, v)) -> let (e, ty) = handleIt (GHC.Var v)
+                                    in (s, (ty, v))) funTyCands' 
 
 withTypeEs :: SpecType -> SM [CoreExpr] 
 withTypeEs t = do 
@@ -300,7 +298,7 @@ withTypeEs t = do
 findCandidates :: SSEnv -> Type -> SM [(Symbol, (Type, Var))]
 findCandidates senv goalTy = do
   (t0, _) <- instantiateTL
-  xtop <- getSFix
+  xtop    <- getSFix
   let s0 = M.toList senv
       s1 = map toTypes s0
       s2 = map change s1
@@ -308,8 +306,6 @@ findCandidates senv goalTy = do
       -- TODO FIX: This is a hack to instantiate top level binder with type variables
       change x@(s, (t, v)) = if v == xtop then (s, (t0, v)) else x
       toTypes (s, (t, v))  = (s, (toType t, v))
-
-      cut (_, (t, v)) = goalType goalTy t
+      cut (_, (t, v))      = goalType goalTy t  
   return (filter cut s2)
-
-go (_, (t, _)) = t 
+  
