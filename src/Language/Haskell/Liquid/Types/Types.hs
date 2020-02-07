@@ -714,7 +714,7 @@ data RType c tv r
   | RAllE {
       rt_bind   :: !Symbol
     , rt_allarg :: !(RType c tv r)
-    , rt_ty     :: !(RType c tv r)
+    , rt_ty     :: !(RType c tv r) -- bind goes here
     }
 
   | REx {
@@ -733,9 +733,9 @@ data RType c tv r
 
   | RRTy  {
       rt_env   :: ![(Symbol, RType c tv r)]
-    , rt_ref   :: !r
+    , rt_ref   :: !r -- depends on env
     , rt_obl   :: !Oblig
-    , rt_ty    :: !(RType c tv r)
+    , rt_ty    :: !(RType c tv r) -- does not depend on env
     }
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`

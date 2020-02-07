@@ -200,7 +200,7 @@ ghcSpecEnv sp = fromListSEnv binds
 --                   -> Ghc.Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
 --                    -- should have returned Maybe [F.Symbol]
 -- elaborateSpecType bts coreToLogic t =
---   case F.tracepp ("elaborateSpecType: " ++ F.showpp bts) t of
+--   case F.notracepp ("elaborateSpecType: " ++ F.showpp bts) t of
 --     RVar (RTV tv) (MkUReft reft@(F.Reft(vv,_oldE)) p) -> do
 --       elaborateReft (reft, GM.showPpr tv) (pure (t, []))
 --         (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv,ee)) p), bs'))
@@ -279,14 +279,22 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc
 makeGhcSpec0 cfg src lmap mspecs = do
   -- liftIO $ mapM_ (putStrLn . F.showpp) (val.snd<$>gsTySigs sig)
   -- liftIO $ mapM_ (mapReftM (\(MkUReft (F.Reft (vv,r)) _) -> putStrLn$(F.symbolSafeString vv ++ ":" ++ toGhcExpr r))) (val.snd<$> gsTySigs sig)
-  -- let sigs = val.snd <$>
+  -- let sigs = val.mapsnd <$>
   --            [(x,y) | (x,y) <- gsTySigs sig, ("VerifiedMonad" `L.isPrefixOf` GM.showPpr x )] :: [SpecType]
-  let sigs = val.snd <$> gsTySigs sig
-  elaboratedSigs <- mapM (elaborateSpecType (pure ()) coreToLg) sigs
-  liftIO $ putStrLn "Before:"
-  liftIO $ putStrLn $ F.showpp sigs
-  liftIO $ putStrLn "After:"
-  liftIO $ putStrLn $ F.showpp elaboratedSigs
+  -- let sigs = val.snd <$> gsTySigs sig
+  sigs' <-    forM
+             [(x,y) | (x,y) <- gsTySigs sig]  $ \(x,locSpec) -> do
+        locSpec' <- traverse (elaborateSpecType (pure ()) coreToLg) locSpec
+        pure (x, fst <$> locSpec')
+        
+  -- liftIO $ mapM_ (mapReftM (\(MkUReft (F.Reft (vv,r)) _) -> putStrLn$(F.symbolSafeString vv ++ ":" ++ show r))) (val.snd <$> sigs')
+
+                                                                                             
+  -- elaboratedSigs <- mapM (elaborateSpecType (pure ()) coreToLg) sigs
+  -- liftIO $ putStrLn "Before:"
+  -- liftIO $ putStrLn $ F.showpp sigs'
+  -- liftIO $ putStrLn "After:"
+  -- liftIO $ putStrLn $ F.showpp sigs
 
   -- liftIO $ putStrLn "[DUMPING toType]"
   -- liftIO $ mapM_ (putStrLn . GM.showPpr . Ghc.typeToLHsType) (toType <$> sigs)
@@ -304,7 +312,7 @@ makeGhcSpec0 cfg src lmap mspecs = do
   pure $ SP
     { gsConfig = cfg 
     , gsImps   = makeImports mspecs
-    , gsSig    = addReflSigs refl sig 
+    , gsSig    = addReflSigs refl sig {gsTySigs = sigs'}
     , gsRefl   = refl 
     , gsLaws   = laws 
     , gsData   = sData 
@@ -320,7 +328,7 @@ makeGhcSpec0 cfg src lmap mspecs = do
     }
   where
     -- build up spec components
-    coreToLg = \e -> case CoreToLogic.runToLogic embs lmap dm
+    coreToLg e = case CoreToLogic.runToLogic embs lmap dm
                           (\x -> todo Nothing ("ctl not working " ++ x)) (CoreToLogic.coreToLogic e)
                      of Left _ -> impossible Nothing "can't reach here"
                         Right e -> e
@@ -484,7 +492,7 @@ makeSpecQual _cfg env tycEnv measEnv _rtEnv specs = SpQual
   } 
   where 
     quals        = concatMap (makeQualifiers env tycEnv) (M.toList specs) 
-    -- mSyms        = F.tracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
+    -- mSyms        = F.notracepp "MSYMS" $ M.fromList (Bare.meSyms measEnv ++ Bare.meClassSyms measEnv)
     okQual q     = F.notracepp ("okQual: " ++ F.showpp q) 
                    $ all (`S.member` mSyms) (F.syms q)
     mSyms        = F.notracepp "MSYMS" . S.fromList 
@@ -981,7 +989,7 @@ makeSpecName env tycEnv measEnv name = SpNames
   where 
     datacons, cls :: [DataConP]
     datacons   = Bare.tcDataCons tycEnv 
-    cls        = F.tracepp "meClasses" $ Bare.meClasses measEnv 
+    cls        = F.notracepp "meClasses" $ Bare.meClasses measEnv 
     tycons     = Bare.tcTyCons   tycEnv 
 
 
@@ -1006,8 +1014,8 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
     tyi           = Bare.qualifyTopDummy env myName (makeTyConInfo embs fiTcs tycons)
-    -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
-    -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
+    -- tycons        = F.notracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
+    -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.notracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
     datacons      = Bare.makePluggedDataCon embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]

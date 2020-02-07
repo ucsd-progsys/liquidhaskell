@@ -324,19 +324,19 @@ brkFun out              = ([], out)
 ppr_forall :: (OkRT c tv r) => PPEnv -> Prec -> RType c tv r -> Doc
 ppr_forall bb p t = maybeParen p funPrec $ sep [
                       ppr_foralls (ppPs bb) (fst <$> ty_vars trep) (ty_preds trep)
-                    , ppr_clss cls
+                    -- , ppr_clss []
                     , ppr_rtype bb topPrec t'
                     ]
   where
     trep          = toRTypeRep t
-    (cls, t')     = bkClass $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
+    (_,_, t')     = bkUniv $ fromRTypeRep $ trep {ty_vars = [], ty_preds = []}
 
     ppr_foralls False _ _  = empty
     ppr_foralls _    [] [] = empty
     ppr_foralls True αs πs = text "forall" <+> dαs αs <+> dπs (ppPs bb) πs <-> dot
 
-    ppr_clss []               = empty
-    ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
+    -- ppr_clss []               = empty
+    -- ppr_clss cs               = (parens $ hsep $ punctuate comma (uncurry (ppr_cls bb p) <$> cs)) <+> text "=>"
 
     dαs αs                    = ppr_rtvar_def αs
 

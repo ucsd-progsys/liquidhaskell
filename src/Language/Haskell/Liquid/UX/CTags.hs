@@ -48,7 +48,7 @@ memTagEnv :: TagKey -> TagEnv -> Bool
 memTagEnv = M.member
 
 makeTagEnv :: [CoreBind] -> TagEnv
-makeTagEnv = {- tracepp "TAGENV" . -} M.map (:[]) . callGraphRanks . makeCallGraph
+makeTagEnv = {- notracepp "TAGENV" . -} M.map (:[]) . callGraphRanks . makeCallGraph
 
 -- makeTagEnv = M.fromList . (`zip` (map (:[]) [1..])). L.sort . map fst . concatMap bindEqns
 

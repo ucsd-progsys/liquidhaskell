@@ -86,11 +86,11 @@ makeAxiomEnvironment info xts fcs
     sp       = giSpec     info
 
 _isClassOrDict :: Id -> Bool
-_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
+_isClassOrDict x = F.notracepp ("isClassOrDict: " ++ F.showpp x) 
                     $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
 
 hasClassArg :: Id -> Bool
-hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
+hasClassArg x = F.notracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
   where 
     msg       = "hasClassArg: " ++ showpp (x, t:ts)
     (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x

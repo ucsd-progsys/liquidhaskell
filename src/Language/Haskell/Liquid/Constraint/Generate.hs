@@ -1332,7 +1332,7 @@ varRefType :: (?callStack :: CallStack) => CGEnv -> Var -> CG SpecType
 --------------------------------------------------------------------------------
 varRefType γ x = do
   xt <- varRefType' γ x <$> (γ ??= x)
-  return xt -- F.tracepp (printf "varRefType x = [%s]" (showpp x))
+  return xt -- F.notracepp (printf "varRefType x = [%s]" (showpp x))
 
 varRefType' :: CGEnv -> Var -> SpecType -> SpecType
 varRefType' γ x t'
@@ -1451,7 +1451,7 @@ isGeneric γ α t = isGenericVar α t && not (isPLETerm γ)
 -- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
 isPLETerm :: CGEnv -> Bool  
 isPLETerm γ 
-  | Just x <- cgVar γ = {- F.tracepp ("isPLEVar:" ++ F.showpp x) $ -} isPLEVar (giSpec . cgInfo $ γ) x 
+  | Just x <- cgVar γ = {- F.notracepp ("isPLEVar:" ++ F.showpp x) $ -} isPLEVar (giSpec . cgInfo $ γ) x 
   | otherwise         = False 
 
 -- | @isGenericVar@ determines whether the @RTyVar@ has no class constraints

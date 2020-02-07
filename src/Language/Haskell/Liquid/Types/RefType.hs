@@ -890,7 +890,7 @@ famInstArgs c = case Ghc.tyConFamInst_maybe c of
       cArity      = Ghc.tyConArity c
 
 -- TODO:faminst-preds: case Ghc.tyConFamInst_maybe c of
--- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
+-- TODO:faminst-preds:   Just (c', ts) -> F.notracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
 -- TODO:faminst-preds:                    $ Just (famInstType (Ghc.tyConArity c) c' ts)
 -- TODO:faminst-preds:   Nothing       -> Nothing
 

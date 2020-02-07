@@ -383,7 +383,7 @@ toPredApp p = go . Misc.mapFst opSym . splitArgs $ p
       | f == symbol ("&&" :: String)
       = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("==>" :: String)
-      = F.tracepp "toPredApp" <$> (PImp <$> coreToLg e1 <*> coreToLg e2)
+      = F.notracepp "toPredApp" <$> (PImp <$> coreToLg e1 <*> coreToLg e2)
     go (Just f, es)
       | f == symbol ("or" :: String)
       = POr  <$> mapM coreToLg es
@@ -407,8 +407,18 @@ toLogicApp e = do
 makeApp :: Expr -> LogicMap -> Located Symbol-> [Expr] -> Expr
 makeApp _ _ f [e] | val f == symbol ("GHC.Num.negate" :: String)
   = ENeg e
+                  | val f == symbol ("GHC.Num.fromInteger" :: String)
+                  , ECon c <- e
+  = ECon c
+                  
+    
 
 makeApp _ _ f [e1, e2] | Just op <- M.lookup (val f) bops
+  = EBin op e1 e2
+
+makeApp _ _ f [e1, e2] | (modName, sym) <- GM.splitModuleName (val f)
+                       , symbol ("Ghci" :: String) `isPrefixOfSym` modName
+                       , Just op <- M.lookup (mappendSym (symbol ("GHC.Num." :: String)) sym) bops
   = EBin op e1 e2
 
 makeApp def lmap f es
@@ -524,7 +534,7 @@ isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
 isBangInteger _ = False 
 
 isErasable :: Id -> Bool
-isErasable v = F.tracepp msg $ isGhcSplId v && not (isDCId v) 
+isErasable v = F.tracepp msg $ False -- isGhcSplId v && not (isDCId v) 
   where 
     msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
 
@@ -626,6 +636,6 @@ instance Simplify C.CoreBind where
 
 instance Simplify C.CoreAlt where
   simplify (c, xs, e) = (c, xs, simplify e)
-    -- where xs   = F.tracepp _msg xs0
+    -- where xs   = F.notracepp _msg xs0
     --      _msg = "isCoVars? " ++ F.showpp [(x, isCoVar x, varType x) | x <- xs0]
   inline p (c, xs, e) = (c, xs, inline p e)

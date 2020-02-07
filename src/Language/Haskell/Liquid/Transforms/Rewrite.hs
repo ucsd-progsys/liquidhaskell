@@ -436,7 +436,7 @@ isVarTup xs e
 isVarTup _ _             = Nothing
 
 eqVars :: [Var] -> [Var] -> Bool
-eqVars xs ys = {- F.tracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys'
+eqVars xs ys = {- F.notracepp ("eqVars: " ++ show xs' ++ show ys') -} xs' == ys'
   where
     xs' = {- F.symbol -} show <$> xs
     ys' = {- F.symbol -} show <$> ys

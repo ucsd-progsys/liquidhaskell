@@ -107,9 +107,9 @@ dcWorkSpecType c wrT    = fromRTypeRep (meetWorkWrapRep c wkR wrR)
 
 dataConWorkRep :: DataCon -> SpecRep
 dataConWorkRep c = toRTypeRep
-                 -- . F.tracepp ("DCWR-2: " ++ F.showpp c)
+                 -- . F.notracepp ("DCWR-2: " ++ F.showpp c)
                  . ofType
-                 -- . F.tracepp ("DCWR-1: " ++ F.showpp c)
+                 -- . F.notracepp ("DCWR-1: " ++ F.showpp c)
                  . dataConRepType
                  -- . Var.varType
                  -- . dataConWorkId
@@ -126,7 +126,7 @@ dataConWorkRep dc = RTypeRep
   , ty_res    = t'
   }
   where
-    (ts', t')          = F.tracepp "DCWR-1" (ofType <$> ts, ofType t)
+    (ts', t')          = F.notracepp "DCWR-1" (ofType <$> ts, ofType t)
     as                 = makeRTVar . rTyVar <$> αs
     tArg
     (αs,_,eqs,th,ts,t) = dataConFullSig dc
@@ -158,7 +158,7 @@ meetWorkWrapRep c workR wrapR
   | otherwise
   = panic (Just (getSrcSpan c)) errMsg
   where
-    pad       = {- F.tracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ -} workN - wrapN
+    pad       = {- F.notracepp ("MEETWKRAP: " ++ show (ty_vars workR)) $ -} workN - wrapN
     (xs, _)   = splitAt pad (ty_binds workR)
     (ts, ts') = splitAt pad (ty_args  workR)
     workN     = length      (ty_args  workR)
@@ -170,7 +170,7 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
 dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
-  = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
+  = {- F.notracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
     mkArrow makeVars' ps [] ts' rt'
   where
     (xs, ts) = unzip (reverse yts)

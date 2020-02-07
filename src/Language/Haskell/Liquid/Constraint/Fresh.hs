@@ -80,7 +80,7 @@ freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
 freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
 freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
   where
-    t                = {- F.tracepp ("freshTy_reftype:" ++ show k) -} _t
+    t                = {- F.notracepp ("freshTy_reftype:" ++ show k) -} _t
 
 -- | Used to generate "cut" kvars for fixpoint. Typically, KVars for recursive
 --   definitions, and also to update the KVar profile.
@@ -103,7 +103,7 @@ addKuts _x t = modify $ \s -> s { kuts = mappend (F.KS ks) (kuts s)   }
      ks'     = S.fromList $ specTypeKVars t
      ks
        | S.null ks' = ks'
-       | otherwise  = {- F.tracepp ("addKuts: " ++ showpp _x) -} ks'
+       | otherwise  = {- F.notracepp ("addKuts: " ++ showpp _x) -} ks'
 
 specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []

@@ -25,7 +25,7 @@ specToBare :: SpecType -> BareType
 --------------------------------------------------------------------------------
 specToBare = txRType specToBareTC specToBareTV
 
--- specToBare t = F.tracepp ("specToBare t2 = " ++ F.showpp t2)  t1
+-- specToBare t = F.notracepp ("specToBare t2 = " ++ F.showpp t2)  t1
   -- where
     -- t1       = bareOfType . toType $ t
     -- t2       = _specToBare           t

@@ -563,7 +563,7 @@ tyConTyVarsDef c
   | noTyVars c = []
   | otherwise  = TC.tyConTyVars c
   --where
-  --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
+  --  none         = notracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
 
 noTyVars :: TyCon -> Bool
 noTyVars c =  (TC.isPrimTyCon c || isFunTyCon c || TC.isPromotedDataCon c)

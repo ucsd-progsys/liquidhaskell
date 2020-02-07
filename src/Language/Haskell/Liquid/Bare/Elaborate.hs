@@ -18,6 +18,8 @@ import qualified Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
 import qualified Data.List                     as L
+import qualified Data.HashMap.Strict           as M
+import qualified Data.HashSet                  as S
 import           Language.Haskell.Liquid.Types.Errors
 import           Control.Monad.Free
 import           Data.Functor.Foldable
@@ -39,7 +41,9 @@ import           GhcMonad
 import           TcSimplify
 import           PrelNames
 import           Outputable              hiding ( panic )
-import           TysWiredIn                     ( boolTyCon )
+import           TysWiredIn                     ( boolTyCon
+                                                , true_RDR
+                                                )
 import           HscTypes
 import           ErrUtils
 import           HscMain
@@ -50,6 +54,7 @@ import           TysWiredIn
 import           BasicTypes
 import           PrelNames
 import           Data.Default                   ( def )
+import qualified Data.Maybe                    as Mb
 
 
 -- | Base functor of RType
@@ -136,7 +141,7 @@ type RTPropF c tv f = Ref (RType c tv ()) f
 --   for this use case
 
 type SpecTypeF = RTypeF RTyCon RTyVar RReft
-type PartialSpecType = Free (RTypeF RTyCon RTyVar RReft) ()
+type PartialSpecType = Free SpecTypeF ()
 
 type instance Base (RType c tv r) = RTypeF c tv r
 
@@ -189,20 +194,54 @@ plugType t = refix . f
 
 -- build the expression we send to ghc for elaboration
 -- YL: tweak this function to see if ghc accepts explicit dictionary binders
-buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
+-- returning both expression since ghc adds unique id to the expressions
+buildHsExpr :: LHsExpr GhcPs -> SpecType -> (LHsExpr GhcPs, [F.Symbol])
 buildHsExpr res = para $ \case
-  RFunF bind (tin, _) (_, res) _
-    | isClassType tin -> res
-    | otherwise       -> mkHsLam [nlVarPat (symbolToRdrName varName bind)] res
-  RImpFF bind (tin, _) (_, res) _
-    | isClassType tin -> res
-    | otherwise       -> mkHsLam [nlVarPat (symbolToRdrName varName bind)] res
+  RFunF bind (tin, _) (_, bres@(res, bs)) _
+    | isClassType tin
+    -> bres
+    | otherwise
+    -> (mkHsLam [nlVarPat (symbolToRdrName varName bind)] res, bind : bs)
+  RImpFF bind (tin, _) (_, bres@(res, bs)) _
+    | isClassType tin
+    -> bres
+    | otherwise
+    -> (mkHsLam [nlVarPat (symbolToRdrName varName bind)] res, bind : bs)
   RAllEF  _ _        (_, res) -> res
   RAllTF  _ (_, res) _        -> res
   RExF    _ _        (_, res) -> res
   RAppTyF _ (_, res) _        -> res
   RRTyF _ _ _ (_, res)        -> res
-  _                           -> res
+  _                           -> (res, [])
+
+-- _:Semigroup a -> {x:a | x <> x == x} -> {y:a | y <> x == x <> y} -> {}
+-- in gives [dict0]
+-- out gives [dict1]
+
+-- I wish there's a way to make this function polymorphic wrt to
+-- tuples. microlens's Each seems to do exactly what I want..
+-- buildDictBinderSubst :: [[F.Symbol]] -> Maybe _
+-- bulidDictBinderSubst dbss =
+--   case L.filter (not . null) dbss of
+--     [] -> Nothing
+--     [_] -> Nothing
+--     (dbs:dbss') -> Just $
+--       buildSubst $ zip dbs (L.transpose dbss')
+--   where buildSubst 
+
+renameDictBinder :: (F.Subable a) => [F.Symbol] -> [F.Symbol] -> a -> a
+renameDictBinder []          _  = id
+renameDictBinder _           [] = id
+renameDictBinder canonicalDs ds = F.substa $ \x -> M.lookupDefault x x tbl
+  where tbl = F.tracepp "TBL" $ M.fromList (zip ds canonicalDs)
+
+
+canonicalizeDictBinder :: F.Subable a => [F.Symbol] -> [F.Symbol] -> a -> (a,[F.Symbol])
+canonicalizeDictBinder [] bs' e' = (e',bs')
+canonicalizeDictBinder bs [] e' = (e',bs)
+canonicalizeDictBinder bs bs' e' = (renameDictBinder bs bs' e', bs)
+
+
 
 elaborateSpecType
   :: PartialSpecType
@@ -216,48 +255,97 @@ elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t
       (reft, t)
       (pure (t, []))
       (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv, ee)) p), bs'))
+      -- YL : Fix
   RFun bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
     -- the reft is never actually used by the child
     -- maybe i should enforce this information at the type level
     let partialFunTp =
           Free (RFunF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
         partialTp' = partialTp >> partialFunTp :: PartialSpecType
-    (eTin , bs' ) <- elaborateSpecType partialTp' coreToLogic tin
-    (eTout, bs'') <- elaborateSpecType partialTp' coreToLogic tout
-    -- eTin and eTout might have different dictionary names
-    -- need to do a substitution to make the reference to dictionaries consistent
-    -- if isClassType eTin
-    elaborateReft
-      (reft, t)
-      (pure (RFun bind eTin eTout ureft, bs'))
-      (\bs' ee -> pure (RFun bind eTin eTout (MkUReft (F.Reft (vv, ee)) p), bs')
-      )
+    (eTin , bs ) <- elaborateSpecType partialTp coreToLogic tin
+    (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
+    let
+      buildRFunContTrivial
+        | isClassType tin, dictBinder : bs0' <- bs' = do
+          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs0' eTout
+          pure
+            ( F.notracepp "RFunTrivial0" $ RFun dictBinder
+                   eTin
+                   eToutRenamed
+                   ureft
+            , canonicalBinders
+            )
+        | otherwise = do
+          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eTout
+          pure
+            ( F.notracepp "RFunTrivial1" $ RFun bind eTin eToutRenamed ureft
+            , canonicalBinders
+            )
+      buildRFunCont bs'' ee
+        | isClassType tin, dictBinder : bs0' <- bs' = do
+          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs0' eTout
+              eeRenamed = renameDictBinder canonicalBinders bs'' ee
+          pure
+            ( RFun dictBinder
+                   eTin
+                   eToutRenamed
+                   (MkUReft (F.Reft (vv, eeRenamed)) p)
+            , canonicalBinders
+            )
+        | otherwise = do
+          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eTout
+              eeRenamed = renameDictBinder canonicalBinders bs'' ee
+          pure
+            ( RFun bind eTin eToutRenamed (MkUReft (F.Reft (vv, eeRenamed)) p)
+            , canonicalBinders
+            )
+    elaborateReft (reft, t)
+                  buildRFunContTrivial
+                  buildRFunCont
+
+      -- (\bs' ee | isClassType tin -> do
+      --    let eeRenamed = renameDictBinder canonicalBinders bs' ee
+      --    pure (RFun bind eTin eToutRenamed (MkUReft (F.Reft (vv, eeRenamed)) p), bs')
+      -- )
+  -- YL: implicit dictionary param doesn't seem possible..
   RImpF bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
     let partialFunTp =
           Free (RImpFF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
         partialTp' = partialTp >> partialFunTp :: PartialSpecType
-    (eTin , bs' ) <- elaborateSpecType partialTp' coreToLogic tin
-    (eTout, bs'') <- elaborateSpecType partialTp' coreToLogic tout
+    (eTin , bs ) <- elaborateSpecType partialTp' coreToLogic tin
+    (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
+    let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eTout
+    
     -- eTin and eTout might have different dictionary names
     -- need to do a substitution to make the reference to dictionaries consistent
     -- if isClassType eTin
     elaborateReft
       (reft, t)
-      (pure (RImpF bind eTin eTout ureft, bs'))
-      (\bs' ee ->
-        pure (RImpF bind eTin eTout (MkUReft (F.Reft (vv, ee)) p), bs')
+      (pure (RImpF bind eTin eToutRenamed ureft, canonicalBinders))
+      (\bs'' ee -> do
+        let eeRenamed = renameDictBinder canonicalBinders bs'' ee
+        pure (RImpF bind eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p), bs')
       )
   -- support for RankNTypes/ref
-  RAllT (RTVar tv ty) tout ref -> do
-    (eTout, bts') <- elaborateSpecType
-      (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ref))
+  RAllT (RTVar tv ty) tout ureft@(MkUReft ref@(F.Reft (vv, _oldE)) p) -> do
+    (eTout, bs) <- elaborateSpecType
+      (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ureft))
       coreToLogic
       tout
-    pure (RAllT (RTVar tv ty) eTout ref, bts')
+    elaborateReft
+      (ref, RVar tv mempty)
+      (pure (RAllT (RTVar tv ty) eTout ureft, bs))
+      (\bs' ee ->
+        let (eeRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' ee in
+        pure (RAllT (RTVar tv ty) eTout (MkUReft (F.Reft (vv, eeRenamed)) p), canonicalBinders)
+      )
+    -- pure (RAllT (RTVar tv ty) eTout ref, bts')
+  -- todo: might as well print an error message?
   RAllP pvbind tout -> do
-    (eTout, bts') <- elaborateSpecType (partialTp >> Free (RAllPF pvbind (pure ())))
-                                       coreToLogic
-                                       tout
+    (eTout, bts') <- elaborateSpecType
+      (partialTp >> Free (RAllPF pvbind (pure ())))
+      coreToLogic
+      tout
     pure (RAllP pvbind eTout, bts')
   -- pargs not handled for now
   -- RApp tycon args pargs reft
@@ -270,39 +358,50 @@ elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t
         pure (RApp tycon args pargs (MkUReft (F.Reft (vv, ee)) p), bs')
       )
   RAppTy arg res ureft@(MkUReft reft@(F.Reft (vv, _)) p) -> do
-    (eArg, bs' ) <- elaborateSpecType partialTp coreToLogic arg
-    (eRes, bs'') <- elaborateSpecType partialTp coreToLogic res
+    (eArg, bs ) <- elaborateSpecType partialTp coreToLogic arg
+    (eRes, bs') <- elaborateSpecType partialTp coreToLogic res
+    let (eResRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eRes
     elaborateReft
       (reft, t)
-      (pure (RAppTy eArg eRes ureft, bs''))
-      (\bs' ee -> pure (RAppTy eArg eRes (MkUReft (F.Reft (vv, ee)) p), bs''))
-  RAllE _ _ _ -> todo Nothing ("Not sure how to elaborate RAllE" ++ F.showpp t)
-  REx   _ _ _ -> todo Nothing ("Not sure how to elaborate REx" ++ F.showpp t)
-  RExprArg _ ->
-    todo Nothing ("Not sure how to elaborate RExprArg" ++ F.showpp t)
+      (pure (RAppTy eArg eResRenamed ureft, canonicalBinders))
+      (\bs'' ee ->
+         let eeRenamed = renameDictBinder canonicalBinders bs'' ee in
+         pure (RAppTy eArg eResRenamed (MkUReft (F.Reft (vv, eeRenamed)) p), canonicalBinders))
+  RAllE bind allarg ty -> do
+    (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
+    (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
+    pure (RAllE bind eAllarg eTy, bs)
+  REx bind allarg ty -> do
+    (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
+    (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
+    pure (RAllE bind eAllarg eTy, bs)
+  -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
+  -- in the future
+  RExprArg _   -> impossible Nothing "RExprArg should not appear here"
+  RHole    _   -> impossible Nothing "RHole should not appear here"
   RRTy _ _ _ _ -> todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
-  _            -> todo Nothing ("Not sure how to elaborate " ++ F.showpp t)
  where
   boolType = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
   elaborateReft
-    :: (F.Reft, SpecType) -> Ghc a -> ([F.Symbol] -> F.Expr -> Ghc a) -> Ghc a
+    :: (F.PPrint a) => (F.Reft, SpecType) -> Ghc a -> ([F.Symbol] -> F.Expr -> Ghc a) -> Ghc a
   elaborateReft (reft@(F.Reft (vv, e)), vvTy) trivial nonTrivialCont =
     if isTrivial reft
       then trivial
       else do
 -- liftIO $ putStrLn query
-        let querySpecType =
-              plugType (rFun vv vvTy boolType) partialTp :: SpecType
-            hsExpr =
-              buildHsExpr
-                ( 
-                 fixExprToHsExpr e
-                )
-                querySpecType :: LHsExpr GhcPs
-            exprWithTySigs =
-              GM.tracePpr "exprWithTySigs" $ noLoc $ ExprWithTySig
-                (mkLHsSigWcType $ specTypeToLHsType (F.tracepp "querySpecType" querySpecType))
-                hsExpr :: LHsExpr GhcPs
+        let
+          querySpecType =
+            plugType (rFun vv vvTy boolType) partialTp :: SpecType
+          (hsExpr, origBinders) =
+            buildHsExpr (fixExprToHsExpr e) querySpecType :: ( LHsExpr GhcPs
+              , [F.Symbol]
+              )
+          exprWithTySigs =
+            GM.notracePpr "exprWithTySigs" $ noLoc $ ExprWithTySig
+              ( mkLHsSigWcType
+              $ specTypeToLHsType (F.notracepp "querySpecType" querySpecType)
+              )
+              hsExpr :: LHsExpr GhcPs
         (msgs, mbExpr) <- GM.elaborateHsExprInst exprWithTySigs
         case mbExpr of
           Nothing -> panic
@@ -313,19 +412,33 @@ elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t
             ++ GM.showPpr (GM.showSDoc <$> pprErrMsgBagWithLoc (snd msgs))
             )
           Just eeWithLamsCore -> do
-            let eeWithLams =
-                  coreToLogic (GM.tracePpr "eeWithLamsCore" eeWithLamsCore)
-                (bs', ee) = F.tracepp "grabLams" $ grabLams ([], eeWithLams)
-            nonTrivialCont (GM.dropModuleUnique <$> bs')
-                           (dropBinderUnique bs' ee)
+            let
+              eeWithLams =
+                coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore)
+              (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
+              (dictbs, nondictbs) =
+                L.partition (F.isPrefixOfSym (F.symbol "$d")) bs'
+          -- invariant: length nondictbs == length origBinders
+              subst = if length nondictbs == length origBinders
+                then F.notracepp "SUBST" $ zip (L.reverse nondictbs) origBinders
+                else panic
+                  Nothing
+                  "Oops, Ghc gave back more/less binders than I expected"
+            ret <- nonTrivialCont
+                   dictbs
+                   (F.notracepp "nonTrivialContEE" $ F.substa (\x -> Mb.fromMaybe x (L.lookup x subst)) ee)  -- (GM.dropModuleUnique <$> bs')
+            pure (F.notracepp "result" ret)
+                           -- (F.substa )
   isTrivial :: F.Reft -> Bool
-  isTrivial (F.Reft (_, ee)) = (L.null . F.syms) ee
+  isTrivial (F.Reft (_, F.PTrue)) = True
+  isTrivial _ = False
+  
   grabLams :: ([F.Symbol], F.Expr) -> ([F.Symbol], F.Expr)
   grabLams (bs, F.ELam (b, _) e) = grabLams (b : bs, e)
   grabLams bse                   = bse
-  dropBinderUnique :: [F.Symbol] -> F.Expr -> F.Expr
-  dropBinderUnique binders = F.tracepp "ElaboratedExpr"
-    . F.substa (\x -> if L.elem x binders then GM.dropModuleUnique x else x)
+  -- dropBinderUnique :: [F.Symbol] -> F.Expr -> F.Expr
+  -- dropBinderUnique binders = F.notracepp "ElaboratedExpr"
+  --   . F.substa (\x -> if L.elem x binders then GM.dropModuleUnique x else x)
 
 
 
@@ -357,13 +470,10 @@ fixExprToHsExpr (F.EIte p e0 e1) = noLoc
         (fixExprToHsExpr e1)
   )
 -- FIXME: convert sort to HsType
-fixExprToHsExpr (F.ECst e0 _) = fixExprToHsExpr e0
-fixExprToHsExpr (F.PAnd es  ) = noLoc
-  (HsApp
-    NoExt
-    (noLoc (HsVar NoExt (noLoc (varQual_RDR dATA_FOLDABLE (fsLit "and")))))
-    (noLoc (ExplicitList NoExt Nothing (fixExprToHsExpr <$> es)))
-  )
+fixExprToHsExpr (F.ECst e0 _    ) = fixExprToHsExpr e0
+fixExprToHsExpr (F.PAnd []      ) = nlHsVar true_RDR
+fixExprToHsExpr (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr e) es
+  where f x acc = mkHsApp (mkHsApp (nlHsVar and_RDR) (fixExprToHsExpr x)) acc
 fixExprToHsExpr (F.POr es) = noLoc
   (HsApp
     NoExt
@@ -433,19 +543,14 @@ symbolToRdrName ns x
   where (modName, s) = GM.splitModuleName x
 
 
--- SpecType -> LHsType
--- SpecTypeF LHsType -> LHsType
--- SpecType -> SpectypeF
--- distPara :: Corecursive t => Base t (t, a) -> (t, Base t a)
--- SpecTypeF ((t,) SpecType) -> (t,) (SpecTypeF SpecType)
 specTypeToLHsType :: SpecType -> LHsType GhcPs
--- surprised that the type annotaiton is necessary
+-- surprised that the type application is necessary
 specTypeToLHsType =
   flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
-    RVarF (RTV tv) _              -> nlHsTyVar (getRdrName tv)
-    RFunF  _ (tin, tin') (_, tout) _
+    RVarF (RTV tv) _ -> nlHsTyVar (getRdrName tv)
+    RFunF _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy NoExt (noLoc [tin']) tout
-      | otherwise -> nlHsFunTy tin' tout
+      | otherwise       -> nlHsFunTy tin' tout
     RImpFF _ (_, tin) (_, tout) _ -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ ->
       noLoc $ HsForAllTy NoExt (userHsTyVarBndrs noSrcSpan [getRdrName tv]) t
@@ -460,9 +565,10 @@ specTypeToLHsType =
     RExF    _      _                (_, t) -> t
     RAppTyF (_, t) (RExprArg _, _ ) _      -> t
     RAppTyF (_, t) (_         , t') _      -> nlHsAppTy t t'
-    RRTyF _ _ _ (_, t) -> t
-    RHoleF _ -> noLoc $ HsWildCardTy NoExt
-    RExprArgF _ -> todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
+    RRTyF _ _ _ (_, t)                     -> t
+    RHoleF _                               -> noLoc $ HsWildCardTy NoExt
+    RExprArgF _ ->
+      todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
 
 
 

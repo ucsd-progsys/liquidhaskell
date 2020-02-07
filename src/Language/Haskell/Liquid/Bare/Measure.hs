@@ -151,11 +151,11 @@ makeHaskellDataDecls :: Config -> ModName -> Ms.BareSpec -> [Ghc.TyCon]
 --------------------------------------------------------------------------------
 makeHaskellDataDecls cfg name spec tcs
   | exactDCFlag cfg = Mb.mapMaybe tyConDataDecl
-                    -- . F.tracepp "makeHaskellDataDecls-3"
+                    -- . F.notracepp "makeHaskellDataDecls-3"
                     . zipMap   (hasDataDecl name spec . fst)
-                    -- . F.tracepp "makeHaskellDataDecls-2"
+                    -- . F.notracepp "makeHaskellDataDecls-2"
                     . liftableTyCons
-                    -- . F.tracepp "makeHaskellDataDecls-1"
+                    -- . F.notracepp "makeHaskellDataDecls-1"
                     . filter isReflectableTyCon
                     $ tcs
   | otherwise       = []
@@ -172,7 +172,7 @@ liftableTyCons
   . filter   (not . Ghc.isBoxedTupleTyCon)
   . F.notracepp "LiftableTCs 1"
   -- . (`sortDiff` wiredInTyCons)
-  -- . F.tracepp "LiftableTCs 0"
+  -- . F.notracepp "LiftableTCs 0"
 
 zipMap :: (a -> b) -> [a] -> [(a, b)]
 zipMap f xs = zip xs (map f xs)
@@ -284,7 +284,7 @@ dataConSel dc n Check    = mkArrow (zip as (repeat mempty)) [] [] [xt] bareBool
 dataConSel dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] (mempty <$> ti)
   where
     ti                   = Mb.fromMaybe err $ Misc.getNth (i-1) ts
-    (as, ts, xt)         = {- F.tracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
+    (as, ts, xt)         = {- F.notracepp ("bkDatacon dc = " ++ F.showpp (dc, n)) $ -} bkDataCon dc n
     err                  = panic Nothing $ "DataCon " ++ show dc ++ "does not have " ++ show i ++ " fields"
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
