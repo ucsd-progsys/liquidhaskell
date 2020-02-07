@@ -149,11 +149,12 @@ applyOne v args typeOfArgs = notrace (" [ applyOne ] v = " ++ show v) $ do
   (_, e)  <- instantiateTL
   idx <- incrSM
   mbTyVar <- sGoalTyVar <$> get
-  let tyvar = fromMaybe (error "No type variables in the monad!") mbTyVar
+  let tvs = fromMaybe (error "No type variables in the monad!") mbTyVar
   v'' <- if v == xtop
           then return e
           else case varType v of
-                  ForAllTy{} -> return $ GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
+                  ForAllTy{} -> return $ apply tvs (GHC.Var v)
+                    -- return $ GHC.App (GHC.Var v) (GHC.Type (TyVarTy tyvar))
                   _          -> return $ GHC.Var v
   return 
     [ let letv' = mkVar (Just "x") idx typeOfArgs

@@ -70,8 +70,8 @@ synthesize tgt fcfg cginfo =
       
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
-      -- Instantiate @typeOfTopLvlBnd@ with @uniVars@
-      fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x (tracepp "**** TYPE **** " typeOfTopLvlBnd) topLvlBndr typeOfTopLvlBnd state0
+
+      fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -133,22 +133,17 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do
   senv <- getSEnv
-  let ht     = toType t
-      tyvars = varsInType ht
-  case (notrace " [synBasic] tyvars = " tyvars) of
-    -- TODO Fix it. Target: future/map.hs.
-    []  -> modify (\s -> s { sGoalTyVar = Nothing})
-    [x] -> modify (\s -> s { sGoalTyVar = Just x })
-    _   -> error errorMsg
-      where errorMsg = "TyVars in type [" ++ show t ++ "] are more than one ( " ++ show tyvars ++ " )." 
+  let ht  = toType t
+      tvs = varsInType ht
+  case tvs of
+    [] -> modify (\s -> s { sGoalTyVar = Nothing})
+    _  -> modify (\s -> s { sGoalTyVar = Just tvs })
   es <- genTerms t
-  notrace (" [ synthesizeBasic ] " ++ show (getVars senv)) $
-    case es of 
-      [] -> trace " Will be entering synthesizeMatch " $ do
-        senv <- getSEnv
-        lenv <- getLocalEnv 
-        synthesizeMatch lenv senv t
-      _  -> return es
+  case es of 
+    [] -> do  senv <- getSEnv
+              lenv <- getLocalEnv 
+              synthesizeMatch lenv senv t
+    _  -> return es
 
 
 synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]

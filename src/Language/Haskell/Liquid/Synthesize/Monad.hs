@@ -75,7 +75,7 @@ data SState
            , sAppDepth  :: Int
            , sUniVars   :: [Var]
            , sFix       :: Var
-           , sGoalTyVar :: Maybe TyVar
+           , sGoalTyVar :: Maybe [TyVar]
            }
 type SM = StateT SState IO
 
@@ -153,9 +153,21 @@ instantiateTL = do
   xtop <- getSFix
   let e = apply uniVars (GHC.Var xtop)
   return (exprType e, e)
-  where apply []     e = e
-        apply (v:vs) e 
-          = apply vs (GHC.App e (GHC.Type (TyVarTy v)))
+  
+
+-- | Applies type variables (1st argument) to an expression.
+--   The expression is guaranteed to have the same level of 
+--   parametricity (same number of @forall@) as the length of the 1st argument.
+--   > The result has zero @forall@.
+apply :: [Var] -> GHC.CoreExpr -> GHC.CoreExpr
+apply []     e = 
+  case exprType e of 
+    ForAllTy {} -> error $ " [ instantiate (1) ] For e " ++ show e
+    _           -> e
+apply (v:vs) e 
+  = case exprType e of 
+      ForAllTy{} -> apply vs (GHC.App e (GHC.Type (TyVarTy v)))
+      _          -> error $ " [ instantiate (2) ] For e " ++ show e
 
 
 
@@ -245,14 +257,14 @@ withInsInitEM senv = do
       let (e', t') = handleIt e
       in  (t', e', i)) (initExprMem senv)
 
-instantiate :: CoreExpr -> Maybe Var -> CoreExpr
+-- [ TODO ] 
+--    Should be for all possible permutations of @mbt@: 
+--    instantiate :: CoreExpr -> Maybe [Var] -> [CoreExpr]
+instantiate :: CoreExpr -> Maybe [Var] -> CoreExpr
 instantiate e mbt = 
   case mbt of
-    Nothing    -> e
-    Just tyVar -> 
-      case exprType e of 
-        ForAllTy {} -> GHC.App e (GHC.Type (TyVarTy tyVar))
-        _           -> e
+    Nothing     -> e
+    Just tyVars -> apply tyVars e
 
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
 withInsProdCands specTy =  notrace (" [ withInsProdCands ] " ++ show specTy) $
