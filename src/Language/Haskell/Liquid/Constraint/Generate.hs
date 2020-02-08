@@ -318,7 +318,7 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isPredVar) <$> vs)
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isEmbeddedDictVar) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
@@ -724,7 +724,7 @@ splitConstraints :: TyConable c
                  => RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
 splitConstraints (RRTy cs _ OCons t)
   = let (css, t') = splitConstraints t in (cs:css, t')
-splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
+splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isEmbeddedDict c
   = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
 splitConstraints t
   = ([], t)
@@ -814,7 +814,7 @@ consE _ (Lit c)
 
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t            <- if isPos α && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
@@ -822,6 +822,8 @@ consE γ e'@(App e a@(Type τ))
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> return tt
+  where 
+    isPos α = not (extensionality (getConfig γ)) || rtv_is_pol (ty_var_info α)
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
@@ -1120,7 +1122,7 @@ dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
-dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
+dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isEmbeddedDict c
   = (flip (RFun x tx)) r <$> dropConstraints γ t
 dropConstraints γ (RRTy cts _ OCons t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
@@ -1159,7 +1161,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
   let (rtd,yts',_) = unfoldR tdc xt ys
   yts             <- projectTypes pIs yts'
-  let ys''         = F.symbol <$> filter (not . GM.isPredVar) ys
+  let ys''         = F.symbol <$> filter (not . GM.isEmbeddedDictVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
@@ -1303,7 +1305,7 @@ lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
+                              (Just p1, Just p2) | not (GM.isEmbeddedDictExpr e2) -- (isClassPred $ exprType e2)
                                                  -> Just $ F.EApp p1 p2
                               (Just p1, Just _ ) -> Just p1
                               _  -> Nothing
@@ -1355,7 +1357,7 @@ makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
-                 | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
+                 | not (GM.isEmbeddedDictExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
                  -> strengthenMeet t (uTop $ F.exprReft f')
@@ -1388,7 +1390,7 @@ funExpr γ (Var v) | S.member v (fargs γ) || GM.isDataConId v
 
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
-      (Just e1', Just e2') | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
+      (Just e1', Just e2') | not (GM.isEmbeddedDictExpr e2) -- (isClassPred $ exprType e2)
                            -> Just (F.EApp e1' e2')
       (Just e1', Just _)
                            -> Just e1'

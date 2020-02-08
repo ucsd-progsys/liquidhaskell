@@ -47,7 +47,7 @@ fixConfig tgt cfg = def
   , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
   , FC.rewriteAxioms    = Config.allowPLE   cfg
-  , FC.etaElim          = not (exactDC cfg)
+  , FC.etaElim          = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality   = extensionality    cfg 
   }
 
@@ -184,7 +184,7 @@ specTypeToLogic es e t
 
 
     su           = F.mkSubst $ zip xs es
-    (cls, nocls) = L.partition (isClassType.snd) $ zip (ty_binds trep) (ty_args trep)
+    (cls, nocls) = L.partition (isEmbeddedClass.snd) $ zip (ty_binds trep) (ty_args trep)
                  :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
     (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
 

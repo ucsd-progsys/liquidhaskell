@@ -52,7 +52,7 @@ module Language.Haskell.Liquid.Types.Types (
   , rTyConPVs
   , rTyConPropVs
   -- , isClassRTyCon
-  , isClassType, isEqType, isRVar, isBool
+  , isClassType, isEqType, isRVar, isBool, isEmbeddedClass
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -616,6 +616,11 @@ isClassType :: TyConable c => RType c t t1 -> Bool
 isClassType (RApp c _ _ _) = isClass c
 isClassType _              = False
 
+isEmbeddedClass :: TyConable c => RType c t t1 -> Bool
+isEmbeddedClass (RApp c _ _ _) = isEmbeddedDict c
+isEmbeddedClass _              = False
+
+
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 -- isHPropPV   = not . isPropPV
 
@@ -896,15 +901,20 @@ class (Eq c) => TyConable c where
   isTuple  :: c -> Bool
   ppTycon  :: c -> Doc
   isClass  :: c -> Bool
+  isEmbeddedDict :: c -> Bool
   isEqual  :: c -> Bool
 
   isNumCls  :: c -> Bool
   isFracCls :: c -> Bool
+  isOrdCls  :: c -> Bool
+  isEqCls   :: c -> Bool
 
-  isClass   = const False
-  isEqual   = const False
-  isNumCls  = const False
-  isFracCls = const False
+  isClass          = const False
+  isEmbeddedDict c = isNumCls c || isEqual c || isOrdCls c || isEqCls c
+  isEqual          = const False
+  isNumCls         = const False
+  isFracCls        = const False
+  isOrdCls         = const False
 
 
 -- Should just make this a @Pretty@ instance but its too damn tedious
@@ -929,10 +939,13 @@ instance TyConable RTyCon where
   isEqual    = isEqual . rtc_tc
   ppTycon    = F.toFix
 
-  isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
+  isNumCls c  = maybe False isNumericClass
                 (tyConClass_maybe $ rtc_tc c)
-  isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
+  isFracCls c = maybe False isFractionalClass
                 (tyConClass_maybe $ rtc_tc c)
+  isOrdCls c  = maybe False isOrdClass
+                (tyConClass_maybe $ rtc_tc c)
+  isEqCls  c  = isEqCls (rtc_tc c)
 
 
 instance TyConable TyCon where
@@ -943,10 +956,13 @@ instance TyConable TyCon where
   isEqual c  = c == eqPrimTyCon || c == eqReprPrimTyCon
   ppTycon    = text . showPpr
 
-  isNumCls c  = maybe False (isClassOrSubClass isNumericClass)
-                (tyConClass_maybe $ c)
-  isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
-                (tyConClass_maybe $ c)
+  isNumCls c  = maybe False isNumericClass
+                (tyConClass_maybe c)
+  isFracCls c = maybe False isFractionalClass
+                (tyConClass_maybe c)
+  isOrdCls c  = maybe False isOrdClass
+                (tyConClass_maybe c)
+  isEqCls  c  = isPrelEqTyCon c
 
 
 isClassOrSubClass :: (Class -> Bool) -> Class -> Bool
@@ -1665,7 +1681,7 @@ efoldReft logicBind cb dty g f fp = go
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RImpF x t t' r)             = go γ z (RFun x t t' r)
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
-       | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
+       | isEmbeddedDict c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x t t' r)
        | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')

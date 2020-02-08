@@ -178,7 +178,7 @@ axiomType s t = AT to (reverse xts) res
     (to, (_,xts, Just res)) = runState (go t) (1,[], Nothing)
     go (RAllT a t r) = RAllT a <$> go t <*> return r 
     go (RAllP p t) = RAllP p <$> go t 
-    go (RFun x tx t r) | isClassType tx = (\t' -> RFun x tx t' r) <$> go t
+    go (RFun x tx t r) | isEmbeddedClass tx = (\t' -> RFun x tx t' r) <$> go t
     go (RFun x tx t r) = do 
       (i,bs,res) <- get 
       let x' = unDummy x i 

@@ -150,7 +150,7 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
     ts           = ty_args trep
-    isValTy      = not . GM.isPredType . toType
+    isValTy      = not . GM.isEmbeddedDictType . toType
 
 
 pdVar :: PVar t -> Predicate
@@ -1981,7 +1981,7 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
 -- | (in positive positions, in negative positions, in undetermined positions)
 -- | undetermined positions are due to type constructors and type application
 -------------------------------------------------------------------------------
-tyVarsPosition :: RType c tv r -> Positions tv 
+tyVarsPosition :: RType RTyCon tv r -> Positions tv 
 tyVarsPosition = go (Just True)
   where 
     go p (RVar t _)        = report p t
@@ -1989,13 +1989,17 @@ tyVarsPosition = go (Just True)
     go p (RImpF _ t1 t2 _) = go (flip p) t1 <> go p t2 
     go p (RAllT _ t _)     = go p t 
     go p (RAllP _ t)       = go p t 
-    go _ (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
+    go p (RApp c ts _ _)   = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)
     go p (RAllE _ t1 t2)   = go p t1 <> go p t2 
     go p (REx _ t1 t2)     = go p t1 <> go p t2
     go _ (RExprArg _)      = mempty
     go p (RAppTy t1 t2 _)  = go p t1 <> go p t2 
     go p (RRTy _ _ _ t)    = go p t 
     go _ (RHole _)         = mempty
+
+    getPosition :: Maybe Bool -> Variance -> Maybe Bool
+    getPosition b Contravariant = not <$> b 
+    getPosition b _             = b  
 
     report Nothing v      = (Pos [] [] [v])
     report (Just True) v  = (Pos [v] [] [])
