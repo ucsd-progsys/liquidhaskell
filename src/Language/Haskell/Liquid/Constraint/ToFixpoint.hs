@@ -184,7 +184,7 @@ specTypeToLogic es e t
 
 
     su           = F.mkSubst $ zip xs es
-    (cls, nocls) = L.partition (isClassType.snd) $ zip (ty_binds trep) (ty_args trep)
+    (cls, nocls) = L.partition (isEmbeddedClass.snd) $ zip (ty_binds trep) (ty_args trep)
                  :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
     (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
 

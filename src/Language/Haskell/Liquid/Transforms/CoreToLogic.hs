@@ -63,7 +63,7 @@ logicType :: (Reftable r) => Type -> RRType r
 logicType τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
   where
     t            = toRTypeRep $ ofType τ
-    (bs, as, rs) = unzip3 $ dropWhile (isClassType . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
+    (bs, as, rs) = unzip3 $ dropWhile (isEmbeddedClass . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
 
 {- | [NOTE:inlineSpecType type]: the refinement depends on whether the result type is a Bool or not:
       CASE1: measure f@logic :: X -> Bool <=> f@haskell :: x:X -> {v:Bool | v <=> (f@logic x)}
@@ -77,7 +77,7 @@ inlineSpecType v = fromRTypeRep $ rep {ty_res = res `strengthen` r , ty_binds = 
     rep            = toRTypeRep t
     res            = ty_res rep
     xs             = intSymbol (symbol ("x" :: String)) <$> [1..length $ ty_binds rep]
-    vxs            = dropWhile (isClassType . snd) $ zip xs (ty_args rep)
+    vxs            = dropWhile (isEmbeddedClass . snd) $ zip xs (ty_args rep)
     f              = dummyLoc (symbol v)
     t              = ofType (GM.expandVarType v) :: SpecType
     mkA            = EVar . fst 
@@ -104,7 +104,7 @@ measureSpecType v = go mkT [] [1..] t
     go f args i (RAllT a t r)    = RAllT a (go f args i t) r 
     go f args i (RAllP p t)      = RAllP p $ go f args i t
     go f args i (RFun x t1 t2 r)
-     | isClassType t1           = RFun x t1 (go f args i t2) r
+     | isEmbeddedClass t1           = RFun x t1 (go f args i t2) r
     go f args i t@(RFun _ t1 t2 r)
      | hasRApps t               = RFun x' t1 (go f (x':args) (tail i) t2) r
                                        where x' = intSymbol (symbol ("x" :: String)) (head i)
@@ -127,7 +127,7 @@ weakenResult v t = F.notracepp msg t'
     rep          = toRTypeRep t
     weaken x     = pAnd . filter ((Just vE /=) . isSingletonExpr x) . conjuncts 
     vE           = mkEApp vF xs
-    xs           = EVar . fst <$> dropWhile (isClassType . snd) xts 
+    xs           = EVar . fst <$> dropWhile (isEmbeddedClass . snd) xts 
     xts          = zip (ty_binds rep) (ty_args rep)
     vF           = dummyLoc (symbol v)
 

@@ -261,7 +261,7 @@ mapArgumens lc t1 t2 = go xts1' xts2'
     xts1' = dropWhile canDrop xts1
     xts2' = dropWhile canDrop xts2
 
-    canDrop (_, t) = isClassType t || isEqType t
+    canDrop (_, t) = isEmbeddedClass t
 
     go xs ys
       | length xs == length ys && and (zipWith (==) (toRSort . snd <$> xts1') (toRSort . snd <$> xts2'))

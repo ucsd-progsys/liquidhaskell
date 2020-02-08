@@ -249,7 +249,7 @@ splitC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []
 
-splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
+splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isEmbeddedDict c1 && c1 == c2
   = return []
 
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
