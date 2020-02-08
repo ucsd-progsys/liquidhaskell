@@ -17,42 +17,24 @@ import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
+                                                ( )
 import qualified Data.List                     as L
 import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
-import           Language.Haskell.Liquid.Types.Errors
 import           Control.Monad.Free
 import           Data.Functor.Foldable
+import           Data.Char                      ( isUpper )
 import           GHC
 import           OccName
 import           FastString
-import           HsPat
-import           SrcLoc
-import           Control.Monad
 import           CoreSyn
-import           Exception
-import           Inst
-import           Panic                   hiding ( panic )
-import           Desugar
-import           TcRnMonad
-import           TcHsSyn
-import           RnExpr
-import           GhcMonad
-import           TcSimplify
 import           PrelNames
-import           Outputable              hiding ( panic )
 import           TysWiredIn                     ( boolTyCon
                                                 , true_RDR
                                                 )
-import           HscTypes
 import           ErrUtils
-import           HscMain
-import           TcExpr
-import           HsExpr
 import           RdrName
-import           TysWiredIn
 import           BasicTypes
-import           PrelNames
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
 
@@ -194,53 +176,54 @@ plugType t = refix . f
 
 -- build the expression we send to ghc for elaboration
 -- YL: tweak this function to see if ghc accepts explicit dictionary binders
--- returning both expression since ghc adds unique id to the expressions
-buildHsExpr :: LHsExpr GhcPs -> SpecType -> (LHsExpr GhcPs, [F.Symbol])
+-- returning both expressions and binders since ghc adds unique id to the expressions
+
+collectSpecTypeBinders :: SpecType -> [F.Symbol]
+collectSpecTypeBinders = para $ \case
+  RFunF bind (tin, _) (_, bs) _ | isClassType tin -> bs
+                                | otherwise       -> bind : bs
+  RImpFF bind (tin, _) (_, bs) _ | isClassType tin -> bs
+                                 | otherwise       -> bind : bs
+  RAllEF  b _        (_, res) -> b : res
+  RAllTF  _ (_, res) _        -> res
+  RExF    b _        (_, res) -> b : res
+  RAppTyF _ (_, res) _        -> res
+  RRTyF _ _ _ (_, res)        -> res
+  _                           -> []
+
+-- really should be fused with collectBinders. However, we need the binders
+-- to correctly convert fixpoint expressions to ghc expressions because of
+-- namespace related issues (whether the symbol denotes a varName or a datacon)
+buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
 buildHsExpr res = para $ \case
-  RFunF bind (tin, _) (_, bres@(res, bs)) _
-    | isClassType tin
-    -> bres
-    | otherwise
-    -> (mkHsLam [nlVarPat (symbolToRdrName varName bind)] res, bind : bs)
-  RImpFF bind (tin, _) (_, bres@(res, bs)) _
-    | isClassType tin
-    -> bres
-    | otherwise
-    -> (mkHsLam [nlVarPat (symbolToRdrName varName bind)] res, bind : bs)
+  RFunF bind (tin, _) (_, res) _
+    | isClassType tin -> res
+    | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
+  RImpFF bind (tin, _) (_, res) _
+    | isClassType tin -> res
+    | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
   RAllEF  _ _        (_, res) -> res
   RAllTF  _ (_, res) _        -> res
   RExF    _ _        (_, res) -> res
   RAppTyF _ (_, res) _        -> res
   RRTyF _ _ _ (_, res)        -> res
-  _                           -> (res, [])
-
--- _:Semigroup a -> {x:a | x <> x == x} -> {y:a | y <> x == x <> y} -> {}
--- in gives [dict0]
--- out gives [dict1]
-
--- I wish there's a way to make this function polymorphic wrt to
--- tuples. microlens's Each seems to do exactly what I want..
--- buildDictBinderSubst :: [[F.Symbol]] -> Maybe _
--- bulidDictBinderSubst dbss =
---   case L.filter (not . null) dbss of
---     [] -> Nothing
---     [_] -> Nothing
---     (dbs:dbss') -> Just $
---       buildSubst $ zip dbs (L.transpose dbss')
---   where buildSubst 
-
-renameDictBinder :: (F.Subable a) => [F.Symbol] -> [F.Symbol] -> a -> a
-renameDictBinder []          _  = id
-renameDictBinder _           [] = id
-renameDictBinder canonicalDs ds = F.substa $ \x -> M.lookupDefault x x tbl
-  where tbl = F.tracepp "TBL" $ M.fromList (zip ds canonicalDs)
+  _                           -> res
 
 
-canonicalizeDictBinder :: F.Subable a => [F.Symbol] -> [F.Symbol] -> a -> (a,[F.Symbol])
-canonicalizeDictBinder [] bs' e' = (e',bs')
-canonicalizeDictBinder bs [] e' = (e',bs)
-canonicalizeDictBinder bs bs' e' = (renameDictBinder bs bs' e', bs)
 
+
+
+canonicalizeDictBinder
+  :: F.Subable a => [F.Symbol] -> (a, [F.Symbol]) -> (a, [F.Symbol])
+canonicalizeDictBinder [] (e', bs') = (e', bs')
+canonicalizeDictBinder bs (e', [] ) = (e', bs)
+canonicalizeDictBinder bs (e', bs') = (renameDictBinder bs bs' e', bs)
+ where
+  renameDictBinder :: (F.Subable a) => [F.Symbol] -> [F.Symbol] -> a -> a
+  renameDictBinder []          _  = id
+  renameDictBinder _           [] = id
+  renameDictBinder canonicalDs ds = F.substa $ \x -> M.lookupDefault x x tbl
+    where tbl = F.tracepp "TBL" $ M.fromList (zip ds canonicalDs)
 
 
 elaborateSpecType
@@ -249,141 +232,169 @@ elaborateSpecType
   -> SpecType
   -> Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
                    -- should have returned Maybe [F.Symbol]
-elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t of
-  RVar (RTV tv) (MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
-    elaborateReft
-      (reft, t)
-      (pure (t, []))
-      (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv, ee)) p), bs'))
-      -- YL : Fix
-  RFun bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
-    -- the reft is never actually used by the child
-    -- maybe i should enforce this information at the type level
-    let partialFunTp =
-          Free (RFunF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
-        partialTp' = partialTp >> partialFunTp :: PartialSpecType
-    (eTin , bs ) <- elaborateSpecType partialTp coreToLogic tin
-    (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
-    let
-      buildRFunContTrivial
-        | isClassType tin, dictBinder : bs0' <- bs' = do
-          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs0' eTout
-          pure
-            ( F.notracepp "RFunTrivial0" $ RFun dictBinder
-                   eTin
-                   eToutRenamed
-                   ureft
-            , canonicalBinders
-            )
-        | otherwise = do
-          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eTout
-          pure
-            ( F.notracepp "RFunTrivial1" $ RFun bind eTin eToutRenamed ureft
-            , canonicalBinders
-            )
-      buildRFunCont bs'' ee
-        | isClassType tin, dictBinder : bs0' <- bs' = do
-          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs0' eTout
-              eeRenamed = renameDictBinder canonicalBinders bs'' ee
-          pure
-            ( RFun dictBinder
-                   eTin
-                   eToutRenamed
-                   (MkUReft (F.Reft (vv, eeRenamed)) p)
-            , canonicalBinders
-            )
-        | otherwise = do
-          let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eTout
-              eeRenamed = renameDictBinder canonicalBinders bs'' ee
-          pure
-            ( RFun bind eTin eToutRenamed (MkUReft (F.Reft (vv, eeRenamed)) p)
-            , canonicalBinders
-            )
-    elaborateReft (reft, t)
-                  buildRFunContTrivial
-                  buildRFunCont
+elaborateSpecType partialTp coreToLogic t =
+  case F.tracepp "elaborateSpecType" t of
+    RVar (RTV tv) (MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
+      elaborateReft
+        (reft, t)
+        (pure (t, []))
+        (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv, ee)) p), bs'))
+        -- YL : Fix
+    RFun bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
+      -- the reft is never actually used by the child
+      -- maybe i should enforce this information at the type level
+      let partialFunTp =
+            Free (RFunF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
+          partialTp' = partialTp >> partialFunTp :: PartialSpecType
+      (eTin , bs ) <- elaborateSpecType partialTp coreToLogic tin
+      (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
+      let buildRFunContTrivial
+            | isClassType tin, dictBinder : bs0' <- bs' = do
+              let (eToutRenamed, canonicalBinders) =
+                    canonicalizeDictBinder bs (eTout, bs0')
+              pure
+                ( F.notracepp "RFunTrivial0"
+                  $ RFun dictBinder eTin eToutRenamed ureft
+                , canonicalBinders
+                )
+            | otherwise = do
+              let (eToutRenamed, canonicalBinders) =
+                    canonicalizeDictBinder bs (eTout, bs')
+              pure
+                ( F.notracepp "RFunTrivial1" $ RFun bind eTin eToutRenamed ureft
+                , canonicalBinders
+                )
+          buildRFunCont bs'' ee
+            | isClassType tin, dictBinder : bs0' <- bs' = do
+              let (eToutRenamed, canonicalBinders) =
+                    canonicalizeDictBinder bs (eTout, bs0')
+                  (eeRenamed, canonicalBinders') =
+                    canonicalizeDictBinder canonicalBinders (ee, bs'')
+              pure
+                ( RFun dictBinder
+                       eTin
+                       eToutRenamed
+                       (MkUReft (F.Reft (vv, eeRenamed)) p)
+                , canonicalBinders'
+                )
+            | otherwise = do
+              let (eToutRenamed, canonicalBinders) =
+                    canonicalizeDictBinder bs (eTout, bs')
+                  (eeRenamed, canonicalBinders') =
+                    canonicalizeDictBinder canonicalBinders (ee, bs'')
+              pure
+                ( RFun bind
+                       eTin
+                       eToutRenamed
+                       (MkUReft (F.Reft (vv, eeRenamed)) p)
+                , canonicalBinders'
+                )
+      elaborateReft (reft, t) buildRFunContTrivial buildRFunCont
 
-      -- (\bs' ee | isClassType tin -> do
-      --    let eeRenamed = renameDictBinder canonicalBinders bs' ee
-      --    pure (RFun bind eTin eToutRenamed (MkUReft (F.Reft (vv, eeRenamed)) p), bs')
-      -- )
-  -- YL: implicit dictionary param doesn't seem possible..
-  RImpF bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
-    let partialFunTp =
-          Free (RImpFF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
-        partialTp' = partialTp >> partialFunTp :: PartialSpecType
-    (eTin , bs ) <- elaborateSpecType partialTp' coreToLogic tin
-    (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
-    let (eToutRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eTout
-    
-    -- eTin and eTout might have different dictionary names
-    -- need to do a substitution to make the reference to dictionaries consistent
-    -- if isClassType eTin
-    elaborateReft
-      (reft, t)
-      (pure (RImpF bind eTin eToutRenamed ureft, canonicalBinders))
-      (\bs'' ee -> do
-        let eeRenamed = renameDictBinder canonicalBinders bs'' ee
-        pure (RImpF bind eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p), bs')
-      )
-  -- support for RankNTypes/ref
-  RAllT (RTVar tv ty) tout ureft@(MkUReft ref@(F.Reft (vv, _oldE)) p) -> do
-    (eTout, bs) <- elaborateSpecType
-      (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ureft))
-      coreToLogic
-      tout
-    elaborateReft
-      (ref, RVar tv mempty)
-      (pure (RAllT (RTVar tv ty) eTout ureft, bs))
-      (\bs' ee ->
-        let (eeRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' ee in
-        pure (RAllT (RTVar tv ty) eTout (MkUReft (F.Reft (vv, eeRenamed)) p), canonicalBinders)
-      )
-    -- pure (RAllT (RTVar tv ty) eTout ref, bts')
-  -- todo: might as well print an error message?
-  RAllP pvbind tout -> do
-    (eTout, bts') <- elaborateSpecType
-      (partialTp >> Free (RAllPF pvbind (pure ())))
-      coreToLogic
-      tout
-    pure (RAllP pvbind eTout, bts')
-  -- pargs not handled for now
-  -- RApp tycon args pargs reft
-  RApp tycon args pargs ureft@(MkUReft reft@(F.Reft (vv, _)) p)
-    | isClass tycon -> pure (t, [])
-    | otherwise -> elaborateReft
-      (reft, t)
-      (pure (RApp tycon args pargs ureft, []))
-      (\bs' ee ->
-        pure (RApp tycon args pargs (MkUReft (F.Reft (vv, ee)) p), bs')
-      )
-  RAppTy arg res ureft@(MkUReft reft@(F.Reft (vv, _)) p) -> do
-    (eArg, bs ) <- elaborateSpecType partialTp coreToLogic arg
-    (eRes, bs') <- elaborateSpecType partialTp coreToLogic res
-    let (eResRenamed, canonicalBinders) = canonicalizeDictBinder bs bs' eRes
-    elaborateReft
-      (reft, t)
-      (pure (RAppTy eArg eResRenamed ureft, canonicalBinders))
-      (\bs'' ee ->
-         let eeRenamed = renameDictBinder canonicalBinders bs'' ee in
-         pure (RAppTy eArg eResRenamed (MkUReft (F.Reft (vv, eeRenamed)) p), canonicalBinders))
-  RAllE bind allarg ty -> do
-    (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
-    (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
-    pure (RAllE bind eAllarg eTy, bs)
-  REx bind allarg ty -> do
-    (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
-    (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
-    pure (RAllE bind eAllarg eTy, bs)
-  -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
-  -- in the future
-  RExprArg _   -> impossible Nothing "RExprArg should not appear here"
-  RHole    _   -> impossible Nothing "RHole should not appear here"
-  RRTy _ _ _ _ -> todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
+        -- (\bs' ee | isClassType tin -> do
+        --    let eeRenamed = renameDictBinder canonicalBinders bs' ee
+        --    pure (RFun bind eTin eToutRenamed (MkUReft (F.Reft (vv, eeRenamed)) p), bs')
+        -- )
+    -- YL: implicit dictionary param doesn't seem possible..
+    RImpF bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
+      let partialFunTp =
+            Free (RImpFF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
+          partialTp' = partialTp >> partialFunTp :: PartialSpecType
+      (eTin , bs ) <- elaborateSpecType partialTp' coreToLogic tin
+      (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
+      let (eToutRenamed, canonicalBinders) =
+            canonicalizeDictBinder bs (eTout, bs')
+
+      -- eTin and eTout might have different dictionary names
+      -- need to do a substitution to make the reference to dictionaries consistent
+      -- if isClassType eTin
+      elaborateReft
+        (reft, t)
+        (pure (RImpF bind eTin eToutRenamed ureft, canonicalBinders))
+        (\bs'' ee -> do
+          let (eeRenamed, canonicalBinders') =
+                canonicalizeDictBinder canonicalBinders (ee, bs'')
+          pure
+            ( RImpF bind eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p)
+            , canonicalBinders'
+            )
+        )
+    -- support for RankNTypes/ref
+    RAllT (RTVar tv ty) tout ureft@(MkUReft ref@(F.Reft (vv, _oldE)) p) -> do
+      (eTout, bs) <- elaborateSpecType
+        (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ureft))
+        coreToLogic
+        tout
+      elaborateReft
+        (ref, RVar tv mempty)
+        (pure (RAllT (RTVar tv ty) eTout ureft, bs))
+        (\bs' ee ->
+          let (eeRenamed, canonicalBinders) =
+                  canonicalizeDictBinder bs (ee, bs')
+          in  pure
+                ( RAllT (RTVar tv ty) eTout (MkUReft (F.Reft (vv, eeRenamed)) p)
+                , canonicalBinders
+                )
+        )
+      -- pure (RAllT (RTVar tv ty) eTout ref, bts')
+    -- todo: might as well print an error message?
+    RAllP pvbind tout -> do
+      (eTout, bts') <- elaborateSpecType
+        (partialTp >> Free (RAllPF pvbind (pure ())))
+        coreToLogic
+        tout
+      pure (RAllP pvbind eTout, bts')
+    -- pargs not handled for now
+    -- RApp tycon args pargs reft
+    RApp tycon args pargs ureft@(MkUReft reft@(F.Reft (vv, _)) p)
+      | isClass tycon -> pure (t, [])
+      | otherwise -> elaborateReft
+        (reft, t)
+        (pure (RApp tycon args pargs ureft, []))
+        (\bs' ee ->
+          pure (RApp tycon args pargs (MkUReft (F.Reft (vv, ee)) p), bs')
+        )
+    RAppTy arg res ureft@(MkUReft reft@(F.Reft (vv, _)) p) -> do
+      (eArg, bs ) <- elaborateSpecType partialTp coreToLogic arg
+      (eRes, bs') <- elaborateSpecType partialTp coreToLogic res
+      let (eResRenamed, canonicalBinders) =
+            canonicalizeDictBinder bs (eRes, bs')
+      elaborateReft
+        (reft, t)
+        (pure (RAppTy eArg eResRenamed ureft, canonicalBinders))
+        (\bs'' ee ->
+          let (eeRenamed, canonicalBinders') =
+                  canonicalizeDictBinder canonicalBinders (ee, bs'')
+          in  pure
+                ( RAppTy eArg eResRenamed (MkUReft (F.Reft (vv, eeRenamed)) p)
+                , canonicalBinders'
+                )
+        )
+    -- todo: Existential support
+    RAllE bind allarg ty -> do
+      (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
+      (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
+      let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
+      pure (RAllE bind eAllarg eTyRenamed, canonicalBinders)
+    REx bind allarg ty -> do
+      (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
+      (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
+      let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
+      pure (REx bind eAllarg eTyRenamed, canonicalBinders)
+    -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
+    -- in the future
+    RExprArg _ -> impossible Nothing "RExprArg should not appear here"
+    RHole    _ -> impossible Nothing "RHole should not appear here"
+    RRTy _ _ _ _ ->
+      todo Nothing ("Not sure how to elaborate RRTy" ++ F.showpp t)
  where
   boolType = RApp (RTyCon boolTyCon [] def) [] [] mempty :: SpecType
   elaborateReft
-    :: (F.PPrint a) => (F.Reft, SpecType) -> Ghc a -> ([F.Symbol] -> F.Expr -> Ghc a) -> Ghc a
+    :: (F.PPrint a)
+    => (F.Reft, SpecType)
+    -> Ghc a
+    -> ([F.Symbol] -> F.Expr -> Ghc a)
+    -> Ghc a
   elaborateReft (reft@(F.Reft (vv, e)), vvTy) trivial nonTrivialCont =
     if isTrivial reft
       then trivial
@@ -392,14 +403,14 @@ elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t
         let
           querySpecType =
             plugType (rFun vv vvTy boolType) partialTp :: SpecType
-          (hsExpr, origBinders) =
-            buildHsExpr (fixExprToHsExpr e) querySpecType :: ( LHsExpr GhcPs
-              , [F.Symbol]
-              )
+          origBinders = collectSpecTypeBinders querySpecType
+          hsExpr =
+            buildHsExpr (fixExprToHsExpr (S.fromList origBinders) e)
+                        querySpecType :: LHsExpr GhcPs
           exprWithTySigs =
             GM.notracePpr "exprWithTySigs" $ noLoc $ ExprWithTySig
-              ( mkLHsSigWcType
-              $ specTypeToLHsType (F.notracepp "querySpecType" querySpecType)
+              (mkLHsSigWcType $ specTypeToLHsType
+                (F.notracepp "querySpecType" querySpecType)
               )
               hsExpr :: LHsExpr GhcPs
         (msgs, mbExpr) <- GM.elaborateHsExprInst exprWithTySigs
@@ -425,14 +436,16 @@ elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t
                   Nothing
                   "Oops, Ghc gave back more/less binders than I expected"
             ret <- nonTrivialCont
-                   dictbs
-                   (F.notracepp "nonTrivialContEE" $ F.substa (\x -> Mb.fromMaybe x (L.lookup x subst)) ee)  -- (GM.dropModuleUnique <$> bs')
+              dictbs
+              ( F.notracepp "nonTrivialContEE"
+              $ F.substa (\x -> Mb.fromMaybe x (L.lookup x subst)) ee
+              )  -- (GM.dropModuleUnique <$> bs')
             pure (F.notracepp "result" ret)
                            -- (F.substa )
   isTrivial :: F.Reft -> Bool
   isTrivial (F.Reft (_, F.PTrue)) = True
-  isTrivial _ = False
-  
+  isTrivial _                     = False
+
   grabLams :: ([F.Symbol], F.Expr) -> ([F.Symbol], F.Expr)
   grabLams (bs, F.ELam (b, _) e) = grabLams (b : bs, e)
   grabLams bse                   = bse
@@ -446,59 +459,47 @@ elaborateSpecType partialTp coreToLogic t = case F.tracepp "elaborateSpecType" t
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
 --   for identifiers (compared to using the string API)
-fixExprToHsExpr :: F.Expr -> LHsExpr GhcPs
-fixExprToHsExpr (F.ECon c) = constantToHsExpr c
-fixExprToHsExpr (F.EVar x) =
-  noLoc (HsVar NoExt (noLoc (symbolToRdrName varName x)))
-fixExprToHsExpr (F.EApp e0 e1) =
-  noLoc (HsApp NoExt (fixExprToHsExpr e0) (fixExprToHsExpr e1))
-fixExprToHsExpr (F.ENeg e) = noLoc
-  (HsApp NoExt
-         (noLoc (HsVar NoExt (noLoc (nameRdrName negateName))))
-         (fixExprToHsExpr e)
-  )
-fixExprToHsExpr (F.EBin bop e0 e1) = noLoc
-  (HsApp NoExt
-         (noLoc (HsApp NoExt (bopToHsExpr bop) (fixExprToHsExpr e0)))
-         (fixExprToHsExpr e1)
-  )
-fixExprToHsExpr (F.EIte p e0 e1) = noLoc
-  (HsIf NoExt
-        Nothing
-        (fixExprToHsExpr p)
-        (fixExprToHsExpr e0)
-        (fixExprToHsExpr e1)
-  )
+fixExprToHsExpr :: S.HashSet F.Symbol -> F.Expr -> LHsExpr GhcPs
+fixExprToHsExpr env (F.ECon c) = constantToHsExpr c
+fixExprToHsExpr env (F.EVar x) = nlHsVar (symbolToRdrName env x)
+fixExprToHsExpr env (F.EApp e0 e1) =
+  mkHsApp (fixExprToHsExpr env e0) (fixExprToHsExpr env e1)
+fixExprToHsExpr env (F.ENeg e) =
+  mkHsApp (nlHsVar (nameRdrName negateName)) (fixExprToHsExpr env e)
+
+fixExprToHsExpr env (F.EBin bop e0 e1) = mkHsApp
+  (mkHsApp (bopToHsExpr bop) (fixExprToHsExpr env e0))
+  (fixExprToHsExpr env e1)
+fixExprToHsExpr env (F.EIte p e0 e1) = nlHsIf (fixExprToHsExpr env p)
+                                              (fixExprToHsExpr env e0)
+                                              (fixExprToHsExpr env e1)
+
 -- FIXME: convert sort to HsType
-fixExprToHsExpr (F.ECst e0 _    ) = fixExprToHsExpr e0
-fixExprToHsExpr (F.PAnd []      ) = nlHsVar true_RDR
-fixExprToHsExpr (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr e) es
-  where f x acc = mkHsApp (mkHsApp (nlHsVar and_RDR) (fixExprToHsExpr x)) acc
-fixExprToHsExpr (F.POr es) = noLoc
-  (HsApp
-    NoExt
-    (noLoc (HsVar NoExt (noLoc (varQual_RDR dATA_FOLDABLE (fsLit "or")))))
-    (noLoc (ExplicitList NoExt Nothing (fixExprToHsExpr <$> es)))
+fixExprToHsExpr env (F.ECst e0 _    ) = fixExprToHsExpr env e0
+-- fixExprToHsExpr env (F.PAnd []      ) = nlHsVar true_RDR
+fixExprToHsExpr env (F.PAnd []      ) = nlHsVar true_RDR
+fixExprToHsExpr env (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr env e) es
+ where
+  f x acc = mkHsApp (mkHsApp (nlHsVar and_RDR) (fixExprToHsExpr env x)) acc
+
+-- This would work in the latest commit
+-- fixExprToHsExpr env (F.PAnd es  ) = mkHsApp
+--   (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "and")))
+--   (nlList $ fixExprToHsExpr env <$> es)
+fixExprToHsExpr env (F.POr es) = mkHsApp
+  (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "or")))
+  (nlList $ fixExprToHsExpr env <$> es)
+fixExprToHsExpr env (F.PNot e) =
+  mkHsApp (nlHsVar not_RDR) (fixExprToHsExpr env e)
+fixExprToHsExpr env (F.PAtom brel e0 e1) = mkHsApp
+  (mkHsApp (brelToHsExpr brel) (fixExprToHsExpr env e0))
+  (fixExprToHsExpr env e1)
+fixExprToHsExpr env (F.PImp e0 e1) = mkHsApp
+  (mkHsApp (nlHsVar (mkVarUnqual (mkFastString "==>"))) (fixExprToHsExpr env e0)
   )
-fixExprToHsExpr (F.PNot e) =
-  noLoc (HsApp NoExt (noLoc (HsVar NoExt (noLoc not_RDR))) (fixExprToHsExpr e))
-fixExprToHsExpr (F.PAtom brel e0 e1) = noLoc
-  (HsApp NoExt
-         (noLoc (HsApp NoExt (brelToHsExpr brel) (fixExprToHsExpr e0)))
-         (fixExprToHsExpr e1)
-  )
-fixExprToHsExpr (F.PImp e0 e1) = noLoc
-  (HsApp
-    NoExt
-    (noLoc
-      (HsApp NoExt
-             (noLoc (HsVar NoExt (noLoc (mkVarUnqual (mkFastString "==>")))))
-             (fixExprToHsExpr e0)
-      )
-    )
-    (fixExprToHsExpr e1)
-  )
-fixExprToHsExpr e =
+  (fixExprToHsExpr env e1)
+
+fixExprToHsExpr env e =
   todo Nothing ("toGhcExpr: Don't know how to handle " ++ show e)
 
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs
@@ -533,14 +534,30 @@ brelToHsExpr brel = noLoc (HsVar NoExt (noLoc (f brel)))
   f F.Ne = mkVarUnqual (mkFastString "/=")
   f _    = impossible Nothing "brelToExpr: Unsupported operation"
 
-
-symbolToRdrName :: NameSpace -> F.Symbol -> RdrName
-symbolToRdrName ns x
+symbolToRdrNameNs :: NameSpace -> F.Symbol -> RdrName
+symbolToRdrNameNs ns x
   | F.isNonSymbol modName = mkUnqual ns (mkFastString (F.symbolString s))
   | otherwise = mkQual
     ns
     (mkFastString (F.symbolString modName), mkFastString (F.symbolString s))
   where (modName, s) = GM.splitModuleName x
+
+
+varSymbolToRdrName :: F.Symbol -> RdrName
+varSymbolToRdrName = symbolToRdrNameNs varName
+
+
+-- don't use this function...
+symbolToRdrName :: S.HashSet F.Symbol -> F.Symbol -> RdrName
+symbolToRdrName env x
+  | F.isNonSymbol modName = mkUnqual ns (mkFastString (F.symbolString s))
+  | otherwise = mkQual
+    ns
+    (mkFastString (F.symbolString modName), mkFastString (F.symbolString s))
+ where
+  (modName, s) = GM.splitModuleName x
+  ns | not (S.member x env), Just (c, _) <- F.unconsSym s, isUpper c = dataName
+     | otherwise = varName
 
 
 specTypeToLHsType :: SpecType -> LHsType GhcPs
@@ -561,21 +578,14 @@ specTypeToLHsType =
      where
       notExprArg (RExprArg _) = False
       notExprArg _            = True
-    RAllEF  _      _                (_, t) -> t
-    RExF    _      _                (_, t) -> t
-    RAppTyF (_, t) (RExprArg _, _ ) _      -> t
-    RAppTyF (_, t) (_         , t') _      -> nlHsAppTy t t'
-    RRTyF _ _ _ (_, t)                     -> t
-    RHoleF _                               -> noLoc $ HsWildCardTy NoExt
+    RAllEF _ (_, tin) (_, tout) -> nlHsFunTy tin tout
+    RExF   _ (_, tin) (_, tout) -> nlHsFunTy tin tout
+    -- impossible
+    RAppTyF _ (RExprArg _, _) _ ->
+      impossible Nothing "RExprArg should not appear here"
+    RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
+    -- YL: todo..
+    RRTyF _ _ _ (_, t)       -> t
+    RHoleF _                 -> noLoc $ HsWildCardTy NoExt
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
-
-
-
-
-
--- toType (RApp (RTyCon {rtc_tc = c}) ts _ _)
---   = TyConApp c (toType <$> filter notExprArg ts)
---   where
---     notExprArg (RExprArg _) = False
---     notExprArg _            = True
