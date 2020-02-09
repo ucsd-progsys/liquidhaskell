@@ -309,7 +309,7 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
 
-    mkClass (_, RApp c ts _ _) | isClass c = classBinds emb (rRCls c ts)
+    mkClass (_, RApp c ts _ _) | isEmbeddedDict c = classBinds emb (rRCls c ts)
     mkClass (x, t)                         = [(x, rSort t)]
 
     rSort   = rTypeSortedReft emb

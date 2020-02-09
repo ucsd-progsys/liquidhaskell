@@ -16,7 +16,11 @@ module Language.Haskell.Liquid.Bare.DataType
   , makeRecordSelectorSigs
   , meetDataConSpec
   -- , makeTyConEmbeds
-
+  
+  -- * Type Classes
+  , makeClassDataDecl
+  , makeClassDataDecl'
+  
   ) where
 
 import           Prelude                                hiding (error)
@@ -30,7 +34,8 @@ import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
-import qualified Data.Maybe                             as Mb 
+import qualified Data.Maybe                             as Mb
+import           Control.Arrow                          ((***))
 
 -- import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
@@ -350,7 +355,7 @@ muSort c n  = V.mapSort tx
 meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
-meetDataConSpec emb xts dcs  = -- F.notracepp "meetDataConSpec" $
+meetDataConSpec emb xts dcs  = F.notracepp "meetDataConSpec" $
                                M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
     dcm0                     = M.fromList (dataConSpec' dcs)
@@ -379,6 +384,77 @@ makeConTypes env (name, spec)
     dcs' = canonizeDecls env name dcs
     dcs  = Ms.dataDecls spec 
     vdcs = Ms.dvariance spec 
+
+makeClassDataDecl :: Bare.Env -> (ModName, Ms.BareSpec) -> [DataDecl]
+makeClassDataDecl env (m, spec) = classDeclToDataDecl env m <$> Ms.classes spec
+
+makeClassDataDecl' :: [(Ghc.Class, [(Ghc.Id, LocBareType)])] -> [DataDecl]
+makeClassDataDecl' = fmap (uncurry classDeclToDataDecl')
+
+classDeclToDataDecl' :: Ghc.Class -> [(Ghc.Id, LocBareType)] -> DataDecl
+classDeclToDataDecl' cls refinedIds = F.tracepp "classDeclToDataDecl" $ DataDecl
+          { tycName   = DnName (F.symbol <$> GM.locNamedThing cls)
+          , tycTyVars = tyVars
+          , tycPVars  = []
+          , tycDCons  = [dctor]
+          , tycSrcPos = F.loc . GM.locNamedThing $ cls
+          , tycSFun   = Nothing
+          , tycPropTy = Nothing
+          , tycKind   = DataUser}
+  -- YL: assume the class constraint is at the very front..
+  where dctor    = DataCtor
+          { dcName   = F.dummyLoc $ F.symbol classDc
+          -- YL: same as class tyvars??
+          , dcTyVars = tyVars
+          -- YL: what is theta?
+          , dcTheta  = []
+          , dcFields = fields
+          , dcResult = Nothing
+          }
+
+        tyVars = F.symbol <$> Ghc.classTyVars cls
+
+        fields = fmap attachRef classIds
+        attachRef sid
+          | Just ref <- L.lookup sid refinedIds
+          = (F.symbol sid, RT.subts tyVarSubst (F.val ref))
+          | otherwise
+          = (F.symbol sid, RT.bareOfType . dropPred . Ghc.varType $ sid)
+
+        tyVarSubst = [(GM.dropModuleUnique v, v) | v <- tyVars]
+
+        dropPred :: Ghc.Type -> Ghc.Type
+        dropPred (Ghc.ForAllTy _ (Ghc.FunTy _ τ')) = τ'
+        dropPred (Ghc.ForAllTy _ (Ghc.ForAllTy _ _)) = todo Nothing "multi-parameter type-class not supported"
+        dropPred _ = impossible Nothing "classDeclToDataDecl': assumption was wrong"
+
+        -- YL: what is the type of superclass-dictionary selectors?
+        classIds = Ghc.classAllSelIds cls
+        classDc  = Ghc.classDataCon cls
+  
+
+
+classDeclToDataDecl :: Bare.Env -> ModName -> RClass LocBareType -> DataDecl
+classDeclToDataDecl env m rcls = DataDecl
+          { tycName   = DnName (btc_tc . rcName $ rcls)
+          , tycTyVars = as
+          , tycPVars  = []
+          , tycDCons  = [dctor]
+          , tycSrcPos = F.loc . btc_tc . rcName $ rcls
+          , tycSFun   = Nothing
+          , tycPropTy = Nothing
+          , tycKind   = DataUser}
+          -- YL : fix it
+  where Just classTc   = (Bare.maybeResolveSym env m "makeClassDataDecl" . btc_tc . rcName $ rcls) >>= Ghc.tyConClass_maybe
+        classDc        = Ghc.classDataCon classTc
+        as             = F.symbol <$> rcTyVars rcls
+        dctor          = DataCtor
+          { dcName   = F.dummyLoc $ F.symbol classDc
+          , dcTyVars = as
+          , dcTheta  = []
+          , dcFields = (F.val *** F.val) <$> rcMethods rcls
+          , dcResult = Nothing}
+
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
 --   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
@@ -659,16 +735,18 @@ makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var
 makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
-    | null fls                    --    no field labels
+    | (null fls && Mb.isNothing maybe_cls)                       --    no field labels
     || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
     | otherwise 
-    = [ (v, t) | (Just v, t) <- zip fs ts ] 
+    = [ (v, F.tracepp "selectorSig" t) | (Just v, t) <- zip fs ts ] 
     where
+      maybe_cls = Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
       dc  = dcpCon dcp
       fls = Ghc.dataConFieldLabels dc
-      fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
+      fs  = Bare.lookupGhcNamedVar env name  <$>
+            Mb.maybe (fmap Ghc.flSelector fls) (fmap Ghc.getName . Ghc.classAllSelIds) maybe_cls
       ts :: [ LocSpecType ]
       ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
                                  [] [(z, res, mempty)]

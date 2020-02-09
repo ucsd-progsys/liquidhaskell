@@ -223,7 +223,7 @@ canonicalizeDictBinder bs (e', bs') = (renameDictBinder bs bs' e', bs)
   renameDictBinder []          _  = id
   renameDictBinder _           [] = id
   renameDictBinder canonicalDs ds = F.substa $ \x -> M.lookupDefault x x tbl
-    where tbl = F.tracepp "TBL" $ M.fromList (zip ds canonicalDs)
+    where tbl = F.notracepp "TBL" $ M.fromList (zip ds canonicalDs)
 
 
 elaborateSpecType
@@ -233,7 +233,7 @@ elaborateSpecType
   -> Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
                    -- should have returned Maybe [F.Symbol]
 elaborateSpecType partialTp coreToLogic t =
-  case F.tracepp "elaborateSpecType" t of
+  case F.notracepp "elaborateSpecType" t of
     RVar (RTV tv) (MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
       elaborateReft
         (reft, t)

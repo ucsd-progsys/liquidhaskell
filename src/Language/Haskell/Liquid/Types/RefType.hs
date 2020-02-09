@@ -1260,7 +1260,7 @@ instance SubsTy Symbol Symbol (BRType r) where
   subt su (RAppTy t1 t2 r)  = RAppTy (subt su t1) (subt su t2) r 
   subt su (RRTy e r o t)    = RRTy [(x, subt su p) | (x,p) <- e] r o (subt su t)
   subt _ (RHole r)          = RHole r 
-  
+
 instance SubsTy Symbol Symbol (RTProp BTyCon BTyVar r) where
   subt su (RProp e t) =  RProp [(x, subt su xt) | (x,xt) <- e] (subt su t)
 

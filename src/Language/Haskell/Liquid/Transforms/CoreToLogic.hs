@@ -247,7 +247,7 @@ coreToFun :: LocSymbol -> Var -> C.CoreExpr ->  LogicM ([Var], Either Expr Expr)
 coreToFun _ _v e = go [] $ normalize e
   where
     go acc (C.Lam x e)  | isTyVar    x = go acc e
-    go acc (C.Lam x e)  | isErasable x = go acc e
+    go acc (C.Lam x e)  | GM.isEmbeddedDictVar x = go acc e
     go acc (C.Lam x e)  = go (x:acc) e
     go acc (C.Tick _ e) = go acc e
     go acc e            = (reverse acc,) . Right <$> coreToLg e
@@ -478,7 +478,7 @@ splitArgs e = (f, reverse es)
     (f, es) = go e
 
     go (C.App (C.Var i) e) | ignoreVar i       = go e
-    go (C.App f (C.Var v)) | isErasable v      = go f
+    go (C.App f (C.Var v)) | GM.isEmbeddedDictVar v      = go f
     go (C.App f e) = (f', e:es) where (f', es) = go f
     go f           = (f, [])
 
@@ -536,19 +536,19 @@ isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
   && symbol jn == "GHC.Integer.Type.Jn#"  
 isBangInteger _ = False 
 
-isErasable :: Id -> Bool
-isErasable v = F.tracepp msg $ False -- isGhcSplId v && not (isDCId v) 
-  where 
-    msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
+-- isErasable :: Id -> Bool
+-- isErasable v = F.tracepp msg $ False -- isGhcSplId v && not (isDCId v) 
+--   where 
+--     msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
 
-isGhcSplId :: Id -> Bool
-isGhcSplId v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
+-- isGhcSplId :: Id -> Bool
+-- isGhcSplId v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
-isDCId :: Id -> Bool
-isDCId v = case Var.idDetails v of 
-  DataConWorkId _ -> True 
-  DataConWrapId _ -> True 
-  _               -> False 
+-- isDCId :: Id -> Bool
+-- isDCId v = case Var.idDetails v of 
+--   DataConWorkId _ -> True 
+--   DataConWrapId _ -> True 
+--   _               -> False 
 
 isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
@@ -573,7 +573,7 @@ instance Simplify C.CoreExpr where
     = e
   simplify (C.App e (C.Type _))
     = simplify e
-  simplify (C.App e (C.Var dict))  | isErasable dict
+  simplify (C.App e (C.Var dict))  | GM.isEmbeddedDictVar dict
     = simplify e
   simplify (C.App (C.Lam x e) _)   | isDead x
     = simplify e
@@ -581,13 +581,13 @@ instance Simplify C.CoreExpr where
     = C.App (simplify e1) (simplify e2)
   simplify (C.Lam x e) | isTyVar x
     = simplify e
-  simplify (C.Lam x e) | isErasable x
+  simplify (C.Lam x e) | GM.isEmbeddedDictVar x
     = simplify e
   simplify (C.Lam x e)
     = C.Lam x (simplify e)
-  simplify (C.Let (C.NonRec x _) e) | isErasable x
+  simplify (C.Let (C.NonRec x _) e) | GM.isEmbeddedDictVar x
     = simplify e
-  simplify (C.Let (C.Rec xes) e)    | all (isErasable . fst) xes
+  simplify (C.Let (C.Rec xes) e)    | all (GM.isEmbeddedDictVar . fst) xes
     = simplify e
   simplify (C.Let xes e)
     = C.Let (simplify xes) (simplify e)
