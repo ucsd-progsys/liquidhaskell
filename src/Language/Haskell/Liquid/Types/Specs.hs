@@ -94,6 +94,7 @@ data GhcSpecQual = SpQual
 data GhcSpecSig = SpSig 
   { gsTySigs   :: ![(Var, LocSpecType)]           -- ^ Asserted Reftypes
   , gsAsmSigs  :: ![(Var, LocSpecType)]           -- ^ Assumed Reftypes
+  , gsRefSigs  :: ![(Var, LocSpecType)]           -- ^ Reflected Reftypes 
   , gsInSigs   :: ![(Var, LocSpecType)]           -- ^ Auto generated Signatures
   , gsNewTypes :: ![(TyCon, LocSpecType)]         -- ^ Mapping of 'newtype' type constructors with their refined types.
   , gsDicts    :: !(DEnv Var LocSpecType)            -- ^ Refined Classes from Instances 

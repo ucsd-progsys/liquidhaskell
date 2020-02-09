@@ -462,7 +462,7 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
 ------------------------------------------------------------------------------------------
 addReflSigs :: GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
-addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ filter notReflected (gsAsmSigs sig) }
+addReflSigs refl sig = sig { gsRefSigs = reflSigs, gsAsmSigs = filter notReflected (gsAsmSigs sig) }
   where 
     reflSigs        = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
     reflected       = fst <$> reflSigs
@@ -478,6 +478,7 @@ makeSpecSig :: Config -> ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> 
 makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = SpSig 
   { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
   , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
+  , gsRefSigs  = [] 
   , gsDicts    = dicts 
   , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  

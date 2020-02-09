@@ -10,6 +10,7 @@ data Val = V { val :: Int }
 ex1 :: Val
 ex1 = V 4
 
+
 {-@ test1 :: {v:Bool | v} @-}
 test1 = val ex1 == 6
 
