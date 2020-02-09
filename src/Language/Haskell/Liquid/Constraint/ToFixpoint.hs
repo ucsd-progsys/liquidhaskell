@@ -85,17 +85,6 @@ makeAxiomEnvironment info xts fcs
     cfg      = getConfig  info
     sp       = giSpec     info
 
-_isClassOrDict :: Id -> Bool
-_isClassOrDict x = F.notracepp ("isClassOrDict: " ++ F.showpp x) 
-                    $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
-
-hasClassArg :: Id -> Bool
-hasClassArg x = F.notracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
-  where 
-    msg       = "hasClassArg: " ++ showpp (x, t:ts)
-    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
-
-
 doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))

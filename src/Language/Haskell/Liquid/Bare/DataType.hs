@@ -605,12 +605,12 @@ ofBDataCtor env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) = DataCo
   } 
   where
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
-    ts'           = F.notracepp "OHQO" $ Bare.ofBareType env name l (Just ps) <$> ts
+    ts'           = F.notracepp "ofBDataCtorts'" $ Bare.ofBareType env name l (Just ps) <$> ts
     res'          = Bare.ofBareType env name l (Just ps) <$> res
     t0'           = dataConResultTy c' αs t0 res'
     _cfg          = getConfig env 
     (yts, ot)     = -- F.notracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
-                      F.notracepp "OHQO2" $ qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
+                      F.notracepp "ofBDataCtoryts" $ qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
     zts           = zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
@@ -740,7 +740,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
     | otherwise 
-    = [ (v, F.tracepp "selectorSig" t) | (Just v, t) <- zip fs ts ] 
+    = [ (v, F.notracepp "selectorSig" t) | (Just v, t) <- zip fs ts ] 
     where
       maybe_cls = Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
       dc  = dcpCon dcp

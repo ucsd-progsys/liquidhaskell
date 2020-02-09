@@ -79,7 +79,7 @@ makeUnSorted t defs
     ta = go $ Ghc.expandTypeSynonyms t
 
     go (Ghc.ForAllTy _ t) = go t 
-    go (Ghc.FunTy p t) | Ghc.isClassPred p = go t 
+    go (Ghc.FunTy p t) | GM.isEmbeddedDictType p = go t
     go (Ghc.FunTy t _)    = t 
     go t                  = t -- this should never happen!
 

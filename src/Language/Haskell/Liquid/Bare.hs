@@ -234,9 +234,9 @@ compileClasses src env (name, spec) rest  = spec {sigs = sigs'} <> clsSpec
                   Just vs -> Just (sig:vs)
                 
         -- instance methods
-        methods = F.tracepp "methods" [ F.symbol <$> GM.locNamedThing x |
+        methods = F.notracepp "methods" [ F.symbol <$> GM.locNamedThing x |
                     (d, e) <- concatMap unRec (giCbs src)
-                  , F.tracepp (F.showpp (F.symbol d)) (Ghc.isDFunId d)
+                  , F.notracepp (F.showpp (F.symbol d)) (Ghc.isDFunId d)
                   , cls <- Mb.maybeToList $ L.lookup d instClss
                   , cls `elem` refinedClasses
                   , x <- freeVars mempty e
@@ -282,7 +282,7 @@ compileClasses src env (name, spec) rest  = spec {sigs = sigs'} <> clsSpec
         insts = mconcat . Mb.maybeToList . gsCls $ src
 
         instClss :: [(Ghc.DFunId, Ghc.Class)]
-        instClss = fmap (\inst -> (GM.tracePpr ("inst variables" ++ (GM.showPpr $ Ghc.is_tvs inst)) $ Ghc.is_dfun inst, Ghc.is_cls inst)) $
+        instClss = fmap (\inst -> (GM.notracePpr ("inst variables" ++ (GM.showPpr $ Ghc.is_tvs inst)) $ Ghc.is_dfun inst, Ghc.is_cls inst)) $
                    insts
         
         refinedClasses :: [Ghc.Class]

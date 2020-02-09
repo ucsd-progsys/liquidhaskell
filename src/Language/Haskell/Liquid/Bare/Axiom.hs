@@ -106,7 +106,7 @@ rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
 grabBody :: Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)
 grabBody (Ghc.ForAllTy _ t) e 
   = grabBody t e 
-grabBody (Ghc.FunTy tx t) e | Ghc.isClassPred tx 
+grabBody (Ghc.FunTy tx t) e | isEmbeddedDictType tx
   = grabBody t e 
 grabBody (Ghc.FunTy _ t) (Ghc.Lam x e) 
   = (x:xs, e') where (xs, e') = grabBody t e
