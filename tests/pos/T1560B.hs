@@ -1,6 +1,5 @@
 {-@ LIQUID "--ple"        @-}
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--extensionality" @-}
 
 module T1560 where 
 
