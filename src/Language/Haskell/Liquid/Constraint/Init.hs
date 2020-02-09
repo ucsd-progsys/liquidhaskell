@@ -67,11 +67,11 @@ initEnv info
        (hs,f0)  <- refreshHoles $ grty info                           -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
-       f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
-       f1'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
+       f3       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
+       f3'      <- refreshArgs' $ makeExactDc dcsty                   -- data constructors
        f2       <- refreshArgs' $ assm info                           -- assumed refinements      (for imported vars)
-       f3'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
-       f3       <- addPolyInfo' <$> (refreshArgs' $ vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
+       f1'      <- refreshArgs' =<< recSelectorsTy info                      -- assumed refinements      (for record selectors)
+       f1       <- addPolyInfo' <$> (refreshArgs' $ vals gsAsmSigs (gsSig sp))                 -- assumed refinedments     (with `assume`)
        f40      <- makeExactDc <$> (refreshArgs' $ vals gsCtors (gsData sp)) -- constructor refinements  (for measures)
        f5       <- refreshArgs' $ vals gsInSigs (gsSig sp)                   -- internal refinements     (from Haskell measures)
        fi       <- refreshArgs' $ catMaybes $ [(x,) . val <$> getMethodType mt | (x, mt) <- gsMethods $ gsSig $ giSpec info ]
@@ -86,7 +86,7 @@ initEnv info
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ tail bs])
+       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ tail $ tail bs])
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = giSpec info
