@@ -146,6 +146,7 @@ makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
                       | F.Equ f xts e t _ <- axioms 
                       , let mbT            = M.lookup f sigs
                       , let xArgs          = F.EVar . fst <$> xts
+                      , not (null xArgs) -- see T1607
                    ]
   where
     axioms       = gsMyAxioms refl ++ gsImpAxioms refl 

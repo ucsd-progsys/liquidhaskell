@@ -79,14 +79,15 @@ initEnv info
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, (F.notracepp "assumed" f3) ++ f3', f4, f5]
+       let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ tail $ tail bs])
+       f1True   <- mapM (mapSndM true) (bs!!1)
+       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (bs!!1) (bs!!5) hs info
+       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (f1True:(tail $ tail bs))])
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = giSpec info
