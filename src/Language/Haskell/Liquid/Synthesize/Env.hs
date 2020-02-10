@@ -26,14 +26,15 @@ initSSEnv rt info senv = M.union senv (M.fromList (filter iNeedIt (mkElem <$> pr
     dataCons = typeToCons rt 
     mkElem (v, lt) = (F.symbol v, (val lt, v))
     prims = gsCtors $ gsData $ giSpec $ ghcI info
-    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> dataCons) -- [ nilDataCon, consDataCon ]) 
+    iNeedIt (_, (_, v)) = v `elem` (dataConWorkId <$> dataCons)
 
 -- | For algebraic datatypes: Find (in the refinement type) 
 --   all the datatypes that are used and 
 --   get their constructors.
 tpToCons :: SpecType -> [DataCon] 
 tpToCons (RAllT a t x)  = tpToCons t 
-tpToCons (RApp c _ _ r) = tyConDataCons (rtc_tc c)
+tpToCons (RApp c args _ r) = trace ( " [ tpToCons ] " ++ show args) $
+  tyConDataCons (rtc_tc c) ++ concat (map tpToCons args)
 tpToCons (RFun sym rt0 rt1 reft)
   = tpToCons rt0 ++ tpToCons rt1
 tpToCons (RVar v r) 

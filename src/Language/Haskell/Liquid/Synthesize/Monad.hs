@@ -213,18 +213,12 @@ withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
     s <- get 
     let d = sDepth s
-
-    if d + 1 > maxDepth then
-        return mempty
-
-    else do
-        put s{sDepth = d + 1}
-
-        r <- m
-
-        modify $ \s -> s{sDepth = d}
-
-        return r
+    if d + 1 > maxDepth 
+      then return mempty
+      else do put s{sDepth = d + 1}
+              r <- m
+              modify $ \s -> s{sDepth = d}
+              return r
         
   
 incrSM :: SM Int 
@@ -266,7 +260,7 @@ instantiate :: CoreExpr -> Maybe [Var] -> CoreExpr
 instantiate e mbt = 
   case mbt of
     Nothing     -> e
-    Just tyVars -> apply tyVars e
+    Just tyVars -> trace (" Type variables are " ++ show tyVars ++ " expression is " ++ show e) (apply tyVars e)
 
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
 withInsProdCands specTy = 

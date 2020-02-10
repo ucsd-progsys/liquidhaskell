@@ -118,7 +118,8 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
                 _  -> modify (\s -> s { sGoalTyVar = Just tvs })
               emem0 <- withInsInitEM senv1
               modify (\s -> s { sExprMem = emem0 })
-              GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
+              emem1 <- getSEMem
+              trace (" ExpressionMemory " ++ showEmem emem1) $ GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
 synthesizeBasic :: String -> SpecType -> SM [CoreExpr]

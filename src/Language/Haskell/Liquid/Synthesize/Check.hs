@@ -41,7 +41,7 @@ hasType s b t !e' = do
   if tpOfE == ht
     then do
       r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      liftIO $ putStrLn (if b then "From " ++ s ++ " Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r else " Well-typed ")
+      liftIO $ putStrLn ("From " ++ s ++ (if b then " Checked:  " else " Well-Typed: ") ++ "Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
       return r
     else error $ " [ hasType " ++ s ++ " ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
