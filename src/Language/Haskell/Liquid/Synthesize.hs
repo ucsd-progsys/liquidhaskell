@@ -1,4 +1,3 @@
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE BangPatterns #-}
@@ -119,8 +118,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
                 _  -> modify (\s -> s { sGoalTyVar = Just tvs })
               emem0 <- withInsInitEM senv1
               modify (\s -> s { sExprMem = emem0 })
-              emem1 <- getSEMem
-              trace (" EMEM " ++ showEmem emem1) $ GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
+              GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
 synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
@@ -135,9 +133,8 @@ synthesizeBasic s t = do
   case es of 
     [] -> do  senv <- getSEnv
               lenv <- getLocalEnv 
-              matchEs <- synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t
-              return (tracepp " Match " matchEs)
-    es0  -> trace (" synthesizeBasic " ++ s ++ " Es " ++ show es) $ return es0
+              synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t
+    es0  -> return es0
 
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]

@@ -293,7 +293,7 @@ withInsProdCands specTy =
 withTypeEs :: String -> SpecType -> SM [CoreExpr] 
 withTypeEs s t = do 
     em <- sExprMem <$> get 
-    let withTypeEM = filter (\(t', _, _) -> t' == toType t) (tracepp (" withTypeEs " ++ s ++ " for type = " ++ show t) em)
+    let withTypeEM = filter (\(t', _, _) -> t' == toType t) em
     return (takeExprs withTypeEM) 
 
 

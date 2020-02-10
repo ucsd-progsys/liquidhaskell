@@ -31,31 +31,28 @@ genTerms :: String -> SpecType -> SM [CoreExpr]
 genTerms s specTy = 
   do  funTyCands <- withInsProdCands specTy
       es <- withTypeEs s specTy
-      main <- filterElseM (hasType " genTerms " True specTy) (tracepp (s ++ " { Functions " ++ concat (map getVn funTyCands) ++ " } [ genTerms ] ES = ") es) $ 
-                withDepthFill s specTy 0 funTyCands
-      return (tracepp (" main for " ++ s) main)
+      filterElseM (hasType " genTerms " True specTy) es $ 
+        withDepthFill s specTy 0 funTyCands
 
 genTerms0 :: String -> SpecType -> SM [CoreExpr] 
 genTerms0 s specTy = 
   do  funTyCands <- withInsProdCands specTy
       es <- withTypeEs s specTy
-      res <-  filterElseM (hasType " genTerms0 " True specTy) es $
-                withDepthFill0 specTy 0 funTyCands 
-      return (tracepp " [ genTerms0 ] Returns " res)
+      filterElseM (hasType " genTerms0 " True specTy) es $
+        withDepthFill0 specTy 0 funTyCands 
 
 withDepthFill0 :: SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
 withDepthFill0 t depth funTyCands = do
   curEm <- sExprMem <$> get
   exprs <- fillMany0 depth curEm funTyCands []
 
-  what <- filterElseM (hasType " withDepthFill0 " True t) exprs $ 
-            if depth < maxAppDepth
-              then withDepthFill0 t (depth + 1) funTyCands
-              else return []
-  return (tracepp " [ withDepthFill0 ] Returns " what)
+  filterElseM (hasType " withDepthFill0 " True t) exprs $ 
+    if depth < maxAppDepth
+      then withDepthFill0 t (depth + 1) funTyCands
+      else return []
 
 fillMany0 :: Int -> ExprMemory -> [(Symbol, (Type, Var))] -> [CoreExpr] -> SM [CoreExpr] 
-fillMany0 _     _       []             accExprs = return (tracepp " [ fillMany0 ] Returns " accExprs)
+fillMany0 _     _       []             accExprs = return accExprs
 fillMany0 depth exprMem (cand : cands) accExprs = do
   let (_, (htype, _))   = cand
       subgoals'         = createSubgoals htype 
@@ -80,11 +77,10 @@ withDepthFill s t depth funTyCands = do
   curEm <- sExprMem <$> get
   exprs <- fillMany s depth curEm funTyCands []
 
-  what2 <- filterElseM (hasType " withDepthFill " True t) exprs $
-            if depth < maxAppDepth
-              then withDepthFill s t (depth + 1) funTyCands
-              else return [] 
-  return (tracepp (s ++ " what2 ") what2)
+  filterElseM (hasType " withDepthFill " True t) exprs $
+    if depth < maxAppDepth
+      then withDepthFill s t (depth + 1) funTyCands
+      else return [] 
 
 
 -- Produce new expressions from expressions currently in expression memory (ExprMemory).
@@ -106,10 +102,10 @@ fillMany s depth exprMem (cand : cands) accExprs = do
       -- Checks if there is an empty list of of produced candidate terms for @cand@
       check             = foldr (\l b -> null l || b) False argCands 
 
-  if (tracepp (" [ Candidates ] For " ++ show v ++ " subgoals = " ++ concat (map showTy subgoals')) check)
+  if check
     then do curAppDepth <- sAppDepth <$> get 
             goals <- liftCG $ mapM trueTy subgoals 
-            argCands0 <- mapM (genTerms0 " fillMany0 calls genTerms0 ") goals
+            argCands0 <- mapM (genTerms0 " | fillMany0 -> genTerms0 | ") goals
             let argCands1 = map (map (, curAppDepth + 1)) argCands0
             exprs0 <- repeatPrune curAppDepth 1 (length argCands1) cand argCands1 []
             let nextEm = map (resultTy, , curAppDepth + 1) exprs0 
@@ -161,12 +157,9 @@ repeatPrune depth down up toBeFilled cands acc =
     then do 
       let (cands', cands'') = updateIthElem down depth cands 
       es <- fillOne toBeFilled cands'
-
       acc' <- (++ acc) <$> filterM isWellTyped es
-
-      -- trace ("For down = " ++ show down ++ " cs' " ++ show cands' ++ " cs'' " ++ show cands'') $ 
       repeatPrune depth (down + 1) up toBeFilled cands'' acc'
-    else return (tracepp (" [ repeatPrune ] For " ++ show (fst toBeFilled) ++ " result = ") acc)
+    else return acc
 
 ----------------------------------------------------------------------------
 --  | Term generation: Perform type and term application for functions. | --
@@ -245,7 +238,7 @@ withSubgoal ((t, e, i) : exprs) τ =
     then (e, i) : withSubgoal exprs τ
     else withSubgoal exprs τ
 
--- Misc
+-- Misc : Move them 
 getVn :: (Symbol, (Type, Var)) -> String 
 getVn (_, (t, vn)) = " | For candidate " ++ show vn ++ " type = " ++ showTy t ++ " | "
 
