@@ -32,8 +32,8 @@ import CoreUtils
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types hiding (SVar)
 
-hasType :: SpecType -> CoreExpr -> SM Bool
-hasType t !e' = do 
+hasType :: String -> Bool -> SpecType -> CoreExpr -> SM Bool
+hasType s b t !e' = do 
   x  <- freshVar t 
   st <- get 
   let tpOfE = exprType e'
@@ -41,16 +41,16 @@ hasType t !e' = do
   if tpOfE == ht
     then do
       r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      -- liftIO $ putStrLn ("Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ " SpecType " ++ "\n Res = " ++ show r)
+      liftIO $ putStrLn (if b then "From " ++ s ++ " Checked:  Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r else " Well-typed ")
       return r
-    else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
+    else error $ " [ hasType " ++ s ++ " ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
 
 -- Returns true if the expression is well-typed.
 isWellTyped :: CoreExpr -> SM Bool
 isWellTyped e =  do 
   t <- liftCG $ trueTy $ exprType e 
-  hasType t e 
+  hasType "" False t e 
 
 
 tx :: CoreExpr -> CoreExpr

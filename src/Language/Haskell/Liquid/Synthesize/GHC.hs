@@ -74,7 +74,9 @@ substInType t [tv] = substInType' tv t
     substInType' tv (AppTy t0 t1)                = AppTy (substInType' tv t0) (substInType' tv t1)
     substInType' tv (TyConApp c ts)              = TyConApp c (map (substInType' tv) ts)
     substInType' _  t                            = error $ "[substInType'] Shouldn't reach that point for now " ++ showTy t
-substInType t vars = t -- Hackish comment: error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
+-- Hackish comment: error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
+-- TODO: Target future/zip.hs and future/zipWith.hs
+substInType t vars = t 
 
 -- Find all variables in type
 varsInType :: Type -> [TyVar] 

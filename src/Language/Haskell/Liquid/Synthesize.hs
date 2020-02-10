@@ -54,7 +54,7 @@ import           Language.Haskell.Liquid.Synthesize.Classes
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
-  notrace (" [ Class methods ] " ++ show (map fst (toMethods cginfo))) (mapM goSCC $ holeDependencySSC $ holesMap cginfo)
+  mapM goSCC $ holeDependencySSC $ holesMap cginfo
   where 
     goSCC (AcyclicSCC v) = go v
     goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
@@ -66,12 +66,12 @@ synthesize tgt fcfg cginfo =
           coreProgram = giCbs $ giSrc $ ghcI cgi
           uniVars = getUniVars coreProgram topLvlBndr
           ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
-          senv1 = notrace (" [ synthesize ] " ++ show (getVars ssenv0)) $ initSSEnv typeOfTopLvlBnd cginfo ssenv0
+          senv1 = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
 
-      fills <- {- map fromAnf <$> -} synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd state0
+      fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -82,7 +82,7 @@ synthesize tgt fcfg cginfo =
 -- Assuming that @tx@ is the @SpecType@ of the top level variable. I thought I had it fixed...
 synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
 synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
- = notrace (" [ SSEnv ] Variables are " ++ show (getVars senv)) $ evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
+ = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
     go :: SpecType -> SM [CoreExpr]
@@ -95,82 +95,83 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
           args  = case argsP coreProgram xtop of { [] -> []; (_ : xs) -> xs }
           (_, (xs, txs, _), _) = bkArrow ttop
       addEnv xtop $ decrType xtop ttop args (zip xs txs)
-      if R.isNumeric (tyConEmbed cgi) c
-          -- Special Treatment for synthesis of integers          
-          then error " [ Numeric in synthesize ] Update liquid fixpoint. "
-          --------------------------------------------------------------------------------------
-          -- then do let RR s (Reft(x,rr)) = rTypeSortedReft (tyConEmbed cgi) t 
-          --         ctx <- sContext <$> get 
-          --         liftIO $ SMT.smtPush ctx
-          --         liftIO $ SMT.smtDecl ctx x s
-          --         liftIO $ SMT.smtCheckSat ctx rr 
-          --         -- Get model and parse the value of x
-          --         SMT.Model modelBinds <- liftIO $ SMT.smtGetModel ctx
-                  
-          --         let xNotFound = error $ "Symbol " ++ show x ++ "not found."
-          --             smtVal = T.unpack $ fromMaybe xNotFound $ lookup x modelBinds
 
-          --         liftIO (SMT.smtPop ctx)
-          --         return [GHC.Lit (mkMachInt64 (read smtVal :: Integer))] -- TODO: TypeCheck 
-          --------------------------------------------------------------------------------------
-          else do
-            emem0 <- withInsInitEM senv 
-            modify (\s -> s { sExprMem = emem0 })
-            synthesizeBasic t
+      -- Special Treatment for synthesis of integers 
+      if R.isNumeric (tyConEmbed cgi) c
+          then error " [ Numeric in synthesize ] Update liquid fixpoint. "
+          else do emem0 <- withInsInitEM senv 
+                  modify (\s -> s { sExprMem = emem0 })
+                  synthesizeBasic " Constructor " t
 
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               let dt = decrType xtop ttop ys (zip xs txs)
-              addEnv xtop (tracepp "Decreasing type is " dt)
-              emem0 <- withInsInitEM senv 
-              modify (\s -> s { sExprMem = emem0 }) 
+              addEnv xtop dt 
               mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
               addEmem xtop dt
-              GHC.mkLams ys <$$> synthesizeBasic (subst su to) 
+              senv1 <- getSEnv
+              let goalType = subst su to
+                  hsGoalTy = toType goalType 
+                  tvs = varsInType hsGoalTy
+              case tvs of
+                [] -> modify (\s -> s { sGoalTyVar = Nothing})
+                _  -> modify (\s -> s { sGoalTyVar = Just tvs })
+              emem0 <- withInsInitEM senv1
+              modify (\s -> s { sExprMem = emem0 })
+              emem1 <- getSEMem
+              trace (" EMEM " ++ showEmem emem1) $ GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
-synthesizeBasic :: SpecType -> SM [CoreExpr]
-synthesizeBasic t = do
+synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
+synthesizeBasic s t = do
   senv <- getSEnv
   let ht  = toType t
       tvs = varsInType ht
   case tvs of
     [] -> modify (\s -> s { sGoalTyVar = Nothing})
     _  -> modify (\s -> s { sGoalTyVar = Just tvs })
-  es <- genTerms t
+  es <- genTerms s t
   case es of 
     [] -> do  senv <- getSEnv
               lenv <- getLocalEnv 
-              synthesizeMatch lenv senv t
-    _  -> return es
+              matchEs <- synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t
+              return (tracepp " Match " matchEs)
+    es0  -> trace (" synthesizeBasic " ++ s ++ " Es " ++ show es) $ return es0
 
 
-synthesizeMatch :: LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch lenv γ t = trace ("[synthesizeMatch] es = " ++ show es) $ 
-  join <$> mapM (withIncrDepth . matchOn t) es
+synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
+synthesizeMatch s lenv γ t = 
+  join <$> mapM (withIncrDepth . matchOn s t) es
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
-matchOn :: SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
-matchOn t (v, tx, c) = (GHC.Case (GHC.Var v) v (toType tx) <$$> sequence) <$> mapM (makeAlt scrut t (v, tx)) (tyConDataCons c)
-  where scrut = v
+matchOn :: String -> SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
+matchOn s t (v, tx, c) =
+  (GHC.Case (GHC.Var v) v (toType tx) <$$> sequence) <$> mapM (makeAlt s v t (v, tx)) (tyConDataCons c)
 
 
-
-
-makeAlt :: Var -> SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt var t (x, tx@(RApp _ ts _ _)) c = trace ( " [ makeAlt ] " ++ show var) $ locally $ do -- (AltCon, [b], Expr b)
+makeAlt :: String -> Var -> SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
+makeAlt s var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
   addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  es <- synthesizeBasic t
+  es <- synthesizeBasic (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs) t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)
-makeAlt _ _ _ _ = error "makeAlt.bad argument"
-    
+makeAlt s _ _ _ _ = error $ "makeAlt.bad argument " ++ s
 
 
+---- Move them ------------
+instance PPrint GHC.AltCon
+
+showCoreAlt :: GHC.CoreAlt -> String
+showCoreAlt (GHC.DataAlt altCon, vars, expr) = 
+  " For " ++ show altCon ++ " vars " ++ show vars ++ " expr " ++ show expr
+showCoreAlt _ = " No! "
+
+showCoreAlts :: [GHC.CoreAlt] -> String
+showCoreAlts alts = concat (map showCoreAlt alts)

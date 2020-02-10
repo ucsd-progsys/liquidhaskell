@@ -44,6 +44,7 @@ import           Data.List
 import qualified Data.Map as Map 
 import           Data.List.Extra
 import           CoreUtils (exprType)
+import qualified Data.HashSet as S
 
 maxDepth :: Int 
 maxDepth = 1 
@@ -61,6 +62,7 @@ type SSDecrTerm = [(Var, [Var])]
 -- e.g. b  --- x_s3
 --     [b] --- [], x_s0, x_s4
 type ExprMemory = [(Type, CoreExpr, Int)]
+type T = M.HashMap Type (CoreExpr, Int)
 data SState 
   = SState { rEnv       :: REnv -- Local Binders Generated during Synthesis 
            , ssEnv      :: SSEnv -- Local Binders Generated during Synthesis 
@@ -147,7 +149,7 @@ addEmem x t = do
   let ht = if x == xtop then ht1 else ht0
   modify (\s -> s {sExprMem = (ht, GHC.Var x, curAppDepth) : (sExprMem s)})
 
--- instantiateTL :: SM (Type, GHC.CoreExpr)
+instantiateTL :: SM (Type, GHC.CoreExpr)
 instantiateTL = do
   uniVars <- getSUniVars 
   xtop <- getSFix
@@ -167,7 +169,7 @@ apply []     e =
 apply (v:vs) e 
   = case exprType e of 
       ForAllTy{} -> apply vs (GHC.App e (GHC.Type (TyVarTy v)))
-      _          -> error $ " [ instantiate (2) ] For e " ++ show e
+      _          -> e -- error $ " [ instantiate (2) ] For e " ++ show e ++ " vars = " ++ show (v:vs)
 
 
 
@@ -288,10 +290,10 @@ withInsProdCands specTy =
       return $ map (\(s, (_, v)) -> let (e, ty) = handleIt (GHC.Var v)
                                     in (s, (ty, v))) funTyCands' 
 
-withTypeEs :: SpecType -> SM [CoreExpr] 
-withTypeEs t = do 
+withTypeEs :: String -> SpecType -> SM [CoreExpr] 
+withTypeEs s t = do 
     em <- sExprMem <$> get 
-    let withTypeEM = filter (\(t', _, _) -> t' == toType t) em
+    let withTypeEM = filter (\(t', _, _) -> t' == toType t) (tracepp (" withTypeEs " ++ s ++ " for type = " ++ show t) em)
     return (takeExprs withTypeEM) 
 
 

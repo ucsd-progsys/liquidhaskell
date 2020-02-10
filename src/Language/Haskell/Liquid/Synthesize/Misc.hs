@@ -20,7 +20,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 
 isFunction :: Type -> Bool
 isFunction FunTy{}        = True 
-isFunction (ForAllTy _ t) = isFunction t 
+isFunction (ForAllTy _ t) = True -- isFunction t 
 isFunction _              = False
 
 (<$$>) :: (Functor m, Functor n) => (a -> b) -> m (n a) -> m (n b)
