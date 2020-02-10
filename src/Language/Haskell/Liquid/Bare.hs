@@ -463,11 +463,12 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
 ------------------------------------------------------------------------------------------
 addReflSigs :: GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
-addReflSigs refl sig = sig { gsRefSigs = reflSigs, gsAsmSigs = filter notReflected (gsAsmSigs sig) }
+addReflSigs refl sig = sig { gsRefSigs = reflSigs, gsAsmSigs = wreflSigs ++ filter notReflected (gsAsmSigs sig) }
   where 
-    reflSigs        = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
-    reflected       = fst <$> reflSigs
-    notReflected xt = (fst xt) `notElem` reflected
+    (wreflSigs, reflSigs)   = L.partition ((`elem` gsWiredReft refl) . fst) 
+                                 [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
+    reflected       = fst <$> (wreflSigs ++ reflSigs)
+    notReflected xt = fst xt `notElem` reflected
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
 makeAutoInst env name spec = Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
