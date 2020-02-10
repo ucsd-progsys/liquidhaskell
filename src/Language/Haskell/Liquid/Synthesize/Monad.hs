@@ -46,8 +46,8 @@ import           Data.List.Extra
 import           CoreUtils (exprType)
 import qualified Data.HashSet as S
 
-maxDepth :: Int 
-maxDepth = 1 
+maxMatchDepth :: Int 
+maxMatchDepth = 2 
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------
@@ -213,7 +213,7 @@ withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
     s <- get 
     let d = sDepth s
-    if d + 1 > maxDepth 
+    if d + 1 > maxMatchDepth 
       then return mempty
       else do put s{sDepth = d + 1}
               r <- m
