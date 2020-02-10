@@ -126,6 +126,7 @@ specBinders :: GhcInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
   [ gsTySigs  (gsSig  sp)
   , gsAsmSigs (gsSig  sp)
+  , gsRefSigs (gsSig  sp)
   , gsCtors   (gsData sp)
   , if info `hasOpt` scrapeInternals then gsInSigs (gsSig sp) else []
   ]
