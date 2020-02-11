@@ -7,6 +7,7 @@
 module Language.Haskell.Liquid.Synthesize.Monad where
 
 
+import           Language.Haskell.Liquid.Bare.Resolve as B
 import           Language.Haskell.Liquid.Types hiding (SVar)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Generate 
@@ -361,3 +362,11 @@ findCandidates senv goalTy = do
       cut (_, (t, v))      = goalType goalTy t  
   return (filter cut s2)
   
+
+
+varError :: SM Var
+varError = do 
+  info    <- ghcI . sCGI <$> get -- CGInfo
+  let env  = B.makeEnv (gsConfig $ giSpec info) (giSrc info) mempty mempty 
+  let name = giTargetMod $ giSrc info
+  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "GHC.Err.error")
