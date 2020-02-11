@@ -34,7 +34,7 @@ initSSEnv rt info senv = M.union senv (M.fromList (filter iNeedIt (mkElem <$> pr
 tpToCons :: SpecType -> [DataCon] 
 tpToCons (RAllT a t x)  = tpToCons t 
 tpToCons (RApp c args _ r) = trace ( " [ tpToCons ] " ++ show args) $
-  tyConDataCons (rtc_tc c) ++ concat (map tpToCons args)
+  tyConDataCons (rtc_tc c) ++ concatMap tpToCons args
 tpToCons (RFun sym rt0 rt1 reft)
   = tpToCons rt0 ++ tpToCons rt1
 tpToCons (RVar v r) 

@@ -66,9 +66,6 @@ showGoals (goal : goals) =
     replicate 12 ' ' ++ 
     showGoals goals
 
-takeExprs :: [(a, b, c)] -> [b]
-takeExprs = map (\(_, b, _) -> b)
-
 showEmem :: (Show a1, Show a2) => [(Type, a1, a2)] -> String
 showEmem  emem = show $ showEmem' emem
 

@@ -117,10 +117,16 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
               case tvs of
                 [] -> modify (\s -> s { sGoalTyVar = Nothing})
                 _  -> modify (\s -> s { sGoalTyVar = Just tvs })
-              emem0 <- withInsInitEM senv1
-              modify (\s -> s { sExprMem = emem0 })
+              case ts of 
+                [] -> modify (\s -> s { sUGoalTy = Nothing } )
+                _  -> modify (\s -> s { sUGoalTy = Just ts } )
+              emem0 <- withInsInitEM senv1 -- TODO Instantiate top-level here once and forall in @senv1@.
+              -- modify (\s -> s { sExprMem = emem0 })
+              emem2 <- insEMem0 senv1
+              modify (\s -> s { sExprMem = emem2 })
               emem1 <- getSEMem
-              trace (" ExpressionMemory " ++ showEmem emem1) $ GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
+              trace (" ExpressionMemory " ++ showEmem emem2) $ 
+                GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
 synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
@@ -130,12 +136,15 @@ synthesizeBasic s t = do
   -- | Shouldn't be all the type variables, as in @varsInType@.
   --   For example if @ht@ is [(a, b)] then tvs should be (a, b)
       tvs = varsInType ht
-      ts = unifyWith ht
-  case (trace (" synBasic " ++ concat (map showTy ts)) tvs) of
-    [] -> modify (\s -> s { sGoalTyVar = Nothing})
-    _  -> modify (\s -> s { sGoalTyVar = Just tvs })
+      ts = unifyWith ht -- ^ All the types that are used for instantiation.
+  case tvs of [] -> modify (\s -> s { sGoalTyVar = Nothing})
+              _  -> modify (\s -> s { sGoalTyVar = Just tvs })
+  case ts of [] -> modify (\s -> s { sUGoalTy = Nothing } )
+             _  -> modify (\s -> s { sUGoalTy = Just ts } )
+  emem2 <- insEMem0 senv
+  modify (\s -> s { sExprMem = emem2 })
   es <- genTerms s t
-  case es of 
+  case trace (" ExpressionMemory for t = " ++ show t ++ " is " ++ showEmem emem2) es of 
     [] -> do  senv <- getSEnv
               lenv <- getLocalEnv 
               synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t

@@ -87,10 +87,11 @@ varsInType t = notrace (" [ varsInType ] for type t = " ++ showTy t) $ (map head
     varsInType' (ForAllTy (TvBndr var _) ty) = var : varsInType' ty
     varsInType' (FunTy t0 t1)                = varsInType' t0 ++ varsInType' t1
     varsInType' (AppTy t0 t1)                = varsInType' t0 ++ varsInType' t1 
-    varsInType' (TyConApp c ts)              = foldr (\x y -> concatMap varsInType' ts ++ y) [] (trace (" [ varsInType ] " ++ show (map showTy ts)) ts)
+    varsInType' (TyConApp c ts)              = foldr (\x y -> concatMap varsInType' ts ++ y) [] ts
     varsInType' t                            = error $ "[varsInType] Shouldn't reach that point for now " ++ showTy t
 
 -- | Assuming that goals are type variables or constructors.
+--    Note: We maintain ordering from the goal type.
 unifyWith :: Type -> [Type] 
 unifyWith v@(TyVarTy var) = [v] 
 -- unifyWith (FunTy t0 t1)   = unifyWith t0 ++ unifyWith t1 
@@ -186,7 +187,7 @@ caseVarsE (GHC.Tick _ e) = caseVarsE e
 caseVarsE e = [] 
 
 symbolToVar :: GHC.CoreProgram -> Var -> M.HashMap Symbol SpecType -> SSEnv
-symbolToVar cp tlBndr renv = -- trace (" CaseVars " ++ show (varsP cp tlBndr caseVarsE)) $ 
+symbolToVar cp tlBndr renv = 
   let vars = [(F.symbol x, x) | x <- varsP cp tlBndr varsE]
       casevars = [F.symbol x | x <- varsP cp tlBndr caseVarsE]
       tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]

@@ -45,6 +45,7 @@ import qualified Data.Map as Map
 import           Data.List.Extra
 import           CoreUtils (exprType)
 import qualified Data.HashSet as S
+import           Data.Tuple.Extra 
 
 maxMatchDepth :: Int 
 maxMatchDepth = 2 
@@ -78,6 +79,8 @@ data SState
            , sUniVars   :: [Var]
            , sFix       :: Var
            , sGoalTyVar :: Maybe [TyVar]
+           , sUGoalTy   :: Maybe [Type] -- ^ Types used for instantiation.
+                                        --    Produced by @withUnify@.
            }
 type SM = StateT SState IO
 
@@ -102,7 +105,7 @@ evalSM act ctx tgt fcfg cgi cgenv renv env st = do
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
 initState ctx fcfg cgi cgenv renv xtop uniVars env = do
-  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing Nothing
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
@@ -148,30 +151,6 @@ addEmem x t = do
   (ht1, _) <- instantiateTL
   let ht = if x == xtop then ht1 else ht0
   modify (\s -> s {sExprMem = (ht, GHC.Var x, curAppDepth) : (sExprMem s)})
-
-instantiateTL :: SM (Type, GHC.CoreExpr)
-instantiateTL = do
-  uniVars <- getSUniVars 
-  xtop <- getSFix
-  let e = apply uniVars (GHC.Var xtop)
-  return (exprType e, e)
-  
-
--- | Applies type variables (1st argument) to an expression.
---   The expression is guaranteed to have the same level of 
---   parametricity (same number of @forall@) as the length of the 1st argument.
---   > The result has zero @forall@.
-apply :: [Var] -> GHC.CoreExpr -> GHC.CoreExpr
-apply []     e = 
-  case exprType e of 
-    ForAllTy {} -> error $ " [ instantiate (1) ] For e " ++ show e
-    _           -> e
-apply (v:vs) e 
-  = case exprType e of 
-      ForAllTy{} -> apply vs (GHC.App e (GHC.Type (TyVarTy v)))
-      _          -> e -- error $ " [ instantiate (2) ] For e " ++ show e ++ " vars = " ++ show (v:vs)
-
-
 
 addDecrTerm :: Var -> [Var] -> SM ()
 addDecrTerm x vars = do
@@ -230,12 +209,13 @@ symbolExpr :: Type -> F.Symbol -> SM CoreExpr
 symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)
 
 
+-- | Initializes @ExprMemory@ structure.
+--    1. Transforms refinement types to conventional (Haskell) types.
+--    2. All @Depth@s are initialized to 0.
 initExprMem :: SSEnv -> ExprMemory
-initExprMem ssenv = 
-  let senv  = M.toList ssenv 
-      senv'  = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) senv
-  in  senv'
+initExprMem sEnv = map (\(_, (t, v)) -> (toType t, GHC.Var v, 0)) (M.toList sEnv)
 
+-- TODO: Fix @SSEnv@ to avoid the hack with the top-level variable.
 withInsInitEM :: SSEnv -> SM ExprMemory
 withInsInitEM senv = do
   xtop <- getSFix
@@ -253,6 +233,23 @@ withInsInitEM senv = do
       let (e', t') = handleIt e
       in  (t', e', i)) (initExprMem senv)
 
+insEMem0 :: SSEnv -> SM ExprMemory
+insEMem0 senv = do
+  xtop <- getSFix
+  (ttop, _) <- instantiateTL
+  mbUTy <- sUGoalTy <$> get 
+
+-- Special handle for the top level variable: No instantiation
+  let handleIt e = case e of  GHC.Var v -> if xtop == v then (e, ttop) else change e
+                              _         -> change e
+
+      change e = let { e' = instantiateTy e mbUTy; t' = exprType e' } in (e', t')
+
+  return $ 
+    map (\(t, e, i) -> 
+      let (e', t') = handleIt e
+      in  (t', e', i)) (initExprMem senv)
+
 -- [ TODO ] 
 --    Should be for all possible permutations of @mbt@: 
 --    instantiate :: CoreExpr -> Maybe [Var] -> [CoreExpr]
@@ -262,6 +259,44 @@ instantiate e mbt =
     Nothing     -> e
     Just tyVars -> trace (" Type variables are " ++ show tyVars ++ " expression is " ++ show e) (apply tyVars e)
 
+-- | Applies type variables (1st argument) to an expression.
+--   The expression is guaranteed to have the same level of 
+--   parametricity (same number of @forall@) as the length of the 1st argument.
+--   > The result has zero @forall@.
+apply :: [Var] -> GHC.CoreExpr -> GHC.CoreExpr
+apply []     e = 
+  case exprType e of 
+    ForAllTy {} -> error $ " [ instantiate (1) ] For e " ++ show e
+    _           -> e
+apply (v:vs) e 
+  = case exprType e of 
+      ForAllTy{} -> apply vs (GHC.App e (GHC.Type (TyVarTy v)))
+      _          -> e -- error $ " [ instantiate (2) ] For e " ++ show e ++ " vars = " ++ show (v:vs)
+
+instantiateTy :: CoreExpr -> Maybe [Type] -> CoreExpr
+instantiateTy e mbTy = 
+  case mbTy of 
+    Nothing  -> e
+    Just tys -> applyTy tys e
+
+-- | Used for instantiation: Applies types to an expression.
+--   > The result does not have @forall@.
+applyTy :: [Type] -> GHC.CoreExpr -> GHC.CoreExpr
+applyTy []     e =  case exprType e of 
+                      ForAllTy{} -> e -- error $ " [ instantiate (1) ] For e " ++ show e
+                      _          -> e
+applyTy (t:ts) e =  case exprType e of
+                      ForAllTy{} -> applyTy ts (GHC.App e (GHC.Type t))
+                      _          -> e
+
+-- | Instantiate the top-level variable.
+instantiateTL :: SM (Type, GHC.CoreExpr)
+instantiateTL = do
+  uniVars <- getSUniVars 
+  xtop <- getSFix
+  let e = apply uniVars (GHC.Var xtop)
+  return (exprType e, e)
+
 withInsProdCands :: SpecType -> SM [(Symbol, (Type, Var))]
 withInsProdCands specTy = 
   do  senv <- ssEnv <$> get 
@@ -270,8 +305,7 @@ withInsProdCands specTy =
       mbTyVar <- sGoalTyVar <$> get 
       let τ            = toType specTy 
       cands <- findCandidates senv τ 
-      let filterFn   (_, (ty, _)) = isFunction ty 
-          funTyCands'  = filter filterFn cands
+      let funTyCands'  = filter (isFunction . fst . snd) cands
 
 
       -- BOILERPLATE: TODO FIX BOTH
@@ -287,8 +321,7 @@ withInsProdCands specTy =
 withTypeEs :: String -> SpecType -> SM [CoreExpr] 
 withTypeEs s t = do 
     em <- sExprMem <$> get 
-    let withTypeEM = filter (\(t', _, _) -> t' == toType t) em
-    return (takeExprs withTypeEM) 
+    return (map snd3 (filter (\x -> fst3 x == toType t) em)) 
 
 
 findCandidates :: SSEnv -> Type -> SM [(Symbol, (Type, Var))]

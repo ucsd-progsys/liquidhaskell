@@ -28,13 +28,13 @@ import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 -- Generate terms that have type t: This changes the @ExprMem@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
 genTerms :: String -> SpecType -> SM [CoreExpr] 
-genTerms = genTerms' SMRes 
+genTerms = genTerms' ResultMode 
 
 
 data SearchMode 
-  = SMArgs       -- ^ searching for arguments of functions that can eventually 
-                 --   produce the top level hole fill
-  | SMRes        -- ^ searching for the hole fill 
+  = ArgsMode          -- ^ searching for arguments of functions that can eventually 
+                      --   produce the top level hole fill
+  | ResultMode        -- ^ searching for the hole fill 
   deriving Eq 
 
 genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
@@ -75,9 +75,9 @@ fillMany i s depth exprMem (cand : cands) accExprs = do
       check             = foldr (\l b -> null l || b) False argCands 
 
   curAppDepth <- sAppDepth <$> get 
-  newExprs <- if (i == SMArgs || check)
+  newExprs <- if i == ArgsMode || check
                 then do goals <- liftCG $ mapM trueTy subgoals 
-                        argCands0 <- mapM (genTerms' SMArgs " | fillMany0 -> genTerms0 | ") goals
+                        argCands0 <- mapM (genTerms' ArgsMode " | fillMany0 -> genTerms0 | ") goals
                         let argCands1 = map (map (, curAppDepth + 1)) argCands0
                         repeatPrune curAppDepth 1 (length argCands1) cand argCands1 []
                 else do curAppDepth <- sAppDepth <$> get 
