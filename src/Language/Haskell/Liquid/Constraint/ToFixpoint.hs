@@ -144,8 +144,8 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
 makeEquations :: GhcSpec -> [F.Equation]
 makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
                       | F.Equ f xts e t _ <- axioms 
-                      , let mbT            = M.lookup f sigs
                       , let xArgs          = F.EVar . fst <$> xts
+                      , let mbT            = if null xArgs then Nothing else M.lookup f sigs
                    ]
   where
     axioms       = gsMyAxioms refl ++ gsImpAxioms refl 

@@ -442,6 +442,7 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl
     rflSyms      = S.fromList (getReflects specs)
     sigVars      = F.notracepp "SIGVARS" $ (fst3 <$> xtes)            -- reflects
                                         ++ (fst  <$> gsAsmSigs sig)   -- assumes
+                                        ++ (fst  <$> gsRefSigs sig)
                                       -- ++ (fst  <$> gsTySigs  sig)   -- measures 
 
     lmap         = Bare.reLMap env
@@ -462,11 +463,12 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
 ------------------------------------------------------------------------------------------
 addReflSigs :: GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
-addReflSigs refl sig = sig { gsAsmSigs = reflSigs ++ filter notReflected (gsAsmSigs sig) }
+addReflSigs refl sig = sig { gsRefSigs = reflSigs, gsAsmSigs = wreflSigs ++ filter notReflected (gsAsmSigs sig) }
   where 
-    reflSigs        = [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
-    reflected       = fst <$> reflSigs
-    notReflected xt = (fst xt) `notElem` reflected
+    (wreflSigs, reflSigs)   = L.partition ((`elem` gsWiredReft refl) . fst) 
+                                 [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
+    reflected       = fst <$> (wreflSigs ++ reflSigs)
+    notReflected xt = fst xt `notElem` reflected
 
 makeAutoInst :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var (Maybe Int)
 makeAutoInst env name spec = Misc.hashMapMapKeys (Bare.lookupGhcVar env name "Var") (Ms.autois spec)
@@ -478,6 +480,7 @@ makeSpecSig :: Config -> ModName -> Bare.ModSpecs -> Bare.Env -> Bare.SigEnv -> 
 makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = SpSig 
   { gsTySigs   = F.notracepp "gsTySigs"  tySigs 
   , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
+  , gsRefSigs  = [] 
   , gsDicts    = dicts 
   , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
