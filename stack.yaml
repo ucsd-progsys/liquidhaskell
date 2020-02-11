@@ -5,6 +5,7 @@ extra-package-dbs: []
 ghc-options:
   hscolour: -w
 packages:
+- liquid-prelude
 - liquid-fixpoint
 - .
 extra-deps:

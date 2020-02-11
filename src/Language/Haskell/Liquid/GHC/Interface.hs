@@ -41,6 +41,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , checkFilePragmas
   , keepRawTokenStream
   , ignoreInline
+  , lookupTyThings
 
   ) where
 
@@ -404,7 +405,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
   -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
-  let isTarget         = file `S.member` tgtFiles
+  let isTarget         = Debug.traceShowId file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments (pm_annotations parsed)
@@ -473,7 +474,7 @@ makeGhcSrc cfg file typechecked modSum = do
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
-  things            <- lookupTyThings hscEnv typechecked modGuts 
+  things            <- lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src 
@@ -530,16 +531,18 @@ qImports qns  = QImports
 --   for this module; we will use this to create our name-resolution environment 
 --   (see `Bare.Resolve`)                                          
 ---------------------------------------------------------------------------------------
-lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
-lookupTyThings hscEnv tcm mg =
-  forM (mgNames mg) $ \n -> do 
-    tt1 <-          lookupName                   n 
-    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
-    tt3 <-          modInfoLookupName mi         n 
-    tt4 <-          lookupGlobalName             n 
+lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
+lookupTyThings hscEnv modSum tcGblEnv = do
+  mi <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
+  forM names $ \n -> do 
+    tt1 <-          GhcMonadLike.lookupName      n
+    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
+    tt3 <-          GhcMonadLike.modInfoLookupName mi n
+    tt4 <-          GhcMonadLike.lookupGlobalName n 
     return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
-    where 
-      mi = tm_checked_module_info tcm
+  where
+    names :: [Ghc.Name] 
+    names  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
 
 -- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
