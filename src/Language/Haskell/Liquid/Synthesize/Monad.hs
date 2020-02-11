@@ -318,6 +318,29 @@ withInsProdCands specTy =
       return $ map (\(s, (_, v)) -> let (e, ty) = handleIt (GHC.Var v)
                                     in (s, (ty, v))) funTyCands' 
 
+withInsProdCands0 :: SpecType -> SM [(Symbol, (Type, Var))]
+withInsProdCands0 specTy = 
+  do  senv <- ssEnv <$> get 
+      xtop <- getSFix
+      (ttop, _) <- instantiateTL
+      mbTyVar <- sGoalTyVar <$> get 
+      mbUTy <- sUGoalTy <$> get 
+      let τ            = toType specTy 
+      cands <- findCandidates senv τ 
+      let funTyCands'  = filter (isFunction . fst . snd) cands
+
+
+      -- BOILERPLATE: TODO FIX BOTH
+      -- Special handle for the top level variable: No instantiation
+      let handleIt e = case e of  GHC.Var v -> if xtop == v then (e, ttop) else change e
+                                  _         -> change e
+
+          change e = let { e' = instantiateTy e mbUTy; t' = exprType e' } in (e', t')
+
+      return $ map (\(s, (_, v)) -> let (e, ty) = handleIt (GHC.Var v)
+                                    in (s, (ty, v))) funTyCands' 
+
+
 withTypeEs :: String -> SpecType -> SM [CoreExpr] 
 withTypeEs s t = do 
     em <- sExprMem <$> get 

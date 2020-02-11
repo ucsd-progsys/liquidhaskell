@@ -39,8 +39,8 @@ data SearchMode
 
 genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
 genTerms' i s specTy = 
-  do  funTyCands <- withInsProdCands specTy
-      es <- withTypeEs s specTy
+  do  funTyCands <- withInsProdCands0 specTy
+      es <- withTypeEs s (tracepp (" Candidate functions " ++ concat (map getVn funTyCands) ++ " for type ") specTy)
       filterElseM (hasType " genTerms " True specTy) es $ 
         withDepthFill i s specTy 0 funTyCands
 
@@ -208,7 +208,7 @@ withSubgoal ((t, e, i) : exprs) τ =
 
 -- Misc : Move them 
 getVn :: (Symbol, (Type, Var)) -> String 
-getVn (_, (t, vn)) = " | For candidate " ++ show vn ++ " type = " ++ showTy t ++ " | "
+getVn (_, (t, vn)) = "( " ++ show vn ++ ", " ++ showTy t ++ " )"
 
 getVars0 :: [(Symbol, (Type, Var))] -> [Var] 
 getVars0 []                 = []
