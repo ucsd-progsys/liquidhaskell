@@ -5,13 +5,14 @@
 module Language.Haskell.Liquid.GHC.Plugin.Types
     ( SpecComment(..)
     -- * Dealing with accumulated specs
-    , SpecEnv
+    , SpecEnv(..)
     , CachedSpec(..)
-    , WrappedSpec(..)
     , toCached
     , fromCached
     , cachedModuleName
-    , extendSpecEnv
+    , resetBaseSpecs
+    , replaceBaseSpecs
+    , insertExternalSpec
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
     , tcImports
@@ -26,13 +27,14 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
 import qualified Data.Binary                             as B
 import           Data.Data                                ( Data )
 import           Text.Parsec                              ( SourcePos )
-import           Outputable
+import           Outputable                        hiding ( (<>) )
 import           GHC.Generics
 import           GHC                                      ( LImportDecl
                                                           , GhcRn
                                                           , Name
                                                           , TyThing
                                                           , Module
+                                                          , mkModuleName
                                                           )
 import           HscTypes                                 ( ModGuts )
 import           TcRnTypes                                ( TcGblEnv(tcg_rn_imports) )
@@ -44,40 +46,36 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
 
 import qualified Data.Map.Strict                         as M
-import qualified Data.HashSet                            as HS
-import           Data.HashSet                             ( HashSet )
-import           Data.Hashable
 
-type SpecEnv    = Map ModuleName (HashSet CachedSpec)
-data CachedSpec = CachedSpec ModName WrappedSpec deriving (Generic, Eq)
+
+data SpecEnv    = SpecEnv {
+    baseSpecs :: [CachedSpec]
+    -- ^ The base specs shipped with LiquidHaskell.
+  , externalSpecs :: Map Module CachedSpec
+  } deriving Eq
+
+data CachedSpec = CachedSpec ModName BareSpec deriving Generic
+
+instance Eq CachedSpec where
+    (CachedSpec mn1 _) == (CachedSpec mn2 _) = mn1 == mn2
 
 toCached :: (ModName, BareSpec) -> CachedSpec
-toCached s = CachedSpec (fst s) (WrappedSpec . snd $ s)
+toCached = uncurry CachedSpec
 
 fromCached :: CachedSpec -> (ModName, BareSpec)
-fromCached (CachedSpec mn (WrappedSpec s)) = (mn, s)
+fromCached (CachedSpec mn s) = (mn, s)
 
 cachedModuleName :: CachedSpec -> ModuleName
 cachedModuleName (CachedSpec mn _) = getModName mn
 
-extendSpecEnv :: ModuleName -> HashSet CachedSpec -> SpecEnv -> SpecEnv
-extendSpecEnv mn specs = M.alter f mn
-  where
-    f :: Maybe (HashSet CachedSpec) -> Maybe (HashSet CachedSpec)
-    f Nothing   = Just specs
-    f (Just sp) = Just (sp `mappend` specs)
+resetBaseSpecs :: SpecEnv -> SpecEnv
+resetBaseSpecs env = env { baseSpecs = mempty }
 
-instance Hashable CachedSpec
+replaceBaseSpecs :: [CachedSpec] -> SpecEnv -> SpecEnv
+replaceBaseSpecs specs env = env { baseSpecs = specs }
 
--- Just a test.
-newtype WrappedSpec = WrappedSpec BareSpec deriving Generic
-
--- Lame 'Eq' instance just for testing purposes.
-instance Eq WrappedSpec where
-    (==) (WrappedSpec spec1) (WrappedSpec spec2) = B.encode spec1 == B.encode spec2
-
-instance Hashable WrappedSpec where
-    hashWithSalt s (WrappedSpec spec) = hashWithSalt s (B.encode spec)
+insertExternalSpec :: Module -> CachedSpec -> SpecEnv -> SpecEnv
+insertExternalSpec mdl spec env = env { externalSpecs = M.insert mdl spec (externalSpecs env) }
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
