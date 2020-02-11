@@ -64,6 +64,7 @@ createSubgoals t                  = [t]
 
 -- TODO: More than one type variables in type (what happens in forall case with that?).
 -- Why do we need variable substitutions? Type applications are not enough?
+-- It is used by @goalType@, which is used by @findCandidates@.
 substInType :: Type -> [TyVar] -> Type 
 substInType t []   = t
 substInType t [tv] = substInType' tv t
@@ -86,8 +87,15 @@ varsInType t = notrace (" [ varsInType ] for type t = " ++ showTy t) $ (map head
     varsInType' (ForAllTy (TvBndr var _) ty) = var : varsInType' ty
     varsInType' (FunTy t0 t1)                = varsInType' t0 ++ varsInType' t1
     varsInType' (AppTy t0 t1)                = varsInType' t0 ++ varsInType' t1 
-    varsInType' (TyConApp c ts)              = foldr (\x y -> concatMap varsInType' ts ++ y) [] ts
+    varsInType' (TyConApp c ts)              = foldr (\x y -> concatMap varsInType' ts ++ y) [] (trace (" [ varsInType ] " ++ show (map showTy ts)) ts)
     varsInType' t                            = error $ "[varsInType] Shouldn't reach that point for now " ++ showTy t
+
+-- | Assuming that goals are type variables or constructors.
+unifyWith :: Type -> [Type] 
+unifyWith v@(TyVarTy var) = [v] 
+-- unifyWith (FunTy t0 t1)   = unifyWith t0 ++ unifyWith t1 
+unifyWith (TyConApp c ts) = ts 
+unifyWith t               = error $ " [ unifyWith ] " ++ showTy t 
 
 fromAnf :: CoreExpr -> CoreExpr
 fromAnf e = fst $ fromAnf' e []

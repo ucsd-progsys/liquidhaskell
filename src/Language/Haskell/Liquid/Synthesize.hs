@@ -113,6 +113,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
               let goalType = subst su to
                   hsGoalTy = toType goalType 
                   tvs = varsInType hsGoalTy
+                  ts = unifyWith (toType goalType)
               case tvs of
                 [] -> modify (\s -> s { sGoalTyVar = Nothing})
                 _  -> modify (\s -> s { sGoalTyVar = Just tvs })
@@ -126,8 +127,11 @@ synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
 synthesizeBasic s t = do
   senv <- getSEnv
   let ht  = toType t
+  -- | Shouldn't be all the type variables, as in @varsInType@.
+  --   For example if @ht@ is [(a, b)] then tvs should be (a, b)
       tvs = varsInType ht
-  case tvs of
+      ts = unifyWith ht
+  case (trace (" synBasic " ++ concat (map showTy ts)) tvs) of
     [] -> modify (\s -> s { sGoalTyVar = Nothing})
     _  -> modify (\s -> s { sGoalTyVar = Just tvs })
   es <- genTerms s t
