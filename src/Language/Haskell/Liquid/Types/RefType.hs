@@ -1621,7 +1621,11 @@ typeSort tce = go
     go t@(FunTy _ _)    = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
-    go (TyConApp c τs)  = tyConFTyCon tce c (go <$> τs)
+    go (TyConApp c τs)  
+      | isNewTyCon c 
+      = go (Ghc.newTyConInstRhs c τs)
+      | otherwise  
+      = tyConFTyCon tce c (go <$> τs)
     go (AppTy t1 t2)    = fApp (go t1) [go t2]
     go (TyVarTy tv)     = tyVarSort tv
     go (CastTy t _)     = go t
