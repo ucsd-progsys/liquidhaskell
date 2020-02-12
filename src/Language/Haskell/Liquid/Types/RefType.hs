@@ -1622,7 +1622,7 @@ typeSort tce = go
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)  
-      | isNewTyCon c 
+      | isNewTyCon c {- and the type is not recirsive... otherwise it diverges -}
       = go (Ghc.newTyConInstRhs c τs)
       | otherwise  
       = tyConFTyCon tce c (go <$> τs)
