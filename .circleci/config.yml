@@ -13,6 +13,9 @@ commands:
   cabal_build_and_test:
     description: "Build the project and run the tests"
     parameters:
+      extra_test_flags:
+        type: string
+        default: ""
       liquid_runner:
         type: string
         default: "--liquid-runner=cabal v2-run liquid -- "
@@ -43,7 +46,7 @@ commands:
       - run:
           name: Test
           command: |
-            cabal v2-test -j1 liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            cabal v2-test -j1 liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
             cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
       - store_test_results:
           path: /tmp/junit/cabal
@@ -105,6 +108,7 @@ jobs:
       - image: adinapoli/ghc:8.10.1-slim
     steps:
       - cabal_build_and_test:
+          extra_test_flags: "--flag plugin"
           liquid_runner: "--liquid-runner=cabal v2-exec ghc -- --make -i. -package liquidhaskell -package liquid-prelude -fplugin=Language.Haskell.Liquid.GHC.Plugin "
 
 workflows:

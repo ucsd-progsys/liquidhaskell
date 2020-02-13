@@ -51,6 +51,11 @@ source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
 
+flag plugin
+  default:     False
+  manual:      True
+  description: Turn on support for the source plugin
+
 flag devel
   default:     False
   manual:      True
@@ -261,7 +266,7 @@ test-suite test
                   , transformers         >= 0.3
   default-language: Haskell98
   ghc-options:      -W -threaded
-  if impl(ghc >= 8.10)
+  if flag(plugin)
     cpp-options: -DUSE_PLUGIN
 
 test-suite liquidhaskell-parser
