@@ -40,6 +40,7 @@ import           Var
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
+import qualified Data.HashSet                    as S
 import qualified Data.Maybe                                 as Mb 
 import qualified Data.List         as L -- (foldl', partition)
 -- import           Data.List                       (nub)
@@ -170,15 +171,24 @@ strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
 dcWrapSpecType :: DataCon -> DataConP -> SpecType
 dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
-  = {- F.notracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
+  = F.notracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $
     mkArrow makeVars' ps [] ts' rt'
   where
+    isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, F.subst (F.mkSubst su) t, mempty)
-                               : tx ((x, F.EVar y):su) xs ys ts
+    -- NOTE THAT xs and xs' have the same type!!!
+    -- I renamed them to avoid shadowing but if you modify this
+    -- code keep that in mind
+    tx su (x:xs') (y:ys) (t:ts) = ( y
+                                 -- special case for class
+                                 , if isCls
+                                   then t
+                                   else F.subst (F.mkSubst su) t
+                                 , mempty)
+                               : tx ((x, F.EVar y):su) xs' ys ts
     tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
     yts'     = tx [] xs ys ts
     ts'      = map ("" , , mempty) cs ++ yts'
@@ -186,6 +196,12 @@ dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
     rt'      = F.subst su rt
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
     makeVars' = zip makeVars (repeat mempty)
+
+    -- typeclass yts contains predicates (Semigroup => , Functor => ...)
+    -- stripPred :: SpecType -> SpecType
+    -- stripPred t  = mkUnivs tvs pvs tres
+    --   where (tvs, pvs, _, tres) = bkUnivClass t
+
 
 instance PPrint TyConP where
   pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 

@@ -55,7 +55,7 @@ getReflectDefs src sig spec = findVarDefType cbs sigs <$> xs
 findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> LocSymbol
                -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)
 findVarDefType cbs sigs x = case findVarDefMethod (val x) cbs of
-  Just (v, e) -> if Ghc.isExportedId v || isMethod (F.symbol x)
+  Just (v, e) -> if Ghc.isExportedId v || isMethod (F.symbol x) || isDictionary (F.symbol x)
                    then (F.notracepp "FIND-VAR-DEF-NAME" $ x, F.notracepp "FIND-VAR-DEF" $ val <$> lookup v sigs, v, e)
                    else Ex.throw $ mkError x ("Lifted functions must be exported; please export " ++ show v)
   Nothing     -> Ex.throw $ mkError x "Cannot lift haskell function"

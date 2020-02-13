@@ -66,7 +66,7 @@ import           TcRnDriver
 
 
 import           RdrName
-import           Type                                       (expandTypeSynonyms, isClassPred, isEqPred, liftedTypeKind, tyConAppTyCon_maybe)
+import           Type                                       (expandTypeSynonyms, isClassPred, isEqPred, liftedTypeKind, tyConAppTyCon_maybe, splitForAllTys, coreView)
 import           TyCoRep
 import           Var
 import           IdInfo
@@ -802,11 +802,18 @@ findVarDefMethod x cbs =
                      (Rec [(v, def)] : _ ) -> Just (v, def)
                      _                     -> Nothing
   where
-    rcbs             = if isMethod x then mCbs else xCbs 
-    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb ]
+    rcbs | isMethod x = mCbs
+         | isDictionary x = dCbs
+         | otherwise  = xCbs
+    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb 
+                           ]
     mCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` methodSymbols cb]
+    dCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` dictionarySymbols cb]
     unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
     unRec nonRec    = [nonRec]
+
+dictionarySymbols :: CoreBind -> [Symbol]
+dictionarySymbols = filter isDictionary . map (dropModuleNames . symbol) . binders
 
 
 methodSymbols :: CoreBind -> [Symbol]
@@ -972,3 +979,15 @@ elabRnExpr hsc_env mode rdr_expr =
     TM_Inst    -> (True, NoRestrictions, id)
     TM_NoInst  -> (False, NoRestrictions, id)
     TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
+
+splitThetaTy :: Type -> ([TyVar], [Type], Type)
+splitThetaTy ty = (tvs, clss, res')
+  where (tvs, res) = splitForAllTys ty
+        (clss, res') = splitFunClsTys res
+
+splitFunClsTys :: Type -> ([Type], Type)
+splitFunClsTys ty = split [] ty ty
+  where
+    split args orig_ty ty | Just ty' <- coreView ty = split args orig_ty ty'
+    split args _       (FunTy arg res) | isPredType arg = split (arg:args) res res
+    split args orig_ty _               = (reverse args, orig_ty)

@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TupleSections     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 module Language.Haskell.Liquid.Bare.DataType
   ( dataConMap
@@ -20,6 +21,8 @@ module Language.Haskell.Liquid.Bare.DataType
   -- * Type Classes
   , makeClassDataDecl
   , makeClassDataDecl'
+  , elaborateClassDcp
+  , stripDataConPPred
   
   ) where
 
@@ -36,6 +39,7 @@ import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.Maybe                             as Mb
 import           Control.Arrow                          ((***))
+import           Control.Monad
 
 -- import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
@@ -52,7 +56,8 @@ import           Language.Haskell.Liquid.WiredIn
 
 import qualified Language.Haskell.Liquid.Measure        as Ms
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
-import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare 
+import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
+import           Language.Haskell.Liquid.Bare.Elaborate
 
 -- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
 -- import           Language.Haskell.Liquid.Bare.Env
@@ -356,7 +361,7 @@ meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP]
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
 meetDataConSpec emb xts dcs  = F.notracepp "meetDataConSpec" $
-                               M.toList $ snd <$> L.foldl' upd dcm0 xts
+                               M.toList $ snd <$> L.foldl' upd dcm0 (F.notracepp "meetDataConSpec xts" xts)
   where
     dcm0                     = M.fromList (dataConSpec' dcs)
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
@@ -419,14 +424,15 @@ classDeclToDataDecl' cls refinedIds = F.tracepp "classDeclToDataDecl" $ DataDecl
           | Just ref <- L.lookup sid refinedIds
           = (F.symbol sid, RT.subts tyVarSubst (F.val ref))
           | otherwise
-          = (F.symbol sid, RT.bareOfType . dropPred . Ghc.varType $ sid)
+          = (F.symbol sid, RT.bareOfType . dropTheta . Ghc.varType $ sid)
 
         tyVarSubst = [(GM.dropModuleUnique v, v) | v <- tyVars]
 
-        dropPred :: Ghc.Type -> Ghc.Type
-        dropPred (Ghc.ForAllTy _ (Ghc.FunTy _ τ')) = τ'
-        dropPred (Ghc.ForAllTy _ (Ghc.ForAllTy _ _)) = todo Nothing "multi-parameter type-class not supported"
-        dropPred _ = impossible Nothing "classDeclToDataDecl': assumption was wrong"
+        dropTheta :: Ghc.Type -> Ghc.Type
+        dropTheta =  GM.notracePpr "Dropping pred" . Misc.thd3 . GM.splitThetaTy
+        -- dropTheta (Ghc.ForAllTy _ (Ghc.FunTy _ τ')) = τ'
+        -- dropTheta (Ghc.ForAllTy _ (Ghc.ForAllTy _ _)) = todo Nothing "multi-parameter type-class not supported"
+        -- dropTheta _ = impossible Nothing "classDeclToDataDecl': assumption was wrong"
 
         -- YL: what is the type of superclass-dictionary selectors?
         classIds = Ghc.classAllSelIds cls
@@ -455,6 +461,102 @@ classDeclToDataDecl env m rcls = DataDecl
           , dcFields = (F.val *** F.val) <$> rcMethods rcls
           , dcResult = Nothing}
 
+-- makeClassDataConP :: Bare.Env
+--                   -> (Ghc.Class, [(Ghc.Id, LocBareType)], [Ghc.ClsInst])
+--                   -> DataConP
+-- makeClassDataConP env (cls, sigs, insts) = _
+--   where
+--     -- YL: This function is partial. Fails when the class is a newtype
+--     Just name = Ghc.nameModule_maybe (Ghc.getName cls)
+--     c' = Ghc.classDataCon cls
+--     -- resolved field signatures. need to automatically generate the missing ones
+--     ts' = Bare.ofBareType env _modulename _loc_beg Nothing <$> _ts
+--     -- result type
+--     t0' = RT.ofType $ Ghc.dataConOrigResTy c'
+--     _cfg = getConfig env
+--     -- don't need this step
+--     -- (yts, ot) = qualifyDataCtor (not isGadt) name dLoc (zip )
+--     dLoc = F.Loc _loc_beg _loc_end
+    
+elaborateClassDcp :: (Ghc.CoreExpr -> F.Expr) -> DataConP -> Ghc.Ghc (DataConP , DataConP)
+elaborateClassDcp coreToLg dcp = do
+  t' <- forM fts $ elaborateSpecType coreToLg
+  let ts' = F.tracepp "elaboratedMethod" $ elaborateMethod (F.symbol dc) (S.fromList xs) <$> (fst <$> t')
+  pure (F.tracepp "elaborateClassDcp" $ dcp {dcpTyArgs = zip xs (stripPred <$> ts')}, dcp {dcpTyArgs = zip xs (fst <$> t')})
+  where
+    resTy = dcpTyRes dcp
+    dc = dcpCon dcp
+    tvars =
+      F.notracepp "tvars" $ (\x -> (makeRTVar x, mempty)) <$> dcpFreeTyVars dcp
+        -- check if the names are qualified
+    (xs, ts) = F.notracepp "elaborateClassDcpxts" $ unzip (dcpTyArgs dcp)
+    fts = fullTy <$> ts
+        -- turns forall a b. (a -> b) -> f a -> f b into
+        -- forall f. Functor f => forall a b. (a -> b) -> f a -> f b
+    stripPred :: SpecType -> SpecType
+    stripPred t  = mkUnivs tvs pvs tres
+      where (tvs, pvs, _, tres) = bkUnivClass t
+    fullTy :: SpecType -> SpecType
+    fullTy t =
+      F.notracepp "fullTy" $
+      mkArrow tvars [] [] [(F.symbol dc, F.notracepp "resTy" resTy, mempty)] t
+
+substClassOpBinding ::
+     F.Symbol -> F.Symbol -> S.HashSet F.Symbol -> F.Expr -> F.Expr
+substClassOpBinding tcbind dc methods e = F.notracepp "substClassOpBinding" $ go e
+  where
+    go :: F.Expr -> F.Expr
+    go (F.EApp e0 e1)
+      | F.EVar x <- F.notracepp "e0" e0
+      , F.EVar y <- F.notracepp "e1" e1
+      , F.notracepp "tcbindeq" $ y == tcbind
+      , S.member x methods
+          -- Before: Functor.fmap ($p1Applicative $dFunctor)
+          -- After: Funcctor.fmap ($p1Applicative##GHC.Base.Applicative)
+       = F.EVar (x `F.suffixSymbol` dc)
+      | otherwise
+      = F.EApp (go e0) (go e1)
+    go (F.ENeg e) = F.ENeg (go e)
+    go (F.EBin bop e0 e1) = F.EBin bop (go e0) (go e1)
+    go (F.EIte e0 e1 e2) = F.EIte (go e0) (go e1) (go e2)
+    go (F.ECst e0 s) = F.ECst (go e0) s
+    go (F.ELam (x, t) body) = F.ELam (x, t) (go body)
+    go (F.PAnd es) = F.PAnd (go <$> es)
+    go (F.POr es) = F.POr (go <$> es)
+    go (F.PNot e) = F.PNot (go e)
+    go (F.PImp e0 e1) = F.PImp (go e0) (go e1)
+    go (F.PAtom brel e0 e1) = F.PAtom brel (go e0) (go e1)
+    go e = F.notracepp "LEAF" e
+
+-- fmap f x == ap ... into
+-- fmap ($p1Selector $dMyFunctor) f x == (ap $dMyFunctor) f x
+-- fmap $p1Selector##MyFunctor f x = ap##MyFunctor f x
+elaborateMethod ::
+     F.Symbol
+  -> S.HashSet F.Symbol
+  -> SpecType
+  -> SpecType
+elaborateMethod dc methods t = 
+  let tcbind = grabtcbind t in
+  mapExprReft (\_ -> substClassOpBinding (F.notracepp "tcbind" tcbind) dc methods) t
+  where
+    grabtcbind :: SpecType -> F.Symbol
+    grabtcbind t =
+      F.notracepp "grabtcbind" $
+      case Misc.fst3 . Misc.snd3 . bkArrow . Misc.thd3 $ (F.notracepp "univ broken" $ bkUniv t) of
+        tcbind:_ -> tcbind
+        [] ->
+          impossible
+            Nothing
+            ("elaborateMethod: inserted dictionary binder disappeared:" ++ F.showpp t)
+
+
+stripDataConPPred :: DataConP -> DataConP
+stripDataConPPred dcp = dcp {dcpTyArgs = fmap (\(x,t) -> (x, stripPred t)) yts}
+  where stripPred :: SpecType -> SpecType
+        stripPred t  = mkUnivs tvs pvs tres
+          where (tvs, pvs, _, tres) = bkUnivClass t
+        yts = dcpTyArgs dcp
 
 -- | 'canonizeDecls ds' returns a subset of 'ds' with duplicates, e.g. arising
 --   due to automatic lifting (via 'makeHaskellDataDecls'). We require that the
@@ -549,7 +651,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
   | not (checkDataDecl tc' dd)
   = uError err
   | otherwise
-  = ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
+  = ((name, tcp, Just (dd { tycDCons = cts }, pd)), F.notracepp "ofBDataDecl" $ Loc lc lc' <$> cts')
   where
     πs         = Bare.ofBPVar env name pos <$> ps
     tc'        = getDnTyCon env name tc
@@ -607,14 +709,14 @@ ofBDataCtor env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) = DataCo
     c'            = Bare.lookupGhcDataCon env name "ofBDataCtor" c
     ts'           = F.notracepp "ofBDataCtorts'" $ Bare.ofBareType env name l (Just ps) <$> ts
     res'          = Bare.ofBareType env name l (Just ps) <$> res
-    t0'           = dataConResultTy c' αs t0 res'
-    _cfg          = getConfig env 
+    t0'           = F.notracepp "ofBDataCtort0'" $ dataConResultTy c' αs t0 res'
+    _cfg          = getConfig env
     (yts, ot)     = -- F.notracepp ("dataConTys: " ++ F.showpp (c, αs)) $ 
                       F.notracepp "ofBDataCtoryts" $ qualifyDataCtor (not isGadt) name dLoc (zip xs ts', t0')
-    zts           = zipWith (normalizeField c') [1..] (reverse yts)
+    zts           = F.notracepp "zts" $ zipWith (normalizeField c') [1..] (reverse yts)
     usedTvs       = S.fromList (ty_var_value <$> concatMap RT.freeTyVars (t0':ts'))
     cs            = [ p | p <- RT.ofType <$> Ghc.dataConTheta c', keepPredType usedTvs p ]
-    (xs, ts)      = unzip xts
+    (xs, ts)      = F.notracepp "ofBDataCtorxts" $ unzip xts
     t0            = case RT.famInstTyConType tc of
                       Nothing -> F.notracepp "dataConResult-3: " $ RT.gApp tc αs πs
                       Just ty -> RT.ofType ty
@@ -735,7 +837,10 @@ makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var
 makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
-    | (null fls && Mb.isNothing maybe_cls)                       --    no field labels
+    | Just cls <- maybe_cls
+    = let cfs = Ghc.classAllSelIds cls in
+        [(v, Loc l l' t)| (v,t) <- zip cfs (reverse $ fmap snd args)]
+    | null fls                       --    no field labels
     || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
     = []
@@ -745,8 +850,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
       maybe_cls = Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
       dc  = dcpCon dcp
       fls = Ghc.dataConFieldLabels dc
-      fs  = Bare.lookupGhcNamedVar env name  <$>
-            Mb.maybe (fmap Ghc.flSelector fls) (fmap Ghc.getName . Ghc.classAllSelIds) maybe_cls
+      fs  = Bare.lookupGhcNamedVar env name  <$> fmap Ghc.flSelector fls
       ts :: [ LocSpecType ]
       ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
                                  [] [(z, res, mempty)]
@@ -759,7 +863,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   
       su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
       args = dcpTyArgs dcp
-      z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+      z    = F.tracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
       res  = dropPreds (dcpTyRes dcp)
   
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem

@@ -300,14 +300,14 @@ stitchArgs sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ isPredTy t) allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ isEmbeddedDictType t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
       g (x, Just t) _  = (x, t, mempty)
       g (x, _)      t  = (x, t, mempty)
       coArg Nothing    = False
-      coArg (Just t)   = isPredTy . toType $ t
+      coArg (Just t)   = isEmbeddedDictType . toType $ t
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2

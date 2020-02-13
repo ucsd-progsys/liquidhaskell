@@ -26,6 +26,7 @@ import           Data.Functor.Foldable
 import           Data.Char                      ( isUpper )
 import           GHC
 import           OccName
+import           Var                            (varType)
 import           FastString
 import           CoreSyn
 import           PrelNames
@@ -225,15 +226,20 @@ canonicalizeDictBinder bs (e', bs') = (renameDictBinder bs bs' e', bs)
   renameDictBinder canonicalDs ds = F.substa $ \x -> M.lookupDefault x x tbl
     where tbl = F.notracepp "TBL" $ M.fromList (zip ds canonicalDs)
 
-
 elaborateSpecType
+  :: (CoreExpr -> F.Expr)
+  -> SpecType
+  -> Ghc (SpecType, [F.Symbol])
+elaborateSpecType = elaborateSpecType' $ pure ()
+
+elaborateSpecType'
   :: PartialSpecType
   -> (CoreExpr -> F.Expr)
   -> SpecType
   -> Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
                    -- should have returned Maybe [F.Symbol]
-elaborateSpecType partialTp coreToLogic t =
-  case F.notracepp "elaborateSpecType" t of
+elaborateSpecType' partialTp coreToLogic t =
+  case F.notracepp "elaborateSpecType'" t of
     RVar (RTV tv) (MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
       elaborateReft
         (reft, t)
@@ -246,8 +252,8 @@ elaborateSpecType partialTp coreToLogic t =
       let partialFunTp =
             Free (RFunF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
-      (eTin , bs ) <- elaborateSpecType partialTp coreToLogic tin
-      (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
+      (eTin , bs ) <- elaborateSpecType' partialTp coreToLogic tin
+      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic tout
       let buildRFunContTrivial
             | isClassType tin, dictBinder : bs0' <- bs' = do
               let (eToutRenamed, canonicalBinders) =
@@ -300,8 +306,8 @@ elaborateSpecType partialTp coreToLogic t =
       let partialFunTp =
             Free (RImpFF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
-      (eTin , bs ) <- elaborateSpecType partialTp' coreToLogic tin
-      (eTout, bs') <- elaborateSpecType partialTp' coreToLogic tout
+      (eTin , bs ) <- elaborateSpecType' partialTp' coreToLogic tin
+      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic tout
       let (eToutRenamed, canonicalBinders) =
             canonicalizeDictBinder bs (eTout, bs')
 
@@ -321,7 +327,7 @@ elaborateSpecType partialTp coreToLogic t =
         )
     -- support for RankNTypes/ref
     RAllT (RTVar tv ty) tout ureft@(MkUReft ref@(F.Reft (vv, _oldE)) p) -> do
-      (eTout, bs) <- elaborateSpecType
+      (eTout, bs) <- elaborateSpecType'
         (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ureft))
         coreToLogic
         tout
@@ -339,7 +345,7 @@ elaborateSpecType partialTp coreToLogic t =
       -- pure (RAllT (RTVar tv ty) eTout ref, bts')
     -- todo: might as well print an error message?
     RAllP pvbind tout -> do
-      (eTout, bts') <- elaborateSpecType
+      (eTout, bts') <- elaborateSpecType'
         (partialTp >> Free (RAllPF pvbind (pure ())))
         coreToLogic
         tout
@@ -355,8 +361,8 @@ elaborateSpecType partialTp coreToLogic t =
           pure (RApp tycon args pargs (MkUReft (F.Reft (vv, ee)) p), bs')
         )
     RAppTy arg res ureft@(MkUReft reft@(F.Reft (vv, _)) p) -> do
-      (eArg, bs ) <- elaborateSpecType partialTp coreToLogic arg
-      (eRes, bs') <- elaborateSpecType partialTp coreToLogic res
+      (eArg, bs ) <- elaborateSpecType' partialTp coreToLogic arg
+      (eRes, bs') <- elaborateSpecType' partialTp coreToLogic res
       let (eResRenamed, canonicalBinders) =
             canonicalizeDictBinder bs (eRes, bs')
       elaborateReft
@@ -372,13 +378,13 @@ elaborateSpecType partialTp coreToLogic t =
         )
     -- todo: Existential support
     RAllE bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
-      (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
+      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic allarg
+      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic ty
       let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
       pure (RAllE bind eAllarg eTyRenamed, canonicalBinders)
     REx bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType partialTp coreToLogic allarg
-      (eTy    , bs') <- elaborateSpecType partialTp coreToLogic ty
+      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic allarg
+      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic ty
       let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
       pure (REx bind eAllarg eTyRenamed, canonicalBinders)
     -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
@@ -437,7 +443,7 @@ elaborateSpecType partialTp coreToLogic t =
                   "Oops, Ghc gave back more/less binders than I expected"
             ret <- nonTrivialCont
               dictbs
-              ( F.notracepp "nonTrivialContEE"
+              ( F.notracepp "nonTrivialContEE" . eliminateEta
               $ F.substa (\x -> Mb.fromMaybe x (L.lookup x subst)) ee
               )  -- (GM.dropModuleUnique <$> bs')
             pure (F.notracepp "result" ret)
@@ -564,13 +570,15 @@ specTypeToLHsType :: SpecType -> LHsType GhcPs
 -- surprised that the type application is necessary
 specTypeToLHsType =
   flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
-    RVarF (RTV tv) _ -> nlHsTyVar (getRdrName tv)
+    RVarF (RTV tv) _ -> nlHsTyVar (symbolToRdrNameNs tvName (F.symbol tv)) -- (getRdrName tv)
     RFunF _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy NoExt (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
     RImpFF _ (_, tin) (_, tout) _ -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ ->
-      noLoc $ HsForAllTy NoExt (userHsTyVarBndrs noSrcSpan [getRdrName tv]) t
+      noLoc $ HsForAllTy NoExt (userHsTyVarBndrs noSrcSpan [-- getRdrName tv
+                                   (symbolToRdrNameNs tvName (F.symbol tv))
+                                                           ]) t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> nlHsTyConApp
       (getRdrName tc)
@@ -589,3 +597,25 @@ specTypeToLHsType =
     RHoleF _                 -> noLoc $ HsWildCardTy NoExt
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
+
+-- the core expression returned by ghc might be eta-expanded
+-- we need to do elimination so Pred doesn't contain lambda terms
+eliminateEta :: F.Expr -> F.Expr
+eliminateEta (F.EApp e0 e1) = F.EApp (eliminateEta e0) (eliminateEta e1)
+eliminateEta (F.ENeg e) = F.ENeg (eliminateEta e)
+eliminateEta (F.EBin bop e0 e1) = F.EBin bop (eliminateEta e0) (eliminateEta e1)
+eliminateEta (F.EIte e0 e1 e2) = F.EIte (eliminateEta e0) (eliminateEta e1) (eliminateEta e2)
+eliminateEta (F.ECst e0 s) = F.ECst (eliminateEta e0) s
+eliminateEta (F.ELam (x, t) body)
+  | F.EApp e0 (F.EVar x') <- ebody
+  , x == x' && notElem x (F.syms e0)
+  = e0
+  | otherwise
+  = F.ELam (x, t) ebody
+  where ebody = eliminateEta body
+eliminateEta (F.PAnd es) = F.PAnd (eliminateEta <$> es)
+eliminateEta (F.POr es) = F.POr (eliminateEta <$> es)
+eliminateEta (F.PNot e) = F.PNot (eliminateEta e)
+eliminateEta (F.PImp e0 e1) = F.PImp (eliminateEta e0) (eliminateEta e1)
+eliminateEta (F.PAtom brel e0 e1) = F.PAtom brel (eliminateEta e0) (eliminateEta e1)
+eliminateEta e = e

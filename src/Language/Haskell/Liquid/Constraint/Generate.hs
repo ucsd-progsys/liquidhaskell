@@ -678,7 +678,7 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
 
 cconsE' γ e t
-  = do te  <- consE γ e
+  = do te  <- consE γ (GM.tracePpr "cconsE'" e)
        te' <- instantiatePreds γ e te >>= addPost γ
        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
@@ -765,7 +765,7 @@ instantiatePreds :: CGEnv
                  -> SpecType
                  -> CG SpecType
 instantiatePreds γ e (RAllP π t)
-  = do r     <- freshPredRef γ e π
+  = do r     <- F.tracepp "instantiatePreds" <$> freshPredRef γ e π
        instantiatePreds γ e $ replacePreds "consE" t [(π, r)]
 
 instantiatePreds _ _ t0
@@ -805,7 +805,7 @@ consE γ e
 -- [NOTE: PLE-OPT] We *disable* refined instantiation for 
 -- reflected functions inside proofs.
 consE γ (Var x)
-  = do t <- varRefType γ x
+  = do t <- F.tracepp "varRefType" <$> varRefType γ (GM.tracePpr "consEVar" x)
        addLocA (Just x) (getLocation γ) (varAnn γ x t)
        return t
 
