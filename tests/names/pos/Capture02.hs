@@ -10,3 +10,4 @@ exactly x = x
 incr :: Int -> Int
 incr n = exactly (n + 1)
 
+main = pure ()

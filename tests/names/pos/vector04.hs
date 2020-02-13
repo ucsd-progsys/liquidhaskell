@@ -8,3 +8,5 @@ import Data.Vector
 {-@ foo :: Vector Int -> Int  @-}
 foo :: Vector Int -> Int 
 foo _ = 1 
+
+main = pure ()

@@ -12,3 +12,4 @@ goo f i n xink
   | i < n     = goo f (i+1) n (f i xink) 
   | otherwise = xink
 
+main = pure ()

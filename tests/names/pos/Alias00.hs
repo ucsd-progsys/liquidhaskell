@@ -7,3 +7,5 @@ data Zog = V
 thing :: Int 
 thing = 12 
 {-@ thing :: { MMin 1 1 2 } @-}
+
+main = pure ()

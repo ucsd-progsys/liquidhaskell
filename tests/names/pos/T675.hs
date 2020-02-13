@@ -21,3 +21,5 @@ ok x = 2 + (1 + x)
 {-@ bad :: x:Int -> {v:Int | v == x + 3} @-}
 bad :: Int -> Int
 bad = (2 +) . (1 +)
+
+main = pure ()

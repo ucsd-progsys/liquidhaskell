@@ -3,3 +3,5 @@
 data Foo = Bool
 
 {-@ measure bar :: Int -> Bool @-}
+
+main = pure ()
