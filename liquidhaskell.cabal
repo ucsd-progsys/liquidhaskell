@@ -77,7 +77,7 @@ library
                       Gradual.Trivial
                       Gradual.Types
                       Gradual.Uniquify
-                      Language.Haskell.Liquid.Bag
+                      -- Language.Haskell.Liquid.Bag
                       Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
@@ -120,7 +120,7 @@ library
                       Language.Haskell.Liquid.Misc
                       Language.Haskell.Liquid.Parse
                       Language.Haskell.Liquid.Prelude
-                      Language.Haskell.Liquid.ProofCombinators
+                      --Language.Haskell.Liquid.ProofCombinators
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic

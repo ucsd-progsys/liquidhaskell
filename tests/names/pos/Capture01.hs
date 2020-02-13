@@ -8,3 +8,4 @@
 incr :: Int -> Int
 incr n = n + 1
 
+main = pure ()

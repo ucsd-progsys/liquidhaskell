@@ -77,3 +77,5 @@ testBAD = fooBAD (bar 10) 7
 
 scannedVector :: (Num a) => V.Vector a -> V.Vector a
 scannedVector xs = V.iscanl' (\idx _ _ -> xs V.! idx) 0 xs
+
+main = pure ()

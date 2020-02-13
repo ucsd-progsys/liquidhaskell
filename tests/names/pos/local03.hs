@@ -10,3 +10,5 @@ bar :: Bool -> Bool
 bar x = foo x 
   where 
     foo y = not y
+
+main = pure ()

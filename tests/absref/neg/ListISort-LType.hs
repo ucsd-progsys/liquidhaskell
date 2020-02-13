@@ -25,7 +25,7 @@ chk2 y =
    Cons x1 xs -> case xs of 
                  Nil -> True
                  Cons x2 xs2 -> liquidAssertB (x1 == x2) && chk2 xs2
-																	
+
 n, m :: Int
 n = choose 0
 m = choose 0
@@ -36,7 +36,7 @@ bar = insert n (insert m Nil)
 range l h = if l <=h then Cons l (range (l+1) h) else Nil
 
 
-mkList :: [a] -> List a																	
+mkList :: [a] -> List a
 mkList = foldr Cons Nil
 
 prop0 = chk2 bar

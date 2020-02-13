@@ -9,7 +9,7 @@ chk [] = liquidAssertB True
 chk (x1:xs) = case xs of 
                []     -> liquidAssertB True
                x2:xs2 -> liquidAssertB (x1 <= x2) && chk xs
-																	
+
 sort = foldr insert []
 
 rlist = map choose [1 .. 10]
