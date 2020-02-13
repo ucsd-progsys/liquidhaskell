@@ -61,7 +61,7 @@ data SpecEnv    = SpecEnv {
   , externalSpecs :: Map Module CachedSpec
   } deriving Eq
 
-data CachedSpec = CachedSpec ModName BareSpec deriving Generic
+data CachedSpec = CachedSpec ModName BareSpec deriving (Generic, Show)
 
 instance Eq CachedSpec where
     (CachedSpec mn1 _) == (CachedSpec mn2 _) = mn1 == mn2

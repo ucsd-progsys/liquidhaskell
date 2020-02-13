@@ -100,7 +100,7 @@ specEnvRef = unsafePerformIO $ newIORef (SpecEnv mempty mempty)
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -285,9 +285,11 @@ liquidHaskellPass cfg modGuts = do
           , lhSpecQuotes      = specQuotes
           }
 
-      (bareSpec, newSpecEnv, ghcInfo) <- processModule lhContext
+      (newSpecEnv, ghcInfo) <- processModule lhContext
 
       -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
+      let bareSpec = gsLSpec . giSpec $ ghcInfo
+
       let finalGuts = Util.serialiseBareSpecs [bareSpec] guts'
       liftIO $ atomicModifyIORef' specEnvRef (\_ -> (newSpecEnv, ()))
 
@@ -399,7 +401,7 @@ configureDynFlags cfg df =
 -- | Per-Module Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-processModule :: GhcMonadLike m => LiquidHaskellContext -> m (Ms.BareSpec, SpecEnv, GhcInfo)
+processModule :: GhcMonadLike m => LiquidHaskellContext -> m (SpecEnv, GhcInfo)
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ show (moduleName thisModule))
   hscEnv              <- askHscEnv
@@ -407,8 +409,9 @@ processModule LiquidHaskellContext{..} = do
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
-  (_lhSuggestedModName, bareSpec) <- either throw return $ 
+  (modName, bareSpec) <- either throw return $ 
     hsSpecificationP (moduleName thisModule) (coerce lhSpecComments) lhSpecQuotes
+
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
 
   moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas bareSpec)
@@ -421,15 +424,22 @@ processModule LiquidHaskellContext{..} = do
                                            (SpecFinder.TargetModule thisModule) 
                                            (S.toList lhRelevantModules)
 
-  let modName          = ModName Target (moduleName thisModule)
   let finalEnv         = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) updatedEnv
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
 
-  let bareSpecs        = makeBareSpecs finalEnv
+  -- For some reason we pass to 'makeGhcSpec' the old 'SpecEnv' which won't have this module added as
+  -- 'SrcImport', but rather we pass a version which automatically adds this module as 'TargetModule'.
+  let bareSpecs        = makeBareSpecs (moduleName thisModule) bareSpec updatedEnv
+
   let ghcSpec          = makeGhcSpec   moduleCfg ghcSrc lhModuleLogicMap (map fromCached $ bareSpecs)
   let ghcInfo          = GI ghcSrc ghcSpec
 
-  pure (bareSpec, finalEnv, ghcInfo)
+  -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
+  -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
+  -- errors when trying to refine things.
+  let liftedSpec = gsLSpec . giSpec $ ghcInfo
+
+  pure (insertExternalSpec thisModule (toCached (modName, liftedSpec)) finalEnv, ghcInfo)
 
   where
     modGuts    = fromUnoptimised lhModuleGuts
@@ -481,6 +491,8 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
-makeBareSpecs :: SpecEnv -> [CachedSpec]
-makeBareSpecs specEnv = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
-
+makeBareSpecs :: ModuleName -> Ms.BareSpec -> SpecEnv -> [CachedSpec]
+makeBareSpecs mname tgtSpec specEnv = 
+  let allSpecs = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
+      tgtMod    = ModName Target mname
+  in  (CachedSpec tgtMod tgtSpec) : allSpecs

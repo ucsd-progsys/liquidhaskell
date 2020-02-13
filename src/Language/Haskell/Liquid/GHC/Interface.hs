@@ -411,7 +411,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
   -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
   file                <- liftIO $ canonicalizePath $ modSummaryHsFile modSummary
-  let isTarget         = Debug.traceShowId file `S.member` tgtFiles
+  let isTarget         = file `S.member` tgtFiles
   _                   <- loadDependenciesOf $ moduleName mod
   parsed              <- parseModule $ keepRawTokenStream modSummary
   let specComments     = extractSpecComments (pm_annotations parsed)
@@ -419,6 +419,7 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let specQuotes       = extractSpecQuotes typechecked
   _                   <- loadModule' typechecked
   (modName, commSpec) <- either throw return $ hsSpecificationP (moduleName mod) specComments specQuotes
+
   liftedSpec          <- liftIO $ if isTarget || null specComments then return Nothing else loadLiftedSpec cfg file 
   let bareSpec         = updLiftedSpec commSpec liftedSpec
   _                   <- checkFilePragmas $ Ms.pragmas bareSpec
