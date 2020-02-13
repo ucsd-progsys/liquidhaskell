@@ -2,6 +2,7 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -32,7 +33,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   , derivedVars
   , importVars
   , makeGhcSrc
-  , qImports
+  , allImports
+  , qualifiedImports
   , modSummaryHsFile
   , makeFamInstEnv
   , findAndParseSpecFiles
@@ -516,8 +518,8 @@ makeGhcSrc cfg file typechecked originalModSum = do
     , _gsFiTcs     = fiTcs 
     , _gsFiDcs     = fiDcs
     , _gsPrimTcs   = TysPrim.primTyCons
-    , _gsQualImps  = qualifiedImports typechecked 
-    , _gsAllImps   = allImports       typechecked
+    , _gsQualImps  = qualifiedImports (tm_renamed_source typechecked)
+    , _gsAllImps   = allImports       (tm_renamed_source typechecked)
     , _gsTyThings  = [ t | (_, Just t) <- things ] 
     }
 
@@ -528,13 +530,13 @@ _impThings vars  = filter ok
     ok (AnId x) = S.member x vs  
     ok _        = True 
 
-allImports :: TypecheckedModule -> S.HashSet Symbol 
-allImports tm = case tm_renamed_source tm of 
+allImports :: Maybe RenamedSource -> S.HashSet Symbol 
+allImports = \case
   Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
   Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
-qualifiedImports :: TypecheckedModule -> QImports 
-qualifiedImports tm = case tm_renamed_source tm of 
+qualifiedImports :: Maybe RenamedSource -> QImports 
+qualifiedImports = \case
   Nothing           -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
   Just (_,imps,_,_) -> qImports [ (qn, n) | i         <- imps
                                           , let decl   = unLoc i

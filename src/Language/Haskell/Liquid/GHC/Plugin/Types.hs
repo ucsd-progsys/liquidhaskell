@@ -1,4 +1,5 @@
 {-# LANGUAGE NamedFieldPuns #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 
@@ -15,7 +16,8 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , insertExternalSpec
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
-    , tcImports
+    , tcAllImports
+    , tcQualifiedImports
     , tcResolvedNames
     , mkTcData
 
@@ -29,6 +31,7 @@ import           Data.Data                                ( Data )
 import           Text.Parsec                              ( SourcePos )
 import           Outputable                        hiding ( (<>) )
 import           GHC.Generics
+import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
 import           GHC                                      ( LImportDecl
                                                           , GhcRn
                                                           , Name
@@ -40,12 +43,16 @@ import           HscTypes                                 ( ModGuts )
 import           TcRnTypes                                ( TcGblEnv(tcg_rn_imports) )
 import           UniqFM
 import           Module                                   ( ModuleName )
+
 import           Data.Map                                 ( Map )
+import qualified Data.Map.Strict                         as M
+import qualified Data.HashSet        as HS
 
 import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Specs      ( QImports )
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
-
-import qualified Data.Map.Strict                         as M
+import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import           Language.Fixpoint.Types.Names            ( Symbol )
 
 
 data SpecEnv    = SpecEnv {
@@ -92,20 +99,23 @@ toUnoptimised = Unoptimised
 -- guaranteed not to change, but things like identifiers might, so they shouldn't
 -- land here.
 data TcData = TcData {
-    tcImports              :: [LImportDecl GhcRn]
-  , tcResolvedNames        :: [(Name, Maybe TyThing)]
+    tcAllImports       :: HS.HashSet Symbol
+  , tcQualifiedImports :: QImports
+  , tcResolvedNames    :: [(Name, Maybe TyThing)]
   }
 
 instance Outputable TcData where
-    ppr (TcData{tcImports}) = 
-      text "TcData { imports = " <+> ppr tcImports
-              <+> text "modInfo   = <someModInfo>"
-              <+> text " }"
+    ppr (TcData{..}) = 
+          text "TcData { imports  = " <+> text (show $ HS.toList tcAllImports)
+      <+> text "       , qImports = " <+> text (show tcQualifiedImports)
+      <+> text "       , names    = " <+> ppr tcResolvedNames
+      <+> text " }"
 
 -- | Constructs a 'TcData' out of a 'TcGblEnv'.
-mkTcData :: TcGblEnv -> [(Name, Maybe TyThing)] -> TcData
-mkTcData tcGblEnv resolvedNames = TcData {
-    tcImports              = tcg_rn_imports tcGblEnv
-  , tcResolvedNames        = resolvedNames
+mkTcData :: GhcMonadLike.TypecheckedModule -> [(Name, Maybe TyThing)] -> TcData
+mkTcData tcModule resolvedNames = TcData {
+    tcAllImports       = LH.allImports       (GhcMonadLike.tm_renamed_source tcModule)
+  , tcQualifiedImports = LH.qualifiedImports (GhcMonadLike.tm_renamed_source tcModule)
+  , tcResolvedNames    = resolvedNames
   }
 
