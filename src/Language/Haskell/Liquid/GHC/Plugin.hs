@@ -110,7 +110,6 @@ debugLogs = True
 getConfig :: IO Config
 getConfig = readIORef cfgRef
 
-
 -- | Combinator which conditionally print on the screen based on the value of 'debugLogs'.
 debugLog :: MonadIO m => String -> m ()
 debugLog msg = when debugLogs $ liftIO (putStrLn msg)
@@ -129,6 +128,10 @@ plugin = GHC.defaultPlugin {
   , interfaceLoadAction   = loadInterfaceHook
   }
 
+--------------------------------------------------------------------------------
+-- | GHC Configuration & Setup -------------------------------------------------
+--------------------------------------------------------------------------------
+
 -- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
 -- lexer not to throw away block comments, as this is where the LH spec comments
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
@@ -138,9 +141,25 @@ customDynFlags opts dflags = do
   writeIORef cfgRef cfg
   configureDynFlags cfg dflags
 
---
--- Parsing phase
---
+updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
+updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
+
+configureDynFlags :: Config -> DynFlags -> IO DynFlags
+configureDynFlags cfg df =
+  pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
+            , libraryPaths = nub $ idirs cfg ++ libraryPaths df
+            , includePaths = updateIncludePaths df (idirs cfg)
+            } `gopt_set` Opt_ImplicitImportQualified
+              `gopt_set` Opt_PIC
+              `gopt_set` Opt_DeferTypedHoles
+              `gopt_set` Opt_KeepRawTokenStream
+              `xopt_set` MagicHash
+              `xopt_set` DeriveGeneric
+              `xopt_set` StandaloneDeriving
+
+--------------------------------------------------------------------------------
+-- | Parsing phase -------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- | Hook into the parsing phase and extract \"LiquidHaskell\"'s spec comments, turning them into
 -- module declarations (i.e. 'LhsDecl GhcPs') which can be later be consumed in the typechecking phase.
@@ -205,9 +224,14 @@ parseHook _ modSummary parsedModule = do
             in located $ AnnD noExtField annDecl
 
 
---
--- \"Unoptimising\" things.
---
+--------------------------------------------------------------------------------
+-- | \"Unoptimising\" things ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+-- LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
+-- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by
+-- desugaring the module during /parsing/ (before that's already too late) and we cache the core binds for
+-- the rest of the program execution.
 
 class Unoptimise a where
   type UnoptimisedTarget a :: *
@@ -230,20 +254,9 @@ instance Unoptimise (DynFlags, HscEnv) where
   type UnoptimisedTarget (DynFlags, HscEnv) = HscEnv
   unoptimise (unoptimise -> df, env) = env { hsc_dflags = df }
 
---
--- Typechecking phase
---
-
--- | Currently we don't do anything in this phase.
-typecheckHook :: [CommandLineOption] 
-              -> ModSummary 
-              -> TcGblEnv 
-              -> TcM TcGblEnv
-typecheckHook _ _ tcGblEnv =  pure tcGblEnv
-
---
--- Core phase
---
+--------------------------------------------------------------------------------
+-- | Core phase ----------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
 coreHook _ passes = do
@@ -301,6 +314,10 @@ liquidHaskellPass cfg modGuts = do
 
       debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
       pure finalGuts
+
+--------------------------------------------------------------------------------
+-- | Working with bare & lifted specs ------------------------------------------
+--------------------------------------------------------------------------------
 
 loadRelevantSpecs :: forall m. GhcMonadLike m 
                   => (Config, Bool)
@@ -365,37 +382,6 @@ data LiquidHaskellContext = LiquidHaskellContext {
   , lhSpecComments     :: [SpecComment]
   , lhSpecQuotes       :: [BPspec]
   }
-
---
--- Interface phase
---
--- This allows us to modify an interface that have been loaded. This is crucial to find
--- specs which has been already extracted and processed, because the plugin architecture will
--- call this for dependencies /before/ entering the /Core/ pipeline for the module being compiled.
---
-
-loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
-loadInterfaceHook _ iface = pure iface
-
---------------------------------------------------------------------------------
--- | GHC Configuration & Setup -------------------------------------------------
---------------------------------------------------------------------------------
-
-updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
-updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
-
-configureDynFlags :: Config -> DynFlags -> IO DynFlags
-configureDynFlags cfg df =
-  pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
-            , libraryPaths = nub $ idirs cfg ++ libraryPaths df
-            , includePaths = updateIncludePaths df (idirs cfg)
-            } `gopt_set` Opt_ImplicitImportQualified
-              `gopt_set` Opt_PIC
-              `gopt_set` Opt_DeferTypedHoles
-              `gopt_set` Opt_KeepRawTokenStream
-              `xopt_set` MagicHash
-              `xopt_set` DeriveGeneric
-              `xopt_set` StandaloneDeriving
 
 --------------------------------------------------------------------------------
 -- | Per-Module Pipeline -------------------------------------------------------
@@ -496,3 +482,13 @@ makeBareSpecs mname tgtSpec specEnv =
   let allSpecs = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
       tgtMod    = ModName Target mname
   in  (CachedSpec tgtMod tgtSpec) : allSpecs
+
+---------------------------------------------------------------------------------
+-- | Unused stages of the compilation pipeline ----------------------------------
+---------------------------------------------------------------------------------
+
+typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
+typecheckHook _ _ tcGblEnv =  pure tcGblEnv
+
+loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
+loadInterfaceHook _ iface = pure iface
