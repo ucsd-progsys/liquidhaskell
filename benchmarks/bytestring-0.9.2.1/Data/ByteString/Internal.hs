@@ -1,5 +1,6 @@
 {-@ LIQUID "--pruneunsorted" @-}
 {- LIQUID "--trust-sizes"   @-}
+{-@ embed GHC.Word.Word64  as int @-}
 
 {-# LANGUAGE CPP, ForeignFunctionInterface, DeriveDataTypeable #-}
 -- We cannot actually specify all the language pragmas, see ghc ticket #
