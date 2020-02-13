@@ -53,7 +53,6 @@ import Control.Monad
 
 import Data.Coerce
 import Data.List as L hiding (intersperse)
-import Data.Maybe
 import Data.IORef
 import qualified Data.Set as S
 import qualified Data.Map.Strict as M
@@ -62,7 +61,6 @@ import Data.Set (Set)
 
 import qualified Data.HashSet        as HS
 
-import System.Directory
 import System.IO.Unsafe                 (unsafePerformIO)
 import Text.Parsec.Pos
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
@@ -171,8 +169,8 @@ parseHook _ modSummary parsedModule = do
 
   -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
   -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere.
-  typechecked@(_, tcGblEnv) <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
-  unoptimisedGuts           <- GhcMonadLike.desugarModule typechecked
+  typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
+  unoptimisedGuts <- GhcMonadLike.desugarModule typechecked
 
   liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
 
@@ -180,10 +178,11 @@ parseHook _ modSummary parsedModule = do
 
   -- Resolve names and imports
   env <- askHscEnv
-  resolvedNames <- LH.lookupTyThings env modSummary tcGblEnv
+  resolvedNames <- LH.lookupTyThings env (GhcMonadLike.tm_mod_summary typechecked) 
+                                         (GhcMonadLike.tm_gbl_env typechecked)
 
   let thisModule = ms_mod modSummary
-  let stableData = mkTcData tcGblEnv resolvedNames
+  let stableData = mkTcData typechecked resolvedNames
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -408,10 +407,9 @@ processModule LiquidHaskellContext{..} = do
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
-  (modName, bareSpec) <- either throw return $ 
+  (_lhSuggestedModName, bareSpec) <- either throw return $ 
     hsSpecificationP (moduleName thisModule) (coerce lhSpecComments) lhSpecQuotes
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
-  let termlessSpec     = LH.noTerm bareSpec
 
   moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas bareSpec)
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
@@ -423,11 +421,13 @@ processModule LiquidHaskellContext{..} = do
                                            (SpecFinder.TargetModule thisModule) 
                                            (S.toList lhRelevantModules)
 
+  let modName          = ModName Target (moduleName thisModule)
+  let finalEnv         = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) updatedEnv
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
-  bareSpecs           <- makeBareSpecs updatedEnv (moduleName thisModule) bareSpec
+
+  let bareSpecs        = makeBareSpecs finalEnv
   let ghcSpec          = makeGhcSpec   moduleCfg ghcSrc lhModuleLogicMap (map fromCached $ bareSpecs)
   let ghcInfo          = GI ghcSrc ghcSpec
-  let finalEnv         = insertExternalSpec thisModule (toCached (modName, termlessSpec)) updatedEnv
 
   pure (bareSpec, finalEnv, ghcInfo)
 
@@ -468,8 +468,8 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
     , gsPrimTcs   = TysPrim.primTyCons
-    , gsQualImps  = qualifiedImports tcData
-    , gsAllImps   = allImports       tcData
+    , gsQualImps  = tcQualifiedImports tcData
+    , gsAllImps   = tcAllImports       tcData
     , gsTyThings  = [ t | (_, Just t) <- things ]
     }
   where
@@ -478,28 +478,9 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
       where
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
 
-allImports :: TcData -> HS.HashSet Symbol 
-allImports tcData = HS.fromList (symbol . unLoc . ideclName . unLoc <$> tcImports tcData)
-
-qualifiedImports :: TcData -> QImports 
-qualifiedImports (tcImports -> imps) =
-  LH.qImports [ (qn, n) | i         <- imps
-                        , let decl   = unLoc i
-                        , let m      = unLoc (ideclName decl)  
-                        , qm        <- maybeToList (unLoc <$> ideclAs decl) 
-                        , let [n,qn] = symbol <$> [m, qm] 
-                        ]
-
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
-makeBareSpecs :: GhcMonadLike m
-              => SpecEnv 
-              -> ModuleName
-              -> Ms.BareSpec 
-              -> m [CachedSpec]
-makeBareSpecs specEnv thisModule tgtSpec = do 
-  let allSpecs = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
-  let tgtMod   = ModName Target thisModule
-  return       $ CachedSpec tgtMod tgtSpec : allSpecs
+makeBareSpecs :: SpecEnv -> [CachedSpec]
+makeBareSpecs specEnv = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 -- | This module introduces a \"lighter\" "GhcMonad" typeclass which doesn't require an instance of
@@ -9,6 +10,7 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
     HasHscEnv
   , GhcMonadLike
   , ModuleInfo
+  , TypecheckedModule(..)
 
   -- * Functions and typeclass methods
 
@@ -44,6 +46,9 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           , getModuleGraph
                                                           , modInfoLookupName
                                                           , lookupModule
+                                                          , TypecheckedModule
+                                                          , tm_parsed_module
+                                                          , tm_renamed_source
                                                           )
 import qualified CoreMonad
 import DynFlags
@@ -149,26 +154,38 @@ parseModule ms = do
   return (ParsedModule ms (hpm_module hpm) (hpm_src_files hpm)
                            (hpm_annotations hpm))
 
+-- | Our own simplified version of 'TypecheckedModule'.
+data TypecheckedModule = TypecheckedModule { 
+    tm_parsed_module  :: ParsedModule
+  , tm_renamed_source :: Maybe RenamedSource
+  , tm_mod_summary    :: ModSummary
+  , tm_gbl_env        :: TcGblEnv
+  }
 
-typecheckModule :: GhcMonadLike m => ParsedModule -> m (ModSummary, TcGblEnv)
+typecheckModule :: GhcMonadLike m => ParsedModule -> m TypecheckedModule
 typecheckModule pmod = do
   let ms = pm_mod_summary pmod
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  (tc_gbl_env, _)
+  (tc_gbl_env, rn_info)
         <- liftIO $ hscTypecheckRename hsc_env_tmp ms $
                        HsParsedModule { hpm_module = parsedSource pmod,
                                         hpm_src_files = pm_extra_src_files pmod,
                                         hpm_annotations = pm_annotations pmod }
-  return (ms, tc_gbl_env)
+  return TypecheckedModule { 
+      tm_parsed_module  = pmod
+    , tm_renamed_source = rn_info
+    , tm_mod_summary    = ms
+    , tm_gbl_env        = tc_gbl_env
+    }
 
 
 -- | Desugar a typechecked module.
-desugarModule :: GhcMonadLike m => (ModSummary, TcGblEnv) -> m ModGuts
-desugarModule (ms, tcg) = do
+desugarModule :: GhcMonadLike m => TypecheckedModule -> m ModGuts
+desugarModule TypecheckedModule{..} = do
   hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
-  liftIO $ hscDesugar hsc_env_tmp ms tcg
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts tm_mod_summary }
+  liftIO $ hscDesugar hsc_env_tmp tm_mod_summary tm_gbl_env
 
 
 -- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the

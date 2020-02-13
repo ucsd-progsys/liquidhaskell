@@ -56,7 +56,7 @@ data GhcSrc = Src
 data QImports = QImports 
   { qiModules :: !(S.HashSet F.Symbol)            -- ^ All the modules that are imported qualified
   , qiNames   :: !(M.HashMap F.Symbol [F.Symbol]) -- ^ Map from qualification to full module name
-  }
+  } deriving Show
 
 data GhcSpec = SP 
   { gsSig    :: !GhcSpecSig  
