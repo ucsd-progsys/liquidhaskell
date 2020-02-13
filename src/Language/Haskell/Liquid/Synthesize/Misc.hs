@@ -10,12 +10,13 @@ import qualified Language.Fixpoint.Types        as F
 
 import           Control.Monad.State.Lazy
 
-import CoreSyn (CoreExpr)
+import           CoreSyn
 import           TyCoRep 
 import           Text.PrettyPrint.HughesPJ (text, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.GHC.TypeRep
-
+import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
+import           Language.Fixpoint.Types
 
 
 isFunction :: Type -> Bool
@@ -83,3 +84,13 @@ showCands = map showCand
 
 notrace :: String -> a -> a 
 notrace _ a = a 
+
+instance PPrint AltCon
+
+showCoreAlt :: CoreAlt -> String
+showCoreAlt (DataAlt altCon, vars, expr) = 
+  " For " ++ show altCon ++ " vars " ++ show vars ++ " expr " ++ show expr
+showCoreAlt _ = " No! "
+
+showCoreAlts :: [CoreAlt] -> String
+showCoreAlts alts = concat (map showCoreAlt alts)

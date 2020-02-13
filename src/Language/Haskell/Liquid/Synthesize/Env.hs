@@ -34,14 +34,16 @@ initSSEnv rt info senv = (M.union senv (M.fromList foralls), vs)
 --   all the datatypes that are used and 
 --   get their constructors.
 tpToCons :: SpecType -> [DataCon] 
-tpToCons (RAllT a t x)  = tpToCons t 
-tpToCons (RApp c args _ r) = trace ( " [ tpToCons ] " ++ show args) $
-  tyConDataCons (rtc_tc c) ++ concatMap tpToCons args
+tpToCons (RAllT a t x)  
+  = tpToCons t 
+tpToCons (RApp c args _ r) 
+  = tyConDataCons (rtc_tc c) ++ concatMap tpToCons args
 tpToCons (RFun sym rt0 rt1 reft)
   = tpToCons rt0 ++ tpToCons rt1
 tpToCons (RVar v r) 
   = []
-tpToCons rt = trace (" [ tpToCons ] for rt = " ++ show rt) []
+tpToCons rt 
+  = []
 
 typeToCons :: SpecType -> [DataCon]
 typeToCons rt = S.toList $ S.fromList (tpToCons rt)

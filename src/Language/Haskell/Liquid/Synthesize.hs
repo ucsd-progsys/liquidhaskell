@@ -6,7 +6,7 @@ module Language.Haskell.Liquid.Synthesize (
     synthesize
   ) where
 
-import           Language.Haskell.Liquid.Types hiding (SVar)
+import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Generate 
 import           Language.Haskell.Liquid.Constraint.Env 
@@ -70,7 +70,7 @@ synthesize tgt fcfg cginfo =
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
 
-      fills <- trace (" [ FORALLS ] " ++ show foralls) $ synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
+      fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -115,13 +115,11 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               let goalType = subst su to
                   hsGoalTy = toType goalType 
                   ts = unifyWith hsGoalTy
-              case ts of 
-                [] -> modify (\s -> s { sUGoalTy = Nothing } )
-                _  -> modify (\s -> s { sUGoalTy = Just ts } )
+              if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
+                          else modify (\s -> s { sUGoalTy = Just ts } )
               modify (\s -> s { sForalls = (foralls, []) } )
-              emem2 <- insEMem0 senv1
-              modify (\s -> s { sExprMem = emem2 })
-              emem1 <- getSEMem
+              emem0 <- insEMem0 senv1
+              modify (\s -> s { sExprMem = emem0 })
               GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
@@ -129,14 +127,14 @@ synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
 synthesizeBasic s t = do
   senv <- getSEnv
   let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
-  case ts of [] -> modify (\s -> s { sUGoalTy = Nothing } )
-             _  -> modify (\s -> s { sUGoalTy = Just ts } )
-  emem2 <- fixEMem t
+  if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
+              else  modify (\s -> s { sUGoalTy = Just ts } )
+  fixEMem t
   es <- genTerms s t
-  case es of  []   -> do  senv <- getSEnv
-                          lenv <- getLocalEnv 
-                          synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t
-              es0  -> return es0
+  if null es  then do senv <- getSEnv
+                      lenv <- getLocalEnv 
+                      synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+              else return es
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch s lenv γ t = 
@@ -161,15 +159,3 @@ makeAlt s var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)
 makeAlt s _ _ _ _ = error $ "makeAlt.bad argument " ++ s
-
-
----- Move them ------------
-instance PPrint GHC.AltCon
-
-showCoreAlt :: GHC.CoreAlt -> String
-showCoreAlt (GHC.DataAlt altCon, vars, expr) = 
-  " For " ++ show altCon ++ " vars " ++ show vars ++ " expr " ++ show expr
-showCoreAlt _ = " No! "
-
-showCoreAlts :: [GHC.CoreAlt] -> String
-showCoreAlts alts = concat (map showCoreAlt alts)
