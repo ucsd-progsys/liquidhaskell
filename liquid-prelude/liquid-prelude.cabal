@@ -29,4 +29,5 @@ library
                     , containers           >= 0.5
                     , liquidhaskell        >= 0.8.6.0
   default-language:   Haskell98
-  ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin 
+  if impl(ghc >= 8.10)
+    ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin 
