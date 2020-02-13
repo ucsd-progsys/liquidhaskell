@@ -323,7 +323,7 @@ functionCands goalTy = do
 ---------------------------------------------------------------------------------
 
 hsExprError :: Type -> SM GHC.CoreExpr 
--- hsExprError t = App (App (Var varError) t) (Lit (mkS "deadcode"))
+-- hsExprError t = App (App (Var varError) t) (Lit (mkS "dead code"))
 hsExprError = undefined
 
 typeError :: SM SpecType
@@ -335,24 +335,3 @@ varError = do
   let env  = B.makeEnv (gsConfig $ giSpec info) (giSrc info) mempty mempty 
   let name = giTargetMod $ giSrc info
   return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "GHC.Err.error")
-
-------------------------------------------------------------------------------------
-------------------------------- TO be Removed --------------------------------------
-------------------------------------------------------------------------------------
--- TODO: Fix @SSEnv@ to avoid the hack with the top-level variable.
-withInsInitEM :: SSEnv -> SM ExprMemory
-withInsInitEM senv = do
-  xtop <- getSFix
-  (ttop, _) <- instantiateTL
-  mbTyVar <- sGoalTyVar <$> get
-
--- Special handle for the top level variable: No instantiation
-  let handleIt e = case e of  GHC.Var v -> if xtop == v then (e, ttop) else change e
-                              _         -> change e
-
-      change e = let { e' = instantiate e mbTyVar; t' = exprType e' } in (e', t')
-
-  return $ 
-    map (\(t, e, i) -> 
-      let (e', t') = handleIt e
-      in  (t', e', i)) (initExprMem senv)

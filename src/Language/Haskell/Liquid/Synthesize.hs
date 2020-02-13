@@ -99,8 +99,11 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
       -- Special Treatment for synthesis of integers 
       if R.isNumeric (tyConEmbed cgi) c
           then error " [ Numeric in synthesize ] Update liquid fixpoint. "
-          else do modify (\s -> s {sForalls = (foralls, [])})
-                  emem0 <- withInsInitEM senv -- TODO Fix
+          else do let ts = unifyWith (toType t)
+                  if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
+                              else modify (\s -> s { sUGoalTy = Just ts } )
+                  modify (\s -> s {sForalls = (foralls, [])})
+                  emem0 <- insEMem0 senv -- TODO Fix
                   modify (\s -> s { sExprMem = emem0 })
                   synthesizeBasic " Constructor " t
 
