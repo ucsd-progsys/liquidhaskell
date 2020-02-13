@@ -2,10 +2,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 module Language.Haskell.Liquid.Synthesize.GHC where
 
-import CoreSyn (CoreExpr)
 import qualified CoreSyn as GHC
-import qualified Data.HashMap.Strict as M
-import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
 import           Language.Haskell.Liquid.Types hiding (SVar)
@@ -40,20 +37,17 @@ mkVar x i t = mkGlobalVar VanillaId name t vanillaIdInfo
 freshName :: Int -> String 
 freshName i = "lSyn$" ++ show i 
 
--- Select all functions with result type equal with goalType
---        | goal |
-goalType :: Type -> Type -> Bool
-goalType τ t@(ForAllTy (TvBndr var _) htype) = 
-  -- Why need substituting variables?
-  let substHType = substInType htype (varsInType τ)
-  in  goalType τ substHType
-goalType τ t@(FunTy _ t'') -- τ: base types
+-- | Assuming that the functions are instantiated when this function is called.
+goalType ::  Type ->   -- ^ This is the goal type. It is used for basic types.
+              Type ->   -- ^ This type comes from the environment.
+              Bool      -- ^ True if the 2nd arg produces expression 
+                        --   of type equal to 1st argument.
+goalType τ t@(FunTy _ t'') 
   | t'' == τ  = True
   | otherwise = goalType τ t''
 goalType τ                 t 
   | τ == t    = True
   | otherwise = False
-
 
 -- Subgoals are function's arguments.
 createSubgoals :: Type -> [Type] 
@@ -61,40 +55,11 @@ createSubgoals (ForAllTy _ htype) = createSubgoals htype
 createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                  = [t]
 
-
--- TODO: More than one type variables in type (what happens in forall case with that?).
--- Why do we need variable substitutions? Type applications are not enough?
--- It is used by @goalType@, which is used by @findCandidates@.
-substInType :: Type -> [TyVar] -> Type 
-substInType t []   = t
-substInType t [tv] = substInType' tv t
-  where 
-    substInType' tv (TyVarTy var)                = TyVarTy tv
-    substInType' tv (ForAllTy (TvBndr var x) ty) = ForAllTy (TvBndr tv x) (substInType' tv ty)
-    substInType' tv (FunTy t0 t1)                = FunTy (substInType' tv t0) (substInType' tv t1)
-    substInType' tv (AppTy t0 t1)                = AppTy (substInType' tv t0) (substInType' tv t1)
-    substInType' tv (TyConApp c ts)              = TyConApp c (map (substInType' tv) ts)
-    substInType' _  t                            = error $ "[substInType'] Shouldn't reach that point for now " ++ showTy t
--- Hackish comment: error $ "My example has one type variable. Vars: " ++ show (map symbol vars)
--- TODO: Target future/zip.hs and future/zipWith.hs
-substInType t vars = t 
-
--- Find all variables in type
-varsInType :: Type -> [TyVar] 
-varsInType t = notrace (" [ varsInType ] for type t = " ++ showTy t) $ (map head . group . sort) (varsInType' t)
-  where
-    varsInType' (TyVarTy var)                = [var]
-    varsInType' (ForAllTy (TvBndr var _) ty) = var : varsInType' ty
-    varsInType' (FunTy t0 t1)                = varsInType' t0 ++ varsInType' t1
-    varsInType' (AppTy t0 t1)                = varsInType' t0 ++ varsInType' t1 
-    varsInType' (TyConApp c ts)              = foldr (\x y -> concatMap varsInType' ts ++ y) [] ts
-    varsInType' t                            = error $ "[varsInType] Shouldn't reach that point for now " ++ showTy t
-
 -- | Assuming that goals are type variables or constructors.
 --    Note: We maintain ordering from the goal type.
+--    Not handled (compared to @varsInType): function types, type applications
 unifyWith :: Type -> [Type] 
 unifyWith v@(TyVarTy var) = [v] 
--- unifyWith (FunTy t0 t1)   = unifyWith t0 ++ unifyWith t1 
 unifyWith (TyConApp c ts) = ts 
 unifyWith t               = error $ " [ unifyWith ] " ++ showTy t 
 

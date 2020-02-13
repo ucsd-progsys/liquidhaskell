@@ -65,12 +65,12 @@ synthesize tgt fcfg cginfo =
           coreProgram = giCbs $ giSrc $ ghcI cgi
           uniVars = getUniVars coreProgram topLvlBndr
           ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
-          senv1 = initSSEnv typeOfTopLvlBnd cginfo ssenv0
+          (senv1, foralls) = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
 
-      fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd state0
+      fills <- trace (" [ FORALLS ] " ++ show foralls) $ synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
 
       return $ ErrHole loc (
         if length fills > 0 
@@ -78,9 +78,10 @@ synthesize tgt fcfg cginfo =
           else mempty) mempty (symbol x) t 
 
 
--- Assuming that @tx@ is the @SpecType@ of the top level variable. I thought I had it fixed...
-synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> SState -> IO [CoreExpr]
-synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
+-- Assuming that @tx@ is the @SpecType@ of the top level variable. 
+-- I thought I had it fixed...
+synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> [Var] -> SState -> IO [CoreExpr]
+synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
  = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
   where 
 
@@ -91,14 +92,15 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
           
     go t@(RApp c _ts _ r) = do  
       let coreProgram = giCbs $ giSrc $ ghcI cgi
-          args  = case argsP coreProgram xtop of { [] -> []; (_ : xs) -> xs }
+          args  = drop 1 (argsP coreProgram xtop)
           (_, (xs, txs, _), _) = bkArrow ttop
       addEnv xtop $ decrType xtop ttop args (zip xs txs)
 
       -- Special Treatment for synthesis of integers 
       if R.isNumeric (tyConEmbed cgi) c
           then error " [ Numeric in synthesize ] Update liquid fixpoint. "
-          else do emem0 <- withInsInitEM senv 
+          else do modify (\s -> s {sForalls = (foralls, [])})
+                  emem0 <- withInsInitEM senv -- TODO Fix
                   modify (\s -> s { sExprMem = emem0 })
                   synthesizeBasic " Constructor " t
 
@@ -112,44 +114,29 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop st2
               senv1 <- getSEnv
               let goalType = subst su to
                   hsGoalTy = toType goalType 
-                  tvs = varsInType hsGoalTy
-                  ts = unifyWith (toType goalType)
-              case tvs of
-                [] -> modify (\s -> s { sGoalTyVar = Nothing})
-                _  -> modify (\s -> s { sGoalTyVar = Just tvs })
+                  ts = unifyWith hsGoalTy
               case ts of 
                 [] -> modify (\s -> s { sUGoalTy = Nothing } )
                 _  -> modify (\s -> s { sUGoalTy = Just ts } )
-              emem0 <- withInsInitEM senv1 -- TODO Instantiate top-level here once and forall in @senv1@.
-              -- modify (\s -> s { sExprMem = emem0 })
+              modify (\s -> s { sForalls = (foralls, []) } )
               emem2 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem2 })
               emem1 <- getSEMem
-              trace (" ExpressionMemory " ++ showEmem emem2) $ 
-                GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
+              GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
 synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
 synthesizeBasic s t = do
   senv <- getSEnv
-  let ht  = toType t
-  -- | Shouldn't be all the type variables, as in @varsInType@.
-  --   For example if @ht@ is [(a, b)] then tvs should be (a, b)
-      tvs = varsInType ht
-      ts = unifyWith ht -- ^ All the types that are used for instantiation.
-  case tvs of [] -> modify (\s -> s { sGoalTyVar = Nothing})
-              _  -> modify (\s -> s { sGoalTyVar = Just tvs })
+  let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
   case ts of [] -> modify (\s -> s { sUGoalTy = Nothing } )
              _  -> modify (\s -> s { sUGoalTy = Just ts } )
-  emem2 <- insEMem0 senv
-  modify (\s -> s { sExprMem = emem2 })
+  emem2 <- fixEMem t
   es <- genTerms s t
-  case trace (" ExpressionMemory for t = " ++ show t ++ " is " ++ showEmem emem2) es of 
-    [] -> do  senv <- getSEnv
-              lenv <- getLocalEnv 
-              synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t
-    es0  -> return es0
-
+  case es of  []   -> do  senv <- getSEnv
+                          lenv <- getLocalEnv 
+                          synthesizeMatch (" synthesizeMatch for t = " ++ show t) lenv senv t
+              es0  -> return es0
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch s lenv γ t = 

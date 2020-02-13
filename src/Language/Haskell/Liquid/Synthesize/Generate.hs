@@ -24,8 +24,10 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Fixpoint.Types.PrettyPrint
 import           Debug.Trace 
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
+import           Data.Tuple.Extra 
+import           Data.List 
 
--- Generate terms that have type t: This changes the @ExprMem@ in @SM@ state.
+-- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
 genTerms :: String -> SpecType -> SM [CoreExpr] 
 genTerms = genTerms' ResultMode 
@@ -39,57 +41,63 @@ data SearchMode
 
 genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
 genTerms' i s specTy = 
-  do  funTyCands <- withInsProdCands0 specTy
-      es <- withTypeEs s (tracepp (" Candidate functions " ++ concat (map getVn funTyCands) ++ " for type ") specTy)
+  do  em    <- fixEMem specTy 
+      fnTys <- functionCands (toType specTy)
+      es    <- withTypeEs s specTy 
       filterElseM (hasType " genTerms " True specTy) es $ 
-        withDepthFill i s specTy 0 funTyCands
+        withDepthFill i s specTy 0 [] fnTys
 
-withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Symbol, (Type, Var))] -> SM [CoreExpr]
-withDepthFill i s t depth funTyCands = do
+fixEMem :: SpecType -> SM ExprMemory
+fixEMem t
+  = do  sEMem <- sExprMem <$> get
+        ts <- (snd . sForalls) <$> get
+        fs <- (fst . sForalls) <$> get 
+        let uTys = unifyWith (toType t)
+        needsFix <- case find (\x -> x == uTys) ts of Nothing -> return True   -- not yet instantiated
+                                                      Just _  -> return False  -- already instantiated
+        let f = map (map showTy)
+        if needsFix
+          then do let es = map (\v -> instantiateTy (GHC.Var v) (Just uTys)) fs
+                  modify (\s -> s { sForalls = (fs, uTys : ts)})
+                  let notForall e = case exprType e of { ForAllTy{} -> False; _ -> True }
+                  let fixEs = filter notForall es
+                  thisDepth <- sDepth <$> get
+                  let fixedEMem = (map (\e -> (exprType e, e, thisDepth + 1)) fixEs)
+                  modify (\s -> s {sExprMem = fixedEMem ++ sExprMem s})
+                  return (fixedEMem ++ sEMem) 
+          else return sEMem
+        
+
+withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Symbol, (Type, Var))] -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
+withDepthFill i s t depth funTyCands tmp = do
   let s0 = " [ withDepthFill ] " ++ s
   curEm <- sExprMem <$> get
-  exprs <- fillMany i s0 depth curEm funTyCands []
+  exprs <- fill i s0 depth curEm tmp []
 
   filterElseM (hasType s0 True t) exprs $ 
     if depth < maxAppDepth
-      then withDepthFill i s0 t (depth + 1) funTyCands
+      then withDepthFill i s0 t (depth + 1) funTyCands tmp
       else return []
 
--- Produce new expressions from expressions currently in expression memory (ExprMemory).
--- Only candidate terms with function type (funTyCands) can be passed as second argument.
--- This function (@fillMany@) performs (full) application for candidate terms, 
--- where candidate is a function from our environment.
---              | expression memory  |
---              | before the function|                   | terms that   |
---              | is called (does    |                   | are produced |
---              | not change)        |                   | by `fillMany |
-fillMany :: SearchMode -> String -> Int -> ExprMemory -> [(Symbol, (Type, Var))] -> [CoreExpr] -> SM [CoreExpr] 
-fillMany i s _     _       []             accExprs = return (tracepp (" [ fillMany ] " ++ s ++  " Returns ") accExprs)
-fillMany i s depth exprMem (cand : cands) accExprs = do
-  let (_, (htype, v))   = cand
-      subgoals'         = createSubgoals htype 
-      resultTy          = last subgoals' 
-      subgoals          = take (length subgoals' - 1) subgoals'
-      argCands          = map (withSubgoal exprMem) subgoals 
-      -- Checks if there is an empty list of of produced candidate terms for @cand@
-      check             = foldr (\l b -> null l || b) False argCands 
+fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
+fill i s _     _       []                 accExprs = return accExprs
+fill i s depth exprMem (c@(t, e, d) : cs) accExprs = do
+  let (resTy, subGs) = subgoals t
+      argCands       = map (withSubgoal exprMem) subGs 
+      changeMode     = foldr (\l b -> null l || b) False argCands
 
   curAppDepth <- sAppDepth <$> get 
-  newExprs <- if i == ArgsMode || check
-                then do goals <- liftCG $ mapM trueTy subgoals 
-                        argCands0 <- mapM (genTerms' ArgsMode " | fillMany0 -> genTerms0 | ") goals
+  newExprs <- if i == ArgsMode || changeMode
+                then do goals <- liftCG $ mapM trueTy subGs 
+                        argCands0 <- mapM (genTerms' ArgsMode " | fill -> genTerms0 | ") goals
                         let argCands1 = map (map (, curAppDepth + 1)) argCands0
-                        repeatPrune curAppDepth 1 (length argCands1) cand argCands1 []
+                        repeatPrune curAppDepth 1 (length argCands1) c argCands1 []
                 else do curAppDepth <- sAppDepth <$> get 
-                        repeatPrune curAppDepth 1 (length argCands) cand argCands []
-  let nextEm = map (resultTy, , curAppDepth + 1) newExprs
-  modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
+                        repeatPrune curAppDepth 1 (length argCands) c argCands []
+  let nextEm = map (resTy, , curAppDepth + 1) newExprs
+  modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
   let accExprs' = newExprs ++ accExprs
-  -- trace (" [ fillMany < " ++ show depth ++ " > for cand " ++ show (fst cand) ++ 
-  --        " argCands "  ++ show argCands ++ " Expressions: " ++ show (length newExprs) ++ "] \n" ++ 
-  --        show accExprs') $ 
-  fillMany i (" | " ++ show v ++ " FALSE CHECK | " ++ s) depth exprMem cands accExprs' 
-
+  fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth exprMem cs accExprs' 
 
 -------------------------------------------------------------------------------------------
 -- |                       Pruning terms for function application                      | --
@@ -118,9 +126,8 @@ noDuples depth lst = filter (\(_, i) -> i < depth) lst
 type Depth = Int
 type Up    = Int
 type Down  = Int
-repeatPrune :: Depth -> Up -> Down -> (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
+repeatPrune :: Depth -> Up -> Down -> (Type, GHC.CoreExpr, Int) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
 repeatPrune depth down up toBeFilled cands acc = 
---  trace (" [ repeatPrune " ++ show depth ++"] for " ++ show (fst toBeFilled) ++ " Cands " ++ show cands) $ 
   if down <= up 
     then do 
       let (cands', cands'') = updateIthElem down depth cands 
@@ -129,63 +136,36 @@ repeatPrune depth down up toBeFilled cands acc =
       repeatPrune depth (down + 1) up toBeFilled cands'' acc'
     else return acc
 
+
 ----------------------------------------------------------------------------
 --  | Term generation: Perform type and term application for functions. | --
 ----------------------------------------------------------------------------
 
---  | @fillOne@ : Takes a function @1@ and 
---    @2@ a list of expressions for every argument of the function.
---    @2@ contains expressions with the same type as the input types of @1@.
---  > Returns a list of new expressions.
-fillOne :: (Symbol, (Type, Var)) -> [[(CoreExpr, Int)]] -> SM [CoreExpr] 
-fillOne _           []                   = return []
-fillOne (_, (t, v)) (argCand : argCands) = do 
-  -- 1. Perform type applications (if needed)
-  exprs <- applyOne v argCand t0 -- argType
-  -- 2. Perform term applications 
-  applyMany exprs argCands ts 
-  where   (t0, ts) = safeSubgoals t
+fillOne :: (Type, GHC.CoreExpr, Int) -> [[(CoreExpr, Int)]] -> SM [CoreExpr]
+fillOne (_, e, _)         [] = trace ( " [ fillOne ] " ++ show e) $ return [] -- TODO Fix it
+fillOne (t, e, d) cs = applyTerms [e] cs (t0:ts)
+  where (t0, ts) = safeSubgoals t
 
---  | @applyOne@, @applyNext@, @applyMany@ are auxiliary functions for @fillOne@
+applyTerm :: [GHC.CoreExpr] -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
+applyTerm es args t 
+  = do  !idx <- incrSM 
+        return  [ case e0 of  GHC.Var _ ->  GHC.App e e0
+                              _         ->  
+                                let letv = mkVar (Just "x") idx t
+                                in  GHC.Let (GHC.NonRec letv e0) (GHC.App e (GHC.Var letv)) 
+                | e <- es, (e0, _) <- args 
+                ]
 
---  | @applyOne@ performs type applications if needed.
-applyOne :: Var -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
-applyOne v args typeOfArgs = do
-  xtop    <- getSFix
-  uniVars <- getSUniVars
-  idx <- incrSM
-  mbTyVar <- sGoalTyVar <$> get
-  let tvs = fromMaybe (error "No type variables in the monad!") mbTyVar
-      v'' = apply (if v == xtop then uniVars else tvs) (GHC.Var v)
-  return 
-    [ let letv' = mkVar (Just "x") idx typeOfArgs
-      in  case v' of 
-            GHC.Var _ -> GHC.App v'' v' 
-            _         -> GHC.Let (GHC.NonRec letv' v') (GHC.App v'' (GHC.Var letv')) | (v', _) <- args ] 
+applyTerms :: [GHC.CoreExpr] -> [[(CoreExpr, Int)]] -> [Type] -> SM [CoreExpr]
+applyTerms es []     []      
+  = return es
+applyTerms es0 (c:cs) (t:ts) 
+  = do  es1 <- applyTerm es0 c t
+        applyTerms es1 cs ts
+applyTerms es cs ts 
+  = error $ "[ applyTerms ] Wildcard. " 
 
--- | @applyNext@
---    Term application: Applies each one of @args@ to each one of @apps@.
---    Produces (number of @apps@ * number of @args@) expressions.
-applyNext :: [CoreExpr] -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
-applyNext apps args typeOfArgs = do 
-  !idx  <- incrSM
-  return 
-    [ case v'' of 
-        GHC.Var _ -> GHC.App v' v''
-        _         ->
-          let letv'' = mkVar (Just "x") idx typeOfArgs 
-          in  GHC.Let (GHC.NonRec letv'' v'') (GHC.App v' (GHC.Var letv''))
-    | v' <- apps, (v'', _) <- args
-    ]
-
--- |  @applyMany@ Performs full term application by executing @applyNext@ 
---    for every argument of the candidate function of @fillOne@.
-applyMany :: [CoreExpr] -> [[(CoreExpr, Int)]] -> [Type] -> SM [CoreExpr] 
-applyMany exprs []             []                         = return exprs
-applyMany exprs (args : args') (typeOfArgs : typeOfArgs') = do
-  exprs' <- applyNext exprs args typeOfArgs
-  applyMany exprs' args' typeOfArgs'
-applyMany _     _              _                          = error "applyMany wildcard"
+--------------------------------------------------------------------------------------------
 
 -- | @safeSubgoals@: For the input types of @t@, returns a tuple of 
 --   the 1st input type and the rest input types.
@@ -196,6 +176,13 @@ safeSubgoals t =
               t : ts' -> (t, ts') 
   where subgoals = createSubgoals t                    -- Includes the result type 
         ts       = take (length subgoals - 1) subgoals -- Input types from the subgoals
+
+subgoals :: Type ->         -- ^ Given a function type,
+            (Type, [Type])  -- ^ separate the result type from the input types.
+subgoals t = (resTy, inpTys) where  gTys   = createSubgoals t 
+                                    resTy  = last gTys 
+                                    inpTys = take (length gTys - 1) gTys
+
 
 -- @withSubgoal@ :: Takes a subgoal type, and 
 -- returns all expressions in @ExprMemory@ that have the same type.
