@@ -30,6 +30,7 @@ import qualified Data.HashSet                            as HS
 import qualified Data.Map.Strict                         as M
 import qualified Data.List                               as L
 import           Data.Foldable
+import           Data.Maybe
 
 import           Control.Monad
 import           Control.Monad.Trans                      ( lift )
@@ -109,7 +110,7 @@ lookupCachedExternalSpec specEnv thisModule = do
 
 lookupCachedBaseSpec :: SpecFinder m
 lookupCachedBaseSpec specEnv thisModule = do
-  guard $ (not $ L.null (baseSpecs specEnv))
+  guard (isJust $ find (\(CachedSpec n _) -> getModName n == moduleName thisModule) (baseSpecs specEnv))
   pure  $ BaseSpecsFound (moduleName thisModule) SpecEnvLocation (baseSpecs specEnv)
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
@@ -119,7 +120,9 @@ loadSpecFromDisk cfg targetModule _specEnv thisModule = do
   bareSpecs  <- lift $ findBaseSpecs cfg modSummary
   case bareSpecs of
     []         -> MaybeT $ pure Nothing
-    specs      -> pure $ BaseSpecsFound (moduleName thisModule) DiskLocation (map toCached specs)
+    specs      -> do
+      guard (isJust $ find (\(n,_) -> getModName n == moduleName thisModule) specs)
+      pure $ BaseSpecsFound (moduleName thisModule) DiskLocation (map toCached specs)
 
 
 findBaseSpecs :: GhcMonadLike m 
