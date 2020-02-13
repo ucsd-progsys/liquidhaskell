@@ -2,6 +2,7 @@
 {-@ LIQUID "--prune-unsorted" @-}
 {- LIQUID "--trust-sizes"    @-}
 
+{-@ embed GHC.Word.Word64  as int @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Lazy.Internal
