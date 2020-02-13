@@ -121,7 +121,7 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
+import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 
 import Data.List (sort, foldl')
@@ -1622,7 +1622,8 @@ typeSort tce = go
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)  
-      | isNewTyCon c {- and the type is not recirsive... otherwise it diverges -}
+      | isNewTyCon c
+      , not (isRecursivenewTyCon c) 
       = go (Ghc.newTyConInstRhs c τs)
       | otherwise  
       = tyConFTyCon tce c (go <$> τs)
