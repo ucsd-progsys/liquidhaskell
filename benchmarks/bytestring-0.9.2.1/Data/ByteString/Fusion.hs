@@ -50,7 +50,7 @@ import Foreign.Ptr
 import Foreign.ForeignPtr
 import Foreign.Storable         (Storable(..))
 
-import Data.Word                (Word8)
+import Data.Word                (Word8, Word64)
 import System.IO.Unsafe         (unsafePerformIO)
 
 -- LIQUID

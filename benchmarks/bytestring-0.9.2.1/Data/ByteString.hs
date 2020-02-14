@@ -227,7 +227,7 @@ import Data.ByteString.Fusion
 
 import qualified Data.List as List
 
-import Data.Word                (Word8)
+import Data.Word                (Word8,Word64)
 import Data.Maybe               (listToMaybe)
 import Data.Array               (listArray)
 import qualified Data.Array as Array ((!))
