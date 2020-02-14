@@ -25,6 +25,22 @@ import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 
 
+isRecursivenewTyCon :: TyCon -> Bool 
+isRecursivenewTyCon c 
+  | not (isNewTyCon c)
+  = False 
+isRecursivenewTyCon c 
+  = go t 
+  where 
+    t = snd $ newTyConRhs c
+    go (AppTy t1 t2)    = go t1 || go t2 
+    go (TyConApp c' ts) = c == c' || any go ts 
+    go (ForAllTy _ t1)  = go t1 
+    go (FunTy t1 t2)    = go t1 || go t2
+    go (CastTy t1 _)    = go t1 
+    go t                = False   
+  
+
 isHoleVar :: Var -> Bool 
 isHoleVar x = L.isPrefixOf "_" (show x)
 

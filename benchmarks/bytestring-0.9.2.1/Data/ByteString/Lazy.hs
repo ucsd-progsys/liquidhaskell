@@ -223,7 +223,7 @@ import qualified Data.ByteString.Fusion as F
 
 import Data.Monoid              (Monoid(..))
 
-import Data.Word                (Word8)
+import Data.Word                (Word8,Word64)
 import Data.Int                 (Int64)
 import qualified Data.List
 import System.IO                (Handle,stdin,stdout,openBinaryFile,IOMode(..)
