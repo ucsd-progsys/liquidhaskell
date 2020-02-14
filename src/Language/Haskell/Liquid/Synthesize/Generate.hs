@@ -45,42 +45,37 @@ genTerms' i s specTy =
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
       filterElseM (hasType " genTerms " True specTy) es $ 
-        withDepthFill i s specTy 0 [] fnTys
+        withDepthFill i s specTy 0 fnTys
 
 fixEMem :: SpecType -> SM ()
 fixEMem t
-  = do  sEMem <- sExprMem <$> get
-        ts <- (snd . sForalls) <$> get
-        fs <- (fst . sForalls) <$> get 
+  = do  (fs, ts) <- sForalls <$> get
         let uTys = unifyWith (toType t)
-        needsFix <- case find (\x -> x == uTys) ts of Nothing -> return True   -- not yet instantiated
-                                                      Just _  -> return False  -- already instantiated
-        let f = map (map showTy)
-        if needsFix
-          then do let es = map (\v -> instantiateTy (GHC.Var v) (Just uTys)) fs
-                  modify (\s -> s { sForalls = (fs, uTys : ts)})
-                  let notForall e = case exprType e of { ForAllTy{} -> False; _ -> True }
-                      fixEs = filter notForall es
-                  thisDepth <- sDepth <$> get
-                  let fixedEMem = (map (\e -> (exprType e, e, thisDepth + 1)) fixEs)
-                  modify (\s -> s {sExprMem = fixedEMem ++ sExprMem s})
-                  -- return (fixedEMem ++ sEMem) 
-          else return ()
-        
+        needsFix <- case find (== uTys) ts of Nothing -> return True   -- not yet instantiated
+                                              Just _  -> return False  -- already instantiated
 
-withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Symbol, (Type, Var))] -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
-withDepthFill i s t depth funTyCands tmp = do
+        when needsFix $
+          do  modify (\s -> s { sForalls = (fs, uTys : ts)})
+              let notForall e = case exprType e of { ForAllTy{} -> False; _ -> True }
+                  es = map (\v -> instantiateTy (GHC.Var v) (Just uTys)) fs
+                  fixEs = filter notForall es
+              thisDepth <- sDepth <$> get
+              let fixedEMem = map (\e -> (exprType e, e, thisDepth + 1)) fixEs
+              modify (\s -> s {sExprMem = fixedEMem ++ sExprMem s})
+
+withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
+withDepthFill i s t depth tmp = do
   let s0 = " [ withDepthFill ] " ++ s
   curEm <- sExprMem <$> get
   exprs <- fill i s0 depth curEm tmp []
 
   filterElseM (hasType s0 True t) exprs $ 
     if depth < maxAppDepth
-      then withDepthFill i s0 t (depth + 1) funTyCands tmp
+      then withDepthFill i s0 t (depth + 1) tmp
       else return []
 
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
-fill i s _     _       []                 accExprs 
+fill _ _ _     _       []                 accExprs 
   = return accExprs
 fill i s depth exprMem (c@(t, e, d) : cs) accExprs 
   = case subgoals t of 

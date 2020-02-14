@@ -1,6 +1,4 @@
 {-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE TupleSections #-}
-{-# LANGUAGE BangPatterns #-}
 
 module Language.Haskell.Liquid.Synthesize (
     synthesize
@@ -123,7 +121,9 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               modify (\s -> s { sForalls = (foralls, []) } )
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
-              GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
+              vErr <- varError 
+              let tt = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
+              trace (" [ FIND ] " ++ show tt ++ " haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ " converted type " ++ showTy (toType tt)) $ GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
 synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
