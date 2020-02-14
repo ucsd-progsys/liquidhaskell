@@ -213,7 +213,7 @@ incrSM = do s <- get
 incrCase :: [a] -> SM Int 
 incrCase es 
   = do  s <- get 
-        put s { caseIdx = caseIdx s + 1}
+        put s { caseIdx = (caseIdx s + 1) `mod` (length es)}
         return (caseIdx s)
   
 

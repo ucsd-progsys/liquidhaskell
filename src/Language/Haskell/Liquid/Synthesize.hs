@@ -144,7 +144,7 @@ synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch s lenv γ t = trace (" synthesizeMatch " ++ s ++ "\nes " ++ show es) $ do
   id <- incrCase es
   let scrut = es !! id
-  trace (" SRCUTINEE " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
+  withIncrDepth (matchOn s t scrut)
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
