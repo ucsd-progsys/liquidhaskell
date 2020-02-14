@@ -85,6 +85,7 @@ data SState
            , sForalls   :: ([Var], [[Type]])  -- ^ [Var] are the parametric functions (except for the fixpoint)
                                               --    e.g. Constructors, top-level functions.
                                               -- ^ [[Type]]: all the types that have instantiated [Var] so far.
+           , caseIdx    :: Int              -- [ Temporary ] Index in list of scrutinees.
            }
 type SM = StateT SState IO
 
@@ -109,7 +110,7 @@ evalSM act ctx tgt fcfg cgi cgenv renv env st = do
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
 initState ctx fcfg cgi cgenv renv xtop uniVars env = do
-  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing Nothing ([], [])
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing Nothing ([], []) 0
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
@@ -208,6 +209,13 @@ incrSM :: SM Int
 incrSM = do s <- get 
             put s{ssIdx = ssIdx s + 1}
             return (ssIdx s)
+
+incrCase :: [a] -> SM Int 
+incrCase es 
+  = do  s <- get 
+        put s { caseIdx = caseIdx s + 1}
+        return (caseIdx s)
+  
 
 symbolExpr :: Type -> F.Symbol -> SM CoreExpr 
 symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)

@@ -48,6 +48,7 @@ import           Literal
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Haskell.Liquid.Synthesize.Classes
+import           Data.Tuple.Extra
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
@@ -140,8 +141,10 @@ synthesizeBasic s t = do
               else return es
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch s lenv γ t = trace (" synthesizeMatch " ++ s ++ "\nes " ++ show es) $
-  withIncrDepth (matchOn s t (head es))
+synthesizeMatch s lenv γ t = trace (" synthesizeMatch " ++ s ++ "\nes " ++ show es) $ do
+  id <- incrCase es
+  let scrut = es !! id
+  trace (" SRCUTINEE " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
