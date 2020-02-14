@@ -2,7 +2,6 @@
 {-@ LIQUID "--prune-unsorted" @-}
 {- LIQUID "--trust-sizes"    @-}
 
-{-@ embed GHC.Word.Word64  as int @-}
 {-# OPTIONS_GHC -cpp -fglasgow-exts #-}
 -- |
 -- Module      : Data.ByteString.Lazy.Internal
@@ -42,6 +41,7 @@ import qualified Data.ByteString.Internal as S
 
 -- LIQUID
 import Language.Haskell.Liquid.Prelude  (liquidError)
+import GHC.Word (Word64)
 -- import qualified Data.ByteString.Internal
 -- import Foreign.ForeignPtr       (ForeignPtr)
 -- import Data.Word                (Word, Word8, Word16, Word32, Word64)
