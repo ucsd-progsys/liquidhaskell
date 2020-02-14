@@ -249,10 +249,10 @@ sortSmtSort poly env t  = {- tracepp ("sortSmtSort: " ++ showpp t) else id) $ -}
     go (FVar i)
       | poly, i < m   = SVar i
       | otherwise     = SInt
-    go t              = fappSmtSort poly env ct ts where (ct:ts) = unFApp t
+    go t              = fappSmtSort poly m env ct ts where (ct:ts) = unFApp t
 
-fappSmtSort :: Bool -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort
-fappSmtSort poly env = go
+fappSmtSort :: Bool -> Int -> SEnv DataDecl -> Sort -> [Sort] -> SmtSort
+fappSmtSort poly m env = go
   where
 -- HKT    go t@(FVar _) ts            = SApp (sortSmtSort poly env <$> (t:ts))
     go (FTC c) _
@@ -266,7 +266,7 @@ fappSmtSort poly env = go
       | isString s              = SString
     go (FTC c) ts
       | Just n <- tyArgs c env
-      , let i = n - length ts   = SData c ((sortSmtSort poly env <$> ts) ++ pad i)
+      , let i = n - length ts   = SData c ((sortSmtSort poly env . FAbs m <$> ts) ++ pad i)
     go _ _                      = SInt
 
     pad i | poly                = []
