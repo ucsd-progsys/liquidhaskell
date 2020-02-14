@@ -2,15 +2,6 @@
 
 module ListZip where 
 
-
-
-{-@ myerror :: {v:String | false } -> a @-} 
-myerror :: String -> a 
-myerror = error 
-
-dc :: String 
-dc = "dead code"
-
 {-@ zip' :: xs: [a] -> {ys:[b] | len ys == len xs} -> {v:[(a, b)] | len v == len xs} @-}
 zip' :: [a] -> [b] -> [(a, b)]
 zip' = _goal
