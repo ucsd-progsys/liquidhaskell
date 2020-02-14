@@ -140,8 +140,8 @@ synthesizeBasic s t = do
               else return es
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch s lenv γ t = 
-  join <$> mapM (withIncrDepth . matchOn s t) es
+synthesizeMatch s lenv γ t = trace (" synthesizeMatch " ++ s ++ "\nes " ++ show es) $
+  withIncrDepth (matchOn s t (head es))
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
