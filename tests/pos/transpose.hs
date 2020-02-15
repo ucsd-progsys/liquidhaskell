@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--bscope"         @-}
 
 module Tx (transpose, transpose', transpose'') where
 
