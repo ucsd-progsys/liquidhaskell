@@ -104,7 +104,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
                   modify (\s -> s {sForalls = (foralls, [])})
                   emem0 <- insEMem0 senv -- TODO Fix
                   modify (\s -> s { sExprMem = emem0 })
-                  synthesizeBasic " Constructor " t
+                  synthesizeBasic CaseSplit " Constructor " t
 
     go t = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
@@ -124,27 +124,42 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               modify (\s -> s { sExprMem = emem0 })
               vErr <- varError 
               let tt = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
-              trace (" [ FIND ] " ++ show tt ++ " haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ " converted type " ++ showTy (toType tt)) $ GHC.mkLams ys <$$> synthesizeBasic " Function " goalType
+              trace (" [ FIND ] " ++ show tt ++ " haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ " converted type " ++ showTy (toType tt)) $ 
+                GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
-synthesizeBasic :: String -> SpecType -> SM [CoreExpr]
-synthesizeBasic s t = do
+data Mode 
+  = CaseSplit -- ^ First case split and then generate terms.
+  | TermGen   -- ^ First generate terms and then case split.
+  deriving Eq
+
+synthesizeBasic :: Mode -> String -> SpecType -> SM [CoreExpr]
+synthesizeBasic m s t = do
   senv <- getSEnv
   let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
   fixEMem t
-  es <- genTerms s t
-  if null es  then do senv <- getSEnv
-                      lenv <- getLocalEnv 
-                      synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
-              else return es
+  if m == CaseSplit 
+    then do senv <- getSEnv 
+            lenv <- getLocalEnv
+            synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+    else do 
+      es <- genTerms s t
+      if null es  then do senv <- getSEnv
+                          lenv <- getLocalEnv 
+                          synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+                  else return es
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch s lenv γ t = trace (" synthesizeMatch " ++ s ++ "\nes " ++ show es) $ do
+synthesizeMatch s lenv γ t = do
+  em <- getSEMem 
+  let es0 = [(e, t, c) | ( t@(TyConApp c _), e, _ ) <- em]
   id <- incrCase es
   let scrut = es !! id
-  withIncrDepth (matchOn s t scrut)
+      b x y = thd3 x == thd3 y
+      es1 = groupBy b es0
+  trace (" CaseSplit " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
   where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
@@ -160,7 +175,7 @@ makeAlt s var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b
   addsEnv $ zip xs ts 
   addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  es <- synthesizeBasic (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs) t
+  es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs) t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c (toType <$> ts)

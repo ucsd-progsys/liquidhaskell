@@ -109,7 +109,7 @@ evalSM act ctx tgt fcfg cgi cgenv renv env st = do
   return r 
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
-initState ctx fcfg cgi cgenv renv xtop uniVars env = do
+initState ctx fcfg cgi cgenv renv xtop uniVars env = 
   return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing Nothing ([], []) 0
   where exprMem0 = initExprMem env
 

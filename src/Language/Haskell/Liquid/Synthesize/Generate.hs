@@ -45,7 +45,30 @@ genTerms' i s specTy =
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
       filterElseM (hasType " genTerms " True specTy) es $ 
-        withDepthFill i s specTy 0 fnTys
+        withDepthFill i s specTy 0 (tracepp " Candidates " fnTys)
+
+nonTrivial :: GHC.CoreExpr -> Bool
+-- TODO: e should not be a nullary constructor
+nonTrivial (GHC.App e (GHC.Type _)) = False
+nonTrivial _                        = True
+
+nonTrivials :: [GHC.CoreExpr] -> Bool
+nonTrivials = foldr (\x b -> nonTrivial x || b) False 
+
+trivial :: GHC.CoreExpr -> Bool
+trivial (GHC.App (GHC.Var _) (GHC.Type _)) = True -- Is this a nullary constructor?
+trivial _ = False
+
+hasTrivial :: [GHC.CoreExpr] -> Bool
+hasTrivial es = foldr (\x b -> trivial x || b) False es
+
+allTrivial :: [[GHC.CoreExpr]] -> Bool
+allTrivial es = foldr (\x b -> hasTrivial x && b) True es 
+
+rmTrivials :: [(GHC.CoreExpr, Int)] -> [(GHC.CoreExpr, Int)]
+rmTrivials = filter (\x -> not (trivial (fst x))) 
+
+
 
 fixEMem :: SpecType -> SM ()
 fixEMem t
@@ -69,10 +92,12 @@ withDepthFill i s t depth tmp = do
   curEm <- sExprMem <$> get
   exprs <- fill i s0 depth curEm tmp []
 
-  filterElseM (hasType s0 True t) exprs $ 
-    if depth < maxAppDepth
-      then withDepthFill i s0 t (depth + 1) tmp
-      else return []
+  if nonTrivials exprs then 
+    filterElseM (hasType s0 True t) (notrace " [ Expressions ] " exprs) $ 
+      if depth < maxAppDepth
+        then withDepthFill i s0 t (depth + 1) tmp
+        else return []
+    else return []
 
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
 fill _ _ _     _       []                 accExprs 
@@ -81,13 +106,19 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
   = case subgoals t of 
       Nothing             -> return [] -- Not a function type
       Just (resTy, subGs) ->          
-        do  let argCands       = map (withSubgoal exprMem) subGs 
-                changeMode     = foldr (\l b -> null l || b) False argCands
+        do  let argCands'  = map (withSubgoal exprMem) subGs 
+                argCands   = if allTrivial (map (map fst) argCands')
+                              then map rmTrivials argCands'
+                              else argCands'
+                changeMode = foldr (\l b -> null l || b) False argCands
             curAppDepth <- sAppDepth <$> get 
             newExprs <- if i == ArgsMode || changeMode
                           then do goals <- liftCG $ mapM trueTy subGs 
                                   argCands0 <- mapM (genTerms' ArgsMode " | fill ArgsMode | ") goals
-                                  let argCands1 = map (map (, curAppDepth + 1)) argCands0
+                                  let argCands2 = map (map (, curAppDepth + 1)) argCands0
+                                      argCands1 = if allTrivial (map (map fst) argCands2) 
+                                                    then map rmTrivials argCands2
+                                                    else argCands2
                                   repeatPrune curAppDepth 1 (length argCands1) c argCands1 []
                           else do curAppDepth <- sAppDepth <$> get 
                                   repeatPrune curAppDepth 1 (length argCands) c argCands []
