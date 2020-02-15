@@ -45,6 +45,7 @@ data Config = Config
   -- , structuralTerm :: Bool       -- ^ use structural termination checker
   , nostructuralterm :: Bool    -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
+  , bscope         :: Bool       -- ^ scope of the outer binders on the inner refinements
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags

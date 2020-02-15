@@ -193,6 +193,9 @@ module Language.Haskell.Liquid.Types.Types (
   , Def (..)
   , Body (..)
   , MSpec (..)
+  
+  -- * Scoping Info
+  , BScope
 
   -- * Type Classes
   , RClass (..)
@@ -276,6 +279,16 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
 import           Data.Default
 
+
+-----------------------------------------------------------------------------
+-- | Information about scope Binders Scope in
+-----------------------------------------------------------------------------
+{- In types with base refinement, e.g., {out:T {inner:a | ri} | ro }
+If BScope = True , then the outer binder out is     in scope on ri
+If BScope = False, then the outer binder out is not in scope on ri
+-}
+
+type BScope = Bool    
 -----------------------------------------------------------------------------
 -- | Information about Type Constructors
 -----------------------------------------------------------------------------
@@ -1433,7 +1446,7 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
-  syms        = foldReft    (\_ r acc -> F.syms r ++ acc) []
+  syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
@@ -1477,7 +1490,7 @@ mapExprReft f = mapReft g
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial t = foldReft (\_ r b -> F.isTauto r && b) True t
+isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
@@ -1622,30 +1635,33 @@ mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (
 -- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (F.Reftable r, TyConable c) => (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (F.Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft  f = foldReft' (\_ _ -> False) id (\γ _ -> f γ)
+foldReft  bsc f = foldReft' (\_ _ -> False) bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (F.Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
+          -> BScope
           -> (RType c tv r -> b)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind g f = efoldReft logicBind
-                            (\_ _ -> [])
-                            (\_ -> [])
-                            g
-                            (\γ t r z -> f γ t r z)
-                            (\_ γ -> γ)
-                            F.emptySEnv
+foldReft' logicBind bsc g f 
+  = efoldReft logicBind bsc 
+              (\_ _ -> [])
+              (\_ -> [])
+              g
+              (\γ t r z -> f γ t r z)
+              (\_ γ -> γ)
+              F.emptySEnv
 
 
 
 -- efoldReft :: F.Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (F.Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
+          -> BScope
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
           -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
           -> (RType c tv r -> a)
@@ -1655,7 +1671,7 @@ efoldReft :: (F.Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft logicBind cb dty g f fp = go
+efoldReft logicBind bsc cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
@@ -1671,7 +1687,8 @@ efoldReft logicBind cb dty g f fp = go
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
        where
          γ'                             = insertSEnv x (g t) γ
-    go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
+    go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' γ' z ts) rs)
+       where γ' = if bsc then insertSEnv (rTypeValueVar me) (g me) γ else γ 
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t'

@@ -155,6 +155,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Enable gradual refinement type checking"
           &= name "gradual"
 
+ , bscope
+    = def &= help "scope of the outer binders on the inner refinements"
+          &= name "bscope"
+
  , gdepth
     = 1
     &= help ("Size of gradual conretizations, 1 by default")
@@ -538,6 +542,7 @@ defConfig = Config
   , rankNTypes        = False 
   , noclasscheck      = False 
   , gradual           = False
+  , bscope            = False 
   , gdepth            = 1
   , ginteractive      = False
   , totalHaskell      = def -- True 
