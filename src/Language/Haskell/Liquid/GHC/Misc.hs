@@ -803,7 +803,7 @@ findVarDefMethod x cbs =
                      _                     -> Nothing
   where
     rcbs | isMethod x = mCbs
-         | isDictionary x = dCbs
+         | isDictionary (dropModuleNames x) = dCbs
          | otherwise  = xCbs
     xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb 
                            ]

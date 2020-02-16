@@ -2,10 +2,11 @@
 {-@ LIQUID "--ple" @-}
 module Subclass where
 
-
 class MyFunctor f where
   {-@ myfmap :: forall a b. (a -> b) -> f a -> f b @-}
   myfmap :: (a -> b) -> f a -> f b
+  {-@ (<$) :: forall a b. a -> f b -> f a  @-}
+  (<$) :: a -> f b -> f a
 
 {-@ reflect myid @-}
 myid :: a -> a
@@ -25,6 +26,7 @@ data MyId a = MyId a
 
 instance MyFunctor MyId where
   myfmap f (MyId i) = MyId (f i)
+  x <$ (MyId _) = MyId x
   
 instance MyApplicative MyId where
   mypure = MyId

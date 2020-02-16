@@ -221,8 +221,7 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
 compileClasses :: GhcSrc -> Bare.Env -> (ModName, Ms.BareSpec)
                -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec
 compileClasses src env (name, spec) rest  = spec {sigs = sigs'} <> clsSpec
-  where clsSpec  = mempty {dataDecls = clsDecls, reflects = S.fromList (-- F.dummyLoc (F.symbol ("$fMyFunctorMyId" :: String)):
-                                                                        methods)-- , sigs = F.tracepp "refinedMethodSigs" refinedMethodSigs
+  where clsSpec  = mempty {dataDecls = clsDecls, reflects = S.fromList (fmap (fmap GM.dropModuleNames.GM.namedLocSymbol.fst) instClss ++ methods)-- , sigs = F.tracepp "refinedMethodSigs" refinedMethodSigs
                           }
         clsDecls = Bare.makeClassDataDecl' (M.toList refinedMethods)
 
@@ -250,10 +249,10 @@ compileClasses src env (name, spec) rest  = spec {sigs = sigs'} <> clsSpec
                     (d, e) <- concatMap unRec (giCbs src)
                   , F.notracepp (F.showpp (F.symbol d)) (Ghc.isDFunId d)
                   , cls <- Mb.maybeToList $ L.lookup d instClss
-                  , cls `elem` refinedClasses
+                  -- , cls `elem` refinedClasses
                   , x <- freeVars mempty e
                   -- YL: Hack
-                  , not (isPrefixOfSym "$claw" (GM.simplesymbol x))
+                  -- , not (isPrefixOfSym "$claw" (GM.simplesymbol x))
                   , GM.isMethod x
                   ]
 
@@ -294,8 +293,15 @@ compileClasses src env (name, spec) rest  = spec {sigs = sigs'} <> clsSpec
         insts = mconcat . Mb.maybeToList . gsCls $ src
 
         instClss :: [(Ghc.DFunId, Ghc.Class)]
-        instClss = fmap (\inst -> (GM.notracePpr ("inst variables" ++ (GM.showPpr $ Ghc.is_tvs inst)) $ Ghc.is_dfun inst, Ghc.is_cls inst)) $
-                   insts
+        instClss =
+          filter ((`elem` refinedClasses) . snd) $
+          fmap
+            (\inst ->
+               ( GM.notracePpr ("inst variables" ++ (GM.showPpr $ Ghc.is_tvs inst)) $
+                 Ghc.is_dfun inst
+               , Ghc.is_cls inst)) $
+          insts
+
         
         refinedClasses :: [Ghc.Class]
         refinedClasses = Mb.mapMaybe resolveClassMaybe clsDecls ++
