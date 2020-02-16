@@ -123,7 +123,7 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
                           else do curAppDepth <- sAppDepth <$> get 
                                   repeatPrune curAppDepth 1 (length argCands) c argCands []
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
-            modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
+            trace (" next " ++ show (map snd3 nextEm)) $ modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             let accExprs' = newExprs ++ accExprs
             fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth exprMem cs accExprs' 
 

@@ -143,7 +143,8 @@ synthesizeBasic m s t = do
   if m == CaseSplit 
     then do senv <- getSEnv 
             lenv <- getLocalEnv
-            synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+            es <- synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+            if null es then synthesizeBasic TermGen "" t else return es
     else do 
       es <- genTerms s t
       if null es  then do senv <- getSEnv
@@ -156,11 +157,12 @@ synthesizeMatch s lenv γ t = do
   em <- getSEMem 
   let es0 = [(e, t, c) | ( t@(TyConApp c _), e, _ ) <- em]
   id <- incrCase es
-  let scrut = es !! id
-      b x y = thd3 x == thd3 y
-      es1 = groupBy b es0
-  trace (" CaseSplit " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
-  where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+  if length es == 0 then return []
+  else do let scrut = es !! id
+              b x y = thd3 x == thd3 y
+              es1 = groupBy b es0
+          trace (" CaseSplit " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
+          where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
 matchOn :: String -> SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
