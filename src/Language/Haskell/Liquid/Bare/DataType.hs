@@ -494,7 +494,7 @@ elaborateClassDcp coreToLg dcp = do
         -- turns forall a b. (a -> b) -> f a -> f b into
         -- forall f. Functor f => forall a b. (a -> b) -> f a -> f b
     stripPred :: SpecType -> SpecType
-    stripPred t  = mkUnivs tvs pvs tres
+    stripPred t  = tres
       where (tvs, pvs, _, tres) = bkUnivClass t
     fullTy :: SpecType -> SpecType
     fullTy t =

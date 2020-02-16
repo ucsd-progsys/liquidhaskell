@@ -1,4 +1,5 @@
 {-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple" @-}
 module Subclass where
 
 
@@ -25,3 +26,7 @@ data MyId a = MyId a
 instance MyFunctor MyId where
   myfmap f (MyId i) = MyId (f i)
   
+instance MyApplicative MyId where
+  mypure = MyId
+  myap (MyId f) (MyId a) = MyId (f a)
+  myprop _ _ = ()
