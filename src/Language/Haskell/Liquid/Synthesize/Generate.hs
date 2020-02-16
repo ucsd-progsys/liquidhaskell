@@ -98,9 +98,9 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
                                       argCands1 = if allTrivial (map (map fst) argCands2) 
                                                     then map rmTrivials argCands2
                                                     else argCands2
-                                  repeatPrune curAppDepth 1 (length argCands1) c argCands1 []
+                                  prune curAppDepth c argCands1
                           else do curAppDepth <- sAppDepth <$> get 
-                                  repeatPrune curAppDepth 1 (length argCands) c argCands []
+                                  prune curAppDepth c argCands
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
             trace (" Mode " ++ show i ++ " Depth " ++ show curAppDepth ++ " For " ++ show e ++ " args " ++ show argCands ++ "\nnext " ++ show (map snd3 nextEm)) $ 
               modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
@@ -111,38 +111,7 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
 -------------------------------------------------------------------------------------------
 -- |                       Pruning terms for function application                      | --
 -------------------------------------------------------------------------------------------
-
--- Note: @i@, the 1st argument of @updateIthElem@ should be an 1-based index.
-updateIthElem :: Int -> Int -> [[(CoreExpr, Int)]] -> ([[(CoreExpr, Int)]], [[(CoreExpr, Int)]])
-updateIthElem _ _     []  = ([], [])
-updateIthElem i depth lst = 
-  case pruned of 
-    [] -> ([], [])
-    _  -> (left ++ [pruned] ++ right, left ++ [others] ++ right)
-  where left   = take (i-1) lst
-        cur    = lst !! (i-1)
-        right  = drop i lst
-        pruned = pruneCands depth cur
-        others = noDuples depth cur
-
-
-pruneCands :: Int -> [(CoreExpr, Int)] -> [(CoreExpr, Int)]
-pruneCands depth lst = filter (\(_, i) -> i >= depth) lst
-
-noDuples :: Int -> [(CoreExpr, Int)] -> [(CoreExpr, Int)]
-noDuples depth lst = filter (\(_, i) -> i < depth) lst
-
 type Depth = Int
-type Up    = Int
-type Down  = Int
-repeatPrune :: Depth -> Up -> Down -> (Type, GHC.CoreExpr, Int) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
-repeatPrune depth down up toBeFilled cands acc = 
-  if down <= up 
-    then do let (c0, c1) = updateIthElem down depth cands 
-            es <- fillOne toBeFilled c0
-            acc' <- (++ acc) <$> filterM isWellTyped es
-            repeatPrune depth (down + 1) up toBeFilled c1 acc'
-    else return acc
 
 feasible :: Depth -> (CoreExpr, Int) -> Bool
 feasible d c = snd c >= d
@@ -176,6 +145,50 @@ findFeasibles :: Depth -> [[(CoreExpr, Int)]] -> ([[Int]], [Int])
 findFeasibles d cs = (fs, ixs)
   where fs  = isFeasible d cs
         ixs = toIxs 0 fs
+
+toExpr :: Int ->                      -- ^ Reference index. Starting from 0.
+          [Int] ->                    -- ^ Produced from @isFeasible@.
+                                      --   Assumed in increasing order.
+          [(GHC.CoreExpr, Int)] ->    -- ^ The candidate expressions.
+          ([(GHC.CoreExpr, Int)],     -- ^ Expressions from 2nd argument.
+           [(GHC.CoreExpr, Int)]) ->  -- ^ The rest of the expressions
+          ([(GHC.CoreExpr, Int)], [(GHC.CoreExpr, Int)])
+toExpr _  []     _    res
+  = res 
+toExpr ix (i:is) args (b, nb) = 
+  if ix == i 
+    then toExpr (ix+1) is args (args!!i : b, nb)
+    else toExpr (ix+1) is args (b, args !! i : nb)
+
+
+fixCands :: Int -> [Int] -> [[(CoreExpr, Int)]] -> ([[(CoreExpr, Int)]], [[(CoreExpr, Int)]])
+fixCands i ixs args 
+  = let cs = args !! i
+        (cur, next) = toExpr 0 ixs cs ([], [])
+        (args0, args1) = (replace (i+1) cur args, replace (i+1) next args)
+    in  (args0, args1)
+
+-- | The first argument should be an 1-based index.
+replace :: Int -> a -> [a] -> [a]
+replace i x l
+  = left ++ [x] ++ right
+    where left  = take (i-1) l
+          right = drop i l
+
+repeatFix :: [Int] -> [[Int]] -> (Type, CoreExpr, Int) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
+repeatFix [ ] _ _ _ es 
+  = return es
+repeatFix (i:is) ixs toFill args es
+  = do  let (args0, args1) = fixCands i (ixs !! i) args
+        es0 <- fillOne toFill args0
+        es1 <- (++ es) <$> filterM isWellTyped es0
+        repeatFix is ixs toFill args1 es1
+
+prune :: Depth -> (Type, CoreExpr, Int) -> [[(CoreExpr, Int)]] -> SM [CoreExpr]
+prune d toFill args 
+  = do  let (ixs, is) = findFeasibles d args 
+        repeatFix is ixs toFill args []
+
 
 ----------------------------------------------------------------------------
 --  | Term generation: Perform type and term application for functions. | --
