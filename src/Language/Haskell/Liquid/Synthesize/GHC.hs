@@ -87,6 +87,31 @@ replaceBnds (Type t)    _     = Type t
 replaceBnds lit@Lit{}   _     = lit 
 replaceBnds e           _     = e
 
+-----------------------------------------------------------------------------------
+--  |                          Prune trivial expressions                       | --
+-----------------------------------------------------------------------------------
+nonTrivial :: GHC.CoreExpr -> Bool
+-- TODO: e should not be a nullary constructor
+nonTrivial (GHC.App e (GHC.Type _)) = False
+nonTrivial _                        = True
+
+nonTrivials :: [GHC.CoreExpr] -> Bool
+nonTrivials = foldr (\x b -> nonTrivial x || b) False 
+
+trivial :: GHC.CoreExpr -> Bool
+trivial (GHC.App (GHC.Var _) (GHC.Type _)) = True -- Is this a nullary constructor?
+trivial _ = False
+
+hasTrivial :: [GHC.CoreExpr] -> Bool
+hasTrivial es = foldr (\x b -> trivial x || b) False es
+
+allTrivial :: [[GHC.CoreExpr]] -> Bool
+allTrivial es = foldr (\x b -> hasTrivial x && b) True es 
+
+rmTrivials :: [(GHC.CoreExpr, Int)] -> [(GHC.CoreExpr, Int)]
+rmTrivials = filter (not . trivial . fst)
+
+
 ------------------------------------------------------------------------------------------------
 -------------------------------------- Handle REnv ---------------------------------------------
 ------------------------------------------------------------------------------------------------
