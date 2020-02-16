@@ -104,8 +104,9 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
             trace (" Mode " ++ show i ++ " Depth " ++ show curAppDepth ++ " For " ++ show e ++ " args " ++ show argCands ++ "\nnext " ++ show (map snd3 nextEm)) $ 
               modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
+            em <- sExprMem <$> get
             let accExprs' = newExprs ++ accExprs
-            fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth exprMem cs accExprs' 
+            fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth em cs accExprs' 
 
 -------------------------------------------------------------------------------------------
 -- |                       Pruning terms for function application                      | --
@@ -143,6 +144,38 @@ repeatPrune depth down up toBeFilled cands acc =
             repeatPrune depth (down + 1) up toBeFilled c1 acc'
     else return acc
 
+feasible :: Depth -> (CoreExpr, Int) -> Bool
+feasible d c = snd c >= d
+
+feasibles :: Depth -> Int -> [(CoreExpr, Int)] -> [Int]
+feasibles _ _ []
+  = []
+feasibles d i (c:cs) 
+  = if feasible d c 
+      then i : feasibles d (i+1) cs
+      else feasibles d (i+1) cs
+
+isFeasible :: Depth -> [[(CoreExpr, Int)]] -> [[Int]]
+isFeasible _ []
+  = []
+isFeasible d (c:cs) 
+  =  if null fs 
+      then [] : isFeasible d cs
+      else fs : isFeasible d cs
+      where fs = feasibles d 0 c
+
+toIxs :: Int -> [[Int]] -> [Int]
+toIxs _ [] 
+  = [] 
+toIxs i (f:fs)
+  = if null f 
+      then toIxs (i+1) fs
+      else i : toIxs (i+1) fs
+
+findFeasibles :: Depth -> [[(CoreExpr, Int)]] -> ([[Int]], [Int])
+findFeasibles d cs = (fs, ixs)
+  where fs  = isFeasible d cs
+        ixs = toIxs 0 fs
 
 ----------------------------------------------------------------------------
 --  | Term generation: Perform type and term application for functions. | --
