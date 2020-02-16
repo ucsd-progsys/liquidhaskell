@@ -97,7 +97,7 @@ locally :: SM a -> SM a
 locally act = do 
   st <- get 
   r <- act 
-  modify $ \s -> s{sCGEnv = sCGEnv st, sCGI = sCGI st}
+  modify $ \s -> s{sCGEnv = sCGEnv st, sCGI = sCGI st, sExprMem = sExprMem st}
   return r 
 
 
