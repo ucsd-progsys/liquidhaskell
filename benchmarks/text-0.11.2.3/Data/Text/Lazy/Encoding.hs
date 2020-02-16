@@ -64,7 +64,7 @@ import qualified Data.Text.Lazy.Encoding.Fusion as E
 import qualified Data.Text.Lazy.Fusion as F
 
 --LIQUID
-import Data.Word (Word8)
+import Data.Word (Word8,Word64)
 import Language.Haskell.Liquid.Prelude
 import qualified Data.ByteString.Fusion as TODO_REBARE
 import qualified Data.Text.Array        as TODO_REBARE

@@ -41,6 +41,7 @@ import qualified Data.ByteString.Internal as S
 
 -- LIQUID
 import Language.Haskell.Liquid.Prelude  (liquidError)
+import GHC.Word (Word64)
 -- import qualified Data.ByteString.Internal
 -- import Foreign.ForeignPtr       (ForeignPtr)
 -- import Data.Word                (Word, Word8, Word16, Word32, Word64)
