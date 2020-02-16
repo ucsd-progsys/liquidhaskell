@@ -32,3 +32,18 @@ instance MyApplicative MyId where
   mypure = MyId
   myap (MyId f) (MyId a) = MyId (f a)
   myprop _ _ = ()
+
+data Optional a = None | Has a
+
+instance MyFunctor Optional where
+  myfmap _ None = None
+  myfmap f (Has x) = Has (f x)
+  _ <$ None = None
+  x <$ (Has _) = Has x
+
+instance MyApplicative Optional where
+  mypure = Has
+  myap None _ = None
+  myap _ None = None
+  myap (Has f) (Has x) = Has (f x)
+  myprop _ _ = ()
