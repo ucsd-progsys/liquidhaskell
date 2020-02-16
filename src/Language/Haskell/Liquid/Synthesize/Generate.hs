@@ -37,7 +37,7 @@ data SearchMode
   = ArgsMode          -- ^ searching for arguments of functions that can eventually 
                       --   produce the top level hole fill
   | ResultMode        -- ^ searching for the hole fill 
-  deriving Eq 
+  deriving (Eq, Show) 
 
 genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
 genTerms' i s specTy = 
@@ -47,39 +47,17 @@ genTerms' i s specTy =
       filterElseM (hasType " genTerms " True specTy) es $ 
         withDepthFill i s specTy 0 (tracepp " Candidates " fnTys)
 
-nonTrivial :: GHC.CoreExpr -> Bool
--- TODO: e should not be a nullary constructor
-nonTrivial (GHC.App e (GHC.Type _)) = False
-nonTrivial _                        = True
-
-nonTrivials :: [GHC.CoreExpr] -> Bool
-nonTrivials = foldr (\x b -> nonTrivial x || b) False 
-
-trivial :: GHC.CoreExpr -> Bool
-trivial (GHC.App (GHC.Var _) (GHC.Type _)) = True -- Is this a nullary constructor?
-trivial _ = False
-
-hasTrivial :: [GHC.CoreExpr] -> Bool
-hasTrivial es = foldr (\x b -> trivial x || b) False es
-
-allTrivial :: [[GHC.CoreExpr]] -> Bool
-allTrivial es = foldr (\x b -> hasTrivial x && b) True es 
-
-rmTrivials :: [(GHC.CoreExpr, Int)] -> [(GHC.CoreExpr, Int)]
-rmTrivials = filter (\x -> not (trivial (fst x))) 
-
-
-
 fixEMem :: SpecType -> SM ()
 fixEMem t
   = do  (fs, ts) <- sForalls <$> get
         let uTys = unifyWith (toType t)
-        needsFix <- case find (== uTys) ts of Nothing -> return True   -- not yet instantiated
-                                              Just _  -> return False  -- already instantiated
+        needsFix <- case find (== uTys) ts of 
+                      Nothing -> return True   -- not yet instantiated
+                      Just _  -> return False  -- already instantiated
 
         when needsFix $
           do  modify (\s -> s { sForalls = (fs, uTys : ts)})
-              let notForall e = case exprType e of { ForAllTy{} -> False; _ -> True }
+              let notForall e = case exprType e of {ForAllTy{} -> False; _ -> True}
                   es = map (\v -> instantiateTy (GHC.Var v) (Just uTys)) fs
                   fixEs = filter notForall es
               thisDepth <- sDepth <$> get
@@ -95,7 +73,8 @@ withDepthFill i s t depth tmp = do
   if nonTrivials exprs then 
     filterElseM (hasType s0 True t) (notrace " [ Expressions ] " exprs) $ 
       if depth < maxAppDepth
-        then withDepthFill i s0 t (depth + 1) tmp
+        then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
+                withDepthFill i s0 t (depth + 1) tmp
         else return []
     else return []
 
@@ -114,7 +93,7 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
             curAppDepth <- sAppDepth <$> get 
             newExprs <- if i == ArgsMode || changeMode
                           then do goals <- liftCG $ mapM trueTy subGs 
-                                  argCands0 <- mapM (genTerms' ArgsMode " | fill ArgsMode | ") goals
+                                  argCands0 <- mapM (genTerms' ArgsMode " fill Args ") goals
                                   let argCands2 = map (map (, curAppDepth + 1)) argCands0
                                       argCands1 = if allTrivial (map (map fst) argCands2) 
                                                     then map rmTrivials argCands2
@@ -123,7 +102,8 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
                           else do curAppDepth <- sAppDepth <$> get 
                                   repeatPrune curAppDepth 1 (length argCands) c argCands []
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
-            trace (" next " ++ show (map snd3 nextEm)) $ modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
+            trace (" Mode " ++ show i ++ " Depth " ++ show curAppDepth ++ " For " ++ show e ++ " args " ++ show argCands ++ "\nnext " ++ show (map snd3 nextEm)) $ 
+              modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             let accExprs' = newExprs ++ accExprs
             fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth exprMem cs accExprs' 
 
@@ -157,11 +137,10 @@ type Down  = Int
 repeatPrune :: Depth -> Up -> Down -> (Type, GHC.CoreExpr, Int) -> [[(CoreExpr, Int)]] -> [CoreExpr] -> SM [CoreExpr]
 repeatPrune depth down up toBeFilled cands acc = 
   if down <= up 
-    then do 
-      let (cands', cands'') = updateIthElem down depth cands 
-      es <- fillOne toBeFilled cands'
-      acc' <- (++ acc) <$> filterM isWellTyped es
-      repeatPrune depth (down + 1) up toBeFilled cands'' acc'
+    then do let (c0, c1) = updateIthElem down depth cands 
+            es <- fillOne toBeFilled c0
+            acc' <- (++ acc) <$> filterM isWellTyped es
+            repeatPrune depth (down + 1) up toBeFilled c1 acc'
     else return acc
 
 
