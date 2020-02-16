@@ -35,16 +35,12 @@ import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
-import qualified Data.HashSet as S
-import           Data.Default 
 import           Data.Graph (SCC(..))
-import qualified Data.Text as T
 import           Data.Maybe
 import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
-import           Literal
 import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Haskell.Liquid.Synthesize.Classes
@@ -123,9 +119,9 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
               vErr <- varError 
-              let tt = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
-              trace (" [ FIND ] " ++ show tt ++ " haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ " converted type " ++ showTy (toType tt)) $ 
-                GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
+              -- let tt = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
+              -- trace (" [ FIND ] " ++ show tt ++ " haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ " converted type " ++ showTy (toType tt)) $ 
+              GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
 data Mode 
@@ -157,7 +153,7 @@ synthesizeMatch s lenv γ t = do
   em <- getSEMem 
   let es0 = [(e, t, c) | ( t@(TyConApp c _), e, _ ) <- em]
   id <- incrCase es
-  if length es == 0 then return []
+  if null es then return []
   else do let scrut = es !! id
               b x y = thd3 x == thd3 y
               es1 = groupBy b es0
