@@ -124,6 +124,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
+-- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
 data Mode 
   = CaseSplit -- ^ First case split and then generate terms.
   | TermGen   -- ^ First generate terms and then case split.
@@ -136,17 +137,17 @@ synthesizeBasic m s t = do
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
   fixEMem t
-  if m == CaseSplit 
-    then do senv <- getSEnv 
-            lenv <- getLocalEnv
-            es <- synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
-            if null es then synthesizeBasic TermGen "" t else return es
-    else do 
-      es <- genTerms s t
-      if null es  then do senv <- getSEnv
-                          lenv <- getLocalEnv 
-                          synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
-                  else return es
+  -- if m == CaseSplit 
+  --   then do senv <- getSEnv 
+  --           lenv <- getLocalEnv
+  --           es <- synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+  --           if null es then synthesizeBasic TermGen "" t else return es
+  --   else do 
+  es <- genTerms s t
+  if null es  then do senv <- getSEnv
+                      lenv <- getLocalEnv 
+                      synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+              else return es
 
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch s lenv γ t = do
@@ -157,7 +158,7 @@ synthesizeMatch s lenv γ t = do
   else do let scrut = es !! id
               b x y = thd3 x == thd3 y
               es1 = groupBy b es0
-          trace (" CaseSplit " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
+          trace (" CaseSplit " ++ show (map (map fst3) es1) ++ " \n Scrutinee " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
           where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
 
