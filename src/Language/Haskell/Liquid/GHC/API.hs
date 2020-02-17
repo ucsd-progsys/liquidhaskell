@@ -19,7 +19,8 @@ import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
 import SrcLoc         as Ghc 
-import Name           as Ghc hiding (varName) 
+import Name           as Ghc hiding (varName)
+import TcType         as Ghc (tcSplitMethodTy, tcSplitAppTys)
 
 
 -- import TyCon          as Ghc 

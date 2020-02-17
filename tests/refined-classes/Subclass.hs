@@ -5,7 +5,6 @@ module Subclass where
 class MyFunctor f where
   {-@ myfmap :: forall a b. (a -> b) -> f a -> f b @-}
   myfmap :: (a -> b) -> f a -> f b
-  {-@ (<$) :: forall a b. a -> f b -> f a  @-}
   (<$) :: a -> f b -> f a
 
 {-@ reflect myid @-}
@@ -48,7 +47,14 @@ instance MyApplicative Optional where
   myap (Has f) (Has x) = Has (f x)
   myprop _ _ = ()
 
-
 {-@ impl :: x:Bool -> y:Bool -> {v:Bool | v <=> (x => y)} @-}
 impl :: Bool -> Bool -> Bool
 impl a b = if a then b else True
+
+{-@ reflect ffmap @-}
+ffmap :: MyFunctor f => (a -> b) -> f a -> f b
+ffmap = myfmap
+
+{-@ trivial :: MyFunctor f => f:(a -> b) -> x:f a -> {myfmap f x == ffmap f x} @-}
+trivial :: MyFunctor f => (a -> b) -> f a -> ()
+trivial _ _ = ()

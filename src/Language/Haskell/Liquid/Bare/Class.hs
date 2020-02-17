@@ -114,7 +114,6 @@ addCC x zz@(Loc l l' st0)
     addForall _ t 
       = t 
 
-
 splitDictionary :: Ghc.CoreExpr -> Maybe (Ghc.Var, [Ghc.Type], [Ghc.Var])
 splitDictionary = go [] [] 
   where 

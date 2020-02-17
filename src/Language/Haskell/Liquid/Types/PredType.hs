@@ -197,12 +197,6 @@ dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
     makeVars = zipWith (\v a -> RTVar v (rTVarInfo a :: RTVInfo RSort)) vs (fst $ splitForAllTys $ dataConRepType dc)
     makeVars' = zip makeVars (repeat mempty)
 
-    -- typeclass yts contains predicates (Semigroup => , Functor => ...)
-    -- stripPred :: SpecType -> SpecType
-    -- stripPred t  = mkUnivs tvs pvs tres
-    --   where (tvs, pvs, _, tres) = bkUnivClass t
-
-
 instance PPrint TyConP where
   pprintTidy k tc = "data" <+> pprintTidy k (tcpCon tc) 
                            <+> ppComm     k (tcpFreeTyVarsTy tc) 

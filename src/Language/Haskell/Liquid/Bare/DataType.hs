@@ -429,7 +429,7 @@ classDeclToDataDecl' cls refinedIds = F.tracepp "classDeclToDataDecl" $ DataDecl
         tyVarSubst = [(GM.dropModuleUnique v, v) | v <- tyVars]
 
         dropTheta :: Ghc.Type -> Ghc.Type
-        dropTheta =  GM.notracePpr "Dropping pred" . Misc.thd3 . GM.splitThetaTy
+        dropTheta =  GM.notracePpr "Dropping pred" . Misc.thd3 . Ghc.tcSplitMethodTy
         -- dropTheta (Ghc.ForAllTy _ (Ghc.FunTy _ τ')) = τ'
         -- dropTheta (Ghc.ForAllTy _ (Ghc.ForAllTy _ _)) = todo Nothing "multi-parameter type-class not supported"
         -- dropTheta _ = impossible Nothing "classDeclToDataDecl': assumption was wrong"

@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
-{-# LANGUAGE PartialTypeSignatures     #-}
 {-# LANGUAGE OverloadedStrings         #-}
 
 -- | This module contains the functions that convert /from/ descriptions of
@@ -141,18 +141,16 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
   let  lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
        mySpec   = mySpec2 <> lSpec1
        specs    = M.insert name mySpec iSpecs2
-  measEnv  <- makeMeasEnv coreToLg env tycEnv sigEnv       specs
+  measEnv  <- makeMeasEnv env tycEnv sigEnv       specs
   let  myRTE    = myRTEnv       src env sigEnv rtEnv  
        qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
        sData    = makeSpecData  src env sigEnv measEnv sig specs 
        refl     = makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
        laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
        sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (giCbs src)
-  -- liftIO $ putStrLn "Before"
-  -- liftIO $ putStrLn$ F.showpp (gsTySigs sig)
-  -- liftIO $ putStrLn "After"
-  elaboratedSig <- elaborateSig sig
-  -- liftIO $ putStrLn$ F.showpp (gsTySigs elaboratedSig)
+  auxSig   <- makeClassAuxTypes (fmap fst.elaborateSpecType coreToLg) datacons instMethods
+  elaboratedSig <- elaborateSig sig auxSig
+  
   pure $ SP
     { gsConfig = cfg 
     , gsImps   = makeImports mspecs
@@ -163,7 +161,8 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
     , gsQual   = qual 
     , gsName   = makeSpecName env     tycEnv measEnv   name 
     , gsVars   = makeSpecVars cfg src mySpec env measEnv
-    , gsTerm   = makeSpecTerm cfg     mySpec env       name    
+    , gsTerm   = makeSpecTerm cfg     mySpec env       name
+    -- YL: shoudl I add the sigs here?
     , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
                      impSigs   = makeImports mspecs,
                      expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
@@ -182,7 +181,7 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
         Left _ -> impossible Nothing "can't reach here"
         Right e -> e
     
-    elaborateSig si = do
+    elaborateSig si auxsig = do
       tySigs <-
         forM (gsTySigs si) $ \(x, t) -> do
           t' <- traverse (elaborateSpecType coreToLg) t
@@ -193,7 +192,7 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
       --   pure (x, fst <$> t')
       pure
         si
-          { gsTySigs = tySigs -- , gsAsmSigs = asmSigs
+          { gsTySigs = F.tracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig -- , gsAsmSigs = asmSigs
           }
 
     dm       = Bare.tcDataConMap tycEnv0
@@ -210,109 +209,142 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecsNoClass
     mspecs   = M.toList $ M.insert name mySpec0 iSpecs0
-    mySpec0  = compileClasses src env (name, mySpec0NoClass) (M.toList iSpecs0)
+    (mySpec0, instMethods)  = compileClasses src env (name, mySpec0NoClass) (M.toList iSpecs0)
     (mySpec0NoClass, iSpecs0) = splitSpecs name mspecsNoClass
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecsNoClass)
 
+makeClassAuxTypes ::
+     (SpecType -> Ghc.Ghc SpecType)
+  -> [F.Located DataConP]
+  -> [(Ghc.ClsInst, [Ghc.Var])]
+  -> Ghc.Ghc [(Ghc.Var, LocSpecType)]
+makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcpInstMethods
+  where
+    dcpInstMethods = do
+      dcp <- dcps
+      (inst, methods) <- xs
+      let dc = dcpCon . F.val $ dcp
+              -- YL: only works for non-newtype class
+          dc' = Ghc.classDataCon $ Ghc.is_cls inst
+      guard $ dc == dc'
+      pure (dcp, inst, methods)
+
+      
+makeClassAuxTypesOne ::
+     (SpecType -> Ghc.Ghc SpecType)
+  -> (F.Located DataConP, Ghc.ClsInst, [Ghc.Var])
+  -> Ghc.Ghc [(Ghc.Var, LocSpecType)]
+makeClassAuxTypesOne elab (ldcp, inst, methods) =
+  forM methods $ \method -> do
+    let headlessSig =
+          case L.lookup (mkSymbol method) yts of
+            Nothing ->
+              impossible Nothing "makeClassAuxTypesOne : not reachable?"
+            Just sig -> sig
+        fullSig =
+          mkArrow
+            (zip isRTvs (repeat mempty))
+            []
+            []
+            [(F.dummySymbol, pty, mempty) | pty <- isPredSpecTys] .
+          subst (zip clsTvs isSpecTys) $
+          headlessSig
+    elaboratedSig  <- elab fullSig
+    let retSig =  _substAuxMethod elaboratedSig
+    pure (method, F.dummyLoc retSig)
+
+  -- is used as a shorthand for instance, following the convention of the Ghc api
+  where
+    (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
+    isSpecTys = ofType <$> isTys
+    isPredSpecTys = ofType <$> isPredTys
+    isRTvs = makeRTVar . rTyVar <$> isTvs
+    dcp = F.val ldcp
+    yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
+    mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
+        -- res = dcpTyRes dcp
+    clsTvs = F.tracepp "clsTvs" $ dcpFreeTyVars dcp
+        -- copy/pasted from Bare/Class.hs
+    subst [] t = t
+    subst ((a, ta):su) t = subsTyVar_meet' (a, ta) (subst su t)
 
 
-compileClasses :: GhcSrc -> Bare.Env -> (ModName, Ms.BareSpec)
-               -> [(ModName, Ms.BareSpec)] -> Ms.BareSpec
-compileClasses src env (name, spec) rest  = spec {sigs = sigs'} <> clsSpec
-  where clsSpec  = mempty {dataDecls = clsDecls, reflects = S.fromList (fmap (fmap GM.dropModuleNames.GM.namedLocSymbol.fst) instClss ++ methods)-- , sigs = F.tracepp "refinedMethodSigs" refinedMethodSigs
-                          }
-        clsDecls = Bare.makeClassDataDecl' (M.toList refinedMethods)
 
+compileClasses ::
+     GhcSrc
+  -> Bare.Env
+  -> (ModName, Ms.BareSpec)
+  -> [(ModName, Ms.BareSpec)]
+  -> (Ms.BareSpec, [(Ghc.ClsInst, [Ghc.Var])])
+compileClasses src env (name, spec) rest = (spec {sigs = sigs'} <> clsSpec, instmethods)
+  where
+    clsSpec =
+      mempty
+        { dataDecls = clsDecls
+        , reflects =
+            F.tracepp "reflects " $
+            S.fromList
+              (fmap
+                 (fmap GM.dropModuleNames .
+                  GM.namedLocSymbol . Ghc.instanceDFunId . fst)
+                 instClss ++
+               methods)
+        }
+    clsDecls = Bare.makeClassDataDecl' (M.toList refinedMethods)
         -- class methods
-        (refinedMethods, sigs') = foldr grabClassSig (mempty, mempty) (sigs spec)
-
-        grabClassSig :: (F.LocSymbol, ty) ->
-                        (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)]) ->
-                        (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
-        grabClassSig sig@(lsym, ref) (refs, sigs') =
-          case clsOp of
-            Nothing -> (refs, sig:sigs')
-            Just (cls, sig) -> (M.alter (merge sig) cls refs, sigs')
-          where clsOp = do
-                  var <- Bare.maybeResolveSym env name "grabClassSig" lsym
-                  cls <- Ghc.isClassOpId_maybe var
-                  pure (cls, (var, ref))
-
-                merge sig v = case v of
-                  Nothing -> Just [sig]
-                  Just vs -> Just (sig:vs)
-                
+    (refinedMethods, sigs') = foldr grabClassSig (mempty, mempty) (sigs spec)
+    grabClassSig ::
+         (F.LocSymbol, ty)
+      -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
+      -> (M.HashMap Ghc.Class [(Ghc.Id, ty)], [(F.LocSymbol, ty)])
+    grabClassSig sig@(lsym, ref) (refs, sigs') =
+      case clsOp of
+        Nothing -> (refs, sig : sigs')
+        Just (cls, sig) -> (M.alter (merge sig) cls refs, sigs')
+      where
+        clsOp = do
+          var <- Bare.maybeResolveSym env name "grabClassSig" lsym
+          cls <- Ghc.isClassOpId_maybe var
+          pure (cls, (var, ref))
+        merge sig v =
+          case v of
+            Nothing -> Just [sig]
+            Just vs -> Just (sig : vs)
+    methods = [GM.namedLocSymbol x | (_, xs) <- instmethods, x <- xs]
         -- instance methods
-        methods = F.notracepp "methods" [ F.symbol <$> GM.locNamedThing x |
-                    (d, e) <- concatMap unRec (giCbs src)
-                  , F.notracepp (F.showpp (F.symbol d)) (Ghc.isDFunId d)
-                  , cls <- Mb.maybeToList $ L.lookup d instClss
-                  -- , cls `elem` refinedClasses
-                  , x <- freeVars mempty e
-                  -- YL: Hack
-                  -- , not (isPrefixOfSym "$claw" (GM.simplesymbol x))
-                  , GM.isMethod x
-                  ]
-
-        -- refinedMethodSigs :: [(F.LocSymbol, F.Located BareType)]
-        -- refinedMethodSigs = concatMap refineInstance insts
-
-        -- refineInstance :: Ghc.ClsInst -> [(F.LocSymbol, F.Located BareType)]
-        -- refineInstance inst
-        --   | L.null is_tvs
-        --   = [(Mb.fromJust $ M.lookup (GM.dropModuleNamesAndUnique $ F.symbol methodId) clsMethodInst, plugType <$> ty) | (methodId, ty) <- methods]
-        --   | otherwise
-        --   = todo Nothing "instances with parameters are not supported"
-        --   where is_tvs = Ghc.is_tvs inst -- forall tvs.
-        --         is_tys = Ghc.is_tys inst -- Int
-        --         is_cls = Ghc.is_cls inst
-
-        --         -- hack. doesn't work when we have module name at the front
-        --         plugType :: BareType -> BareType
-        --         plugType = F.substa (\s -> Mb.fromMaybe s (F.val <$> M.lookup s clsMethodInst)) . subts (zip (GM.dropModuleNamesAndUnique . F.symbol <$> Ghc.classTyVars is_cls) (bareOfType <$> is_tys :: [BareType]))
-
-        --         methods
-        --           | Just ms <- M.lookup is_cls refinedMethods
-        --           = ms
-        --           | otherwise
-        --           = impossible Nothing "invariant violated"
-        --         instMethods = F.tracepp "instMethods" [ F.symbol <$> GM.locNamedThing x |
-        --                         (d, e) <- concatMap unRec (giCbs src)
-        --                       , d == Ghc.is_dfun inst
-        --                       , x <- freeVars mempty e
-        --                       , GM.isMethod x
-        --                       ]
-        --         -- mappend -> $cmappend#a1ox
-        --         clsMethodInst :: M.HashMap F.Symbol F.LocSymbol
-        --         clsMethodInst = M.fromList
-        --           [((F.dropSym 2 . GM.dropModuleNamesAndUnique . F.val) m, m) | m <- instMethods]
-
-        insts :: [Ghc.ClsInst]
-        insts = mconcat . Mb.maybeToList . gsCls $ src
-
-        instClss :: [(Ghc.DFunId, Ghc.Class)]
-        instClss =
-          filter ((`elem` refinedClasses) . snd) $
-          fmap
-            (\inst ->
-               ( GM.notracePpr ("inst variables" ++ (GM.showPpr $ Ghc.is_tvs inst)) $
-                 Ghc.is_dfun inst
-               , Ghc.is_cls inst)) $
-          insts
-
-        
-        refinedClasses :: [Ghc.Class]
-        refinedClasses = Mb.mapMaybe resolveClassMaybe clsDecls ++
-                         concatMap (Mb.mapMaybe resolveClassMaybe.dataDecls.snd) rest
-
-        resolveClassMaybe :: DataDecl -> Maybe Ghc.Class
-        resolveClassMaybe d = Bare.maybeResolveSym env name "resolveClassMaybe"
-          (dataNameSymbol.tycName $ d) >>=
-          Ghc.tyConClass_maybe
-        unRec (Ghc.Rec xes) = xes
-        unRec (Ghc.NonRec x e) = [(x,e)]
+    instmethods :: [(Ghc.ClsInst, [Ghc.Var])]
+    instmethods =
+      [ (inst, ms)
+      | (inst, _) <- instClss
+      , (_, e) <-
+          Mb.maybeToList
+            (GM.findVarDefMethod
+               (GM.dropModuleNames . F.symbol $ Ghc.instanceDFunId inst)
+               (giCbs src))
+      , let ms = filter GM.isMethod (freeVars mempty e)
+      ]
+    instClss :: [(Ghc.ClsInst, Ghc.Class)]
+    instClss =
+      [ (inst, cls)
+      | inst <- mconcat . Mb.maybeToList . gsCls $ src
+      , Ghc.moduleName (Ghc.nameModule (Ghc.getName inst)) == getModName name
+      , let cls = Ghc.is_cls inst
+      , cls `elem` refinedClasses
+      ]
+    refinedClasses :: [Ghc.Class]
+    refinedClasses =
+      Mb.mapMaybe resolveClassMaybe clsDecls ++
+      concatMap (Mb.mapMaybe resolveClassMaybe . dataDecls . snd) rest
+    resolveClassMaybe :: DataDecl -> Maybe Ghc.Class
+    resolveClassMaybe d =
+      Bare.maybeResolveSym
+        env
+        name
+        "resolveClassMaybe"
+        (dataNameSymbol . tycName $ d) >>=
+      Ghc.tyConClass_maybe
 
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
@@ -324,7 +356,7 @@ splitSpecs name specs = (mySpec, iSpecm)
 
 
 makeImports :: [(ModName, Ms.BareSpec)] -> [(F.Symbol, F.Sort)]
-makeImports specs = concatMap (expSigs . snd) specs'
+makeImports specs = F.tracepp "imported" $ concatMap (expSigs . snd) specs'
   where specs' = filter (isSrcImport . fst) specs
 
 
@@ -1021,9 +1053,9 @@ knownWiredTyCons env name = filter isKnown wiredTyCons
 
 -- REBARE: formerly, makeGhcCHOP2
 -------------------------------------------------------------------------------------------
-makeMeasEnv :: (Ghc.CoreExpr -> F.Expr) -> Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Ghc.Ghc Bare.MeasEnv 
+makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Ghc.Ghc Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
-makeMeasEnv coreToLg env tycEnv sigEnv specs = do
+makeMeasEnv env tycEnv sigEnv specs = do
   -- datacons' <- forM datacons $ \dc -> 
   --   if Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon $ dc
   --   then Bare.elaborateClassDcp coreToLg dc
