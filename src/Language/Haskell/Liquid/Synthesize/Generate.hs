@@ -45,7 +45,7 @@ genTerms' i s specTy =
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
       filterElseM (hasType " genTerms " True specTy) es $ 
-        withDepthFill i s specTy 0 (tracepp " Candidates " fnTys)
+        withDepthFill i s specTy 0 fnTys
 
 fixEMem :: SpecType -> SM ()
 fixEMem t
@@ -71,7 +71,7 @@ withDepthFill i s t depth tmp = do
   exprs <- fill i s0 depth curEm tmp []
 
   if nonTrivials exprs then 
-    filterElseM (hasType s0 True t) (notrace " [ Expressions ] " exprs) $ 
+    filterElseM (hasType s0 True t) exprs $ 
       if depth < maxAppDepth
         then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
                 withDepthFill i s0 t (depth + 1) tmp
@@ -102,8 +102,7 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
                           else do curAppDepth <- sAppDepth <$> get 
                                   prune curAppDepth c argCands
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
-            trace (" Mode " ++ show i ++ " Depth " ++ show curAppDepth ++ " For " ++ show e ++ " args " ++ show argCands ++ "\nnext " ++ show (map snd3 nextEm)) $ 
-              modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
+            modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             em <- sExprMem <$> get
             let accExprs' = newExprs ++ accExprs
             fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth em cs accExprs' 
