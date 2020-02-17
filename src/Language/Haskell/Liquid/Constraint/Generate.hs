@@ -1163,7 +1163,7 @@ case x :: List b of
 -------------------------------------------------------------------------------------
 caseEnv   :: CGEnv -> Var -> [AltCon] -> AltCon -> [Var] -> Maybe [Int] -> CG CGEnv
 -------------------------------------------------------------------------------------
-caseEnv γ x _   (DataAlt c) ys pIs = do 
+caseEnv γ x _   (DataAlt c) ys pIs = trace (" caseEnv x = " ++ show x ++ " c " ++ show c ++ " vars " ++ show ys ++ " types " ++ concat (map (showTy . varType) ys)) $ do 
 
   let (x' : ys')   = F.symbol <$> (x:ys)
   xt0             <- checkTyCon ("checkTycon cconsCase", x) γ <$> γ ??= x

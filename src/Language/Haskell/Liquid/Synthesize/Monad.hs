@@ -49,7 +49,7 @@ import qualified Data.HashSet as S
 import           Data.Tuple.Extra 
 
 maxMatchDepth :: Int 
-maxMatchDepth = 2 
+maxMatchDepth = 5 
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------
@@ -91,7 +91,7 @@ type SM = StateT SState IO
 
 -- TODO Write: What is @maxAppDepth@?
 maxAppDepth :: Int 
-maxAppDepth = 3
+maxAppDepth = 4
 
 locally :: SM a -> SM a 
 locally act = do 
@@ -140,7 +140,7 @@ addsEnv xts =
 addsEmem :: [(Var, SpecType)] -> SM () 
 addsEmem xts = do 
   curAppDepth <- sAppDepth <$> get
-  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth) : (sExprMem s)})) xts  
+  mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth+1) : (sExprMem s)})) xts  
   
 
 addEnv :: Var -> SpecType -> SM ()

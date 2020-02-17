@@ -152,23 +152,61 @@ synthesizeBasic m s t = do
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch s lenv γ t = do
   em <- getSEMem 
-  let es0 = [(e, t, c) | ( t@(TyConApp c _), e, _ ) <- em]
-  id <- incrCase es
-  if null es then return []
-  else do let scrut = es !! id
-              b x y = thd3 x == thd3 y
-              es1 = groupBy b es0
-          trace (" CaseSplit " ++ show (map (map fst3) es1) ++ " \n Scrutinee " ++ show (fst3 scrut)) $ withIncrDepth (matchOn s t scrut)
-          where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+  let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
+      es1 = filter (noPairLike . fst) es0
+      es2 = sortOn snd es1
+      es3 = map fst es2
+  id <- incrCase es3
+  if null es3 
+    then return []
+    else do let scrut = es3 !! id -- es !! id
+            trace (" CaseSplit " ++ show (map (\x -> (fst3.fst $x, snd x)) es2) ++ " \n Scrutinee " ++ show (fst3 scrut)) $   
+              withIncrDepth (matchOnExpr s t scrut)
+              -- (es2, es3) = span (isVar . fst3 . fst) es1
+              -- es4 = sortOn snd es2
+              -- es5 = sortOn snd es3
+            
+            -- withIncrDepth (matchOn s t scrut)
+            -- where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
 
+noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
+noPairLike (e, t, c) = 
+  if length (tyConDataCons c) > 1 
+    then True
+    else inspect e (tyConDataCons c)
 
-matchOn :: String -> SpecType -> (Var, SpecType, TyCon) -> SM [CoreExpr]
+inspect :: GHC.CoreExpr -> [DataCon] -> Bool
+inspect e [dataCon] 
+  = not $ outer e == dataConWorkId dataCon
+inspect _ _  
+  = error " Should be a singleton. "
+
+outer :: GHC.CoreExpr -> Var
+outer (GHC.Var v)
+  = v
+outer (GHC.App e1 e2)
+  = outer e1
+
+isVar :: GHC.CoreExpr -> Bool
+isVar (GHC.Var _) = True
+isVar _ = False
+
+matchOnExpr :: String -> SpecType -> (CoreExpr, Type, TyCon) -> SM [CoreExpr]
+matchOnExpr s t (GHC.Var v, tx, c) 
+  = matchOn s t (v, tx, c)
+matchOnExpr s t (e, tx, c)
+  = trace (" Match On Expr " ++ show e) $
+      do  freshV <- freshVarType tx
+          es <- matchOn s t (freshV, tx, c)
+          return $ (GHC.Let (GHC.NonRec freshV e)) <$> es
+
+matchOn :: String -> SpecType -> (Var, Type, TyCon) -> SM [CoreExpr]
 matchOn s t (v, tx, c) =
-  (GHC.Case (GHC.Var v) v (toType tx) <$$> sequence) <$> mapM (makeAlt s v t (v, tx)) (tyConDataCons c)
+  (GHC.Case (GHC.Var v) v tx <$$> sequence) <$> mapM (makeAlt s v t (v, tx)) (tyConDataCons c)
 
 
-makeAlt :: String -> Var -> SpecType -> (Var, SpecType) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt s var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b)
+makeAlt :: String -> Var -> SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
+makeAlt s var t (x, tx@(TyConApp _ ts)) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
@@ -177,5 +215,5 @@ makeAlt s var t (x, tx@(RApp _ ts _ _)) c = locally $ do -- (AltCon, [b], Expr b
   es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs) t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
-    (_, _, τs) = dataConInstSig c (toType <$> ts)
+    (_, _, τs) = dataConInstSig (tracepp (" makeAlt for ts " ++ concat (map showTy ts)) c) ts -- (toType <$> ts)
 makeAlt s _ _ _ _ = error $ "makeAlt.bad argument " ++ s
