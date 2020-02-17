@@ -384,6 +384,8 @@ toPredApp p = go . Misc.mapFst opSym . splitArgs $ p
       = PAnd <$> mapM coreToLg [e1, e2]
       | f == symbol ("==>" :: String)
       = PImp <$> coreToLg e1 <*> coreToLg e2
+      | f == symbol ("<=>" :: String)
+      = PIff <$> coreToLg e1 <*> coreToLg e2
     go (Just f, [es])
       | f == symbol ("or" :: String)
       = POr  . deList <$> coreToLg es

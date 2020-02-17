@@ -47,3 +47,8 @@ instance MyApplicative Optional where
   myap _ None = None
   myap (Has f) (Has x) = Has (f x)
   myprop _ _ = ()
+
+
+{-@ impl :: x:Bool -> y:Bool -> {v:Bool | v <=> (x => y)} @-}
+impl :: Bool -> Bool -> Bool
+impl a b = if a then b else True

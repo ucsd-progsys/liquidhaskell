@@ -495,6 +495,9 @@ fixExprToHsExpr env (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr env e) es
 fixExprToHsExpr env (F.POr es) = mkHsApp
   (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "or")))
   (nlList $ fixExprToHsExpr env <$> es)
+fixExprToHsExpr env (F.PIff e0 e1) =
+  mkHsApp (mkHsApp (nlHsVar (mkVarUnqual (mkFastString "<=>"))) (fixExprToHsExpr env e0))
+    (fixExprToHsExpr env e1)
 fixExprToHsExpr env (F.PNot e) =
   mkHsApp (nlHsVar not_RDR) (fixExprToHsExpr env e)
 fixExprToHsExpr env (F.PAtom brel e0 e1) = mkHsApp

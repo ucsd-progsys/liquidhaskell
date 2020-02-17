@@ -447,6 +447,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
           "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
           execOptions
   void $ execStmt
+          "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+          execOptions
+  void $ execStmt
           "let {infix 4 ==; _ == _ = undefined}"
           execOptions
   void $ execStmt
@@ -456,6 +459,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
           "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
           execOptions
   ghcSpec <- makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs
+  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec 
   return      $ GI ghcSrc ghcSpec
 
 ---------------------------------------------------------------------------------------
