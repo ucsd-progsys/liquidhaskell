@@ -218,12 +218,17 @@ fillOne (t, e, d) cs
   = applyTerms [e] cs ((snd . fromJust . subgoals) t)     -- TODO Fix fromJust 
 
 applyTerm :: [GHC.CoreExpr] -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
-applyTerm es args t 
-  = do  !idx <- incrSM 
-        return  [ case e0 of  GHC.Var _ ->  GHC.App e e0
-                              _         ->  let letv = mkVar (Just "x") idx t
-                                            in  GHC.Let (GHC.NonRec letv e0) (GHC.App e (GHC.Var letv)) 
-                | e <- es, (e0, _) <- args 
+applyTerm es args t = do
+  es1 <- mapM (\x -> applyArg es x t) args
+  return (concat es1)
+
+applyArg :: [GHC.CoreExpr] -> (CoreExpr, Int) -> Type -> SM [CoreExpr]
+applyArg es (arg, _) t 
+  = do  !idx <- incrSM
+        return  [ case arg of GHC.Var _ -> GHC.App e arg
+                              _         ->  let letv = mkVar (Just ("x" ++ show idx)) idx t
+                                            in  GHC.Let (GHC.NonRec letv arg) (GHC.App e (GHC.Var letv))
+                | e <- es 
                 ]
 
 applyTerms :: [GHC.CoreExpr] -> [[(CoreExpr, Int)]] -> [Type] -> SM [CoreExpr]

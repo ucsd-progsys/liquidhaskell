@@ -45,10 +45,6 @@ import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Haskell.Liquid.Synthesize.Classes
 import           Data.Tuple.Extra
-import qualified Data.ByteString.Char8 as BS
-import Literal 
-import MkCore
-import DynFlags
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
@@ -73,7 +69,7 @@ synthesize tgt fcfg cginfo =
 
       return $ ErrHole loc (
         if length fills > 0 
-          then text "\n Hole Fills: " <+> pprintMany fills 
+          then text "\n Hole Fills: " <+> pprintMany (map fromAnf fills )
           else mempty) mempty (symbol x) t 
 
 
@@ -130,11 +126,7 @@ mkErrorExpr :: REnv -> SM ()
 mkErrorExpr renv = do
   vErr <- varError
   let t = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
-      -- errorExpr = GHC.App (GHC.Var vErr) (GHC.Type (toType specTy)) errorInt
-      -- errorStr  = GHC.Lit (MachStr $ BS.pack "dead code")
-      -- errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
   liftCG0 (\γ -> γ += ("arg", symbol vErr, t))
-  -- modify (\s -> s { errorExpr = Just errorExpr} )
 
 -- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
 data Mode 
@@ -169,15 +161,10 @@ synthesizeMatch s lenv γ t = do
   if null scruts
     then return []
     else do let scrut = scruts !! id -- es !! id
-            trace (" CaseSplit " ++ show (map fst3 scruts) ++ " \n Scrutinee " ++ show (fst3 scrut)) $   
+            trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
+                   " \n Scrutinee " ++ show (fst3 scrut)) $   
               withIncrDepth (matchOnExpr s t scrut)
-              -- (es2, es3) = span (isVar . fst3 . fst) es1
-              -- es4 = sortOn snd es2
-              -- es5 = sortOn snd es3
             
-            -- withIncrDepth (matchOn s t scrut)
-            -- where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
-
 filterScrut :: SM [(CoreExpr, Type, TyCon)]
 filterScrut = do
   em <- getSEMem
@@ -232,7 +219,7 @@ makeAlt s var t (x, tx@(TyConApp _ ts)) c = locally $ do -- (AltCon, [b], Expr b
   addsEnv $ zip xs ts 
   addsEmem $ zip xs ts 
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs) t
+  es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs ++ " for t " ++ show t) t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
     (_, _, τs) = dataConInstSig c ts -- (toType <$> ts)
