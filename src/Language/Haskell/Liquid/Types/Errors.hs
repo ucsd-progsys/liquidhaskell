@@ -64,15 +64,15 @@ import           Data.Aeson                   hiding (Result)
 import qualified Data.HashMap.Strict          as M
 import qualified Data.List                    as L 
 import           System.Directory
-import           System.FilePath
 import           Text.PrettyPrint.HughesPJ 
 import           Text.Parsec.Error            (ParseError)
 import           Text.Parsec.Error            (errorMessages, showErrorMessages)
 
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import qualified Language.Fixpoint.Misc       as Misc
-import qualified Language.Haskell.Liquid.Misc     as Misc 
+import qualified Language.Haskell.Liquid.Misc as Misc 
 import           Language.Haskell.Liquid.Misc ((<->))
+import           Language.Haskell.Liquid.Types.Warnings
 
 instance PPrint ParseError where
   pprintTidy _ e = vcat $ tail $ text <$> ls
@@ -440,7 +440,61 @@ data TError t =
                 , msg   :: !Doc
                 } -- ^ Sigh. Other.
   
+  | ErrWError   { pos        :: SrcSpan
+                , errWarning :: TWarning t
+                }
+  
   deriving (Typeable, Generic , Functor )
+
+
+-- -- | Whether an error should display the position.
+displayPos :: TError t -> Bool
+displayPos ErrSubType{} = True
+displayPos ErrSubTypeModel{} = True
+displayPos ErrFCrash{} = True
+displayPos ErrHole{} = True
+displayPos ErrAssType{} = True
+displayPos ErrParse{} = True
+displayPos ErrTySpec{} = True
+displayPos ErrTermSpec{} = True
+displayPos ErrDupAlias{} = True
+displayPos ErrDupSpecs{} = True
+displayPos ErrDupIMeas{} = True
+displayPos ErrDupMeas{} = True
+displayPos ErrDupField{} = True
+displayPos ErrDupNames{} = True
+displayPos ErrBadData{} = True
+displayPos ErrBadGADT{} = True
+displayPos ErrDataCon{} = True
+displayPos ErrInvt{} = True
+displayPos ErrIAl{} = True
+displayPos ErrIAlMis{} = True
+displayPos ErrMeas{} = True
+displayPos ErrHMeas{} = True
+displayPos ErrUnbound{} = True
+displayPos ErrUnbPred{} = True
+displayPos ErrGhc{} = True
+displayPos ErrResolve{} = True
+displayPos ErrMismatch{} = True
+displayPos ErrPartPred{} = True
+displayPos ErrAliasCycle{} = True
+displayPos ErrIllegalAliasApp{} = True
+displayPos ErrAliasApp{} = True
+displayPos ErrTermin{} = True
+displayPos ErrStTerm{} = True
+displayPos ErrILaw{} = True
+displayPos ErrRClass{} = True
+displayPos ErrMClass{} = True
+displayPos ErrBadQual{} = True
+displayPos ErrSaved{} = True
+displayPos ErrFilePragma{} = True
+displayPos ErrTyCon{} = True
+displayPos ErrLiftExp{} = True
+displayPos ErrParseAnn{} = True
+displayPos ErrNoSpec{} = True
+displayPos ErrOther{} = True
+displayPos ErrWError{} = False
+
 
 errDupSpecs :: Doc -> Misc.ListNE SrcSpan -> TError t
 errDupSpecs d spans@(sp:_) = ErrDupSpecs sp d spans
@@ -481,41 +535,6 @@ dropModel :: WithModel t -> t
 dropModel m = case m of
   NoModel t     -> t
   WithModel _ t -> t
-
-instance PPrint SrcSpan where
-  pprintTidy _ = pprSrcSpan
-
-pprSrcSpan :: SrcSpan -> Doc
-pprSrcSpan (UnhelpfulSpan s) = text $ unpackFS s
-pprSrcSpan (RealSrcSpan s)   = pprRealSrcSpan s
-
-pprRealSrcSpan :: RealSrcSpan -> Doc
-pprRealSrcSpan span
-  | sline == eline && scol == ecol =
-    hcat [ pathDoc <-> colon
-         , int sline <-> colon
-         , int scol
-         ]
-  | sline == eline =
-    hcat $ [ pathDoc <-> colon
-           , int sline <-> colon
-           , int scol
-           ] ++ if ecol - scol <= 1 then [] else [char '-' <-> int (ecol - 1)]
-  | otherwise =
-    hcat [ pathDoc <-> colon
-         , parens (int sline <-> comma <-> int scol)
-         , char '-'
-         , parens (int eline <-> comma <-> int ecol')
-         ]
- where
-   path  = srcSpanFile      span
-   sline = srcSpanStartLine span
-   eline = srcSpanEndLine   span
-   scol  = srcSpanStartCol  span
-   ecol  = srcSpanEndCol    span
-
-   pathDoc = text $ normalise $ unpackFS path
-   ecol'   = if ecol == 0 then ecol else ecol - 1
 
 instance Show UserError where
   show = showpp
@@ -566,7 +585,10 @@ ppError :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError k dCtx e = ppError' k dSp dCtx e
   where
-    dSp          = pprint (pos e) <-> text ": Error:"
+    dSp = if displayPos e then
+        pprint (pos e) <-> text ": Error:"
+      else
+        mempty
 
 nests :: Foldable t => Int -> t Doc -> Doc
 nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
@@ -713,11 +735,12 @@ totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 hint :: TError a -> Doc 
 hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e) 
   where 
-    go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
-    go (ErrBadGADT {})  = Just "Use the hole '_' to specify the type of the constructor" 
-    go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
-    go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
-    go _                = Nothing 
+    go (ErrMismatch {})       = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go (ErrBadGADT {})        = Just "Use the hole '_' to specify the type of the constructor" 
+    go (ErrSubType {})        = Just "Use \"--no-totality\" to deactivate totality checking."
+    go (ErrNoSpec {})         = Just "Run 'liquid' on the source file first."
+    go (ErrWError {})         = Just "Warning made fatal by \"--Werror\"."
+    go _                      = Nothing 
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
@@ -988,6 +1011,10 @@ ppError' _ dSp dCtx (ErrParseAnn _ msg)
   = dSp <+> text "Malformed annotation"
         $+$ dCtx
         $+$ nest 4 msg
+ppError' t dSp dCtx e@(ErrWError _ w)
+  = dSp <+> ppWarning t dCtx w
+        $+$ hint e
+            
 
 ppTicks :: PPrint a => a -> Doc
 ppTicks = ticks . pprint 

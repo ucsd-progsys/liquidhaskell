@@ -182,6 +182,9 @@ module Language.Haskell.Liquid.Types.Types (
   , Error
   , ErrorResult
 
+  -- * Warnings
+  , module Language.Haskell.Liquid.Types.Warnings
+
   -- * Source information (associated with constraints)
   , Cinfo (..)
 
@@ -271,6 +274,7 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Variance
+import           Language.Haskell.Liquid.Types.Warnings
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
@@ -1850,6 +1854,7 @@ type ErrorResult    = F.FixResult UserError
 type Error          = TError SpecType
 
 
+instance NFData a => NFData (TWarning a)
 instance NFData a => NFData (TError a)
 
 --------------------------------------------------------------------------------

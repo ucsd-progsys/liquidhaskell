@@ -142,6 +142,7 @@ library
                       Language.Haskell.Liquid.Types.Types
                       Language.Haskell.Liquid.Types.Variance
                       Language.Haskell.Liquid.Types.Visitors
+                      Language.Haskell.Liquid.Types.Warnings
                       Language.Haskell.Liquid.UX.ACSS
                       Language.Haskell.Liquid.UX.Annotate
                       Language.Haskell.Liquid.UX.CTags
