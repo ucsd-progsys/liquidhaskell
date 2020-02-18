@@ -192,7 +192,7 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
       --   pure (x, fst <$> t')
       pure
         si
-          { gsTySigs = F.tracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig -- , gsAsmSigs = asmSigs
+          { gsTySigs = F.notracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig -- , gsAsmSigs = asmSigs
           }
 
     dm       = Bare.tcDataConMap tycEnv0
@@ -252,16 +252,21 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
           subst (zip clsTvs isSpecTys) $
           headlessSig
     elaboratedSig  <- elab fullSig
-    let retSig =  _substAuxMethod elaboratedSig
-    pure (method, F.dummyLoc retSig)
+    let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) elaboratedSig
+    pure (method, F.dummyLoc (F.tracepp "retSig" retSig))
 
   -- is used as a shorthand for instance, following the convention of the Ghc api
   where
+    -- (Monoid.mappend -> $cmappend##Int, ...)
+    methodsSet = M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
+    dfunSym = F.symbol $ Ghc.instanceDFunId inst
     (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
     isSpecTys = ofType <$> isTys
     isPredSpecTys = ofType <$> isPredTys
     isRTvs = makeRTVar . rTyVar <$> isTvs
     dcp = F.val ldcp
+    -- Monoid.mappend, ...
+    clsMethods = Ghc.classAllSelIds (Ghc.is_cls inst)
     yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
         -- res = dcpTyRes dcp
@@ -270,6 +275,30 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     subst [] t = t
     subst ((a, ta):su) t = subsTyVar_meet' (a, ta) (subst su t)
 
+substAuxMethod :: F.Symbol -> M.HashMap F.Symbol F.Symbol -> F.Expr -> F.Expr
+substAuxMethod dfun methods e = F.tracepp "substAuxMethod" $ go e
+  where go :: F.Expr -> F.Expr
+        go (F.EApp e0 e1)
+          | F.EVar x <- F.notracepp "e0" e0
+          , (F.EVar dfun_mb, args)  <- splitEApp e1
+          , dfun_mb == dfun
+          , Just method <- M.lookup x methods
+              -- Before: Functor.fmap ($p1Applicative $dFunctor)
+              -- After: Funcctor.fmap ($p1Applicative##GHC.Base.Applicative)
+           = eApps (F.EVar method) args
+          | otherwise
+          = F.EApp (go e0) (go e1)
+        go (F.ENeg e) = F.ENeg (go e)
+        go (F.EBin bop e0 e1) = F.EBin bop (go e0) (go e1)
+        go (F.EIte e0 e1 e2) = F.EIte (go e0) (go e1) (go e2)
+        go (F.ECst e0 s) = F.ECst (go e0) s
+        go (F.ELam (x, t) body) = F.ELam (x, t) (go body)
+        go (F.PAnd es) = F.PAnd (go <$> es)
+        go (F.POr es) = F.POr (go <$> es)
+        go (F.PNot e) = F.PNot (go e)
+        go (F.PImp e0 e1) = F.PImp (go e0) (go e1)
+        go (F.PAtom brel e0 e1) = F.PAtom brel (go e0) (go e1)
+        go e = F.notracepp "LEAF" e
 
 
 compileClasses ::
