@@ -45,6 +45,8 @@ import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Haskell.Liquid.Synthesize.Classes
 import           Data.Tuple.Extra
+import qualified Data.ByteString.Char8 as BS
+import Literal 
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
@@ -118,11 +120,19 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               modify (\s -> s { sForalls = (foralls, []) } )
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
-              vErr <- varError 
+              -- vErr <- varError 
               -- let tt = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
-              -- trace (" [ FIND ] " ++ show tt ++ " haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ " converted type " ++ showTy (toType tt)) $ 
+              --     e0 = mkError vErr str
+              -- trace (" [ FIND ] " ++ " error " ++ show e0 ++ show tt ++ "\n haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ "\n converted type " ++ showTy (toType tt)) $ 
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
+
+-- str :: CoreExpr
+-- str = GHC.Lit (MachStr $ BS.pack "dead code")
+
+-- mkError :: Var -> CoreExpr -> CoreExpr
+-- mkError vErr e = 
+--   GHC.App (GHC.App (GHC.Var vErr) (GHC.Type (exprType e))) e
 
 -- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
 data Mode 
@@ -152,15 +162,12 @@ synthesizeBasic m s t = do
 synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
 synthesizeMatch s lenv γ t = do
   em <- getSEMem 
-  let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
-      es1 = filter (noPairLike . fst) es0
-      es2 = sortOn snd es1
-      es3 = map fst es2
-  id <- incrCase es3
-  if null es3 
+  scruts <- filterScrut
+  id <- incrCase scruts
+  if null scruts
     then return []
-    else do let scrut = es3 !! id -- es !! id
-            trace (" CaseSplit " ++ show (map (\x -> (fst3.fst $x, snd x)) es2) ++ " \n Scrutinee " ++ show (fst3 scrut)) $   
+    else do let scrut = scruts !! id -- es !! id
+            trace (" CaseSplit " ++ show (map fst3 scruts) ++ " \n Scrutinee " ++ show (fst3 scrut)) $   
               withIncrDepth (matchOnExpr s t scrut)
               -- (es2, es3) = span (isVar . fst3 . fst) es1
               -- es4 = sortOn snd es2
@@ -168,6 +175,16 @@ synthesizeMatch s lenv γ t = do
             
             -- withIncrDepth (matchOn s t scrut)
             -- where es = [(v,t,rtc_tc c) | (x, (t@(RApp c _ _ _), v)) <- M.toList γ] 
+
+filterScrut :: SM [(CoreExpr, Type, TyCon)]
+filterScrut = do
+  em <- getSEMem
+  let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
+      es1 = filter (not . trivial . fst3 . fst) es0
+      es2 = filter (noPairLike . fst) es1
+      es3 = sortOn snd es2
+      es4 = map fst es3
+  return es4
 
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
 noPairLike (e, t, c) = 
@@ -195,12 +212,11 @@ matchOnExpr :: String -> SpecType -> (CoreExpr, Type, TyCon) -> SM [CoreExpr]
 matchOnExpr s t (GHC.Var v, tx, c) 
   = matchOn s t (v, tx, c)
 matchOnExpr s t (e, tx, c)
-  = trace (" Match On Expr " ++ show e) $
-      do  freshV <- freshVarType tx
-          freshSpecTy <- liftCG $ trueTy tx
-          addEnv freshV freshSpecTy
-          es <- matchOn s t (freshV, tx, c)
-          return $ (GHC.Let (GHC.NonRec freshV e)) <$> es
+  = do  freshV <- freshVarType tx
+        freshSpecTy <- liftCG $ trueTy tx
+        addEnv freshV freshSpecTy
+        es <- matchOn s t (freshV, tx, c)
+        return $ (GHC.Let (GHC.NonRec freshV e)) <$> es
 
 matchOn :: String -> SpecType -> (Var, Type, TyCon) -> SM [CoreExpr]
 matchOn s t (v, tx, c) =
@@ -217,5 +233,5 @@ makeAlt s var t (x, tx@(TyConApp _ ts)) c = locally $ do -- (AltCon, [b], Expr b
   es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs) t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
   where 
-    (_, _, τs) = dataConInstSig (tracepp (" makeAlt for ts " ++ concat (map showTy ts)) c) ts -- (toType <$> ts)
+    (_, _, τs) = dataConInstSig c ts -- (toType <$> ts)
 makeAlt s _ _ _ _ = error $ "makeAlt.bad argument " ++ s
