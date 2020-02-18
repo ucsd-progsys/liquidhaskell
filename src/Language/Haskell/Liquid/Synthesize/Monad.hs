@@ -91,7 +91,7 @@ type SM = StateT SState IO
 
 -- TODO Write: What is @maxAppDepth@?
 maxAppDepth :: Int 
-maxAppDepth = 4
+maxAppDepth = 5
 
 locally :: SM a -> SM a 
 locally act = do 
@@ -196,6 +196,7 @@ freshVar = freshVarType . toType
 withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
     s <- get 
+    let maxAppDepth = typedHoles $ getConfig $ sCGEnv s 
     let d = sDepth s
     if d + 1 > maxMatchDepth 
       then return mempty
@@ -342,4 +343,4 @@ varError = do
   info    <- ghcI . sCGI <$> get -- CGInfo
   let env  = B.makeEnv (gsConfig $ giSpec info) (giSrc info) mempty mempty 
   let name = giTargetMod $ giSrc info
-  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "GHC.Err.error")
+  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "err")

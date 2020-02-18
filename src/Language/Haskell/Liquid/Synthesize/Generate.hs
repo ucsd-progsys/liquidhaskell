@@ -26,6 +26,9 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import           Data.Tuple.Extra 
 import           Data.List 
+import           Literal 
+import           MkCore
+import           DynFlags
 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
@@ -44,8 +47,22 @@ genTerms' i s specTy =
   do  fixEMem specTy 
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
-      filterElseM (hasType " genTerms " True specTy) es $ 
-        withDepthFill i s specTy 0 fnTys
+      err <- checkError specTy 
+      case err of 
+        Nothing ->
+          filterElseM (hasType " genTerms " True specTy) es $ 
+            withDepthFill i s specTy 0 fnTys
+        Just e -> return [e]
+
+checkError :: SpecType -> SM (Maybe CoreExpr)
+checkError t = do 
+  errVar <- varError
+  let errorExpr = GHC.App (GHC.App (GHC.Var errVar) (GHC.Type (toType t))) errorInt
+      errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
+  b <- hasType " checkError " True t errorExpr
+  if b 
+    then return $ Just errorExpr
+    else return Nothing
 
 fixEMem :: SpecType -> SM ()
 fixEMem t

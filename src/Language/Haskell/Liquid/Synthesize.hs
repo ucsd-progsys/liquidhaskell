@@ -47,6 +47,8 @@ import           Language.Haskell.Liquid.Synthesize.Classes
 import           Data.Tuple.Extra
 import qualified Data.ByteString.Char8 as BS
 import Literal 
+import MkCore
+import DynFlags
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
@@ -120,19 +122,19 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               modify (\s -> s { sForalls = (foralls, []) } )
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
-              -- vErr <- varError 
-              -- let tt = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
-              --     e0 = mkError vErr str
-              -- trace (" [ FIND ] " ++ " error " ++ show e0 ++ show tt ++ "\n haskell type " ++ showTy (exprType (GHC.Var vErr)) ++ "\n converted type " ++ showTy (toType tt)) $ 
+              mkErrorExpr renv
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
--- str :: CoreExpr
--- str = GHC.Lit (MachStr $ BS.pack "dead code")
-
--- mkError :: Var -> CoreExpr -> CoreExpr
--- mkError vErr e = 
---   GHC.App (GHC.App (GHC.Var vErr) (GHC.Type (exprType e))) e
+mkErrorExpr :: REnv -> SM ()
+mkErrorExpr renv = do
+  vErr <- varError
+  let t = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
+      -- errorExpr = GHC.App (GHC.Var vErr) (GHC.Type (toType specTy)) errorInt
+      -- errorStr  = GHC.Lit (MachStr $ BS.pack "dead code")
+      -- errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
+  liftCG0 (\γ -> γ += ("arg", symbol vErr, t))
+  -- modify (\s -> s { errorExpr = Just errorExpr} )
 
 -- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
 data Mode 
