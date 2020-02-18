@@ -197,6 +197,8 @@ matchOnExpr s t (GHC.Var v, tx, c)
 matchOnExpr s t (e, tx, c)
   = trace (" Match On Expr " ++ show e) $
       do  freshV <- freshVarType tx
+          freshSpecTy <- liftCG $ trueTy tx
+          addEnv freshV freshSpecTy
           es <- matchOn s t (freshV, tx, c)
           return $ (GHC.Let (GHC.NonRec freshV e)) <$> es
 
