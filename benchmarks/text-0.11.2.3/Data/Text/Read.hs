@@ -186,8 +186,6 @@ instance Monad Parser where
     m >>= k  = P $ \t -> case runP m t of
                            Left err     -> Left err
                            Right (a,t') -> runP (k a) t'
-    {-# INLINE (>>=) #-}
-    fail msg = P $ \_ -> Left msg
 
 perhaps :: a -> Parser a -> Parser a
 perhaps def m = P $ \t -> case runP m t of
