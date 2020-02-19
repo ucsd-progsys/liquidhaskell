@@ -5,6 +5,7 @@
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE BangPatterns #-}
 
 module Language.Haskell.Liquid.GHC.API (
     module Ghc
@@ -26,6 +27,7 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 #endif
 
+  , tyConRealArity
 
   ) where 
 
@@ -50,7 +52,6 @@ import TysPrim        as Ghc
 import HscTypes       as Ghc
 import HscMain        as Ghc 
 import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported) 
-
 
 --
 -- Compatibility layer for different GHC versions.
@@ -90,6 +91,7 @@ import TyCon          as Ghc
 import TyCoRep        as Ghc
 import FastString     as Ghc
 import Predicate      as Ghc (isEqPred, getClassPredTys_maybe)
+import Data.Foldable  (asum)
 #endif
 #endif
 
@@ -162,18 +164,44 @@ pattern LitChar :: Char -> Lit.Literal
 pattern LitChar c <- Lit.MachChar c where
     LitChar c = Lit.MachChar c
 
+-- See NOTE [tyConRealArity].
+tyConRealArity :: TyCon -> Int
+tyConRealArity = tyConArity
+
 #endif
+
+{- | [NOTE:tyConRealArity]
+
+The semantics of 'tyConArity' changed between GHC 8.6.5 and GHC 8.10, mostly due to the
+Visible Dependent Quantification (VDQ). As a result, given the following:
+
+data family EntityField record :: * -> *
+
+Calling `tyConArity` on this would yield @2@ for 8.6.5 but @1@ an 8.10, so we try to backport
+the old behaviour in 8.10 by \"looking\" at the 'Kind' of the input 'TyCon' and trying to recursively
+split the type apart with either 'splitFunTy_maybe' or 'splitForAllTy_maybe'.
+
+-}
 
 --
 -- Support for GHC >= 8.10.0
 --
 
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+
+-- See NOTE [tyConRealArity].
+tyConRealArity :: TyCon -> Int
+tyConRealArity tc = go 0 (tyConKind tc)
+  where
+    go :: Int -> Kind -> Int
+    go !acc k =
+      case asum [fmap snd (splitFunTy_maybe k), fmap snd (splitForAllTy_maybe k)] of
+        Nothing -> acc
+        Just ks -> go (acc + 1) ks
+
 #endif
 
 --
 -- End of compatibility shim.
 --
 #endif
-
-

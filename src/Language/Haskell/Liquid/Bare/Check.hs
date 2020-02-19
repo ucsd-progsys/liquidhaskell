@@ -439,7 +439,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   | otherwise
     = Nothing
   where
-    expectedArity = tyConArity tc
+    expectedArity = tyConRealArity tc
 
 
 checkAbstractRefs
