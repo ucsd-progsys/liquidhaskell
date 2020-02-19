@@ -2,6 +2,10 @@
 
 module ListZip where 
 
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 {-@ zip' :: xs: [a] -> {ys:[b] | len ys == len xs} -> {v:[(a, b)] | len v == len xs} @-}
 zip' :: [a] -> [b] -> [(a, b)]
 zip' = _goal

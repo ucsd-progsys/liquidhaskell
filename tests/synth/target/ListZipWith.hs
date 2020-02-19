@@ -2,6 +2,10 @@
 
 module ListZipWith where
 
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 {-@ zipWith' :: f: (a -> b -> c) 
                -> xs: [a] 
                -> { ys: [b] | len ys == len xs} 

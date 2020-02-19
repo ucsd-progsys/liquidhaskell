@@ -1,8 +1,13 @@
-{-@ LIQUID "--typed-holes" @-}
+{-@ LIQUID "--typed-holes=5" @-}
 
 module TreeToList where
 
 import qualified Data.Set as S
+
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 
 {-@ data Tree [size] a = 
       Empty 

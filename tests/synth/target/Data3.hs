@@ -2,6 +2,10 @@
 
 module Data3 where
 
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 {-@ data L [length'] a = N | C {x :: a, xs :: (L a)} @-}
 data L a = C a (L a) | N
 

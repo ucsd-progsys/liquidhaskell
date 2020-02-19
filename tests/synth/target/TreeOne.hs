@@ -2,6 +2,10 @@
 
 module TreeOne where
 
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 {-@ data Tree [size] a = 
       Empty 
     | Node { x:: a, l:: (Tree a), r:: (Tree a) } 

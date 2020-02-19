@@ -2,6 +2,10 @@
 
 module Data where
 
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 data L a = C a (L a) | N
 
 {-@ measure length' @-}
