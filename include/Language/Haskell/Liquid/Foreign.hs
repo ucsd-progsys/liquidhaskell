@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -fno-warn-unused-imports #-}
 {-# LANGUAGE MagicHash #-}
 
 {- OPTIONS_GHC -cpp #-}
@@ -9,6 +10,8 @@ import Foreign.C.Types          (CSize(..))
 import Foreign.Ptr
 import Foreign.ForeignPtr
 import GHC.Base
+
+import Data.Word (Word64) -- Necessary to bring in scope the evidence that Word64 = int
 
 -- TODO: shouldn't have to re-import these (tests/pos/imp0.hs)
 {- import Foreign.C.Types    -}
@@ -36,7 +39,7 @@ mkPtr   :: Addr# -> Ptr b
 mkPtr = undefined -- Ptr x
 
 
-{-@ isNullPtr :: p:(Ptr a) -> {v:Bool | (v <=> (isNullPtr p)) } @-}
+{-@ assume isNullPtr :: p:(Ptr a) -> {v:Bool | (v <=> (isNullPtr p)) } @-}
 isNullPtr :: Ptr a -> Bool
 isNullPtr p = (p == nullPtr)
 {-# INLINE isNullPtr #-}

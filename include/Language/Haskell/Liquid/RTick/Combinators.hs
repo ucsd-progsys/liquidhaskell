@@ -5,7 +5,7 @@
 
 {-@ LIQUID "--reflection" @-}
 
-module Language.Haskell.Liquid.RTick.Combinators where 
+module Language.Haskell.Liquid.RTick.Combinators
   (
 
   -- Basic:
@@ -51,7 +51,7 @@ module Language.Haskell.Liquid.RTick.Combinators where
   , assert
   ) where
 
-import RTick ( Tick(..) )
+import Language.Haskell.Liquid.RTick ( Tick(..) )
 
 --
 -- Proof combinators for extrinsic cost analysis.

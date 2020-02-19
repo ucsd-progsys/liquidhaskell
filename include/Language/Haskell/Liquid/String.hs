@@ -43,11 +43,11 @@ subString :: SMTString -> Int -> Int -> SMTString
 subString (S s) o l = S (BS.take l $ BS.drop o s) 
 
 
-{-@ takeString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == i && v == takeString i xs } @-} 
+{-@ assume takeString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == i && v == takeString i xs } @-} 
 takeString :: Int -> SMTString -> SMTString
 takeString i (S s) = S (BS.take i s)
 
-{-@ dropString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == stringLen xs - i && v == dropString i xs } @-} 
+{-@ assume dropString :: i:Nat -> xs:{SMTString | i <= stringLen xs } -> {v:SMTString | stringLen v == stringLen xs - i && v == dropString i xs } @-} 
 dropString :: Int -> SMTString -> SMTString
 dropString i (S s) = S (BS.drop i s)
 
@@ -57,6 +57,6 @@ fromString :: String -> SMTString
 fromString = S . ST.fromString 
 
 
-{-@ isNullString :: i:SMTString -> {b:Bool | b <=> stringLen i == 0 } @-} 
+{-@ assume isNullString :: i:SMTString -> {b:Bool | b <=> stringLen i == 0 } @-} 
 isNullString :: SMTString -> Bool 
 isNullString (S s) = BS.length s == 0 
