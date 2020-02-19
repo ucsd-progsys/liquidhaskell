@@ -1,4 +1,4 @@
-{-@ LIQUID "--typed-holes=5" @-}
+{-@ LIQUID "--typed-holes" @-}
 
 module TreeToList where
 
