@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
@@ -52,7 +53,10 @@ module Language.Fixpoint.Types.Visitor (
 
 -- import           Control.Monad.Trans.State.Strict (State, modify, runState)
 -- import           Control.DeepSeq
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup      (Semigroup (..))
+#endif
+
 import           Control.Monad.State.Strict
 import qualified Data.HashSet        as S
 import qualified Data.HashMap.Strict as M

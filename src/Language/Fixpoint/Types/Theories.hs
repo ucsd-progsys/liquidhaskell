@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE PatternGuards              #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
@@ -33,7 +34,10 @@ module Language.Fixpoint.Types.Theories (
 
 
 import           Data.Generics             (Data)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
+#endif
+
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)

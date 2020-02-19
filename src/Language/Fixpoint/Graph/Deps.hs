@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE ConstraintKinds       #-}
@@ -28,7 +29,10 @@ module Language.Fixpoint.Graph.Deps (
 
 import           Prelude hiding (init)
 import           Data.Maybe                       (mapMaybe, fromMaybe)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup                   (Semigroup (..))
+#endif
+
 import           Data.Tree (flatten)
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Utils.Files

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE LambdaCase  #-}
@@ -145,8 +146,10 @@ piDefConstr k c = ((head ns, head formals), defC)
       [] -> Nothing
       cs -> Just $ CAnd cs
 
+#if !MIN_VERSION_base(4,14,0)
 instance Functor ((,,) a b) where
     fmap f (a, b, c) = (a, b, f c)
+#endif
 
 -- | Solve out the given pivars
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred

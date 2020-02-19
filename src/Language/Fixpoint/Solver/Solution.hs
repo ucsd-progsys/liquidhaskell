@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE PatternGuards     #-}
@@ -19,7 +20,10 @@ import qualified Data.HashSet                   as S
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (fromMaybe, maybeToList, isNothing)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup                 (Semigroup (..))
+#endif
+
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Types.Visitor      as V
 import qualified Language.Fixpoint.SortCheck          as So

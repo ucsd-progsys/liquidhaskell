@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFoldable             #-}
 {-# LANGUAGE DeriveFunctor              #-}
@@ -60,7 +61,10 @@ module Language.Fixpoint.Types.Environments (
 import qualified Data.Binary as B
 import qualified Data.List   as L
 import           Data.Generics             (Data)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
+#endif
+
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 import           Data.Hashable

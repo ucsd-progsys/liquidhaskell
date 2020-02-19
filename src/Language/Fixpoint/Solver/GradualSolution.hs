@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                #-}
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE TupleSections      #-}
 
@@ -10,7 +11,9 @@ import           Control.Parallel.Strategies
 import qualified Data.HashMap.Strict            as M
 import qualified Data.List                      as L
 import           Data.Maybe                     (maybeToList, isNothing)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Monoid                    ((<>))
+#endif
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types.PrettyPrint ()
 import qualified Language.Fixpoint.SortCheck          as So

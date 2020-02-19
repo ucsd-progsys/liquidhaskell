@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE OverloadedStrings         #-}
@@ -37,7 +38,10 @@ module Language.Fixpoint.Smt.Theories
      ) where
 
 import           Prelude hiding (map)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
+#endif
+
 import           Language.Fixpoint.Types.Sorts
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.Types
