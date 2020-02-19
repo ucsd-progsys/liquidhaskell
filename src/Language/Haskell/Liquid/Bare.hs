@@ -141,15 +141,16 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
   let  lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
        mySpec   = mySpec2 <> lSpec1
        specs    = M.insert name mySpec iSpecs2
-  measEnv  <- makeMeasEnv env tycEnv sigEnv       specs
-  let  myRTE    = myRTEnv       src env sigEnv rtEnv  
-       qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
-       sData    = makeSpecData  src env sigEnv measEnv sig specs 
-       refl     = makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
-       laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
+       measEnv =  makeMeasEnv env tycEnv sigEnv       specs
        sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (giCbs src)
   auxSig   <- makeClassAuxTypes (fmap fst.elaborateSpecType coreToLg) datacons instMethods
   elaboratedSig <- elaborateSig sig auxSig
+  let  myRTE    = myRTEnv       src env sigEnv rtEnv  
+       qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
+       sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
+       -- YL: fix
+       refl     = makeSpecRefl  cfg src measEnv specs env name elaboratedSig tycEnv 
+       laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
   
   pure $ SP
     { gsConfig = cfg 
@@ -163,8 +164,8 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
     , gsVars   = makeSpecVars cfg src mySpec env measEnv
     , gsTerm   = makeSpecTerm cfg     mySpec env       name
     -- YL: shoudl I add the sigs here?
-    , gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
-                     impSigs   = makeImports mspecs,
+    , gsLSpec  = makeLiftedSpec   src env refl sData elaboratedSig qual myRTE lSpec1 {
+                     impSigs   = F.tracepp "makeImports" $ makeImports mspecs,
                      expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
                      dataDecls = dataDecls mySpec2 
                      } 
@@ -253,7 +254,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
           headlessSig
     elaboratedSig  <- elab fullSig
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) elaboratedSig
-    pure (method, F.dummyLoc (F.tracepp "retSig" retSig))
+    pure (method, F.dummyLoc retSig)
 
   -- is used as a shorthand for instance, following the convention of the Ghc api
   where
@@ -266,7 +267,8 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     isRTvs = makeRTVar . rTyVar <$> isTvs
     dcp = F.val ldcp
     -- Monoid.mappend, ...
-    clsMethods = Ghc.classAllSelIds (Ghc.is_cls inst)
+    clsMethods = -- filter (\x -> GM.dropModuleNames (F.symbol x) `notElem` method) $
+      Ghc.classAllSelIds (Ghc.is_cls inst)
     yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
         -- res = dcpTyRes dcp
@@ -276,7 +278,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     subst ((a, ta):su) t = subsTyVar_meet' (a, ta) (subst su t)
 
 substAuxMethod :: F.Symbol -> M.HashMap F.Symbol F.Symbol -> F.Expr -> F.Expr
-substAuxMethod dfun methods e = F.tracepp "substAuxMethod" $ go e
+substAuxMethod dfun methods e = F.notracepp "substAuxMethod" $ go e
   where go :: F.Expr -> F.Expr
         go (F.EApp e0 e1)
           | F.EVar x <- F.notracepp "e0" e0
@@ -352,7 +354,7 @@ compileClasses src env (name, spec) rest = (spec {sigs = sigs'} <> clsSpec, inst
             (GM.findVarDefMethod
                (GM.dropModuleNames . F.symbol $ Ghc.instanceDFunId inst)
                (giCbs src))
-      , let ms = filter GM.isMethod (freeVars mempty e)
+      , let ms = filter (\x -> GM.isMethod x) (GM.tracePpr "Free Vars" $ freeVars mempty e)
       ]
     instClss :: [(Ghc.ClsInst, Ghc.Class)]
     instClss =
@@ -385,7 +387,7 @@ splitSpecs name specs = (mySpec, iSpecm)
 
 
 makeImports :: [(ModName, Ms.BareSpec)] -> [(F.Symbol, F.Sort)]
-makeImports specs = F.tracepp "imported" $ concatMap (expSigs . snd) specs'
+makeImports specs = concatMap (expSigs . snd) specs'
   where specs' = filter (isSrcImport . fst) specs
 
 
@@ -621,10 +623,10 @@ makeSpecRefl :: Config -> GhcSrc -> Bare.MeasEnv -> Bare.ModSpecs -> Bare.Env ->
 ------------------------------------------------------------------------------------------
 makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl 
   { gsLogicMap   = lmap 
-  , gsAutoInst   = makeAutoInst env name mySpec 
+  , gsAutoInst   = F.tracepp "autoInst" $ makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-  , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
-  , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
+  , gsMyAxioms   = F.tracepp "gsMyAxioms" myAxioms 
+  , gsReflects   = F.tracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
   , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
   , gsWiredReft  = wReflects
   }
@@ -1082,15 +1084,15 @@ knownWiredTyCons env name = filter isKnown wiredTyCons
 
 -- REBARE: formerly, makeGhcCHOP2
 -------------------------------------------------------------------------------------------
-makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Ghc.Ghc Bare.MeasEnv 
+makeMeasEnv :: Bare.Env -> Bare.TycEnv -> Bare.SigEnv -> Bare.ModSpecs -> Bare.MeasEnv 
 -------------------------------------------------------------------------------------------
-makeMeasEnv env tycEnv sigEnv specs = do
+makeMeasEnv env tycEnv sigEnv specs = 
   -- datacons' <- forM datacons $ \dc -> 
   --   if Ghc.isClassTyCon . Ghc.dataConTyCon . dcpCon $ dc
   --   then Bare.elaborateClassDcp coreToLg dc
   --   else pure dc
-  let cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
-  pure $ Bare.MeasEnv 
+  let cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)] in
+  Bare.MeasEnv 
     { meMeasureSpec = measures 
     , meClassSyms   = cms' 
     , meSyms        = ms' 
