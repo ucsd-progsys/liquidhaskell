@@ -979,15 +979,3 @@ elabRnExpr hsc_env mode rdr_expr =
     TM_Inst    -> (True, NoRestrictions, id)
     TM_NoInst  -> (False, NoRestrictions, id)
     TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
-
-splitThetaTy :: Type -> ([TyVar], [Type], Type)
-splitThetaTy ty = (tvs, clss, res')
-  where (tvs, res) = splitForAllTys ty
-        (clss, res') = splitFunClsTys res
-
-splitFunClsTys :: Type -> ([Type], Type)
-splitFunClsTys ty = split [] ty ty
-  where
-    split args orig_ty ty | Just ty' <- coreView ty = split args orig_ty ty'
-    split args _       (FunTy arg res) | isPredType arg = split (arg:args) res res
-    split args orig_ty _               = (reverse args, orig_ty)

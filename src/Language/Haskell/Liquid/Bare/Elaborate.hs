@@ -26,7 +26,6 @@ import           Data.Functor.Foldable
 import           Data.Char                      ( isUpper )
 import           GHC
 import           OccName
-import           Var                            (varType)
 import           FastString
 import           CoreSyn
 import           PrelNames

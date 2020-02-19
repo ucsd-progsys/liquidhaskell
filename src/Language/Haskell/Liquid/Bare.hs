@@ -165,7 +165,7 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
     , gsTerm   = makeSpecTerm cfg     mySpec env       name
     -- YL: shoudl I add the sigs here?
     , gsLSpec  = makeLiftedSpec   src env refl sData elaboratedSig qual myRTE lSpec1 {
-                     impSigs   = F.tracepp "makeImports" $ makeImports mspecs,
+                     impSigs   = makeImports mspecs,
                      expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
                      dataDecls = dataDecls mySpec2 
                      } 
@@ -259,7 +259,10 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
   -- is used as a shorthand for instance, following the convention of the Ghc api
   where
     -- (Monoid.mappend -> $cmappend##Int, ...)
+    -- core rewriting mark2: do the same thing except they don't have to be symbols
+    -- YL: poorly written. use a comprehension instead of assuming 
     methodsSet = M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
+    -- core rewriting mark1: dfunId
     dfunSym = F.symbol $ Ghc.instanceDFunId inst
     (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
     isSpecTys = ofType <$> isTys
@@ -267,12 +270,12 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     isRTvs = makeRTVar . rTyVar <$> isTvs
     dcp = F.val ldcp
     -- Monoid.mappend, ...
-    clsMethods = -- filter (\x -> GM.dropModuleNames (F.symbol x) `notElem` method) $
+    clsMethods = filter (\x -> GM.dropModuleNames (F.symbol x) `elem` fmap mkSymbol methods) $
       Ghc.classAllSelIds (Ghc.is_cls inst)
     yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
         -- res = dcpTyRes dcp
-    clsTvs = F.tracepp "clsTvs" $ dcpFreeTyVars dcp
+    clsTvs = dcpFreeTyVars dcp
         -- copy/pasted from Bare/Class.hs
     subst [] t = t
     subst ((a, ta):su) t = subsTyVar_meet' (a, ta) (subst su t)
@@ -623,10 +626,10 @@ makeSpecRefl :: Config -> GhcSrc -> Bare.MeasEnv -> Bare.ModSpecs -> Bare.Env ->
 ------------------------------------------------------------------------------------------
 makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl 
   { gsLogicMap   = lmap 
-  , gsAutoInst   = F.tracepp "autoInst" $ makeAutoInst env name mySpec 
+  , gsAutoInst   = makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
-  , gsMyAxioms   = F.tracepp "gsMyAxioms" myAxioms 
-  , gsReflects   = F.tracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
+  , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
+  , gsReflects   = lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects
   , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
   , gsWiredReft  = wReflects
   }
