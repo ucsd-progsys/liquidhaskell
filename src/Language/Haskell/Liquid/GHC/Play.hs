@@ -36,7 +36,7 @@ isRecursivenewTyCon c
     go (AppTy t1 t2)    = go t1 || go t2 
     go (TyConApp c' ts) = c == c' || any go ts 
     go (ForAllTy _ t1)  = go t1 
-    go (FunTy t1 t2)    = go t1 || go t2
+    go (FunTy _ t1 t2)  = go t1 || go t2
     go (CastTy t1 _)    = go t1 
     go t                = False   
   
