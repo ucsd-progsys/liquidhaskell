@@ -11,7 +11,7 @@ import           Class                          ( classAllSelIds )
 import           Id
 import           CoreFVs                        ( exprFreeVarsList )
 import           InstEnv
-import           TcType                         ( tcSplitDFunHead )
+import           TcType                         ( tcSplitDFunTy )
 import           GhcPlugins                     ( isDFunId
                                                 , OccName
                                                 , occNameString
@@ -50,7 +50,7 @@ inlineAux cbs = map f cbs
 
 -- grab the dictionaries
 grepDFunIds :: CoreProgram -> [(DFunId, CoreExpr)]
-grepDFunIds = GM.tracePpr "grepDFunIds" . filter (isDFunId . fst) . flattenBinds
+grepDFunIds = filter (isDFunId . fst) . flattenBinds
 
 isClassOpAuxOccName :: OccName -> Bool
 isClassOpAuxOccName occ = case occNameString occ of
@@ -66,29 +66,37 @@ dfunIdSubst :: DFunId -> CoreExpr -> M.HashMap Id (Id, M.HashMap Id Id)
 dfunIdSubst dfunId e = M.fromList $ zip auxIds (repeat (dfunId, methodToAux))
  where
   methodToAux = M.fromList
-    [ GM.tracePpr "methodToAux" (m, aux) | m <- methods, aux <- auxIds, aux `isClassOpAuxOf` m ]
-  (cls, _) = GM.tracePpr "splitdfun" $ tcSplitDFunHead (idType (GM.tracePpr "dfunId" dfunId))
-  auxIds   = filter (isClassOpAuxOccName . getOccName) (exprFreeVarsList e)
-  methods  = classAllSelIds cls
+    [ (m, aux) | m <- methods, aux <- auxIds, aux `isClassOpAuxOf` m ]
+  (_, _, cls, _) = tcSplitDFunTy (idType dfunId)
+  auxIds = filter (isClassOpAuxOccName . getOccName) (exprFreeVarsList e)
+  methods = classAllSelIds cls
 
 inlineAuxExpr :: DFunId -> M.HashMap Id Id -> CoreExpr -> CoreExpr
 inlineAuxExpr dfunId methodToAux = go
  where
   go :: CoreExpr -> CoreExpr
-  go (App e arg)
-    | Var m <- e
-    , Just aux <- M.lookup m methodToAux
-    , (Var x, args) <- collectArgs arg
-    , x == dfunId
-    = mkCoreApps (Var aux) args
-    | otherwise
-    = App (go e) (go arg)
+  -- go (App e arg)
+  --   | Var m <- e
+  --   , Just aux <- M.lookup m methodToAux
+  --   , (Var x, args, _) <- GM.tracePpr "collecting" $ collectArgs arg
+  --   , x == dfunId
+  --   = mkCoreApps (Var aux) args
+  --   | otherwise
+  --   = App (go e) (go arg)
   go (Lam b body     ) = Lam b (go body)
   go (Let b e        ) = Let (mapBnd go b) (go e)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
   go (Cast e c       ) = Cast (go e) c
   go (Tick t e       ) = Tick t (go e)
-  go e                 = e
+  go e
+    | (Var m, args) <- collectArgs e
+    , Just aux <- M.lookup m methodToAux
+    , arg : argsNoTy <- dropWhile isTypeArg args
+    , (Var x, argargs) <- collectArgs arg
+    , x == dfunId
+    = mkCoreApps (Var aux) (argargs ++ argsNoTy)
+  go (App e0 e1) = App (go e0) (go e1)
+  go e           = e
 
 
 -- modified from Rec.hs
