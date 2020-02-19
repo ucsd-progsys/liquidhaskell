@@ -41,6 +41,7 @@ import           Language.Haskell.Liquid.UX.Config  as UX
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
+import           Language.Haskell.Liquid.Transforms.InlineAux
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
 
@@ -60,6 +61,8 @@ anormalize cfg hscEnv modGuts = do
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
     putStrLn $ GM.showCBs untidy (mg_binds modGuts)
+    putStrLn "***************************** AUX CoreBinds ***************************"
+    putStrLn $ GM.showCBs untidy aux_cbs    
     putStrLn "***************************** REC CoreBinds ***************************"
     putStrLn $ GM.showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
@@ -70,6 +73,7 @@ anormalize cfg hscEnv modGuts = do
       act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
       γ0       = emptyAnfEnv cfg
       rwr_cbs  = rewriteBinds cfg orig_cbs
+      aux_cbs  = inlineAux $ mg_binds modGuts
       orig_cbs = transformRecExpr $ mg_binds modGuts
       untidy   = UX.untidyCore cfg
 

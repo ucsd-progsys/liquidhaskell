@@ -124,6 +124,7 @@ library
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic
                       Language.Haskell.Liquid.Transforms.Rec
+                      Language.Haskell.Liquid.Transforms.InlineAux
                       Language.Haskell.Liquid.Transforms.RefSplit
                       Language.Haskell.Liquid.Transforms.Rewrite
                       Language.Haskell.Liquid.Transforms.Simplify
