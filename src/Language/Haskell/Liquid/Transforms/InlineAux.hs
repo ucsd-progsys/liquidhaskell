@@ -6,7 +6,7 @@ where
 import           CoreSyn
 import           Control.Arrow                  ( second )
 import qualified Language.Haskell.Liquid.GHC.Misc
-                                               as GM
+                                                ( )
 import           Class                          ( classAllSelIds )
 import           Id
 import           CoreFVs                        ( exprFreeVarsList )
@@ -19,14 +19,6 @@ import           GhcPlugins                     ( isDFunId
                                                 , mkCoreApps
                                                 )
 import qualified Data.HashMap.Strict           as M
-
--- Issue: mappend (S n) m = S (mappend n m)
--- in core:
---  $cmappend_Nat (S n) m = S (mappend $fMonoid_Nat n m)
---  $fMonoid_nat = C:Monoid $cmappend_nat $cmempty
---  note that now there's mutual dependence between $cmappend_Nat and $fMonoid_nat
---  to address this problem, we do the substitution: mappend $Monoid_Nat -> $cmappend_Nat
-
 
 inlineAux :: CoreProgram -> CoreProgram
 inlineAux cbs = map f cbs
@@ -75,14 +67,6 @@ inlineAuxExpr :: DFunId -> M.HashMap Id Id -> CoreExpr -> CoreExpr
 inlineAuxExpr dfunId methodToAux = go
  where
   go :: CoreExpr -> CoreExpr
-  -- go (App e arg)
-  --   | Var m <- e
-  --   , Just aux <- M.lookup m methodToAux
-  --   , (Var x, args, _) <- GM.tracePpr "collecting" $ collectArgs arg
-  --   , x == dfunId
-  --   = mkCoreApps (Var aux) args
-  --   | otherwise
-  --   = App (go e) (go arg)
   go (Lam b body     ) = Lam b (go body)
   go (Let b e        ) = Let (mapBnd go b) (go e)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
@@ -94,7 +78,7 @@ inlineAuxExpr dfunId methodToAux = go
     , arg : argsNoTy <- dropWhile isTypeArg args
     , (Var x, argargs) <- collectArgs arg
     , x == dfunId
-    = mkCoreApps (Var aux) (argargs ++ argsNoTy)
+    = mkCoreApps (Var aux) (argargs ++ (go <$> argsNoTy))
   go (App e0 e1) = App (go e0) (go e1)
   go e           = e
 
