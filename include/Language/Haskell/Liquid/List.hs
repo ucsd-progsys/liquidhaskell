@@ -1,5 +1,6 @@
 module Language.Haskell.Liquid.List (transpose) where
 
+{-@ lazy transpose @-}
 transpose                  :: Int -> [[a]] -> [[a]]
 transpose _ []             = []
 transpose n ([]   : xss)   = transpose n xss
