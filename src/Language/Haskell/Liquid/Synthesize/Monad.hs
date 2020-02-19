@@ -91,7 +91,7 @@ type SM = StateT SState IO
 
 -- TODO Write: What is @maxAppDepth@?
 maxAppDepth :: Int 
-maxAppDepth = 5
+maxAppDepth = 4
 
 locally :: SM a -> SM a 
 locally act = do 
@@ -196,7 +196,7 @@ freshVar = freshVarType . toType
 withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
     s <- get 
-    let maxAppDepth = typedHoles $ getConfig $ sCGEnv s 
+    -- let maxAppDepth = typedHoles $ getConfig $ sCGEnv s 
     let d = sDepth s
     if d + 1 > maxMatchDepth 
       then return mempty
@@ -330,13 +330,6 @@ functionCands goalTy = do
 ---------------------------------------------------------------------------------
 --------------------------- Generate error expression ---------------------------
 ---------------------------------------------------------------------------------
-
-hsExprError :: Type -> SM GHC.CoreExpr 
--- hsExprError t = App (App (Var varError) t) (Lit (mkS "dead code"))
-hsExprError = undefined
-
-typeError :: SM SpecType
-typeError = undefined -- forall a. {v:String | false } -> a  
 
 varError :: SM Var
 varError = do 

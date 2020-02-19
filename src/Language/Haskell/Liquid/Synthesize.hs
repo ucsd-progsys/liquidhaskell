@@ -69,7 +69,7 @@ synthesize tgt fcfg cginfo =
 
       return $ ErrHole loc (
         if length fills > 0 
-          then text "\n Hole Fills: " <+> pprintMany (map fromAnf fills )
+          then text "\n Hole Fills: " <+> pprintMany fills
           else mempty) mempty (symbol x) t 
 
 

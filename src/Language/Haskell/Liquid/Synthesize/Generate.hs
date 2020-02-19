@@ -19,14 +19,14 @@ import Var
 
 import           Data.Maybe
 import           Control.Monad.State.Lazy
-import qualified Data.HashMap.Strict as M 
+ 
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Fixpoint.Types.PrettyPrint
 import           Debug.Trace 
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import           Data.Tuple.Extra 
 import           Data.List 
-import           Literal 
+
 import           MkCore
 import           DynFlags
 
