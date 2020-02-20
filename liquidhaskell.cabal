@@ -40,6 +40,7 @@ data-files:         include/*.hquals
                     include/GHC/*.spec
                     include/GHC/IO/*.spec
                     include/Language/Haskell/Liquid/*.hs
+                    include/Language/Haskell/Liquid/Synthesize/*.hs
                     include/Language/Haskell/Liquid/*.pred
                     include/System/*.spec
                     include/710/Data/*.spec
