@@ -17,6 +17,7 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , askHscEnv
   , getModuleGraph
   , getModSummary
+  , lookupModSummary
   , lookupGlobalName
   , lookupName
   , modInfoLookupName
@@ -106,6 +107,16 @@ getModSummary mod = do
      [ms] -> return ms
      multiple -> do dflags <- getDynFlags
                     liftIO $ throwIO $ mkApiErr dflags (text "getModSummary is ambiguous: " <+> ppr multiple)
+
+lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
+lookupModSummary mod = do
+   mg <- liftM hsc_mod_graph askHscEnv
+   let mods_by_name = [ ms | ms <- mgModSummaries mg
+                      , ms_mod_name ms == mod
+                      , not (isBootSummary ms) ]
+   case mods_by_name of
+     [ms] -> pure (Just ms)
+     _    -> pure Nothing
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 lookupGlobalName :: GhcMonadLike m => Name -> m (Maybe TyThing)

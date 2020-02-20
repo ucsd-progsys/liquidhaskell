@@ -24,7 +24,8 @@ library
                     Language.Haskell.Liquid.ProofCombinators
                     KMeansHelper
   hs-source-dirs:     src
-  build-depends:      base                 >= 4.11.1.0 && < 5
+  build-depends:      liquid-base          >= 0.8.6.0 
+  --       >= 4.11.1.0 && < 5
                     , bytestring           >= 0.10
                     , containers           >= 0.5
                     , liquidhaskell        >= 0.8.6.0

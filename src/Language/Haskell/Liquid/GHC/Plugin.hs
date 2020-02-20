@@ -338,6 +338,9 @@ loadRelevantSpecs config eps specEnv targetModule mods = do
     processResult (ExternalSpecFound originalModule location _spec) = do
       debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
               ++ "] Spec found for " ++ show originalModule ++ ", at location " ++ show location
+    processResult (CompanionSpecFound originalModule location _spec) = do
+      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
+              ++ "] Companion spec found for " ++ show originalModule ++ ", at location " ++ show location
     processResult (BaseSpecsFound originalModule location (map fromCached -> specs)) = do
       debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
               ++ "] Multiple specs found when searching for " ++ show originalModule ++ " : " 
