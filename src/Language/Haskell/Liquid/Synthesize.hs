@@ -119,6 +119,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
               mkErrorExpr renv
+              mapM (\y -> addDecrTerm y []) ys
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
@@ -218,6 +219,7 @@ makeAlt s var t (x, tx@(TyConApp _ ts)) c = locally $ do -- (AltCon, [b], Expr b
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
   addsEmem $ zip xs ts 
+  addDecrTerm x xs
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs ++ " for t " ++ show t) t
   return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es

@@ -87,13 +87,52 @@ withDepthFill i s t depth tmp = do
   curEm <- sExprMem <$> get
   exprs <- fill i s0 depth curEm tmp []
 
-  if nonTrivials exprs then 
-    filterElseM (hasType s0 True t) exprs $ 
-      if depth < maxAppDepth
-        then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
-                withDepthFill i s0 t (depth + 1) tmp
-        else return []
-    else return []
+  decr <- ssDecrTerm <$> get 
+
+  fix <- sFix <$> get
+  let exprs0 = filter (\x -> notStructural decr fix x) exprs
+  
+  trace (" Structural " ++ show exprs0) $
+    if nonTrivials exprs then 
+      filterElseM (hasType s0 True t) exprs0 $ 
+        if depth < maxAppDepth
+          then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
+                  withDepthFill i s0 t (depth + 1) tmp
+          else return []
+      else return []
+
+structCheck :: Var -> CoreExpr -> (Maybe Var, [CoreExpr])
+structCheck xtop var@(GHC.Var v)
+  = if v == xtop 
+      then (Just xtop, [])
+      else (Nothing, [var])
+structCheck xtop (GHC.App e1 (GHC.Type _))
+  = structCheck xtop e1
+structCheck xtop (GHC.App e1 e2)
+  =  (mbVar, e2:es)
+    where (mbVar, es) = structCheck xtop e1
+structCheck xtop (GHC.Let _ e) 
+  = structCheck xtop e
+structCheck xtop e 
+  = error (" StructCheck " ++ show e)
+
+notStructural :: SSDecrTerm -> Var -> CoreExpr -> Bool
+notStructural decr xtop e
+  = case v of
+      Nothing -> True
+      Just v  -> trace (" [ Args ] " ++ show args) $ foldr (\x b -> isDecreasing' x decr && b) True args
+  where (v, args) = (structCheck xtop e)
+
+showExpr :: CoreExpr -> String
+showExpr (GHC.Var e) = " Var " 
+showExpr (GHC.App {}) = " App "
+showExpr e = show e
+
+isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
+isDecreasing' (GHC.Var v) decr
+  = trace (" Decreasing  " ++ show v) $ not (v `elem` map fst decr)
+isDecreasing' e decr
+  = trace (" Decr " ++ show decr) True
 
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
 fill _ _ _     _       []                 accExprs 
