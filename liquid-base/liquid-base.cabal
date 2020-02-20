@@ -12,13 +12,42 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 cabal-version:      >= 1.22
 
+data-files:         src/Data/Word.spec
+                    src/Data/Tuple.spec
+                    src/GHC/Int.spec
+                    src/GHC/Word.spec
+                    src/GHC/Types.spec
+                    src/GHC/Real.spec
+                    src/GHC/Num.spec
+                    src/Data/Foldable.spec
+                    src/GHC/Base.spec
+                    src/GHC/Exts.spec
+                    src/GHC/List.spec
+                    src/GHC/CString.spec
+                    src/GHC/Classes.spec
+                    src/Prelude.spec
+
 library
   exposed-modules:  Data.Word
-                    Prelude
+                    Data.Tuple
+                    GHC.Int
+                    GHC.Word
+                    GHC.Types
+                    GHC.Real
+                    --GHC.Num
+                    --Data.Foldable
+                    --GHC.Base
+                    GHC.Exts
+                    --GHC.List
+                    --GHC.CString
+                    GHC.Classes
+                    -- Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
+                    , ghc-prim
                     , liquidhaskell        >= 0.8.6.0
   default-language:   Haskell98
   default-extensions: PackageImports
+                      NoImplicitPrelude
   if impl(ghc >= 8.10)
     ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin 

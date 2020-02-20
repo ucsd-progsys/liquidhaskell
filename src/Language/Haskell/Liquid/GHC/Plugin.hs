@@ -413,7 +413,7 @@ processModule LiquidHaskellContext{..} = do
                                            (SpecFinder.TargetModule thisModule) 
                                            (S.toList lhRelevantModules)
 
-  let finalEnv         = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) updatedEnv
+  let finalEnv         = insertExternalSpec thisModule (toCached (modName, bareSpec)) updatedEnv
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
 
   -- For some reason we pass to 'makeGhcSpec' the old 'SpecEnv' which won't have this module added as
@@ -484,7 +484,7 @@ makeBareSpecs :: ModuleName -> Ms.BareSpec -> SpecEnv -> [CachedSpec]
 makeBareSpecs mname tgtSpec specEnv = 
   let allSpecs = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
       tgtMod    = ModName Target mname
-  in  (CachedSpec tgtMod tgtSpec) : allSpecs
+  in  (toCached (tgtMod, tgtSpec)) : allSpecs
 
 ---------------------------------------------------------------------------------
 -- | Unused stages of the compilation pipeline ----------------------------------

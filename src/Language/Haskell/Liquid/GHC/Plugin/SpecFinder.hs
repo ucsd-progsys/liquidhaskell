@@ -42,7 +42,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
-import Debug.Trace
+--import Debug.Trace
 
 type SpecFinder m = GhcMonadLike m => SpecEnv -> Module -> MaybeT m SpecFinderResult
 
@@ -106,6 +106,8 @@ findRelevantSpecs (cfg, configChanged) eps specEnv target mods = do
         Nothing         -> pure (False, currentEnv, SpecNotFound (moduleName currentModule) : acc)
         Just specResult -> do
           let env' = case specResult of
+                       ExternalSpecFound _originalMod SpecEnvLocation _spec ->
+                         currentEnv  -- If this was already in the map, do not override it.
                        ExternalSpecFound _originalMod _location spec ->
                          insertExternalSpec currentModule spec currentEnv
                        CompanionSpecFound _originalMod _location spec ->
@@ -123,7 +125,7 @@ lookupCachedExternalSpec specEnv thisModule = do
 
 lookupCachedBaseSpec :: SpecFinder m
 lookupCachedBaseSpec specEnv thisModule = do
-  guard (isJust $ find (\(CachedSpec n _) -> getModName n == moduleName thisModule) (baseSpecs specEnv))
+  guard (isJust $ find (\cs -> getModName (fst $ fromCached cs) == moduleName thisModule) (baseSpecs specEnv))
   pure  $ BaseSpecsFound (moduleName thisModule) SpecEnvLocation (baseSpecs specEnv)
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
@@ -152,7 +154,7 @@ lookupInterfaceAnnotations eps _specEnv thisModule = do
   case bareSpecs of
     []         -> MaybeT $ pure Nothing
     [bareSpec] -> 
-      let cachedSpec = CachedSpec (ModName SrcImport (moduleName thisModule)) bareSpec
+      let cachedSpec = toCached (ModName SrcImport (moduleName thisModule), bareSpec)
       in pure $ ExternalSpecFound (moduleName thisModule) InterfaceLocation cachedSpec
     specs      -> do
       dynFlags <- lift getDynFlags
@@ -169,10 +171,10 @@ lookupCompanionSpec _specEnv thisModule = do
   modSummary <- MaybeT $ GhcMonadLike.lookupModSummary (moduleName thisModule)
   file       <- MaybeT $ pure (ml_hs_file . ms_location $ modSummary)
   spec       <- MaybeT $ do
-    mbSpecContent <- liftIO $ try (Misc.sayReadFile (traceShowId (specFile file)))
+    mbSpecContent <- liftIO $ try (Misc.sayReadFile (specFile file))
     case mbSpecContent of
       Left (_e :: SomeException) -> pure Nothing
-      Right raw -> pure $ either (const Nothing) (Just . id) (specSpecificationP file raw)
+      Right raw -> pure $ either (const Nothing) (Just . id) (specSpecificationP (specFile file) raw)
 
   pure $ CompanionSpecFound (moduleName thisModule) DiskLocation (toCached spec)
   where

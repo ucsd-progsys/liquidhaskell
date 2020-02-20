@@ -40,6 +40,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , findAndParseSpecFiles
   , parseSpecFile
   , noTerm
+  , clearSpec
   , checkFilePragmas
   , keepRawTokenStream
   , ignoreInline
@@ -430,9 +431,10 @@ processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
 
 updLiftedSpec :: Ms.BareSpec -> Maybe Ms.BareSpec -> Ms.BareSpec 
 updLiftedSpec s1 Nothing   = s1 
-updLiftedSpec s1 (Just s2) = (clear s1) `mappend` s2 
-  where 
-    clear s                = s { sigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
+updLiftedSpec s1 (Just s2) = (clearSpec s1) `mappend` s2 
+
+clearSpec :: Ms.BareSpec -> Ms.BareSpec
+clearSpec s = s { sigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
