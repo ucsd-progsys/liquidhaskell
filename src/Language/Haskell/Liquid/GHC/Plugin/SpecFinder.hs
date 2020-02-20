@@ -15,11 +15,15 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
 import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
                                                                           , getModSummary
+                                                                          , lookupModSummary
                                                                           )
 import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseBareSpecs )
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.GHC.Interface
+import qualified Language.Haskell.Liquid.Misc            as Misc
+import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
+import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import qualified Outputable                              as O
 import           GHC
@@ -32,9 +36,13 @@ import qualified Data.List                               as L
 import           Data.Foldable
 import           Data.Maybe
 
+import           Control.Exception
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
+
+import Debug.Trace
 
 type SpecFinder m = GhcMonadLike m => SpecEnv -> Module -> MaybeT m SpecFinderResult
 
@@ -45,6 +53,8 @@ data SpecFinderResult =
   -- ^ Only a single spec was found. This is the typical case for interface loading.
   | BaseSpecsFound ModuleName SearchLocation [CachedSpec]
   -- The spec was found and was fetched together with any required specs the module requires.
+  | CompanionSpecFound ModuleName SearchLocation CachedSpec
+  -- The spec was found alongside the compiled module, on the filesystem.
 
 -- | The module we are currently compiling/processing as part of the Plugin infrastructure.
 newtype TargetModule = TargetModule { getTargetModule :: Module }
@@ -77,7 +87,8 @@ findRelevantSpecs (cfg, configChanged) eps specEnv target mods = do
     loadRelevantSpec :: (Bool, SpecEnv, [SpecFinderResult]) -> Module -> m (Bool, SpecEnv, [SpecFinderResult])
     loadRelevantSpec (fetchFromDisk, currentEnv, !acc) currentModule = do
       let externalSpecsFinders = [ lookupCachedExternalSpec currentEnv currentModule
-                                 , loadFromAnnotations eps currentEnv currentModule
+                                 , lookupInterfaceAnnotations eps currentEnv currentModule
+                                 , lookupCompanionSpec currentEnv currentModule
                                  ]
 
       -- The 'baseSpecFinder' needs to go last and triggers disk I/O in trying to fetch spec files from
@@ -96,6 +107,8 @@ findRelevantSpecs (cfg, configChanged) eps specEnv target mods = do
         Just specResult -> do
           let env' = case specResult of
                        ExternalSpecFound _originalMod _location spec ->
+                         insertExternalSpec currentModule spec currentEnv
+                       CompanionSpecFound _originalMod _location spec ->
                          insertExternalSpec currentModule spec currentEnv
                        BaseSpecsFound _originalMod _location specs ->
                          replaceBaseSpecs specs currentEnv
@@ -133,8 +146,8 @@ findBaseSpecs cfg modSum =
   in findAndParseSpecFiles cfg paths modSum mempty
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
-loadFromAnnotations :: ExternalPackageState -> SpecFinder m
-loadFromAnnotations eps _specEnv thisModule = do
+lookupInterfaceAnnotations :: ExternalPackageState -> SpecFinder m
+lookupInterfaceAnnotations eps _specEnv thisModule = do
   let bareSpecs = deserialiseBareSpecs thisModule eps
   case bareSpecs of
     []         -> MaybeT $ pure Nothing
@@ -147,3 +160,21 @@ loadFromAnnotations eps _specEnv thisModule = do
              O.<+> O.ppr thisModule O.<+> O.text ":"
              O.<+> (O.vcat $ map (O.text . show) specs)
       lift $ pluginAbort dynFlags errMsg
+
+-- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
+-- will try loading it.
+lookupCompanionSpec :: SpecFinder m
+lookupCompanionSpec _specEnv thisModule = do
+
+  modSummary <- MaybeT $ GhcMonadLike.lookupModSummary (moduleName thisModule)
+  file       <- MaybeT $ pure (ml_hs_file . ms_location $ modSummary)
+  spec       <- MaybeT $ do
+    mbSpecContent <- liftIO $ try (Misc.sayReadFile (traceShowId (specFile file)))
+    case mbSpecContent of
+      Left (_e :: SomeException) -> pure Nothing
+      Right raw -> pure $ either (const Nothing) (Just . id) (specSpecificationP file raw)
+
+  pure $ CompanionSpecFound (moduleName thisModule) DiskLocation (toCached spec)
+  where
+    specFile :: FilePath -> FilePath
+    specFile fp = withExt fp Spec
