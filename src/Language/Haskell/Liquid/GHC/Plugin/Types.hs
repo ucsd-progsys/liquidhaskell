@@ -7,7 +7,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     ( SpecComment(..)
     -- * Dealing with accumulated specs
     , SpecEnv(..)
-    , CachedSpec(..)
+    , CachedSpec
     , toCached
     , fromCached
     , cachedModuleName
@@ -61,13 +61,17 @@ data SpecEnv    = SpecEnv {
   , externalSpecs :: Map Module CachedSpec
   } deriving Eq
 
+-- A cached spec which can be inserted into the 'SpecEnv'.
+-- /INVARIANT/: A 'CachedSpec' has temination-checking disabled (i.e. 'noTerm' is called on the inner 'BareSpec').
 data CachedSpec = CachedSpec ModName BareSpec deriving (Generic, Show)
 
 instance Eq CachedSpec where
     (CachedSpec mn1 _) == (CachedSpec mn2 _) = mn1 == mn2
 
+-- Convert the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
+-- needs to be disabled as this is now considered safe to use for \"clients\".
 toCached :: (ModName, BareSpec) -> CachedSpec
-toCached = uncurry CachedSpec
+toCached (mn, bareSpec) = CachedSpec mn (LH.clearSpec . LH.noTerm $ bareSpec)
 
 fromCached :: CachedSpec -> (ModName, BareSpec)
 fromCached (CachedSpec mn s) = (mn, s)
