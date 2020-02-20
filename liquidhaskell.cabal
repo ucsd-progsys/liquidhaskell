@@ -106,8 +106,6 @@ library
                       Language.Haskell.Liquid.Constraint.Split
                       Language.Haskell.Liquid.Constraint.ToFixpoint
                       Language.Haskell.Liquid.Constraint.Types
-                      Language.Haskell.Liquid.Equational
-                      Language.Haskell.Liquid.Foreign
                       Language.Haskell.Liquid.GHC.API
                       Language.Haskell.Liquid.GHC.GhcMonadLike
                       Language.Haskell.Liquid.GHC.Interface
@@ -120,12 +118,9 @@ library
                       Language.Haskell.Liquid.Interactive.Types
                       Language.Haskell.Liquid.LawInstances
                       Language.Haskell.Liquid.Liquid
-                      Language.Haskell.Liquid.List
                       Language.Haskell.Liquid.Measure
                       Language.Haskell.Liquid.Misc
                       Language.Haskell.Liquid.Parse
-                      Language.Haskell.Liquid.Prelude
-                      --Language.Haskell.Liquid.ProofCombinators
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic
@@ -167,7 +162,7 @@ library
       other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                           Language.Haskell.Liquid.GHC.Plugin.Types
                           Language.Haskell.Liquid.GHC.Plugin.Util
-  hs-source-dirs:     src, include
+  hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , Diff                 >= 0.3 && < 0.4
                     , aeson

@@ -14,15 +14,15 @@ cabal-version:      >= 1.22
 
 library
   exposed-modules:  Language.Haskell.Liquid.RTick
-                    -- Language.Haskell.Liquid.Prelude
-                    -- Language.Haskell.Liquid.Foreign
+                    Language.Haskell.Liquid.Prelude
+                    Language.Haskell.Liquid.Foreign
                     Language.Haskell.Liquid.RTick.Combinators
-                    -- Language.Haskell.Liquid.String
-                    -- Language.Haskell.Liquid.List
+                    Language.Haskell.Liquid.String
+                    Language.Haskell.Liquid.List
                     Language.Haskell.Liquid.Equational
                     Language.Haskell.Liquid.Bag
                     Language.Haskell.Liquid.ProofCombinators
-                    -- KMeansHelper
+                    KMeansHelper
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , bytestring           >= 0.10
