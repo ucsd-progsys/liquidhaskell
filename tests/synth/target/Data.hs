@@ -2,9 +2,7 @@
 
 module Data where
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 data L a = C a (L a) | N
 

@@ -1,8 +1,6 @@
 {-@ LIQUID "--typed-holes" @-}
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 {-@ listId :: xs:[a] -> {v:[a] | len xs ==  len v} @-}
 listId :: [a] -> [a]

@@ -1,12 +1,10 @@
-{-@ LIQUID "--typed-holes=10" @-}
+{-@ LIQUID "--typed-holes" @-}
 
 module ListSplit where
 
 import qualified Data.Set as S
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 -- Case split on expressions 
 {-@ split :: xs: [a] -> 

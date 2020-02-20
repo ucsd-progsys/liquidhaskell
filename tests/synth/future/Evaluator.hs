@@ -1,8 +1,6 @@
-{-@ LIQUID "--typed-holes=5" @-}
+{-@ LIQUID "--typed-holes" @-}
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 {-@ zero :: {v: Int | v == 0} @-}
 zero :: Int 

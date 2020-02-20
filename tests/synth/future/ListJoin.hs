@@ -2,6 +2,8 @@
 
 module ListJoin where
 
+import Language.Haskell.Liquid.Synthesize.Error
+
 -- Variable introduction for map's function
 {-@ map' :: (a -> b) -> x: [a] -> { v: [b] | len v == len x } @-}
 map' :: (a -> b) -> [a] -> [b]

@@ -1,8 +1,6 @@
 {-@ LIQUID "--typed-holes" @-}
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 -- This is to test `nilDataCons`.
 {-@ oneElem :: xs:a -> {v:[a] | len v == 1} @-}

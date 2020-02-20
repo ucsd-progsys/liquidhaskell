@@ -2,6 +2,10 @@
 
 module User where
 
+{-@ err :: { v: Int | false } -> a @-}
+err :: Int -> a
+err s = undefined
+
 {-@ measure length' @-}
 {-@ length' :: [a] -> Nat @-}
 length' :: [a] -> Int

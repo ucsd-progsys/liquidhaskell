@@ -2,9 +2,7 @@
 
 module ListZipWith where
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 {-@ zipWith' :: f: (a -> b -> c) 
                -> xs: [a] 

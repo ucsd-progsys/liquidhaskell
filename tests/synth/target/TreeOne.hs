@@ -2,9 +2,7 @@
 
 module TreeOne where
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 {-@ data Tree [size] a = 
       Empty 
