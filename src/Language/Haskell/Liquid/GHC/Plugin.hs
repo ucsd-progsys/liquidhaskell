@@ -328,7 +328,7 @@ loadRelevantSpecs :: forall m. GhcMonadLike m
                   -> m SpecEnv
 loadRelevantSpecs config eps specEnv targetModule mods = do
   (newSpec, results) <- SpecFinder.findRelevantSpecs config eps specEnv targetModule mods
-  mapM_ processResult results
+  mapM_ processResult (reverse results)
   pure newSpec
   where
     processResult :: SpecFinderResult -> m ()

@@ -124,7 +124,6 @@ loadSpecFromDisk cfg targetModule _specEnv thisModule = do
       guard (isJust $ find (\(n,_) -> getModName n == moduleName thisModule) specs)
       pure $ BaseSpecsFound (moduleName thisModule) DiskLocation (map toCached specs)
 
-
 findBaseSpecs :: GhcMonadLike m 
               => Config 
               -> ModSummary 
