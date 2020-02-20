@@ -336,4 +336,4 @@ varError = do
   info    <- ghcI . sCGI <$> get -- CGInfo
   let env  = B.makeEnv (gsConfig $ giSpec info) (giSrc info) mempty mempty 
   let name = giTargetMod $ giSrc info
-  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "err")
+  return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err")

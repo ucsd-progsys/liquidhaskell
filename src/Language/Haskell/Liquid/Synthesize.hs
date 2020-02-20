@@ -118,16 +118,10 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               modify (\s -> s { sForalls = (foralls, []) } )
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
-              mkErrorExpr renv
               mapM (\y -> addDecrTerm y []) ys
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
-mkErrorExpr :: REnv -> SM ()
-mkErrorExpr renv = do
-  vErr <- varError
-  let t = fromJust $ M.lookup (symbol vErr) (reGlobal renv)
-  liftCG0 (\γ -> γ += ("arg", symbol vErr, t))
 
 -- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
 data Mode 
