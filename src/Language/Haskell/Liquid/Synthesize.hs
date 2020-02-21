@@ -63,7 +63,7 @@ synthesize tgt fcfg cginfo =
           (senv1, foralls) = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
-      state0 <- initState ctx fcfg cgi cge env topLvlBndr uniVars M.empty
+      state0 <- initState ctx fcfg cgi cge env topLvlBndr (reverse uniVars) M.empty
 
       fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
 
