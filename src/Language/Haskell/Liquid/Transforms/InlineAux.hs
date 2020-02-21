@@ -4,6 +4,8 @@ module Language.Haskell.Liquid.Transforms.InlineAux
 where
 
 import           CoreSyn
+import qualified Outputable                    as O
+                                                ( empty )
 import           Control.Arrow                  ( second )
 import           OccurAnal                      ( occurAnalysePgm )
 import qualified Language.Haskell.Liquid.GHC.Misc
@@ -19,12 +21,13 @@ import           GhcPlugins                     ( isDFunId
                                                 , occNameString
                                                 , getOccName
                                                 , mkCoreApps
+                                                , isDictId
                                                 )
 import qualified Data.HashMap.Strict           as M
 import           CoreSubst
 
 inlineAux :: Module -> CoreProgram -> CoreProgram
-inlineAux m cbs = occurAnalysePgm m (const True) (const False) [] (map f cbs)
+inlineAux m cbs = occurAnalysePgm m (const False) (const False) [] (map f cbs)
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
@@ -70,10 +73,11 @@ inlineAuxExpr :: DFunId -> M.HashMap Id Id -> CoreExpr -> CoreExpr
 inlineAuxExpr dfunId methodToAux e = go e
  where
   go :: CoreExpr -> CoreExpr
-  go (Lam b body     ) = Lam b (go body)
-  -- go (Let b e)
-  --   | 
-  go (Let b e        ) = Let (mapBnd go b) (go e)
+  go (Lam b body) = Lam b (go body)
+  go (Let b body)
+    | NonRec x e <- b, isDictId x = go
+    $ substExpr O.empty (extendIdSubst emptySubst x e) body
+    | otherwise = Let (mapBnd go b) (go body)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
   go (Cast e c       ) = Cast (go e) c
   go (Tick t e       ) = Tick t (go e)
