@@ -58,8 +58,8 @@ synthesize tgt fcfg cginfo =
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi
-          uniVars = getUniVars coreProgram topLvlBndr
-          ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env) topLvlBndr)
+          (uniVars, _) = getUniVars coreProgram topLvlBndr
+          ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env))
           (senv1, foralls) = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
@@ -168,7 +168,8 @@ filterScrut = do
       es2 = filter (noPairLike . fst) es1
       es3 = sortOn snd es2
       es4 = map fst es3
-  return es4
+      es5 = filter (not . isClassTyCon . thd3) es4
+  return (filter (isVar . fst3) es5)
 
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
 noPairLike (e, t, c) = 

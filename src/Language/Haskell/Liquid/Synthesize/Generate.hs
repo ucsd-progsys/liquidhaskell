@@ -29,7 +29,10 @@ import           Data.List
 
 import           MkCore
 import           DynFlags
+import           Var
+import           TyCon 
 
+import qualified Data.HashMap.Strict as M 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
 genTerms :: String -> SpecType -> SM [CoreExpr] 
@@ -88,18 +91,16 @@ withDepthFill i s t depth tmp = do
   exprs <- fill i s0 depth curEm tmp []
 
   decr <- ssDecrTerm <$> get 
-
   fix <- sFix <$> get
   let exprs0 = filter (\x -> notStructural decr fix x) exprs
-  
-  trace (" Structural " ++ show exprs0) $
-    if nonTrivials exprs then 
-      filterElseM (hasType s0 True t) exprs0 $ 
-        if depth < maxAppDepth
-          then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
-                  withDepthFill i s0 t (depth + 1) tmp
-          else return []
-      else return []
+
+  if nonTrivials exprs0 then 
+    filterElseM (hasType s0 True t) exprs0 $ 
+      if depth < maxAppDepth
+        then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
+                withDepthFill i s0 t (depth + 1) tmp
+        else return []
+    else return []
 
 structCheck :: Var -> CoreExpr -> (Maybe Var, [CoreExpr])
 structCheck xtop var@(GHC.Var v)
@@ -120,19 +121,14 @@ notStructural :: SSDecrTerm -> Var -> CoreExpr -> Bool
 notStructural decr xtop e
   = case v of
       Nothing -> True
-      Just v  -> trace (" [ Args ] " ++ show args) $ foldr (\x b -> isDecreasing' x decr && b) True args
+      Just v  -> foldr (\x b -> isDecreasing' x decr && b) True args
   where (v, args) = (structCheck xtop e)
-
-showExpr :: CoreExpr -> String
-showExpr (GHC.Var e) = " Var " 
-showExpr (GHC.App {}) = " App "
-showExpr e = show e
 
 isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
 isDecreasing' (GHC.Var v) decr
-  = trace (" Decreasing  " ++ show v) $ not (v `elem` map fst decr)
+  = not (v `elem` map fst decr)
 isDecreasing' e decr
-  = trace (" Decr " ++ show decr) True
+  = True
 
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
 fill _ _ _     _       []                 accExprs 

@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE LambdaCase #-}
 module Language.Haskell.Liquid.Synthesize.GHC where
 
 import qualified CoreSyn as GHC
@@ -24,6 +25,7 @@ import Language.Haskell.Liquid.GHC.TypeRep
 import Language.Fixpoint.Types
 import Debug.Trace
 import qualified Data.HashMap.Strict as M
+import TyCon 
 
 instance Default Type where
     def = TyVarTy alphaTyVar 
@@ -118,30 +120,34 @@ rmTrivials = filter (not . trivial . fst)
 -- Duplicate from Monad due to dependencies between modules.
 type SSEnv = M.HashMap Symbol (SpecType, Var)
 
---                                      | Current top-level binding |
-filterREnv :: M.HashMap Symbol SpecType -> Var -> M.HashMap Symbol SpecType
-filterREnv renv tlVar = 
+filterREnv :: M.HashMap Symbol SpecType -> M.HashMap Symbol SpecType
+filterREnv renv = 
   let renv_lst  = M.toList renv
-      renv_lst' = filter (\(_, specT) -> 
-        let ht = toType specT
-        in  showTy ht /= "(RApp   GHC.Prim.Addr# )") renv_lst
+      renv_lst' = filter (\(_, specT) ->  let ht = toType specT
+                                          in  showTy ht /= "(RApp   GHC.Prim.Addr# )") renv_lst
   in  M.fromList renv_lst'
 
 getTopLvlBndrs :: GHC.CoreProgram -> [Var]
-getTopLvlBndrs p = 
-  concat $ map (\cb -> case cb of GHC.NonRec b _ -> [b]
-                                  GHC.Rec recs   -> map fst recs) p
+getTopLvlBndrs = concatMap (\case GHC.NonRec b _ -> [b]
+                                  GHC.Rec recs   -> map fst recs)
 
 -- | That' s a hack to get the type variables we need for instantiation.
-getUniVars :: GHC.CoreProgram -> Var -> [Var]
+getUniVars :: GHC.CoreProgram -> Var -> ([Var], [Var])
 getUniVars cp tlVar = 
-  case filter (\cb -> isInCB cb tlVar) cp of 
-    [cb] -> getUniVars0 (getBody cb tlVar)
+  case filter (`isInCB` tlVar) cp of 
+    [cb] -> getUniVars0 (getBody cb tlVar) ([], [])
     _    -> error " Every top-level corebind must be unique! "
 
-getUniVars0 :: GHC.CoreExpr -> [Var]
-getUniVars0 (Lam b e) = b : getUniVars0 e
-getUniVars0 e         = notrace " [ getUniVars0 ] " []
+getUniVars0 :: GHC.CoreExpr -> ([Var], [Var]) -> ([Var], [Var])
+getUniVars0 (Lam b e) (uvs, tcDicts)
+  = case varType b of 
+      TyConApp c ts -> 
+        if isClassTyCon c 
+          then getUniVars0 e (uvs, b : tcDicts)
+          else getUniVars0 e (b:uvs, tcDicts)
+      _ -> getUniVars0 e (b:uvs, tcDicts) 
+getUniVars0 e vs
+  = vs
 
 getBody :: GHC.CoreBind -> Var -> GHC.CoreExpr
 getBody (GHC.NonRec b e) tlVar = if b == tlVar then e else error " [ getBody ] "
