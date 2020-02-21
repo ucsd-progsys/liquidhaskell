@@ -242,7 +242,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     let headlessSig =
           case L.lookup (mkSymbol method) yts of
             Nothing ->
-              impossible Nothing "makeClassAuxTypesOne : not reachable?"
+              impossible Nothing ("makeClassAuxTypesOne : not reachable?" ++ F.showpp (mkSymbol method) ++ " " ++ F.showpp yts)
             Just sig -> sig
         fullSig =
           mkArrow
@@ -273,7 +273,9 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     clsMethods = filter (\x -> GM.dropModuleNames (F.symbol x) `elem` fmap mkSymbol methods) $
       Ghc.classAllSelIds (Ghc.is_cls inst)
     yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
-    mkSymbol x = F.dropSym 2 $ GM.simplesymbol x
+    mkSymbol x
+      | Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
+      | otherwise = F.dropSym 2 $ GM.simplesymbol x
         -- res = dcpTyRes dcp
     clsTvs = dcpFreeTyVars dcp
         -- copy/pasted from Bare/Class.hs
