@@ -72,9 +72,9 @@ anormalize cfg hscEnv modGuts = do
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
       γ0       = emptyAnfEnv cfg
-      rwr_cbs  = rewriteBinds cfg aux_cbs
-      aux_cbs  = inlineAux $ mg_binds modGuts
-      orig_cbs = transformRecExpr $ mg_binds modGuts
+      rwr_cbs  = rewriteBinds cfg orig_cbs
+      orig_cbs = transformRecExpr aux_cbs
+      aux_cbs  = inlineAux (mg_module modGuts) $ mg_binds modGuts
       untidy   = UX.untidyCore cfg
 
 {-

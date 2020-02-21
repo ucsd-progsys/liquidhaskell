@@ -5,8 +5,9 @@ where
 
 import           CoreSyn
 import           Control.Arrow                  ( second )
+import           OccurAnal                      ( occurAnalysePgm )
 import qualified Language.Haskell.Liquid.GHC.Misc
-                                                ( )
+                                               as GM
 import           Class                          ( classAllSelIds )
 import           Id
 import           CoreFVs                        ( exprFreeVarsList )
@@ -14,14 +15,16 @@ import           InstEnv
 import           TcType                         ( tcSplitDFunTy )
 import           GhcPlugins                     ( isDFunId
                                                 , OccName
+                                                , Module
                                                 , occNameString
                                                 , getOccName
                                                 , mkCoreApps
                                                 )
 import qualified Data.HashMap.Strict           as M
+import           CoreSubst
 
-inlineAux :: CoreProgram -> CoreProgram
-inlineAux cbs = map f cbs
+inlineAux :: Module -> CoreProgram -> CoreProgram
+inlineAux m cbs = occurAnalysePgm m (const True) (const False) [] (map f cbs)
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
@@ -64,10 +67,12 @@ dfunIdSubst dfunId e = M.fromList $ zip auxIds (repeat (dfunId, methodToAux))
   methods = classAllSelIds cls
 
 inlineAuxExpr :: DFunId -> M.HashMap Id Id -> CoreExpr -> CoreExpr
-inlineAuxExpr dfunId methodToAux = go
+inlineAuxExpr dfunId methodToAux e = go e
  where
   go :: CoreExpr -> CoreExpr
   go (Lam b body     ) = Lam b (go body)
+  -- go (Let b e)
+  --   | 
   go (Let b e        ) = Let (mapBnd go b) (go e)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
   go (Cast e c       ) = Cast (go e) c
@@ -78,7 +83,8 @@ inlineAuxExpr dfunId methodToAux = go
     , arg : argsNoTy <- dropWhile isTypeArg args
     , (Var x, argargs) <- collectArgs arg
     , x == dfunId
-    = mkCoreApps (Var aux) (argargs ++ (go <$> argsNoTy))
+    = GM.tracePpr ("inlining in" ++ GM.showPpr e)
+      $ mkCoreApps (Var aux) (argargs ++ (go <$> argsNoTy))
   go (App e0 e1) = App (go e0) (go e1)
   go e           = e
 

@@ -138,7 +138,9 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc
 -------------------------------------------------------------------------------------
 makeGhcSpec0 cfg src lmap mspecsNoClass = do
   tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg
-  let  lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
+  let  tyi      = Bare.tcTyConMap   tycEnv
+       sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv
+       lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
        mySpec   = mySpec2 <> lSpec1
        specs    = M.insert name mySpec iSpecs2
        measEnv =  makeMeasEnv env tycEnv sigEnv       specs
@@ -198,8 +200,6 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
 
     dm       = Bare.tcDataConMap tycEnv0
     -- build up environments
-    sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv 
-    tyi      = Bare.tcTyConMap   tycEnv0 
     (tycEnv0, datacons)  = makeTycEnv0   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"
     iSpecs2  = Bare.qualifyExpand env name rtEnv l [] iSpecs0    where l = F.dummyPos "expand-iSpecs2"
@@ -305,7 +305,6 @@ substAuxMethod dfun methods e = F.notracepp "substAuxMethod" $ go e
         go (F.PAtom brel e0 e1) = F.PAtom brel (go e0) (go e1)
         go e = F.notracepp "LEAF" e
 
-
 compileClasses ::
      GhcSrc
   -> Bare.Env
@@ -318,7 +317,7 @@ compileClasses src env (name, spec) rest = (spec {sigs = sigs'} <> clsSpec, inst
       mempty
         { dataDecls = clsDecls
         , reflects =
-            F.tracepp "reflects " $
+            -- F.tracepp "reflects " $
             S.fromList
               (fmap
                  (fmap GM.dropModuleNames .
@@ -357,7 +356,7 @@ compileClasses src env (name, spec) rest = (spec {sigs = sigs'} <> clsSpec, inst
             (GM.findVarDefMethod
                (GM.dropModuleNames . F.symbol $ Ghc.instanceDFunId inst)
                (giCbs src))
-      , let ms = filter (\x -> GM.isMethod x) (GM.tracePpr "Free Vars" $ freeVars mempty e)
+      , let ms = filter GM.isMethod (freeVars mempty e)
       ]
     instClss :: [(Ghc.ClsInst, Ghc.Class)]
     instClss =

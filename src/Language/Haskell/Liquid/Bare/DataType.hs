@@ -482,7 +482,7 @@ elaborateClassDcp :: (Ghc.CoreExpr -> F.Expr) -> DataConP -> Ghc.Ghc (DataConP ,
 elaborateClassDcp coreToLg dcp = do
   t' <- forM fts $ elaborateSpecType coreToLg
   let ts' = F.tracepp "elaboratedMethod" $ elaborateMethod (F.symbol dc) (S.fromList xs) <$> (fst <$> t')
-  pure (F.tracepp "elaborateClassDcp" $ dcp {dcpTyArgs = zip xs (stripPred <$> ts')}, dcp {dcpTyArgs = zip xs (fst <$> t')})
+  pure (F.tracepp "elaborateClassDcp" $ dcp {dcpTyArgs = zip xs (stripPred <$> ts')}, dcp {dcpTyArgs = fmap (\(x,t) -> (x, strengthenTy x t)) (zip xs (fst <$> t'))})
   where
     resTy = dcpTyRes dcp
     dc = dcpCon dcp
@@ -494,12 +494,16 @@ elaborateClassDcp coreToLg dcp = do
         -- turns forall a b. (a -> b) -> f a -> f b into
         -- forall f. Functor f => forall a b. (a -> b) -> f a -> f b
     stripPred :: SpecType -> SpecType
-    stripPred t  = tres
-      where (tvs, pvs, _, tres) = bkUnivClass t
+    stripPred = Misc.fourth4 . bkUnivClass
     fullTy :: SpecType -> SpecType
     fullTy t =
       F.notracepp "fullTy" $
       mkArrow tvars [] [] [(F.symbol dc, F.notracepp "resTy" resTy, mempty)] t
+    strengthenTy :: F.Symbol -> SpecType -> SpecType
+    strengthenTy x t = mkUnivs tvs pvs (RFun z cls (t' `RT.strengthen` mt) r)
+      where (tvs, pvs, (RFun z cls t' r)) = bkUniv t
+            vv = rTypeValueVar t'
+            mt = RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
 
 substClassOpBinding ::
      F.Symbol -> F.Symbol -> S.HashSet F.Symbol -> F.Expr -> F.Expr
