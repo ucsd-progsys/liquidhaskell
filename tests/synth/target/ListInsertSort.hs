@@ -17,6 +17,7 @@ iLen (C x xs) = 1 + iLen xs
 
 {-@ measure iElems @-}
 {-@ iElems :: IList a -> S.Set a @-}
+iElems :: Ord a => IList a -> S.Set a
 iElems N = S.empty 
 iElems (C x xs) = S.union (S.singleton x) (iElems xs)
  	
