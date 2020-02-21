@@ -76,7 +76,6 @@ zip' (Cons x xs) (Cons y ys) = Cons (x, y) (zip' xs ys)
 
 {-@ goal :: List (List a) -> [ LPair a ] @-}
 goal :: Eq a => List (List a) -> [ LPair a ]
-goal xs 
-    = _hole
-    -- = zipLen (groupBy'' (==) xs) 
+-- goal = _hole
+goal xs = zipLen (groupBy'' (==) xs) 
 
