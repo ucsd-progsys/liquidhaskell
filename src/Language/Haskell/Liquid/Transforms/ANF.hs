@@ -50,7 +50,8 @@ import qualified Language.Haskell.Liquid.GHC.Resugar   as Rs
 import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Data.Function                    (on)
-import qualified Text.Printf as Printf 
+import qualified Text.Printf as Printf
+import SimplCore
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -58,6 +59,8 @@ import qualified Text.Printf as Printf
 anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
+  rwr_simpl_cbs <- mg_binds <$> core2core hscEnv modGuts {mg_binds = rwr_cbs}
+
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
     putStrLn $ GM.showCBs untidy (mg_binds modGuts)
@@ -66,11 +69,12 @@ anormalize cfg hscEnv modGuts = do
     putStrLn "***************************** REC CoreBinds ***************************"
     putStrLn $ GM.showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
-    putStrLn $ GM.showCBs untidy rwr_cbs
+    putStrLn $ GM.showCBs untidy rwr_simpl_cbs
+  let act      = Misc.concatMapM (normalizeTopBind γ0) rwr_simpl_cbs
   (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
-      act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
+      
       γ0       = emptyAnfEnv cfg
       rwr_cbs  = rewriteBinds cfg orig_cbs
       orig_cbs = transformRecExpr aux_cbs

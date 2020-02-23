@@ -478,11 +478,11 @@ classDeclToDataDecl env m rcls = DataDecl
 --     -- (yts, ot) = qualifyDataCtor (not isGadt) name dLoc (zip )
 --     dLoc = F.Loc _loc_beg _loc_end
     
-elaborateClassDcp :: (Ghc.CoreExpr -> F.Expr) -> DataConP -> Ghc.Ghc (DataConP , DataConP)
-elaborateClassDcp coreToLg dcp = do
-  t' <- forM fts $ elaborateSpecType coreToLg
-  let ts' = F.tracepp "elaboratedMethod" $ elaborateMethod (F.symbol dc) (S.fromList xs) <$> (fst <$> t')
-  pure (F.tracepp "elaborateClassDcp" $ dcp {dcpTyArgs = zip xs (stripPred <$> ts')}, dcp {dcpTyArgs = fmap (\(x,t) -> (x, strengthenTy x t)) (zip xs (fst <$> t'))})
+elaborateClassDcp :: (Ghc.CoreExpr -> F.Expr) -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr) -> DataConP -> Ghc.Ghc (DataConP , DataConP)
+elaborateClassDcp coreToLg simplifier dcp = do
+  t' <- forM fts $ elaborateSpecType coreToLg simplifier
+  let ts' = F.notracepp "elaboratedMethod" $ elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
+  pure (F.tracepp "elaborateClassDcp" $ dcp {dcpTyArgs = zip xs (stripPred <$> ts')}, dcp {dcpTyArgs = fmap (\(x,t) -> (x, strengthenTy x t)) (zip xs t')})
   where
     resTy = dcpTyRes dcp
     dc = dcpCon dcp

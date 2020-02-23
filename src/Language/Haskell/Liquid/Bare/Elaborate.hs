@@ -9,12 +9,14 @@
 module Language.Haskell.Liquid.Bare.Elaborate
   ( fixExprToHsExpr
   , elaborateSpecType
+  , buildSimplifier
   )
 where
 
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
+import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
                                                 ( )
@@ -25,10 +27,12 @@ import           Control.Monad.Free
 import           Data.Functor.Foldable
 import           Data.Char                      ( isUpper )
 import           GHC
+import           GhcPlugins                     ( isDFunId )
 import           OccName
 import           FastString
 import           CoreSyn
 import           PrelNames
+import qualified Outputable                    as O
 import           TysWiredIn                     ( boolTyCon
                                                 , true_RDR
                                                 )
@@ -37,6 +41,85 @@ import           RdrName
 import           BasicTypes
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
+import           CoreSubst               hiding ( substExpr )
+import           SimplCore
+import           CoreMonad
+import           CoreFVs                        ( exprFreeVarsList )
+import           VarEnv                         ( lookupVarEnv
+                                                , lookupInScope
+                                                )
+import           CoreUtils                      ( mkTick )
+
+lookupIdSubstAll :: O.SDoc -> Subst -> Id -> CoreExpr
+lookupIdSubstAll doc (Subst in_scope ids _ _) v
+  | Just e <- lookupVarEnv ids v        = e
+  | Just v' <- lookupInScope in_scope v = Var v'
+  | otherwise                           = Var v
+        -- Vital! See Note [Extending the Subst]
+  -- | otherwise = WARN( True, text "CoreSubst.lookupIdSubst" <+> doc <+> ppr v
+  --                           $$ ppr in_scope)
+
+substExprAll :: O.SDoc -> Subst -> CoreExpr -> CoreExpr
+substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
+
+
+subst_expr_all :: O.SDoc -> Subst -> CoreExpr -> CoreExpr
+subst_expr_all doc subst expr = go expr
+ where
+  go (Var v) = lookupIdSubstAll (doc O.$$ O.text "subst_expr_all") subst v
+  go (Type     ty      ) = Type (substTy subst ty)
+  go (Coercion co      ) = Coercion (substCo subst co)
+  go (Lit      lit     ) = Lit lit
+  go (App  fun     arg ) = App (go fun) (go arg)
+  go (Tick tickish e   ) = mkTick (substTickish subst tickish) (go e)
+  go (Cast e       co  ) = Cast (go e) (substCo subst co)
+     -- Do not optimise even identity coercions
+     -- Reason: substitution applies to the LHS of RULES, and
+     --         if you "optimise" an identity coercion, you may
+     --         lose a binder. We optimise the LHS of rules at
+     --         construction time
+
+  go (Lam  bndr    body) = Lam bndr' (subst_expr_all doc subst' body)
+    where (subst', bndr') = substBndr subst bndr
+
+  go (Let bind body) = Let bind' (subst_expr_all doc subst' body)
+    where (subst', bind') = substBind subst bind
+
+  go (Case scrut bndr ty alts) = Case (go scrut)
+                                      bndr'
+                                      (substTy subst ty)
+                                      (map (go_alt subst') alts)
+    where (subst', bndr') = substBndr subst bndr
+
+  go_alt subst (con, bndrs, rhs) = (con, bndrs', subst_expr_all doc subst' rhs)
+    where (subst', bndrs') = substBndrs subst bndrs
+
+
+substLet :: CoreExpr -> CoreExpr
+substLet (Lam b body) = Lam b (substLet body)
+substLet (Let b body)
+  | NonRec x e <- b = substLet
+    (substExprAll O.empty (extendIdSubst emptySubst x e) body)
+  | otherwise = Let b (substLet body)
+substLet e = e
+
+
+buildDictSubst :: CoreProgram -> Subst
+buildDictSubst = cata f
+ where
+  f Nil = emptySubst
+  f (Cons b s)
+    | NonRec x e <- b, isDFunId x || isDictonaryId x = extendIdSubst s x e
+    | otherwise = s
+
+buildSimplifier :: CoreProgram -> CoreExpr -> Ghc CoreExpr
+buildSimplifier cbs e = do
+  df <- getDynFlags
+  liftIO $ simplifyExpr df e'
+ where
+  -- fvs = fmap (\x -> (x, getUnique x, isLocalId x))  (freeVars mempty e)
+  dictSubst = buildDictSubst cbs
+  e'        = substExprAll O.empty dictSubst e
 
 
 -- | Base functor of RType
@@ -211,8 +294,6 @@ buildHsExpr res = para $ \case
 
 
 
-
-
 canonicalizeDictBinder
   :: F.Subable a => [F.Symbol] -> (a, [F.Symbol]) -> (a, [F.Symbol])
 canonicalizeDictBinder [] (e', bs') = (e', bs')
@@ -227,17 +308,25 @@ canonicalizeDictBinder bs (e', bs') = (renameDictBinder bs bs' e', bs)
 
 elaborateSpecType
   :: (CoreExpr -> F.Expr)
+  -> (CoreExpr -> Ghc CoreExpr)
   -> SpecType
-  -> Ghc (SpecType, [F.Symbol])
-elaborateSpecType = elaborateSpecType' $ pure ()
+  -> Ghc SpecType
+elaborateSpecType coreToLogic simplifier t = do
+  (t', xs) <- elaborateSpecType' (pure ()) coreToLogic simplifier t
+  case xs of
+    _ : _ -> panic
+      Nothing
+      "elaborateSpecType: invariant broken. substitution list for dictionary is not completely consumed"
+    _ -> pure t'
 
 elaborateSpecType'
   :: PartialSpecType
-  -> (CoreExpr -> F.Expr)
+  -> (CoreExpr -> F.Expr) -- core to logic
+  -> (CoreExpr -> Ghc CoreExpr)
   -> SpecType
   -> Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
                    -- should have returned Maybe [F.Symbol]
-elaborateSpecType' partialTp coreToLogic t =
+elaborateSpecType' partialTp coreToLogic simplify t =
   case F.notracepp "elaborateSpecType'" t of
     RVar (RTV tv) (MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
       elaborateReft
@@ -251,8 +340,8 @@ elaborateSpecType' partialTp coreToLogic t =
       let partialFunTp =
             Free (RFunF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
-      (eTin , bs ) <- elaborateSpecType' partialTp coreToLogic tin
-      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic tout
+      (eTin , bs ) <- elaborateSpecType' partialTp coreToLogic simplify tin
+      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
       let buildRFunContTrivial
             | isClassType tin, dictBinder : bs0' <- bs' = do
               let (eToutRenamed, canonicalBinders) =
@@ -305,8 +394,8 @@ elaborateSpecType' partialTp coreToLogic t =
       let partialFunTp =
             Free (RImpFF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
-      (eTin , bs ) <- elaborateSpecType' partialTp' coreToLogic tin
-      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic tout
+      (eTin , bs ) <- elaborateSpecType' partialTp' coreToLogic simplify tin
+      (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
       let (eToutRenamed, canonicalBinders) =
             canonicalizeDictBinder bs (eTout, bs')
 
@@ -329,6 +418,7 @@ elaborateSpecType' partialTp coreToLogic t =
       (eTout, bs) <- elaborateSpecType'
         (partialTp >> Free (RAllTF (RTVar tv ty) (pure ()) ureft))
         coreToLogic
+        simplify
         tout
       elaborateReft
         (ref, RVar tv mempty)
@@ -347,6 +437,7 @@ elaborateSpecType' partialTp coreToLogic t =
       (eTout, bts') <- elaborateSpecType'
         (partialTp >> Free (RAllPF pvbind (pure ())))
         coreToLogic
+        simplify
         tout
       pure (RAllP pvbind eTout, bts')
     -- pargs not handled for now
@@ -360,8 +451,8 @@ elaborateSpecType' partialTp coreToLogic t =
           pure (RApp tycon args pargs (MkUReft (F.Reft (vv, ee)) p), bs')
         )
     RAppTy arg res ureft@(MkUReft reft@(F.Reft (vv, _)) p) -> do
-      (eArg, bs ) <- elaborateSpecType' partialTp coreToLogic arg
-      (eRes, bs') <- elaborateSpecType' partialTp coreToLogic res
+      (eArg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify arg
+      (eRes, bs') <- elaborateSpecType' partialTp coreToLogic simplify res
       let (eResRenamed, canonicalBinders) =
             canonicalizeDictBinder bs (eRes, bs')
       elaborateReft
@@ -377,13 +468,13 @@ elaborateSpecType' partialTp coreToLogic t =
         )
     -- todo: Existential support
     RAllE bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic allarg
-      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic ty
+      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify allarg
+      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
       let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
       pure (RAllE bind eAllarg eTyRenamed, canonicalBinders)
     REx bind allarg ty -> do
-      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic allarg
-      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic ty
+      (eAllarg, bs ) <- elaborateSpecType' partialTp coreToLogic simplify allarg
+      (eTy    , bs') <- elaborateSpecType' partialTp coreToLogic simplify ty
       let (eTyRenamed, canonicalBinders) = canonicalizeDictBinder bs (eTy, bs')
       pure (REx bind eAllarg eTyRenamed, canonicalBinders)
     -- YL: might need to filter RExprArg out and replace RHole with ghc wildcard
@@ -425,25 +516,33 @@ elaborateSpecType' partialTp coreToLogic t =
             (  "Ghc is unable to elaborate the expression: "
             ++ GM.showPpr exprWithTySigs
             ++ "\n"
-            ++ GM.showPpr (GM.showSDoc <$> pprErrMsgBagWithLoc (snd msgs))
+            ++ GM.showPpr
+                 (GM.showSDoc $ O.hcat (pprErrMsgBagWithLoc (snd msgs)))
             )
           Just eeWithLamsCore -> do
+            let (_, bs, ee) = GM.notracePpr "collectTyAndValBinders"
+                  $ collectTyAndValBinders (substLet eeWithLamsCore)
+            ee' <- simplify ee
             let
-              eeWithLams =
-                coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore)
-              (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
+              eeFix = coreToLogic (GM.notracePpr "eeWithLamsCore" ee')
+              -- (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
               (dictbs, nondictbs) =
-                L.partition (F.isPrefixOfSym (F.symbol "$d")) bs'
+                L.partition (F.isPrefixOfSym (F.symbol "$d")) (fmap F.symbol bs)
           -- invariant: length nondictbs == length origBinders
               subst = if length nondictbs == length origBinders
-                then F.notracepp "SUBST" $ zip (L.reverse nondictbs) origBinders
+                then F.notracepp "SUBST" $ zip nondictbs origBinders
                 else panic
                   Nothing
-                  "Oops, Ghc gave back more/less binders than I expected"
+                  (  "Oops, Ghc gave back more/less binders than I expected:"
+                  ++ F.showpp nondictbs
+                  ++ "  "
+                  ++ F.showpp dictbs
+                  )
             ret <- nonTrivialCont
-              dictbs
-              ( F.notracepp "nonTrivialContEE" . eliminateEta
-              $ F.substa (\x -> Mb.fromMaybe x (L.lookup x subst)) ee
+              (L.reverse dictbs)
+              (F.notracepp "nonTrivialContEE" . eliminateEta $ F.substa
+                (\x -> Mb.fromMaybe x (L.lookup x subst))
+                eeFix
               )  -- (GM.dropModuleUnique <$> bs')
             pure (F.notracepp "result" ret)
                            -- (F.substa )
@@ -494,9 +593,10 @@ fixExprToHsExpr env (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr env e) es
 fixExprToHsExpr env (F.POr es) = mkHsApp
   (nlHsVar (varQual_RDR dATA_FOLDABLE (fsLit "or")))
   (nlList $ fixExprToHsExpr env <$> es)
-fixExprToHsExpr env (F.PIff e0 e1) =
-  mkHsApp (mkHsApp (nlHsVar (mkVarUnqual (mkFastString "<=>"))) (fixExprToHsExpr env e0))
-    (fixExprToHsExpr env e1)
+fixExprToHsExpr env (F.PIff e0 e1) = mkHsApp
+  (mkHsApp (nlHsVar (mkVarUnqual (mkFastString "<=>"))) (fixExprToHsExpr env e0)
+  )
+  (fixExprToHsExpr env e1)
 fixExprToHsExpr env (F.PNot e) =
   mkHsApp (nlHsVar not_RDR) (fixExprToHsExpr env e)
 fixExprToHsExpr env (F.PAtom brel e0 e1) = mkHsApp
@@ -576,11 +676,14 @@ specTypeToLHsType =
     RFunF _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy NoExt (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
-    RImpFF _ (_, tin) (_, tout) _ -> nlHsFunTy tin tout
-    RAllTF (ty_var_value -> (RTV tv)) (_, t) _ ->
-      noLoc $ HsForAllTy NoExt (userHsTyVarBndrs noSrcSpan [-- getRdrName tv
-                                   (symbolToRdrNameNs tvName (F.symbol tv))
-                                                           ]) t
+    RImpFF _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
+    RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
+      NoExt
+      (userHsTyVarBndrs noSrcSpan
+                        [-- getRdrName tv
+                         (symbolToRdrNameNs tvName (F.symbol tv))]
+      )
+      t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> nlHsTyConApp
       (getRdrName tc)
@@ -604,20 +707,20 @@ specTypeToLHsType =
 -- we need to do elimination so Pred doesn't contain lambda terms
 eliminateEta :: F.Expr -> F.Expr
 eliminateEta (F.EApp e0 e1) = F.EApp (eliminateEta e0) (eliminateEta e1)
-eliminateEta (F.ENeg e) = F.ENeg (eliminateEta e)
-eliminateEta (F.EBin bop e0 e1) = F.EBin bop (eliminateEta e0) (eliminateEta e1)
-eliminateEta (F.EIte e0 e1 e2) = F.EIte (eliminateEta e0) (eliminateEta e1) (eliminateEta e2)
+eliminateEta (F.ENeg e    ) = F.ENeg (eliminateEta e)
+eliminateEta (F.EBin bop e0 e1) =
+  F.EBin bop (eliminateEta e0) (eliminateEta e1)
+eliminateEta (F.EIte e0 e1 e2) =
+  F.EIte (eliminateEta e0) (eliminateEta e1) (eliminateEta e2)
 eliminateEta (F.ECst e0 s) = F.ECst (eliminateEta e0) s
 eliminateEta (F.ELam (x, t) body)
-  | F.EApp e0 (F.EVar x') <- ebody
-  , x == x' && notElem x (F.syms e0)
-  = e0
-  | otherwise
-  = F.ELam (x, t) ebody
+  | F.EApp e0 (F.EVar x') <- ebody, x == x' && notElem x (F.syms e0) = e0
+  | otherwise = F.ELam (x, t) ebody
   where ebody = eliminateEta body
-eliminateEta (F.PAnd es) = F.PAnd (eliminateEta <$> es)
-eliminateEta (F.POr es) = F.POr (eliminateEta <$> es)
-eliminateEta (F.PNot e) = F.PNot (eliminateEta e)
+eliminateEta (F.PAnd es   ) = F.PAnd (eliminateEta <$> es)
+eliminateEta (F.POr  es   ) = F.POr (eliminateEta <$> es)
+eliminateEta (F.PNot e    ) = F.PNot (eliminateEta e)
 eliminateEta (F.PImp e0 e1) = F.PImp (eliminateEta e0) (eliminateEta e1)
-eliminateEta (F.PAtom brel e0 e1) = F.PAtom brel (eliminateEta e0) (eliminateEta e1)
+eliminateEta (F.PAtom brel e0 e1) =
+  F.PAtom brel (eliminateEta e0) (eliminateEta e1)
 eliminateEta e = e

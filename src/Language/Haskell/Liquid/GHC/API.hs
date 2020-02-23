@@ -3,6 +3,7 @@
 module Language.Haskell.Liquid.GHC.API (module Ghc) where 
 
 import GHC            as Ghc
+import PrelNames      as Ghc (gHC_REAL)
 import ConLike        as Ghc
 import Var            as Ghc
 import Module         as Ghc

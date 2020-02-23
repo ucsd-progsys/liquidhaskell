@@ -137,7 +137,7 @@ ghcSpecEnv sp = fromListSEnv binds
 makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc.Ghc GhcSpec
 -------------------------------------------------------------------------------------
 makeGhcSpec0 cfg src lmap mspecsNoClass = do
-  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg
+  tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let  tyi      = Bare.tcTyConMap   tycEnv
        sigEnv   = makeSigEnv  embs tyi (gsExports src) rtEnv
        lSpec1   = lSpec0 <> makeLiftedSpec1 cfg src tycEnv lmap mySpec1
@@ -145,8 +145,8 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
        specs    = M.insert name mySpec iSpecs2
        measEnv =  makeMeasEnv env tycEnv sigEnv       specs
        sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (giCbs src)
-  auxSig   <- makeClassAuxTypes (fmap fst.elaborateSpecType coreToLg) datacons instMethods
-  elaboratedSig <- elaborateSig sig auxSig
+  auxSig   <- makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
+  elaboratedSig <- elaborateSig sig (F.notracepp "auxSig" auxSig)
   let  myRTE    = myRTEnv       src env sigEnv rtEnv  
        qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
        sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs
@@ -174,6 +174,8 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
     }
   where
     -- build up spec components
+    simplifier :: Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr
+    simplifier = buildSimplifier (giCbs src)
     coreToLg e =
       case CoreToLogic.runToLogic
              embs
@@ -186,9 +188,11 @@ makeGhcSpec0 cfg src lmap mspecsNoClass = do
     
     elaborateSig si auxsig = do
       tySigs <-
-        forM (gsTySigs si) $ \(x, t) -> do
-          t' <- traverse (elaborateSpecType coreToLg) t
-          pure (x, fst <$> t')
+        forM (gsTySigs si) $ \(x, t) -> 
+          if Ghc.nameModule (Ghc.getName x) == Ghc.gHC_REAL then
+            pure (x, t)
+          else do t' <- traverse (elaborateSpecType coreToLg simplifier) t
+                  pure (x, t')
       -- things like len breaks the code
       -- asmSigs <- forM (gsAsmSigs si) $ \(x, t) -> do
       --   t' <- traverse (elaborateSpecType (pure ()) coreToLg) t
@@ -242,7 +246,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     let headlessSig =
           case L.lookup (mkSymbol method) yts of
             Nothing ->
-              impossible Nothing ("makeClassAuxTypesOne : not reachable?" ++ F.showpp (mkSymbol method) ++ " " ++ F.showpp yts)
+              impossible Nothing ("makeClassAuxTypesOne : unreachable?" ++ F.showpp (mkSymbol method) ++ " " ++ F.showpp yts)
             Just sig -> sig
         fullSig =
           mkArrow
@@ -253,7 +257,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
           subst (zip clsTvs isSpecTys) $
           headlessSig
     elaboratedSig  <- elab fullSig
-    let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) elaboratedSig
+    let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
     pure (method, F.dummyLoc retSig)
 
   -- is used as a shorthand for instance, following the convention of the Ghc api
@@ -261,7 +265,7 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     -- (Monoid.mappend -> $cmappend##Int, ...)
     -- core rewriting mark2: do the same thing except they don't have to be symbols
     -- YL: poorly written. use a comprehension instead of assuming 
-    methodsSet = M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
+    methodsSet = F.tracepp "methodSet" $ M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
     -- core rewriting mark1: dfunId
     dfunSym = F.symbol $ Ghc.instanceDFunId inst
     (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
@@ -274,7 +278,8 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
       Ghc.classAllSelIds (Ghc.is_cls inst)
     yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x
-      | Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
+      -- | "$cp" `F.isPrefixOfSym` F.symbol x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
+      | F.notracepp ("isDictonaryId:" ++ GM.showPpr x) $ Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
       | otherwise = F.dropSym 2 $ GM.simplesymbol x
         -- res = dcpTyRes dcp
     clsTvs = dcpFreeTyVars dcp
@@ -319,7 +324,7 @@ compileClasses src env (name, spec) rest = (spec {sigs = sigs'} <> clsSpec, inst
       mempty
         { dataDecls = clsDecls
         , reflects =
-            -- F.tracepp "reflects " $
+            F.notracepp "reflects " $
             S.fromList
               (fmap
                  (fmap GM.dropModuleNames .
@@ -349,16 +354,22 @@ compileClasses src env (name, spec) rest = (spec {sigs = sigs'} <> clsSpec, inst
             Just vs -> Just (sig : vs)
     methods = [GM.namedLocSymbol x | (_, xs) <- instmethods, x <- xs]
         -- instance methods
+
+    mkSymbol x
+      | Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
+      | otherwise = F.dropSym 2 $ GM.simplesymbol x
+    
     instmethods :: [(Ghc.ClsInst, [Ghc.Var])]
     instmethods =
       [ (inst, ms)
-      | (inst, _) <- instClss
+      | (inst, cls) <- instClss
+      , let selIds = GM.dropModuleNames . F.symbol <$> Ghc.classAllSelIds cls
       , (_, e) <-
           Mb.maybeToList
             (GM.findVarDefMethod
                (GM.dropModuleNames . F.symbol $ Ghc.instanceDFunId inst)
                (giCbs src))
-      , let ms = filter GM.isMethod (freeVars mempty e)
+      , let ms = filter (\x -> GM.isMethod x && elem (mkSymbol x) selIds) (freeVars mempty e)
       ]
     instClss :: [(Ghc.ClsInst, Ghc.Class)]
     instClss =
@@ -1058,10 +1069,11 @@ makeTycEnv1 ::
   -> Bare.Env
   -> (Bare.TycEnv, [Located DataConP])
   -> (Ghc.CoreExpr -> F.Expr)
+  -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr)
   -> Ghc.Ghc Bare.TycEnv
-makeTycEnv1 myName env (tycEnv, datacons) coreToLg = do
+makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
   -- fst for selector generation, snd for dataconsig generation
-  lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg)
+  lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)
   let recSelectors = Bare.makeRecordSelectorSigs env myName (dcs ++ (fmap . fmap) snd lclassdcs)
   pure $
     tycEnv {Bare.tcSelVars = recSelectors, Bare.tcDataCons = F.val <$> ((fmap . fmap) fst lclassdcs ++ dcs )}

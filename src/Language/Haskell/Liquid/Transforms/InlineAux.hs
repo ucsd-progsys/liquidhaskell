@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module Language.Haskell.Liquid.Transforms.InlineAux
   ( inlineAux
   )
@@ -25,9 +27,15 @@ import           GhcPlugins                     ( isDFunId
                                                 )
 import qualified Data.HashMap.Strict           as M
 import           CoreSubst
+import           GHC                            ( isDictonaryId )
+import           SimplMonad
+import           Simplify
+import           Control.Monad.State
+
 
 inlineAux :: Module -> CoreProgram -> CoreProgram
-inlineAux m cbs = occurAnalysePgm m (const False) (const False) [] (map f cbs)
+inlineAux m cbs = inlineDFun
+  $ occurAnalysePgm m (const False) (const False) [] (map f cbs)
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
@@ -45,6 +53,17 @@ inlineAux m cbs = occurAnalysePgm m (const False) (const False) [] (map f cbs)
   auxToMethodToAux = mconcat $ fmap (uncurry dfunIdSubst) (grepDFunIds cbs)
 
 
+inlineDFun :: CoreProgram -> CoreProgram
+inlineDFun = flip evalState emptySubst . mapM go
+ where
+  go orig@(NonRec x e)
+    | isDFunId x || isDictonaryId x = do
+      subst <- get
+      let e' = substExpr O.empty subst e
+      modify (\s -> extendIdSubst s x e')
+      pure (NonRec x e')
+    | otherwise = pure orig
+  go recs = pure recs
 
 -- grab the dictionaries
 grepDFunIds :: CoreProgram -> [(DFunId, CoreExpr)]
