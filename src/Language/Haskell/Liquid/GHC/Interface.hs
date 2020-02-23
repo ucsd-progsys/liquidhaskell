@@ -217,9 +217,12 @@ configureDynFlags cfg tmp = do
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
                  , stubDir      = Just tmp
+                 -- , optLevel     = 0
+                 , ufCreationThreshold = 0
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
                    `gopt_set` Opt_DeferTypedHoles
+                   `gopt_set` Opt_SuppressUnfoldings
                    `xopt_set` MagicHash
                    `xopt_set` DeriveGeneric
                    `xopt_set` StandaloneDeriving
@@ -450,7 +453,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
           "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
           execOptions
   void $ execStmt
-          "let {infix 4 ==; _ == _ = undefined}"
+          "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
           execOptions
   void $ execStmt
           "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"

@@ -14,6 +14,7 @@ module Language.Haskell.Liquid.Bare.Elaborate
 where
 
 import qualified Language.Fixpoint.Types       as F
+import Control.Arrow
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import           Language.Haskell.Liquid.Types.Visitors
@@ -27,7 +28,9 @@ import           Control.Monad.Free
 import           Data.Functor.Foldable
 import           Data.Char                      ( isUpper )
 import           GHC
-import           GhcPlugins                     ( isDFunId )
+import           GhcPlugins                     ( isDFunId
+                                                , gopt_set
+                                                )
 import           OccName
 import           FastString
 import           CoreSyn
@@ -49,73 +52,73 @@ import           VarEnv                         ( lookupVarEnv
                                                 , lookupInScope
                                                 )
 import           CoreUtils                      ( mkTick )
+import qualified           Data.HashMap.Strict    as M
 
-lookupIdSubstAll :: O.SDoc -> Subst -> Id -> CoreExpr
-lookupIdSubstAll doc (Subst in_scope ids _ _) v
-  | Just e <- lookupVarEnv ids v        = e
-  | Just v' <- lookupInScope in_scope v = Var v'
+lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
+lookupIdSubstAll doc env v
+  | Just e <- M.lookup v env         = e
   | otherwise                           = Var v
         -- Vital! See Note [Extending the Subst]
   -- | otherwise = WARN( True, text "CoreSubst.lookupIdSubst" <+> doc <+> ppr v
   --                           $$ ppr in_scope)
 
-substExprAll :: O.SDoc -> Subst -> CoreExpr -> CoreExpr
+substExprAll :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
 substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
 
 
-subst_expr_all :: O.SDoc -> Subst -> CoreExpr -> CoreExpr
+subst_expr_all :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
 subst_expr_all doc subst expr = go expr
  where
   go (Var v) = lookupIdSubstAll (doc O.$$ O.text "subst_expr_all") subst v
-  go (Type     ty      ) = Type (substTy subst ty)
-  go (Coercion co      ) = Coercion (substCo subst co)
+  go (Type     ty      ) = Type ty
+  go (Coercion co      ) = Coercion co
   go (Lit      lit     ) = Lit lit
   go (App  fun     arg ) = App (go fun) (go arg)
-  go (Tick tickish e   ) = mkTick (substTickish subst tickish) (go e)
-  go (Cast e       co  ) = Cast (go e) (substCo subst co)
+  go (Tick tickish e   ) = Tick tickish (go e)
+  go (Cast e       co  ) = Cast (go e) co
      -- Do not optimise even identity coercions
      -- Reason: substitution applies to the LHS of RULES, and
      --         if you "optimise" an identity coercion, you may
      --         lose a binder. We optimise the LHS of rules at
      --         construction time
 
-  go (Lam  bndr    body) = Lam bndr' (subst_expr_all doc subst' body)
-    where (subst', bndr') = substBndr subst bndr
+  go (Lam  bndr    body) = Lam bndr (subst_expr_all doc subst body)
 
-  go (Let bind body) = Let bind' (subst_expr_all doc subst' body)
-    where (subst', bind') = substBind subst bind
+  go (Let bind body) = Let (mapBnd go bind) (subst_expr_all doc subst body)
 
   go (Case scrut bndr ty alts) = Case (go scrut)
-                                      bndr'
-                                      (substTy subst ty)
-                                      (map (go_alt subst') alts)
-    where (subst', bndr') = substBndr subst bndr
+                                      bndr
+                                      ty
+                                      (map (go_alt subst) alts)
 
-  go_alt subst (con, bndrs, rhs) = (con, bndrs', subst_expr_all doc subst' rhs)
-    where (subst', bndrs') = substBndrs subst bndrs
+  go_alt subst (con, bndrs, rhs) = (con, bndrs, subst_expr_all doc subst rhs)
 
 
-substLet :: CoreExpr -> CoreExpr
-substLet (Lam b body) = Lam b (substLet body)
-substLet (Let b body)
-  | NonRec x e <- b = substLet
-    (substExprAll O.empty (extendIdSubst emptySubst x e) body)
-  | otherwise = Let b (substLet body)
-substLet e = e
+mapBnd :: (Expr b -> Expr b) -> Bind b -> Bind b
+mapBnd f (NonRec b e) = NonRec b (f e)
+mapBnd f (Rec bs    ) = Rec (map (second f) bs)
+
+-- substLet :: CoreExpr -> CoreExpr
+-- substLet (Lam b body) = Lam b (substLet body)
+-- substLet (Let b body)
+--   | NonRec x e <- b = substLet
+--     (substExprAll O.empty (extendIdSubst emptySubst x e) body)
+--   | otherwise = Let b (substLet body)
+-- substLet e = e
 
 
-buildDictSubst :: CoreProgram -> Subst
+buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
 buildDictSubst = cata f
  where
-  f Nil = emptySubst
+  f Nil = M.empty
   f (Cons b s)
-    | NonRec x e <- b, isDFunId x || isDictonaryId x = extendIdSubst s x e
+    | NonRec x e <- b, isDFunId x || isDictonaryId x = M.insert x e s
     | otherwise = s
 
 buildSimplifier :: CoreProgram -> CoreExpr -> Ghc CoreExpr
 buildSimplifier cbs e = do
   df <- getDynFlags
-  liftIO $ simplifyExpr df e'
+  liftIO $ simplifyExpr (df `gopt_set` Opt_SuppressUnfoldings) e'
  where
   -- fvs = fmap (\x -> (x, getUnique x, isLocalId x))  (freeVars mempty e)
   dictSubst = buildDictSubst cbs
@@ -520,29 +523,24 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                  (GM.showSDoc $ O.hcat (pprErrMsgBagWithLoc (snd msgs)))
             )
           Just eeWithLamsCore -> do
-            let (_, bs, ee) = GM.notracePpr "collectTyAndValBinders"
-                  $ collectTyAndValBinders (substLet eeWithLamsCore)
-            ee' <- simplify ee
+            eeWithLamsCore' <- simplify eeWithLamsCore
             let
-              eeFix = coreToLogic (GM.notracePpr "eeWithLamsCore" ee')
-              -- (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
+              eeWithLams =
+                coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore')
+              (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
               (dictbs, nondictbs) =
-                L.partition (F.isPrefixOfSym (F.symbol "$d")) (fmap F.symbol bs)
+                L.partition (F.isPrefixOfSym (F.symbol "$d")) bs'
           -- invariant: length nondictbs == length origBinders
               subst = if length nondictbs == length origBinders
-                then F.notracepp "SUBST" $ zip nondictbs origBinders
+                then F.notracepp "SUBST" $ zip (L.reverse nondictbs) origBinders
                 else panic
                   Nothing
-                  (  "Oops, Ghc gave back more/less binders than I expected:"
-                  ++ F.showpp nondictbs
-                  ++ "  "
-                  ++ F.showpp dictbs
-                  )
+                  "Oops, Ghc gave back more/less binders than I expected"
             ret <- nonTrivialCont
-              (L.reverse dictbs)
+              dictbs
               (F.notracepp "nonTrivialContEE" . eliminateEta $ F.substa
                 (\x -> Mb.fromMaybe x (L.lookup x subst))
-                eeFix
+                ee
               )  -- (GM.dropModuleUnique <$> bs')
             pure (F.notracepp "result" ret)
                            -- (F.substa )
