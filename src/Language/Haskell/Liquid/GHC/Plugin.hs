@@ -149,10 +149,10 @@ configureDynFlags cfg df =
   pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
             , libraryPaths = nub $ idirs cfg ++ libraryPaths df
             , includePaths = updateIncludePaths df (idirs cfg)
-            , packageFlags = ExposePackage ""
-                                           (PackageArg "ghc-prim")
-                                           (ModRenaming True [])
-                           : (packageFlags df)
+            --, packageFlags = ExposePackage ""
+            --                               (PackageArg "ghc-prim")
+            --                               (ModRenaming True [])
+            --               : (packageFlags df)
 
             } `gopt_set` Opt_ImplicitImportQualified
               `gopt_set` Opt_PIC
@@ -418,8 +418,9 @@ processModule LiquidHaskellContext{..} = do
     case res of
       CompanionSpecFound _ _ cachedSpec -> do
         debugLog $ "Companion spec found for " ++ debugShowModule thisModule
+        debugLog $ show cachedSpec
         let (_, spec) = fromCached cachedSpec 
-        pure $ LH.updLiftedSpec commSpec (Just spec)
+        pure $ LH.updLiftedSpec commSpec (Just (LH.noTerm spec))
       _ -> pure commSpec
 
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
@@ -447,7 +448,7 @@ processModule LiquidHaskellContext{..} = do
 
   let result = ProcessModuleResult {
         pmrNewSpecEnv = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) envWithExtraSpecs
-      , pmrClientSpec = LH.updLiftedSpec (LH.noTerm clientSpec) (Just bareSpec)
+      , pmrClientSpec = LH.updLiftedSpec bareSpec (Just (LH.noTerm clientSpec))
       , pmrGhcInfo    = ghcInfo
       }
 
