@@ -163,11 +163,25 @@ filterScrut = do
   em <- getSEMem
   let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
       es1 = filter (not . trivial . fst3 . fst) es0
-      es2 = filter (noPairLike . fst) es1
-      es3 = sortOn snd es2
+      es42 = filter (appOnly . fst3 .fst) es1
+
+      -- es' = filter (noLet . fst3 . fst) es1
+      -- es2 = filter (noPairLike . fst) es'
+      -- es3 = sortOn snd es2
+      es3 = sortOn snd es42
       es4 = map fst es3
-      es5 = filter (not . isClassTyCon . thd3) es4
-  return (filter (isVar . fst3) es5)
+      -- es5 = filter (not . isClassTyCon . thd3) es4
+  return es4 -- (filter (isVar . fst3) es1)
+
+appOnly :: GHC.CoreExpr -> Bool
+appOnly (GHC.Var{}) = True
+appOnly (GHC.Type{}) = True
+appOnly (GHC.App e1 e2) = appOnly e1 && appOnly e2
+appOnly _ = False 
+
+noLet :: GHC.CoreExpr -> Bool
+noLet (GHC.Let{}) = False
+noLet _ = True
 
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
 noPairLike (e, t, c) = 
@@ -186,6 +200,7 @@ outer (GHC.Var v)
   = v
 outer (GHC.App e1 e2)
   = outer e1
+outer e = error (" [ outer ] " ++ show e)
 
 isVar :: GHC.CoreExpr -> Bool
 isVar (GHC.Var _) = True

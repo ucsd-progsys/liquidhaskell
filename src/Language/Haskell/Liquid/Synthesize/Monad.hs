@@ -78,11 +78,11 @@ data SState
            , sFix       :: !Var
            , sGoalTyVar :: !(Maybe [TyVar])
            , sUGoalTy   :: !(Maybe [Type])     -- ^ Types used for instantiation.
-                                            --   Produced by @withUnify@.
+                                               --   Produced by @withUnify@.
            , sForalls   :: !([Var], [[Type]])  -- ^ [Var] are the parametric functions (except for the fixpoint)
-                                              --    e.g. Constructors, top-level functions.
-                                              -- ^ [[Type]]: all the types that have instantiated [Var] so far.
-           , caseIdx    :: !Int              -- [ Temporary ] Index in list of scrutinees.
+                                               --    e.g. Constructors, top-level functions.
+                                               -- ^ [[Type]]: all the types that have instantiated [Var] so far.
+           , caseIdx    :: !Int                -- [ Temporary ] Index in list of scrutinees.
            }
 type SM = StateT SState IO
 

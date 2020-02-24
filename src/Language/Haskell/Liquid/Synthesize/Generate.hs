@@ -72,6 +72,41 @@ withDepthFill i s t depth tmp = do
         else return []
     else return []
 
+argsFill :: ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
+argsFill _  [ ]                es
+  = return es
+argsFill em (c@(t, e, d) : cs) es
+  = case subgoals t of
+      Nothing             -> return []
+      Just (resTy, subGs) ->
+        do  s <- get
+            let argCands = map (withSubgoal em) subGs
+                changeMode   = foldr (\l b -> null l || b) False argCands
+            es1 <- prune (sDepth s) c argCands
+            let em1 = map (resTy, , sDepth s + 1) es1
+            modify (\s -> s { sExprMem = em1 ++ sExprMem s})
+            argsFill em cs (es1 ++ es)
+
+withDepthArgsFill :: SpecType -> Depth -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
+withDepthArgsFill t depth functions es0
+  = do  em <- sExprMem <$> get
+        es <- argsFill em functions []
+        if depth < maxArgsDepth
+          then withDepthArgsFill t (depth + 1) functions (es ++ es0)
+          else return es0
+        
+
+maxArgsDepth :: Int
+maxArgsDepth = 1
+
+prepareArg :: String -> SpecType -> SM [CoreExpr] -- [(Type, CoreExpr, Int)]
+prepareArg s t 
+  = do  fixEMem t
+        fnTys <- functionCands (toType t)
+        es0 <- withTypeEs s t -- Already in expression memory
+        es1 <- withDepthArgsFill t 0 fnTys []
+        return (es0 ++ es1)
+
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
 fill _ _ _     _       []                 accExprs 
   = return accExprs
@@ -92,9 +127,21 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
                                       argCands1 = if allTrivial (map (map fst) argCands2) 
                                                     then map rmTrivials argCands2
                                                     else argCands2
-                                  prune curAppDepth c argCands1
+                                  es <- prune curAppDepth c argCands1
+                                  es0 <- structuralCheck es 
+                                  argTypes <- liftCG $ mapM trueTy subGs
+                                  newCands' <- mapM (prepareArg "") argTypes
+                                  let newCands = map (map (, curAppDepth + 1)) newCands'
+                                  es1 <- prune curAppDepth c newCands
+                                  trace ( " For c = " ++ show e ++ " t =  " ++ showTy t  ++ " Expressions " ++ show (map showTy subGs) ) (return (es0 ++ es1))
                           else do curAppDepth <- sAppDepth <$> get 
-                                  prune curAppDepth c argCands
+                                  es <- prune curAppDepth c argCands
+                                  es0 <- structuralCheck es
+                                  argTypes <- liftCG $ mapM trueTy subGs
+                                  newCands' <- mapM (prepareArg "") argTypes
+                                  let newCands = map (map (, curAppDepth + 1)) newCands'
+                                  es1 <- prune curAppDepth c newCands
+                                  trace ( " For c = " ++ show e ++ " t =  " ++ showTy t  ++ " Expressions " ++ show (map showTy subGs) ) (return (es0 ++ es1))
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
             modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             em <- sExprMem <$> get
@@ -215,7 +262,7 @@ applyTerms es0 (c:cs) (t:ts)
   = do  es1 <- applyTerm es0 c t
         applyTerms es1 cs ts
 applyTerms es cs ts 
-  = error $ "[ applyTerms ] Wildcard. " 
+  = error "[ applyTerms ] Wildcard. " 
 
 --------------------------------------------------------------------------------------------
 
