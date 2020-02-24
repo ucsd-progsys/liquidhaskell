@@ -51,9 +51,14 @@ genTerms' i s specTy =
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
       err <- checkError specTy 
+
+      decr <- ssDecrTerm <$> get 
+      fix <- sFix <$> get
+      let es0 = filter (\x -> notStructural decr fix x) es
+
       case err of 
         Nothing ->
-          filterElseM (hasType " genTerms " True specTy) es $ 
+          filterElseM (hasType " genTerms " True specTy) es0 $ 
             withDepthFill i s specTy 0 fnTys
         Just e -> return [e]
 
