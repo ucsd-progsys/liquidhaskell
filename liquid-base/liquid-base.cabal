@@ -30,10 +30,10 @@ library
                     GHC.Word
                     --GHC.Real
 
-                    --GHC.Num
-                    --Data.Foldable
-                    --GHC.Base
-                    --GHC.List
+                    GHC.Num
+                    Data.Foldable
+                    GHC.Base
+                    GHC.List
                     --Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5

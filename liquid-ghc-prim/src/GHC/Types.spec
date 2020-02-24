@@ -6,8 +6,8 @@ import GHC.Prim
 embed GHC.Types.Double  as real
 embed GHC.Types.Float   as real
 embed GHC.Types.Word    as int 
-embed GHC.Types.Int     as int
-embed GHC.Types.Bool    as bool
+//embed GHC.Types.Int     as int
+//embed GHC.Types.Bool    as bool
 embed GHC.Types.Char    as Char
 
 // TODO: Drop prefix below
