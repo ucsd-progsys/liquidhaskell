@@ -558,7 +558,7 @@ extraOptions dir test = mappend (dirOpts dir) (testOpts test)
         , "-iinclude"
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "--no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include -i../../include"
+        , "--bscope --no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include -i../../include"
         )
       , ( "benchmarks/vector-0.10.0.1"
         , "-i."

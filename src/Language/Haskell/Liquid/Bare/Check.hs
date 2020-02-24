@@ -107,15 +107,15 @@ checkGhcSpec :: [(ModName, Ms.BareSpec)]
 
 checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
-    errors           =  mapMaybe (checkBind allowHO "measure"      emb tcEnv env) (gsMeas       (gsData sp))
+    errors           =  mapMaybe (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune 
-                        (mapMaybe (checkBind allowHO "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
-                     ++ mapMaybe (checkBind allowHO "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     ++ checkTySigs         allowHO cbs            emb tcEnv env                (gsSig sp)
+                        (mapMaybe (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
+                     ++ mapMaybe (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
+                     ++ checkTySigs         allowHO bsc cbs            emb tcEnv env                (gsSig sp)
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
-                     ++ mapMaybe (checkBind allowHO "class method" emb tcEnv env) (clsSigs      (gsSig sp))
-                     ++ mapMaybe (checkInv allowHO emb tcEnv env)                 (gsInvariants (gsData sp))
-                     ++ checkIAl allowHO emb tcEnv env                            (gsIaliases   (gsData sp))
+                     ++ mapMaybe (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
+                     ++ mapMaybe (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
+                     ++ checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData sp))
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
                      ++ checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
@@ -144,6 +144,7 @@ checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
     allowHO          = higherOrderFlag sp
+    bsc              = bscope (getConfig sp)
     noPrune          = not (pruneFlag sp)
     txCtors ts       = [(v, fmap (fmap (fmap (F.filterUnMatched temps))) t) | (v, t) <- ts]
     temps            = F.makeTemplates $ gsUnsorted $ gsData sp
@@ -161,17 +162,17 @@ checkPlugged xs = mkErr <$> filter (hasHoleTy . val . snd) xs
 
 
 --------------------------------------------------------------------------------
-checkTySigs :: Bool -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
+checkTySigs :: Bool -> BScope -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
             -> GhcSpecSig
             -> [Error]
 --------------------------------------------------------------------------------
-checkTySigs allowHO cbs emb tcEnv env sig
+checkTySigs allowHO bsc cbs emb tcEnv env sig
                    = concatMap (check env) topTs
                    -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
                    -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
                    ++ coreVisitor checkVisitor env [] cbs 
   where 
-    check env      = checkSigTExpr allowHO emb tcEnv env
+    check env      = checkSigTExpr allowHO bsc emb tcEnv env
     locTm          = M.fromList locTs
     (locTs, topTs) = Bare.partitionLocalBinds vtes 
     vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
@@ -188,13 +189,13 @@ checkTySigs allowHO cbs emb tcEnv env sig
                          Nothing -> [] 
                          Just t  -> check env (v, t) 
 
-checkSigTExpr :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
+checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
               -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
               -> [Error]
-checkSigTExpr allowHO emb tcEnv env (x, (t, es)) 
+checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) 
            = catMaybes [mbErr1, mbErr2] 
    where 
-    mbErr1 = checkBind allowHO empty emb tcEnv env (x, t) 
+    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t) 
     mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
 
 _checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
@@ -255,23 +256,24 @@ _firstDuplicate = go . L.sort
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
-checkInv :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (Maybe Var, LocSpecType) -> Maybe Error
-checkInv allowHO emb tcEnv env (_, t) = checkTy allowHO err emb tcEnv env t
+checkInv :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (Maybe Var, LocSpecType) -> Maybe Error
+checkInv allowHO bsc emb tcEnv env (_, t) = checkTy allowHO bsc err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
 
-checkIAl :: Bool -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> [(LocSpecType, LocSpecType)] -> [Error]
-checkIAl allowHO emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO emb tcEnv env) ials
+checkIAl :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> [(LocSpecType, LocSpecType)] -> [Error]
+checkIAl allowHO bsc emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO bsc emb tcEnv env) ials
 
 checkIAlOne :: Bool
+            -> BScope
             -> F.TCEmb TyCon
             -> Bare.TyConMap
             -> F.SEnv F.SortedReft
             -> (LocSpecType, LocSpecType)
             -> [Maybe (TError SpecType)]
-checkIAlOne allowHO emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
+checkIAlOne allowHO bsc emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
   where
-    tcheck t = checkTy allowHO (err t) emb tcEnv env t
+    tcheck t = checkTy allowHO bsc (err t) emb tcEnv env t
     err    t = ErrIAl (GM.sourcePosSrcSpan $ loc t) (val t)
     t1'      :: RSort
     t1'      = toRSort $ val t1
@@ -288,8 +290,8 @@ checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
 
-checkBind :: (PPrint v) => Bool -> Doc -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
-checkBind allowHO s emb tcEnv env (v, t) = checkTy allowHO msg emb tcEnv env t
+checkBind :: (PPrint v) => Bool -> BScope -> Doc -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
+checkBind allowHO bsc s emb tcEnv env (v, t) = checkTy allowHO bsc msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
 
@@ -315,8 +317,8 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     rSort   = rTypeSortedReft emb
     cmpZero e = F.PAtom F.Le (F.expr (0 :: Int)) (val e)
 
-checkTy :: Bool -> (Doc -> Error) -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Error
-checkTy allowHO mkE emb tcEnv env t = mkE <$> checkRType allowHO emb env (Bare.txRefSort tcEnv emb t)
+checkTy :: Bool -> BScope -> (Doc -> Error) -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Error
+checkTy allowHO bsc mkE emb tcEnv env t = mkE <$> checkRType allowHO bsc emb env (Bare.txRefSort tcEnv emb t)
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 
@@ -384,12 +386,12 @@ errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothin
 ------------------------------------------------------------------------------------------------
 -- | @checkRType@ determines if a type is malformed in a given environment ---------------------
 ------------------------------------------------------------------------------------------------
-checkRType :: Bool -> F.TCEmb TyCon -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Doc
+checkRType :: Bool -> BScope -> F.TCEmb TyCon -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Doc
 ------------------------------------------------------------------------------------------------
-checkRType allowHO emb env lt
+checkRType allowHO bsc emb env lt
   =   checkAppTys t
   <|> checkAbstractRefs t
-  <|> efoldReft farg cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
+  <|> efoldReft farg bsc cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
     t                  = val lt
     cb c ts            = classBinds emb (rRCls c ts)

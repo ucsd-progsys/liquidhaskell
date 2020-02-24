@@ -2,6 +2,7 @@
 -- TAG: measure
 
 module Foo () where
+{-@ LIQUID "--bscope" @-}
 
 {-@ measure getfst :: (a, b) -> a
     getfst (x, y) = x
