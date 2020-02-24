@@ -7,7 +7,9 @@ module Language.Haskell.Liquid.Transforms.InlineAux
 where
 
 import           CoreSyn
+import DynFlags
 import qualified Outputable                    as O
+import           MkCore
 import           Control.Arrow                  ( second )
 import           OccurAnal                      ( occurAnalysePgm )
 import qualified Language.Haskell.Liquid.GHC.Misc
@@ -18,6 +20,7 @@ import           CoreFVs                        ( exprFreeVarsList )
 import           InstEnv
 import           TcType                         ( tcSplitDFunTy )
 import           GhcPlugins                     ( isDFunId
+                                                , exprType
                                                 , OccName
                                                 , Module
                                                 , occNameString
@@ -29,21 +32,21 @@ import qualified Data.HashMap.Strict           as M
 import           CoreSubst
 import           GHC                            ( isDictonaryId )
 import           SimplMonad
-import           Simplify
+import           SimplCore
 import           Control.Monad.State
-import Data.Functor.Foldable
+import           Data.Functor.Foldable
 
 buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
 buildDictSubst = cata f
  where
   f Nil = M.empty
-  f (Cons b s)
-    | NonRec x e <- b, isDFunId x || isDictonaryId x = M.insert x e s
-    | otherwise = s
+  f (Cons b s) | NonRec x e <- b, isDFunId x || isDictonaryId x = M.insert x e s
+               | otherwise = s
 
 
 inlineAux :: Module -> CoreProgram -> CoreProgram
-inlineAux m cbs = inlineDFun $  
+inlineAux m cbs = -- inlineDFun
+  -- $ 
   occurAnalysePgm m (const False) (const False) [] (map f cbs)
  where
   f :: CoreBind -> CoreBind
@@ -62,15 +65,22 @@ inlineAux m cbs = inlineDFun $
   auxToMethodToAux = mconcat $ fmap (uncurry dfunIdSubst) (grepDFunIds cbs)
 
 
-inlineDFun :: CoreProgram -> CoreProgram
-inlineDFun cbs = map go cbs
- where
-  go orig@(NonRec x e)
-    | isDFunId x = NonRec x (-- substExprAll O.empty subst $ 
-                             substExprAll O.empty subst e)
-    | otherwise = orig
-  go recs = recs
-  subst = buildDictSubst cbs
+inlineDFun :: DynFlags -> CoreProgram -> IO CoreProgram
+inlineDFun df cbs = pure cbs-- mapM go cbs
+ -- where
+ --  go orig@(NonRec x e) | isDFunId x = do
+ --                           -- e''' <- simplifyExpr df e''
+ --                           let newBody = mkCoreApps (GM.tracePpr ("substituted type:" ++ GM.showPpr (exprType (mkCoreApps e' binders))) e') (fmap Var binders)
+ --                               bind = NonRec (mkWildValBinder (exprType newBody)) newBody
+ --                           pure $ NonRec x (mkLet bind e)
+ --                       | otherwise  = pure orig
+ --   where
+ --    -- wcBinder = mkWildValBinder t
+ --    (binders, _) = GM.tracePpr "collectBinders"$ collectBinders e
+ --    e' = substExprAll O.empty subst e
+ --  go recs = pure recs
+ --  subst = buildDictSubst cbs
+
 
 
 lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr

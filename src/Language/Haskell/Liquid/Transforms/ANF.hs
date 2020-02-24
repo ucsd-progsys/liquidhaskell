@@ -59,7 +59,9 @@ import SimplCore
 anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
-  rwr_simpl_cbs <- mg_binds <$> core2core hscEnv modGuts {mg_binds = rwr_cbs}
+  let df = hsc_dflags hscEnv
+      rwr_simpl_cbs = rwr_cbs
+  -- rwr_simpl_cbs <- inlineDFun df rwr_cbs
 
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
