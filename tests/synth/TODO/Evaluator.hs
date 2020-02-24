@@ -67,11 +67,9 @@ resultP :: PAST -> Int
 resultP (IntNode x)
     = x
 resultP (OpNode op l r)
-    = if op == 0
-        then resultP l + resultP r
-        else if op == 1 
-                then resultP l - resultP r
-                else resultP l * resultP r
+    | op == 0   = resultP l + resultP r
+    | op == 1   = resultP l - resultP r
+    | otherwise = resultP l * resultP r
 
 {-@ transform :: x: AST -> { v: PAST | resultP v == result x } @-}
 transform :: AST -> PAST

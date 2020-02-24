@@ -2,9 +2,7 @@
 
 module User where
 
-{-@ err :: { v: Int | false } -> a @-}
-err :: Int -> a
-err s = undefined
+import Language.Haskell.Liquid.Synthesize.Error
 
 {-@ measure length' @-}
 {-@ length' :: [a] -> Nat @-}
