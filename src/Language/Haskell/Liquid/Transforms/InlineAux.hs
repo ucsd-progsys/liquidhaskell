@@ -2,12 +2,12 @@
 
 module Language.Haskell.Liquid.Transforms.InlineAux
   ( inlineAux
+  , inlineDFun
   )
 where
 
 import           CoreSyn
 import qualified Outputable                    as O
-                                                ( empty )
 import           Control.Arrow                  ( second )
 import           OccurAnal                      ( occurAnalysePgm )
 import qualified Language.Haskell.Liquid.GHC.Misc
@@ -31,11 +31,20 @@ import           GHC                            ( isDictonaryId )
 import           SimplMonad
 import           Simplify
 import           Control.Monad.State
+import Data.Functor.Foldable
+
+buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
+buildDictSubst = cata f
+ where
+  f Nil = M.empty
+  f (Cons b s)
+    | NonRec x e <- b, isDFunId x || isDictonaryId x = M.insert x e s
+    | otherwise = s
 
 
 inlineAux :: Module -> CoreProgram -> CoreProgram
-inlineAux m cbs = inlineDFun
-  $ occurAnalysePgm m (const False) (const False) [] (map f cbs)
+inlineAux m cbs = inlineDFun $  
+  occurAnalysePgm m (const False) (const False) [] (map f cbs)
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
@@ -54,16 +63,53 @@ inlineAux m cbs = inlineDFun
 
 
 inlineDFun :: CoreProgram -> CoreProgram
-inlineDFun = flip evalState emptySubst . mapM go
+inlineDFun cbs = map go cbs
  where
   go orig@(NonRec x e)
-    | isDFunId x || isDictonaryId x = do
-      subst <- get
-      let e' = substExpr O.empty subst e
-      modify (\s -> extendIdSubst s x e')
-      pure (NonRec x e')
-    | otherwise = pure orig
-  go recs = pure recs
+    | isDFunId x = NonRec x (-- substExprAll O.empty subst $ 
+                             substExprAll O.empty subst e)
+    | otherwise = orig
+  go recs = recs
+  subst = buildDictSubst cbs
+
+
+lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
+lookupIdSubstAll doc env v | Just e <- M.lookup v env = e
+                           | otherwise                = Var v
+        -- Vital! See Note [Extending the Subst]
+  -- | otherwise = WARN( True, text "CoreSubst.lookupIdSubst" <+> doc <+> ppr v
+  --                           $$ ppr in_scope)
+
+substExprAll :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
+substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
+
+
+subst_expr_all :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
+subst_expr_all doc subst expr = go expr
+ where
+  go (Var v) = lookupIdSubstAll (doc O.$$ O.text "subst_expr_all") subst v
+  go (Type     ty      ) = Type ty
+  go (Coercion co      ) = Coercion co
+  go (Lit      lit     ) = Lit lit
+  go (App  fun     arg ) = App (go fun) (go arg)
+  go (Tick tickish e   ) = Tick tickish (go e)
+  go (Cast e       co  ) = Cast (go e) co
+     -- Do not optimise even identity coercions
+     -- Reason: substitution applies to the LHS of RULES, and
+     --         if you "optimise" an identity coercion, you may
+     --         lose a binder. We optimise the LHS of rules at
+     --         construction time
+
+  go (Lam  bndr    body) = Lam bndr (subst_expr_all doc subst body)
+
+  go (Let  bind    body) = Let (mapBnd go bind) (subst_expr_all doc subst body)
+
+  go (Case scrut bndr ty alts) =
+    Case (go scrut) bndr ty (map (go_alt subst) alts)
+
+  go_alt subst (con, bndrs, rhs) = (con, bndrs, subst_expr_all doc subst rhs)
+
+
 
 -- grab the dictionaries
 grepDFunIds :: CoreProgram -> [(DFunId, CoreExpr)]

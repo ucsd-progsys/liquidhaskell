@@ -112,17 +112,18 @@ buildDictSubst = cata f
  where
   f Nil = M.empty
   f (Cons b s)
-    | NonRec x e <- b, isDFunId x || isDictonaryId x = M.insert x e s
+    | NonRec x e <- b, isDFunId x -- || isDictonaryId x
+    = M.insert x e s
     | otherwise = s
 
 buildSimplifier :: CoreProgram -> CoreExpr -> Ghc CoreExpr
-buildSimplifier cbs e = do
-  df <- getDynFlags
-  liftIO $ simplifyExpr (df `gopt_set` Opt_SuppressUnfoldings) e'
- where
-  -- fvs = fmap (\x -> (x, getUnique x, isLocalId x))  (freeVars mempty e)
-  dictSubst = buildDictSubst cbs
-  e'        = substExprAll O.empty dictSubst e
+buildSimplifier cbs e = pure e-- do
+ --  df <- getDynFlags
+ --  liftIO $ simplifyExpr (df `gopt_set` Opt_SuppressUnfoldings) e'
+ -- where
+ --  -- fvs = fmap (\x -> (x, getUnique x, isLocalId x))  (freeVars mempty e)
+ --  dictSubst = buildDictSubst cbs
+ --  e'        = substExprAll O.empty dictSubst e
 
 
 -- | Base functor of RType
