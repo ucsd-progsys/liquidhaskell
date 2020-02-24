@@ -28,13 +28,12 @@ library
                     Data.Tuple
                     GHC.Int
                     GHC.Word
-                    --GHC.Real
-
+                    GHC.Real
                     GHC.Num
                     Data.Foldable
                     GHC.Base
                     GHC.List
-                    --Prelude
+                    Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , liquid-ghc-prim

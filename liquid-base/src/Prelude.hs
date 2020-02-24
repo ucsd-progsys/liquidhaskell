@@ -14,4 +14,4 @@ import qualified GHC.Prim
 import qualified GHC.Classes
 import qualified GHC.Types
 
-import qualified "base" Prelude as Exports
+import "base" Prelude as Exports
