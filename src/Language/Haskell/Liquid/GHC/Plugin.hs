@@ -447,7 +447,7 @@ processModule LiquidHaskellContext{..} = do
 
   let result = ProcessModuleResult {
         pmrNewSpecEnv = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) envWithExtraSpecs
-      , pmrClientSpec = clientSpec
+      , pmrClientSpec = LH.updLiftedSpec (LH.noTerm clientSpec) (Just bareSpec)
       , pmrGhcInfo    = ghcInfo
       }
 
