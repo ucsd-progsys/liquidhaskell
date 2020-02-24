@@ -33,7 +33,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types hiding (SVar)
 
 hasType :: String -> Bool -> SpecType -> CoreExpr -> SM Bool
-hasType s b t !e' = do 
+hasType s b t !e' = trace (" [ Check ] " ++ show e') $ do 
   x  <- freshVar t 
   st <- get 
   let tpOfE = exprType e'
@@ -41,7 +41,7 @@ hasType s b t !e' = do
   if tpOfE == ht
     then do
       r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      -- liftIO $ putStrLn ("From " ++ s ++ (if b then " Checked:  " else " Well-Typed: ") ++ "Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+      liftIO $ putStrLn ("From " ++ s ++ (if b then " Checked:  " else " Well-Typed: ") ++ "Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
       return r
     else error $ " [ hasType " ++ s ++ " ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 

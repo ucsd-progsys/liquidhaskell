@@ -182,13 +182,16 @@ caseVarsE (GHC.Case eb b _ alts) = foldr (\(_, vars, e) res -> caseVarsE e ++ re
 caseVarsE (GHC.Tick _ e) = caseVarsE e 
 caseVarsE e = [] 
 
+instance Default Var where
+  def = alphaTyVar
+
 symbolToVar :: GHC.CoreProgram -> Var -> M.HashMap Symbol SpecType -> SSEnv
 symbolToVar cp tlBndr renv = 
   let vars = [(F.symbol x, x) | x <- varsP cp tlBndr varsE]
       casevars = [F.symbol x | x <- varsP cp tlBndr caseVarsE]
       tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]
       lookupErrorMsg x = " [ symbolToVar ] impossible lookup for x = " ++ show x
-      symbolVar x = fromMaybe (fromMaybe (error (lookupErrorMsg x)) $ lookup x tlVars) $ lookup x vars
+      symbolVar x = fromMaybe (fromMaybe (def {-error (lookupErrorMsg x)-}) $ lookup x tlVars) $ lookup x vars
       renv' = foldr (\s hm -> M.delete s hm) renv casevars
   in  M.fromList [ (s, (t, symbolVar s)) | (s, t) <- M.toList renv']
 

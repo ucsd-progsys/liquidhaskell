@@ -33,6 +33,10 @@ tpToCons (RFun sym rt0 rt1 reft)
   = tpToCons rt0 ++ tpToCons rt1
 tpToCons (RVar v r) 
   = []
+tpToCons (RAllP _ t)
+  = tpToCons t
+tpToCons (RRTy _ _ _ t)
+  = tpToCons t
 tpToCons rt 
   = []
 

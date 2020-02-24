@@ -40,7 +40,7 @@ import qualified Data.Text as T
 import           Data.Maybe
 import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.Synthesis
+
 import           Data.List 
 import qualified Data.Map as Map 
 import           Data.List.Extra
@@ -66,26 +66,26 @@ type SSDecrTerm = [(Var, [Var])]
 type ExprMemory = [(Type, CoreExpr, Int)]
 type T = M.HashMap Type (CoreExpr, Int)
 data SState 
-  = SState { rEnv       :: REnv 
-           , ssEnv      :: SSEnv -- Local Binders Generated during Synthesis 
-           , ssIdx      :: Int
-           , ssDecrTerm :: SSDecrTerm 
-           , sContext   :: SMT.Context
-           , sCGI       :: CGInfo
-           , sCGEnv     :: CGEnv
-           , sFCfg      :: F.Config
-           , sDepth     :: Int
-           , sExprMem   :: ExprMemory 
-           , sAppDepth  :: Int
-           , sUniVars   :: [Var]
-           , sFix       :: Var
-           , sGoalTyVar :: Maybe [TyVar]
-           , sUGoalTy   :: Maybe [Type]     -- ^ Types used for instantiation.
+  = SState { rEnv       :: !REnv 
+           , ssEnv      :: !SSEnv -- Local Binders Generated during Synthesis 
+           , ssIdx      :: !Int
+           , ssDecrTerm :: !SSDecrTerm 
+           , sContext   :: !SMT.Context
+           , sCGI       :: !CGInfo
+           , sCGEnv     :: !CGEnv
+           , sFCfg      :: !F.Config
+           , sDepth     :: !Int
+           , sExprMem   :: !ExprMemory 
+           , sAppDepth  :: !Int
+           , sUniVars   :: ![Var]
+           , sFix       :: !Var
+           , sGoalTyVar :: !(Maybe [TyVar])
+           , sUGoalTy   :: !(Maybe [Type])     -- ^ Types used for instantiation.
                                             --   Produced by @withUnify@.
-           , sForalls   :: ([Var], [[Type]])  -- ^ [Var] are the parametric functions (except for the fixpoint)
+           , sForalls   :: !([Var], [[Type]])  -- ^ [Var] are the parametric functions (except for the fixpoint)
                                               --    e.g. Constructors, top-level functions.
                                               -- ^ [[Type]]: all the types that have instantiated [Var] so far.
-           , caseIdx    :: Int              -- [ Temporary ] Index in list of scrutinees.
+           , caseIdx    :: !Int              -- [ Temporary ] Index in list of scrutinees.
            }
 type SM = StateT SState IO
 
