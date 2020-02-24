@@ -120,7 +120,6 @@ library
                       Language.Haskell.Liquid.Parse
                       Language.Haskell.Liquid.Prelude
                       Language.Haskell.Liquid.ProofCombinators
-                      Language.Haskell.Liquid.Synthesis
                       Language.Haskell.Liquid.Synthesize.GHC
                       Language.Haskell.Liquid.Synthesize.Termination
                       Language.Haskell.Liquid.Synthesize.Monad
