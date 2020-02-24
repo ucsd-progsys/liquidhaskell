@@ -1,0 +1,34 @@
+name:               liquid-ghc-prim
+version:            0.8.6.0
+synopsis:           Drop-in ghc-prim replacement for LiquidHaskell
+description:        Drop-in ghc-prim replacement for LiquidHaskell.
+license:            BSD3
+license-file:       LICENSE
+copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+author:             Ranjit Jhala, Niki Vazou, Eric Seidel
+maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
+category:           Language
+homepage:           https://github.com/ucsd-progsys/liquidhaskell
+build-type:         Simple
+cabal-version:      >= 1.22
+
+data-files:         src/GHC/Types.spec
+                    src/GHC/CString.spec
+                    src/GHC/Classes.spec
+                    src/GHC/Prim.spec
+
+library
+  exposed-modules:  GHC.Prim
+                    GHC.Types
+                    GHC.CString
+                    GHC.Classes
+
+  hs-source-dirs:     src
+  build-depends:      ghc-prim
+                    , liquidhaskell        >= 0.8.6.0
+  default-language:   Haskell98
+  default-extensions: PackageImports
+                      NoImplicitPrelude
+                      MagicHash
+  if impl(ghc >= 8.10)
+    ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin

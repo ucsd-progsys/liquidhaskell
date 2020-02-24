@@ -149,6 +149,11 @@ configureDynFlags cfg df =
   pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
             , libraryPaths = nub $ idirs cfg ++ libraryPaths df
             , includePaths = updateIncludePaths df (idirs cfg)
+            , packageFlags = ExposePackage ""
+                                           (PackageArg "ghc-prim")
+                                           (ModRenaming True [])
+                           : (packageFlags df)
+
             } `gopt_set` Opt_ImplicitImportQualified
               `gopt_set` Opt_PIC
               `gopt_set` Opt_DeferTypedHoles
@@ -277,7 +282,8 @@ liquidHaskellPass cfg modGuts = do
     Just tcData -> do
       specEnv  <- liftIO $ readIORef specEnvRef
 
-      debugLog $ "Relevant ===> \n" ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ (S.toList $ relevantModules modGuts))
+      debugLog $ "Relevant ===> \n" ++ 
+        (unlines $ map debugShowModule $ (S.toList $ relevantModules modGuts))
 
       -- Generate the bare-specs. Here we call 'extractSpecComments' which is what allows us to
       -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
@@ -298,19 +304,18 @@ liquidHaskellPass cfg modGuts = do
           , lhSpecQuotes      = specQuotes
           }
 
-      (newSpecEnv, ghcInfo) <- processModule lhContext
+      ProcessModuleResult{..} <- processModule lhContext
 
-      -- Persist the 'BareSpec' in the final interface file by adding it as a new 'Annotation' to the 'ModGuts'.
-      let bareSpec = gsLSpec . giSpec $ ghcInfo
-
-      let finalGuts = Util.serialiseBareSpecs [bareSpec] guts'
-      liftIO $ atomicModifyIORef' specEnvRef (\_ -> (newSpecEnv, ()))
+      let finalGuts = Util.serialiseBareSpecs [pmrClientSpec] guts'
+      liftIO $ atomicModifyIORef' specEnvRef (\_ -> (pmrNewSpecEnv, ()))
 
       -- Call into the existing Liquid interface
-      res <- liftIO $ LH.liquidOne ghcInfo
+      res <- liftIO $ LH.liquidOne pmrGhcInfo
       case o_result res of
         Safe -> pure ()
         _    -> pluginAbort dynFlags (O.text "Unsafe.")
+
+      debugLog $ "toAnnotate ==> " ++ show pmrClientSpec
 
       debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
       pure finalGuts
@@ -332,12 +337,13 @@ loadRelevantSpecs config eps specEnv targetModule mods = do
   pure newSpec
   where
     processResult :: SpecFinderResult -> m ()
-    processResult (SpecNotFound modName) = do
-      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
-              ++ "] Spec not found for " ++ show modName
+    processResult (SpecNotFound mdl) = do
+      debugLog $ "[T:" ++ debugShowModule (getTargetModule targetModule)
+              ++ "] Spec not found for " ++ debugShowModule mdl
     processResult (ExternalSpecFound originalModule location _spec) = do
       debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
               ++ "] Spec found for " ++ show originalModule ++ ", at location " ++ show location
+              ++ show _spec
     processResult (CompanionSpecFound originalModule location _spec) = do
       debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
               ++ "] Companion spec found for " ++ show originalModule ++ ", at location " ++ show location
@@ -390,7 +396,13 @@ data LiquidHaskellContext = LiquidHaskellContext {
 -- | Per-Module Pipeline -------------------------------------------------------
 --------------------------------------------------------------------------------
 
-processModule :: GhcMonadLike m => LiquidHaskellContext -> m (SpecEnv, GhcInfo)
+data ProcessModuleResult = ProcessModuleResult {
+    pmrNewSpecEnv :: SpecEnv
+  , pmrClientSpec :: BareSpec
+  , pmrGhcInfo    :: GhcInfo
+  }
+
+processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ show (moduleName thisModule))
   hscEnv              <- askHscEnv
@@ -398,8 +410,17 @@ processModule LiquidHaskellContext{..} = do
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
-  (modName, bareSpec) <- either throw return $ 
+  (modName, commSpec) <- either throw return $ 
     hsSpecificationP (moduleName thisModule) (coerce lhSpecComments) lhSpecQuotes
+
+  bareSpec <- do
+    res <- SpecFinder.findCompanionSpec lhSpecEnv thisModule
+    case res of
+      CompanionSpecFound _ _ cachedSpec -> do
+        debugLog $ "Companion spec found for " ++ debugShowModule thisModule
+        let (_, spec) = fromCached cachedSpec 
+        pure $ LH.updLiftedSpec commSpec (Just spec)
+      _ -> pure commSpec
 
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
 
@@ -407,28 +428,30 @@ processModule LiquidHaskellContext{..} = do
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
   let configChanged   = moduleCfg /= lhGlobalCfg
-  updatedEnv          <- loadRelevantSpecs (moduleCfg, configChanged) 
-                                           eps 
-                                           lhSpecEnv 
-                                           (SpecFinder.TargetModule thisModule) 
-                                           (S.toList lhRelevantModules)
+  envWithExtraSpecs  <- loadRelevantSpecs (moduleCfg, configChanged) 
+                                          eps 
+                                          lhSpecEnv 
+                                          (SpecFinder.TargetModule thisModule) 
+                                          (S.toList lhRelevantModules)
 
-  let finalEnv         = insertExternalSpec thisModule (toCached (modName, bareSpec)) updatedEnv
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
+  let bareSpecs        = makeBareSpecs (moduleName thisModule) bareSpec envWithExtraSpecs
 
-  -- For some reason we pass to 'makeGhcSpec' the old 'SpecEnv' which won't have this module added as
-  -- 'SrcImport', but rather we pass a version which automatically adds this module as 'TargetModule'.
-  let bareSpecs        = makeBareSpecs (moduleName thisModule) bareSpec updatedEnv
-
-  let ghcSpec          = makeGhcSpec   moduleCfg ghcSrc lhModuleLogicMap (map fromCached $ bareSpecs)
+  let ghcSpec          = makeGhcSpec moduleCfg ghcSrc lhModuleLogicMap (map fromCached $ bareSpecs)
   let ghcInfo          = GI ghcSrc ghcSpec
 
   -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
   -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
   -- errors when trying to refine things.
-  let liftedSpec = gsLSpec . giSpec $ ghcInfo
+  let clientSpec = gsLSpec . giSpec $ ghcInfo
 
-  pure (insertExternalSpec thisModule (toCached (modName, liftedSpec)) finalEnv, ghcInfo)
+  let result = ProcessModuleResult {
+        pmrNewSpecEnv = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) envWithExtraSpecs
+      , pmrClientSpec = clientSpec
+      , pmrGhcInfo    = ghcInfo
+      }
+
+  pure result
 
   where
     modGuts    = fromUnoptimised lhModuleGuts

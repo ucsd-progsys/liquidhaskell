@@ -10,11 +10,17 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
 
       -- * Aborting the plugin execution
       , pluginAbort
+
+      -- * Pretty-printing things
+      , debugShowModule
       ) where
 
 import           GhcPlugins                              as GHC
 import           Outputable                               ( SDoc
                                                           , showSDoc
+                                                          , text
+                                                          , (<+>)
+                                                          , showSDocUnsafe
                                                           )
 import           GHC                                      ( DynFlags )
 import           CoreMonad                                ( CoreM )
@@ -93,3 +99,9 @@ serialiseBareSpecs specs modGuts = annotated
 
     serialise :: BareSpec -> Annotation
     serialise spec = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) spec)
+
+debugShowModule :: Module -> String
+debugShowModule m = showSDocUnsafe $
+                     text "Module { unitId = " <+> ppr (moduleUnitId m)
+                 <+> text ", name = " <+> ppr (moduleName m) 
+                 <+> text " }"
