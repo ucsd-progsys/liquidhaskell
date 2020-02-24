@@ -1458,14 +1458,13 @@ isPLETerm γ
 
 -- | @isGenericVar@ determines whether the @RTyVar@ has no class constraints
 isGenericVar :: RTyVar -> SpecType -> Bool
-isGenericVar α t =  all (\(c, α') -> (α'/=α) || isOrd c || isEq c ) (classConstrs t)
+isGenericVar α t =  all (\(c, α') -> (α'/=α) || isGenericClass c ) (classConstrs t)
   where 
     classConstrs t = [(c, ty_var_value α')
                         | (c, ts) <- tyClasses t
                         , t'      <- ts
                         , α'      <- freeTyVars t']
-    isOrd          = (ordClassName ==) . className
-    isEq           = (eqClassName ==) . className
+    isGenericClass c = className c `elem` [ordClassName, eqClassName, functorClassName]
 
 -- instance MonadFail CG where 
 --  fail msg = panic Nothing msg
