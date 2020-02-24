@@ -18,14 +18,14 @@ len (y:ys) = 1 + len ys
 // null []     = true 
 // null (y:ys) = false
 
-//measure fst :: (a, b) -> a
-//fst (a, b) = a
-//
-//measure snd :: (a, b) -> b
-//snd (a, b) = b
-//
-//qualif Fst(__v:a, __y:b): (__v = (fst __y))
-//qualif Snd(__v:a, __y:b): (__v = (snd __y))
+measure fst :: (a, b) -> a
+fst (a, b) = a
+
+measure snd :: (a, b) -> b
+snd (a, b) = b
+
+qualif Fst(__v:a, __y:b): (__v = (fst __y))
+qualif Snd(__v:a, __y:b): (__v = (snd __y))
 
 measure isJust :: Maybe a -> Bool
 isJust (Just x)  = true

@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , keepRawTokenStream
   , ignoreInline
   , lookupTyThings
+  , updLiftedSpec
 
   ) where
 

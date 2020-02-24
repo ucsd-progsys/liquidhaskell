@@ -5,11 +5,10 @@
 
 module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     ( findRelevantSpecs
+    , findCompanionSpec
     , SpecFinderResult(..)
     , SearchLocation(..)
     , TargetModule(..)
-    -- * Temporary internals
-    , findBaseSpecs
     ) where
 
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
@@ -48,7 +47,7 @@ type SpecFinder m = GhcMonadLike m => SpecEnv -> Module -> MaybeT m SpecFinderRe
 
 -- | The result of searching for a spec.
 data SpecFinderResult = 
-    SpecNotFound ModuleName
+    SpecNotFound Module
   | ExternalSpecFound ModuleName SearchLocation CachedSpec
   -- ^ Only a single spec was found. This is the typical case for interface loading.
   | BaseSpecsFound ModuleName SearchLocation [CachedSpec]
@@ -66,6 +65,8 @@ data SearchLocation =
   -- ^ The spec was loaded from the cached 'SpecEnv'.
   | DiskLocation
   -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
+  | IncludeDirLocation
+  -- ^ The spec was loaded from the `include` directory in the LH root project.
   deriving Show
 
 -- | Load any relevant spec in the input 'SpecEnv', by updating it. The update will happen only if necessary,
@@ -88,22 +89,22 @@ findRelevantSpecs (cfg, configChanged) eps specEnv target mods = do
     loadRelevantSpec (fetchFromDisk, currentEnv, !acc) currentModule = do
       let externalSpecsFinders = [ lookupCachedExternalSpec currentEnv currentModule
                                  , lookupInterfaceAnnotations eps currentEnv currentModule
-                                 , lookupCompanionSpec currentEnv currentModule
+                                 --, lookupCompanionSpec currentEnv currentModule
                                  ]
 
       -- The 'baseSpecFinder' needs to go last and triggers disk I/O in trying to fetch spec files from
       -- the filesystem, if the configuration has changed or if the cache is empty.
-      let baseSpecFinder =
-            if | fetchFromDisk ->
-                 [loadSpecFromDisk cfg (getTargetModule target) (resetBaseSpecs currentEnv) currentModule]
-               | baseCacheEmpty currentEnv ->
-                 [loadSpecFromDisk cfg (getTargetModule target) currentEnv currentModule]
-               | otherwise      ->
-                 [lookupCachedBaseSpec currentEnv currentModule]
+      --let baseSpecFinder =
+      --      if | fetchFromDisk ->
+      --           [loadSpecFromDisk cfg (getTargetModule target) (resetBaseSpecs currentEnv) currentModule]
+      --         | baseCacheEmpty currentEnv ->
+      --           [loadSpecFromDisk cfg (getTargetModule target) currentEnv currentModule]
+      --         | otherwise      ->
+      --           [lookupCachedBaseSpec currentEnv currentModule]
 
-      res <- runMaybeT (asum $ externalSpecsFinders <> baseSpecFinder)
+      res <- runMaybeT (asum $ externalSpecsFinders {- <> baseSpecFinder -})
       case res of
-        Nothing         -> pure (False, currentEnv, SpecNotFound (moduleName currentModule) : acc)
+        Nothing         -> pure (False, currentEnv, SpecNotFound currentModule : acc)
         Just specResult -> do
           let env' = case specResult of
                        ExternalSpecFound _originalMod SpecEnvLocation _spec ->
@@ -116,6 +117,15 @@ findRelevantSpecs (cfg, configChanged) eps specEnv target mods = do
                          replaceBaseSpecs specs currentEnv
                        SpecNotFound _ -> currentEnv
           pure (False, env', specResult : acc)
+
+-- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
+-- will try loading it.
+findCompanionSpec :: GhcMonadLike m => SpecEnv -> Module -> m SpecFinderResult
+findCompanionSpec env m = do
+  res <- runMaybeT $ lookupCompanionSpec env m
+  case res of
+    Nothing -> pure $ SpecNotFound m
+    Just s  -> pure s
 
 -- | Try to load the spec from the 'SpecEnv'.
 lookupCachedExternalSpec :: SpecFinder m
@@ -137,7 +147,7 @@ loadSpecFromDisk cfg targetModule _specEnv thisModule = do
     []         -> MaybeT $ pure Nothing
     specs      -> do
       guard (isJust $ find (\(n,_) -> getModName n == moduleName thisModule) specs)
-      pure $ BaseSpecsFound (moduleName thisModule) DiskLocation (map toCached specs)
+      pure $ BaseSpecsFound (moduleName thisModule) IncludeDirLocation (map toCached specs)
 
 findBaseSpecs :: GhcMonadLike m 
               => Config 
