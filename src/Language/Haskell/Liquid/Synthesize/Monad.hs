@@ -60,9 +60,6 @@ maxMatchDepth = 5
 type SSEnv = M.HashMap Symbol (SpecType, Var)
 type SSDecrTerm = [(Var, [Var])]
 
--- Initialized with basic type expressions
--- e.g. b  --- x_s3
---     [b] --- [], x_s0, x_s4
 type ExprMemory = [(Type, CoreExpr, Int)]
 type T = M.HashMap Type (CoreExpr, Int)
 data SState 
@@ -157,6 +154,9 @@ addEmem x t = do
   let ht = if x == xtop then ht1 else ht0
   modify (\s -> s {sExprMem = (ht, GHC.Var x, curAppDepth) : (sExprMem s)})
 
+---------------------------------------------------------------------------------------------
+--                         Handle structural termination checking                          --
+---------------------------------------------------------------------------------------------
 addDecrTerm :: Var -> [Var] -> SM ()
 addDecrTerm x vars = do
   decrTerms <- getSDecrTerms 
@@ -170,6 +170,43 @@ addDecrTerm x vars = do
           let (left, right) = splitAt ix' decrTerms 
           in  modify (\s -> s { ssDecrTerm =  left ++ [(x, vars ++ vars')] ++ right } )
 
+-- | Entry point.
+structuralCheck :: [CoreExpr] -> SM [CoreExpr]
+structuralCheck es 
+  = do  decr <- ssDecrTerm <$> get
+        fix <- sFix <$> get
+        return (filter (notStructural decr fix) es)
+
+structCheck :: Var -> CoreExpr -> (Maybe Var, [CoreExpr])
+structCheck xtop var@(GHC.Var v)
+  = if v == xtop 
+      then (Just xtop, [])
+      else (Nothing, [var])
+structCheck xtop (GHC.App e1 (GHC.Type _))
+  = structCheck xtop e1
+structCheck xtop (GHC.App e1 e2)
+  =  (mbVar, e2:es)
+    where (mbVar, es) = structCheck xtop e1
+structCheck xtop (GHC.Let _ e) 
+  = structCheck xtop e
+structCheck xtop e 
+  = error (" StructCheck " ++ show e)
+
+notStructural :: SSDecrTerm -> Var -> CoreExpr -> Bool
+notStructural decr xtop e
+  = case v of
+      Nothing -> True
+      Just v  -> foldr (\x b -> isDecreasing' x decr && b) True args
+  where (v, args) = (structCheck xtop e)
+
+isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
+isDecreasing' (GHC.Var v) decr
+  = not (v `elem` map fst decr)
+isDecreasing' e decr
+  = True
+---------------------------------------------------------------------------------------------
+--                               END OF STRUCTURAL CHECK                                   --
+---------------------------------------------------------------------------------------------
 
 liftCG0 :: (CGEnv -> CG CGEnv) -> SM () 
 liftCG0 act = do 
@@ -274,6 +311,24 @@ applyTy []     e =  case exprType e of
 applyTy (t:ts) e =  case exprType e of
                       ForAllTy{} -> applyTy ts (GHC.App e (GHC.Type t))
                       _          -> Nothing
+
+-- | Instantiation based on current goal-type.
+fixEMem :: SpecType -> SM ()
+fixEMem t
+  = do  (fs, ts) <- sForalls <$> get
+        let uTys = unifyWith (toType t)
+        needsFix <- case find (== uTys) ts of 
+                      Nothing -> return True   -- not yet instantiated
+                      Just _  -> return False  -- already instantiated
+
+        when needsFix $
+          do  modify (\s -> s { sForalls = (fs, uTys : ts)})
+              let notForall e = case exprType e of {ForAllTy{} -> False; _ -> True}
+                  es = map (\v -> instantiateTy (GHC.Var v) (Just uTys)) fs
+                  fixEs = filter notForall es
+              thisDepth <- sDepth <$> get
+              let fixedEMem = map (\e -> (exprType e, e, thisDepth + 1)) fixEs
+              modify (\s -> s {sExprMem = fixedEMem ++ sExprMem s})
 
 ------------------------------------------------------------------------------------------------
 ------------------------------ Special handle for the current fixpoint -------------------------

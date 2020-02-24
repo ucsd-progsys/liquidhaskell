@@ -27,8 +27,6 @@ import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
 import           Data.Tuple.Extra 
 import           Data.List 
 
-import           MkCore
-import           DynFlags
 import           Var
 import           TyCon 
 
@@ -50,90 +48,29 @@ genTerms' i s specTy =
   do  fixEMem specTy 
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
+      es0   <- structuralCheck es
+
       err <- checkError specTy 
-
-      decr <- ssDecrTerm <$> get 
-      fix <- sFix <$> get
-      let es0 = filter (\x -> notStructural decr fix x) es
-
       case err of 
         Nothing ->
           filterElseM (hasType " genTerms " True specTy) es0 $ 
             withDepthFill i s specTy 0 fnTys
         Just e -> return [e]
 
-checkError :: SpecType -> SM (Maybe CoreExpr)
-checkError t = do 
-  errVar <- varError
-  let errorExpr = GHC.App (GHC.App (GHC.Var errVar) (GHC.Type (toType t))) errorInt
-      errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
-  b <- hasType " checkError " True t errorExpr
-  if b 
-    then return $ Just errorExpr
-    else return Nothing
-
-fixEMem :: SpecType -> SM ()
-fixEMem t
-  = do  (fs, ts) <- sForalls <$> get
-        let uTys = unifyWith (toType t)
-        needsFix <- case find (== uTys) ts of 
-                      Nothing -> return True   -- not yet instantiated
-                      Just _  -> return False  -- already instantiated
-
-        when needsFix $
-          do  modify (\s -> s { sForalls = (fs, uTys : ts)})
-              let notForall e = case exprType e of {ForAllTy{} -> False; _ -> True}
-                  es = map (\v -> instantiateTy (GHC.Var v) (Just uTys)) fs
-                  fixEs = filter notForall es
-              thisDepth <- sDepth <$> get
-              let fixedEMem = map (\e -> (exprType e, e, thisDepth + 1)) fixEs
-              modify (\s -> s {sExprMem = fixedEMem ++ sExprMem s})
-
 withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
 withDepthFill i s t depth tmp = do
   let s0 = " [ withDepthFill ] " ++ s
   curEm <- sExprMem <$> get
   exprs <- fill i s0 depth curEm tmp []
+  es0 <- structuralCheck exprs
 
-  decr <- ssDecrTerm <$> get 
-  fix <- sFix <$> get
-  let exprs0 = filter (\x -> notStructural decr fix x) exprs
-
-  if nonTrivials exprs0 then 
-    filterElseM (hasType s0 True t) exprs0 $ 
+  if nonTrivials es0 then 
+    filterElseM (hasType s0 True t) es0 $ 
       if depth < maxAppDepth
         then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
                 withDepthFill i s0 t (depth + 1) tmp
         else return []
     else return []
-
-structCheck :: Var -> CoreExpr -> (Maybe Var, [CoreExpr])
-structCheck xtop var@(GHC.Var v)
-  = if v == xtop 
-      then (Just xtop, [])
-      else (Nothing, [var])
-structCheck xtop (GHC.App e1 (GHC.Type _))
-  = structCheck xtop e1
-structCheck xtop (GHC.App e1 e2)
-  =  (mbVar, e2:es)
-    where (mbVar, es) = structCheck xtop e1
-structCheck xtop (GHC.Let _ e) 
-  = structCheck xtop e
-structCheck xtop e 
-  = error (" StructCheck " ++ show e)
-
-notStructural :: SSDecrTerm -> Var -> CoreExpr -> Bool
-notStructural decr xtop e
-  = case v of
-      Nothing -> True
-      Just v  -> foldr (\x b -> isDecreasing' x decr && b) True args
-  where (v, args) = (structCheck xtop e)
-
-isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
-isDecreasing' (GHC.Var v) decr
-  = not (v `elem` map fst decr)
-isDecreasing' e decr
-  = True
 
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
 fill _ _ _     _       []                 accExprs 

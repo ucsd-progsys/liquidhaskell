@@ -1,7 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE BangPatterns #-}
-module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped) where
+module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped, checkError) where
 
 
 import Language.Fixpoint.Types.Constraints
@@ -31,9 +31,11 @@ import System.Console.CmdArgs.Verbosity
 import CoreUtils
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types hiding (SVar)
+import           MkCore
+import           DynFlags
 
 hasType :: String -> Bool -> SpecType -> CoreExpr -> SM Bool
-hasType s b t !e' = trace (" [ Check ] " ++ show e') $ do 
+hasType s b t !e' = notrace (" [ Check ] " ++ show e') $ do 
   x  <- freshVar t 
   st <- get 
   let tpOfE = exprType e'
@@ -41,7 +43,7 @@ hasType s b t !e' = trace (" [ Check ] " ++ show e') $ do
   if tpOfE == ht
     then do
       r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      liftIO $ putStrLn ("From " ++ s ++ (if b then " Checked:  " else " Well-Typed: ") ++ "Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
+      -- liftIO $ putStrLn ("From " ++ s ++ (if b then " Checked:  " else " Well-Typed: ") ++ "Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
       return r
     else error $ " [ hasType " ++ s ++ " ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
@@ -83,6 +85,15 @@ check cgi γ cfg x e t = do
     addTySig x Nothing  ts = ts 
     addTySig x (Just t) ts = (x,dummyLoc t):ts
     
+checkError :: SpecType -> SM (Maybe CoreExpr)
+checkError t = do 
+  errVar <- varError
+  let errorExpr = App (App (Var errVar) (Type (toType t))) errorInt
+      errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
+  b <- hasType " checkError " True t errorExpr
+  if b 
+    then return $ Just errorExpr
+    else return Nothing
 
 quietly :: IO a -> IO a
 quietly act = do
