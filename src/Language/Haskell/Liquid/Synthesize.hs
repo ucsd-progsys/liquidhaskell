@@ -32,34 +32,26 @@ import DataCon
 import TysWiredIn
 import qualified TyCoRep as GHC 
 import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
-
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
-import           Data.Graph (SCC(..))
 import           Data.Maybe
 import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.Synthesis
 import           Data.List 
-import           Language.Haskell.Liquid.GHC.Play (isHoleVar)
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Haskell.Liquid.Synthesize.Classes
 import           Data.Tuple.Extra
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
-  mapM goSCC $ holeDependencySSC $ holesMap cginfo
+  mapM go (M.toList $ holesMap cginfo)
   where 
-    goSCC (AcyclicSCC v) = go v
-    goSCC (CyclicSCC []) = error "synthesize goSCC: unreachable"
-    goSCC (CyclicSCC vs@((_, HoleInfo{..}):_)) = return $ ErrHoleCycle hloc $ map (symbol . fst) vs
-
     go (x, HoleInfo t loc env (cgi,cge)) = do 
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi
           (uniVars, _) = getUniVars coreProgram topLvlBndr
-          ssenv0 = symbolToVar coreProgram topLvlBndr (filterREnv (reLocal env))
+          fromREnv = filterREnv (reLocal env)
+          ssenv0 = symbolToVar coreProgram topLvlBndr fromREnv
           (senv1, foralls) = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
@@ -68,7 +60,7 @@ synthesize tgt fcfg cginfo =
       fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
 
       return $ ErrHole loc (
-        if length fills > 0 
+        if not (null fills)
           then text "\n Hole Fills: " <+> pprintMany fills
           else mempty) mempty (symbol x) t 
 
@@ -102,7 +94,12 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
                   modify (\s -> s { sExprMem = emem0 })
                   synthesizeBasic CaseSplit " Constructor " t
 
-    go t = do ys <- mapM freshVar txs
+    go (RAllP _ t) = go t
+
+    go (RRTy env ref obl t) = go t
+
+    go t@(RFun{}) 
+         = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               let dt = decrType xtop ttop ys (zip xs txs)
@@ -122,6 +119,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
+    go t = error (" Unmatched t = " ++ show t)
 
 -- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
 data Mode 
@@ -155,7 +153,7 @@ synthesizeMatch s lenv γ t = do
   id <- incrCase scruts
   if null scruts
     then return []
-    else do let scrut = scruts !! id -- es !! id
+    else do let scrut = scruts !! id 
             trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
                    " \n Scrutinee " ++ show (fst3 scrut)) $   
               withIncrDepth (matchOnExpr s t scrut)
@@ -181,7 +179,7 @@ inspect :: GHC.CoreExpr -> [DataCon] -> Bool
 inspect e [dataCon] 
   = not $ outer e == dataConWorkId dataCon
 inspect _ _  
-  = error " Should be a singleton. "
+  = False -- error " Should be a singleton. "
 
 outer :: GHC.CoreExpr -> Var
 outer (GHC.Var v)
