@@ -7,13 +7,10 @@ module Language.Haskell.Liquid.Synthesize (
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Generate 
-import           Language.Haskell.Liquid.Constraint.Env 
 import qualified Language.Haskell.Liquid.Types.RefType as R
-import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.Synthesize.Termination
 import           Language.Haskell.Liquid.Synthesize.Generate
 import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
-import           Language.Haskell.Liquid.Synthesize.Check
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.Misc hiding (notrace)
 import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
@@ -23,22 +20,18 @@ import qualified Language.Fixpoint.Types        as F
 import qualified Language.Fixpoint.Types.Config as F
 import           Language.Haskell.Liquid.Synthesize.Env
 
-import CoreUtils (exprType)
-import CoreSyn (CoreExpr)
+import           CoreSyn (CoreExpr)
 import qualified CoreSyn as GHC
-import Var 
-import TyCon
-import DataCon
-import TysWiredIn
-import qualified TyCoRep as GHC 
-import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
+import           Var 
+import           TyCon
+import           DataCon
+import           Text.PrettyPrint.HughesPJ ((<+>), text)
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Data.Maybe
 import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.List 
-import           Language.Fixpoint.Types.PrettyPrint
 import           Data.Tuple.Extra
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
@@ -57,7 +50,7 @@ synthesize tgt fcfg cginfo =
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr (reverse uniVars) M.empty
 
-      fills <- synthesize' tgt ctx fcfg cgi cge env senv1 x typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
+      fills <- synthesize' ctx cgi senv1 typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
 
       return $ ErrHole loc (
         if not (null fills)
@@ -67,9 +60,9 @@ synthesize tgt fcfg cginfo =
 
 -- Assuming that @tx@ is the @SpecType@ of the top level variable. 
 -- I thought I had it fixed...
-synthesize' :: FilePath -> SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> Var -> SpecType ->  Var -> SpecType -> [Var] -> SState -> IO [CoreExpr]
-synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
- = evalSM (go tx) ctx tgt fcfg cgi cge renv senv st2
+synthesize' :: SMT.Context -> CGInfo -> SSEnv -> SpecType ->  Var -> SpecType -> [Var] -> SState -> IO [CoreExpr]
+synthesize' ctx cgi senv tx xtop ttop foralls st2
+ = evalSM (go tx) ctx senv st2
   where 
 
     go :: SpecType -> SM [CoreExpr]
@@ -77,7 +70,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
     -- Type Abstraction 
     go (RAllT a t x)      = GHC.Lam (tyVarVar a) <$$> go t
           
-    go t@(RApp c _ts _ r) = do  
+    go t@(RApp c _ts _ _r) = do  
       let coreProgram = giCbs $ giSrc $ ghcI cgi
           args  = drop 1 (argsP coreProgram xtop)
           (_, (xs, txs, _), _) = bkArrow ttop
@@ -96,9 +89,9 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
 
     go (RAllP _ t) = go t
 
-    go (RRTy env ref obl t) = go t
+    go (RRTy _env _ref _obl t) = go t
 
-    go t@(RFun{}) 
+    go t@RFun{} 
          = do ys <- mapM freshVar txs
               let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
@@ -115,7 +108,7 @@ synthesize' tgt ctx fcfg cgi cge renv senv x tx xtop ttop foralls st2
               modify (\s -> s { sForalls = (foralls, []) } )
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
-              mapM (\y -> addDecrTerm y []) ys
+              mapM_ (\y -> addDecrTerm y []) ys
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
@@ -129,7 +122,6 @@ data Mode
 
 synthesizeBasic :: Mode -> String -> SpecType -> SM [CoreExpr]
 synthesizeBasic m s t = do
-  senv <- getSEnv
   let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
@@ -141,14 +133,11 @@ synthesizeBasic m s t = do
   --           if null es then synthesizeBasic TermGen "" t else return es
   --   else do 
   es <- genTerms s t
-  if null es  then do senv <- getSEnv
-                      lenv <- getLocalEnv 
-                      synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+  if null es  then synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) t
               else return es
 
-synthesizeMatch :: String -> LEnv -> SSEnv -> SpecType -> SM [CoreExpr]
-synthesizeMatch s lenv γ t = do
-  em <- getSEMem 
+synthesizeMatch :: String -> SpecType -> SM [CoreExpr]
+synthesizeMatch s t = do
   scruts <- filterScrut
   id <- incrCase scruts
   if null scruts
@@ -174,31 +163,24 @@ filterScrut = do
   return es4 -- (filter (isVar . fst3) es1)
 
 appOnly :: GHC.CoreExpr -> Bool
-appOnly (GHC.Var{}) = True
-appOnly (GHC.Type{}) = True
+appOnly GHC.Var{}       = True
+appOnly GHC.Type{}      = True
 appOnly (GHC.App e1 e2) = appOnly e1 && appOnly e2
-appOnly _ = False 
-
-noLet :: GHC.CoreExpr -> Bool
-noLet (GHC.Let{}) = False
-noLet _ = True
+appOnly _               = False 
 
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
-noPairLike (e, t, c) = 
-  if length (tyConDataCons c) > 1 
-    then True
-    else inspect e (tyConDataCons c)
+noPairLike (e, t, c) = (length (tyConDataCons c) > 1) || inspect e (tyConDataCons c)
 
 inspect :: GHC.CoreExpr -> [DataCon] -> Bool
 inspect e [dataCon] 
-  = not $ outer e == dataConWorkId dataCon
+  = outer e /= dataConWorkId dataCon
 inspect _ _  
   = False -- error " Should be a singleton. "
 
 outer :: GHC.CoreExpr -> Var
 outer (GHC.Var v)
   = v
-outer (GHC.App e1 e2)
+outer (GHC.App e1 _)
   = outer e1
 outer e = error (" [ outer ] " ++ show e)
 

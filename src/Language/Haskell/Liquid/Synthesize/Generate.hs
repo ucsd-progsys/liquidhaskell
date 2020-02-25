@@ -5,32 +5,22 @@
 
 module Language.Haskell.Liquid.Synthesize.Generate where
 
-import           Language.Haskell.Liquid.Types hiding (SVar)
-import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Synthesize.GHC
+                                         hiding ( SSEnv )
 import           Language.Haskell.Liquid.Synthesize.Monad
-import           Language.Haskell.Liquid.Synthesize.Misc hiding (notrace)
-import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
+import           Language.Haskell.Liquid.Synthesize.Misc
+                                         hiding ( notrace )
 import           Language.Haskell.Liquid.Synthesize.Check
-
-import CoreUtils (exprType)
-import CoreSyn (CoreExpr)
-import qualified CoreSyn as GHC
-import Var 
-
+import           CoreSyn                        ( CoreExpr )
+import qualified CoreSyn                       as GHC
 import           Data.Maybe
 import           Control.Monad.State.Lazy
- 
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Fixpoint.Types.PrettyPrint
-import           Debug.Trace 
-import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
-import           Data.Tuple.Extra 
-import           Data.List 
+import           Debug.Trace
+import           Language.Haskell.Liquid.Constraint.Fresh
+                                                ( trueTy )
 
-import           Var
-import           TyCon 
-
-import qualified Data.HashMap.Strict as M 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
 genTerms :: String -> SpecType -> SM [CoreExpr] 

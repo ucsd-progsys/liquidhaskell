@@ -3,29 +3,24 @@
 {-# LANGUAGE LambdaCase #-}
 module Language.Haskell.Liquid.Synthesize.GHC where
 
-import qualified CoreSyn as GHC
-import qualified Language.Fixpoint.Types        as F 
-import qualified Language.Fixpoint.Types.Config as F
-import           Language.Haskell.Liquid.Types hiding (SVar)
-import Var 
-import TyCoRep
-import CoreSyn
-
-import IdInfo
-import OccName
-import Unique 
-import Name 
-import TysPrim
-
-
-import Data.Default
-import Data.Maybe (fromMaybe)
-import           Data.List 
-import Language.Haskell.Liquid.GHC.TypeRep
-import Language.Fixpoint.Types
-import Debug.Trace
-import qualified Data.HashMap.Strict as M
-import TyCon 
+import qualified CoreSyn                       as GHC
+import qualified Language.Fixpoint.Types       as F
+import           Language.Haskell.Liquid.Types
+import           Var
+import           TyCoRep
+import           CoreSyn
+import           IdInfo
+import           OccName
+import           Unique
+import           Name
+import           TysPrim
+import           Data.Default
+import           Data.Maybe                     ( fromMaybe )
+import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Fixpoint.Types
+import qualified Data.HashMap.Strict           as M
+import           TyCon
+import           Debug.Trace
 
 instance Default Type where
     def = TyVarTy alphaTyVar 

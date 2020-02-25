@@ -4,35 +4,32 @@
 module Language.Haskell.Liquid.Synthesize.Check (check, hasType, isWellTyped, checkError) where
 
 
-import Language.Fixpoint.Types.Constraints
-import qualified Language.Fixpoint.Types.Config as F 
-import qualified Language.Fixpoint.Types as F 
-import Language.Fixpoint.Solver
-
-import Language.Haskell.Liquid.Types.Types 
-import Language.Haskell.Liquid.Types.Specs 
-import Language.Haskell.Liquid.Constraint.Env 
-import Language.Haskell.Liquid.Constraint.Generate 
-import Language.Haskell.Liquid.Constraint.Types 
-import Language.Haskell.Liquid.Constraint.Fresh (trueTy) 
-import Language.Haskell.Liquid.Constraint.ToFixpoint
-import Language.Haskell.Liquid.Synthesize.Monad
-import Language.Haskell.Liquid.Synthesize.GHC
-import Language.Haskell.Liquid.GHC.Misc (showPpr)
-import Language.Haskell.Liquid.Misc (mapThd3)
-
-import CoreSyn 
-import Var 
-
-import Control.Monad.State.Lazy
-import Debug.Trace 
-
-import System.Console.CmdArgs.Verbosity
-import CoreUtils
+import           Language.Fixpoint.Types.Constraints
+import qualified Language.Fixpoint.Types.Config
+                                               as F
+import qualified Language.Fixpoint.Types       as F
+import           Language.Fixpoint.Solver
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.Constraint.Env
+import           Language.Haskell.Liquid.Constraint.Generate
+import           Language.Haskell.Liquid.Constraint.Types
+import           Language.Haskell.Liquid.Constraint.Fresh
+                                                ( trueTy )
+import           Language.Haskell.Liquid.Constraint.ToFixpoint
+import           Language.Haskell.Liquid.Synthesize.Monad
+import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.Misc   ( mapThd3 )
+import           CoreSyn
+import           Var
+import           Control.Monad.State.Lazy
+import           System.Console.CmdArgs.Verbosity
+import           CoreUtils
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.Types hiding (SVar)
+import           Language.Haskell.Liquid.Types
 import           MkCore
 import           DynFlags
+import           Debug.Trace
 
 hasType :: String -> Bool -> SpecType -> CoreExpr -> SM Bool
 hasType s b t !e' = notrace (" [ Check ] " ++ show e') $ do 

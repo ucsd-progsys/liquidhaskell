@@ -6,16 +6,12 @@
 module Language.Haskell.Liquid.Synthesize.Misc where
 
 import qualified Language.Fixpoint.Types        as F 
-
-
 import           Control.Monad.State.Lazy
-
 import           CoreSyn
 import           TyCoRep 
 import           Text.PrettyPrint.HughesPJ (text, Doc, vcat, ($+$))
 import           Language.Haskell.Liquid.Synthesize.GHC
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
 import           Language.Fixpoint.Types
 
 
@@ -93,4 +89,4 @@ showCoreAlt (DataAlt altCon, vars, expr) =
 showCoreAlt _ = " No! "
 
 showCoreAlts :: [CoreAlt] -> String
-showCoreAlts alts = concat (map showCoreAlt alts)
+showCoreAlts alts = concatMap showCoreAlt alts

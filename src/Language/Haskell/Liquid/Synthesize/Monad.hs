@@ -7,46 +7,35 @@
 module Language.Haskell.Liquid.Synthesize.Monad where
 
 
-import           Language.Haskell.Liquid.Bare.Resolve as B
-import           Language.Haskell.Liquid.Types hiding (SVar)
+import           Language.Haskell.Liquid.Bare.Resolve
+                                               as B
+import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.Constraint.Generate 
-import           Language.Haskell.Liquid.Constraint.Env 
-import qualified Language.Haskell.Liquid.Types.RefType as R
-import           Language.Haskell.Liquid.GHC.Misc (showPpr)
-import           Language.Haskell.Liquid.Synthesize.Termination
-import           Language.Haskell.Liquid.Synthesize.GHC hiding (SSEnv)
-import           Language.Haskell.Liquid.Synthesize.Misc hiding (notrace)
-import           Language.Haskell.Liquid.Constraint.Fresh (trueTy)
-import qualified Language.Fixpoint.Smt.Interface as SMT
-import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
-import qualified Language.Fixpoint.Types        as F 
-import qualified Language.Fixpoint.Types.Config as F
-
-import CoreSyn (CoreExpr)
-import qualified CoreSyn as GHC
-import Var 
-import TyCon
-import DataCon
-import TysWiredIn
-import qualified TyCoRep as GHC 
-import           Text.PrettyPrint.HughesPJ ((<+>), text, char, Doc, vcat, ($+$))
-
+import           Language.Haskell.Liquid.Constraint.Env
+import           Language.Haskell.Liquid.Synthesize.GHC
+                                         hiding ( SSEnv )
+import           Language.Haskell.Liquid.Synthesize.Misc
+                                         hiding ( notrace )
+import qualified Language.Fixpoint.Smt.Interface
+                                               as SMT
+import           Language.Fixpoint.Types hiding ( SEnv
+                                                , SVar
+                                                , Error
+                                                )
+import qualified Language.Fixpoint.Types       as F
+import qualified Language.Fixpoint.Types.Config
+                                               as F
+import           CoreSyn                        ( CoreExpr )
+import qualified CoreSyn                       as GHC
+import           Var
 import           Control.Monad.State.Lazy
-import qualified Data.HashMap.Strict as M 
-import           Data.Default 
-import           Data.Graph (SCC(..))
-import qualified Data.Text as T
+import qualified Data.HashMap.Strict           as M
 import           Data.Maybe
-import           Debug.Trace 
 import           Language.Haskell.Liquid.GHC.TypeRep
-
-import           Data.List 
-import qualified Data.Map as Map 
-import           Data.List.Extra
-import           CoreUtils (exprType)
-import qualified Data.HashSet as S
-import           Data.Tuple.Extra 
+import           Data.List
+import           CoreUtils                      ( exprType )
+import           Data.Tuple.Extra
+import           Debug.Trace
 
 maxMatchDepth :: Int 
 maxMatchDepth = 5 
@@ -98,8 +87,8 @@ locally act = do
   return r 
 
 
-evalSM :: SM a -> SMT.Context -> FilePath -> F.Config -> CGInfo -> CGEnv -> REnv -> SSEnv -> SState -> IO a 
-evalSM act ctx tgt fcfg cgi cgenv renv env st = do 
+evalSM :: SM a -> SMT.Context -> SSEnv -> SState -> IO a 
+evalSM act ctx env st = do 
   let st' = st {ssEnv = env}
   r <- evalStateT act st'
   SMT.cleanupContext ctx 
