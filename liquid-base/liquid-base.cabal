@@ -24,15 +24,15 @@ data-files:         src/Data/Word.spec
                     src/Prelude.spec
 
 library
-  exposed-modules:  Data.Word
+  exposed-modules:  Data.Foldable
                     Data.Tuple
-                    GHC.Int
-                    GHC.Word
-                    GHC.Real
-                    GHC.Num
-                    Data.Foldable
+                    Data.Word
                     GHC.Base
+                    GHC.Int
                     GHC.List
+                    GHC.Num
+                    GHC.Real
+                    GHC.Word
                     Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5

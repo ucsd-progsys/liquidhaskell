@@ -41,7 +41,7 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
---import Debug.Trace
+import Debug.Trace
 
 type SpecFinder m = GhcMonadLike m => SpecEnv -> Module -> MaybeT m SpecFinderResult
 
@@ -180,13 +180,20 @@ lookupCompanionSpec _specEnv thisModule = do
 
   modSummary <- MaybeT $ GhcMonadLike.lookupModSummary (moduleName thisModule)
   file       <- MaybeT $ pure (ml_hs_file . ms_location $ modSummary)
-  spec       <- MaybeT $ do
+  parsed     <- MaybeT $ do
     mbSpecContent <- liftIO $ try (Misc.sayReadFile (specFile file))
     case mbSpecContent of
       Left (_e :: SomeException) -> pure Nothing
-      Right raw -> pure $ either (const Nothing) (Just . id) (specSpecificationP (specFile file) raw)
+      Right raw -> pure $ Just $ specSpecificationP (specFile file) raw
 
-  pure $ CompanionSpecFound (moduleName thisModule) DiskLocation (toCached spec)
+  case parsed of
+    Left parsingError -> do
+      dynFlags <- lift getDynFlags
+      let errMsg = O.text "Error when parsing " 
+             O.<+> O.text (specFile file) O.<+> O.text ":"
+             O.<+> O.text (show parsingError)
+      lift $ pluginAbort dynFlags errMsg
+    Right spec -> pure $ CompanionSpecFound (moduleName thisModule) DiskLocation (toCached spec)
   where
     specFile :: FilePath -> FilePath
     specFile fp = withExt fp Spec

@@ -71,7 +71,7 @@ instance Eq CachedSpec where
 -- Convert the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
 -- needs to be disabled as this is now considered safe to use for \"clients\".
 toCached :: (ModName, BareSpec) -> CachedSpec
-toCached (mn, bareSpec) = CachedSpec mn (LH.clearSpec . LH.noTerm $ bareSpec)
+toCached (mn, bareSpec) = CachedSpec mn (LH.noTerm bareSpec)
 
 fromCached :: CachedSpec -> (ModName, BareSpec)
 fromCached (CachedSpec mn s) = (mn, s)
