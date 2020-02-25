@@ -22,6 +22,9 @@ data-files:         src/Data/Word.spec
                     src/GHC/Base.spec
                     src/GHC/List.spec
                     src/Prelude.spec
+                    src/Foreign/C/Types.spec
+                    src/Foreign/Ptr.spec
+                    src/Foreign/ForeignPtr.spec
 
 library
   exposed-modules:  Data.Foldable
@@ -33,6 +36,11 @@ library
                     GHC.Num
                     GHC.Real
                     GHC.Word
+                    GHC.Ptr
+                    GHC.ForeignPtr
+                    Foreign.C.Types
+                    Foreign.Ptr
+                    Foreign.ForeignPtr
                     Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
