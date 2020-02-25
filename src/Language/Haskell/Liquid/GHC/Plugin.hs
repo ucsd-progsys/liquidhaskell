@@ -149,11 +149,6 @@ configureDynFlags cfg df =
   pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
             , libraryPaths = nub $ idirs cfg ++ libraryPaths df
             , includePaths = updateIncludePaths df (idirs cfg)
-            --, packageFlags = ExposePackage ""
-            --                               (PackageArg "ghc-prim")
-            --                               (ModRenaming True [])
-            --               : (packageFlags df)
-
             } `gopt_set` Opt_ImplicitImportQualified
               `gopt_set` Opt_PIC
               `gopt_set` Opt_DeferTypedHoles
@@ -420,7 +415,7 @@ processModule LiquidHaskellContext{..} = do
         debugLog $ "Companion spec found for " ++ debugShowModule thisModule
         debugLog $ show cachedSpec
         let (_, spec) = fromCached cachedSpec 
-        pure $ LH.updLiftedSpec commSpec (Just (LH.noTerm spec))
+        pure $ LH.updLiftedSpec commSpec (Just spec)
       _ -> pure commSpec
 
   _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
@@ -445,10 +440,11 @@ processModule LiquidHaskellContext{..} = do
   -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
   -- errors when trying to refine things.
   let clientSpec = gsLSpec . giSpec $ ghcInfo
+  let finalSpec  = LH.updLiftedSpec (LH.noTerm clientSpec) (Just (LH.noTerm bareSpec))
 
   let result = ProcessModuleResult {
-        pmrNewSpecEnv = insertExternalSpec thisModule (toCached (modName, LH.noTerm bareSpec)) envWithExtraSpecs
-      , pmrClientSpec = LH.updLiftedSpec bareSpec (Just (LH.noTerm clientSpec))
+        pmrNewSpecEnv = insertExternalSpec thisModule (toCached (modName, finalSpec)) envWithExtraSpecs
+      , pmrClientSpec = finalSpec
       , pmrGhcInfo    = ghcInfo
       }
 
@@ -518,4 +514,6 @@ typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
 typecheckHook _ _ tcGblEnv =  pure tcGblEnv
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
-loadInterfaceHook _ iface = pure iface
+loadInterfaceHook _ iface = do
+  debugLog $ "loaded interface for " ++ debugShowModule (mi_module iface)
+  pure iface

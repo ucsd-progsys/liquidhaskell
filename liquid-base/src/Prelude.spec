@@ -32,16 +32,6 @@ embed GHC.Types.Double  as real
 embed GHC.Types.Float   as real
 embed Integer           as int
 
-type GeInt N = {v: GHC.Types.Int | v >= N }
-type LeInt N = {v: GHC.Types.Int | v <= N }
-type Nat     = {v: GHC.Types.Int | v >= 0 }
-type Even    = {v: GHC.Types.Int | (v mod 2) = 0 }
-type Odd     = {v: GHC.Types.Int | (v mod 2) = 1 }
-type BNat N  = {v: Nat           | v <= N }    
-type TT      = {v: GHC.Types.Bool | v}
-type FF      = {v: GHC.Types.Bool | not v}
-type String  = [GHC.Types.Char]
-
 predicate Max V X Y = if X > Y then V = X else V = Y
 predicate Min V X Y = if X < Y then V = X else V = Y
 
