@@ -48,12 +48,25 @@ import Language.Haskell.Liquid.Synthesize.Error
 
 {-@ snoc' :: forall <p :: a -> a -> Bool, q:: a -> a -> Bool>. 
              {x::a, y::a |- {v:a<q y> | v == x }<: {v:a<p x> | v == y} }
-             {x::a, y::a |- {v:a<p y> | v == x }<: {v:a<q x> | v == x} }
+             {x::a, y::a |- {v:a<p y> | v == x }<: {v:a<q x> | v == y} }
              x:a -> xs: [(a<q x>)]<p> -> 
-                 { v: ([a]<q>) |    len v == len xs + 1}
+                 { v: ([a]<p>) |    len v == len xs + 1}
   @-}
 snoc' :: a -> [a] -> [a]
 snoc' = _goal
+
+
+{-
+
+forall x y. q y x => p x y  
+
+forall x. q x x <=> p x x 
+
+
+p x v 
+p v x
+
+-}
 
 
 
