@@ -1,3 +1,4 @@
 module GHC.Word (module Exports) where
 
-import qualified "base" GHC.Word as Exports
+import GHC.Base
+import "base" GHC.Word as Exports

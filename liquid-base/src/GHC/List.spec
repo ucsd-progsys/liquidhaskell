@@ -46,7 +46,9 @@ break :: (a -> GHC.Types.Bool) -> xs:[a] -> ([a],[a])<{\x y -> (len xs) = (len x
 
 reverse      :: xs:[a] -> {v: [a] | len(v) = len(xs)}
 
-include <len.hquals>
+// Copy-pasted from len.hquals
+qualif LenSum(v:[a], xs:[b], ys:[c]): len([v]) = (len([xs]) + len([ys]))
+qualif LenSum(v:[a], xs:[b], ys:[c]): len([v]) = (len([xs]) - len([ys]))
 
 GHC.List.!!         :: xs:[a] -> {v: _ | ((0 <= v) && (v < len(xs)))} -> a
 
