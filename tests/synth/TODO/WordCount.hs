@@ -60,7 +60,7 @@ groupBy'' f (Cons x xs) =
 -- zipLen :: Eq a => [ List (List a) ] -> [ LPair a ]
 -- zipLen xs = zipF' length'' xs 
 
-{-@ zipLen0 :: xs: [ List <{\h t -> h == t}> (List a) ] -> { v: [ (xs::List <{\h t -> h == t}> (List a), Nat) ] | sumLen v == sLen xs } @-} 
+{-@ zipLen0 :: xs: [ List (List a) ] -> { v: [ (xs::List (List a), Nat) ] | sumLen v == sLen xs } @-} 
 zipLen0 :: Eq a => [ List (List a) ] -> [ (List (List a), Int) ]
 zipLen0 xs = zipF'' length' xs 
 
@@ -71,12 +71,12 @@ zipF'' :: (List (List a) -> b) -> [List (List a)] -> [(List (List a), b)]
 zipF'' _ []       = []
 zipF'' f (x : xs) = (x, f x) : zipF'' f xs
 
-{-@ zip' :: xs:List a -> {ys: List b | length' ys == length' xs } 
-              -> { v: List (a, b) | length' v == length' xs } 
-  @-}
-zip' :: List a -> List b -> List (a, b) 
-zip' N      N                = N
-zip' (Cons x xs) (Cons y ys) = Cons (x, y) (zip' xs ys)
+-- {-@ zip' :: xs:List a -> {ys: List b | length' ys == length' xs } 
+--               -> { v: List (a, b) | length' v == length' xs } 
+--   @-}
+-- zip' :: List a -> List b -> List (a, b) 
+-- zip' N      N                = N
+-- zip' (Cons x xs) (Cons y ys) = Cons (x, y) (zip' xs ys)
 
 {-@ measure sumLen @-}
 {-@ sumLen :: [ (List (List a), b) ] -> Nat @-}
@@ -90,8 +90,12 @@ sLen :: [ List a ] -> Int
 sLen [ ]    = 0
 sLen (x:xs) = length' x + sLen xs
 
--- {-@ goal :: xs: List (List a) -> { v: [ LPair a ] | length' xs == sumLen v } @-}
--- goal :: Eq a => List (List a) -> [ () ]
--- -- -- goal = _hole
--- goal xs = zipLen0 (groupBy'' (==) xs) 
+{-@ eq :: Eq a => x: a -> y: a -> { v: Bool | v <=> (x == y) } @-}
+eq :: Eq a => a -> a -> Bool
+eq x y = x == y
+
+{-@ goal :: xs: List (List a) -> { v: [ (List (List a), Nat) ] | length' xs == sumLen v } @-}
+goal :: Eq a => List (List a) -> [ (List (List a), Int) ]
+goal = _hole
+-- goal xs = zipLen0 (groupBy'' eq xs) 
 
