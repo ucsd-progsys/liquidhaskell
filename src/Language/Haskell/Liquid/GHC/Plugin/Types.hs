@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -14,6 +15,11 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , resetBaseSpecs
     , replaceBaseSpecs
     , insertExternalSpec
+
+    -- * Merging specs together, the hacky, prototype-y way.
+    , mergeSpecs
+    , HackyEQ(..)
+
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
     , tcAllImports
@@ -50,9 +56,15 @@ import qualified Data.HashSet        as HS
 
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs      ( QImports )
-import           Language.Haskell.Liquid.Measure          ( BareSpec )
+import           Language.Haskell.Liquid.Measure          ( BareSpec, Spec(..) )
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
+
+
+import Data.Coerce
+import Data.Binary             as B
+import Data.Hashable
+import qualified Data.List as L
 
 
 data SpecEnv    = SpecEnv {
@@ -60,6 +72,13 @@ data SpecEnv    = SpecEnv {
     -- ^ The base specs shipped with LiquidHaskell.
   , externalSpecs :: Map Module CachedSpec
   } deriving Eq
+
+instance Semigroup SpecEnv where
+  SpecEnv b1 e1 <> SpecEnv b2 e2 = SpecEnv (b1 <> b2) (e1 <> e2)
+
+instance Monoid SpecEnv where
+  mappend = (<>)
+  mempty  = SpecEnv mempty mempty
 
 -- A cached spec which can be inserted into the 'SpecEnv'.
 -- /INVARIANT/: A 'CachedSpec' has temination-checking disabled (i.e. 'noTerm' is called on the inner 'BareSpec').
@@ -87,6 +106,60 @@ replaceBaseSpecs specs env = env { baseSpecs = specs }
 
 insertExternalSpec :: Module -> CachedSpec -> SpecEnv -> SpecEnv
 insertExternalSpec mdl spec env = env { externalSpecs = M.insert mdl spec (externalSpecs env) }
+
+--
+-- Merging specs together, the hacky way
+--
+
+newtype HackyEQ  a = HackyEQ  { unHackyEQ :: a }
+newtype Distinct a = Distinct { unDistinct :: HS.HashSet a } deriving Semigroup
+
+instance Binary a => Eq (HackyEQ a) where
+  (HackyEQ a) == (HackyEQ b) = B.encode a == B.encode b
+
+instance Binary a => Hashable (HackyEQ a) where
+  hashWithSalt s (HackyEQ a) = hashWithSalt s (B.encode a)
+
+fromDistinct :: Distinct (HackyEQ a) -> [a]
+fromDistinct = coerce . HS.toList . unDistinct
+
+toDistinct :: Binary a => [a] -> Distinct (HackyEQ a)
+toDistinct = Distinct . HS.fromList . map HackyEQ
+
+distinct :: Binary a => [a] -> [a]
+distinct = fromDistinct . toDistinct
+
+mergeSpecs :: BareSpec -> BareSpec -> BareSpec
+mergeSpecs s1 s2 = LH.noTerm $
+  (s1 <> s2) { 
+      sigs       = distinct (sigs s1 <> sigs s2)
+    , asmSigs    = distinct (asmSigs s1 <> asmSigs s2)
+    , aliases    = distinct (aliases s1 <> aliases s2)
+    , ealiases   = distinct (ealiases s1 <> ealiases s2)
+    , qualifiers = distinct (qualifiers s1 <> qualifiers s2)
+    , dataDecls  = distinct (dataDecls s1 <> dataDecls s2)
+    , measures   = distinct (measures s1 <> measures s2)
+    , imeasures  = distinct (imeasures s1 <> imeasures s2)
+    , cmeasures  = distinct (cmeasures s1 <> cmeasures s2)
+
+    , impSigs    = distinct (impSigs s1 <> impSigs s2)
+    , expSigs    = distinct (expSigs s1 <> expSigs s2)
+    , localSigs  = distinct (localSigs s1 <> localSigs s2)
+    , reflSigs   = distinct (reflSigs s1 <> reflSigs s2)
+    , invariants = distinct (invariants s1 <> invariants s2)
+    , ialiases   = distinct (ialiases s1 <> ialiases s2)
+    , imports    = distinct (imports s1 <> imports s2)
+    , newtyDecls = distinct (newtyDecls s1 <> newtyDecls s2)
+    , includes   = distinct (includes s1 <> includes s2)
+    , decr       = distinct (decr s1 <> decr s2)
+    , pragmas    = distinct (pragmas s1 <> pragmas s2)
+    , classes    = distinct (classes s1 <> classes s2)
+    , claws      = distinct (claws s1 <> claws s2)
+    , termexprs  = distinct (termexprs s1 <> termexprs s2)
+    , rinstance  = distinct (rinstance s1 <> rinstance s2)
+    , ilaws      = distinct (ilaws s1 <> ilaws s2)
+    , dvariance  = distinct (dvariance s1 <> dvariance s2)
+    }
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
