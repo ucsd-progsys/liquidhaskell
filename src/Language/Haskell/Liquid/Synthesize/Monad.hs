@@ -38,7 +38,7 @@ import           Data.Tuple.Extra
 import           Debug.Trace
 
 maxMatchDepth :: Int 
-maxMatchDepth = 5 
+maxMatchDepth = 2
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------
@@ -141,7 +141,7 @@ addEmem x t = do
   xtop <- getSFix 
   (ht1, _) <- instantiateTL
   let ht = if x == xtop then ht1 else ht0
-  modify (\s -> s {sExprMem = (ht, GHC.Var x, curAppDepth) : (sExprMem s)})
+  modify (\s -> s {sExprMem = (ht, GHC.Var x, curAppDepth) : sExprMem s})
 
 ---------------------------------------------------------------------------------------------
 --                         Handle structural termination checking                          --
@@ -149,15 +149,38 @@ addEmem x t = do
 addDecrTerm :: Var -> [Var] -> SM ()
 addDecrTerm x vars = do
   decrTerms <- getSDecrTerms 
+  -- Only allow top level variables:
+  -- Put x as a left hand variable, only when @decrTerms@ are empty.
   case lookup x decrTerms of 
-    Nothing    -> modify (\s -> s { ssDecrTerm = (x, vars) : (ssDecrTerm s) } )
+    Nothing    -> lookupAll x vars decrTerms
     Just vars' -> do
       let ix = elemIndex (x, vars') decrTerms
-      case ix of 
-        Nothing  -> error $ "[addDecrTerm] It should have been there " ++ show x 
-        Just ix' -> 
-          let (left, right) = splitAt ix' decrTerms 
-          in  modify (\s -> s { ssDecrTerm =  left ++ [(x, vars ++ vars')] ++ right } )
+          newDecrs = thisReplace (fromMaybe (error " [ addDecrTerm ] Index ") ix) (x, vars ++ vars') decrTerms
+      modify (\s -> s { ssDecrTerm =  newDecrs })
+      -- case ix of 
+      --   Nothing  -> error $ "[addDecrTerm] It should have been there " ++ show x 
+      --   Just ix' -> 
+      --     let (left, right) = splitAt ix' decrTerms 
+      --     in  modify (\s -> s { ssDecrTerm =  left ++ [(x, vars ++ vars')] ++ right } )
+
+-- 
+lookupAll :: Var -> [Var] -> SSDecrTerm -> SM ()
+lookupAll x vars []               = modify (\s -> s {ssDecrTerm = [(x, vars)] ++ ssDecrTerm s})
+lookupAll x vars ((xl, vs):decrs) =
+  case find (== x) vs of
+    Nothing -> lookupAll x vars decrs
+    Just _  -> do
+      sDecrs <- ssDecrTerm <$> get
+      let newDecr  = (xl, vars ++ [x] ++ vs)
+          i        = fromMaybe (error " Write sth ") (elemIndex (xl, vs) sDecrs)
+          newDecrs = thisReplace i newDecr decrs
+      modify (\s -> s { ssDecrTerm = newDecrs })
+
+thisReplace :: Int -> a -> [a] -> [a]
+thisReplace i x l
+  = left ++ [x] ++ right
+    where left  = take (i-1) l
+          right = drop i l
 
 -- | Entry point.
 structuralCheck :: [CoreExpr] -> SM [CoreExpr]
@@ -186,12 +209,12 @@ notStructural decr xtop e
   = case v of
       Nothing -> True
       Just v  -> foldr (\x b -> isDecreasing' x decr && b) True args
-  where (v, args) = (structCheck xtop e)
+  where (v, args) = structCheck xtop e
 
 isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
 isDecreasing' (GHC.Var v) decr
-  = not (v `elem` map fst decr)
-isDecreasing' e decr
+  = v `notElem` map fst decr
+isDecreasing' _e _decr
   = True
 ---------------------------------------------------------------------------------------------
 --                               END OF STRUCTURAL CHECK                                   --

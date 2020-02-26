@@ -52,10 +52,9 @@ withDepthFill i s t depth tmp = do
   let s0 = " [ withDepthFill ] " ++ s
   curEm <- sExprMem <$> get
   exprs <- fill i s0 depth curEm tmp []
-  es0 <- structuralCheck exprs
 
-  if nonTrivials es0 then 
-    filterElseM (hasType s0 True t) es0 $ 
+  if nonTrivials exprs then 
+    filterElseM (hasType s0 True t) exprs $ 
       if depth < maxAppDepth
         then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
                 withDepthFill i s0 t (depth + 1) tmp
@@ -117,26 +116,30 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
                                       argCands1 = if allTrivial (map (map fst) argCands2) 
                                                     then map rmTrivials argCands2
                                                     else argCands2
+                                  -- prune curAppDepth c argCands1
                                   es <- prune curAppDepth c argCands1
-                                  es0 <- structuralCheck es 
-                                  argTypes <- liftCG $ mapM trueTy subGs
-                                  newCands' <- mapM (prepareArg "") argTypes
-                                  let newCands = map (map (, curAppDepth + 1)) newCands'
-                                  es1 <- prune curAppDepth c newCands
-                                  trace ( " For c = " ++ show e ++ " t =  " ++ showTy t  ++ " Expressions " ++ show (map showTy subGs) ) (return (es0 ++ es1))
+                                  structuralCheck es 
+                                  -- es0 <- structuralCheck es 
+                                  -- argTypes <- liftCG $ mapM trueTy subGs
+                                  -- newCands' <- mapM (prepareArg "") argTypes
+                                  -- let newCands = map (map (, curAppDepth + 1)) newCands'
+                                  -- es1 <- prune curAppDepth c newCands
+                                  -- return (es0 ++ es1)
                           else do curAppDepth <- sAppDepth <$> get 
+                                  -- prune curAppDepth c argCands
                                   es <- prune curAppDepth c argCands
-                                  es0 <- structuralCheck es
-                                  argTypes <- liftCG $ mapM trueTy subGs
-                                  newCands' <- mapM (prepareArg "") argTypes
-                                  let newCands = map (map (, curAppDepth + 1)) newCands'
-                                  es1 <- prune curAppDepth c newCands
-                                  trace ( " For c = " ++ show e ++ " t =  " ++ showTy t  ++ " Expressions " ++ show (map showTy subGs) ) (return (es0 ++ es1))
+                                  structuralCheck es
+                                  -- es0 <- structuralCheck es
+                                  -- argTypes <- liftCG $ mapM trueTy subGs
+                                  -- newCands' <- mapM (prepareArg "") argTypes
+                                  -- let newCands = map (map (, curAppDepth + 1)) newCands'
+                                  -- es1 <- prune curAppDepth c newCands
+                                  -- return (es0 ++ es1) 
             let nextEm = map (resTy, , curAppDepth + 1) newExprs
             modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             em <- sExprMem <$> get
             let accExprs' = newExprs ++ accExprs
-            fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth em cs accExprs' 
+            fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth exprMem cs accExprs' 
 
 -------------------------------------------------------------------------------------------
 -- |                       Pruning terms for function application                      | --
@@ -211,8 +214,9 @@ repeatFix [ ] _ _ _ es
 repeatFix (i:is) ixs toFill args es
   = do  let (args0, args1) = fixCands i (ixs !! i) args
         es0 <- fillOne toFill args0
-        es1 <- (++ es) <$> filterM isWellTyped es0
-        repeatFix is ixs toFill args1 es1
+        es1 <- structuralCheck es0 -- Try to avoid interaction with SMT as much as possible.
+        es2 <- (++ es) <$> filterM isWellTyped es1
+        repeatFix is ixs toFill args1 es2
 
 prune :: Depth -> (Type, CoreExpr, Int) -> [[(CoreExpr, Int)]] -> SM [CoreExpr]
 prune d toFill args 

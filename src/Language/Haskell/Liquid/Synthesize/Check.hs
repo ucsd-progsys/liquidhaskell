@@ -30,6 +30,7 @@ import           Language.Haskell.Liquid.Types
 import           MkCore
 import           DynFlags
 import           Debug.Trace
+import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 hasType :: String -> Bool -> SpecType -> CoreExpr -> SM Bool
 hasType s b t !e' = notrace (" [ Check ] " ++ show e') $ do 

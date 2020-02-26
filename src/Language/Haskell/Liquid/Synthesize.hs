@@ -152,15 +152,15 @@ filterScrut = do
   em <- getSEMem
   let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
       es1 = filter (not . trivial . fst3 . fst) es0
-      es42 = filter (appOnly . fst3 .fst) es1
-
+      es2 = filter (appOnly . fst3 .fst) es1
+      es3 = filter (not . isClassTyCon . thd3 . fst) es2
       -- es' = filter (noLet . fst3 . fst) es1
       -- es2 = filter (noPairLike . fst) es'
       -- es3 = sortOn snd es2
-      es3 = sortOn snd es42
-      es4 = map fst es3
+      es4 = sortOn snd es3
+      es5 = map fst es4
       -- es5 = filter (not . isClassTyCon . thd3) es4
-  return es4 -- (filter (isVar . fst3) es1)
+  return es5 -- (filter (isVar . fst3) es1)
 
 appOnly :: GHC.CoreExpr -> Bool
 appOnly GHC.Var{}       = True
