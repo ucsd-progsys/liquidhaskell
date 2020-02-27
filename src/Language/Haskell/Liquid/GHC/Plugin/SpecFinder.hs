@@ -8,7 +8,6 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , findCompanionSpec
     , SpecFinderResult(..)
     , SearchLocation(..)
-    , TargetModule(..)
     ) where
 
 import           Language.Haskell.Liquid.Measure          ( BareSpec )
@@ -16,7 +15,7 @@ import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcM
                                                                           , getModSummary
                                                                           , lookupModSummary
                                                                           )
-import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseBareSpecs )
+import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseLiquidLib )
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.GHC.Interface
@@ -32,6 +31,7 @@ import           CoreMonad                                ( getDynFlags )
 import qualified Data.HashSet                            as HS
 import qualified Data.Map.Strict                         as M
 import qualified Data.List                               as L
+import           Data.Function                            ( (&) )
 import           Data.Foldable
 import           Data.Maybe
 
@@ -41,22 +41,12 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
-import Debug.Trace
-
 type SpecFinder m = GhcMonadLike m => SpecEnv -> Module -> MaybeT m SpecFinderResult
 
 -- | The result of searching for a spec.
 data SpecFinderResult = 
     SpecNotFound Module
-  | ExternalSpecFound ModuleName SearchLocation CachedSpec
-  -- ^ Only a single spec was found. This is the typical case for interface loading.
-  | BaseSpecsFound ModuleName SearchLocation [CachedSpec]
-  -- The spec was found and was fetched together with any required specs the module requires.
-  | CompanionSpecFound ModuleName SearchLocation CachedSpec
-  -- The spec was found alongside the compiled module, on the filesystem.
-
--- | The module we are currently compiling/processing as part of the Plugin infrastructure.
-newtype TargetModule = TargetModule { getTargetModule :: Module }
+  | SpecFound Module SearchLocation LiquidLib
 
 data SearchLocation =
     InterfaceLocation
@@ -65,56 +55,39 @@ data SearchLocation =
   -- ^ The spec was loaded from the cached 'SpecEnv'.
   | DiskLocation
   -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
-  | IncludeDirLocation
-  -- ^ The spec was loaded from the `include` directory in the LH root project.
   deriving Show
+
 
 -- | Load any relevant spec in the input 'SpecEnv', by updating it. The update will happen only if necessary,
 -- i.e. if the spec is not already present.
 findRelevantSpecs :: forall m. GhcMonadLike m 
                   => (Config, Bool)
                   -> ExternalPackageState
+                  -> HomePackageTable
                   -> SpecEnv 
-                  -> TargetModule
                   -> [Module]
                   -> m (SpecEnv, [SpecFinderResult])
-findRelevantSpecs (cfg, configChanged) eps specEnv target mods = do
+findRelevantSpecs (cfg, configChanged) eps hpt specEnv mods = do
   (_, specEnv', res) <- foldlM loadRelevantSpec (configChanged, specEnv, mempty) mods
   pure (specEnv', res)
   where
-    baseCacheEmpty :: SpecEnv -> Bool
-    baseCacheEmpty env = L.null (baseSpecs env)
 
     loadRelevantSpec :: (Bool, SpecEnv, [SpecFinderResult]) -> Module -> m (Bool, SpecEnv, [SpecFinderResult])
-    loadRelevantSpec (fetchFromDisk, currentEnv, !acc) currentModule = do
-      let externalSpecsFinders = [ lookupCachedExternalSpec currentEnv currentModule
-                                 , lookupInterfaceAnnotations eps currentEnv currentModule
-                                 --, lookupCompanionSpec currentEnv currentModule
+    loadRelevantSpec (cfgChanged, currentEnv, !acc) currentModule = do
+      let externalSpecsFinders = [ -- lookupCachedExternalSpec currentEnv currentModule
+                                 lookupInterfaceAnnotations eps hpt currentEnv currentModule
                                  ]
 
-      -- The 'baseSpecFinder' needs to go last and triggers disk I/O in trying to fetch spec files from
-      -- the filesystem, if the configuration has changed or if the cache is empty.
-      --let baseSpecFinder =
-      --      if | fetchFromDisk ->
-      --           [loadSpecFromDisk cfg (getTargetModule target) (resetBaseSpecs currentEnv) currentModule]
-      --         | baseCacheEmpty currentEnv ->
-      --           [loadSpecFromDisk cfg (getTargetModule target) currentEnv currentModule]
-      --         | otherwise      ->
-      --           [lookupCachedBaseSpec currentEnv currentModule]
-
-      res <- runMaybeT (asum $ externalSpecsFinders {- <> baseSpecFinder -})
+      res <- runMaybeT $ asum externalSpecsFinders
       case res of
         Nothing         -> pure (False, currentEnv, SpecNotFound currentModule : acc)
         Just specResult -> do
           let env' = case specResult of
-                       ExternalSpecFound _originalMod SpecEnvLocation _spec ->
+                       SpecFound _originalMod SpecEnvLocation _lib ->
                          currentEnv  -- If this was already in the map, do not override it.
-                       ExternalSpecFound _originalMod _location spec ->
-                         insertExternalSpec currentModule spec currentEnv
-                       CompanionSpecFound _originalMod _location spec ->
-                         insertExternalSpec currentModule spec currentEnv
-                       BaseSpecsFound _originalMod _location specs ->
-                         replaceBaseSpecs specs currentEnv
+                       SpecFound _originalMod _location lib ->
+                         currentEnv & insertExternalSpec currentModule (toCached currentModule $ libTarget lib)
+                                    . flip (foldl' (\acc s -> insertExternalSpec (cachedSpecModule s) s acc)) (libDeps lib)
                        SpecNotFound _ -> currentEnv
           pure (False, env', specResult : acc)
 
@@ -130,48 +103,14 @@ findCompanionSpec env m = do
 -- | Try to load the spec from the 'SpecEnv'.
 lookupCachedExternalSpec :: SpecFinder m
 lookupCachedExternalSpec specEnv thisModule = do
-  b <- MaybeT $ pure $ M.lookup thisModule (externalSpecs specEnv)
-  pure $ ExternalSpecFound (moduleName thisModule) SpecEnvLocation b
-
-lookupCachedBaseSpec :: SpecFinder m
-lookupCachedBaseSpec specEnv thisModule = do
-  guard (isJust $ find (\cs -> getModName (fst $ fromCached cs) == moduleName thisModule) (baseSpecs specEnv))
-  pure  $ BaseSpecsFound (moduleName thisModule) SpecEnvLocation (baseSpecs specEnv)
+  b <- MaybeT $ pure $ lookupExternalSpec thisModule specEnv
+  pure $ SpecFound thisModule SpecEnvLocation (mkLiquidLib . snd $ fromCached b)
 
 -- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
-loadSpecFromDisk :: Config -> Module -> SpecFinder m
-loadSpecFromDisk cfg targetModule _specEnv thisModule = do
-  modSummary <- lift $ GhcMonadLike.getModSummary (moduleName targetModule)
-  bareSpecs  <- lift $ findBaseSpecs cfg modSummary
-  case bareSpecs of
-    []         -> MaybeT $ pure Nothing
-    specs      -> do
-      guard (isJust $ find (\(n,_) -> getModName n == moduleName thisModule) specs)
-      pure $ BaseSpecsFound (moduleName thisModule) IncludeDirLocation (map toCached specs)
-
-findBaseSpecs :: GhcMonadLike m 
-              => Config 
-              -> ModSummary 
-              -> m [(ModName, BareSpec)]
-findBaseSpecs cfg modSum =
-  let paths = HS.fromList $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
-  in findAndParseSpecFiles cfg paths modSum mempty
-
--- | Load a spec by trying to parse the relevant \".spec\" file from the filesystem.
-lookupInterfaceAnnotations :: ExternalPackageState -> SpecFinder m
-lookupInterfaceAnnotations eps _specEnv thisModule = do
-  let bareSpecs = deserialiseBareSpecs thisModule eps
-  case bareSpecs of
-    []         -> MaybeT $ pure Nothing
-    [bareSpec] -> 
-      let cachedSpec = toCached (ModName SrcImport (moduleName thisModule), bareSpec)
-      in pure $ ExternalSpecFound (moduleName thisModule) InterfaceLocation cachedSpec
-    specs      -> do
-      dynFlags <- lift getDynFlags
-      let errMsg = O.text "More than one spec file found for" 
-             O.<+> O.ppr thisModule O.<+> O.text ":"
-             O.<+> (O.vcat $ map (O.text . show) specs)
-      lift $ pluginAbort dynFlags errMsg
+lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
+lookupInterfaceAnnotations eps hpt _specEnv thisModule = do
+  lib <- MaybeT $ pure $ deserialiseLiquidLib thisModule eps hpt
+  pure $ SpecFound thisModule InterfaceLocation lib
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
@@ -193,7 +132,7 @@ lookupCompanionSpec _specEnv thisModule = do
              O.<+> O.text (specFile file) O.<+> O.text ":"
              O.<+> O.text (show parsingError)
       lift $ pluginAbort dynFlags errMsg
-    Right spec -> pure $ CompanionSpecFound (moduleName thisModule) DiskLocation (toCached spec)
+    Right spec -> pure $ SpecFound thisModule DiskLocation (mkLiquidLib . snd $ spec)
   where
     specFile :: FilePath -> FilePath
     specFile fp = withExt fp Spec

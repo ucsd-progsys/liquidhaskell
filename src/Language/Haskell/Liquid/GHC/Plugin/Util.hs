@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 module Language.Haskell.Liquid.GHC.Plugin.Util (
@@ -5,14 +6,13 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       , extractSpecComments
 
       -- * Serialising and deserialising things from/to specs.
-      , serialiseBareSpecs
-      , deserialiseBareSpecs
+      , serialiseBareSpec
+      , deserialiseBareSpec
+      , serialiseLiquidLib
+      , deserialiseLiquidLib
 
       -- * Aborting the plugin execution
       , pluginAbort
-
-      -- * Pretty-printing things
-      , debugShowModule
       ) where
 
 import           GhcPlugins                              as GHC
@@ -22,14 +22,19 @@ import           Outputable                               ( SDoc
                                                           , (<+>)
                                                           , showSDocUnsafe
                                                           )
+import           UniqDFM
+import           IfaceSyn
 import           GHC                                      ( DynFlags )
 import           CoreMonad                                ( CoreM )
 import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
 import           HscTypes                                 ( ModIface )
+import           Data.Foldable                            ( asum )
 
 import           Control.Monad.IO.Class
+import           Control.Monad
 
 import qualified Data.Binary                             as B
+import           Data.Binary                              ( Binary )
 import qualified Data.Binary.Get                         as B
 import           Data.ByteString.Lazy                     ( ByteString )
 import qualified Data.ByteString.Lazy                    as B
@@ -39,10 +44,13 @@ import           Data.Data
 import           Data.Either                              ( partitionEithers )
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
+                                                          , LiquidLib
+                                                          , debugShowModule
                                                           )
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike)
 
+import Debug.Trace
 
 pluginAbort :: MonadIO m => DynFlags -> SDoc -> m a
 pluginAbort dynFlags msg =
@@ -82,26 +90,44 @@ extractModuleAnnotations guts = (guts', extracted)
 -- Serialising and deserialising Specs
 --
 
-deserialiseBareSpecs :: Module -> ExternalPackageState -> [BareSpec]
-deserialiseBareSpecs thisModule eps = extracted
+deserialiseBinaryObject :: forall a. (Typeable a, Binary a) 
+                        => Module 
+                        -> ExternalPackageState 
+                        -> HomePackageTable
+                        -> Maybe a
+deserialiseBinaryObject thisModule eps hpt = asum [extractFromHpt, extractFromEps]
   where
-    extracted = findAnns deserialise (eps_ann_env eps) (ModuleTarget thisModule)
+    extractFromEps :: Maybe a
+    extractFromEps = listToMaybe $ findAnns deserialise (eps_ann_env eps) (ModuleTarget thisModule)
 
-    deserialise :: [B.Word8] -> BareSpec
+    extractFromHpt :: Maybe a
+    extractFromHpt = do
+      modInfo <- lookupUDFM hpt (moduleName thisModule)
+      guard (thisModule == (mi_module . hm_iface $ modInfo))
+      xs <- mapM (fromSerialized deserialise . ifAnnotatedValue) (mi_anns . hm_iface $ modInfo)
+      listToMaybe xs
+
+    deserialise :: [B.Word8] -> a
     deserialise payload = B.decode (B.pack payload)
 
-serialiseBareSpecs :: [BareSpec] -> ModGuts -> ModGuts
-serialiseBareSpecs specs modGuts = annotated
+serialiseBinaryObject :: forall a. (Binary a, Typeable a) => a -> ModGuts -> ModGuts
+serialiseBinaryObject obj modGuts = annotated
   where
-    thisModule     = mg_module modGuts
-    annotated      = modGuts { mg_anns = newAnnotations ++ mg_anns modGuts }
-    newAnnotations = map serialise specs
+    thisModule     = let foo = mg_module modGuts in traceShow (debugShowModule foo) foo
+    annotated      = modGuts { mg_anns = newAnnotation : mg_anns modGuts }
+    newAnnotation  = serialise
 
-    serialise :: BareSpec -> Annotation
-    serialise spec = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) spec)
+    serialise :: Annotation
+    serialise = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) obj)
 
-debugShowModule :: Module -> String
-debugShowModule m = showSDocUnsafe $
-                     text "Module { unitId = " <+> ppr (moduleUnitId m)
-                 <+> text ", name = " <+> ppr (moduleName m) 
-                 <+> text " }"
+deserialiseBareSpec :: Module -> ExternalPackageState -> HomePackageTable -> Maybe BareSpec
+deserialiseBareSpec thisModule = deserialiseBinaryObject @BareSpec thisModule
+
+serialiseBareSpec :: BareSpec -> ModGuts -> ModGuts
+serialiseBareSpec specs = serialiseBinaryObject @BareSpec specs
+
+serialiseLiquidLib :: LiquidLib -> ModGuts -> ModGuts
+serialiseLiquidLib specs = serialiseBinaryObject @LiquidLib specs
+
+deserialiseLiquidLib :: Module -> ExternalPackageState -> HomePackageTable -> Maybe LiquidLib
+deserialiseLiquidLib thisModule = deserialiseBinaryObject @LiquidLib thisModule

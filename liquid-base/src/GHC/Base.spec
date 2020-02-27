@@ -5,8 +5,12 @@ import GHC.Prim
 import GHC.Classes
 import GHC.Types
 
-//embed GHC.Types.Int      as int
-//embed GHC.Types.Bool     as bool
+GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
+
+assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
+assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
+assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
+assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
 
 measure autolen :: forall a. a -> GHC.Types.Int
 

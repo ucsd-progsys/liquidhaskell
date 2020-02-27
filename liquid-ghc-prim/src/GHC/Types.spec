@@ -23,13 +23,6 @@ GHC.Types.False :: {v:GHC.Types.Bool | (~ v) }
 
 GHC.Types.isTrue#  :: n:_ -> {v:GHC.Types.Bool | (n = 1 <=> v)}
 
-GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
-
-assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
-assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
-assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
-assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
-
 measure addrLen :: GHC.Prim.Addr# -> GHC.Types.Int
 
 type GeInt N = {v: GHC.Types.Int | v >= N }
@@ -51,4 +44,3 @@ assume GHC.Prim.<#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | 
 assume GHC.Prim.>#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | v = 1 <=> x > y}
 
 class measure len :: forall f a. f a -> GHC.Types.Int
-

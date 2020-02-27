@@ -37,7 +37,7 @@ groupBy eq (x:xs) =  (x:ys) : groupBy eq zs
 
 {-@ type PosInt = {v: Int | v > 0 } @-}
 
-{-@ partition           :: size:PosInt -> [a] -> (Clustering a) @-}
+{-@ partition           :: size:PosInt -> xs:[a] -> (Clustering a) / [len xs] @-}
 
 partition size []       = []
 partition size ys@(_:_) = zs : partition size zs'
