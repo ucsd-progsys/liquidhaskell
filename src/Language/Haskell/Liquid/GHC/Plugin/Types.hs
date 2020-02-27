@@ -6,23 +6,25 @@
 
 module Language.Haskell.Liquid.GHC.Plugin.Types
     ( SpecComment(..)
-    -- * Dealing with accumulated specs
+
+    -- * Dealing with specs and their dependencies
     , LiquidLib
     , mkLiquidLib
     , libTarget
     , libDeps
     , allDeps
-    , addLibDependency
     , addLibDependencies
+
+    -- * Caching specs into interfaces
     , CachedSpec
     , toCached
     , cachedSpecStableModuleId
     , cachedSpecModule
     , fromCached
 
-    -- * Merging specs together, the hacky, prototype-y way.
+    -- * Merging specs together
     , mergeSpecs
-    , HackyEQ(..)
+    , nullSpec
 
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
@@ -36,14 +38,12 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , toUnoptimised
 
     , debugShowModule
-    , debugShowLiquidLib
     ) where
 
 import           Data.Binary                             as B
 import           Data.Data                                ( Data )
 import           Data.Foldable
 import           Text.Parsec                              ( SourcePos )
-import           Text.Pretty.Simple                       ( pShowNoColor )
 import           Outputable                        hiding ( (<>) )
 import           GHC.Generics                      hiding ( moduleName )
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
@@ -83,7 +83,6 @@ import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
 
 
-import Data.Coerce
 import qualified Data.List as L
 
 
@@ -96,22 +95,19 @@ data LiquidLib = LiquidLib
 
 instance B.Binary LiquidLib
 
-debugShowLiquidLib :: LiquidLib -> String
-debugShowLiquidLib = TL.unpack . pShowNoColor
-
 -- | Creates a new 'LiquidLib' with no dependencies.
 mkLiquidLib :: BareSpec -> LiquidLib
 mkLiquidLib s = LiquidLib s mempty
 
-addLibDependency :: CachedSpec -> LiquidLib -> LiquidLib
-addLibDependency dep lib = lib { llDeps = HS.insert dep (llDeps lib) }
-
+-- | Adds a set of dependencies to the input 'LiquidLib'.
 addLibDependencies :: HashSet CachedSpec -> LiquidLib -> LiquidLib
 addLibDependencies deps lib = lib { llDeps = deps <> (llDeps lib) }
 
+-- | Returns the target 'BareSpec' of this 'LiquidLib'.
 libTarget :: LiquidLib -> BareSpec
 libTarget = llTarget
 
+-- | Returns all the dependencies of this 'LiquidLib'.
 libDeps :: LiquidLib -> HashSet CachedSpec
 libDeps = llDeps
 
@@ -120,8 +116,10 @@ allDeps :: Foldable f => f LiquidLib -> HashSet CachedSpec
 allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
 
 -- | A newtype wrapper around a 'Module' which:
+--
 -- * Allows a 'Module' to be serialised (i.e. it has a 'Binary' instance)
--- * It uses 'unitIdString' and 'moduleNameString' under the hood like 'moduleStableString'.
+-- * It tries to use stable comparison and equality under the hood.
+--
 newtype StableModule = StableModule Module
 
 instance Ord StableModule where
@@ -133,6 +131,7 @@ instance Eq StableModule where
 instance Show StableModule where
     show (StableModule mdl) = "Stable" ++ debugShowModule mdl
 
+-- | Converts a 'Module' into a 'StableModule'.
 toStableModule :: Module -> StableModule
 toStableModule = StableModule
 
@@ -147,8 +146,10 @@ instance Binary StableModule where
       pure $ StableModule (Module (stringToUnitId uidStr) (mkModuleName mnStr))
 
 
--- A cached spec which can be serialised into an interface.
--- /INVARIANT/: A 'CachedSpec' has temination-checking disabled (i.e. 'noTerm' is called on the inner 'BareSpec').
+-- | A cached spec which can be serialised into an interface.
+--
+-- /INVARIANT/: A 'CachedSpec' has temination-checking disabled 
+-- (i.e. 'noTerm' is called on the inner 'BareSpec').
 data CachedSpec = CachedSpec StableModule BareSpec deriving (Show, Generic)
 
 instance Binary CachedSpec
@@ -160,7 +161,7 @@ instance Hashable CachedSpec where
     hashWithSalt s (CachedSpec (StableModule mdl) _) = 
       hashWithSalt s (moduleStableString mdl)
 
--- Convert the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
+-- | Converts the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
 -- needs to be disabled as this is now considered safe to use for \"clients\".
 toCached :: Module -> BareSpec -> CachedSpec
 toCached mdl bareSpec = CachedSpec (toStableModule mdl) (LH.noTerm bareSpec)
@@ -175,11 +176,12 @@ fromCached :: CachedSpec -> (ModName, BareSpec)
 fromCached (CachedSpec (StableModule mdl) s) = (ModName SrcImport (moduleName mdl), s)
 
 --
--- Merging specs together, the hacky way
+-- Merging specs together.
 --
 
+-- | Temporary hacky newtype wrapper that gives an 'Eq' instance to a type based on the 'Binary' encoding
+-- representation.
 newtype HackyEQ  a = HackyEQ  { unHackyEQ :: a }
-newtype Distinct a = Distinct { unDistinct :: HS.HashSet a } deriving Semigroup
 
 instance Binary a => Eq (HackyEQ a) where
   (HackyEQ a) == (HackyEQ b) = B.encode a == B.encode b
@@ -187,24 +189,25 @@ instance Binary a => Eq (HackyEQ a) where
 instance Binary a => Hashable (HackyEQ a) where
   hashWithSalt s (HackyEQ a) = hashWithSalt s (B.encode a)
 
-fromDistinct :: Distinct (HackyEQ a) -> [a]
-fromDistinct = coerce . HS.toList . unDistinct
-
-toDistinct :: Binary a => [a] -> Distinct (HackyEQ a)
-toDistinct = Distinct . HS.fromList . map HackyEQ
-
-distinct :: Binary a => [a] -> [a]
-distinct = fromDistinct . toDistinct
-
+-- | Checks if the two input declarations are equal, by checking not only that their value
+-- is the same, but also that they are declared exactly in the same place.
 sameDeclaration :: (Loc a, Eq a) => a -> a -> Bool
 sameDeclaration x1 x2 = x1 == x2 && (srcSpan x1 == srcSpan x2)
 
+-- | Merges two 'BareSpec's together.
+-- NOTE(adinapoli) In theory what we would like is to have a version of this function that is either
+-- isomorphic to 'mappend' or not use these hacks (i.e. 'nubBy', etc).
 mergeSpecs :: BareSpec -> BareSpec -> BareSpec
 mergeSpecs s1 s2 = LH.noTerm $
   (s1 <> s2) { 
       sigs      = L.nubBy (\a b -> fst a == fst b) (sigs s1 <> sigs s2)
     , dataDecls = L.nubBy sameDeclaration (dataDecls s1 <> dataDecls s2)
     }
+
+-- | Returns 'True' if the input 'BareSpec' is empty.
+-- FIXME(adinapoli) Currently this uses the 'HackEQ' under the hook, which is bad.
+nullSpec :: BareSpec -> Bool
+nullSpec spec = HackyEQ spec == HackyEQ mempty
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =

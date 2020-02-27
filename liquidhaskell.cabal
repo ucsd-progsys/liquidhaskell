@@ -157,7 +157,6 @@ library
                       LiquidHaskell
                       Paths_liquidhaskell
   if impl(ghc >= 8.10)
-      build-depends:      pretty-simple
       exposed-modules:    Language.Haskell.Liquid.GHC.Plugin
       other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                           Language.Haskell.Liquid.GHC.Plugin.Types

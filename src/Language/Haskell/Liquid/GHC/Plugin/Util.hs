@@ -50,8 +50,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike)
 
-import Debug.Trace
-
 pluginAbort :: MonadIO m => DynFlags -> SDoc -> m a
 pluginAbort dynFlags msg =
   liftIO $ throwGhcExceptionIO $ ProgramError ("LiquidHaskell: " ++ showSDoc dynFlags msg)
@@ -113,7 +111,7 @@ deserialiseBinaryObject thisModule eps hpt = asum [extractFromHpt, extractFromEp
 serialiseBinaryObject :: forall a. (Binary a, Typeable a) => a -> ModGuts -> ModGuts
 serialiseBinaryObject obj modGuts = annotated
   where
-    thisModule     = let foo = mg_module modGuts in traceShow (debugShowModule foo) foo
+    thisModule     = mg_module modGuts
     annotated      = modGuts { mg_anns = newAnnotation : mg_anns modGuts }
     newAnnotation  = serialise
 
