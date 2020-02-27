@@ -56,7 +56,6 @@ import Data.Coerce
 import Data.List as L hiding (intersperse)
 import Data.IORef
 import qualified Data.Set as S
-import qualified Data.Map.Strict as M
 import Data.Set (Set)
 
 
@@ -93,12 +92,6 @@ unoptimisedRef = unsafePerformIO $ newIORef (error "Impossible, unoptimisedRef w
 tcStableRef :: IORef (ModuleEnv TcData)
 tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 {-# NOINLINE tcStableRef #-}
-
--- Used to carry around all the specs we discover while processing interface files and their
--- annotations.
-specEnvRef :: IORef SpecEnv
-specEnvRef = unsafePerformIO $ newIORef (SpecEnv mempty)
-{-# NOINLINE specEnvRef #-}
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
@@ -289,7 +282,6 @@ liquidHaskellPass cfg modGuts = do
       case mbTcData of
         Nothing -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
         Just tcData -> do
-          specEnv  <- liftIO $ readIORef specEnvRef
 
           debugLog $ "Relevant ===> \n" ++ 
             (unlines $ map debugShowModule $ (S.toList $ relevantModules modGuts))
@@ -304,13 +296,11 @@ liquidHaskellPass cfg modGuts = do
               , lhModuleTcData    = tcData
               , lhModuleGuts      = unoptimisedGuts
               , lhRelevantModules = relevantModules modGuts
-              , lhSpecEnv         = specEnv
               }
 
           ProcessModuleResult{..} <- processModule lhContext
 
           let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
-          liftIO $ atomicModifyIORef' specEnvRef (\_ -> (pmrNewSpecEnv, ()))
 
           -- Call into the existing Liquid interface
           res <- liftIO $ LH.liquidOne pmrGhcInfo
@@ -331,14 +321,12 @@ loadRelevantSpecs :: forall m. GhcMonadLike m
                   => (Config, Bool)
                   -> ExternalPackageState
                   -> HomePackageTable
-                  -> SpecEnv 
                   -> Module
                   -> [Module]
-                  -> m (HashSet CachedSpec, SpecEnv)
-loadRelevantSpecs config eps hpt specEnv thisModule mods = do
-  (newEnv, results) <- SpecFinder.findRelevantSpecs config eps hpt specEnv mods
-  specs <- foldlM processResult mempty (reverse results)
-  pure (specs, newEnv)
+                  -> m (HashSet CachedSpec)
+loadRelevantSpecs config eps hpt thisModule mods = do
+  results <- SpecFinder.findRelevantSpecs config eps hpt mods
+  foldlM processResult mempty (reverse results)
   where
     processResult :: HashSet CachedSpec -> SpecFinderResult -> m (HashSet CachedSpec)
     processResult !acc (SpecNotFound mdl) = do
@@ -387,7 +375,6 @@ data LiquidHaskellContext = LiquidHaskellContext {
   , lhModuleTcData     :: TcData
   , lhModuleGuts       :: Unoptimised ModGuts
   , lhRelevantModules  :: Set Module
-  , lhSpecEnv          :: SpecEnv
   }
 
 --------------------------------------------------------------------------------
@@ -395,8 +382,7 @@ data LiquidHaskellContext = LiquidHaskellContext {
 --------------------------------------------------------------------------------
 
 data ProcessModuleResult = ProcessModuleResult {
-    pmrNewSpecEnv :: SpecEnv
-  , pmrClientLib  :: LiquidLib
+    pmrClientLib  :: LiquidLib
   , pmrGhcInfo    :: GhcInfo
   }
 
@@ -411,7 +397,7 @@ getLiquidSpec thisModule specComments specQuotes = do
   (_, commSpec) <- either throw return $ 
     hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
 
-  res <- SpecFinder.findCompanionSpec mempty thisModule
+  res <- SpecFinder.findCompanionSpec thisModule
   case res of
     SpecFound _ _ lib -> do
       debugLog $ "Companion spec found for " ++ debugShowModule thisModule
@@ -435,12 +421,11 @@ processModule LiquidHaskellContext{..} = do
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
   let configChanged   = moduleCfg /= lhGlobalCfg
-  (dependencies, updatedEnv) <- loadRelevantSpecs (moduleCfg, configChanged)
-                                                  eps
-                                                  (hsc_HPT hscEnv)
-                                                  lhSpecEnv
-                                                  thisModule
-                                                  (S.toList lhRelevantModules)
+  dependencies       <- loadRelevantSpecs (moduleCfg, configChanged)
+                                          eps
+                                          (hsc_HPT hscEnv)
+                                          thisModule
+                                          (S.toList lhRelevantModules)
 
   debugLog $ "Found " <> show (length dependencies) <> " dependencies:"
   forM_ dependencies $ debugLog . cachedSpecStableModuleId
@@ -460,8 +445,7 @@ processModule LiquidHaskellContext{..} = do
 
 
   let result = ProcessModuleResult {
-        pmrNewSpecEnv = insertExternalSpec thisModule (toCached thisModule clientSpec) updatedEnv
-      , pmrClientLib  = clientLib
+        pmrClientLib  = clientLib
       , pmrGhcInfo    = ghcInfo
       }
 
