@@ -70,7 +70,6 @@ import qualified Language.Haskell.TH.Syntax as TH
 import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import qualified Language.Haskell.Liquid.Measure  as Ms
-import qualified Language.Haskell.Liquid.Misc     as Misc
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec, getConfig)
@@ -95,7 +94,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -132,25 +131,20 @@ plugin = GHC.defaultPlugin {
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
 customDynFlags :: [CommandLineOption] -> DynFlags -> IO DynFlags
 customDynFlags opts dflags = do
+  debugLog "hello"
   cfg <- liftIO $ LH.getOpts opts
   writeIORef cfgRef cfg
-  configureDynFlags cfg dflags
+  configureDynFlags dflags
 
-updateIncludePaths :: DynFlags -> [FilePath] -> IncludeSpecs 
-updateIncludePaths df ps = addGlobalInclude (includePaths df) ps 
-
-configureDynFlags :: Config -> DynFlags -> IO DynFlags
-configureDynFlags cfg df =
-  pure $ df { importPaths  = nub $ idirs cfg ++ importPaths df
-            , libraryPaths = nub $ idirs cfg ++ libraryPaths df
-            , includePaths = updateIncludePaths df (idirs cfg)
-            } `gopt_set` Opt_ImplicitImportQualified
-              `gopt_set` Opt_PIC
-              `gopt_set` Opt_DeferTypedHoles
-              `gopt_set` Opt_KeepRawTokenStream
-              `xopt_set` MagicHash
-              `xopt_set` DeriveGeneric
-              `xopt_set` StandaloneDeriving
+configureDynFlags :: DynFlags -> IO DynFlags
+configureDynFlags df =
+  pure $ df `gopt_set` Opt_ImplicitImportQualified
+            `gopt_set` Opt_PIC
+            `gopt_set` Opt_DeferTypedHoles
+            `gopt_set` Opt_KeepRawTokenStream
+            `xopt_set` MagicHash
+            `xopt_set` DeriveGeneric
+            `xopt_set` StandaloneDeriving
 
 --------------------------------------------------------------------------------
 -- | Parsing phase -------------------------------------------------------------
@@ -223,11 +217,10 @@ parseHook _ modSummary parsedModule = do
 -- | \"Unoptimising\" things ----------------------------------------------------
 --------------------------------------------------------------------------------
 
--- LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
+-- | LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
 -- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by
 -- desugaring the module during /parsing/ (before that's already too late) and we cache the core binds for
 -- the rest of the program execution.
-
 class Unoptimise a where
   type UnoptimisedTarget a :: *
   unoptimise :: a -> UnoptimisedTarget a
@@ -308,8 +301,6 @@ liquidHaskellPass cfg modGuts = do
             Safe -> pure ()
             _    -> pluginAbort dynFlags (O.text "Unsafe.")
 
-          --debugLog $ "toAnnotate ==> " ++ debugShowLiquidLib pmrClientLib
-
           debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
           pure finalGuts
 
@@ -336,7 +327,6 @@ loadRelevantSpecs config eps hpt thisModule mods = do
     processResult !acc (SpecFound originalModule location lib) = do
       debugLog $ "[T:" ++ show (moduleName thisModule) 
               ++ "] Spec found for " ++ debugShowModule originalModule ++ ", at location " ++ show location
-              -- ++ debugShowLiquidLib lib
       pure $ toCached originalModule (libTarget lib) `HS.insert` acc <> libDeps lib
 
 
@@ -383,13 +373,14 @@ data LiquidHaskellContext = LiquidHaskellContext {
 
 data ProcessModuleResult = ProcessModuleResult {
     pmrClientLib  :: LiquidLib
+  -- ^ The \"client library\" we will serialise on disk into an interface's 'Annotation'.
   , pmrGhcInfo    :: GhcInfo
+  -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
   }
 
 -- | Returns 'True' if we have to process the 'Module' associated to the input 'BareSpec'.
--- it means we can skip this file.
 needsProcessing :: BareSpec -> Bool
-needsProcessing sp = HackyEQ sp /= HackyEQ mempty
+needsProcessing = not . nullSpec
 
 getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
 getLiquidSpec thisModule specComments specQuotes = do
@@ -472,9 +463,8 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
   (fiTcs, fiDcs) <- liftIO $ LH.makeFamInstEnv hscEnv
   let things      = tcResolvedNames tcData
   let impVars     = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
-  incDir         <- liftIO $ Misc.getIncludeDir
   return $ Src
-    { giIncDir    = incDir
+    { giIncDir    = mempty
     , giTarget    = file
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
     , giCbs       = coreBinds
