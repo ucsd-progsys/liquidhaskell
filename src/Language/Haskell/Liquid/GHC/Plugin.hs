@@ -51,6 +51,7 @@ import GHC.LanguageExtensions
 import Control.Exception
 import Control.Monad
 
+import           Data.Function                            ( (&) )
 import Data.Coerce
 import Data.List as L hiding (intersperse)
 import Data.IORef
@@ -60,6 +61,7 @@ import Data.Set (Set)
 
 
 import qualified Data.HashSet        as HS
+import           Data.HashSet                             ( HashSet )
 
 import System.IO.Unsafe                 (unsafePerformIO)
 import Text.Parsec.Pos
@@ -95,12 +97,12 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 -- Used to carry around all the specs we discover while processing interface files and their
 -- annotations.
 specEnvRef :: IORef SpecEnv
-specEnvRef = unsafePerformIO $ newIORef (SpecEnv mempty mempty)
+specEnvRef = unsafePerformIO $ newIORef (SpecEnv mempty)
 {-# NOINLINE specEnvRef #-}
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -307,7 +309,7 @@ liquidHaskellPass cfg modGuts = do
 
           ProcessModuleResult{..} <- processModule lhContext
 
-          let finalGuts = Util.serialiseBareSpecs [pmrClientSpec] guts'
+          let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
           liftIO $ atomicModifyIORef' specEnvRef (\_ -> (pmrNewSpecEnv, ()))
 
           -- Call into the existing Liquid interface
@@ -316,7 +318,7 @@ liquidHaskellPass cfg modGuts = do
             Safe -> pure ()
             _    -> pluginAbort dynFlags (O.text "Unsafe.")
 
-          --debugLog $ "toAnnotate ==> " ++ show pmrClientSpec
+          --debugLog $ "toAnnotate ==> " ++ debugShowLiquidLib pmrClientLib
 
           debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
           pure finalGuts
@@ -328,31 +330,27 @@ liquidHaskellPass cfg modGuts = do
 loadRelevantSpecs :: forall m. GhcMonadLike m 
                   => (Config, Bool)
                   -> ExternalPackageState
+                  -> HomePackageTable
                   -> SpecEnv 
-                  -> TargetModule
+                  -> Module
                   -> [Module]
-                  -> m SpecEnv
-loadRelevantSpecs config eps specEnv targetModule mods = do
-  (newSpec, results) <- SpecFinder.findRelevantSpecs config eps specEnv targetModule mods
-  mapM_ processResult (reverse results)
-  pure newSpec
+                  -> m (HashSet CachedSpec, SpecEnv)
+loadRelevantSpecs config eps hpt specEnv thisModule mods = do
+  (newEnv, results) <- SpecFinder.findRelevantSpecs config eps hpt specEnv mods
+  specs <- foldlM processResult mempty (reverse results)
+  pure (specs, newEnv)
   where
-    processResult :: SpecFinderResult -> m ()
-    processResult (SpecNotFound mdl) = do
-      debugLog $ "[T:" ++ debugShowModule (getTargetModule targetModule)
+    processResult :: HashSet CachedSpec -> SpecFinderResult -> m (HashSet CachedSpec)
+    processResult !acc (SpecNotFound mdl) = do
+      debugLog $ "[T:" ++ debugShowModule thisModule
               ++ "] Spec not found for " ++ debugShowModule mdl
-    processResult (ExternalSpecFound originalModule location _spec) = do
-      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
-              ++ "] Spec found for " ++ show originalModule ++ ", at location " ++ show location
-              -- ++ show _spec
-    processResult (CompanionSpecFound originalModule location _spec) = do
-      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
-              ++ "] Companion spec found for " ++ show originalModule ++ ", at location " ++ show location
-    processResult (BaseSpecsFound originalModule location (map fromCached -> specs)) = do
-      debugLog $ "[T:" ++ show (moduleName $ getTargetModule targetModule) 
-              ++ "] Multiple specs found when searching for " ++ show originalModule ++ " : " 
-      debugLog $ unlines (map (show . fst) specs)
-               ++ "\nAt location " ++ show location
+      pure acc
+    processResult !acc (SpecFound originalModule location lib) = do
+      debugLog $ "[T:" ++ show (moduleName thisModule) 
+              ++ "] Spec found for " ++ debugShowModule originalModule ++ ", at location " ++ show location
+              -- ++ debugShowLiquidLib lib
+      pure $ toCached originalModule (libTarget lib) `HS.insert` acc <> libDeps lib
+
 
 -- | The collection of dependencies and usages modules which are relevant for liquidHaskell
 relevantModules :: ModGuts -> Set Module
@@ -398,7 +396,7 @@ data LiquidHaskellContext = LiquidHaskellContext {
 
 data ProcessModuleResult = ProcessModuleResult {
     pmrNewSpecEnv :: SpecEnv
-  , pmrClientSpec :: BareSpec
+  , pmrClientLib  :: LiquidLib
   , pmrGhcInfo    :: GhcInfo
   }
 
@@ -415,15 +413,14 @@ getLiquidSpec thisModule specComments specQuotes = do
 
   res <- SpecFinder.findCompanionSpec mempty thisModule
   case res of
-    CompanionSpecFound _ _ cachedSpec -> do
+    SpecFound _ _ lib -> do
       debugLog $ "Companion spec found for " ++ debugShowModule thisModule
-      let (_, spec) = fromCached cachedSpec 
-      pure $ commSpec `mergeSpecs` spec
+      pure $ commSpec `mergeSpecs` libTarget lib
     _ -> pure commSpec
 
 processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
-  debugLog ("Module ==> " ++ show (moduleName thisModule))
+  debugLog ("Module ==> " ++ debugShowModule thisModule)
   hscEnv              <- askHscEnv
 
   let bareSpec        = lhBareSpec
@@ -438,29 +435,33 @@ processModule LiquidHaskellContext{..} = do
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
   let configChanged   = moduleCfg /= lhGlobalCfg
-  envWithExtraSpecs  <- loadRelevantSpecs (moduleCfg, configChanged) 
-                                          eps 
-                                          lhSpecEnv 
-                                          (SpecFinder.TargetModule thisModule) 
-                                          (S.toList lhRelevantModules)
+  (dependencies, updatedEnv) <- loadRelevantSpecs (moduleCfg, configChanged)
+                                                  eps
+                                                  (hsc_HPT hscEnv)
+                                                  lhSpecEnv
+                                                  thisModule
+                                                  (S.toList lhRelevantModules)
+
+  debugLog $ "Found " <> show (length dependencies) <> " dependencies:"
+  forM_ dependencies $ debugLog . cachedSpecStableModuleId
+
 
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
-  let bareSpecs        = makeBareSpecs (moduleName thisModule) bareSpec envWithExtraSpecs
+  let bareSpecs        = makeBareSpecs (moduleName thisModule) bareSpec dependencies
 
-  let fatSpec          = L.foldl' mergeSpecs bareSpec (map (snd . fromCached) bareSpecs)
-
-  let ghcSpec          = makeGhcSpec moduleCfg ghcSrc lhModuleLogicMap [(modName, fatSpec)]
+  let ghcSpec          = makeGhcSpec moduleCfg ghcSrc lhModuleLogicMap bareSpecs
   let ghcInfo          = GI ghcSrc ghcSpec
 
   -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
   -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
   -- errors when trying to refine things.
-  let clientSpec = gsLSpec . giSpec $ ghcInfo
-  let finalSpec  = clientSpec `mergeSpecs` fatSpec
+  let clientSpec = (gsLSpec . giSpec $ ghcInfo) `mergeSpecs` bareSpec
+  let clientLib  = mkLiquidLib clientSpec & addLibDependencies dependencies
+
 
   let result = ProcessModuleResult {
-        pmrNewSpecEnv = insertExternalSpec thisModule (toCached (modName, finalSpec)) envWithExtraSpecs
-      , pmrClientSpec = finalSpec
+        pmrNewSpecEnv = insertExternalSpec thisModule (toCached thisModule clientSpec) updatedEnv
+      , pmrClientLib  = clientLib
       , pmrGhcInfo    = ghcInfo
       }
 
@@ -469,7 +470,6 @@ processModule LiquidHaskellContext{..} = do
   where
     modGuts    = fromUnoptimised lhModuleGuts
     thisModule = mg_module modGuts
-    modName    = ModName SrcImport (moduleName thisModule)
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
@@ -517,11 +517,10 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
-makeBareSpecs :: ModuleName -> Ms.BareSpec -> SpecEnv -> [CachedSpec]
-makeBareSpecs mname tgtSpec specEnv = 
-  let allSpecs = baseSpecs specEnv <> M.elems (externalSpecs specEnv)
-      tgtMod    = ModName Target mname
-  in  (toCached (tgtMod, tgtSpec)) : allSpecs
+makeBareSpecs :: ModuleName -> Ms.BareSpec -> HashSet CachedSpec -> [(ModName, BareSpec)]
+makeBareSpecs mname tgtSpec dependencies = 
+  let tgtMod    = ModName Target mname
+  in  (tgtMod, tgtSpec) : map fromCached (HS.toList dependencies)
 
 ---------------------------------------------------------------------------------
 -- | Unused stages of the compilation pipeline ----------------------------------
@@ -531,6 +530,4 @@ typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
 typecheckHook _ _ tcGblEnv =  pure tcGblEnv
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
-loadInterfaceHook _ iface = do
-  -- debugLog $ "loaded interface for " ++ debugShowModule (mi_module iface)
-  pure iface
+loadInterfaceHook _ iface = pure iface

@@ -133,9 +133,6 @@ safeZipWith f (a:as) (b:bs) = f a b : safeZipWith f as bs
 safeZipWith _ []     []     = []
 safeZipWith _ _ _ = error "safeZipWith: cannot happen!"
 
-
-
-
 {-@ (==>) :: p:Bool -> q:Bool -> {v:Bool | v <=> (p =>  q)} @-}
 infixr 8 ==>
 (==>) :: Bool -> Bool -> Bool
@@ -143,12 +140,3 @@ False ==> False = True
 False ==> True  = True
 True  ==> True  = True
 True  ==> False = False
-
--- {- measure fst @-}
--- fst :: (a, b) -> a 
--- fst (x, _) = x 
--- 
--- {- measure snd @-}
--- snd :: (a, b) -> b 
--- snd (_, y) = y 
-

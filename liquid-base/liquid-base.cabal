@@ -30,6 +30,13 @@ library
   exposed-modules:  Data.Foldable
                     Data.Tuple
                     Data.Word
+                    Data.Ord
+                    Data.List
+                    Data.Function
+                    Data.Functor
+                    Data.String
+                    Control.Applicative
+                    Control.Monad
                     GHC.Base
                     GHC.Int
                     GHC.List
