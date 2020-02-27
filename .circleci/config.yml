@@ -22,6 +22,9 @@ commands:
       ghc_options:
         type: string
         default: "--ghc-options=\"+RTS -M2G -RTS\""
+      setup_test_extra_steps:
+        type: string
+        default: ""
     steps:
       - setup_project
       - restore_cache:
@@ -41,8 +44,7 @@ commands:
           name: Setup Test
           command: |
             mkdir -p /tmp/junit/cabal
-            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
-            find include -type f -name '*.hs' | grep -v Old | grep -v Example | grep -v RTick | xargs cabal v2-run liquid -- --compile-spec
+            << parameters.setup_test_extra_steps >>
       - run:
           name: Test
           command: |
@@ -101,15 +103,15 @@ jobs:
     docker:
       - image: adinapoli/ghc:8.10.1-slim
     steps:
-      - cabal_build_and_test
-
+      - cabal_build_and_test:
+          setup_test_extra_steps: "find include -type f -name '*.hs' | grep -v Old | grep -v Example | grep -v RTick | xargs cabal v2-run liquid -- --compile-spec"
   cabal_810_plugin:
     docker:
       - image: adinapoli/ghc:8.10.1-slim
     steps:
       - cabal_build_and_test:
           extra_test_flags: "--flag plugin"
-          liquid_runner: "--liquid-runner=cabal v2-exec ghc -- --make -i. -package liquidhaskell -package liquid-prelude -fplugin=Language.Haskell.Liquid.GHC.Plugin "
+          liquid_runner: "--liquid-runner=cabal v2-exec ghc -- --make -hide-package base -package liquid-prelude -package liquidhaskell -fplugin=Language.Haskell.Liquid.GHC.Plugin "
 
 workflows:
   version: 2
