@@ -34,7 +34,6 @@ import Control.Monad.IO.Class
 import Control.Exception (throwIO)
 
 import Data.IORef (readIORef)
-import Data.Maybe
 
 import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           , findModule
@@ -57,7 +56,6 @@ import TcRnMonad
 import Outputable
 import UniqFM
 import Maybes
-import Avail
 import Panic
 import GhcMake
 import Finder
@@ -96,10 +94,10 @@ getModuleGraph = liftM hsc_mod_graph askHscEnv
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModSummary :: GhcMonadLike m => ModuleName -> m ModSummary
-getModSummary mod = do
+getModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
-                      , ms_mod_name ms == mod
+                      , ms_mod_name ms == mdl
                       , not (isBootSummary ms) ]
    case mods_by_name of
      [] -> do dflags <- getDynFlags
@@ -109,10 +107,10 @@ getModSummary mod = do
                     liftIO $ throwIO $ mkApiErr dflags (text "getModSummary is ambiguous: " <+> ppr multiple)
 
 lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
-lookupModSummary mod = do
+lookupModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
-                      , ms_mod_name ms == mod
+                      , ms_mod_name ms == mdl
                       , not (isBootSummary ms) ]
    case mods_by_name of
      [ms] -> pure (Just ms)

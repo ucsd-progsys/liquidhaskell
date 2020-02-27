@@ -14,14 +14,11 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , allDeps
     , addLibDependency
     , addLibDependencies
-    , SpecEnv(..)
     , CachedSpec
     , toCached
     , cachedSpecStableModuleId
     , cachedSpecModule
     , fromCached
-    , insertExternalSpec
-    , lookupExternalSpec
 
     -- * Merging specs together, the hacky, prototype-y way.
     , mergeSpecs
@@ -39,7 +36,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , toUnoptimised
 
     , debugShowModule
-    , debugShowSpecEnv
     , debugShowLiquidLib
     ) where
 
@@ -123,13 +119,6 @@ libDeps = llDeps
 allDeps :: Foldable f => f LiquidLib -> HashSet CachedSpec
 allDeps = foldl' (\acc lib -> acc <> llDeps lib) mempty
 
-newtype SpecEnv    = SpecEnv {
-    externalSpecs :: Map StableModule CachedSpec
-  } deriving (Show, Eq, Semigroup, Monoid)
-
-debugShowSpecEnv :: SpecEnv -> String
-debugShowSpecEnv = TL.unpack . pShowNoColor
-
 -- | A newtype wrapper around a 'Module' which:
 -- * Allows a 'Module' to be serialised (i.e. it has a 'Binary' instance)
 -- * It uses 'unitIdString' and 'moduleNameString' under the hood like 'moduleStableString'.
@@ -158,7 +147,7 @@ instance Binary StableModule where
       pure $ StableModule (Module (stringToUnitId uidStr) (mkModuleName mnStr))
 
 
--- A cached spec which can be inserted into the 'SpecEnv'.
+-- A cached spec which can be serialised into an interface.
 -- /INVARIANT/: A 'CachedSpec' has temination-checking disabled (i.e. 'noTerm' is called on the inner 'BareSpec').
 data CachedSpec = CachedSpec StableModule BareSpec deriving (Show, Generic)
 
@@ -184,13 +173,6 @@ cachedSpecModule (CachedSpec (StableModule m) _) = m
 
 fromCached :: CachedSpec -> (ModName, BareSpec)
 fromCached (CachedSpec (StableModule mdl) s) = (ModName SrcImport (moduleName mdl), s)
-
-insertExternalSpec :: Module -> CachedSpec -> SpecEnv -> SpecEnv
-insertExternalSpec mdl spec env = 
-  env { externalSpecs = M.insert (toStableModule mdl) spec (externalSpecs env) }
-
-lookupExternalSpec :: Module -> SpecEnv -> Maybe CachedSpec
-lookupExternalSpec mdl env = M.lookup (toStableModule mdl) (externalSpecs env)
 
 --
 -- Merging specs together, the hacky way
@@ -222,33 +204,6 @@ mergeSpecs s1 s2 = LH.noTerm $
   (s1 <> s2) { 
       sigs      = L.nubBy (\a b -> fst a == fst b) (sigs s1 <> sigs s2)
     , dataDecls = L.nubBy sameDeclaration (dataDecls s1 <> dataDecls s2)
-    --   sigs       = L.nubBy (\a b -> fst a == fst b) (sigs s1 <> sigs s2)
-    -- , asmSigs    = L.nubBy (\a b -> fst a == fst b) (asmSigs s1 <> asmSigs s2)
-    -- , localSigs  = L.nubBy (\a b -> fst a == fst b) (localSigs s1 <> localSigs s2)
-    -- , reflSigs   = L.nubBy (\a b -> fst a == fst b) (reflSigs s1 <> reflSigs s2)
-    -- , aliases    = distinct (aliases s1 <> aliases s2)
-    -- , ealiases   = distinct (ealiases s1 <> ealiases s2)
-    -- , qualifiers = distinct (qualifiers s1 <> qualifiers s2)
-    -- , dataDecls  = distinct (dataDecls s1 <> dataDecls s2)
-    -- , measures   = distinct (measures s1 <> measures s2)
-    -- , imeasures  = distinct (imeasures s1 <> imeasures s2)
-    -- , cmeasures  = distinct (cmeasures s1 <> cmeasures s2)
-
-    -- , impSigs    = distinct (impSigs s1 <> impSigs s2)
-    -- , expSigs    = distinct (expSigs s1 <> expSigs s2)
-    -- , invariants = distinct (invariants s1 <> invariants s2)
-    -- , ialiases   = distinct (ialiases s1 <> ialiases s2)
-    -- , imports    = distinct (imports s1 <> imports s2)
-    -- , newtyDecls = distinct (newtyDecls s1 <> newtyDecls s2)
-    -- , includes   = distinct (includes s1 <> includes s2)
-    -- , decr       = distinct (decr s1 <> decr s2)
-    -- , pragmas    = distinct (pragmas s1 <> pragmas s2)
-    -- , classes    = distinct (classes s1 <> classes s2)
-    -- , claws      = distinct (claws s1 <> claws s2)
-    -- , termexprs  = distinct (termexprs s1 <> termexprs s2)
-    -- , rinstance  = distinct (rinstance s1 <> rinstance s2)
-    -- , ilaws      = distinct (ilaws s1 <> ilaws s2)
-    -- , dvariance  = distinct (dvariance s1 <> dvariance s2)
     }
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
