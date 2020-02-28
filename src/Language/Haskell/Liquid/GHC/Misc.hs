@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP                       #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE GADTs                     #-}
@@ -16,17 +17,20 @@
 
 module Language.Haskell.Liquid.GHC.Misc where
 
-import           Class                                      (classKey)
+import           Class                                      (classKey, classSCSelIds, classBigSig)
 import           Data.String
 import qualified Data.List as L
 import           Inst
 import           GhcMonad
 import           DsMonad
+import           Control.Monad.State (evalState, modify, get)
 import           DsExpr
 import           RnExpr
 import           TcRnMonad
+import qualified Data.Map.Strict as OM
 import           TcExpr
 import           TcSimplify
+import           GhcPlugins (eqType, nonDetCmpType, getClassPredTys, piResultTys, mkClassPred)
 import           TcHsSyn
 import           TcEvidence
 import           PrelNames                                  (fractionalClassKeys, itName, ordClassKey, numericClassKeys, eqClassKey)
@@ -979,3 +983,40 @@ elabRnExpr hsc_env mode rdr_expr =
     TM_Inst    -> (True, NoRestrictions, id)
     TM_NoInst  -> (False, NoRestrictions, id)
     TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
+
+newtype HashableType = HashableType {getHType :: Type}
+
+instance Eq HashableType where
+  x == y = eqType (getHType x) (getHType y)
+
+instance Ord HashableType where
+  compare x y = nonDetCmpType (getHType x) (getHType y)
+
+instance Outputable HashableType where
+  ppr = ppr . getHType
+
+
+canonSelectorChains :: PredType -> OM.Map HashableType [Id]
+canonSelectorChains t = foldr (OM.unionWith const) mempty (zs : xs)
+ where
+  (cls, ts) = getClassPredTys t
+  scIdTys   = classSCSelIds cls
+  ys        = fmap (\d -> (d, piResultTys (idType d) (ts ++ [t]))) scIdTys
+  zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [x])) ys
+  xs        = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
+
+
+buildCoherenceOblig :: Class -> [[([Id], [Id])]]
+buildCoherenceOblig cls = evalState (mapM f xs) mempty
+ where
+  (ts, _, selIds, _) = classBigSig cls
+  tts                = mkTyVarTy <$> ts
+  t                  = mkClassPred cls tts
+  ys = fmap (\d -> (d, piResultTys (idType d) (tts ++ [t]))) selIds
+  xs                 = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
+  f tid = do
+    ctid' <- get
+    modify (flip (OM.unionWith const) tid)
+    pure . OM.elems $ OM.intersectionWith (,) ctid' tid
+
+
