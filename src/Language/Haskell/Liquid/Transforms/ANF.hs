@@ -62,7 +62,7 @@ anormalize cfg hscEnv modGuts = do
   let df = hsc_dflags hscEnv
       -- rwr_simpl_cbs = rwr_cbs
   -- inlineDFun df rwr_cbs
-  -- rwr_simpl_cbs <- mg_binds <$> core2core hscEnv modGuts {mg_binds = rwr_cbs}
+  rwr_simpl_cbs <- mg_binds <$> core2core hscEnv modGuts {mg_binds = rwr_cbs}
 
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
@@ -73,7 +73,7 @@ anormalize cfg hscEnv modGuts = do
     putStrLn $ GM.showCBs untidy orig_cbs
     putStrLn "***************************** RWR CoreBinds ***************************"
     putStrLn $ GM.showCBs untidy rwr_cbs
-  let act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
+  let act      = Misc.concatMapM (normalizeTopBind γ0) rwr_simpl_cbs
   (fromMaybe err . snd) <$> initDsWithModGuts hscEnv modGuts act -- hscEnv m grEnv tEnv emptyFamInstEnv act
     where
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
