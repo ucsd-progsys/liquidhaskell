@@ -21,7 +21,7 @@ length' :: List a -> Int
 length' N = 0
 length' (Cons _ xs) = 1 + length' xs
 
-{-@ type LPair a = (xs::List <{\h t -> h == t}> (List a), { ys: Nat | ys == length' xs }) @-}
+{-@ type LPair a = (xs0::List <{\h t -> h == t}> (List a), { ys: Nat | ys == length' xs0 }) @-}
 type LPair a = (List (List a), Int)
 
 {-@ measure fst'' @-}
@@ -56,13 +56,9 @@ groupBy'' f (Cons x xs) =
     let (ys, zs) = span'' (f x) xs 
     in  Cons x ys : groupBy'' f zs 
 
--- {-@ zipLen :: xs: [ List (List a)<{\h t -> h == t}> ] -> { v: [ LPair a ] | sumLen v == sLen' xs } @-} 
--- zipLen :: Eq a => [ List (List a) ] -> [ LPair a ]
--- zipLen xs = zipF' length'' xs 
-
-{-@ zipLen0 :: xs: [ List (List a) ] -> { v: [ (xs::List (List a), Nat) ] | sumLen v == sLen xs } @-} 
-zipLen0 :: Eq a => [ List (List a) ] -> [ (List (List a), Int) ]
-zipLen0 xs = zipF'' length' xs 
+{-@ zipLen :: x: [ List (List a) ] -> { v: [ LPair a ] | sumLen v == sLen x } @-} 
+zipLen :: Eq a => [ List (List a) ] -> [ (List (List a), Int) ]
+zipLen xs = zipF'' length' xs 
 
 {-@ zipF'' :: f: (List (List a) -> b) -> x: [ List (List a) ]
                 -> { v: [ (y::List (List a), { z: b | z == f y}) ] | sumLen v == sLen x }
@@ -70,13 +66,6 @@ zipLen0 xs = zipF'' length' xs
 zipF'' :: (List (List a) -> b) -> [List (List a)] -> [(List (List a), b)]
 zipF'' _ []       = []
 zipF'' f (x : xs) = (x, f x) : zipF'' f xs
-
--- {-@ zip' :: xs:List a -> {ys: List b | length' ys == length' xs } 
---               -> { v: List (a, b) | length' v == length' xs } 
---   @-}
--- zip' :: List a -> List b -> List (a, b) 
--- zip' N      N                = N
--- zip' (Cons x xs) (Cons y ys) = Cons (x, y) (zip' xs ys)
 
 {-@ measure sumLen @-}
 {-@ sumLen :: [ (List (List a), b) ] -> Nat @-}
@@ -94,8 +83,8 @@ sLen (x:xs) = length' x + sLen xs
 eq :: Eq a => a -> a -> Bool
 eq x y = x == y
 
-{-@ goal :: xs: List (List a) -> { v: [ (List (List a), Nat) ] | length' xs == sumLen v } @-}
+{-@ goal :: xs: List (List a) -> { v: [ LPair a ] | length' xs == sumLen v } @-}
 goal :: Eq a => List (List a) -> [ (List (List a), Int) ]
 goal = _hole
--- goal xs = zipLen0 (groupBy'' eq xs) 
+-- goal xs = zipLen (groupBy'' eq xs) 
 
