@@ -242,29 +242,36 @@ makeClassAuxTypesOne ::
   -> (F.Located DataConP, Ghc.ClsInst, [Ghc.Var])
   -> Ghc.Ghc [(Ghc.Var, LocSpecType)]
 makeClassAuxTypesOne elab (ldcp, inst, methods) =
-  forM (zip methods prefts) $ \(method, preft) -> do
-    let headlessSig =
-          case L.lookup (mkSymbol method) yts of
+  forM methods $ \method -> do
+    let (headlessSig, preft) =
+          case L.lookup (mkSymbol method) yts' of
             Nothing ->
               impossible Nothing ("makeClassAuxTypesOne : unreachable?" ++ F.showpp (mkSymbol method) ++ " " ++ F.showpp yts)
             Just sig -> sig
+        -- dict binder will never be changed because we optimized PAnd[]
+        -- lq0 lq1 ...
+        ptys    = [(F.vv (Just i), pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
         fullSig =
           mkArrow
             (zip isRTvs (repeat mempty))
             []
             []
-            [(F.dummySymbol, pty, mempty) | pty <- isPredSpecTys] .
+            ptys .
           subst (zip clsTvs isSpecTys) $
           headlessSig
     elaboratedSig  <- flip addCoherenceOblig preft <$> elab fullSig
+
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
     pure (method, F.dummyLoc retSig)
 
-  -- is used as a shorthand for instance, following the convention of the Ghc api
+  -- "is" is used as a shorthand for instance, following the convention of the Ghc api
   where
-    recsel = F.symbol ("lq$recsel" :: String)
+    -- recsel = F.symbol ("lq$recsel" :: String)
+    (_,predTys,_,_) = Ghc.instanceSig inst
+    dfunApped = F.mkEApp dfunSymL [F.eVar $ F.vv (Just i) | (i,_) <- zip [0,1..] predTys]
     prefts  = L.reverse . take (length yts) $ fmap (F.notracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
-    preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRef recsel)) (GM.buildCoherenceOblig cls)
+    preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRefE dfunApped)) (GM.buildCoherenceOblig cls)
+    yts' = zip (fst <$> yts) (zip (snd <$> yts) prefts)
     cls = Mb.fromJust . Ghc.tyConClass_maybe $ Ghc.dataConTyCon (dcpCon dcp)
     addCoherenceOblig  :: SpecType -> Maybe RReft -> SpecType
     addCoherenceOblig t Nothing = t
@@ -275,7 +282,9 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     -- YL: poorly written. use a comprehension instead of assuming 
     methodsSet = F.notracepp "methodSet" $ M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
     -- core rewriting mark1: dfunId
-    dfunSym = F.symbol $ Ghc.instanceDFunId inst
+    -- ()
+    dfunSymL = GM.namedLocSymbol $ Ghc.instanceDFunId inst
+    dfunSym = F.val dfunSymL
     (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
     isSpecTys = ofType <$> isTys
     isPredSpecTys = ofType <$> isPredTys

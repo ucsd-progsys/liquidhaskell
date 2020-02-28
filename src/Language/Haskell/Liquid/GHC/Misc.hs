@@ -1024,9 +1024,11 @@ buildCoherenceOblig cls = evalState (mapM f xs) mempty
 
 -- to be zipped onto the super class selectors
 coherenceObligToRef :: (F.Symbolic s) => s -> [Id] -> [Id] -> F.Reft
-coherenceObligToRef d rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
-  where lhs = L.foldr EApp (F.eVar ds) ps0
+coherenceObligToRef d = coherenceObligToRefE (F.eVar $ F.symbol d)
+
+coherenceObligToRefE :: F.Expr -> [Id] -> [Id] -> F.Reft
+coherenceObligToRefE e rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
+  where lhs = L.foldr EApp e ps0
         rhs = L.foldr EApp (F.eVar F.vv_) ps1
         ps0 = F.eVar . F.symbol <$> L.reverse rps0
         ps1 = F.eVar . F.symbol <$> L.reverse rps1
-        ds  = F.symbol d
