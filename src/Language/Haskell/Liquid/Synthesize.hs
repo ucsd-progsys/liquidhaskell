@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TupleSections #-}
 
 module Language.Haskell.Liquid.Synthesize (
     synthesize
@@ -125,11 +126,11 @@ synthesizeBasic m s t = do
   let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
+  modify (\s -> s { sGoalTys = [] })
   fixEMem t
   -- if m == CaseSplit 
   --   then do senv <- getSEnv 
-  --           lenv <- getLocalEnv
-  --           es <- synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) lenv senv t
+  --           es <- synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) t
   --           if null es then synthesizeBasic TermGen "" t else return es
   --   else do 
   es <- genTerms s t
@@ -154,39 +155,10 @@ filterScrut = do
       es1 = filter (not . trivial . fst3 . fst) es0
       es2 = filter (appOnly . fst3 .fst) es1
       es3 = filter (not . isClassTyCon . thd3 . fst) es2
-      -- es' = filter (noLet . fst3 . fst) es1
-      -- es2 = filter (noPairLike . fst) es'
-      -- es3 = sortOn snd es2
-      es4 = sortOn snd es3
-      es5 = map fst es4
-      -- es5 = filter (not . isClassTyCon . thd3) es4
-  return es5 -- (filter (isVar . fst3) es1)
-
-appOnly :: GHC.CoreExpr -> Bool
-appOnly GHC.Var{}       = True
-appOnly GHC.Type{}      = True
-appOnly (GHC.App e1 e2) = appOnly e1 && appOnly e2
-appOnly _               = False 
-
-noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
-noPairLike (e, t, c) = (length (tyConDataCons c) > 1) || inspect e (tyConDataCons c)
-
-inspect :: GHC.CoreExpr -> [DataCon] -> Bool
-inspect e [dataCon] 
-  = outer e /= dataConWorkId dataCon
-inspect _ _  
-  = False -- error " Should be a singleton. "
-
-outer :: GHC.CoreExpr -> Var
-outer (GHC.Var v)
-  = v
-outer (GHC.App e1 _)
-  = outer e1
-outer e = error (" [ outer ] " ++ show e)
-
-isVar :: GHC.CoreExpr -> Bool
-isVar (GHC.Var _) = True
-isVar _ = False
+      es4 = filter (noPairLike . fst) es3
+      es5 = sortOn snd es4
+      es6 = map fst es5
+  return es6
 
 matchOnExpr :: String -> SpecType -> (CoreExpr, Type, TyCon) -> SM [CoreExpr]
 matchOnExpr s t (GHC.Var v, tx, c) 
@@ -196,15 +168,15 @@ matchOnExpr s t (e, tx, c)
         freshSpecTy <- liftCG $ trueTy tx
         addEnv freshV freshSpecTy
         es <- matchOn s t (freshV, tx, c)
-        return $ (GHC.Let (GHC.NonRec freshV e)) <$> es
+        return $ GHC.Let (GHC.NonRec freshV e) <$> es
 
 matchOn :: String -> SpecType -> (Var, Type, TyCon) -> SM [CoreExpr]
 matchOn s t (v, tx, c) =
-  (GHC.Case (GHC.Var v) v tx <$$> sequence) <$> mapM (makeAlt s v t (v, tx)) (tyConDataCons c)
+  (GHC.Case (GHC.Var v) v tx <$$> sequence) <$> mapM (makeAlt s t (v, tx)) (tyConDataCons c)
 
 
-makeAlt :: String -> Var -> SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt s var t (x, tx@(TyConApp _ ts)) c = locally $ do -- (AltCon, [b], Expr b)
+makeAlt :: String -> SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
+makeAlt s t (x, TyConApp _ ts) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   addsEnv $ zip xs ts 
@@ -212,7 +184,7 @@ makeAlt s var t (x, tx@(TyConApp _ ts)) c = locally $ do -- (AltCon, [b], Expr b
   addDecrTerm x xs
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
   es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs ++ " for t " ++ show t) t
-  return $ (\e -> (GHC.DataAlt c, xs, e)) <$> es
+  return $ (GHC.DataAlt c, xs, ) <$> es
   where 
-    (_, _, τs) = dataConInstSig c ts -- (toType <$> ts)
-makeAlt s _ _ _ _ = error $ "makeAlt.bad argument " ++ s
+    (_, _, τs) = dataConInstSig c ts
+makeAlt s _ _ _ = error $ "makeAlt.bad argument " ++ s

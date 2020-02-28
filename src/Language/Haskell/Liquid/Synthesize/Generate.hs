@@ -20,7 +20,10 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Debug.Trace
 import           Language.Haskell.Liquid.Constraint.Fresh
                                                 ( trueTy )
-
+import           Language.Fixpoint.Types.PrettyPrint
+                                                ( tracepp )
+import           Data.List
+import           Data.Tuple.Extra
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
 genTerms :: String -> SpecType -> SM [CoreExpr] 
@@ -35,7 +38,11 @@ data SearchMode
 
 genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
 genTerms' i s specTy = 
-  do  fixEMem specTy 
+  do  goalTys <- sGoalTys <$> get
+      case find (== (toType specTy)) goalTys of 
+        Nothing -> modify (\s -> s { sGoalTys = (toType specTy) : sGoalTys s })
+        Just _  -> return ()
+      fixEMem specTy 
       fnTys <- functionCands (toType specTy)
       es    <- withTypeEs s specTy 
       es0   <- structuralCheck es
@@ -47,54 +54,55 @@ genTerms' i s specTy =
             withDepthFill i s specTy 0 fnTys
         Just e -> return [e]
 
+genArgs :: String -> SpecType -> SM [CoreExpr]
+genArgs s t =
+  do  goalTys <- sGoalTys <$> get
+      case find (== (toType t)) goalTys of 
+        Nothing -> do modify (\s -> s { sGoalTys = (toType t) : sGoalTys s }) 
+                      fixEMem t 
+                      fnTys <- functionCands (toType t)
+                      es <- withDepthFillArgs s t 0 fnTys
+                      if null es
+                        then  return []
+                        else  do  modify (\s -> s {sExprId = sExprId s + 1})
+                                  return es
+        Just _  -> return []
+
+withDepthFillArgs :: String -> SpecType -> Int -> [(Type, CoreExpr, Int)] -> SM [CoreExpr]
+withDepthFillArgs s t depth cs = do
+  thisEm <- sExprMem <$> get
+  es <- argsFill s thisEm cs []
+
+  filterElseM (hasType s True t) es $
+    if depth < maxArgsDepth
+      then do withDepthFillArgs s t (depth + 1) cs
+      else return []
+
+argsFill :: String -> ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
+argsFill _ _   []               es0 = return es0 
+argsFill s em0 (c@(t, e, i):cs) es0 =
+  case subgoals t of
+    Nothing             -> return [] 
+    Just (resTy, subGs) -> 
+      do  let argCands = map (withSubgoal em0) subGs
+          es <- do  curExprId <- sExprId <$> get
+                    prune curExprId c argCands
+          curExprId <- sExprId <$> get
+          let nextEm = map (resTy, , curExprId + 1) es
+          modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
+          argsFill s em0 cs (es ++ es0)
+
 withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
 withDepthFill i s t depth tmp = do
   let s0 = " [ withDepthFill ] " ++ s
   curEm <- sExprMem <$> get
   exprs <- fill i s0 depth curEm tmp []
 
-  if nonTrivials exprs then 
-    filterElseM (hasType s0 True t) exprs $ 
+  filterElseM (hasType s0 True t) exprs $ 
       if depth < maxAppDepth
-        then do modify (\s -> s { sAppDepth = sAppDepth s + 1 })
+        then do modify (\s -> s { sExprId = sExprId s + 1 })
                 withDepthFill i s0 t (depth + 1) tmp
         else return []
-    else return []
-
-argsFill :: ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
-argsFill _  [ ]                es
-  = return es
-argsFill em (c@(t, e, d) : cs) es
-  = case subgoals t of
-      Nothing             -> return []
-      Just (resTy, subGs) ->
-        do  s <- get
-            let argCands = map (withSubgoal em) subGs
-                changeMode   = foldr (\l b -> null l || b) False argCands
-            es1 <- prune (sDepth s) c argCands
-            let em1 = map (resTy, , sDepth s + 1) es1
-            modify (\s -> s { sExprMem = em1 ++ sExprMem s})
-            argsFill em cs (es1 ++ es)
-
-withDepthArgsFill :: SpecType -> Depth -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
-withDepthArgsFill t depth functions es0
-  = do  em <- sExprMem <$> get
-        es <- argsFill em functions []
-        if depth < maxArgsDepth
-          then withDepthArgsFill t (depth + 1) functions (es ++ es0)
-          else return es0
-        
-
-maxArgsDepth :: Int
-maxArgsDepth = 1
-
-prepareArg :: String -> SpecType -> SM [CoreExpr] -- [(Type, CoreExpr, Int)]
-prepareArg s t 
-  = do  fixEMem t
-        fnTys <- functionCands (toType t)
-        es0 <- withTypeEs s t -- Already in expression memory
-        es1 <- withDepthArgsFill t 0 fnTys []
-        return (es0 ++ es1)
 
 fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
 fill _ _ _     _       []                 accExprs 
@@ -102,44 +110,20 @@ fill _ _ _     _       []                 accExprs
 fill i s depth exprMem (c@(t, e, d) : cs) accExprs 
   = case subgoals t of 
       Nothing             -> return [] -- Not a function type
-      Just (resTy, subGs) ->          
-        do  let argCands'  = map (withSubgoal exprMem) subGs 
-                argCands   = if allTrivial (map (map fst) argCands')
-                              then map rmTrivials argCands'
-                              else argCands'
+      Just (resTy, subGs) ->
+        do  specSubGs <- liftCG $ mapM trueTy (filter (not . isFunction) subGs)
+            args <- mapM (genArgs s) specSubGs
+            em <- sExprMem <$> get
+            let argCands  = map (withSubgoal em) subGs
                 changeMode = foldr (\l b -> null l || b) False argCands
-            curAppDepth <- sAppDepth <$> get 
-            newExprs <- if i == ArgsMode || changeMode
-                          then do goals <- liftCG $ mapM trueTy subGs 
-                                  argCands0 <- mapM (genTerms' ArgsMode " fill Args ") goals
-                                  let argCands2 = map (map (, curAppDepth + 1)) argCands0
-                                      argCands1 = if allTrivial (map (map fst) argCands2) 
-                                                    then map rmTrivials argCands2
-                                                    else argCands2
-                                  -- prune curAppDepth c argCands1
-                                  es <- prune curAppDepth c argCands1
-                                  structuralCheck es 
-                                  -- es0 <- structuralCheck es 
-                                  -- argTypes <- liftCG $ mapM trueTy subGs
-                                  -- newCands' <- mapM (prepareArg "") argTypes
-                                  -- let newCands = map (map (, curAppDepth + 1)) newCands'
-                                  -- es1 <- prune curAppDepth c newCands
-                                  -- return (es0 ++ es1)
-                          else do curAppDepth <- sAppDepth <$> get 
-                                  -- prune curAppDepth c argCands
-                                  es <- prune curAppDepth c argCands
-                                  structuralCheck es
-                                  -- es0 <- structuralCheck es
-                                  -- argTypes <- liftCG $ mapM trueTy subGs
-                                  -- newCands' <- mapM (prepareArg "") argTypes
-                                  -- let newCands = map (map (, curAppDepth + 1)) newCands'
-                                  -- es1 <- prune curAppDepth c newCands
-                                  -- return (es0 ++ es1) 
-            let nextEm = map (resTy, , curAppDepth + 1) newExprs
+            newExprs <- do  curExprId <- sExprId <$> get 
+                            prune curExprId c argCands
+            curExprId <- sExprId <$> get
+            let nextEm = map (resTy, , curExprId + 1) newExprs
             modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             em <- sExprMem <$> get
             let accExprs' = newExprs ++ accExprs
-            fill i (" | " ++ show e ++ " FALSE CHECK | " ++ s) depth exprMem cs accExprs' 
+            fill i s depth em cs accExprs' 
 
 -------------------------------------------------------------------------------------------
 -- |                       Pruning terms for function application                      | --
@@ -158,13 +142,7 @@ feasibles d i (c:cs)
       else feasibles d (i+1) cs
 
 isFeasible :: Depth -> [[(CoreExpr, Int)]] -> [[Int]]
-isFeasible _ []
-  = []
-isFeasible d (c:cs) 
-  =  if null fs 
-      then [] : isFeasible d cs
-      else fs : isFeasible d cs
-      where fs = feasibles d 0 c
+isFeasible d =  map (feasibles d 0)
 
 toIxs :: Int -> [[Int]] -> [Int]
 toIxs _ [] 
@@ -214,7 +192,7 @@ repeatFix [ ] _ _ _ es
 repeatFix (i:is) ixs toFill args es
   = do  let (args0, args1) = fixCands i (ixs !! i) args
         es0 <- fillOne toFill args0
-        es1 <- structuralCheck es0 -- Try to avoid interaction with SMT as much as possible.
+        es1 <- structuralCheck es0
         es2 <- (++ es) <$> filterM isWellTyped es1
         repeatFix is ixs toFill args1 es2
 

@@ -20,6 +20,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
 import           TyCon
+import           DataCon
 import           Debug.Trace
 
 instance Default Type where
@@ -108,6 +109,31 @@ allTrivial es = foldr (\x b -> hasTrivial x && b) True es
 rmTrivials :: [(GHC.CoreExpr, Int)] -> [(GHC.CoreExpr, Int)]
 rmTrivials = filter (not . trivial . fst)
 
+----------------------------------------------------------------------------------
+--  |                        Scrutinee filtering                              | --
+----------------------------------------------------------------------------------
+
+appOnly :: GHC.CoreExpr -> Bool
+appOnly GHC.Var{}       = True
+appOnly GHC.Type{}      = True
+appOnly (GHC.App e1 e2) = appOnly e1 && appOnly e2
+appOnly _               = False 
+
+noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
+noPairLike (e, t, c) = (length (tyConDataCons c) > 1) || inspect e (tyConDataCons c)
+
+inspect :: GHC.CoreExpr -> [DataCon] -> Bool
+inspect e [dataCon] 
+  = outer e /= dataConWorkId dataCon
+inspect _ _  
+  = error " Should be a singleton. "
+
+outer :: GHC.CoreExpr -> Var
+outer (GHC.Var v)
+  = v
+outer (GHC.App e1 _)
+  = outer e1
+outer e = error (" [ outer ] " ++ show e)
 
 ------------------------------------------------------------------------------------------------
 -------------------------------------- Handle REnv ---------------------------------------------

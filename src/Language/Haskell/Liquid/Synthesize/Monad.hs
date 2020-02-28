@@ -62,9 +62,11 @@ data SState
            , sFCfg      :: !F.Config
            , sDepth     :: !Int
            , sExprMem   :: !ExprMemory 
-           , sAppDepth  :: !Int
+           , sExprId    :: !Int
+           , sArgsDepth :: !Int
            , sUniVars   :: ![Var]
            , sFix       :: !Var
+           , sGoalTys   :: ![Type]
            , sGoalTyVar :: !(Maybe [TyVar])
            , sUGoalTy   :: !(Maybe [Type])     -- ^ Types used for instantiation.
                                                --   Produced by @withUnify@.
@@ -77,7 +79,10 @@ type SM = StateT SState IO
 
 -- TODO Write: What is @maxAppDepth@?
 maxAppDepth :: Int 
-maxAppDepth = 4
+maxAppDepth = 2
+
+maxArgsDepth :: Int
+maxArgsDepth = 1
 
 locally :: SM a -> SM a 
 locally act = do 
@@ -96,7 +101,7 @@ evalSM act ctx env st = do
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
 initState ctx fcfg cgi cgenv renv xtop uniVars env = 
-  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 uniVars xtop Nothing Nothing ([], []) 0
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 0 uniVars xtop [] Nothing Nothing ([], []) 0
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
@@ -111,11 +116,6 @@ getSFix = sFix <$> get
 getSUniVars :: SM [Var]
 getSUniVars = sUniVars <$> get
 
-type LEnv = M.HashMap Symbol SpecType -- | Local env.
-
-getLocalEnv :: SM LEnv
-getLocalEnv = (reLocal . rEnv) <$> get
-
 getSDecrTerms :: SM SSDecrTerm 
 getSDecrTerms = ssDecrTerm <$> get
 
@@ -125,7 +125,7 @@ addsEnv xts =
 
 addsEmem :: [(Var, SpecType)] -> SM () 
 addsEmem xts = do 
-  curAppDepth <- sAppDepth <$> get
+  curAppDepth <- sExprId <$> get
   mapM_ (\(x,t) -> modify (\s -> s {sExprMem = (toType t, GHC.Var x, curAppDepth+1) : (sExprMem s)})) xts  
   
 
@@ -137,7 +137,7 @@ addEnv x t = do
 addEmem :: Var -> SpecType -> SM ()
 addEmem x t = do 
   let ht0 = toType t
-  curAppDepth <- sAppDepth <$> get
+  curAppDepth <- sExprId <$> get
   xtop <- getSFix 
   (ht1, _) <- instantiateTL
   let ht = if x == xtop then ht1 else ht0
@@ -149,23 +149,16 @@ addEmem x t = do
 addDecrTerm :: Var -> [Var] -> SM ()
 addDecrTerm x vars = do
   decrTerms <- getSDecrTerms 
-  -- Only allow top level variables:
-  -- Put x as a left hand variable, only when @decrTerms@ are empty.
   case lookup x decrTerms of 
     Nothing    -> lookupAll x vars decrTerms
     Just vars' -> do
       let ix = elemIndex (x, vars') decrTerms
           newDecrs = thisReplace (fromMaybe (error " [ addDecrTerm ] Index ") ix) (x, vars ++ vars') decrTerms
       modify (\s -> s { ssDecrTerm =  newDecrs })
-      -- case ix of 
-      --   Nothing  -> error $ "[addDecrTerm] It should have been there " ++ show x 
-      --   Just ix' -> 
-      --     let (left, right) = splitAt ix' decrTerms 
-      --     in  modify (\s -> s { ssDecrTerm =  left ++ [(x, vars ++ vars')] ++ right } )
 
 -- 
 lookupAll :: Var -> [Var] -> SSDecrTerm -> SM ()
-lookupAll x vars []               = modify (\s -> s {ssDecrTerm = [(x, vars)] ++ ssDecrTerm s})
+lookupAll x vars []               = modify (\s -> s {ssDecrTerm = (x, vars) : ssDecrTerm s})
 lookupAll x vars ((xl, vs):decrs) =
   case find (== x) vs of
     Nothing -> lookupAll x vars decrs
@@ -208,7 +201,7 @@ notStructural :: SSDecrTerm -> Var -> CoreExpr -> Bool
 notStructural decr xtop e
   = case v of
       Nothing -> True
-      Just v  -> foldr (\x b -> isDecreasing' x decr && b) True args
+      Just v  -> foldr (\x b -> isDecreasing' x decr || b) False args
   where (v, args) = structCheck xtop e
 
 isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
@@ -291,8 +284,8 @@ insEMem0 senv = do
   uniVs <- sUniVars <$> get
 
   let ts = fromMaybe [] mbUTy
-  ts0 <- (snd . sForalls) <$> get
-  fs0 <- (fst . sForalls) <$> get
+  ts0 <- snd . sForalls <$> get
+  fs0 <- fst . sForalls <$> get
   modify ( \s -> s { sForalls = (fs0, ts : ts0) } )
 
   let handleIt e = case e of  GHC.Var v -> if xtop == v 
