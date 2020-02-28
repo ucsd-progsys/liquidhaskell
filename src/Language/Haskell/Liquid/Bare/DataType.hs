@@ -482,10 +482,23 @@ classDeclToDataDecl env m rcls = DataDecl
         
 elaborateClassDcp :: (Ghc.CoreExpr -> F.Expr) -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr) -> DataConP -> Ghc.Ghc (DataConP , DataConP)
 elaborateClassDcp coreToLg simplifier dcp = do
-  t' <- forM fts $ elaborateSpecType coreToLg simplifier
+  t' <- flip (zipWith addCoherenceOblig) prefts <$> forM fts (elaborateSpecType coreToLg simplifier)
   let ts' = F.notracepp "elaboratedMethod" $ elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
-  pure (F.tracepp "elaborateClassDcp" $ dcp {dcpTyArgs = zip xs (stripPred <$> ts')}, dcp {dcpTyArgs = fmap (\(x,t) -> (x, strengthenTy x t)) (zip xs t')})
+  pure (F.tracepp "elaborateClassDcp" $
+        dcp {dcpTyArgs = zip xs (stripPred <$> ts')},
+        dcp {dcpTyArgs = fmap (\(x,t) -> (x, strengthenTy x t)) (zip xs t')})
   where
+    addCoherenceOblig  :: SpecType -> Maybe RReft -> SpecType
+    addCoherenceOblig t Nothing = t
+    addCoherenceOblig t (Just r) = F.tracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `RT.strengthen` r}
+      where rrep = toRTypeRep t
+            res  = ty_res rrep
+    prefts  = L.reverse . take (length fts) $ fmap (F.tracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
+    preftss = F.tracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRef recsel)) (GM.buildCoherenceOblig cls)
+    
+    -- ugly, should have passed cls as an argument
+    cls = Mb.fromJust $ Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
+    recsel = F.symbol ("lq$recsel" :: String)
     resTy = dcpTyRes dcp
     dc = dcpCon dcp
     tvars =
@@ -500,7 +513,7 @@ elaborateClassDcp coreToLg simplifier dcp = do
     fullTy :: SpecType -> SpecType
     fullTy t =
       F.notracepp "fullTy" $
-      mkArrow tvars [] [] [(F.symbol dc, F.notracepp "resTy" resTy, mempty)] t
+      mkArrow tvars [] [] [(recsel{- F.symbol dc-}, F.notracepp "resTy" resTy, mempty)] t
     strengthenTy :: F.Symbol -> SpecType -> SpecType
     strengthenTy x t = mkUnivs tvs pvs (RFun z cls (t' `RT.strengthen` mt) r)
       where (tvs, pvs, (RFun z cls t' r)) = bkUniv t
@@ -862,7 +875,10 @@ singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft F.Reft
 singletonApp s ys = MkUReft r mempty
   where
     r             = F.exprReft (F.mkEApp s (F.eVar <$> ys))
-          
+
+
+-- singletonAppRes :: F.Symbolic a => Ghc.Var -> [a] -> UReft F.Reft
+
 
 -- stolen from Axiom.hs
 unDummy :: F.Symbol -> Int -> F.Symbol

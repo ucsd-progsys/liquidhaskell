@@ -734,6 +734,9 @@ isDictionary = isPrefixOfSym "$f" . dropModuleNames . symbol
 isMethod :: Symbolic a => a -> Bool
 isMethod = isPrefixOfSym "$c" . dropModuleNames . symbol
 
+isSCSel :: Symbolic a => a -> Bool
+isSCSel  = isPrefixOfSym "$p" . dropModuleNames . symbol
+
 isInternal :: Symbolic a => a -> Bool
 isInternal   = isPrefixOfSym "$"  . dropModuleNames . symbol
 
@@ -1005,7 +1008,6 @@ canonSelectorChains t = foldr (OM.unionWith const) mempty (zs : xs)
   zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [x])) ys
   xs        = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
 
-
 buildCoherenceOblig :: Class -> [[([Id], [Id])]]
 buildCoherenceOblig cls = evalState (mapM f xs) mempty
  where
@@ -1013,10 +1015,18 @@ buildCoherenceOblig cls = evalState (mapM f xs) mempty
   tts                = mkTyVarTy <$> ts
   t                  = mkClassPred cls tts
   ys = fmap (\d -> (d, piResultTys (idType d) (tts ++ [t]))) selIds
-  xs                 = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
+  xs                 = fmap (\(d, t') -> fmap (d:) (canonSelectorChains t')) ys
   f tid = do
     ctid' <- get
     modify (flip (OM.unionWith const) tid)
-    pure . OM.elems $ OM.intersectionWith (,) ctid' tid
+    pure . OM.elems $ OM.intersectionWith (,) ctid' (fmap tail tid)
 
 
+-- to be zipped onto the super class selectors
+coherenceObligToRef :: (F.Symbolic s) => s -> [Id] -> [Id] -> F.Reft
+coherenceObligToRef d rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
+  where lhs = L.foldr EApp (F.eVar ds) ps0
+        rhs = L.foldr EApp (F.eVar F.vv_) ps1
+        ps0 = F.eVar . F.symbol <$> L.reverse rps0
+        ps1 = F.eVar . F.symbol <$> L.reverse rps1
+        ds  = F.symbol d
