@@ -263,17 +263,17 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
   -- is used as a shorthand for instance, following the convention of the Ghc api
   where
     recsel = F.symbol ("lq$recsel" :: String)
-    prefts  = L.reverse . take (length yts) $ fmap (F.tracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
-    preftss = F.tracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRef recsel)) (GM.buildCoherenceOblig cls)
+    prefts  = L.reverse . take (length yts) $ fmap (F.notracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
+    preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRef recsel)) (GM.buildCoherenceOblig cls)
     cls = Mb.fromJust . Ghc.tyConClass_maybe $ Ghc.dataConTyCon (dcpCon dcp)
     addCoherenceOblig  :: SpecType -> Maybe RReft -> SpecType
     addCoherenceOblig t Nothing = t
-    addCoherenceOblig t (Just r) = F.tracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `strengthen` r}
+    addCoherenceOblig t (Just r) = F.notracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `strengthen` r}
       where rrep = toRTypeRep t
             res  = ty_res rrep    -- (Monoid.mappend -> $cmappend##Int, ...)
     -- core rewriting mark2: do the same thing except they don't have to be symbols
     -- YL: poorly written. use a comprehension instead of assuming 
-    methodsSet = F.tracepp "methodSet" $ M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
+    methodsSet = F.notracepp "methodSet" $ M.fromList (zip (F.symbol <$> clsMethods) (F.symbol <$> methods))
     -- core rewriting mark1: dfunId
     dfunSym = F.symbol $ Ghc.instanceDFunId inst
     (isTvs, isPredTys, _, isTys) = Ghc.instanceSig inst
@@ -646,7 +646,7 @@ makeSpecRefl :: Config -> GhcSrc -> Bare.MeasEnv -> Bare.ModSpecs -> Bare.Env ->
 ------------------------------------------------------------------------------------------
 makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl 
   { gsLogicMap   = lmap 
-  , gsAutoInst   = F.tracepp "autoInst" $ makeAutoInst env name mySpec 
+  , gsAutoInst   = F.notracepp "autoInst" $ makeAutoInst env name mySpec 
   , gsImpAxioms  = concatMap (Ms.axeqs . snd) (M.toList specs)
   , gsMyAxioms   = F.notracepp "gsMyAxioms" myAxioms 
   , gsReflects   = lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects

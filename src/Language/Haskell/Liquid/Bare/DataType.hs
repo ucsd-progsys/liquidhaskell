@@ -398,7 +398,7 @@ makeClassDataDecl' :: [(Ghc.Class, [(Ghc.Id, LocBareType)])] -> [DataDecl]
 makeClassDataDecl' = fmap (uncurry classDeclToDataDecl')
 
 classDeclToDataDecl' :: Ghc.Class -> [(Ghc.Id, LocBareType)] -> DataDecl
-classDeclToDataDecl' cls refinedIds = F.tracepp "classDeclToDataDecl" $ DataDecl
+classDeclToDataDecl' cls refinedIds = F.notracepp "classDeclToDataDecl" $ DataDecl
           { tycName   = DnName (F.symbol <$> GM.locNamedThing cls)
           , tycTyVars = tyVars
           , tycPVars  = []
@@ -484,17 +484,17 @@ elaborateClassDcp :: (Ghc.CoreExpr -> F.Expr) -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.Co
 elaborateClassDcp coreToLg simplifier dcp = do
   t' <- flip (zipWith addCoherenceOblig) prefts <$> forM fts (elaborateSpecType coreToLg simplifier)
   let ts' = F.notracepp "elaboratedMethod" $ elaborateMethod (F.symbol dc) (S.fromList xs) <$> t'
-  pure (F.tracepp "elaborateClassDcp" $
+  pure (F.notracepp "elaborateClassDcp" $
         dcp {dcpTyArgs = zip xs (stripPred <$> ts')},
         dcp {dcpTyArgs = fmap (\(x,t) -> (x, strengthenTy x t)) (zip xs t')})
   where
     addCoherenceOblig  :: SpecType -> Maybe RReft -> SpecType
     addCoherenceOblig t Nothing = t
-    addCoherenceOblig t (Just r) = F.tracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `RT.strengthen` r}
+    addCoherenceOblig t (Just r) = F.notracepp "SCSel" . fromRTypeRep $ rrep {ty_res = res `RT.strengthen` r}
       where rrep = toRTypeRep t
             res  = ty_res rrep
-    prefts  = L.reverse . take (length fts) $ fmap (F.tracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
-    preftss = F.tracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRef recsel)) (GM.buildCoherenceOblig cls)
+    prefts  = L.reverse . take (length fts) $ fmap (F.notracepp "prefts" . Just . (flip MkUReft mempty) . mconcat) preftss ++ repeat Nothing
+    preftss = F.notracepp "preftss" $ (fmap.fmap) (uncurry (GM.coherenceObligToRef recsel)) (GM.buildCoherenceOblig cls)
     
     -- ugly, should have passed cls as an argument
     cls = Mb.fromJust $ Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
@@ -518,7 +518,7 @@ elaborateClassDcp coreToLg simplifier dcp = do
     strengthenTy x t = mkUnivs tvs pvs (RFun z cls (t' `RT.strengthen` mt) r)
       where (tvs, pvs, (RFun z cls t' r)) = bkUniv t
             vv = rTypeValueVar t'
-            mt = F.tracepp ("strengthening:" ++ F.showpp x ++ " " ++ F.showpp z) $ RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
+            mt = F.notracepp ("strengthening:" ++ F.showpp x ++ " " ++ F.showpp z) $ RT.uReft (vv, F.PAtom F.Eq (F.EVar vv) (F.EApp (F.EVar x) (F.EVar z)))
 
 substClassOpBinding ::
      F.Symbol -> F.Symbol -> S.HashSet F.Symbol -> F.Expr -> F.Expr
@@ -893,7 +893,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   makeOne (Loc l l' dcp)
     | Just cls <- maybe_cls
     = let cfs = Ghc.classAllSelIds cls in
-        F.tracepp "classSelectors" $ fmap ((,) <$> fst <*> uncurry strengthenClassSel) [(v, Loc l l' t)| (v,t) <- zip cfs (reverse $ fmap snd args)]
+        F.notracepp "classSelectors" $ fmap ((,) <$> fst <*> uncurry strengthenClassSel) [(v, Loc l l' t)| (v,t) <- zip cfs (reverse $ fmap snd args)]
     | null fls                       --    no field labels
     || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
@@ -917,7 +917,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   
       su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
       args = dcpTyArgs dcp
-      z    = F.tracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+      z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
       res  = dropPreds (dcpTyRes dcp)
   
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem

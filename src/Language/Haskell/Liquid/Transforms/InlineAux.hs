@@ -162,7 +162,7 @@ inlineAuxExpr dfunId methodToAux e = go e
     , arg : argsNoTy <- dropWhile isTypeArg args
     , (Var x, argargs) <- collectArgs arg
     , x == dfunId
-    = GM.tracePpr ("inlining in" ++ GM.showPpr e)
+    = GM.notracePpr ("inlining in" ++ GM.showPpr e)
       $ mkCoreApps (Var aux) (argargs ++ (go <$> argsNoTy))
   go (App e0 e1) = App (go e0) (go e1)
   go e           = e
