@@ -57,7 +57,7 @@ genTerms' i s specTy =
 genArgs :: String -> SpecType -> SM [CoreExpr]
 genArgs s t =
   do  goalTys <- sGoalTys <$> get
-      case find (== (toType t)) goalTys of 
+      case find (== toType t) goalTys of 
         Nothing -> do modify (\s -> s { sGoalTys = (toType t) : sGoalTys s }) 
                       fixEMem t 
                       fnTys <- functionCands (toType t)

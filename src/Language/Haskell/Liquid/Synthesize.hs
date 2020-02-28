@@ -77,7 +77,6 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
           (_, (xs, txs, _), _) = bkArrow ttop
       addEnv xtop $ decrType xtop ttop args (zip xs txs)
 
-      -- Special Treatment for synthesis of integers 
       if R.isNumeric (tyConEmbed cgi) c
           then error " [ Numeric in synthesize ] Update liquid fixpoint. "
           else do let ts = unifyWith (toType t)

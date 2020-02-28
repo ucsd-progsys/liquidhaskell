@@ -38,7 +38,7 @@ import           Data.Tuple.Extra
 import           Debug.Trace
 
 maxMatchDepth :: Int 
-maxMatchDepth = 5
+maxMatchDepth = 6
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------
@@ -295,8 +295,20 @@ insEMem0 senv = do
       change e =  let { e' = instantiateTy e mbUTy; t' = exprType e' } 
                   in  (e', t')
 
+      alterInstantiate es = 
+        foldr (\e acc ->  case e of GHC.Var v ->  if xtop == v 
+                                                      then acc 
+                                                      else change' e : acc
+                                    _ -> change' e : acc) [] es
+      change' e = let { e' = instantiate e (Just uniVs); t' = exprType e' }
+                  in (e', t')
+      em0 = initExprMem senv
+      es = map snd3 em0
+      (es', ts') = unzip (alterInstantiate es)
+      is = replicate (length es') 0
+      em1 = zip3 ts' es' is -- See WordCount
   return $ map (\(t, e, i) -> let (e', t') = handleIt e
-                              in  (t', e', i)) (initExprMem senv)
+                              in  (t', e', i)) em0
 
 instantiateTy :: CoreExpr -> Maybe [Type] -> CoreExpr
 instantiateTy e mbTy = 
@@ -344,28 +356,30 @@ instantiateTL :: SM (Type, GHC.CoreExpr)
 instantiateTL = do
   uniVars <- getSUniVars 
   xtop <- getSFix
-  let e = apply uniVars (GHC.Var xtop)
+  let e = fromJust $ apply uniVars (GHC.Var xtop)
   return (exprType e, e)
 
 -- | Applies type variables (1st argument) to an expression.
 --   The expression is guaranteed to have the same level of 
 --   parametricity (same number of @forall@) as the length of the 1st argument.
 --   > The result has zero @forall@.
-apply :: [Var] -> GHC.CoreExpr -> GHC.CoreExpr
+apply :: [Var] -> GHC.CoreExpr -> Maybe GHC.CoreExpr
 apply []     e = 
   case exprType e of 
-    ForAllTy {} -> error $ " [ instantiate (1) ] For e " ++ show e
-    _           -> e
+    ForAllTy {} -> Nothing -- error $ " [ instantiate (1) ] For e " ++ show e
+    _           -> Just e
 apply (v:vs) e 
   = case exprType e of 
       ForAllTy{} -> apply vs (GHC.App e (GHC.Type (TyVarTy v)))
-      _          -> error $ " [ instantiate (2) ] For e " ++ show e ++ " vars = " ++ show (v:vs)
+      _          -> Nothing -- error $ " [ instantiate (2) ] For e " ++ show e ++ " vars = " ++ show (v:vs)
 
 instantiate :: CoreExpr -> Maybe [Var] -> CoreExpr
 instantiate e mbt = 
   case mbt of
     Nothing     -> e
-    Just tyVars -> apply tyVars e
+    Just tyVars -> case apply tyVars e of 
+                      Nothing -> e
+                      Just e' -> e'
 
 -----------------------------------------------------------------------------------------------------
 
