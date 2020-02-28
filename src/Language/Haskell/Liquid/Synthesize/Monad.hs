@@ -38,7 +38,7 @@ import           Data.Tuple.Extra
 import           Debug.Trace
 
 maxMatchDepth :: Int 
-maxMatchDepth = 2
+maxMatchDepth = 5
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------

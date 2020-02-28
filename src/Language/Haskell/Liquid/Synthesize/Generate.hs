@@ -75,8 +75,8 @@ withDepthFillArgs s t depth cs = do
 
   filterElseM (hasType s True t) es $
     if depth < maxArgsDepth
-      then do withDepthFillArgs s t (depth + 1) cs
-      else return []
+      then  withDepthFillArgs s t (depth + 1) cs
+      else  return []
 
 argsFill :: String -> ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
 argsFill _ _   []               es0 = return es0 

@@ -119,6 +119,13 @@ appOnly GHC.Type{}      = True
 appOnly (GHC.App e1 e2) = appOnly e1 && appOnly e2
 appOnly _               = False 
 
+isVar :: GHC.CoreExpr -> Bool
+isVar (GHC.Var _) = True
+isVar _           = False
+
+varOrApp :: GHC.CoreExpr -> Var -> Bool
+varOrApp e xtop = isVar e || (appOnly e && outer e == xtop)
+
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
 noPairLike (e, t, c) = (length (tyConDataCons c) > 1) || inspect e (tyConDataCons c)
 
