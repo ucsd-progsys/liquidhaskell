@@ -115,7 +115,6 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
             args <- mapM (genArgs s) specSubGs
             em <- sExprMem <$> get
             let argCands  = map (withSubgoal em) subGs
-                changeMode = foldr (\l b -> null l || b) False argCands
             newExprs <- do  curExprId <- sExprId <$> get 
                             prune curExprId c argCands
             curExprId <- sExprId <$> get
@@ -123,6 +122,7 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
             modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
             em <- sExprMem <$> get
             let accExprs' = newExprs ++ accExprs
+            -- trace (" For e = " ++ show e ++ "\nargs " ++ show args ++ "\nexprs " ++ show newExprs) $ 
             fill i s depth em cs accExprs' 
 
 -------------------------------------------------------------------------------------------
@@ -194,12 +194,14 @@ repeatFix (i:is) ixs toFill args es
         es0 <- fillOne toFill args0
         es1 <- structuralCheck es0
         es2 <- (++ es) <$> filterM isWellTyped es1
-        repeatFix is ixs toFill args1 es2
+        trace (" [ repeatFix ] For " ++ show (snd3 toFill) ++ " args0 " ++ show args0) $ 
+          repeatFix is ixs toFill args1 es2
 
 prune :: Depth -> (Type, CoreExpr, Int) -> [[(CoreExpr, Int)]] -> SM [CoreExpr]
 prune d toFill args 
   = do  let (ixs, is) = findFeasibles d args 
-        repeatFix is ixs toFill args []
+        trace (" Depth " ++ show d ++ " [ prune ] For " ++ show (snd3 toFill) ++ " args " ++ show args) $ 
+          repeatFix is ixs toFill args []
 
 
 ----------------------------------------------------------------------------

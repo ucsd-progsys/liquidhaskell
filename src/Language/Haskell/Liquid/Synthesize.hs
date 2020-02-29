@@ -35,16 +35,25 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.List 
 import           Data.Tuple.Extra
 
+rmMeasures :: [Symbol] -> [(Symbol, SpecType)] -> [(Symbol, SpecType)]
+rmMeasures _    [ ]         = [ ]
+rmMeasures meas ((s, t):γs) = 
+  case find (==s) meas of 
+    Nothing -> (s, t) : rmMeasures meas γs
+    Just _  -> rmMeasures meas γs
+
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
   mapM go (M.toList $ holesMap cginfo)
   where 
+    measures = map (val . msName) ((gsMeasures . gsData . giSpec . ghcI) cginfo)
     go (x, HoleInfo t loc env (cgi,cge)) = do 
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi
           (uniVars, _) = getUniVars coreProgram topLvlBndr
-          fromREnv = filterREnv (reLocal env)
+          fromREnv' = filterREnv (reLocal env)
+          fromREnv  = M.fromList (rmMeasures measures (M.toList fromREnv'))
           ssenv0 = symbolToVar coreProgram topLvlBndr fromREnv
           (senv1, foralls) = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       

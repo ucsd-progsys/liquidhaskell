@@ -77,7 +77,6 @@ data SState
            }
 type SM = StateT SState IO
 
--- TODO Write: What is @maxAppDepth@?
 maxAppDepth :: Int 
 maxAppDepth = 2
 
