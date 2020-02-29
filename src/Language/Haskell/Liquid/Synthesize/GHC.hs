@@ -123,8 +123,10 @@ isVar :: GHC.CoreExpr -> Bool
 isVar (GHC.Var _) = True
 isVar _           = False
 
-varOrApp :: GHC.CoreExpr -> Var -> Bool
-varOrApp e xtop = isVar e || (appOnly e && outer e == xtop)
+-- TODO Synthesize scrutinee
+varOrApp :: GHC.CoreExpr -> Var -> [Var] -> Bool
+varOrApp e xtop foralls = isVar e || (appOnly e &&  (outer e == xtop || 
+                                                    foldr (\x acc -> x /= outer e && acc) True foralls))
 
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
 noPairLike (e, t, c) = (length (tyConDataCons c) > 1) || inspect e (tyConDataCons c)

@@ -149,11 +149,13 @@ synthesizeMatch s t = do
             
 filterScrut :: SM [(CoreExpr, Type, TyCon)]
 filterScrut = do
-  em <- getSEMem
-  xtop <- sFix <$> get
+  s <- get
+  let em = sExprMem s
+      xtop = sFix s
+      foralls = (fst . sForalls) s
   let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
       es1 = filter (not . trivial . fst3 . fst) es0
-      es2 = filter ((`varOrApp` xtop) . fst3 .fst) es1
+      es2 = filter ((\e -> varOrApp e xtop foralls) . fst3 .fst) es1
       es3 = filter (not . isClassTyCon . thd3 . fst) es2
       es4 = filter (noPairLike . fst) es3
       es5 = sortOn snd es4
