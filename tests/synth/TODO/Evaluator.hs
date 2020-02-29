@@ -14,6 +14,14 @@ one = 1
 two :: Int 
 two = 2
 
+{-@ data AST [size] = 
+    Zero 
+    | One 
+    | Two 
+    | PlusNode { xp :: AST, yp :: AST} 
+    | MinusNode { xm :: AST, ym ::AST } 
+    | ProductNode { xpr :: AST, ypr :: AST } 
+  @-}
 data AST = Zero | One | Two | PlusNode AST AST | MinusNode AST AST | ProductNode AST AST
 
 {-@ measure size @-}
@@ -51,9 +59,10 @@ result (ProductNode l r)
 {-@ type OpCode = { v: Int | v >= 0 && v <= 2 } @-}
 type OpCode = Int
 
-{-@ data PAST = IntNode { x :: Int } | OpNode { op :: OpCode, l :: PAST, r :: PAST } @-}
+{-@ data PAST [sizeP] = IntNode { x :: Int } | OpNode { op :: OpCode, l :: PAST, r :: PAST } @-}
 data PAST = IntNode { x :: Int } | OpNode { op :: OpCode, l :: PAST, r :: PAST }
 
+{-@ measure sizeP @-}
 {-@ sizeP :: PAST -> Nat @-}
 sizeP :: PAST -> Int
 sizeP (IntNode x)
@@ -74,6 +83,8 @@ resultP (OpNode op l r)
 {-@ transform :: x: AST -> { v: PAST | resultP v == result x } @-}
 transform :: AST -> PAST
 transform = _goal
+-- transform x = IntNode (result x)
+
 -- transform x 
 --     = case x of
 --         Zero                -> IntNode zero

@@ -9,13 +9,7 @@ import Language.Haskell.Liquid.Synthesize.Error
 length' :: [a] -> Int
 length' []     = 0
 length' (x:xs) = 1 + length' xs
-  
-{-@ append :: xs: [a] -> ys: [a] -> { v: [a] | length' v == length' xs + length' ys } 
-  @-}
-append :: [a] -> [a] -> [a]
-append []     ys = ys
-append (x:xs) ys = x : append xs ys
-  
+
 data Info = Info { sa :: Int, zc :: Int, loc :: Bool } 
     
 data Address = Address { i :: Info, priv :: Bool }
@@ -28,7 +22,7 @@ isPriv (Address _ priv) = priv
 getPriv :: Address -> Bool
 getPriv a = isPriv a
 
-{-@ data AddressBook = AddressBook { x :: [{v: Address | isPriv v}], y :: [{v: Address | not (isPriv v)}] }
+{-@ data AddressBook [size] = AddressBook { x :: [{v: Address | isPriv v}], y :: [{v: Address | not (isPriv v)}] }
   @-}
 data AddressBook = AddressBook [Address] [Address] 
 
@@ -37,6 +31,12 @@ data AddressBook = AddressBook [Address] [Address]
 size :: AddressBook -> Int
 size (AddressBook bs ps) = length' bs + length' ps
   
+{-@ append :: xs: [a] -> ys: [a] -> { v: [a] | length' v == length' xs + length' ys } 
+  @-}
+append :: [a] -> [a] -> [a]
+append []     ys = ys
+append (x:xs) ys = x : append xs ys
+
 {-@ mergeAddressBooks :: a: AddressBook -> b: AddressBook -> {v: AddressBook | size v == size a + size b} @-}
 mergeAddressBooks :: AddressBook -> AddressBook -> AddressBook
 mergeAddressBooks = _goal
