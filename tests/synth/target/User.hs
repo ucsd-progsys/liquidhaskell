@@ -16,6 +16,7 @@ data Address = Address { i :: Info, priv :: Bool }
   
 {-@ measure isPriv @-}
 {-@ isPriv :: Address -> Bool @-}
+isPriv :: Address -> Bool
 isPriv (Address _ priv) = priv  
   
 {-@ getPriv :: a:Address -> { v: Bool | v == isPriv a } @-}
