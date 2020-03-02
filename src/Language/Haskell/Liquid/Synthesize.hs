@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Language.Haskell.Liquid.Synthesize (
     synthesize
@@ -54,12 +55,17 @@ synthesize tgt fcfg cginfo =
           (uniVars, _) = getUniVars coreProgram topLvlBndr
           fromREnv' = filterREnv (reLocal env)
           fromREnv  = M.fromList (rmMeasures measures (M.toList fromREnv'))
+
+          isForall t = case t of { ForAllTy{} -> True; _ -> False}
+          rEnvForalls = M.fromList (filter (isForall . toType . snd) (M.toList fromREnv))
+          fs = map (snd . snd) $ M.toList (symbolToVar coreProgram topLvlBndr rEnvForalls)
+
           ssenv0 = symbolToVar coreProgram topLvlBndr fromREnv
-          (senv1, foralls) = initSSEnv typeOfTopLvlBnd cginfo ssenv0
+          (senv1, foralls') = initSSEnv typeOfTopLvlBnd cginfo ssenv0
       
       ctx <- SMT.makeContext fcfg tgt
       state0 <- initState ctx fcfg cgi cge env topLvlBndr (reverse uniVars) M.empty
-
+      let foralls = foralls' ++ fs
       fills <- synthesize' ctx cgi senv1 typeOfTopLvlBnd topLvlBndr typeOfTopLvlBnd foralls state0
 
       return $ ErrHole loc (
@@ -92,7 +98,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
                   if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                               else modify (\s -> s { sUGoalTy = Just ts } )
                   modify (\s -> s {sForalls = (foralls, [])})
-                  emem0 <- insEMem0 senv -- TODO Fix
+                  emem0 <- insEMem0 senv
                   modify (\s -> s { sExprMem = emem0 })
                   synthesizeBasic CaseSplit " Constructor " t
 

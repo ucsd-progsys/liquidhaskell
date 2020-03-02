@@ -129,13 +129,13 @@ varOrApp e xtop foralls = isVar e || (appOnly e &&  (outer e == xtop ||
                                                     foldr (\x acc -> x /= outer e && acc) True foralls))
 
 noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
-noPairLike (e, t, c) = (length (tyConDataCons c) > 1) || inspect e (tyConDataCons c)
+noPairLike (e, t, c) = null (tyConDataCons c) || length (tyConDataCons c) > 1 || inspect e (tyConDataCons c)
 
 inspect :: GHC.CoreExpr -> [DataCon] -> Bool
 inspect e [dataCon] 
   = outer e /= dataConWorkId dataCon
-inspect _ _  
-  = error " Should be a singleton. "
+inspect e dataCons  
+  = error (" Should be a singleton: " ++ show e ++ " dataCons " ++ show (map dataConWorkId dataCons))
 
 outer :: GHC.CoreExpr -> Var
 outer (GHC.Var v)

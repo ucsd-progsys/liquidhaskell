@@ -39,7 +39,7 @@ data SearchMode
 genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
 genTerms' i s specTy = 
   do  goalTys <- sGoalTys <$> get
-      case find (== (toType specTy)) goalTys of 
+      case find (== toType specTy) goalTys of 
         Nothing -> modify (\s -> s { sGoalTys = (toType specTy) : sGoalTys s })
         Just _  -> return ()
       fixEMem specTy 
@@ -85,8 +85,11 @@ argsFill s em0 (c@(t, e, i):cs) es0 =
     Nothing             -> return [] 
     Just (resTy, subGs) -> 
       do  let argCands = map (withSubgoal em0) subGs
+              toGen    = foldr (\x b -> (not . null) x && b) True argCands
           es <- do  curExprId <- sExprId <$> get
-                    prune curExprId c argCands
+                    if toGen then 
+                      prune curExprId c argCands
+                      else return []
           curExprId <- sExprId <$> get
           let nextEm = map (resTy, , curExprId + 1) es
           modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
@@ -115,8 +118,11 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
             args <- mapM (genArgs s) specSubGs
             em <- sExprMem <$> get
             let argCands  = map (withSubgoal em) subGs
+                toGen    = foldr (\x b -> (not . null) x && b) True argCands
             newExprs <- do  curExprId <- sExprId <$> get 
-                            prune curExprId c argCands
+                            if toGen then 
+                              prune curExprId c argCands
+                              else return []
             curExprId <- sExprId <$> get
             let nextEm = map (resTy, , curExprId + 1) newExprs
             modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
@@ -194,14 +200,12 @@ repeatFix (i:is) ixs toFill args es
         es0 <- fillOne toFill args0
         es1 <- structuralCheck es0
         es2 <- (++ es) <$> filterM isWellTyped es1
-        trace (" [ repeatFix ] For " ++ show (snd3 toFill) ++ " args0 " ++ show args0) $ 
-          repeatFix is ixs toFill args1 es2
+        repeatFix is ixs toFill args1 es2
 
 prune :: Depth -> (Type, CoreExpr, Int) -> [[(CoreExpr, Int)]] -> SM [CoreExpr]
 prune d toFill args 
   = do  let (ixs, is) = findFeasibles d args 
-        trace (" Depth " ++ show d ++ " [ prune ] For " ++ show (snd3 toFill) ++ " args " ++ show args) $ 
-          repeatFix is ixs toFill args []
+        repeatFix is ixs toFill args []
 
 
 ----------------------------------------------------------------------------
