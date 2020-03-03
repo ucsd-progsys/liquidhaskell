@@ -10,6 +10,8 @@ embed GHC.Types.Int     as int
 embed GHC.Types.Bool    as bool
 embed GHC.Types.Char    as Char
 
+embed GHC.Integer.Type.Integer as int
+
 // Prim types
 embed GHC.Prim.Int#     as int
 embed GHC.Prim.Addr#    as Str
