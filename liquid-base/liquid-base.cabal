@@ -25,12 +25,16 @@ data-files:         src/Data/Word.spec
                     src/Foreign/C/Types.spec
                     src/Foreign/Ptr.spec
                     src/Foreign/ForeignPtr.spec
+                    src/Data/Either.spec
+                    src/Data/Bits.spec
 
 library
   exposed-modules:  Data.Foldable
                     Data.Tuple
                     Data.Word
+                    Data.Either
                     Data.Ord
+                    Data.Bits
                     Data.List
                     Data.Function
                     Data.Functor
@@ -41,6 +45,7 @@ library
                     GHC.Int
                     GHC.List
                     GHC.Num
+                    GHC.TypeLits
                     GHC.Real
                     GHC.Word
                     GHC.Ptr

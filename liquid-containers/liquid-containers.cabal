@@ -1,7 +1,7 @@
-name:               liquid-vector
+name:               liquid-containers
 version:            0.8.6.0
-synopsis:           LiquidHaskell specs for the vector package
-description:        LiquidHaskell specs for the vector package.
+synopsis:           LiquidHaskell specs for the containers package
+description:        LiquidHaskell specs for the containers package.
 license:            BSD3
 license-file:       LICENSE
 copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
@@ -12,13 +12,13 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 cabal-version:      >= 1.22
 
-data-files:           src/Data/Vector.spec
+data-files:           src/Data/Set.spec
 
 library
-  exposed-modules:    Data.Vector
+  exposed-modules:    Data.Set
   hs-source-dirs:     src
   build-depends:      liquid-base          >= 0.8.6.0 
-                    , vector               >= 0.10
+                    , containers           >= 0.5.9.2
                     , liquidhaskell        >= 0.8.6.0
   default-language:   Haskell98
   default-extensions: PackageImports
