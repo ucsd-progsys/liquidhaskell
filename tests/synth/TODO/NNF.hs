@@ -39,6 +39,7 @@ imp False False = True
 
 {-@ measure eval @-}
 {-@ eval :: Expr a -> Bool @-}
+eval :: Expr a -> Bool
 eval (Var x) = store x
 eval (Not e) = not (eval e)
 eval (And l r) = eval l && eval r
@@ -52,6 +53,7 @@ store x = True
 
 {-@ measure nEval @-}
 {-@ nEval :: NExpr a -> Bool @-}
+nEval :: NExpr a -> Bool
 nEval (NAtom x neg) = if neg then not (store x) else store x
 nEval (NAnd l r) = nEval l && nEval r
 nEval (NOr l r) = nEval l || nEval r
