@@ -5,6 +5,7 @@ packages: .
           ./liquid-ghc-prim
           ./liquid-base
           ./liquid-prelude
+          ./liquid-vector
           ./liquid-fixpoint
 
 package liquid-fixpoint
