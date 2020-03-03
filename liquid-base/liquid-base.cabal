@@ -14,6 +14,12 @@ cabal-version:      >= 1.22
 
 data-files:         src/Data/Word.spec
                     src/Data/Tuple.spec
+                    src/Data/Char.spec
+                    src/Data/String.spec
+                    src/Data/Either.spec
+                    src/Data/Bits.spec
+                    src/System/IO.spec
+                    src/GHC/IO/Handle.spec
                     src/GHC/Int.spec
                     src/GHC/Word.spec
                     src/GHC/Real.spec
@@ -25,17 +31,17 @@ data-files:         src/Data/Word.spec
                     src/Foreign/C/Types.spec
                     src/Foreign/Ptr.spec
                     src/Foreign/ForeignPtr.spec
-                    src/Data/Either.spec
-                    src/Data/Bits.spec
 
 library
   exposed-modules:  Data.Foldable
                     Data.Tuple
+                    Data.Char
                     Data.Word
                     Data.Either
                     Data.Ord
                     Data.Bits
                     Data.List
+                    Data.Int
                     Data.Function
                     Data.Functor
                     Data.String
@@ -51,9 +57,11 @@ library
                     GHC.Word
                     GHC.Ptr
                     GHC.ForeignPtr
+                    GHC.IO.Handle
                     Foreign.C.Types
                     Foreign.Ptr
                     Foreign.ForeignPtr
+                    System.IO
                     Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5

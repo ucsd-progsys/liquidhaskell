@@ -131,7 +131,6 @@ plugin = GHC.defaultPlugin {
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
 customDynFlags :: [CommandLineOption] -> DynFlags -> IO DynFlags
 customDynFlags opts dflags = do
-  debugLog "hello"
   cfg <- liftIO $ LH.getOpts opts
   writeIORef cfgRef cfg
   configureDynFlags dflags

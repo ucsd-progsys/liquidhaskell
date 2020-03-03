@@ -21,6 +21,7 @@ conflicting_packages=(
   "base"
   "vctr"
   "containers"
+  "bytestring"
 )
 
 for i in "${conflicting_packages[@]}"; do

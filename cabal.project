@@ -8,6 +8,7 @@ packages: .
           ./liquid-vector
           ./liquid-containers
           ./liquid-parallel
+          ./liquid-bytestring
           ./liquid-fixpoint
 
 package liquid-fixpoint
