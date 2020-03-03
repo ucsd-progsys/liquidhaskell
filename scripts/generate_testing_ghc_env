@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -eu
+set -o pipefail
+
+# Generates a temporary testing.env file which resolves some module ambiguity. This is necessary
+# because we use 'cabal v2-exec' which pulls packages from the store and the local dist-newstyle
+# but at the same time we depend on things like 'liquid-base', but 'base' is automatically added to
+# the GHC_ENVIRONMENT when doing 'cabal v2-exec', so we would get an ambiguity error if we do not prune
+# base and all the relevant packages from the enviroment.
+# For more information see:
+# https://downloads.haskell.org/ghc/latest/docs/html/users_guide/packages.html#package-environments
+
+TMP_GHC_ENVIRONMENT_FILE=$(mktemp /tmp/liquid-ghc-enviroment.XXXXXX)
+
+cabal v2-exec $PWD/scripts/dump_ghc_environment > $TMP_GHC_ENVIRONMENT_FILE
+
+# Remove the packages in the set:
+
+conflicting_packages=(
+  "base"
+  "vctr"
+)
+
+for i in "${conflicting_packages[@]}"; do
+    sed_query=`printf "/^package-id %s.*$/d" $i`
+    sed -i.bak -E "$sed_query" $TMP_GHC_ENVIRONMENT_FILE
+done
+
+echo $TMP_GHC_ENVIRONMENT_FILE
