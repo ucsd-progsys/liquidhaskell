@@ -111,7 +111,10 @@ jobs:
     steps:
       - cabal_build_and_test:
           extra_test_flags: "--flag plugin"
-          liquid_runner: "--liquid-runner=cabal v2-exec ghc -- --make -hide-package base -package liquid-prelude -package liquidhaskell -fplugin=Language.Haskell.Liquid.GHC.Plugin "
+          liquid_runner: "--liquid-runner=cabal v2-exec ghc -- --make -no-link \
+                          -package-env=$(./scripts/generate_testing_ghc_env) \
+                          -package liquid-base -package liquid-prelude -package liquid-vector -package liquidhaskell \
+                          -fplugin=Language.Haskell.Liquid.GHC.Plugin "
 
 workflows:
   version: 2
