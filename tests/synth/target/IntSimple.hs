@@ -12,9 +12,9 @@ plus x y = x + y
 one :: Int
 one = 1
 
--- {-@ zero :: { v: Int | v == 0 } @-}
--- zero :: Int 
--- zero = 0
+{-@ zero :: { v: Int | v == 0 } @-}
+zero :: Int 
+zero = 0
 
 {-@ measure length' @-}
 {-@ length' :: [a] -> Nat @-}
@@ -22,6 +22,6 @@ length' :: [a] -> Int
 length' [] = 0
 length' (x:xs) = 1 + length' xs
 
-{-@ foo :: xs: [a] -> { v: Int | v == length' xs + 1 } @-}
-foo :: [a] -> Int
-foo = _goal
+{-@ foo :: x: Int -> { v: Int | v == x + 1 } @-}
+next :: Int -> Int
+next = _goal
