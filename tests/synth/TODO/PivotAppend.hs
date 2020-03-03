@@ -19,7 +19,7 @@ iLen (ICons x xs) = 1 + iLen xs
 iElts N            = S.empty
 iElts (ICons x xs) = S.union (S.singleton x) (iElts xs)
 
-{-@ pivotAppend :: p: a -> xs: IList { v: a | v < p } -> ys: IList { v: a | v > p } 
+{-@ pivotAppend :: p: a -> xs: IList { v: a | v <= p } -> ys: IList { v: a | v > p } 
         -> { v: IList a | iLen v == iLen xs + iLen ys + 1 && 
                           iElts v == S.union (S.union (iElts xs) (iElts ys)) (S.singleton p) } 
   @-}
