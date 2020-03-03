@@ -94,7 +94,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -262,9 +262,9 @@ liquidHaskellPass cfg modGuts = do
   -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
   let (guts', specComments) = Util.extractSpecComments modGuts
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
-  bareSpec <- getLiquidSpec thisModule specComments specQuotes
+  targetSpec    <- getLiquidSpec thisModule specComments specQuotes
 
-  case needsProcessing bareSpec of
+  case needsProcessing targetSpec of
     False -> pure guts'
     True  -> do
       modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
@@ -283,7 +283,7 @@ liquidHaskellPass cfg modGuts = do
 
           let lhContext = LiquidHaskellContext {
                 lhGlobalCfg       = cfg
-              , lhBareSpec        = bareSpec
+              , lhTargetSpec      = targetSpec
               , lhModuleLogicMap  = logicMap
               , lhModuleSummary   = modSummary
               , lhModuleTcData    = tcData
@@ -359,7 +359,7 @@ relevantModules modGuts = used `S.union` dependencies
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config
-  , lhBareSpec         :: BareSpec
+  , lhTargetSpec       :: LiquidSpec TargetSpec
   , lhModuleLogicMap   :: LogicMap
   , lhModuleSummary    :: ModSummary
   , lhModuleTcData     :: TcData
@@ -379,10 +379,10 @@ data ProcessModuleResult = ProcessModuleResult {
   }
 
 -- | Returns 'True' if we have to process the 'Module' associated to the input 'BareSpec'.
-needsProcessing :: BareSpec -> Bool
+needsProcessing :: LiquidSpec TargetSpec -> Bool
 needsProcessing = not . nullSpec
 
-getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
+getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m (LiquidSpec TargetSpec)
 getLiquidSpec thisModule specComments specQuotes = do
 
   (_, commSpec) <- either throw return $ 
@@ -392,23 +392,23 @@ getLiquidSpec thisModule specComments specQuotes = do
   case res of
     SpecFound _ _ lib -> do
       debugLog $ "Companion spec found for " ++ debugShowModule thisModule
-      pure $ commSpec `mergeSpecs` libTarget lib
-    _ -> pure commSpec
+      pure $ mkTargetSpec commSpec `mergeTargetWithCompanion` mkCompanionSpec (libTarget lib)
+    _ -> pure $ mkTargetSpec commSpec
 
 processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ debugShowModule thisModule)
   hscEnv              <- askHscEnv
 
-  let bareSpec        = lhBareSpec
+  let targetSpec      = lhTargetSpec
   -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- LH.checkFilePragmas $ Ms.pragmas bareSpec
+  _                   <- LH.checkFilePragmas $ Ms.pragmas (downcastSpec targetSpec)
 
-  moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas bareSpec)
+  moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas . downcastSpec $ targetSpec)
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
   let configChanged   = moduleCfg /= lhGlobalCfg
@@ -423,7 +423,7 @@ processModule LiquidHaskellContext{..} = do
 
 
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
-  let bareSpecs        = makeBareSpecs (moduleName thisModule) bareSpec dependencies
+  let bareSpecs        = makeBareSpecs (moduleName thisModule) targetSpec dependencies
 
   let ghcSpec          = makeGhcSpec moduleCfg ghcSrc lhModuleLogicMap bareSpecs
   let ghcInfo          = GI ghcSrc ghcSpec
@@ -431,9 +431,12 @@ processModule LiquidHaskellContext{..} = do
   -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
   -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
   -- errors when trying to refine things.
-  let clientSpec = (gsLSpec . giSpec $ ghcInfo) `mergeSpecs` bareSpec
+  let clientSpec = targetSpec `mergeTargetWithClient` (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
   let clientLib  = mkLiquidLib clientSpec & addLibDependencies dependencies
 
+  when (moduleName thisModule == mkModuleName "Language.Haskell.Liquid.ProofCombinators") $ liftIO $ do
+    putStrLn $ "bareSpec ==> "   ++ show targetSpec
+    putStrLn $ "clientSpec ==> " ++ show clientSpec
 
   let result = ProcessModuleResult {
         pmrClientLib  = clientLib
@@ -491,10 +494,10 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
 ---------------------------------------------------------------------------------------
-makeBareSpecs :: ModuleName -> Ms.BareSpec -> HashSet CachedSpec -> [(ModName, BareSpec)]
+makeBareSpecs :: ModuleName -> LiquidSpec TargetSpec -> HashSet CachedSpec -> [(ModName, BareSpec)]
 makeBareSpecs mname tgtSpec dependencies = 
   let tgtMod    = ModName Target mname
-  in  (tgtMod, tgtSpec) : map fromCached (HS.toList dependencies)
+  in  (tgtMod, downcastSpec tgtSpec) : map fromCached (HS.toList dependencies)
 
 ---------------------------------------------------------------------------------
 -- | Unused stages of the compilation pipeline ----------------------------------

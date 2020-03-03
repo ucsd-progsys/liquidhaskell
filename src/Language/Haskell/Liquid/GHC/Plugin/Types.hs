@@ -1,3 +1,8 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE NamedFieldPuns #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -23,7 +28,16 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , fromCached
 
     -- * Merging specs together
-    , mergeSpecs
+    , TargetSpec
+    , ClientSpec
+    , CompanionSpec
+    , LiquidSpec
+    , downcastSpec
+    , mkTargetSpec
+    , mkClientSpec
+    , mkCompanionSpec
+    , mergeTargetWithClient
+    , mergeTargetWithCompanion
     , nullSpec
 
     -- * Acquiring and manipulating data from the typechecking phase
@@ -96,8 +110,8 @@ data LiquidLib = LiquidLib
 instance B.Binary LiquidLib
 
 -- | Creates a new 'LiquidLib' with no dependencies.
-mkLiquidLib :: BareSpec -> LiquidLib
-mkLiquidLib s = LiquidLib s mempty
+mkLiquidLib :: LiquidSpec ClientSpec -> LiquidLib
+mkLiquidLib (MkClientSpec s) = LiquidLib s mempty
 
 -- | Adds a set of dependencies to the input 'LiquidLib'.
 addLibDependencies :: HashSet CachedSpec -> LiquidLib -> LiquidLib
@@ -191,23 +205,72 @@ instance Binary a => Hashable (HackyEQ a) where
 
 -- | Checks if the two input declarations are equal, by checking not only that their value
 -- is the same, but also that they are declared exactly in the same place.
-sameDeclaration :: (Loc a, Eq a) => a -> a -> Bool
-sameDeclaration x1 x2 = x1 == x2 && (srcSpan x1 == srcSpan x2)
+sameSig :: (LocSymbol, LocBareType) -> (LocSymbol, LocBareType) -> Bool
+sameSig (ls1, lbt1) (ls2, lbt2) =
+  (ls1 == ls2 ) && (srcSpan lbt1 == srcSpan lbt2)
 
--- | Merges two 'BareSpec's together.
--- NOTE(adinapoli) In theory what we would like is to have a version of this function that is either
--- isomorphic to 'mappend' or not use these hacks (i.e. 'nubBy', etc).
-mergeSpecs :: BareSpec -> BareSpec -> BareSpec
-mergeSpecs s1 s2 = LH.noTerm $
+---
+--- A Liquid spec and its (many) flavours
+---
+
+data TargetSpec
+data ClientSpec
+data CompanionSpec
+
+data LiquidSpec t where
+    MkTargetSpec    :: BareSpec -> LiquidSpec TargetSpec
+    MkClientSpec    :: BareSpec -> LiquidSpec ClientSpec
+    MkCompanionSpec :: BareSpec -> LiquidSpec CompanionSpec
+
+deriving instance Show (LiquidSpec TargetSpec)
+deriving instance Show (LiquidSpec ClientSpec)
+deriving instance Show (LiquidSpec CompanionSpec)
+
+mkTargetSpec :: BareSpec -> LiquidSpec TargetSpec
+mkTargetSpec = MkTargetSpec
+
+mkClientSpec :: BareSpec -> LiquidSpec ClientSpec
+mkClientSpec = MkClientSpec
+
+mkCompanionSpec :: BareSpec -> LiquidSpec CompanionSpec
+mkCompanionSpec = MkCompanionSpec
+
+downcastSpec :: LiquidSpec t -> BareSpec
+downcastSpec = \case
+  MkTargetSpec s    -> s
+  MkClientSpec s    -> s
+  MkCompanionSpec s -> s
+
+-- | Merges a 'TargetSpec' with its 'CompanionSpec'. Here duplicates are not checked as it's
+-- user's responsibility to make sure there are no duplicates between the in-module annotations and the
+-- companion spec.
+mergeTargetWithCompanion :: LiquidSpec TargetSpec -> LiquidSpec CompanionSpec -> LiquidSpec TargetSpec
+mergeTargetWithCompanion (MkTargetSpec s1) (MkCompanionSpec s2) = MkTargetSpec (s1 <> s2)
+
+
+newtype Sig    = Sig (LocSymbol, LocBareType) deriving Show
+newtype AsmSig = AsmSig (LocSymbol, LocBareType) deriving Show
+
+-- | Merges a 'TargetSpec' with its 'ClientSpec'. Here we need to be careful when it comes to signatures,
+-- because the 'ClientSpec' will "lift" the definition by \"pointing\" to the source line of the actual
+-- Haskell function definition, whereas the 'ClientSpec' would refer only to the source line of the LH
+-- annotation, and this could lead to \"multiple declarations\" false positives.
+-- On top of this, we disable the termination checks for the resulting spec, as this will be stored inside
+-- as an interface's annotation.
+mergeTargetWithClient :: LiquidSpec TargetSpec -> LiquidSpec ClientSpec -> LiquidSpec ClientSpec
+mergeTargetWithClient (MkTargetSpec s1) (MkClientSpec s2) = MkClientSpec . LH.noTerm $
   (s1 <> s2) { 
-      sigs      = L.nubBy (\a b -> fst a == fst b) (sigs s1 <> sigs s2)
-    , dataDecls = L.nubBy sameDeclaration (dataDecls s1 <> dataDecls s2)
+      sigs       = sigs s1 -- L.nubBy (\a b -> fst a == fst b) (sigs s1 <> sigs s2)
+    -- , asmSigs    = asmSigs s2
+    , aliases    = L.nubBy (\a b -> srcSpan a == srcSpan b) (aliases  s1 <> aliases s2)
+    , ealiases   = L.nubBy (\a b -> srcSpan a == srcSpan b) (ealiases s1 <> ealiases s2)
+    , dataDecls  = L.nub (dataDecls s1 <> dataDecls s2)
     }
 
 -- | Returns 'True' if the input 'BareSpec' is empty.
 -- FIXME(adinapoli) Currently this uses the 'HackEQ' under the hook, which is bad.
-nullSpec :: BareSpec -> Bool
-nullSpec spec = HackyEQ spec == HackyEQ mempty
+nullSpec :: LiquidSpec TargetSpec -> Bool
+nullSpec (MkTargetSpec spec) = HackyEQ spec == HackyEQ mempty
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
