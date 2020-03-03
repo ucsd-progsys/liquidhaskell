@@ -48,8 +48,8 @@ commands:
       - run:
           name: Test
           command: |
-            cabal v2-test -j1 liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
-            cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+            liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
       - store_test_results:
           path: /tmp/junit/cabal
       - store_artifacts:

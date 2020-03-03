@@ -41,6 +41,7 @@ library
                     Data.String
                     Control.Applicative
                     Control.Monad
+                    Control.Exception
                     GHC.Base
                     GHC.Int
                     GHC.List

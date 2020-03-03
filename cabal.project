@@ -7,6 +7,7 @@ packages: .
           ./liquid-prelude
           ./liquid-vector
           ./liquid-containers
+          ./liquid-parallel
           ./liquid-fixpoint
 
 package liquid-fixpoint

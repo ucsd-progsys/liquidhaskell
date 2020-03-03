@@ -434,10 +434,6 @@ processModule LiquidHaskellContext{..} = do
   let clientSpec = targetSpec `mergeTargetWithClient` (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
   let clientLib  = mkLiquidLib clientSpec & addLibDependencies dependencies
 
-  when (moduleName thisModule == mkModuleName "Language.Haskell.Liquid.ProofCombinators") $ liftIO $ do
-    putStrLn $ "bareSpec ==> "   ++ show targetSpec
-    putStrLn $ "clientSpec ==> " ++ show clientSpec
-
   let result = ProcessModuleResult {
         pmrClientLib  = clientLib
       , pmrGhcInfo    = ghcInfo
