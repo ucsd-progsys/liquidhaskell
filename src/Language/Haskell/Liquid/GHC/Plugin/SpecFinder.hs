@@ -113,7 +113,7 @@ lookupCompanionSpec thisModule = do
              O.<+> O.text (specFile file) O.<+> O.text ":"
              O.<+> O.text (show parsingError)
       lift $ pluginAbort dynFlags errMsg
-    Right spec -> pure $ SpecFound thisModule DiskLocation (mkLiquidLib . snd $ spec)
+    Right spec -> pure $ SpecFound thisModule DiskLocation (mkLiquidLib . mkClientSpec . snd $ spec)
   where
     specFile :: FilePath -> FilePath
     specFile fp = withExt fp Spec
