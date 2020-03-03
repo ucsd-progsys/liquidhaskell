@@ -217,7 +217,7 @@ configureDynFlags cfg tmp = do
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
                  , stubDir      = Just tmp
-                 -- , optLevel     = 0
+                 , optLevel     = 0
                  , ufCreationThreshold = 0
                  } `gopt_set` Opt_ImplicitImportQualified
                    `gopt_set` Opt_PIC
@@ -543,7 +543,7 @@ qImports qns  = QImports
 ---------------------------------------------------------------------------------------
 lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
 lookupTyThings hscEnv tcm mg =
-  forM (mgNames mg) $ \n -> do 
+  forM (mgNames mg ++ instNames mg) $ \n -> do 
     tt1 <-          lookupName                   n 
     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
     tt3 <-          modInfoLookupName mi         n 
@@ -582,6 +582,9 @@ _dumpRdrEnv _hscEnv modGuts = do
   where 
     _mgDeps   = Ghc.dep_mods . mgi_deps 
     _hscNames = fmap showPpr . Ghc.ic_tythings . Ghc.hsc_IC
+
+instNames :: MGIModGuts -> [Ghc.Name]
+instNames = fmap is_dfun_name . join . maybeToList . mgi_cls_inst
 
 mgNames :: MGIModGuts -> [Ghc.Name] 
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 

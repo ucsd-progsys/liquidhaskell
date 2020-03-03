@@ -60,9 +60,14 @@ anormalize :: UX.Config -> HscEnv -> ModGuts -> IO [CoreBind]
 --------------------------------------------------------------------------------
 anormalize cfg hscEnv modGuts = do
   let df = hsc_dflags hscEnv
+      aux_cbs  = inlineAux (mg_module modGuts) $ mg_binds modGuts
       -- rwr_simpl_cbs = rwr_cbs
   -- inlineDFun df rwr_cbs
+  
+  let orig_cbs = transformRecExpr aux_cbs
+      rwr_cbs  = rewriteBinds cfg orig_cbs
   -- rwr_simpl_cbs <- mg_binds <$> core2core hscEnv modGuts {mg_binds = rwr_cbs}
+      
 
   whenLoud $ do
     putStrLn "***************************** GHC CoreBinds ***************************"
@@ -79,9 +84,6 @@ anormalize cfg hscEnv modGuts = do
       err      = panic Nothing "Oops, cannot A-Normalize GHC Core!"
       
       γ0       = emptyAnfEnv cfg
-      rwr_cbs  = rewriteBinds cfg orig_cbs
-      orig_cbs = transformRecExpr aux_cbs
-      aux_cbs  = inlineAux (mg_module modGuts) $ mg_binds modGuts
       untidy   = UX.untidyCore cfg
 
 {-
