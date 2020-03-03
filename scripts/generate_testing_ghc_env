@@ -20,6 +20,7 @@ cabal v2-exec $PWD/scripts/dump_ghc_environment > $TMP_GHC_ENVIRONMENT_FILE
 conflicting_packages=(
   "base"
   "vctr"
+  "containers"
 )
 
 for i in "${conflicting_packages[@]}"; do
