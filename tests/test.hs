@@ -516,16 +516,17 @@ runLiquidOn :: SmtSolver
             -> IO (ExitCode, T.Text)
 --------------------------------------------------------------------------------
 runLiquidOn smt opts (LiquidRunner bin) dir file = do
+  absoluteDir <- canonicalizePath dir
   createDirectoryIfMissing True $ takeDirectory log
   hSetBuffering stdout NoBuffering
   withFile log WriteMode $ \h -> do
-    let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
+    let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir absoluteDir testFileFullPath) (mkLiquidOpt opts)
     (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
     exitCode   <- waitForProcess ph
     (exitCode,) <$> T.readFile log
   where
-    test = dir </> file
-    log = "tests/logs/cur" </> test <.> "log"
+    testFileFullPath = dir </> file
+    log = "tests/logs/cur" </> testFileFullPath <.> "log"
 
 
 binPath :: FilePath -> IO FilePath
@@ -548,55 +549,88 @@ knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
+-- | An option (like \"-i\") that also GHC can understand. This newtype is useful to
+-- separate \"package-resolution\" options that we can feed to both the plugin /and/
+-- the executable with options that are liquidhaskell-specific.
+newtype GhcSuitableOpts = GhcSuitableOpts LiquidOpts deriving (Monoid, Semigroup)
+newtype LiquidOnlyOpts  = LiquidOnlyOpts  LiquidOpts deriving (Monoid, Semigroup)
+
+data ExtraOptions = ExtraOptions { 
+    ghcSuitableOpts :: GhcSuitableOpts
+  , liquidOnlyOpts  :: LiquidOnlyOpts
+  }
+
+mkGhcOpt :: LiquidOpts -> ExtraOptions
+mkGhcOpt o = ExtraOptions (GhcSuitableOpts o) mempty
+
+mkLiquidOpt :: LiquidOpts -> ExtraOptions
+mkLiquidOpt o = ExtraOptions mempty (LiquidOnlyOpts o)
+
+instance Semigroup ExtraOptions where
+    (ExtraOptions o1 o2) <> (ExtraOptions o3 o4) = ExtraOptions (o1 <> o3) (o2 <> o4)
+
+instance Monoid ExtraOptions where
+    mempty  = ExtraOptions mempty mempty
+    mappend = (<>)
+
 --------------------------------------------------------------------------------
-extraOptions :: FilePath -> FilePath -> LiquidOpts
+extraOptions :: FilePath 
+             -- ^ The current directory /relative/ path.
+             -> FilePath
+             -- ^ The current directory /absolute/ path.
+             -> FilePath 
+             -> ExtraOptions
 --------------------------------------------------------------------------------
-extraOptions dir test = mappend (dirOpts dir) (testOpts test)
+extraOptions dir absDir testFileFullPath = mappend (dirOpts dir) (testOpts testFileFullPath)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-        , "-iinclude"
+        , mkGhcOpt (LO $ printf "-i%s/include " absDir)
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "--bscope --no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include -i../../include"
+        , mkLiquidOpt "--bscope --no-check-imports " <>
+          mkGhcOpt    (LO $ printf "-i%s/../bytestring-0.9.2.1 " absDir) <>
+          mkGhcOpt    (LO $ printf "-i%s/../bytestring-0.9.2.1/include " absDir) <>
+          mkGhcOpt    (LO $ printf "-i%s/../../include" absDir)
         )
       , ( "benchmarks/vector-0.10.0.1"
-        , "-i."
+        , mkGhcOpt (LO $ printf "-i%s/." absDir)
         )
       , ( "tests/import/client"
-        , "-i../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../lib" absDir)
         )
       , ( "benchmarks/popl18/nople/pos"
-        , "-i../../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../../lib" absDir)
         )
       , ( "benchmarks/popl18/nople/neg"
-        , "-i../../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../../lib" absDir)
         )
       , ( "benchmarks/popl18/ple/pos"
-        , "-i../../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../../lib" absDir)
         )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "tests/pos/Class2.hs"
-        , "-i../neg"
+        , mkGhcOpt (LO $ printf "-i%s/../neg" absDir)
         )
       , ( "tests/pos/FFI.hs"
-        , "-i../ffi-include --c-files=../ffi-include/foo.c"
+        , mkGhcOpt (LO $ printf "-i%s/../ffi-include" absDir) <> 
+          mkLiquidOpt "--c-files=../ffi-include/foo.c"
         )
       ]
 
 ---------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
+testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> ExtraOptions -> String
 ---------------------------------------------------------------------------
-testCmd bin dir file smt (LO opts)
+testCmd bin dir file smt (ExtraOptions (GhcSuitableOpts (LO ghcOpts)) (LiquidOnlyOpts (LO liquidOnlyOpts)))
 #ifdef USE_PLUGIN
-  = printf "%s -i. -i%s %s %s" bin dir pluginOpts (dir </> file)
+  = printf "%s -i. -i%s %s %s %s" bin dir ghcOpts liquidOpts (dir </> file)
   where
-    pluginOpts = 
-      let fullOpts = ("--smtsolver=" ++ show smt) : words opts
+    liquidOpts = 
+      let fullOpts = ("--smtsolver=" ++ show smt) : words liquidOnlyOpts
       in L.intercalate " " . map (printf "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:%s") $ fullOpts
 #else
-  = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file opts
+  = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file (ghcSuitableOpts <> " " <> liquidOnlyOpts)
 #endif
 
 noPleIgnored :: [FilePath]
