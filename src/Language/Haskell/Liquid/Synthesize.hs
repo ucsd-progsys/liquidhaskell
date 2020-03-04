@@ -35,6 +35,7 @@ import           Debug.Trace
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.List 
 import           Data.Tuple.Extra
+import           CoreUtils (exprType)
 
 rmMeasures :: [Symbol] -> [(Symbol, SpecType)] -> [(Symbol, SpecType)]
 rmMeasures _    [ ]         = [ ]
@@ -54,8 +55,9 @@ synthesize tgt fcfg cginfo =
           coreProgram = giCbs $ giSrc $ ghcI cgi
           (uniVars, _) = getUniVars coreProgram topLvlBndr
           fromREnv' = filterREnv (reLocal env)
-          fromREnv  = M.fromList (rmMeasures measures (M.toList fromREnv'))
-
+          fromREnv'' = M.fromList (filter (rmClassVars . toType . snd) (M.toList fromREnv'))
+          rmClassVars t = case t of { TyConApp c _ -> not . isClassTyCon $ c; _ -> True }
+          fromREnv  = M.fromList (rmMeasures measures (M.toList fromREnv''))
           isForall t = case t of { ForAllTy{} -> True; _ -> False}
           rEnvForalls = M.fromList (filter (isForall . toType . snd) (M.toList fromREnv))
           fs = map (snd . snd) $ M.toList (symbolToVar coreProgram topLvlBndr rEnvForalls)
@@ -124,6 +126,8 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               emem0 <- insEMem0 senv1
               modify (\s -> s { sExprMem = emem0 })
               mapM_ (\y -> addDecrTerm y []) ys
+              scruts <- synthesizeScrut ys
+              modify (\s -> s { scrutinees = scruts })
               GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
@@ -153,7 +157,7 @@ synthesizeBasic m s t = do
 
 synthesizeMatch :: String -> SpecType -> SM [CoreExpr]
 synthesizeMatch s t = do
-  scruts <- filterScrut
+  scruts <- scrutinees <$> get
   id <- incrCase scruts
   if null scruts
     then return []
@@ -161,21 +165,17 @@ synthesizeMatch s t = do
             trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
                    " \n Scrutinee " ++ show (fst3 scrut)) $   
               withIncrDepth (matchOnExpr s t scrut)
-            
-filterScrut :: SM [(CoreExpr, Type, TyCon)]
-filterScrut = do
-  s <- get
-  let em = sExprMem s
-      xtop = sFix s
-      foralls = (fst . sForalls) s
-  let es0 = [((e, t, c), d) | ( t@(TyConApp c _), e, d ) <- em]
-      es1 = filter (not . trivial . fst3 . fst) es0
-      es2 = filter ((\e -> varOrApp e xtop foralls) . fst3 .fst) es1
-      es3 = filter (not . isClassTyCon . thd3 . fst) es2
-      es4 = filter (noPairLike . fst) es3
-      es5 = sortOn snd es4
-      es6 = map fst es5
-  return es6
+
+synthesizeScrut :: [Var] -> SM [(CoreExpr, Type, TyCon)]
+synthesizeScrut vs = do
+  exprs <- synthesizeScrutinee vs
+  let exprs' = map (\e -> (exprType e, e)) exprs
+      isDataCon v = case varType v of { TyConApp c _ -> not . isClassTyCon $ c; _ -> False }
+      vs0 = filter isDataCon vs
+      es0 = map GHC.Var vs0 
+      es1 = map (\e -> (exprType e, e)) es0
+      es2 = [(e, t, c) | (t@(TyConApp c ts), e) <- es1]
+  return (es2 ++ [(e, t, c) | (t@(TyConApp c ts), e) <- exprs'])
 
 matchOnExpr :: String -> SpecType -> (CoreExpr, Type, TyCon) -> SM [CoreExpr]
 matchOnExpr s t (GHC.Var v, tx, c) 
@@ -196,6 +196,8 @@ makeAlt :: String -> SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
 makeAlt s t (x, TyConApp _ ts) c = locally $ do -- (AltCon, [b], Expr b)
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
+  newScruts <- synthesizeScrut xs
+  modify (\s -> s { scrutinees = scrutinees s ++ newScruts } )
   addsEnv $ zip xs ts 
   addsEmem $ zip xs ts 
   addDecrTerm x xs

@@ -24,6 +24,9 @@ import           Language.Fixpoint.Types.PrettyPrint
                                                 ( tracepp )
 import           Data.List
 import           Data.Tuple.Extra
+import           CoreUtils (exprType)
+import           Var
+
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
 genTerms :: String -> SpecType -> SM [CoreExpr] 
@@ -242,22 +245,30 @@ applyTerms es0 (c:cs) (t:ts)
 applyTerms es cs ts 
   = error "[ applyTerms ] Wildcard. " 
 
---------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------
+prodScrutinees :: [(Type, CoreExpr, Int)] -> [[[(CoreExpr, Int)]]] -> SM [CoreExpr]
+prodScrutinees []     []     = return []
+prodScrutinees (c:cs) (a:as) = do 
+  es <- fillOne c a
+  (++ es) <$> prodScrutinees cs as
+prodScrutinees _ _ = error " prodScrutinees "
 
-subgoals :: Type ->               -- ^ Given a function type,
-            Maybe (Type, [Type])  -- ^ separate the result type from the input types.
-subgoals t = if null gTys then Nothing else Just (resTy, inpTys) 
-  where gTys            = createSubgoals t 
-        (resTy, inpTys) = (last gTys, take (length gTys - 1) gTys)
+synthesizeScrutinee :: [Var] -> SM [CoreExpr]
+synthesizeScrutinee vars = do
+  s <- get
+  let em = sExprMem s
+      foralls = (fst . sForalls) s
+      insVs = sUniVars s
+      fix   = sFix s
+      -- Assign higher priority to function candidates that return tuples
+      fnCs0 = filter returnsTuple foralls 
+      fnCs  = if returnsTuple fix then fix : fnCs0 else fnCs0
 
-
--- @withSubgoal@ :: Takes a subgoal type, and 
--- returns all expressions in @ExprMemory@ that have the same type.
-withSubgoal :: ExprMemory -> Type -> [(CoreExpr, Int)]
-withSubgoal []                  _ = []
-withSubgoal ((t, e, i) : exprs) τ = 
-  if τ == t 
-    then (e, i) : withSubgoal exprs τ
-    else withSubgoal exprs τ
-
---------------------------------------------------------------------------------------------
+      fnEs  = map GHC.Var fnCs
+      fnCs' = map (\e -> instantiate e (Just insVs)) fnEs
+      sGs   = map ((snd . fromJust) . subgoals . exprType) fnCs'
+      argCands = map (map (withSubgoal vs)) sGs
+      fnCs'' = map (\e -> (exprType e, e, 0)) fnCs'
+      
+      vs = filter ((\x -> isVar x && ((not . isFunction) (exprType x))) . snd3) em
+  prodScrutinees fnCs'' argCands

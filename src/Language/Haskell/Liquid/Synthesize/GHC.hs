@@ -21,6 +21,7 @@ import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
 import           TyCon
 import           DataCon
+import           TysWiredIn
 import           Debug.Trace
 
 instance Default Type where
@@ -52,6 +53,22 @@ createSubgoals :: Type -> [Type]
 createSubgoals (ForAllTy _ htype) = createSubgoals htype
 createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                  = [t]
+
+subgoals :: Type ->               -- ^ Given a function type,
+            Maybe (Type, [Type])  -- ^ separate the result type from the input types.
+subgoals t = if null gTys then Nothing else Just (resTy, inpTys) 
+  where gTys            = createSubgoals t 
+        (resTy, inpTys) = (last gTys, take (length gTys - 1) gTys)
+
+
+-- @withSubgoal@ :: Takes a subgoal type, and 
+-- returns all expressions in @ExprMemory@ that have the same type.
+withSubgoal :: [(Type, CoreExpr, Int)] -> Type -> [(CoreExpr, Int)]
+withSubgoal []                  _ = []
+withSubgoal ((t, e, i) : exprs) τ = 
+  if τ == t 
+    then (e, i) : withSubgoal exprs τ
+    else withSubgoal exprs τ
 
 -- | Assuming that goals are type variables or constructors.
 --    Note: We maintain ordering from the goal type.
@@ -113,36 +130,18 @@ rmTrivials = filter (not . trivial . fst)
 --  |                        Scrutinee filtering                              | --
 ----------------------------------------------------------------------------------
 
-appOnly :: GHC.CoreExpr -> Bool
-appOnly GHC.Var{}       = True
-appOnly GHC.Type{}      = True
-appOnly (GHC.App e1 e2) = appOnly e1 && appOnly e2
-appOnly _               = False 
-
 isVar :: GHC.CoreExpr -> Bool
 isVar (GHC.Var _) = True
 isVar _           = False
 
--- TODO Synthesize scrutinee
-varOrApp :: GHC.CoreExpr -> Var -> [Var] -> Bool
-varOrApp e xtop foralls = isVar e || (appOnly e &&  (outer e == xtop || 
-                                                    foldr (\x acc -> x /= outer e && acc) True foralls))
-
-noPairLike :: (GHC.CoreExpr, Type, TyCon) -> Bool
-noPairLike (e, t, c) = null (tyConDataCons c) || length (tyConDataCons c) > 1 || inspect e (tyConDataCons c)
-
-inspect :: GHC.CoreExpr -> [DataCon] -> Bool
-inspect e [dataCon] 
-  = outer e /= dataConWorkId dataCon
-inspect e dataCons  
-  = error (" Should be a singleton: " ++ show e ++ " dataCons " ++ show (map dataConWorkId dataCons))
-
-outer :: GHC.CoreExpr -> Var
-outer (GHC.Var v)
-  = v
-outer (GHC.App e1 _)
-  = outer e1
-outer e = error (" [ outer ] " ++ show e)
+returnsTuple :: Var -> Bool
+returnsTuple v = 
+  case subgoals (varType v) of
+    Nothing      -> False
+    Just (t, ts) -> 
+      case t of
+        TyConApp c _ts -> c == pairTyCon
+        _              -> False
 
 ------------------------------------------------------------------------------------------------
 -------------------------------------- Handle REnv ---------------------------------------------

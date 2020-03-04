@@ -35,6 +35,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.List
 import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
+import           TyCon
 import           Debug.Trace
 
 maxMatchDepth :: Int 
@@ -74,6 +75,7 @@ data SState
                                                --    e.g. Constructors, top-level functions.
                                                -- ^ [[Type]]: all the types that have instantiated [Var] so far.
            , caseIdx    :: !Int                -- [ Temporary ] Index in list of scrutinees.
+           , scrutinees :: ![(CoreExpr, Type, TyCon)]
            }
 type SM = StateT SState IO
 
@@ -87,7 +89,7 @@ locally :: SM a -> SM a
 locally act = do 
   st <- get 
   r <- act 
-  modify $ \s -> s{sCGEnv = sCGEnv st, sCGI = sCGI st, sExprMem = sExprMem st}
+  modify $ \s -> s{sCGEnv = sCGEnv st, sCGI = sCGI st, sExprMem = sExprMem st, scrutinees = scrutinees st}
   return r 
 
 
@@ -100,7 +102,7 @@ evalSM act ctx env st = do
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
 initState ctx fcfg cgi cgenv renv xtop uniVars env = 
-  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 0 uniVars xtop [] Nothing Nothing ([], []) 0
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 0 uniVars xtop [] Nothing Nothing ([], []) 0 []
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
