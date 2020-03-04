@@ -16,6 +16,7 @@ data-files:           src/Data/Vector.spec
 
 library
   exposed-modules:    Data.Vector
+                      Data.Vector.Generic.Mutable
   hs-source-dirs:     src
   build-depends:      liquid-base          >= 0.8.6.0 
                     , vector               >= 0.10

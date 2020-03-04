@@ -1,4 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
+
+module T1363 where
+
 {-@ LIQUID "--exact-data-cons" @-}
 
 {-@ mySum :: Integer -> xs:[Integer] -> Integer / [len xs] @-}

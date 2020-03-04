@@ -94,7 +94,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -375,10 +375,6 @@ data ProcessModuleResult = ProcessModuleResult {
   , pmrGhcInfo    :: GhcInfo
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
   }
-
--- | Returns 'True' if we have to process the 'Module' associated to the input 'BareSpec'.
-needsProcessing :: LiquidSpec TargetSpec -> Bool
-needsProcessing = not . nullSpec
 
 getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m (LiquidSpec TargetSpec)
 getLiquidSpec thisModule specComments specQuotes = do

@@ -1,4 +1,4 @@
-
+{-# LANGUAGE MagicHash #-}
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/716
 --   due to the weird case-of thwarting ANF, you need the qualifier from the
 --   output type of `narrow16Word` (apparently we don't scrape assumes?) 

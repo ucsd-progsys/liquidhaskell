@@ -27,7 +27,7 @@ foo' = bind (return 0) (\a -> liquidAssert (a == 0) (return ()))
 {-@ job' :: IORef {v:Int |  v = 4} -> IO () @-}
 job' :: IORef Int -> IO ()
 job' p = 
-	bind (readIORef p) (\v -> liquidAssert (v == 4) (return ()))
+  bind (readIORef p) (\v -> liquidAssert (v == 4) (return ()))
 
 
 {-@ bind :: Monad m => m a -> (a -> m b) -> m b @-}

@@ -1,3 +1,6 @@
+
+module StructSecondArg where
+
 data Peano = Z | S Peano
 
 addToInt :: Int -> Peano -> Int

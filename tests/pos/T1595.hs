@@ -1,3 +1,6 @@
+
+module T1595 where
+
 {-@ LIQUID "--reflection" @-}
 
 data Map k v = Tip | Map k v (Map k v)

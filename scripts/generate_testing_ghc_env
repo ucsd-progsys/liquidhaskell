@@ -1,6 +1,8 @@
 #!/bin/bash
 
-set -eu
+# We do not want to use '-e' here as 'grep' might fail in case of a no-match.
+
+set -u
 set -o pipefail
 
 # Generates a temporary testing.env file which resolves some module ambiguity. This is necessary
@@ -18,15 +20,24 @@ cabal v2-exec $PWD/scripts/dump_ghc_environment > $TMP_GHC_ENVIRONMENT_FILE
 # Remove the packages in the set:
 
 conflicting_packages=(
+  "ghc-prim"
   "base"
   "vctr"
+  "vector"
   "containers"
   "bytestring"
 )
 
 for i in "${conflicting_packages[@]}"; do
-    sed_query=`printf "/^package-id %s.*$/d" $i`
-    sed -i.bak -E "$sed_query" $TMP_GHC_ENVIRONMENT_FILE
+
+    regex_query=`printf "^package-id %s-[0-9].*$" $i`
+
+    grep -qE "$regex_query" $TMP_GHC_ENVIRONMENT_FILE
+    if [ $? -eq 0 ]
+    then
+      sed -i.bak -E "/$regex_query/d" $TMP_GHC_ENVIRONMENT_FILE
+    fi
+
 done
 
 echo $TMP_GHC_ENVIRONMENT_FILE
