@@ -38,7 +38,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , mkCompanionSpec
     , mergeTargetWithClient
     , mergeTargetWithCompanion
-    , nullSpec
 
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
@@ -193,16 +192,6 @@ fromCached (CachedSpec (StableModule mdl) s) = (ModName SrcImport (moduleName md
 -- Merging specs together.
 --
 
--- | Temporary hacky newtype wrapper that gives an 'Eq' instance to a type based on the 'Binary' encoding
--- representation.
-newtype HackyEQ  a = HackyEQ  { unHackyEQ :: a }
-
-instance Binary a => Eq (HackyEQ a) where
-  (HackyEQ a) == (HackyEQ b) = B.encode a == B.encode b
-
-instance Binary a => Hashable (HackyEQ a) where
-  hashWithSalt s (HackyEQ a) = hashWithSalt s (B.encode a)
-
 -- | Checks if the two input declarations are equal, by checking not only that their value
 -- is the same, but also that they are declared exactly in the same place.
 sameSig :: (LocSymbol, LocBareType) -> (LocSymbol, LocBareType) -> Bool
@@ -266,11 +255,6 @@ mergeTargetWithClient (MkTargetSpec s1) (MkClientSpec s2) = MkClientSpec . LH.no
     , ealiases   = L.nubBy (\a b -> srcSpan a == srcSpan b) (ealiases s1 <> ealiases s2)
     , dataDecls  = L.nub (dataDecls s1 <> dataDecls s2)
     }
-
--- | Returns 'True' if the input 'BareSpec' is empty.
--- FIXME(adinapoli) Currently this uses the 'HackEQ' under the hook, which is bad.
-nullSpec :: LiquidSpec TargetSpec -> Bool
-nullSpec (MkTargetSpec spec) = HackyEQ spec == HackyEQ mempty
 
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =

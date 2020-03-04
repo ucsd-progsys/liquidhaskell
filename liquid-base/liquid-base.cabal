@@ -37,18 +37,23 @@ library
                     Data.Tuple
                     Data.Char
                     Data.Word
+                    Data.Maybe
                     Data.Either
                     Data.Ord
                     Data.Bits
                     Data.List
+                    Data.List.NonEmpty
                     Data.Int
                     Data.Function
                     Data.Functor
                     Data.String
+                    Data.Ratio
+                    Data.IORef
                     Control.Applicative
                     Control.Monad
                     Control.Exception
                     GHC.Base
+                    GHC.Generics
                     GHC.Int
                     GHC.List
                     GHC.Num
@@ -56,6 +61,7 @@ library
                     GHC.Real
                     GHC.Word
                     GHC.Ptr
+                    GHC.Exts
                     GHC.ForeignPtr
                     GHC.IO.Handle
                     Foreign.C.Types

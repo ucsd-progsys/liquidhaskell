@@ -1,4 +1,6 @@
 
+module List00_Str where
+
 lmap f []     = []
 lmap f (x:xs) = f x : lmap f xs
 

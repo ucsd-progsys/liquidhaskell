@@ -1,4 +1,6 @@
 
+module T1289a where
+
 {-@ measure bintId @-}
 bintId :: Int -> Int
 bintId 0 = 0

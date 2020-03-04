@@ -1,5 +1,7 @@
 {-# LANGUAGE GADTs #-}
 
+module RefinedADTs where
+
 {-@ LIQUID "--no-termination" @-}
 
 {-@ data List a where

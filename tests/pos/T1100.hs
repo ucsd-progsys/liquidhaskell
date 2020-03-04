@@ -1,9 +1,12 @@
+{-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
+
+module T1100 where
+
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--no-adt"                              @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 
-{-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
 class PersistEntity record where
     data EntityField record :: * -> *
