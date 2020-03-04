@@ -94,7 +94,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -263,45 +263,42 @@ liquidHaskellPass cfg modGuts = do
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
   targetSpec    <- getLiquidSpec thisModule specComments specQuotes
 
-  case needsProcessing targetSpec of
-    False -> pure guts'
-    True  -> do
-      modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
-      dynFlags <- getDynFlags
-      mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
-      unoptimisedGuts <- liftIO $ readIORef unoptimisedRef
+  modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
+  dynFlags <- getDynFlags
+  mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
+  unoptimisedGuts <- liftIO $ readIORef unoptimisedRef
 
-      case mbTcData of
-        Nothing -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
-        Just tcData -> do
+  case mbTcData of
+    Nothing -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
+    Just tcData -> do
 
-          debugLog $ "Relevant ===> \n" ++ 
-            (unlines $ map debugShowModule $ (S.toList $ relevantModules modGuts))
+      debugLog $ "Relevant ===> \n" ++ 
+        (unlines $ map debugShowModule $ (S.toList $ relevantModules modGuts))
 
-          logicMap <- liftIO $ LH.makeLogicMap
+      logicMap <- liftIO $ LH.makeLogicMap
 
-          let lhContext = LiquidHaskellContext {
-                lhGlobalCfg       = cfg
-              , lhTargetSpec      = targetSpec
-              , lhModuleLogicMap  = logicMap
-              , lhModuleSummary   = modSummary
-              , lhModuleTcData    = tcData
-              , lhModuleGuts      = unoptimisedGuts
-              , lhRelevantModules = relevantModules modGuts
-              }
+      let lhContext = LiquidHaskellContext {
+            lhGlobalCfg       = cfg
+          , lhTargetSpec      = targetSpec
+          , lhModuleLogicMap  = logicMap
+          , lhModuleSummary   = modSummary
+          , lhModuleTcData    = tcData
+          , lhModuleGuts      = unoptimisedGuts
+          , lhRelevantModules = relevantModules modGuts
+          }
 
-          ProcessModuleResult{..} <- processModule lhContext
+      ProcessModuleResult{..} <- processModule lhContext
 
-          let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
+      let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
 
-          -- Call into the existing Liquid interface
-          res <- liftIO $ LH.liquidOne pmrGhcInfo
-          case o_result res of
-            Safe -> pure ()
-            _    -> pluginAbort dynFlags (O.text "Unsafe.")
+      -- Call into the existing Liquid interface
+      res <- liftIO $ LH.liquidOne pmrGhcInfo
+      case o_result res of
+        Safe -> pure ()
+        _    -> pluginAbort dynFlags (O.text "Unsafe.")
 
-          debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
-          pure finalGuts
+      debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
+      pure finalGuts
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------
@@ -309,6 +306,8 @@ liquidHaskellPass cfg modGuts = do
 
 loadRelevantSpecs :: forall m. GhcMonadLike m 
                   => (Config, Bool)
+                  -- ^ The 'Config' associated to the /current/ module being compiled
+                  -- plus an indication whether or not the configuration changed.
                   -> ExternalPackageState
                   -> HomePackageTable
                   -> Module
