@@ -1,4 +1,4 @@
 module Data.Foldable (module Exports) where
 
-import GHC.Base
+import GHC.Types
 import "base" Data.Foldable as Exports

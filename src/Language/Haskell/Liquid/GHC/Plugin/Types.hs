@@ -236,7 +236,6 @@ downcastSpec = \case
 mergeTargetWithCompanion :: LiquidSpec TargetSpec -> LiquidSpec CompanionSpec -> LiquidSpec TargetSpec
 mergeTargetWithCompanion (MkTargetSpec s1) (MkCompanionSpec s2) = MkTargetSpec (s1 <> s2)
 
-
 -- | Merges a 'TargetSpec' with its 'ClientSpec'. Here we need to be careful when it comes to signatures,
 -- because the 'ClientSpec' will "lift" the definition by \"pointing\" to the source line of the actual
 -- Haskell function definition, whereas the 'ClientSpec' would refer only to the source line of the LH
@@ -246,8 +245,7 @@ mergeTargetWithCompanion (MkTargetSpec s1) (MkCompanionSpec s2) = MkTargetSpec (
 mergeTargetWithClient :: LiquidSpec TargetSpec -> LiquidSpec ClientSpec -> LiquidSpec ClientSpec
 mergeTargetWithClient (MkTargetSpec s1) (MkClientSpec s2) = MkClientSpec . LH.noTerm $
   (s1 <> s2) { 
-      sigs       = L.deleteFirstsBy (\a b -> fst a == fst b) (sigs s1) (reflSigs s1 <> reflSigs s2) -- L.nubBy (\a b -> fst a == fst b) (sigs s1 <> sigs s2)
-    , asmSigs    = asmSigs s1 <> asmSigs s2
+      sigs       = L.deleteFirstsBy (\a b -> fst a == fst b) (sigs s1) (asmSigs s2)
     , aliases    = L.nubBy (\a b -> srcSpan a == srcSpan b) (aliases  s1 <> aliases s2)
     , ealiases   = L.nubBy (\a b -> srcSpan a == srcSpan b) (ealiases s1 <> ealiases s2)
     , qualifiers = L.nub (qualifiers s1 <> qualifiers s2)
