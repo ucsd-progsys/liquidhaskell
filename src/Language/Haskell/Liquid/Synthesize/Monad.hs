@@ -254,12 +254,16 @@ incrSM = do s <- get
             put s{ssIdx = ssIdx s + 1}
             return (ssIdx s)
 
-incrCase :: [a] -> SM Int 
-incrCase es 
+incrCase :: SM Int 
+incrCase
   = do  s <- get 
-        put s { caseIdx = (caseIdx s + 1) `mod` (length es)}
+        put s { caseIdx = (caseIdx s + 1) }
         return (caseIdx s)
   
+safeIxScruts :: Int -> [a] -> Maybe Int
+safeIxScruts i l 
+  | i >= length l = Nothing
+  | otherwise     = Just i
 
 symbolExpr :: Type -> F.Symbol -> SM CoreExpr 
 symbolExpr τ x = incrSM >>= (\i -> return $ F.notracepp ("symExpr for " ++ F.showpp x) $  GHC.Var $ mkVar (Just $ F.symbolString x) i τ)

@@ -158,13 +158,16 @@ synthesizeBasic m s t = do
 synthesizeMatch :: String -> SpecType -> SM [CoreExpr]
 synthesizeMatch s t = do
   scruts <- scrutinees <$> get
-  id <- incrCase scruts
-  if null scruts
-    then return []
-    else do let scrut = scruts !! id 
-            trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
-                   " \n Scrutinee " ++ show (fst3 scrut)) $   
-              withIncrDepth (matchOnExpr s t scrut)
+  i <- incrCase 
+  let ix = safeIxScruts i scruts
+  case ix of
+    Nothing ->  return []
+    Just id ->  if null scruts
+                  then return []
+                  else do let scrut = scruts !! id 
+                          trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
+                                " \n Scrutinee " ++ show (fst3 scrut)) $   
+                            withIncrDepth (matchOnExpr s t scrut)
 
 synthesizeScrut :: [Var] -> SM [(CoreExpr, Type, TyCon)]
 synthesizeScrut vs = do
