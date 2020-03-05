@@ -16,6 +16,7 @@ data-files:           src/Data/Set.spec
 
 library
   exposed-modules:    Data.Set
+                      Data.Map
   hs-source-dirs:     src
   build-depends:      liquid-base          >= 0.8.6.0 
                     , containers           >= 0.5.9.2

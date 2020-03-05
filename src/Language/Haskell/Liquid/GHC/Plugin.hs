@@ -426,6 +426,11 @@ processModule LiquidHaskellContext{..} = do
   -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
   -- errors when trying to refine things.
   let clientSpec = targetSpec `mergeTargetWithClient` (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
+
+  --liftIO $ putStrLn $ "targetSpec ==> " ++ show targetSpec
+  --liftIO $ putStrLn $ "clientSpecBeforeMerging ==> " ++ (show $ mkClientSpec . gsLSpec . giSpec $ ghcInfo)
+  --liftIO $ putStrLn $ "clientSpec ==> " ++ show clientSpec
+
   let clientLib  = mkLiquidLib clientSpec & addLibDependencies dependencies
 
   let result = ProcessModuleResult {
