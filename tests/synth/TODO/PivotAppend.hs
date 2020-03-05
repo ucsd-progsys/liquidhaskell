@@ -5,7 +5,7 @@ module PivotAppend where
 import qualified Data.Set as S
 import Language.Haskell.Liquid.Synthesize.Error
 
-{-@ data IList [iLen] a = N | ICons { x0 :: a, xs0 :: IList { v: a | x0 < v } } @-}
+{-@ data IList [iLen] a = N | ICons { x0 :: a, xs0 :: IList { v: a | x0 <= v } } @-}
 data IList a = N | ICons a (IList a)
 
 {-@ measure iLen @-}
