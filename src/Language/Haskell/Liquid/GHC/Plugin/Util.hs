@@ -124,8 +124,9 @@ deserialiseBareSpec thisModule = deserialiseBinaryObject @BareSpec thisModule
 serialiseBareSpec :: BareSpec -> ModGuts -> ModGuts
 serialiseBareSpec specs = serialiseBinaryObject @BareSpec specs
 
+-- | Serialise a 'LiquidLib', removing the termination checks from the target.
 serialiseLiquidLib :: LiquidLib -> ModGuts -> ModGuts
-serialiseLiquidLib specs = serialiseBinaryObject @LiquidLib specs
+serialiseLiquidLib lib = serialiseBinaryObject @LiquidLib lib
 
 deserialiseLiquidLib :: Module -> ExternalPackageState -> HomePackageTable -> Maybe LiquidLib
 deserialiseLiquidLib thisModule = deserialiseBinaryObject @LiquidLib thisModule

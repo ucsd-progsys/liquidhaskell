@@ -63,6 +63,7 @@ library
                     GHC.Ptr
                     GHC.Exts
                     GHC.ForeignPtr
+                    GHC.IO
                     GHC.IO.Handle
                     Foreign.C.Types
                     Foreign.Ptr
