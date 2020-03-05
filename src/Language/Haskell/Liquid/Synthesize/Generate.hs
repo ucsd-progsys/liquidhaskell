@@ -256,8 +256,7 @@ prodScrutinees _ _ = error " prodScrutinees "
 synthesizeScrutinee :: [Var] -> SM [CoreExpr]
 synthesizeScrutinee vars = do
   s <- get
-  let em = sExprMem s
-      foralls = (fst . sForalls) s
+  let foralls = (fst . sForalls) s
       insVs = sUniVars s
       fix   = sFix s
       -- Assign higher priority to function candidates that return tuples
@@ -270,5 +269,6 @@ synthesizeScrutinee vars = do
       argCands = map (map (withSubgoal vs)) sGs
       fnCs'' = map (\e -> (exprType e, e, 0)) fnCs'
       
-      vs = filter ((\x -> isVar x && ((not . isFunction) (exprType x))) . snd3) em
+      vs' = filter (\x -> (not . isFunction) (varType x)) vars
+      vs  = map (\v -> (varType v, GHC.Var v, 0)) vs'
   prodScrutinees fnCs'' argCands
