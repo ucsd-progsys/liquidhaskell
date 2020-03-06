@@ -37,7 +37,6 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
-import qualified Language.Fixpoint.Types.Config as F
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.Types.RefType (applySolution)

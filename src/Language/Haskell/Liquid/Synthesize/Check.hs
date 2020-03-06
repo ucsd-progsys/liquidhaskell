@@ -29,28 +29,23 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types
 import           MkCore
 import           DynFlags
-import           Debug.Trace
-import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 
-hasType :: String -> Bool -> SpecType -> CoreExpr -> SM Bool
-hasType s b t !e' = notrace (" [ Check ] " ++ show e') $ do 
+hasType :: SpecType -> CoreExpr -> SM Bool
+hasType t !e' = notrace (" [ Check ] " ++ show e') $ do 
   x  <- freshVar t 
   st <- get 
   let tpOfE = exprType e'
       ht    = toType t
   if tpOfE == ht
-    then do
-      r <- liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
-      -- liftIO $ putStrLn ("From " ++ s ++ (if b then " Checked:  " else " Well-Typed: ") ++ "Expr = " ++ showPpr (fromAnf e) ++ " of type " ++ show t ++ "\n Res = " ++ show r)
-      return r
-    else error $ " [ hasType " ++ s ++ " ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
+    then liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
+    else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
  where e = tx e' 
 
 -- Returns true if the expression is well-typed.
 isWellTyped :: CoreExpr -> SM Bool
 isWellTyped e =  do 
   t <- liftCG $ trueTy $ exprType e 
-  hasType "" False t e 
+  hasType t e 
 
 
 tx :: CoreExpr -> CoreExpr
@@ -77,10 +72,10 @@ check cgi γ cfg x e t = do
     gsSig' = gsSigOld {gsTySigs = addTySig x t (gsTySigs gsSigOld)}
     info = ghcI cgi 
 
-    insertREnv' x Nothing g = g 
+    insertREnv' _ Nothing g = g 
     insertREnv' x (Just t) g = insertREnv x t g
     
-    addTySig x Nothing  ts = ts 
+    addTySig _ Nothing  ts = ts 
     addTySig x (Just t) ts = (x,dummyLoc t):ts
     
 checkError :: SpecType -> SM (Maybe CoreExpr)
@@ -88,7 +83,7 @@ checkError t = do
   errVar <- varError
   let errorExpr = App (App (Var errVar) (Type (toType t))) errorInt
       errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
-  b <- hasType " checkError " True t errorExpr
+  b <- hasType t errorExpr
   if b 
     then return $ Just errorExpr
     else return Nothing

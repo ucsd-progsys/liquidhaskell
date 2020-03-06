@@ -17,19 +17,16 @@ import qualified CoreSyn                       as GHC
 import           Data.Maybe
 import           Control.Monad.State.Lazy
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Debug.Trace
 import           Language.Haskell.Liquid.Constraint.Fresh
                                                 ( trueTy )
-import           Language.Fixpoint.Types.PrettyPrint
-                                                ( tracepp )
 import           Data.List
-import           Data.Tuple.Extra
 import           CoreUtils (exprType)
 import           Var
+import           Data.Tuple.Extra
 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
-genTerms :: String -> SpecType -> SM [CoreExpr] 
+genTerms :: SpecType -> SM [CoreExpr] 
 genTerms = genTerms' ResultMode 
 
 
@@ -39,52 +36,52 @@ data SearchMode
   | ResultMode        -- ^ searching for the hole fill 
   deriving (Eq, Show) 
 
-genTerms' :: SearchMode -> String -> SpecType -> SM [CoreExpr] 
-genTerms' i s specTy = 
+genTerms' :: SearchMode -> SpecType -> SM [CoreExpr] 
+genTerms' i specTy = 
   do  goalTys <- sGoalTys <$> get
       case find (== toType specTy) goalTys of 
         Nothing -> modify (\s -> s { sGoalTys = (toType specTy) : sGoalTys s })
         Just _  -> return ()
       fixEMem specTy 
       fnTys <- functionCands (toType specTy)
-      es    <- withTypeEs s specTy 
+      es    <- withTypeEs specTy 
       es0   <- structuralCheck es
 
       err <- checkError specTy 
       case err of 
         Nothing ->
-          filterElseM (hasType " genTerms " True specTy) es0 $ 
-            withDepthFill i s specTy 0 fnTys
+          filterElseM (hasType specTy) es0 $ 
+            withDepthFill i specTy 0 fnTys
         Just e -> return [e]
 
-genArgs :: String -> SpecType -> SM [CoreExpr]
-genArgs s t =
+genArgs :: SpecType -> SM [CoreExpr]
+genArgs t =
   do  goalTys <- sGoalTys <$> get
       case find (== toType t) goalTys of 
         Nothing -> do modify (\s -> s { sGoalTys = (toType t) : sGoalTys s }) 
                       fixEMem t 
                       fnTys <- functionCands (toType t)
-                      es <- withDepthFillArgs s t 0 fnTys
+                      es <- withDepthFillArgs t 0 fnTys
                       if null es
                         then  return []
                         else  do  modify (\s -> s {sExprId = sExprId s + 1})
                                   return es
         Just _  -> return []
 
-withDepthFillArgs :: String -> SpecType -> Int -> [(Type, CoreExpr, Int)] -> SM [CoreExpr]
-withDepthFillArgs s t depth cs = do
+withDepthFillArgs :: SpecType -> Int -> [(Type, CoreExpr, Int)] -> SM [CoreExpr]
+withDepthFillArgs t depth cs = do
   thisEm <- sExprMem <$> get
-  es <- argsFill s thisEm cs []
+  es <- argsFill thisEm cs []
 
-  filterElseM (hasType s True t) es $
+  filterElseM (hasType t) es $
     if depth < maxArgsDepth
-      then  withDepthFillArgs s t (depth + 1) cs
+      then  withDepthFillArgs t (depth + 1) cs
       else  return []
 
-argsFill :: String -> ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
-argsFill _ _   []               es0 = return es0 
-argsFill s em0 (c@(t, e, i):cs) es0 =
-  case subgoals t of
+argsFill :: ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
+argsFill _   []               es0 = return es0 
+argsFill em0 (c:cs) es0 =
+  case subgoals (fst3 c) of
     Nothing             -> return [] 
     Just (resTy, subGs) -> 
       do  let argCands = map (withSubgoal em0) subGs
@@ -96,29 +93,27 @@ argsFill s em0 (c@(t, e, i):cs) es0 =
           curExprId <- sExprId <$> get
           let nextEm = map (resTy, , curExprId + 1) es
           modify (\s -> s {sExprMem = nextEm ++ sExprMem s })
-          argsFill s em0 cs (es ++ es0)
+          argsFill em0 cs (es ++ es0)
 
-withDepthFill :: SearchMode -> String -> SpecType -> Int -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
-withDepthFill i s t depth tmp = do
-  let s0 = " [ withDepthFill ] " ++ s
-  curEm <- sExprMem <$> get
-  exprs <- fill i s0 depth curEm tmp []
+withDepthFill :: SearchMode -> SpecType -> Int -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
+withDepthFill i t depth tmp = do
+  exprs <- fill i depth tmp []
 
-  filterElseM (hasType s0 True t) exprs $ 
+  filterElseM (hasType t) exprs $ 
       if depth < maxAppDepth
         then do modify (\s -> s { sExprId = sExprId s + 1 })
-                withDepthFill i s0 t (depth + 1) tmp
+                withDepthFill i t (depth + 1) tmp
         else return []
 
-fill :: SearchMode -> String -> Int -> ExprMemory -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
-fill _ _ _     _       []                 accExprs 
+fill :: SearchMode -> Int -> [(Type, GHC.CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr] 
+fill _ _     []                 accExprs 
   = return accExprs
-fill i s depth exprMem (c@(t, e, d) : cs) accExprs 
-  = case subgoals t of 
+fill i depth (c : cs) accExprs 
+  = case subgoals (fst3 c) of 
       Nothing             -> return [] -- Not a function type
       Just (resTy, subGs) ->
         do  specSubGs <- liftCG $ mapM trueTy (filter (not . isFunction) subGs)
-            args <- mapM (genArgs s) specSubGs
+            mapM genArgs specSubGs
             em <- sExprMem <$> get
             let argCands  = map (withSubgoal em) subGs
                 toGen    = foldr (\x b -> (not . null) x && b) True argCands
@@ -129,10 +124,8 @@ fill i s depth exprMem (c@(t, e, d) : cs) accExprs
             curExprId <- sExprId <$> get
             let nextEm = map (resTy, , curExprId + 1) newExprs
             modify (\s -> s {sExprMem = nextEm ++ sExprMem s }) 
-            em <- sExprMem <$> get
             let accExprs' = newExprs ++ accExprs
-            -- trace (" For e = " ++ show e ++ "\nargs " ++ show args ++ "\nexprs " ++ show newExprs) $ 
-            fill i s depth em cs accExprs' 
+            fill i depth cs accExprs' 
 
 -------------------------------------------------------------------------------------------
 -- |                       Pruning terms for function application                      | --
@@ -216,11 +209,10 @@ prune d toFill args
 ----------------------------------------------------------------------------
 
 fillOne :: (Type, GHC.CoreExpr, Int) -> [[(CoreExpr, Int)]] -> SM [CoreExpr]
-fillOne (_, e, _) [] 
-  = {- trace ( " [ fillOne ] " ++ show e) $ -} return []  -- TODO Fix it: Shouldn't be called 
-                                                          -- if cs is empty
-fillOne (t, e, d) cs 
-  = applyTerms [e] cs ((snd . fromJust . subgoals) t)     -- TODO Fix fromJust 
+fillOne _ [] 
+  = return []
+fillOne (t, e, _) cs 
+  = applyTerms [e] cs ((snd . fromJust . subgoals) t)
 
 applyTerm :: [GHC.CoreExpr] -> [(CoreExpr, Int)] -> Type -> SM [CoreExpr]
 applyTerm es args t = do
@@ -242,7 +234,7 @@ applyTerms es []     []
 applyTerms es0 (c:cs) (t:ts) 
   = do  es1 <- applyTerm es0 c t
         applyTerms es1 cs ts
-applyTerms es cs ts 
+applyTerms _es _cs _ts 
   = error "[ applyTerms ] Wildcard. " 
 
 --------------------------------------------------------------------------------------
@@ -269,6 +261,6 @@ synthesizeScrutinee vars = do
       argCands = map (map (withSubgoal vs)) sGs
       fnCs'' = map (\e -> (exprType e, e, 0)) fnCs'
       
-      vs' = filter (\x -> (not . isFunction) (varType x)) vars
+      vs' = filter ((not . isFunction) . varType) vars
       vs  = map (\v -> (varType v, GHC.Var v, 0)) vs'
   prodScrutinees fnCs'' argCands

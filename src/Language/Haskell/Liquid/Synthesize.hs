@@ -76,8 +76,6 @@ synthesize tgt fcfg cginfo =
           else mempty) mempty (symbol x) t 
 
 
--- Assuming that @tx@ is the @SpecType@ of the top level variable. 
--- I thought I had it fixed...
 synthesize' :: SMT.Context -> CGInfo -> SSEnv -> SpecType ->  Var -> SpecType -> [Var] -> SState -> IO [CoreExpr]
 synthesize' ctx cgi senv tx xtop ttop foralls st2
  = evalSM (go tx) ctx senv st2
@@ -86,7 +84,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
     go :: SpecType -> SM [CoreExpr]
 
     -- Type Abstraction 
-    go (RAllT a t x)      = GHC.Lam (tyVarVar a) <$$> go t
+    go (RAllT a t _x)      = GHC.Lam (tyVarVar a) <$$> go t
           
     go t@(RApp c _ts _ _r) = do  
       let coreProgram = giCbs $ giSrc $ ghcI cgi
@@ -102,7 +100,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
                   modify (\s -> s {sForalls = (foralls, [])})
                   emem0 <- insEMem0 senv
                   modify (\s -> s { sExprMem = emem0 })
-                  synthesizeBasic CaseSplit " Constructor " t
+                  synthesizeBasic t
 
     go (RAllP _ t) = go t
 
@@ -110,11 +108,11 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
 
     go t@RFun{} 
          = do ys <- mapM freshVar txs
-              let su = F.mkSubst $ zip xs ((EVar . symbol) <$> ys) 
+              let su = F.mkSubst $ zip xs (EVar . symbol <$> ys) 
               mapM_ (uncurry addEnv) (zip ys ((subst su)<$> txs)) 
               let dt = decrType xtop ttop ys (zip xs txs)
               addEnv xtop dt 
-              mapM_ (uncurry addEmem) (zip ys ((subst su)<$> txs)) 
+              mapM_ (uncurry addEmem) (zip ys (subst su <$> txs)) 
               addEmem xtop dt
               senv1 <- getSEnv
               let goalType = subst su to
@@ -128,46 +126,34 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               mapM_ (\y -> addDecrTerm y []) ys
               scruts <- synthesizeScrut ys
               modify (\s -> s { scrutinees = scruts })
-              GHC.mkLams ys <$$> synthesizeBasic CaseSplit " Function " goalType
+              GHC.mkLams ys <$$> synthesizeBasic goalType
       where (_, (xs, txs, _), to) = bkArrow t 
 
     go t = error (" Unmatched t = " ++ show t)
 
--- TODO: Decide whether it is @CaseSplit@ or @TermGen@.
-data Mode 
-  = CaseSplit -- ^ First case split and then generate terms.
-  | TermGen   -- ^ First generate terms and then case split.
-  deriving Eq
-
-synthesizeBasic :: Mode -> String -> SpecType -> SM [CoreExpr]
-synthesizeBasic m s t = do
+synthesizeBasic :: SpecType -> SM [CoreExpr]
+synthesizeBasic t = do
   let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
   modify (\s -> s { sGoalTys = [] })
   fixEMem t
-  -- if m == CaseSplit 
-  --   then do senv <- getSEnv 
-  --           es <- synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) t
-  --           if null es then synthesizeBasic TermGen "" t else return es
-  --   else do 
-  es <- genTerms s t
-  if null es  then synthesizeMatch (" synthesizeMatch for t = " ++ show t ++ s) t
+  es <- genTerms t
+  if null es  then synthesizeMatch t
               else return es
 
-synthesizeMatch :: String -> SpecType -> SM [CoreExpr]
-synthesizeMatch s t = do
+synthesizeMatch :: SpecType -> SM [CoreExpr]
+synthesizeMatch t = do
   scruts <- scrutinees <$> get
   i <- incrCase 
-  let ix = safeIxScruts i scruts
-  case ix of
+  case safeIxScruts i scruts of
     Nothing ->  return []
     Just id ->  if null scruts
                   then return []
                   else do let scrut = scruts !! id 
                           trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
                                 " \n Scrutinee " ++ show (fst3 scrut)) $   
-                            withIncrDepth (matchOnExpr s t scrut)
+                            withIncrDepth (matchOnExpr t scrut)
 
 synthesizeScrut :: [Var] -> SM [(CoreExpr, Type, TyCon)]
 synthesizeScrut vs = do
@@ -177,26 +163,27 @@ synthesizeScrut vs = do
       vs0 = filter isDataCon vs
       es0 = map GHC.Var vs0 
       es1 = map (\e -> (exprType e, e)) es0
-      es2 = [(e, t, c) | (t@(TyConApp c ts), e) <- es1]
-  return (es2 ++ [(e, t, c) | (t@(TyConApp c ts), e) <- exprs'])
+      es2 = [(e, t, c) | (t@(TyConApp c _), e) <- es1]
+  return (es2 ++ [(e, t, c) | (t@(TyConApp c _), e) <- exprs'])
 
-matchOnExpr :: String -> SpecType -> (CoreExpr, Type, TyCon) -> SM [CoreExpr]
-matchOnExpr s t (GHC.Var v, tx, c) 
-  = matchOn s t (v, tx, c)
-matchOnExpr s t (e, tx, c)
+matchOnExpr :: SpecType -> (CoreExpr, Type, TyCon) -> SM [CoreExpr]
+matchOnExpr t (GHC.Var v, tx, c) 
+  = matchOn t (v, tx, c)
+matchOnExpr t (e, tx, c)
   = do  freshV <- freshVarType tx
         freshSpecTy <- liftCG $ trueTy tx
+        -- use consE
         addEnv freshV freshSpecTy
-        es <- matchOn s t (freshV, tx, c)
+        es <- matchOn t (freshV, tx, c)
         return $ GHC.Let (GHC.NonRec freshV e) <$> es
 
-matchOn :: String -> SpecType -> (Var, Type, TyCon) -> SM [CoreExpr]
-matchOn s t (v, tx, c) =
-  (GHC.Case (GHC.Var v) v tx <$$> sequence) <$> mapM (makeAlt s t (v, tx)) (tyConDataCons c)
+matchOn :: SpecType -> (Var, Type, TyCon) -> SM [CoreExpr]
+matchOn t (v, tx, c) =
+  (GHC.Case (GHC.Var v) v tx <$$> sequence) <$> mapM (makeAlt t (v, tx)) (tyConDataCons c)
 
 
-makeAlt :: String -> SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
-makeAlt s t (x, TyConApp _ ts) c = locally $ do -- (AltCon, [b], Expr b)
+makeAlt :: SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
+makeAlt t (x, TyConApp _ ts) c = locally $ do
   ts <- liftCG $ mapM trueTy τs
   xs <- mapM freshVar ts    
   newScruts <- synthesizeScrut xs
@@ -205,8 +192,8 @@ makeAlt s t (x, TyConApp _ ts) c = locally $ do -- (AltCon, [b], Expr b)
   addsEmem $ zip xs ts 
   addDecrTerm x xs
   liftCG0 (\γ -> caseEnv γ x mempty (GHC.DataAlt c) xs Nothing)
-  es <- synthesizeBasic TermGen (s ++ " makeAlt for " ++ show c ++ " with vars " ++ show xs ++ " for t " ++ show t) t
+  es <- synthesizeBasic t
   return $ (GHC.DataAlt c, xs, ) <$> es
   where 
     (_, _, τs) = dataConInstSig c ts
-makeAlt s _ _ _ = error $ "makeAlt.bad argument " ++ s
+makeAlt _ _ _ = error $ "makeAlt.bad argument "

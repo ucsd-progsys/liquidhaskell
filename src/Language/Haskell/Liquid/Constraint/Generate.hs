@@ -825,15 +825,16 @@ consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
 consE γ e'@(App e a@(Type τ))
-  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
-       addW          $ WfC γ t
-       t'           <- refreshVV t
-       tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
-       let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
-       case rTVarToBind α of
-         Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
-         Nothing     -> return tt
+  = trace (" consE for e = " ++ show e') $
+      do  RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
+          t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then trace (" THEN for e = " ++ show e') $ freshTy_type TypeInstE e τ else trueTy τ
+          addW          $ WfC γ t
+          t'           <- refreshVV t
+          tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+          let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
+          case rTVarToBind α of
+            Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
+            Nothing     -> return tt
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of

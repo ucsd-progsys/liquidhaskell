@@ -36,7 +36,6 @@ import           Data.List
 import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
 import           TyCon
-import           Debug.Trace
 
 maxMatchDepth :: Int 
 maxMatchDepth = 4
@@ -195,14 +194,14 @@ structCheck xtop (GHC.App e1 e2)
     where (mbVar, es) = structCheck xtop e1
 structCheck xtop (GHC.Let _ e) 
   = structCheck xtop e
-structCheck xtop e 
+structCheck _ e 
   = error (" StructCheck " ++ show e)
 
 notStructural :: SSDecrTerm -> Var -> CoreExpr -> Bool
 notStructural decr xtop e
   = case v of
       Nothing -> True
-      Just v  -> foldr (\x b -> isDecreasing' x decr || b) False args
+      Just _  -> foldr (\x b -> isDecreasing' x decr || b) False args
   where (v, args) = structCheck xtop e
 
 isDecreasing' :: CoreExpr -> SSDecrTerm -> Bool
@@ -257,7 +256,7 @@ incrSM = do s <- get
 incrCase :: SM Int 
 incrCase
   = do  s <- get 
-        put s { caseIdx = (caseIdx s + 1) }
+        put s { caseIdx = caseIdx s + 1 }
         return (caseIdx s)
   
 safeIxScruts :: Int -> [a] -> Maybe Int
@@ -300,19 +299,8 @@ insEMem0 senv = do
       change e =  let { e' = instantiateTy e mbUTy; t' = exprType e' } 
                   in  (e', t')
 
-      alterInstantiate es = 
-        foldr (\e acc ->  case e of GHC.Var v ->  if xtop == v 
-                                                      then acc 
-                                                      else change' e : acc
-                                    _ -> change' e : acc) [] es
-      change' e = let { e' = instantiate e (Just uniVs); t' = exprType e' }
-                  in (e', t')
       em0 = initExprMem senv
-      es = map snd3 em0
-      (es', ts') = unzip (alterInstantiate es)
-      is = replicate (length es') 0
-      em1 = zip3 ts' es' is -- See WordCount
-  return $ map (\(t, e, i) -> let (e', t') = handleIt e
+  return $ map (\(_, e, i) -> let (e', t') = handleIt e
                               in  (t', e', i)) em0
 
 instantiateTy :: CoreExpr -> Maybe [Type] -> CoreExpr
@@ -371,12 +359,12 @@ instantiateTL = do
 apply :: [Var] -> GHC.CoreExpr -> Maybe GHC.CoreExpr
 apply []     e = 
   case exprType e of 
-    ForAllTy {} -> Nothing -- error $ " [ instantiate (1) ] For e " ++ show e
+    ForAllTy {} -> Nothing
     _           -> Just e
 apply (v:vs) e 
   = case exprType e of 
       ForAllTy{} -> apply vs (GHC.App e (GHC.Type (TyVarTy v)))
-      _          -> Nothing -- error $ " [ instantiate (2) ] For e " ++ show e ++ " vars = " ++ show (v:vs)
+      _          -> Nothing
 
 instantiate :: CoreExpr -> Maybe [Var] -> CoreExpr
 instantiate e mbt = 
@@ -388,8 +376,8 @@ instantiate e mbt =
 
 -----------------------------------------------------------------------------------------------------
 
-withTypeEs :: String -> SpecType -> SM [CoreExpr] 
-withTypeEs s t = do 
+withTypeEs :: SpecType -> SM [CoreExpr] 
+withTypeEs t = do 
     em <- sExprMem <$> get 
     return (map snd3 (filter (\x -> fst3 x == toType t) em)) 
 
@@ -412,7 +400,7 @@ functionCands goalTy = do
 
 varError :: SM Var
 varError = do 
-  info    <- ghcI . sCGI <$> get -- CGInfo
+  info    <- ghcI . sCGI <$> get
   let env  = B.makeEnv (gsConfig $ giSpec info) (giSrc info) mempty mempty 
   let name = giTargetMod $ giSrc info
   return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err")

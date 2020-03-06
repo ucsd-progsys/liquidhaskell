@@ -16,9 +16,9 @@ import           Language.Fixpoint.Types
 
 
 isFunction :: Type -> Bool
-isFunction FunTy{}        = True 
-isFunction (ForAllTy _ t) = True -- isFunction t 
-isFunction _              = False
+isFunction FunTy{}    = True 
+isFunction ForAllTy{} = True
+isFunction _          = False
 
 (<$$>) :: (Functor m, Functor n) => (a -> b) -> m (n a) -> m (n b)
 (<$$>) = fmap . fmap

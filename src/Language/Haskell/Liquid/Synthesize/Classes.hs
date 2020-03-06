@@ -1,8 +1,7 @@
-module Language.Haskell.Liquid.Synthesize.Classes (toMethods, isInstanceOf) where
+module Language.Haskell.Liquid.Synthesize.Classes (toMethods, isInstanceOf, absTySig, getClass) where
 
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Types
-import           Debug.Trace
 
 import           Language.Haskell.Liquid.GHC.TypeRep
 
@@ -13,8 +12,8 @@ import           Name
 
 import           ConLike
 import           PatSyn
-import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Haskell.Liquid.Synthesize.Misc
+
 
 absTySig :: CGInfo -> Type -> Type
 absTySig i (ForAllTy v t) = ForAllTy v (absTySig i t)
@@ -49,7 +48,7 @@ isInstanceOf tc tyCon = case tyConClass_maybe tyCon of
     Just cls -> tc `notElem` classATs cls
 
 fltMethodsPred :: (Id, Type) -> Bool
-fltMethodsPred (i, x) =
+fltMethodsPred (i, _) =
        show i
     == "Data.Foldable.foldr"
     || show i
@@ -97,7 +96,7 @@ tyThingsMatch (t : ts) = case tyThingMatch t of
   where
     tyThingMatch (ATyCon tyCon) =
         if isClassTyCon tyCon then Just tyCon else Nothing
-    tyThingMatch (AnId id) = -- trace ( " [ TyThing ] " ++ show id ) $
+    tyThingMatch (AnId _) =
         Nothing
     tyThingMatch (AConLike conLike) = case conLike of
         RealDataCon dtCon -> notrace (" [ AConLike ] " ++ show dtCon) Nothing

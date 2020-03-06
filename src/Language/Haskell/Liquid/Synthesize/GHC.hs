@@ -20,9 +20,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
 import           TyCon
-import           DataCon
 import           TysWiredIn
-import           Debug.Trace
 
 instance Default Type where
     def = TyVarTy alphaTyVar 
@@ -41,7 +39,7 @@ goalType ::  Type ->   -- ^ This is the goal type. It is used for basic types.
               Type ->   -- ^ This type comes from the environment.
               Bool      -- ^ True if the 2nd arg produces expression 
                         --   of type equal to 1st argument.
-goalType τ t@(FunTy _ t'') 
+goalType τ (FunTy _ t'') 
   | t'' == τ  = True
   | otherwise = goalType τ t''
 goalType τ                 t 
@@ -74,8 +72,8 @@ withSubgoal ((t, e, i) : exprs) τ =
 --    Note: We maintain ordering from the goal type.
 --    Not handled (compared to @varsInType): function types, type applications
 unifyWith :: Type -> [Type] 
-unifyWith v@(TyVarTy var) = [v] 
-unifyWith (TyConApp c ts) = ts 
+unifyWith v@(TyVarTy _)   = [v] 
+unifyWith (TyConApp _ ts) = ts 
 unifyWith t               = error $ " [ unifyWith ] " ++ showTy t 
 
 fromAnf :: CoreExpr -> CoreExpr
@@ -106,8 +104,7 @@ replaceBnds e           _     = e
 --  |                          Prune trivial expressions                       | --
 -----------------------------------------------------------------------------------
 nonTrivial :: GHC.CoreExpr -> Bool
--- TODO: e should not be a nullary constructor
-nonTrivial (GHC.App e (GHC.Type _)) = False
+nonTrivial (GHC.App _ (GHC.Type _)) = False
 nonTrivial _                        = True
 
 nonTrivials :: [GHC.CoreExpr] -> Bool
@@ -138,7 +135,7 @@ returnsTuple :: Var -> Bool
 returnsTuple v = 
   case subgoals (varType v) of
     Nothing      -> False
-    Just (t, ts) -> 
+    Just (t, _) -> 
       case t of
         TyConApp c _ts -> c == pairTyCon
         _              -> False
@@ -170,17 +167,17 @@ getUniVars cp tlVar =
 getUniVars0 :: GHC.CoreExpr -> ([Var], [Var]) -> ([Var], [Var])
 getUniVars0 (Lam b e) (uvs, tcDicts)
   = case varType b of 
-      TyConApp c ts -> 
+      TyConApp c _ -> 
         if isClassTyCon c 
           then getUniVars0 e (uvs, b : tcDicts)
           else getUniVars0 e (b:uvs, tcDicts)
       _ -> getUniVars0 e (b:uvs, tcDicts) 
-getUniVars0 e vs
+getUniVars0 _ vs
   = vs
 
 getBody :: GHC.CoreBind -> Var -> GHC.CoreExpr
 getBody (GHC.NonRec b e) tlVar = if b == tlVar then e else error " [ getBody ] "
-getBody (GHC.Rec recs)   tlVar = error "Assuming our top-level binder is non-recursive (only contains a hole)"
+getBody (GHC.Rec _)   _ = error "Assuming our top-level binder is non-recursive (only contains a hole)"
 
 --                       | Current top-level binder |
 varsP :: GHC.CoreProgram -> Var -> (GHC.CoreExpr -> [Var]) -> [Var]
@@ -190,26 +187,26 @@ varsP cp tlVar f =
     _    -> error " Every top-level corebind must be unique! "
 
 isInCB :: GHC.CoreBind -> Var -> Bool
-isInCB (GHC.NonRec b e) tlVar = b == tlVar 
+isInCB (GHC.NonRec b _) tlVar = b == tlVar 
 isInCB (GHC.Rec recs) tlVar   = foldr (\v b -> v == tlVar && b) True (map fst recs)
 
 varsCB :: GHC.CoreBind -> (GHC.CoreExpr -> [Var]) -> [Var]
-varsCB (GHC.NonRec b e) f = f e
-varsCB (GHC.Rec ls) _ = notrace " [ symbolToVarCB ] Rec " []
+varsCB (GHC.NonRec _ e) f = f e
+varsCB (GHC.Rec _) _ = notrace " [ symbolToVarCB ] Rec " []
 
 varsE :: GHC.CoreExpr -> [Var]
 varsE (GHC.Lam a e) = a : varsE e
 varsE (GHC.Let (GHC.NonRec b _) e) = b : varsE e
-varsE (GHC.Case eb b _ alts) = foldr (\(_, vars, e) res -> vars ++ (varsE e) ++ res) [b] alts
+varsE (GHC.Case _ b _ alts) = foldr (\(_, vars, e) res -> vars ++ (varsE e) ++ res) [b] alts
 varsE (GHC.Tick _ e) = varsE e
-varsE e = []
+varsE _ = []
 
 caseVarsE :: GHC.CoreExpr -> [Var] 
-caseVarsE (GHC.Lam a e) = caseVarsE e 
-caseVarsE (GHC.Let (GHC.NonRec b _) e) = caseVarsE e
-caseVarsE (GHC.Case eb b _ alts) = foldr (\(_, vars, e) res -> caseVarsE e ++ res) [b] alts 
+caseVarsE (GHC.Lam _ e) = caseVarsE e 
+caseVarsE (GHC.Let (GHC.NonRec _ _) e) = caseVarsE e
+caseVarsE (GHC.Case _ b _ alts) = foldr (\(_, _, e) res -> caseVarsE e ++ res) [b] alts 
 caseVarsE (GHC.Tick _ e) = caseVarsE e 
-caseVarsE e = [] 
+caseVarsE _ = [] 
 
 instance Default Var where
   def = alphaTyVar
@@ -220,8 +217,8 @@ symbolToVar cp tlBndr renv =
       casevars = [F.symbol x | x <- varsP cp tlBndr caseVarsE]
       tlVars = [(F.symbol x, x) | x <- getTopLvlBndrs cp]
       lookupErrorMsg x = " [ symbolToVar ] impossible lookup for x = " ++ show x
-      symbolVar x = fromMaybe (fromMaybe (def {-error (lookupErrorMsg x)-}) $ lookup x tlVars) $ lookup x vars
-      renv' = foldr (\s hm -> M.delete s hm) renv casevars
+      symbolVar x = fromMaybe (fromMaybe (error (lookupErrorMsg x)) $ lookup x tlVars) $ lookup x vars
+      renv' = foldr M.delete renv casevars
   in  M.fromList [ (s, (t, symbolVar s)) | (s, t) <- M.toList renv']
 
 argsP :: GHC.CoreProgram -> Var -> [Var] 
@@ -231,11 +228,12 @@ argsP (cb : cbs) tlVar
   | otherwise = argsP cbs tlVar
 
 argsCB :: GHC.CoreBind -> [Var]
-argsCB (GHC.NonRec b e) = argsE e 
+argsCB (GHC.NonRec _ e) = argsE e
+argsCB _                = error " [ argsCB ] "
 
 argsE :: GHC.CoreExpr -> [Var]
 argsE (GHC.Lam a e) = a : argsE e 
-argsE (GHC.Let (GHC.NonRec b _) e) = argsE e
+argsE (GHC.Let (GHC.NonRec _ _) e) = argsE e
 argsE _ = [] 
 
 notrace :: String -> a -> a 
