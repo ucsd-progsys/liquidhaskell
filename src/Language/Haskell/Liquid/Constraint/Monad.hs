@@ -100,10 +100,12 @@ addLocA !xo !l !t
 -- | Used for annotating holes 
 
 addHole :: Var -> SpecType -> CGEnv -> CG () 
-addHole x t γ = do 
-  st <- get 
-  modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
-  -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
+addHole x t γ 
+  | typedHoles (getConfig γ) = 
+      do  st <- get 
+          modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
+          -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
+  | otherwise = return ()
     where 
       hinfo = HoleInfo t loc env
       loc   = srcSpan $ cgLoc γ
