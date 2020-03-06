@@ -37,13 +37,6 @@ import           Data.List
 import           Data.Tuple.Extra
 import           CoreUtils (exprType)
 
-rmMeasures :: [Symbol] -> [(Symbol, SpecType)] -> [(Symbol, SpecType)]
-rmMeasures _    [ ]         = [ ]
-rmMeasures meas ((s, t):γs) = 
-  case find (==s) meas of 
-    Nothing -> (s, t) : rmMeasures meas γs
-    Just _  -> rmMeasures meas γs
-
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
   mapM go (M.toList $ holesMap cginfo)
@@ -150,10 +143,7 @@ synthesizeMatch t = do
     Nothing ->  return []
     Just id ->  if null scruts
                   then return []
-                  else do let scrut = scruts !! id 
-                          trace (" CaseSplit " ++ show (map fst3 scruts) ++ 
-                                " \n Scrutinee " ++ show (fst3 scrut)) $   
-                            withIncrDepth (matchOnExpr t scrut)
+                  else withIncrDepth (matchOnExpr t (scruts !! id))
 
 synthesizeScrut :: [Var] -> SM [(CoreExpr, Type, TyCon)]
 synthesizeScrut vs = do
@@ -196,4 +186,4 @@ makeAlt t (x, TyConApp _ ts) c = locally $ do
   return $ (GHC.DataAlt c, xs, ) <$> es
   where 
     (_, _, τs) = dataConInstSig c ts
-makeAlt _ _ _ = error $ "makeAlt.bad argument "
+makeAlt _ _ _ = error "makeAlt.bad argument "

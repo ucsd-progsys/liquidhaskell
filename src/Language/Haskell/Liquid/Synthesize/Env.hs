@@ -9,6 +9,7 @@ import qualified Data.HashSet                  as S
 import           DataCon
 import           TyCon
 import           Var
+import           Data.List 
 
 initSSEnv :: SpecType -> CGInfo -> SSEnv -> (SSEnv, [Var])
 initSSEnv rt info senv = (M.union senv (M.fromList foralls), vs)
@@ -40,3 +41,7 @@ tpToCons _
 
 typeToCons :: SpecType -> [DataCon]
 typeToCons rt = S.toList $ S.fromList (tpToCons rt)
+
+rmMeasures :: [Symbol] -> [(Symbol, SpecType)] -> [(Symbol, SpecType)]
+rmMeasures meas = filter (\(s,t) -> case find (== s) meas of  Nothing -> True
+                                                              Just _  -> False)
