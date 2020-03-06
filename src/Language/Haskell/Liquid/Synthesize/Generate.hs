@@ -113,7 +113,7 @@ fill i depth (c : cs) accExprs
       Nothing             -> return [] -- Not a function type
       Just (resTy, subGs) ->
         do  specSubGs <- liftCG $ mapM trueTy (filter (not . isFunction) subGs)
-            mapM genArgs specSubGs
+            mapM_ genArgs specSubGs
             em <- sExprMem <$> get
             let argCands  = map (withSubgoal em) subGs
                 toGen    = foldr (\x b -> (not . null) x && b) True argCands
@@ -159,12 +159,12 @@ findFeasibles d cs = (fs, ixs)
   where fs  = isFeasible d cs
         ixs = toIxs 0 fs
 
-toExpr :: Int ->                      -- ^ Reference index. Starting from 0.
-          [Int] ->                    -- ^ Produced from @isFeasible@.
+toExpr :: Int ->                      --  Reference index. Starting from 0.
+          [Int] ->                    --  Produced from @isFeasible@.
                                       --   Assumed in increasing order.
-          [(GHC.CoreExpr, Int)] ->    -- ^ The candidate expressions.
-          ([(GHC.CoreExpr, Int)],     -- ^ Expressions from 2nd argument.
-           [(GHC.CoreExpr, Int)]) ->  -- ^ The rest of the expressions
+          [(GHC.CoreExpr, Int)] ->    --  The candidate expressions.
+          ([(GHC.CoreExpr, Int)],     --  Expressions from 2nd argument.
+           [(GHC.CoreExpr, Int)]) ->  --  The rest of the expressions
           ([(GHC.CoreExpr, Int)], [(GHC.CoreExpr, Int)])
 toExpr _  []     _    res
   = res 

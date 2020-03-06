@@ -133,7 +133,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
 
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do
-  let ts = unifyWith (toType t) -- ^ All the types that are used for instantiation.
+  let ts = unifyWith (toType t) -- All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
   modify (\s -> s { sGoalTys = [] })

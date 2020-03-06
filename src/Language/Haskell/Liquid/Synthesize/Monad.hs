@@ -68,11 +68,11 @@ data SState
            , sFix       :: !Var
            , sGoalTys   :: ![Type]
            , sGoalTyVar :: !(Maybe [TyVar])
-           , sUGoalTy   :: !(Maybe [Type])     -- ^ Types used for instantiation.
+           , sUGoalTy   :: !(Maybe [Type])     -- Types used for instantiation.
                                                --   Produced by @withUnify@.
-           , sForalls   :: !([Var], [[Type]])  -- ^ [Var] are the parametric functions (except for the fixpoint)
+           , sForalls   :: !([Var], [[Type]])  -- [Var] are the parametric functions (except for the fixpoint)
                                                --    e.g. Constructors, top-level functions.
-                                               -- ^ [[Type]]: all the types that have instantiated [Var] so far.
+                                               -- [[Type]]: all the types that have instantiated [Var] so far.
            , caseIdx    :: !Int                -- [ Temporary ] Index in list of scrutinees.
            , scrutinees :: ![(CoreExpr, Type, TyCon)]
            }
@@ -381,7 +381,7 @@ withTypeEs t = do
     em <- sExprMem <$> get 
     return (map snd3 (filter (\x -> fst3 x == toType t) em)) 
 
-findCandidates :: Type ->         -- ^ Goal type: Find all candidate expressions of this type,
+findCandidates :: Type ->         -- Goal type: Find all candidate expressions of this type,
                                   --   or that produce this type (i.e. functions).
                   SM ExprMemory
 findCandidates goalTy = do

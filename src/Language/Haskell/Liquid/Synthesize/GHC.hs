@@ -35,10 +35,10 @@ freshName :: Int -> String
 freshName i = "lSyn$" ++ show i 
 
 -- | Assuming that the functions are instantiated when this function is called.
-goalType ::  Type ->   -- ^ This is the goal type. It is used for basic types.
-              Type ->   -- ^ This type comes from the environment.
-              Bool      -- ^ True if the 2nd arg produces expression 
-                        --   of type equal to 1st argument.
+goalType ::  Type ->   --  This is the goal type. It is used for basic types.
+              Type ->  --   This type comes from the environment.
+              Bool     --   True if the 2nd arg produces expression 
+                       --   of type equal to 1st argument.
 goalType τ (FunTy _ t'') 
   | t'' == τ  = True
   | otherwise = goalType τ t''
@@ -52,8 +52,8 @@ createSubgoals (ForAllTy _ htype) = createSubgoals htype
 createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                  = [t]
 
-subgoals :: Type ->               -- ^ Given a function type,
-            Maybe (Type, [Type])  -- ^ separate the result type from the input types.
+subgoals :: Type ->               -- Given a function type,
+            Maybe (Type, [Type])  -- separate the result type from the input types.
 subgoals t = if null gTys then Nothing else Just (resTy, inpTys) 
   where gTys            = createSubgoals t 
         (resTy, inpTys) = (last gTys, take (length gTys - 1) gTys)
