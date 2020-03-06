@@ -77,12 +77,11 @@ import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal,
 import           Language.Haskell.Liquid.Misc
 -- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
-import Debug.Trace
+
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
 --------------------------------------------------------------------------------
@@ -100,9 +99,8 @@ generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act 
     act                  = consAct γ cfg info
     cfg                  = getConfig   info
 
--- consAct :: Config -> GhcInfo -> CG ()
+consAct :: CGEnv -> Config -> GhcInfo -> CG ()
 consAct γ cfg info = do
-  -- γ       <- initEnv      info
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
@@ -825,16 +823,15 @@ consE _ (Lit c)
   = refreshVV $ uRType $ literalFRefType c
 
 consE γ e'@(App e a@(Type τ))
-  = trace (" consE for e = " ++ show e') $
-      do  RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-          t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then trace (" THEN for e = " ++ show e') $ freshTy_type TypeInstE e τ else trueTy τ
-          addW          $ WfC γ t
-          t'           <- refreshVV t
-          tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
-          let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
-          case rTVarToBind α of
-            Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
-            Nothing     -> return tt
+  = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
+       t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       addW          $ WfC γ t
+       t'           <- refreshVV t
+       tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
+       let tt        = makeSingleton γ (simplify e') $ subsTyReft γ (ty_var_value α) τ tt0
+       case rTVarToBind α of
+         Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
+         Nothing     -> return tt
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
