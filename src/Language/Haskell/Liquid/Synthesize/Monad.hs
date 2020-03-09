@@ -37,8 +37,8 @@ import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
 import           TyCon
 
-maxMatchDepth :: Int 
-maxMatchDepth = 4
+localMaxMatchDepth :: SM Int 
+localMaxMatchDepth = maxMatchDepth . getConfig . sCGEnv <$> get
 
 -------------------------------------------------------------------------------
 -- | Synthesis Monad ----------------------------------------------------------
@@ -78,11 +78,11 @@ data SState
            }
 type SM = StateT SState IO
 
-maxAppDepth :: Int 
-maxAppDepth = 2
+localMaxAppDepth :: SM Int 
+localMaxAppDepth = maxAppDepth . getConfig . sCGEnv <$> get
 
-maxArgsDepth :: Int
-maxArgsDepth = 1
+localMaxArgsDepth :: SM Int
+localMaxArgsDepth = maxArgsDepth . getConfig . sCGEnv <$> get
 
 locally :: SM a -> SM a 
 locally act = do 
@@ -237,10 +237,10 @@ freshVar = freshVarType . toType
 
 withIncrDepth :: Monoid a => SM a -> SM a
 withIncrDepth m = do 
-    s <- get 
-    -- let maxAppDepth = typedHoles $ getConfig $ sCGEnv s 
+    s <- get
+    matchBound <- localMaxMatchDepth 
     let d = sDepth s
-    if d + 1 > maxMatchDepth 
+    if d + 1 > matchBound
       then return mempty
       else do put s{sDepth = d + 1}
               r <- m

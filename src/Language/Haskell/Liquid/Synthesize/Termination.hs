@@ -12,7 +12,7 @@ import qualified Language.Fixpoint.Types       as F
 import           Var
 
 decrType :: Var -> SpecType -> [Var] -> [(F.Symbol, SpecType)] -> SpecType
-decrType _x ti xs _xts = -- F.tracepp ("Decr type for " ++ showpp x ++ " on arguments " ++ showpp xs) $ 
+decrType _x ti xs _xts =
   go xs ti 
   where
     go (v:_) (RFun x tx t r) 

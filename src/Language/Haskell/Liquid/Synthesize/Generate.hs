@@ -72,9 +72,10 @@ withDepthFillArgs :: SpecType -> Int -> [(Type, CoreExpr, Int)] -> SM [CoreExpr]
 withDepthFillArgs t depth cs = do
   thisEm <- sExprMem <$> get
   es <- argsFill thisEm cs []
+  argsDepth <- localMaxArgsDepth
 
   filterElseM (hasType t) es $
-    if depth < maxArgsDepth
+    if depth < argsDepth
       then  withDepthFillArgs t (depth + 1) cs
       else  return []
 
@@ -98,9 +99,10 @@ argsFill em0 (c:cs) es0 =
 withDepthFill :: SearchMode -> SpecType -> Int -> [(Type, GHC.CoreExpr, Int)] -> SM [CoreExpr]
 withDepthFill i t depth tmp = do
   exprs <- fill i depth tmp []
+  appDepth <- localMaxAppDepth
 
   filterElseM (hasType t) exprs $ 
-      if depth < maxAppDepth
+      if depth < appDepth
         then do modify (\s -> s { sExprId = sExprId s + 1 })
                 withDepthFill i t (depth + 1) tmp
         else return []

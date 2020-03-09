@@ -43,5 +43,5 @@ typeToCons :: SpecType -> [DataCon]
 typeToCons rt = S.toList $ S.fromList (tpToCons rt)
 
 rmMeasures :: [Symbol] -> [(Symbol, SpecType)] -> [(Symbol, SpecType)]
-rmMeasures meas = filter (\(s,t) -> case find (== s) meas of  Nothing -> True
+rmMeasures meas = filter (\(s,_) -> case find (== s) meas of  Nothing -> True
                                                               Just _  -> False)
