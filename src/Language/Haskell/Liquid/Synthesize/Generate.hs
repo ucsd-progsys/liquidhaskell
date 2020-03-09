@@ -148,38 +148,24 @@ feasibles d i (c:cs)
 isFeasible :: Depth -> [[(CoreExpr, Int)]] -> [[Int]]
 isFeasible d =  map (feasibles d 0)
 
-toIxs :: Int -> [[Int]] -> [Int]
-toIxs _ [] 
-  = [] 
-toIxs i (f:fs)
-  = if null f 
-      then toIxs (i+1) fs
-      else i : toIxs (i+1) fs
-
 findFeasibles :: Depth -> [[(CoreExpr, Int)]] -> ([[Int]], [Int])
 findFeasibles d cs = (fs, ixs)
   where fs  = isFeasible d cs
-        ixs = toIxs 0 fs
+        ixs = [i | (i, f) <- zip [0..] fs, not (null f)]
 
-toExpr :: Int ->                      --  Reference index. Starting from 0.
-          [Int] ->                    --  Produced from @isFeasible@.
+toExpr :: [Int] ->                    --  Produced from @isFeasible@.
                                       --   Assumed in increasing order.
           [(GHC.CoreExpr, Int)] ->    --  The candidate expressions.
           ([(GHC.CoreExpr, Int)],     --  Expressions from 2nd argument.
-           [(GHC.CoreExpr, Int)]) ->  --  The rest of the expressions
-          ([(GHC.CoreExpr, Int)], [(GHC.CoreExpr, Int)])
-toExpr _  []     _    res
-  = res 
-toExpr ix (i:is) args (b, nb) = 
-  if ix == i 
-    then toExpr (ix+1) is args (args!!i : b, nb)
-    else toExpr (ix+1) is args (b, args !! i : nb)
-
+           [(GHC.CoreExpr, Int)])     --  The rest of the expressions
+toExpr ixs args = ( [ args !! i | (ix, i) <- is, ix == i ], 
+                    [ args !! i | (ix, i) <- is, ix /= i ])
+    where is = zip [0..] ixs
 
 fixCands :: Int -> [Int] -> [[(CoreExpr, Int)]] -> ([[(CoreExpr, Int)]], [[(CoreExpr, Int)]])
 fixCands i ixs args 
   = let cs = args !! i
-        (cur, next) = toExpr 0 ixs cs ([], [])
+        (cur, next)    = toExpr ixs cs
         (args0, args1) = (replace (i+1) cur args, replace (i+1) next args)
     in  (args0, args1)
 
