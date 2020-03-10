@@ -1382,6 +1382,47 @@ the specifications you write i.e.
 2. measure bodies and,
 3. data constructor definitions.
 
+Basic support for program synthesis
+===================================
+
+How to use it
+-------------
+
+Activate the flag for typed holes in LiquidHaskell. E.g.
+from command line: 
+    
+    liquid --typedholes
+
+In a Haskell source file: 
+    
+    {-@ LIQUID --typed-holes @-}
+
+Having the program specified in a Haskell source file, use 
+GHC' s hole variables, e.g.:
+
+    {-@ id :: x: [a] -> { v: [a] | v == x } @-}
+    id = _hole
+
+Current limitations
+-------------------
+
+This is an experimental feature, so potential users could only 
+expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/synth).
+
+Current limitations include:
+
+- No boolean conditionals are synthesized for now.
+- Holes can only appear at top level, e.g.: 
+
+        {-@ f :: x: [a] -> { v: [a] | v == x } @-}
+        f :: [a] -> [a]
+        -- This works
+        f = _hole
+        -- This does not work
+        f x = _hole
+
+- Only one hole can appear in each module.
+
 
 Generating HTML Output
 ======================
