@@ -207,6 +207,8 @@ checkQualifier env q =  mkE <$> checkSortFull (F.srcSpan q) γ F.boolSort  (F.qB
     γ                = L.foldl' (\e (x, s) -> F.insertSEnv x (F.RR s mempty) e) env (F.qualBinds q ++ wiredSortedSyms)
     mkE              = ErrBadQual (GM.fSrcSpan q) (pprint $ F.qName q)
 
+-- | Used for termination checking. If we have no \"len\" defined /yet/ (for example we are checking
+-- 'GHC.Prim') then we want to skip this check.
 checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> [Error]
 checkSizeFun emb env tys = mkError <$> mapMaybe go tys
   where
@@ -214,12 +216,17 @@ checkSizeFun emb env tys = mkError <$> mapMaybe go tys
                                  (text "Size function" <+> pprint (f x) <+> text "should have type int." $+$   msg)
                                  (pprint (tcpCon tcp))
     go tcp = case tcpSizeFun tcp of
-               Nothing  -> Nothing
-               Just f   -> checkWFSize (szFun f) tcp
+               Nothing                   -> Nothing
+               Just f | isWiredInLenFn f -> Nothing -- Skip the check.
+               Just f                    -> checkWFSize (szFun f) tcp
 
     checkWFSize f tcp = ((f, tcp),) <$> checkSortFull (F.srcSpan tcp) (F.insertSEnv x (mkTySort (tcpCon tcp)) env) F.intSort (f x)
     x                 = "x" :: F.Symbol
     mkTySort tc       = rTypeSortedReft emb (ofType $ TyConApp tc (TyVarTy <$> tyConTyVars tc) :: RRType ())
+
+    isWiredInLenFn :: SizeFun -> Bool
+    isWiredInLenFn IdSizeFun           = False
+    isWiredInLenFn (SymSizeFun locSym) = isWiredIn locSym
 
 _checkRefinedClasses :: [RClass LocBareType] -> [RInstance LocBareType] -> [Error]
 _checkRefinedClasses definitions instances
