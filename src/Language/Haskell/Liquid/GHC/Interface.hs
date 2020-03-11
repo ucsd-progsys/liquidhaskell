@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , keepRawTokenStream
   , ignoreInline
   , lookupTyThings
+  , availableTyCons
   , updLiftedSpec
 
   ) where
@@ -59,6 +60,7 @@ import GHC.Serialized
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Annotations
+import Avail
 import Class
 import CoreMonad
 import CoreSyn
@@ -505,6 +507,9 @@ makeGhcSrc cfg file typechecked originalModSum = do
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
   things            <- lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
+
+  availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
+
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src 
@@ -517,7 +522,7 @@ makeGhcSrc cfg file typechecked originalModSum = do
     , _giUseVars   = readVars coreBinds
     , _giDerVars   = S.fromList (derivedVars cfg modGuts) 
     , _gsExports   = mgi_exports  modGuts 
-    , _gsTcs       = mgi_tcs      modGuts
+    , _gsTcs       = nub $ (mgi_tcs      modGuts) ++ availableTcs
     , _gsCls       = mgi_cls_inst modGuts 
     , _gsFiTcs     = fiTcs 
     , _gsFiDcs     = fiDcs
@@ -562,17 +567,28 @@ qImports qns  = QImports
 --   (see `Bare.Resolve`)                                          
 ---------------------------------------------------------------------------------------
 lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
-lookupTyThings hscEnv modSum tcGblEnv = do
-  mi <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
-  forM names $ \n -> do 
-    tt1 <-          GhcMonadLike.lookupName      n
-    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
-    tt3 <-          GhcMonadLike.modInfoLookupName mi n
-    tt4 <-          GhcMonadLike.lookupGlobalName n 
-    return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
     names :: [Ghc.Name] 
     names  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
+
+lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
+lookupTyThing hscEnv modSum tcGblEnv n = do
+  mi  <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
+  tt1 <-          GhcMonadLike.lookupName      n
+  tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n
+  tt3 <-          GhcMonadLike.modInfoLookupName mi n
+  tt4 <-          GhcMonadLike.lookupGlobalName n
+  return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+
+availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [GHC.TyCon]
+availableTyCons hscEnv modSum tcGblEnv avails = fmap catMaybes $ forM avails $ \a -> do
+  (_, mbThing) <- case a of
+    Avail n       -> lookupTyThing hscEnv modSum tcGblEnv n
+    AvailTC n _ _ -> lookupTyThing hscEnv modSum tcGblEnv n
+  case mbThing of
+    Just (ATyCon tyCon) -> pure $ Just tyCon
+    _                   -> pure $ Nothing
 
 -- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)

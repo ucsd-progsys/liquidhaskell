@@ -181,15 +181,20 @@ parseHook _ modSummary parsedModule = do
 
   liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
 
-  debugLog $ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
+  debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
 
   -- Resolve names and imports
   env <- askHscEnv
-  resolvedNames <- LH.lookupTyThings env (GhcMonadLike.tm_mod_summary typechecked) 
+  resolvedNames <- LH.lookupTyThings env (GhcMonadLike.tm_mod_summary typechecked)
                                          (GhcMonadLike.tm_gbl_env typechecked)
+  availTyCons   <- LH.availableTyCons env (GhcMonadLike.tm_mod_summary typechecked) 
+                                          (GhcMonadLike.tm_gbl_env typechecked)
+                                          (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
 
   let thisModule = ms_mod modSummary
-  let stableData = mkTcData typechecked resolvedNames
+  let stableData = mkTcData typechecked resolvedNames availTyCons
+
+  debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -262,6 +267,8 @@ liquidHaskellPass cfg modGuts = do
   let (guts', specComments) = Util.extractSpecComments modGuts
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
   targetSpec    <- getLiquidSpec thisModule specComments specQuotes
+
+  debugLog $ "Target Spec: \n" ++ show targetSpec
 
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   dynFlags <- getDynFlags
@@ -415,9 +422,13 @@ processModule LiquidHaskellContext{..} = do
   debugLog $ "Found " <> show (length dependencies) <> " dependencies:"
   forM_ dependencies $ debugLog . cachedSpecStableModuleId
 
+  debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
+  debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
   ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
   let bareSpecs        = makeBareSpecs (moduleName thisModule) targetSpec dependencies
+
+  debugLog $ "bareSpecs ==> \n" ++ show bareSpecs
 
   let ghcSpec          = makeGhcSpec moduleCfg ghcSrc lhModuleLogicMap bareSpecs
   let ghcInfo          = GI ghcSrc ghcSpec
@@ -425,7 +436,9 @@ processModule LiquidHaskellContext{..} = do
   -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
   -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
   -- errors when trying to refine things.
-  let clientSpec = targetSpec `mergeTargetWithClient` (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
+  let clientSpec = mkClientSpec . gsLSpec . giSpec $ ghcInfo
+        --  LH.updLiftedSpec (downcastSpec targetSpec) (Just . gsLSpec . giSpec $ ghcInfo)
+    {- targetSpec `mergeTargetWithClient` -} -- (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
 
   --liftIO $ putStrLn $ "targetSpec ==> " ++ show targetSpec
   --liftIO $ putStrLn $ "clientSpecBeforeMerging ==> " ++ (show $ mkClientSpec . gsLSpec . giSpec $ ghcInfo)
@@ -460,6 +473,7 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
   let dataCons    = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
   (fiTcs, fiDcs) <- liftIO $ LH.makeFamInstEnv hscEnv
   let things      = tcResolvedNames tcData
+  let availTcs    = tcAvailableTyCons tcData
   let impVars     = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
   return $ Src
     { giIncDir    = mempty
@@ -471,7 +485,7 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
     , giUseVars   = readVars coreBinds
     , giDerVars   = HS.fromList (LH.derivedVars cfg mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts
-    , gsTcs       = mgi_tcs      mgiModGuts
+    , gsTcs       = L.nub $ (mgi_tcs mgiModGuts ++ availTcs)
     , gsCls       = mgi_cls_inst mgiModGuts
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs

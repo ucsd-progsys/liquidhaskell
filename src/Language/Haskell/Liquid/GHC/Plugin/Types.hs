@@ -44,6 +44,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , tcAllImports
     , tcQualifiedImports
     , tcResolvedNames
+    , tcAvailableTyCons
     , mkTcData
 
     -- * Wrapper type to talk about unoptimised things
@@ -64,6 +65,7 @@ import           GHC                                      ( LImportDecl
                                                           , GhcRn
                                                           , Name
                                                           , TyThing
+                                                          , TyCon
                                                           )
 import           HscTypes                                 ( ModGuts )
 import           TcRnTypes                                ( TcGblEnv(tcg_rn_imports) )
@@ -270,21 +272,34 @@ data TcData = TcData {
     tcAllImports       :: HS.HashSet Symbol
   , tcQualifiedImports :: QImports
   , tcResolvedNames    :: [(Name, Maybe TyThing)]
+  , tcAvailableTyCons  :: [GHC.TyCon]
+  -- ^ Sometimes we might be in a situation where we have \"wrapper\" modules that
+  -- simply re-exports everything from the original module, and therefore when LH
+  -- tries to resolve the GHC identifier associated to a data constructor in scope
+  -- (from the call to 'lookupTyThings') we might not be able to find a match because
+  -- the 'mg_tcs' for the input 'ModGuts' is empty (because the type constructor are not
+  -- defined in the /wrapper/ module, but rather in the /wrapped/ module itself). This is
+  -- why we look at the 'ModGuts' 's 'AvailInfo' to extract any re-exported 'TyCon' out of that.
   }
 
 instance Outputable TcData where
     ppr (TcData{..}) = 
-          text "TcData { imports  = " <+> text (show $ HS.toList tcAllImports)
-      <+> text "       , qImports = " <+> text (show tcQualifiedImports)
-      <+> text "       , names    = " <+> ppr tcResolvedNames
+          text "TcData { imports     = " <+> text (show $ HS.toList tcAllImports)
+      <+> text "       , qImports    = " <+> text (show tcQualifiedImports)
+      <+> text "       , names       = " <+> ppr tcResolvedNames
+      <+> text "       , availTyCons = " <+> ppr tcAvailableTyCons
       <+> text " }"
 
 -- | Constructs a 'TcData' out of a 'TcGblEnv'.
-mkTcData :: GhcMonadLike.TypecheckedModule -> [(Name, Maybe TyThing)] -> TcData
-mkTcData tcModule resolvedNames = TcData {
+mkTcData :: GhcMonadLike.TypecheckedModule 
+         -> [(Name, Maybe TyThing)] 
+         -> [TyCon]
+         -> TcData
+mkTcData tcModule resolvedNames availTyCons = TcData {
     tcAllImports       = LH.allImports       (GhcMonadLike.tm_renamed_source tcModule)
   , tcQualifiedImports = LH.qualifiedImports (GhcMonadLike.tm_renamed_source tcModule)
   , tcResolvedNames    = resolvedNames
+  , tcAvailableTyCons  = availTyCons
   }
 
 debugShowModule :: Module -> String
