@@ -34,6 +34,7 @@ import GHC.Serialized
 
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Annotations
+import Avail
 import Class
 import CoreMonad
 import CoreSyn
@@ -452,7 +453,8 @@ makeGhcSrc cfg file typechecked modSum = do
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
   -- let defVs          = definedVars coreBinds
   (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
-  things            <- lookupTyThings hscEnv typechecked modGuts 
+  things            <- lookupTyThings  hscEnv typechecked modGuts 
+  availableTcs      <- availableTyCons hscEnv typechecked (mg_exports modGuts')
   -- _                 <- liftIO $ print (showpp things)
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
@@ -466,7 +468,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , giUseVars   = readVars coreBinds
     , giDerVars   = S.fromList (derivedVars cfg modGuts) 
     , gsExports   = mgi_exports  modGuts 
-    , gsTcs       = mgi_tcs      modGuts
+    , gsTcs       = nub $ (mgi_tcs      modGuts) ++ availableTcs
     , gsCls       = mgi_cls_inst modGuts 
     , gsFiTcs     = fiTcs 
     , gsFiDcs     = fiDcs
@@ -512,15 +514,26 @@ qImports qns  = QImports
 --   (see `Bare.Resolve`)                                          
 ---------------------------------------------------------------------------------------
 lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
-lookupTyThings hscEnv tcm mg =
-  forM (mgNames mg) $ \n -> do 
-    tt1 <-          lookupName                   n 
-    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
-    tt3 <-          modInfoLookupName mi         n 
-    tt4 <-          lookupGlobalName             n 
-    return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
-    where 
-      mi = tm_checked_module_info tcm
+lookupTyThings hscEnv tcm mg = forM (mgNames mg) $ lookupTyThing hscEnv tcm
+
+lookupTyThing :: HscEnv -> TypecheckedModule -> Name -> Ghc (Name, Maybe TyThing)
+lookupTyThing hscEnv tcm n = do
+  tt1 <-          lookupName                   n 
+  tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
+  tt3 <-          modInfoLookupName mi         n 
+  tt4 <-          lookupGlobalName             n 
+  return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+  where 
+    mi = tm_checked_module_info tcm
+
+availableTyCons :: HscEnv -> TypecheckedModule -> [AvailInfo] -> Ghc [GHC.TyCon]
+availableTyCons hscEnv tcm avails = fmap catMaybes $ forM avails $ \a -> do
+  (_, mbThing) <- case a of
+    Avail n       -> lookupTyThing hscEnv tcm n
+    AvailTC n _ _ -> lookupTyThing hscEnv tcm n
+  case mbThing of
+    Just (ATyCon tyCon) -> pure $ Just tyCon
+    _                   -> pure $ Nothing
 
 -- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
