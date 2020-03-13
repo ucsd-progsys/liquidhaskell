@@ -92,14 +92,7 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && noIncrPle cfg
-  = instantiate' cfg (normalize fi)
-
-  | rewriteAxioms cfg -- && incrPle cfg 
   = incrInstantiate' cfg (normalize fi)
-
-  | otherwise         
-  = return fi
 
 ------------------------------------------------------------------------------- 
 -- | New "Incremental" PLE
