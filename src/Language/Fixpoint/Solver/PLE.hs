@@ -118,7 +118,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
 mkCTrie :: [(SubcId, SimpC a)] -> CTrie 
-mkCTrie ics  = mytracepp  "TRIE" $ T.fromList [ (cBinds c, i) | (i, c) <- ics ]
+mkCTrie ics  = T.fromList [ (cBinds c, i) | (i, c) <- ics ]
   where
     cBinds   = L.sort . elemsIBindEnv . senv 
 
@@ -137,7 +137,7 @@ loopT env ctx delta i res t = case t of
   T.Node []  -> return res
   T.Node [b] -> loopB env ctx delta i res b
   T.Node bs  -> withAssms env ctx delta Nothing $ \ctx' -> do 
-                  (ctx'', res') <- ple1 env ctx' i Nothing res 
+                  (ctx'', res') <- ple1 env ctx' i res 
                   foldM (loopB env ctx'' [] i) res' bs
 
 loopB :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CBranch -> IO InstRes
@@ -145,61 +145,42 @@ loopB env ctx delta iMb res b = case b of
   T.Bind i t -> loopT env ctx (i:delta) (Just i) res t
   T.Val cid  -> withAssms env ctx delta (Just cid) $ \ctx' -> do 
                   progressTick
-                  (snd <$> ple1 env ctx' iMb (Just cid) res) 
+                  (snd <$> ple1 env ctx' iMb res) 
 
 
 withAssms :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> (ICtx -> IO b) -> IO b 
 withAssms env@(InstEnv {..}) ctx delta cidMb act = do 
   let ctx'  = updCtx env ctx delta cidMb 
-  let assms = mytracepp  ("ple1-assms: " ++ show (cidMb, delta)) (icAssms ctx')
+  let assms = icAssms ctx'
   SMT.smtBracket ieSMT  "PLE.evaluate" $ do
     forM_ assms (SMT.smtAssert ieSMT) 
     act ctx'
 
 -- | @ple1@ performs the PLE at a single "node" in the Trie 
-ple1 :: InstEnv a -> ICtx -> Maybe BindId -> Maybe SubcId -> InstRes -> IO (ICtx, InstRes)
-ple1 env@(InstEnv {..}) ctx i cidMb res = do 
-  let cands = mytracepp  ("ple1-cands: "  ++ show cidMb) $ S.toList (icCands ctx) 
-  -- unfolds  <- evalCands ieKnowl ieEvEnv cands   
-  unfolds  <- evalCandsLoop ieCfg ieSMT ieKnowl ieEvEnv cands   
-  return    $ updCtxRes env ctx res i cidMb (mytracepp  ("ple1-cands-unfolds: " ++ show cidMb) unfolds)
+ple1 :: InstEnv a -> ICtx -> Maybe BindId -> InstRes -> IO (ICtx, InstRes)
+ple1 (InstEnv {..}) ctx i res = 
+  updCtxRes ctx res i <$> evalCandsLoop ieCfg ctx ieSMT ieKnowl ieEvEnv
 
-_evalCands :: Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
-_evalCands _ _  []    = return []
-_evalCands γ s0 cands = do eqs <- mapM (evalOne γ s0) cands
-                           return $ mkUnfolds (zip (Just <$> cands) eqs)
 
 unfoldPred :: Config -> SMT.Context -> [Unfold] -> Pred 
 unfoldPred cfg ctx = toSMT cfg ctx [] . pAnd . concatMap snd  
 
-evalCandsLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Expr] -> IO [Unfold] 
-evalCandsLoop cfg ctx γ s0 cands = go [] cands 
+evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO [Unfold] 
+evalCandsLoop cfg ictx0 ctx γ env = go [] ictx0 
   where 
-    go acc []    = return acc 
-    go acc cands = do eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+    go acc ictx | S.null (icCands ictx) = return acc 
+    go acc ictx =  do let cands = S.toList (icCands ictx) 
+                      eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                   SMT.smtAssert ctx (unfoldPred cfg ctx acc) 
-                                  mapM (evalOne γ s0) $ traceC "Candidates" cands
+                                  mapM (evalOne γ env) $ traceC "Candidates" cands
                       let us  = zip (Just <$> cands) eqss 
                       case mkUnfolds us of 
                         []  -> return acc 
                         us' -> do let acc'   = acc ++ us' 
                                   let oks    = S.fromList [ e | (Just e, _) <- us' ]
-                                  let newcands = traceC "New Candidates" $ concatMap (makeCandidates γ [x | (Just x, _) <- acc']) (snd <$> concat eqss)
-                                  let cands' = [ e | e <- cands ++ newcands, not (S.member e oks) ] 
-                                  go acc' cands' 
-makeCandidates :: Knowledge -> [Expr] -> Expr -> [Expr]
-makeCandidates γ ok new 
-  = if exceeds (length realCandidates) thresHold then [] else realCandidates
-  where 
-    thresHold = TUnlimited 
-    realCandidates = filter (\n -> (goodApp n) && (not (n `elem` ok))) (topApps new)
-    isGoodApp :: Symbol -> [Expr] -> Bool 
-    isGoodApp f es = case L.lookup f (knSummary γ) of 
-                      Just i  -> length es == i 
-                      Nothing -> False 
-    goodApp e = case splitEApp e of 
-                  (EVar f ,es) -> isGoodApp f es 
-                  _ -> False 
+                                  let ictx'  = ictx {icSolved = icSolved ictx <> oks }
+                                  let newcands = traceC "New Candidates" $ concatMap (makeCandidates γ ictx') (snd <$> concat eqss)
+                                  go acc' (ictx' {icCands = S.fromList newcands}) 
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
@@ -255,39 +236,24 @@ initCtx es = ICtx
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
 equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- eqs, e1 /= e2 ] 
 
-updCtxRes :: InstEnv a -> ICtx -> InstRes -> Maybe BindId -> Maybe SubcId -> [Unfold] -> (ICtx, InstRes) 
-updCtxRes env ctx res iMb cidMb us 
-                       = -- trace _msg 
-                         ( ctx { {- icCands  = cands', -} icSolved = solved', icEquals = mempty}
+updCtxRes :: ICtx -> InstRes -> Maybe BindId -> [Unfold] -> (ICtx, InstRes) 
+updCtxRes ctx res iMb us 
+                       =( ctx { icSolved = solved', icEquals = mempty}
                          , res'
                          ) 
   where 
-    _msg               = Mb.maybe "nuttin\n" (debugResult env res') cidMb
     res'               = updRes res iMb (pAnd solvedEqs) 
-    _cands'             = ((icCands ctx) `S.union` newCands) `S.difference` solved' 
     solved'            = S.union (icSolved ctx) solvedCands 
-    newCands           = S.fromList (concatMap topApps newEqs) 
     solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ] 
     solvedEqs          = icEquals ctx ++ newEqs 
     newEqs             = concatMap snd okUnfolds
-    okUnfolds          = mytracepp  _str [ (eMb, ps)  | (eMb, ps) <- us, {- let ps = equalitiesPred eqs, -} not (null ps) ] 
-    _str               = "okUnfolds " ++ showpp (iMb, cidMb)
-    -- cands'             = S.difference (icCands ctx) (S.fromList solvedCands)
-    -- solvedEqs          = icEquals ctx ++ concatMap snd us
-    -- solvedCands        = [ e          | (Just e, _) <- us]
+    okUnfolds          = [ (eMb, ps)  | (eMb, ps) <- us, not (null ps) ] 
 
 mkUnfolds :: [(a, [(Expr, Expr)])] -> [(a, [Expr])]
 mkUnfolds us = [ (eMb, ps)  | (eMb, eqs) <- us
                             , let ps = equalitiesPred eqs
                             , not (null ps) 
                ] 
-
-debugResult :: InstEnv a -> InstRes -> SubcId -> String 
-debugResult (InstEnv {..}) res i = msg 
-  where 
-    msg                          = "INCR-INSTANTIATE i = " ++ show i ++ ": " ++ showpp cidEqs 
-    cidEqs                       = pAnd [ e | i <- cBinds, e <- Mb.maybeToList $ M.lookup i res ] 
-    cBinds                       = L.sort . elemsIBindEnv . senv . getCstr ieCstrs $ i
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -303,16 +269,31 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs <> icEquals ctx }
   where         
     initEqs   = equalitiesPred (initEqualities ieSMT ieAenv bs)
-    cands     = (S.fromList (concatMap topApps es0)) `S.difference` (icSolved ctx)
+    cands     = S.fromList (concatMap (makeCandidates ieKnowl ctx) es)
     ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
                   [ initEqs 
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
                   ]
-    (bs, es0) = (unElab <$> binds, unElab <$> es)
-    es        = eRhs : (expr <$> binds) 
+    bs        = unElab <$> binds
+    es        = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
+
+
+makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
+makeCandidates γ ctx expr 
+  = if exceeds (length realCandidates) thresHold then [] else realCandidates
+  where 
+    thresHold = TUnlimited 
+    realCandidates = filter (\n -> (goodApp n) && (not (n `S.member` icSolved ctx))) (topApps expr)
+    isGoodApp f es = case L.lookup f (knSummary γ) of 
+                      Just i  -> length es == i 
+                      Nothing -> False 
+    goodApp e = case splitEApp e of 
+                  (EVar f ,es) -> isGoodApp f es 
+                  _ -> False 
+
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
@@ -334,8 +315,8 @@ type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
-evalOne γ s0 e = do
-  (e', st) <- runStateT (eval γ initCS (mytracepp "evalOne: " e)) s0 
+evalOne γ env e = do
+  (e', st) <- runStateT (eval γ initCS (mytracepp "evalOne: " e)) env 
   if e' == e then return [] else return (traceE (e,e') : evSequence st)
 
 {- | [NOTE: Eval-Ite]  We should not be doing any PLE/eval under if-then-else where 
