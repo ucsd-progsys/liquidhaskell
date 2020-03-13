@@ -15,6 +15,8 @@ module Language.Fixpoint.Utils.Trie
   where 
 
 import qualified Data.List as L 
+import Language.Fixpoint.Types.PrettyPrint  
+import qualified Language.Fixpoint.Misc as Misc
 
 type Key  = Int
 type Path = [Key]
@@ -68,6 +70,11 @@ fold = undefined
 foldM :: (Monad m) => (acc -> Path -> a -> m acc) -> acc -> Trie a -> m acc 
 -------------------------------------------------------------------------------
 foldM = undefined
+
+
+instance Show a => PPrint (Trie a) where 
+  pprintTidy _ = Misc.tshow 
+
 
 {- 
 
