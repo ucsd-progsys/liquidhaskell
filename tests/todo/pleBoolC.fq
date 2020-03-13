@@ -1,0 +1,57 @@
+fixpoint "--rewrite"
+
+
+data Vec 1 = [
+  | VNil  { }
+  | VCons { mhead : @(0), mtail : Vec }
+]
+
+match isNil VNil       = true 
+match isNil VCons x xs = false
+
+match isCons VNil       = false 
+match isCons VCons x xs = true
+
+
+match head VCons x xs = (x)
+match tail VCons x xs = (xs)
+
+constant mall: (func(0, [func(0,[int;bool]); Vec int; bool]))
+constant geq: (func(0, [int; int; bool]))
+constant mand: (func(0, [bool; bool; bool]))
+constant lte: (func(0, [int; int; bool]))
+constant isCons: (func(1, [Vec @(0); bool]))
+constant isNil:  (func(1, [Vec @(0); bool]))
+constant head: (func(1, [Vec @(0); @(0)]))
+constant tail: (func(1, [Vec @(0); Vec @(0)]))
+
+
+define mall(f:func(0,[int;bool]), xs:Vec int) : bool = {
+    if (isNil xs) then true 
+    else (mand (f (head xs)) (mall f (tail xs)))
+}
+
+define mand(x:bool, y:bool) : bool = { 
+  if x then y else false 
+  }
+
+define geq(x:int, y:int) : bool = { 
+  x >= y 
+  }
+
+define lte(x:int, y:int) : bool = { 
+  x <= y 
+  }
+
+expand [1 : True]
+
+bind 0 xs  : {v: Vec int | true }
+bind 1 x   : {v: int | true }
+bind 2 y   : {v: int | true }
+bind 3 f   : {v: (func(0,[int;bool])) | true }
+
+constraint:
+  env [0; 1; 2; 3]
+  lhs {v : bool | mand (lte x y) (mall (geq y) xs) }
+  rhs {v : bool | mall (geq y) (VCons x xs)  }
+  id 1 tag []

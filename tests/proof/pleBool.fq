@@ -1,0 +1,23 @@
+fixpoint "--rewrite"
+
+constant geq: (func(0, [int; int; bool]))
+constant lte: (func(0, [int; int; bool]))
+
+define geq(x:int, y:int) : bool = { 
+  x >= y 
+  }
+
+define lte(x:int, y:int) : bool = { 
+  x <= y 
+  }
+
+expand [1 : True]
+
+bind 0 x  : {v: int | true }
+bind 1 y  : {v: int | true }
+
+constraint:
+  env [0; 1]
+  lhs {v : int | true }
+  rhs {v : int | geq x y <=> lte y x  }
+  id 1 tag []

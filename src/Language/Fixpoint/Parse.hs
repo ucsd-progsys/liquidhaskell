@@ -240,6 +240,9 @@ brackets      = Token.brackets      lexer
 angles        = Token.angles        lexer
 braces        = Token.braces        lexer
 
+sbraces :: Parser a -> Parser a 
+sbraces pp   = braces $ (spaces *> pp <* spaces)
+
 semi, colon, comma, dot, stringLiteral :: Parser String
 semi          = Token.semi          lexer
 colon         = Token.colon         lexer
@@ -789,8 +792,19 @@ defineP = do
   name   <- symbolP
   params <- parens        $ sepBy (symBindP sortP) comma
   sort   <- colon        *> sortP
-  body   <- reserved "=" *> predP
-  return  $ mkEquation name params body sort
+  body   <- reserved "=" *> sbraces (
+              if sort == boolSort then predP else exprP
+               )
+  let body' = PAtom Eq (eApps (EVar name) ((EVar . fst) <$> params)) body 
+  return  $ mkEquation name params body' sort
+
+
+axiomP :: Parser Equation
+axiomP = do
+  name   <- symbolP
+  params <- parens        $ sepBy (symBindP sortP) comma
+  body   <- reserved "=" *> sbraces predP
+  return  $ mkEquation name params body boolSort
 
 matchP :: Parser Rewrite
 matchP = SMeasure <$> symbolP <*> symbolP <*> many symbolP <*> (reserved "=" >> exprP)
@@ -804,7 +818,6 @@ pairsP aP bP = brackets $ sepBy1 (pairP aP (reserved ":") bP) semi
 -- Entities in Query File
 data Def a
   = Srt !Sort
-  | Axm !Expr
   | Cst !(SubC a)
   | Wfc !(WfC a)
   | Con !Symbol !Sort
@@ -832,7 +845,6 @@ fInfoP = defsFInfo <$> {-# SCC "many-defP" #-} many defP
 
 defP :: Parser (Def ())
 defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
-    <|> Axm   <$> (reserved "axiom"      >> colon >> predP)
     <|> Cst   <$> (reserved "constraint" >> colon >> {-# SCC "subCP" #-} subCP)
     <|> Wfc   <$> (reserved "wf"         >> colon >> {-# SCC "wfCP"  #-} wfCP)
     <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
@@ -844,6 +856,7 @@ defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
     <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
     <|> Opt    <$> (reserved "fixpoint"   >> stringLiteral)
     <|> Def    <$> (reserved "define"     >> defineP)
+    <|> Def    <$> (reserved "axiom"      >> colon >> axiomP)
     <|> Mat    <$> (reserved "match"      >> matchP)
     <|> Expand <$> (reserved "expand"     >> pairsP intP boolP)
     <|> Adt    <$> (reserved "data"       >> dataDeclP)

@@ -8,10 +8,11 @@ data Thing 0 = [
      ]
 
 // ACTUAL
-define killer (arg1 : Thing,  arg2 : Thing) : Thing = 
-  (((killer arg1 arg2) = (if (is$N arg1) 
-                            then (if (is$N arg2) then (arg1) else (Op (opLeft arg2) (killer (N (eNum arg1)) (opRight arg2)))) 
-                            else (Op (opLeft arg1) (killer (opRight arg1) arg2)))))
+define killer (arg1 : Thing,  arg2 : Thing) : Thing = {
+  if (is$N arg1) 
+    then (if (is$N arg2) then (arg1) else (Op (opLeft arg2) (killer (N (eNum arg1)) (opRight arg2)))) 
+    else (Op (opLeft arg1) (killer (opRight arg1) arg2))
+}
 
 constant killer : (func(0 , [Thing; Thing; Thing]))
 
