@@ -1,0 +1,22 @@
+fixpoint "--rewrite"
+
+constant sem: (func(0, [int; int; (Set_Set int)]))
+
+define sem (i : int,  j: int) : (Set_Set int) = {
+  if (i < j) then (Set_cup (Set_add (Set_empty 0) i) (sem (i + 1) j)) 
+             else (Set_empty 0)
+}
+
+
+expand [1 : True]
+
+bind 1 i0 : { v : int | true    }
+bind 2 j0 : { v : int | true    }
+bind 3 p  : { v : int | i0 < j0 }
+bind 4 q  : { v : int | j0 < i0 }
+
+constraint:
+  env [1; 2; 3; 4]
+  lhs {v : (Set_Set int) | v = sem i0 j0}
+  rhs {v : (Set_Set int) | v = sem j0 i0}
+  id 1 tag []
