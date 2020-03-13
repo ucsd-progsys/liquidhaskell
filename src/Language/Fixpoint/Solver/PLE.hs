@@ -18,7 +18,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Language.Fixpoint.Solver.Instantiate (instantiate) where
+module Language.Fixpoint.Solver.PLE (instantiate) where
 
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
@@ -31,7 +31,6 @@ import           Language.Fixpoint.Utils.Progress -- as T
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
-import qualified Language.Fixpoint.Solver.PLE             (instantiate)
 import           Control.Monad.State
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
@@ -39,25 +38,65 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
 import           Data.Char            (isUpper)
--- import           Debug.Trace          (trace)
+import           Debug.Trace          (trace)
 -- import           Text.Printf (printf)
 
+debug :: Debug
+debug = DMore
+
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp 
+mytracepp str x 
+  | debug == DAll
+  = tracepp str x  
+  | otherwise
+  = notracepp str x 
+
+data Threshold
+  = TZero 
+  | TUnlimited 
+  | TH Int 
+
+exceeds :: Int -> Threshold -> Bool 
+exceeds _ TZero = True 
+exceeds _ TUnlimited = False 
+exceeds i (TH j) = i > j 
+
+
+data Debug = DAll  -- show everything  
+           | DMore -- also show candidate expressions and evaluations 
+           | DSome -- only show number of candidates 
+           | DNone -- do not show anything  
+           deriving (Eq)
+
+traceC :: String -> [Expr] -> [Expr]
+traceC str es 
+  | debug == DNone 
+  = es 
+  | debug == DSome || debug == DMore
+  = trace ("\n" ++ show (length es) ++ " " ++ str) es 
+  | otherwise
+  = tracepp ("\n" ++ show (length es) ++ " " ++ str) es 
+
+traceE :: (Expr,Expr) -> (Expr,Expr)
+traceE (e,e') 
+  | debug == DNone 
+  = (e,e')
+  | debug == DMore
+  , e /= e' 
+  = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
+  | otherwise
+  = (e,e')
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && deepPLE cfg
-  = PLE.instantiate cfg fi
-
   | rewriteAxioms cfg && noIncrPle cfg
-  = instantiate' cfg fi
+  = instantiate' cfg (normalize fi)
 
   | rewriteAxioms cfg -- && incrPle cfg 
-  = incrInstantiate' cfg fi
+  = incrInstantiate' cfg (normalize fi)
 
   | otherwise         
   = return fi
@@ -153,15 +192,28 @@ evalCandsLoop cfg ctx γ s0 cands = go [] cands
     go acc []    = return acc 
     go acc cands = do eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                   SMT.smtAssert ctx (unfoldPred cfg ctx acc) 
-                                  mapM (evalOne γ s0) cands
+                                  mapM (evalOne γ s0) $ traceC "Candidates" cands
                       let us  = zip (Just <$> cands) eqss 
                       case mkUnfolds us of 
                         []  -> return acc 
                         us' -> do let acc'   = acc ++ us' 
                                   let oks    = S.fromList [ e | (Just e, _) <- us' ]
-                                  let cands' = [ e | e <- cands, not (S.member e oks) ] 
+                                  let newcands = traceC "New Candidates" $ concatMap (makeCandidates γ [x | (Just x, _) <- acc']) (snd <$> concat eqss)
+                                  let cands' = [ e | e <- cands ++ newcands, not (S.member e oks) ] 
                                   go acc' cands' 
-
+makeCandidates :: Knowledge -> [Expr] -> Expr -> [Expr]
+makeCandidates γ ok new 
+  = if exceeds (length realCandidates) thresHold then [] else realCandidates
+  where 
+    thresHold = TUnlimited 
+    realCandidates = filter (\n -> (goodApp n) && (not (n `elem` ok))) (topApps new)
+    isGoodApp :: Symbol -> [Expr] -> Bool 
+    isGoodApp f es = case L.lookup f (knSummary γ) of 
+                      Just i  -> length es == i 
+                      Nothing -> False 
+    goodApp e = case splitEApp e of 
+                  (EVar f ,es) -> isGoodApp f es 
+                  _ -> False 
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
@@ -374,7 +426,7 @@ type EvalST a = StateT EvalEnv IO a
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO [(Expr, Expr)]
 evalOne γ s0 e = do
   (e', st) <- runStateT (eval γ initCS (mytracepp "evalOne: " e)) s0 
-  if e' == e then return [] else return ((e, e') : evSequence st)
+  if e' == e then return [] else return (traceE (e,e') : evSequence st)
 
 {- | [NOTE: Eval-Ite]  We should not be doing any PLE/eval under if-then-else where 
      the guard condition does not provably hold. For example, see issue #387.
@@ -521,7 +573,7 @@ evalAppAc γ stk _e (EVar f, es)
   , recurCS stk f 
   = do env      <- seSort <$> gets evEnv
        mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e)) 
-         <$> evalRecApplication γ (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
+         <$> evalRecApplication γ f (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
 
 evalAppAc _ _ _ (f, es)
   = return (eApps f es)
@@ -600,19 +652,16 @@ substPopIf xes e = L.foldl' go e xes
 
 -- see [NOTE:Eval-Ite] the below is wrong; we need to guard other branches too. sigh.
 
-evalRecApplication :: Knowledge -> CStack -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ stk e (EIte b e1 e2) = do
-  contra <- {- mytracepp  ("CONTRA? " ++ showpp e) <$> -} liftIO (isValid γ PFalse)
-  if contra
-    then return e
-    else do b' <- eval γ stk (mytracepp "REC-APP-COND" b) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA-LOOP?
-            b1 <- liftIO (isValid γ b')
-            if b1
-              then addEquality γ e e1 >>
+evalRecApplication :: Knowledge -> Symbol -> CStack -> Expr -> Expr -> EvalST Expr
+evalRecApplication γ _ stk e (EIte b e1 e2) = do
+  b' <- eval γ stk (mytracepp "REC-APP-COND" b) -- <<<<<<<<<<<<<<<<<<<<< MOSSAKA-LOOP?
+  b1 <- liftIO (isValid γ b')
+  if b1
+     then addEquality γ e e1 >>
                    ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                    eval γ stk (mytracepp ("evalREC-1: " ++ showpp stk) e1) >>=
                    ((e, "App1: ") ~>)
-              else do
+     else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
@@ -620,8 +669,24 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
                            eval γ stk (mytracepp ("evalREC-2: " ++ showpp stk) e2) >>=
                            ((e, ("App2: " ++ showpp stk ) ) ~>)
                       else return e
-evalRecApplication _ _ _ e
-  = return e
+evalRecApplication γ f stk e bd = do 
+  let alts  = splitBranches f bd
+  altsEval <- mapM (\(c,e) -> (,e) <$> eval γ stk c) alts
+  altsDec  <- liftIO $ mapM (\(c,e) -> (,e) <$> isValid γ c) altsEval  
+  return $ Mb.fromMaybe e (snd <$> L.find fst altsDec)
+
+splitBranches :: Symbol -> Expr -> [(Expr,Expr)]
+splitBranches f = go 
+  where 
+    go (PAnd es) 
+      | any (== f) (syms es) 
+      = splitAnd <$> es
+    go e         
+      = [(PTrue,e)] 
+
+    splitAnd (PImp c e) = (c,    e)
+    splitAnd e          = (PTrue,e)
+  
 
 addEquality :: Knowledge -> Expr -> Expr -> EvalST ()
 addEquality γ e1 e2 =
@@ -664,6 +729,7 @@ data Knowledge = KN
   , knContext :: SMT.Context
   , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams    :: [(Symbol, Sort)]
+  , knSummary :: [(Symbol, Int)]
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
@@ -675,12 +741,16 @@ isProof (_, RR s _) = showpp s == "Tuple"
 
 knowledge :: Config -> SMT.Context -> AxiomEnv -> Knowledge
 knowledge cfg ctx aenv = KN 
-  { knSims    = aenvSimpl aenv
+  { knSims    = sims 
   , knAms     = aenvEqs   aenv
   , knContext = ctx 
   , knPreds   = askSMT    cfg 
   , knLams    = [] 
+  , knSummary =    ((\s -> (smName s, length (smArgs s))) <$> sims) 
+                ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   } 
+  where 
+    sims = aenvSimpl aenv
 
 -- | This creates the rewrite rule e1 -> e2, applied when:
 -- 1. when e2 is a DataCon and can lead to further reductions
@@ -814,3 +884,23 @@ withCtx cfg file env k = do
   modify (\st -> st {evId = (mytracepp msg $ evId st) + 1})
   return e'
 
+-------------------------------------------------------------------------------
+-- | Normalization of Equation: make their arguments unique -------------------
+-------------------------------------------------------------------------------
+
+class Normalizable a where 
+  normalize :: a -> a 
+
+instance Normalizable (GInfo c a) where 
+  normalize si = si {ae = normalize $ ae si}
+
+instance Normalizable AxiomEnv where 
+  normalize aenv = aenv {aenvEqs = normalize <$> aenvEqs aenv}
+
+instance Normalizable Equation where 
+  normalize eq = eq {eqArgs = zip xs' ss, eqBody = subst su $ eqBody eq }
+    where 
+      su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
+      (xs,ss) = unzip (eqArgs eq) 
+      xs'     = zipWith mkSymbol xs [0..]
+      mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 

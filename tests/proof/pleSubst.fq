@@ -1,4 +1,5 @@
 fixpoint "--rewrite"
+fixpoint "--deepPLE"
 
 constant geq: (func(0, [int; int; bool]))
 constant lte: (func(0, [int; int; bool]))

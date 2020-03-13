@@ -87,6 +87,7 @@ data Config = Config
   , nonLinCuts       :: Bool           -- ^ Treat non-linear vars as cuts
   , noslice          :: Bool           -- ^ Disable non-concrete KVar slicing
   , rewriteAxioms    :: Bool           -- ^ Allow axiom instantiation via rewriting
+  , deepPLE          :: Bool           -- ^ Use new deep PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality 
@@ -174,6 +175,7 @@ defConfig = Config {
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
+  , deepPLE          = False &= help "Use new deep PLE"
   , noIncrPle        = False &= help "Don't use incremental PLE"
   , checkCstr        = []    &= help "Only check these specific constraint-ids" 
   , extensionality   = False &= help "Allow extensional interpretation of extensionality"

@@ -1,4 +1,5 @@
 fixpoint "--rewrite"
+fixpoint "--deepPLE"
 
 
 data Vec 1 = [
@@ -48,10 +49,9 @@ expand [1 : True]
 bind 0 xs  : {v: Vec int | true }
 bind 1 x   : {v: int | true }
 bind 2 y   : {v: int | true }
-bind 3 f   : {v: (func(0,[int;bool])) | true }
 
 constraint:
-  env [0; 1; 2; 3]
-  lhs {v : bool | mand (lte x y) (mall (geq y) xs) }
-  rhs {v : bool | mall (geq y) (VCons x xs)  }
+  env [0; 1; 2]
+  lhs {v : int | true }
+  rhs {v : int | (mall (geq y) (VCons x xs)) = (mand (lte x y) (mall (geq y) xs))  }
   id 1 tag []
