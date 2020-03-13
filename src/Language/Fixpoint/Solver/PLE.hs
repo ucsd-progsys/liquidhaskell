@@ -91,15 +91,7 @@ traceE (e,e')
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
-instantiate cfg fi
-  = incrInstantiate' cfg (normalize fi)
-
-------------------------------------------------------------------------------- 
--- | New "Incremental" PLE
-------------------------------------------------------------------------------- 
-incrInstantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
-------------------------------------------------------------------------------- 
-incrInstantiate' cfg fi = do 
+instantiate cfg fi' = do 
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $ 
@@ -109,6 +101,7 @@ incrInstantiate' cfg fi = do
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
     aEnv   = ae fi 
+    fi     = normalize fi' 
 
 
 
@@ -324,81 +317,8 @@ updCtx InstEnv {..} ctx delta cidMb
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 
---------------------------------------------------------------------------------
--- | "Old" GLOBAL PLE 
---------------------------------------------------------------------------------
-instantiate' :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
-instantiate' cfg fi = sInfo cfg env fi <$> withCtx cfg file env act
-  where
-    act ctx         = forM cstrs $ \(i, c) ->
-                        ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
-    cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c] 
-    file            = srcFile cfg ++ ".evals"
-    env             = symbolEnv cfg fi
-    aenv            = {- mytracepp  "AXIOM-ENV" -} (ae fi)
-
-sInfo :: Config -> SymEnv -> SInfo a -> [((SubcId, SrcSpan), Expr)] -> SInfo a
-sInfo cfg env fi ips = strengthenHyp fi (mytracepp  "ELAB-INST:  " $ zip (fst <$> is) ps'')
-  where
-    (is, ps)         = unzip ips
-    ps'              = defuncAny cfg env ps
-    ps''             = zipWith (\(i, sp) -> elaborate (atLoc sp ("PLE1 " ++ show i)) env) is ps' 
-
-instSimpC :: Config -> SMT.Context -> BindEnv -> AxiomEnv -> SubcId -> SimpC a -> IO Expr
-instSimpC cfg ctx bds aenv sid sub 
-  | isPleCstr aenv sid sub = do
-    let is0       = mytracepp  "INITIAL-STUFF" $ eqBody <$> L.filter (null . eqArgs) (aenvEqs aenv) 
-    let (bs, es0) = cstrExprs bds sub
-    equalities   <- evaluate cfg ctx aenv bs es0 sid 
-    let evalEqs   = [ EEq e1 e2 | (e1, e2) <- equalities, e1 /= e2 ] 
-    return        $ pAnd (is0 ++ evalEqs)  
-  | otherwise     = return PTrue
-
 isPleCstr :: AxiomEnv -> SubcId -> SimpC a -> Bool
 isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv) 
-
-cstrExprs :: BindEnv -> SimpC a -> ([(Symbol, SortedReft)], [Expr])
-cstrExprs bds sub = (unElab <$> binds, unElab <$> es)
-  where
-    es            = (crhs sub) : (expr <$> binds)
-    binds         = envCs bds (senv sub)
-
---------------------------------------------------------------------------------
--- | Symbolic Evaluation with SMT
---------------------------------------------------------------------------------
-evaluate :: Config -> SMT.Context -> AxiomEnv -- ^ Definitions
-         -> [(Symbol, SortedReft)]            -- ^ Environment of "true" facts 
-         -> [Expr]                            -- ^ Candidates for unfolding 
-         -> SubcId                            -- ^ Constraint Id
-         -> IO [(Expr, Expr)]                 -- ^ Newly unfolded equalities
---------------------------------------------------------------------------------
-evaluate cfg ctx aenv facts es sid = do 
-  let eqs      = initEqualities ctx aenv facts  
-  let γ        = knowledge cfg ctx aenv 
-  let cands    = mytracepp  ("evaluate-cands " ++ showpp sid) $ Misc.hashNub (concatMap topApps es)
-  let s0       = EvalEnv 0 [] aenv (SMT.ctxSymEnv ctx) cfg
-  let ctxEqs   = [ toSMT cfg ctx [] (EEq e1 e2) | (e1, e2)  <- eqs ]
-              ++ [ toSMT cfg ctx [] (expr xr)   | xr@(_, r) <- facts, null (Vis.kvars r) ] 
-  eqss        <- _evalLoop cfg ctx γ s0 ctxEqs cands 
-  return       $ eqs ++ eqss
-
-
- 
-_evalLoop :: Config -> SMT.Context -> Knowledge -> EvalEnv -> [Pred] -> [Expr] -> IO [(Expr, Expr)]
-_evalLoop cfg ctx γ s0 ctxEqs cands = loop 0 [] cands 
-  where 
-    loop _ acc []    = return acc
-    loop i acc cands = do let eqp = toSMT cfg ctx [] $ pAnd $ equalitiesPred acc
-                          eqss <- SMT.smtBracket ctx "PLE.evaluate" $ do
-                                    forM_ (eqp : ctxEqs) (SMT.smtAssert ctx) 
-                                    mapM (evalOne γ s0) cands
-                          case concat eqss of 
-                            []   -> return acc 
-                            eqs' -> do let acc'   = acc ++ eqs' 
-                                       let oks    = S.fromList (fst <$> eqs')
-                                       let cands' = [ e | e <- cands, not (S.member e oks) ] 
-                                       loop (i+1) acc' cands'
-
 
 
 --------------------------------------------------------------------------------

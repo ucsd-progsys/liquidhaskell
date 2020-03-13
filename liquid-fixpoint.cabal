@@ -133,7 +133,8 @@ library
   default-language: Haskell98
   ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 
-
+  if flag(devel)
+    ghc-options: -Werror
 
   if !os(windows)
     hs-source-dirs: unix
