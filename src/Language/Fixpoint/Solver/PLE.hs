@@ -23,11 +23,11 @@ module Language.Fixpoint.Solver.PLE (instantiate) where
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
-import qualified Language.Fixpoint.Misc          as Misc -- (mapFst)
+import qualified Language.Fixpoint.Misc          as Misc 
 import qualified Language.Fixpoint.Smt.Interface as SMT
 import           Language.Fixpoint.Defunctionalize
 import qualified Language.Fixpoint.Utils.Trie    as T 
-import           Language.Fixpoint.Utils.Progress -- as T 
+import           Language.Fixpoint.Utils.Progress 
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
@@ -36,55 +36,19 @@ import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
-import qualified Data.Maybe           as Mb -- (isNothing, catMaybes, fromMaybe)
+import qualified Data.Maybe           as Mb 
 import           Data.Char            (isUpper)
 import           Debug.Trace          (trace)
--- import           Text.Printf (printf)
-
-debug :: Debug
-debug = DMore
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp str x 
-  | debug == DAll
-  = tracepp str x  
-  | otherwise
-  = notracepp str x 
-
-data Threshold
-  = TZero 
-  | TUnlimited 
-  | TH Int 
-
-exceeds :: Int -> Threshold -> Bool 
-exceeds _ TZero = True 
-exceeds _ TUnlimited = False 
-exceeds i (TH j) = i > j 
-
-
-data Debug = DAll  -- show everything  
-           | DMore -- also show candidate expressions and evaluations 
-           | DSome -- only show number of candidates 
-           | DNone -- do not show anything  
-           deriving (Eq)
-
-traceC :: String -> [Expr] -> [Expr]
-traceC str es 
-  | debug == DNone 
-  = es 
-  | debug == DSome || debug == DMore
-  = trace ("\n" ++ show (length es) ++ " " ++ str) es 
-  | otherwise
-  = tracepp ("\n" ++ show (length es) ++ " " ++ str) es 
+mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | debug == DNone 
-  = (e,e')
-  | debug == DMore
+  | True 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
-  | otherwise
+  | otherwise 
   = (e,e')
 
 --------------------------------------------------------------------------------
@@ -112,8 +76,8 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
   where 
     bEnv              = bs fi
     aEnv              = ae fi
-    γ                 = knowledge cfg ctx aEnv 
-    s0                = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg 
+    γ                 = knowledge cfg ctx fi  
+    s0                = EvalEnv 0 [] (tracepp "AENV = " aEnv) (SMT.ctxSymEnv ctx) cfg 
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -169,32 +133,35 @@ evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO [Un
 evalCandsLoop cfg ictx0 ctx γ env = go [] ictx0 
   where 
     go acc ictx | S.null (icCands ictx) = return acc 
-    go acc ictx =  do let cands = S.toList (icCands ictx) 
+    go acc ictx =  do let cands = tracepp "\nCandidates = " $ S.toList (icCands ictx) 
                       eqss   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                   SMT.smtAssert ctx (unfoldPred cfg ctx acc) 
-                                  mapM (evalOne γ env) $ traceC "Candidates" cands
-                      let us  = zip (Just <$> cands) eqss 
+                                  mapM (evalOne γ env) cands
+                      let us  = zip cands eqss 
                       case mkUnfolds us of 
                         []  -> return acc 
-                        us' -> do let acc'   = acc ++ us' 
-                                  let oks    = S.fromList [ e | (Just e, _) <- us' ]
-                                  let ictx'  = ictx {icSolved = icSolved ictx <> oks }
-                                  let newcands = traceC "New Candidates" $ concatMap (makeCandidates γ ictx') (snd <$> concat eqss)
+                        us' -> do let acc'     = acc ++ us' 
+                                  let oks      = S.fromList (fst <$> us')
+                                  let ictx'    = ictx {icSolved = icSolved ictx <> oks }
+                                  let newcands = concatMap (makeCandidates γ ictx') (cands ++ (snd <$> concat eqss))
                                   go acc' (ictx' {icCands = S.fromList newcands}) 
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 3: @resSInfo@ uses incremental PLE result @InstRes@ to produce the strengthened SInfo 
+---------------------------------------------------------------------------------------------- 
 
 resSInfo :: Config -> SymEnv -> SInfo a -> InstRes -> SInfo a
 resSInfo cfg env fi res = strengthenBinds fi res' 
   where
-    res'     = M.fromList $ mytracepp  "ELAB-INST:  " $ zip is ps''
+    res'     = M.fromList $ zip is ps''
     ps''     = zipWith (\i -> elaborate (atLoc dummySpan ("PLE1 " ++ show i)) env) is ps' 
     ps'      = defuncAny cfg env ps
     (is, ps) = unzip (M.toList res)
 
 ---------------------------------------------------------------------------------------------- 
 -- | @InstEnv@ has the global information needed to do PLE
+---------------------------------------------------------------------------------------------- 
+
 data InstEnv a = InstEnv 
   { ieCfg   :: !Config
   , ieSMT   :: !SMT.Context
@@ -205,7 +172,10 @@ data InstEnv a = InstEnv
   , ieEvEnv :: !EvalEnv
   } 
 
+---------------------------------------------------------------------------------------------- 
 -- | @ICtx@ is the local information -- at each trie node -- obtained by incremental PLE
+---------------------------------------------------------------------------------------------- 
+
 data ICtx    = ICtx 
   { icAssms  :: ![Pred]          -- ^ Hypotheses, already converted to SMT format 
   , icCands  :: S.HashSet Expr   -- ^ "Candidates" for unfolding
@@ -213,14 +183,19 @@ data ICtx    = ICtx
   , icSolved :: S.HashSet Expr   -- ^ Terms that we have already expanded
   } 
 
+---------------------------------------------------------------------------------------------- 
 -- | @InstRes@ is the final result of PLE; a map from @BindId@ to the equations "known" at that BindId
+---------------------------------------------------------------------------------------------- 
+
 type InstRes = M.HashMap BindId Expr
 
+---------------------------------------------------------------------------------------------- 
 -- | @Unfold is the result of running PLE at a single equality; 
 --     (e, [(e1, e1')...]) is the source @e@ and the (possible empty) 
 --   list of PLE-generated equalities (e1, e1') ... 
--- type Unfold  = (Maybe Expr, [(Expr, Expr)])
-type Unfold  = (Maybe Expr, [Expr])
+---------------------------------------------------------------------------------------------- 
+
+type Unfold  = (Expr, [Expr])
 type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
@@ -229,7 +204,7 @@ initCtx :: [Expr] -> ICtx
 initCtx es = ICtx 
   { icAssms  = [] 
   , icCands  = mempty 
-  , icEquals = mytracepp  "INITIAL-STUFF-INCR" es 
+  , icEquals = es 
   , icSolved = mempty
   }
 
@@ -244,7 +219,7 @@ updCtxRes ctx res iMb us
   where 
     res'               = updRes res iMb (pAnd solvedEqs) 
     solved'            = S.union (icSolved ctx) solvedCands 
-    solvedCands        = S.fromList [ e | (Just e, _) <- okUnfolds ] 
+    solvedCands        = S.fromList (fst <$> okUnfolds) 
     solvedEqs          = icEquals ctx ++ newEqs 
     newEqs             = concatMap snd okUnfolds
     okUnfolds          = [ (eMb, ps)  | (eMb, ps) <- us, not (null ps) ] 
@@ -260,8 +235,11 @@ updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
 updRes res (Just i) e = M.insert i e res 
 updRes res  Nothing _ = res 
 
+---------------------------------------------------------------------------------------------- 
 -- | @updCtx env ctx delta cidMb@ adds the assumptions and candidates from @delta@ and @cidMb@ 
 --   to the context. 
+---------------------------------------------------------------------------------------------- 
+
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
 updCtx InstEnv {..} ctx delta cidMb 
               = ctx { icAssms  = ctxEqs  
@@ -283,10 +261,8 @@ updCtx InstEnv {..} ctx delta cidMb
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
-  = if exceeds (length realCandidates) thresHold then [] else realCandidates
+  = filter (\n -> goodApp n && (not (n `S.member` icSolved ctx))) (topApps expr)
   where 
-    thresHold = TUnlimited 
-    realCandidates = filter (\n -> (goodApp n) && (not (n `S.member` icSolved ctx))) (topApps expr)
     isGoodApp f es = case L.lookup f (knSummary γ) of 
                       Just i  -> length es == i 
                       Nothing -> False 
@@ -341,7 +317,6 @@ pushCS (fs, r) f = (f:fs, r)
 
 recurCS :: CStack -> Symbol -> Bool 
 recurCS (_,  Ok) _ = True 
--- recurCS (_,  _ ) _ = False -- not (f `elem` fs) 
 recurCS (fs, _) f  = not (f `elem` fs) 
 
 noRecurCS :: CStack -> CStack 
@@ -359,7 +334,7 @@ topApps = go
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
-    go e@(EApp _ _)    = [e]
+    go e@(EApp _ _)    = [e] -- go e1 ++ go e2 
     go _               = []
 
 -- makeLam is the adjoint of splitEApp
@@ -628,18 +603,37 @@ isValid γ e = mytracepp ("isValid: " ++ showpp e) <$>
 isProof :: (a, SortedReft) -> Bool 
 isProof (_, RR s _) = showpp s == "Tuple"
 
-knowledge :: Config -> SMT.Context -> AxiomEnv -> Knowledge
-knowledge cfg ctx aenv = KN 
-  { knSims    = sims 
-  , knAms     = aenvEqs   aenv
+knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
+knowledge cfg ctx si = KN 
+  { knSims    = tracepp "SIMS" $ sims 
+  , knAms     = tracepp "Ams" $ aenvEqs   aenv
   , knContext = ctx 
   , knPreds   = askSMT    cfg 
   , knLams    = [] 
-  , knSummary =    ((\s -> (smName s, length (smArgs s))) <$> sims) 
+  , knSummary =    ((\s -> (smName s, 1)) <$> sims) 
                 ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   } 
   where 
-    sims = aenvSimpl aenv
+    sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
+    aenv = ae si 
+
+reWriteDDecl :: DataDecl -> [Rewrite]
+reWriteDDecl ddecl = concatMap go' (ddCtors ddecl) -- ++
+                     -- concatMap go (ddCtors ddecl)
+  where 
+    go' (DCtor f xs) =  sels {- 
+    go (DCtor f xs)  = SMeasure (testSymbol f') f' ys PTrue:
+                       ([SMeasure (testSymbol f') (symbol nf) (mkArg zs) PFalse | DCtor nf zs <- ddCtors ddecl, nf /= f ]  
+                        ++ zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i))) rs [0..]) -}
+       where 
+        sels = zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i)) ) rs [0..]
+        f'  = symbol f 
+        rs  = (val . dfName) <$> xs  
+        mkArg ws = zipWith (\_ i -> intSymbol (symbol ("darg"::String)) i) ws [0..]
+        ys  = mkArg xs 
+
+
+
 
 -- | This creates the rewrite rule e1 -> e2, applied when:
 -- 1. when e2 is a DataCon and can lead to further reductions

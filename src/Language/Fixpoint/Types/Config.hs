@@ -175,7 +175,7 @@ defConfig = Config {
   , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
   , noslice          = False &= help "Disable non-concrete KVar slicing"
   , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
-  , deepPLE          = False &= help "Use new deep PLE"
+  , deepPLE          = True  &= help "Use new deep PLE"
   , noIncrPle        = False &= help "Don't use incremental PLE"
   , checkCstr        = []    &= help "Only check these specific constraint-ids" 
   , extensionality   = False &= help "Allow extensional interpretation of extensionality"
