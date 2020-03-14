@@ -77,7 +77,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv aEnv (SMT.ctxSymEnv ctx) cfg 
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) 
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -279,10 +279,7 @@ isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
-  { _evAEnv     :: !AxiomEnv
-  , evEnv       :: !SymEnv
-  , _evCfg      :: !Config
-  }
+  { evEnv :: !SymEnv }
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
@@ -292,7 +289,6 @@ evalOne γ env e = do
   e' <- evalStateT (eval γ e) env 
   if e' == e then return Nothing else return (Just $ traceE (e,e'))
 
--- Don't evaluate under Lam, App, Ite, or Constants
 topApps :: Expr -> [Expr]
 topApps = go 
   where 
@@ -304,7 +300,7 @@ topApps = go
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
-    go (EIte e _ _)    = go e 
+    go (EIte e e1 e2)  = go e ++ go e1 ++ go e2  
     go e@(EApp e1 e2)  = go e1 ++ go e2 ++ [e]
     go _               = []
 
@@ -423,7 +419,7 @@ substPopIf xes e = L.foldl' go e xes
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ f e (EIte b e1 e2) = do 
+evalRecApplication γ _ e !(EIte b e1 e2) = do 
   bt <- liftIO $ isValid γ b  
   bf <- liftIO $ isValid γ (PNot b)
   if bt 
@@ -431,7 +427,7 @@ evalRecApplication γ f e (EIte b e1 e2) = do
     else if bf then return e2 
     else return e    
 
-evalRecApplication γ f e bd = do 
+evalRecApplication γ f e !bd = do 
   let alts  = splitBranches f bd
   altsEval <- mapM (\(c,e) -> (,e) <$> eval γ c) alts
   altsDec  <- liftIO $ mapM (\(c,e) -> (,e) <$> isValid γ c) altsEval  
@@ -462,12 +458,12 @@ evalIte γ e b e1 e2 = do
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
 data Knowledge = KN 
-  { knSims    :: ![Rewrite]           -- ^ Measure info, asserted for each new Ctor ('assertSelectors')
-  , knAms     :: ![Equation]          -- ^ (Recursive) function definitions, used for PLE
+  { knSims    :: ![Rewrite]           -- ^ Rewrite rules came from match and data type definitions 
+  , knAms     :: ![Equation]          -- ^ All function definitions
   , knContext :: SMT.Context
   , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams    :: [(Symbol, Sort)]
-  , knSummary :: [(Symbol, Int)]
+  , knSummary :: [(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
@@ -521,10 +517,6 @@ initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dc
     dcEqs                  = Misc.hashNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
     atoms                  = splitPAnd =<< (expr <$> filter isProof es)
     senv                   = SMT.ctxSymEnv ctx
-
--- AT: Non-obvious needed invariant: askSMT True is always the 
--- totality-effecting one.
--- RJ: What does "totality effecting" mean? 
 
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
