@@ -259,7 +259,7 @@ updCtx InstEnv {..} ctx delta cidMb
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
-  = notracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
+  = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
     cands = filter (\e -> isGoodApp e && (not (e `S.member` icSolved ctx))) (topApps expr)
     isGoodApp e 
@@ -343,14 +343,15 @@ evalApp γ e (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es 
-  = do env      <- seSort <$> gets evEnv
-       evalRecApplication γ f e (substEq env Normal eq es bd)
+  = do env <- seSort <$> gets evEnv
+       e'  <- evalRecApplication γ f e (substEq env Normal eq es bd) 
+       if e /= e' then eval γ e' else return e 
 
 evalApp γ _ (EVar f, [e]) 
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
-  = return $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
+  = eval γ $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
 
 evalApp _ e _
   = return e
@@ -381,19 +382,19 @@ substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
     eTs   = sortExpr sp env <$> es
-    coSub = mytracepp  ("substEqCoerce" ++ showpp (eqName eq, es, eTs, ts)) $ mkCoSub env eTs ts
+    coSub = mkCoSub env eTs ts
 
 mkCoSub :: SEnv Sort -> [Sort] -> [Sort] -> Vis.CoSub
 mkCoSub env eTs xTs = M.fromList [ (x, unite ys) | (x, ys) <- Misc.groupList xys ] 
   where
-    unite ts    = mytracepp ("UNITE: " ++ showpp ts) $ Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
+    unite ts    = Mb.fromMaybe (uError ts) (unifyTo1 senv ts)
     senv        = mkSearchEnv env
     uError ts   = panic ("mkCoSub: cannot build CoSub for " ++ showpp xys ++ " cannot unify " ++ showpp ts) 
-    xys         = mytracepp "mkCoSubXXX" $ Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
-    (_xTs,_eTs) = mytracepp "mkCoSub:MATCH" $ (xTs, eTs)
+    xys         = Misc.sortNub $ concat $ zipWith matchSorts _xTs _eTs
+    (_xTs,_eTs) = (xTs, eTs)
 
 matchSorts :: Sort -> Sort -> [(Symbol, Sort)]
-matchSorts s1 s2 = mytracepp  ("matchSorts :" ++ showpp (s1, s2)) $ go s1 s2
+matchSorts s1 s2 = go s1 s2
   where
     go (FObj x)      {-FObj-} y    = [(x, y)]
     go (FAbs _ t1)   (FAbs _ t2)   = go t1 t2
@@ -431,8 +432,8 @@ substPopIf xes e = L.foldl' go e xes
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ _ e !(EIte b e1 e2) = do 
-  bt <- liftIO $ (notracepp ("isValid POS guard = " ++ showpp b) <$> isValid γ b)
-  bf <- liftIO $ (notracepp ("isValid NEG guard = " ++ showpp (PNot b)) <$> isValid γ (PNot b))
+  bt <- liftIO $ isValid γ b
+  bf <- liftIO $ isValid γ (PNot b)
   if bt 
     then return e1 
     else if bf then return e2 
@@ -445,7 +446,7 @@ evalRecApplication γ f e !bd = do
   return $ Mb.fromMaybe e (snd <$> L.find fst altsDec)
 
 splitBranches :: Symbol -> Expr -> [(Expr,Expr)]
-splitBranches f es = notracepp ("SPLIT BRANCHES ON " ++ showpp f) $ go es  
+splitBranches f es = go es  
   where 
     go (PAnd es) 
       | any (== f) (syms es) 
@@ -458,8 +459,8 @@ splitBranches f es = notracepp ("SPLIT BRANCHES ON " ++ showpp f) $ go es
   
 evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 evalIte γ e b e1 e2 = do 
-  b'  <- liftIO (isValid γ b)
-  nb' <- liftIO (isValid γ $ PNot b)
+  b'  <- liftIO $ isValid γ b
+  nb' <- liftIO $ isValid γ (PNot b)
   if b' 
     then return e1 
     else if nb' then return e2 
