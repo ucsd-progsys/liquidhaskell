@@ -38,16 +38,16 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb 
 import           Data.Char            (isUpper)
--- import           Debug.Trace          (trace)
+import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | True 
+  | False -- True 
   , e /= e' 
-  = tracepp ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
+  = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
   = (e,e')
 
@@ -77,7 +77,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv 0 [] aEnv (SMT.ctxSymEnv ctx) cfg 
+    s0                = EvalEnv aEnv (SMT.ctxSymEnv ctx) cfg 
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -259,8 +259,9 @@ updCtx InstEnv {..} ctx delta cidMb
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
-  = filter (\e -> isGoodApp e && (not (e `S.member` icSolved ctx))) (topApps expr)
+  = notracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
+    cands = filter (\e -> isGoodApp e && (not (e `S.member` icSolved ctx))) (topApps expr)
     isGoodApp e 
       | (EVar f, es) <- splitEApp e
       , Just i       <- L.lookup f (knSummary γ)
@@ -278,9 +279,7 @@ isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
-  { evId        :: !Int
-  , evSequence  :: [(Expr,Expr)]
-  , _evAEnv     :: !AxiomEnv
+  { _evAEnv     :: !AxiomEnv
   , evEnv       :: !SymEnv
   , _evCfg      :: !Config
   }
@@ -290,35 +289,8 @@ type EvalST a = StateT EvalEnv IO a
 
 evalOne :: Knowledge -> EvalEnv -> Expr -> IO (Maybe (Expr, Expr))
 evalOne γ env e = do
-  e' <- evalStateT (eval γ initCS (mytracepp "evalOne: " e)) env 
+  e' <- evalStateT (eval γ e) env 
   if e' == e then return Nothing else return (Just $ traceE (e,e'))
-
-{- | [NOTE: Eval-Ite]  We should not be doing any PLE/eval under if-then-else where 
-     the guard condition does not provably hold. For example, see issue #387.
-     However, its ok and desirable to `eval` in this case, as long as one is not 
-     unfolding recursive functions. To permit this, we track the "call-stack" and 
-     whether or not, `eval` is occurring under an unresolved guard: if so, we do not 
-     expand under any function that is already on the call-stack.
-  -}
-
-data Recur  = Ok | Stop deriving (Eq, Show)
-type CStack = ([Symbol], Recur)
-
-instance PPrint Recur where 
-  pprintTidy _ = Misc.tshow 
-
-initCS :: CStack 
-initCS = ([], Ok)
-
-pushCS :: CStack -> Symbol -> CStack 
-pushCS (fs, r) f = (f:fs, r)
-
-recurCS :: CStack -> Symbol -> Bool 
-recurCS (_,  Ok) _ = True 
-recurCS (fs, _) f  = not (f `elem` fs) 
-
-noRecurCS :: CStack -> CStack 
-noRecurCS (fs, _) = (fs, Stop)
 
 -- Don't evaluate under Lam, App, Ite, or Constants
 topApps :: Expr -> [Expr]
@@ -332,21 +304,17 @@ topApps = go
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
-    go e@(EApp _ _)    = [e] -- go e1 ++ go e2 
+    go (EIte e _ _)    = go e 
+    go e@(EApp e1 e2)  = go e1 ++ go e2 ++ [e]
     go _               = []
 
--- makeLam is the adjoint of splitEApp
-makeLam :: Knowledge -> Expr -> Expr
-makeLam γ e = L.foldl' (flip ELam) e (knLams γ)
-
-eval :: Knowledge -> CStack -> Expr -> EvalST Expr
-eval γ stk = go 
+eval :: Knowledge -> Expr -> EvalST Expr
+eval γ = go 
   where 
-    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' stk e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = go b        >>= \b' -> evalIte γ stk e b' e1 e2
+    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' e where γ' = γ { knLams = (x, s) : knLams γ }
+    go e@(EIte b e1 e2) = evalIte γ e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
-    go e@(EApp _ _)     = evalArgs γ stk e >>= evalApp γ stk e 
-    go e@(EVar _)       = evalApp  γ stk e (e, [])
+    go e@(EApp _ _)     = evalApp γ e (splitEApp e)
     go (PAtom r e1 e2)  = PAtom r      <$> go e1 <*> go e2
     go (ENeg e)         = ENeg         <$> go e
     go (EBin o e1 e2)   = EBin o       <$> go e1 <*> go e2
@@ -362,85 +330,25 @@ eval γ stk = go
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
--- | `evalArgs` also evaluates all the partial applications for hacky reasons,
---   suppose `foo g = id` then we want `foo g 10 = 10` and for that we need 
---   to `eval` the term `foo g` into `id` to tickle the `eval` on `id 10`.
---   This seems a bit of a hack. At any rate, this can lead to divergence. 
---   TODO: distill a .fq test from the MOSSAKA-hw3 example.
 
-evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs γ stk e = go [] e 
-  where
-    go acc (EApp f e)
-      = do f' <- evalOk γ stk f
-           e' <- eval γ stk e
-           go (e':acc) f'
-    go acc e
-      = (,acc) <$> eval γ stk e
-
--- | Minimal test case illustrating this `evalOk` hack is LH#tests/ple/pos/MossakaBug.hs
---   too tired & baffled to generate simple .fq version. TODO:nuke and rewrite PLE!
-evalOk :: Knowledge -> CStack -> Expr -> EvalST Expr
-evalOk γ stk@(_, Ok) e = eval γ stk e 
-evalOk _ _           e = pure e 
-
-{- 
-evalArgs :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgs 
-  | True  = evalArgsOLD 
-  | False = evalArgsNEW 
-
-evalArgsNEW :: Knowledge -> CStack -> Expr -> EvalST (Expr, [Expr])
-evalArgsNEW γ stk e = do 
-    let (e1, es) = splitEApp e 
-    e1' <- eval γ stk e1 
-    es' <- mapM (eval γ stk) es 
-    return (e1', es')
-
--}
-    
-evalApp :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
--- evalApp γ stk e (e1, es) = tracepp ("evalApp:END" ++ showpp (e1,es)) <$> (evalAppAc γ stk e (e1, es))
-evalApp γ stk e (e1, es) = do 
-  res     <- evalAppAc γ stk e (e1, es)
-  let diff = (res /= (eApps e1 es))
-  return   $ mytracepp ("evalApp:END:" ++ showpp diff) res 
-
-evalAppAc :: Knowledge -> CStack -> Expr -> (Expr, [Expr]) -> EvalST Expr
-
-{- MOSSAKA-} 
-evalAppAc γ stk e (EVar f, [ex])
-  | (EVar dc, es) <- splitEApp ex
-  , Just simp <- L.find (\simp -> (smName simp == f) && (smDC simp == dc)) (knSims γ)
-  , length (smArgs simp) == length es
-  = do let msg    = "evalAppAc:ePop: " ++ showpp (f, dc, es)
-       let ePopIf = mytracepp msg $ substPopIf (zip (smArgs simp) es) (smBody simp)
-       e'    <- eval γ stk ePopIf 
-       (e, "Rewrite -" ++ showpp f) ~> e'
-
-evalAppAc γ stk _ (EVar f, es)
-  -- we should move the lookupKnowledge stuff here into kmAms γ
-  | Just eq <- L.find (( == f) . eqName) (knAms γ)
-  , Just bd <- getEqBody eq
-  , length (eqArgs eq) == length es
-  , f `notElem` syms bd               -- non-recursive equations << HACK! misses MUTUALLY RECURSIVE definitions! 
-  , recurCS stk f 
-  = do env   <- seSort <$> gets evEnv
-       let ee = substEq env PopIf eq es bd
-       assertSelectors γ ee 
-       eval γ (pushCS stk f) ee 
-
-evalAppAc γ stk _e (EVar f, es)
+evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalApp γ e (EVar f, es) 
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , Just bd <- getEqBody eq
-  , length (eqArgs eq) == length es   -- recursive equations
-  , recurCS stk f 
+  , length (eqArgs eq) == length es 
   = do env      <- seSort <$> gets evEnv
-       mytracepp ("EVAL-REC-APP" ++ showpp (stk, _e)) 
-         <$> evalRecApplication γ f (pushCS stk f) (eApps (EVar f) es) (substEq env Normal eq es bd)
+       evalRecApplication γ f e (substEq env Normal eq es bd)
 
-evalAppAc _ _ _ (f, es)
-  = return (eApps f es)
+evalApp γ _ (EVar f, [e]) 
+  | (EVar dc, as) <- splitEApp e
+  , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
+  , length as == length (smArgs rw)
+  = return $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
+
+evalApp _ e _
+  = return e
+
+
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
@@ -514,31 +422,17 @@ substPopIf xes e = L.foldl' go e xes
     go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
     go e (x, ex)           = subst1 e (x, ex)
 
-evalRecApplication :: Knowledge -> Symbol -> CStack -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ _ stk e (EIte b e1 e2) = do
-    b' <- eval γ stk b
-    b1 <- liftIO (isValid γ b')
-    if b1
-     then addEquality γ e e1 >>
-                   ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
-                   eval γ stk e1 >>=
-                   ((e, "App1: ") ~>)
-     else do
-                   b2 <- liftIO (isValid γ (PNot b'))
-                   if b2
-                      then addEquality γ e e2 >>
-                           ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
-                           eval γ stk (mytracepp ("evalREC-2: " ++ showpp stk) e2) >>=
-                           ((e, ("App2: " ++ showpp stk ) ) ~>)
-                      else return e
-evalRecApplication γ f stk e bd = do 
+evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
+evalRecApplication γ f e (EIte b e1 e2) = 
+  evalRecApplication γ f e (PAnd [PImp b e1,PImp (PNot b) e2])
+evalRecApplication γ f e bd = do 
   let alts  = splitBranches f bd
-  altsEval <- mapM (\(c,e) -> (,e) <$> eval γ stk c) alts
+  altsEval <- mapM (\(c,e) -> (,e) <$> eval γ c) alts
   altsDec  <- liftIO $ mapM (\(c,e) -> (,e) <$> isValid γ c) altsEval  
   return $ Mb.fromMaybe e (snd <$> L.find fst altsDec)
 
 splitBranches :: Symbol -> Expr -> [(Expr,Expr)]
-splitBranches f = go 
+splitBranches f es = notracepp ("SPLIT BRANCHES ON " ++ showpp f) $ go es  
   where 
     go (PAnd es) 
       | any (== f) (syms es) 
@@ -549,36 +443,14 @@ splitBranches f = go
     splitAnd (PImp c e) = (c,    e)
     splitAnd e          = (PTrue,e)
   
-
-addEquality :: Knowledge -> Expr -> Expr -> EvalST ()
-addEquality γ e1 e2 =
-  modify (\st -> st{evSequence = (makeLam γ e1, makeLam γ e2):evSequence st})
-
-evalIte :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ stk e b e1 e2 = mytracepp "evalIte:END: " <$> 
-                            evalIteAc γ stk e b e1 (mytracepp msg e2) 
-  where 
-    msg = "evalIte:BEGINS: " ++ showpp (stk, e) 
-
-
-evalIteAc :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIteAc γ stk e b e1 e2 
-  = join $ evalIte' γ stk e b e1 e2 <$> liftIO (isValid γ b) <*> liftIO (isValid γ (PNot b))
-
-evalIte' :: Knowledge -> CStack -> Expr -> Expr -> Expr -> Expr -> Bool -> Bool -> EvalST Expr
-evalIte' γ stk e _ e1 _ b _
-  | b
-  = do e' <- eval γ stk e1
-       (e, "If-True of:" ++ showpp b)  ~> e'
-evalIte' γ stk e _ _ e2 _ b'
-  | b'
-  = do e' <- eval γ stk e2
-       (e, "If-False") ~> e'
-evalIte' γ stk _ b e1 e2 _ _
-  -- see [NOTE:Eval-Ite] #387 
-  = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
-    where stk' = mytracepp "evalIte'" $ noRecurCS stk 
-
+evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIte γ e b e1 e2 = do 
+  b'  <- liftIO (isValid γ b)
+  nb' <- liftIO (isValid γ $ PNot b)
+  if b' 
+    then return e1 
+    else if nb' then return e2 
+    else return e 
 
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
@@ -711,42 +583,6 @@ dropModuleNames = mungeNames (symbol . last) "."
       | otherwise        = f $ T.splitOn d $ stripParens s
     stripParens t = Mb.fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
 
---------------------------------------------------------------------------------
--- | Creating Measure Info
---------------------------------------------------------------------------------
--- AT@TODO do this for all reflected functions, not just DataCons
-
-{- [NOTE:Datacon-Selectors] The 'assertSelectors' function
-   insert measure information for every constructor that appears
-   in the expression e.
-
-   In theory, this is not required as the SMT ADT encoding takes
-   care of it. However, in practice, some constructors, e.g. from
-   GADTs cannot be directly encoded in SMT due to the lack of SMTLIB
-   support for GADT. Hence, we still need to hang onto this code.
-
-   See tests/proof/ple2.fq for a concrete example.
- -}
-
-assertSelectors :: Knowledge -> Expr -> EvalST ()
-assertSelectors γ e = do
-    sims <- aenvSimpl <$> gets _evAEnv
-    -- cfg  <- gets evCfg
-    -- _    <- foldlM (\_ s -> Vis.mapMExpr (go s) e) (mytracepp  "assertSelector" e) sims
-    forM_ sims $ \s -> Vis.mapMExpr (go s) e
-    return ()
-  where
-    go :: Rewrite -> Expr -> EvalST Expr
-    go (SMeasure f dc xs bd) e@(EApp _ _)
-      | (EVar dc', es) <- splitEApp e
-      , dc == dc'
-      , length xs == length es
-      = do let e1 = EApp (EVar f) e
-           let e2 = subst (mkSubst $ zip xs es) bd
-           addEquality γ e1 e2
-           return e
-    go _ e
-      = return e
 
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
@@ -759,12 +595,6 @@ withCtx cfg file env k = do
   res <- k ctx
   _   <- SMT.cleanupContext ctx
   return res
-
-(~>) :: (Expr, String) -> Expr -> EvalST Expr
-(e, _str) ~> e' = do
-  let msg = "PLE: " ++ _str ++ showpp (e, e') 
-  modify (\st -> st {evId = (mytracepp msg $ evId st) + 1})
-  return e'
 
 -------------------------------------------------------------------------------
 -- | Normalization of Equation: make their arguments unique -------------------
