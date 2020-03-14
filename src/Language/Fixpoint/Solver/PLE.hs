@@ -303,7 +303,17 @@ topApps = go
     go (ENeg e)        = go e
     go (EIte e e1 e2)  = go e ++ go e1 ++ go e2  
     go (ECoerc _ _ e)  = go e 
-    go _               = []
+    go (ECst e _)      = go e 
+    go (ESym _)        = []
+    go (ECon _)        = []
+    go (EVar _)        = []
+    go (ELam _ _)      = []
+    go (ETApp _ _)     = []
+    go (ETAbs _ _)     = []
+    go (PKVar _ _)     = []
+    go (PAll _ _)      = []
+    go (PExist _ _)    = []
+    go (PGrad{})       = []
 
 eval :: Knowledge -> Expr -> EvalST Expr
 eval γ = go 
