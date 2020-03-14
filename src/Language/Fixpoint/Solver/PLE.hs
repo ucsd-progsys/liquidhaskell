@@ -431,7 +431,7 @@ substPopIf xes e = L.foldl' go e xes
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ _ e !(EIte b e1 e2) = do 
+evalRecApplication γ _ _ e@(EIte b e1 e2) = do 
   bt <- liftIO $ (mytracepp ("evalEIt POS = " ++ showpp       b ) <$> isValid γ b)
   bf <- liftIO $ (mytracepp ("evalEIt NEG = " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if bt 
