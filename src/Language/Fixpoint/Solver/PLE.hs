@@ -292,6 +292,7 @@ evalOne γ env e = do
 topApps :: Expr -> [Expr]
 topApps = go 
   where 
+    go e@(EApp e1 e2)  = go e1 ++ go e2 ++ [e]
     go (PAnd es)       = concatMap go es
     go (POr es)        = concatMap go es
     go (PAtom _ e1 e2) = go e1  ++ go e2
@@ -301,7 +302,7 @@ topApps = go
     go (PNot e)        = go e
     go (ENeg e)        = go e
     go (EIte e e1 e2)  = go e ++ go e1 ++ go e2  
-    go e@(EApp e1 e2)  = go e1 ++ go e2 ++ [e]
+    go (ECoerc _ _ e)  = go e 
     go _               = []
 
 eval :: Knowledge -> Expr -> EvalST Expr
