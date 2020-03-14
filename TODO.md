@@ -1,9 +1,13 @@
 # TODO
 
-## NEW PLE Known to Fail 
-  - tests.ple.pos.
-    - T1302b.hs
-    
+## NEW PLE Known to Fail on 
+  - GADTS, e.g., 
+
+  - no-termination, e.g.,   
+
+  - TOFIX other reasons, e.g., 
+     - tests/ple/pos/Lists.hs
+
 ## Build
 
 ## 1474

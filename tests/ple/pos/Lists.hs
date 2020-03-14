@@ -1,9 +1,45 @@
--- | A module with some definitions for Lists
-{-@ LIQUID "--reflection" @-}
+-- | A "client" that uses the reflected definitions.
 
-module ListLib where
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-} 
+
+module ListClient where
 
 import Prelude hiding (concat, filter, foldr, map)
+
+{-@ reflect incr @-}
+incr :: Int -> Int
+incr x = x + 1
+
+{-@ reflect isPos @-}
+isPos :: Int -> Bool 
+isPos x = x > 0 
+
+{-@ reflect ints0 @-}
+ints0 :: [Int] 
+ints0 = [0, 1, 2] 
+
+{-@ reflect ints1 @-}
+ints1 :: [Int] 
+ints1 = [1, 2, 3] 
+
+{-@ reflect ints2 @-}
+ints2 :: [Int] 
+ints2 = [1, 2] 
+
+{-@ mapProp :: () -> { map incr ints0 == ints1 } @-}
+mapProp () = ()
+
+{-@ filterProp :: () -> { filter isPos ints0 == ints2 } @-}
+filterProp () = ()
+
+
+{-
+
+filter isPos ints0 
+
+-}
+
 
 {-@ reflect map @-}
 map :: (a -> b) -> [a] -> [b]
@@ -29,3 +65,5 @@ concat (l:ls) = append l (concat ls)
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr f i [ ]    = i
 foldr f i (x:xs) = f x (foldr f i xs)
+
+

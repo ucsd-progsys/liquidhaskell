@@ -85,6 +85,7 @@ data Config = Config
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
+  , oldPLE          :: Bool        -- ^ Enable proof-by-logical-evaluation
   , proofLogicEvalLocal  :: Bool   -- ^ Enable proof-by-logical-evaluation locally, per function
   , extensionality  :: Bool        -- ^ Enable extensional interpretation of function equality 
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
