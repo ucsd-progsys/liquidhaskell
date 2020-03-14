@@ -423,8 +423,14 @@ substPopIf xes e = L.foldl' go e xes
     go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ f e (EIte b e1 e2) = 
-  evalRecApplication γ f e (PAnd [PImp b e1,PImp (PNot b) e2])
+evalRecApplication γ f e (EIte b e1 e2) = do 
+  bt <- liftIO $ isValid γ b  
+  bf <- liftIO $ isValid γ (PNot b)
+  if bt 
+    then return e1 
+    else if bf then return e2 
+    else return e    
+
 evalRecApplication γ f e bd = do 
   let alts  = splitBranches f bd
   altsEval <- mapM (\(c,e) -> (,e) <$> eval γ c) alts
