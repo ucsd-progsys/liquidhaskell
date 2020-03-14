@@ -50,7 +50,7 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
-  | rewriteAxioms cfg && deepPLE cfg
+  | rewriteAxioms cfg && newPLE cfg
   = PLE.instantiate cfg fi
 
   | rewriteAxioms cfg && noIncrPle cfg

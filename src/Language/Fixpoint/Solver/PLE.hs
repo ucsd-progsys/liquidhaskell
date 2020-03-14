@@ -301,7 +301,7 @@ topApps = go
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
-    go (EIte e e1 e2)  = go e ++ go e1 ++ go e2  
+    go (EIte e e1 e2)  = go e -- ++ go e1 ++ go e2  
     go (ECoerc _ _ e)  = go e 
     go (ECst e _)      = go e 
     go (ESym _)        = []
@@ -431,8 +431,8 @@ substPopIf xes e = L.foldl' go e xes
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ _ e !(EIte b e1 e2) = do 
-  bt <- liftIO $ isValid γ b  
-  bf <- liftIO $ isValid γ (PNot b)
+  bt <- liftIO $ (notracepp ("isValid POS guard = " ++ showpp b) <$> isValid γ b)
+  bf <- liftIO $ (notracepp ("isValid NEG guard = " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if bt 
     then return e1 
     else if bf then return e2 
