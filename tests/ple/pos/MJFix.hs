@@ -4,6 +4,7 @@
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}  -- Bug goes away if this line is commented
 {-@ LIQUID "--short-names" @-}
+{-@ LIQUID "--oldple"      @-}
 
 module Test where
 

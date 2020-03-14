@@ -2,6 +2,7 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-} 
+{-@ LIQUID "--oldple"     @-} 
 
 module ListClient where
 
@@ -32,14 +33,6 @@ mapProp () = ()
 
 {-@ filterProp :: () -> { filter isPos ints0 == ints2 } @-}
 filterProp () = ()
-
-
-{-
-
-filter isPos ints0 
-
--}
-
 
 {-@ reflect map @-}
 map :: (a -> b) -> [a] -> [b]

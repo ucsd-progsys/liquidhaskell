@@ -2,9 +2,9 @@
 
 module Hutton where
 
-{-@ LIQUID "--higherorder"    @-}
-{-@ LIQUID "--exact-data-con" @-}
-{-@ LIQUID "--ple" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--oldple"     @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 

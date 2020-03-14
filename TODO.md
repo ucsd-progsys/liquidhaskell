@@ -1,12 +1,36 @@
 # TODO
 
-## NEW PLE Known to Fail on 
+## NEW PLE Known to Fail [20 failing tests] 
   - GADTS, e.g., 
+     - tests/ple/pos/T1302b.hs
 
   - no-termination, e.g.,   
+     - tests/ple/pos/STLCB0.hs
+     - tests/ple/pos/STLCB1.hs
+     - tests/ple/pos/NNFPiotr.hs
+
+  - no-adt, e.g., 
+     - tests/pos/FingerTree.hs
 
   - TOFIX other reasons, e.g., 
+     - tests/ple/pos/T1409.hs
+     - tests/ple/pos/MJFix.hs
+     - tests/ple/pos/IndPalindrome.hs
+
      - tests/ple/pos/Lists.hs
+     - tests/import/client/ListClient.hs
+    
+     - tests/pos/MapFusion.hs
+     - tests/pos/Hutton.hs
+
+     - benchmarks/popl18/ple/pos/Unification.hs
+     - benchmarks/popl18/ple/pos/MonadList.hs
+     - benchmarks/popl18/ple/pos/MapFusion.hs
+     - benchmarks/popl18/ple/pos/FunctorList.hs
+     - benchmarks/popl18/ple/pos/ApplicativeMaybe.hs
+     - benchmarks/popl18/ple/pos/ApplicativeList.hs
+     - benchmarks/popl18/ple/pos/ApplicativeId.hs
+     - benchmarks/popl18/ple/pos/Append.hs
 
 ## Build
 

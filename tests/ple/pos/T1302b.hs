@@ -8,6 +8,7 @@
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--no-totality"    @-}
 {-@ LIQUID "--ple"            @-} 
+{-@ LIQUID "--oldple"         @-} 
 
 module Field where
 

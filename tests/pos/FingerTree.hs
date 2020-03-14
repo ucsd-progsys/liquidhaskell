@@ -1,7 +1,7 @@
-{- LIQUID "--no-termination" @-}
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--ple"            @-}
+{-@ LIQUID "--oldple"         @-}
 
 module FingerTree where 
 

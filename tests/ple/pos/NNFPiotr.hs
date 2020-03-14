@@ -1,6 +1,7 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
 {-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--oldple"         @-} 
 
 module Tutorial6 where
 

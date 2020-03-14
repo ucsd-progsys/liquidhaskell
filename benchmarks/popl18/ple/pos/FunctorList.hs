@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{-@ LIQUID "--oldple"     @-}
 
 {-# LANGUAGE IncoherentInstances   #-}
 {-# LANGUAGE FlexibleContexts #-}
