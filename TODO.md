@@ -1,6 +1,9 @@
 # TODO
 
-
+## NEW PLE Known to Fail 
+  - tests.ple.pos.
+    - T1302b.hs
+    
 ## Build
 
 ## 1474
