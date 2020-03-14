@@ -544,6 +544,7 @@ substClassOpBinding tcbind dc methods e = F.notracepp "substClassOpBinding" $ go
     go (F.POr es) = F.POr (go <$> es)
     go (F.PNot e) = F.PNot (go e)
     go (F.PImp e0 e1) = F.PImp (go e0) (go e1)
+    go (F.PIff e0 e1) = F.PIff (go e0) (go e1)
     go (F.PAtom brel e0 e1) = F.PAtom brel (go e0) (go e1)
     go e = F.notracepp "LEAF" e
 
