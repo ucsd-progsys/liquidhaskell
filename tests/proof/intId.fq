@@ -1,0 +1,17 @@
+fixpoint "--rewrite"
+
+constant intId: (func(0, [int; int]))
+
+define intId(x:int) : int = { 
+  if (x == 0) then 0 else x
+  }
+
+expand [1 : True]
+
+bind 0 x   : {v: int | true }
+
+constraint:
+  env [0]
+  lhs {v : int | true }
+  rhs {v : int | intId x = x }
+  id 1 tag []
