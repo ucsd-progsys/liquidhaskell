@@ -1,5 +1,4 @@
 fixpoint "--rewrite"
-fixpoint "--deepple"
 
 
 data Vec 1 = [

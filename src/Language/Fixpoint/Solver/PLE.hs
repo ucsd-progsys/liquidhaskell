@@ -432,8 +432,8 @@ substPopIf xes e = L.foldl' go e xes
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ _ e !(EIte b e1 e2) = do 
-  bt <- liftIO $ isValid γ b
-  bf <- liftIO $ isValid γ (PNot b)
+  bt <- liftIO $ (mytracepp ("evalEIt POS = " ++ showpp       b ) <$> isValid γ b)
+  bf <- liftIO $ (mytracepp ("evalEIt NEG = " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if bt 
     then return e1 
     else if bf then return e2 
