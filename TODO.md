@@ -3,7 +3,7 @@
 ## NEW PLE required edits: 
   - 
 
-## NEW PLE Known to Fail [6 failing tests] 
+## NEW PLE Known to Fail [4 failing tests] 
   - GADTS, e.g., 
 
      - tests/ple/pos/BinahQuery.hs
@@ -15,8 +15,6 @@
   - TOFIX other reasons, e.g., 
      
      - benchmarks/popl18/ple/pos/ApplicativeMaybe.hs
-     - benchmarks/popl18/ple/pos/ApplicativeList.hs
-     - benchmarks/popl18/ple/pos/ApplicativeId.hs
 
 - CHECK NN example
 - Check initial ple example 
