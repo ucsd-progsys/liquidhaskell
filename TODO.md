@@ -3,12 +3,9 @@
 ## NEW PLE required edits: 
   - 
 
-## NEW PLE Known to Fail [10 failing tests] 
+## NEW PLE Known to Fail [7 failing tests] 
   - GADTS, e.g., 
 
-     - tests/ple/pos/IndPal00.hs <- HERE 
-     - tests/ple/pos/IndPal0.hs
-     - tests/ple/pos/IndPalidrome.hs
      - tests/ple/pos/BinahQuery.hs
      - tests/ple/pos/ExactGADT5.hs
 
