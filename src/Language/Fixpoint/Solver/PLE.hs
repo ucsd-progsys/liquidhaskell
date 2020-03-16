@@ -20,7 +20,7 @@
 
 module Language.Fixpoint.Solver.PLE (instantiate) where
 
-import           Language.Fixpoint.Types
+import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
 import qualified Language.Fixpoint.Types.Visitor as Vis
 import qualified Language.Fixpoint.Misc          as Misc 
@@ -93,8 +93,10 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where 
     diff0        = []
     res0         = M.empty 
-    ctx0         = initCtx $ zip es0 (repeat PTrue)
+    ctx0         = initCtx $ (mkEq <$> es0) 
     es0          = eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
+    mkEq (EEq e1 e2) = (e1,e2)
+    mkEq e           = (e,PTrue)
 
 loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
 loopT env ctx delta i res t = case t of 
@@ -136,11 +138,11 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
     go ictx =  do let cands = S.toList (icCands ictx) 
                   eqs   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (icAssms ictx)) 
-                               mapM (evalOne γ env) cands
+                               mapM (evalOne γ env ictx) cands
                   case Mb.catMaybes eqs of 
                         [] -> return ictx 
                         us -> do let oks      = S.fromList (fst <$> us)
-                                 let rws      = Mb.catMaybes [rewrite e rw | rw <- knSims γ, e <- (snd <$> us)]
+                                 let rws      = concat [rewrite e rw | rw <- knSims γ, e <- (snd <$> us)]
                                  let us'      = us ++ rws 
                                  let eqsSMT   = evalToSMT cfg ctx <$> us
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
@@ -149,8 +151,12 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                                  let newcands = concatMap (makeCandidates γ ictx') (cands ++ (snd <$> us))
                                  go (ictx' { icCands = S.fromList newcands})
 
-rewrite :: Expr -> Rewrite -> Maybe (Expr,Expr) 
-rewrite e rw
+
+rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
+rewrite e rw = Mb.catMaybes $ map (`rewriteTop` rw) (notGuardedApps e)
+
+rewriteTop :: Expr -> Rewrite -> Maybe (Expr,Expr) 
+rewriteTop e rw
   | (EVar f, es) <- splitEApp e
   , f == smDC rw
   , length es == length (smArgs rw)
@@ -193,6 +199,7 @@ data ICtx    = ICtx
   , icCands  :: S.HashSet Expr   -- ^ "Candidates" for unfolding
   , icEquals :: ![(Expr,Expr)]   -- ^ Accumulated equalities  
   , icSolved :: S.HashSet Expr   -- ^ Terms that we have already expanded
+  , icSimpl  :: !ConstMap        -- ^ Map of expressions to constants 
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -217,6 +224,7 @@ initCtx es = ICtx
   , icCands  = mempty 
   , icEquals = es  
   , icSolved = mempty
+  , icSimpl  = mempty 
   }
 
 equalitiesPred :: [(Expr, Expr)] -> [Expr]
@@ -241,33 +249,39 @@ updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx
 updCtx InstEnv {..} ctx delta cidMb 
               = ctx { icAssms  = ctxEqs  
                     , icCands  = S.fromList cands   <> icCands  ctx
-                    , icEquals = initEqs <> icEquals ctx }
+                    , icEquals = initEqs            <> icEquals ctx
+                    , icSimpl  = sims               <> icSimpl ctx 
+                    }
   where         
-    initEqs   = initEqualities ieSMT ieAenv bs ++ 
-                Mb.catMaybes [rewrite e rw | e <- cands, rw <- knSims ieKnowl] 
+    initEqs   = initEqualities ieSMT ieAenv bs ++ rws
+    rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> icEquals ctx)), rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) es
-    ctxEqs    = toSMT ieCfg ieSMT [] <$> concat 
+    sims      = filter (isSimplification (knDCs ieKnowl)) (initEqs ++ icEquals ctx)
+    ctxEqs    = toSMT ieCfg ieSMT [] <$> (concat $ L.nub
                   [ equalitiesPred initEqs 
+                  , equalitiesPred sims 
+                  , equalitiesPred (icEquals ctx)
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
-                  ]
+                  ])
     bs        = unElab <$> binds
     es        = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
 
-
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
   = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
-    cands = filter (\e -> isGoodApp e && (not (e `S.member` icSolved ctx))) (topApps expr)
+    cands = filter (\e -> (isIte e || isGoodApp e) && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
     isGoodApp e 
       | (EVar f, es) <- splitEApp e
       , Just i       <- L.lookup f (knSummary γ)
       = length es == i
       | otherwise
       = False 
+    isIte (EIte _ _ _) = True 
+    isIte _            = False 
 
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
@@ -284,24 +298,24 @@ data EvalEnv = EvalEnv
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-evalOne :: Knowledge -> EvalEnv -> Expr -> IO (Maybe (Expr, Expr))
-evalOne γ env e = do
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (Maybe (Expr, Expr))
+evalOne γ env ctx e = do
   e' <- evalStateT (eval γ e) env 
-  if e' == e then return Nothing else return (Just $ traceE (e,e'))
+  if e' == e then return Nothing else return (Just $ traceE (e, simplify ctx e'))
 
-topApps :: Expr -> [Expr]
-topApps = go 
+notGuardedApps :: Expr -> [Expr]
+notGuardedApps = go 
   where 
     go e@(EApp e1 e2)  = go e1 ++ go e2 ++ [e]
     go (PAnd es)       = concatMap go es
     go (POr es)        = concatMap go es
     go (PAtom _ e1 e2) = go e1  ++ go e2
     go (PIff e1 e2)    = go e1  ++ go e2
-    go (PImp e1 e2)    = go e1  ++ go e2
+    go (PImp e1 _)     = go e1  -- ++ go e2
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
-    go (EIte e _ _)  = go e -- ++ go e1 ++ go e2  
+    go e@(EIte b _ _)  = go b ++ [e] -- ++ go e1 ++ go e2  
     go (ECoerc _ _ e)  = go e 
     go (ECst e _)      = go e 
     go (ESym _)        = []
@@ -435,8 +449,8 @@ evalRecApplication γ _ _ e@(EIte b e1 e2) = do
   bt <- liftIO $ (mytracepp ("evalEIt POS = " ++ showpp       b ) <$> isValid γ b)
   bf <- liftIO $ (mytracepp ("evalEIt NEG = " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if bt 
-    then return e1 
-    else if bf then return e2 
+    then eval γ e1 
+    else if bf then eval γ e2 
     else return e    
 
 evalRecApplication γ f e !bd = do 
@@ -459,11 +473,11 @@ splitBranches f es = go es
   
 evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 evalIte γ e b e1 e2 = do 
-  b'  <- liftIO $ isValid γ b
-  nb' <- liftIO $ isValid γ (PNot b)
+  b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
+  nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b' 
-    then return e1 
-    else if nb' then return e2 
+    then eval γ e1 
+    else if nb' then eval γ  e2 
     else return e 
 
 --------------------------------------------------------------------------------
@@ -476,6 +490,7 @@ data Knowledge = KN
   , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams    :: [(Symbol, Sort)]
   , knSummary :: [(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
+  , knDCs     :: S.HashSet Symbol     -- data constructors drawn from Rewrite 
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
@@ -497,6 +512,7 @@ knowledge cfg ctx si = KN
   , knLams    = [] 
   , knSummary =    ((\s -> (smName s, 1)) <$> sims) 
                 ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
+  , knDCs     = S.fromList (smDC <$> sims) 
   } 
   where 
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
@@ -605,6 +621,39 @@ withCtx cfg file env k = do
   res <- k ctx
   _   <- SMT.cleanupContext ctx
   return res
+
+
+-- ValueMap maps expressions to constants (including data constructors)
+type ConstMap = [(Expr, Expr)]
+type LDataCon = Symbol              -- Data Constructors 
+
+isSimplification :: S.HashSet LDataCon -> (Expr,Expr) -> Bool 
+isSimplification dcs (_,c) = isConstant c 
+  where
+    isConstant e = S.null (S.difference (S.fromList $ syms e) dcs) 
+
+class Simplifiable a where 
+  simplify :: ICtx -> a -> a 
+
+
+instance Simplifiable Expr where 
+  simplify ictx = betaReduceExpr (icSimpl ictx)
+
+betaReduceExpr :: ConstMap -> Expr -> Expr 
+betaReduceExpr vmap e 
+  | e' == e   = e 
+  | otherwise = betaReduceExpr vmap (go e')
+   where 
+     e' = go e 
+     go e 
+      | Just e' <- L.lookup e vmap
+      = e' 
+     go (EIte b e1 e2)
+      = EIte (go b) (go e1) (go e2)
+     go (EApp e1 e2)
+       = EApp (go e1) (go e2)
+     go e = e 
+
 
 -------------------------------------------------------------------------------
 -- | Normalization of Equation: make their arguments unique -------------------
