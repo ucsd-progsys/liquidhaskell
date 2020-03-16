@@ -1,6 +1,5 @@
 {-@ LIQUID "--reflection"     @-}
 {-@ LIQUID "--ple"            @-}
-{-@ LIQUID "--oldple"         @-}
 
 module MapFusion where
 

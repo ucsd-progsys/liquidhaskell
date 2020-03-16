@@ -4,7 +4,6 @@ module Hutton where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--oldple"     @-}
 
 import Language.Haskell.Liquid.ProofCombinators
 

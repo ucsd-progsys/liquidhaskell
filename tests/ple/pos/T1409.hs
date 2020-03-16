@@ -1,6 +1,5 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--oldple"     @-} 
 
 data Peano = Z | S Peano
 
