@@ -1,0 +1,23 @@
+fixpoint "--rewrite"
+
+
+match isCons Cons x xs = (true)
+match isNil  Cons x xs = (false)
+match isCons Nil       = (false)
+match isNil  Nil       = (true)
+
+constant Cons : (func(1 , [@(0); [@(0)]; [@(0)]]))
+constant isCons : (func(1 , [[@(0)]; bool]))
+constant isNil : (func(1 , [[@(0)]; bool]))
+constant Nil : (func(1 , [[@(0)]]))
+
+expand [1 : True]
+
+bind 1 l : {xs : [int] | true }
+constraint:
+  env [1]
+  lhs {v:int | [isCons l && (l == Nil) ]}
+  rhs {v:int | [false]}
+  id 1 tag []
+
+
