@@ -91,7 +91,7 @@ eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 eliminateEta cfg si
   | Cfg.etaElim cfg 
   , Cfg.newPLE  cfg
-  = si { F.ae = (ae {F.aenvEqs = etaElim `fmap` F.aenvEqs ae }) }
+  = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
   | Cfg.etaElim cfg 
   = si { F.ae = ae' }
   | otherwise 
@@ -100,9 +100,9 @@ eliminateEta cfg si
     -- NV TODO: Clean 
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
-    eqs = fmap etaElimOLD (F.aenvEqs ae)
+    eqs = fmap etaElim (F.aenvEqs ae)
 
-    etaElimOLD eq = F.notracepp "Eliminating" $
+    etaElim eq = F.notracepp "Eliminating" $
                  case body of
                    F.PAtom F.Eq e0 e1 ->
                      let (f0, args0) = fapp e0
@@ -127,7 +127,7 @@ eliminateEta cfg si
             args = fst <$> argsAndSorts
             body = F.eqBody eq
             sort = F.eqSort eq
-    etaElim eq = F.notracepp "Eliminating" $
+    etaElimNEW eq = F.notracepp "Eliminating" $
                   let (f1, args1) = fapp (F.eqBody eq) in
                   let commonArgs = F.notracepp "commonArgs" .
                                            fmap fst .
