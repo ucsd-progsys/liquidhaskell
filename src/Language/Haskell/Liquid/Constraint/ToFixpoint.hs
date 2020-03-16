@@ -125,18 +125,24 @@ specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
     bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
-makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
+makeSimplify (x, t)
+  | not (GM.isDataConId x)
+  = [] 
+  | otherwise 
+  = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
   where
     go (F.PAnd es) = concatMap go es
 
     go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
       | eq `elem` [F.Eq, F.Ueq]
       , (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
     go (F.PIff (F.EApp (F.EVar f) dc) bd)
       | (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 

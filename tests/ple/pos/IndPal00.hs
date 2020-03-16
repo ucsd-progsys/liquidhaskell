@@ -2,7 +2,6 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--oldple"     @-}
 
 module IndPalindrome where
 
@@ -21,10 +20,6 @@ data Pal a where
     | Pals :: x:_ -> xs:_ -> Prop (Pal (x:xs)) 
   @-}
 
-{-@ assert :: b:{Bool | b } -> () @-}
-assert :: Bool -> ()
-assert b = ()
-
 
 {-@ ple lemma_pal @-}
 {-@ lemma_pal :: xs:[a] -> p:{Pal a | prop p == Pal xs} -> { true } @-}
@@ -34,7 +29,7 @@ lemma_pal l d =
   case l of 
     []   -> ()
     xs    -> case d of 
-             Pal0       -> error ""
+             Pal0       -> error "" -- prop p = Pal xs && prop p = Pal [] 
              (Pals _ _) -> ()
 
 {-@ measure prop :: a -> b           @-}
