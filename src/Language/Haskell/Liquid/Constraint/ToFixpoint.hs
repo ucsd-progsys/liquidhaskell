@@ -78,13 +78,16 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts]) 
+  = F.AEnv axioms  -- ++ [specTypeEq emb x t | (x, t) <- xts]) 
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
     emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
     sp       = giSpec     info
+    axioms   = gsMyAxioms refl ++ gsImpAxioms refl 
+    refl     = gsRefl sp
+
 
 _isClassOrDict :: Id -> Bool
 _isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
@@ -142,8 +145,8 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
-makeEquations :: GhcSpec -> [F.Equation]
-makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
+_makeEquations :: GhcSpec -> [F.Equation]
+_makeEquations sp = [ F.mkEquation f xts (_equationBody (F.EVar f) xArgs e mbT) t
                       | F.Equ f xts e t _ <- axioms 
                       , let xArgs          = F.EVar . fst <$> xts
                       , let mbT            = if null xArgs then Nothing else M.lookup f sigs
@@ -153,8 +156,8 @@ makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
     refl         = gsRefl sp
     sigs         = M.fromList [ (GM.simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
-equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
-equationBody f xArgs e mbT
+_equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
+_equationBody f xArgs e mbT
   | Just t <- mbT = F.pAnd [eBody, rBody t]
   | otherwise     = eBody
   where
