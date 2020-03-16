@@ -45,6 +45,7 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , tcQualifiedImports
     , tcResolvedNames
     , tcAvailableTyCons
+    , tcAvailableVars
     , mkTcData
 
     -- * Wrapper type to talk about unoptimised things
@@ -67,6 +68,7 @@ import           GHC                                      ( LImportDecl
                                                           , TyThing
                                                           , TyCon
                                                           )
+import           Var                                      ( Var )
 import           HscTypes                                 ( ModGuts )
 import           TcRnTypes                                ( TcGblEnv(tcg_rn_imports) )
 import           UniqFM
@@ -280,6 +282,8 @@ data TcData = TcData {
   -- the 'mg_tcs' for the input 'ModGuts' is empty (because the type constructor are not
   -- defined in the /wrapper/ module, but rather in the /wrapped/ module itself). This is
   -- why we look at the 'ModGuts' 's 'AvailInfo' to extract any re-exported 'TyCon' out of that.
+  , tcAvailableVars    :: [Var]
+  -- ^ Ditto as for 'reflectedTyCons', but for identifiers.
   }
 
 instance Outputable TcData where
@@ -294,12 +298,14 @@ instance Outputable TcData where
 mkTcData :: GhcMonadLike.TypecheckedModule 
          -> [(Name, Maybe TyThing)] 
          -> [TyCon]
+         -> [Var]
          -> TcData
-mkTcData tcModule resolvedNames availTyCons = TcData {
+mkTcData tcModule resolvedNames availTyCons availVars = TcData {
     tcAllImports       = LH.allImports       (GhcMonadLike.tm_renamed_source tcModule)
   , tcQualifiedImports = LH.qualifiedImports (GhcMonadLike.tm_renamed_source tcModule)
   , tcResolvedNames    = resolvedNames
   , tcAvailableTyCons  = availTyCons
+  , tcAvailableVars    = availVars
   }
 
 debugShowModule :: Module -> String

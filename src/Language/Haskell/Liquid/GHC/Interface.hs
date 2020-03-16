@@ -46,6 +46,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , ignoreInline
   , lookupTyThings
   , availableTyCons
+  , availableVars
   , updLiftedSpec
 
   ) where
@@ -581,14 +582,20 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
   tt4 <-          GhcMonadLike.lookupGlobalName n
   return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
 
-availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [GHC.TyCon]
-availableTyCons hscEnv modSum tcGblEnv avails = fmap catMaybes $ forM avails $ \a -> do
+availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
+availableTyThings hscEnv modSum tcGblEnv avails = fmap catMaybes $ forM avails $ \a -> do
   (_, mbThing) <- case a of
     Avail n       -> lookupTyThing hscEnv modSum tcGblEnv n
     AvailTC n _ _ -> lookupTyThing hscEnv modSum tcGblEnv n
-  case mbThing of
-    Just (ATyCon tyCon) -> pure $ Just tyCon
-    _                   -> pure $ Nothing
+  pure mbThing
+
+availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [GHC.TyCon]
+availableTyCons hscEnv modSum tcGblEnv avails = 
+  fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
+
+availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
+availableVars hscEnv modSum tcGblEnv avails = 
+  fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
 -- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)
