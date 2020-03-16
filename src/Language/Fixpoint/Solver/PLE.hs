@@ -41,11 +41,11 @@ import           Data.Char            (isUpper)
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp
+mytracepp = tracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | False -- True 
+  | True -- False -- True 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
@@ -94,9 +94,8 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
     diff0        = []
     res0         = M.empty 
     ctx0         = initCtx $ (mkEq <$> es0) 
-    es0          = eqBody <$> L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
-    mkEq (EEq e1 e2) = (e1,e2)
-    mkEq e           = (e,PTrue)
+    es0          = L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
+    mkEq eq      = mytracepp "initEqs" (EVar $ eqName eq, eqBody eq)
 
 loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
 loopT env ctx delta i res t = case t of 
@@ -311,7 +310,7 @@ notGuardedApps = go
     go (POr es)        = concatMap go es
     go (PAtom _ e1 e2) = go e1  ++ go e2
     go (PIff e1 e2)    = go e1  ++ go e2
-    go (PImp e1 _)     = go e1  -- ++ go e2
+    go (PImp e1 e2)    = go e1  ++ go e2 
     go (EBin  _ e1 e2) = go e1  ++ go e2
     go (PNot e)        = go e
     go (ENeg e)        = go e
@@ -336,36 +335,43 @@ eval γ = go
     go e@(EIte b e1 e2) = evalIte γ e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = evalApp γ e (splitEApp e)
-    go (PAtom r e1 e2)  = PAtom r      <$> go e1 <*> go e2
+    go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = ENeg         <$> go e
     go (EBin o e1 e2)   = EBin o       <$> go e1 <*> go e2
     go (ETApp e t)      = flip ETApp t <$> go e
     go (ETAbs e s)      = flip ETAbs s <$> go e
-    go (PNot e)         = PNot         <$> go e
-    go (PImp e1 e2)     = PImp         <$> go e1 <*> go e2
-    go (PIff e1 e2)     = PIff         <$> go e1 <*> go e2
-    go (PAnd es)        = PAnd         <$> (go  <$$> es)
-    go (POr es)         = POr          <$> (go  <$$> es)
+    go e@(PNot e')      = fromMaybeM (PNot <$> go e')           (evalBool γ e)
+    go e@(PImp e1 e2)   = fromMaybeM (PImp <$> go e1 <*> go e2) (evalBool γ e)
+    go e@(PIff e1 e2)   = fromMaybeM (PIff <$> go e1 <*> go e2) (evalBool γ e)
+    go e@(PAnd es)      = fromMaybeM (PAnd <$> (go  <$$> es))   (evalBool γ e)
+    go e@(POr es)       = fromMaybeM (POr  <$> (go <$$> es))    (evalBool γ e)
     go e                = return e
+
+
+fromMaybeM :: (Monad m) => m a -> m (Maybe a) -> m a 
+fromMaybeM a ma = do 
+  mx <- ma 
+  case mx of 
+    Just x  -> return x 
+    Nothing -> a  
 
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
 
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ e (EVar f, es) 
+evalApp γ _ (EVar f, es) 
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , length (eqArgs eq) == length es 
   = do env <- seSort <$> gets evEnv
-       e'  <- evalRecApplication γ f e (substEq env eq es) 
-       if e /= e' then eval γ e' else return e 
+       eval γ $ substEq env eq es
 
 evalApp γ _ (EVar f, [e]) 
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = eval γ $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
-  
+
 evalApp _ e _
   = return e
 
@@ -409,40 +415,23 @@ matchSorts s1 s2 = go s1 s2
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
 
-evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
-evalRecApplication γ _ _ e@(EIte b e1 e2) = do 
-  bt <- liftIO $ (mytracepp ("evalEIt POS = " ++ showpp       b ) <$> isValid γ b)
-  bf <- liftIO $ (mytracepp ("evalEIt NEG = " ++ showpp (PNot b)) <$> isValid γ (PNot b))
-  if bt 
-    then eval γ e1 
-    else if bf then eval γ e2 
-    else return e    
+evalBool :: Knowledge -> Expr -> EvalST (Maybe Expr) 
+evalBool γ e = do 
+  bt <- liftIO $ isValid γ e
+  if bt then return $ Just PTrue 
+   else do 
+    bf <- liftIO $ isValid γ (PNot e)
+    if bf then return $ Just PFalse 
+          else return Nothing 
 
-evalRecApplication γ f e !bd = do 
-  let alts  = splitBranches f bd
-  altsEval <- mapM (\(c,e) -> (,e) <$> eval γ c) alts
-  altsDec  <- liftIO $ mapM (\(c,e) -> (,e) <$> isValid γ c) altsEval  
-  return $ Mb.fromMaybe e (snd <$> L.find fst altsDec)
-
-splitBranches :: Symbol -> Expr -> [(Expr,Expr)]
-splitBranches f es = go es  
-  where 
-    go (PAnd es) 
-      | any (== f) (syms es) 
-      = splitAnd <$> es
-    go e         
-      = [(PTrue,e)] 
-
-    splitAnd (PImp c e) = (c,    e)
-    splitAnd e          = (PTrue,e)
   
 evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 evalIte γ e b e1 e2 = do 
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b' 
-    then eval γ e1 
-    else if nb' then eval γ  e2 
+    then return e1 
+    else if nb' then return e2 
     else return e 
 
 --------------------------------------------------------------------------------
@@ -626,11 +615,11 @@ instance Normalizable (GInfo c a) where
   normalize si = si {ae = normalize $ ae si}
 
 instance Normalizable AxiomEnv where 
-  normalize aenv = aenv { aenvEqs   = normalize <$> aenvEqs   aenv
-                        , aenvSimpl = normalize <$> aenvSimpl aenv }
+  normalize aenv = aenv { aenvEqs   = mytracepp "aenvEqs"  (normalize <$> aenvEqs   aenv)
+                        , aenvSimpl = mytracepp "aenvSimpl" (normalize <$> aenvSimpl aenv) }
 
 instance Normalizable Rewrite where 
-  normalize rw = rw { smArgs = xs', smBody = subst su $ smBody rw }
+  normalize rw = rw { smArgs = xs', smBody = normalizeBody (smName rw) $ subst su $ smBody rw }
     where 
       su  = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       xs  = smArgs rw 
@@ -639,9 +628,38 @@ instance Normalizable Rewrite where
 
 
 instance Normalizable Equation where 
-  normalize eq = eq {eqArgs = zip xs' ss, eqBody = subst su $ eqBody eq }
+  normalize eq = eq {eqArgs = zip xs' ss, eqBody = normalizeBody (eqName eq) $ subst su $ eqBody eq }
     where 
       su      = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
       (xs,ss) = unzip (eqArgs eq) 
       xs'     = zipWith mkSymbol xs [0..]
       mkSymbol x i = x `suffixSymbol` intSymbol (eqName eq) i 
+
+
+normalizeBody :: Symbol -> Expr -> Expr
+normalizeBody f = go   
+  where 
+    go (PAnd es) 
+      | any (== f) (syms es) 
+      = go' es
+    go e 
+      = e 
+
+    go' []             = PTrue
+    go' [e]            = e 
+    go' (PImp c e1:es) = EIte c e1 $ go' es 
+    go' (e:es)         = PAnd (e:es)
+
+
+_splitBranches :: Symbol -> Expr -> [(Expr, Expr)]
+_splitBranches f = go   
+  where 
+    go (PAnd es) 
+      | any (== f) (syms es) 
+      = go' <$> es
+    go e 
+      = [(PTrue, e)]
+
+    go' (PImp c e) = (c, e) 
+    go' e          = (PTrue, e)
+
