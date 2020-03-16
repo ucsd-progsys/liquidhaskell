@@ -795,6 +795,7 @@ defineP = do
   body   <- reserved "=" *> sbraces (
               if sort == boolSort then predP else exprP
                )
+  -- let body' = PAtom Eq (eApps (EVar name) ((EVar . fst) <$> params)) body 
   return  $ mkEquation name params body sort
 
 

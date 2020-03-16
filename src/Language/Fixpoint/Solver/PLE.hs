@@ -58,7 +58,7 @@ instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi' = do 
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
-    res   <- withProgress (1 + length cs) $ 
+    res   <- -- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
@@ -355,10 +355,9 @@ f <$$> xs = f Misc.<$$> xs
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ e (EVar f, es) 
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
-  , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es 
   = do env <- seSort <$> gets evEnv
-       e'  <- evalRecApplication γ f e (substEq env eq es bd) 
+       e'  <- evalRecApplication γ f e (substEq env eq es) 
        if e /= e' then eval γ e' else return e 
 
 evalApp γ _ (EVar f, [e]) 
@@ -377,12 +376,12 @@ evalApp _ e _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-substEq :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
-substEq env eq es bd = subst su (substEqCoerce env eq es bd)
+substEq :: SEnv Sort -> Equation -> [Expr] -> Expr
+substEq env eq es = subst su (substEqCoerce env eq es)
   where su = mkSubst $ zip (eqArgNames eq) es
 
-substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
-substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
+substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr
+substEqCoerce env eq es = Vis.applyCoSub coSub $ eqBody eq
   where 
     ts    = snd    <$> eqArgs eq
     sp    = panicSpan "mkCoSub"
@@ -408,23 +407,6 @@ matchSorts s1 s2 = go s1 s2
     go _             _             = []
 
 --------------------------------------------------------------------------------
-getEqBody :: Equation -> Maybe Expr
-getEqBody (Equ x xts b _ _)
-  | Just (fxs, e) <- getEqBodyPred b
-  , (EVar f, es)  <- splitEApp fxs
-  , f == x
-  , es == (EVar . fst <$> xts)
-  = Just e
-getEqBody _
-  = Nothing
-
-getEqBodyPred :: Expr -> Maybe (Expr, Expr)
-getEqBodyPred (PAtom Eq fxs e)
-  = Just (fxs, e)
-getEqBodyPred (PAnd ((PAtom Eq fxs e):_))
-  = Just (fxs, e)
-getEqBodyPred _
-  = Nothing
 
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
