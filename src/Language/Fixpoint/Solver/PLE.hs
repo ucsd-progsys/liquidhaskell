@@ -47,7 +47,7 @@ traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
   | False -- True 
   , e /= e' 
-  = notrace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
+  = notracepp ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
   = (e,e')
 
