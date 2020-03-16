@@ -41,13 +41,13 @@ import           Data.Char            (isUpper)
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = notracepp
+mytracepp = tracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
   | False -- True 
   , e /= e' 
-  = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
+  = notrace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
   = (e,e')
 
@@ -93,9 +93,16 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where 
     diff0        = []
     res0         = M.empty 
-    ctx0         = initCtx $ (mkEq <$> es0) 
-    es0          = L.filter (null . eqArgs) (aenvEqs . ieAenv $ env)
-    mkEq eq      = mytracepp "initEqs" (EVar $ eqName eq, eqBody eq)
+    ctx0         = initCtx $ ((mkEq <$> es0) ++ (mkEq' <$> es0'))
+    es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
+    es0'         = L.filter (null . smArgs) $ L.filter isGoodRW (aenvSimpl . ieAenv $ env)
+    mkEq  eq     = (EVar $ eqName eq, eqBody eq)
+    mkEq' rw     = (EApp (EVar $ smName rw) (EVar $ smDC rw), smBody rw)
+
+    -- NV TODO: there is a bug in LH generation and generates the rules
+    -- rewrite D x = D x 
+    isGoodRW rw = smBody rw /= EApp (EVar $ smName rw) (EVar $ smName rw)
+
 
 loopT :: InstEnv a -> ICtx -> Diff -> Maybe BindId -> InstRes -> CTrie -> IO InstRes
 loopT env ctx delta i res t = case t of 
