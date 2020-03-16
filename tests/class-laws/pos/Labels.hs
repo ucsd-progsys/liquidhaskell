@@ -1,6 +1,5 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--oldple"     @-}
 module Labels where 
 
 class Label l where 
