@@ -2,6 +2,7 @@
 
 {-@ LIQUID "--reflection"  @-}
 {-@ LIQUID "--ple"         @-}
+{-@ LIQUID "--oldple"      @-}
 
 {-@ infixr ++              @-}
 

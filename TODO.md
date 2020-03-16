@@ -1,29 +1,26 @@
 # TODO
 
-## NEW PLE Known to Fail [15 failing tests] 
-  - GADTS, e.g., 
-     - tests/ple/pos/T1302b.hs
+## NEW PLE required edits: 
+  - 
 
-  - no-termination, e.g.,   
-     - tests/ple/pos/STLCB0.hs
-     - tests/ple/pos/STLCB1.hs
-     - tests/ple/pos/NNFPiotr.hs
+## NEW PLE Known to Fail [10 failing tests] 
+  - GADTS, e.g., 
+
+     - tests/ple/pos/IndPal00.hs <- HERE 
+     - tests/ple/pos/IndPal0.hs
+     - tests/ple/pos/IndPalidrome.hs
+     - tests/ple/pos/BinahQuery.hs
+     - tests/ple/pos/ExactGADT5.hs
 
   - no-adt, e.g., 
      - tests/pos/FingerTree.hs
 
   - TOFIX other reasons, e.g., 
-     - tests/ple/pos/MJFix.hs 
-     - tests/class-laws/pos/Labels.hs  <-- HERE 
-
-     - benchmarks/popl18/ple/pos/Unification.hs
-     - benchmarks/popl18/ple/pos/MonadList.hs
-     - benchmarks/popl18/ple/pos/MapFusion.hs
-     - benchmarks/popl18/ple/pos/FunctorList.hs
+     - tests/ple/pos/Fulcrum.hs 
+     
      - benchmarks/popl18/ple/pos/ApplicativeMaybe.hs
      - benchmarks/popl18/ple/pos/ApplicativeList.hs
      - benchmarks/popl18/ple/pos/ApplicativeId.hs
-     - benchmarks/popl18/ple/pos/Append.hs
 
 - CHECK NN example
 - Check initial ple example 

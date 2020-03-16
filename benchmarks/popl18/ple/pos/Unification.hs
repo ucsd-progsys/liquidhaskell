@@ -7,7 +7,6 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple-local"  @-}
-{-@ LIQUID "--oldple"     @-}
 
 module Unify where
 

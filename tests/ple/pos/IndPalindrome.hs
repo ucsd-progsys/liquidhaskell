@@ -2,7 +2,7 @@
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
-{-@ LIQUID "--oldple"        @-}
+{-@ LIQUID "--oldple"     @-}
 
 module IndPalindrome where
 
