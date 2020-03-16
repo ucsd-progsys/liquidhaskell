@@ -1,6 +1,6 @@
 # TODO
 
-## NEW PLE Known to Fail [14 failing tests] 
+## NEW PLE Known to Fail [15 failing tests] 
   - GADTS, e.g., 
      - tests/ple/pos/T1302b.hs
 
@@ -13,7 +13,8 @@
      - tests/pos/FingerTree.hs
 
   - TOFIX other reasons, e.g., 
-     - tests/ple/pos/MJFix.hs  <-- HERE 
+     - tests/ple/pos/MJFix.hs 
+     - tests/class-laws/pos/Labels.hs  <-- HERE 
 
      - benchmarks/popl18/ple/pos/Unification.hs
      - benchmarks/popl18/ple/pos/MonadList.hs
