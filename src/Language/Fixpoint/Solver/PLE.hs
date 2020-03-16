@@ -358,7 +358,7 @@ evalApp γ e (EVar f, es)
   , Just bd <- getEqBody eq
   , length (eqArgs eq) == length es 
   = do env <- seSort <$> gets evEnv
-       e'  <- evalRecApplication γ f e (substEq env Normal eq es bd) 
+       e'  <- evalRecApplication γ f e (substEq env eq es bd) 
        if e /= e' then eval γ e' else return e 
 
 evalApp γ _ (EVar f, [e]) 
@@ -377,18 +377,9 @@ evalApp _ e _
 --   argument values. We must also substitute the sort-variables that appear
 --   as coercions. See tests/proof/ple1.fq
 --------------------------------------------------------------------------------
-substEq :: SEnv Sort -> SubstOp -> Equation -> [Expr] -> Expr -> Expr
-substEq env o eq es bd = substEqVal o eq es (substEqCoerce env eq es bd)
-
-data SubstOp = PopIf | Normal
-
-substEqVal :: SubstOp -> Equation -> [Expr] -> Expr -> Expr
-substEqVal o eq es bd = case o of
-    PopIf  -> substPopIf     xes  bd
-    Normal -> subst (mkSubst xes) bd
-  where
-    xes    =  zip xs es
-    xs     =  eqArgNames eq
+substEq :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
+substEq env eq es bd = subst su (substEqCoerce env eq es bd)
+  where su = mkSubst $ zip (eqArgNames eq) es
 
 substEqCoerce :: SEnv Sort -> Equation -> [Expr] -> Expr -> Expr
 substEqCoerce env eq es bd = Vis.applyCoSub coSub bd
@@ -437,12 +428,6 @@ getEqBodyPred _
 
 eqArgNames :: Equation -> [Symbol]
 eqArgNames = map fst . eqArgs
-
-substPopIf :: [(Symbol, Expr)] -> Expr -> Expr
-substPopIf xes e = L.foldl' go e xes
-  where
-    go e (x, EIte b e1 e2) = EIte b (subst1 e (x, e1)) (subst1 e (x, e2))
-    go e (x, ex)           = subst1 e (x, ex)
 
 evalRecApplication :: Knowledge -> Symbol -> Expr -> Expr -> EvalST Expr
 evalRecApplication γ _ _ e@(EIte b e1 e2) = do 
@@ -506,9 +491,9 @@ isProof (_, RR s _) = showpp s == "Tuple"
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN 
   { knSims    = sims 
-  , knAms     = aenvEqs   aenv
+  , knAms     = aenvEqs aenv
   , knContext = ctx 
-  , knPreds   = askSMT    cfg 
+  , knPreds   = askSMT  cfg 
   , knLams    = [] 
   , knSummary =    ((\s -> (smName s, 1)) <$> sims) 
                 ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
@@ -519,15 +504,10 @@ knowledge cfg ctx si = KN
     aenv = ae si 
 
 reWriteDDecl :: DataDecl -> [Rewrite]
-reWriteDDecl ddecl = concatMap go' (ddCtors ddecl) -- ++
-                     -- concatMap go (ddCtors ddecl)
+reWriteDDecl ddecl = concatMap go (ddCtors ddecl) 
   where 
-    go' (DCtor f xs) =  sels {- 
-    go (DCtor f xs)  = SMeasure (testSymbol f') f' ys PTrue:
-                       ([SMeasure (testSymbol f') (symbol nf) (mkArg zs) PFalse | DCtor nf zs <- ddCtors ddecl, nf /= f ]  
-                        ++ zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i))) rs [0..]) -}
+    go (DCtor f xs) = zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i)) ) rs [0..]
        where 
-        sels = zipWith (\r i -> SMeasure r f' ys (EVar (ys!!i)) ) rs [0..]
         f'  = symbol f 
         rs  = (val . dfName) <$> xs  
         mkArg ws = zipWith (\_ i -> intSymbol (symbol ("darg"::String)) i) ws [0..]
@@ -666,7 +646,17 @@ instance Normalizable (GInfo c a) where
   normalize si = si {ae = normalize $ ae si}
 
 instance Normalizable AxiomEnv where 
-  normalize aenv = aenv {aenvEqs = normalize <$> aenvEqs aenv}
+  normalize aenv = aenv { aenvEqs   = normalize <$> aenvEqs   aenv
+                        , aenvSimpl = normalize <$> aenvSimpl aenv }
+
+instance Normalizable Rewrite where 
+  normalize rw = rw { smArgs = xs', smBody = subst su $ smBody rw }
+    where 
+      su  = mkSubst $ zipWith (\x y -> (x,EVar y)) xs xs'
+      xs  = smArgs rw 
+      xs' = zipWith mkSymbol xs [0..]
+      mkSymbol x i = x `suffixSymbol` intSymbol (smName rw) i 
+
 
 instance Normalizable Equation where 
   normalize eq = eq {eqArgs = zip xs' ss, eqBody = subst su $ eqBody eq }
