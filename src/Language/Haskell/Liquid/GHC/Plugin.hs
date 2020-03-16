@@ -190,9 +190,11 @@ parseHook _ modSummary parsedModule = do
   availTyCons   <- LH.availableTyCons env (GhcMonadLike.tm_mod_summary typechecked) 
                                           (GhcMonadLike.tm_gbl_env typechecked)
                                           (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
-
+  availVars     <- LH.availableVars env (GhcMonadLike.tm_mod_summary typechecked) 
+                                        (GhcMonadLike.tm_gbl_env typechecked)
+                                        (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
   let thisModule = ms_mod modSummary
-  let stableData = mkTcData typechecked resolvedNames availTyCons
+  let stableData = mkTcData typechecked resolvedNames availTyCons availVars
 
   debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
 
@@ -440,9 +442,9 @@ processModule LiquidHaskellContext{..} = do
         --  LH.updLiftedSpec (downcastSpec targetSpec) (Just . gsLSpec . giSpec $ ghcInfo)
     {- targetSpec `mergeTargetWithClient` -} -- (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
 
-  --liftIO $ putStrLn $ "targetSpec ==> " ++ show targetSpec
+  liftIO $ putStrLn $ "targetSpec ==> " ++ show targetSpec
   --liftIO $ putStrLn $ "clientSpecBeforeMerging ==> " ++ (show $ mkClientSpec . gsLSpec . giSpec $ ghcInfo)
-  --liftIO $ putStrLn $ "clientSpec ==> " ++ show clientSpec
+  liftIO $ putStrLn $ "clientSpec ==> " ++ show clientSpec
 
   let clientLib  = mkLiquidLib clientSpec & addLibDependencies dependencies
 
@@ -470,10 +472,16 @@ makeGhcSrc :: GhcMonadLike m
            -> m GhcSrc
 makeGhcSrc cfg file tcData modGuts hscEnv = do
   coreBinds      <- liftIO $ anormalize cfg hscEnv modGuts
-  let dataCons    = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs mgiModGuts)
+
+  -- The type constructors for a module are the (nubbed) union of the ones defined and
+  -- the ones exported. This covers the case of \"wrapper modules\" that simply re-exports
+  -- everything from the imported modules.
+  let availTcs    = tcAvailableTyCons tcData
+  let allTcs      = L.nub $ (mgi_tcs mgiModGuts ++ availTcs)
+
+  let dataCons    = concatMap (map dataConWorkId . tyConDataCons) allTcs
   (fiTcs, fiDcs) <- liftIO $ LH.makeFamInstEnv hscEnv
   let things      = tcResolvedNames tcData
-  let availTcs    = tcAvailableTyCons tcData
   let impVars     = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
   return $ Src
     { giIncDir    = mempty
@@ -481,11 +489,11 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
     , giCbs       = coreBinds
     , giImpVars   = impVars
-    , giDefVars   = dataCons ++ (letVars coreBinds)
+    , giDefVars   = L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData
     , giUseVars   = readVars coreBinds
     , giDerVars   = HS.fromList (LH.derivedVars cfg mgiModGuts)
     , gsExports   = mgi_exports  mgiModGuts
-    , gsTcs       = L.nub $ (mgi_tcs mgiModGuts ++ availTcs)
+    , gsTcs       = allTcs
     , gsCls       = mgi_cls_inst mgiModGuts
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
