@@ -41,11 +41,11 @@ import           Data.Char            (isUpper)
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
-mytracepp = tracepp
+mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | True -- False -- True 
+  | False -- True 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
