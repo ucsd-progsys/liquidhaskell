@@ -2,6 +2,7 @@
 --   1. Each binder must be associated with a UNIQUE sort
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
@@ -88,14 +89,44 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
 eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 eliminateEta cfg si
-  | Cfg.etaElim cfg  
+  | Cfg.etaElim cfg 
+  , Cfg.newPLE  cfg
+  = si { F.ae = (ae {F.aenvEqs = etaElim `fmap` F.aenvEqs ae }) }
+  | Cfg.etaElim cfg 
   = si { F.ae = ae' }
   | otherwise 
   = si 
   where
+    -- NV TODO: Clean 
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
-    eqs = fmap etaElim (F.aenvEqs ae)
+    eqs = fmap etaElimOLD (F.aenvEqs ae)
+
+    etaElimOLD eq = F.notracepp "Eliminating" $
+                 case body of
+                   F.PAtom F.Eq e0 e1 ->
+                     let (f0, args0) = fapp e0
+                         (f1, args1) = F.notracepp "f1" $ fapp e1 in
+                     if reverse args0 == args
+                     then let commonArgs = F.notracepp "commonArgs" .
+                                           fmap fst .
+                                           takeWhile (uncurry (==)) $
+                                           zip args0 args1
+                              commonLength = length commonArgs
+                              (newArgsAndSorts, elimedArgsAndSorts) =
+                                splitAt (length args - commonLength) argsAndSorts
+                              args0' = F.eVar <$> reverse (drop commonLength args0)
+                              args1' = F.eVar <$> reverse (drop commonLength args1) in
+                       eq { F.eqArgs = newArgsAndSorts
+                          , F.eqSort = foldr F.FFunc sort
+                                       (snd <$> elimedArgsAndSorts)
+                          , F.eqBody = F.PAtom F.Eq (F.eApps f0 args0') (F.eApps f1 args1')}
+                     else eq
+                   _ -> eq
+      where argsAndSorts = F.eqArgs eq
+            args = fst <$> argsAndSorts
+            body = F.eqBody eq
+            sort = F.eqSort eq
     etaElim eq = F.notracepp "Eliminating" $
                   let (f1, args1) = fapp (F.eqBody eq) in
                   let commonArgs = F.notracepp "commonArgs" .
