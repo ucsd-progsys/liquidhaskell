@@ -45,7 +45,7 @@ mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | False -- True 
+  | False 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
@@ -200,7 +200,7 @@ data ICtx    = ICtx
   , icCands  :: S.HashSet Expr   -- ^ "Candidates" for unfolding
   , icEquals :: ![(Expr,Expr)]   -- ^ Accumulated equalities  
   , icSolved :: S.HashSet Expr   -- ^ Terms that we have already expanded
-  , icSimpl  :: !ConstMap        -- ^ Map of expressions to constants 
+  , icSimpl  :: !ConstMap        -- ^ Map of expressions to constants
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -302,7 +302,7 @@ type EvalST a = StateT EvalEnv IO a
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (Maybe (Expr, Expr))
 evalOne γ env ctx e = do
   e' <- evalStateT (eval γ e) env 
-  if e' == e then return Nothing else return (Just $ traceE (e, simplify ctx e'))
+  if e' == e then return Nothing else return (Just $ id (e, simplify γ ctx e'))
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -331,7 +331,7 @@ notGuardedApps = go
     go (PGrad{})       = []
 
 eval :: Knowledge -> Expr -> EvalST Expr
-eval γ = go 
+eval γ e = (snd . traceE . (e,)) <$> go e 
   where 
     go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' e where γ' = γ { knLams = (x, s) : knLams γ }
     go e@(EIte b e1 e2) = evalIte γ e b e1 e2
@@ -366,7 +366,8 @@ evalApp γ _ (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , length (eqArgs eq) == length es 
   = do env <- seSort <$> gets evEnv
-       eval γ $ substEq env eq es
+       es' <- mapM (eval γ) es 
+       eval γ $ substEq env eq es'
 
 evalApp γ _ (EVar f, [e]) 
   | (EVar dc, as) <- splitEApp e
@@ -447,6 +448,7 @@ data Knowledge = KN
   , knLams    :: [(Symbol, Sort)]
   , knSummary :: [(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
   , knDCs     :: S.HashSet Symbol     -- data constructors drawn from Rewrite 
+  , knSels    :: SelectorMap 
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
@@ -469,10 +471,17 @@ knowledge cfg ctx si = KN
   , knSummary =    ((\s -> (smName s, 1)) <$> sims) 
                 ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   , knDCs     = S.fromList (smDC <$> sims) 
+  , knSels    = Mb.catMaybes $ map makeSel sims 
   } 
   where 
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
     aenv = ae si 
+
+    makeSel rw 
+      | EVar x <- smBody rw
+      = (smName rw,) . (smDC rw,) <$> L.elemIndex x (smArgs rw)
+      | otherwise 
+      = Nothing 
 
 reWriteDDecl :: DataDecl -> [Rewrite]
 reWriteDDecl ddecl = concatMap go (ddCtors ddecl) 
@@ -574,6 +583,10 @@ withCtx cfg file env k = do
   return res
 
 
+-- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi, 
+-- i.e., sel_i selects the ith value for the data constructor D  
+type SelectorMap = [(Symbol, (Symbol, Int))]
+
 -- ValueMap maps expressions to constants (including data constructors)
 type ConstMap = [(Expr, Expr)]
 type LDataCon = Symbol              -- Data Constructors 
@@ -584,16 +597,35 @@ isSimplification dcs (_,c) = isConstant c
     isConstant e = S.null (S.difference (S.fromList $ syms e) dcs) 
 
 class Simplifiable a where 
-  simplify :: ICtx -> a -> a 
+  simplify :: Knowledge -> ICtx -> a -> a 
 
 
 instance Simplifiable Expr where 
-  simplify ictx = betaReduceExpr (icSimpl ictx)
+  simplify γ ictx = applySelectors (knSels γ) .  betaReduceExpr (icSimpl ictx)
+
+
+applySelectors :: SelectorMap -> Expr -> Expr 
+applySelectors smap e 
+  | e' == e = e 
+  | otherwise = applySelectors smap (go e')
+  where 
+    e' = go e 
+    go (EApp (EVar f) a)
+      | Just (dc, i)  <- L.lookup f smap 
+      , (EVar dc', es) <- splitEApp a
+      , dc == dc' 
+      = es!!i
+    go (EIte b e1 e2)
+      = EIte (go b) (go e1) (go e2)
+    go (EApp e1 e2)
+       = EApp (go e1) (go e2)
+    go e = e 
+  
 
 betaReduceExpr :: ConstMap -> Expr -> Expr 
 betaReduceExpr vmap e 
   | e' == e   = e 
-  | otherwise = betaReduceExpr vmap (go e')
+  | otherwise = betaReduceExpr vmap e'
    where 
      e' = go e 
      go e 
