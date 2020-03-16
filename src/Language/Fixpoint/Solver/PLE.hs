@@ -146,7 +146,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                                  let eqsSMT   = evalToSMT cfg ctx <$> us
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
-                                                     , icAssms  = icAssms  ictx <> eqsSMT }
+                                                     , icAssms  = icAssms  ictx <> filter (not . isTautoPred) eqsSMT }
                                  let newcands = concatMap (makeCandidates γ ictx') (cands ++ (snd <$> us))
                                  go (ictx' { icCands = S.fromList newcands})
 
@@ -246,7 +246,7 @@ updRes res  Nothing _ = res
 
 updCtx :: InstEnv a -> ICtx -> Diff -> Maybe SubcId -> ICtx 
 updCtx InstEnv {..} ctx delta cidMb 
-              = ctx { icAssms  = ctxEqs  
+              = ctx { icAssms  = filter (not . isTautoPred) ctxEqs  
                     , icCands  = S.fromList cands   <> icCands  ctx
                     , icEquals = initEqs            <> icEquals ctx
                     , icSimpl  = sims               <> icSimpl ctx 
