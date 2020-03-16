@@ -17,8 +17,8 @@
      - tests/ple/pos/MJFix.hs
      - tests/ple/pos/IndPalindrome.hs
 
-     - tests/ple/pos/Lists.hs
-     - tests/import/client/ListClient.hs
+     ? tests/ple/pos/Lists.hs
+     ? tests/import/client/ListClient.hs
     
      - tests/pos/MapFusion.hs
      - tests/pos/Hutton.hs
