@@ -6,7 +6,6 @@ constant selector : (func(0, [QQ; int]))
 
 match selector QQ x = (x)
 define maker(n : int) : QQ = { QQ n }
-axiom QQ(z : int)   = { selector (QQ z) = z }
 
 expand [1 : True]
 

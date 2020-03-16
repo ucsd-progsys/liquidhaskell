@@ -365,11 +365,9 @@ evalApp γ _ (EVar f, [e])
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = eval γ $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
-
+  
 evalApp _ e _
   = return e
-
-
 
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
