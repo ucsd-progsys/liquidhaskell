@@ -45,7 +45,7 @@ mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | False 
+  | False -- True 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
@@ -58,7 +58,7 @@ instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi' = do 
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c ] 
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
-    res   <- -- withProgress (1 + length cs) $ 
+    res   <- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
     return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
   where
@@ -77,7 +77,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) 
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -139,7 +139,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
     go ictx =  do let cands = S.toList (icCands ictx) 
                   eqs   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (icAssms ictx)) 
-                               mapM (evalOne γ env ictx) cands
+                               mapM (evalOne γ (env{ evAccum =  M.fromList (icEquals ictx) <> evAccum env}) ictx) cands
                   case Mb.catMaybes eqs of 
                         [] -> return ictx 
                         us -> do let oks      = S.fromList (fst <$> us)
@@ -294,20 +294,22 @@ isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
-  { evEnv :: !SymEnv }
+  { evEnv   :: !SymEnv
+  , evAccum :: M.HashMap Expr Expr 
+  }
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (Maybe (Expr, Expr))
 evalOne γ env ctx e = do
-  e' <- evalStateT (eval γ e) env 
-  if e' == e then return Nothing else return (Just $ id (e, simplify γ ctx e'))
+  e' <- evalStateT (eval γ ctx e) env 
+  if e' == e then return Nothing else return (Just $ id (e, e'))
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
   where 
-    go e@(EApp e1 e2)  = go e1 ++ go e2 ++ [e]
+    go e@(EApp e1 e2)  = [e] ++ go e1 ++ go e2
     go (PAnd es)       = concatMap go es
     go (POr es)        = concatMap go es
     go (PAtom _ e1 e2) = go e1  ++ go e2
@@ -330,13 +332,24 @@ notGuardedApps = go
     go (PExist _ _)    = []
     go (PGrad{})       = []
 
-eval :: Knowledge -> Expr -> EvalST Expr
-eval γ e = (snd . traceE . (e,)) <$> go e 
+eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
+eval γ ctx e = 
+  do acc <- evAccum <$> get  
+     case M.lookup e acc of 
+        Just e' -> eval γ ctx e' 
+        Nothing -> do  
+          e' <- (snd . traceE . (e,) . simplify γ ctx) <$> go e 
+          if e /= e' 
+            then do modify (\st -> st{evAccum = M.insert e e' (evAccum st)})
+                    eval γ ctx e' 
+            else return e 
   where 
-    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = evalIte γ e b e1 e2
+    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
+    go e@(EIte b e1 e2) = evalIte γ ctx e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
-    go e@(EApp _ _)     = evalApp γ e (splitEApp e)
+    go e@(EApp _ _)     = case splitEApp e of 
+                           (f, es) -> do (f':es') <- mapM (eval γ ctx) (f:es) 
+                                         evalApp γ (eApps f' es) (f',es')
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = ENeg         <$> go e
     go (EBin o e1 e2)   = EBin o       <$> go e1 <*> go e2
@@ -361,19 +374,20 @@ fromMaybeM a ma = do
 f <$$> xs = f Misc.<$$> xs
 
 
+
+ 
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ _ (EVar f, es) 
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , length (eqArgs eq) == length es 
   = do env <- seSort <$> gets evEnv
-       es' <- mapM (eval γ) es 
-       eval γ $ substEq env eq es'
+       return $ substEq env eq es
 
 evalApp γ _ (EVar f, [e]) 
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
-  = eval γ $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
+  = return $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
 
 evalApp _ e _
   = return e
@@ -428,14 +442,15 @@ evalBool γ e = do
           else return Nothing 
 
   
-evalIte :: Knowledge -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ e b e1 e2 = do 
+evalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIte γ ctx _ b0 e1 e2 = do 
+  b <- eval γ ctx b0 
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b' 
-    then return e1 
-    else if nb' then return e2 
-    else return e 
+    then return $ e1 
+    else if nb' then return $ e2 
+    else return $ EIte b e1 e2  
 
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
@@ -449,6 +464,7 @@ data Knowledge = KN
   , knSummary :: [(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
   , knDCs     :: S.HashSet Symbol     -- data constructors drawn from Rewrite 
   , knSels    :: SelectorMap 
+  , knConsts  :: ConstDCMap
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
@@ -471,11 +487,18 @@ knowledge cfg ctx si = KN
   , knSummary =    ((\s -> (smName s, 1)) <$> sims) 
                 ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
   , knDCs     = S.fromList (smDC <$> sims) 
-  , knSels    = Mb.catMaybes $ map makeSel sims 
+  , knSels    = Mb.catMaybes $ map makeSel  sims 
+  , knConsts  = Mb.catMaybes $ map makeCons sims 
   } 
   where 
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
     aenv = ae si 
+
+    makeCons rw 
+      | null (syms $ smBody rw)
+      = Just (smName rw, (smDC rw, smBody rw))
+      | otherwise
+      = Nothing 
 
     makeSel rw 
       | EVar x <- smBody rw
@@ -586,6 +609,7 @@ withCtx cfg file env k = do
 -- (sel_i, D, i), meaning sel_i (D x1 .. xn) = xi, 
 -- i.e., sel_i selects the ith value for the data constructor D  
 type SelectorMap = [(Symbol, (Symbol, Int))]
+type ConstDCMap = [(Symbol, (Symbol, Expr))]
 
 -- ValueMap maps expressions to constants (including data constructors)
 type ConstMap = [(Expr, Expr)]
@@ -601,7 +625,7 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where 
-  simplify γ ictx = applySelectors (knSels γ) .  betaReduceExpr (icSimpl ictx)
+  simplify γ ictx = applyConst (knConsts γ) . applySelectors (knSels γ) .  betaReduceExpr (icSimpl ictx)
 
 
 applySelectors :: SelectorMap -> Expr -> Expr 
@@ -619,8 +643,24 @@ applySelectors smap e
       = EIte (go b) (go e1) (go e2)
     go (EApp e1 e2)
        = EApp (go e1) (go e2)
+    go (PAnd es)
+       = PAnd (go <$> es)
     go e = e 
   
+
+applyConst :: ConstDCMap -> Expr -> Expr 
+applyConst smap e 
+  | e' == e = e 
+  | otherwise = applyConst smap (go e')
+  where 
+    e' = Vis.mapExpr go e 
+    go (EApp (EVar f) a)
+      | Just (dc, c)  <- L.lookup f smap 
+      , (EVar dc', _) <- splitEApp a
+      , dc == dc' 
+      = c
+    go e 
+      = e 
 
 betaReduceExpr :: ConstMap -> Expr -> Expr 
 betaReduceExpr vmap e 
@@ -635,6 +675,8 @@ betaReduceExpr vmap e
       = EIte (go b) (go e1) (go e2)
      go (EApp e1 e2)
        = EApp (go e1) (go e2)
+     go (PAnd es)
+       = PAnd (go <$> es)
      go e = e 
 
 
