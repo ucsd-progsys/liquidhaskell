@@ -3,10 +3,7 @@
 ## NEW PLE required edits: 
   - 
 
-## NEW PLE Known to Fail [2 failing tests] 
-  - GADTS, e.g., 
-     - tests/ple/pos/ExactGADT5.hs
-
+## NEW PLE Known to Fail [1 failing test] 
   - has lambdas 
      - benchmarks/popl18/ple/pos/MonadId.hs
 
