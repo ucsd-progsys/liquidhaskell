@@ -3,21 +3,18 @@
 ## NEW PLE required edits: 
   - 
 
-## NEW PLE Known to Fail [4 failing tests] 
+## NEW PLE Known to Fail [3 failing tests] 
   - GADTS, e.g., 
 
      - tests/ple/pos/BinahQuery.hs
      - tests/ple/pos/ExactGADT5.hs
 
-  - no-adt, e.g., 
-     - tests/pos/FingerTree.hs
-
-  - TOFIX other reasons, e.g., 
-     
-     - benchmarks/popl18/ple/pos/ApplicativeMaybe.hs
+  - has lambdas 
+     - benchmarks/popl18/ple/pos/MonadId.hs
 
 - CHECK NN example
 - Check initial ple example 
+- restore progress bar 
 
 ## Build
 
