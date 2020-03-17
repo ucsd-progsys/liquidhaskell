@@ -90,10 +90,10 @@ eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 eliminateEta cfg si
   | Cfg.etaElim cfg 
-  , Cfg.newPLE  cfg
-  = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
-  | Cfg.etaElim cfg 
+  , Cfg.oldPLE  cfg
   = si { F.ae = ae' }
+  | Cfg.etaElim cfg 
+  = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
   | otherwise 
   = si 
   where
