@@ -380,8 +380,11 @@ eval γ ctx e =
                            (f, es) -> do (f':es') <- mapM (eval γ ctx) (f:es) 
                                          evalApp γ (eApps f' es) (f',es')
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
-    go (ENeg e)         = ENeg         <$> go e
-    go (EBin o e1 e2)   = EBin o       <$> go e1 <*> go e2
+    go (ENeg e)         = do e'  <- eval γ ctx e
+                             return $ ENeg e'
+    go (EBin o e1 e2)   = do e1' <- eval γ ctx e1 
+                             e2' <- eval γ ctx e2 
+                             return $ EBin o e1' e2'
     go (ETApp e t)      = flip ETApp t <$> go e
     go (ETAbs e s)      = flip ETAbs s <$> go e
     go e@(PNot e')      = fromMaybeM (PNot <$> go e')           (evalBool γ e)
