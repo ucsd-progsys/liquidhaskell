@@ -1,7 +1,7 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--ple" @-}
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple-local"        @-}
 
--- TAG: absref 
+-- TAG: ple 
 
 module Fibonacci where
 import Language.Haskell.Liquid.ProofCombinators
@@ -24,11 +24,13 @@ fib i | i == 0    = 0
       | i == 1    = 1
       | otherwise = fib (i-1) + fib (i-2)
 
+{-@ ple fib1 @-}
+{- fib1 :: () -> {fib 2 == 1 } @-}
 {-@ fib1 :: () -> {fib 16 == 987 } @-}
 fib1 :: () -> Proof
 fib1 _ = trivial
 
-
+{- 
 fibUp :: Int -> Proof
 {-@ fibUp :: i:Nat -> {fib i <= fib (i+1)} @-}
 fibUp i
@@ -139,3 +141,4 @@ fibEx :: Int -> (Int, Proof) -> (Int, Proof)
 {-@ fibEx :: n:Nat -> (m::Int, {v:Proof | n < m})
          -> (m'::Int, {v:Proof | fib n <= m' }) @-}
 fibEx n (m, pf) = (fib m, fibMonoHO n m)
+-}
