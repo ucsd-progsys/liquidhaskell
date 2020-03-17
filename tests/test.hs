@@ -81,7 +81,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                             macroTests  :
                             proverTests :
                             goldenTests :
-                            benchTests  : 
+                 --            benchTests  : 
                             []
                            
 
