@@ -97,7 +97,6 @@ eliminateEta cfg si
   | otherwise 
   = si 
   where
-    -- NV TODO: Clean 
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
     eqs = fmap etaElim (F.aenvEqs ae)

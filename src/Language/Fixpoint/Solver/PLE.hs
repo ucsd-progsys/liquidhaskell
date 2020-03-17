@@ -45,7 +45,7 @@ mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | True -- False -- True 
+  | False -- True 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
@@ -626,9 +626,9 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where 
-  simplify γ ictx e = fix (Vis.mapExpr tx) e
+  simplify γ ictx = fix (Vis.mapExpr tx)
     where 
-      fix tx e = if e == e' then e else fix tx e' where e' = tx e 
+      fix f e = if e == e' then e else fix f e' where e' = f e 
       -- required otherwise malfored preds end up in Z3
       tx (EIte b e1 e2)
         | isTautoPred b  = e1 
