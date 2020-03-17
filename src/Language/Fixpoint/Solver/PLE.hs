@@ -257,7 +257,7 @@ updCtx InstEnv {..} ctx delta cidMb
   where         
     initEqs   = S.fromList (initEqualities ieSMT ieAenv bs ++ rws)
     rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> S.toList (icEquals ctx))), rw <- knSims ieKnowl]
-    cands     = concatMap (makeCandidates ieKnowl ctx) es
+    cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
@@ -267,7 +267,7 @@ updCtx InstEnv {..} ctx delta cidMb
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
                   ])
     bs        = unElab <$> binds
-    es        = unElab <$> (eRhs : (expr <$> binds))
+    (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
