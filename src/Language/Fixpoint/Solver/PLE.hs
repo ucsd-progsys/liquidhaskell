@@ -45,7 +45,7 @@ mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
 traceE (e,e') 
-  | False -- True 
+  | True -- False -- True 
   , e /= e' 
   = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
   | otherwise 
@@ -129,8 +129,8 @@ ple1 (InstEnv {..}) ctx i res =
   updCtxRes res i <$> evalCandsLoop ieCfg ctx ieSMT ieKnowl ieEvEnv
 
 
-evalToSMT :: Config -> SMT.Context -> (Expr, Expr) -> Pred 
-evalToSMT cfg ctx (e1,e2) = toSMT cfg ctx [] (EEq e1 e2)
+evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred 
+evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx 
 evalCandsLoop cfg ictx0 ctx γ env = go ictx0 
@@ -146,7 +146,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                                  let oks      = fst `S.map` us
                                  let rws      = concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` us)]
                                  let us'      = us <> S.fromList rws 
-                                 let eqsSMT   = evalToSMT cfg ctx `S.map` us
+                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
@@ -259,7 +259,7 @@ updCtx InstEnv {..} ctx delta cidMb
     rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> S.toList (icEquals ctx))), rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) es
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
-    ctxEqs    = toSMT ieCfg ieSMT [] <$> L.nub (concat 
+    ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
                   [ equalitiesPred initEqs 
                   , equalitiesPred sims 
                   , equalitiesPred (icEquals ctx)
@@ -338,10 +338,10 @@ eval γ ctx e =
   do acc <- S.toList . evAccum <$> get  
      case L.lookup e acc of 
         Just e' -> eval γ ctx e' 
-        Nothing -> do  
-          e' <- (snd . traceE . (e,) . simplify γ ctx) <$> go e 
+        Nothing -> do 
+          e' <- simplify γ ctx <$> go e
           if e /= e' 
-            then do modify (\st -> st{evAccum = S.insert (e, e') (evAccum st)})
+            then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum st)})
                     eval γ ctx e' 
             else return e 
   where 
@@ -442,7 +442,6 @@ evalBool γ e = do
     if bf then return $ Just PFalse 
           else return Nothing 
 
-  
 evalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
 evalIte γ ctx _ b0 e1 e2 = do 
   b <- eval γ ctx b0 
@@ -536,10 +535,11 @@ askSMT cfg ctx bs e
   | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
   where 
-    e'                 = toSMT cfg ctx bs e 
+    e'                 = toSMT "askSMT" cfg ctx bs e 
 
-toSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
-toSMT cfg ctx bs = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs)
+toSMT :: String ->  Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> Pred
+toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv bs) . mytracepp ("toSMT from " ++ msg ++ showpp e)
+                          $ e 
   where
     elabEnv      = insertsSymEnv senv
     senv         = SMT.ctxSymEnv ctx
@@ -626,48 +626,30 @@ class Simplifiable a where
 
 
 instance Simplifiable Expr where 
-  simplify γ ictx = applyConst (knConsts γ) . applySelectors (knSels γ) .  betaReduceExpr (icSimpl ictx)
+  simplify γ ictx e = fix (Vis.mapExpr tx) e
+    where 
+      fix tx e = if e == e' then e else fix tx e' where e' = tx e 
+      -- required otherwise malfored preds end up in Z3
+      tx (EIte b e1 e2)
+        | isTautoPred b  = e1 
+        | isContraPred b = e2
+      tx (ECoerc s t e)
+        | s == t = e 
+      tx (EApp (EVar f) a)
+        | Just (dc, i)  <- L.lookup f (knSels γ) 
+        , (EVar dc', es) <- splitEApp a
+        , dc == dc' 
+        = es!!i
+      tx (EApp (EVar f) a)
+        | Just (dc, c)  <- L.lookup f (knConsts γ) 
+        , (EVar dc', _) <- splitEApp a
+        , dc == dc' 
+        = c
+      tx e 
+        | Just e' <- M.lookup e (icSimpl ictx)
+        = e' 
+      tx e = e  
 
-
-applySelectors :: SelectorMap -> Expr -> Expr 
-applySelectors smap e 
-  | e' == e = e 
-  | otherwise = applySelectors smap (go e')
-  where 
-    e' = Vis.mapExpr go e 
-    go (EApp (EVar f) a)
-      | Just (dc, i)  <- L.lookup f smap 
-      , (EVar dc', es) <- splitEApp a
-      , dc == dc' 
-      = es!!i
-    go e = e 
-  
-
-applyConst :: ConstDCMap -> Expr -> Expr 
-applyConst smap e 
-  | e' == e = e 
-  | otherwise = applyConst smap (go e')
-  where 
-    e' = Vis.mapExpr go e 
-    go (EApp (EVar f) a)
-      | Just (dc, c)  <- L.lookup f smap 
-      , (EVar dc', _) <- splitEApp a
-      , dc == dc' 
-      = c
-    go e 
-      = e 
-
-betaReduceExpr :: ConstMap -> Expr -> Expr 
-betaReduceExpr vmap e 
-  | e' == e   = e 
-  | otherwise = betaReduceExpr vmap e'
-   where 
-     e' = Vis.mapExpr go e 
-     go e 
-      | Just e' <- M.lookup e vmap
-      = e' 
-     go e 
-      = e 
 
 
 -------------------------------------------------------------------------------
