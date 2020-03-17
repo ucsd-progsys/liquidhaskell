@@ -3,10 +3,8 @@
 ## NEW PLE required edits: 
   - 
 
-## NEW PLE Known to Fail [3 failing tests] 
+## NEW PLE Known to Fail [2 failing tests] 
   - GADTS, e.g., 
-
-     - tests/ple/pos/BinahQuery.hs
      - tests/ple/pos/ExactGADT5.hs
 
   - has lambdas 
