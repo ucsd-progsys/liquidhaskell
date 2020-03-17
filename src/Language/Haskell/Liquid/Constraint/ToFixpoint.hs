@@ -49,7 +49,7 @@ fixConfig tgt cfg = def
   , FC.rewriteAxioms    = Config.allowPLE   cfg
   , FC.etaElim          = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality   = extensionality    cfg 
-  , FC.newPLE           = not (oldPLE cfg)
+  , FC.oldPLE           = oldPLE cfg
   }
 
 
