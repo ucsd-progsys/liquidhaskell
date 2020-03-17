@@ -252,13 +252,14 @@ updCtx InstEnv {..} ctx delta cidMb
               = ctx { icAssms  = S.fromList (filter (not . isTautoPred) ctxEqs)  
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
-                    , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx 
+                    , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     }
   where         
     initEqs   = S.fromList (initEqualities ieSMT ieAenv bs ++ rws)
     rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> S.toList (icEquals ctx))), rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) es
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
+    econsts   = M.fromList (concatMap (findConstants (knDCs ieKnowl)) es)
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
                   [ equalitiesPred initEqs 
                   , equalitiesPred sims 
@@ -270,6 +271,15 @@ updCtx InstEnv {..} ctx delta cidMb
     eRhs      = maybe PTrue crhs subMb
     binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
     subMb     = getCstr ieCstrs <$> cidMb
+
+
+findConstants :: S.HashSet Symbol -> Expr -> [(Expr, Expr)]
+findConstants dcs e = go e  
+  where 
+    go (EEq l c) | isConstant dcs c = [(l,c)]
+    go (PAnd es) = concatMap go es 
+    go e         = [] 
+
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
@@ -334,6 +344,9 @@ notGuardedApps = go
     go (PGrad{})       = []
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
+eval _ ctx e 
+  | Just v <- M.lookup e (icSimpl ctx)
+  = return v 
 eval γ ctx e = 
   do acc <- S.toList . evAccum <$> get  
      case L.lookup e acc of 
@@ -342,9 +355,11 @@ eval γ ctx e =
           e' <- simplify γ ctx <$> go e
           if e /= e' 
             then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum st)})
-                    eval γ ctx e' 
+                    eval γ (addConst (e,e') ctx) e' 
             else return e 
   where 
+    addConst (e,e') ctx = if isConstant (knDCs γ) e' 
+                           then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
     go e@(EIte b e1 e2) = evalIte γ ctx e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
@@ -460,11 +475,11 @@ data Knowledge = KN
   , knAms     :: ![Equation]          -- ^ All function definitions
   , knContext :: SMT.Context
   , knPreds   :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
-  , knLams    :: [(Symbol, Sort)]
-  , knSummary :: [(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
-  , knDCs     :: S.HashSet Symbol     -- data constructors drawn from Rewrite 
-  , knSels    :: SelectorMap 
-  , knConsts  :: ConstDCMap
+  , knLams    :: ![(Symbol, Sort)]
+  , knSummary :: ![(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
+  , knDCs     :: !(S.HashSet Symbol)     -- data constructors drawn from Rewrite 
+  , knSels    :: !(SelectorMap) 
+  , knConsts  :: !(ConstDCMap)
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
@@ -617,19 +632,24 @@ type ConstMap = M.HashMap Expr Expr
 type LDataCon = Symbol              -- Data Constructors 
 
 isSimplification :: S.HashSet LDataCon -> (Expr,Expr) -> Bool 
-isSimplification dcs (_,c) = isConstant c 
-  where
-    isConstant e = S.null (S.difference (S.fromList $ syms e) dcs) 
+isSimplification dcs (_,c) = isConstant dcs c 
+  
+
+isConstant :: S.HashSet LDataCon -> Expr -> Bool 
+isConstant dcs e = S.null (S.difference (S.fromList $ syms e) dcs) 
 
 class Simplifiable a where 
   simplify :: Knowledge -> ICtx -> a -> a 
 
 
 instance Simplifiable Expr where 
-  simplify γ ictx = fix (Vis.mapExpr tx)
+  simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e
     where 
       fix f e = if e == e' then e else fix f e' where e' = f e 
       -- required otherwise malfored preds end up in Z3
+      tx e 
+        | Just e' <- M.lookup e (icSimpl ictx)
+        = e' 
       tx (EIte b e1 e2)
         | isTautoPred b  = e1 
         | isContraPred b = e2
@@ -645,9 +665,6 @@ instance Simplifiable Expr where
         , (EVar dc', _) <- splitEApp a
         , dc == dc' 
         = c
-      tx e 
-        | Just e' <- M.lookup e (icSimpl ictx)
-        = e' 
       tx e = e  
 
 
