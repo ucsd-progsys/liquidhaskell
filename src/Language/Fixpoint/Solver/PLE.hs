@@ -288,9 +288,14 @@ makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
   = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
-    cands = filter (\e -> (isIte e || isGoodApp γ e) && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
+    cands = filter (\e -> isRedex γ e && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
+
+isRedex :: Knowledge -> Expr -> Bool 
+isRedex γ e = isGoodApp γ e || isIte e 
+  where 
     isIte (EIte _ _ _) = True 
     isIte _            = False 
+
 
 isGoodApp :: Knowledge -> Expr -> Bool 
 isGoodApp γ e 
@@ -300,6 +305,8 @@ isGoodApp γ e
   | otherwise
   = False 
     
+
+
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
