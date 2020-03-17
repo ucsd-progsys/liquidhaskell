@@ -3,7 +3,6 @@
 {-@ LIQUID "--higherorder"    @-}
 {-@ LIQUID "--no-termination" @-}
 {-@ LIQUID "--ple" 	      @-}
-{-@ LIQUID "--oldple" 	  @-} 
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
