@@ -650,6 +650,11 @@ instance Simplifiable Expr where
       tx e 
         | Just e' <- M.lookup e (icSimpl ictx)
         = e' 
+      tx (EApp (EVar f) a)
+        | Just (dc, c)  <- L.lookup f (knConsts γ) 
+        , (EVar dc', _) <- splitEApp a
+        , dc == dc' 
+        = c
       tx (EIte b e1 e2)
         | isTautoPred b  = e1 
         | isContraPred b = e2
@@ -660,11 +665,6 @@ instance Simplifiable Expr where
         , (EVar dc', es) <- splitEApp a
         , dc == dc' 
         = es!!i
-      tx (EApp (EVar f) a)
-        | Just (dc, c)  <- L.lookup f (knConsts γ) 
-        , (EVar dc', _) <- splitEApp a
-        , dc == dc' 
-        = c
       tx e = e  
 
 
