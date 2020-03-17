@@ -259,7 +259,7 @@ updCtx InstEnv {..} ctx delta cidMb
     rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> S.toList (icEquals ctx))), rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) es
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
-    econsts   = M.fromList $ concatMap (findConstants ieKnowl) es
+    econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
                   [ equalitiesPred initEqs 
                   , equalitiesPred sims 
@@ -273,16 +273,17 @@ updCtx InstEnv {..} ctx delta cidMb
     subMb     = getCstr ieCstrs <$> cidMb
 
 
-findConstants :: Knowledge -> Expr -> [(Expr, Expr)]
-findConstants γ e = go e  
+findConstants :: Knowledge -> [Expr] -> [(Expr, Expr)]
+findConstants γ es = [(EVar x, c) | (x,c) <- go [] (concatMap splitPAnd es)]  
   where 
-    dcs = knDCs γ
-    go (EEq l c) 
-      | isConstant dcs c
-      , not (isGoodApp γ l) = [(l,c)]
-    go (PAnd es) = concatMap go es 
-    go _         = [] 
-
+    go su ess = if ess == ess' 
+                  then su 
+                  else go (su ++ su') ess' 
+       where ess' = subst (mkSubst su') <$> ess
+             su'  = makeSu ess 
+    makeSu exprs  = [(x,c) | (EEq (EVar x) c) <- exprs 
+                           , isConstant (knDCs γ) c
+                           , EVar x /= c ]
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
