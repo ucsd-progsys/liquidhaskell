@@ -32,12 +32,10 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
-import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb 
-import           Data.Char            (isUpper)
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -255,8 +253,8 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     }
   where         
-    initEqs   = S.fromList (initEqualities ieSMT ieAenv bs ++ rws)
-    rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> S.toList (icEquals ctx))), rw <- knSims ieKnowl]
+    initEqs   = S.fromList $ concat [rewrite e rw | e  <- (cands ++ (snd <$> S.toList (icEquals ctx)))
+                                                  , rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -505,9 +503,6 @@ isValid γ e = do
     then return False 
     else knPreds γ (knContext γ) (knLams γ) e
 
-isProof :: (a, SortedReft) -> Bool 
-isProof (_, RR s _) = showpp s == "Tuple"
-
 knowledge :: Config -> SMT.Context -> SInfo a -> Knowledge
 knowledge cfg ctx si = KN 
   { knSims    = sims 
@@ -547,19 +542,6 @@ reWriteDDecl ddecl = concatMap go (ddCtors ddecl)
         mkArg ws = zipWith (\_ i -> intSymbol (symbol ("darg"::String)) i) ws [0..]
         ys  = mkArg xs 
 
-
-
-
--- | This creates the rewrite rule e1 -> e2, applied when:
--- 1. when e2 is a DataCon and can lead to further reductions
--- 2. when size e2 < size e1
-initEqualities :: SMT.Context -> AxiomEnv -> [(Symbol, SortedReft)] -> [(Expr, Expr)]
-initEqualities ctx aenv es = concatMap (makeSimplifications (aenvSimpl aenv)) dcEqs
-  where
-    dcEqs                  = Misc.hashNub (Mb.catMaybes [getDCEquality senv e1 e2 | EEq e1 e2 <- atoms])
-    atoms                  = splitPAnd =<< (expr <$> filter isProof es)
-    senv                   = SMT.ctxSymEnv ctx
-
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
   | isTautoPred  e     = return True
@@ -574,55 +556,6 @@ toSMT msg cfg ctx bs e = defuncAny cfg senv . elaborate "makeKnowledge" (elabEnv
   where
     elabEnv      = insertsSymEnv senv
     senv         = SMT.ctxSymEnv ctx
-
-makeSimplifications :: [Rewrite] -> (Symbol, [Expr], Expr) -> [(Expr, Expr)]
-makeSimplifications sis (dc, es, e)
-     = go =<< sis
- where
-   go (SMeasure f dc' xs bd)
-     | dc == dc', length xs == length es
-     = [(EApp (EVar f) e, subst (mkSubst $ zip xs es) bd)]
-   go _
-     = []
-
-getDCEquality :: SymEnv -> Expr -> Expr -> Maybe (Symbol, [Expr], Expr)
-getDCEquality senv e1 e2
-  | Just dc1 <- f1
-  , Just dc2 <- f2
-  = if dc1 == dc2
-      then Nothing
-      else error ("isDCEquality on" ++ showpp e1 ++ "\n" ++ showpp e2)
-  | Just dc1 <- f1
-  = Just (dc1, es1, e2)
-  | Just dc2 <- f2
-  = Just (dc2, es2, e1)
-  | otherwise
-  = Nothing
-  where
-    (f1, es1) = Misc.mapFst (getDC senv) (splitEApp e1)
-    (f2, es2) = Misc.mapFst (getDC senv) (splitEApp e2)
-
--- TODO: Stringy hacks
-getDC :: SymEnv -> Expr -> Maybe Symbol
-getDC senv (EVar x)
-  | isUpperSymbol x && Mb.isNothing (symEnvTheory x senv)
-  = Just x
-getDC _ _
-  = Nothing
-
-isUpperSymbol :: Symbol -> Bool
-isUpperSymbol x = (0 < lengthSym x') && (isUpper $ headSym x')
-  where 
-    x' = dropModuleNames x 
-
-dropModuleNames :: Symbol -> Symbol
-dropModuleNames = mungeNames (symbol . last) "."
-  where
-    mungeNames _ _ ""  = ""
-    mungeNames f d s'@(symbolText -> s)
-      | s' == tupConName = tupConName
-      | otherwise        = f $ T.splitOn d $ stripParens s
-    stripParens t = Mb.fromMaybe t ((T.stripPrefix "(" >=> T.stripSuffix ")") t)
 
 
 --------------------------------------------------------------------------------
