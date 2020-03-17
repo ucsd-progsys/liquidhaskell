@@ -259,7 +259,7 @@ updCtx InstEnv {..} ctx delta cidMb
     rws       = concat [rewrite e rw | e <- (cands ++ (snd <$> S.toList (icEquals ctx))), rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) es
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
-    econsts   = M.fromList (concatMap (findConstants (knDCs ieKnowl)) es)
+    econsts   = M.fromList $ concatMap (findConstants ieKnowl) es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
                   [ equalitiesPred initEqs 
                   , equalitiesPred sims 
@@ -273,10 +273,13 @@ updCtx InstEnv {..} ctx delta cidMb
     subMb     = getCstr ieCstrs <$> cidMb
 
 
-findConstants :: S.HashSet Symbol -> Expr -> [(Expr, Expr)]
-findConstants dcs e = go e  
+findConstants :: Knowledge -> Expr -> [(Expr, Expr)]
+findConstants γ e = go e  
   where 
-    go (EEq l c) | isConstant dcs c = [(l,c)]
+    dcs = knDCs γ
+    go (EEq l c) 
+      | isConstant dcs c
+      , not (isGoodApp γ l) = [(l,c)]
     go (PAnd es) = concatMap go es 
     go _         = [] 
 
@@ -285,16 +288,18 @@ makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
   = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
-    cands = filter (\e -> (isIte e || isGoodApp e) && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
-    isGoodApp e 
-      | (EVar f, es) <- splitEApp e
-      , Just i       <- L.lookup f (knSummary γ)
-      = length es == i
-      | otherwise
-      = False 
+    cands = filter (\e -> (isIte e || isGoodApp γ e) && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
     isIte (EIte _ _ _) = True 
     isIte _            = False 
 
+isGoodApp :: Knowledge -> Expr -> Bool 
+isGoodApp γ e 
+  | (EVar f, es) <- splitEApp e
+  , Just i       <- L.lookup f (knSummary γ)
+  = length es == i
+  | otherwise
+  = False 
+    
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
