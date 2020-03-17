@@ -278,7 +278,7 @@ findConstants dcs e = go e
   where 
     go (EEq l c) | isConstant dcs c = [(l,c)]
     go (PAnd es) = concatMap go es 
-    go e         = [] 
+    go _         = [] 
 
 
 makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
