@@ -32,6 +32,12 @@ data GhcInfo = GI
   , giSpec      :: !GhcSpec               -- ^ All specification information for module
   }
 
+-- | The 'GhcSrc' type is a collection of all the things we know about a module being currently
+-- checked. It include things like the name of the module, the list of 'CoreBind's,
+-- the 'TyCon's declared in this module (that includes 'TyCon's for classes), typeclass instances
+-- and so and so forth. It might be thought as a sort of 'ModGuts' embellished with LH-specific
+-- information (for example, 'giDefVars' are populated with datacons from the module plus the
+-- let vars derived from the A-normalisation).
 data GhcSrc = Src 
   { giIncDir    :: !FilePath              -- ^ Path for LH include/prelude directory
   , giTarget    :: !FilePath              -- ^ Source file for module
@@ -52,11 +58,16 @@ data GhcSrc = Src
   , gsTyThings  :: ![TyThing]             -- ^ All the @TyThing@s known to GHC
   }
 
--- | @QImports@ is a map of qualified imports.
+-- | @QImports@ is a map of qualified imports. Used in 'GhcSrc' to hold the (qualified) imports for an
+-- input module.
 data QImports = QImports 
   { qiModules :: !(S.HashSet F.Symbol)            -- ^ All the modules that are imported qualified
   , qiNames   :: !(M.HashMap F.Symbol [F.Symbol]) -- ^ Map from qualification to full module name
   } deriving Show
+
+-------------------------------------------------------------------------
+-- | Transforming specs
+-------------------------------------------------------------------------
 
 data GhcSpec = SP 
   { gsSig    :: !GhcSpecSig  
