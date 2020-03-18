@@ -1,15 +1,5 @@
 # TODO
 
-## NEW PLE required edits: 
-  - 
-
-## NEW PLE Known to Fail [1 failing test] 
-  - has lambdas 
-     - benchmarks/popl18/ple/pos/MonadId.hs
-
-- CHECK NN example
-- Check initial ple example 
-- restore progress bar 
 
 ## Build
 
