@@ -32,7 +32,7 @@ import           System.Console.CmdArgs.Verbosity
 import           Data.Bifunctor (second)
 
 import System.IO (hFlush, stdout)
-import qualified Debug.Trace as DBG
+-- import qualified Debug.Trace as DBG
 
 trace :: String -> a -> a
 -- trace _msg v = DBG.trace _msg v
@@ -929,7 +929,7 @@ pushName (Just (i, is)) = Just (i + 1, (i + 1):is)
 uBind :: Bind -> State RenameMap Bind
 uBind (Bind x t p) = do
    x' <- uVariable x
-   nmap <- get
+   -- nmap <- get
    p' <- gets (rename p)
    pure $ Bind x' t p'
 
