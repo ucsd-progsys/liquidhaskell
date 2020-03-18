@@ -31,6 +31,15 @@ import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 import           Data.Bifunctor (second)
 
+-- $setup
+-- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
+-- >>> :m + *Language.Fixpoint.Horn.Parse
+-- >>> import Language.Fixpoint.Parse
+-- >>> :set -XOverloadedStrings
+
+---------------
+-- Debugging
+---------------
 import System.IO (hFlush, stdout)
 -- import qualified Debug.Trace as DBG
 
@@ -48,110 +57,47 @@ printPiSols piSols =
                   putStrLn $ F.showpp cstr
                   putStr "\n"
                   hFlush stdout) <$> M.toList piSols)
-
--- $setup
--- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
--- >>> :m + *Language.Fixpoint.Horn.Parse
--- >>> import Language.Fixpoint.Parse
--- >>> :set -XOverloadedStrings
-
-{- | flatten removes redundant `and`s and empty conjuncts.
-
-For example:
->>> :{
-flatten $ doParse' hCstrP "" "(forall ((VV##15 int) (VV##15 == anf##3)) \
-            \      ((and (and \
-            \        ($k13 VV##15 anf##3 moo##5) \
-            \        (true)))))"
-:}
-(forall ((VV##15 int) (VV##15 == anf##3)) ((k13 VV##15 anf##3 moo##5)))
--}
-
-class Flatten a where
-  flatten :: a -> a
-
-instance Flatten (Cstr a) where
-  flatten (CAnd cs) = case flatten cs of
-                        [c] -> c
-                        cs -> CAnd cs
-  flatten (Head p a) = Head (flatten p) a
-  flatten (All (Bind x t p) c) = All (Bind x t (flatten p)) (flatten c)
-  flatten (Any (Bind x t p) c) = Any (Bind x t (flatten p)) (flatten c)
-
-instance Flatten [Cstr a] where
-  flatten (CAnd cs : xs) = flatten cs ++ flatten xs
-  flatten (x:xs)
-    | Head (Reft p) _ <- fx
-    , F.isTautoPred p            = flatten xs
-    | otherwise                  = fx:flatten xs
-    where fx = flatten x
-  flatten [] = []
-
-instance Flatten Pred where
-  flatten (PAnd ps) = case flatten ps of
-                        [p] -> p
-                        ps  -> PAnd ps
-  flatten p = p
-
-instance Flatten [Pred] where
-  flatten (PAnd ps' : ps) = flatten ps' ++ flatten ps
-  flatten (p : ps)
-    | Reft e <- fp
-    , F.isTautoPred e     = flatten ps
-    | otherwise           = fp : flatten ps
-    where fp = flatten p
-  flatten []              = []
-
-instance Flatten F.Expr where
-  flatten (F.PAnd ps) = case flatten ps of
-                         [p] -> p
-                         ps  -> F.PAnd ps
-  flatten p = p
-
-instance Flatten [F.Expr] where
-  flatten (F.PAnd ps' : ps) = flatten ps' ++ flatten ps
-  flatten (p : ps)
-    | F.isTautoPred fp    = flatten ps
-    | otherwise           = fp : flatten ps
-    where fp = flatten p
-  flatten []              = []
+---------------
 
 -- type Sol a = M.HashMap F.Symbol (Either (Either [[Bind]] (Cstr a)) F.Expr)
-------------------------------------------------------------------------------
--- | solveEbs has some preconditions
+
+-- | solveEbs takes a query and returns a query with the ebinds solved out
+--
+-- it has some preconditions
 -- - pi -> k -> pi structure. That is, there are no cycles, and while ks
 -- can depend on other ks, pis cannot directly depend on other pis
--- - predicate for exists binder is `true`. This doesn't seem hard to lift,
--- but I just haven't tested it/thought too hard about what the correct
--- behavior in this case is.
--- - There is at least one ebind
+-- - predicate for exists binder is `true`. (TODO: is this pre stale?)
+
 solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
 solveEbs cfg query@(Query qs vs c cons dist) = do
+  -- clean up
   let normalizedC = flatten . pruneTauts $ hornify c
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
+  -- short circuit if no ebinds are present
   if isNNF c then pure $ Query qs vs normalizedC cons dist else do
   let kvars = boundKvars normalizedC
 
+  whenLoud $ putStrLn "Skolemized:"
   let poked = pokec normalizedC
-  whenLoud $ putStrLn "Horn pokec:"
   whenLoud $ putStrLn $ F.showpp poked
 
+  whenLoud $ putStrLn "Skolemized + split:"
   let (Just _horn, Just _side) = split poked
   let horn = flatten . pruneTauts $ _horn
   let side = flatten . pruneTauts $ _side
-  whenLoud $ putStrLn "Horn split:"
   whenLoud $ putStrLn $ F.showpp (horn, side)
 
+  -- collect predicate variables
   let pivars = boundKvars poked `S.difference` kvars
 
   let cuts = calculateCuts cfg query (forgetPiVars pivars horn)
   let acyclicKs = kvars `S.difference` cuts
 
-  let (horn', side') = elimKs' (S.toList acyclicKs) (horn, side)
   whenLoud $ putStrLn "solved acyclic kvars:"
+  let (horn', side') = elimKs' (S.toList acyclicKs) (horn, side)
   whenLoud $ putStrLn $ F.showpp horn'
   whenLoud $ putStrLn $ F.showpp side'
 
@@ -160,26 +106,26 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
   horn' <- pure $ foldr elimCutK horn' cuts
   side' <- pure $ foldr elimCutK side' cuts
 
-  let piSols = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn')) (S.toList pivars)
   whenLoud $ putStrLn "pi defining constraints:"
+  let piSols = M.fromList $ fmap (\pivar -> (pivar, piDefConstr pivar horn')) (S.toList pivars)
   whenLoud $ printPiSols piSols
 
-  let solvedPiCstrs = solPis (S.fromList $ M.keys cons ++ M.keys dist) piSols
   whenLoud $ putStrLn "solved pis:"
+  let solvedPiCstrs = solPis (S.fromList $ M.keys cons ++ M.keys dist) piSols
   whenLoud $ putStrLn $ F.showpp solvedPiCstrs
 
-  let solvedHorn = substPiSols solvedPiCstrs horn'
   whenLoud $ putStrLn "solved horn:"
+  let solvedHorn = substPiSols solvedPiCstrs horn'
   whenLoud $ putStrLn $ F.showpp solvedHorn
 
-  let solvedSide = substPiSols solvedPiCstrs side'
   whenLoud $ putStrLn "solved side:"
+  let solvedSide = substPiSols solvedPiCstrs side'
   whenLoud $ putStrLn $ F.showpp solvedSide
 
   pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist)
 
--- | Collects the defining constraint for π AKA c in forall n.π => c
--- additionally collects the variable name n
+-- | Collects the defining constraint for π
+-- that is, given `∀ Γ.∀ n.π => c`, returns `((π, n:Γ), c)`
 piDefConstr :: F.Symbol -> Cstr a -> ((F.Symbol, [F.Symbol]), Cstr a)
 piDefConstr k c = ((head ns, head formals), defC)
   where
@@ -203,6 +149,7 @@ piDefConstr k c = ((head ns, head formals), defC)
 instance Functor ((,,) a b) where
     fmap f (a, b, c) = (a, b, f c)
 
+-- | Solve out the given pivars
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
 solPis measures piSols = go (M.toList piSols) piSols
   where
@@ -210,6 +157,7 @@ solPis measures piSols = go (M.toList piSols) piSols
       where solved = solPi measures pi n (S.fromList xs) piSols c
     go [] _ = mempty
 
+-- TODO: rewrite to use CC
 solPi :: S.Set F.Symbol -> F.Symbol -> F.Symbol -> S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> Cstr a -> Pred
 solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi <> "\n\n" <> F.showpp n <> "\n" <> F.showpp (S.toList args) <> "\n" <> F.showpp ((\(a, _, c) -> (a, c)) <$> edges) <> "\n" <> F.showpp (sols n) <> "\n" <> F.showpp rewritten <> "\n" <> F.showpp c <> "\n\n") $ PAnd $ rewritten
   where
@@ -234,84 +182,8 @@ solPi measures basePi n args piSols c = trace ("\n\nsolPi: " <> F.showpp basePi 
       (eqs <> collectEqualities p, visited')
     go _ Any{} = error "exists should not be present in piSols"
 
--- solPi _ _ _ c@Head{} = c
--- solPi bound visited piSols (CAnd cs) = CAnd $ solPi bound visited piSols <$> cs
--- solPi bound visited piSols (All (Bind x t (Var pi _)) c)
---   | S.member pi visited = solPi bound visited piSols c
---   | otherwise = All (Bind x t p) (solPi bound visited piSols c)
---       where p = case (piSols M.! pi) of
---                   Left ((n, xs), defC) -> qe n (S.fromList xs `S.union` bound) $ solPi (S.fromList xs `S.union` bound) (S.insert pi visited) piSols defC
---                   Right defP -> defP
--- solPi bound visited piSols (All b c) = All b (solPi bound visited piSols c)
--- solPi _ _ _ Any{} = error "exists should not be present in piSols"
-
--- elimE :: Sol a -> Cstr a -> Cstr a
--- elimE m (All b c) = All b (elimE m c)
--- elimE m (CAnd cs) = CAnd (elimE m <$> cs)
--- elimE _m p@Head{} = p
--- -- need to QE inside here first
--- elimE _m (Any (Bind x _ _) (Head p l)) = Head (F.subst1 p (x,e)) l
---     where e = fromMaybe F.PTrue $ findSolP x p
--- elimE _m (Any _ _) = error "oops"
-
-hornify :: Cstr a -> Cstr a
-hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
-  where ps' = let (ks, qs) = split [] [] (flatten ps) in PAnd qs : ks
-
-        split kacc pacc ((Var x xs):qs) = split ((Var x xs):kacc) pacc qs
-        split kacc pacc (q:qs) = split kacc (q:pacc) qs
-        split kacc pacc [] = (kacc, pacc)
-hornify (Head (Reft r) a) = CAnd (flip Head a <$> ((Reft $ F.PAnd ps):(Reft <$> ks)))
-  where (ks, ps) = split [] [] $ F.splitPAnd r
-        split kacc pacc (r@F.PKVar{}:rs) = split (r:kacc) pacc rs
-        split kacc pacc (r:rs) = split kacc (r:pacc) rs
-        split kacc pacc [] = (kacc,pacc)
-hornify (Head h a) = Head h a
-hornify (All b c) = All b $ hornify c
-hornify (Any b c) = Any b $ hornify c
-hornify (CAnd cs) = CAnd $ hornify <$> cs
-
-instance F.Subable Bind where
-    syms = undefined
-    substa = undefined
-    substf = undefined
-    subst su (Bind x t p) = (Bind x t (F.subst su p))
-
--- instance F.Subable Pred where
---    syms = undefined
---    substa = undefined
---    substf = undefined
---    subst su p = substP su p
-
-{- move to FP! -}
-instance F.Subable Pred where
-  syms (Reft e)   = F.syms e
-  syms (Var _ xs) = xs
-  syms (PAnd ps)  = concatMap F.syms ps
-
-  substa f (Reft e)   = Reft  (F.substa f      e)
-  substa f (Var k xs) = Var k (F.substa f <$> xs)
-  substa f (PAnd ps)  = PAnd  (F.substa f <$> ps)
-
-  subst su (Reft  e)  = Reft  (F.subst su      e)
-  subst su (PAnd  ps) = PAnd  (F.subst su <$> ps)
-  subst su (Var k xs) = Var k (F.subst su <$> xs)
-
-  substf f (Reft  e)  = Reft  (F.substf f      e)
-  substf f (PAnd  ps) = PAnd  (F.substf f <$> ps)
-  substf f (Var k xs) = Var k (F.substf f <$> xs)
-
-  subst1 (Reft  e)  su = Reft  (F.subst1 e su)
-  subst1 (PAnd  ps) su = PAnd  [F.subst1 p su | p <- ps]
-  subst1 (Var k xs) su = Var k [F.subst1 x su | x <- xs]
-
--- substP :: F.Subst -> Pred -> Pred
--- substP su (Reft e)   = Reft (F.subst su e)
--- substP su (PAnd ps)  = PAnd (substP su <$> ps)
--- substP su (Var k xs) = Var k (F.subst su xs)
-
 ------------------------------------------------------------------------------
-{- |
+{- | pokec skolemizes the EHC into an HC + side condition
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind01.smt2"
 >>> F.pprint $ pokec (qCstr q)
 (and
@@ -356,12 +228,6 @@ instance F.Subable Pred where
    ((πb b)))))
 -}
 
--- ebs :: Cstr a -> [(F.Symbol, F.Sort)]
--- ebs (Head _ _) = []
--- ebs (CAnd cs) = ebs =<< cs
--- ebs (All _ c) = ebs c
--- ebs (Any (Bind x t _) c) = (x,t) : ebs c
-
 pokec :: Cstr a -> Cstr a
 pokec = go mempty
   where
@@ -381,11 +247,11 @@ piVar x xs = Var (piSym x) (x:xs)
 piSym :: F.Symbol -> F.Symbol
 piSym s = fromString $ "π" ++ F.symbolString s
 
-------------------------------------------------------------------------------
--- Now split the poked constraint into the side conditions and the meat of
--- the constraint
+{- |
 
-{-|
+Now we split the poked constraint into the side conditions and the meat of
+the constraint
+
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind01.smt2"
 >>> F.pprint $ qCstr q
 (and
@@ -460,6 +326,7 @@ andMaybes cs = case catMaybes cs of
                  [] -> Nothing
                  [c] -> Just c
                  cs -> Just $ CAnd cs
+
 ------------------------------------------------------------------------------
 {- |
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind01.smt2"
@@ -607,6 +474,9 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
 
 ------------------------------------------------------------------------------
 {- |
+
+Takes noside, side, piSols and solves a set of kvars in them
+
 >>> (q, opts) <- parseFromFile hornP "tests/horn/pos/ebind02.smt2"
 >>> let (Just noside, Just side) = split $ pokec $ qCstr q
 >>> F.pprint $ elimKs ["k"] $ elimPis ["x1"] (noside, side)
@@ -636,17 +506,8 @@ predToExpr (PAnd ps) = F.PAnd $ predToExpr <$> ps
                                      && forall [v3 : int]
                                           . v3 == x1 + 1 => v3 == m + 2)))))
 -}
--- elimKs :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
--- elimKs [] cc = cc
--- elimKs (k:ks) (horn, side) = elimKs ks (horn', side')
---   where sol = sol1 k (scope k horn)
---         -- Eliminate Kvars inside Cstr inside horn, and in Expr (under
---         -- quantifiers waiting to be eliminated) in both.
---         horn' = doelim' k sol . doelim k sol $ horn
---         side' = doelim' k sol $ side
 
 -- TODO: make this elimKs and update tests for elimKs
--- | Takes noside, side, piSols and solves a set of kvars in them
 elimKs' :: [F.Symbol] -> (Cstr a, Cstr a) -> (Cstr a, Cstr a)
 elimKs' [] cstrs = cstrs
 elimKs' (k:ks) (noside, side) = elimKs' (trace ("solved kvar " <> F.showpp k <> ":\n" <> F.showpp sol) ks) (noside', side')
@@ -654,12 +515,6 @@ elimKs' (k:ks) (noside, side) = elimKs' (trace ("solved kvar " <> F.showpp k <> 
     sol = sol1 k $ scope k noside
     noside' = simplify $ doelim k sol noside
     side' = simplify $ doelim k sol side
-
--- doelim' :: F.Symbol -> [[Bind]] -> Cstr a -> Cstr a
--- doelim' k bss (CAnd cs) = CAnd $ doelim' k bss <$> cs
--- doelim' k bss (Head p a) = Head (tx k bss p) a
--- doelim' k bss (All (Bind x t p) c) = All (Bind x t $ tx k bss p) (doelim' k bss c)
--- doelim' k bss (Any (Bind x t p) c) = Any (Bind x t $ tx k bss p) (doelim' k bss c)
 
 -- [NOTE-elimK-positivity]:
 --
@@ -791,49 +646,16 @@ rewriteWithEqualities measures n args equalities = preds
             rewrite [] es = es
             rewrite ((x, rewrites):rewrites') es = rewrite rewrites' $ [F.subst (F.mkSubst [(x, e')]) e | e' <- rewrites, e <- es]
 
-eqEdges :: S.Set F.Symbol -> M.HashMap F.Symbol ([F.Symbol], [F.Expr]) -> [(F.Symbol, F.Expr)] -> [((F.Symbol, [F.Expr]), F.Symbol, [F.Symbol])]
+eqEdges :: S.Set F.Symbol ->
+           M.HashMap F.Symbol ([F.Symbol], [F.Expr]) ->
+           [(F.Symbol, F.Expr)] ->
+           [((F.Symbol, [F.Expr]), F.Symbol, [F.Symbol])]
 eqEdges _args edgeMap [] = M.foldrWithKey (\x (ys, es) edges -> ((x, es), x, ys):edges) [] edgeMap
 eqEdges args edgeMap ((x, e):eqs)
-  | F.EVar y <- e, S.member y args = eqEdges args (M.insertWith pairAppend x ([y], [F.EVar y]) edgeMap) eqs
-  | F.EVar y <- e = eqEdges args (M.insertWith pairAppend x ([y], []) edgeMap) eqs
-  | otherwise = eqEdges args (M.insertWith pairAppend x ([], [e]) edgeMap) eqs
-
-pairAppend :: (Semigroup a, Semigroup b) =>
-              (a, b) -> (a, b) -> (a, b)
-pairAppend (a, b) (c, d) = (a <> c, b <> d)
-
--- rewriteWithEqualities args argEqs vars equalities = trace ("\n\nREWRITING:\n" <> F.showpp (S.toList args, argEqs, acyclicEqs, su, map makeReft argEqs) <> "\n\n") $ map makeReft argEqs
-  -- where
-  --   makeReft (arg, e) = Reft (F.PAtom F.Eq (F.EVar arg) (F.subst su e))
-  --   su = F.mkSubst $ buildSubst acyclicEqs
-
-  --   -- dropIllFormed :: [Pred] -> [Pred]
-  --   -- dropIllFormed = filter (\p -> S.fromList (F.syms p) `S.isSubsetOf` S.fromList ns)
-
-  --   eqGraph = equalityGraph vars equalities
-  --   acyclicEqs = concatMap (\case
-  --                       DG.AcyclicSCC eq -> [eq]
-  --                       DG.CyclicSCC eqs -> eqs) eqGraph
-
-  --   buildSubst [] = []
-  --   buildSubst ((x, e):eqs) = (x, e):(buildSubst eqs')
-  --     where
-  --       eqs' = foldr (\(x', e') eqs' -> rewriteEq x e x' e' <> eqs') [] eqs
-
-  --   rewriteEq x e x' e' = case (left, right) of
-  --     (F.EVar y, e) | y == x', e == e' -> [(x', e')]
-  --     _ -> extractEquality vars left right
-  --     where
-  --       left = F.subst1 (F.EVar x') (x, e)
-  --       right = F.subst1 e' (x, e)
-
--- equalityGraph :: S.Set F.Symbol -> [(F.Symbol, F.Expr)] -> [DG.SCC (F.Symbol, F.Expr)]
--- equalityGraph xs eqs = DG.stronglyConnComp (go eqs)
---   where
---     go [] = []
---     go ((x, F.EVar y):eqs)
---       | S.member y xs = ((x, F.EVar y), x, [y]):(go eqs)
---     go ((x, e):eqs) = ((x, e), x, []):(go eqs)
+  | F.EVar y <- e
+  , S.member y args = eqEdges args (M.insertWith (<>) x ([y], [F.EVar y]) edgeMap) eqs
+  | F.EVar y <- e   = eqEdges args (M.insertWith (<>) x ([y], []) edgeMap) eqs
+  | otherwise       = eqEdges args (M.insertWith (<>) x ([], [e]) edgeMap) eqs
 
 collectEqualities :: Pred -> [(F.Symbol, F.Expr)]
 collectEqualities = goP
@@ -845,22 +667,6 @@ collectEqualities = goP
     goE (F.PAtom F.Eq left right) = extractEquality left right
     goE (F.PAnd es) = mconcat $ goE <$> es
     goE _ = mempty
-
--- collectEqualities :: Cstr a -> [(F.Symbol, F.Expr)]
--- collectEqualities c = nub $ go c
---   where
---     go (Head p _) = goP p
---     go (CAnd cs) = mconcat $ go <$> cs
---     go (All (Bind _ _ p) c) = goP p <> go c
---     go Any{} = error "existentials shouldn't be present"
-
---     goP (Reft e) = goE e
---     goP (PAnd ps) = mconcat $ goP <$> ps
---     goP _ = mempty
-
---     goE (F.PAtom F.Eq left right) = extractEquality left right
---     goE (F.PAnd es) = mconcat $ goE <$> es
---     goE _ = mempty
 
 extractEquality :: F.Expr -> F.Expr -> [(F.Symbol, F.Expr)]
 extractEquality left right
@@ -1096,12 +902,6 @@ findKVarInGuard _ p = Right p
 -- >>> boundKvars . qCstr . fst <$> parseFromFile hornP "tests/horn/pos/test03.smt2"
 -- ... ["k0"]
 
-_boundVars :: Cstr a -> S.Set F.Symbol
-_boundVars Head{} = mempty
-_boundVars (CAnd cs) = mconcat $ _boundVars <$> cs
-_boundVars (All (Bind x _ _) c) = S.singleton x <> _boundVars c
-_boundVars (Any (Bind x _ _) c) = S.singleton x <> _boundVars c
-
 boundKvars :: Cstr a -> S.Set F.Symbol
 boundKvars (Head p _)           = pKVars p
 boundKvars (CAnd c)             = mconcat $ boundKvars <$> c
@@ -1134,8 +934,94 @@ forgetPiVars pis (All (Bind x t p) c)
   | otherwise = All (Bind x t p) $ forgetPiVars pis c
 forgetPiVars _ Any{} = error "shouldn't be present"
 
+-----------------------------------------------------------------------------------
+-- | Cleanup Horn Constraint
+-- We want to simplify the Query a little bit, and make sure it is Horn,
+-- that is, only a kvar-free (ie concrete) predicate or a single kvar in
+-- each head
+-----------------------------------------------------------------------------------
+
 simplify :: Cstr a -> Cstr a
 simplify = flatten . pruneTauts . removeDuplicateBinders
+
+{- | flatten removes redundant `and`s and empty conjuncts.
+
+For example:
+>>> :{
+flatten $ doParse' hCstrP "" "(forall ((VV##15 int) (VV##15 == anf##3)) \
+            \      ((and (and \
+            \        ($k13 VV##15 anf##3 moo##5) \
+            \        (true)))))"
+:}
+(forall ((VV##15 int) (VV##15 == anf##3)) ((k13 VV##15 anf##3 moo##5)))
+-}
+
+class Flatten a where
+  flatten :: a -> a
+
+instance Flatten (Cstr a) where
+  flatten (CAnd cs) = case flatten cs of
+                        [c] -> c
+                        cs -> CAnd cs
+  flatten (Head p a) = Head (flatten p) a
+  flatten (All (Bind x t p) c) = All (Bind x t (flatten p)) (flatten c)
+  flatten (Any (Bind x t p) c) = Any (Bind x t (flatten p)) (flatten c)
+
+instance Flatten [Cstr a] where
+  flatten (CAnd cs : xs) = flatten cs ++ flatten xs
+  flatten (x:xs)
+    | Head (Reft p) _ <- fx
+    , F.isTautoPred p            = flatten xs
+    | otherwise                  = fx:flatten xs
+    where fx = flatten x
+  flatten [] = []
+
+instance Flatten Pred where
+  flatten (PAnd ps) = case flatten ps of
+                        [p] -> p
+                        ps  -> PAnd ps
+  flatten p = p
+
+instance Flatten [Pred] where
+  flatten (PAnd ps' : ps) = flatten ps' ++ flatten ps
+  flatten (p : ps)
+    | Reft e <- fp
+    , F.isTautoPred e     = flatten ps
+    | otherwise           = fp : flatten ps
+    where fp = flatten p
+  flatten []              = []
+
+instance Flatten F.Expr where
+  flatten (F.PAnd ps) = case flatten ps of
+                         [p] -> p
+                         ps  -> F.PAnd ps
+  flatten p = p
+
+instance Flatten [F.Expr] where
+  flatten (F.PAnd ps' : ps) = flatten ps' ++ flatten ps
+  flatten (p : ps)
+    | F.isTautoPred fp    = flatten ps
+    | otherwise           = fp : flatten ps
+    where fp = flatten p
+  flatten []              = []
+
+-- | Split heads into one for each kvar so that queries are always horn constraints
+hornify :: Cstr a -> Cstr a
+hornify (Head (PAnd ps) a) = CAnd (flip Head a <$> ps')
+  where ps' = let (ks, qs) = split [] [] (flatten ps) in PAnd qs : ks
+
+        split kacc pacc ((Var x xs):qs) = split ((Var x xs):kacc) pacc qs
+        split kacc pacc (q:qs) = split kacc (q:pacc) qs
+        split kacc pacc [] = (kacc, pacc)
+hornify (Head (Reft r) a) = CAnd (flip Head a <$> ((Reft $ F.PAnd ps):(Reft <$> ks)))
+  where (ks, ps) = split [] [] $ F.splitPAnd r
+        split kacc pacc (r@F.PKVar{}:rs) = split (r:kacc) pacc rs
+        split kacc pacc (r:rs) = split kacc (r:pacc) rs
+        split kacc pacc [] = (kacc,pacc)
+hornify (Head h a) = Head h a
+hornify (All b c) = All b $ hornify c
+hornify (Any b c) = Any b $ hornify c
+hornify (CAnd cs) = CAnd $ hornify <$> cs
 
 removeDuplicateBinders :: Cstr a -> Cstr a
 removeDuplicateBinders = go S.empty
@@ -1162,6 +1048,3 @@ pruneTauts = fromMaybe (CAnd []) . go
     goP p@Var{} = Just p
     goP (PAnd ps) = if null ps' then Nothing else Just $ PAnd ps'
       where ps' = mapMaybe goP ps
-
-_fromJust :: (Show a) => a -> Maybe b -> b
-_fromJust x = fromMaybe (error $ show x)
