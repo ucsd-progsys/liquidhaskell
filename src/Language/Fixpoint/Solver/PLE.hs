@@ -595,7 +595,6 @@ instance Simplifiable Expr where
   simplify γ ictx e = mytracepp ("simplification of " ++ showpp e) $ fix (Vis.mapExpr tx) e
     where 
       fix f e = if e == e' then e else fix f e' where e' = f e 
-      -- required otherwise malfored preds end up in Z3
       tx e 
         | Just e' <- M.lookup e (icSimpl ictx)
         = e' 
