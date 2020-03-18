@@ -6,7 +6,6 @@ ghc-options:
   hscolour: -w
 allow-newer: true # 8.10.1
 packages:
-- liquid-prelude
 - liquid-fixpoint
 - .
 extra-deps:

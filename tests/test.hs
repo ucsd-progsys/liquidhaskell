@@ -634,7 +634,7 @@ testCmd bin dir file smt (ExtraOptions (GhcSuitableOpts (LO ghcOpts)) (LiquidOnl
       let fullOpts = ("--smtsolver=" ++ show smt) : words liquidOnlyOpts
       in L.intercalate " " . map (printf "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:%s") $ fullOpts
 #else
-  = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file (ghcSuitableOpts <> " " <> liquidOnlyOpts)
+  = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file (ghcOpts <> " " <> liquidOnlyOpts)
 #endif
 
 noPleIgnored :: [FilePath]
