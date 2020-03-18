@@ -213,6 +213,7 @@ instance Hashable Constant
 instance Hashable GradInfo 
 instance Hashable Subst 
 instance Hashable Expr 
+instance Hashable Reft
 
 --------------------------------------------------------------------------------
 -- | Substitutions -------------------------------------------------------------

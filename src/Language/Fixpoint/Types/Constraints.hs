@@ -86,6 +86,7 @@ import qualified Data.Binary as B
 import           Data.Generics             (Data)
 import           Data.Semigroup            (Semigroup (..))
 import           Data.Typeable             (Typeable)
+import           Data.Hashable
 import           GHC.Generics              (Generic)
 import qualified Data.List                 as L -- (sort, nub, delete)
 import           Data.Maybe                (catMaybes)
@@ -390,6 +391,10 @@ instance (NFData a) => NFData (WfC a)
 instance (NFData a) => NFData (SimpC a)
 instance (NFData (c a), NFData a) => NFData (GInfo c a)
 instance (NFData a) => NFData (Result a)
+
+instance Hashable Qualifier
+instance Hashable QualPattern
+instance Hashable QualParam
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------
