@@ -45,6 +45,7 @@ idollar x f = f x
 compose :: (b -> c) -> (a -> b) -> a -> c
 compose f g x = f (g x)
 
+
 -- | Identity
 
 {-@ identity :: x:Maybe a -> { seq (pure id) x == x } @-}
@@ -75,6 +76,7 @@ interchange Nothing _
   = trivial
 interchange (Just _) _
   = trivial
+
 -- | Composition
 
 {-@ composition :: x:Maybe (a -> a)
@@ -88,7 +90,7 @@ composition _ Nothing _
    = trivial
 composition _ _ Nothing
    = trivial
-composition (Just x) (Just y) (Just z)
-  =   ()
+composition (Just _) (Just _) (Just _)
+  = trivial
 
 

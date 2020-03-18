@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+{- LIQUID "--betaequivalence"  @-}	
 
 module MonadList where
 
