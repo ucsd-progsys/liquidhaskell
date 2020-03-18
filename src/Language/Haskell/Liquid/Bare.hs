@@ -874,7 +874,7 @@ makeSpecName env tycEnv measEnv name = SpNames
   where 
     datacons, cls :: [DataConP]
     datacons   = Bare.tcDataCons tycEnv 
-    cls        = F.tracepp "meClasses" $ Bare.meClasses measEnv 
+    cls        = F.notracepp "meClasses" $ Bare.meClasses measEnv 
     tycons     = Bare.tcTyCons   tycEnv 
 
 
