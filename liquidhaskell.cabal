@@ -45,6 +45,11 @@ data-files:         include/*.hquals
                     include/System/*.spec
                     include/710/Data/*.spec
                     syntax/liquid.css
+                    -- Remove the lines above once we switch to the source plugin.
+                    include/*.hs
+                    include/Language/Haskell/Liquid/*.hs
+                    include/Language/Haskell/Liquid/*.pred
+
 cabal-version:      >= 1.22
 
 source-repository head
@@ -156,12 +161,32 @@ library
                       Language.Haskell.Liquid.WiredIn
                       LiquidHaskell
                       Paths_liquidhaskell
+
+  -- FIXME: Temporary measure to ensure that if the source plugin is available, then:
+  --   1. we compile it;
+  --   2. We don't rely on the \"liquid-prelude\" Haskell files previously shipped as part of LH itself.
+  -- Once the source plugin is out, we should also removed the duplicate \"liquid-prelude\" files from
+  -- the \"include\" directory.
+
   if impl(ghc >= 8.10)
       exposed-modules:    Language.Haskell.Liquid.GHC.Plugin
       other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                           Language.Haskell.Liquid.GHC.Plugin.Types
                           Language.Haskell.Liquid.GHC.Plugin.Util
-  hs-source-dirs:     src
+      hs-source-dirs:     src
+  else
+      hs-source-dirs:     src include
+      exposed-modules:    Language.Haskell.Liquid.RTick
+                          Language.Haskell.Liquid.Prelude
+                          Language.Haskell.Liquid.Foreign
+                          Language.Haskell.Liquid.RTick.Combinators
+                          Language.Haskell.Liquid.String
+                          Language.Haskell.Liquid.List
+                          Language.Haskell.Liquid.Equational
+                          Language.Haskell.Liquid.Bag
+                          Language.Haskell.Liquid.ProofCombinators
+                          KMeansHelper
+
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , Diff                 >= 0.3 && < 0.4
                     , aeson
