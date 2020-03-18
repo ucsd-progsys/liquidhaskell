@@ -30,6 +30,8 @@ import           Data.Maybe                   (catMaybes, mapMaybe, fromMaybe)
 import           Language.Fixpoint.Types.Visitor as V
 import           System.Console.CmdArgs.Verbosity
 import           Data.Bifunctor (second)
+import System.IO (hFlush, stdout)
+-- import qualified Debug.Trace as DBG
 
 -- $setup
 -- >>> :l src/Language/Fixpoint/Horn/Transformations.hs src/Language/Fixpoint/Horn/Parse.hs
@@ -40,9 +42,6 @@ import           Data.Bifunctor (second)
 ---------------
 -- Debugging
 ---------------
-import System.IO (hFlush, stdout)
--- import qualified Debug.Trace as DBG
-
 trace :: String -> a -> a
 -- trace _msg v = DBG.trace _msg v
 trace _msg v = v
