@@ -90,6 +90,6 @@ splitTypeConstraints :: [(F.Symbol, SpecType)] -> ([(F.Symbol, SpecType)], [(F.S
 splitTypeConstraints = go []  
   where  
     go cs (b@(_x, RApp c _ _ _):ts) 
-      | isClass c
+      | isEmbeddedDict c
       = go (b:cs) ts 
     go cs r = (reverse cs, map (\(x, t) -> (x, shiftVV t x)) r)

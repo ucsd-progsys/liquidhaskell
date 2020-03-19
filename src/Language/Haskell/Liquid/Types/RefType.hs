@@ -150,7 +150,7 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
     ts           = ty_args trep
-    isValTy      = not . GM.isPredType . toType
+    isValTy      = not . GM.isEmbeddedDictType . toType
 
 
 pdVar :: PVar t -> Predicate
