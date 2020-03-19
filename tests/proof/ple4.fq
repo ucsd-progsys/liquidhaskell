@@ -11,7 +11,7 @@ expand [ 2 : True ]
 
 constant isEven : (func(0 , [Peano; int]))
 
-define isEven (n : Peano) : int = (((isEven n) = (if (is$Z n) then 1 else (1 - ((isEven (prev n)))))))
+define isEven (n : Peano) : int = { if (is$Z n) then 1 else (1 - ((isEven (prev n)))) }
 
 bind 0 n :  {n: Peano | (isEven n) = 1 }
 bind 1 a :  {a: Peano | n = S a }

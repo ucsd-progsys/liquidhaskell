@@ -2,6 +2,7 @@
 --   1. Each binder must be associated with a UNIQUE sort
 {-# LANGUAGE TupleSections     #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE PatternGuards     #-}
 
 module Language.Fixpoint.Solver.Sanitize
   ( -- * Transform FInfo to enforce invariants
@@ -88,14 +89,18 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
 eliminateEta :: Config -> F.SInfo a -> F.SInfo a
 --------------------------------------------------------------------------------
 eliminateEta cfg si
-  | Cfg.etaElim cfg  
+  | Cfg.etaElim cfg 
+  , Cfg.oldPLE  cfg
   = si { F.ae = ae' }
+  | Cfg.etaElim cfg 
+  = si { F.ae = (ae {F.aenvEqs = etaElimNEW `fmap` F.aenvEqs ae }) }
   | otherwise 
   = si 
   where
     ae' = ae {F.aenvEqs = eqs}
     ae = F.ae si
     eqs = fmap etaElim (F.aenvEqs ae)
+
     etaElim eq = F.notracepp "Eliminating" $
                  case body of
                    F.PAtom F.Eq e0 e1 ->
@@ -121,6 +126,24 @@ eliminateEta cfg si
             args = fst <$> argsAndSorts
             body = F.eqBody eq
             sort = F.eqSort eq
+    etaElimNEW eq = F.notracepp "Eliminating" $
+                  let (f1, args1) = fapp (F.eqBody eq) in
+                  let commonArgs = F.notracepp "commonArgs" .
+                                           fmap fst .
+                                           takeWhile (uncurry (==)) $
+                                           zip args0 args1
+                      commonLength = length commonArgs
+                      (newArgsAndSorts, elimedArgsAndSorts) =
+                                splitAt (length args - commonLength) argsAndSorts
+                      args1' = F.eVar <$> reverse (drop commonLength args1) in
+                  eq { F.eqArgs = newArgsAndSorts
+                     , F.eqSort = foldr F.FFunc sort
+                                       (snd <$> elimedArgsAndSorts)
+                     , F.eqBody = F.eApps f1 args1'}
+      where argsAndSorts = F.eqArgs eq
+            args  = fst <$> argsAndSorts
+            args0 = reverse args 
+            sort  = F.eqSort eq
             
     fapp :: F.Expr -> (F.Expr, [F.Symbol])
     fapp ee = fromMaybe (ee, []) (fapp' ee)

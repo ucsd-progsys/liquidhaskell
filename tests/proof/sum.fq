@@ -2,7 +2,8 @@ fixpoint "--rewrite"
 
 constant sum : (func(0, [int; int]))
 
-define sum(n : int) : int = ((sum n) = if (n <= 0) then 0 else (n + sum (n-1)))
+define sum(n : int) : int = { if (n <= 0) then (0) else (n + sum (n-1)) }
+
 
 expand [1 : True]
 expand [2 : True]

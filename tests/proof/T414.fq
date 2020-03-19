@@ -5,11 +5,9 @@ constant g : (func(0 , [int; int; int]))
 constant f : (func(0 , [int; int; int]))
 constant h : (func(0 , [int; int]))
 
-define f (x : int, y: int) : int = 
-  ((f x y) = (g x y))
+define f (x : int, y: int) : int = {g x y}
 
-define g (x : int, y: int) : int = 
-  ((g x y) = (h y))
+define g (x : int, y: int) : int = {h y}
 
 bind 0 x : {x : int | []}
 bind 1 y : {y : int | []}

@@ -4,8 +4,7 @@ data Field 1 = [
        | FInt {}
      ]
 
-define funky (ds : Field a,  kkk : a) : int = (((funky ds kkk) = (coerce (a ~ int) kkk)))
-
+define funky (ds : Field a,  kkk : a) : int = {coerce (a ~ int) kkk }
 constant funky : (func(1 , [(Field @(0)); @(0); int]))
 
 expand [1 : True; 

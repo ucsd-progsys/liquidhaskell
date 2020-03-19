@@ -1,0 +1,29 @@
+
+fixpoint "--rewrite"
+
+data Field 1 = [
+  | FBool {}
+  | FInt {}
+  ]
+
+constant add : (func(0, [int; int; int]))
+constant proj : (func(1, [Field @(0); @(0); @(0)]))
+
+define add (x:int, y:int): int = {
+  x + y 
+}
+define proj (lq1 : (Field a),  lq2 : a): a = {
+  if (is$FInt lq1) 
+    then (coerce (int  ~ a) (add (coerce (a ~ int) lq2) 1)) 
+    else (coerce (bool ~ a) (not ((coerce (a ~ bool) lq2))))
+} 
+
+match is$FInt FInt = (true)
+
+constraint:
+  env []
+  lhs {v : int | true }
+  rhs {v : int | proj FInt 10 == 11 }
+  id 1 tag []
+
+expand [1 : True]

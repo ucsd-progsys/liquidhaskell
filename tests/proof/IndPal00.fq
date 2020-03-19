@@ -1,0 +1,440 @@
+fixpoint "--rewrite"
+
+data IndPalindrome.Pal 1 = [
+       | IndPalindrome.Pals {PHead : @(0), PHeads : [@(0)]}
+       | IndPalindrome.Pal0 {}
+     ]
+data IndPalindrome.PalP 1 = [
+       | IndPalindrome.Pal {getPal : [@(0)]}
+     ]
+
+
+match tail Cons lq_tmp$x##536 lq_tmp$x##537  =  (lq_tmp$x##537)
+match head Cons lq_tmp$x##536 lq_tmp$x##537  =  (lq_tmp$x##536)
+match isCons Cons lq_tmp$x##536 lq_tmp$x##537  =  (true)
+match isNil Cons lq_tmp$x##536 lq_tmp$x##537  =  (false)
+match len Cons lq_tmp$x##536 lq_tmp$x##537  =  ((1 + (len lq_tmp$x##537)))
+match isCons Nil  =  (false)
+match isNil Nil  =  (true)
+match len Nil  =  (0)
+match getPal IndPalindrome.Pal lq_tmp$x##540x  =  (lq_tmp$x##540x)
+match is$IndPalindrome.Pal IndPalindrome.Pal lq_tmp$x##540xx  =  (true)
+//match IndPalindrome.Pal lq_tmp$x##540xxx  =  ((IndPalindrome.Pal lq_tmp$x##540xxx))
+match fromJust GHC.Maybe.Just lq_tmp$x##487  =  (lq_tmp$x##487)
+match is$IndPalindrome.Pals IndPalindrome.Pal0  =  (false)
+match is$IndPalindrome.Pal0 IndPalindrome.Pal0  =  (true)
+match prop IndPalindrome.Pal0  =  ((IndPalindrome.Pal Nil))
+match PHeads IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (lq_tmp$x##496)
+match PHead IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (lq_tmp$x##495)
+match is$IndPalindrome.Pals IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (true)
+match is$IndPalindrome.Pal0 IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  (false)
+match prop IndPalindrome.Pals lq_tmp$x##495 lq_tmp$x##496  =  ((IndPalindrome.Pal lq_tmp$x##496))
+expand [23 : True]
+
+
+bind 137 l : {VV##890 : [a##a2pJ] | [((len VV##890) > 0); ((isCons VV##890) <=> true); ((isNil VV##890) <=> false)]}
+bind 138 d : {p : (IndPalindrome.Pal a##a2pJ) | [((prop p) = (IndPalindrome.Pal l)); 
+                                                 ((is$IndPalindrome.Pals p) <=> false);
+                                                 ((is$IndPalindrome.Pal0 p) <=> true);
+                                                 ((prop p) = (IndPalindrome.Pal Nil));
+                                                 (p = IndPalindrome.Pal0);
+                                                 ((is$IndPalindrome.Pals p) <=> false);
+                                                 ((is$IndPalindrome.Pal0 p) <=> true);
+                                                 ((prop p) = (IndPalindrome.Pal Nil));
+                                                 (p = IndPalindrome.Pal0)]}
+constraint:
+  env [137;
+       138]
+  lhs {VV##F##23 : [Char] | [true ]}
+  rhs {VV##F##23 : [Char] | [IndPalindrome.Pal0 = d && isCons l && (l == Nil) && false]}
+  id 23 tag [4]
+
+
+constant GHC.Base.id : (func(1 , [@(0); @(0)]))
+constant GHC.List.init : (func(1 , [[@(0)]; [@(0)]]))
+constant addrLen : (func(0 , [Str; int]))
+constant papp5 : (func(10 , [(Pred @(0) @(1) @(2) @(3) @(4));
+                             @(5);
+                             @(6);
+                             @(7);
+                             @(8);
+                             @(9);
+                             bool]))
+constant GHC.List.iterate : (func(1 , [func(0 , [@(0); @(0)]);
+                                       @(0);
+                                       [@(0)]]))
+constant x_Tuple21 : (func(2 , [(Tuple @(0) @(1)); @(0)]))
+constant GHC.Classes.$61$$61$ : (func(1 , [@(0); @(0); bool]))
+constant GHC.Types.C# : (func(0 , [Char; Char]))
+constant GHC.List.drop : (func(1 , [int; [@(0)]; [@(0)]]))
+constant getPal : (func(1 , [(IndPalindrome.PalP @(0));
+                                                                             [@(0)]]))
+constant isNil : (func(1 , [[@(0)]; bool]))
+constant Data.Foldable.length : (func(2 , [(@(1) @(0)); int]))
+constant x_Tuple33 : (func(3 , [(Tuple @(0) @(1) @(2)); @(2)]))
+constant is$36$GHC.Tuple.$40$$44$$41$ : (func(2 , [(Tuple @(0) @(1));
+                                                   bool]))
+constant GHC.Types.LT : (GHC.Types.Ordering)
+constant lit$'Pal0 : (Str)
+constant GHC.List.replicate : (func(1 , [int; @(0); [@(0)]]))
+constant GHC.List.zipWith : (func(3 , [func(0 , [@(0);
+                                                 @(1);
+                                                 @(2)]);
+                                       [@(0)];
+                                       [@(1)];
+                                       [@(2)]]))
+constant GHC.Classes.$62$$61$ : (func(1 , [@(0); @(0); bool]))
+constant GHC.Types.$36$tc$91$$93$ : (GHC.Types.TyCon)
+constant GHC.Num.fromInteger : (func(1 , [int; @(0)]))
+constant papp3 : (func(6 , [(Pred @(0) @(1) @(2));
+                            @(3);
+                            @(4);
+                            @(5);
+                            bool]))
+constant GHC.List.span : (func(1 , [func(0 , [@(0); bool]);
+                                    [@(0)];
+                                    (Tuple [@(0)] [@(0)])]))
+constant lqdc$35$$35$$36$select$35$$35$GHC.Tuple.$40$$44$$44$$41$$35$$35$1 : (func(3 , [(Tuple @(0) @(1) @(2));
+                                                                                        @(0)]))
+constant GHC.Classes.$62$ : (func(1 , [@(0); @(0); bool]))
+constant GHC.Types.False : (bool)
+constant GHC.List.scanr1 : (func(1 , [func(0 , [@(0); @(0); @(0)]);
+                                      [@(0)];
+                                      [@(0)]]))
+constant head : (func(1 , [[@(0)];
+                                                                            @(0)]))
+constant Cons : (func(1 , [@(0); [@(0)]; [@(0)]]))
+constant GHC.List.scanl : (func(2 , [func(0 , [@(0); @(1); @(0)]);
+                                     @(0);
+                                     [@(1)];
+                                     [@(0)]]))
+constant lit$error : (Str)
+constant is$IndPalindrome.Pal : (func(1 , [(IndPalindrome.PalP @(0));
+                                           bool]))
+constant GHC.Tuple.$40$$44$$44$$41$ : (func(3 , [@(0);
+                                                 @(1);
+                                                 @(2);
+                                                 (Tuple @(0) @(1) @(2))]))
+constant papp4 : (func(8 , [(Pred @(0) @(1) @(2) @(3));
+                            @(4);
+                            @(5);
+                            @(6);
+                            @(7);
+                            bool]))
+constant GHC.Types.Module : (func(0 , [GHC.Types.TrName;
+                                       GHC.Types.TrName;
+                                       GHC.Types.Module]))
+constant GHC.List.zip : (func(2 , [[@(0)];
+                                   [@(1)];
+                                   [(Tuple @(0) @(1))]]))
+constant GHC.Tuple.$40$$41$ : (Tuple)
+constant GHC.Types.I# : (func(0 , [int; int]))
+constant GHC.Stack.Types.SrcLoc : (func(0 , [[Char];
+                                             [Char];
+                                             [Char];
+                                             int;
+                                             int;
+                                             int;
+                                             int;
+                                             GHC.Stack.Types.SrcLoc]))
+constant GHC.CString.unpackCString# : (func(0 , [Str; [Char]]))
+constant GHC.Types.KindRepFun : (func(0 , [GHC.Types.KindRep;
+                                           GHC.Types.KindRep;
+                                           GHC.Types.KindRep]))
+constant IndPalindrome.$fEqPalP : (func(1 , [(GHC.Classes.Eq (IndPalindrome.PalP @(0)))]))
+constant lit$IndPalindrome : (Str)
+constant IndPalindrome.Pals : (func(1 , [@(0);
+                                         [@(0)];
+                                         (IndPalindrome.Pal @(0))]))
+constant GHC.Types.KindRepTYPE : (func(0 , [GHC.Types.RuntimeRep;
+                                            GHC.Types.KindRep]))
+constant GHC.List.dropWhile : (func(1 , [func(0 , [@(0); bool]);
+                                         [@(0)];
+                                         [@(0)]]))
+constant GHC.Real.C$58$Fractional : (func(1 , [func(0 , [@(0);
+                                                         @(0);
+                                                         @(0)]);
+                                               func(0 , [@(0); @(0)]);
+                                               func(0 , [(GHC.Real.Ratio int); @(0)]);
+                                               (GHC.Real.Fractional @(0))]))
+constant autolen : (func(1 , [@(0); int]))
+constant GHC.Integer.Type.$WJn# : (func(0 , [GHC.Integer.Type.BigNat;
+                                             int]))
+constant GHC.Real.$94$ : (func(2 , [@(0); @(1); @(0)]))
+constant head : (func(1 , [[@(0)]; @(0)]))
+constant PHead : (func(1 , [(IndPalindrome.Pal @(0));
+                                            @(0)]))
+constant IndPalindrome.Pal : (func(1 , [[@(0)];
+                                        (IndPalindrome.PalP @(0))]))
+constant is$36$GHC.Tuple.$40$$44$$44$$41$ : (func(3 , [(Tuple @(0) @(1) @(2));
+                                                       bool]))
+constant GHC.Types.$WKindRepTYPE : (func(0 , [GHC.Types.RuntimeRep;
+                                              GHC.Types.KindRep]))
+constant GHC.Integer.Type.Jn# : (func(0 , [GHC.Prim.ByteArray#;
+                                           int]))
+constant GHC.Classes.compare : (func(1 , [@(0);
+                                          @(0);
+                                          GHC.Types.Ordering]))
+constant isCons : (func(1 , [[@(0)]; bool]))
+constant papp2 : (func(4 , [(Pred @(0) @(1)); @(2); @(3); bool]))
+constant GHC.Stack.Types.EmptyCallStack : (GHC.Stack.Types.CallStack)
+constant GHC.Types.krep$36$$42$Arr$42$ : (GHC.Types.KindRep)
+constant GHC.Stack.Types.emptyCallStack : (GHC.Stack.Types.CallStack)
+constant GHC.List.reverse : (func(1 , [[@(0)]; [@(0)]]))
+constant GHC.Integer.Type.$WJp# : (func(0 , [GHC.Integer.Type.BigNat;
+                                             int]))
+constant lit$main : (Str)
+constant GHC.List.filter : (func(1 , [func(0 , [@(0); bool]);
+                                      [@(0)];
+                                      [@(0)]]))
+constant fromJust : (func(1 , [(GHC.Maybe.Maybe @(0)); @(0)]))
+constant GHC.Types.KindRepTyConApp : (func(0 , [GHC.Types.TyCon;
+                                                [GHC.Types.KindRep];
+                                                GHC.Types.KindRep]))
+constant GHC.List.cycle : (func(1 , [[@(0)]; [@(0)]]))
+constant GHC.List.$33$$33$ : (func(1 , [[@(0)]; int; @(0)]))
+constant GHC.List.tail : (func(1 , [[@(0)]; [@(0)]]))
+constant lit$36$$47$Users$47$niki$47$liquidtypes$47$liquidhaskell$47$tests$47$ple$47$pos$47$IndPal00.hs : (Str)
+constant papp7 : (func(14 , [(Pred @(0) @(1) @(2) @(3) @(4) @(5) @(6));
+                             @(7);
+                             @(8);
+                             @(9);
+                             @(10);
+                             @(11);
+                             @(12);
+                             @(13);
+                             bool]))
+constant GHC.Classes.$47$$61$ : (func(1 , [@(0); @(0); bool]))
+constant GHC.List.break : (func(1 , [func(0 , [@(0); bool]);
+                                     [@(0)];
+                                     (Tuple [@(0)] [@(0)])]))
+constant GHC.Types.True : (bool)
+constant Nil : (func(1 , [[@(0)]]))
+constant GHC.List.splitAt : (func(1 , [int;
+                                       [@(0)];
+                                       (Tuple [@(0)] [@(0)])]))
+constant GHC.Base.$43$$43$ : (func(1 , [[@(0)]; [@(0)]; [@(0)]]))
+constant GHC.Real.$58$$37$ : (func(1 , [@(0);
+                                        @(0);
+                                        (GHC.Real.Ratio @(0))]))
+constant GHC.Tuple.$40$$44$$41$ : (func(2 , [@(0);
+                                             @(1);
+                                             (Tuple @(0) @(1))]))
+constant GHC.Classes.$38$$38$ : (func(0 , [bool; bool; bool]))
+constant lit$'Pals : (Str)
+constant GHC.Types.GT : (GHC.Types.Ordering)
+constant GHC.Classes.C$58$IP : (func(2 , [@(1); @(1)]))
+constant GHC.Classes.$124$$124$ : (func(0 , [bool; bool; bool]))
+constant GHC.Classes.$36$fEq$91$$93$ : (func(1 , [(GHC.Classes.Eq [@(0)])]))
+constant Data.Either.Left : (func(2 , [@(0);
+                                       (Data.Either.Either @(0) @(1))]))
+constant GHC.List.last : (func(1 , [[@(0)]; @(0)]))
+constant GHC.Integer.Type.S# : (func(0 , [int; int]))
+constant GHC.List.scanl1 : (func(1 , [func(0 , [@(0); @(0); @(0)]);
+                                      [@(0)];
+                                      [@(0)]]))
+constant Data.Either.Right : (func(2 , [@(1);
+                                        (Data.Either.Either @(0) @(1))]))
+constant lit$'Pal : (Str)
+constant GHC.Num.$45$ : (func(1 , [@(0); @(0); @(0)]))
+constant len : (func(2 , [(@(0) @(1)); int]))
+constant papp6 : (func(12 , [(Pred @(0) @(1) @(2) @(3) @(4) @(5));
+                             @(6);
+                             @(7);
+                             @(8);
+                             @(9);
+                             @(10);
+                             @(11);
+                             bool]))
+constant GHC.Base.. : (func(3 , [func(0 , [@(0); @(1)]);
+                                 func(0 , [@(2); @(0)]);
+                                 @(2);
+                                 @(1)]))
+constant x_Tuple22 : (func(2 , [(Tuple @(0) @(1)); @(1)]))
+constant strLen : (func(0 , [[Char]; int]))
+constant GHC.Types.KindRepTypeLitS : (func(0 , [GHC.Types.TypeLitSort;
+                                                Str;
+                                                GHC.Types.KindRep]))
+constant GHC.Real.$36$W$58$$37$ : (func(1 , [@(0);
+                                             @(0);
+                                             (GHC.Real.Ratio @(0))]))
+constant isJust : (func(1 , [(GHC.Maybe.Maybe @(0)); bool]))
+constant GHC.List.takeWhile : (func(1 , [func(0 , [@(0); bool]);
+                                         [@(0)];
+                                         [@(0)]]))
+constant GHC.Types.TrNameD : (func(0 , [[Char]; GHC.Types.TrName]))
+constant GHC.Types.KindRepVar : (func(0 , [int;
+                                           GHC.Types.KindRep]))
+constant GHC.Stack.Types.pushCallStack : (func(0 , [(Tuple [Char] GHC.Stack.Types.SrcLoc);
+                                                    GHC.Stack.Types.CallStack;
+                                                    GHC.Stack.Types.CallStack]))
+constant GHC.Types.KindRepTypeLitD : (func(0 , [GHC.Types.TypeLitSort;
+                                                [Char];
+                                                GHC.Types.KindRep]))
+constant x_Tuple31 : (func(3 , [(Tuple @(0) @(1) @(2)); @(0)]))
+constant GHC.Integer.Type.Jp# : (func(0 , [GHC.Prim.ByteArray#;
+                                           int]))
+constant GHC.IO.Exception.IOError : (func(0 , [(GHC.Maybe.Maybe GHC.IO.Handle.Types.Handle);
+                                               GHC.IO.Exception.IOErrorType;
+                                               [Char];
+                                               [Char];
+                                               (GHC.Maybe.Maybe GHC.Int.Int32);
+                                               (GHC.Maybe.Maybe [Char]);
+                                               GHC.IO.Exception.IOException]))
+constant GHC.List.take : (func(1 , [int; [@(0)]; [@(0)]]))
+constant GHC.Stack.Types.PushCallStack : (func(0 , [[Char];
+                                                    GHC.Stack.Types.SrcLoc;
+                                                    GHC.Stack.Types.CallStack;
+                                                    GHC.Stack.Types.CallStack]))
+constant prop : (func(2 , [@(0); @(1)]))
+constant GHC.Classes.$60$$61$ : (func(1 , [@(0); @(0); bool]))
+constant GHC.Types.TrNameS : (func(0 , [Str; GHC.Types.TrName]))
+constant is$IndPalindrome.Pal0 : (func(1 , [(IndPalindrome.Pal @(0));
+                                            bool]))
+constant GHC.Enum.C$58$Bounded : (func(1 , [@(0);
+                                            @(0);
+                                            (GHC.Enum.Bounded @(0))]))
+constant GHC.Base.map : (func(2 , [func(0 , [@(0); @(1)]);
+                                   [@(0)];
+                                   [@(1)]]))
+constant lqdc$35$$35$$36$select$35$$35$GHC.Tuple.$40$$44$$41$$35$$35$2 : (func(2 , [(Tuple @(0) @(1));
+                                                                                    @(1)]))
+constant GHC.Base.$ : (func(3 , [func(0 , [@(1); @(2)]);
+                                 @(1);
+                                 @(2)]))
+constant papp1 : (func(2 , [(Pred @(0)); @(1); bool]))
+constant GHC.Classes.max : (func(1 , [@(0); @(0); @(0)]))
+constant lqdc$35$$35$$36$select$35$$35$GHC.Tuple.$40$$44$$44$$41$$35$$35$3 : (func(3 , [(Tuple @(0) @(1) @(2));
+                                                                                        @(2)]))
+constant GHC.Classes.$60$ : (func(1 , [@(0); @(0); bool]))
+constant tail : (func(1 , [[@(0)]; [@(0)]]))
+constant lit$PalP : (Str)
+constant lit$Pal : (Str)
+constant GHC.Types.TyCon : (func(0 , [int;
+                                      int;
+                                      GHC.Types.Module;
+                                      GHC.Types.TrName;
+                                      int;
+                                      GHC.Types.KindRep;
+                                      GHC.Types.TyCon]))
+constant GHC.Stack.Types.FreezeCallStack : (func(0 , [GHC.Stack.Types.CallStack;
+                                                      GHC.Stack.Types.CallStack]))
+constant GHC.Num.$42$ : (func(1 , [@(0); @(0); @(0)]))
+constant GHC.Classes.$36$dm$47$$61$ : (func(1 , [@(0);
+                                                 @(0);
+                                                 bool]))
+constant IndPalindrome.Pal0 : (func(1 , [(IndPalindrome.Pal @(0))]))
+constant PHeads : (func(1 , [(IndPalindrome.Pal @(0));
+                                             [@(0)]]))
+constant GHC.Maybe.Nothing : (func(1 , [(GHC.Maybe.Maybe @(0))]))
+constant GHC.Types.EQ : (GHC.Types.Ordering)
+constant GHC.List.scanr : (func(2 , [func(0 , [@(0); @(1); @(1)]);
+                                     @(1);
+                                     [@(0)];
+                                     [@(1)]]))
+constant GHC.Num.negate : (func(1 , [@(0); @(0)]))
+constant is$IndPalindrome.Pals : (func(1 , [(IndPalindrome.Pal @(0));
+                                            bool]))
+constant GHC.Real.fromIntegral : (func(2 , [@(0); @(1)]))
+constant GHC.Maybe.Just : (func(1 , [@(0);
+                                     (GHC.Maybe.Maybe @(0))]))
+constant GHC.Classes.min : (func(1 , [@(0); @(0); @(0)]))
+constant GHC.List.head : (func(1 , [[@(0)]; @(0)]))
+constant lqdc$35$$35$$36$select$35$$35$GHC.Tuple.$40$$44$$41$$35$$35$1 : (func(2 , [(Tuple @(0) @(1));
+                                                                                    @(0)]))
+constant GHC.Types.$WKindRepVar : (func(0 , [int;
+                                             GHC.Types.KindRep]))
+constant x_Tuple32 : (func(3 , [(Tuple @(0) @(1) @(2)); @(1)]))
+constant GHC.Classes.C$58$Eq : (func(1 , [func(0 , [@(0);
+                                                    @(0);
+                                                    bool]);
+                                          func(0 , [@(0); @(0); bool]);
+                                          (GHC.Classes.Eq @(0))]))
+constant GHC.List.repeat : (func(1 , [@(0); [@(0)]]))
+constant tail : (func(1 , [[@(0)];
+                                                                            [@(0)]]))
+constant GHC.Classes.not : (func(0 , [bool; bool]))
+constant GHC.Num.$43$ : (func(1 , [@(0); @(0); @(0)]))
+constant Data.Tuple.fst : (func(2 , [(Tuple @(0) @(1)); @(0)]))
+constant GHC.Types.KindRepApp : (func(0 , [GHC.Types.KindRep;
+                                           GHC.Types.KindRep;
+                                           GHC.Types.KindRep]))
+constant GHC.Real.C$58$Integral : (func(1 , [func(0 , [@(0);
+                                                       @(0);
+                                                       @(0)]);
+                                             func(0 , [@(0); @(0); @(0)]);
+                                             func(0 , [@(0); @(0); @(0)]);
+                                             func(0 , [@(0); @(0); @(0)]);
+                                             func(0 , [@(0); @(0); (Tuple @(0) @(0))]);
+                                             func(0 , [@(0); @(0); (Tuple @(0) @(0))]);
+                                             func(0 , [@(0); int]);
+                                             (GHC.Real.Integral @(0))]))
+constant GHC.Err.error : (func(2 , [[Char]; @(1)]))
+constant snd : (func(2 , [(Tuple @(0) @(1)); @(1)]))
+constant fst : (func(2 , [(Tuple @(0) @(1)); @(0)]))
+constant lqdc$35$$35$$36$select$35$$35$GHC.Tuple.$40$$44$$44$$41$$35$$35$2 : (func(3 , [(Tuple @(0) @(1) @(2));
+                                                                                        @(1)]))
+constant Data.Tuple.snd : (func(2 , [(Tuple @(0) @(1)); @(1)]))
+
+
+distinct GHC.Types.LT : (GHC.Types.Ordering)
+distinct lit$'Pal0 : (Str)
+distinct GHC.Types.False : (bool)
+distinct Cons : (func(1 , [@(0); [@(0)]; [@(0)]]))
+distinct lit$error : (Str)
+distinct GHC.Types.Module : (func(0 , [GHC.Types.TrName;
+                                       GHC.Types.TrName;
+                                       GHC.Types.Module]))
+distinct GHC.Tuple.$40$$41$ : (Tuple)
+distinct GHC.Types.I# : (func(0 , [int; int]))
+distinct GHC.Stack.Types.SrcLoc : (func(0 , [[Char];
+                                             [Char];
+                                             [Char];
+                                             int;
+                                             int;
+                                             int;
+                                             int;
+                                             GHC.Stack.Types.SrcLoc]))
+distinct GHC.Types.KindRepFun : (func(0 , [GHC.Types.KindRep;
+                                           GHC.Types.KindRep;
+                                           GHC.Types.KindRep]))
+distinct IndPalindrome.$fEqPalP : (func(1 , [(GHC.Classes.Eq (IndPalindrome.PalP @(0)))]))
+distinct lit$IndPalindrome : (Str)
+distinct IndPalindrome.Pals : (func(1 , [@(0);
+                                         [@(0)];
+                                         (IndPalindrome.Pal @(0))]))
+distinct IndPalindrome.Pal : (func(1 , [[@(0)];
+                                        (IndPalindrome.PalP @(0))]))
+distinct GHC.Stack.Types.EmptyCallStack : (GHC.Stack.Types.CallStack)
+distinct lit$main : (Str)
+distinct GHC.Types.KindRepTyConApp : (func(0 , [GHC.Types.TyCon;
+                                                [GHC.Types.KindRep];
+                                                GHC.Types.KindRep]))
+distinct lit$36$$47$Users$47$niki$47$liquidtypes$47$liquidhaskell$47$tests$47$ple$47$pos$47$IndPal00.hs : (Str)
+distinct GHC.Types.True : (bool)
+distinct Nil : (func(1 , [[@(0)]]))
+distinct GHC.Tuple.$40$$44$$41$ : (func(2 , [@(0);
+                                             @(1);
+                                             (Tuple @(0) @(1))]))
+distinct lit$'Pals : (Str)
+distinct GHC.Types.GT : (GHC.Types.Ordering)
+distinct lit$'Pal : (Str)
+distinct GHC.Types.TrNameS : (func(0 , [Str; GHC.Types.TrName]))
+distinct lit$PalP : (Str)
+distinct lit$Pal : (Str)
+distinct GHC.Types.TyCon : (func(0 , [int;
+                                      int;
+                                      GHC.Types.Module;
+                                      GHC.Types.TrName;
+                                      int;
+                                      GHC.Types.KindRep;
+                                      GHC.Types.TyCon]))
+distinct IndPalindrome.Pal0 : (func(1 , [(IndPalindrome.Pal @(0))]))
+distinct GHC.Types.EQ : (GHC.Types.Ordering)
+distinct GHC.Classes.C$58$Eq : (func(1 , [func(0 , [@(0);
+                                                    @(0);
+                                                    bool]);
+                                          func(0 , [@(0); @(0); bool]);
+                                          (GHC.Classes.Eq @(0))]))
+
+

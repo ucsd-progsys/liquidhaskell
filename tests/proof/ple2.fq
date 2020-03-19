@@ -5,8 +5,7 @@ constant QQ       : (func(0, [int; QQ]))
 constant selector : (func(0, [QQ; int]))
 
 match selector QQ x = (x)
-define maker(n : int) : QQ = (((maker n) = (QQ n)))
-define QQ(z : int) : QQ   = ((selector (QQ z)) = z)
+define maker(n : int) : QQ = { QQ n }
 
 expand [1 : True]
 

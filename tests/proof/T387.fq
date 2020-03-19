@@ -7,10 +7,11 @@ data Thing 0 = [
        | N  { eNum : int}
      ]
 
-define killer (a1 : Thing,  a2 : Thing) : Thing = 
-  (((killer a1 a2) = (if (is$N a1) 
-                            then (if (is$N a2) then (a1) else (Op (left a2) (killer (N (eNum a1)) (right a2)))) 
-                            else (Op (left a1) (killer (right a1) a2)))))
+define killer (a1 : Thing,  a2 : Thing) : Thing = {
+  if (is$N a1) 
+    then (if (is$N a2) then (a1) else (Op (left a2) (killer (N (eNum a1)) (right a2)))) 
+    else (Op (left a1) (killer (right a1) a2))
+}
 
 constant killer : (func(0 , [Thing; Thing; Thing]))
 

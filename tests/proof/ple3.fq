@@ -6,16 +6,16 @@ data Blob 0 = [
   | VCons { blobKey : Int , blobVal : Int, blobTail : Blob} 
 ]
 
-define set (s : Blob, key: Int, valu : Int) : Blob = 
-  ((set s key valu) = (VCons key valu s))
+define set (s : Blob, key: Int, valu : Int) : Blob = { VCons key valu s }
 
-define get (s : Blob, key: Int) : Int  = 
-  ((get s key) = (if (is$VEmp s) then 
-                    0 
-                  else if (key = (blobKey s)) then 
-                    (blobVal s) 
-                  else 
-                    (get (blobTail s) key)))
+define get (s : Blob, key: Int) : Int  = {
+  if (is$VEmp s) then 
+    0 
+  else if (key = (blobKey s)) then 
+    (blobVal s) 
+  else 
+    (get (blobTail s) key)
+}
 
 constant get : (func(0, [Blob; Int; Int]))
 constant set : (func(0, [Blob; Int; Int; Blob]))

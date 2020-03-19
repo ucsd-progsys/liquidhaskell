@@ -1,6 +1,8 @@
 -- | This module contains the various instances for Subable,
 --   which (should) depend on the visitors, and hence cannot
 --   be in the same place as the @Term@ definitions.
+
+{-# LANGUAGE FlexibleInstances #-}
 module Language.Fixpoint.Types.Substitutions (
     mkSubst
   , isEmptySubst
@@ -329,3 +331,5 @@ exprSymbols = S.toList . go
     go (PExist xts p)     = go p `S.difference` S.fromList (fst <$> xts) 
     go _                  = S.empty 
 
+instance Expression (Symbol, SortedReft) where
+  expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)

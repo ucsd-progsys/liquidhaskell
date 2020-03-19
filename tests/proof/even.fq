@@ -1,0 +1,35 @@
+fixpoint "--rewrite"
+
+data Peano 0 = [ 
+  | Zero {}
+  | S {prev : Peano} 
+  ]
+
+data BBool 0 = [ 
+  | BTrue {}
+  | BFalse {}
+  ]
+
+constant negb : (func(0, [BBool; BBool]))
+constant even : (func(0, [Peano; BBool]))
+
+define negb (x:BBool) : BBool = {
+  if (is$BTrue x) then BFalse else BTrue
+}
+
+define even (x:Peano) : BBool = {
+  if (is$Zero x) then BTrue else 
+  if (is$Zero (prev x)) then BFalse else 
+  even (prev (prev x))
+}
+
+
+bind 0 n : {v: Peano | not (is$Zero v) && is$S v && not (is$S (prev v)) && is$Zero (prev v) } 
+
+constraint:
+  env [0]
+  lhs {v : bool | true }
+  rhs {v : bool | even (S n) == negb (even n) }
+  id 1 tag []
+
+expand [1 : True]

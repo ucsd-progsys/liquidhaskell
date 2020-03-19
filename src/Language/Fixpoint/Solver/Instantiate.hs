@@ -31,6 +31,7 @@ import           Language.Fixpoint.Utils.Progress -- as T
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
+import qualified Language.Fixpoint.Solver.PLE as PLE      (instantiate)
 import           Control.Monad.State
 import qualified Data.Text            as T
 import qualified Data.HashMap.Strict  as M
@@ -49,6 +50,9 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 instantiate :: (Loc a) => Config -> SInfo a -> IO (SInfo a)
 instantiate cfg fi
+  | rewriteAxioms cfg && not (oldPLE cfg)
+  = PLE.instantiate cfg fi
+
   | rewriteAxioms cfg && noIncrPle cfg
   = instantiate' cfg fi
 
@@ -274,9 +278,6 @@ updCtx InstEnv {..} ctx delta cidMb
 
 getCstr :: M.HashMap SubcId (SimpC a) -> SubcId -> SimpC a 
 getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
-
-instance PPrint CTrie where 
-  pprintTidy _ = Misc.tshow 
 
 --------------------------------------------------------------------------------
 -- | "Old" GLOBAL PLE 
@@ -647,9 +648,6 @@ evalIte' γ stk _ b e1 e2 _ _
   -- see [NOTE:Eval-Ite] #387 
   = EIte b <$> eval γ stk' e1 <*> eval γ stk' e2 
     where stk' = mytracepp "evalIte'" $ noRecurCS stk 
-
-instance Expression (Symbol, SortedReft) where
-  expr (x, RR _ (Reft (v, r))) = subst1 (expr r) (v, EVar x)
 
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)

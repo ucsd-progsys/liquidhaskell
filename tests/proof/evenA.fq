@@ -1,0 +1,33 @@
+fixpoint "--rewrite"
+
+data Peano 0 = [ 
+  | Zero {}
+  | S {prev : Peano} 
+  ]
+
+constant even : (func(0, [Peano; bool]))
+
+
+define even (x:Peano) : bool = {
+  if (is$Zero x) then true else 
+  ~ (even (prev n))
+}
+
+
+match is$Zero Zero = (true)
+match is$Zero S x = (false)
+match is$S Zero = (false)
+match is$S S x = (true)
+match prev S x = (x)
+
+bind 0 n : {v: Peano | even v && is$S v && prev v == d } 
+bind 1 d : {v: Peano | true  } 
+bind 2 z : {v: Peano | is$Zero v && v == d } 
+
+constraint:
+  env [0; 1; 2]
+  lhs {v : bool | true }
+  rhs {v : bool | false }
+  id 1 tag []
+
+expand [1 : True]

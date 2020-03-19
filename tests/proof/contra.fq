@@ -2,8 +2,11 @@ fixpoint "--rewrite"
 
 constant sem: (func(0, [int; int; (Set_Set int)]))
 
-define sem (i : int,  j: int) : (Set_Set int) = (&& [((sem i j) = (if (i < j) then (Set_cup (Set_add (Set_empty 0) i) (sem (i + 1) j)) else (Set_empty 0)));
-                                                              (true => true)])
+define sem (i : int,  j: int) : (Set_Set int) = {
+  if (i < j) then (Set_cup (Set_add (Set_empty 0) i) (sem (i + 1) j)) 
+             else (Set_empty 0)
+}
+
 
 expand [1 : True]
 

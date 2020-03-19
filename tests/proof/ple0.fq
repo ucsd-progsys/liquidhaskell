@@ -2,7 +2,7 @@ fixpoint "--rewrite"
 
 constant adder: (func(0, [int; int; int]))
 
-define adder(x : int, y : int) : int = ((adder x y) = (x + y))
+define adder(x : int, y : int) : int = { x + y }
 
 expand [1 : True]
 
