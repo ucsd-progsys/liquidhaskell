@@ -328,6 +328,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
+  , oldPLE
+    = def  
+        &= help "Enable Proof-by-Logical-Evaluation"
+        &= name "oldple"
+
   , proofLogicEvalLocal
     = def  
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
@@ -582,6 +587,7 @@ defConfig = Config
   , noslice           = False
   , noLiftedImport    = False
   , proofLogicEval    = False
+  , oldPLE            = False
   , proofLogicEvalLocal = False
   , reflection        = False
   , extensionality    = False 

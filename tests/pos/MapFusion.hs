@@ -1,11 +1,5 @@
-{-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--exact-data-cons" @-}
-
-{-@ LIQUID "--ple" @-}
-
-{-# LANGUAGE IncoherentInstances #-}
-{-# LANGUAGE FlexibleContexts    #-}
-
+{-@ LIQUID "--reflection"     @-}
+{-@ LIQUID "--ple"            @-}
 
 module MapFusion where
 

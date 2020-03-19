@@ -91,8 +91,6 @@ composition _ Nothing _
 composition _ _ Nothing
    = trivial
 composition (Just _) (Just _) (Just _)
-  = trivial 
-
-
+  = trivial
 
 

@@ -49,6 +49,7 @@ fixConfig tgt cfg = def
   , FC.rewriteAxioms    = Config.allowPLE   cfg
   , FC.etaElim          = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality   = extensionality    cfg 
+  , FC.oldPLE           = oldPLE cfg
   }
 
 
@@ -77,13 +78,19 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
 
 makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts]) 
+  = F.AEnv eqs  
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
   where
+    eqs      = if (oldPLE cfg) 
+                then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
+                else axioms  
     emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
     sp       = giSpec     info
+    axioms   = gsMyAxioms refl ++ gsImpAxioms refl 
+    refl     = gsRefl sp
+
 
 _isClassOrDict :: Id -> Bool
 _isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
@@ -118,18 +125,24 @@ specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
     bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
-makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
+makeSimplify (x, t)
+  | not (GM.isDataConId x)
+  = [] 
+  | otherwise 
+  = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
   where
     go (F.PAnd es) = concatMap go es
 
     go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
       | eq `elem` [F.Eq, F.Ueq]
       , (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
     go (F.PIff (F.EApp (F.EVar f) dc) bd)
       | (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
