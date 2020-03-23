@@ -4,7 +4,8 @@
 
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
-import Language.Haskell.Liquid.Types hiding (terminationCheck, isDecreasing)
+import Language.Haskell.Liquid.Types hiding (terminationCheck, isDecreasing, GhcInfo(..), GhcSrc(..), GhcSpec(..))
+import Language.Haskell.Liquid.Types.SpecDesign
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import CoreSyn

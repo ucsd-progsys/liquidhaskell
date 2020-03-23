@@ -10,19 +10,20 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , SearchLocation(..)
     ) where
 
-import           Language.Haskell.Liquid.Measure          ( BareSpec )
 import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
                                                                           , getModSummary
                                                                           , lookupModSummary
                                                                           )
 import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseLiquidLib )
 import           Language.Haskell.Liquid.GHC.Plugin.Types
-import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Types (Config)
+import           Language.Haskell.Liquid.Types.SpecDesign
 import           Language.Haskell.Liquid.GHC.Interface
 import qualified Language.Haskell.Liquid.Misc            as Misc
 import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
+import           Optics
 import qualified Outputable                              as O
 import           GHC
 import           HscTypes
@@ -46,7 +47,8 @@ type SpecFinder m = GhcMonadLike m => Module -> MaybeT m SpecFinderResult
 -- | The result of searching for a spec.
 data SpecFinderResult = 
     SpecNotFound Module
-  | SpecFound Module SearchLocation LiquidLib
+  | SpecFound Module SearchLocation BareSpec
+  | LibFound  Module SearchLocation LiquidLib
 
 data SearchLocation =
     InterfaceLocation
@@ -91,7 +93,7 @@ findCompanionSpec m = do
 lookupInterfaceAnnotations :: ExternalPackageState -> HomePackageTable -> SpecFinder m
 lookupInterfaceAnnotations eps hpt thisModule = do
   lib <- MaybeT $ pure $ deserialiseLiquidLib thisModule eps hpt
-  pure $ SpecFound thisModule InterfaceLocation lib
+  pure $ LibFound thisModule InterfaceLocation lib
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
@@ -113,7 +115,9 @@ lookupCompanionSpec thisModule = do
              O.<+> O.text (specFile file) O.<+> O.text ":"
              O.<+> O.text (show parsingError)
       lift $ pluginAbort dynFlags errMsg
-    Right spec -> pure $ SpecFound thisModule DiskLocation (mkLiquidLib . mkClientSpec . snd $ spec)
+    Right (_, spec) -> do
+      let bareSpec = view bareSpecIso spec
+      pure $ SpecFound thisModule DiskLocation bareSpec
   where
     specFile :: FilePath -> FilePath
     specFile fp = withExt fp Spec

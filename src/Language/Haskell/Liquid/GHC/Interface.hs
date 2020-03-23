@@ -110,7 +110,7 @@ import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
-import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.Bare hiding (GhcSpec(..))
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike

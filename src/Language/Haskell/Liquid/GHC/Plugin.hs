@@ -17,63 +17,82 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
   ) where
 
-import qualified Outputable as O
-import GHC hiding (Target, Located, desugarModule)
+import qualified Outputable                              as O
+import           GHC                               hiding ( Target
+                                                          , Located
+                                                          , desugarModule
+                                                          )
 
-import Plugins as GHC
-import TcRnTypes as GHC
-import TcRnMonad as GHC
-import GHC.ThToHs as GHC
+import           Plugins                                 as GHC
+import           TcRnTypes                               as GHC
+import           TcRnMonad                               as GHC
+import           GHC.ThToHs                              as GHC
 
-import qualified Language.Haskell.Liquid.GHC.Misc as LH
-import qualified Language.Haskell.Liquid.UX.CmdLine as LH
-import qualified Language.Haskell.Liquid.UX.Config as LH
-import qualified Language.Haskell.Liquid.GHC.Interface as LH
-import qualified Language.Haskell.Liquid.Liquid as LH
+import qualified Language.Haskell.Liquid.GHC.Misc        as LH
+import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
+import qualified Language.Haskell.Liquid.UX.Config       as LH
+import qualified Language.Haskell.Liquid.GHC.Interface   as LH
+import qualified Language.Haskell.Liquid.Liquid          as LH
 
-import Language.Haskell.Liquid.GHC.Plugin.Types
-import Language.Haskell.Liquid.GHC.Plugin.Util as Util
-import Language.Haskell.Liquid.GHC.Plugin.SpecFinder as SpecFinder
+import           Language.Haskell.Liquid.GHC.Plugin.Types
+import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
+import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
+                                                         as SpecFinder
 
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
-import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
-import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
-import CoreMonad
-import DataCon
-import DynFlags
-import HscTypes hiding (Target)
-import InstEnv
-import Module
-import Panic (throwGhcException)
+import qualified Language.Haskell.Liquid.GHC.API         as Ghc
+import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
+                                                         as GhcMonadLike
+import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
+                                                          , askHscEnv
+                                                          )
+import           CoreMonad
+import           DataCon
+import           DynFlags
+import           HscTypes                          hiding ( Target )
+import           InstEnv
+import           Module
+import           Panic                                    ( throwGhcException )
 import qualified TysPrim
-import GHC.LanguageExtensions
+import           GHC.LanguageExtensions
 
-import Control.Exception
-import Control.Monad
+import           Control.Exception
+import           Control.Monad
 
-import           Data.Function                            ( (&) )
-import Data.Coerce
-import Data.List as L hiding (intersperse)
-import Data.IORef
-import qualified Data.Set as S
-import Data.Set (Set)
+import           Data.Bifunctor
+import           Data.Coerce
+import           Data.List                               as L
+                                                   hiding ( intersperse )
+import           Data.IORef
+import qualified Data.Set                                as S
+import           Data.Set                                 ( Set )
 
 
-import qualified Data.HashSet        as HS
-import           Data.HashSet                             ( HashSet )
+import qualified Data.HashSet                            as HS
+import qualified Data.HashMap.Strict                     as HM
 
-import System.IO.Unsafe                 (unsafePerformIO)
-import Text.Parsec.Pos
-import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
+import           System.IO.Unsafe                         ( unsafePerformIO )
+import           Text.Parsec.Pos
+import           Language.Fixpoint.Types           hiding ( panic
+                                                          , Error
+                                                          , Result
+                                                          , Expr
+                                                          )
 
-import qualified Language.Haskell.TH.Syntax as TH
-import Language.Haskell.Liquid.Bare
-import Language.Haskell.Liquid.GHC.Misc
-import qualified Language.Haskell.Liquid.Measure  as Ms
-import Language.Haskell.Liquid.Parse
-import Language.Haskell.Liquid.Transforms.ANF
-import Language.Haskell.Liquid.Types hiding (Spec, getConfig)
-import Language.Haskell.Liquid.UX.CmdLine
+import qualified Language.Haskell.TH.Syntax              as TH
+import           Language.Haskell.Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.Measure         as Ms
+import           Language.Haskell.Liquid.Parse
+import           Language.Haskell.Liquid.Transforms.ANF
+import           Language.Haskell.Liquid.Types     hiding ( GhcSpec(..)
+                                                          , GhcSrc(..)
+                                                          , GhcInfo(..)
+                                                          , getConfig
+                                                          , BareSpec
+                                                          )
+import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.UX.CmdLine
+
+import           Optics
 
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
@@ -268,9 +287,9 @@ liquidHaskellPass cfg modGuts = do
   -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
   let (guts', specComments) = Util.extractSpecComments modGuts
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
-  targetSpec    <- getLiquidSpec thisModule specComments specQuotes
+  inputSpec <- getLiquidSpec thisModule specComments specQuotes
 
-  debugLog $ "Target Spec: \n" ++ show targetSpec
+  debugLog $ " Input spec: \n" ++ show inputSpec
 
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   dynFlags <- getDynFlags
@@ -288,7 +307,7 @@ liquidHaskellPass cfg modGuts = do
 
       let lhContext = LiquidHaskellContext {
             lhGlobalCfg       = cfg
-          , lhTargetSpec      = targetSpec
+          , lhInputSpec       = inputSpec
           , lhModuleLogicMap  = logicMap
           , lhModuleSummary   = modSummary
           , lhModuleTcData    = tcData
@@ -301,7 +320,7 @@ liquidHaskellPass cfg modGuts = do
       let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
 
       -- Call into the existing Liquid interface
-      res <- liftIO $ LH.liquidOne pmrGhcInfo
+      res <- liftIO $ LH.liquidOne pmrTargetInfo
       case o_result res of
         Safe -> pure ()
         _    -> pluginAbort dynFlags (O.text "Unsafe.")
@@ -313,29 +332,35 @@ liquidHaskellPass cfg modGuts = do
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
-loadRelevantSpecs :: forall m. GhcMonadLike m 
-                  => (Config, Bool)
-                  -- ^ The 'Config' associated to the /current/ module being compiled
-                  -- plus an indication whether or not the configuration changed.
-                  -> ExternalPackageState
-                  -> HomePackageTable
-                  -> Module
-                  -> [Module]
-                  -> m (HashSet CachedSpec)
-loadRelevantSpecs config eps hpt thisModule mods = do
+loadDependencies :: forall m. GhcMonadLike m 
+                 => (Config, Bool)
+                 -- ^ The 'Config' associated to the /current/ module being compiled
+                 -- plus an indication whether or not the configuration changed.
+                 -> ExternalPackageState
+                 -> HomePackageTable
+                 -> Module
+                 -> [Module]
+                 -> m TargetDependencies
+loadDependencies config eps hpt thisModule mods = do
   results <- SpecFinder.findRelevantSpecs config eps hpt mods
   foldlM processResult mempty (reverse results)
   where
-    processResult :: HashSet CachedSpec -> SpecFinderResult -> m (HashSet CachedSpec)
+    processResult :: TargetDependencies -> SpecFinderResult -> m TargetDependencies
     processResult !acc (SpecNotFound mdl) = do
       debugLog $ "[T:" ++ debugShowModule thisModule
               ++ "] Spec not found for " ++ debugShowModule mdl
       pure acc
-    processResult !acc (SpecFound originalModule location lib) = do
+    processResult _ (SpecFound originalModule location _) = do
+      dynFlags <- getDynFlags
       debugLog $ "[T:" ++ show (moduleName thisModule) 
               ++ "] Spec found for " ++ debugShowModule originalModule ++ ", at location " ++ show location
-      pure $ toCached originalModule (libTarget lib) `HS.insert` acc <> libDeps lib
-
+      Util.pluginAbort dynFlags (O.text "A BareSpec was returned as a dependency, this is not allowed, in " O.<+> O.ppr thisModule)
+    processResult !acc (LibFound originalModule location lib) = do
+      debugLog $ "[T:" ++ show (moduleName thisModule) 
+              ++ "] Lib found for " ++ debugShowModule originalModule ++ ", at location " ++ show location
+      pure $ TargetDependencies {
+          getDependencies = HM.insert (toStableModule originalModule) (libTarget lib) (getDependencies $ acc <> libDeps lib)
+        }
 
 -- | The collection of dependencies and usages modules which are relevant for liquidHaskell
 relevantModules :: ModGuts -> Set Module
@@ -366,7 +391,7 @@ relevantModules modGuts = used `S.union` dependencies
 
 data LiquidHaskellContext = LiquidHaskellContext {
     lhGlobalCfg        :: Config
-  , lhTargetSpec       :: LiquidSpec TargetSpec
+  , lhInputSpec        :: BareSpec
   , lhModuleLogicMap   :: LogicMap
   , lhModuleSummary    :: ModSummary
   , lhModuleTcData     :: TcData
@@ -381,79 +406,82 @@ data LiquidHaskellContext = LiquidHaskellContext {
 data ProcessModuleResult = ProcessModuleResult {
     pmrClientLib  :: LiquidLib
   -- ^ The \"client library\" we will serialise on disk into an interface's 'Annotation'.
-  , pmrGhcInfo    :: GhcInfo
+  , pmrTargetInfo :: TargetInfo
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
   }
 
-getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m (LiquidSpec TargetSpec)
+getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
 getLiquidSpec thisModule specComments specQuotes = do
 
-  (_, commSpec) <- either throw return $ 
+  (_, commSpec) <- either throw (return . second (view bareSpecIso)) $ 
     hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
 
   res <- SpecFinder.findCompanionSpec thisModule
   case res of
-    SpecFound _ _ lib -> do
+    SpecFound _ _ companionSpec -> do
       debugLog $ "Companion spec found for " ++ debugShowModule thisModule
-      pure $ mkTargetSpec commSpec `mergeTargetWithCompanion` mkCompanionSpec (libTarget lib)
-    _ -> pure $ mkTargetSpec commSpec
+      pure $ commSpec <> companionSpec
+    _ -> pure commSpec
 
 processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ debugShowModule thisModule)
   hscEnv              <- askHscEnv
 
-  let targetSpec      = lhTargetSpec
+  let bareSpec        = lhInputSpec
   -- /NOTE/: For the Plugin to work correctly, we shouldn't call 'canonicalizePath', because otherwise
   -- this won't trigger the \"external name resolution\" as part of 'Language.Haskell.Liquid.Bare.Resolve'
   -- (cfr. 'allowExtResolution').
   let file            = LH.modSummaryHsFile lhModuleSummary
 
-  _                   <- LH.checkFilePragmas $ Ms.pragmas (downcastSpec targetSpec)
+  _                   <- LH.checkFilePragmas $ Ms.pragmas (review bareSpecIso bareSpec)
 
-  moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas . downcastSpec $ targetSpec)
+  moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec)
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
   let configChanged   = moduleCfg /= lhGlobalCfg
-  dependencies       <- loadRelevantSpecs (moduleCfg, configChanged)
-                                          eps
-                                          (hsc_HPT hscEnv)
-                                          thisModule
-                                          (S.toList lhRelevantModules)
+  dependencies       <- loadDependencies (moduleCfg, configChanged)
+                                         eps
+                                         (hsc_HPT hscEnv)
+                                         thisModule
+                                         (S.toList lhRelevantModules)
 
-  debugLog $ "Found " <> show (length dependencies) <> " dependencies:"
-  forM_ dependencies $ debugLog . cachedSpecStableModuleId
+  debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
+  forM_ (HM.keys . getDependencies $ dependencies) $ 
+    debugLog . moduleStableString . unStableModule
 
   debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
   debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
-  ghcSrc              <- makeGhcSrc moduleCfg file lhModuleTcData modGuts hscEnv
-  let bareSpecs        = makeBareSpecs (moduleName thisModule) targetSpec dependencies
+  targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
 
-  debugLog $ "bareSpecs ==> \n" ++ show bareSpecs
+  case makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies of
 
-  let ghcSpec          = makeGhcSpec moduleCfg ghcSrc lhModuleLogicMap bareSpecs
-  let ghcInfo          = GI ghcSrc ghcSpec
+    -- If we didn't pass validation, abort compilation and show the errors.
+    Left errors -> do
+      dynFlags <- getDynFlags
+      Util.pluginAbort dynFlags (O.text $ showpp errors)
 
-  -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
-  -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
-  -- errors when trying to refine things.
-  let clientSpec = mkClientSpec . gsLSpec . giSpec $ ghcInfo
-        --  LH.updLiftedSpec (downcastSpec targetSpec) (Just . gsLSpec . giSpec $ ghcInfo)
-    {- targetSpec `mergeTargetWithClient` -} -- (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
+    Right (targetSpec, liftedSpec) -> do
+      let targetInfo = TargetInfo targetSrc targetSpec
 
-  liftIO $ putStrLn $ "targetSpec ==> " ++ show targetSpec
-  --liftIO $ putStrLn $ "clientSpecBeforeMerging ==> " ++ (show $ mkClientSpec . gsLSpec . giSpec $ ghcInfo)
-  liftIO $ putStrLn $ "clientSpec ==> " ++ show clientSpec
+      -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
+      -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
+      -- errors when trying to refine things.
+            --  LH.updLiftedSpec (downcastSpec targetSpec) (Just . gsLSpec . giSpec $ ghcInfo)
+        {- targetSpec `mergeTargetWithClient` -} -- (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
 
-  let clientLib  = mkLiquidLib clientSpec & addLibDependencies dependencies
+      liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
+      liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
 
-  let result = ProcessModuleResult {
-        pmrClientLib  = clientLib
-      , pmrGhcInfo    = ghcInfo
-      }
+      let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
-  pure result
+      let result = ProcessModuleResult {
+            pmrClientLib  = clientLib
+          , pmrTargetInfo = targetInfo
+          }
+
+      pure result
 
   where
     modGuts    = fromUnoptimised lhModuleGuts
@@ -463,14 +491,14 @@ processModule LiquidHaskellContext{..} = do
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
 ---------------------------------------------------------------------------------------
 
-makeGhcSrc :: GhcMonadLike m
-           => Config
-           -> FilePath 
-           -> TcData
-           -> ModGuts
-           -> HscEnv
-           -> m GhcSrc
-makeGhcSrc cfg file tcData modGuts hscEnv = do
+makeTargetSrc :: GhcMonadLike m
+              => Config
+              -> FilePath 
+              -> TcData
+              -> ModGuts
+              -> HscEnv
+              -> m TargetSrc
+makeTargetSrc cfg file tcData modGuts hscEnv = do
   coreBinds      <- liftIO $ anormalize cfg hscEnv modGuts
 
   -- The type constructors for a module are the (nubbed) union of the ones defined and
@@ -483,7 +511,7 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
   (fiTcs, fiDcs) <- liftIO $ LH.makeFamInstEnv hscEnv
   let things      = tcResolvedNames tcData
   let impVars     = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
-  return $ Src
+  return $ TargetSrc
     { giIncDir    = mempty
     , giTarget    = file
     , giTargetMod = ModName Target (moduleName (mg_module modGuts))
@@ -507,14 +535,6 @@ makeGhcSrc cfg file tcData modGuts hscEnv = do
     mgiModGuts = miModGuts deriv modGuts
       where
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
-
----------------------------------------------------------------------------------------
--- | @makeBareSpecs@ loads BareSpec for target and imported modules 
----------------------------------------------------------------------------------------
-makeBareSpecs :: ModuleName -> LiquidSpec TargetSpec -> HashSet CachedSpec -> [(ModName, BareSpec)]
-makeBareSpecs mname tgtSpec dependencies = 
-  let tgtMod    = ModName Target mname
-  in  (tgtMod, downcastSpec tgtSpec) : map fromCached (HS.toList dependencies)
 
 ---------------------------------------------------------------------------------
 -- | Unused stages of the compilation pipeline ----------------------------------

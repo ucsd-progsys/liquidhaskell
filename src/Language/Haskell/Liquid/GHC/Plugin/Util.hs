@@ -45,7 +45,6 @@ import           Data.Either                              ( partitionEithers )
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           , LiquidLib
-                                                          , debugShowModule
                                                           )
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike)
