@@ -13,7 +13,7 @@ module Language.Haskell.Liquid.GHC.Interface (
    realTargets
 
   -- * Extract all information needed for verification
-  , getGhcInfos
+  , getTargetInfos
   , runLiquidGhc
 
   -- * Printer
@@ -71,6 +71,7 @@ import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
 import qualified Data.Map            as M
+import qualified Data.HashMap.Strict as HM
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
@@ -80,15 +81,18 @@ import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
-import Language.Haskell.Liquid.Bare
+import Language.Haskell.Liquid.Bare hiding (GhcSpec(..))
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
+import qualified Language.Haskell.Liquid.Bare     as Bare
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
-import Language.Haskell.Liquid.Types hiding (Spec)
+import Language.Haskell.Liquid.Types hiding (Spec, GhcInfo(..))
+import Language.Haskell.Liquid.Types.SpecDesign hiding (TargetSpec(..), TargetSrc(..))
+import qualified Language.Haskell.Liquid.Types.SpecDesign as SD
 -- import Language.Haskell.Liquid.Types.PrettyPrint
 -- import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
@@ -96,6 +100,8 @@ import Language.Haskell.Liquid.UX.Config (totalityCheck)
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
+
+import Optics
 
 import qualified Debug.Trace as Debug 
 
@@ -151,21 +157,21 @@ hasFreshBinSpec srcF = do
 -- | GHC Interface Pipeline ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-getGhcInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([GhcInfo], HscEnv)
-getGhcInfos hscEnv cfg tgtFiles' = do
+getTargetInfos :: Maybe HscEnv -> Config -> [FilePath] -> IO ([TargetInfo], HscEnv)
+getTargetInfos hscEnv cfg tgtFiles' = do
   tgtFiles <- mapM canonicalizePath tgtFiles'
   _        <- mapM checkFilePresent tgtFiles
   _        <- mapM_ createTempDirectoryIfMissing tgtFiles
   logicMap <- liftIO makeLogicMap
-  runLiquidGhc hscEnv cfg (getGhcInfos' cfg logicMap tgtFiles)
+  runLiquidGhc hscEnv cfg (getTargetInfos' cfg logicMap tgtFiles)
 
 checkFilePresent :: FilePath -> IO ()
 checkFilePresent f = do
   b <- doesFileExist f
   unless b $ panic Nothing ("Cannot find file: " ++ f)
 
-getGhcInfos' :: Config -> LogicMap -> [FilePath] -> Ghc ([GhcInfo], HscEnv)
-getGhcInfos' cfg logicMap tgtFiles = do
+getTargetInfos' :: Config -> LogicMap -> [FilePath] -> Ghc ([TargetInfo], HscEnv)
+getTargetInfos' cfg logicMap tgtFiles = do
   _           <- compileCFiles cfg
   homeModules <- configureGhcTargets tgtFiles
   depGraph    <- buildDepGraph homeModules
@@ -367,7 +373,7 @@ _definedVars = concatMap defs
 
 type SpecEnv = ModuleEnv (ModName, Ms.BareSpec)
 
-processModules :: Config -> LogicMap -> [FilePath] -> DepGraph -> ModuleGraph -> Ghc [GhcInfo]
+processModules :: Config -> LogicMap -> [FilePath] -> DepGraph -> ModuleGraph -> Ghc [TargetInfo]
 processModules cfg logicMap tgtFiles depGraph homeModules = do
   -- DO NOT DELETE: liftIO $ putStrLn $ "Process Modules: TargetFiles = " ++ show tgtFiles
   catMaybes . snd <$> Misc.mapAccumM go emptyModuleEnv (mgModSummaries homeModules)
@@ -375,7 +381,7 @@ processModules cfg logicMap tgtFiles depGraph homeModules = do
     go = processModule cfg logicMap (S.fromList tgtFiles) depGraph
 
 processModule :: Config -> LogicMap -> S.HashSet FilePath -> DepGraph -> SpecEnv -> ModSummary
-              -> Ghc (SpecEnv, Maybe GhcInfo)
+              -> Ghc (SpecEnv, Maybe TargetInfo)
 processModule cfg logicMap tgtFiles depGraph specEnv modSummary = do
   let mod              = ms_mod modSummary
   -- DO-NOT-DELETE _                <- liftIO $ whenLoud $ putStrLn $ "Process Module: " ++ showPpr (moduleName mod)
@@ -425,15 +431,21 @@ loadModule' tm = loadModule tm'
 
 
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
-                    -> Ghc GhcInfo
+                    -> Ghc TargetInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
-  cfg        <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  let modSum  = pm_mod_summary (tm_parsed_module typechecked)
-  ghcSrc     <- makeGhcSrc    cfg file     typechecked modSum
-  bareSpecs  <- makeBareSpecs cfg depGraph specEnv     modSum bareSpec
-  let ghcSpec = makeGhcSpec   cfg ghcSrc   logicMap           bareSpecs  
-  _          <- liftIO $ saveLiftedSpec ghcSrc ghcSpec 
-  return      $ GI ghcSrc ghcSpec
+  cfg          <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
+  let modSum    = pm_mod_summary (tm_parsed_module typechecked)
+  ghcSrc       <- makeGhcSrc    cfg file     typechecked modSum
+  dependencies <- makeDependencies cfg depGraph specEnv modSum bareSpec
+  
+  let targetSrc = view targetSrcIso ghcSrc
+
+  case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
+    Left  validationErrors -> Bare.checkThrow (Left validationErrors)
+    Right (targetSpec, liftedSpec) -> do
+      -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
+      _          <- liftIO $ saveLiftedSpec (giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
+      return      $ TargetInfo targetSrc targetSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
@@ -558,18 +570,28 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 
 ---------------------------------------------------------------------------------------
 -- | @makeBareSpecs@ loads BareSpec for target and imported modules 
+-- /IMPORTANT(adn)/: We \"cheat\" a bit by creating a 'Module' out the 'ModuleName' we 
+-- parse from the spec, and convert the former into a 'StableModule' for the purpose
+-- of dependency tracking. This means, in practice, that all the \"wired-in-prelude\"
+-- specs will share the same `UnitId`, which for the sake of the executable is an
+-- acceptable compromise, as long as we don't create duplicates.
 ---------------------------------------------------------------------------------------
-makeBareSpecs :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
-              -> Ghc [(ModName, Ms.BareSpec)]
-makeBareSpecs cfg depGraph specEnv modSum tgtSpec = do 
+makeDependencies :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
+                 -> Ghc TargetDependencies
+makeDependencies cfg depGraph specEnv modSum tgtSpec = do 
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)
   specSpecs    <- findAndParseSpecFiles cfg paths modSum reachable
   let homeSpecs = cachedBareSpecs specEnv reachable
-  let impSpecs  = specSpecs ++ homeSpecs
-  let tgtMod    = ModName Target (moduleName (ms_mod modSum))
-  return        $ (tgtMod, tgtSpec) : impSpecs
+  let impSpecs  = map (bimap mkStableModule (view liftedSpecGetter)) (specSpecs ++ homeSpecs)
+  return        $ TargetDependencies $ HM.fromList impSpecs
+  where
+    mkStableModule :: ModName -> StableModule
+    mkStableModule modName = toStableModule (Module (moduleUnitId targetModule) (getModName modName))
+
+    targetModule :: Module
+    targetModule = ms_mod modSum
 
 modSummaryHsFile :: ModSummary -> FilePath
 modSummaryHsFile modSummary =
@@ -809,33 +831,33 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 -- | Pretty Printing -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-instance PPrint GhcSpec where
+instance PPrint SD.TargetSpec where
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
-    , pprintTidy k $ gsTgtVars (gsVars spec)
+    , pprintTidy k $ gsTgtVars (SD.gsVars spec)
     , "******* Type Signatures *********************"
-    , pprintLongList k (gsTySigs (gsSig spec))
+    , pprintLongList k (gsTySigs (SD.gsSig spec))
     , "******* Assumed Type Signatures *************"
-    , pprintLongList k (gsAsmSigs (gsSig spec))
+    , pprintLongList k (gsAsmSigs (SD.gsSig spec))
     , "******* DataCon Specifications (Measure) ****"
-    , pprintLongList k (gsCtors (gsData spec))
+    , pprintLongList k (gsCtors (SD.gsData spec))
     , "******* Measure Specifications **************"
-    , pprintLongList k (gsMeas (gsData spec))       ]
+    , pprintLongList k (gsMeas (SD.gsData spec))       ]
 
-instance PPrint GhcInfo where
+instance PPrint TargetInfo where
   pprintTidy k info = vcat
     [ -- "*************** Imports *********************"
       -- , intersperse comma $ text <$> imports info
       -- , "*************** Includes ********************"
       -- , intersperse comma $ text <$> includes info
       "*************** Imported Variables **********"
-    , pprDoc $ giImpVars (giSrc info)
+    , pprDoc $ giImpVars (review targetSrcIso $ giSrc info)
     , "*************** Defined Variables ***********"
-    , pprDoc $ giDefVars (giSrc info)
+    , pprDoc $ giDefVars (review targetSrcIso $ giSrc info)
     , "*************** Specification ***************"
     , pprintTidy k $ giSpec info
     , "*************** Core Bindings ***************"
-    , pprintCBs $ giCbs (giSrc info)                ]
+    , pprintCBs $ giCbs (review targetSrcIso $ giSrc info) ]
 
 -- RJ: the silly guards below are to silence the unused-var checker
 pprintCBs :: [CoreBind] -> Doc
@@ -846,7 +868,7 @@ pprintCBs
     pprintCBsTidy    = pprDoc . tidyCBs
     pprintCBsVerbose = text . O.showSDocDebug unsafeGlobalDynFlags . O.ppr . tidyCBs
 
-instance Show GhcInfo where
+instance Show TargetInfo where
   show = showpp
 
 instance PPrint TargetVars where

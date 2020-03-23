@@ -2,16 +2,21 @@
 
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DerivingVia #-}
 
 module Language.Haskell.Liquid.Types.SpecDesign where
 
 import           GHC.Generics                      hiding ( moduleName, to )
 import           Data.Binary                              ( Binary, get, put )
 import qualified Language.Fixpoint.Types                 as F
+import           Data.Hashable
 import           Data.HashSet                             ( HashSet )
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as M
 import           Data.HashMap.Strict                      ( HashMap )
+import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds
@@ -55,16 +60,18 @@ Intuitively:
 ------------------------------------------------------------------------------------------------------------}
 
 -- | The following is the overall type for /specifications/ obtained from
--- parsing the target source and dependent libraries
+-- parsing the target source and dependent libraries. 
+-- /IMPORTANT/: A 'TargetInfo' is what is /checked/ by LH itself and it /NEVER/ contains the 'LiftedSpec', 
+-- because the checking happens only on the 'BareSpec' of the target module.
+--
 -- NOTE(adn) For now keeping the old names to minimise breakages.
 data TargetInfo = TargetInfo
   { giSrc  :: !TargetSrc
   , giSpec :: !TargetSpec -- ^ All specification information for module
   }
 
---targetInfoISO :: Iso' S.GhcInfo TargetInfo
---targetInfoISO = iso (\ginfo -> TargetInfo (S.giSrc ginfo) (S.giSpec ginfo))
---                    (\tinfo -> S.GI       (view $ giSrc tinfo)   (view $ giSpec tinfo))
+instance HasConfig TargetInfo where
+  getConfig = getConfig . giSpec
 
 -- | The 'TargetSrc' type is a collection of all the things we know about a module being currently
 -- checked. It include things like the name of the module, the list of 'CoreBind's,
@@ -151,6 +158,9 @@ data TargetSpec = TargetSpec
   , gsConfig :: !Config
   }
 
+instance HasConfig TargetSpec where
+  getConfig = gsConfig
+
 targetSpecGetter :: Getter S.GhcSpec (TargetSpec, LiftedSpec)
 targetSpecGetter = 
   to (\ghcSpec -> (toTargetSpec ghcSpec, view (to S.gsLSpec % liftedSpecGetter) ghcSpec))
@@ -168,7 +178,6 @@ targetSpecGetter =
       , gsConfig = S.gsConfig a
       }
 
-
 -- | A 'BareSpec' is the spec we derive by parsing the liquidhaskell annotations of a single file. As
 -- such, it contains things which are relevant for validation and lifting; it contains things like
 -- the pragmas the user defined, the termination condition (if termination-checking is enabled) and so
@@ -179,7 +188,7 @@ targetSpecGetter =
 -- implemented for the relevant field.
 newtype BareSpec    =
   MkBareSpec { getBareSpec :: S.Spec LocBareType F.LocSymbol }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Semigroup, Monoid, Binary)
 
 bareSpecIso :: Iso' S.BareSpec BareSpec
 bareSpecIso = iso MkBareSpec getBareSpec
@@ -260,7 +269,9 @@ data LiftedSpec = LiftedSpec
     --   see tests/pos/NatClass.hs
   , liftedAxeqs      :: !(HashSet F.Equation)
     -- ^ Equalities used for Proof-By-Evaluation
-  } deriving (Generic, Show)
+  } deriving (Eq, Generic, Show)
+    deriving Hashable via Generically LiftedSpec 
+    deriving Binary   via Generically LiftedSpec 
 
 
 liftedSpecGetter :: Getter S.BareSpec LiftedSpec
@@ -303,7 +314,12 @@ liftedSpecGetter = to toLiftedSpec
 -- * Allows a 'Module' to be serialised (i.e. it has a 'Binary' instance)
 -- * It tries to use stable comparison and equality under the hood.
 --
-newtype StableModule = StableModule { unStableModule :: Module }
+newtype StableModule = 
+  StableModule { unStableModule :: Module } 
+  deriving Generic
+
+instance Hashable StableModule where
+  hashWithSalt s (StableModule mdl) = hashWithSalt s (moduleStableString mdl)
 
 instance Ord StableModule where
   (StableModule m1) `compare` (StableModule m2) = stableModuleCmp m1 m2
@@ -329,8 +345,11 @@ instance Binary StableModule where
       mnStr  <- get
       pure $ StableModule (Module (stringToUnitId uidStr) (mkModuleName mnStr))
 
+-- | The /target/ dependencies that concur to the creation of a 'TargetSpec' and a 'LiftedSpec'.
 newtype TargetDependencies =
   TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
+  deriving (Eq, Show, Semigroup, Monoid, Generic)
+  deriving Binary via Generically TargetDependencies
 
 {------------------------------------------------------------------------------------------------------------
  Utility functions
@@ -341,6 +360,15 @@ debugShowModule m = showSDocUnsafe $
                      text "Module { unitId = " <+> ppr (moduleUnitId m)
                  <+> text ", name = " <+> ppr (moduleName m) 
                  <+> text " }"
+
+isPLEVar :: TargetSpec -> Var -> Bool 
+isPLEVar sp x = M.member x (S.gsAutoInst (gsRefl sp)) 
+
+isExportedVar :: TargetSrc -> Var -> Bool
+isExportedVar src v = n `elemNameSet` ns
+  where
+    n                = getName v
+    ns               = gsExports src
 
 {------------------------------------------------------------------------------------------------------------
  Stubbed interface for creating and manipulating specs (replaces 'Language.Haskell.Liquid.Bare').
@@ -362,15 +390,15 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
   pure $ view targetSpecGetter (Bare.makeGhcSpec cfg (review targetSrcIso targetSrc) lmap allSpecs)
   where
     toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, S.BareSpec)
-    toLegacyDep (sm, ls) = (ModName SrcImport (moduleName . unStableModule $ sm), fromLiftedSpec ls)
+    toLegacyDep (sm, ls) = (ModName SrcImport (moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
 
     toLegacyTarget :: S.BareSpec -> (ModName, S.BareSpec)
     toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
 
 -- This is a temporary internal function that we use to convert the input dependencies into a format
 -- suitable for 'makeGhcSpec'.
-fromLiftedSpec :: LiftedSpec -> S.BareSpec
-fromLiftedSpec a = S.Spec
+unsafeFromLiftedSpec :: LiftedSpec -> S.BareSpec
+unsafeFromLiftedSpec a = S.Spec
   { S.measures   = HS.toList . liftedMeasures $ a
   , S.impSigs    = HS.toList . liftedImpSigs $ a
   , S.expSigs    = HS.toList . liftedExpSigs $ a

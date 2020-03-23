@@ -30,13 +30,11 @@ import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when)
 import qualified Control.Exception as Ex
--- import qualified Language.Fixpoint.Types.Config as FC
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
-import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
@@ -46,13 +44,14 @@ import           Language.Haskell.Liquid.GHC.Interface
 import           Language.Haskell.Liquid.Constraint.Generate
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
--- import           Language.Haskell.Liquid.Model
--- import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 
-type MbEnv = Maybe HscEnv
+import           Language.Haskell.Liquid.Types hiding (GhcInfo(..), GhcSpec(..), GhcSrc(..), isExportedVar)
+import           Language.Haskell.Liquid.Types.SpecDesign
 
+
+type MbEnv = Maybe HscEnv
 
 
 --------------------------------------------------------------------------------
@@ -67,7 +66,7 @@ liquid args = do
 liquidConstraints :: Config -> IO (Either [CGInfo] ExitCode) 
 --------------------------------------------------------------------------------
 liquidConstraints cfg = do 
-  z <- actOrDie $ second Just <$> getGhcInfos Nothing cfg (files cfg)
+  z <- actOrDie $ second Just <$> getTargetInfos Nothing cfg (files cfg)
   case z of
     Left e -> do
       exitWithResult cfg (files cfg) $ mempty { o_result = e }
@@ -103,7 +102,7 @@ checkTargets cfg  = go
 runLiquidTargets :: MbEnv -> Config -> [FilePath] -> IO (ExitCode, MbEnv)
 --------------------------------------------------------------------------------
 runLiquidTargets mE cfg targetFiles = do
-  z <- actOrDie $ second Just <$> getGhcInfos mE cfg targetFiles
+  z <- actOrDie $ second Just <$> getTargetInfos mE cfg targetFiles
   case z of
     Left e -> do
       exitWithResult cfg targetFiles $ mempty { o_result = e }
@@ -115,7 +114,7 @@ runLiquidTargets mE cfg targetFiles = do
     ec = resultExit . o_result
 
 --------------------------------------------------------------------------------
-checkMany :: Config -> Output Doc -> [GhcInfo] -> IO (Output Doc)
+checkMany :: Config -> Output Doc -> [TargetInfo] -> IO (Output Doc)
 --------------------------------------------------------------------------------
 checkMany cfg d (g:gs) = do
   d' <- checkOne cfg g
@@ -125,7 +124,7 @@ checkMany _   d [] =
   return d
 
 --------------------------------------------------------------------------------
-checkOne :: Config -> GhcInfo -> IO (Output Doc)
+checkOne :: Config -> TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
 checkOne cfg g = do
   z <- actOrDie $ liquidOne g
@@ -146,7 +145,7 @@ handle :: (Result a) => a -> IO (Either ErrorResult b)
 handle = return . Left . result
 
 --------------------------------------------------------------------------------
-liquidOne :: GhcInfo -> IO (Output Doc)
+liquidOne :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
 liquidOne info
   | compileSpec cfg = do 
@@ -172,7 +171,7 @@ liquidOne info
     tgt  = giTarget (giSrc info)
     cbs' = giCbs (giSrc info) 
 
-newPrune :: Config -> [CoreBind] -> FilePath -> GhcInfo -> IO (Either [CoreBind] [DC.DiffCheck])
+newPrune :: Config -> [CoreBind] -> FilePath -> TargetInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
   | not (null vs) = return . Right $ [DC.thin cbs sp vs]
   | timeBinds cfg = return . Right $ [DC.thin cbs sp [v] | v <- expVars]
@@ -184,27 +183,27 @@ newPrune cfg cbs tgt info
     sp            = giSpec       info
     expVars       = exportedVars (giSrc info)
 
-exportedVars :: GhcSrc -> [Var]
+exportedVars :: TargetSrc -> [Var]
 exportedVars src = filter (isExportedVar src) (giDefVars src)
 
 maybeEither :: a -> Maybe b -> Either a [b]
 maybeEither d Nothing  = Left d
 maybeEither _ (Just x) = Right [x]
 
-liquidQueries :: Config -> FilePath -> GhcInfo -> Either [CoreBind] [DC.DiffCheck] -> IO (Output Doc)
+liquidQueries :: Config -> FilePath -> TargetInfo -> Either [CoreBind] [DC.DiffCheck] -> IO (Output Doc)
 liquidQueries cfg tgt info (Left cbs')
   = liquidQuery cfg tgt info (Left cbs')
 liquidQueries cfg tgt info (Right dcs)
   = mconcat <$> mapM (liquidQuery cfg tgt info . Right) dcs
 
-liquidQuery   :: Config -> FilePath -> GhcInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
+liquidQuery   :: Config -> FilePath -> TargetInfo -> Either [CoreBind] DC.DiffCheck -> IO (Output Doc)
 liquidQuery cfg tgt info edc = do
   let names   = either (const Nothing) (Just . map show . DC.checkedVars)   edc
   let oldOut  = either (const mempty)  DC.oldOutput                         edc
   let info1   = either (const info)    (\z -> info {giSpec = DC.newSpec z}) edc
   let cbs''   = either id              DC.newBinds                          edc
   let info2   = info1 { giSrc = (giSrc info1) {giCbs = cbs''}}
-  let info3   = updGhcInfoTermVars info2 
+  let info3   = updTargetInfoTermVars info2 
   let cgi     = {-# SCC "generateConstraints" #-} generateConstraints $! info3 
   when False (dumpCs cgi)
   -- whenLoud $ mapM_ putStrLn [ "****************** CGInfo ********************"
@@ -212,8 +211,8 @@ liquidQuery cfg tgt info edc = do
   out        <- timedAction names $ solveCs cfg tgt cgi info3 names
   return      $ mconcat [oldOut, out]
 
-updGhcInfoTermVars    :: GhcInfo -> GhcInfo 
-updGhcInfoTermVars i  = updInfo i  (ST.terminationVars i) 
+updTargetInfoTermVars    :: TargetInfo -> TargetInfo 
+updTargetInfoTermVars i  = updInfo i  (ST.terminationVars i) 
   where 
     updInfo   info vs = info { giSpec = updSpec   (giSpec info) vs }
     updSpec   sp   vs = sp   { gsTerm = updSpTerm (gsTerm sp)   vs }
@@ -235,7 +234,7 @@ pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 instance Show Cinfo where
   show = show . F.toFix
 
-solveCs :: Config -> FilePath -> CGInfo -> GhcInfo -> Maybe [String] -> IO (Output Doc)
+solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   F.Result r sol _ <- solve (fixConfig tgt cfg) finfo

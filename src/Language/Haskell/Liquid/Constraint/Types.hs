@@ -74,13 +74,15 @@ import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
 
 import           Language.Haskell.Liquid.GHC.SpanStack
-import           Language.Haskell.Liquid.Types hiding   (binds)
 import           Language.Haskell.Liquid.Misc           (thrd3)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
+
+import           Language.Haskell.Liquid.Types hiding   (binds, GhcInfo(..))
+import           Language.Haskell.Liquid.Types.SpecDesign
 
 type CG = State CGInfo
 
@@ -110,8 +112,8 @@ data CGEnv = CGE
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
   , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps reflected Haskell functions to the logical functions
   , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
-  -- , cgCfg  :: !Config                                -- ^ top-level config options
-  , cgInfo :: !GhcInfo                               -- ^ top-level GhcInfo
+  -- , cgCfg  :: !Config                             -- ^ top-level config options
+  , cgInfo :: !TargetInfo                            -- ^ top-level TargetInfo
   , cgVar  :: !(Maybe Var)                           -- ^ top level function being checked
   } -- deriving (Data, Typeable)
 
@@ -207,7 +209,7 @@ data CGInfo = CGInfo
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
-  , ghcI       :: !GhcInfo
+  , ghcI       :: !TargetInfo
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
   , unsorted   :: !F.Templates                 -- ^ Potentially unsorted expressions
   }

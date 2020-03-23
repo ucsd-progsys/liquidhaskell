@@ -21,16 +21,18 @@ import           Var (Var)
 import           Language.Fixpoint.Types                  hiding (panic, mkQual)
 import qualified Language.Fixpoint.Types.Config as FC
 import           Language.Fixpoint.SortCheck
-import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.Types.RefType
 import           Language.Haskell.Liquid.GHC.Misc         (getSourcePos)
 import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
-import           Language.Haskell.Liquid.Types 
+
+import           Language.Haskell.Liquid.Bare hiding (GhcSpec(..))
+import           Language.Haskell.Liquid.Types hiding (GhcInfo(..), GhcSpec(..), GhcSrc(..))
+import           Language.Haskell.Liquid.Types.SpecDesign
 
 
 --------------------------------------------------------------------------------
-giQuals :: GhcInfo -> SEnv Sort -> [Qualifier]
+giQuals :: TargetInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 giQuals info lEnv
   =  notracepp ("GI-QUALS: " ++ showpp lEnv)
@@ -70,7 +72,7 @@ needQuals :: (HasConfig t) => t -> Bool
 needQuals = (FC.None == ) . eliminate . getConfig
 
 --------------------------------------------------------------------------------
-alsQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+alsQualifiers :: TargetInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 alsQualifiers info lEnv
   = [ q | a <- gsRTAliases . gsQual . giSpec $ info
@@ -90,7 +92,7 @@ validQual lEnv q = isJust $ checkSortExpr (srcSpan q) env (qBody q)
 
 
 --------------------------------------------------------------------------------
-sigQualifiers :: GhcInfo -> SEnv Sort -> [Qualifier]
+sigQualifiers :: TargetInfo -> SEnv Sort -> [Qualifier]
 --------------------------------------------------------------------------------
 sigQualifiers info lEnv
   = [ q | (x, t) <- specBinders info
@@ -105,7 +107,7 @@ sigQualifiers info lEnv
       tce = gsTcEmbeds . gsName . giSpec $ info
       qbs = qualifyingBinders info
 
-qualifyingBinders :: GhcInfo -> S.HashSet Var
+qualifyingBinders :: TargetInfo -> S.HashSet Var
 qualifyingBinders info = S.difference sTake sDrop
   where
     sTake              = S.fromList $ giDefVars src ++ giUseVars src ++ scrapeVars cfg src 
@@ -116,13 +118,13 @@ qualifyingBinders info = S.difference sTake sDrop
 -- NOTE: this mines extra, useful qualifiers but causes
 -- a significant increase in running time, so we hide it
 -- behind `--scrape-imports` and `--scrape-used-imports`
-scrapeVars :: Config -> GhcSrc -> [Var]
+scrapeVars :: Config -> TargetSrc -> [Var]
 scrapeVars cfg src 
   | cfg `hasOpt` scrapeUsedImports = giUseVars src 
   | cfg `hasOpt` scrapeImports     = giImpVars src 
   | otherwise                      = []
 
-specBinders :: GhcInfo -> [(Var, LocSpecType)]
+specBinders :: TargetInfo -> [(Var, LocSpecType)]
 specBinders info = mconcat
   [ gsTySigs  (gsSig  sp)
   , gsAsmSigs (gsSig  sp)
@@ -133,7 +135,7 @@ specBinders info = mconcat
   where
     sp  = giSpec info
 
-specAxiomVars :: GhcInfo -> [Var]
+specAxiomVars :: TargetInfo -> [Var]
 specAxiomVars =  gsReflects . gsRefl . giSpec
 
 -- GRAVEYARD: scraping quals from imports kills the system with too much crap

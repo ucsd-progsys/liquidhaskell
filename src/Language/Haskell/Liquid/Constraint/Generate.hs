@@ -67,7 +67,6 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Play          (isHoleVar) 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, Def)
 import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
 -- import           Language.Haskell.Liquid.Types.Strata
 -- import qualified Language.Haskell.Liquid.Types.RefType         as RT
@@ -82,17 +81,20 @@ import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
+import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def, GhcInfo(..), GhcSrc(..), GhcSpec(..), isPLEVar)
+import           Language.Haskell.Liquid.Types.SpecDesign
+
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
 --------------------------------------------------------------------------------
-generateConstraints      :: GhcInfo -> CGInfo
+generateConstraints      :: TargetInfo -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
     act                  = consAct cfg info
     cfg                  = getConfig   info
 
-consAct :: Config -> GhcInfo -> CG ()
+consAct :: Config -> TargetInfo -> CG ()
 consAct cfg info = do
   γ       <- initEnv      info
   let sSpc = gsSig . giSpec $ info  
@@ -262,7 +264,7 @@ consCBLet γ cb = do
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Corebind -------------------------------------------
 --------------------------------------------------------------------------------
-consCBTop :: Config -> GhcInfo -> CGEnv -> CoreBind -> CG CGEnv
+consCBTop :: Config -> TargetInfo -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBTop cfg info γ cb
   | all (trustVar cfg info) xs
@@ -287,10 +289,10 @@ consCBTop _ _ γ cb
       topBind (Rec [(v,_)]) = Just v
       topBind _             = Nothing
 
-trustVar :: Config -> GhcInfo -> Var -> Bool
+trustVar :: Config -> TargetInfo -> Var -> Bool
 trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
-derivedVar :: GhcSrc -> Var -> Bool
+derivedVar :: TargetSrc -> Var -> Bool
 derivedVar src x = S.member x (giDerVars src)
 
 doTermCheck :: Config -> Bind Var -> CG Bool

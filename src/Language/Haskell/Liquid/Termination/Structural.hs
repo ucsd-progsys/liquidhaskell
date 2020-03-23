@@ -4,7 +4,8 @@
 
 module Language.Haskell.Liquid.Termination.Structural (terminationVars) where
 
-import Language.Haskell.Liquid.Types hiding (terminationCheck, isDecreasing)
+import Language.Haskell.Liquid.Types hiding (terminationCheck, isDecreasing, GhcInfo(..), GhcSrc(..), GhcSpec(..))
+import Language.Haskell.Liquid.Types.SpecDesign
 import Language.Haskell.Liquid.GHC.Misc (showPpr)
 
 import CoreSyn
@@ -24,10 +25,10 @@ import qualified Data.List as L
 import Control.Monad (liftM, ap)
 import Data.Foldable (fold)
 
-terminationVars :: GhcInfo -> [Var]
+terminationVars :: TargetInfo -> [Var]
 terminationVars info = failingBinds info >>= allBoundVars
 
-failingBinds :: GhcInfo -> [CoreBind]
+failingBinds :: TargetInfo -> [CoreBind]
 failingBinds info = filter (hasErrors . checkBind) structBinds
   where 
     structCheckWholeProgram = structuralTerm info

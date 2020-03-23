@@ -19,6 +19,9 @@ module Language.Haskell.Liquid.Bare (
   -- * Lifted Spec
   , loadLiftedSpec
   , saveLiftedSpec
+
+  -- * Internal utilities
+  , checkThrow
   ) where
 
 import           Prelude                                    hiding (error)
@@ -82,14 +85,12 @@ errMissingSpec :: FilePath -> FilePath -> UserError
 errMissingSpec srcF specF = ErrNoSpec Ghc.noSrcSpan (text srcF) (text specF)
 
 -- saveLiftedSpec :: FilePath -> ModName -> Ms.BareSpec -> IO ()
-saveLiftedSpec :: GhcSrc -> GhcSpec -> IO () 
-saveLiftedSpec src sp = do
+saveLiftedSpec :: FilePath -> BareSpec -> IO () 
+saveLiftedSpec srcF lspec = do
   ensurePath specF
   B.encodeFile specF lspec
   -- print (errorP "DIE" "HERE" :: String) 
   where
-    srcF  = giTarget src 
-    lspec = gsLSpec  sp 
     specF = extFileName BinSpec srcF
 
 -------------------------------------------------------------------------------------
