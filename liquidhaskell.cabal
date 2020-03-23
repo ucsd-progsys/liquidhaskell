@@ -132,6 +132,7 @@ library
                       Language.Haskell.Liquid.Types.Equality
                       Language.Haskell.Liquid.Types.Errors
                       Language.Haskell.Liquid.Types.Fresh
+                      Language.Haskell.Liquid.Types.Generics
                       Language.Haskell.Liquid.Types.Literals
                       Language.Haskell.Liquid.Types.Meet
                       Language.Haskell.Liquid.Types.Names

@@ -6,6 +6,8 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DerivingStrategies  #-}
+{-# LANGUAGE DerivingVia         #-}
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -61,6 +63,7 @@ import           Data.Generics                (Data)
 import qualified Data.Binary                  as B
 import qualified Data.Maybe                   as Mb
 import           Data.Aeson                   hiding (Result)
+import           Data.Hashable
 import qualified Data.HashMap.Strict          as M
 import qualified Data.List                    as L 
 import           System.Directory
@@ -73,6 +76,7 @@ import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc 
 import           Language.Haskell.Liquid.Misc ((<->))
+import           Language.Haskell.Liquid.Types.Generics
 
 instance PPrint ParseError where
   pprintTidy _ e = vcat $ tail $ text <$> ls
@@ -176,7 +180,8 @@ data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
   | OCons -- ^ Obligation that proves subtyping constraints
-  deriving (Generic, Data, Typeable)
+  deriving (Eq, Generic, Data, Typeable)
+  deriving Hashable via Generically Oblig
 
 instance B.Binary Oblig
 instance Show Oblig where
