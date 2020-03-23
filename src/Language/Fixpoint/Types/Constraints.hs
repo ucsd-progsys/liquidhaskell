@@ -395,6 +395,7 @@ instance (NFData a) => NFData (Result a)
 instance Hashable Qualifier
 instance Hashable QualPattern
 instance Hashable QualParam
+instance Hashable Equation
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------
