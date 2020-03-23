@@ -526,8 +526,12 @@ instance Monoid Sort where
 newtype TCEmb a = TCE (M.HashMap a (Sort, TCArgs)) 
   deriving (Eq, Show, Data, Typeable, Generic) 
 
+instance Hashable a => Hashable (TCEmb a)
+
 data TCArgs = WithArgs | NoArgs 
   deriving (Eq, Ord, Show, Data, Typeable, Generic) 
+
+instance Hashable TCArgs 
 
 tceInsertWith :: (Eq a, Hashable a) => (Sort -> Sort -> Sort) -> a -> Sort -> TCArgs -> TCEmb a -> TCEmb a
 tceInsertWith f k t a (TCE m) = TCE (M.insertWith ff k (t, a) m)
