@@ -5,11 +5,11 @@
 
 module Language.Haskell.Liquid.Types.SpecDesign where
 
-import           GHC.Generics                      hiding ( moduleName )
-import qualified Control.Exception                       as Ex
+import           GHC.Generics                      hiding ( moduleName, to )
 import           Data.Binary                              ( Binary, get, put )
 import qualified Language.Fixpoint.Types                 as F
 import           Data.HashSet                             ( HashSet )
+import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as M
 import           Data.HashMap.Strict                      ( HashMap )
 import           Language.Haskell.Liquid.Types.Types
@@ -18,8 +18,11 @@ import           Language.Haskell.Liquid.Types.Bounds
 import           Language.Haskell.Liquid.GHC.API
 
 -- Import qualified the old module, but let's get what we need only.
-import qualified Language.Haskell.Liquid.Types.Specs as S
+import qualified Language.Haskell.Liquid.Types.Specs     as S
+import qualified Language.Haskell.Liquid.Bare            as Bare
+import qualified Language.Haskell.Liquid.Bare.Check      as Bare
 
+import           Optics
 import           Outputable                               ( (<+>)
                                                           , text
                                                           , showSDocUnsafe
@@ -45,6 +48,12 @@ Intuitively:
 
 -}
 
+{------------------------------------------------------------------------------------------------------------
+  Main spec types, which are mostly taken from the original 'Specs' module but they have been \"rebranded\"
+  to better clarify their purposes. 
+  Furthermore, we provide provisional compatibility ISOs and Prisms to smooth out the integration.
+------------------------------------------------------------------------------------------------------------}
+
 -- | The following is the overall type for /specifications/ obtained from
 -- parsing the target source and dependent libraries
 -- NOTE(adn) For now keeping the old names to minimise breakages.
@@ -52,6 +61,10 @@ data TargetInfo = TargetInfo
   { giSrc  :: !TargetSrc
   , giSpec :: !TargetSpec -- ^ All specification information for module
   }
+
+--targetInfoISO :: Iso' S.GhcInfo TargetInfo
+--targetInfoISO = iso (\ginfo -> TargetInfo (S.giSrc ginfo) (S.giSpec ginfo))
+--                    (\tinfo -> S.GI       (view $ giSrc tinfo)   (view $ giSpec tinfo))
 
 -- | The 'TargetSrc' type is a collection of all the things we know about a module being currently
 -- checked. It include things like the name of the module, the list of 'CoreBind's,
@@ -75,17 +88,53 @@ data TargetSrc = TargetSrc
   , gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons 
   , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons 
   , gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
-  , gsQualImps  :: !QImports              -- ^ Map of qualified imports
+  , gsQualImps  :: !S.QImports            -- ^ Map of qualified imports
   , gsAllImps   :: !(HashSet F.Symbol)    -- ^ Set of _all_ imported modules
   , gsTyThings  :: ![TyThing]             -- ^ All the @TyThing@s known to GHC
   }
 
--- | @QImports@ is a map of qualified imports. Used in 'GhcSrc' to hold the (qualified) imports for an
--- input module.
-data QImports = QImports 
-  { qiModules :: !(HashSet F.Symbol)            -- ^ All the modules that are imported qualified
-  , qiNames   :: !(M.HashMap F.Symbol [F.Symbol]) -- ^ Map from qualification to full module name
-  } deriving Show
+targetSrcIso :: Iso' S.GhcSrc TargetSrc
+targetSrcIso = iso toTargetSrc fromTargetSrc
+  where
+    toTargetSrc a = TargetSrc
+      { giIncDir    = S.giIncDir a
+      , giTarget    = S.giTarget a
+      , giTargetMod = S.giTargetMod a
+      , giCbs       = S.giCbs a
+      , gsTcs       = S.gsTcs a
+      , gsCls       = S.gsCls a
+      , giDerVars   = S.giDerVars a
+      , giImpVars   = S.giImpVars a
+      , giDefVars   = S.giDefVars a
+      , giUseVars   = S.giUseVars a
+      , gsExports   = S.gsExports a
+      , gsFiTcs     = S.gsFiTcs a
+      , gsFiDcs     = S.gsFiDcs a
+      , gsPrimTcs   = S.gsPrimTcs a
+      , gsQualImps  = S.gsQualImps a
+      , gsAllImps   = S.gsAllImps a
+      , gsTyThings  = S.gsTyThings a
+      }
+
+    fromTargetSrc a = S.Src
+      { S.giIncDir    = giIncDir a
+      , S.giTarget    = giTarget a
+      , S.giTargetMod = giTargetMod a
+      , S.giCbs       = giCbs a
+      , S.gsTcs       = gsTcs a
+      , S.gsCls       = gsCls a
+      , S.giDerVars   = giDerVars a
+      , S.giImpVars   = giImpVars a
+      , S.giDefVars   = giDefVars a
+      , S.giUseVars   = giUseVars a
+      , S.gsExports   = gsExports a
+      , S.gsFiTcs     = gsFiTcs a
+      , S.gsFiDcs     = gsFiDcs a
+      , S.gsPrimTcs   = gsPrimTcs a
+      , S.gsQualImps  = gsQualImps a
+      , S.gsAllImps   = gsAllImps a
+      , S.gsTyThings  = gsTyThings a
+      }
 
 -- | A 'TargetSpec' is what we /actually check via LiquidHaskell/. It is created as part of
 -- 'mkTargetSpec' alongside the lifted spec.
@@ -102,6 +151,23 @@ data TargetSpec = TargetSpec
   , gsConfig :: !Config
   }
 
+targetSpecGetter :: Getter S.GhcSpec (TargetSpec, LiftedSpec)
+targetSpecGetter = 
+  to (\ghcSpec -> (toTargetSpec ghcSpec, view (to S.gsLSpec % liftedSpecGetter) ghcSpec))
+  where
+    toTargetSpec a = TargetSpec
+      { gsSig    = S.gsSig a
+      , gsQual   = S.gsQual a
+      , gsData   = S.gsData a
+      , gsName   = S.gsName a
+      , gsVars   = S.gsVars a
+      , gsTerm   = S.gsTerm a
+      , gsRefl   = S.gsRefl a
+      , gsLaws   = S.gsLaws a
+      , gsImps   = S.gsImps a
+      , gsConfig = S.gsConfig a
+      }
+
 
 -- | A 'BareSpec' is the spec we derive by parsing the liquidhaskell annotations of a single file. As
 -- such, it contains things which are relevant for validation and lifting; it contains things like
@@ -114,6 +180,9 @@ data TargetSpec = TargetSpec
 newtype BareSpec    =
   MkBareSpec { getBareSpec :: S.Spec LocBareType F.LocSymbol }
   deriving (Generic, Show)
+
+bareSpecIso :: Iso' S.BareSpec BareSpec
+bareSpecIso = iso MkBareSpec getBareSpec
 
 -- | A 'LiftedSpec' is derived from an input 'BareSpec' and a set of its dependencies.
 -- The general motivations for lifting a spec are (a) name resolution, (b) the fact that some info is
@@ -194,12 +263,47 @@ data LiftedSpec = LiftedSpec
   } deriving (Generic, Show)
 
 
+liftedSpecGetter :: Getter S.BareSpec LiftedSpec
+liftedSpecGetter = to toLiftedSpec
+  where
+    toLiftedSpec a = LiftedSpec 
+      { liftedMeasures   = HS.fromList . S.measures $ a
+      , liftedImpSigs    = HS.fromList . S.impSigs  $ a
+      , liftedExpSigs    = HS.fromList . S.expSigs  $ a
+      , liftedAsmSigs    = HS.fromList . S.asmSigs  $ a
+      , liftedSigs       = HS.fromList . S.sigs     $ a
+      , liftedInvariants = HS.fromList . S.invariants $ a
+      , liftedIaliases   = HS.fromList . S.ialiases $ a
+      , liftedImports    = HS.fromList . S.imports $ a
+      , liftedDataDecls  = HS.fromList . S.dataDecls $ a
+      , liftedNewtyDecls = HS.fromList . S.newtyDecls $ a
+      , liftedAliases    = HS.fromList . S.aliases $ a
+      , liftedEaliases   = HS.fromList . S.ealiases $ a
+      , liftedEmbeds     = S.embeds a
+      , liftedQualifiers = HS.fromList . S.qualifiers $ a
+      , liftedDecr       = HS.fromList . S.decr $ a
+      , liftedLvars      = S.lvars a
+      , liftedAutois     = S.autois a
+      , liftedAutosize   = S.autosize a
+      , liftedCmeasures  = HS.fromList . S.cmeasures $ a
+      , liftedImeasures  = HS.fromList . S.imeasures $ a
+      , liftedClasses    = HS.fromList . S.classes $ a
+      , liftedClaws      = HS.fromList . S.claws $ a
+      , liftedRinstance  = HS.fromList . S.rinstance $ a
+      , liftedIlaws      = HS.fromList . S.ilaws $ a
+      , liftedDvariance  = HS.fromList . S.dvariance $ a
+      , liftedBounds     = S.bounds a
+      , liftedDefs       = S.defs a
+      , liftedAxeqs      = HS.fromList . S.axeqs $ a
+      }
+
+
 -- | A newtype wrapper around a 'Module' which:
 --
 -- * Allows a 'Module' to be serialised (i.e. it has a 'Binary' instance)
 -- * It tries to use stable comparison and equality under the hood.
 --
-newtype StableModule = StableModule Module
+newtype StableModule = StableModule { unStableModule :: Module }
 
 instance Ord StableModule where
   (StableModule m1) `compare` (StableModule m2) = stableModuleCmp m1 m2
@@ -225,27 +329,8 @@ instance Binary StableModule where
       mnStr  <- get
       pure $ StableModule (Module (stringToUnitId uidStr) (mkModuleName mnStr))
 
--- | FIXME(adn) This uses a 'ModName' for now for compatibility reasons, but theoretically we should
--- be using a 'StableModule'.
 newtype TargetDependencies =
-  TargetDependencies { getDependencies :: HashMap ModName LiftedSpec }
-
-{------------------------------------------------------------------------------------------------------------
- Stubbed interface for creating and manipulating specs
-------------------------------------------------------------------------------------------------------------}
-
--- | @makeTargetSpec@ constructs the @TargetSpec@ and then validates it using @validateTargetSpec@.
--- Upon success, the 'TargetSpec' and the 'LiftedSpec' are returned.
-makeTargetSpec :: Config
-               -> LogicMap
-               -> TargetSrc
-               -> BareSpec
-               -> TargetDependencies
-               -> (TargetSpec, LiftedSpec)
-makeTargetSpec cfg lmap targetSrc dependencies = undefined
-
-validateOrThrow :: Ex.Exception e => Either e c -> c
-validateOrThrow = either Ex.throw id 
+  TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
 
 {------------------------------------------------------------------------------------------------------------
  Utility functions
@@ -256,3 +341,73 @@ debugShowModule m = showSDocUnsafe $
                      text "Module { unitId = " <+> ppr (moduleUnitId m)
                  <+> text ", name = " <+> ppr (moduleName m) 
                  <+> text " }"
+
+{------------------------------------------------------------------------------------------------------------
+ Stubbed interface for creating and manipulating specs (replaces 'Language.Haskell.Liquid.Bare').
+------------------------------------------------------------------------------------------------------------}
+
+-- | @makeTargetSpec@ constructs the @TargetSpec@ and then validates it using @validateTargetSpec@.
+-- Upon success, the 'TargetSpec' and the 'LiftedSpec' are returned.
+makeTargetSpec :: Config
+               -> LogicMap
+               -> TargetSrc
+               -> BareSpec
+               -> TargetDependencies
+               -> Either [Error] (TargetSpec, LiftedSpec)
+makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
+  -- Check that our input 'BareSpec' doesn't contain duplicates.
+  validatedBareSpec <- Bare.checkBareSpec (giTargetMod targetSrc) (review bareSpecIso bareSpec)
+  let allSpecs = 
+        toLegacyTarget validatedBareSpec : (map toLegacyDep . M.toList . getDependencies $ dependencies)
+  pure $ view targetSpecGetter (Bare.makeGhcSpec cfg (review targetSrcIso targetSrc) lmap allSpecs)
+  where
+    toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, S.BareSpec)
+    toLegacyDep (sm, ls) = (ModName SrcImport (moduleName . unStableModule $ sm), fromLiftedSpec ls)
+
+    toLegacyTarget :: S.BareSpec -> (ModName, S.BareSpec)
+    toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
+
+-- This is a temporary internal function that we use to convert the input dependencies into a format
+-- suitable for 'makeGhcSpec'.
+fromLiftedSpec :: LiftedSpec -> S.BareSpec
+fromLiftedSpec a = S.Spec
+  { S.measures   = HS.toList . liftedMeasures $ a
+  , S.impSigs    = HS.toList . liftedImpSigs $ a
+  , S.expSigs    = HS.toList . liftedExpSigs $ a
+  , S.asmSigs    = HS.toList . liftedAsmSigs $ a
+  , S.sigs       = HS.toList . liftedSigs $ a
+  , S.localSigs  = mempty
+  , S.reflSigs   = mempty
+  , S.invariants = HS.toList . liftedInvariants $ a
+  , S.ialiases   = HS.toList . liftedIaliases $ a
+  , S.imports    = HS.toList . liftedImports $ a
+  , S.dataDecls  = HS.toList . liftedDataDecls $ a
+  , S.newtyDecls = HS.toList . liftedNewtyDecls $ a
+  , S.includes   = mempty
+  , S.aliases    = HS.toList . liftedAliases $ a
+  , S.ealiases   = HS.toList . liftedEaliases $ a
+  , S.embeds     = liftedEmbeds a
+  , S.qualifiers = HS.toList . liftedQualifiers $ a
+  , S.decr       = HS.toList . liftedDecr $ a
+  , S.lvars      = liftedLvars a
+  , S.lazy       = mempty
+  , S.reflects   = mempty
+  , S.autois     = liftedAutois a
+  , S.hmeas      = mempty
+  , S.hbounds    = mempty
+  , S.inlines    = mempty
+  , S.ignores    = mempty
+  , S.autosize   = liftedAutosize a
+  , S.pragmas    = mempty
+  , S.cmeasures  = HS.toList . liftedCmeasures $ a
+  , S.imeasures  = HS.toList . liftedImeasures $ a
+  , S.classes    = HS.toList . liftedClasses $ a
+  , S.claws      = HS.toList . liftedClaws $ a
+  , S.termexprs  = mempty
+  , S.rinstance  = HS.toList . liftedRinstance $ a
+  , S.ilaws      = HS.toList . liftedIlaws $ a
+  , S.dvariance  = HS.toList . liftedDvariance $ a
+  , S.bounds     = liftedBounds a
+  , S.defs       = liftedDefs a
+  , S.axeqs      = HS.toList . liftedAxeqs $ a
+  }

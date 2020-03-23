@@ -99,7 +99,7 @@ saveLiftedSpec src sp = do
 makeGhcSpec :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> GhcSpec
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap mspecs0  
-           = checkThrow (Bare.checkGhcSpec mspecs src renv cbs sp)
+           = checkThrow (Bare.checkGhcSpec (map snd mspecs) src renv cbs sp)
   where 
     mspecs =  [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0, isTarget m ] 
            ++ [ (m, sp) | (m, sp) <- mspecs0, not (isTarget m)]

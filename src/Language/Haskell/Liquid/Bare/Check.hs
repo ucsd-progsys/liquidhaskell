@@ -98,7 +98,7 @@ checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2)
 -- | Checking GhcSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
 
-checkGhcSpec :: [(ModName, Ms.BareSpec)]
+checkGhcSpec :: [Ms.BareSpec]
              -> GhcSrc
              -> F.SEnv F.SortedReft
              -> [CoreBind]
@@ -134,10 +134,10 @@ checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
                      ++ checkLawInstances (gsLaws sp)
 
-    _rClasses         = concatMap (Ms.classes   . snd) specs
-    _rInsts           = concatMap (Ms.rinstance . snd) specs
-    tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
-    eAliases          = concat [Ms.ealiases sp | (_, sp) <- specs]
+    _rClasses         = concatMap (Ms.classes  ) specs
+    _rInsts           = concatMap (Ms.rinstance) specs
+    tAliases          = concat [Ms.aliases sp  | sp <- specs]
+    eAliases          = concat [Ms.ealiases sp | sp <- specs]
     emb              = gsTcEmbeds (gsName sp)
     tcEnv            = gsTyconEnv (gsName sp)
     ms               = gsMeasures (gsData sp)

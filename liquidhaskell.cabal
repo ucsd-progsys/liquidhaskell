@@ -179,6 +179,7 @@ library
                     , hscolour             >= 1.22
                     , liquid-fixpoint      >= 0.8.0.0
                     , mtl                  >= 2.1
+                    , optics               >= 0.2
                     , optparse-simple
                     , githash
                     , parsec               >= 3.1
