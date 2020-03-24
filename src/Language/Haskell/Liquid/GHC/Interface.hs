@@ -569,7 +569,7 @@ mgNames :: MGIModGuts -> [Ghc.Name]
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
 
 ---------------------------------------------------------------------------------------
--- | @makeBareSpecs@ loads BareSpec for target and imported modules 
+-- | @makeDependencies@ loads BareSpec for target and imported modules 
 -- /IMPORTANT(adn)/: We \"cheat\" a bit by creating a 'Module' out the 'ModuleName' we 
 -- parse from the spec, and convert the former into a 'StableModule' for the purpose
 -- of dependency tracking. This means, in practice, that all the \"wired-in-prelude\"
@@ -584,11 +584,24 @@ makeDependencies cfg depGraph specEnv modSum tgtSpec = do
   let reachable = reachableModules depGraph (ms_mod modSum)
   specSpecs    <- findAndParseSpecFiles cfg paths modSum reachable
   let homeSpecs = cachedBareSpecs specEnv reachable
-  let impSpecs  = map (bimap mkStableModule (view liftedSpecGetter)) (specSpecs ++ homeSpecs)
+
+  -- NOTE:(adn) Unfortunately for the executable we might have 3 different 'Prelude' specs
+  -- (one for the Prelude functions, one for the Real/NonReal and one for the PatErr, so we
+  -- cannot really assume all the module names will be disjointed. As a result we have to
+  -- hack our way around this by replacing the 'UnitId' with some unique enumeration, at
+  -- least unique in this local scope.
+
+  let combine ix (mn, sp) = ((mn, ix), sp)
+  let impSpecs  = map (bimap mkStableModule (view liftedSpecGetter)) (zipWith combine [0..] (specSpecs ++ homeSpecs))
+
   return        $ TargetDependencies $ HM.fromList impSpecs
   where
-    mkStableModule :: ModName -> StableModule
-    mkStableModule modName = toStableModule (Module (moduleUnitId targetModule) (getModName modName))
+    mkStableModule :: (ModName, Int) -> StableModule
+    mkStableModule (modName, ix) = 
+      toStableModule (Module (fakeUnitId (moduleUnitId targetModule) ix) (getModName modName))
+
+    fakeUnitId :: UnitId -> Int -> UnitId
+    fakeUnitId uid ix = stringToUnitId $ unitIdString uid ++ show ix
 
     targetModule :: Module
     targetModule = ms_mod modSum
