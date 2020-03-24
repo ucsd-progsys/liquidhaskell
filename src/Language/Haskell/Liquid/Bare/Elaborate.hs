@@ -520,8 +520,8 @@ elaborateSpecType' partialTp coreToLogic simplify t =
             (  "Ghc is unable to elaborate the expression: "
             ++ GM.showPpr exprWithTySigs
             ++ "\n"
-            ++ GM.showPpr
-                 (GM.showSDoc $ O.hcat (pprErrMsgBagWithLoc (snd msgs)))
+            ++ -- GM.showPpr
+                 (GM.showSDoc $ O.sep (pprErrMsgBagWithLoc (snd msgs)))
             )
           Just eeWithLamsCore -> do
             eeWithLamsCore' <- simplify eeWithLamsCore
