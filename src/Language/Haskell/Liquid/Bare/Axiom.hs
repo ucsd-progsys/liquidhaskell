@@ -95,7 +95,7 @@ makeAssumeType tce lmap dm x mbT v def
     ref        = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text s)
     bbs        = filter isBoolBind xs
-    (xs, def') = grabBody τ $ normalize def
+    (xs, def') = grabBody (Ghc.expandTypeSynonyms τ) $ normalize def
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
