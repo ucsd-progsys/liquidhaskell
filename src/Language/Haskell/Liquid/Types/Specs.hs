@@ -127,7 +127,7 @@ More specifically, we distinguish:
        'LiftedSpec'.
 
 * 'TargetSpec' - is the specification we /actually use for refinement/, and is conceptually an
-  \"augmented\" 'BareSpec'.
+  \"augmented\" 'BareSpec'. You can create a 'TargetSpec' by calling 'makeTargetSpec'.
 
 In order to produce these spec types we have to gather information about the module being compiled by using
 the GHC API and retain enough context of the compiled 'Module' in order to be able to construct the types

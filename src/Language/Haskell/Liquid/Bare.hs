@@ -8,15 +8,16 @@
 
 -- | This module contains the functions that convert /from/ descriptions of
 --   symbols, names and types (over freshly parsed /bare/ Strings),
---   /to/ representations connected to GHC vars, names, and types.
+--   /to/ representations connected to GHC 'Var's, 'Name's, and 'Type's.
 --   The actual /representations/ of bare and real (refinement) types are all
---   in `RefType` -- they are different instances of `RType`
+--   in 'RefType' -- they are different instances of 'RType'.
 
 module Language.Haskell.Liquid.Bare (
-    GhcSpec(..)
-  , makeTargetSpec
+  -- * Creating a TargetSpec
+  -- $creatingTargetSpecs
+    makeTargetSpec
 
-  -- * Lifted Spec
+  -- * Loading and Saving lifted specs from/to disk
   , loadLiftedSpec
   , saveLiftedSpec
 
@@ -61,7 +62,7 @@ import qualified Language.Haskell.Liquid.Transforms.CoreToLogic as CoreToLogic
 import           Control.Arrow                    (second)
 
 --------------------------------------------------------------------------------
--- | De/Serializing Spec files -------------------------------------------------
+-- | De/Serializing Spec files
 --------------------------------------------------------------------------------
 
 loadLiftedSpec :: Config -> FilePath -> IO (Maybe Ms.BareSpec)
@@ -94,9 +95,16 @@ saveLiftedSpec srcF lspec = do
   where
     specF = extFileName BinSpec srcF
 
+{- $creatingTargetSpecs
 
--- | @makeTargetSpec@ constructs the @TargetSpec@ and then validates it using @validateTargetSpec@.
--- Upon success, the 'TargetSpec' and the 'LiftedSpec' are returned.
+/Liquid Haskell/ operates on 'TargetSpec's, so this module provides a single function called
+'makeTargetSpec' to produce a 'TargetSpec', alongside the 'LiftedSpec'. The former will be used by
+functions like 'liquid' or 'liquidOne' to verify our program is correct, the latter will be serialised
+to disk so that we can retrieve it later without having to re-check the relevant Haskell file.
+-}
+
+-- | 'makeTargetSpec' constructs the 'TargetSpec' and then validates it. Upon success, the 'TargetSpec' 
+-- and the 'LiftedSpec' are returned.
 makeTargetSpec :: Config
                -> LogicMap
                -> TargetSrc
@@ -114,7 +122,7 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
 
     toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
     toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
-  
+
     allSpecs :: Ms.BareSpec -> [(ModName, Ms.BareSpec)]
     allSpecs validSpec = 
       toLegacyTarget validSpec : (map toLegacyDep . M.toList . getDependencies $ dependencies)
