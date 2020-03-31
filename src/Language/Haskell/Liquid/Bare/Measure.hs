@@ -55,7 +55,7 @@ makeHaskellMeasures src tycEnv lmap spec
           = Bare.measureToBare <$> ms
   where 
     ms    = makeMeasureDefinition tycEnv lmap cbs <$> mSyms 
-    cbs   = nonRecCoreBinds   (giCbs src) 
+    cbs   = nonRecCoreBinds   (_giCbs src) 
     mSyms = S.toList (Ms.hmeas spec)
   
 makeMeasureDefinition :: Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol 
@@ -111,7 +111,7 @@ makeHaskellInlines :: GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec
 makeHaskellInlines src embs lmap spec 
          = makeMeasureInline embs lmap cbs <$> inls 
   where
-    cbs  = nonRecCoreBinds (giCbs src) 
+    cbs  = nonRecCoreBinds (_giCbs src) 
     inls = S.toList        (Ms.inlines spec)
 
 makeMeasureInline :: F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> LocSymbol

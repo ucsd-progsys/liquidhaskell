@@ -11,7 +11,6 @@ import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
-import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import qualified Data.Maybe as Mb 
 
@@ -25,6 +24,8 @@ import qualified Data.HashMap.Strict               as M
 import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
 import           TyCon                             (TyCon)
+
+import           Language.Haskell.Liquid.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
@@ -53,10 +54,10 @@ fixConfig tgt cfg = def
   }
 
 
-cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
+cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = return (targetFInfo info cgi)
 
-targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
+targetFInfo :: TargetInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
   where
     fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts ebs
@@ -76,7 +77,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     ax               = makeAxiomEnvironment info (dataConTys cgi) (F.cm fi)
     -- msg              = show . map F.symbol . M.keys . tyConInfo
 
-makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
+makeAxiomEnvironment :: TargetInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
   = F.AEnv eqs  
            (concatMap makeSimplify xts)
@@ -103,7 +104,7 @@ hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
     (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
 
 
-doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
+doExpand :: TargetSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
 
@@ -154,7 +155,7 @@ makeSimplify (x, t)
     fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
-makeEquations :: GhcSpec -> [F.Equation]
+makeEquations :: TargetSpec -> [F.Equation]
 makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
                       | F.Equ f xts e t _ <- axioms 
                       , let xArgs          = F.EVar . fst <$> xts

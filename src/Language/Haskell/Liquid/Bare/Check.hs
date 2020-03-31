@@ -6,7 +6,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 
 module Language.Haskell.Liquid.Bare.Check 
-  ( checkGhcSpec
+  ( checkTargetSpec
   , checkBareSpec
   ) where
 
@@ -95,17 +95,16 @@ checkDisjoint :: S.HashSet F.LocSymbol -> S.HashSet F.LocSymbol -> [Error]
 checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2) 
 
 ----------------------------------------------------------------------------------------------
--- | Checking GhcSpec ------------------------------------------------------------------------
+-- | Checking TargetSpec
 ----------------------------------------------------------------------------------------------
 
-checkGhcSpec :: [(ModName, Ms.BareSpec)]
-             -> GhcSrc
-             -> F.SEnv F.SortedReft
-             -> [CoreBind]
-             -> GhcSpec
-             -> Either [Error] GhcSpec
-
-checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
+checkTargetSpec :: [Ms.BareSpec]
+                -> TargetSrc
+                -> F.SEnv F.SortedReft
+                -> [CoreBind]
+                -> TargetSpec
+                -> Either [Error] TargetSpec
+checkTargetSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
   where
     errors           =  mapMaybe (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      ++ condNull noPrune 
@@ -134,10 +133,10 @@ checkGhcSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
                      ++ checkLawInstances (gsLaws sp)
 
-    _rClasses         = concatMap (Ms.classes   . snd) specs
-    _rInsts           = concatMap (Ms.rinstance . snd) specs
-    tAliases          = concat [Ms.aliases sp  | (_, sp) <- specs]
-    eAliases          = concat [Ms.ealiases sp | (_, sp) <- specs]
+    _rClasses         = concatMap (Ms.classes  ) specs
+    _rInsts           = concatMap (Ms.rinstance) specs
+    tAliases          = concat [Ms.aliases sp  | sp <- specs]
+    eAliases          = concat [Ms.ealiases sp | sp <- specs]
     emb              = gsTcEmbeds (gsName sp)
     tcEnv            = gsTyconEnv (gsName sp)
     ms               = gsMeasures (gsData sp)

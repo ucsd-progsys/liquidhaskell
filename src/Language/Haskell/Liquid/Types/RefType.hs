@@ -436,17 +436,6 @@ eqRSort _ _ _
 -- | Wrappers for GHC Type Elements --------------------------------------------
 --------------------------------------------------------------------------------
 
-instance Eq Predicate where
-  (==) = eqpd
-
-eqpd :: Predicate -> Predicate -> Bool
-eqpd (Pr vs) (Pr ws)
-  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
-    where
-      vs' = sort vs
-      ws' = sort ws
-
-
 instance Eq RTyVar where
   -- FIXME: need to compare unique and string because we reuse
   -- uniques in stringTyVar and co.
