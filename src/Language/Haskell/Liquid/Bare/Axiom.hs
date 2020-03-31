@@ -50,7 +50,7 @@ getReflectDefs src sig spec = findVarDefType cbs sigs <$> xs
   where
     sigs                    = gsTySigs sig 
     xs                      = S.toList (Ms.reflects spec)
-    cbs                     = giCbs src
+    cbs                     = _giCbs src
 
 findVarDefType :: [Ghc.CoreBind] -> [(Ghc.Var, LocSpecType)] -> LocSymbol
                -> (LocSymbol, Maybe SpecType, Ghc.Var, Ghc.CoreExpr)

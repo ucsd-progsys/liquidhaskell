@@ -47,8 +47,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 
-import           Language.Haskell.Liquid.Types hiding (GhcInfo(..), GhcSpec(..), GhcSrc(..), isExportedVar)
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types
 
 
 type MbEnv = Maybe HscEnv

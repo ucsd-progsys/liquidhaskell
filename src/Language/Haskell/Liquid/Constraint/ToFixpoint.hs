@@ -25,8 +25,7 @@ import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
 import           TyCon                             (TyCon)
 
-import           Language.Haskell.Liquid.Types hiding     ( binds, GhcInfo(..), GhcSpec(..), isPLEVar )
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def

@@ -81,8 +81,7 @@ import           Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
 
-import           Language.Haskell.Liquid.Types hiding   (binds, GhcInfo(..))
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types hiding   (binds)
 
 type CG = State CGInfo
 

@@ -50,8 +50,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 
-import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, freeTyVars, Def, GhcInfo(..), GhcSpec(..), GhcSrc(..), isExportedVar)
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, freeTyVars, Def)
 
 -- import Debug.Trace (trace)
 

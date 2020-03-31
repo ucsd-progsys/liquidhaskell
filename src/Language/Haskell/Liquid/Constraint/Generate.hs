@@ -81,8 +81,7 @@ import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
-import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def, GhcInfo(..), GhcSrc(..), GhcSpec(..), isPLEVar)
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------

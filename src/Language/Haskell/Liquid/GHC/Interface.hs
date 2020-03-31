@@ -81,7 +81,7 @@ import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
-import Language.Haskell.Liquid.Bare hiding (GhcSpec(..))
+import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Play
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
@@ -90,9 +90,7 @@ import qualified Language.Haskell.Liquid.Misc     as Misc
 import qualified Language.Haskell.Liquid.Bare     as Bare
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
-import Language.Haskell.Liquid.Types hiding (Spec, GhcInfo(..))
-import Language.Haskell.Liquid.Types.SpecDesign hiding (TargetSpec(..), TargetSrc(..))
-import qualified Language.Haskell.Liquid.Types.SpecDesign as SD
+import Language.Haskell.Liquid.Types hiding (Spec)
 -- import Language.Haskell.Liquid.Types.PrettyPrint
 -- import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
@@ -444,7 +442,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
     Left  validationErrors -> Bare.checkThrow (Left validationErrors)
     Right (targetSpec, liftedSpec) -> do
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
-      _          <- liftIO $ saveLiftedSpec (giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
+      _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
       return      $ TargetInfo targetSrc targetSpec
 
 ---------------------------------------------------------------------------------------
@@ -469,23 +467,23 @@ makeGhcSrc cfg file typechecked modSum = do
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
   return $ Src 
-    { giIncDir    = incDir 
-    , giTarget    = file
-    , giTargetMod = ModName Target (moduleName (ms_mod modSum))
-    , giCbs       = coreBinds
-    , giImpVars   = impVars 
-    , giDefVars   = dataCons ++ (letVars coreBinds) 
-    , giUseVars   = readVars coreBinds
-    , giDerVars   = S.fromList (derivedVars cfg modGuts) 
-    , gsExports   = mgi_exports  modGuts 
-    , gsTcs       = mgi_tcs      modGuts
-    , gsCls       = mgi_cls_inst modGuts 
-    , gsFiTcs     = fiTcs 
-    , gsFiDcs     = fiDcs
-    , gsPrimTcs   = TysPrim.primTyCons
-    , gsQualImps  = qualifiedImports typechecked 
-    , gsAllImps   = allImports       typechecked
-    , gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
+    { _giIncDir    = incDir 
+    , _giTarget    = file
+    , _giTargetMod = ModName Target (moduleName (ms_mod modSum))
+    , _giCbs       = coreBinds
+    , _giImpVars   = impVars 
+    , _giDefVars   = dataCons ++ (letVars coreBinds) 
+    , _giUseVars   = readVars coreBinds
+    , _giDerVars   = S.fromList (derivedVars cfg modGuts) 
+    , _gsExports   = mgi_exports  modGuts 
+    , _gsTcs       = mgi_tcs      modGuts
+    , _gsCls       = mgi_cls_inst modGuts 
+    , _gsFiTcs     = fiTcs 
+    , _gsFiDcs     = fiDcs
+    , _gsPrimTcs   = TysPrim.primTyCons
+    , _gsQualImps  = qualifiedImports typechecked 
+    , _gsAllImps   = allImports       typechecked
+    , _gsTyThings  = {- impThings impVars -} [ t | (_, Just t) <- things ] 
     }
 
     
@@ -844,18 +842,18 @@ listLMap  = toLogicMap [ (dummyLoc nilName , []     , hNil)
 -- | Pretty Printing -----------------------------------------------------------
 --------------------------------------------------------------------------------
 
-instance PPrint SD.TargetSpec where
+instance PPrint TargetSpec where
   pprintTidy k spec = vcat
     [ "******* Target Variables ********************"
-    , pprintTidy k $ gsTgtVars (SD.gsVars spec)
+    , pprintTidy k $ gsTgtVars (gsVars spec)
     , "******* Type Signatures *********************"
-    , pprintLongList k (gsTySigs (SD.gsSig spec))
+    , pprintLongList k (gsTySigs (gsSig spec))
     , "******* Assumed Type Signatures *************"
-    , pprintLongList k (gsAsmSigs (SD.gsSig spec))
+    , pprintLongList k (gsAsmSigs (gsSig spec))
     , "******* DataCon Specifications (Measure) ****"
-    , pprintLongList k (gsCtors (SD.gsData spec))
+    , pprintLongList k (gsCtors (gsData spec))
     , "******* Measure Specifications **************"
-    , pprintLongList k (gsMeas (SD.gsData spec))       ]
+    , pprintLongList k (gsMeas (gsData spec))       ]
 
 instance PPrint TargetInfo where
   pprintTidy k info = vcat
@@ -864,13 +862,13 @@ instance PPrint TargetInfo where
       -- , "*************** Includes ********************"
       -- , intersperse comma $ text <$> includes info
       "*************** Imported Variables **********"
-    , pprDoc $ giImpVars (review targetSrcIso $ giSrc info)
+    , pprDoc $ _giImpVars (review targetSrcIso $ giSrc info)
     , "*************** Defined Variables ***********"
-    , pprDoc $ giDefVars (review targetSrcIso $ giSrc info)
+    , pprDoc $ _giDefVars (review targetSrcIso $ giSrc info)
     , "*************** Specification ***************"
     , pprintTidy k $ giSpec info
     , "*************** Core Bindings ***************"
-    , pprintCBs $ giCbs (review targetSrcIso $ giSrc info) ]
+    , pprintCBs $ _giCbs (review targetSrcIso $ giSrc info) ]
 
 -- RJ: the silly guards below are to silence the unused-var checker
 pprintCBs :: [CoreBind] -> Doc

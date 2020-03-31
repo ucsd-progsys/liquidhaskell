@@ -57,8 +57,7 @@ import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 import qualified Data.ByteString                        as B
 import qualified Data.ByteString.Lazy                   as LB                                               
 
-import           Language.Haskell.Liquid.Types          hiding (Def, LMap, GhcInfo(..), GhcSpec(..))
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
 
 --------------------------------------------------------------------------------
 -- | Data Types ----------------------------------------------------------------
