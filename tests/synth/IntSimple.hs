@@ -22,6 +22,6 @@ length' :: [a] -> Int
 length' [] = 0
 length' (x:xs) = 1 + length' xs
 
-{-@ foo :: x: Int -> { v: Int | v == x + 1 } @-}
+{-@ next :: x: Int -> { v: Int | v == x + 1 } @-}
 next :: Int -> Int
 next = _goal

@@ -1280,7 +1280,7 @@ attaches a refinement to a datatype globally.
 Do not use this mechanism -- it is *unsound* and about to
 deprecated in favor of something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
 
-Forexample,  the length of a list cannot be negative
+For example,  the length of a list cannot be negative
 
     {-@ invariant {v:[a] | (len v >= 0)} @-}
 
@@ -1417,7 +1417,7 @@ expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liqu
 
 Current limitations include:
 
-- No boolean conditionals are synthesized for now.
+- No boolean conditionals are synthesized.
 - Holes can only appear at top level, e.g.: 
 
         {-@ f :: x: [a] -> { v: [a] | v == x } @-}
