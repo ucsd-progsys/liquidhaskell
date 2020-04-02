@@ -412,12 +412,11 @@ substEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a ->
 substEnv env name l bs = F.substa (qualifySymbol env name l bs) 
 
 instance Qualify SpecType where 
-  qualify = substFreeEnv           
+  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5            
 
 instance Qualify BareType where 
-  qualify = substFreeEnv 
+  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5 
 
--- Do not substitute variables bound e.g. by function types
 substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 
 
