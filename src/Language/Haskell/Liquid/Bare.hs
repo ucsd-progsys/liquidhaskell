@@ -415,6 +415,7 @@ makeSpecTerm :: Config -> Ms.BareSpec -> Bare.Env -> ModName -> GhcSpecTerm
 ------------------------------------------------------------------------------------------
 makeSpecTerm cfg mySpec env name = SpTerm 
   { gsLazy       = S.insert dictionaryVar (lazies `mappend` sizes)
+  , gsFail       = makeFail     env name mySpec 
   , gsStTerm     = sizes
   , gsAutosize   = autos 
   , gsDecr       = makeDecrs env name mySpec
@@ -438,6 +439,10 @@ makeDecrs env name mySpec =
 makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
 makeLazy env name spec = 
   S.map (Bare.lookupGhcVar env name "Var") (Ms.lazy spec)
+
+makeFail :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
+makeFail env name spec = 
+  S.map (\x -> x{ val = Bare.lookupGhcVar env name "Var" x}) (Ms.fails spec)
 
 makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.TyCon
 makeAutoSize env name spec =

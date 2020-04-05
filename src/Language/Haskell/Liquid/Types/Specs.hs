@@ -248,6 +248,7 @@ data GhcSpecTerm = SpTerm
   { gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
+  , gsFail       :: !(S.HashSet (F.Located Var))    -- ^ Binders to fail type checking
   , gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographic order of decreasing args (DEPRECATED) 
   , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics 
   }
@@ -316,6 +317,7 @@ data Spec ty bndr  = Spec
   , decr       :: ![(F.LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lvars      :: !(S.HashSet F.LocSymbol)        -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet F.LocSymbol)        -- ^ Ignore Termination Check in these Functions
+  , fails      :: !(S.HashSet F.LocSymbol)        -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet F.LocSymbol)        -- ^ Binders to reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
   , hmeas      :: !(S.HashSet F.LocSymbol)        -- ^ Binders to turn into measures using haskell definitions
@@ -377,6 +379,7 @@ instance Semigroup (Spec ty bndr) where
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
            , lvars      = S.union   (lvars    s1)  (lvars    s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
+           , fails      = S.union   (fails    s1)  (fails    s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
            , hbounds    = S.union   (hbounds  s1)  (hbounds  s2)
@@ -411,6 +414,7 @@ instance Monoid (Spec ty bndr) where
            , decr       = []
            , lvars      = S.empty 
            , lazy       = S.empty
+           , fails      = S.empty
            , autois     = M.empty
            , hmeas      = S.empty
            , reflects   = S.empty
@@ -755,6 +759,7 @@ unsafeFromLiftedSpec a = Spec
   , decr       = S.toList . liftedDecr $ a
   , lvars      = liftedLvars a
   , lazy       = mempty
+  , fails      = mempty
   , reflects   = mempty
   , autois     = liftedAutois a
   , hmeas      = mempty

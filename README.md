@@ -1008,13 +1008,17 @@ and compelling example.
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
-#### Class Laws
+#### Failing Specifications 
 
-Class laws can be defined and checked using the `class laws` 
-and `instance laws` keywords. For an example, see: 
+The `fail b` declaration checks that the definition of `b` is unsafe. E.g., the followin is SAFE.
 
-* [class-laws/pos/SemiGroup.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/06d22aa070933d9ea833e30d84ed91de2a28eaee/tests/class-laws/pos/SemiGroup.hs)
-* [class-laws/pos/SemiGroup.hs](tests/class-laws/pos/SemiGroup.hs)
+    {-@ fail unsafe @-}
+    {-@ unsafe :: () -> { 0 == 1 } @-}
+    unsafe :: () -> () 
+    unsafe _ = ()
+
+An error is created if `fail` definitions are safe or binders defined as `fail` are used by (failing or not) definitions. 
+
 
 #### Type Aliases
 

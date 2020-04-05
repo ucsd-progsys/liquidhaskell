@@ -868,6 +868,7 @@ data Pspec ty ctor
   | Decr    (LocSymbol, [Int])                            -- ^ 'decreasing' annotation -- TODO: deprecate
   | LVars   LocSymbol                                     -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
+  | Fail    LocSymbol                                     -- ^ 'fail' annotation, the binder should be unsafe
   | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder 
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
@@ -940,6 +941,8 @@ ppPspec k (LVars   lx)
   = "lazyvar" <+> pprintTidy k (val lx) 
 ppPspec k (Lazy   lx) 
   = "lazy" <+> pprintTidy k (val lx) 
+ppPspec k (Fail   lx) 
+  = "fail" <+> pprintTidy k (val lx) 
 ppPspec k (Insts   (lx, mbN)) 
   = "automatic-instances" <+> pprintTidy k (val lx) <+> maybe "" (("with" <+>) . pprintTidy k) mbN 
 ppPspec k (HMeas   lx) 
@@ -1055,6 +1058,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.ilaws      = [i | ILaws  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
+  , Measure.fails      = S.fromList [s | Fail   s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
@@ -1120,6 +1124,7 @@ specP
     <|> (reserved "lazyvar"       >> liftM LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
+    <|> (reserved "fail"          >> liftM Fail   failVarP  )
     <|> (reserved "ple"           >> liftM Insts autoinstP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
@@ -1152,6 +1157,9 @@ autoinstP = do x <- locParserP binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
+
+failVarP :: Parser LocSymbol
+failVarP = locParserP binderP
 
 axiomP :: Parser LocSymbol
 axiomP = locParserP binderP
