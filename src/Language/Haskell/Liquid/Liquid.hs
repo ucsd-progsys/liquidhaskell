@@ -29,6 +29,8 @@ import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when)
+import qualified Data.Maybe as Mb
+import qualified Data.List  as L 
 import qualified Control.Exception as Ex
 import qualified Language.Haskell.Liquid.UX.DiffCheck as DC
 import           Language.Haskell.Liquid.Misc
@@ -231,12 +233,13 @@ pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 instance Show Cinfo where
-  show = show . F.toFix
+  show x = (show . F.toFix $ x ) ++ "\n" ++ show (ci_var x)
 
 solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
-  F.Result r sol _ <- solve (fixConfig tgt cfg) finfo
+  F.Result r0 sol _ <- solve (fixConfig tgt cfg) finfo
+  let (r,_)     = splitFails (gsFail $ gsTerm $ giSpec info) r0 
   let resErr        = applySolution sol . cinfoError . snd <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
@@ -251,3 +254,14 @@ e2u cfg s = fmap F.pprint . tidyError cfg s
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where
 --     str          = {-# SCC "PPcgi" #-} showpp cgi
+
+splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo), F.FixResult (a, Cinfo))
+splitFails _ r@(F.Crash _ _) = (r,mempty)
+splitFails _ r@(F.Safe)      = (r,r)
+splitFails fs (F.Unsafe xs)  = (mkRes r,mkRes rfails)
+  where 
+    (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
+    mkRes [] = F.Safe
+    mkRes xs = F.Unsafe xs 
+
+  
