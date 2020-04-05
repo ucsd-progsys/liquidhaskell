@@ -444,6 +444,11 @@ data TError t =
   | ErrFail     { pos :: !SrcSpan
                 , var :: !Doc
                 }
+ 
+  | ErrFailUsed { pos     :: !SrcSpan
+                , var     :: !Doc
+                , clients :: ![Doc]
+                }
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -879,6 +884,12 @@ ppError' _ dSp dCtx (ErrGhc _ s)
 ppError' _ dSp dCtx (ErrFail _ s)
   = dSp <+> text "Failure Error:"
         $+$ text "Definition of" <+> pprint s <+> text "declared to fail is safe."
+
+ppError' _ dSp dCtx (ErrFailUsed _ s xs)
+  = dSp <+> text "Failure Error:"
+        $+$ text "Binder" <+> pprint s <+> text "declared to fail is used by"
+        <+> (hsep $ L.intersperse comma xs)
+
 
 ppError' _ dSp dCtx (ErrResolve _ kind v msg)
   = dSp <+> (text "Unknown" <+> kind <+> ppTicks v) 

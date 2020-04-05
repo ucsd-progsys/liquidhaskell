@@ -247,6 +247,7 @@ solveCs cfg tgt cgi info names = do
   let resModel_     = e2u cfg sol <$> resErr
   let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
+                                 `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
@@ -257,6 +258,21 @@ e2u cfg s = fmap F.pprint . tidyError cfg s
 -- writeCGI tgt cgi = {-# SCC "ConsWrite" #-} writeFile (extFileName Cgi tgt) str
 --   where
 --     str          = {-# SCC "PPcgi" #-} showpp cgi
+
+
+makeFailUseErrors :: [F.Located Var] -> [CoreBind] -> [UserError]
+makeFailUseErrors fbs cbs = [ mkError x bs | x <- fbs
+                                          , let bs = clients (val x)
+                                          , not (null bs) ]  
+  where 
+    mkError x bs = ErrFailUsed (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (pprint <$> bs)
+    clients x    = map fst $ filter (elem x . snd) allClients
+
+    allClients = concatMap go cbs 
+
+    go :: CoreBind -> [(Var,[Var])]
+    go (NonRec x e) = [(x, readVars e)] 
+    go (Rec xes)    = [(x,cls) | x <- map fst xes] where cls = concatMap readVars (snd <$> xes)
 
 makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
 makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  
