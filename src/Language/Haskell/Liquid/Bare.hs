@@ -440,9 +440,9 @@ makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
 makeLazy env name spec = 
   S.map (Bare.lookupGhcVar env name "Var") (Ms.lazy spec)
 
-makeFail :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
+makeFail :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
 makeFail env name spec = 
-  S.map (Bare.lookupGhcVar env name "Var") (Ms.fails spec)
+  S.map (\x -> x{ val = Bare.lookupGhcVar env name "Var" x}) (Ms.fails spec)
 
 makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.TyCon
 makeAutoSize env name spec =

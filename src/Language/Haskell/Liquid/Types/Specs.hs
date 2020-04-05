@@ -248,7 +248,7 @@ data GhcSpecTerm = SpTerm
   { gsStTerm     :: !(S.HashSet Var)              -- ^ Binders to CHECK by structural termination
   , gsAutosize   :: !(S.HashSet TyCon)            -- ^ Binders to IGNORE during termination checking
   , gsLazy       :: !(S.HashSet Var)              -- ^ Binders to IGNORE during termination checking
-  , gsFail       :: !(S.HashSet Var)              -- ^ Binders to fail type checking
+  , gsFail       :: !(S.HashSet (F.Located Var))    -- ^ Binders to fail type checking
   , gsDecr       :: ![(Var, [Int])]               -- ^ Lexicographic order of decreasing args (DEPRECATED) 
   , gsNonStTerm  :: !(S.HashSet Var)              -- ^ Binders to CHECK using REFINEMENT-TYPES/termination metrics 
   }

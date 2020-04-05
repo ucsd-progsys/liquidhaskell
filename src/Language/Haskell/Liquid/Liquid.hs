@@ -48,6 +48,7 @@ import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
+import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
 
 import           Language.Haskell.Liquid.Types
 
@@ -239,11 +240,13 @@ solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (O
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
   F.Result r0 sol _ <- solve (fixConfig tgt cfg) finfo
-  let (r,_)     = splitFails (gsFail $ gsTerm $ giSpec info) r0 
+  let failBs        = gsFail $ gsTerm $ giSpec info
+  let (r,rf)        = splitFails (S.map val failBs) r0 
   let resErr        = applySolution sol . cinfoError . snd <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
   let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
+                                 `addErrors` makeFailErrors (S.toList failBs) rf 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
@@ -255,10 +258,16 @@ e2u cfg s = fmap F.pprint . tidyError cfg s
 --   where
 --     str          = {-# SCC "PPcgi" #-} showpp cgi
 
-splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo), F.FixResult (a, Cinfo))
+makeFailErrors :: [F.Located Var] -> [Cinfo] -> [UserError]
+makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]  
+  where 
+    mkError  x = ErrFail (GM.sourcePosSrcSpan $ loc x) (pprint $ val x)
+    vs         = [v | Just v <- (ci_var <$> cis) ]
+
+splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)
-splitFails _ r@(F.Safe)      = (r,r)
-splitFails fs (F.Unsafe xs)  = (mkRes r,mkRes rfails)
+splitFails _ r@(F.Safe)      = (r,mempty)
+splitFails fs (F.Unsafe xs)  = (mkRes r, snd <$> rfails)
   where 
     (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
     mkRes [] = F.Safe
