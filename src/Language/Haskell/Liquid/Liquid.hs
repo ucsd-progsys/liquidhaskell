@@ -234,7 +234,7 @@ pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
 instance Show Cinfo where
-  show x = (show . F.toFix $ x ) ++ "\n" ++ show (ci_var x)
+  show = show . F.toFix
 
 solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
