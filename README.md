@@ -672,7 +672,7 @@ We use the flag `--prune-unsorted` to prune away unsorted expressions
 
 
 Case Expansion
--------------------------
+----------------------
 
 By default LiquidHaskell expands all data constructors to the case statements.
 For example,
