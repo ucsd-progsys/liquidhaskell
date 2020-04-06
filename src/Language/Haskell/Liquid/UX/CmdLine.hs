@@ -343,6 +343,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable extensional interpretation of function equality"
         &= name "extensionality"
 
+  , nopolyinfer
+    = def 
+        &= help "No inference of polymorphic type application. Gives imprecision, but speedup."
+        &= name "nopolyinfer"
+
   , reflection 
     = def 
         &= help "Enable reflection of Haskell functions and theorem proving" 
@@ -591,6 +596,7 @@ defConfig = Config
   , proofLogicEvalLocal = False
   , reflection        = False
   , extensionality    = False 
+  , nopolyinfer       = False
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False

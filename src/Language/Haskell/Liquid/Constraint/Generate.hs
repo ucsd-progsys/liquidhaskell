@@ -824,7 +824,9 @@ consE γ e'@(App e a@(Type τ))
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> return tt
   where 
-    isPos α = not (extensionality (getConfig γ)) || rtv_is_pol (ty_var_info α)
+    isPos α =   not (nopolyinfer (getConfig γ)) && 
+              ( not (extensionality (getConfig γ)) 
+              || rtv_is_pol (ty_var_info α))
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
