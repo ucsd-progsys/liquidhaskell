@@ -1456,6 +1456,8 @@ isGeneric γ α t = isGenericVar α t && not (isPLETerm γ)
 -- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
 isPLETerm :: CGEnv -> Bool  
 isPLETerm γ 
+  | proofLogicEval $ getConfig $ γ
+  = True 
   | Just x <- cgVar γ = {- F.tracepp ("isPLEVar:" ++ F.showpp x) $ -} isPLEVar (giSpec . cgInfo $ γ) x 
   | otherwise         = False 
 
