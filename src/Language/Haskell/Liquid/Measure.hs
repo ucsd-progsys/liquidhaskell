@@ -27,8 +27,6 @@ import           GHC                                    hiding (Located)
 import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 
-import           Type
-import           Var
 -- import           Data.Binary                            as B
 -- import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
@@ -37,6 +35,7 @@ import qualified Data.Maybe                             as Mb -- (fromMaybe, isN
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))
@@ -211,14 +210,14 @@ stitchArgs sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition isPredTy      allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ Ghc.isPredTy t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
       g (x, Just t) _  = (x, t, mempty)
       g (x, _)      t  = (x, t, mempty)
       coArg Nothing    = False
-      coArg (Just t)   = isPredTy . toType $ t
+      coArg (Just t)   = Ghc.isPredTy . toType $ t
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2

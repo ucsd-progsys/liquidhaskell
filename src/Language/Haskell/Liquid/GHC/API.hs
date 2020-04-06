@@ -28,6 +28,7 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 
   , tyConRealArity
+  , isPredTy
 
   ) where 
 
@@ -71,7 +72,8 @@ import Kind              as Ghc (classifiesTypeWithValues)
 import FastString        as Ghc hiding (bytesFS, LitString)
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
-import Type              as Ghc hiding (typeKind, mkFunTy) 
+import Type              as Ghc hiding (typeKind, mkFunTy, isPredTy) 
+import qualified Type    as Ghc
 import qualified TyCoRep as Ty
 import qualified Literal as Lit
 import qualified TyCon   as Ty
@@ -86,12 +88,15 @@ import qualified GHC.Real
 --
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-import Type           as Ghc hiding (typeKind) 
+import Type           as Ghc hiding (typeKind , isPredTy)
+import qualified Type as Ghc
 import TyCon          as Ghc 
 import TyCoRep        as Ghc
 import FastString     as Ghc
 import Predicate      as Ghc (isEqPred, getClassPredTys_maybe)
 import Data.Foldable  (asum)
+import Util           (lengthIs)
+import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey)
 #endif
 #endif
 
@@ -168,6 +173,9 @@ pattern LitChar c <- Lit.MachChar c where
 tyConRealArity :: TyCon -> Int
 tyConRealArity = tyConArity
 
+isPredTy :: Type -> Bool
+isPredTy = Ghc.isPredTy
+
 #endif
 
 {- | [NOTE:tyConRealArity]
@@ -180,6 +188,14 @@ data family EntityField record :: * -> *
 Calling `tyConArity` on this would yield @2@ for 8.6.5 but @1@ an 8.10, so we try to backport
 the old behaviour in 8.10 by \"looking\" at the 'Kind' of the input 'TyCon' and trying to recursively
 split the type apart with either 'splitFunTy_maybe' or 'splitForAllTy_maybe'.
+
+-}
+
+{- | [NOTE:isPredTy]
+
+The 8.6.5 version of 'isPredTy' had a special case to handle a 'TyConApp' in the case of type equality
+(i.e. ~ ) which was removed in the implementation for 8.10.1, which essentially calls 'tcIsConstraintKind'
+straight away.
 
 -}
 
@@ -198,6 +214,20 @@ tyConRealArity tc = go 0 (tyConKind tc)
       case asum [fmap snd (splitFunTy_maybe k), fmap snd (splitForAllTy_maybe k)] of
         Nothing -> acc
         Just ks -> go (acc + 1) ks
+
+-- See NOTE [isPredTy].
+isPredTy :: Type -> Bool
+isPredTy t = case splitTyConApp_maybe t of
+  Nothing -> Ghc.isPredTy t
+  Just (tc, args) -> go_tc tc args
+  where
+    go_tc :: TyCon -> [Type] -> Bool
+    go_tc tc args
+      | tc `hasKey` eqPrimTyConKey || tc `hasKey` eqReprPrimTyConKey
+                  = args `lengthIs` 4  -- ~# and ~R# sadly have result kind #
+                                       -- not Constraint; but we still want
+                                       -- isPredTy to reply True.
+      | otherwise = Ghc.isPredTy t
 
 #endif
 
