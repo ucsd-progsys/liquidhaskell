@@ -267,6 +267,16 @@ To allow reasoning about function extensionality use the `extensionality flag`. 
 {-@ LIQUID "--extensionality" @-}
 ```
 
+
+Fast Checking
+-------------
+
+The option `--fast` or `--nopolyinfer` greatly recudes verification time, can also reduces precision of type checking. 
+It, per module, deactivates inference of refinements during 
+instantiation of polymorphic type variables. 
+It is suggested to use on theorem proving style when reflected 
+functions are trivially refined. 
+
 Incremental Checking
 --------------------
 

@@ -346,7 +346,7 @@ config = cmdArgsMode $ Config {
   , nopolyinfer
     = def 
         &= help "No inference of polymorphic type application. Gives imprecision, but speedup."
-        &= name "nopolyinfer"
+        &= name "fast"
 
   , reflection 
     = def 
