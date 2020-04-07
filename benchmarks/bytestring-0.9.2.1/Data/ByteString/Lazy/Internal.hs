@@ -34,6 +34,7 @@ module Data.ByteString.Lazy.Internal (
         defaultChunkSize,
         smallChunkSize,
         chunkOverhead, 
+        invt            -- LIQUID, needs to be exported (8.10.1)
 
   ) where
 

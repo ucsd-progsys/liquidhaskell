@@ -52,6 +52,13 @@ module Data.Text.Array
     --LIQUID
     , unsafeIndexF
     , unsafeIndexB
+    --LIQUID (8.10.1)
+    , unsafeIndexFQ
+    , unsafeIndexBQ
+    , memcpyI
+    , memcmp
+    , memcpyM
+    , error
     ) where
 
 #if defined(ASSERTS)

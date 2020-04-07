@@ -51,7 +51,8 @@ module Data.ByteString.LazyZip (
         -- * Zipping and unzipping ByteStrings
         zip,                    -- :: ByteString -> ByteString -> [(Word8,Word8)]
         zipWith,                -- :: (Word8 -> Word8 -> c) -> ByteString -> ByteString -> [c]
-
+        sz,
+        length
   ) where
 
 import qualified Prelude

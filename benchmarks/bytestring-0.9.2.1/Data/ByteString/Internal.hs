@@ -24,9 +24,12 @@
 --
 module Data.ByteString.Internal (
 
-        liquidCanary,   -- LIQUID
-        ptrLen,         -- LIQUID GHOST for getting a pointer's length
-        packWith,       -- LIQUID, because we hid the Read instance... FIX.
+        liquidCanary,    -- LIQUID
+        ptrLen,          -- LIQUID GHOST for getting a pointer's length
+        packWith,        -- LIQUID, because we hid the Read instance... FIX.
+        unpackWith,      -- LIQUID, needs to be exported (8.10.1)
+        createAndTrim'', -- LIQUID, needs to be exported (8.10.1)
+        c_memchr       , -- LIQUID, needs to be exported (8.10.1)
 
         -- * The @ByteString@ type and representation
         ByteString(..),         -- instances: Eq, Ord, Show, Read, Data, Typeable

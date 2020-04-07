@@ -39,7 +39,9 @@ module Data.ByteString.Fusion (
     fuseFilterNoAccEFL, fuseFilterFilterEFL, fuseMapFilterEFL, fuseFilterMapEFL,
 
     -- * Strict pairs and sums
-    PairS(..), MaybeS(..)
+    PairS(..), MaybeS(..),
+
+    undef -- LIQUID, needs to be exported as it's refined (8.10.1)
 
   ) where
 
