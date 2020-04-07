@@ -815,7 +815,9 @@ consE _ (Lit c)
 
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t            <- if isPos α && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te 
+                         then freshTy_type TypeInstE e τ 
+                         else trueTy τ
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
@@ -1446,16 +1448,6 @@ exprLoc _                       = Nothing
 isType :: Expr CoreBndr -> Bool
 isType (Type _)                 = True
 isType a                        = eqType (exprType a) predType
-
--- | @isGeneric@ determines whether the @RTyVar@ CAN and SHOULD be instantiated in a refined manner.
-isGeneric :: CGEnv -> RTyVar -> SpecType -> Bool
-isGeneric γ α t = isGenericVar α t && not (isPLETerm γ)
-
--- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
-isPLETerm :: CGEnv -> Bool  
-isPLETerm γ 
-  | Just x <- cgVar γ = {- F.tracepp ("isPLEVar:" ++ F.showpp x) $ -} isPLEVar (giSpec . cgInfo $ γ) x 
-  | otherwise         = False 
 
 -- | @isGenericVar@ determines whether the @RTyVar@ has no class constraints
 isGenericVar :: RTyVar -> SpecType -> Bool
