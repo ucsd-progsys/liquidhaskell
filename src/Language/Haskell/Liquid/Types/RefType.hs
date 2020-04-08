@@ -13,6 +13,7 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
@@ -1708,67 +1709,16 @@ classBinds _ (RApp c ts _ _)
 classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
   | isEqual c
   = [(symbol a, rTypeSortedReft emb t)]
-classBinds  emb (RApp c [_, (RVar a _), t] _ _)
-  | showpp c == "Data.Type.Equality.~<[]>" || showpp c == "GHC.Types.~<[]>" -- see [NOTE:type-equality-hack]
+classBinds  emb ty@(RApp c [_, (RVar a _), t] _ _)
+  | isEqualityConstr ty 
   = [(symbol a, rTypeSortedReft emb t)]
   | otherwise 
   = notracepp ("CLASSBINDS-0: " ++ showpp c) [] 
 classBinds _ t
   = notracepp ("CLASSBINDS-1: " ++ showpp (toType t, isEqualityConstr t)) []
 
-{- | [NOTE:type-equality-hack]
-
-God forgive me for this AWFUL HACK.
-
-How can I “test for” (i.e. write a function of type `Type -> Bool`)
-
-that returns `True` for values (i.e. `Type`s) that print out as:
-
- ```
-     typ ~ GHC.Types.Int
- ```
-
- or with, which some more detail, looks like
-
- ```
-    (~ (TYPE LiftedRep) typ GHC.Types.Int)
- ```
-
- and which are generated from Haskell source that looks like
-
- ```
- instance PersistEntity Blob where
-    data EntityField Blob typ
-       = typ ~ Int => BlobXVal |
-         typ ~ Int => BlobYVal
- ```
-
- see tests/neg/BinahUpdateLib1.hs
-
- I would have thought that `Type.isEqPred` or `Type.isNomEqPred` described here
-
- https://downloads.haskell.org/~ghc/8.2.1/docs/html/libraries/ghc-8.2.1/src/Type.html#isEqPred
-
- and which is what `isEqualityConstr` below is doing, but alas it doesn't work.
--}
-
-{- [NOTE: ghc810-compatibility]
-
-In GHC > 8.8 'isNomEqPred' is gone, but using it here in a disjunction doesn't
-buy us much, due to the way 'isEqPred' and 'isNomEqPred' are implemented:
-
-> isEqPred ty = case tyConAppTyCon_maybe ty of
->     Just tyCon -> tyCon `hasKey` eqPrimTyConKey
->                || tyCon `hasKey` eqReprPrimTyConKey
->     _          -> False
-> 
-> isNomEqPred ty = case tyConAppTyCon_maybe ty of
->     Just tyCon -> tyCon `hasKey` eqPrimTyConKey
->     _          -> False
-
--}
 isEqualityConstr :: SpecType -> Bool
-isEqualityConstr = isEqPred . toType
+isEqualityConstr (toType -> ty) = Ghc.isEqPred ty || Ghc.isEqPrimPred ty
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------

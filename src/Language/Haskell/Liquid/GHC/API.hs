@@ -29,6 +29,7 @@ module Language.Haskell.Liquid.GHC.API (
 
   , tyConRealArity
   , isEvVarType
+  , isEqPrimPred
 
   ) where 
 
@@ -93,7 +94,7 @@ import qualified Type as Ghc
 import TyCon          as Ghc 
 import TyCoRep        as Ghc
 import FastString     as Ghc
-import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType)
+import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType, isEqPrimPred)
 import Data.Foldable  (asum)
 import Util           (lengthIs)
 import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey)
@@ -176,6 +177,9 @@ tyConRealArity = tyConArity
 -- See NOTE [isEvVarType].
 isEvVarType :: Type -> Bool
 isEvVarType = Ghc.isPredTy
+
+isEqPrimPred :: Type -> Bool
+isEqPrimPred = Ghc.isPredTy
 
 #endif
 
