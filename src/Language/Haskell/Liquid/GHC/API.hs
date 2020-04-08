@@ -28,7 +28,7 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 
   , tyConRealArity
-  , isPredTy
+  , isEvVarType
 
   ) where 
 
@@ -72,7 +72,7 @@ import Kind              as Ghc (classifiesTypeWithValues)
 import FastString        as Ghc hiding (bytesFS, LitString)
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
-import Type              as Ghc hiding (typeKind, mkFunTy, isPredTy) 
+import Type              as Ghc hiding (typeKind, mkFunTy)
 import qualified Type    as Ghc
 import qualified TyCoRep as Ty
 import qualified Literal as Lit
@@ -93,7 +93,7 @@ import qualified Type as Ghc
 import TyCon          as Ghc 
 import TyCoRep        as Ghc
 import FastString     as Ghc
-import Predicate      as Ghc (isEqPred, getClassPredTys_maybe)
+import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType)
 import Data.Foldable  (asum)
 import Util           (lengthIs)
 import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey)
@@ -173,8 +173,9 @@ pattern LitChar c <- Lit.MachChar c where
 tyConRealArity :: TyCon -> Int
 tyConRealArity = tyConArity
 
-isPredTy :: Type -> Bool
-isPredTy = Ghc.isPredTy
+-- See NOTE [isEvVarType].
+isEvVarType :: Type -> Bool
+isEvVarType = Ghc.isPredTy
 
 #endif
 
@@ -191,12 +192,12 @@ split the type apart with either 'splitFunTy_maybe' or 'splitForAllTy_maybe'.
 
 -}
 
-{- | [NOTE:isPredTy]
+{- | [NOTE:isEvVarType]
 
-The 8.6.5 version of 'isPredTy' had a special case to handle a 'TyConApp' in the case of type equality
-(i.e. ~ ) which was removed in the implementation for 8.10.1, which essentially calls 'tcIsConstraintKind'
-straight away.
-
+For GHC < 8.10.1 'isPredTy' is effectively the same as the new 'isEvVarType', which covers the cases
+for coercion types and \"normal\" type coercions. The 8.6.5 version of 'isPredTy' had a special case to
+handle a 'TyConApp' in the case of type equality (i.e. ~ ) which was removed in the implementation 
+for 8.10.1, which essentially calls 'tcIsConstraintKind' straight away.
 -}
 
 --
@@ -214,20 +215,6 @@ tyConRealArity tc = go 0 (tyConKind tc)
       case asum [fmap snd (splitFunTy_maybe k), fmap snd (splitForAllTy_maybe k)] of
         Nothing -> acc
         Just ks -> go (acc + 1) ks
-
--- See NOTE [isPredTy].
-isPredTy :: Type -> Bool
-isPredTy t = case splitTyConApp_maybe t of
-  Nothing -> Ghc.isPredTy t
-  Just (tc, args) -> go_tc tc args
-  where
-    go_tc :: TyCon -> [Type] -> Bool
-    go_tc tc args
-      | tc `hasKey` eqPrimTyConKey || tc `hasKey` eqReprPrimTyConKey
-                  = args `lengthIs` 4  -- ~# and ~R# sadly have result kind #
-                                       -- not Constraint; but we still want
-                                       -- isPredTy to reply True.
-      | otherwise = Ghc.isPredTy t
 
 #endif
 
