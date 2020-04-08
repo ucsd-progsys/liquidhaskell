@@ -23,6 +23,7 @@ commands:
       - add_ssh_keys
       - run: git submodule sync
       - run: git submodule update --init
+
   cabal_build_and_test:
     description: "Build the project and run the tests"
     parameters:
@@ -63,43 +64,50 @@ commands:
       - store_artifacts:
           path: tests/logs/cur
 
-jobs:
-  stack:
-    docker:
-      - image: fpco/stack-build:lts-15.4
+  stack_build_and_test:
+    description: "Build and test the project using Stack"
+    parameters:
+      stack_yaml_file:
+        type: string
+        default: "stack.yaml"
+      liquid_runner:
+        type: string
+        default: "stack --silent exec -- liquid"
     steps:
       - setup_project
       - restore_cache:
           keys:
-            - stack-{{ checksum "stack.yaml" }}
+            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
       - run:
           name: Dependencies
           command: |
-            stack setup
+            stack --stack-yaml << parameters.stack_yaml_file >> setup
             # rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-            stack build liquidhaskell --only-dependencies --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> build liquidhaskell --only-dependencies --test --no-run-tests
       - save_cache:
-          key: stack-{{ checksum "stack.yaml" }}
+          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
           paths:
             - ~/.stack
             - ./.stack-work
       - run:
           name: Test
           command: |
-            stack clean
+            stack --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack test -j1 liquidhaskell:liquidhaskell-parser --test-arguments="--xml=/tmp/junit/stack/parser-test-results.xml":
-            stack sdist
+            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
+            stack --stack-yaml << parameters.stack_yaml_file >> sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
-            stack haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
+            stack --stack-yaml << parameters.stack_yaml_file >> haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - store_test_results:
           path: /tmp/junit/stack
       - store_artifacts:
           path: tests/logs/cur
       - run:
           name: Dist
-          command: stack sdist
+          command: stack --stack-yaml << parameters.stack_yaml_file >> sdist
+
+jobs:
 
   cabal_865:
     docker:
@@ -113,10 +121,26 @@ jobs:
     steps:
       - cabal_build_and_test
 
+  stack_865:
+    docker:
+      - image: fpco/stack-build:lts-15.4
+    steps:
+        - stack_build_and_test:
+            stack_yaml_file: "stack-8.6.5.yaml"
+            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
+
+  stack_810:
+    docker:
+      - image: fpco/stack-build:lts-15.4
+    steps:
+        - stack_build_and_test:
+            stack_yaml_file: "stack.yaml"
+
 workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack
+      - stack_865
+      - stack_810
       - cabal_865
       - cabal_810
