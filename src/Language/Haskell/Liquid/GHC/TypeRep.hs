@@ -159,12 +159,12 @@ substCoercion x tx (CoherenceCo c1 c2)
   = CoherenceCo (subst x tx c1) (subst x tx c2)
 #endif
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-substCoercion _x _tx (Refl _t)
-  = error "substCoercion TODO(adinapoli): Handle Refl t"
-substCoercion _x _tx (GRefl _r _t _)
-  = error "substCoercion TODO(adinapoli): Handle GRefl t"
-substCoercion _ _ (HoleCo _)
-  = error "substCoercion: TODO handle HoleCo"
+substCoercion x tx (Refl t)
+  = Refl (subst x tx t)
+substCoercion x tx (GRefl r t co) -- FIXME(adn) Is this a correct substitution?
+  = GRefl r (subst x tx t) co     -- FIXME(adn) Is this a correct substitution?
+substCoercion _x _tx (HoleCo cH)
+  = HoleCo cH                     -- FIXME(adn) Is this a correct substitution?
 #endif
 #endif
 
