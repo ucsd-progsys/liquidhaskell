@@ -444,6 +444,16 @@ makeFail :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
 makeFail env name spec = 
   S.map (\x -> x{ val = Bare.lookupGhcVar env name "Var" x}) (Ms.fails spec)
 
+makeRewrite :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
+makeRewrite env name spec = 
+  S.map (\x -> x{ val = Bare.lookupGhcVar env name "Var" x}) (Ms.rewrites spec)
+
+makeRewriteWith :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var [Ghc.Var]
+makeRewriteWith env name spec = 
+  M.fromList [ (lu x, lu <$> xs) | (x,xs) <- M.toList $ Ms.rewriteWith spec]
+    where lu = Bare.lookupGhcVar env name "Var"  
+
+
 makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.TyCon
 makeAutoSize env name spec =
   S.map (Bare.lookupGhcTyCon env name "TyCon") (Ms.autosize spec) 
@@ -481,6 +491,8 @@ makeSpecRefl cfg src menv specs env name sig tycEnv = SpRefl
   , gsReflects   = F.notracepp "gsReflects" (lawMethods ++ filter (isReflectVar rflSyms) sigVars ++ wReflects)
   , gsHAxioms    = F.notracepp "gsHAxioms" xtes 
   , gsWiredReft  = wReflects
+  , gsRewrites   = makeRewrite env name mySpec
+  , gsRewritesWith = makeRewriteWith env name mySpec
   }
   where
     wReflects    = Bare.wiredReflects cfg env name sig
