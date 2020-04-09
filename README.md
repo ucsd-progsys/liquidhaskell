@@ -1406,8 +1406,9 @@ Using the flag for typed holes, two more flags can be used:
 Having the program specified in a Haskell source file, use 
 GHC' s hole variables, e.g.:
 
-    {-@ id :: x: [a] -> { v: [a] | v == x } @-}
-    id = _hole
+    {-@ myMap :: (a -> b) -> xs:[a] -> {v:[b] | len v == len xs} @-}
+    myMap :: (a -> b) -> [a] -> [b]
+    myMap = _goal
 
 Current limitations
 -------------------
