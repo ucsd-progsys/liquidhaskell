@@ -159,6 +159,7 @@ reservedNames = S.fromList
   , "import"
   , "if", "then", "else"
   , "func"
+  , "autorewrite"
 
   -- reserved words used in liquid haskell
   , "forall"
@@ -787,6 +788,15 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 -- | Axioms for Symbolic Evaluation ---------------------------------
 ---------------------------------------------------------------------
 
+autoRewriteP :: Parser AutoRewrite
+autoRewriteP = do
+  symbols    <- sepBy symbolP spaces
+  _          <- spaces
+  (lhs, rhs) <- braces $
+      pairP exprP (reserved "=") exprP
+  return $ AutoRewrite symbols lhs rhs
+
+
 defineP :: Parser Equation
 defineP = do
   name   <- symbolP
@@ -823,6 +833,7 @@ data Def a
   | Mat !Rewrite
   | Expand ![(Int,Bool)]
   | Adt  !DataDecl
+  | AutoRW AutoRewrite
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
@@ -835,21 +846,22 @@ fInfoP :: Parser (FInfo ())
 fInfoP = defsFInfo <$> {-# SCC "many-defP" #-} many defP
 
 defP :: Parser (Def ())
-defP =  Srt   <$> (reserved "sort"       >> colon >> sortP)
-    <|> Cst   <$> (reserved "constraint" >> colon >> {-# SCC "subCP" #-} subCP)
-    <|> Wfc   <$> (reserved "wf"         >> colon >> {-# SCC "wfCP"  #-} wfCP)
-    <|> Con   <$> (reserved "constant"   >> symbolP) <*> (colon >> sortP)
-    <|> Dis   <$> (reserved "distinct"   >> symbolP) <*> (colon >> sortP)
-    <|> Pack  <$> (reserved "pack"       >> kvarP)   <*> (colon >> intP)
-    <|> Qul   <$> (reserved "qualif"     >> qualifierP sortP)
-    <|> Kut   <$> (reserved "cut"        >> kvarP)
-    <|> EBind <$> (reserved "ebind"      >> intP) <*> symbolP <*> (colon >> braces sortP)
-    <|> IBind <$> (reserved "bind"       >> intP) <*> symbolP <*> (colon >> sortedReftP)
-    <|> Opt    <$> (reserved "fixpoint"   >> stringLiteral)
-    <|> Def    <$> (reserved "define"     >> defineP)
-    <|> Mat    <$> (reserved "match"      >> matchP)
-    <|> Expand <$> (reserved "expand"     >> pairsP intP boolP)
-    <|> Adt    <$> (reserved "data"       >> dataDeclP)
+defP =  Srt   <$> (reserved "sort"         >> colon >> sortP)
+    <|> Cst   <$> (reserved "constraint"   >> colon >> {-# SCC "subCP" #-} subCP)
+    <|> Wfc   <$> (reserved "wf"           >> colon >> {-# SCC "wfCP"  #-} wfCP)
+    <|> Con   <$> (reserved "constant"     >> symbolP) <*> (colon >> sortP)
+    <|> Dis   <$> (reserved "distinct"     >> symbolP) <*> (colon >> sortP)
+    <|> Pack  <$> (reserved "pack"         >> kvarP)   <*> (colon >> intP)
+    <|> Qul   <$> (reserved "qualif"       >> qualifierP sortP)
+    <|> Kut   <$> (reserved "cut"          >> kvarP)
+    <|> EBind <$> (reserved "ebind"        >> intP) <*> symbolP <*> (colon >> braces sortP)
+    <|> IBind <$> (reserved "bind"         >> intP) <*> symbolP <*> (colon >> sortedReftP)
+    <|> Opt    <$> (reserved "fixpoint"    >> stringLiteral)
+    <|> Def    <$> (reserved "define"      >> defineP)
+    <|> Mat    <$> (reserved "match"       >> matchP)
+    <|> Expand <$> (reserved "expand"      >> pairsP intP boolP)
+    <|> Adt    <$> (reserved "data"        >> dataDeclP)
+    <|> AutoRW <$> (reserved "autorewrite" >> autoRewriteP)
 
 
 sortedReftP :: Parser SortedReft
@@ -926,8 +938,9 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts 
     expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
+    autoRWs    =                    [s                  | AutoRW s    <- defs]
     cid        = fromJust . sid
-    ae         = AEnv eqs rews expand
+    ae         = AEnv eqs rews expand autoRWs
     adts       =                    [d                  | Adt d       <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 

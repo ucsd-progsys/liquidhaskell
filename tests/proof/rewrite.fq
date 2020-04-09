@@ -1,0 +1,55 @@
+fixpoint "--rewrite"
+
+data List 0 = [
+  | VNil  { }
+  | VCons { head: Int, tail : List} 
+]
+
+define concat (left : List, right : List) : List = {
+  if (is$VNil left) then 
+    right else 
+  (VCons (head left) (concat (tail left) right))
+}
+
+define concat3Left (as : List, bs : List, cs : List) : List = {
+  concat (concat as bs) cs
+}
+
+define concat3Right (as : List, bs : List, cs : List) : List = {
+  concat as (concat bs cs)
+}
+
+autorewrite as bs cs { concat (concat as bs) cs = concat as (concat bs cs) }
+
+autorewrite as bs cs { concat as (concat bs cs) = concat (concat as bs) cs }
+
+constant concat       : (func(0, [List;List;List]))
+constant concat3Left  : (func(0, [List; List; List; List]))
+constant concat3Right : (func(0, [List; List; List; List]))
+
+expand [1 : True]
+expand [2 : True]
+expand [3 : True]
+
+bind 0 xs    : {v: List | true }
+bind 1 ys    : {v: List | true }
+bind 2 zs    : {v: List | true }
+bind 3 ws    : {v: List | true }
+
+constraint:
+  env [0; 1; 2; 3]
+  lhs {v1 : List | true  }
+  rhs {v2 : List | concat3Left (concat xs ws) ys zs = concat3Right (concat xs ws) ys zs }
+  id 1 tag []
+
+constraint:
+  env [0; 1; 2; 3]
+  lhs {v1 : List | true  }
+  rhs {v2 : List | concat3Right (concat xs ws) ys zs = concat3Left (concat xs ws) ys zs }
+  id 2 tag []
+
+constraint:
+  env [0; 1; 2; 3]
+  lhs {v1 : List | true  }
+  rhs {v2 : List | concat3Left (concat xs ws) ys zs = concat3Right xs ws (concat ys zs) }
+  id 3 tag []

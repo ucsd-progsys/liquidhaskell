@@ -76,6 +76,7 @@ module Language.Fixpoint.Types.Constraints (
   , Equation (..)
   , mkEquation
   , Rewrite  (..)
+  , AutoRewrite (..)
 
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
@@ -853,17 +854,19 @@ saveTextQuery cfg fi = do
 -- | Axiom Instantiation Information --------------------------------------
 ---------------------------------------------------------------------------
 data AxiomEnv = AEnv
-  { aenvEqs     :: ![Equation]
-  , aenvSimpl   :: ![Rewrite]
-  , aenvExpand  :: M.HashMap SubcId Bool
-  }
-  deriving (Eq, Show, Generic)
+  { aenvEqs      :: ![Equation]
+  , aenvSimpl    :: ![Rewrite]
+  , aenvExpand   :: M.HashMap SubcId Bool
+  , aenvAutoRW   :: ![AutoRewrite]
+  } deriving (Eq, Show, Generic)
 
+instance B.Binary AutoRewrite
 instance B.Binary AxiomEnv
 instance B.Binary Rewrite
 instance B.Binary Equation
 instance B.Binary SMTSolver
 instance B.Binary Eliminate
+instance NFData AutoRewrite
 instance NFData AxiomEnv
 instance NFData Rewrite
 instance NFData Equation
@@ -871,14 +874,15 @@ instance NFData SMTSolver
 instance NFData Eliminate
 
 instance Semigroup AxiomEnv where
-  a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand'
+  a1 <> a2        = AEnv aenvEqs' aenvSimpl' aenvExpand' aenvAutoRW'
     where
       aenvEqs'    = (aenvEqs a1)    <> (aenvEqs a2)
       aenvSimpl'  = (aenvSimpl a1)  <> (aenvSimpl a2)
       aenvExpand' = (aenvExpand a1) <> (aenvExpand a2)
+      aenvAutoRW' = (aenvAutoRW a1) <> (aenvAutoRW a2)
 
 instance Monoid AxiomEnv where
-  mempty          = AEnv [] [] (M.fromList [])
+  mempty          = AEnv [] [] (M.fromList []) []
   mappend         = (<>)
 
 instance PPrint AxiomEnv where
@@ -910,6 +914,13 @@ instance PPrint Equation where
 
 ppArgs :: (PPrint a) => [a] -> Doc
 ppArgs = parens . intersperse ", " . fmap pprint
+
+
+data AutoRewrite = AutoRewrite {
+    arArgs :: [Symbol]
+  , arLHS  :: Expr
+  , arRHS  :: Expr
+} deriving (Eq, Show, Generic)
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
