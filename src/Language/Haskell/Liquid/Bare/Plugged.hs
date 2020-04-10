@@ -96,7 +96,7 @@ makePluggedDataCon embs tyi ldcp
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
     dcArgs            = filter (not . isClassType . snd) $ reverse (dcpTyArgs dcp)
     dcVars            = if isGADT 
-                          then padGADVars $ L.nub (concatMap (map ty_var_value . freeTyVars) (snd <$> dcArgs))
+                          then padGADVars $ L.nub (concatMap (map ty_var_value . freeTyVars) (dcpTyRes dcp:(snd <$> dcArgs)))
                           else dcpFreeTyVars dcp 
     dc                = dcpCon        dcp
     dcp               = val           ldcp 
