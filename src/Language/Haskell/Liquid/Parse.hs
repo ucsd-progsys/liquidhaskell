@@ -1601,18 +1601,11 @@ dataCtorsP as = do
 
 noWhere :: Parser Symbol
 noWhere = 
-  (try $ do 
-    reserved "::"
-    _ <- bareTypeP
-    return dummySymbol
-  ) 
-  <|> (
   try $ do
   s <- tyVarIdP
   if s == "where"
     then parserZero
     else return s
-  )
 
 dataPropTyP :: Parser (Maybe BareType)
 dataPropTyP = Just <$> between dcolon (reserved "where") bareTypeP

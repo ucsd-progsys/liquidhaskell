@@ -300,7 +300,7 @@ makeDataDecl :: F.TCEmb Ghc.TyCon -> Ghc.TyCon -> DataDecl -> [(Ghc.DataCon, Dat
 makeDataDecl tce tc dd ctors
   = F.DDecl
       { F.ddTyCon = ftc
-      , F.ddVars  = length                $  tycTyVars dd
+      , F.ddVars  = length                $  GM.tyConTyVarsDef tc
       , F.ddCtors = makeDataCtor tce ftc <$> ctors
       }
   where
@@ -455,11 +455,12 @@ groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fs
 --   elsewhere. [e.g. tests/errors/BadDataDecl.hs]
 
 checkDataDecl :: Ghc.TyCon -> DataDecl -> Bool
-checkDataDecl c d = F.notracepp _msg (cN == dN || null (tycDCons d))
+checkDataDecl c d = F.notracepp _msg (isGADT || cN == dN || null (tycDCons d))
   where
-    _msg          = printf "checkDataDecl: c = %s, cN = %d, dN = %d" (show c) cN dN
+    _msg          = printf "checkDataDecl: D = %s, c = %s, cN = %d, dN = %d" (show d) (show c) cN dN
     cN            = length (GM.tyConTyVarsDef c)
     dN            = length (tycTyVars         d)
+    isGADT        = Ghc.isGadtSyntaxTyCon c
 
 getDnTyCon :: Bare.Env -> ModName -> DataName -> Ghc.TyCon
 getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDataDecl-1" dn)
