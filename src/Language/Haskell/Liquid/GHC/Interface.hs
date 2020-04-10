@@ -576,7 +576,7 @@ mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env
 ---------------------------------------------------------------------------------------
 makeDependencies :: Config -> DepGraph -> SpecEnv -> ModSummary -> Ms.BareSpec 
                  -> Ghc TargetDependencies
-makeDependencies cfg depGraph specEnv modSum tgtSpec = do 
+makeDependencies cfg depGraph specEnv modSum _ = do 
   let paths     = nub $ idirs cfg ++ importPaths (ms_hspp_opts modSum)
   _            <- liftIO $ whenLoud $ putStrLn $ "paths = " ++ show paths
   let reachable = reachableModules depGraph (ms_mod modSum)

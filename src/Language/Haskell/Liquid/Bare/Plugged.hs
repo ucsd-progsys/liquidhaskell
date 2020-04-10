@@ -14,7 +14,6 @@ import Data.Generics.Schemes (everywhere)
 import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception                 as Ex
 import qualified Data.HashMap.Strict               as M
-import qualified Data.HashSet                      as S
 import qualified Data.Maybe                        as Mb 
 import qualified Data.List                         as L 
 import qualified Language.Fixpoint.Types           as F
