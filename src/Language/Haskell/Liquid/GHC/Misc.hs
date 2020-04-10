@@ -836,3 +836,7 @@ defaultDataCons (TyConApp tc argτs) ds = do
 defaultDataCons _ _ = 
   Nothing
 
+
+
+isEvVar :: Id -> Bool 
+isEvVar x = isPredVar x || isTyVar x || isCoVar x
