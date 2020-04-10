@@ -15,10 +15,18 @@ module RefinedEquality where
 eqSMT :: Eq a => a -> a -> a -> () -> EqT a
 eqSMT _ = EqSMT 
 
+{-@ eqFun :: w:(a -> b) -> f:(a -> b) -> g:(a -> b) 
+          -> (x:a -> {v:EqT b | eqT (f x) (g x)}) -> EqRT (a -> b) {f} {w}  @-}
+eqFun :: (a -> b) -> (a -> b) -> (a -> b) -> (a -> EqT b) -> EqT (a -> b)
+eqFun _ = EqFun
+
+
 {-@
-data EqT a where 
+data EqT :: * -> * where 
    EqSMT  :: Eq a => x:a -> y:a -> {v:() | x == y} -> EqRT a {x} {y}   
+ | EqFun  :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:EqT b | eqT (f x) (g x)}) -> EqRT (a -> b) {f} {g}
 @-}
 
-data EqT  :: * -> *  where 
+data EqT :: * -> *  where 
    EqSMT  :: Eq a => a -> a -> () -> EqT a   
+   EqFun  :: (a -> b) -> (a -> b) -> (a -> EqT b) -> EqT (a -> b)  
