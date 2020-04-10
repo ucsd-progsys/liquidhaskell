@@ -91,7 +91,7 @@ makePluggedDataCon embs tyi ldcp
   where 
     (tArgs, tRes)     = plugMany       embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
-    dcArgs            = reverse (dcpTyArgs dcp)
+    dcArgs            = filter (not . isClassType . snd) $ reverse (dcpTyArgs dcp)
     dcVars            = dcpFreeTyVars dcp 
     dc                = dcpCon        dcp
     dcp               = val           ldcp 
