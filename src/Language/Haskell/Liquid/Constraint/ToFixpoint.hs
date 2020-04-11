@@ -97,9 +97,15 @@ makeAxiomEnvironment info xts fcs
 
 makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
 makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fst) sigs
-  where 
+  where
     sigs    =             gsTySigs   $ gsSig  $ giSpec info 
-    rws = S.difference (S.union localRws globalRws) (Mb.maybe S.empty S.singleton (subVar sub))
+    isGlobalRw = Mb.maybe False (`elem` globalRws) (subVar sub)
+
+    rws        =
+      if isGlobalRw
+      then S.empty
+      else S.difference (S.union localRws globalRws) (Mb.maybe S.empty S.singleton (subVar sub))
+
     localRws = Mb.fromMaybe S.empty $ do
       var <- subVar sub
       usable <- M.lookup var $ gsRewritesWith $ gsRefl $ giSpec info
