@@ -857,7 +857,7 @@ data AxiomEnv = AEnv
   { aenvEqs      :: ![Equation]
   , aenvSimpl    :: ![Rewrite]
   , aenvExpand   :: M.HashMap SubcId Bool
-  , aenvAutoRW   :: ![AutoRewrite]
+  , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
 
 instance B.Binary AutoRewrite
@@ -882,7 +882,7 @@ instance Semigroup AxiomEnv where
       aenvAutoRW' = (aenvAutoRW a1) <> (aenvAutoRW a2)
 
 instance Monoid AxiomEnv where
-  mempty          = AEnv [] [] (M.fromList []) []
+  mempty          = AEnv [] [] (M.fromList []) (M.fromList [])
   mappend         = (<>)
 
 instance PPrint AxiomEnv where
@@ -917,7 +917,8 @@ ppArgs = parens . intersperse ", " . fmap pprint
 
 
 data AutoRewrite = AutoRewrite {
-    arArgs :: [Symbol]
+    arID   :: Int
+  , arArgs :: [Symbol]
   , arLHS  :: Expr
   , arRHS  :: Expr
 } deriving (Eq, Show, Generic)
