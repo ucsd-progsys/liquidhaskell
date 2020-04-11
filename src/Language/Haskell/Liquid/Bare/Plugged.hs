@@ -15,6 +15,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception                 as Ex
 import qualified Data.HashMap.Strict               as M
 import qualified Data.Maybe                        as Mb 
+import qualified Data.List                         as L 
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Visitor   as F
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
@@ -85,21 +86,28 @@ makePluggedDataCon embs tyi ldcp
   | mismatchFlds      = Ex.throw (err "fields")
   | mismatchTyVars    = Ex.throw (err "type variables")
   | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
-                          { dcpTyArgs     = reverse tArgs 
+                          { dcpFreeTyVars = dcVars
+                          , dcpTyArgs     = reverse tArgs 
                           , dcpTyRes      = tRes 
                           }
   where 
     (tArgs, tRes)     = plugMany       embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
-    dcArgs            = reverse (dcpTyArgs dcp)
-    dcVars            = dcpFreeTyVars dcp 
+    dcArgs            = filter (not . isClassType . snd) $ reverse (dcpTyArgs dcp)
+    dcVars            = if isGADT 
+                          then padGADVars $ L.nub (dcpFreeTyVars dcp ++ (concatMap (map ty_var_value . freeTyVars) (dcpTyRes dcp:(snd <$> dcArgs))))
+                          else dcpFreeTyVars dcp 
     dc                = dcpCon        dcp
     dcp               = val           ldcp 
+
+    isGADT            = Ghc.isGadtSyntaxTyCon $ Ghc.dataConTyCon dc
+
+    -- hack to match LH and GHC GADT vars, since it is unclear how ghc generates free vars 
+    padGADVars vs = (RTV <$> take (length das - length vs) das) ++ vs
 
     mismatchFlds      = length dts /= length dcArgs 
     mismatchTyVars    = length das /= length dcVars 
     err things        = ErrBadData (GM.fSrcSpan dcp) (pprint dc) ("GHC and Liquid specifications have different numbers of" <+> things) :: UserError
-
 
 
 -- | @plugMany@ is used to "simultaneously" plug several different types, 

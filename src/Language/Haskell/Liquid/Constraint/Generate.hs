@@ -1164,7 +1164,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
   let (rtd,yts',_) = unfoldR tdc xt ys
   yts             <- projectTypes pIs yts'
-  let ys''         = F.symbol <$> filter (not . GM.isPredVar) ys
+  let ys''         = F.symbol <$> filter (not . GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
