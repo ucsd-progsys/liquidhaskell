@@ -20,6 +20,7 @@ import qualified Language.Haskell.Liquid.UX.Config as Config
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
+import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
@@ -82,6 +83,7 @@ makeAxiomEnvironment info xts fcs
   = F.AEnv eqs  
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
+           (makeRewrites info)
   where
     eqs      = if (oldPLE cfg) 
                 then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
@@ -92,6 +94,23 @@ makeAxiomEnvironment info xts fcs
     axioms   = gsMyAxioms refl ++ gsImpAxioms refl 
     refl     = gsRefl sp
 
+
+makeRewrites :: TargetInfo -> [F.AutoRewrite]
+makeRewrites info = concatMap makeRewriteOne $ filter ((`S.member` rwVars) . fst) sigs
+  where 
+    sigs   =             gsTySigs   $ gsSig  $ giSpec info 
+    rwVars = S.map val $ gsRewrites $ gsRefl $ giSpec info 
+
+makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne (_,t)
+  | Just r <- stripRTypeBase tres
+  = [F.AutoRewrite xs lhs rhs | F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]  
+  | otherwise
+  = [] 
+  where 
+    xs = ty_binds tRep
+    tres = ty_res tRep
+    tRep = toRTypeRep $ val t 
 
 _isClassOrDict :: Id -> Bool
 _isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 

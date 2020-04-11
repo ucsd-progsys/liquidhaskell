@@ -261,6 +261,8 @@ data GhcSpecRefl = SpRefl
   , gsReflects   :: ![Var]                            -- ^ Binders for reflected functions
   , gsLogicMap   :: !LogicMap
   , gsWiredReft  :: ![Var]
+  , gsRewrites   :: S.HashSet (F.Located Var)
+  , gsRewritesWith :: M.HashMap Var [Var]
   }
 
 data GhcSpecLaws = SpLaws 
@@ -317,6 +319,8 @@ data Spec ty bndr  = Spec
   , decr       :: ![(F.LocSymbol, [Int])]         -- ^ Information on decreasing arguments
   , lvars      :: !(S.HashSet F.LocSymbol)        -- ^ Variables that should be checked in the environment they are used
   , lazy       :: !(S.HashSet F.LocSymbol)        -- ^ Ignore Termination Check in these Functions
+  , rewrites    :: !(S.HashSet F.LocSymbol)        -- ^ Theorems turned into rewrite rules 
+  , rewriteWith :: !(M.HashMap F.LocSymbol [F.LocSymbol]) -- ^ Definitions using rewrite rules 
   , fails      :: !(S.HashSet F.LocSymbol)        -- ^ These Functions should be unsafe
   , reflects   :: !(S.HashSet F.LocSymbol)        -- ^ Binders to reflect
   , autois     :: !(M.HashMap F.LocSymbol (Maybe Int))  -- ^ Automatically instantiate axioms in these Functions with maybe specified fuel
@@ -379,6 +383,8 @@ instance Semigroup (Spec ty bndr) where
            , embeds     = mappend   (embeds   s1)  (embeds   s2)
            , lvars      = S.union   (lvars    s1)  (lvars    s2)
            , lazy       = S.union   (lazy     s1)  (lazy     s2)
+           , rewrites   = S.union   (rewrites    s1)  (rewrites    s2)
+           , rewriteWith = M.union  (rewriteWith s1)  (rewriteWith s2)
            , fails      = S.union   (fails    s1)  (fails    s2)
            , reflects   = S.union   (reflects s1)  (reflects s2)
            , hmeas      = S.union   (hmeas    s1)  (hmeas    s2)
@@ -414,6 +420,8 @@ instance Monoid (Spec ty bndr) where
            , decr       = []
            , lvars      = S.empty 
            , lazy       = S.empty
+           , rewrites   = S.empty
+           , rewriteWith = M.empty
            , fails      = S.empty
            , autois     = M.empty
            , hmeas      = S.empty
@@ -760,6 +768,8 @@ unsafeFromLiftedSpec a = Spec
   , lvars      = liftedLvars a
   , lazy       = mempty
   , fails      = mempty
+  , rewrites   = mempty
+  , rewriteWith = mempty
   , reflects   = mempty
   , autois     = liftedAutois a
   , hmeas      = mempty
