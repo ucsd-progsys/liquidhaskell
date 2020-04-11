@@ -917,7 +917,7 @@ ppArgs = parens . intersperse ", " . fmap pprint
 
 
 data AutoRewrite = AutoRewrite {
-    arID   :: Int
+    arId   :: Int
   , arArgs :: [Symbol]
   , arLHS  :: Expr
   , arRHS  :: Expr

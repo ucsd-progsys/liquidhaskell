@@ -85,7 +85,6 @@ module Language.Fixpoint.Parse (
 
   ) where
 
-import           Data.List                   (nub)
 import qualified Data.HashMap.Strict         as M
 import qualified Data.HashSet                as S
 import qualified Data.Text                   as T
@@ -944,15 +943,16 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts 
     expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
-    autoRWs    =                    [s                  | AutoRW s    <- defs]
+    autoRWs    = M.fromList         [(arId s, s)        | AutoRW s    <- defs]
     rwEntries  =                    [(i, f)| RWMap fs   <- defs, (i,f) <- fs]
-    rwsFor cid =                    [ rw   | (eCid, _) <- rwEntries
-                                        , rw <- autoRWs
-                                        , arID rw == eCid
-                                        , arID rw == cid ]
-    rwMap      = M.fromList         [(fromIntegral gCid, rwsFor gCid) |
-                                     gCid <- nub (map fst rwEntries)
-                                    ]
+    rwMap      = foldl insert (M.fromList []) rwEntries
+                 where
+                   insert map (cid, arId) =
+                     case M.lookup arId autoRWs of
+                       Just rewrite ->
+                         M.insertWith (++) (fromIntegral cid) [rewrite] map
+                       Nothing ->
+                         map
     cid        = fromJust . sid
     ae         = AEnv eqs rews expand rwMap
     adts       =                    [d                  | Adt d       <- defs]

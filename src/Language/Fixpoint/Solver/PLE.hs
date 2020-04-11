@@ -200,6 +200,7 @@ data ICtx    = ICtx
   , icEquals :: S.HashSet (Expr,Expr)     -- ^ Accumulated equalities  
   , icSolved :: S.HashSet Expr            -- ^ Terms that we have already expanded
   , icSimpl  :: !ConstMap                 -- ^ Map of expressions to constants
+  , icSubcId :: Maybe SubcId
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -225,6 +226,7 @@ initCtx es = ICtx
   , icEquals = S.fromList es  
   , icSolved = mempty
   , icSimpl  = mempty 
+  , icSubcId = Nothing
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -251,6 +253,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
+                    , icSubcId = cidMb
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- (cands ++ (snd <$> S.toList (icEquals ctx)))
@@ -408,9 +411,9 @@ unify freeVars template seenExpr = case (template, seenExpr) of
 
 
 getRewrite :: Expr -> AutoRewrite -> Maybe Expr
-getRewrite expr (AutoRewrite freeVars lhs rhs) =
+getRewrite expr (AutoRewrite _ freeVars lhs rhs) =
   do
-    expr' <- fmap ((flip subst) rhs) (unify freeVars lhs expr)
+    expr' <- fmap (`subst` rhs) (unify freeVars lhs expr)
     if expr /= expr' then Just expr' else Nothing
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
@@ -419,19 +422,22 @@ eval _ ctx e
   = return v 
 eval γ ctx e = 
   do acc <- S.toList . evAccum <$> get  
-     case L.lookup e acc of 
-        Just e' | not (e' `elem` getRWs e) -> eval γ ctx e'
+     case L.lookup e acc of
+        Just e' | e' `notElem` getRWs e -> eval γ ctx e'
         _ -> do
           e' <- simplify γ ctx <$> go e
           let evAccum' st = S.union (S.fromList (map (e,) (getRWs e))) (evAccum st)
           if e /= e'
             then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum' st)})
-                    eval γ (addConst (e,e') ctx) e' 
+                    eval γ (addConst (e,e') ctx) e'
             else do modify (\st -> st{evAccum = evAccum' st })
                     return e
   where
-    autorws  = knAutoRWs γ
-    getRWs e = autorws >>= (Mb.maybeToList . (getRewrite e))
+    autorws  =
+      Mb.fromMaybe [] $ do
+        cid <- icSubcId ctx
+        M.lookup cid $ knAutoRWs γ
+    getRWs e = autorws >>= Mb.maybeToList . getRewrite e
     addConst (e,e') ctx = if isConstant (knDCs γ) e' 
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
@@ -557,7 +563,7 @@ data Knowledge = KN
   , knDCs     :: !(S.HashSet Symbol)     -- data constructors drawn from Rewrite 
   , knSels    :: !(SelectorMap) 
   , knConsts  :: !(ConstDCMap)
-  , knAutoRWs :: ![AutoRewrite]
+  , knAutoRWs :: M.HashMap SubcId [AutoRewrite]
   }
 
 isValid :: Knowledge -> Expr -> IO Bool
