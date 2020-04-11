@@ -83,7 +83,7 @@ makeAxiomEnvironment info xts fcs
   = F.AEnv eqs  
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
-           (makeRewrites info)
+           (makeRewrites info <$> fcs)
   where
     eqs      = if (oldPLE cfg) 
                 then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
@@ -95,11 +95,16 @@ makeAxiomEnvironment info xts fcs
     refl     = gsRefl sp
 
 
-makeRewrites :: TargetInfo -> [F.AutoRewrite]
-makeRewrites info = concatMap makeRewriteOne $ filter ((`S.member` rwVars) . fst) sigs
+makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
+makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fst) sigs
   where 
-    sigs   =             gsTySigs   $ gsSig  $ giSpec info 
-    rwVars = S.map val $ gsRewrites $ gsRefl $ giSpec info 
+    sigs    =             gsTySigs   $ gsSig  $ giSpec info 
+    rws = S.union localRws globalRws
+    localRws = Mb.fromMaybe S.empty $ do
+      var <- subVar sub
+      usable <- M.lookup var $ gsRewritesWith $ gsRefl $ giSpec info
+      return $ S.fromList usable
+    globalRws  = S.map val $ gsRewrites $ gsRefl $ giSpec info 
 
 makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne (_,t)
