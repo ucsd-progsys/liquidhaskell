@@ -791,13 +791,11 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
 autoRewriteP :: Parser AutoRewrite
 autoRewriteP = do
-  id         <- intP
-  _          <- spaces
   symbols    <- sepBy symbolP spaces
   _          <- spaces
   (lhs, rhs) <- braces $
       pairP exprP (reserved "=") exprP
-  return $ AutoRewrite id symbols lhs rhs
+  return $ AutoRewrite symbols lhs rhs
 
 
 defineP :: Parser Equation
@@ -836,7 +834,7 @@ data Def a
   | Mat !Rewrite
   | Expand ![(Int,Bool)]
   | Adt  !DataDecl
-  | AutoRW !AutoRewrite
+  | AutoRW !Int !AutoRewrite
   | RWMap ![(Int,Int)]
   deriving (Show, Generic)
   --  Sol of solbind
@@ -865,7 +863,7 @@ defP =  Srt   <$> (reserved "sort"         >> colon >> sortP)
     <|> Mat    <$> (reserved "match"       >> matchP)
     <|> Expand <$> (reserved "expand"      >> pairsP intP boolP)
     <|> Adt    <$> (reserved "data"        >> dataDeclP)
-    <|> AutoRW <$> (reserved "autorewrite" >> autoRewriteP)
+    <|> AutoRW <$> (reserved "autorewrite" >> intP) <*> autoRewriteP
     <|> RWMap  <$> (reserved "rewrite"     >> pairsP intP intP)
 
 
@@ -943,7 +941,7 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts 
     expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
-    autoRWs    = M.fromList         [(arId s, s)        | AutoRW s    <- defs]
+    autoRWs    = M.fromList         [(arId , s)         | AutoRW arId s <- defs]
     rwEntries  =                    [(i, f)| RWMap fs   <- defs, (i,f) <- fs]
     rwMap      = foldl insert (M.fromList []) rwEntries
                  where

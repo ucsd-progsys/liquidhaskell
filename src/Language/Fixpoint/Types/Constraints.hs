@@ -916,9 +916,8 @@ ppArgs :: (PPrint a) => [a] -> Doc
 ppArgs = parens . intersperse ", " . fmap pprint
 
 
-data AutoRewrite = AutoRewrite {
-    arId   :: Int
-  , arArgs :: [Symbol]
+data AutoRewrite = AutoRewrite
+  { arArgs :: [Symbol]
   , arLHS  :: Expr
   , arRHS  :: Expr
 } deriving (Eq, Show, Generic)

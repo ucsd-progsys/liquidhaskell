@@ -411,7 +411,7 @@ unify freeVars template seenExpr = case (template, seenExpr) of
 
 
 getRewrite :: Expr -> AutoRewrite -> Maybe Expr
-getRewrite expr (AutoRewrite _ freeVars lhs rhs) =
+getRewrite expr (AutoRewrite freeVars lhs rhs) =
   do
     expr' <- fmap (`subst` rhs) (unify freeVars lhs expr)
     if expr /= expr' then Just expr' else Nothing
