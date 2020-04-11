@@ -1,6 +1,6 @@
 data Vec 1 = [
   | mkNil  { }
-  | mkCons { head : @(0), tail : Vec }
+  | mkCons { head : @(0), tail : Vec @(0) }
 ]
 
 bind 1 x  : {v : int | true}
