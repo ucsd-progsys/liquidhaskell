@@ -17,6 +17,7 @@ jobs:
             cp z3-4.8.7-x64-osx-10.14.6/bin/z3 /usr/local/bin
             cp z3-4.8.7-x64-osx-10.14.6/include/* /usr/local/include
             rm -rf z3-4.8.7-x64-osx-10.14.6
+            z3 --version
       
       - checkout
       - restore_cache:
