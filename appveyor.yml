@@ -26,7 +26,7 @@ install:
 - 7z x z3.zip
 - echo %CD%
 - DIR
-# - set PATH=%PATH%;C:\projects\liquidhaskell\z3-4.8.7-x64-win\bin
+- set PATH=%PATH%;C:\projects\liquidhaskell\z3-4.8.7-x64-win\bin
 - z3 --version
 - stack --version
 
