@@ -17,7 +17,6 @@ jobs:
             cp z3-4.8.7-x64-ubuntu-16.04/bin/z3 /usr/local/bin
             cp z3-4.8.7-x64-ubuntu-16.04/include/* /usr/local/include
             rm -rf z3-4.8.7-x64-ubuntu-16.04
-            echo $PATH
             z3 --version
 
       - checkout
@@ -43,8 +42,6 @@ jobs:
           name: Test
           command: |
             stack clean
-            echo $PATH
-            z3 --version
             mkdir -p /tmp/junit
             stack test liquid-fixpoint:test --flag liquid-fixpoint:devel --test-arguments="--xml=/tmp/junit/main-test-results.xml":
             stack haddock
