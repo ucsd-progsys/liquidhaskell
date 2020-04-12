@@ -34,9 +34,6 @@ import Paths_liquid_fixpoint
 
 main :: IO ()
 main    = do 
-  system "which z3"
-  system "z3 --version"
-  system "echo $PATH"
   run =<< group "Tests" [unitTests]
   where
     run = defaultMainWithIngredients [

@@ -17,7 +17,9 @@ jobs:
             cp z3-4.8.7-x64-ubuntu-16.04/bin/z3 /usr/local/bin
             cp z3-4.8.7-x64-ubuntu-16.04/include/* /usr/local/include
             rm -rf z3-4.8.7-x64-ubuntu-16.04
-      
+            echo $PATH
+            z3 --version
+
       - checkout
       - restore_cache:
           keys:
