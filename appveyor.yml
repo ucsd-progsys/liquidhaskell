@@ -18,8 +18,10 @@ install:
 # Install Microsoft Z3 from NuGet
 - nuget install z3x64win -Version 4.5.0.1	
 
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
+# - set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
 - z3 --version
+- stack --version
+
 
 build_script:
 # Build LiquidHaskell
