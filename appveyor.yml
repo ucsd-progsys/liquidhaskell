@@ -22,11 +22,11 @@ install:
 # - z3 --version
 
 # Download latest stable z3
-- curl -oz3.zip  https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-win.zip
-- 7z x z3.zip z3.exe
+- curl --sS -oz3.zip -L --insecure  https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-win.zip
+- 7z z3.zip
 - echo %CD%
 - DIR
-- set PATH=%PATH%;C:\projects\liquidhaskell\z3-4.8.7\bin
+- set PATH=%PATH%;C:\projects\liquidhaskell\z3\bin
 - z3 --version
 
 
