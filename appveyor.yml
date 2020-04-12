@@ -22,7 +22,7 @@ install:
 # - z3 --version
 
 # Download latest stable z3
-- curl --sS -oz3.zip -L --insecure  https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-win.zip
+- curl -sS -oz3.zip -L --insecure  https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-win.zip
 - 7z z3.zip
 - echo %CD%
 - DIR
