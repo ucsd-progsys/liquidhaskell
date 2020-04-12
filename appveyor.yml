@@ -19,7 +19,7 @@ install:
 # - nuget install z3x64win -Version 4.8.7	
 - dotnet add package Microsoft.Z3.x64 --version 4.8.7
 
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
+# - set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
 - z3 --version
 
 build_script:
