@@ -35,8 +35,6 @@ jobs:
       - run:
           name: Compile
           command : |
-            stack exec -- which z3
-            stack exec -- z3 --version
             stack build liquid-fixpoint --flag liquid-fixpoint:devel
             stack build liquid-fixpoint --flag liquid-fixpoint:devel --test --no-run-tests
       - run:
