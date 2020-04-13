@@ -28,7 +28,6 @@ install:
 - DIR
 - set PATH=%PATH%;C:\projects\liquidhaskell\z3-4.8.7-x64-win\bin;C:\projects\liquidhaskell
 - z3 --version
-- stack --version
 
 
 build_script:
