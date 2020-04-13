@@ -450,7 +450,6 @@ instance Monoid (Spec ty bndr) where
 -- * The 'includes', as they are probably not reachable for clients anyway;
 -- * The 'reflSigs', they are now just \"normal\" signatures;
 -- * The 'lazy', we don't do termination checking in lifted specs;
--- * The 'reflects', the reflection has already happened at this point;
 -- * The 'hmeas', we have /already/ turned these into measures at this point;
 -- * The 'hbounds', ditto as 'hmeas';
 -- * The 'inlines', ditto as 'hmeas';
@@ -515,6 +514,7 @@ data LiftedSpec = LiftedSpec
     --   see tests/pos/NatClass.hs
   , liftedAxeqs      :: HashSet F.Equation
     -- ^ Equalities used for Proof-By-Evaluation
+  , liftedReflects   :: HashSet F.LocSymbol
   } deriving (Eq, Generic, Show)
     deriving Hashable via Generically LiftedSpec 
     deriving Binary   via Generically LiftedSpec 
@@ -733,6 +733,7 @@ liftedSpecGetter = to toLiftedSpec
       , liftedBounds     = bounds a
       , liftedDefs       = defs a
       , liftedAxeqs      = S.fromList . axeqs $ a
+      , liftedReflects   = reflects a
       }
 
 -- This is a temporary internal function that we use to convert the input dependencies into a format
@@ -760,7 +761,7 @@ unsafeFromLiftedSpec a = Spec
   , lvars      = liftedLvars a
   , lazy       = mempty
   , fails      = mempty
-  , reflects   = mempty
+  , reflects   = liftedReflects a
   , autois     = liftedAutois a
   , hmeas      = mempty
   , hbounds    = mempty
