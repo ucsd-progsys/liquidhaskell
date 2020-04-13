@@ -2,7 +2,7 @@ fixpoint "--rewrite"
 
 data Vec 1 = [
   | VNil  { }
-  | VCons { mhead : @(0), mtail : Vec }
+  | VCons { mhead : @(0), mtail : Vec @(0)}
 ]
 
 match isNil VNil       = true 

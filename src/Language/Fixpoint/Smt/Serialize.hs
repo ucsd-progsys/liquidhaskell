@@ -37,26 +37,21 @@ smt2data :: SymEnv -> [DataDecl] -> Builder.Builder
 smt2data env = smt2data' env . map padDataDecl
 
 smt2data' :: SymEnv -> [DataDecl] -> Builder.Builder
-smt2data' env ds = build "({}) ({})" (tvars, smt2many (smt2data1 env <$> muSort ds)) 
+smt2data' env ds = build "({}) ({})" (smt2many (smt2dataname env <$> ds), smt2many (smt2datactors env <$> ds))
+ 
+smt2dataname :: SymEnv -> DataDecl -> Builder.Builder
+smt2dataname env (DDecl tc as _) = build "({} {})" (name, n)
   where
-    tvars        = smt2many (smt2TV <$> [0..(n-1)])
+    name  = smt2 env (symbol tc)
+    n     = smt2 env as 
+
+
+smt2datactors :: SymEnv -> DataDecl -> Builder.Builder
+smt2datactors env (DDecl _ as cs) = build "(par ({}) ({}))" (tvars,ds) 
+  where
+    tvars        = smt2many (smt2TV <$> [0..(as-1)])
     smt2TV       = smt2 env . SVar
-    n            = numTyVars ds 
-
-smt2data1 :: SymEnv -> DataDecl -> Builder.Builder
-smt2data1 env (DDecl tc as cs) = build "({} {})" (name, ctors)
-  where
-    name                      = smt2 env (symbol tc)
-    ctors                     = smt2many (smt2ctor env as <$> cs)
-
-numTyVars    :: [DataDecl] -> Int 
-numTyVars ds 
-  | ok        = n 
-  | otherwise = panic ("Cannot create mutually-recursive datatypes with different number of type variables!: " ++ tcs)
-  where 
-    tcs       = show [ ddTyCon d | d <- ds ] 
-    n:ns      = [ ddVars d | d <- ds ] 
-    ok        = and [ n == n' | n' <- ns ]
+    ds           = smt2many (smt2ctor env as <$> cs) 
 
 {- 
 smt2data' :: SymEnv -> DataDecl -> Builder.Builder
@@ -112,6 +107,8 @@ instance SMTLIB2 Symbol where
     | Just t <- Thy.smt2Symbol env s = t
   smt2 _ s                           = symbolBuilder s
 
+instance SMTLIB2 Int where 
+  smt2 _ = Builder.fromString . show 
 
 instance SMTLIB2 LocSymbol where
   smt2 env = smt2 env . val

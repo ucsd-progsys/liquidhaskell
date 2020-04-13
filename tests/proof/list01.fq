@@ -2,7 +2,7 @@ fixpoint "--rewrite"
 
 data Vec 1 = [
   | VNil  { }
-  | VCons { head : @(0), tail : Vec }
+  | VCons { head : @(0), tail : Vec @(0)}
 ]
 
 constant len: (func(1, [(Vec @(0)); int]))
