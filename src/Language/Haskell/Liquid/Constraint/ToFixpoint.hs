@@ -115,7 +115,9 @@ makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fs
 makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne (_,t)
   | Just r <- stripRTypeBase tres
-  = [F.AutoRewrite xs lhs rhs | F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]  
+  = concatMap id [
+      [F.AutoRewrite xs lhs rhs, F.AutoRewrite xs rhs lhs] |
+      F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]
   | otherwise
   = [] 
   where 
