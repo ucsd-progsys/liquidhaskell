@@ -23,6 +23,8 @@ import           Data.List
 import           CoreUtils (exprType)
 import           Var
 import           Data.Tuple.Extra
+import           Debug.Trace
+import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.
@@ -58,13 +60,13 @@ genArgs :: SpecType -> SM [CoreExpr]
 genArgs t =
   do  goalTys <- sGoalTys <$> get
       case find (== toType t) goalTys of 
-        Nothing -> do modify (\s -> s { sGoalTys = (toType t) : sGoalTys s }) 
+        Nothing -> do modify (\s -> s { sGoalTys = toType t : sGoalTys s }) 
                       fixEMem t 
                       fnTys <- functionCands (toType t)
                       es <- withDepthFillArgs t 0 fnTys
                       if null es
                         then  return []
-                        else  do  modify (\s -> s {sExprId = sExprId s + 1})
+                        else  do  -- modify (\s -> s {sExprId = sExprId s + 1})
                                   return es
         Just _  -> return []
 
@@ -76,7 +78,7 @@ withDepthFillArgs t depth cs = do
 
   filterElseM (hasType t) es $
     if depth < argsDepth
-      then  withDepthFillArgs t (depth + 1) cs
+      then  trace (" [ withDepthFillArgs ] argsDepth = " ++ show argsDepth) $ withDepthFillArgs t (depth + 1) cs
       else  return []
 
 argsFill :: ExprMemory -> [(Type, CoreExpr, Int)] -> [CoreExpr] -> SM [CoreExpr]
@@ -86,7 +88,7 @@ argsFill em0 (c:cs) es0 =
     Nothing             -> return [] 
     Just (resTy, subGs) -> 
       do  let argCands = map (withSubgoal em0) subGs
-              toGen    = foldr (\x b -> (not . null) x && b) True argCands
+              toGen    = foldr (\x b -> (not . null) x && b) True (tracepp (" [ argsFill ] for c = " ++ show (snd3 c) ++ " argCands ") argCands)
           es <- do  curExprId <- sExprId <$> get
                     if toGen then 
                       prune curExprId c argCands
@@ -120,8 +122,8 @@ fill i depth (c : cs) accExprs
             let argCands  = map (withSubgoal em) subGs
                 toGen    = foldr (\x b -> (not . null) x && b) True argCands
             newExprs <- do  curExprId <- sExprId <$> get 
-                            if toGen then 
-                              prune curExprId c argCands
+                            if toGen 
+                              then prune curExprId c (tracepp (" [ fill " ++ show curExprId ++ " ] For c = " ++ show (snd3 c) ++ " argCands ") argCands)
                               else return []
             curExprId <- sExprId <$> get
             let nextEm = map (resTy, , curExprId + 1) newExprs
