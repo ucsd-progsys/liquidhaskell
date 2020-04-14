@@ -149,7 +149,7 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
     ts           = ty_args trep
-    isValTy      = not . GM.isPredType . toType
+    isValTy      = not . Ghc.isEvVarType . toType
 
 
 pdVar :: PVar t -> Predicate
@@ -828,7 +828,7 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
 appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'') 
   where
-    _msg  = "appRTyCon-family: " ++ showpp (Ghc.isFamilyTyCon c, Ghc.tyConArity c, toType <$> ts)
+    _msg  = "appRTyCon-family: " ++ showpp (Ghc.isFamilyTyCon c, Ghc.tyConRealArity c, toType <$> ts)
     resTc = RTyCon c ps'' (rtc_info rc'')
     c     = rtc_tc rc
    
@@ -875,7 +875,7 @@ famInstArgs c = case Ghc.tyConFamInst_maybe c of
                      $ Just (c', take (length ts - cArity) ts) 
     Nothing       -> Nothing
     where 
-      cArity      = Ghc.tyConArity c
+      cArity      = Ghc.tyConRealArity c
 
 -- TODO:faminst-preds: case Ghc.tyConFamInst_maybe c of
 -- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
@@ -1672,7 +1672,7 @@ grabArgs τs τ
   = reverse (τ:τs)
 
 isNonValueTy :: Type -> Bool
-isNonValueTy t = {- Ghc.isPredTy -} isClassPred t || isEqPred t
+isNonValueTy = GM.isPredType
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
