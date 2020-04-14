@@ -6,7 +6,6 @@ commands:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
       - run: apt-get update && apt-get install -y git ssh
-      
       - run: 
           name: Install z3 
           command: |
