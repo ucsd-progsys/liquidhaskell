@@ -194,7 +194,7 @@ library
                     , vector               >= 0.10
   default-language:   Haskell98
   default-extensions: PatternGuards
-  ghc-options:        -W -Werror -fwarn-missing-signatures
+  ghc-options:        -W -fwarn-missing-signatures
 
   if flag(include)
     hs-source-dirs: devel
@@ -207,7 +207,7 @@ executable liquid
   build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
   default-language:   Haskell98
   default-extensions: PatternGuards
-  ghc-options:        -W -Werror -threaded -fdefer-typed-holes
+  ghc-options:        -W -threaded -fdefer-typed-holes
 
   if flag(devel)
     ghc-options: -Werror
