@@ -1170,8 +1170,7 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
   let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
   cγ'             <- addBinders γ   x' cbs
-  cγ              <- addBinders cγ' x' [(x', xt)]
-  return cγ 
+  addBinders cγ' x' [(x', xt)]
   
 caseEnv γ x acs a _ _ = do 
   let x'  = F.symbol x
@@ -1296,7 +1295,7 @@ argExpr _ _           = Nothing
 
 -- NIKI TODO: merge arg/lam/fun-Expr
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-lamExpr γ (Var v)     =  Just $ F.eVar v
+lamExpr _ (Var v)     =  Just $ F.eVar v
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
@@ -1376,7 +1375,7 @@ makeSingleton γ e t
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 
-funExpr γ (Var v) 
+funExpr _ (Var v) 
   = Just $ F.EVar (F.symbol v)
 
 funExpr γ (App e1 e2)
