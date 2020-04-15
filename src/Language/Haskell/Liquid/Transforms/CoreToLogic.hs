@@ -195,7 +195,7 @@ coreAltToDef x z zs y t alts
       eDef   <- ctor <$> coreToLg e
       -- let ys  = toArgs id args
       let dxt = Just (varRType dx)
-      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
+      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, _, ts) <- dtss ]
     
     mkDef _ _ _ _ _ _ = 
       return [] 
