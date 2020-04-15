@@ -922,6 +922,33 @@ data AutoRewrite = AutoRewrite
   , arRHS  :: Expr
 } deriving (Eq, Show, Generic)
 
+instance Hashable AutoRewrite
+
+
+instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
+  toFix autoRW =
+    vcat (map fixRW rewrites)
+    $+$ text "rewrite "
+    <+> toFix rwsMapping
+    where
+      rewrites     = L.nub $ concatMap snd (M.toList autoRW)
+
+      fixRW rw@(AutoRewrite args lhs rhs) =
+          text ("autorewrite " ++ show (hash rw) ++ " ")
+          <+> hsep (map toFix args)
+          <+> text "{ "
+          <+> toFix lhs
+          <+> text " = "
+          <+> toFix rhs
+          <+> text " }"
+
+      rwsMapping = do
+        (cid, rws) <- M.toList autoRW
+        rw         <-  rws
+        return $ text $ show cid ++ " : " ++ show (hash rw)
+
+
+
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
 data Rewrite  = SMeasure
@@ -935,6 +962,7 @@ data Rewrite  = SMeasure
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
               $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+              $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
 
