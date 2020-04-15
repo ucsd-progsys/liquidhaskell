@@ -17,6 +17,7 @@ import qualified Data.Maybe as Mb
 -- AT: Move to own module?
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
+import           Language.Haskell.Liquid.UX.DiffCheck (coreDeps, dependsOn)
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
@@ -98,19 +99,26 @@ makeAxiomEnvironment info xts fcs
 makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
 makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fst) sigs
   where
-    sigs    =             gsTySigs   $ gsSig  $ giSpec info 
+    spec       = giSpec info
+    sigs       = gsTySigs   $ gsSig  spec
     isGlobalRw = Mb.maybe False (`elem` globalRws) (subVar sub)
 
     rws        =
       if isGlobalRw
       then S.empty
-      else S.difference (S.union localRws globalRws) (Mb.maybe S.empty S.singleton (subVar sub))
+      else S.difference
+        (S.union localRws globalRws)
+        (Mb.maybe S.empty forbiddenRWs (subVar sub))
+
+    allDeps        = coreDeps $ giCbs $ giSrc info
+    forbiddenRWs sv =
+      S.insert sv $ dependsOn allDeps [sv]
 
     localRws = Mb.fromMaybe S.empty $ do
       var <- subVar sub
-      usable <- M.lookup var $ gsRewritesWith $ gsRefl $ giSpec info
+      usable <- M.lookup var $ gsRewritesWith $ gsRefl spec
       return $ S.fromList usable
-    globalRws  = S.map val $ gsRewrites $ gsRefl $ giSpec info 
+    globalRws  = S.map val $ gsRewrites $ gsRefl spec
 
 makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne (_,t)

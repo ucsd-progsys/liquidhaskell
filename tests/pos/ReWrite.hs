@@ -25,6 +25,17 @@ assoc :: [a] -> [a] -> [a] -> ()
 assoc [] _ _       = ()
 assoc (_:xs) ys zs = assoc xs ys zs 
 
+{-@ reflect lhs @-}
+lhs xs ys zs ws = ((xs ++ ys) ++ zs) ++ ws
+
+{-@ reflect rhs @-}
+rhs xs ys zs ws = xs ++ (ys ++ (zs ++ ws))
+
+{-@ rewriteWith assoc3 assoc @-} -- TODO: second argument should be a list, but parser does not like it
+{-@ assoc3 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a]
+          -> { lhs xs ys zs ws = rhs xs ys zs ws } @-}
+assoc3 :: [a] -> [a] -> [a] -> [a] -> ()
+assoc3 xs ys zs ws = () 
 
 
 {-@ reflect ++ @-}
