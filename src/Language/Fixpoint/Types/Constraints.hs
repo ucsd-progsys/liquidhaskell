@@ -917,11 +917,12 @@ ppArgs = parens . intersperse ", " . fmap pprint
 
 
 data AutoRewrite = AutoRewrite
-  { arArgs :: [Symbol]
+  { arArgs :: [SortedReft]
   , arLHS  :: Expr
   , arRHS  :: Expr
 } deriving (Eq, Show, Generic)
 
+instance Hashable SortedReft
 instance Hashable AutoRewrite
 
 

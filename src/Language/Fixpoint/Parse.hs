@@ -791,11 +791,13 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
 autoRewriteP :: Parser AutoRewrite
 autoRewriteP = do
-  symbols    <- sepBy symbolP spaces
+  args       <- sepBy sortedReftP spaces
+  _          <- spaces
+  _          <- reserved "="
   _          <- spaces
   (lhs, rhs) <- braces $
       pairP exprP (reserved "=") exprP
-  return $ AutoRewrite symbols lhs rhs
+  return $ AutoRewrite args lhs rhs
 
 
 defineP :: Parser Equation

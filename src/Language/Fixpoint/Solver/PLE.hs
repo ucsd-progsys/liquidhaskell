@@ -411,10 +411,14 @@ unify freeVars template seenExpr = case (template, seenExpr) of
 
 
 getRewrite :: Expr -> AutoRewrite -> Maybe Expr
-getRewrite expr (AutoRewrite freeVars lhs rhs) =
+getRewrite expr (AutoRewrite args lhs rhs) =
   do
     expr' <- fmap (`subst` rhs) (unify freeVars lhs expr)
     if expr /= expr' then Just expr' else Nothing
+  where
+    freeVars = do
+      RR _ (Reft (symbol, _)) <- args
+      return symbol
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
 eval _ ctx e 
