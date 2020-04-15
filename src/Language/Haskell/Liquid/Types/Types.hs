@@ -2379,7 +2379,7 @@ instance F.PPrint BTyVar where
 
 instance F.PPrint RTyVar where
   pprintTidy k (RTV α)
-   | True {- ppTyVar ppEnv -}  = F.pprintTidy k (F.symbol α) -- shows full tyvar
+   | ppTyVar ppEnv  = F.pprintTidy k (F.symbol α) -- shows full tyvar
    | otherwise      = ppr_tyvar_short α           -- drops the unique-suffix
    where
      ppr_tyvar_short :: TyVar -> Doc

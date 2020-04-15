@@ -136,8 +136,8 @@ Hmm, well thats a puzzler. Two questions that should come to mind.
 
 2. *How* is LH able to deduce this fact with the *polymorphic* signature but not the monomorphic one?
 
-Lets ponder the first question first: why *is* every element 
-of `insert y xs` in fact larger than `x`? For two reasons:
+Lets ponder the first question: why *is* every element 
+of `insert y xs` in fact larger than `x`? For three reasons:
 
 (a) every element in `xs` is larger than `x`, as the 
     list `x :< xs` was ordered, 
@@ -146,7 +146,7 @@ of `insert y xs` in fact larger than `x`? For two reasons:
 
 (c) the elements returned by `insert y xs` are either `y` or from `xs`!
 
-Now onto the second question: how does LH verify the polymorphic code,
+Now onto the second question: how *does* LH verify the polymorphic code,
 but not the monomorphic one? The reason is the fact (c)! LH is a *modular*
 verifier, meaning that the *only* information that it has about the behavior
 of `insert` at a call-site is the information captured in the (refinement) 
@@ -179,7 +179,7 @@ Perplexity
 
 While parametricity is all very nice, and LH's polymorphic instanatiation is very 
 clever and useful, it can also be quite mysterious. For example, q curious user 
-Oisín [pointed out](https://github.com/ucsd-progsys/liquidhaskell-tutorial/issues/91] 
+Oisín [pointed out](https://github.com/ucsd-progsys/liquidhaskell-tutorial/issues/91) 
 that while the code below is *rejected* that if you *uncomment* the type signature 
 for `go` then it is *accepted* by LH!
 
@@ -198,9 +198,11 @@ This is thoroughly perplexing, but again, is explained by the absence of
 parametricity. When we *remove* the type signature, GHC defaults to giving 
 `go` a *monomorphic* signature where the `a` is not universally quantified, 
 and which roughly captures the same specification as the monomorphic `insertM` 
-above causing verification to fail! Restoring the signature, provides LH
-with the polymorphic signature, which can be instantiated at the call-site
-to recover fact `(c)` that is crucial for verification.
+above causing verification to fail! 
+
+Restoring the signature provides LH with the polymorphic specification, 
+which can be instantiated at the call-site to recover the fact `(c)` 
+that is crucial for verification.
 
 
 Moral
@@ -215,5 +217,7 @@ polymorphic signatures whenever possible.
 Second, on a less happy note, *explaining* why fancy type 
 checkers fail remains a vexing problem, whose difficulty 
 is compounded by increasing the cleverness of the type 
-system. We'd love to hear any ideas you might have in 
-this direction!
+system. 
+
+We'd love to hear any ideas you might have to solve the 
+explanation problem!
