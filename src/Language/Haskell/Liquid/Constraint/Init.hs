@@ -218,8 +218,6 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
       filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
       lts         = lt1s ++ lt2s
       tcb'        = []
-      axEnv sp    = M.union (M.mapWithKey (fromMaybe . F.symbol) $ lmVarSyms $ gsLogicMap sp)
-                            (M.fromList [(v, F.symbol v) | v <- gsReflects sp])
 
 
 assm :: TargetInfo -> [(Var, SpecType)]
