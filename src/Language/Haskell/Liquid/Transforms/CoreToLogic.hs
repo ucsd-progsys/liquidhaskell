@@ -184,10 +184,11 @@ coreAltToDef x z zs y t alts
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
     mkAlt x ctor _args dx (C.DataAlt d, xs, e)
-      = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs) 
+      = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs') 
       . ctor 
-      . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs))) 
+      . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs'))) 
      <$> coreToLg e
+      where xs' = filter (not . GM.isEvVar) xs
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
 

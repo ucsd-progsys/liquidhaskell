@@ -951,7 +951,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     name          = Bare.tcName        tycEnv
     dms           = Bare.makeDefaultMethods env mts  
     (cls, mts)    = Bare.makeClasses        env sigEnv name specs
-    laws          = F.notracepp "LAWS" $ Bare.makeCLaws env sigEnv name specs
+    laws          = Bare.makeCLaws env sigEnv name specs
 
 -----------------------------------------------------------------------------------------
 -- | @makeLiftedSpec@ is used to generate the BareSpec object that should be serialized 

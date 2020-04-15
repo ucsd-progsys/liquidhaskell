@@ -89,7 +89,7 @@ mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
 -------------------------------------------------------------------------------
 dataConPSpecType :: DataConP -> [(Var, SpecType)]
 -------------------------------------------------------------------------------
-dataConPSpecType dcp    = F.notracepp "dataConPSpecType" [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dcp    = [ (workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT

@@ -92,7 +92,7 @@ makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
 makeDataConType []
   = []
 makeDataConType ds | Mb.isNothing (dataConWrapId_maybe dc)
-  = notracepp _msg [(woId, {- notracepp _msg $ -} combineDCTypes "cdc0" t ts)]
+  = notracepp _msg [(woId, notracepp _msg $ combineDCTypes "cdc0" t ts)]
   where
     dc   = ctor (head ds)
     woId = dataConWorkId dc
@@ -187,8 +187,7 @@ defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f dc mt xs body)
                     = generalize $ mkArrow as' [] [] xts t'
   where
-    xts             = notracepp ("STITCHARGS" ++ showpp (dc, xs, ts)) 
-                    $ stitchArgs (fSrcSpan f) dc xs ts 
+    xts             = stitchArgs (fSrcSpan f) dc xs ts 
     t'              = refineWithCtorBody dc f body t
     t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
@@ -212,7 +211,7 @@ stitchArgs sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ isPredTy t) allTs
+      (pts, ts)        = L.partition isPredTy      allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
@@ -223,7 +222,7 @@ stitchArgs sp dc allXs allTs
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2
-panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
+panicFieldNumMismatch sp dc nXs nTs  = panicDataCon sp dc msg
   where
     msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
 

@@ -618,7 +618,7 @@ strengthenRefType_ ::
 strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
   where
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
-    f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
+    f t (RVar _ r1)  = t `strengthen` r1
     f t1 t2           = panic Nothing $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                          (pprt_raw t1) (showpp (toRSort t1)) (pprt_raw t2) (showpp (toRSort t2))
 
