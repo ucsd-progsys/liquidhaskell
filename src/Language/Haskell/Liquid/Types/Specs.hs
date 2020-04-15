@@ -593,12 +593,12 @@ isExportedVar src v = n `elemNameSet` ns
 --
 -- $legacyDataStructures
 --
-
+{- 
 data GhcInfo = GI
   { _giSrc       :: !GhcSrc  
   , _giSpec      :: !GhcSpec               -- ^ All specification information for module
   }
-
+-}
 data GhcSrc = Src 
   { _giIncDir    :: !FilePath              -- ^ Path for LH include/prelude directory
   , _giTarget    :: !FilePath              -- ^ Source file for module
@@ -636,9 +636,10 @@ data GhcSpec = SP
 instance HasConfig GhcSpec where
   getConfig = _gsConfig
 
+{- 
 instance HasConfig GhcInfo where
   getConfig = getConfig . _giSpec
-
+-}
 
 {- $provisionalBackCompat
 
