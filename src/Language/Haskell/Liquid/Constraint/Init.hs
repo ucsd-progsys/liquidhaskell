@@ -195,7 +195,6 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , fenv     = initFEnv $ filterHO (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas (gsData sp)))
   , denv     = dmapty val $ gsDicts (gsSig sp)
   , recs     = S.empty
-  , fargs    = S.empty
   , invs     = mempty
   , rinvs    = mempty
   , ial      = mkRTyConIAl (gsIaliases (gsData sp))
@@ -210,7 +209,6 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , forallcb = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
-  , aenv     = axEnv (gsRefl sp)
   , cerr     = Nothing
   , cgInfo   = info
   , cgVar    = Nothing
@@ -220,8 +218,6 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
       filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
       lts         = lt1s ++ lt2s
       tcb'        = []
-      axEnv sp    = M.union (M.mapWithKey (fromMaybe . F.symbol) $ lmVarSyms $ gsLogicMap sp)
-                            (M.fromList [(v, F.symbol v) | v <- gsReflects sp])
 
 
 assm :: TargetInfo -> [(Var, SpecType)]
