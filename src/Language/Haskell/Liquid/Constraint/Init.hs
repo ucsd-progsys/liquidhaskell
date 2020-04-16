@@ -40,7 +40,6 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 -- import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
-import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, freeTyVars, Def)
 -- import           Language.Haskell.Liquid.Types.Names
 -- import           Language.Haskell.Liquid.Types.RefType
 -- import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
@@ -51,10 +50,12 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 
+import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, freeTyVars, Def)
+
 -- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
-initEnv :: GhcInfo -> CG CGEnv
+initEnv :: TargetInfo -> CG CGEnv
 --------------------------------------------------------------------------------
 initEnv info
   = do let tce   = gsTcEmbeds (gsName sp)
@@ -79,14 +80,16 @@ initEnv info
        (invs2, f42) <- mapSndM refreshArgs' $ makeAutoDecrDataCons dcsty' (gsAutosize (gsTerm sp)) dcs'
        let f4    = mergeDataConTypes tce (mergeDataConTypes tce f40 (f41 ++ f42)) (filter (isDataConId . fst) f2)
        let tx    = mapFst F.symbol . addRInv ialias . predsUnify sp
-       let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, (F.notracepp "assumed" f3) ++ f3', f4, f5]
+       f6       <- (map tx . addPolyInfo') <$> (refreshArgs' $ vals gsRefSigs (gsSig sp))  
+       let bs    = (tx <$> ) <$> [f0 ++ f0' ++ fi, f1 ++ f1', f2, f3 ++ f3', f4, f5]
        modify $ \s -> s { dataConTys = f4 }
        lt1s     <- F.toListSEnv . cgLits <$> get
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (bs!!3) (bs!!5) hs info
-       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ tail bs])
+       rTrue   <- mapM (mapSndM true) f6 
+       let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
+       γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
   where
     sp           = giSpec info
@@ -163,7 +166,7 @@ refreshArgs' = mapM (mapSndM refreshArgs)
 
 -- NV : still some sigs do not get TyConInfo
 
-predsUnify :: GhcSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
+predsUnify :: TargetSpec -> (Var, RRType RReft) -> (Var, RRType RReft)
 predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RPropH@
   where
     tce            = gsTcEmbeds (gsName sp)
@@ -171,7 +174,7 @@ predsUnify sp = second (addTyConInfo tce tyi) -- needed to eliminate some @RProp
 
 
 --------------------------------------------------------------------------------
-measEnv :: GhcSpec
+measEnv :: TargetSpec
         -> [(F.Symbol, SpecType)]
         -> [CoreBind]
         -> [(F.Symbol, F.Sort)]
@@ -180,7 +183,7 @@ measEnv :: GhcSpec
         -> [(F.Symbol, SpecType)]
         -> [(F.Symbol, SpecType)]
         -> [F.Symbol]
-        -> GhcInfo
+        -> TargetInfo
         -> CGEnv
 --------------------------------------------------------------------------------
 measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
@@ -192,7 +195,6 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , fenv     = initFEnv $ filterHO (tcb' ++ lts ++ (second (rTypeSort tce . val) <$> gsMeas (gsData sp)))
   , denv     = dmapty val $ gsDicts (gsSig sp)
   , recs     = S.empty
-  , fargs    = S.empty
   , invs     = mempty
   , rinvs    = mempty
   , ial      = mkRTyConIAl (gsIaliases (gsData sp))
@@ -207,7 +209,6 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
   , forallcb = M.empty
   , holes    = fromListHEnv hs
   , lcs      = mempty
-  , aenv     = axEnv (gsRefl sp)
   , cerr     = Nothing
   , cgInfo   = info
   , cgVar    = Nothing
@@ -217,43 +218,41 @@ measEnv sp xts cbs _tcb lt1s lt2s asms itys hs info = CGE
       filterHO xs = if higherOrderFlag sp then xs else filter (F.isFirstOrder . snd) xs
       lts         = lt1s ++ lt2s
       tcb'        = []
-      axEnv sp    = M.union (M.mapWithKey (fromMaybe . F.symbol) $ lmVarSyms $ gsLogicMap sp)
-                            (M.fromList [(v, F.symbol v) | v <- gsReflects sp])
 
 
-assm :: GhcInfo -> [(Var, SpecType)]
+assm :: TargetInfo -> [(Var, SpecType)]
 assm = assmGrty (giImpVars . giSrc)
 
-grty :: GhcInfo -> [(Var, SpecType)]
+grty :: TargetInfo -> [(Var, SpecType)]
 grty = assmGrty (giDefVars . giSrc) 
 
-assmGrty :: (GhcInfo -> [Var]) -> GhcInfo -> [(Var, SpecType)]
+assmGrty :: (TargetInfo -> [Var]) -> TargetInfo -> [(Var, SpecType)]
 assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
   where
     xs          = S.fromList . f             $ info
     sigs        = gsTySigs  . gsSig . giSpec $ info
 
 
-recSelectorsTy :: GhcInfo -> CG [(Var, SpecType)]
+recSelectorsTy :: TargetInfo -> CG [(Var, SpecType)]
 recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) &&  isRecordSelector v
-    sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp]
+    sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsRefSigs sp ++ gsInSigs sp]
     sp           = gsSig . giSpec $ info
     
 
 
-grtyTop :: GhcInfo -> CG [(Var, SpecType)]
+grtyTop :: TargetInfo -> CG [(Var, SpecType)]
 grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) && not (isRecordSelector v)
-    sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsInSigs sp]
+    sigVs        = S.fromList [v | (v,_) <- gsTySigs sp ++ gsAsmSigs sp ++ gsRefSigs sp ++ gsInSigs sp]
     sp           = gsSig . giSpec $ info
 
 
-infoLits :: (GhcSpec -> [(F.Symbol, LocSpecType)]) -> (F.Sort -> Bool) -> GhcInfo -> F.SEnv F.Sort
+infoLits :: (TargetSpec -> [(F.Symbol, LocSpecType)]) -> (F.Sort -> Bool) -> TargetInfo -> F.SEnv F.Sort
 infoLits litF selF info = F.fromListSEnv $ cbLits ++ measLits
   where
     cbLits    = filter (selF . snd) $ coreBindLits tce info
@@ -262,7 +261,7 @@ infoLits litF selF info = F.fromListSEnv $ cbLits ++ measLits
     tce       = gsTcEmbeds (gsName spc)
     mkSort    = mapSnd (F.sr_sort . rTypeSortedReft tce . val)
 
-initCGI :: Config -> GhcInfo -> CGInfo
+initCGI :: Config -> TargetInfo -> CGInfo
 initCGI cfg info = CGInfo {
     fEnv       = F.emptySEnv
   , hsCs       = []
@@ -307,7 +306,7 @@ initCGI cfg info = CGInfo {
     nspc       = gsName spc
     notFn      = isNothing . F.functionSort
 
-coreBindLits :: F.TCEmb TyCon -> GhcInfo -> [(F.Symbol, F.Sort)]
+coreBindLits :: F.TCEmb TyCon -> TargetInfo -> [(F.Symbol, F.Sort)]
 coreBindLits tce info
   = sortNub      $ [ (F.symbol x, F.strSort) | (_, Just (F.ESym x)) <- lconsts ]    -- strings
                 ++ [ (dconToSym dc, dconToSort dc) | dc <- dcons ]                  -- data constructors

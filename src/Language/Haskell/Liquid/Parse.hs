@@ -484,6 +484,7 @@ bTyConP :: Parser BTyCon
 bTyConP
   =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
  <|> mkBTyCon <$> locUpperIdP
+ <|> (reserved "*" >> (return $ mkBTyCon (dummyLoc $ symbol ("*" :: String))))
  <?> "bTyConP"
 
 mkPromotedBTyCon :: LocSymbol -> BTyCon
@@ -868,6 +869,9 @@ data Pspec ty ctor
   | Decr    (LocSymbol, [Int])                            -- ^ 'decreasing' annotation -- TODO: deprecate
   | LVars   LocSymbol                                     -- ^ 'lazyvar' annotation, defer checks to *use* sites
   | Lazy    LocSymbol                                     -- ^ 'lazy' annotation, skip termination check on binder
+  | Fail    LocSymbol                                     -- ^ 'fail' annotation, the binder should be unsafe
+  | Rewrite LocSymbol                                     -- ^ 'rewrite' annotation, the binder generates a rewrite rule
+  | Rewritewith (LocSymbol,[LocSymbol])                     -- ^ 'rewritewith' annotation, the first binder is using the rewrite rules of the second list
   | Insts   (LocSymbol, Maybe Int)                        -- ^ 'auto-inst' or 'ple' annotation; use ple locally on binder 
   | HMeas   LocSymbol                                     -- ^ 'measure' annotation; lift Haskell binder as measure
   | Reflect LocSymbol                                     -- ^ 'reflect' annotation; reflect Haskell binder as function in logic
@@ -940,6 +944,12 @@ ppPspec k (LVars   lx)
   = "lazyvar" <+> pprintTidy k (val lx) 
 ppPspec k (Lazy   lx) 
   = "lazy" <+> pprintTidy k (val lx) 
+ppPspec k (Rewrite   lx) 
+  = "rewrite" <+> pprintTidy k (val lx) 
+ppPspec k (Rewritewith (lx, lxs)) 
+  = "rewritewith" <+> pprintTidy k (val lx) <+> pprintTidy k (val <$> lxs) 
+ppPspec k (Fail   lx) 
+  = "fail" <+> pprintTidy k (val lx) 
 ppPspec k (Insts   (lx, mbN)) 
   = "automatic-instances" <+> pprintTidy k (val lx) <+> maybe "" (("with" <+>) . pprintTidy k) mbN 
 ppPspec k (HMeas   lx) 
@@ -1055,6 +1065,9 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.ilaws      = [i | ILaws  i <- xs]
   , Measure.termexprs  = [(y, es) | Asrts (ys, (_, Just es)) <- xs, y <- ys]
   , Measure.lazy       = S.fromList [s | Lazy   s <- xs]
+  , Measure.fails      = S.fromList [s | Fail   s <- xs]
+  , Measure.rewrites   = S.fromList [s | Rewrite s <- xs]
+  , Measure.rewriteWith = M.fromList [s | Rewritewith s <- xs]
   , Measure.bounds     = M.fromList [(bname i, i) | PBound i <- xs]
   , Measure.reflects   = S.fromList [s | Reflect s <- xs]
   , Measure.hmeas      = S.fromList [s | HMeas  s <- xs]
@@ -1120,6 +1133,9 @@ specP
     <|> (reserved "lazyvar"       >> liftM LVars  lazyVarP  )
 
     <|> (reserved "lazy"          >> liftM Lazy   lazyVarP  )
+    <|> (reserved "rewrite"       >> liftM Rewrite   rewriteVarP )
+    <|> (reserved "rewriteWith"   >> liftM Rewritewith   rewriteWithP )
+    <|> (reserved "fail"          >> liftM Fail   failVarP  )
     <|> (reserved "ple"           >> liftM Insts autoinstP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
@@ -1152,6 +1168,20 @@ autoinstP = do x <- locParserP binderP
 
 lazyVarP :: Parser LocSymbol
 lazyVarP = locParserP binderP
+
+
+rewriteVarP :: Parser LocSymbol
+rewriteVarP = locParserP binderP
+
+rewriteWithP :: Parser (LocSymbol, [LocSymbol])
+rewriteWithP = do s  <- locParserP binderP 
+                  spaces
+                  ss <- locParserP binderP -- brackets $ sepBy (locParserP binderP) comma)
+                  spaces
+                  return (s,[ss])
+
+failVarP :: Parser LocSymbol
+failVarP = locParserP binderP
 
 axiomP :: Parser LocSymbol
 axiomP = locParserP binderP
@@ -1591,7 +1621,8 @@ dataCtorsP as = do
   return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol
-noWhere = try $ do
+noWhere = 
+  try $ do
   s <- tyVarIdP
   if s == "where"
     then parserZero

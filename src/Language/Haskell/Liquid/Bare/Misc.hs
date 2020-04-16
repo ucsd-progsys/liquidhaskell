@@ -77,7 +77,7 @@ freeSymbols xs' xts yts ivs =  [ lx | lx <- Misc.sortNub $ zs ++ zs' ++ zs'' , n
 freeSyms :: (F.Reftable r, TyConable c) => Located (RType c tv r) -> [LocSymbol]
 freeSyms ty    = [ F.atLoc ty x | x <- tySyms ]
   where
-    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
+    tySyms     = Misc.sortNub $ concat $ efoldReft (\_ _ -> True) False (\_ _ -> []) (\_ -> []) (const ()) f (const id) F.emptySEnv [] (val ty)
     f γ _ r xs = let F.Reft (v, _) = F.toReft r in
                  [ x | x <- F.syms r, x /= v, not (x `F.memberSEnv` γ)] : xs
 

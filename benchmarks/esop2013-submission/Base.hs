@@ -1,4 +1,6 @@
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--bscope"         @-}
+
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 -- LIQUID {- LANGUAGE DeriveDataTypeable, StandaloneDeriving -}

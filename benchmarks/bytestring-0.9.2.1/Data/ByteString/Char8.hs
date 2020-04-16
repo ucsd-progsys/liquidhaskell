@@ -296,6 +296,7 @@ import Data.ByteString.Fusion (PairS(..), MaybeS(..))
 import System.IO (Handle)
 import Foreign.ForeignPtr
 import Foreign.Ptr
+import Data.Word                (Word64)
 
 import Language.Haskell.Liquid.Prelude
 

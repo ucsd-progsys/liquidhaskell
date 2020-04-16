@@ -11,7 +11,6 @@ import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
-import           Language.Haskell.Liquid.Types hiding     ( binds )
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import qualified Data.Maybe as Mb 
 
@@ -21,10 +20,13 @@ import qualified Language.Haskell.Liquid.UX.Config as Config
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
+import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
 import           Var
 import           TyCon                             (TyCon)
+
+import           Language.Haskell.Liquid.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
@@ -47,15 +49,16 @@ fixConfig tgt cfg = def
   , FC.ginteractive     = ginteractive       cfg
   , FC.noslice          = noslice           cfg
   , FC.rewriteAxioms    = Config.allowPLE   cfg
-  , FC.etaElim          = not (exactDC cfg)
+  , FC.etaElim          = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
   , FC.extensionality   = extensionality    cfg 
+  , FC.oldPLE           = oldPLE cfg
   }
 
 
-cgInfoFInfo :: GhcInfo -> CGInfo -> IO (F.FInfo Cinfo)
+cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = return (targetFInfo info cgi)
 
-targetFInfo :: GhcInfo -> CGInfo -> F.FInfo Cinfo
+targetFInfo :: TargetInfo -> CGInfo -> F.FInfo Cinfo
 targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
   where
     fi               = F.fi cs ws bs ls consts ks qs bi aHO aHOqs es mempty adts ebs
@@ -75,15 +78,39 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     ax               = makeAxiomEnvironment info (dataConTys cgi) (F.cm fi)
     -- msg              = show . map F.symbol . M.keys . tyConInfo
 
-makeAxiomEnvironment :: GhcInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
+makeAxiomEnvironment :: TargetInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
-  = F.AEnv (makeEquations sp ++ [specTypeEq emb x t | (x, t) <- xts]) 
+  = F.AEnv eqs  
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
+           (makeRewrites info)
   where
+    eqs      = if (oldPLE cfg) 
+                then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
+                else axioms  
     emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
     sp       = giSpec     info
+    axioms   = gsMyAxioms refl ++ gsImpAxioms refl 
+    refl     = gsRefl sp
+
+
+makeRewrites :: TargetInfo -> [F.AutoRewrite]
+makeRewrites info = concatMap makeRewriteOne $ filter ((`S.member` rwVars) . fst) sigs
+  where 
+    sigs   =             gsTySigs   $ gsSig  $ giSpec info 
+    rwVars = S.map val $ gsRewrites $ gsRefl $ giSpec info 
+
+makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne (_,t)
+  | Just r <- stripRTypeBase tres
+  = [F.AutoRewrite xs lhs rhs | F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]  
+  | otherwise
+  = [] 
+  where 
+    xs = ty_binds tRep
+    tres = ty_res tRep
+    tRep = toRTypeRep $ val t 
 
 _isClassOrDict :: Id -> Bool
 _isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
@@ -96,7 +123,7 @@ hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
     (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
 
 
-doExpand :: GhcSpec -> Config -> F.SubC Cinfo -> Bool
+doExpand :: TargetSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
 
@@ -118,18 +145,24 @@ specTypeEq emb f t = F.mkEquation (F.symbol f) xts body tOut
     bExp           = F.eApps (F.eVar f) (F.EVar <$> xs)
 
 makeSimplify :: (Var, SpecType) -> [F.Rewrite]
-makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
+makeSimplify (x, t)
+  | not (GM.isDataConId x)
+  = [] 
+  | otherwise 
+  = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F.EVar <$> ty_binds (toRTypeRep t))) t
   where
     go (F.PAnd es) = concatMap go es
 
     go (F.PAtom eq (F.EApp (F.EVar f) dc) bd)
       | eq `elem` [F.Eq, F.Ueq]
       , (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
     go (F.PIff (F.EApp (F.EVar f) dc) bd)
       | (F.EVar dc, xs) <- F.splitEApp dc
+      , dc == F.symbol x 
       , all isEVar xs
       = [F.SMeasure f dc (fromEVar <$> xs) bd]
 
@@ -141,11 +174,11 @@ makeSimplify (x, t) = go $ specTypeToResultRef (F.eApps (F.EVar $ F.symbol x) (F
     fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
-makeEquations :: GhcSpec -> [F.Equation]
+makeEquations :: TargetSpec -> [F.Equation]
 makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
                       | F.Equ f xts e t _ <- axioms 
-                      , let mbT            = M.lookup f sigs
                       , let xArgs          = F.EVar . fst <$> xts
+                      , let mbT            = if null xArgs then Nothing else M.lookup f sigs
                    ]
   where
     axioms       = gsMyAxioms refl ++ gsImpAxioms refl 

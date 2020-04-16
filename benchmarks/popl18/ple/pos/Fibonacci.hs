@@ -1,7 +1,7 @@
-{-@ LIQUID "--higherorder"     @-}
+{-@ LIQUID "--higherorder"     @-}	
 {-@ LIQUID "--ple" @-}
 
--- TAG: absref 
+-- TAG: absref
 
 module Fibonacci where
 import Language.Haskell.Liquid.ProofCombinators
@@ -27,7 +27,6 @@ fib i | i == 0    = 0
 {-@ fib1 :: () -> {fib 16 == 987 } @-}
 fib1 :: () -> Proof
 fib1 _ = trivial
-
 
 fibUp :: Int -> Proof
 {-@ fibUp :: i:Nat -> {fib i <= fib (i+1)} @-}

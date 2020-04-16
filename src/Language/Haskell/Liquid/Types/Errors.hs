@@ -6,6 +6,8 @@
 {-# LANGUAGE DeriveDataTypeable  #-}
 {-# LANGUAGE DeriveFunctor       #-}
 {-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DerivingStrategies  #-}
+{-# LANGUAGE DerivingVia         #-}
 
 -- | This module contains the *types* related creating Errors.
 --   It depends only on Fixpoint and basic haskell libraries,
@@ -61,6 +63,7 @@ import           Data.Generics                (Data)
 import qualified Data.Binary                  as B
 import qualified Data.Maybe                   as Mb
 import           Data.Aeson                   hiding (Result)
+import           Data.Hashable
 import qualified Data.HashMap.Strict          as M
 import qualified Data.List                    as L 
 import           System.Directory
@@ -73,6 +76,7 @@ import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc 
 import           Language.Haskell.Liquid.Misc ((<->))
+import           Language.Haskell.Liquid.Types.Generics
 
 instance PPrint ParseError where
   pprintTidy _ e = vcat $ tail $ text <$> ls
@@ -176,7 +180,8 @@ data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
   | OCons -- ^ Obligation that proves subtyping constraints
-  deriving (Generic, Data, Typeable)
+  deriving (Eq, Generic, Data, Typeable)
+  deriving Hashable via Generically Oblig
 
 instance B.Binary Oblig
 instance Show Oblig where
@@ -439,6 +444,15 @@ data TError t =
   | ErrNoSpec   { pos  :: !SrcSpan 
                 , srcF :: !Doc 
                 , bspF :: !Doc
+                }
+
+  | ErrFail     { pos :: !SrcSpan
+                , var :: !Doc
+                }
+ 
+  | ErrFailUsed { pos     :: !SrcSpan
+                , var     :: !Doc
+                , clients :: ![Doc]
                 }
 
   | ErrOther    { pos   :: SrcSpan
@@ -876,6 +890,16 @@ ppError' _ dSp dCtx (ErrGhc _ s)
   = dSp <+> text "GHC Error"
         $+$ dCtx
         $+$ (nest 4 $ pprint s)
+
+ppError' _ dSp _ (ErrFail _ s)
+  = dSp <+> text "Failure Error:"
+        $+$ text "Definition of" <+> pprint s <+> text "declared to fail is safe."
+
+ppError' _ dSp _ (ErrFailUsed _ s xs)
+  = dSp <+> text "Failure Error:"
+        $+$ text "Binder" <+> pprint s <+> text "declared to fail is used by"
+        <+> (hsep $ L.intersperse comma xs)
+
 
 ppError' _ dSp dCtx (ErrResolve _ kind v msg)
   = dSp <+> (text "Unknown" <+> kind <+> ppTicks v) 

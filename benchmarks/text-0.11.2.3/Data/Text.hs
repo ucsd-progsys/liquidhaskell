@@ -1,6 +1,6 @@
-{-@ LIQUID "--pruneunsorted" @-}
+{-@ LIQUID "--pruneunsorted"     @-}
 {-@ LIQUID "--no-pattern-inline" @-}
-
+{-@ LIQUID "--bscope"            @-}
 
 {-# LANGUAGE BangPatterns, CPP, MagicHash, Rank2Types, UnboxedTuples #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}

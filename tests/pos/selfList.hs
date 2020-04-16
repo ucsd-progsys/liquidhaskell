@@ -1,5 +1,7 @@
 module Foo () where
 
+{-@ LIQUID "--bscope" @-}
+
 import Data.Set (Set(..)) 
 
 {-@ include <selfList.hquals> @-}
