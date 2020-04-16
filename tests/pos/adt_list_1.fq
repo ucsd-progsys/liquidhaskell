@@ -1,7 +1,7 @@
 
 data LL 1 = [
   | emp { }
-  | con { lHead : @(0), lTail : LL }
+  | con { lHead : @(0), lTail : LL @(0) }
 ]
 
 bind 1 n1 : {n:int | true}

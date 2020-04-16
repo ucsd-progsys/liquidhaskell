@@ -33,7 +33,8 @@ import Test.Tasty.Runners.AntXML
 import Paths_liquid_fixpoint
 
 main :: IO ()
-main    = run =<< group "Tests" [unitTests]
+main    = do 
+  run =<< group "Tests" [unitTests]
   where
     run = defaultMainWithIngredients [
                 testRunner
