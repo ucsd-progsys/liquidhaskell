@@ -1,4 +1,4 @@
-module ReWrite where 
+module ReWrite4 where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
@@ -25,7 +25,7 @@ dropProof _ []     = ()
 dropProof n (_:xs) = dropProof (n - 1) xs
 
 {-@ rewriteWith dropProof' dropProof  @-}
-{-@ dropProof' :: n : Int -> xs : [a] -> { drop n xs = [] } @-}
+{-@ dropProof' :: nn : Int -> xs : [a] -> { drop nn xs = [] } @-}
 dropProof' :: Int -> [a] -> ()
 dropProof' _ _ = ()
 

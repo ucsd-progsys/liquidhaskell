@@ -123,13 +123,20 @@ makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fs
 makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne (_,t)
   | Just r <- stripRTypeBase tres
-  = concatMap id [
+  = concat [
       [F.AutoRewrite xs lhs rhs, F.AutoRewrite xs rhs lhs] |
       F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]
   | otherwise
   = [] 
-  where 
-    xs = ty_binds tRep
+  where
+  
+    preds = map (maybe F.PTrue (F.reftPred . F.toReft)) refts
+    refts = map stripRTypeBase (ty_args tRep)
+
+    xs = do
+      (sym, e) <- zip (ty_binds tRep) preds
+      return $ F.RR F.intSort (F.Reft (sym, e))
+       
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
 
