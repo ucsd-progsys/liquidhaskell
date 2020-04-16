@@ -19,7 +19,7 @@ define concat3Right (as : List, bs : List, cs : List) : List = {
   concat as (concat bs cs)
 }
 
-autorewrite 1 {as : List | False} {bs : List | true} {cs : List | true} = { concat (concat as bs) cs = concat as (concat bs cs) }
+autorewrite 1 {as : List | false} {bs : List | true} {cs : List | true} = { concat (concat as bs) cs = concat as (concat bs cs) }
 
 autorewrite 2 {as : List | true} {bs : List | true} {cs : List | true} = { concat as (concat bs cs) = concat (concat as bs) cs }
 

@@ -429,21 +429,22 @@ getRewrite γ expr (AutoRewrite args lhs rhs) =
     varMap :: M.HashMap Symbol Expr
     varMap = M.fromList $ do
       RR _ (Reft (symbol, expr)) <- args
-      (symbol, expr)
+      return (symbol, expr)
      
-    freeVars = keys varMap
+    freeVars = M.keys varMap
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
 eval _ ctx e 
   | Just v <- M.lookup e (icSimpl ctx)
   = return v 
 eval γ ctx e = 
-  do acc <- S.toList . evAccum <$> get  
+  do acc <- S.toList . evAccum <$> get
+     rws <- liftIO $ getRWs e
      case L.lookup e acc of
-        Just e' | e' `notElem` getRWs e -> eval γ ctx e'
+        Just e' | e' `notElem` rws -> eval γ ctx e'
         _ -> do
           e' <- simplify γ ctx <$> go e
-          let evAccum' st = S.union (S.fromList (map (e,) (getRWs e))) (evAccum st)
+          let evAccum' st = S.union (S.fromList (map (e,) rws)) (evAccum st)
           if e /= e'
             then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum' st)})
                     eval γ (addConst (e,e') ctx) e'
@@ -454,8 +455,11 @@ eval γ ctx e =
       Mb.fromMaybe [] $ do
         cid <- icSubcId ctx
         M.lookup cid $ knAutoRWs γ
-    getRWs e = autorws >>= Mb.maybeToList . getRewrite e
-    addConst (e,e') ctx = if isConstant (knDCs γ) e' 
+
+    getRWs :: Expr -> IO [Expr]
+    getRWs e = Mb.catMaybes <$> mapM (runMaybeT . getRewrite γ e) autorws
+
+    addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
     go e@(EIte b e1 e2) = evalIte γ ctx e b e1 e2
