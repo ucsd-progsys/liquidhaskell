@@ -484,6 +484,7 @@ bTyConP :: Parser BTyCon
 bTyConP
   =  (reservedOp "'" >> (mkPromotedBTyCon <$> locUpperIdP))
  <|> mkBTyCon <$> locUpperIdP
+ <|> (reserved "*" >> (return $ mkBTyCon (dummyLoc $ symbol ("*" :: String))))
  <?> "bTyConP"
 
 mkPromotedBTyCon :: LocSymbol -> BTyCon
@@ -1620,7 +1621,8 @@ dataCtorsP as = do
   return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol
-noWhere = try $ do
+noWhere = 
+  try $ do
   s <- tyVarIdP
   if s == "where"
     then parserZero

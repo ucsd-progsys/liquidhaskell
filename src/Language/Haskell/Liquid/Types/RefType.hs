@@ -124,7 +124,7 @@ import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 
-import Data.List (sort, foldl')
+import Data.List (foldl')
 
 
 
