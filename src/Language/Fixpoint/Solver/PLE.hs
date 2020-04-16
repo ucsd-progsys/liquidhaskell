@@ -414,30 +414,26 @@ unify freeVars template seenExpr = case (template, seenExpr) of
 getRewrite :: Knowledge -> Expr -> AutoRewrite -> MaybeT IO Expr
 getRewrite γ expr (AutoRewrite args lhs rhs) =
   do
-    s@(Su m) <- MaybeT $ return $ unify freeVars lhs expr
-    let expr' = subst s rhs
+    su <- MaybeT $ return $ unify freeVars lhs expr
+    let expr' = subst su rhs
     guard $ expr /= expr'
-    mapM_ check (M.toList m)
+    mapM_ (check . subst su) exprs
     return expr'
   where
-    check :: (Symbol, Expr) -> MaybeT IO ()
-    check (sym, e) = do
-      reft <- MaybeT $ return $ M.lookup sym varMap
-      valid <- MaybeT $ Just <$> isValid γ (subst (mkSubst [(sym, e)]) reft)
+    check :: Expr -> MaybeT IO ()
+    check e = do
+      valid <- MaybeT $ Just <$> isValid γ e
       guard valid
 
-    varMap :: M.HashMap Symbol Expr
-    varMap = M.fromList $ do
-      RR _ (Reft (symbol, expr)) <- args
-      return (symbol, expr)
-     
-    freeVars = M.keys varMap
+    freeVars = [s | RR _ (Reft (s, _)) <- args ]
+    exprs    = [e | RR _ (Reft (_, e)) <- args ]
+
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
-eval _ ctx e 
+eval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
-  = return v 
-eval γ ctx e = 
+  = return v
+eval γ ctx e =
   do acc <- S.toList . evAccum <$> get
      rws <- liftIO $ getRWs e
      case L.lookup e acc of
