@@ -934,14 +934,21 @@ instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
     where
       rewrites     = L.nub $ concatMap snd (M.toList autoRW)
 
+      fixReft (Reft (sym, expr)) =
+        text "{"
+        <+> toFix sym
+        <+> text ": _ |"
+        <+> toFix expr
+        <+> text "}"
+
       fixRW rw@(AutoRewrite args lhs rhs) =
-          text ("autorewrite " ++ show (hash rw) ++ " ")
-          <+> hsep (map toFix args)
-          <+> text "{ "
+          text ("autorewrite " ++ show (hash rw))
+          <+> hsep (map fixReft args)
+          <+> text "{"
           <+> toFix lhs
-          <+> text " = "
+          <+> text "="
           <+> toFix rhs
-          <+> text " }"
+          <+> text "}"
 
       rwsMapping = do
         (cid, rws) <- M.toList autoRW
