@@ -410,15 +410,26 @@ unify freeVars template seenExpr = case (template, seenExpr) of
   _ -> Nothing
 
 
-getRewrite :: Expr -> AutoRewrite -> Maybe Expr
-getRewrite expr (AutoRewrite args lhs rhs) =
-  do
-    expr' <- fmap (`subst` rhs) (unify freeVars lhs expr)
-    if expr /= expr' then Just expr' else Nothing
+getRewrite :: Knowledge -> Expr -> AutoRewrite -> EvalST (Maybe Expr)
+getRewrite γ expr (AutoRewrite args lhs rhs) =
+  case unify freeVars lhs expr of
+    Just s@(Su m) ->
+      do
+        let expr' = subst s p
+        guard $ expr /= expr'
+        mapM_ (map check $ M.toList m)
+        return expr'
+    Nothing -> return Nothing
   where
-    freeVars = do
-      RR _ (Reft (symbol, _)) <- args
-      return symbol
+    check (sym, e) = 
+      let
+        Just reft = M.lookup varMap sym
+      in
+        isValid γ (subst reft (mkSubst [(sym, e)]))
+    varMap = M.fromList $ do
+      RR _ (Reft (symbol, expr)) <- args
+      (symbol, expr)
+    freeVars = keys varMap
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
 eval _ ctx e 
