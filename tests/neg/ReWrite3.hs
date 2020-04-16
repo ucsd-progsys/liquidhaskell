@@ -1,4 +1,4 @@
-module ReWrite where
+module ReWrite3 where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}

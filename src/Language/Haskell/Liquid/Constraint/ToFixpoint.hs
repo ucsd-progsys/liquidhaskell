@@ -135,7 +135,7 @@ makeRewriteOne (_,t)
 
     xs = do
       (sym, e) <- zip (ty_binds tRep) preds
-      return $ F.RR F.intSort (F.Reft (sym, e))
+      return $ F.Reft (sym, e)
        
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
