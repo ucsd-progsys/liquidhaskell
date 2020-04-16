@@ -32,6 +32,7 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
+import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
@@ -410,25 +411,26 @@ unify freeVars template seenExpr = case (template, seenExpr) of
   _ -> Nothing
 
 
-getRewrite :: Knowledge -> Expr -> AutoRewrite -> EvalST (Maybe Expr)
+getRewrite :: Knowledge -> Expr -> AutoRewrite -> MaybeT IO Expr
 getRewrite γ expr (AutoRewrite args lhs rhs) =
-  case unify freeVars lhs expr of
-    Just s@(Su m) ->
-      do
-        let expr' = subst s p
-        guard $ expr /= expr'
-        mapM_ (map check $ M.toList m)
-        return expr'
-    Nothing -> return Nothing
+  do
+    s@(Su m) <- MaybeT $ return $ unify freeVars lhs expr
+    let expr' = subst s rhs
+    guard $ expr /= expr'
+    mapM_ check (M.toList m)
+    return expr'
   where
-    check (sym, e) = 
-      let
-        Just reft = M.lookup varMap sym
-      in
-        isValid γ (subst reft (mkSubst [(sym, e)]))
+    check :: (Symbol, Expr) -> MaybeT IO ()
+    check (sym, e) = do
+      reft <- MaybeT $ return $ M.lookup sym varMap
+      valid <- MaybeT $ Just <$> isValid γ (subst (mkSubst [(sym, e)]) reft)
+      guard valid
+
+    varMap :: M.HashMap Symbol Expr
     varMap = M.fromList $ do
       RR _ (Reft (symbol, expr)) <- args
       (symbol, expr)
+     
     freeVars = keys varMap
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
