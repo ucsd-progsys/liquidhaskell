@@ -599,6 +599,7 @@ data GhcInfo = GI
   , _giSpec      :: !GhcSpec               -- ^ All specification information for module
   }
 -}
+
 data GhcSrc = Src 
   { _giIncDir    :: !FilePath              -- ^ Path for LH include/prelude directory
   , _giTarget    :: !FilePath              -- ^ Source file for module
