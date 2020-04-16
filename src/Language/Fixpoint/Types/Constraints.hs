@@ -917,7 +917,7 @@ ppArgs = parens . intersperse ", " . fmap pprint
 
 
 data AutoRewrite = AutoRewrite
-  { arArgs :: [SortedReft]
+  { arArgs :: [Reft]
   , arLHS  :: Expr
   , arRHS  :: Expr
 } deriving (Eq, Show, Generic)
