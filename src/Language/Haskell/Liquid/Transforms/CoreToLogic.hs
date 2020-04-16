@@ -346,7 +346,7 @@ altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
 altToLg de (a@(C.DataAlt d), xs, e) = do 
   p  <- coreToLg e
   dm <- gets lsDCMap
-  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip xs [1..]]
+  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip (filter (not . GM.isEvVar) xs) [1..]]
   return (a, subst su p)
 
 altToLg _ (a, _, e)
