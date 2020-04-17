@@ -2,6 +2,7 @@
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
   , fixConfig
+  , makeRewriteOne
   ) where
 
 import           Prelude hiding (error)

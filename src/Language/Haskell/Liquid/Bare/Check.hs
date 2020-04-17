@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Bare.Check
   , checkBareSpec
   ) where
 
+import           Language.Haskell.Liquid.Constraint.ToFixpoint (makeRewriteOne)
 import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
 import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 import           Control.Applicative                       ((<|>))
@@ -585,13 +586,17 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
     trep = toRTypeRep t
 
 
-getRewriteErrors :: (Show a, Show r, F.Reftable r) => (a, Located (RType c tv r)) -> [TError t]
 getRewriteErrors (rw, t)
   | not isEqProof
   = [ErrRewrite (GM.fSrcSpan t) $ text $
                 "Unable to use "
                 ++ show rw
                 ++ " as a rewrite because it does not prove an equality, or the equality it proves is trivial." ]
+  | null (makeRewriteOne (rw,t))
+  = [ErrRewrite (GM.fSrcSpan t) $
+     text $ "Could not generate any rewrites from equality. Likely cause: "
+     ++ "there are free (uninstantiatable) variables on both sides of the "
+     ++ "equality."]
   | otherwise
   = map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
       where
