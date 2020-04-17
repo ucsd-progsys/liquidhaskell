@@ -593,19 +593,27 @@ checkRewrites targetSpec =
     rws  = S.union (S.map val $ gsRewrites refl)
                    (S.fromList $ concat $ M.elems (gsRewritesWith refl))
 
-    getErrs (rw, t) =
-      map getErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
-      where
-        tyArgs = ty_args  tRep
-        syms   = ty_binds tRep
-        tRep = toRTypeRep $ val t
-        getErr (_, sym) =
-          ErrRewrite (GM.fSrcSpan t) $ text $
-           "Unable to use "
-           ++ show rw
-           ++ " as a rewrite. Functions whose parameters have inner refinements cannot be used as rewrites, but parameter "
-           ++ show sym
-           ++ " contains an inner refinement."
+    getErrs (rw, t) = if not isEqProof then
+        [ErrRewrite (GM.fSrcSpan t) $ text $
+                "Unable to use "
+                ++ show rw
+                ++ " as a rewrite because it does not prove an equality, or the equality it proves is trivial." ]
+      else map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
+        where
+          isEqProof = case stripRTypeBase (ty_res tRep) of
+             Just r  -> trace (show $ r) $ not $ null $ [() | F.EEq _ _ <- F.splitPAnd (reftPred r)]
+             Nothing -> False
+          reftPred r = F.reftPred (F.toReft r)
+          tyArgs = ty_args  tRep
+          syms   = ty_binds tRep
+          tRep   = toRTypeRep $ val t
+          getInnerRefErr (_, sym) =
+                  ErrRewrite (GM.fSrcSpan t) $ text $
+                  "Unable to use "
+                  ++ show rw
+                  ++ " as a rewrite. Functions whose parameters have inner refinements cannot be used as rewrites, but parameter "
+                  ++ show sym
+                  ++ " contains an inner refinement."
 
    
     isRefined ty
