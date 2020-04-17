@@ -89,7 +89,7 @@ mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
 -------------------------------------------------------------------------------
 dataConPSpecType :: DataConP -> [(Var, SpecType)]
 -------------------------------------------------------------------------------
-dataConPSpecType dcp    = [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dcp    = [(workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT
@@ -151,7 +151,7 @@ meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
   | 0 <= pad
   = workR { ty_binds = xs ++ (ty_binds wrapR)
-          , ty_args  = ts ++ zipWith strengthenRType ts' (ty_args wrapR)
+          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR) 
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
           , ty_preds = ty_preds wrapR
           }
