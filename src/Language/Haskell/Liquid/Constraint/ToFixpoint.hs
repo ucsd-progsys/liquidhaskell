@@ -12,6 +12,7 @@ import qualified Language.Fixpoint.Types        as F
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
+import           Control.Monad (guard)
 import qualified Data.Maybe as Mb 
 
 -- AT: Move to own module?
@@ -123,15 +124,28 @@ makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fs
 makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne (_,t)
   | Just r <- stripRTypeBase tres
-  = concat [
-      [F.AutoRewrite xs lhs rhs, F.AutoRewrite xs rhs lhs] |
-      F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]
+  = [rw |  F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r)
+        , rw <- rewrites lhs rhs ]
   | otherwise
   = [] 
   where
-  
+
+    rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
+    rewrites lhs rhs =
+         (guard (canSubst lhs rhs) >> [F.AutoRewrite xs lhs rhs])
+      ++ (guard (canSubst rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+
+    canSubst fromE toE =
+      let
+        fromSyms = S.intersection freeVars (S.fromList $ F.syms fromE)
+        toSyms   = S.intersection freeVars (S.fromList $ F.syms toE)
+      in
+        S.null $ S.difference toSyms fromSyms
+ 
     preds = map (maybe F.PTrue (F.reftPred . F.toReft)) refts
     refts = map stripRTypeBase (ty_args tRep)
+
+    freeVars = S.fromList (ty_binds tRep)
 
     xs = do
       (sym, e) <- zip (ty_binds tRep) preds
