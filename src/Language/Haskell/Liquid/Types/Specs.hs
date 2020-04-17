@@ -593,7 +593,7 @@ isExportedVar src v = n `elemNameSet` ns
 --
 -- $legacyDataStructures
 --
-{-
+{- 
 data GhcInfo = GI
   { _giSrc       :: !GhcSrc  
   , _giSpec      :: !GhcSpec               -- ^ All specification information for module

@@ -826,12 +826,12 @@ anyF ps x = or [ p x | p <- ps ]
 -- | 'defaultDataCons t ds' returns the list of '(dc, types)' pairs,
 --   corresponding to the _missing_ cases, i.e. _other_ than those in 'ds',
 --   that are being handled by DEFAULT.
-defaultDataCons :: Type -> [AltCon] -> Maybe [(DataCon, [Type])]
+defaultDataCons :: Type -> [AltCon] -> Maybe [(DataCon, [TyVar], [Type])]
 defaultDataCons (TyConApp tc argτs) ds = do 
   allDs     <- TC.tyConDataCons_maybe tc
   let seenDs = [d | DataAlt d <- ds ]
   let defDs  = keyDiff showPpr allDs seenDs 
-  return [ (d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
+  return [ (d, DataCon.dataConExTyVars d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
 
 defaultDataCons _ _ = 
   Nothing

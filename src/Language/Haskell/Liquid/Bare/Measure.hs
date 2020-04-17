@@ -294,8 +294,8 @@ bkDataCon dc nFlds  = (as, ts, (F.dummySymbol, t, mempty))
     ts                = RT.ofType <$> Misc.takeLast nFlds _ts
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
-    as                = makeRTVar . RT.rTyVar <$> αs
-    ((αs,_,_,_,_ts,_t), _t0) = hammer dc
+    as                = makeRTVar . RT.rTyVar <$> (αs ++ αs')
+    ((αs,αs',_,_,_ts,_t), _t0) = hammer dc
     tArgs'            = take (nArgs - nVars) tArgs ++ (Ghc.mkTyVarTy <$> αs)
     nVars             = length αs
     nArgs             = length tArgs

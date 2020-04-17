@@ -340,10 +340,10 @@ expandDefaultCase' γ t ((DEFAULT, _, e) : dcs)
 expandDefaultCase' _ _ z
    = return z 
 
-cloneCase :: AnfEnv -> e -> (DataCon, [Type]) -> DsM (AltCon, [Id], e)
-cloneCase γ e (d, ts) = do 
+cloneCase :: AnfEnv -> e -> (DataCon, [TyVar], [Type]) -> DsM (AltCon, [Id], e)
+cloneCase γ e (d, as, ts) = do 
   xs  <- mapM (freshNormalVar γ) ts 
-  return (DataAlt d, xs, e)
+  return (DataAlt d, as ++ xs, e)
 
 sortCases :: [(AltCon, b, c)] -> [(AltCon, b, c)]
 sortCases = sortBy (cmpAltCon `on` F.fst3) 
