@@ -584,61 +584,68 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
     rs   = drop i $ ty_refts trep
     trep = toRTypeRep t
 
-checkRewrites :: TargetSpec -> [Error]
-checkRewrites targetSpec =
-    concatMap getErrs $ (filter $ (`S.member` rws) . fst)  sigs
-  where
-    refl = gsRefl targetSpec
-    sigs = gsTySigs   $ gsSig  targetSpec
-    rws  = S.union (S.map val $ gsRewrites refl)
-                   (S.fromList $ concat $ M.elems (gsRewritesWith refl))
 
-    getErrs (rw, t) = if not isEqProof then
-        [ErrRewrite (GM.fSrcSpan t) $ text $
+getRewriteErrors :: (Show a, Show r, F.Reftable r) => (a, Located (RType c tv r)) -> [TError t]
+getRewriteErrors (rw, t)
+  | not isEqProof
+  = [ErrRewrite (GM.fSrcSpan t) $ text $
                 "Unable to use "
                 ++ show rw
                 ++ " as a rewrite because it does not prove an equality, or the equality it proves is trivial." ]
-      else map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
-        where
+  | otherwise
+  = map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
+      where
           isEqProof = case stripRTypeBase (ty_res tRep) of
-             Just r  -> trace (show $ r) $ not $ null $ [() | F.EEq _ _ <- F.splitPAnd (reftPred r)]
+             Just r  ->  not $ null $ [() | F.EEq _ _ <- F.splitPAnd (reftPred r)]
              Nothing -> False
           reftPred r = F.reftPred (F.toReft r)
           tyArgs = ty_args  tRep
           syms   = ty_binds tRep
           tRep   = toRTypeRep $ val t
           getInnerRefErr (_, sym) =
-                  ErrRewrite (GM.fSrcSpan t) $ text $
-                  "Unable to use "
-                  ++ show rw
-                  ++ " as a rewrite. Functions whose parameters have inner refinements cannot be used as rewrites, but parameter "
-                  ++ show sym
-                  ++ " contains an inner refinement."
+            ErrRewrite (GM.fSrcSpan t) $ text $
+            "Unable to use "
+            ++ show rw
+            ++ " as a rewrite. Functions whose parameters have inner refinements cannot be used as rewrites, but parameter "
+            ++ show sym
+            ++ " contains an inner refinement."
 
-   
-    isRefined ty
-      | Just r' <- stripRTypeBase ty = not $ F.isTauto r'
-      | otherwise = False
 
-    hasInnerRefinement (RFun _ rIn rOut _) =
-      isRefined rIn || isRefined rOut
-    hasInnerRefinement (RImpF _ rIn rOut _) =
-      isRefined rIn || isRefined rOut
-    hasInnerRefinement (RAllT _ ty  _) =
-      isRefined ty
-    hasInnerRefinement (RAllP _ ty) =
-      isRefined ty
-    hasInnerRefinement (RApp _ args _ _) =
-      any isRefined args
-    hasInnerRefinement (RAllE _ allarg ty) =
-      isRefined allarg || isRefined ty
-    hasInnerRefinement (REx _ allarg ty) =
-      isRefined allarg || isRefined ty
-    hasInnerRefinement (RAppTy arg res _) =
-      isRefined arg || isRefined res
-    hasInnerRefinement (RRTy env _ _ ty) =
-      isRefined ty || any (isRefined . snd) env
-    hasInnerRefinement _ = False
+isRefined :: F.Reftable r => RType c tv r -> Bool
+isRefined ty
+  | Just r <- stripRTypeBase ty = not $ F.isTauto r
+  | otherwise = False
+
+hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
+hasInnerRefinement (RFun _ rIn rOut _) =
+  isRefined rIn || isRefined rOut
+hasInnerRefinement (RImpF _ rIn rOut _) =
+  isRefined rIn || isRefined rOut
+hasInnerRefinement (RAllT _ ty  _) =
+  isRefined ty
+hasInnerRefinement (RAllP _ ty) =
+  isRefined ty
+hasInnerRefinement (RApp _ args _ _) =
+  any isRefined args
+hasInnerRefinement (RAllE _ allarg ty) =
+  isRefined allarg || isRefined ty
+hasInnerRefinement (REx _ allarg ty) =
+  isRefined allarg || isRefined ty
+hasInnerRefinement (RAppTy arg res _) =
+  isRefined arg || isRefined res
+hasInnerRefinement (RRTy env _ _ ty) =
+  isRefined ty || any (isRefined . snd) env
+hasInnerRefinement _ = False
+
+checkRewrites :: TargetSpec -> [Error]
+checkRewrites targetSpec =
+    concatMap getRewriteErrors $ (filter $ (`S.member` rws) . fst)  sigs
+  where
+    refl = gsRefl targetSpec
+    sigs = gsTySigs   $ gsSig  targetSpec
+    rws  = S.union (S.map val $ gsRewrites refl)
+                   (S.fromList $ concat $ M.elems (gsRewritesWith refl))
+
 
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
 checkClassMeasures ms = mapMaybe checkOne byTyCon
