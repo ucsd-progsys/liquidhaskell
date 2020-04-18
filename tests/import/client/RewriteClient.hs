@@ -1,5 +1,10 @@
 module RewriteClient where
 
+{-@ LIQUID "--reflection" @-}
+{-@ LIQUID "--ple" @-}
+
+{-@ infix ++ @-}
+
 import RewriteLib
 
 {-@ rewriteWith assoc2 assoc @-}
