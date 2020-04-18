@@ -102,7 +102,8 @@ makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
 makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fst) sigs
   where
     spec       = giSpec info
-    sigs       = gsTySigs   $ gsSig  spec
+    sig        = gsSig spec
+    sigs       = gsTySigs sig ++ gsAsmSigs sig
     isGlobalRw = Mb.maybe False (`elem` globalRws) (subVar sub)
 
     rws        =
