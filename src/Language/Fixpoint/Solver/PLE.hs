@@ -411,12 +411,14 @@ unify freeVars template seenExpr = case (template, seenExpr) of
   _ -> Nothing
 
 
-getRewrite :: Knowledge -> Expr -> AutoRewrite -> MaybeT IO Expr
-getRewrite γ expr (AutoRewrite args lhs rhs) =
+getRewrite :: Knowledge -> SymEnv -> Expr -> AutoRewrite -> MaybeT IO Expr
+
+getRewrite γ env expr (AutoRewrite args lhs rhs) =
   do
     su <- MaybeT $ return $ unify freeVars lhs expr
     let expr' = subst su rhs
     guard $ expr /= expr'
+    guard . Mb.isNothing $ checkSorted dummySpan (seSort env) expr'
     mapM_ (check . subst su) exprs
     return expr'
   where
@@ -435,7 +437,7 @@ eval _ ctx e
   = return v
 eval γ ctx e =
   do acc <- S.toList . evAccum <$> get
-     rws <- liftIO $ getRWs e
+     rws <- getRWs e
      case L.lookup e acc of
         Just e' | e' `notElem` rws -> eval γ ctx e'
         _ -> do
@@ -452,8 +454,11 @@ eval γ ctx e =
         cid <- icSubcId ctx
         M.lookup cid $ knAutoRWs γ
 
-    getRWs :: Expr -> IO [Expr]
-    getRWs e = Mb.catMaybes <$> mapM (runMaybeT . getRewrite γ e) autorws
+
+    getRWs :: Expr -> EvalST [Expr]
+    getRWs e = do
+      env <- evEnv <$> get
+      Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRewrite γ env e) autorws
 
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
