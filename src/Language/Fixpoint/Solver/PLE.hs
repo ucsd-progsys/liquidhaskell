@@ -431,11 +431,11 @@ getRewrite γ env expr (AutoRewrite args lhs rhs) =
     exprs    = [e | (Reft (_, e)) <- args ]
 
 
-eval :: Knowledge -> S.HashSet AutoRewrite -> ICtx -> Expr -> EvalST Expr
-eval _ _ ctx e
+eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
+eval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
   = return v
-eval γ prevRWs ctx e =
+eval γ ctx e =
   do acc <- S.toList . evAccum <$> get
      rws <- getRWs e
      case L.lookup e acc of
@@ -449,7 +449,7 @@ eval γ prevRWs ctx e =
             else do modify (\st -> st{evAccum = evAccum' st })
                     return e
   where
-    autorws = filterNot ((flip S.member) prevRWs) $
+    autorws  =
       Mb.fromMaybe [] $ do
         cid <- icSubcId ctx
         M.lookup cid $ knAutoRWs γ
