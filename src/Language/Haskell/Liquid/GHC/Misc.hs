@@ -820,7 +820,7 @@ defaultDataCons (TyConApp tc argτs) ds = do
   allDs     <- TC.tyConDataCons_maybe tc
   let seenDs = [d | DataAlt d <- ds ]
   let defDs  = keyDiff showPpr allDs seenDs 
-  return [ (d, DataCon.dataConExTyVars d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
+  return [ (d, Ghc.dataConExTyVars d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
 
 defaultDataCons _ _ = 
   Nothing

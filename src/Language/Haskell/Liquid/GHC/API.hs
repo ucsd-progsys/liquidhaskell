@@ -30,6 +30,7 @@ module Language.Haskell.Liquid.GHC.API (
   , tyConRealArity
   , isEvVarType
   , isEqPrimPred
+  , dataConExTyVars
 
   ) where 
 
@@ -219,6 +220,9 @@ tyConRealArity tc = go 0 (tyConKind tc)
       case asum [fmap snd (splitFunTy_maybe k), fmap snd (splitForAllTy_maybe k)] of
         Nothing -> acc
         Just ks -> go (acc + 1) ks
+
+dataConExTyVars :: DataCon -> [TyVar]
+dataConExTyVars = dataConExTyCoVars
 
 #endif
 
