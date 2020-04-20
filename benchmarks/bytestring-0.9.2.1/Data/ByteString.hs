@@ -204,27 +204,6 @@ module Data.ByteString (
         hPutStr,                -- :: Handle -> ByteString -> IO ()
         hPutStrLn,              -- :: Handle -> ByteString -> IO ()
 
-        -- Required by LIQUID (8.10.1)
-        memcpy_ptr_baoff,
-        lengths,
-        dummyForQuals1_elemIndex,
-        dummyForQuals2_splitWith,
-        eq,
-        unpackList,
-        liquid_thm_ptr_cmp,
-        liquid_thm_ptr_cmp',
-        unfoldqual,
-        breakByte,
-        spanByte,
-        splitO,
-        intercalateWithByte,
-        filterByte,
-        breakSubstring,
-        zipWith',
-        findIndexOrEnd,
-        errorEmptyList,
-        findFromEndUntil,
-
         -- undocumented deprecated things:
         join                    -- :: ByteString -> [ByteString] -> ByteString
 

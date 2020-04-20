@@ -210,12 +210,9 @@ module Data.ByteString.Char8 (
         hPutStr,                -- :: Handle -> ByteString -> IO ()
         hPutStrLn,              -- :: Handle -> ByteString -> IO ()
 
-        unsafeHead,             -- LIQUID, needs to be exported as it's refined (8.10.1)
-        combine1,               -- LIQUID, needs to be exported as it's refined (8.10.1)
-        combine2,               -- LIQUID, needs to be exported as it's refined (8.10.1)
-
         -- undocumented deprecated things:
-        join                   -- :: ByteString -> [ByteString] -> ByteString
+        join                    -- :: ByteString -> [ByteString] -> ByteString
+
   ) where
 
 import qualified Prelude as P

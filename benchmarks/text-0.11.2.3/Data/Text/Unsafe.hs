@@ -26,8 +26,6 @@ module Data.Text.Unsafe
     , lengthWord16
     , takeWord16
     , dropWord16
-    -- LIQUID (8.10.1)
-    , neg
     ) where
 
 #if defined(ASSERTS)

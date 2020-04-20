@@ -199,18 +199,10 @@ module Data.ByteString.Lazy (
 --      hGetN,                  -- :: Int -> Handle -> Int -> IO ByteString
 --      hGetContentsN,          -- :: Int -> Handle -> IO ByteString
 --      hGetNonBlockingN,       -- :: Int -> Handle -> IO ByteString
-        eq,                     -- LIQUID, needs to be exported as it's refined (8.10.1)
-        cmp,                    -- LIQUID, needs to be exported as it's refined (8.10.1)
-        goInit,                 -- LIQUID, needs to be exported as it's refined (8.10.1)
-        hGetContentsN,          -- LIQUID, needs to be exported as it's refined (8.10.1)
-        hGetN,                  -- LIQUID, needs to be exported as it's refined (8.10.1)
-        hGetNonBlockingN,       -- LIQUID, needs to be exported as it's refined (8.10.1)
-        moduleError,            -- LIQUID, needs to be exported as it's refined (8.10.1)
-        revNonEmptyChunks,      -- LIQUID, needs to be exported as it's refined (8.10.1)
-        revChunks,              -- LIQUID, needs to be exported as it's refined (8.10.1)
 
         -- undocumented deprecated things:
         join                    -- :: ByteString -> [ByteString] -> ByteString
+
   ) where
 
 import Language.Haskell.Liquid.Prelude (unsafeError)
