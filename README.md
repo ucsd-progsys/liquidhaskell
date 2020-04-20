@@ -62,27 +62,7 @@ See [this file](NIX.md) for instructions on running inside a custom `nix`-shell.
 How To Get Editor Support
 -------------------------
 
-To get Liquid Haskell in your editor use the Haskell IDE Engine and activate the liquid plugin. 
-For example, 
-
-- [VS Code](https://code.visualstudio.com/)
-
-    1. Install the [haskell-ide-engine](https://github.com/haskell/haskell-ide-engine)
-    2. Enable Haskell Language Server extension from VS Code. 
-    3. In the VS Code settings search for `liquid` and enable the `Liquid On` extension.
-
-
-
-How To Run Regression Tests
----------------------------
-
-You can run all the tests by
-
-    $ stack test
-
-To pass in specific parameters and run a subset of the tests 
-
-    $ stack test liquidhaskell --fast  --test-arguments "--liquid-opts --no-termination -p Unit"
+To get Liquid st liquidhaskell --fast  --test-arguments "--liquid-opts --no-termination -p Unit"
 
 Or your favorite number of threads, depending on cores etc.
 
@@ -1302,6 +1282,51 @@ LiquidHaskell can prove that this invariant holds, by proving that all List's
 constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell
 assumes that each list element that is created satisfies
 this invariant.
+
+Rewriting
+=========
+
+*Experimental*
+
+You use the `rewriteWith` annotation to indicate equalities that PLE will apply automatically. For example, suppose that you have proven associativity
+of `++` for lists.
+
+``` haskell
+{-@ assoc :: xs:[a] -> ys:[a] -> zs:[a] 
+          -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
+```
+
+Using the `rewriteWith` annotation, PLE will automatically apply the equality for associativity whenever it encounters an expression of the form `xs ++ (ys ++ zs)` or `(xs ++ ys) ++ zs`. For example, you can prove `assoc2` for free.
+
+``` haskell
+{-@ rewriteWith assoc2 assoc @-} 
+{-@ assoc2 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a]
+          -> { xs ++ (ys ++ (zs ++ ws)) == ((xs ++ ys) ++ zs) ++ ws } @-}
+assoc2 :: [a] -> [a] -> [a] -> [a] -> ()
+assoc2 xs ys zs ws = () 
+```
+
+You can also annotate a function as being a rewrite rule by using the `rewrite`
+annotation, in which case PLE will apply it across the entire module.
+
+``` haskell
+{-@ rewrite assoc @-}
+{-@ assoc :: xs:[a] -> ys:[a] -> zs:[a] 
+          -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
+```
+
+
+### Limitations
+
+Currently, rewriting does not work if the equality that uses the rewrite rule
+includes parameters that contain inner refinements:
+https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite5.hs
+
+Rewriting works by pattern-matching expressions to determine if there is a variable substitution that would allow it to match against either side of a rewrite rule. If so, that substitution is applied to the opposite side and the corresponding equality is generated. If one side of the equality contains any parameters that are not bound on the other side, it will not be possible to generate a rewrite in that direction, because those variables cannot be instantiated. Likewise, if there are free variables on both sides of an equality, no rewrite can be generated at all.
+https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite7.hs
+
+Currently it's possible to generate rewrites that get stuck in a loop, causing PLE to not terminate.  https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite8.hs
+
 
 Formal Grammar of Refinement Predicates
 =======================================
