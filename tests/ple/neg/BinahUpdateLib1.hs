@@ -9,7 +9,7 @@
 module BinahUpdateLib where
 
 class PersistEntity record where
-    data EntityField record :: * -> *
+    data EntityField record typ :: *
 
 instance PersistEntity Blob where
     {-@ data EntityField Blob typ where
