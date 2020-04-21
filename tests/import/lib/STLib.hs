@@ -39,6 +39,5 @@ instance Monad (ST s) where
   return x    = S $ \s -> (x, s)
   (S m) >> k  = S $ \s -> let (a, s') = m s in apply k s'
   (S m) >>= k = S $ \s -> let (a, s') = m s in apply (k a) s'
-  fail        = error
 
 

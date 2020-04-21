@@ -29,7 +29,7 @@ mkRTyConApp :: TyCon -> [Type] -> Type
 mkRTyConApp c ts
   | isFunTyCon c
   , [_rep1,_rep2,ty1,ty2] <- tys
-  = FunTy ty1 ty2
+  = FunTy _ ty1 ty2
 
   | otherwise
   = RTyConApp c ts

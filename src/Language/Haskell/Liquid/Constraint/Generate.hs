@@ -35,6 +35,7 @@ import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
 import           CoAxiom
 import           PrelNames
+import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (exprType)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Class                                         (className)
 import           Var
@@ -873,7 +874,7 @@ consE γ  e@(Lam x e1)
        tce     <- tyConEmbed <$> get
        return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton γ tce x e1
     where
-      FunTy τx _ = exprType e
+      FunTy { ft_arg = τx } = exprType e
 
 consE γ e@(Let _ _)
   = cconsFreshE LetE γ e

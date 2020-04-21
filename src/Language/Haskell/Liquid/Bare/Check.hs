@@ -11,7 +11,6 @@ module Language.Haskell.Liquid.Bare.Check
   ) where
 
 import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
-import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
 import           Data.Maybe
@@ -440,7 +439,7 @@ checkTcArity (RTyCon { rtc_tc = tc }) givenArity
   | otherwise
     = Nothing
   where
-    expectedArity = tyConArity tc
+    expectedArity = tyConRealArity tc
 
 
 checkAbstractRefs

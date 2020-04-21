@@ -40,7 +40,7 @@ cabal.project.local
 /.stack-work/
 /.vagrant/
 TAGS
-tags
+tags*
 a.out
 *.json
 js/

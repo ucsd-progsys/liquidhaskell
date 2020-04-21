@@ -63,7 +63,6 @@ instance Monad FIO where
   (FIO g) >>= f = FIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
   (FIO g) >>  f = FIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
   return w      = FIO $ \x -> (w, x)
-  fail          = error
                   
 {-@ openFd :: f:FilePath -> _ -> _ -> _ ->
               FIO <{\w -> HasPriv w File Read (fd f)},{\w1 x w2 -> (w1 == w2)}> {v:Fd | v = fd f} @-}

@@ -127,8 +127,6 @@ instance Monad P where
   (Result x p) >>= k = k x `mplus` (p >>= k)
   (Final r)    >>= k = final [ys' | (x,s) <- r, ys' <- run (k x) s]
 
-  fail _ = Fail
-
 instance MonadPlus P where
   mzero = Fail
 
@@ -175,7 +173,6 @@ instance Functor ReadP where
 
 instance Monad ReadP where
   return x  = R (\k -> k x)
-  fail _    = R (\_ -> Fail)
   R m >>= f = R (\k -> m (\a -> let R m' = f a in m' k))
 
 instance MonadPlus ReadP where

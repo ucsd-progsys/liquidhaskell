@@ -19,10 +19,9 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   ) where
 
 import           Data.ByteString                       (ByteString)
-import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
-import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
 -- import qualified Id 
 import qualified Var
 import qualified TyCon 
@@ -446,7 +445,7 @@ isPolyCst _              = False
 
 isCst :: Type -> Bool
 isCst (ForAllTy _ t) = isCst t
-isCst (FunTy _ _)    = False
+isCst (FunTy _ _ _)    = False
 isCst _              = True
 
 
@@ -507,10 +506,10 @@ mkLit (LitNumber _ n _) = mkI n
 -- mkLit (MachWord   n)    = mkI n
 -- mkLit (MachWord64 n)    = mkI n
 -- mkLit (LitInteger n _)  = mkI n
-mkLit (MachFloat  n)    = mkR n
-mkLit (MachDouble n)    = mkR n
-mkLit (MachStr    s)    = mkS s
-mkLit (MachChar   c)    = mkC c 
+mkLit (LitFloat  n)    = mkR n
+mkLit (LitDouble n)    = mkR n
+mkLit (LitString    s)    = mkS s
+mkLit (LitChar   c)    = mkC c 
 mkLit _                 = Nothing -- ELit sym sort
 
 mkI :: Integer -> Maybe Expr

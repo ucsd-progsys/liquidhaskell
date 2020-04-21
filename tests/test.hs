@@ -138,7 +138,7 @@ newtype LiquidRunner = LiquidRunner String
   deriving (Show, Read, Eq, Ord, Typeable, IsString, Semigroup, Monoid)
 
 instance IsOption LiquidRunner where
-  defaultValue = LiquidRunner "stack exec -- liquid"
+  defaultValue = LiquidRunner "stack --silent exec -- liquid"
   parseValue = Just . LiquidRunner
   optionName = return "liquid-runner"
   optionHelp = return "Specifies the full path or command which will run 'liquid'."

@@ -232,8 +232,7 @@ module Language.Haskell.Liquid.Types.Types (
   )
   where
 
--- import qualified ConLike                                as Ghc
--- import           InstEnv
+import           Language.Haskell.Liquid.GHC.API hiding (Expr, Target, isFunTy, LM)
 import           Class
 import           CoreSyn                                (CoreExpr)
 import           Data.String
@@ -241,14 +240,12 @@ import           DataCon
 import           GHC                                    (ModuleName, moduleNameString)
 import           GHC.Generics
 import           Module                                 (moduleNameFS)
--- import           NameSet
 import           PrelInfo                               (isNumericClass)
 import           Prelude                          hiding  (error)
 import qualified Prelude
 import           SrcLoc                                 (SrcSpan)
 import           TyCon
-import           Type                                   (getClassPredTys_maybe)
-import           Language.Haskell.Liquid.GHC.TypeRep    hiding  (maybeParen)
+import           Language.Haskell.Liquid.GHC.TypeRep
 import           TysPrim                                (eqReprPrimTyCon, eqPrimTyCon)
 import           TysWiredIn                             (listTyCon, boolTyCon)
 import           Var
@@ -256,7 +253,6 @@ import           Var
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
 import           Control.DeepSeq
 import           Data.Bifunctor
---import           Data.Bifunctor.TH
 import           Data.Typeable                          (Typeable)
 import           Data.Generics                          (Data)
 import qualified Data.Binary                            as B
