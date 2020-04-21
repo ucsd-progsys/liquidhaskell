@@ -5,7 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
-      - run: apt-get update && apt-get install -y git ssh
+      - run: apt-get update && apt-get install -y git ssh unzip
       - run: 
           name: Install z3 
           command: |
@@ -116,7 +116,7 @@ jobs:
 
   cabal_810:
     docker:
-      - image: adinapoli/ghc:8.10.1-slim
+      - image: phadej/ghc:8.10.1-bionic-slim
     steps:
       - cabal_build_and_test
 
