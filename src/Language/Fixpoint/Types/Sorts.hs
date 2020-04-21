@@ -83,7 +83,10 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
 
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
+#endif
+
 import           Data.Hashable
 import           Data.List                 (foldl')
 import           Control.DeepSeq

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE BangPatterns              #-}
 {-# LANGUAGE FlexibleInstances         #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
@@ -78,7 +79,10 @@ import           Control.Exception
 import           Data.Char
 import qualified Data.HashMap.Strict      as M
 import           Data.Maybe              (fromMaybe)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup          (Semigroup (..))
+#endif
+
 import qualified Data.Text                as T
 import           Data.Text.Format
 import qualified Data.Text.IO             as TIO

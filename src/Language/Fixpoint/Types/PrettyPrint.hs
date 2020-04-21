@@ -13,7 +13,10 @@ import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Language.Fixpoint.Misc
 import           Data.Hashable
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup (Semigroup (..))
+#endif
+
 import qualified Data.Text as T
 
 traceFix     ::  (Fixpoint a) => String -> a -> a
