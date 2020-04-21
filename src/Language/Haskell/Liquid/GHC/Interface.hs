@@ -449,9 +449,23 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
 ---------------------------------------------------------------------------------------
 
+{- | [NOTE:ghc810]
+Something changed in the GHC bowels such that the 'hscTarget' that the 'ModSummary' was inheriting
+was /not/ the one we were setting in 'configureDynFlags'. This is important, because if the 'hscTarget'
+is not 'HscInterpreted' or 'HscNothing', the call to 'targetRetainsAllBindings' will yield 'False'. This
+function is used internally by GHC to do dead-code-elimination and to mark functions as "exported" or not.
+Therefore, the 'CoreBind's passed to LiquidHaskell would be different between GHC 8.6.5 and GHC 8.10.
+-}
+
 makeGhcSrc :: Config -> FilePath -> TypecheckedModule -> ModSummary -> Ghc GhcSrc 
-makeGhcSrc cfg file typechecked modSum = do
-  desugared         <- desugarModule  typechecked
+makeGhcSrc cfg file typechecked originalModSum = do
+  -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
+  dynFlags          <- getSessionDynFlags
+  let modSum         = originalModSum { ms_hspp_opts = dynFlags }
+  let parsedMod'     = (tm_parsed_module typechecked) { pm_mod_summary = modSum }
+  let typechecked'   = typechecked { tm_parsed_module = parsedMod' }
+  desugared         <- desugarModule  typechecked'
+
   let modGuts        = makeMGIModGuts desugared   
   let modGuts'       = dm_core_module desugared
   hscEnv            <- getSession
