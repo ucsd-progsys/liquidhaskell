@@ -141,5 +141,3 @@ workflows:
     jobs:
       - stack_865
       - stack_810
-      - cabal_865
-      - cabal_810
