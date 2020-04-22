@@ -791,7 +791,7 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
 autoRewriteP :: Parser AutoRewrite
 autoRewriteP = do
-  args       <- sepBy (refP (reserved "_" >> return id)) spaces
+  args       <- sepBy sortedReftP spaces
   _          <- spaces
   _          <- reserved "="
   _          <- spaces

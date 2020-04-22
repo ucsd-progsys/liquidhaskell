@@ -427,8 +427,8 @@ getRewrite γ env expr (AutoRewrite args lhs rhs) =
       valid <- MaybeT $ Just <$> isValid γ e
       guard valid
 
-    freeVars = [s | (Reft (s, _)) <- args ]
-    exprs    = [e | (Reft (_, e)) <- args ]
+    freeVars = [s | RR _ (Reft (s, _)) <- args ]
+    exprs    = [e | RR _ (Reft (_, e)) <- args ]
 
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr

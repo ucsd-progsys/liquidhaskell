@@ -19,7 +19,7 @@ define concat3Right (as : List, bs : List, cs : List) : List = {
   concat as (concat bs cs)
 }
 
-autorewrite 1 {as : _ | true} {bs : _ | true} {cs : _ | true} = { concat (concat as bs) cs = concat as (concat bs cs) }
+autorewrite 1 {as : List | true} {bs : List | true} {cs : List | true} = { concat (concat as bs) cs = concat as (concat bs cs) }
 
 constant concat       : (func(0, [List;List;List]))
 constant concat3Left  : (func(0, [List; List; List; List]))
