@@ -284,6 +284,14 @@ makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec 
   , Ms.reflects  = Ms.reflects mySpec
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
+  , Ms.embeds    = Ms.embeds mySpec
+  -- We do want 'embeds' to survive and to be present into the final 'LiftedSpec'. The
+  -- caveat is to decide which format is more appropriate. We obviously cannot store
+  -- them as a 'TCEmb TyCon' as serialising a 'TyCon' would be fairly exponsive. This
+  -- needs more thinking.
+  , Ms.cmeasures = Ms.cmeasures mySpec
+  -- We do want 'cmeasures' to survive and to be present into the final 'LiftedSpec'. The
+  -- caveat is to decide which format is more appropriate. This needs more thinking.
   }
   where 
     tcs          = uniqNub (_gsTcs src ++ refTcs)

@@ -108,7 +108,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -195,7 +195,7 @@ parseHook _ modSummary parsedModule = do
 
   liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
 
-  debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
+  --debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
 
   -- Resolve names and imports
   env <- askHscEnv
@@ -210,7 +210,7 @@ parseHook _ modSummary parsedModule = do
   let thisModule = ms_mod modSummary
   let stableData = mkTcData typechecked resolvedNames availTyCons availVars
 
-  debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
+  --debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -445,8 +445,8 @@ processModule LiquidHaskellContext{..} = do
   forM_ (HM.keys . getDependencies $ dependencies) $ 
     debugLog . moduleStableString . unStableModule
 
-  debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
-  debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
+  --debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
+  --debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
 

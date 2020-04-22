@@ -12,14 +12,6 @@ embed GHC.Types.Char    as Char
 
 embed GHC.Integer.Type.Integer as int
 
-// Prim types
-embed GHC.Prim.Int#     as int
-embed GHC.Prim.Addr#    as Str
-embed GHC.Prim.Char#    as Char
-embed GHC.Prim.Double#  as real
-embed GHC.Prim.Float#   as real
-embed GHC.Prim.Word#    as int
-
 GHC.Types.True  :: {v:GHC.Types.Bool | v     }
 GHC.Types.False :: {v:GHC.Types.Bool | (~ v) }
 
@@ -36,13 +28,5 @@ type BNat N  = {v: Nat           | v <= N }
 type TT      = {v: GHC.Types.Bool | v}
 type FF      = {v: GHC.Types.Bool | not v}
 type String  = [GHC.Types.Char]
-
-assume GHC.Prim.+#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x + y}
-assume GHC.Prim.-#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v: GHC.Prim.Int# | v = x - y}
-assume GHC.Prim.==# :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | v = 1 <=> x = y}
-assume GHC.Prim.>=# :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | v = 1 <=> x >= y}
-assume GHC.Prim.<=# :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | v = 1 <=> x <= y}
-assume GHC.Prim.<#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | v = 1 <=> x < y}
-assume GHC.Prim.>#  :: x:GHC.Prim.Int# -> y:GHC.Prim.Int# -> {v:GHC.Prim.Int# | v = 1 <=> x > y}
 
 class measure len :: forall f a. f a -> GHC.Types.Int
