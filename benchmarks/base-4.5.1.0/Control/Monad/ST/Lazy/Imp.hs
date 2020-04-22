@@ -84,7 +84,6 @@ instance Monad (ST s) where
 
         return a = ST $ \ s -> (a,s)
         m >> k   =  m >>= \ _ -> k
-        fail s   = error s
 
         (ST m) >>= k
          = ST $ \ s ->

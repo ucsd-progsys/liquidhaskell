@@ -25,9 +25,8 @@ module Language.Haskell.Liquid.Transforms.Rewrite
   ) where
 
 import           CoreSyn
-import           Type
+import           Language.Haskell.Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           TyCon
 import qualified CoreUtils
 import qualified Var
 import qualified MkCore

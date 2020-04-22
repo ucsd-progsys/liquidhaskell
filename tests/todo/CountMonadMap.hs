@@ -29,7 +29,6 @@ instance Monad Count where
   return x        = let r = Count x in assertCount 0 (Count x)
   (Count x) >>= f = let r = f x in assertCount (getCount (Count x) + getCount r) r
   x >> y = assertCount (getCount x + getCount y) y
-  fail          = error
 
 
 {-@ assume assertCount :: i:Int -> x:Count a -> {v:Count a | v == x && count v == i } @-}

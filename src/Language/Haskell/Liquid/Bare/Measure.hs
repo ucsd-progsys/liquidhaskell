@@ -79,8 +79,8 @@ makeUnSorted t defs
     ta = go $ Ghc.expandTypeSynonyms t
 
     go (Ghc.ForAllTy _ t) = go t 
-    go (Ghc.FunTy p t) | Ghc.isClassPred p = go t 
-    go (Ghc.FunTy t _)    = t 
+    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | Ghc.isClassPred p = go t 
+    go (Ghc.FunTy { Ghc.ft_arg = t }) = t 
     go t                  = t -- this should never happen!
 
     isMeasureType (Ghc.TyConApp _ ts) = all Ghc.isTyVarTy ts
@@ -294,8 +294,8 @@ bkDataCon dc nFlds  = (as, ts, (F.dummySymbol, t, mempty))
     ts                = RT.ofType <$> Misc.takeLast nFlds _ts
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
-    as                = makeRTVar . RT.rTyVar <$> αs
-    ((αs,_,_,_,_ts,_t), _t0) = hammer dc
+    as                = makeRTVar . RT.rTyVar <$> (αs ++ αs')
+    ((αs,αs',_,_,_ts,_t), _t0) = hammer dc
     tArgs'            = take (nArgs - nVars) tArgs ++ (Ghc.mkTyVarTy <$> αs)
     nVars             = length αs
     nArgs             = length tArgs

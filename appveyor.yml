@@ -32,7 +32,7 @@ install:
 
 build_script:
 # Build LiquidHaskell
-- echo "" | stack --no-terminal build --copy-bins --local-bin-path .
+- echo "" | stack --no-terminal build --ghc-options="-fexternal-interpreter" --copy-bins --local-bin-path .
 
 # Copy runtime DLLs
 - call appveyor-copy.bat

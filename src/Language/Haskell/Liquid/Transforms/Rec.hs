@@ -23,6 +23,7 @@ import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
 import           Id
 import           IdInfo
+import           Language.Haskell.Liquid.GHC.API      hiding (exprType)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
@@ -30,13 +31,8 @@ import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
 import           Name                                 (isSystemName)
--- import           Outputable                           (SDoc)
 import           Prelude                              hiding (error)
-import           SrcLoc
 import           Type                                 (mkForAllTys, splitForAllTys)
-import           TyCoRep
-import           Unique                               hiding (deriveUnique)
-import           Var
 
 -- import qualified Data.List                            (foldl', isInfixOf)
 
@@ -223,11 +219,11 @@ mkFreshIds :: [TyVar]
 mkFreshIds tvs ids x
   = do ids'  <- mapM fresh ids
        let ids'' = map setIdTRecBound ids'
-       let t  = mkForAllTys ((`TvBndr` Required) <$> tvs) $ mkType (reverse ids'') $ varType x
+       let t  = mkForAllTys ((`Bndr` Required) <$> tvs) $ mkType (reverse ids'') $ varType x
        let x' = setVarType x t
        return (ids'', x')
   where
-    mkType ids ty = foldl (\t x -> FunTy (varType x) t) ty ids
+    mkType ids ty = foldl (\t x -> FunTy VisArg (varType x) t) ty ids -- FIXME(adinapoli): Is 'VisArg' OK here?
 
 -- NOTE [Don't choose transform-rec binders as decreasing params]
 -- --------------------------------------------------------------

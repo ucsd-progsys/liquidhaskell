@@ -1,13 +1,11 @@
 ---
 version: 2.1
 
-jobs:
-  build:
-    docker:
-      - image: fpco/stack-build:lts-15.4
+commands:
+  setup_project:
+    description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
-      - run: apt-get update && apt-get install -y git ssh
-      
+      - run: apt-get update && apt-get install -y git ssh unzip
       - run: 
           name: Install z3 
           command: |
@@ -22,38 +20,124 @@ jobs:
 
       - checkout
       - add_ssh_keys
-      #- run: find .git
-      #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
       - run: git submodule sync
       - run: git submodule update --init
+
+  cabal_build_and_test:
+    description: "Build the project and run the tests"
+    parameters:
+      liquid_runner:
+        type: string
+        default: "--liquid-runner=cabal v2-run liquid -- "
+      ghc_options:
+        type: string
+        default: "--ghc-options=\"+RTS -M2G -RTS\""
+    steps:
+      - setup_project
       - restore_cache:
           keys:
-            - stack-{{ checksum "stack.yaml" }}
+            - cabal-{{ checksum "liquidhaskell.cabal" }}
       - run:
           name: Dependencies
           command: |
-            stack setup
-            # rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-            stack build liquidhaskell --only-dependencies --test --no-run-tests
+            cabal v2-update
+            cabal v2-build -j1 all
       - save_cache:
-          key: stack-{{ checksum "stack.yaml" }}
+          key: cabal-{{ checksum "liquidhaskell.cabal" }}
+          paths:
+            - ~/.cabal/store
+            - ./dist-newstyle
+      - run:
+          name: Setup Test
+          command: |
+            mkdir -p /tmp/junit/cabal
+            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
+            find include -type f -name '*.hs' | grep -v Old | grep -v Example | grep -v RTick | xargs cabal v2-run liquid -- --compile-spec
+      - run:
+          name: Test
+          command: |
+            cabal v2-test -j1 liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+      - store_test_results:
+          path: /tmp/junit/cabal
+      - store_artifacts:
+          path: tests/logs/cur
+
+  stack_build_and_test:
+    description: "Build and test the project using Stack"
+    parameters:
+      stack_yaml_file:
+        type: string
+        default: "stack.yaml"
+      liquid_runner:
+        type: string
+        default: "stack --silent exec -- liquid"
+    steps:
+      - setup_project
+      - restore_cache:
+          keys:
+            - stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
+      - run:
+          name: Dependencies
+          command: |
+            stack --stack-yaml << parameters.stack_yaml_file >> setup
+            # rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
+            stack --stack-yaml << parameters.stack_yaml_file >> build liquidhaskell --only-dependencies --test --no-run-tests
+      - save_cache:
+          key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
           paths:
             - ~/.stack
             - ./.stack-work
       - run:
           name: Test
           command: |
-            stack clean
-            mkdir -p /tmp/junit
-            stack test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --test-arguments="-t 1200s --xml=/tmp/junit/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack test -j1 liquidhaskell:liquidhaskell-parser --test-arguments="--xml=/tmp/junit/parser-test-results.xml":
-            stack sdist
+            stack --stack-yaml << parameters.stack_yaml_file >> clean
+            mkdir -p /tmp/junit/stack
+            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
+            stack --stack-yaml << parameters.stack_yaml_file >> sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
-            stack haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
+            stack --stack-yaml << parameters.stack_yaml_file >> haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
       - store_test_results:
-          path: /tmp/junit
+          path: /tmp/junit/stack
       - store_artifacts:
           path: tests/logs/cur
       - run:
           name: Dist
-          command: stack sdist
+          command: stack --stack-yaml << parameters.stack_yaml_file >> sdist
+
+jobs:
+
+  cabal_865:
+    docker:
+      - image: phadej/ghc:8.6.5-bionic-slim
+    steps:
+      - cabal_build_and_test
+
+  cabal_810:
+    docker:
+      - image: phadej/ghc:8.10.1-bionic-slim
+    steps:
+      - cabal_build_and_test
+
+  stack_865:
+    docker:
+      - image: fpco/stack-build:lts-15.4
+    steps:
+        - stack_build_and_test:
+            stack_yaml_file: "stack-8.6.5.yaml"
+            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
+
+  stack_810:
+    docker:
+      - image: fpco/stack-build:lts-15.4
+    steps:
+        - stack_build_and_test:
+            stack_yaml_file: "stack.yaml"
+
+workflows:
+  version: 2
+  build_stack_and_cabal:
+    jobs:
+      - stack_865
+      - stack_810

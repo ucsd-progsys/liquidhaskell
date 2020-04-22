@@ -27,8 +27,6 @@ import           GHC                                    hiding (Located)
 import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 
-import           Type
-import           Var
 -- import           Data.Binary                            as B
 -- import           GHC.Generics
 import qualified Data.HashMap.Strict                    as M
@@ -37,6 +35,7 @@ import qualified Data.Maybe                             as Mb -- (fromMaybe, isN
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))
@@ -92,7 +91,7 @@ makeDataConType :: [Def (RRType Reft) DataCon] -> [(Var, RRType Reft)]
 makeDataConType []
   = []
 makeDataConType ds | Mb.isNothing (dataConWrapId_maybe dc)
-  = notracepp _msg [(woId, {- notracepp _msg $ -} combineDCTypes "cdc0" t ts)]
+  = notracepp _msg [(woId, notracepp _msg $ combineDCTypes "cdc0" t ts)]
   where
     dc   = ctor (head ds)
     woId = dataConWorkId dc
@@ -187,8 +186,7 @@ defRefType :: Type -> Def (RRType Reft) DataCon -> RRType Reft
 defRefType tdc (Def f dc mt xs body)
                     = generalize $ mkArrow as' [] [] xts t'
   where
-    xts             = notracepp ("STITCHARGS" ++ showpp (dc, xs, ts)) 
-                    $ stitchArgs (fSrcSpan f) dc xs ts 
+    xts             = stitchArgs (fSrcSpan f) dc xs ts 
     t'              = refineWithCtorBody dc f body t
     t               = Mb.fromMaybe (ofType tr) mt
     (αs, ts, tr)    = splitType tdc
@@ -212,18 +210,18 @@ stitchArgs sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ isPredTy t) allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ Ghc.isEvVarType t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
       g (x, Just t) _  = (x, t, mempty)
       g (x, _)      t  = (x, t, mempty)
       coArg Nothing    = False
-      coArg (Just t)   = isPredTy . toType $ t
+      coArg (Just t)   = Ghc.isEvVarType . toType $ t
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2
-panicFieldNumMismatch sp dc nXs nTs = panicDataCon sp dc msg
+panicFieldNumMismatch sp dc nXs nTs  = panicDataCon sp dc msg
   where
     msg = "Requires" <+> pprint nTs <+> "fields but given" <+> pprint nXs
 

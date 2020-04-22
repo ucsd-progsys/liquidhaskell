@@ -33,10 +33,7 @@ import           Prelude                         hiding (error)
 import           DataCon
 import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
--- import qualified TyCon                           as TC
--- import qualified Var
-import           Type
-import           Var
+import           Language.Haskell.Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
@@ -89,7 +86,7 @@ mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
 -------------------------------------------------------------------------------
 dataConPSpecType :: DataConP -> [(Var, SpecType)]
 -------------------------------------------------------------------------------
-dataConPSpecType dcp    = F.notracepp "dataConPSpecType" [ (workX, workT), (wrapX, wrapT) ]
+dataConPSpecType dcp    = [(workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT
@@ -151,7 +148,7 @@ meetWorkWrapRep :: DataCon -> SpecRep -> SpecRep -> SpecRep
 meetWorkWrapRep c workR wrapR
   | 0 <= pad
   = workR { ty_binds = xs ++ (ty_binds wrapR)
-          , ty_args  = ts ++ zipWith strengthenRType ts' (ty_args wrapR)
+          , ty_args  = ts ++ zipWith F.meet ts' (ty_args wrapR) 
           , ty_res   = strengthenRType (ty_res workR)    (ty_res  wrapR)
           , ty_preds = ty_preds wrapR
           }
@@ -223,9 +220,9 @@ dataConTy :: Monoid r
           -> Type -> RType RTyCon RTyVar r
 dataConTy m (TyVarTy v)
   = M.lookupDefault (rVar v) (RTV v) m
-dataConTy m (FunTy t1 t2)
+dataConTy m (FunTy _ t1 t2)
   = rFun F.dummySymbol (dataConTy m t1) (dataConTy m t2)
-dataConTy m (ForAllTy (TvBndr α _) t) -- α :: TyVar
+dataConTy m (ForAllTy (Bndr α _) t) -- α :: TyVar
   = RAllT (makeRTVar (RTV α)) (dataConTy m t) mempty
 dataConTy m (TyConApp c ts)
   = rApp c (dataConTy m <$> ts) [] mempty

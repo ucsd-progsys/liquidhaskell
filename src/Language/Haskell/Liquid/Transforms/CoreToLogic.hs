@@ -19,10 +19,9 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
   ) where
 
 import           Data.ByteString                       (ByteString)
-import           GHC                                   hiding (Located, exprType)
 import           Prelude                               hiding (error)
-import           Type
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
 -- import qualified Id 
 import qualified Var
 import qualified TyCon 
@@ -184,10 +183,11 @@ coreAltToDef x z zs y t alts
 
     -- mkAlt :: LocSymbol -> (Expr -> Body) -> [Var] -> Var -> (C.AltCon, [Var], C.CoreExpr)
     mkAlt x ctor _args dx (C.DataAlt d, xs, e)
-      = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs) 
+      = Def x {- (toArgs id args) -} d (Just $ varRType dx) (toArgs Just xs') 
       . ctor 
-      . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs))) 
+      . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs'))) 
      <$> coreToLg e
+      where xs' = filter (not . GM.isEvVar) xs
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
 
@@ -195,7 +195,7 @@ coreAltToDef x z zs y t alts
       eDef   <- ctor <$> coreToLg e
       -- let ys  = toArgs id args
       let dxt = Just (varRType dx)
-      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, ts) <- dtss ]
+      return  [ Def x {- ys -} d dxt (defArgs x ts) eDef | (d, _, ts) <- dtss ]
     
     mkDef _ _ _ _ _ _ = 
       return [] 
@@ -345,7 +345,7 @@ altToLg :: Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
 altToLg de (a@(C.DataAlt d), xs, e) = do 
   p  <- coreToLg e
   dm <- gets lsDCMap
-  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip xs [1..]]
+  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip (filter (not . GM.isEvVar) xs) [1..]]
   return (a, subst su p)
 
 altToLg _ (a, _, e)
@@ -445,7 +445,7 @@ isPolyCst _              = False
 
 isCst :: Type -> Bool
 isCst (ForAllTy _ t) = isCst t
-isCst (FunTy _ _)    = False
+isCst (FunTy _ _ _)    = False
 isCst _              = True
 
 
@@ -506,10 +506,10 @@ mkLit (LitNumber _ n _) = mkI n
 -- mkLit (MachWord   n)    = mkI n
 -- mkLit (MachWord64 n)    = mkI n
 -- mkLit (LitInteger n _)  = mkI n
-mkLit (MachFloat  n)    = mkR n
-mkLit (MachDouble n)    = mkR n
-mkLit (MachStr    s)    = mkS s
-mkLit (MachChar   c)    = mkC c 
+mkLit (LitFloat  n)    = mkR n
+mkLit (LitDouble n)    = mkR n
+mkLit (LitString    s)    = mkS s
+mkLit (LitChar   c)    = mkC c 
 mkLit _                 = Nothing -- ELit sym sort
 
 mkI :: Integer -> Maybe Expr
