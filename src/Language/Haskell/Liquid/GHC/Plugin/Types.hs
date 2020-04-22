@@ -88,9 +88,8 @@ import           Data.Hashable
 import qualified Data.Text.Lazy                          as TL
 
 import           Language.Fixpoint.Types.Spans
-import           Language.Haskell.Liquid.Types.Types hiding (BareSpec(..), Spec(..))
-import           Language.Haskell.Liquid.Types.SpecDesign
-import           Language.Haskell.Liquid.Types.Specs      ( QImports )
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Specs
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
 

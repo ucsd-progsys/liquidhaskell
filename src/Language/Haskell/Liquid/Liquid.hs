@@ -55,10 +55,6 @@ import qualified Language.Haskell.Liquid.GHC.Misc          as GM
 
 import           Language.Haskell.Liquid.Types
 
-import           Language.Haskell.Liquid.Types hiding (GhcInfo(..), GhcSpec(..), GhcSrc(..), isExportedVar)
-import           Language.Haskell.Liquid.Types.SpecDesign
-
-type MbEnv = Maybe HscEnv
 
 type MbEnv = Maybe HscEnv
 

@@ -83,13 +83,8 @@ import           Language.Haskell.Liquid.GHC.Misc
 import qualified Language.Haskell.Liquid.Measure         as Ms
 import           Language.Haskell.Liquid.Parse
 import           Language.Haskell.Liquid.Transforms.ANF
-import           Language.Haskell.Liquid.Types     hiding ( GhcSpec(..)
-                                                          , GhcSrc(..)
-                                                          , GhcInfo(..)
-                                                          , getConfig
-                                                          , BareSpec
-                                                          )
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types     hiding ( getConfig )
+import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.UX.CmdLine
 
 import           Optics
@@ -301,7 +296,7 @@ liquidHaskellPass cfg modGuts = do
     Just tcData -> do
 
       debugLog $ "Relevant ===> \n" ++ 
-        (unlines $ map debugShowModule $ (S.toList $ relevantModules modGuts))
+        (unlines $ map renderModule $ (S.toList $ relevantModules modGuts))
 
       logicMap <- liftIO $ LH.makeLogicMap
 
@@ -347,17 +342,17 @@ loadDependencies config eps hpt thisModule mods = do
   where
     processResult :: TargetDependencies -> SpecFinderResult -> m TargetDependencies
     processResult !acc (SpecNotFound mdl) = do
-      debugLog $ "[T:" ++ debugShowModule thisModule
-              ++ "] Spec not found for " ++ debugShowModule mdl
+      debugLog $ "[T:" ++ renderModule thisModule
+              ++ "] Spec not found for " ++ renderModule mdl
       pure acc
     processResult _ (SpecFound originalModule location _) = do
       dynFlags <- getDynFlags
       debugLog $ "[T:" ++ show (moduleName thisModule) 
-              ++ "] Spec found for " ++ debugShowModule originalModule ++ ", at location " ++ show location
+              ++ "] Spec found for " ++ renderModule originalModule ++ ", at location " ++ show location
       Util.pluginAbort dynFlags (O.text "A BareSpec was returned as a dependency, this is not allowed, in " O.<+> O.ppr thisModule)
     processResult !acc (LibFound originalModule location lib) = do
       debugLog $ "[T:" ++ show (moduleName thisModule) 
-              ++ "] Lib found for " ++ debugShowModule originalModule ++ ", at location " ++ show location
+              ++ "] Lib found for " ++ renderModule originalModule ++ ", at location " ++ show location
       pure $ TargetDependencies {
           getDependencies = HM.insert (toStableModule originalModule) (libTarget lib) (getDependencies $ acc <> libDeps lib)
         }
@@ -419,13 +414,13 @@ getLiquidSpec thisModule specComments specQuotes = do
   res <- SpecFinder.findCompanionSpec thisModule
   case res of
     SpecFound _ _ companionSpec -> do
-      debugLog $ "Companion spec found for " ++ debugShowModule thisModule
+      debugLog $ "Companion spec found for " ++ renderModule thisModule
       pure $ commSpec <> companionSpec
     _ -> pure commSpec
 
 processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
-  debugLog ("Module ==> " ++ debugShowModule thisModule)
+  debugLog ("Module ==> " ++ renderModule thisModule)
   hscEnv              <- askHscEnv
 
   let bareSpec        = lhInputSpec

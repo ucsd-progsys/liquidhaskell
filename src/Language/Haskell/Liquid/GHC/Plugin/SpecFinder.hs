@@ -16,8 +16,8 @@ import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcM
                                                                           )
 import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseLiquidLib )
 import           Language.Haskell.Liquid.GHC.Plugin.Types
-import           Language.Haskell.Liquid.Types.Types (Config)
-import           Language.Haskell.Liquid.Types.SpecDesign
+import           Language.Haskell.Liquid.Types.Types
+import           Language.Haskell.Liquid.Types.Specs     hiding (Spec)
 import           Language.Haskell.Liquid.GHC.Interface
 import qualified Language.Haskell.Liquid.Misc            as Misc
 import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
