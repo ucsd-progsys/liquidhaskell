@@ -2,7 +2,7 @@
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
   , fixConfig
-  , makeRewriteOne
+  , canInstantiateRewrite
   ) where
 
 import           Prelude hiding (error)
@@ -99,8 +99,9 @@ makeAxiomEnvironment info xts fcs
 
 
 makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
-makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fst) sigs
+makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
   where
+    tce        = gsTcEmbeds (gsName spec)
     spec       = giSpec info
     sig        = gsSig spec
     sigs       = gsTySigs sig ++ gsAsmSigs sig
@@ -123,8 +124,29 @@ makeRewrites info sub = concatMap makeRewriteOne $ filter ((`S.member` rws) . fs
       return $ S.fromList usable
     globalRws  = S.map val $ gsRewrites $ gsRefl spec
 
-makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
-makeRewriteOne (_,t)
+canInstantiateRewrite :: (Var,LocSpecType) -> Bool
+canInstantiateRewrite (_, t)
+  | Just r <- stripRTypeBase tres
+  = not $ null $  [ () | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r)
+                  , canSubst lhs rhs || canSubst rhs lhs ]
+  | otherwise
+  = False
+  where
+
+    canSubst fromE toE =
+      let
+        fromSyms = S.intersection freeVars (S.fromList $ F.syms fromE)
+        toSyms   = S.intersection freeVars (S.fromList $ F.syms toE)
+      in
+        S.null $ S.difference toSyms fromSyms
+ 
+    freeVars = S.fromList (ty_binds tRep)
+
+    tres = ty_res tRep
+    tRep = toRTypeRep $ val t 
+
+makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne tce (_,t)
   | Just r <- stripRTypeBase tres
   = [rw |  F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r)
         , rw <- rewrites lhs rhs ]
@@ -144,14 +166,12 @@ makeRewriteOne (_,t)
       in
         S.null $ S.difference toSyms fromSyms
  
-    preds = map (maybe F.PTrue (F.reftPred . F.toReft)) refts
-    refts = map stripRTypeBase (ty_args tRep)
-
     freeVars = S.fromList (ty_binds tRep)
 
     xs = do
-      (sym, e) <- zip (ty_binds tRep) preds
-      return $ F.Reft (sym, e)
+      (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
+      let e = maybe F.PTrue (F.reftPred . F.toReft) (stripRTypeBase arg)
+      return $ F.RR (rTypeSort tce arg) (F.Reft (sym, e))
        
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 

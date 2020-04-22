@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.Bare.Check
   , checkBareSpec
   ) where
 
-import           Language.Haskell.Liquid.Constraint.ToFixpoint (makeRewriteOne)
+import           Language.Haskell.Liquid.Constraint.ToFixpoint (canInstantiateRewrite)
 import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
 import           Language.Haskell.Liquid.GHC.TypeRep (Type(TyConApp, TyVarTy))
 import           Control.Applicative                       ((<|>))
@@ -592,7 +592,7 @@ getRewriteErrors (rw, t)
                 "Unable to use "
                 ++ show rw
                 ++ " as a rewrite because it does not prove an equality, or the equality it proves is trivial." ]
-  | null (makeRewriteOne (rw,t))
+  | not $ canInstantiateRewrite (rw, t)
   = [ErrRewrite (GM.fSrcSpan t) $
      text $ "Could not generate any rewrites from equality. Likely cause: "
      ++ "there are free (uninstantiatable) variables on both sides of the "
