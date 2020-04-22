@@ -35,9 +35,10 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
+import           System.FilePath                            (dropExtension)
 import           System.Directory                           (doesFileExist)
 import           System.Console.CmdArgs.Verbosity           (whenLoud)
-import           Language.Fixpoint.Utils.Files             
+import           Language.Fixpoint.Utils.Files              as Files
 import           Language.Fixpoint.Misc                     as Misc 
 import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
@@ -1000,8 +1001,20 @@ isExported info v = n `Ghc.elemNameSet` ns
     n                = Ghc.getName v
     ns               = _gsExports info
 
+-- | Returns 'True' if the input determines a location within the input file. Due to the fact we might have
+-- Haskell sources which have \"companion\" specs defined alongside them, we also need to account for this
+-- case, by stripping out the extensions and check that the LHS is a Haskell source and the RHS a spec file.
 isLocInFile :: (F.Loc a) => FilePath -> a ->  Bool 
-isLocInFile f lx = f == (locFile lx) 
+isLocInFile f lx = f == lifted || isCompanion
+  where
+    lifted :: FilePath
+    lifted = locFile lx
+
+    isCompanion :: Bool
+    isCompanion =
+      (==) (dropExtension f) (dropExtension lifted)
+       &&  isExtFile Hs f
+       &&  isExtFile Files.Spec lifted
 
 locFile :: (F.Loc a) => a -> FilePath 
 locFile = Misc.fst3 . F.sourcePosElts . F.sp_start . F.srcSpan
