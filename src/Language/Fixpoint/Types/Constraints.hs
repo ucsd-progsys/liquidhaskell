@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveDataTypeable         #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
@@ -85,7 +86,10 @@ module Language.Fixpoint.Types.Constraints (
 
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
+#endif
+
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)

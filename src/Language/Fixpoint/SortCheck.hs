@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE Strict                #-}
 {-# LANGUAGE StrictData            #-}
 {-# LANGUAGE FlexibleContexts      #-}
@@ -65,7 +66,10 @@ import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
 import           Data.Maybe                (mapMaybe, fromMaybe, catMaybes, isJust)
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
+#endif
+
 
 import           Language.Fixpoint.Types.PrettyPrint
 import           Language.Fixpoint.Misc

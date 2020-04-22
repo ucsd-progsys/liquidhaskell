@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE ConstraintKinds   #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -38,7 +39,10 @@ import qualified Data.HashMap.Strict                  as M
 -- import           Data.Function (on)
 import           Data.Maybe                     (fromMaybe)
 import           Data.Hashable
+#if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup                 (Semigroup (..))
+#endif
+
 import           Text.PrettyPrint.HughesPJ.Compat
 import           Data.List (sortBy)
 -- import qualified Data.HashSet              as S
