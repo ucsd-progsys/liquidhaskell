@@ -35,5 +35,3 @@ allow-newer:
   ghc-prim,
   template-haskell,
   time
-
-with-compiler: ghc-8.10.1
