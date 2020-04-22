@@ -413,12 +413,12 @@ unify freeVars template seenExpr = case (template, seenExpr) of
 
 getRewrite :: Knowledge -> SymEnv -> Expr -> AutoRewrite -> MaybeT IO Expr
 
-getRewrite γ env expr (AutoRewrite args lhs rhs) =
+getRewrite γ symEnv expr (AutoRewrite args lhs rhs) =
   do
-    su <- MaybeT $ return $ unify freeVars lhs expr
+    su@(Su suMap) <- MaybeT $ return $ unify freeVars lhs expr
     let expr' = subst su rhs
     guard $ expr /= expr'
-    guard . Mb.isNothing $ checkSorted dummySpan (seSort env) expr'
+    guard $ Misc.isRight $ runCM0 dummySpan $ checkSorts (M.toList suMap)
     mapM_ (check . subst su) exprs
     return expr'
   where
@@ -427,8 +427,29 @@ getRewrite γ env expr (AutoRewrite args lhs rhs) =
       valid <- MaybeT $ Just <$> isValid γ e
       guard valid
 
+    checkSorts substList =
+      uncurry (unifys (env (sortsToUnify substList)) Nothing) (sortsToUnify substList)
+
+    sortsToUnify substList = unzip $ do
+      (sym, e) <- substList
+      sort <- Mb.maybeToList (sortOf sym)
+      return (sort, sortExpr dummySpan (seSort symEnv) e)
+      
+    sortOf sym =
+      lookup sym [(sym, sort) | RR sort (Reft (sym, _)) <- args ]
+      
     freeVars = [s | RR _ (Reft (s, _)) <- args ]
     exprs    = [e | RR _ (Reft (_, e)) <- args ]
+
+    flip :: Vis.CoSub -> Vis.CoSub
+    flip vc = M.fromList $ [ (s, FObj ss) | (ss, FObj s) <- M.toList vc]
+    
+    env sorts symbol =
+      case M.lookup symbol (flip cosub) of
+        Just  s -> Found s
+        _       -> mkSearchEnv (seSort symEnv) symbol
+      where
+        cosub = uncurry (mkCoSub (seSort symEnv)) sorts
 
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
