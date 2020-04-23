@@ -18,7 +18,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Language.Fixpoint.Solver.PLE (instantiate) where
+module Language.Fixpoint.Solver.PLE (instantiate, unify) where
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
@@ -136,22 +136,19 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
   where 
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
-                  let env'  = env { evAccum    = icEquals ictx <> evAccum env
-                                  , evRewrites = icRewrites ictx <> evRewrites env }
-                  evalOneResults <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                  eqs   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               mapM (evalOne γ env' ictx) (S.toList cands)
-                  let(EvalOneResult us autorws) = mconcat evalOneResults
-                  if S.null (us `S.difference` icEquals ictx)
-                        then return ictx
-                        else do  let oks      = fst `S.map` us
+                               mapM (evalOne γ (env{ evAccum = icEquals ictx <> evAccum env}) ictx) (S.toList cands)
+                  if S.null (mconcat eqs `S.difference` icEquals ictx) 
+                        then return ictx 
+                        else do  let us       = mconcat eqs
+                                 let oks      = fst `S.map` us
                                  let rws      = concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` us)]
                                  let us'      = us <> S.fromList rws 
                                  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
-                                                     , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT
-                                                     , icRewrites = icRewrites ictx <> autorws }
+                                                     , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` us))))
                                  go (ictx' { icCands = S.fromList newcands})
 
@@ -333,22 +330,11 @@ data EvalEnv = EvalEnv
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-data EvalOneResult =
-  EvalOneResult (S.HashSet (Expr, Expr)) (S.HashSet (Expr, Expr))
-
-instance Semigroup EvalOneResult where
-  (EvalOneResult a b) <> (EvalOneResult a' b') =
-    EvalOneResult (a <> a') (b <> b')
-    
-instance Monoid EvalOneResult where
-  mempty  = EvalOneResult mempty mempty
-  mappend = (<>)
-
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvalOneResult
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (S.HashSet (Expr, Expr))
 evalOne γ env ctx e = do
   (e',st) <- runStateT (eval γ ctx e) env 
   let pleAccum = if e' == e then evAccum st else S.insert (e, e') (evAccum st)
-  return $ EvalOneResult pleAccum (evRewrites st)
+  return $ S.union pleAccum (evRewrites st)
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -478,7 +464,7 @@ eval γ ctx e =
   do acc       <- S.toList . evAccum <$> get
      alreadyRW <- gets evRewrites
      case L.lookup e acc of
-        Just e' -> eval γ ctx e'
+        Just e' | not $ S.member e' (S.map fst alreadyRW) -> eval γ ctx e'
         _ -> do
           e'  <- simplify γ ctx <$> go e
           rws <- getRWs e
