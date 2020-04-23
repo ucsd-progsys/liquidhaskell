@@ -1,33 +1,28 @@
 module ReWrite8 where
 
+{-@ LIQUID "--savequery" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ infix ++ @-}
 
 import Prelude hiding ((++))
 
-
-{-@ rewriteWith assoc3 assoc @-} --
-{-@ assoc3 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a] -> vs:[a]
-          -> { xs ++ (ys ++ (zs ++ (ws ++ vs))) == (((xs ++ ys) ++ zs) ++ ws) ++ vs } @-}
-assoc3 :: [a] -> [a] -> [a] -> [a] -> [a] -> ()
-assoc3 xs ys zs ws vs = ()
-
-
-{-@ rewrite assoc @-}
-{-@ assoc :: xs:[a] -> ys:[a] -> zs:[a]
-          -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
-assoc :: [a] -> [a] -> [a] -> ()
-assoc [] _ _       = ()
-assoc (_:xs) ys zs = assoc xs ys zs
-
-{-@ reflect lhs @-}
-lhs xs ys zs ws = ((xs ++ ys) ++ zs) ++ ws
-
-{-@ reflect rhs @-}
-rhs xs ys zs ws = xs ++ (ys ++ (zs ++ ws))
+data MyList a = MyNil | Cons a (MyList a)
 
 {-@ reflect ++ @-}
-(++)::[a] -> [a] -> [a]
-[]     ++ ys = ys
-(x:xs) ++ ys = x:(xs ++ys)
+(++)::MyList a -> MyList a -> MyList a
+MyNil       ++ ys = ys
+(Cons x xs) ++ ys = Cons x (xs ++ ys)
+
+
+{-@ concatIdent :: xs : MyList a -> { xs = xs ++ MyNil } @-}
+concatIdent :: MyList a -> ()
+concatIdent MyNil       = ()
+concatIdent (Cons _ xs) = concatIdent xs
+
+{-@ rewriteWith concatIdent' concatIdent @-}
+{-@ concatIdent' :: xs : MyList a -> { xs = xs ++ MyNil } @-}
+concatIdent' :: MyList a -> ()
+concatIdent' _ = ()
+
+

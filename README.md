@@ -1322,10 +1322,27 @@ Currently, rewriting does not work if the equality that uses the rewrite rule
 includes parameters that contain inner refinements:
 https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite5.hs
 
-Rewriting works by pattern-matching expressions to determine if there is a variable substitution that would allow it to match against either side of a rewrite rule. If so, that substitution is applied to the opposite side and the corresponding equality is generated. If one side of the equality contains any parameters that are not bound on the other side, it will not be possible to generate a rewrite in that direction, because those variables cannot be instantiated. Likewise, if there are free variables on both sides of an equality, no rewrite can be generated at all.
+Rewriting works by pattern-matching expressions to determine if there is a
+variable substitution that would allow it to match against either side of a
+rewrite rule. If so, that substitution is applied to the opposite side and the
+corresponding equality is generated. If one side of the equality contains any
+parameters that are not bound on the other side, it will not be possible to
+generate a rewrite in that direction, because those variables cannot be
+instantiated. Likewise, if there are free variables on both sides of an
+equality, no rewrite can be generated at all.
 https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite7.hs
 
-Currently it's possible to generate rewrites that get stuck in a loop, causing PLE to not terminate.  https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite8.hs
+In order to ensure termination, each rewrite rule is only applied once for each 
+expression that PLE evaluates. For example, `assoc` cannot be used to prove `assoc3`:
+
+```haskell
+{-@ rewriteWith assoc3 assoc @-} 
+{-@ assoc3 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a] -> vs:[a]
+          -> { xs ++ (ys ++ (zs ++ (ws ++ vs))) 
+          ==   (((xs ++ ys) ++ zs) ++ ws) ++ vs } @-}
+assoc3 :: [a] -> [a] -> [a] -> [a] -> [a] -> ()
+assoc3 xs ys zs ws vs = () -- error
+```
 
 
 Formal Grammar of Refinement Predicates
