@@ -76,7 +76,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -134,21 +134,23 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx 
 evalCandsLoop cfg ictx0 ctx γ env = go ictx0 
   where 
-    go ictx | S.null (icCands ictx) = return ictx 
+    go ictx | S.null (icCands ictx) = trace "No cands" $ return ictx 
     go ictx =  do let cands = icCands ictx
-                  eqs   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                  evalOneResults <- trace ("assms: -" ++ (show $ S.size $ icAssms ictx) ++ "-") $ SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               mapM (evalOne γ (env{ evAccum = icEquals ictx <> evAccum env}) ictx) (S.toList cands)
-                  if S.null (mconcat eqs `S.difference` icEquals ictx) 
-                        then return ictx 
-                        else do  let us       = mconcat eqs
-                                 let oks      = fst `S.map` us
+                               mapM (evalOne γ (env{ evAccum = icEquals ictx <> evAccum env, evRewrites = icRewrites ictx <> evRewrites env }) ictx) (S.toList cands)
+                  let(EvalOneResult us autorws) = mconcat evalOneResults
+                  let autorws' = autorws <> (S.fromList $ concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` autorws)])
+                  let eqsSMT   = trace (show autorws) $ evalToSMT "evalCandsLoop" cfg ctx `S.map` (us <> autorws')
+                  if S.null (us `S.difference` icEquals ictx) 
+                        then return $ ictx { icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT, icRewrites = icRewrites ictx <> autorws' } 
+                        else do  let oks      = fst `S.map` us
                                  let rws      = concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` us)]
                                  let us'      = us <> S.fromList rws 
-                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
-                                                     , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
+                                                     , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT
+                                                     , icRewrites = icRewrites ictx <> autorws' }
                                  let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` us))))
                                  go (ictx' { icCands = S.fromList newcands})
 
@@ -196,12 +198,13 @@ data InstEnv a = InstEnv
 ---------------------------------------------------------------------------------------------- 
 
 data ICtx    = ICtx 
-  { icAssms  :: S.HashSet Pred            -- ^ Equalities converted to SMT format 
-  , icCands  :: S.HashSet Expr            -- ^ "Candidates" for unfolding
-  , icEquals :: S.HashSet (Expr,Expr)     -- ^ Accumulated equalities  
-  , icSolved :: S.HashSet Expr            -- ^ Terms that we have already expanded
-  , icSimpl  :: !ConstMap                 -- ^ Map of expressions to constants
-  , icSubcId :: Maybe SubcId
+  { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format 
+  , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
+  , icEquals   :: S.HashSet (Expr,Expr)     -- ^ Accumulated equalities
+  , icSolved   :: S.HashSet Expr            -- ^ Terms that we have already expanded
+  , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
+  , icSubcId   :: Maybe SubcId
+  , icRewrites :: S.HashSet (Expr,Expr)
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -228,6 +231,7 @@ initCtx es = ICtx
   , icSolved = mempty
   , icSimpl  = mempty 
   , icSubcId = Nothing
+  , icRewrites = mempty
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -236,7 +240,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- S.toList eqs, e1 /= e2 ]
 updCtxRes :: InstRes -> Maybe BindId -> ICtx -> (ICtx, InstRes) 
 updCtxRes res iMb ctx = (ctx, res')
   where 
-    res' = updRes res iMb (pAnd $ equalitiesPred $ icEquals ctx) 
+    res' = updRes res iMb (pAnd $ equalitiesPred $ (S.union (icRewrites ctx) (icEquals ctx) )) 
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -320,17 +324,33 @@ isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
-  { evEnv   :: !SymEnv
-  , evAccum :: S.HashSet (Expr, Expr) 
+  { evEnv      :: !SymEnv
+  , evAccum    :: S.HashSet (Expr, Expr)
+  , evRewrites :: S.HashSet (Expr, Expr)
   }
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (S.HashSet (Expr, Expr))
+data EvalOneResult = EvalOneResult (S.HashSet (Expr, Expr)) (S.HashSet (Expr, Expr))
+--   {
+--     pleAccum :: S.HashSet (Expr, Expr)
+--   , rws      :: S.HashSet (Expr, Expr)
+-- }
+
+instance Semigroup EvalOneResult where
+  (EvalOneResult a b) <> (EvalOneResult a' b') =
+    EvalOneResult (a <> a') (b <> b')
+    
+instance Monoid EvalOneResult where
+  mempty  = EvalOneResult mempty mempty
+  mappend = (<>)
+
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvalOneResult
 evalOne γ env ctx e = do
   (e',st) <- runStateT (eval γ ctx e) env 
-  if e' == e then return (evAccum st) else return (S.insert (e, e') (evAccum st))
+  let pleAccum = if e' == e then evAccum st else S.insert (e, e') (evAccum st)
+  return $ EvalOneResult pleAccum (evRewrites st)
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -457,17 +477,18 @@ eval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
   = return v
 eval γ ctx e =
-  do acc <- S.toList . evAccum <$> get
-     rws <- getRWs e
+  do acc       <- S.toList . evAccum <$> get
+     alreadyRW <- gets evRewrites 
      case L.lookup e acc of
-        Just e' | e' `notElem` rws -> eval γ ctx e'
+        Just e' -> eval γ ctx e'
         _ -> do
-          e' <- simplify γ ctx <$> go e
-          let evAccum' st = S.union (S.fromList (map (e,) rws)) (evAccum st)
+          e'  <- simplify γ ctx <$> go e
+          rws <- if shouldGenRewrites e alreadyRW then getRWs e else return []
+          let alreadyRW'  = S.union alreadyRW (S.fromList $ map (e,) rws)
           if e /= e'
-            then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum' st)})
+            then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum st), evRewrites = alreadyRW' })
                     eval γ (addConst (e,e') ctx) e'
-            else do modify (\st -> st{evAccum = evAccum' st })
+            else do modify (\st -> st{ evRewrites = alreadyRW' })
                     return e
   where
     autorws  =
@@ -475,6 +496,8 @@ eval γ ctx e =
         cid <- icSubcId ctx
         M.lookup cid $ knAutoRWs γ
 
+    shouldGenRewrites e' alreadyRW =
+       not (S.member e' (S.map fst alreadyRW)) && not (S.member e' (S.map snd alreadyRW))
 
     getRWs :: Expr -> EvalST [Expr]
     getRWs e = do
