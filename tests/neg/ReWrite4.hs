@@ -24,7 +24,8 @@ dropProof :: Int -> [a] -> ()
 dropProof _ []     = ()
 dropProof n (_:xs) = dropProof (n - 1) xs
 
-{-@ rewriteWith dropProof' dropProof  @-}
+-- Check the refinements
+{-@ rewriteWith dropProof' [dropProof]  @-}
 {-@ dropProof' :: nn : Int -> xs : [a] -> { drop nn xs = [] } @-}
 dropProof' :: Int -> [a] -> ()
 dropProof' _ _ = ()

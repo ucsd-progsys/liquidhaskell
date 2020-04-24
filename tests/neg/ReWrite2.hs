@@ -6,6 +6,7 @@ module ReWrite2 where
 
 import Prelude hiding ((++))
 
+-- Rewrites cannot prove themselves (mutally)
 {-@ rewrite assoc @-}
 {-@ assoc :: xs:[a] -> ys:[a] -> zs:[a] 
           -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}

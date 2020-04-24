@@ -1,6 +1,5 @@
 module ReWrite8 where
 
-{-@ LIQUID "--savequery" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ infix ++ @-}

@@ -12,6 +12,7 @@ import Prelude hiding ((++))
 assoc :: [a] -> [a] -> [a] -> ()
 assoc xs ys zs = assoc' xs ys zs
 
+-- assoc calls assoc', therefore assoc' cannot use assoc
 {-@ assoc' :: xs:[a] -> ys:[a] -> zs:[a]
           -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
 assoc' :: [a] -> [a] -> [a] -> ()

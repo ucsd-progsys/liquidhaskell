@@ -2,7 +2,8 @@
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
   , fixConfig
-  , canInstantiateRewrite
+  , refinementEQs
+  , canRewrite
   ) where
 
 import           Prelude hiding (error)
@@ -133,26 +134,20 @@ canRewrite freeVars from to = noFreeSyms && doesNotDiverge
     noFreeSyms         = S.null $ S.difference toSyms fromSyms
     doesNotDiverge     = Mb.isNothing $ unify (S.toList freeVars) from to
 
-canInstantiateRewrite :: (Var,LocSpecType) -> Bool
-canInstantiateRewrite (_, t)
-  | Just r <- stripRTypeBase tres
-  = not $ null $  [ () | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r)
-                  , canRewrite freeVars lhs rhs || canRewrite freeVars rhs lhs ]
-  | otherwise
-  = False
+refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
+refinementEQs t =
+  case stripRTypeBase tres of
+    Just r ->
+      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r) ]
+    Nothing ->
+      []
   where
-    freeVars = S.fromList (ty_binds tRep)
-
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
-
+  
 makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
 makeRewriteOne tce (_,t)
-  | Just r <- stripRTypeBase tres
-  = [rw |  F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r)
-        , rw <- rewrites lhs rhs ]
-  | otherwise
-  = [] 
+  = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
   where
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
@@ -167,7 +162,6 @@ makeRewriteOne tce (_,t)
       let e = maybe F.PTrue (F.reftPred . F.toReft) (stripRTypeBase arg)
       return $ F.RR (rTypeSort tce arg) (F.Reft (sym, e))
        
-    tres = ty_res tRep
     tRep = toRTypeRep $ val t 
 
 _isClassOrDict :: Id -> Bool

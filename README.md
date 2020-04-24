@@ -1332,18 +1332,10 @@ instantiated. Likewise, if there are free variables on both sides of an
 equality, no rewrite can be generated at all.
 https://github.com/zgrannan/liquidhaskell/blob/rewrite-feature/tests/neg/ReWrite7.hs
 
-In order to ensure termination, each rewrite rule is only applied once for each 
-expression that PLE evaluates. For example, `assoc` cannot be used to prove `assoc3`:
-
-```haskell
-{-@ rewriteWith assoc3 assoc @-} 
-{-@ assoc3 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a] -> vs:[a]
-          -> { xs ++ (ys ++ (zs ++ (ws ++ vs))) 
-          ==   (((xs ++ ys) ++ zs) ++ ws) ++ vs } @-}
-assoc3 :: [a] -> [a] -> [a] -> [a] -> [a] -> ()
-assoc3 xs ys zs ws vs = () -- error
-```
-
+It's possible in theory for rewriting rules to diverge. We have a simple check 
+to ensure that rewriting rules that will always diverge do not get instantiated. 
+However, it's possible that applying a combination of rewrite rules could cause
+divergence.
 
 Formal Grammar of Refinement Predicates
 =======================================
