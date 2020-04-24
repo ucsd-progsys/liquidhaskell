@@ -10,6 +10,7 @@ import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
+import           Language.Fixpoint.Solver.PLE (unify)
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
@@ -124,22 +125,22 @@ makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rw
       return $ S.fromList usable
     globalRws  = S.map val $ gsRewrites $ gsRefl spec
 
+canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
+canRewrite freeVars from to = noFreeSyms && doesNotDiverge
+  where
+    fromSyms           = S.intersection freeVars (S.fromList $ F.syms from)
+    toSyms             = S.intersection freeVars (S.fromList $ F.syms to)
+    noFreeSyms         = S.null $ S.difference toSyms fromSyms
+    doesNotDiverge     = Mb.isNothing $ unify (S.toList freeVars) from to
+
 canInstantiateRewrite :: (Var,LocSpecType) -> Bool
 canInstantiateRewrite (_, t)
   | Just r <- stripRTypeBase tres
   = not $ null $  [ () | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r)
-                  , canSubst lhs rhs || canSubst rhs lhs ]
+                  , canRewrite freeVars lhs rhs || canRewrite freeVars rhs lhs ]
   | otherwise
   = False
   where
-
-    canSubst fromE toE =
-      let
-        fromSyms = S.intersection freeVars (S.fromList $ F.syms fromE)
-        toSyms   = S.intersection freeVars (S.fromList $ F.syms toE)
-      in
-        S.null $ S.difference toSyms fromSyms
- 
     freeVars = S.fromList (ty_binds tRep)
 
     tres = ty_res tRep
@@ -156,16 +157,9 @@ makeRewriteOne tce (_,t)
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
     rewrites lhs rhs =
-         (guard (canSubst lhs rhs) >> [F.AutoRewrite xs lhs rhs])
-      ++ (guard (canSubst rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+         (guard (canRewrite freeVars lhs rhs) >> [F.AutoRewrite xs lhs rhs])
+      ++ (guard (canRewrite freeVars rhs lhs) >> [F.AutoRewrite xs rhs lhs])
 
-    canSubst fromE toE =
-      let
-        fromSyms = S.intersection freeVars (S.fromList $ F.syms fromE)
-        toSyms   = S.intersection freeVars (S.fromList $ F.syms toE)
-      in
-        S.null $ S.difference toSyms fromSyms
- 
     freeVars = S.fromList (ty_binds tRep)
 
     xs = do

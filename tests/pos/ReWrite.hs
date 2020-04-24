@@ -7,7 +7,7 @@ module ReWrite where
 import Prelude hiding ((++))
 
 
-{-@ rewriteWith assoc2 assoc @-} -- TODO: second argument should be a list, but parser does not like it
+{-@ rewriteWith assoc2 [assoc] @-} 
 {-@ assoc2 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a]
           -> { xs ++ (ys ++ (zs ++ ws)) == ((xs ++ ys) ++ zs) ++ ws } @-}
 assoc2 :: [a] -> [a] -> [a] -> [a] -> ()
@@ -31,7 +31,7 @@ lhs xs ys zs ws = ((xs ++ ys) ++ zs) ++ ws
 {-@ reflect rhs @-}
 rhs xs ys zs ws = xs ++ (ys ++ (zs ++ ws))
 
-{-@ rewriteWith assoc3 assoc @-} -- TODO: second argument should be a list, but parser does not like it
+{-@ rewriteWith assoc3 [assoc] @-} 
 {-@ assoc3 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a]
           -> { lhs xs ys zs ws = rhs xs ys zs ws } @-}
 assoc3 :: [a] -> [a] -> [a] -> [a] -> ()

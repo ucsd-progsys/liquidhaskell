@@ -41,7 +41,7 @@ lhs om f g x = kleisli om f g x
 {-@ reflect rhs @-}
 rhs om f g x = bind om (f x) g
 
-{-@ rewriteWith mp kp @-}
+{-@ rewriteWith mp [kp] @-}
 {-@ mp :: om : OurMonad m
             ->  f : (a -> m b)
             ->  g : (b -> m c)

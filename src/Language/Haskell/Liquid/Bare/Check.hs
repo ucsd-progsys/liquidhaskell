@@ -584,7 +584,7 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
     rs   = drop i $ ty_refts trep
     trep = toRTypeRep t
 
-
+getRewriteErrors :: (Var, Located SpecType) -> [TError t]
 getRewriteErrors (rw, t)
   | not isEqProof
   = [ErrRewrite (GM.fSrcSpan t) $ text $

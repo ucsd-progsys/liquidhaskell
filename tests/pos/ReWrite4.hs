@@ -20,7 +20,7 @@ concatIdent :: MyList a -> ()
 concatIdent MyNil       = ()
 concatIdent (Cons _ xs) = concatIdent xs
 
-{-@ rewriteWith concatIdent' concatIdent @-}
+{-@ rewriteWith concatIdent' [concatIdent] @-}
 {-@ concatIdent' :: xs : MyList a -> { xs = xs ++ MyNil } @-}
 concatIdent' :: MyList a -> ()
 concatIdent' _ = ()

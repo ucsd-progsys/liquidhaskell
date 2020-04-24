@@ -5,19 +5,12 @@ module ReWrite5 where
 {-@ infix ++ @-}
 
 import Prelude hiding ((++))
-import Language.Haskell.Liquid.ProofCombinators
 
-
-{-@ rewriteWith assoc3 assoc @-} 
+{-@ rewriteWith assoc3 [assoc] @-} 
 {-@ assoc3 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a] -> vs:[a]
           -> { xs ++ (ys ++ (zs ++ (ws ++ vs))) == (((xs ++ ys) ++ zs) ++ ws) ++ vs } @-}
 assoc3 :: [a] -> [a] -> [a] -> [a] -> [a] -> ()
-assoc3 xs ys zs ws vs = 
-      xs ++ (ys ++ (zs ++ (ws ++ vs)))
-  === (xs ++ ys) ++ (zs ++ (ws ++ vs))
-  === ((xs ++ ys) ++ zs) ++ (ws ++ vs)
-  === (((xs ++ ys) ++ zs) ++ ws) ++ vs
-  *** QED
+assoc3 xs ys zs ws vs = ()
 
 {-@ rewrite assoc @-}
 {-@ assoc :: xs:[a] -> ys:[a] -> zs:[a]
