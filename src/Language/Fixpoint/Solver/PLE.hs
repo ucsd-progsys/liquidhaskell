@@ -133,7 +133,13 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx 
 evalCandsLoop cfg ictx0 ctx γ env = go ictx0 
-  where 
+  where
+    withRewrites exprs =
+      let
+        rws = [rewrite e rw | rw <- knSims γ
+                            , e <- S.toList (snd `S.map` exprs)]
+      in 
+        exprs <> S.fromList (concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
                   let env' = env {  evAccum    = icEquals ictx <> evAccum env
@@ -146,9 +152,8 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                   if S.null (us `S.difference` icEquals ictx) && S.null (autorws `S.difference` icRewrites ictx)
                         then return ictx 
                         else do  let oks      = fst `S.map` us
-                                 let rws      = concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` us)]
-                                 let autorws' = autorws <> (S.fromList $ concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` autorws)])
-                                 let us'      = us <> S.fromList rws 
+                                 let autorws' = withRewrites autorws
+                                 let us'      = withRewrites us 
                                  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` (us <> autorws)
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
@@ -157,6 +162,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` (us <> autorws)))))
                                  go (ictx' { icCands = S.fromList newcands})
+                                 
 
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
