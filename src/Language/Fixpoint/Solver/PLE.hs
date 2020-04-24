@@ -136,20 +136,26 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
   where 
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
-                  eqs   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                  let env' = env {  evAccum    = icEquals ictx <> evAccum env
+                                 ,  evRewrites = icRewrites ictx <> evRewrites env
+                                 }
+                  evalResults   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               mapM (evalOne γ (env{ evAccum = icEquals ictx <> evAccum env}) ictx) (S.toList cands)
-                  if S.null (mconcat eqs `S.difference` icEquals ictx) 
+                               mapM (evalOne γ env' ictx) (S.toList cands)
+                  let (EvalOneResult us autorws) = mconcat evalResults 
+                  if S.null (us `S.difference` icEquals ictx) && S.null (autorws `S.difference` icRewrites ictx)
                         then return ictx 
-                        else do  let us       = mconcat eqs
-                                 let oks      = fst `S.map` us
+                        else do  let oks      = fst `S.map` us
                                  let rws      = concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` us)]
+                                 let autorws' = autorws <> (S.fromList $ concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` autorws)])
                                  let us'      = us <> S.fromList rws 
-                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us
+                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` (us <> autorws)
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
+                                                     , icRewrites = icRewrites ictx <> autorws'
+
                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
-                                 let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` us))))
+                                 let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` (us <> autorws)))))
                                  go (ictx' { icCands = S.fromList newcands})
 
 
@@ -238,7 +244,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- S.toList eqs, e1 /= e2 ]
 updCtxRes :: InstRes -> Maybe BindId -> ICtx -> (ICtx, InstRes) 
 updCtxRes res iMb ctx = (ctx, res')
   where 
-    res' = updRes res iMb (pAnd $ equalitiesPred $ (S.union (icRewrites ctx) (icEquals ctx) )) 
+    res' = updRes res iMb (pAnd $ equalitiesPred $ (icRewrites ctx <> icEquals ctx )) 
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -265,7 +271,9 @@ updCtx InstEnv {..} ctx delta cidMb
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
-                  [ equalitiesPred initEqs 
+                  [
+                    equalitiesPred (icRewrites ctx)
+                  , equalitiesPred initEqs 
                   , equalitiesPred sims 
                   , equalitiesPred (icEquals ctx)
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
@@ -330,11 +338,19 @@ data EvalEnv = EvalEnv
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (S.HashSet (Expr, Expr))
+data EvalOneResult = EvalOneResult (S.HashSet (Expr, Expr)) (S.HashSet (Expr, Expr))
+
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvalOneResult
 evalOne γ env ctx e = do
   (e',st) <- runStateT (eval γ ctx e) env 
   let pleAccum = if e' == e then evAccum st else S.insert (e, e') (evAccum st)
-  return $ S.union pleAccum (evRewrites st)
+  return $ EvalOneResult pleAccum (evRewrites st)
+
+instance Semigroup EvalOneResult where
+  (EvalOneResult ac rw) <> (EvalOneResult ac' rw') = EvalOneResult (ac <> ac') (rw <> rw')
+  
+instance Monoid EvalOneResult where
+  mempty = EvalOneResult mempty mempty
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -464,7 +480,7 @@ eval γ ctx e =
   do acc       <- S.toList . evAccum <$> get
      alreadyRW <- gets evRewrites
      case L.lookup e acc of
-        Just e' | not $ S.member e' (S.map fst alreadyRW) -> eval γ ctx e'
+        Just e' -> eval γ ctx e'
         _ -> do
           e'  <- simplify γ ctx <$> go e
           rws <- getRWs e
