@@ -37,7 +37,6 @@ module Language.Fixpoint.SortCheck  (
   , unifySorts
   , unifyTo1
   , unifys
-  , runCM0
 
   -- * Apply Substitution
   , apply
@@ -56,6 +55,8 @@ module Language.Fixpoint.SortCheck  (
   -- * Predicates on Sorts
   , isFirstOrder
   , isMono
+
+  , runCM0
   ) where
 
 --  import           Control.DeepSeq
@@ -1235,7 +1236,7 @@ errElabExpr e = printf "Elaborate fails on %s" (showpp e)
 errUnifyMsg :: Maybe String -> Maybe Expr -> Sort -> Sort -> String
 errUnifyMsg msgMb eo t1 t2 
   = printf "Cannot unify %s with %s %s %s"
-      (show t1) {- (show t1) -} (show t2) {-(show t2)-} (errUnifyExpr eo) msgStr
+      (showpp t1) {- (show t1) -} (showpp t2) {-(show t2)-} (errUnifyExpr eo) msgStr
     where 
       msgStr = case msgMb of { Nothing -> ""; Just s -> "<< " ++ s ++ " >>"} 
 

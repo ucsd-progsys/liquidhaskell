@@ -137,12 +137,12 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
     withRewrites exprs =
       let
         rws = [rewrite e rw | rw <- knSims γ
-                            , e <- S.toList (snd `S.map` exprs)]
+                            ,  e <- S.toList (snd `S.map` exprs)]
       in 
         exprs <> S.fromList (concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
-                  let env' = env {  evAccum    = icEquals ictx <> evAccum env
+                  let env' = env {  evAccum    = icEquals   ictx <> evAccum env
                                  ,  evRewrites = icRewrites ictx <> evRewrites env
                                  }
                   evalResults   <- SMT.smtBracket ctx "PLE.evaluate" $ do
@@ -235,12 +235,12 @@ type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: [(Expr,Expr)] -> ICtx
 initCtx es = ICtx 
-  { icAssms  = mempty 
-  , icCands  = mempty 
-  , icEquals = S.fromList es  
-  , icSolved = mempty
-  , icSimpl  = mempty 
-  , icSubcId = Nothing
+  { icAssms    = mempty 
+  , icCands    = mempty 
+  , icEquals   = S.fromList es  
+  , icSolved   = mempty
+  , icSimpl    = mempty 
+  , icSubcId   = Nothing
   , icRewrites = mempty
   }
 
@@ -462,7 +462,7 @@ getRewrite γ symEnv expr (AutoRewrite args lhs rhs) =
 
     sortsToUnify substList = unzip $ do
       (sym, e) <- substList
-      sort <- Mb.maybeToList (sortOf sym)
+      sort     <- Mb.maybeToList (sortOf sym)
       return (sort, sortExpr dummySpan (seSort symEnv) e)
       
     sortOf sym =
