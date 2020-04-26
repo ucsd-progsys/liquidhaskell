@@ -944,7 +944,7 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts 
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
     autoRWs    = M.fromList         [(arId , s)         | AutoRW arId s <- defs]
-    rwEntries  =                    [(i, f)| RWMap fs   <- defs, (i,f) <- fs]
+    rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
     rwMap      = foldl insert (M.fromList []) rwEntries
                  where
                    insert map (cid, arId) =
