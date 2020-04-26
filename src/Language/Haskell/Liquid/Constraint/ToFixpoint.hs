@@ -32,6 +32,7 @@ import           Var
 import           TyCon                             (TyCon)
 
 import           Language.Haskell.Liquid.Types hiding     ( binds )
+import Debug.Trace
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
@@ -146,16 +147,21 @@ refinementEQs t =
     tRep = toRTypeRep $ val t 
   
 makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
-makeRewriteOne tce (_,t)
+makeRewriteOne tce (v,t)
   = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
   where
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
     rewrites lhs rhs =
-         (guard (canRewrite freeVars lhs rhs) >> [F.AutoRewrite xs lhs rhs])
-      ++ (guard (canRewrite freeVars rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+         (guard (canRW " (left)"  lhs rhs) >> [F.AutoRewrite xs lhs rhs])
+      ++ (guard (canRW " (right)" rhs lhs) >> [F.AutoRewrite xs rhs lhs])
 
     freeVars = S.fromList (ty_binds tRep)
+
+    canRW dir lhs rhs =
+      if canRewrite freeVars lhs rhs
+      then True
+      else trace ("Cannot rw " ++ show v ++ dir) False
 
     xs = do
       (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
