@@ -116,12 +116,12 @@ makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rw
         (S.union localRws globalRws)
         (Mb.maybe S.empty forbiddenRWs (subVar sub))
 
-    allDeps        = coreDeps $ giCbs $ giSrc info
+    allDeps         = coreDeps $ giCbs $ giSrc info
     forbiddenRWs sv =
       S.insert sv $ dependsOn allDeps [sv]
 
     localRws = Mb.fromMaybe S.empty $ do
-      var <- subVar sub
+      var    <- subVar sub
       usable <- M.lookup var $ gsRewritesWith $ gsRefl spec
       return $ S.fromList usable
     globalRws  = S.map val $ gsRewrites $ gsRefl spec

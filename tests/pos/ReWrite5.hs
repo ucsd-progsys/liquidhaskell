@@ -1,3 +1,4 @@
+-- Rewrites should be applied recursively
 module ReWrite5 where
 
 {-@ LIQUID "--reflection" @-}

@@ -1,4 +1,5 @@
-module ReWrite8 where
+-- Rewrites should work for identity equalities (i.e only diverging in one direction)
+module ReWrite4 where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
