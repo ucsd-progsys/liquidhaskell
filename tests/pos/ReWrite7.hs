@@ -1,3 +1,4 @@
+-- A more challenging example
 {-# LANGUAGE Rank2Types #-}
 
 {-@ LIQUID "--extensionality" @-}

@@ -1,3 +1,5 @@
+-- Ensure that rewrites work with polymorphic types
+
 {-# LANGUAGE Rank2Types #-}
 
 {-@ LIQUID "--extensionality" @-}

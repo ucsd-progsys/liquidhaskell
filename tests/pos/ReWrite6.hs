@@ -1,3 +1,4 @@
+-- Should be able to apply multiple rewrite rules
 module ReWrite6 where
 
 {-@ LIQUID "--reflection" @-}
