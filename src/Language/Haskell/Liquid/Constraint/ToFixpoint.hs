@@ -132,7 +132,8 @@ canRewrite freeVars from to = noFreeSyms && doesNotDiverge
     fromSyms           = S.intersection freeVars (S.fromList $ F.syms from)
     toSyms             = S.intersection freeVars (S.fromList $ F.syms to)
     noFreeSyms         = S.null $ S.difference toSyms fromSyms
-    doesNotDiverge     = Mb.isNothing $ unify (S.toList freeVars) from to
+    doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars) from to)
+                      || Mb.isJust (unify (S.toList freeVars) to from)
 
 refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
 refinementEQs t =
