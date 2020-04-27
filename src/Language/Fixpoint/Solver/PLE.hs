@@ -160,7 +160,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                                                      , icRewrites = icRewrites ictx <> autorws'
 
                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
-                                 let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` (us <> autorws)))))
+                                 let newcands = mconcat (makeCandidates γ ictx' <$> S.toList (cands <> (snd `S.map` (us <> autorws))))
                                  go (ictx' { icCands = S.fromList newcands})
                                  
 
