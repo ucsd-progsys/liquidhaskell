@@ -436,6 +436,18 @@ unify freeVars template seenExpr = case (template, seenExpr) of
     unify freeVars rw seen
   _ -> Nothing
 
+getRewrites :: Knowledge -> SymEnv -> Expr -> AutoRewrite -> IO [Expr]
+getRewrites γ symEnv expr@(EApp lhs rhs) ar = do
+  base   <- runMaybeT (getRewrite γ symEnv expr ar)
+  lhs'   <- getRewrites γ symEnv lhs ar
+  rhs'   <- getRewrites γ symEnv rhs ar
+  return $ Mb.maybeToList base
+    ++ [ EApp l r | l <- lhs:lhs'
+                  , r <- rhs:rhs'
+                  , l /= lhs || r /= rhs]
+
+getRewrites γ symEnv expr ar =
+  Mb.maybeToList <$> runMaybeT (getRewrite γ symEnv expr ar)
 
 getRewrite :: Knowledge -> SymEnv -> Expr -> AutoRewrite -> MaybeT IO Expr
 
@@ -471,7 +483,7 @@ getRewrite γ symEnv expr (AutoRewrite args lhs rhs) =
     freeVars = [s | RR _ (Reft (s, _)) <- args ]
     exprs    = [e | RR _ (Reft (_, e)) <- args ]
 
-    env symbol = mkSearchEnv (seSort symEnv) symbol
+    env = mkSearchEnv (seSort symEnv)
 
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
@@ -502,7 +514,7 @@ eval γ ctx e =
     getRWs :: Expr -> EvalST [Expr]
     getRWs e = do
       env <- gets evEnv
-      Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRewrite γ env e) autorws
+      concat <$> mapM (liftIO . getRewrites γ env e) autorws
 
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
