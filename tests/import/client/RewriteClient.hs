@@ -7,7 +7,7 @@ module RewriteClient where
 
 import RewriteLib
 
-{-@ rewriteWith assoc2 assoc @-}
+{-@ rewriteWith assoc2 [assoc] @-}
 {-@ assoc2 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a]
           -> { xs ++ (ys ++ (zs ++ ws)) == ((xs ++ ys) ++ zs) ++ ws } @-}
 assoc2 :: [a] -> [a] -> [a] -> [a] -> ()
