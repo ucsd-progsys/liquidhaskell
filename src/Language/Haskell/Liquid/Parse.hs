@@ -947,7 +947,7 @@ ppPspec k (Lazy   lx)
 ppPspec k (Rewrite   lx) 
   = "rewrite" <+> pprintTidy k (val lx) 
 ppPspec k (Rewritewith (lx, lxs)) 
-  = "rewritewith" <+> pprintTidy k (val lx) <+> pprintTidy k (val <$> lxs) 
+  = "rewriteWith" <+> pprintTidy k (val lx) <+> pprintTidy k (val <$> lxs) 
 ppPspec k (Fail   lx) 
   = "fail" <+> pprintTidy k (val lx) 
 ppPspec k (Insts   (lx, mbN)) 
@@ -1176,9 +1176,9 @@ rewriteVarP = locParserP binderP
 rewriteWithP :: Parser (LocSymbol, [LocSymbol])
 rewriteWithP = do s  <- locParserP binderP 
                   spaces
-                  ss <- locParserP binderP -- brackets $ sepBy (locParserP binderP) comma)
+                  ss <- brackets $ sepBy1 (locParserP binderP) comma
                   spaces
-                  return (s,[ss])
+                  return (s, ss)
 
 failVarP :: Parser LocSymbol
 failVarP = locParserP binderP
@@ -1464,7 +1464,7 @@ binderP    = pwr    <$> parens (idP bad)
   where
     idP p  = many1 (satisfy (not . p))
     badc c = (c == ':') || (c == ',') || bad c
-    bad c  = isSpace c || c `elem` ("(,)" :: String)
+    bad c  = isSpace c || c `elem` ("(,)[]" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 
 

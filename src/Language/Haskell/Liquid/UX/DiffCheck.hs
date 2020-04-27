@@ -26,6 +26,8 @@ module Language.Haskell.Liquid.UX.DiffCheck (
 
    -- * CoreBinds defining given set of Var
    , filterBinds
+   , coreDeps
+   , dependsOn
    )
    where
 

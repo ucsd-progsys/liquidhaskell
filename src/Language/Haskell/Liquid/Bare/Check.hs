@@ -10,6 +10,7 @@ module Language.Haskell.Liquid.Bare.Check
   , checkBareSpec
   ) where
 
+import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -131,6 +132,7 @@ checkTargetSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkSizeFun emb env                                      (gsTconsP (gsName sp))
                      ++ checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
                      ++ checkLawInstances (gsLaws sp)
+                     ++ checkRewrites sp
 
     _rClasses         = concatMap (Ms.classes  ) specs
     _rInsts           = concatMap (Ms.rinstance) specs
@@ -581,6 +583,76 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
     ts   = drop i $ ty_args  trep
     rs   = drop i $ ty_refts trep
     trep = toRTypeRep t
+
+
+getRewriteErrors :: (Var, Located SpecType) -> [TError t]
+getRewriteErrors (rw, t)
+  | null $ refinementEQs t
+  = [ErrRewrite (GM.fSrcSpan t) $ text $
+                "Unable to use "
+                ++ show rw
+                ++ " as a rewrite because it does not prove an equality, or the equality it proves is trivial." ]
+  | otherwise
+  = refErrs ++ if cannotInstantiate then
+        [ErrRewrite (GM.fSrcSpan t) $
+        text $ "Could not generate any rewrites from equality. Likely causes: "
+        ++ "\n - There are free (uninstantiatable) variables on both sides of the "
+        ++ "equality\n - The rewrite would diverge"]
+        else []
+    where
+        refErrs = map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
+        allowedRWs = [ (lhs, rhs) | (lhs , rhs) <- refinementEQs t
+                 , canRewrite (S.fromList syms) lhs rhs ||
+                   canRewrite (S.fromList syms) rhs lhs
+                 ]
+        cannotInstantiate = null allowedRWs
+        tyArgs = ty_args  tRep
+        syms   = ty_binds tRep
+        tRep   = toRTypeRep $ val t
+        getInnerRefErr (_, sym) =
+          ErrRewrite (GM.fSrcSpan t) $ text $
+          "Unable to use "
+          ++ show rw
+          ++ " as a rewrite. Functions whose parameters have inner refinements cannot be used as rewrites, but parameter "
+          ++ show sym
+          ++ " contains an inner refinement."
+
+
+isRefined :: F.Reftable r => RType c tv r -> Bool
+isRefined ty
+  | Just r <- stripRTypeBase ty = not $ F.isTauto r
+  | otherwise = False
+
+hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
+hasInnerRefinement (RFun _ rIn rOut _) =
+  isRefined rIn || isRefined rOut
+hasInnerRefinement (RImpF _ rIn rOut _) =
+  isRefined rIn || isRefined rOut
+hasInnerRefinement (RAllT _ ty  _) =
+  isRefined ty
+hasInnerRefinement (RAllP _ ty) =
+  isRefined ty
+hasInnerRefinement (RApp _ args _ _) =
+  any isRefined args
+hasInnerRefinement (RAllE _ allarg ty) =
+  isRefined allarg || isRefined ty
+hasInnerRefinement (REx _ allarg ty) =
+  isRefined allarg || isRefined ty
+hasInnerRefinement (RAppTy arg res _) =
+  isRefined arg || isRefined res
+hasInnerRefinement (RRTy env _ _ ty) =
+  isRefined ty || any (isRefined . snd) env
+hasInnerRefinement _ = False
+
+checkRewrites :: TargetSpec -> [Error]
+checkRewrites targetSpec = concatMap getRewriteErrors rwSigs
+  where
+    rwSigs = filter ((`S.member` rws) . fst) sigs
+    refl   = gsRefl targetSpec
+    sig    = gsSig targetSpec
+    sigs   = gsTySigs sig ++ gsAsmSigs sig
+    rws    = S.union (S.map val $ gsRewrites refl)
+                   (S.fromList $ concat $ M.elems (gsRewritesWith refl))
 
 
 checkClassMeasures :: [Measure SpecType DataCon] -> [Error]

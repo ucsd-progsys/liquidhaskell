@@ -2,6 +2,8 @@
 module Language.Haskell.Liquid.Constraint.ToFixpoint
   ( cgInfoFInfo
   , fixConfig
+  , refinementEQs
+  , canRewrite
   ) where
 
 import           Prelude hiding (error)
@@ -9,14 +11,17 @@ import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
+import           Language.Fixpoint.Solver.PLE (unify)
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
+import           Control.Monad (guard)
 import qualified Data.Maybe as Mb 
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
+import           Language.Haskell.Liquid.UX.DiffCheck (coreDeps, dependsOn)
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
@@ -83,7 +88,7 @@ makeAxiomEnvironment info xts fcs
   = F.AEnv eqs  
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
-           (makeRewrites info)
+           (makeRewrites info <$> fcs)
   where
     eqs      = if (oldPLE cfg) 
                 then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
@@ -95,21 +100,69 @@ makeAxiomEnvironment info xts fcs
     refl     = gsRefl sp
 
 
-makeRewrites :: TargetInfo -> [F.AutoRewrite]
-makeRewrites info = concatMap makeRewriteOne $ filter ((`S.member` rwVars) . fst) sigs
-  where 
-    sigs   =             gsTySigs   $ gsSig  $ giSpec info 
-    rwVars = S.map val $ gsRewrites $ gsRefl $ giSpec info 
+makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
+makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
+  where
+    tce        = gsTcEmbeds (gsName spec)
+    spec       = giSpec info
+    sig        = gsSig spec
+    sigs       = gsTySigs sig ++ gsAsmSigs sig
+    isGlobalRw = Mb.maybe False (`elem` globalRws) (subVar sub)
 
-makeRewriteOne :: (Var,LocSpecType) -> [F.AutoRewrite]
-makeRewriteOne (_,t)
-  | Just r <- stripRTypeBase tres
-  = [F.AutoRewrite xs lhs rhs | F.EEq lhs rhs <- F.splitPAnd $ F.reftPred (F.toReft r) ]  
-  | otherwise
-  = [] 
-  where 
-    xs = ty_binds tRep
+    rws        =
+      if isGlobalRw
+      then S.empty
+      else S.difference
+        (S.union localRws globalRws)
+        (Mb.maybe S.empty forbiddenRWs (subVar sub))
+
+    allDeps         = coreDeps $ giCbs $ giSrc info
+    forbiddenRWs sv =
+      S.insert sv $ dependsOn allDeps [sv]
+
+    localRws = Mb.fromMaybe S.empty $ do
+      var    <- subVar sub
+      usable <- M.lookup var $ gsRewritesWith $ gsRefl spec
+      return $ S.fromList usable
+    globalRws  = S.map val $ gsRewrites $ gsRefl spec
+
+canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
+canRewrite freeVars from to = noFreeSyms && doesNotDiverge
+  where
+    fromSyms           = S.intersection freeVars (S.fromList $ F.syms from)
+    toSyms             = S.intersection freeVars (S.fromList $ F.syms to)
+    noFreeSyms         = S.null $ S.difference toSyms fromSyms
+    doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars) from to)
+                      || Mb.isJust (unify (S.toList freeVars) to from)
+
+refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
+refinementEQs t =
+  case stripRTypeBase tres of
+    Just r ->
+      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r) ]
+    Nothing ->
+      []
+  where
     tres = ty_res tRep
+    tRep = toRTypeRep $ val t 
+  
+makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne tce (_,t)
+  = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
+  where
+
+    rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
+    rewrites lhs rhs =
+         (guard (canRewrite freeVars lhs rhs) >> [F.AutoRewrite xs lhs rhs])
+      ++ (guard (canRewrite freeVars rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+
+    freeVars = S.fromList (ty_binds tRep)
+
+    xs = do
+      (sym, arg) <- zip (ty_binds tRep) (ty_args tRep)
+      let e = maybe F.PTrue (F.reftPred . F.toReft) (stripRTypeBase arg)
+      return $ F.RR (rTypeSort tce arg) (F.Reft (sym, e))
+       
     tRep = toRTypeRep $ val t 
 
 _isClassOrDict :: Id -> Bool
