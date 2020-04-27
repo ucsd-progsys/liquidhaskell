@@ -21,21 +21,11 @@ define concat3Right (as : List, bs : List, cs : List) : List = {
 
 autorewrite 1 {as : List | true} {bs : List | true} {cs : List | true} = { concat (concat as bs) cs = concat as (concat bs cs) }
 
-autorewrite 2 {as : List | true} {bs : List | true} {cs : List | true} = { concat as (concat bs cs) = concat (concat as bs) cs }
-
 constant concat       : (func(0, [List;List;List]))
 constant concat3Left  : (func(0, [List; List; List; List]))
 constant concat3Right : (func(0, [List; List; List; List]))
 
 expand [1 : True]
-expand [2 : True]
-expand [3 : True]
-
-rewrite [1 : 1]
-rewrite [2 : 2]
-
-rewrite [3 : 1]
-rewrite [3 : 2]
 
 bind 0 xs    : {v: List | true }
 bind 1 ys    : {v: List | true }
@@ -47,15 +37,3 @@ constraint:
   lhs {v1 : List | true  }
   rhs {v2 : List | concat3Left (concat xs ws) ys zs = concat3Right (concat xs ws) ys zs }
   id 1 tag []
-
-constraint:
-  env [0; 1; 2; 3]
-  lhs {v1 : List | true  }
-  rhs {v2 : List | concat3Right (concat xs ws) ys zs = concat3Left (concat xs ws) ys zs }
-  id 2 tag []
-
-constraint:
-  env [0; 1; 2; 3]
-  lhs {v1 : List | true  }
-  rhs {v2 : List | concat3Left (concat xs ws) ys zs = concat3Right xs ws (concat ys zs) }
-  id 3 tag []

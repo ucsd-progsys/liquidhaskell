@@ -160,6 +160,7 @@ reservedNames = S.fromList
   , "if", "then", "else"
   , "func"
   , "autorewrite"
+  , "rewrite"
 
   -- reserved words used in liquid haskell
   , "forall"
@@ -790,11 +791,13 @@ pairP xP sepP yP = (,) <$> xP <* sepP <*> yP
 
 autoRewriteP :: Parser AutoRewrite
 autoRewriteP = do
-  symbols    <- sepBy symbolP spaces
+  args       <- sepBy sortedReftP spaces
+  _          <- spaces
+  _          <- reserved "="
   _          <- spaces
   (lhs, rhs) <- braces $
       pairP exprP (reserved "=") exprP
-  return $ AutoRewrite symbols lhs rhs
+  return $ AutoRewrite args lhs rhs
 
 
 defineP :: Parser Equation
@@ -833,7 +836,8 @@ data Def a
   | Mat !Rewrite
   | Expand ![(Int,Bool)]
   | Adt  !DataDecl
-  | AutoRW AutoRewrite
+  | AutoRW !Int !AutoRewrite
+  | RWMap ![(Int,Int)]
   deriving (Show, Generic)
   --  Sol of solbind
   --  Dep of FixConstraint.dep
@@ -861,7 +865,8 @@ defP =  Srt   <$> (reserved "sort"         >> colon >> sortP)
     <|> Mat    <$> (reserved "match"       >> matchP)
     <|> Expand <$> (reserved "expand"      >> pairsP intP boolP)
     <|> Adt    <$> (reserved "data"        >> dataDeclP)
-    <|> AutoRW <$> (reserved "autorewrite" >> autoRewriteP)
+    <|> AutoRW <$> (reserved "autorewrite" >> intP) <*> autoRewriteP
+    <|> RWMap  <$> (reserved "rewrite"     >> pairsP intP intP)
 
 
 sortedReftP :: Parser SortedReft
@@ -938,9 +943,18 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts 
     expand     = M.fromList         [(fromIntegral i, f)| Expand fs   <- defs, (i,f) <- fs]
     eqs        =                    [e                  | Def e       <- defs]
     rews       =                    [r                  | Mat r       <- defs]
-    autoRWs    =                    [s                  | AutoRW s    <- defs]
+    autoRWs    = M.fromList         [(arId , s)         | AutoRW arId s <- defs]
+    rwEntries  =                    [(i, f)             | RWMap fs   <- defs, (i,f) <- fs]
+    rwMap      = foldl insert (M.fromList []) rwEntries
+                 where
+                   insert map (cid, arId) =
+                     case M.lookup arId autoRWs of
+                       Just rewrite ->
+                         M.insertWith (++) (fromIntegral cid) [rewrite] map
+                       Nothing ->
+                         map
     cid        = fromJust . sid
-    ae         = AEnv eqs rews expand autoRWs
+    ae         = AEnv eqs rews expand rwMap
     adts       =                    [d                  | Adt d       <- defs]
     -- msg    = show $ "#Lits = " ++ (show $ length consts)
 

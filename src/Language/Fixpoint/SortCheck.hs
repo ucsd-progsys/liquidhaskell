@@ -36,6 +36,7 @@ module Language.Fixpoint.SortCheck  (
   , unifyFast
   , unifySorts
   , unifyTo1
+  , unifys
 
   -- * Apply Substitution
   , apply
@@ -54,6 +55,8 @@ module Language.Fixpoint.SortCheck  (
   -- * Predicates on Sorts
   , isFirstOrder
   , isMono
+
+  , runCM0
   ) where
 
 --  import           Control.DeepSeq

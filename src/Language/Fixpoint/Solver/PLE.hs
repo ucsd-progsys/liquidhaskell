@@ -18,7 +18,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 
-module Language.Fixpoint.Solver.PLE (instantiate) where
+module Language.Fixpoint.Solver.PLE (instantiate, unify) where
 
 import           Language.Fixpoint.Types hiding (simplify)
 import           Language.Fixpoint.Types.Config  as FC
@@ -32,6 +32,7 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Control.Monad.State
+import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
@@ -75,7 +76,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv (M.fromList cs) γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -132,24 +133,36 @@ evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx 
 evalCandsLoop cfg ictx0 ctx γ env = go ictx0 
-  where 
+  where
+    withRewrites exprs =
+      let
+        rws = [rewrite e rw | rw <- knSims γ
+                            ,  e <- S.toList (snd `S.map` exprs)]
+      in 
+        exprs <> S.fromList (concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
-                  eqs   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                  let env' = env {  evAccum    = icEquals   ictx <> evAccum env
+                                 ,  evRewrites = icRewrites ictx <> evRewrites env
+                                 }
+                  evalResults   <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               mapM (evalOne γ (env{ evAccum = icEquals ictx <> evAccum env}) ictx) (S.toList cands)
-                  if S.null (mconcat eqs `S.difference` icEquals ictx) 
+                               mapM (evalOne γ env' ictx) (S.toList cands)
+                  let (EvalOneResult us autorws) = mconcat evalResults 
+                  if S.null (us `S.difference` icEquals ictx) && S.null (autorws `S.difference` icRewrites ictx)
                         then return ictx 
-                        else do  let us       = mconcat eqs
-                                 let oks      = fst `S.map` us
-                                 let rws      = concat [rewrite e rw | rw <- knSims γ, e <- S.toList (snd `S.map` us)]
-                                 let us'      = us <> S.fromList rws 
-                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us
+                        else do  let oks      = fst `S.map` us
+                                 let autorws' = withRewrites autorws
+                                 let us'      = withRewrites us 
+                                 let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` (us <> autorws)
                                  let ictx'    = ictx { icSolved = icSolved ictx <> oks 
                                                      , icEquals = icEquals ictx <> us'
+                                                     , icRewrites = icRewrites ictx <> autorws'
+
                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
-                                 let newcands = mconcat ((makeCandidates γ ictx') <$> (S.toList (cands <> (snd `S.map` us))))
+                                 let newcands = mconcat (makeCandidates γ ictx' <$> S.toList (cands <> (snd `S.map` (us <> autorws))))
                                  go (ictx' { icCands = S.fromList newcands})
+                                 
 
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
@@ -195,11 +208,13 @@ data InstEnv a = InstEnv
 ---------------------------------------------------------------------------------------------- 
 
 data ICtx    = ICtx 
-  { icAssms  :: S.HashSet Pred            -- ^ Equalities converted to SMT format 
-  , icCands  :: S.HashSet Expr            -- ^ "Candidates" for unfolding
-  , icEquals :: S.HashSet (Expr,Expr)     -- ^ Accumulated equalities  
-  , icSolved :: S.HashSet Expr            -- ^ Terms that we have already expanded
-  , icSimpl  :: !ConstMap                 -- ^ Map of expressions to constants
+  { icAssms    :: S.HashSet Pred            -- ^ Equalities converted to SMT format
+  , icCands    :: S.HashSet Expr            -- ^ "Candidates" for unfolding
+  , icEquals   :: S.HashSet (Expr,Expr)     -- ^ Accumulated equalities
+  , icSolved   :: S.HashSet Expr            -- ^ Terms that we have already expanded
+  , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
+  , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
+  , icRewrites :: S.HashSet (Expr,Expr)     -- ^ User-generated rewrites
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -220,11 +235,13 @@ type Diff    = [BindId]    -- ^ in "reverse" order
 
 initCtx :: [(Expr,Expr)] -> ICtx
 initCtx es = ICtx 
-  { icAssms  = mempty 
-  , icCands  = mempty 
-  , icEquals = S.fromList es  
-  , icSolved = mempty
-  , icSimpl  = mempty 
+  { icAssms    = mempty 
+  , icCands    = mempty 
+  , icEquals   = S.fromList es  
+  , icSolved   = mempty
+  , icSimpl    = mempty 
+  , icSubcId   = Nothing
+  , icRewrites = mempty
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -233,7 +250,7 @@ equalitiesPred eqs = [ EEq e1 e2 | (e1, e2) <- S.toList eqs, e1 /= e2 ]
 updCtxRes :: InstRes -> Maybe BindId -> ICtx -> (ICtx, InstRes) 
 updCtxRes res iMb ctx = (ctx, res')
   where 
-    res' = updRes res iMb (pAnd $ equalitiesPred $ icEquals ctx) 
+    res' = updRes res iMb (pAnd $ equalitiesPred $ (icRewrites ctx <> icEquals ctx )) 
 
 
 updRes :: InstRes -> Maybe BindId -> Expr -> InstRes
@@ -251,6 +268,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icCands  = S.fromList cands           <> icCands  ctx
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
+                    , icSubcId = cidMb
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- (cands ++ (snd <$> S.toList (icEquals ctx)))
@@ -259,7 +277,9 @@ updCtx InstEnv {..} ctx delta cidMb
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
     ctxEqs    = toSMT "updCtx" ieCfg ieSMT [] <$> L.nub (concat 
-                  [ equalitiesPred initEqs 
+                  [
+                    equalitiesPred (icRewrites ctx)
+                  , equalitiesPred initEqs 
                   , equalitiesPred sims 
                   , equalitiesPred (icEquals ctx)
                   , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ] 
@@ -316,17 +336,27 @@ isPleCstr aenv sid c = isTarget c && M.lookupDefault False sid (aenvExpand aenv)
 
 --------------------------------------------------------------------------------
 data EvalEnv = EvalEnv
-  { evEnv   :: !SymEnv
-  , evAccum :: S.HashSet (Expr, Expr) 
+  { evEnv      :: !SymEnv
+  , evAccum    :: S.HashSet (Expr, Expr)
+  , evRewrites :: S.HashSet (Expr, Expr)
   }
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (S.HashSet (Expr, Expr))
+data EvalOneResult = EvalOneResult (S.HashSet (Expr, Expr)) (S.HashSet (Expr, Expr))
+
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvalOneResult
 evalOne γ env ctx e = do
   (e',st) <- runStateT (eval γ ctx e) env 
-  if e' == e then return (evAccum st) else return (S.insert (e, e') (evAccum st))
+  let pleAccum = if e' == e then evAccum st else S.insert (e, e') (evAccum st)
+  return $ EvalOneResult pleAccum (evRewrites st)
+
+instance Semigroup EvalOneResult where
+  (EvalOneResult ac rw) <> (EvalOneResult ac' rw') = EvalOneResult (ac <> ac') (rw <> rw')
+  
+instance Monoid EvalOneResult where
+  mempty = EvalOneResult mempty mempty
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -406,33 +436,87 @@ unify freeVars template seenExpr = case (template, seenExpr) of
     unify freeVars rw seen
   _ -> Nothing
 
+getRewrites :: Knowledge -> SymEnv -> Expr -> AutoRewrite -> IO [Expr]
+getRewrites γ symEnv expr@(EApp lhs rhs) ar = do
+  base   <- runMaybeT (getRewrite γ symEnv expr ar)
+  lhs'   <- getRewrites γ symEnv lhs ar
+  rhs'   <- getRewrites γ symEnv rhs ar
+  return $ Mb.maybeToList base
+    ++ [ EApp l r | l <- lhs:lhs'
+                  , r <- rhs:rhs'
+                  , l /= lhs || r /= rhs]
 
-getRewrite :: Expr -> AutoRewrite -> Maybe Expr
-getRewrite expr (AutoRewrite freeVars lhs rhs) =
+getRewrites γ symEnv expr ar =
+  Mb.maybeToList <$> runMaybeT (getRewrite γ symEnv expr ar)
+
+getRewrite :: Knowledge -> SymEnv -> Expr -> AutoRewrite -> MaybeT IO Expr
+
+getRewrite γ symEnv expr (AutoRewrite args lhs rhs) =
   do
-    expr' <- fmap ((flip subst) rhs) (unify freeVars lhs expr)
-    if expr /= expr' then Just expr' else Nothing
+    su@(Su suMap) <- MaybeT $ return $ unify freeVars lhs expr
+    let expr' = subst su rhs
+    guard $ expr /= expr'
+    let (argSorts', exprSorts') = sortsToUnify (M.toList suMap)
+    let (argSorts, exprSorts)   = (gSorts argSorts', gSorts exprSorts')
+    checkSorts argSorts exprSorts
+    mapM_ (check . subst su) exprs
+    return expr'
+  where
+    check :: Expr -> MaybeT IO ()
+    check e = do
+      valid <- MaybeT $ Just <$> isValid γ e
+      guard valid
+
+    checkSorts argSorts exprSorts =
+      case runCM0 dummySpan $ unifys env Nothing argSorts exprSorts of
+        Right  _ -> return ()
+        Left   _ -> mzero
+
+    sortsToUnify substList = unzip $ do
+      (sym, e) <- substList
+      sort     <- Mb.maybeToList (sortOf sym)
+      return (sort, sortExpr dummySpan (seSort symEnv) e)
+      
+    sortOf sym =
+      lookup sym [(sym, sort) | RR sort (Reft (sym, _)) <- args ]
+      
+    freeVars = [s | RR _ (Reft (s, _)) <- args ]
+    exprs    = [e | RR _ (Reft (_, e)) <- args ]
+
+    env = mkSearchEnv (seSort symEnv)
+
 
 eval :: Knowledge -> ICtx -> Expr -> EvalST Expr
-eval _ ctx e 
+eval _ ctx e
   | Just v <- M.lookup e (icSimpl ctx)
-  = return v 
-eval γ ctx e = 
-  do acc <- S.toList . evAccum <$> get  
-     case L.lookup e acc of 
-        Just e' | not (e' `elem` getRWs e) -> eval γ ctx e'
+  = return v
+eval γ ctx e =
+  do acc       <- S.toList . evAccum <$> get
+     alreadyRW <- gets evRewrites
+     case L.lookup e acc of
+        Just e' -> eval γ ctx e'
         _ -> do
-          e' <- simplify γ ctx <$> go e
-          let evAccum' st = S.union (S.fromList (map (e,) (getRWs e))) (evAccum st)
+          e'  <- simplify γ ctx <$> go e
+          rws <- getRWs e
+          let alreadyRW' = S.union alreadyRW (S.fromList $ map (e,) rws)
           if e /= e'
-            then do modify (\st -> st{evAccum = S.insert (traceE (e, e')) (evAccum' st)})
-                    eval γ (addConst (e,e') ctx) e' 
-            else do modify (\st -> st{evAccum = evAccum' st })
+            then do modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st)
+                                      , evRewrites = alreadyRW' })
+                    eval γ (addConst (e,e') ctx) e'
+            else do modify (\st -> st { evRewrites = alreadyRW' })
                     return e
   where
-    autorws  = knAutoRWs γ
-    getRWs e = autorws >>= (Mb.maybeToList . (getRewrite e))
-    addConst (e,e') ctx = if isConstant (knDCs γ) e' 
+    autorws  =
+      Mb.fromMaybe [] $ do
+        cid <- icSubcId ctx
+        M.lookup cid $ knAutoRWs γ
+
+    getRWs :: Expr -> EvalST [Expr]
+    getRWs e = do
+      env <- gets evEnv
+      concat <$> mapM (liftIO . getRewrites γ env e) autorws
+
+    addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
     go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
     go e@(EIte b e1 e2) = evalIte γ ctx e b e1 e2
@@ -557,7 +641,7 @@ data Knowledge = KN
   , knDCs     :: !(S.HashSet Symbol)     -- data constructors drawn from Rewrite 
   , knSels    :: !(SelectorMap) 
   , knConsts  :: !(ConstDCMap)
-  , knAutoRWs :: ![AutoRewrite]
+  , knAutoRWs :: M.HashMap SubcId [AutoRewrite]
   }
 
 isValid :: Knowledge -> Expr -> IO Bool

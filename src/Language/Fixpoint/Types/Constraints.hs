@@ -82,6 +82,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Misc  [should be elsewhere but here due to dependencies]
   , substVars
   , sortVars
+  , gSorts
   ) where
 
 import qualified Data.Binary as B
@@ -861,7 +862,7 @@ data AxiomEnv = AEnv
   { aenvEqs      :: ![Equation]
   , aenvSimpl    :: ![Rewrite]
   , aenvExpand   :: M.HashMap SubcId Bool
-  , aenvAutoRW   :: ![AutoRewrite]
+  , aenvAutoRW   :: M.HashMap SubcId [AutoRewrite]
   } deriving (Eq, Show, Generic)
 
 instance B.Binary AutoRewrite
@@ -886,7 +887,7 @@ instance Semigroup AxiomEnv where
       aenvAutoRW' = (aenvAutoRW a1) <> (aenvAutoRW a2)
 
 instance Monoid AxiomEnv where
-  mempty          = AEnv [] [] (M.fromList []) []
+  mempty          = AEnv [] [] (M.fromList []) (M.fromList [])
   mappend         = (<>)
 
 instance PPrint AxiomEnv where
@@ -920,11 +921,39 @@ ppArgs :: (PPrint a) => [a] -> Doc
 ppArgs = parens . intersperse ", " . fmap pprint
 
 
-data AutoRewrite = AutoRewrite {
-    arArgs :: [Symbol]
+data AutoRewrite = AutoRewrite
+  { arArgs :: [SortedReft]
   , arLHS  :: Expr
   , arRHS  :: Expr
 } deriving (Eq, Show, Generic)
+
+instance Hashable SortedReft
+instance Hashable AutoRewrite
+
+
+instance Fixpoint (M.HashMap SubcId [AutoRewrite]) where
+  toFix autoRW =
+    vcat (map fixRW rewrites)
+    $+$ text "rewrite "
+    <+> toFix rwsMapping
+    where
+      rewrites     = L.nub $ concatMap snd (M.toList autoRW)
+
+      fixRW rw@(AutoRewrite args lhs rhs) =
+          text ("autorewrite " ++ show (hash rw))
+          <+> hsep (map toFix args)
+          <+> text "{"
+          <+> toFix lhs
+          <+> text "="
+          <+> toFix rhs
+          <+> text "}"
+
+      rwsMapping = do
+        (cid, rws) <- M.toList autoRW
+        rw         <-  rws
+        return $ text $ show cid ++ " : " ++ show (hash rw)
+
+
 
 -- eg  SMeasure (f D [x1..xn] e)
 -- for f (D x1 .. xn) = e
@@ -939,6 +968,7 @@ data Rewrite  = SMeasure
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))
               $+$ text "expand" <+> toFix (pairdoc <$> M.toList(aenvExpand axe))
+              $+$ toFix (aenvAutoRW axe)
     where
       pairdoc (x,y) = text $ show x ++ " : " ++ show y
 
