@@ -18,18 +18,8 @@ import GHC.Err
 
 GHC.Err.error :: {v:_ | false} -> a 
 
-assume GHC.Base.. :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>. 
-                     {xcmp::a, wcmp::b<q xcmp> |- c<p wcmp> <: c<r xcmp>}
-                     (ycmp:b -> c<p ycmp>)
-                  -> (zcmp:a -> b<q zcmp>)
-                  ->  xcmp:a -> c<r xcmp>
 //assume GHC.Integer.smallInteger :: x:GHC.Prim.Int# -> { v:GHC.Integer.Type | v = (x :: int) }
 
-assume GHC.Num.+ :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
-assume GHC.Num.- :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
-
-embed GHC.Types.Double  as real
-embed GHC.Types.Float   as real
 embed Integer           as int
 
 predicate Max V X Y = if X > Y then V = X else V = Y

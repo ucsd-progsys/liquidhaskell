@@ -1,4 +1,4 @@
-module Prelude ( module Exports) where
+module Prelude (module Exports) where
 
 import Data.Foldable
 import Data.Tuple

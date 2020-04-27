@@ -3,7 +3,7 @@ module spec GHC.CString where
 import GHC.Prim
 import GHC.Types
 
-measure strLen :: [Char] -> GHC.Types.Int
+measure strLen :: Addr# -> GHC.Types.Int
 
 GHC.CString.unpackCString#
   :: x:GHC.Prim.Addr#

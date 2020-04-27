@@ -5,12 +5,11 @@ import GHC.Prim
 import GHC.Classes
 import GHC.Types
 
-GHC.Types.W# :: w:_ -> {v:GHC.Types.Word | v == w }
-
-assume GHC.Types.D# :: x:GHC.Prim.Double# -> {v: GHC.Types.Double | v = (x :: real) }
-assume GHC.Types.F# :: x:GHC.Prim.Float# -> {v: GHC.Types.Float | v = (x :: real) }
-assume GHC.Types.I# :: x:GHC.Prim.Int# -> {v: GHC.Types.Int | v = (x :: int) }
-assume GHC.Types.C# :: x:GHC.Prim.Char# -> {v: GHC.Types.Char | v = (x :: Char) }
+GHC.Base.. :: forall <p :: b -> c -> Bool, q :: a -> b -> Bool, r :: a -> c -> Bool>. 
+                   {xcmp::a, wcmp::b<q xcmp> |- c<p wcmp> <: c<r xcmp>}
+                   (ycmp:b -> c<p ycmp>)
+                -> (zcmp:a -> b<q zcmp>)
+                ->  xcmp:a -> c<r xcmp>
 
 measure autolen :: forall a. a -> GHC.Types.Int
 

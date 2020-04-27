@@ -990,7 +990,9 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
-    mkSigs xts    = [ toBare (x, t) | (x, t) <- xts,  S.member x sigVars && (isExported src x) ] 
+    mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
+                    ,  S.member x sigVars && (isExportedVar (view targetSrcIso src) x) 
+                    ] 
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs 
     sigVars       = S.difference defVars reflVars
@@ -999,12 +1001,6 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
     reflVars      = S.fromList (fst <$> reflTySigs)
     -- myAliases fld = M.elems . fld $ myRTE 
     srcF          = _giTarget src 
-
-isExported :: GhcSrc -> Ghc.Var -> Bool
-isExported info v = n `Ghc.elemNameSet` ns
-  where
-    n                = Ghc.getName v
-    ns               = _gsExports info
 
 -- | Returns 'True' if the input determines a location within the input file. Due to the fact we might have
 -- Haskell sources which have \"companion\" specs defined alongside them, we also need to account for this

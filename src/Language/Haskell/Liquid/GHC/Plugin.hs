@@ -460,12 +460,6 @@ processModule LiquidHaskellContext{..} = do
     Right (targetSpec, liftedSpec) -> do
       let targetInfo = TargetInfo targetSrc targetSpec
 
-      -- /NOTE/: Grab the spec out of the validated 'GhcSpec', which will be richer than the original one.
-      -- This is the one we want to cache and serialise into the annotations, otherwise we would get validation
-      -- errors when trying to refine things.
-            --  LH.updLiftedSpec (downcastSpec targetSpec) (Just . gsLSpec . giSpec $ ghcInfo)
-        {- targetSpec `mergeTargetWithClient` -} -- (mkClientSpec . gsLSpec . giSpec $ ghcInfo) 
-
       liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
       liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
 
