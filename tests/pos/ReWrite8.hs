@@ -1,3 +1,4 @@
+-- Rewrite an app argument
 {-# LANGUAGE Rank2Types #-}
 
 {-@ LIQUID "--extensionality" @-}
