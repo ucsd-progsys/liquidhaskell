@@ -194,7 +194,12 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , _gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
                    impSigs   = makeImports mspecs,
                    expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
-                   dataDecls = dataDecls mySpec2 
+                   dataDecls = dataDecls mySpec2,
+                   measures  = Ms.measures mySpec
+                   -- We want to export measures in a 'LiftedSpec', especially if they are
+                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
+                   -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
+                   -- we take them from 'mySpec', which has those.
                    } 
   }
   where
