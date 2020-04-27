@@ -1340,7 +1340,7 @@ You can also annotate a function as being a global rewrite rule by using the
 ### Limitations
 
 Currently, rewriting does not work if the equality that uses the rewrite rule
-includes parameters that contain inner refinements ([test](tests/neg/ReWrite5.hs)).
+includes parameters that contain inner refinements ([test](tests/errors/ReWrite5.hs)).
 
 Rewriting works by pattern-matching expressions to determine if there is a
 variable substitution that would allow it to match against either side of a
@@ -1349,7 +1349,7 @@ corresponding equality is generated. If one side of the equality contains any
 parameters that are not bound on the other side, it will not be possible to
 generate a rewrite in that direction, because those variables cannot be
 instantiated. Likewise, if there are free variables on both sides of an
-equality, no rewrite can be generated at all ([test](tests/neg/ReWrite7.hs)).
+equality, no rewrite can be generated at all ([test](tests/errors/ReWrite7.hs)).
 
 It's possible in theory for rewriting rules to diverge. We have a simple check 
 to ensure that rewriting rules that will always diverge do not get instantiated. 
