@@ -81,6 +81,7 @@ import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
 import           Language.Haskell.Liquid.GHC.API 
+import           Language.Haskell.Liquid.GHC.Types
 import           Text.PrettyPrint.HughesPJ              (text, (<+>)) 
 
 
@@ -166,7 +167,7 @@ data TargetSrc = TargetSrc
   , giImpVars   :: ![Var]                 -- ^ Binders that are _read_ in module (but not defined?)
   , giDefVars   :: ![Var]                 -- ^ (Top-level) binders that are _defined_ in module
   , giUseVars   :: ![Var]                 -- ^ Binders that are _read_ in module
-  , gsExports   :: !NameSet               -- ^ `Name`s exported by the module being verified
+  , gsExports   :: !(HashSet StableName)  -- ^ `Name`s exported by the module being verified
   , gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons 
   , gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons 
   , gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)
@@ -585,7 +586,7 @@ isPLEVar sp x = M.member x (gsAutoInst (gsRefl sp))
 
 -- | Returns 'True' if the input 'Var' was exported in the module the input 'TargetSrc' represents.
 isExportedVar :: TargetSrc -> Var -> Bool
-isExportedVar src v = n `elemNameSet` ns
+isExportedVar src v = mkStableName n `S.member` ns
   where
     n                = getName v
     ns               = gsExports src
@@ -611,7 +612,7 @@ data GhcSrc = Src
   , _giImpVars   :: ![Var]                 -- ^ Binders that are _read_ in module (but not defined?)
   , _giDefVars   :: ![Var]                 -- ^ (Top-level) binders that are _defined_ in module
   , _giUseVars   :: ![Var]                 -- ^ Binders that are _read_ in module
-  , _gsExports   :: !NameSet               -- ^ `Name`s exported by the module being verified
+  , _gsExports   :: !(HashSet StableName)  -- ^ `Name`s exported by the module being verified
   , _gsFiTcs     :: ![TyCon]               -- ^ Family instance TyCons 
   , _gsFiDcs     :: ![(F.Symbol, DataCon)] -- ^ Family instance DataCons 
   , _gsPrimTcs   :: ![TyCon]               -- ^ Primitive GHC TyCons (from TysPrim.primTyCons)

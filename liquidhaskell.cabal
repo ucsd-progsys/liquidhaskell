@@ -118,6 +118,7 @@ library
                       Language.Haskell.Liquid.GHC.Play
                       Language.Haskell.Liquid.GHC.Resugar
                       Language.Haskell.Liquid.GHC.SpanStack
+                      Language.Haskell.Liquid.GHC.Types
                       Language.Haskell.Liquid.GHC.TypeRep
                       Language.Haskell.Liquid.Interactive.Handler
                       Language.Haskell.Liquid.Interactive.Types

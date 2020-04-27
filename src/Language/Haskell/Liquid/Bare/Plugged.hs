@@ -14,12 +14,14 @@ import Data.Generics.Schemes (everywhere)
 import           Text.PrettyPrint.HughesPJ
 import qualified Control.Exception                 as Ex
 import qualified Data.HashMap.Strict               as M
+import qualified Data.HashSet                      as S
 import qualified Data.Maybe                        as Mb 
 import qualified Data.List                         as L 
 import qualified Language.Fixpoint.Types           as F
 import qualified Language.Fixpoint.Types.Visitor   as F
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
 import qualified Language.Haskell.Liquid.GHC.API   as Ghc 
+import           Language.Haskell.Liquid.GHC.Types (StableName, mkStableName)
 import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rTyVar, subts, toType, uReft)
 import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Misc       as Misc 
@@ -46,7 +48,7 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 --   this module is responsible for plugging the holes we obviously cannot
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
-makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> Ghc.NameSet
+makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> S.HashSet StableName
                -> Bare.PlugTV Ghc.Var -> LocSpecType
                -> LocSpecType
 
@@ -255,7 +257,7 @@ addRefs tce tyi (RApp c ts _ r) = RApp c' ts ps r
     RApp c' _ ps _ = addTyConInfo tce tyi (RApp c ts [] r)
 addRefs _ _ t  = t
 
-maybeTrue :: Ghc.NamedThing a => a -> ModName -> Ghc.NameSet -> SpecType -> RReft -> RReft
+maybeTrue :: Ghc.NamedThing a => a -> ModName -> S.HashSet StableName -> SpecType -> RReft -> RReft
 maybeTrue x target exports t r
   | not (isFunTy t) && (Ghc.isInternalName name || inTarget && notExported)
   = r
@@ -264,7 +266,7 @@ maybeTrue x target exports t r
   where
     inTarget    = Ghc.moduleName (Ghc.nameModule name) == getModName target
     name        = Ghc.getName x
-    notExported = not (Ghc.getName x `Ghc.elemNameSet` exports)
+    notExported = not (mkStableName (Ghc.getName x) `S.member` exports)
 
 -- killHoles r@(U (Reft (v, rs)) _ _) = r { ur_reft = Reft (v, filter (not . isHole) rs) }
 

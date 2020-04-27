@@ -39,6 +39,7 @@ import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
 import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
+import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
 import qualified Language.Haskell.Liquid.GHC.API         as Ghc
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
@@ -79,7 +80,6 @@ import           Language.Fixpoint.Types           hiding ( panic
                                                           )
 
 import qualified Language.Haskell.TH.Syntax              as TH
-import           Language.Haskell.Liquid.GHC.Misc
 import qualified Language.Haskell.Liquid.Measure         as Ms
 import           Language.Haskell.Liquid.Parse
 import           Language.Haskell.Liquid.Transforms.ANF

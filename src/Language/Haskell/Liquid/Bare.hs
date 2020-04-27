@@ -45,6 +45,7 @@ import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
+import           Language.Haskell.Liquid.GHC.Types          (StableName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
@@ -746,7 +747,7 @@ _grepClassAssumes  = concatMap go
     goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RISig _)     = Nothing
 
-makeSigEnv :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Ghc.NameSet -> BareRTEnv -> Bare.SigEnv 
+makeSigEnv :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> S.HashSet StableName -> BareRTEnv -> Bare.SigEnv 
 makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   { sigEmbs     = embs 
   , sigTyRTyMap = tyi 

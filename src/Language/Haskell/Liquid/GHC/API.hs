@@ -34,6 +34,7 @@ module Language.Haskell.Liquid.GHC.API (
 
   ) where 
 
+import Avail          as Ghc
 import GHC            as Ghc
 import ConLike        as Ghc
 import Var            as Ghc
