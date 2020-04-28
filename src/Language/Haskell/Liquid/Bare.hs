@@ -192,18 +192,22 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , _gsName   = makeSpecName env     tycEnv measEnv   name 
   , _gsVars   = makeSpecVars cfg src mySpec env measEnv
   , _gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , _gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
-                   impSigs   = makeImports mspecs,
-                   expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
-                   dataDecls = dataDecls mySpec2,
-                   measures  = Ms.measures mySpec
-                   -- We want to export measures in a 'LiftedSpec', especially if they are
-                   -- required to check termination of some 'liftedSigs' we export. Due to the fact
-                   -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
-                   -- we take them from 'mySpec', which has those.
-                   } 
+  , _gsLSpec  = finalLiftedSpec
+              { impSigs   = makeImports mspecs
+              , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
+              , dataDecls = dataDecls mySpec2
+              , measures  = Ms.measures mySpec
+                -- We want to export measures in a 'LiftedSpec', especially if they are
+                -- required to check termination of some 'liftedSigs' we export. Due to the fact
+                -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
+                -- we take them from 'mySpec', which has those.
+              , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
+                -- Export all the assumptions (not just the ones created out of reflection) in
+                -- a 'LiftedSpec'.
+              }
   }
   where
+    finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
     -- build up spec components 
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 

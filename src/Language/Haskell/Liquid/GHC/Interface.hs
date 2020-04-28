@@ -439,7 +439,7 @@ updLiftedSpec s1 Nothing   = s1
 updLiftedSpec s1 (Just s2) = (clearSpec s1) `mappend` s2 
 
 clearSpec :: Ms.BareSpec -> Ms.BareSpec
-clearSpec s = s { sigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
+clearSpec s = s { sigs = [], asmSigs = [], aliases = [], ealiases = [], qualifiers = [], dataDecls = [] }
 
 keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
