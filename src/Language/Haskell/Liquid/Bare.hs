@@ -204,6 +204,7 @@ makeGhcSpec0 cfg src lmap mspecs = SP
               , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
                 -- Export all the assumptions (not just the ones created out of reflection) in
                 -- a 'LiftedSpec'.
+              , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
               }
   }
   where
