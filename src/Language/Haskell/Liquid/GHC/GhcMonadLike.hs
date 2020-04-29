@@ -35,6 +35,7 @@ import Control.Exception (throwIO)
 
 import Data.IORef (readIORef)
 
+import qualified Language.Haskell.Liquid.GHC.API   as Ghc
 import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           , findModule
                                                           , desugarModule
@@ -59,6 +60,8 @@ import Maybes
 import Panic
 import GhcMake
 import Finder
+
+import Optics
 
 class HasHscEnv m where
   askHscEnv :: m HscEnv
@@ -188,13 +191,42 @@ typecheckModule pmod = do
     , tm_gbl_env        = tc_gbl_env
     }
 
+{- | [NOTE:ghc810]
+Something changed in the GHC bowels such that the 'hscTarget' that the 'ModSummary' was inheriting
+was /not/ the one we were setting in 'configureDynFlags'. This is important, because if the 'hscTarget'
+is not 'HscInterpreted' or 'HscNothing', the call to 'targetRetainsAllBindings' will yield 'False'. This
+function is used internally by GHC to do dead-code-elimination and to mark functions as "exported" or not.
+Therefore, the 'CoreBind's passed to LiquidHaskell would be different between GHC 8.6.5 and GHC 8.10.
+-}
+
+class IsTypecheckedModule t where
+  tmParsedModule :: Lens'  t ParsedModule
+  tmModSummary   :: Lens'  t ModSummary
+  tmGblEnv       :: Getter t TcGblEnv
+
+instance IsTypecheckedModule TypecheckedModule where
+  tmParsedModule = lens tm_parsed_module (\s x -> s { tm_parsed_module = x })
+  tmModSummary   = lens tm_mod_summary   (\s x -> s { tm_mod_summary = x })
+  tmGblEnv       = to tm_gbl_env
+
+instance IsTypecheckedModule Ghc.TypecheckedModule where
+  tmParsedModule = lens Ghc.tm_parsed_module (\s x -> s { Ghc.tm_parsed_module = x })
+  tmModSummary   = lens (pm_mod_summary . Ghc.tm_parsed_module)
+                        (\s x -> over tmParsedModule (\pm -> pm { Ghc.pm_mod_summary = x }) s )
+  tmGblEnv       = to (fst . Ghc.tm_internals_)
 
 -- | Desugar a typechecked module.
-desugarModule :: GhcMonadLike m => TypecheckedModule -> m ModGuts
-desugarModule TypecheckedModule{..} = do
+desugarModule :: (GhcMonadLike m, IsTypecheckedModule t) => ModSummary -> t -> m ModGuts
+desugarModule originalModSum typechecked = do
+  -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
+  dynFlags          <- getDynFlags
+  let modSum         = originalModSum { ms_hspp_opts = dynFlags }
+  let parsedMod'     = (view tmParsedModule typechecked) { pm_mod_summary = modSum }
+  let typechecked'   = set tmParsedModule parsedMod' typechecked
+  
   hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts tm_mod_summary }
-  liftIO $ hscDesugar hsc_env_tmp tm_mod_summary tm_gbl_env
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
+  liftIO $ hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
 
 
 -- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the

@@ -171,7 +171,7 @@ parseHook :: [CommandLineOption]
           -> ModSummary 
           -> HsParsedModule 
           -> Hsc HsParsedModule
-parseHook _ modSummary parsedModule = do
+parseHook _ (unoptimise -> modSummary) parsedModule = do
   -- NOTE: We need to reverse the order of the extracted spec comments because in the plugin infrastructure
   -- those would appear in reverse order and LiquidHaskell is sensible to the order in which these
   -- annotations appears.
@@ -186,12 +186,12 @@ parseHook _ modSummary parsedModule = do
   }
 
   -- \"The ugly hack\": grab the unoptimised core binds here.
-  parsed          <- GhcMonadLike.parseModule (unoptimise . LH.keepRawTokenStream $ modSummary)
+  parsed          <- GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
 
   -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
   -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere.
   typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
-  unoptimisedGuts <- GhcMonadLike.desugarModule typechecked
+  unoptimisedGuts <- GhcMonadLike.desugarModule modSummary typechecked
 
   liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
 
