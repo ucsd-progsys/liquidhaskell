@@ -16,6 +16,8 @@
 {-# LANGUAGE GADTs            #-}
 {-# LANGUAGE TypeFamilies     #-}
 
+module TypeEquality00 where
+
 {-@ LIQUID "--exact-data-con" @-}
 
 {-@ data EntityFieldPerson typ where                                                                                     

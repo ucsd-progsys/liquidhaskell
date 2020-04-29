@@ -108,7 +108,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -460,8 +460,8 @@ processModule LiquidHaskellContext{..} = do
     Right (targetSpec, liftedSpec) -> do
       let targetInfo = TargetInfo targetSrc targetSpec
 
-      liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
-      liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
+      -- liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
+      -- liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
 
       let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 

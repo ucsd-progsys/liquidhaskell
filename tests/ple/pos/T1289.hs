@@ -1,6 +1,8 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
+module T1289 where
+
 {-@ reflect intId @-}
 intId :: Int -> Int
 intId 0 = 0

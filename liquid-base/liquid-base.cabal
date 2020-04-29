@@ -12,34 +12,26 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 cabal-version:      >= 1.22
 
-data-files:         src/Data/Word.spec
-                    src/Data/Tuple.spec
-                    src/Data/Char.spec
-                    src/Data/String.spec
-                    src/Data/Either.spec
-                    src/Data/Bits.spec
-                    src/System/IO.spec
+data-files:         src/Data/*.spec
+                    src/System/*.spec
                     src/GHC/IO/Handle.spec
-                    src/GHC/Int.spec
-                    src/GHC/Word.spec
-                    src/GHC/Real.spec
-                    src/GHC/Num.spec
-                    src/Data/Foldable.spec
-                    src/GHC/Base.spec
-                    src/GHC/List.spec
+                    src/GHC/*.spec
                     src/Prelude.spec
-                    src/Foreign/C/Types.spec
-                    src/Foreign/Ptr.spec
-                    src/Foreign/ForeignPtr.spec
+                    src/Foreign/C/*.spec
+                    src/Foreign/*.spec
+                    src/Debug/Trace.spec
 
 library
   exposed-modules:  Data.Foldable
                     Data.Tuple
                     Data.Char
+                    Data.Void
                     Data.Word
                     Data.Maybe
+                    Data.Monoid
                     Data.Either
                     Data.Ord
+                    Data.Proxy
                     Data.Bits
                     Data.List
                     Data.List.NonEmpty
@@ -49,8 +41,14 @@ library
                     Data.String
                     Data.Ratio
                     Data.IORef
+                    Data.Traversable
+                    Data.Typeable
+                    Data.Data
+                    Debug.Trace
                     Control.Applicative
+                    Control.Category
                     Control.Monad
+                    Control.Monad.ST
                     Control.Exception
                     GHC.Base
                     GHC.Generics
@@ -59,17 +57,24 @@ library
                     GHC.Num
                     GHC.TypeLits
                     GHC.Real
+                    GHC.ST
                     GHC.Word
                     GHC.Ptr
                     GHC.Exts
                     GHC.ForeignPtr
                     GHC.IO
                     GHC.IO.Handle
+                    Numeric
                     Foreign.C.Types
+                    Foreign.C.String
                     Foreign.Ptr
                     Foreign.ForeignPtr
+                    Foreign.Storable
+                    Foreign.Marshal.Alloc
                     System.IO
+                    System.IO.Unsafe
                     Prelude
+                    Text.Read
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , liquid-ghc-prim

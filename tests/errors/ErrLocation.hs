@@ -1,4 +1,6 @@
 
+module ErrLocation where
+
 {-@ inc :: Nat -> Nat @-}
 inc :: Int -> Int 
 inc x = x + 1

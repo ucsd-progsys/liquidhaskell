@@ -1,8 +1,10 @@
+{-# LANGUAGE GADTs               #-}
+{-# LANGUAGE DeriveAnyClass      #-}
 {-@ LIQUID "--max-case-expand=0" @-}
 {-@ LIQUID "--no-totality"       @-}
 
-{-# LANGUAGE GADTs          #-}
-{-# LANGUAGE DeriveAnyClass #-}
+module T1633 where
+
 import Data.Void
 
 data Relation a b where
