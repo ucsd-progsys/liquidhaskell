@@ -574,6 +574,8 @@ lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum 
     names :: [Ghc.Name] 
     names  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
 
+-- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
+-- if one is found.
 lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
 lookupTyThing hscEnv modSum tcGblEnv n = do
   mi  <- GhcMonadLike.moduleInfoTc modSum tcGblEnv
@@ -584,16 +586,18 @@ lookupTyThing hscEnv modSum tcGblEnv n = do
   return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
 
 availableTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [TyThing]
-availableTyThings hscEnv modSum tcGblEnv avails = fmap catMaybes $ forM avails $ \a -> do
-  (_, mbThing) <- case a of
-    Avail n       -> lookupTyThing hscEnv modSum tcGblEnv n
-    AvailTC n _ _ -> lookupTyThing hscEnv modSum tcGblEnv n
-  pure mbThing
+availableTyThings hscEnv modSum tcGblEnv avails = fmap (catMaybes . mconcat) $ forM avails $ \a -> do
+  results <- case a of
+    Avail n        -> pure <$> lookupTyThing hscEnv modSum tcGblEnv n
+    AvailTC n ns _ -> forM (n : ns) $ lookupTyThing hscEnv modSum tcGblEnv
+  pure . map snd $ results
 
+-- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
 availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [GHC.TyCon]
 availableTyCons hscEnv modSum tcGblEnv avails = 
   fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
+-- | Returns all the available (i.e. exported) 'Var's for the input 'Module'.
 availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails = 
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
