@@ -205,6 +205,9 @@ makeGhcSpec0 cfg src lmap mspecs = SP
                 -- Export all the assumptions (not just the ones created out of reflection) in
                 -- a 'LiftedSpec'.
               , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
+                -- Preserve user-defined 'imeasures'.
+              , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
+                -- Preserve user-defined 'dvariance'.
               }
   }
   where
