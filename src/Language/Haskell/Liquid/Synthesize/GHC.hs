@@ -22,6 +22,8 @@ import qualified Data.HashMap.Strict           as M
 import           TyCon
 import           TysWiredIn
 
+import           Debug.Trace
+
 instance Default Type where
     def = TyVarTy alphaTyVar 
 
@@ -79,26 +81,31 @@ unifyWith t               = error $ " [ unifyWith ] " ++ showTy t
 fromAnf :: CoreExpr -> CoreExpr
 fromAnf e = fst $ fromAnf' e []
 
--- If you find a binding add it to the second argument.
+-- | Replace let bindings in applications.
+--   > If you find a binding add it to the second argument.
 --                    | (lhs, rhs)      |
 fromAnf' :: CoreExpr -> [(Var, CoreExpr)] -> (CoreExpr, [(Var, CoreExpr)])
-fromAnf' (Let bnd e) bnds       = 
-  case bnd of
-    Rec {}       -> error "No recursive bindings in let."
-    NonRec rb lb -> 
-      fromAnf' e ((rb, replaceBnds lb' bnds') : bnds')
-        where (lb', bnds')     = fromAnf' lb bnds
+fromAnf' (Lam b e) bnds
+  = let (e', bnds') = fromAnf' e bnds
+    in  (Lam b e', bnds')
+fromAnf' (Let bnd e) bnds
+  = case bnd of Rec {}       -> error " By construction, no recursive bindings in let expression. "
+                NonRec rb lb -> let (lb', bnds') = fromAnf' lb bnds
+                                in  fromAnf' e ((rb, lb') : bnds')
+fromAnf' (Var var) bnds 
+  = (fromMaybe (Var var) (lookup var bnds), bnds)
 fromAnf' (Case scr bnd tp alts) bnds
   = (Case scr bnd tp (map (\(altc, xs, e) -> (altc, xs, fst $ fromAnf' e bnds)) alts), bnds)
-fromAnf' e           bnds       = (replaceBnds e bnds, bnds)
-
-
-replaceBnds :: CoreExpr -> [(Var, CoreExpr)] -> CoreExpr 
-replaceBnds (Var var) bnds    = fromMaybe (Var var) (lookup var bnds)
-replaceBnds (App e1 e2) bnds  = App (replaceBnds e1 bnds) (replaceBnds e2 bnds) 
-replaceBnds (Type t)    _     = Type t
-replaceBnds lit@Lit{}   _     = lit 
-replaceBnds e           _     = e
+fromAnf' (App e1 e2) bnds
+  = let (e1', bnds')  = fromAnf' e1 bnds 
+        (e2', bnds'') = fromAnf' e2 bnds'
+    in  (App e1' e2', bnds'')
+fromAnf' t@Type{} bnds 
+  = (t, bnds)
+fromAnf' l@Lit{} bnds 
+  = (l, bnds)
+fromAnf' e bnds
+  = error " Should not reach this point. "
 
 -----------------------------------------------------------------------------------
 --  |                          Prune trivial expressions                       | --
