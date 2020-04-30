@@ -22,6 +22,7 @@ import qualified Data.HashMap.Strict           as M
 import           TyCon
 import           TysWiredIn
 
+import           Data.List.Split
 import           Debug.Trace
 
 instance Default Type where
@@ -106,6 +107,62 @@ fromAnf' l@Lit{} bnds
   = (l, bnds)
 fromAnf' e bnds
   = error " Should not reach this point. "
+
+discardModName :: Var -> String
+discardModName v = 
+  let [_, n] = splitOn "." (show v)
+  in  n
+
+-- | Function used for pretty printing core as Haskell source.
+--   Input does not contain let bindings.
+coreToHs :: Var -> CoreExpr -> String
+coreToHs v e = discardModName v ++ pprintFormals v e
+
+pprintFormals :: Var -> CoreExpr -> String
+pprintFormals v (Lam b e) 
+  = if isTyVar b 
+      then pprintFormals v e
+      else " " ++ show b ++ pprintFormals v e
+pprintFormals v e 
+  = " =" ++ pprintBody v caseIndent e
+
+caseIndent :: Int 
+caseIndent = 4
+
+indent :: Int -> String
+indent i = replicate i ' '
+
+errorExprPp :: CoreExpr -> Bool
+errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
+  = show err == "Language.Haskell.Liquid.Synthesize.Error.err"
+errorExprPp _ 
+  = False
+
+pprintBody :: Var -> Int -> CoreExpr -> String
+pprintBody v _ e@Lam{} 
+  = pprintFormals v e
+pprintBody var _ (Var v)
+  = if isTyVar v then "" else " " ++ (if show v == show var then discardModName v else show v)
+pprintBody v i e@(App e1 e2)
+  = if errorExprPp e
+      then " error \" Dead code! \" "
+      else pprintBody v i e1 ++ pprintBody v i e2 -- TODO: parenthesis
+pprintBody _ _ l@Lit{}
+  = " " ++ show l
+pprintBody v i (Case scr _ _ alts)
+  = "\n" ++ indent i ++ 
+    "case" ++ pprintBody v i scr ++ " of\n" ++ 
+    concatMap (pprintAlts v (i + caseIndent)) alts 
+pprintBody _ _ Type{} 
+  = ""
+pprintBody _ i e
+  = error (" Not yet implemented for e = " ++ show e)
+
+pprintAlts :: Var -> Int -> Alt Var -> String
+pprintAlts var i (DataAlt dataCon, vs, e)
+  = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++ pprintBody var (i+caseIndent) e ++ "\n"
+pprintAlts _ _ _ 
+  = error " Pretty printing for pattern match on datatypes. "
 
 -----------------------------------------------------------------------------------
 --  |                          Prune trivial expressions                       | --

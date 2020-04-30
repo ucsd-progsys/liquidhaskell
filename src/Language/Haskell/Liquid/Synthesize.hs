@@ -65,7 +65,7 @@ synthesize tgt fcfg cginfo =
 
       return $ ErrHole loc (
         if not (null fills)
-          then text "\n Hole Fills: " <+> pprintMany (map fromAnf fills)
+          then text "\n Hole Fills:\n" <+> pprintMany (map (coreToHs topLvlBndr . fromAnf) fills)
           else mempty) mempty (symbol x) t 
 
 
