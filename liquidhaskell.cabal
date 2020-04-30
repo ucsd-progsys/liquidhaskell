@@ -190,6 +190,7 @@ library
                     , githash
                     , parsec               >= 3.1
                     , pretty               >= 1.1
+                    , split
                     , syb                  >= 0.4.4
                     , template-haskell     >= 2.9
                     , temporary            >= 1.2
@@ -240,7 +241,7 @@ executable target
   default-language: Haskell2010
   buildable:        False
 
-test-suite test
+test-suite liquidhaskell-test
   type:             exitcode-stdio-1.0
   main-is:          test.hs
   other-modules:    Paths_liquidhaskell
@@ -278,5 +279,24 @@ test-suite liquidhaskell-parser
                   , tasty           >= 0.10
                   , tasty-ant-xml
                   , tasty-hunit     >= 0.9
+  default-language: Haskell2010
+  ghc-options:      -W
+
+test-suite synthesis
+  type:             exitcode-stdio-1.0
+  main-is:          Synthesis.hs
+  other-modules:    Paths_liquidhaskell
+  hs-source-dirs:   tests
+  build-depends:    base            >= 4.8.1.0 && < 5
+                  , liquid-fixpoint >= 0.8.0.0
+                  , liquidhaskell
+                  , tasty           >= 0.7
+                  , tasty-hunit
+                  , process
+                  , filepath
+                  , text
+                  , directory 
+                  , ghc
+                  , data-default
   default-language: Haskell2010
   ghc-options:      -W
