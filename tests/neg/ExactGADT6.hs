@@ -3,6 +3,8 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
+module ExactGADT6 where
+
 class PersistEntity record where
     data EntityField record typ :: *
 
@@ -33,4 +35,3 @@ createUpdate field value = Update
 
 testUpdateQueryFail :: () -> Update Blob Int
 testUpdateQueryFail () = createUpdate BlobXVal (-1)
-

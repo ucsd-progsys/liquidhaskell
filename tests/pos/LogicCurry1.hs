@@ -12,3 +12,5 @@ bar :: Int -> Int -> Int
 {-@ bar :: n:Int -> {v:_ | v == ackF n } @-}
 bar m = ack m
 
+main :: IO ()
+main = pure ()

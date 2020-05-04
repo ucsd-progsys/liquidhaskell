@@ -12,3 +12,6 @@ tsize :: Term l -> Int
 {-@ tsize :: Term l -> Nat @-}
 tsize (TPred _)            = 0
 tsize (TTerm _)            = 0
+
+main :: IO ()
+main = pure ()

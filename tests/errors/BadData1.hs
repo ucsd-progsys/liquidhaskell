@@ -30,3 +30,6 @@ blobXVal = BlobXVal
 -- BAD
 -- testUpdateQueryFail :: () -> Update Blob Int
 -- testUpdateQueryFail () = createUpdate blobXVal (-1)
+
+main :: IO ()
+main = pure ()

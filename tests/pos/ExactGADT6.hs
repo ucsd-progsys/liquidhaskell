@@ -3,6 +3,8 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
+module ExactGADT6 where
+
 class PersistEntity record where
     data EntityField record :: * -> *
 

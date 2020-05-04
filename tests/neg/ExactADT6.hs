@@ -3,6 +3,8 @@
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
+module ExactADT6 where
+
 {-@ data EntityField typ where
         BlobXVal :: EntityField {v:Int | v >= 0}
       | BlobYVal :: EntityField Int
@@ -33,4 +35,3 @@ createUpdate field value = Update
 -- BAD
 testUpdateQueryFail :: () -> Update Int
 testUpdateQueryFail () = createUpdate BlobXVal (-1)
-

@@ -1,3 +1,5 @@
+module T1498A where
+
 class A a where
   f :: a -> Int
   
