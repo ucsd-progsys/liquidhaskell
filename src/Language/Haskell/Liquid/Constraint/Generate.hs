@@ -58,7 +58,6 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Fixpoint.Types.Visitor               as F
--- import           Language.Fixpoint.Solver.Instantiate
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
@@ -68,14 +67,8 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Play          (isHoleVar) 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
--- import           Language.Haskell.Liquid.Types.Strata
--- import qualified Language.Haskell.Liquid.Types.RefType         as RT
--- import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
--- import           Language.Haskell.Liquid.Types.Literals
 import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
--- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
