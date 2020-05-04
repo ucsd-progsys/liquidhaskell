@@ -53,6 +53,7 @@ import           HscTypes                          hiding ( Target )
 import           InstEnv
 import           Module
 import           Panic                                    ( throwGhcException )
+import           FamInstEnv
 import qualified TysPrim
 import           GHC.LanguageExtensions
 
@@ -207,6 +208,7 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
   availVars     <- LH.availableVars env (GhcMonadLike.tm_mod_summary typechecked) 
                                         (GhcMonadLike.tm_gbl_env typechecked)
                                         (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
+
   let thisModule = ms_mod modSummary
   let stableData = mkTcData typechecked resolvedNames availTyCons availVars
 
@@ -460,8 +462,8 @@ processModule LiquidHaskellContext{..} = do
     Right (targetSpec, liftedSpec) -> do
       let targetInfo = TargetInfo targetSrc targetSpec
 
-      -- liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
-      -- liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
+      liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
+      liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
 
       let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
@@ -496,10 +498,19 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   let availTcs    = tcAvailableTyCons tcData
   let allTcs      = L.nub $ (mgi_tcs mgiModGuts ++ availTcs)
 
-  let dataCons    = concatMap (map dataConWorkId . tyConDataCons) allTcs
-  (fiTcs, fiDcs) <- liftIO $ LH.makeFamInstEnv hscEnv
-  let things      = tcResolvedNames tcData
-  let impVars     = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
+  let dataCons       = concatMap (map dataConWorkId . tyConDataCons) allTcs
+  let (fiTcs, fiDcs) = LH.makeFamInstEnv (getFamInstances modGuts)
+  let things         = tcResolvedNames tcData
+  let impVars        = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
+
+  --liftIO $ do
+  --  print $ "_gsTcs   => " ++ show allTcs
+  --  print $ "_gsFiTcs => " ++ show fiTcs
+  --  print $ "_gsFiDcs => " ++ show fiDcs
+  --  print $ "dataCons => " ++ show dataCons
+  --  print $ "defVars  => " ++ show (L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData)
+
+
   return $ TargetSrc
     { giIncDir    = mempty
     , giTarget    = file
@@ -524,6 +535,9 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
     mgiModGuts = miModGuts deriv modGuts
       where
         deriv   = Just $ instEnvElts $ mg_inst_env modGuts
+
+getFamInstances :: ModGuts -> [FamInst]
+getFamInstances guts = famInstEnvElts (mg_fam_inst_env guts)
 
 ---------------------------------------------------------------------------------
 -- | Unused stages of the compilation pipeline ----------------------------------

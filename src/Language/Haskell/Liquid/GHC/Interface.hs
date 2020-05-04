@@ -48,7 +48,6 @@ module Language.Haskell.Liquid.GHC.Interface (
   , availableTyCons
   , availableVars
   , updLiftedSpec
-
   ) where
 
 import Prelude hiding (error)
@@ -493,13 +492,21 @@ makeGhcSrc cfg file typechecked modSum = do
   coreBinds         <- liftIO $ anormalize cfg hscEnv modGuts'
   _                 <- liftIO $ whenNormal $ Misc.donePhase Misc.Loud "A-Normalization"
   let dataCons       = concatMap (map dataConWorkId . tyConDataCons) (mgi_tcs modGuts)
-  (fiTcs, fiDcs)    <- liftIO $ makeFamInstEnv hscEnv 
+  (fiTcs, fiDcs)    <- makeFamInstEnv <$> liftIO (getFamInstances hscEnv)
   things            <- lookupTyThings hscEnv modSum (fst $ tm_internals_ typechecked)
 
   availableTcs      <- availableTyCons hscEnv modSum (fst $ tm_internals_ typechecked) (mg_exports modGuts')
 
   let impVars        = importVars coreBinds ++ classCons (mgi_cls_inst modGuts)
   incDir            <- liftIO $ Misc.getIncludeDir
+
+  --liftIO $ do
+  --  print $ "_gsTcs   => " ++ show (nub $ (mgi_tcs      modGuts) ++ availableTcs)
+  --  print $ "_gsFiTcs => " ++ show fiTcs
+  --  print $ "_gsFiDcs => " ++ show fiDcs
+  --  print $ "dataCons => " ++ show dataCons
+  --  print $ "defVars  => " ++ show (dataCons ++ (letVars coreBinds))
+
   return $ Src 
     { _giIncDir    = incDir 
     , _giTarget    = file
@@ -690,12 +697,11 @@ checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
 --------------------------------------------------------------------------------
 -- | Family instance information
 --------------------------------------------------------------------------------
-makeFamInstEnv :: HscEnv -> IO ([GHC.TyCon], [(Symbol, DataCon)])
-makeFamInstEnv env = do
-  famInsts <- getFamInstances env
+makeFamInstEnv :: [FamInst] -> ([GHC.TyCon], [(Symbol, DataCon)])
+makeFamInstEnv famInsts =
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
-  let fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
-  return (fiTcs, fiDcs)
+      fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
+  in (fiTcs, fiDcs)
 
 getFamInstances :: HscEnv -> IO [FamInst]
 getFamInstances env = do
