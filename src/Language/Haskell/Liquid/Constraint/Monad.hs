@@ -54,12 +54,9 @@ addPost γ (RRTy e r OInv t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
        addC (SubR γ' OInv r) "precondition" >> return t
 
-addPost γ (RRTy e r OTerm t)
+addPost γ (RRTy e r o t)
   = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) γ e
-       addC (SubR γ' OTerm r) "precondition" >> return t
-
-addPost _ (RRTy _ _ OCons t)
-  = return t
+       addC (SubR γ' o r) "precondition" >> return t
 
 addPost _ t
   = return t
