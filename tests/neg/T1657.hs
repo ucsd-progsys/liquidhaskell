@@ -6,8 +6,8 @@ data I = I Int
              I <p>
 @-}
 getI :: I
-getI = undefined 
+getI = I 7  
 
-{-@ pleaseFail :: I<{\_ -> True}> @-}
-pleaseFail :: I
-pleaseFail = getI
+{-@ shouldPass :: I<{\z -> true}> @-}
+shouldPass :: I
+shouldPass = getI

@@ -45,6 +45,7 @@ import           Language.Haskell.Liquid.Types hiding (loc)
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Constraint
+import           Language.Haskell.Liquid.Constraint.Monad (envToSub)
 
 --------------------------------------------------------------------------------
 splitW ::  WfC -> CG [FixWfC]
@@ -437,17 +438,6 @@ getTag :: CGEnv -> F.Tag
 --------------------------------------------------------------------------------
 getTag γ = maybe Tg.defaultTag (`Tg.getTag` tgEnv γ) (tgKey γ)
 
-
---------------------------------------------------------------------------------
-{-@ envToSub :: {v:[(a, b)] | 2 <= len v} -> ([(a, b)], b, b) @-}
-envToSub :: [(a, b)] -> ([(a, b)], b, b)
---------------------------------------------------------------------------------
-envToSub = go []
-  where
-    go _   []              = impossible Nothing "This cannot happen: envToSub on 0 elems"
-    go _   [(_,_)]         = impossible Nothing "This cannot happen: envToSub on 1 elem"
-    go ack [(_,l), (_, r)] = (reverse ack, l, r)
-    go ack (x:xs)          = go (x:ack) xs
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation Panic -----------------------------------------------

@@ -740,10 +740,6 @@ hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
-ppError' td dSp dCtx (ErrAssType _ OCons _ _ _)
-  = dSp <+> text "Cannot prove bound."
-        $+$ dCtx
-
 ppError' td dSp dCtx (ErrAssType _ o _ c p)
   = dSp <+> pprintTidy td o
         $+$ dCtx
