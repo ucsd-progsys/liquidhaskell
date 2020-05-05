@@ -151,6 +151,7 @@ jobs:
                           -package-env=$(./scripts/generate_testing_ghc_env) \
                           -package liquid-base -package liquid-prelude -package liquid-vector \
                           -package liquid-containers -package liquid-bytestring -package liquidhaskell \
+                          -package Cabal \
                           -fplugin=Language.Haskell.Liquid.GHC.Plugin "
 
 workflows:
