@@ -682,7 +682,7 @@ lambdaSingleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
-    sx = typeSort tce $ varType x
+    sx = typeSort tce $ Ghc.expandTypeSynonyms $ varType x
 lambdaSingleton _ _ _ _
   = mempty
 
@@ -1304,7 +1304,7 @@ lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
                                        _  -> Nothing
 lamExpr γ (Lam x e)   = case lamExpr γ e of
-                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
+                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
 
