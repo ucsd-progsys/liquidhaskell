@@ -14,4 +14,8 @@ import GHC.Real
 import GHC.Types
 import GHC.Word
 
+-- Liquid \"extra\" modules
+import Liquid.Prelude.Totality
+import Liquid.Prelude.Real
+
 import "base" Prelude as Exports

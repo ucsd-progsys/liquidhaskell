@@ -33,6 +33,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , toStableModule
   , renderModule
   , TargetDependencies(..)
+  , dropDependency
   -- * Predicates on spec types
   -- $predicates
   , isPLEVar
@@ -577,6 +578,10 @@ newtype TargetDependencies =
   TargetDependencies { getDependencies :: HashMap StableModule LiftedSpec }
   deriving (Eq, Show, Semigroup, Monoid, Generic)
   deriving Binary via Generically TargetDependencies
+
+-- | Drop the given 'StableModule' from the dependencies.
+dropDependency :: StableModule -> TargetDependencies -> TargetDependencies
+dropDependency sm (TargetDependencies deps) = TargetDependencies (M.delete sm deps)
 
 -- $predicates
 

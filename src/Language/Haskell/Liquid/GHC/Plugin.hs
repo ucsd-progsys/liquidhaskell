@@ -109,7 +109,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = False
+debugLogs = True
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -330,17 +330,21 @@ liquidHaskellPass cfg modGuts = do
 --------------------------------------------------------------------------------
 
 loadDependencies :: forall m. GhcMonadLike m 
-                 => (Config, Bool)
-                 -- ^ The 'Config' associated to the /current/ module being compiled
-                 -- plus an indication whether or not the configuration changed.
+                 => Config
+                 -- ^ The 'Config' associated to the /current/ module being compiled.
                  -> ExternalPackageState
                  -> HomePackageTable
                  -> Module
                  -> [Module]
                  -> m TargetDependencies
-loadDependencies config eps hpt thisModule mods = do
-  results <- SpecFinder.findRelevantSpecs config eps hpt mods
-  foldlM processResult mempty (reverse results)
+loadDependencies currentModuleConfig eps hpt thisModule mods = do
+  results   <- SpecFinder.findRelevantSpecs eps hpt mods
+  deps      <- foldlM processResult mempty (reverse results)
+  redundant <- configToRedundantDependencies currentModuleConfig
+
+  liftIO $ putStrLn ( "REDUNDANT => " ++ show redundant)
+
+  pure $ foldl' (flip dropDependency) deps redundant
   where
     processResult :: TargetDependencies -> SpecFinderResult -> m TargetDependencies
     processResult !acc (SpecNotFound mdl) = do
@@ -436,8 +440,7 @@ processModule LiquidHaskellContext{..} = do
   moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec)
   eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
-  let configChanged   = moduleCfg /= lhGlobalCfg
-  dependencies       <- loadDependencies (moduleCfg, configChanged)
+  dependencies       <- loadDependencies moduleCfg
                                          eps
                                          (hsc_HPT hscEnv)
                                          thisModule

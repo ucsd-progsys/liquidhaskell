@@ -10,6 +10,3 @@ GHC.Num.negate :: (GHC.Num.Num a)
 
 GHC.Num.+ :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x + y }
 GHC.Num.- :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x - y }
-
-// Taken from include/Real.spec
-assume GHC.Num.* :: (GHC.Num.Num a) => x:a -> y:a -> {v:a | v = x * y} 

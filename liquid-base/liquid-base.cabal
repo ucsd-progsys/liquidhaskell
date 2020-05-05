@@ -17,9 +17,12 @@ data-files:         src/Data/*.spec
                     src/GHC/IO/Handle.spec
                     src/GHC/*.spec
                     src/Prelude.spec
+                    src/Liquid/Prelude/*.spec
                     src/Foreign/C/*.spec
                     src/Foreign/*.spec
                     src/Debug/Trace.spec
+                    src/Control/*.spec
+                    src/Control/Exception/*.spec
 
 library
   exposed-modules:  Data.Foldable
@@ -50,6 +53,7 @@ library
                     Control.Monad
                     Control.Monad.ST
                     Control.Exception
+                    Control.Exception.Base
                     GHC.Base
                     GHC.Generics
                     GHC.Int
@@ -73,8 +77,11 @@ library
                     Foreign.Marshal.Alloc
                     System.IO
                     System.IO.Unsafe
-                    Prelude
                     Text.Read
+                    Liquid.Prelude.Totality
+                    Liquid.Prelude.Real
+                    Liquid.Prelude.NotReal
+                    Prelude
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , liquid-ghc-prim

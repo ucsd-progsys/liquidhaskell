@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE MultiWayIf #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE BangPatterns #-}
@@ -8,11 +9,12 @@ module Language.Haskell.Liquid.GHC.Plugin.SpecFinder
     , findCompanionSpec
     , SpecFinderResult(..)
     , SearchLocation(..)
+    , configToRedundantDependencies
     ) where
 
 import           Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike ( GhcMonadLike
-                                                                          , getModSummary
                                                                           , lookupModSummary
+                                                                          , askHscEnv
                                                                           )
 import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deserialiseLiquidLib )
 import           Language.Haskell.Liquid.GHC.Plugin.Types
@@ -28,11 +30,16 @@ import qualified Outputable                              as O
 import           GHC
 import           HscTypes
 import           CoreMonad                                ( getDynFlags )
+import           Module
+import           Finder                                   ( findExposedPackageModule
+                                                          , FindResult(..)
+                                                          )
 
 import qualified Data.HashSet                            as HS
 import qualified Data.Map.Strict                         as M
 import qualified Data.List                               as L
 import           Data.Function                            ( (&) )
+import           Data.Bifunctor
 import           Data.Foldable
 import           Data.Maybe
 
@@ -53,32 +60,29 @@ data SpecFinderResult =
 data SearchLocation =
     InterfaceLocation
   -- ^ The spec was loaded from the annotations of an interface.
-  | SpecEnvLocation
-  -- ^ The spec was loaded from the cached 'SpecEnv'.
   | DiskLocation
   -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
   deriving Show
 
-
 -- | Load any relevant spec in the input 'SpecEnv', by updating it. The update will happen only if necessary,
 -- i.e. if the spec is not already present.
 findRelevantSpecs :: forall m. GhcMonadLike m 
-                  => (Config, Bool)
-                  -> ExternalPackageState
+                  => ExternalPackageState
                   -> HomePackageTable
                   -> [Module]
+                  -- ^ Any relevant module fetched during dependency-discovery.
                   -> m [SpecFinderResult]
-findRelevantSpecs (cfg, configChanged) eps hpt mods = do
-  (_, res) <- foldlM loadRelevantSpec (configChanged, mempty) mods
+findRelevantSpecs eps hpt mods = do
+  res  <- foldlM loadRelevantSpec mempty mods
   pure res
   where
 
-    loadRelevantSpec :: (Bool, [SpecFinderResult]) -> Module -> m (Bool, [SpecFinderResult])
-    loadRelevantSpec (cfgChanged, !acc) currentModule = do
+    loadRelevantSpec :: [SpecFinderResult] -> Module -> m [SpecFinderResult]
+    loadRelevantSpec !acc currentModule = do
       res <- runMaybeT $ lookupInterfaceAnnotations eps hpt currentModule
-      case res of
-        Nothing         -> pure (False, SpecNotFound currentModule : acc)
-        Just specResult -> pure (False, specResult : acc)
+      pure $ case res of
+        Nothing         -> SpecNotFound currentModule : acc
+        Just specResult -> specResult : acc
 
 -- | If this module has a \"companion\" '.spec' file sitting next to it, this 'SpecFinder'
 -- will try loading it.
@@ -121,3 +125,36 @@ lookupCompanionSpec thisModule = do
   where
     specFile :: FilePath -> FilePath
     specFile fp = withExt fp Spec
+
+-- | Returns a list of 'StableModule's which can be filtered out of the dependency list, because they are
+-- selectively \"toggled\" on and off by the LiquidHaskell's configuration, which granularity can be
+-- /per module/.
+configToRedundantDependencies :: forall m. GhcMonadLike m => Config -> m [StableModule]
+configToRedundantDependencies cfg = do
+  env <- askHscEnv
+  catMaybes <$> mapM (lookupModule env . first ($ cfg)) configSensitiveDependencies
+  where
+    lookupModule :: HscEnv -> (Bool, ModuleName) -> m (Maybe StableModule)
+    lookupModule env (fetchModule, modName)
+      | fetchModule = liftIO $ lookupLiquidBaseModule env modName
+      | otherwise   = pure Nothing
+
+    lookupLiquidBaseModule :: HscEnv -> ModuleName -> IO (Maybe StableModule)
+    lookupLiquidBaseModule env mn = do
+      res <- liftIO $ findExposedPackageModule env mn (Just "liquid-base")
+      case res of
+        Found _ mdl -> pure $ Just (toStableModule mdl)
+        _           -> pure Nothing
+
+-- | Static associative map of the 'ModuleName' that needs to be filtered from the final 'TargetDependencies'
+-- due to some particular configuration options.
+--
+-- Modify this map to add any extra special case. Remember that the semantic is not which module will be
+-- /added/, but rather which one will be /removed/ from the final list of dependencies.
+--
+configSensitiveDependencies :: [(Config -> Bool, ModuleName)]
+configSensitiveDependencies = [
+    (not . totalityCheck, mkModuleName "Liquid.Prelude.Totality")
+  , (not . linear, mkModuleName "Liquid.Prelude.NotReal")
+  , (linear, mkModuleName "Liquid.Prelude.Real")
+  ]

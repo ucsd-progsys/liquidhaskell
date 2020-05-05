@@ -6,8 +6,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       , extractSpecComments
 
       -- * Serialising and deserialising things from/to specs.
-      , serialiseBareSpec
-      , deserialiseBareSpec
       , serialiseLiquidLib
       , deserialiseLiquidLib
 
