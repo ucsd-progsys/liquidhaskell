@@ -342,7 +342,7 @@ loadDependencies currentModuleConfig eps hpt thisModule mods = do
   deps      <- foldlM processResult mempty (reverse results)
   redundant <- configToRedundantDependencies currentModuleConfig
 
-  liftIO $ putStrLn ( "REDUNDANT => " ++ show redundant)
+  debugLog $ "Redundant dependencies ==> " ++ show redundant
 
   pure $ foldl' (flip dropDependency) deps redundant
   where
