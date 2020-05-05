@@ -646,7 +646,12 @@ unApply = Vis.trans (Vis.defaultVisitor { Vis.txExpr = const go }) () ()
   where
     go (ECst (EApp (EApp f e1) e2) _)
       | Just _ <- unApplyAt f = EApp e1 e2
+    go (ELam (x,s) e)         = ELam (x, Vis.mapSort go' s) e 
     go e                      = e
+
+    go' (FApp (FApp fs t1) t2) | fs == funcSort 
+          = FFunc t1 t2 
+    go' t = t 
 
 
 unApplyAt :: Expr -> Maybe Sort
