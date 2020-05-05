@@ -27,7 +27,6 @@ import           Language.Haskell.Liquid.Misc             (condNull)
 import           Language.Haskell.Liquid.Types.PredType
 
 import           Language.Haskell.Liquid.Types
-import           Language.Haskell.Liquid.Bare hiding (GhcSpec(..))
 
 
 --------------------------------------------------------------------------------
