@@ -209,8 +209,7 @@ colorResult (_)         = Sad
 
 resultExit :: FixResult a -> ExitCode
 resultExit Safe        = ExitSuccess
-resultExit (Unsafe _)  = ExitFailure 1
-resultExit _           = ExitFailure 2
+resultExit _           = ExitFailure 1
 
 ---------------------------------------------------------------------
 -- | Catalogue of Errors --------------------------------------------
