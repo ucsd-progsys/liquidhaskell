@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.GHC.Misc where
 import           Class                                      (classKey)
 import           Data.String
 import qualified Data.List as L
-import           PrelNames                                  (fractionalClassKeys, itName)
+import           PrelNames                                  (fractionalClassKeys, itName, ordClassKey, numericClassKeys, eqClassKey)
 import           FamInstEnv
 import           Debug.Trace
 -- import qualified ConLike                                    as Ghc
@@ -223,6 +223,9 @@ unTickExpr x                  = x
 
 isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
+
+isOrdClass :: Class -> Bool
+isOrdClass clas = classKey clas == ordClassKey
 
 --------------------------------------------------------------------------------
 -- | Pretty Printers -----------------------------------------------------------
@@ -834,6 +837,48 @@ binders (Rec xes)    = fst <$> xes
 
 expandVarType :: Var -> Type
 expandVarType = expandTypeSynonyms . varType
+
+--------------------------------------------------------------------------------
+-- | The following functions test if a `CoreExpr` or `CoreVar` can be
+--   embedded in logic. With type-class support, we can no longer erase
+--   such expressions arbitrarily.
+--------------------------------------------------------------------------------
+isEmbeddedDictExpr :: CoreExpr -> Bool
+isEmbeddedDictExpr = isEmbeddedDictType . CoreUtils.exprType
+
+isEmbeddedDictVar :: Var -> Bool
+isEmbeddedDictVar v = F.notracepp msg . isEmbeddedDictType . varType $ v
+  where
+    msg     =  "isGoodCaseBind v = " ++ show v
+
+isEmbeddedDictType :: Type -> Bool
+isEmbeddedDictType = anyF [isOrdPred, isNumericPred, isEqPred, isPrelEqPred]
+
+-- unlike isNumCls, isFracCls, these two don't check if the argument's
+-- superclass is Ord or Num. I believe this is the more predictable behavior
+
+isPrelEqPred :: Type -> Bool
+isPrelEqPred ty = case tyConAppTyCon_maybe ty of
+  Just tyCon -> isPrelEqTyCon tyCon
+  _          -> False
+
+
+isPrelEqTyCon :: TyCon -> Bool
+isPrelEqTyCon tc = tc `hasKey` eqClassKey
+
+isOrdPred :: Type -> Bool
+isOrdPred ty = case tyConAppTyCon_maybe ty of
+  Just tyCon -> tyCon `hasKey` ordClassKey
+  _          -> False
+
+-- Not just Num, but Fractional, Integral as well
+isNumericPred :: Type -> Bool
+isNumericPred ty = case tyConAppTyCon_maybe ty of
+  Just tyCon -> getUnique tyCon `elem` numericClassKeys
+  _          -> False
+
+
+
 --------------------------------------------------------------------------------
 -- | The following functions test if a `CoreExpr` or `CoreVar` are just types
 --   in disguise, e.g. have `PredType` (in the GHC sense of the word), and so
