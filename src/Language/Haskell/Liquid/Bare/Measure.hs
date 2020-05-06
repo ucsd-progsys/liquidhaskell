@@ -48,29 +48,29 @@ import qualified Language.Haskell.Liquid.Bare.DataType as Bare
 import qualified Language.Haskell.Liquid.Bare.ToBare   as Bare 
 
 --------------------------------------------------------------------------------
-makeHaskellMeasures :: GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
+makeHaskellMeasures :: Bool -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                     -> [Measure (Located BareType) LocSymbol]
 --------------------------------------------------------------------------------
-makeHaskellMeasures src tycEnv lmap spec 
+makeHaskellMeasures allowTC src tycEnv lmap spec 
           = Bare.measureToBare <$> ms
   where 
-    ms    = makeMeasureDefinition tycEnv lmap cbs <$> mSyms 
+    ms    = makeMeasureDefinition allowTC tycEnv lmap cbs <$> mSyms 
     cbs   = nonRecCoreBinds   (_giCbs src) 
     mSyms = S.toList (Ms.hmeas spec)
   
-makeMeasureDefinition :: Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol 
+makeMeasureDefinition :: Bool -> Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol 
                       -> Measure LocSpecType Ghc.DataCon
-makeMeasureDefinition tycEnv lmap cbs x = 
+makeMeasureDefinition allowTC tycEnv lmap cbs x = 
   case GM.findVarDef (val x) cbs of
     Nothing       -> Ex.throw $ errHMeas x "Cannot extract measure from haskell function"
-    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted (Ghc.varType v) mdef) 
+    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted allowTC (Ghc.varType v) mdef) 
                      where 
                        vx           = F.atLoc x (F.symbol v)
                        mdef         = coreToDef' tycEnv lmap vx v def
                        vinfo        = GM.varLocInfo logicType v
 
-makeUnSorted :: Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
-makeUnSorted t defs
+makeUnSorted :: Bool -> Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
+makeUnSorted allowTC t defs
   | isMeasureType ta 
   = mempty
   | otherwise
@@ -79,7 +79,7 @@ makeUnSorted t defs
     ta = go $ Ghc.expandTypeSynonyms t
 
     go (Ghc.ForAllTy _ t) = go t 
-    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | Ghc.isClassPred p = go t 
+    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | isErasable p = go t 
     go (Ghc.FunTy { Ghc.ft_arg = t }) = t 
     go t                  = t -- this should never happen!
 
@@ -90,6 +90,7 @@ makeUnSorted t defs
                              Ms.bodyPred (F.mkEApp (measure def) [F.expr xx]) (body def)) 
 
     xx = F.vv $ Just 10000
+    isErasable = if allowTC then GM.isEmbeddedDictType else Ghc.isClassPred
 
 coreToDef' :: Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr 
            -> [Def LocSpecType Ghc.DataCon] 

@@ -63,7 +63,12 @@ makeRTEnv env m mySpec iSpecs lmap
   where
     tAs   = [ t                   | (_, s)  <- specs, t <- Ms.aliases  s ]
     eAs   = [ specREAlias env m e | (m, s)  <- specs, e <- Ms.ealiases s ]
-         ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
+         ++ if typeclass (getConfig env) then []
+                                              -- lmap expansion happens during elaboration
+                                              -- this clearly breaks things if a signature
+                                              -- contains lmap functions but never gets
+                                              -- elaborated
+              else [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e    = lmapEAlias xl             ]
     specs = (m, mySpec) : M.toList iSpecs
 
