@@ -6,6 +6,8 @@
 {-# LANGUAGE LambdaCase                #-}
 -- | This module uses GHC API to elaborate the resolves expressions
 
+-- TODO: Genearlize to BareType and replace the existing resolution mechanisms
+
 module Language.Haskell.Liquid.Bare.Elaborate
   ( fixExprToHsExpr
   , elaborateSpecType

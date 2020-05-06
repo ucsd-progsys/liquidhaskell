@@ -45,7 +45,7 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import NameSet        as Ghc
 import InstEnv        as Ghc 
 import Literal        as Ghc
-import TcType         as Ghc (isClassPred)
+import TcType         as Ghc (isClassPred, tcSplitMethodTy, tcSplitAppTys)
 import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
