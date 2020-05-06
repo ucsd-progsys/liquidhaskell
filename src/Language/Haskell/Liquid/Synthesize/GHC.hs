@@ -22,6 +22,7 @@ import qualified Data.HashMap.Strict           as M
 import           TyCon
 import           TysWiredIn
 
+import           Data.List
 import           Data.List.Split
 import           Debug.Trace
 
@@ -108,6 +109,23 @@ fromAnf' l@Lit{} bnds
 fromAnf' _ _
   = error " Should not reach this point. "
 
+-- | Function used for pretty printing core as Haskell source.
+--   Input does not contain let bindings.
+coreToHs :: Var -> CoreExpr -> String
+coreToHs v e = pprintSymbols (discardModName v ++ pprintFormals caseIndent v e)
+
+symbols :: String
+symbols = [':']
+
+pprintSymbols :: String -> String
+pprintSymbols txt = foldr (\x xs -> pprintSym symbols x ++ xs) [] txt
+
+pprintSym :: String -> Char -> String
+pprintSym symbols s 
+  = case find (== s) symbols of 
+      Nothing -> [s]
+      Just s' -> ['(', s', ')']
+
 discardModName :: Var -> String
 discardModName v = last (splitOn "." (show v))
 
@@ -118,16 +136,10 @@ rmModName s =
 
 maintainParen :: [String] -> String
 maintainParen ts 
-  = if length ts > 1 
-      then  if head (head ts) == '('
-              then "("
-              else ""
+  = if length ts > 1 && head (head ts) == '('
+      then  "("
       else  ""
 
--- | Function used for pretty printing core as Haskell source.
---   Input does not contain let bindings.
-coreToHs :: Var -> CoreExpr -> String
-coreToHs v e = discardModName v ++ pprintFormals caseIndent v e
 
 pprintFormals :: Int -> Var -> CoreExpr -> String
 pprintFormals i v (Lam b e) 
@@ -157,7 +169,7 @@ pprintBody i (Lam b e)
   = pprintFormals i b e
 pprintBody _ (Var v)
   = pprintVar v
-pprintBody i e@(App e1 e2)
+pprintBody _ e@App{}
   = if errorExprPp e
       then " error \" Dead code! \" "
       else " " ++ fixApplication (show e)
@@ -185,7 +197,7 @@ rmTypeAppl (c:cs)
   = if c == "@"
       then  case cs of 
               [] -> error " Type application: Badly formatted string. "
-              (c': cs') -> rmTypeAppl cs'
+              (_: cs') -> rmTypeAppl cs'
       else c:rmTypeAppl cs
 
 replaceNewLine :: String -> String
@@ -195,8 +207,6 @@ replaceNewLine (c:cs)
   = if c == '\n' 
       then ' ' : replaceNewLine cs 
       else c : replaceNewLine cs
-replaceNewLine _ 
-  = error " Should not reach that point: Only applications. "
 
 pprintAlts :: Int -> Alt Var -> String
 pprintAlts i (DataAlt dataCon, vs, e)
