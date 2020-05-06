@@ -284,4 +284,4 @@ refreshHoles' (x,t)
          | otherwise = return r
 
 noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-noHoles = and . foldReft False (\_ r bs -> not (hasHole r) : bs) []
+noHoles = and . foldReft (const False) False (\_ r bs -> not (hasHole r) : bs) []

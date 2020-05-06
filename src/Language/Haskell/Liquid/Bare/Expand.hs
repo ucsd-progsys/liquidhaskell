@@ -488,7 +488,10 @@ cookSpecTypeE env sigEnv name x bt
   . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
   . fmap (maybePlug       sigEnv name x)
-  . fmap (Bare.qualifyTop    env name l) 
+  -- we do not qualify/resolve Expr/Pred when typeclass is enabled
+  -- since ghci will not be able to recognize fully qualified names
+  -- instead, we leave qualification to ghc elaboration
+  . fmap (if typeclass (getConfig env) then id else Bare.qualifyTop env name l) 
   . bareSpecType       env name 
   . bareExpandType     rtEnv
   $ bt 

@@ -1,11 +1,14 @@
 module Language.Haskell.Liquid.Bare.Typeclass
   ( makeClassDataDecl
   , elaborateClassDcp
-  -- , stripDataConPPred
+  , makeClassSelectorSigs
   )
 where
 
+-- TODO: Handle typeclasses with a single method
+
 import           Control.Monad                  ( forM )
+import           Control.Monad.Reader
 import qualified Data.List                     as L
 import qualified Data.HashSet                  as S
 import qualified Data.Maybe                    as Mb
@@ -73,8 +76,9 @@ classDeclToDataDecl cls refinedIds = DataDecl
   classIds  = Ghc.classAllSelIds cls
   classDc   = Ghc.classDataCon cls
 
-
-
+-- | 'elaborateClassDcp' behaves differently from other datacon
+--    functions. Each method type contains the full forall quantifiers
+--    instead of having them chopped off
 elaborateClassDcp
   :: (Ghc.CoreExpr -> F.Expr)
   -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr)
@@ -129,6 +133,7 @@ elaborateClassDcp coreToLg simplifier dcp = do
       )
     ]
     t
+  -- YL: is this redundant if we already have strengthenClassSel?
   strengthenTy :: F.Symbol -> SpecType -> SpecType
   strengthenTy x t = mkUnivs tvs pvs (RFun z cls (t' `RT.strengthen` mt) r)
    where
@@ -179,3 +184,31 @@ substClassOpBinding tcbind dc methods e = go e
   go (F.PAtom brel e0 e1) = F.PAtom brel (go e0) (go e1)
   -- a catch-all binding is not a good idea
   go e                    = e
+
+strengthenClassSel :: Ghc.Var -> LocSpecType -> LocSpecType
+strengthenClassSel v lt = lt {val = t}
+  where t = runReader (go (F.val lt)) (1,[])
+        s = GM.namedLocSymbol v
+        extend :: F.Symbol -> (Int, [F.Symbol]) -> (Int, [F.Symbol])
+        extend x (i, xs) = (i + 1, x:xs)
+        go :: SpecType -> Reader (Int, [F.Symbol]) SpecType
+        go (RAllT a t r) = RAllT a <$> go t <*> pure r
+        go (RAllP p t) = RAllP p <$> go t
+        go (RFun x tx t r) | isEmbeddedClass tx =
+                             RFun <$> pure x <*> pure tx <*> go t <*> pure r
+        go (RFun x tx t r) = do
+          x' <- unDummy x <$> reader fst
+          r' <- singletonApp s <$> (L.reverse <$> reader snd)
+          RFun x' tx <$> local (extend x') (go t) <*> pure (F.meet r r')
+        go t = RT.strengthen t . singletonApp s . L.reverse <$> reader snd
+
+singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft F.Reft
+singletonApp s ys = MkUReft r mempty
+  where
+    r             = F.exprReft (F.mkEApp s (F.eVar <$> ys))
+
+
+unDummy :: F.Symbol -> Int -> F.Symbol
+unDummy x i
+  | x /= F.dummySymbol = x
+  | otherwise          = F.symbol ("_cls_lq" ++ show i)
