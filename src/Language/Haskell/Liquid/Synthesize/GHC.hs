@@ -105,26 +105,37 @@ fromAnf' t@Type{} bnds
   = (t, bnds)
 fromAnf' l@Lit{} bnds 
   = (l, bnds)
-fromAnf' e bnds
+fromAnf' _ _
   = error " Should not reach this point. "
 
 discardModName :: Var -> String
-discardModName v = 
-  let [_, n] = splitOn "." (show v)
-  in  n
+discardModName v = last (splitOn "." (show v))
+
+rmModName :: String -> String
+rmModName s = 
+  let ts = splitOn "." s
+  in  maintainParen ts ++ last ts
+
+maintainParen :: [String] -> String
+maintainParen ts 
+  = if length ts > 1 
+      then  if head (head ts) == '('
+              then "("
+              else ""
+      else  ""
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
 coreToHs :: Var -> CoreExpr -> String
-coreToHs v e = discardModName v ++ pprintFormals v e
+coreToHs v e = discardModName v ++ pprintFormals caseIndent v e
 
-pprintFormals :: Var -> CoreExpr -> String
-pprintFormals v (Lam b e) 
+pprintFormals :: Int -> Var -> CoreExpr -> String
+pprintFormals i v (Lam b e) 
   = if isTyVar b 
-      then pprintFormals v e
-      else " " ++ show b ++ pprintFormals v e
-pprintFormals v e 
-  = " =" ++ pprintBody v caseIndent e
+      then pprintFormals i v e
+      else " " ++ show b ++ pprintFormals i v e
+pprintFormals i _ e 
+  = " =" ++ pprintBody i e
 
 caseIndent :: Int 
 caseIndent = 4
@@ -138,30 +149,60 @@ errorExprPp (GHC.App (GHC.App err@(GHC.Var _) (GHC.Type _)) _)
 errorExprPp _ 
   = False
 
-pprintBody :: Var -> Int -> CoreExpr -> String
-pprintBody v _ e@Lam{} 
-  = pprintFormals v e
-pprintBody var _ (Var v)
-  = if isTyVar v then "" else " " ++ (if show v == show var then discardModName v else show v)
-pprintBody v i e@(App e1 e2)
+pprintVar :: Var -> String 
+pprintVar v = if isTyVar v then "" else " " ++ discardModName v
+
+pprintBody :: Int -> CoreExpr -> String
+pprintBody i (Lam b e) 
+  = pprintFormals i b e
+pprintBody _ (Var v)
+  = pprintVar v
+pprintBody i e@(App e1 e2)
   = if errorExprPp e
       then " error \" Dead code! \" "
-      else pprintBody v i e1 ++ pprintBody v i e2 -- TODO: parenthesis
-pprintBody _ _ l@Lit{}
+      else " " ++ fixApplication (show e)
+pprintBody _ l@Lit{}
   = " " ++ show l
-pprintBody v i (Case scr _ _ alts)
+pprintBody i (Case scr _ _ alts)
   = "\n" ++ indent i ++ 
-    "case" ++ pprintBody v i scr ++ " of\n" ++ 
-    concatMap (pprintAlts v (i + caseIndent)) alts 
-pprintBody _ _ Type{} 
+    "case" ++ pprintBody i scr ++ " of\n" ++ 
+    concatMap (pprintAlts (i + caseIndent)) alts 
+pprintBody _ Type{} 
   = ""
-pprintBody _ i e
+pprintBody _ e
   = error (" Not yet implemented for e = " ++ show e)
 
-pprintAlts :: Var -> Int -> Alt Var -> String
-pprintAlts var i (DataAlt dataCon, vs, e)
-  = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++ pprintBody var (i+caseIndent) e ++ "\n"
-pprintAlts _ _ _ 
+fixApplication :: String -> String
+fixApplication e = 
+  let ws = words (replaceNewLine e)
+      cleanWs = rmTypeAppl ws
+  in  unwords (map rmModName cleanWs)
+
+rmTypeAppl :: [String] -> [String]
+rmTypeAppl [] 
+  = []
+rmTypeAppl (c:cs) 
+  = if c == "@"
+      then  case cs of 
+              [] -> error " Type application: Badly formatted string. "
+              (c': cs') -> rmTypeAppl cs'
+      else c:rmTypeAppl cs
+
+replaceNewLine :: String -> String
+replaceNewLine [] 
+  = []
+replaceNewLine (c:cs) 
+  = if c == '\n' 
+      then ' ' : replaceNewLine cs 
+      else c : replaceNewLine cs
+replaceNewLine _ 
+  = error " Should not reach that point: Only applications. "
+
+pprintAlts :: Int -> Alt Var -> String
+pprintAlts i (DataAlt dataCon, vs, e)
+  = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++ 
+    pprintBody (i+caseIndent) e ++ "\n"
+pprintAlts _ _
   = error " Pretty printing for pattern match on datatypes. "
 
 -----------------------------------------------------------------------------------
@@ -252,7 +293,7 @@ varsP cp tlVar f =
 
 isInCB :: GHC.CoreBind -> Var -> Bool
 isInCB (GHC.NonRec b _) tlVar = b == tlVar 
-isInCB (GHC.Rec recs) tlVar   = foldr (\v b -> v == tlVar && b) True (map fst recs)
+isInCB (GHC.Rec recs) tlVar   = foldr ((\v b -> v == tlVar && b) . fst) True recs
 
 varsCB :: GHC.CoreBind -> (GHC.CoreExpr -> [Var]) -> [Var]
 varsCB (GHC.NonRec _ e) f = f e
@@ -261,7 +302,7 @@ varsCB (GHC.Rec _) _ = notrace " [ symbolToVarCB ] Rec " []
 varsE :: GHC.CoreExpr -> [Var]
 varsE (GHC.Lam a e) = a : varsE e
 varsE (GHC.Let (GHC.NonRec b _) e) = b : varsE e
-varsE (GHC.Case _ b _ alts) = foldr (\(_, vars, e) res -> vars ++ (varsE e) ++ res) [b] alts
+varsE (GHC.Case _ b _ alts) = foldr (\(_, vars, e) res -> vars ++ varsE e ++ res) [b] alts
 varsE (GHC.Tick _ e) = varsE e
 varsE _ = []
 
