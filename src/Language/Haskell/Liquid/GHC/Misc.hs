@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
@@ -19,7 +20,7 @@ module Language.Haskell.Liquid.GHC.Misc where
 import           Class                                      (classKey)
 import           Data.String
 import qualified Data.List as L
-import           PrelNames                                  (fractionalClassKeys)
+import           PrelNames                                  (fractionalClassKeys, itName)
 import           FamInstEnv
 import           Debug.Trace
 -- import qualified ConLike                                    as Ghc
@@ -48,16 +49,30 @@ import           Module                                     (moduleNameFS)
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
 import           TcRnDriver
+import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM)
+import           TcExpr                                     (tcInferSigma)
+import           TcOrigin                                   (lexprCtOrigin)
+import           Inst                                       (deeplyInstantiate)
+import           TcSimplify                                 (simplifyInfer, simplifyInteractive, InferMode(..))
+import           TcHsSyn                                    (zonkTopLExpr)
+import           TcEvidence                                 (TcEvBinds(EvBinds))
+import           DsMonad                                    (initDsTc)
+import           DsExpr                                     (dsLExpr)
+import           Predicate                                  (getClassPredTys, mkClassPred)
 -- import           TcRnTypes
 
 
 import           Type                                       (expandTypeSynonyms, liftedTypeKind)
 import           IdInfo
 import qualified TyCon                                      as TC
+import           GhcMonad                                   (withSession)
+import           RnExpr                                     (rnLExpr)
 import           Data.Char                                  (isLower, isSpace, isUpper)
 import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
+import qualified Data.Map.Strict                            as OM
+import           Control.Monad.State                        (evalState, get, modify)
 
 import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
@@ -712,7 +727,8 @@ isWorker s = notracepp ("isWorkerSym: s = " ++ ss) $ "$W" `L.isInfixOf` ss
   where 
     ss     = symbolString (symbol s)
 
-
+isSCSel :: Symbolic a => a -> Bool
+isSCSel  = isPrefixOfSym "$p" . dropModuleNames . symbol
 
 stripParens :: T.Text -> T.Text
 stripParens t = fromMaybe t (strip t)
@@ -780,6 +796,32 @@ findVarDef x cbs = case xCbs of
     unRec nonRec    = [nonRec]
 
 
+findVarDefMethod :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
+findVarDefMethod x cbs =
+  case rcbs  of
+                     (NonRec v def   : _ ) -> Just (v, def)
+                     (Rec [(v, def)] : _ ) -> Just (v, def)
+                     _                     -> Nothing
+  where
+    rcbs | isMethod x = mCbs
+         | isDictionary (dropModuleNames x) = dCbs
+         | otherwise  = xCbs
+    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb 
+                           ]
+    mCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` methodSymbols cb]
+    dCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` dictionarySymbols cb]
+    unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
+    unRec nonRec    = [nonRec]
+
+dictionarySymbols :: CoreBind -> [Symbol]
+dictionarySymbols = filter isDictionary . map (dropModuleNames . symbol) . binders
+
+
+methodSymbols :: CoreBind -> [Symbol]
+methodSymbols = filter isMethod . map (dropModuleNames . symbol) . binders
+
+
+
 coreBindSymbols :: CoreBind -> [Symbol]
 coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
 
@@ -829,3 +871,107 @@ defaultDataCons _ _ =
 
 isEvVar :: Id -> Bool 
 isEvVar x = isPredVar x || isTyVar x || isCoVar x
+
+
+--------------------------------------------------------------------------------
+-- | Elaboration
+--------------------------------------------------------------------------------
+
+-- FIXME: the handling of exceptions seems to be broken
+
+-- partially stolen from GHC'sa exprType
+
+elaborateHsExprInst
+  :: GhcMonad m => LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+elaborateHsExprInst expr = elaborateHsExpr TM_Inst expr
+
+
+elaborateHsExpr
+  :: GhcMonad m => TcRnExprMode -> LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+elaborateHsExpr mode expr =
+  withSession $ \hsc_env -> liftIO $ hscElabHsExpr hsc_env mode expr
+
+hscElabHsExpr :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
+hscElabHsExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
+  hsc_env <- Ghc.getHscEnv
+  liftIO $ elabRnExpr hsc_env mode expr
+
+
+elabRnExpr
+  :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
+elabRnExpr hsc_env mode rdr_expr =
+  runTcInteractive hsc_env $ do
+    (rn_expr, _fvs) <- rnLExpr rdr_expr
+    failIfErrsM
+    uniq <- newUnique
+    let fresh_it = itName uniq (getLoc rdr_expr)
+        orig     = lexprCtOrigin rn_expr
+    (tclvl, lie, (tc_expr, res_ty)) <- pushLevelAndCaptureConstraints $ do
+      (_tc_expr, expr_ty) <- tcInferSigma rn_expr
+      expr_ty'            <- if inst
+        then snd <$> deeplyInstantiate orig expr_ty
+        else return expr_ty
+      return (_tc_expr, expr_ty')
+    (_, _, evbs, residual, _) <- simplifyInfer tclvl
+                                            infer_mode
+                                            []    {- No sig vars -}
+                                            [(fresh_it, res_ty)]
+                                            lie
+    evbs' <- perhaps_disable_default_warnings $ simplifyInteractive residual
+    full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
+    initDsTc $ dsLExpr full_expr
+ where
+  (inst, infer_mode, perhaps_disable_default_warnings) = case mode of
+    TM_Inst    -> (True, NoRestrictions, id)
+    TM_NoInst  -> (False, NoRestrictions, id)
+    TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
+
+newtype HashableType = HashableType {getHType :: Type}
+
+instance Eq HashableType where
+  x == y = eqType (getHType x) (getHType y)
+
+instance Ord HashableType where
+  compare x y = nonDetCmpType (getHType x) (getHType y)
+
+instance Outputable HashableType where
+  ppr = ppr . getHType
+
+
+--------------------------------------------------------------------------------
+-- | Superclass coherence
+--------------------------------------------------------------------------------
+
+canonSelectorChains :: PredType -> OM.Map HashableType [Id]
+canonSelectorChains t = foldr (OM.unionWith const) mempty (zs : xs)
+ where
+  (cls, ts) = getClassPredTys t
+  scIdTys   = classSCSelIds cls
+  ys        = fmap (\d -> (d, piResultTys (idType d) (ts ++ [t]))) scIdTys
+  zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [x])) ys
+  xs        = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
+
+buildCoherenceOblig :: Class -> [[([Id], [Id])]]
+buildCoherenceOblig cls = evalState (mapM f xs) OM.empty
+ where
+  (ts, _, selIds, _) = classBigSig cls
+  tts                = mkTyVarTy <$> ts
+  t                  = mkClassPred cls tts
+  ys = fmap (\d -> (d, piResultTys (idType d) (tts ++ [t]))) selIds
+  xs                 = fmap (\(d, t') -> fmap (d:) (canonSelectorChains t')) ys
+  f tid = do
+    ctid' <- get
+    modify (flip (OM.unionWith const) tid)
+    pure . OM.elems $ OM.intersectionWith (,) ctid' (fmap tail tid)
+
+
+-- to be zipped onto the super class selectors
+coherenceObligToRef :: (F.Symbolic s) => s -> [Id] -> [Id] -> F.Reft
+coherenceObligToRef d = coherenceObligToRefE (F.eVar $ F.symbol d)
+
+coherenceObligToRefE :: F.Expr -> [Id] -> [Id] -> F.Reft
+coherenceObligToRefE e rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
+  where lhs = L.foldr EApp e ps0
+        rhs = L.foldr EApp (F.eVar F.vv_) ps1
+        ps0 = F.eVar . F.symbol <$> L.reverse rps0
+        ps1 = F.eVar . F.symbol <$> L.reverse rps1
