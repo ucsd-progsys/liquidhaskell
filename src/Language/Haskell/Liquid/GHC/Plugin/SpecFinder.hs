@@ -118,7 +118,7 @@ lookupCompanionSpec thisModule = do
       let errMsg = O.text "Error when parsing " 
              O.<+> O.text (specFile file) O.<+> O.text ":"
              O.<+> O.text (show parsingError)
-      lift $ pluginAbort dynFlags errMsg
+      lift $ pluginAbort (O.showSDoc dynFlags errMsg)
     Right (_, spec) -> do
       let bareSpec = view bareSpecIso spec
       pure $ SpecFound thisModule DiskLocation bareSpec

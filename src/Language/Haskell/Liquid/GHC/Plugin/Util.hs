@@ -47,9 +47,8 @@ import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
 import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
 import           Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike)
 
-pluginAbort :: MonadIO m => DynFlags -> SDoc -> m a
-pluginAbort dynFlags msg =
-  liftIO $ throwGhcExceptionIO $ ProgramError ("LiquidHaskell: " ++ showSDoc dynFlags msg)
+pluginAbort :: MonadIO m => String -> m a
+pluginAbort = liftIO . throwGhcExceptionIO . ProgramError
 
 -- | Courtesy of [inspection testing](https://github.com/nomeata/inspection-testing/blob/master/src/Test/Inspection/Plugin.hs)
 partitionMaybe :: (a -> Maybe b) -> [a] -> ([a], [b])

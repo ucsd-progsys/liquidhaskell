@@ -72,6 +72,7 @@ import           Data.Set                                 ( Set )
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
+import           System.Exit
 import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Text.Parsec.Pos
 import           Language.Fixpoint.Types           hiding ( panic
@@ -109,7 +110,7 @@ tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
-debugLogs = True
+debugLogs = False
 
 ---------------------------------------------------------------------------------
 -- | Useful functions -----------------------------------------------------------
@@ -294,7 +295,7 @@ liquidHaskellPass cfg modGuts = do
   unoptimisedGuts <- liftIO $ readIORef unoptimisedRef
 
   case mbTcData of
-    Nothing -> Util.pluginAbort dynFlags (O.text "No tcData found for " O.<+> O.ppr thisModule)
+    Nothing -> Util.pluginAbort (O.showSDoc dynFlags $ O.text "No tcData found for " O.<+> O.ppr thisModule)
     Just tcData -> do
 
       debugLog $ "Relevant ===> \n" ++ 
@@ -320,7 +321,7 @@ liquidHaskellPass cfg modGuts = do
       res <- liftIO $ LH.liquidOne pmrTargetInfo
       case o_result res of
         Safe -> pure ()
-        _    -> pluginAbort dynFlags (O.text "Unsafe.")
+        _    -> liftIO exitFailure
 
       debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
       pure finalGuts
@@ -355,7 +356,7 @@ loadDependencies currentModuleConfig eps hpt thisModule mods = do
       dynFlags <- getDynFlags
       debugLog $ "[T:" ++ show (moduleName thisModule) 
               ++ "] Spec found for " ++ renderModule originalModule ++ ", at location " ++ show location
-      Util.pluginAbort dynFlags (O.text "A BareSpec was returned as a dependency, this is not allowed, in " O.<+> O.ppr thisModule)
+      Util.pluginAbort (O.showSDoc dynFlags $ O.text "A BareSpec was returned as a dependency, this is not allowed, in " O.<+> O.ppr thisModule)
     processResult !acc (LibFound originalModule location lib) = do
       debugLog $ "[T:" ++ show (moduleName thisModule) 
               ++ "] Lib found for " ++ renderModule originalModule ++ ", at location " ++ show location
@@ -460,13 +461,13 @@ processModule LiquidHaskellContext{..} = do
     -- If we didn't pass validation, abort compilation and show the errors.
     Left errors -> do
       dynFlags <- getDynFlags
-      Util.pluginAbort dynFlags (O.text $ showpp errors)
+      Util.pluginAbort (O.showSDoc dynFlags $ O.text $ showpp errors)
 
     Right (targetSpec, liftedSpec) -> do
       let targetInfo = TargetInfo targetSrc targetSpec
 
-      liftIO $ putStrLn $ "bareSpec ==> "   ++ show bareSpec
-      liftIO $ putStrLn $ "liftedSpec ==> " ++ show liftedSpec
+      debugLog $ "bareSpec ==> "   ++ show bareSpec
+      debugLog $ "liftedSpec ==> " ++ show liftedSpec
 
       let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 

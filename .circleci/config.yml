@@ -147,7 +147,7 @@ jobs:
     steps:
       - cabal_build_and_test:
           extra_test_flags: "--flag plugin"
-          liquid_runner: "--liquid-runner=cabal v2-exec ghc -- --make -no-link \
+          liquid_runner: "--liquid-runner=cabal -v0 v2-exec ghc -- -v0 --make -no-link \
                           -package-env=$(./scripts/generate_testing_ghc_env) \
                           -package liquid-base -package liquid-prelude -package liquid-vector \
                           -package liquid-containers -package liquid-bytestring -package liquidhaskell \

@@ -1,3 +1,6 @@
+
+module T1657 where
+
 {-@ data I <pigbert :: Int -> Bool> = I Int @-}
 
 data I = I Int

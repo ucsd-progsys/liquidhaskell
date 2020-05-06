@@ -71,6 +71,7 @@ library
                     Numeric
                     Foreign.C.Types
                     Foreign.C.String
+                    Foreign.Concurrent
                     Foreign.Ptr
                     Foreign.ForeignPtr
                     Foreign.Storable
