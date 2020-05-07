@@ -1029,11 +1029,17 @@ castTy γ t e _
   = castTy' γ t e
 
 
-castTy' _ τ (Var x)
+castTy' γ τ (Var x)
   = do t <- trueTy τ
        -- tx <- varRefType γ x -- NV HERE: the refinements of the var x do not get into the 
        --                      -- environment. Check 
-       return ((t `strengthen` (uTop $ F.uexprReft $ F.expr x)) {- `F.meet` tx -})
+       let ce = eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) 
+                       (typeSort (emb γ) τ) 
+                       $ F.expr x  
+       return ((t `strengthen` (uTop $ F.uexprReft $ ce)) {- `F.meet` tx -})
+  where eCoerc s t e 
+         | s == t    = e
+         | otherwise = F.ECoerc s t e 
 
 castTy' γ t (Tick _ e)
   = castTy' γ t e
