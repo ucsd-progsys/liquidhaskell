@@ -145,13 +145,13 @@ class OptEq a r where
   (==.) :: a -> a -> r
 
 instance (a~b) => OptEq a (Proof -> b) where
-{-@ instance OptEq a (Proof -> b) where
+{- instance OptEq a (Proof -> b) where
   ==. :: x:a -> y:a -> {v:Proof | x == y} -> {v:b | v ~~ x && v ~~ y}
   @-}
   (==.) x _ _ = x
 
 instance (a~b) => OptEq a b where
-{-@ instance OptEq a b where
+{- instance OptEq a b where
   ==. :: x:a -> y:{a| x == y} -> {v:b | v ~~ x && v ~~ y }
   @-}
   (==.) x _ = x
@@ -162,13 +162,13 @@ class OptLEq a r where
 
 
 instance (a~b) => OptLEq a (Proof -> b) where
-{-@ instance OptLEq a (Proof -> b) where
+{- instance OptLEq a (Proof -> b) where
   <=. :: x:a -> y:a -> {v:Proof | x <= y} -> {v:b | v ~~ x }
   @-}
   (<=.) x _ _ = x
 
 instance (a~b) => OptLEq a b where
-{-@ instance OptLEq a b where
+{- instance OptLEq a b where
   <=. :: x:a -> y:{a | x <= y} -> {v:b | v ~~ x }
   @-}
   (<=.) x _ = x
@@ -193,13 +193,13 @@ class OptLess a r where
   (<.) :: a -> a -> r
 
 instance (a~b) => OptLess a (Proof -> b) where
-{-@ instance OptLess a (Proof -> b) where
+{- instance OptLess a (Proof -> b) where
   <. :: x:a -> y:a -> {v:Proof | x < y} -> {v:b | v ~~ x  }
   @-}
   (<.) x _ _ = x
 
 instance (a~b) => OptLess a b where
-{-@ instance OptLess a b where
+{- instance OptLess a b where
   <. :: x:a -> y:{a| x < y} -> {v:b | v ~~ x  }
   @-}
   (<.) x _ = x
@@ -209,13 +209,13 @@ class OptGt a r where
   (>.) :: a -> a -> r
 
 instance (a~b) => OptGt a (Proof -> b) where
-{-@ instance OptGt a (Proof -> b) where
+{- instance OptGt a (Proof -> b) where
   >. :: x:a -> y:a -> {v:Proof| x > y} -> {v:b | v ~~ x }
   @-}
   (>.) x _ _ = x
 
 instance (a~b) => OptGt a b where
-{-@ instance OptGt a b where
+{- instance OptGt a b where
   >. :: x:a -> y:{a| x > y} -> {v:b | v ~~ x  }
   @-}
   (>.) x y = x
