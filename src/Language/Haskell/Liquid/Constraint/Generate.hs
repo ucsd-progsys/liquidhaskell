@@ -94,14 +94,14 @@ consAct cfg info = do
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   foldM_ (consCBTop cfg info) γ (giCbs gSrc)
-  mapM (consClass γ) (gsMethods $ gsSig $ giSpec info) 
-  hcs <- hsCs  <$> get
-  hws <- hsWfs <$> get
-  fcs <- concat <$> mapM splitC hcs
+  mapM_ (consClass γ) (gsMethods $ gsSig $ giSpec info) 
+  hcs <- gets hsCs
+  hws <- gets hsWfs
+  fcs <- concat <$> mapM (splitC (typeclass (getConfig info))) hcs
   fws <- concat <$> mapM splitW hws
   modify $ \st -> st { fEnv     = feEnv (fenv γ)
                      , cgLits   = litEnv   γ
-                     , cgConsts = (cgConsts st) `mappend` (constEnv γ)
+                     , cgConsts = cgConsts st `mappend` constEnv γ
                      , fixCs    = fcs
                      , fixWfs   = fws }
 
