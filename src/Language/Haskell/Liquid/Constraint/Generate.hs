@@ -292,10 +292,11 @@ doTermCheck :: Config -> Bind Var -> CG Bool
 doTermCheck cfg bind = do 
   lazyVs    <- specLazy   <$> get 
   termVs    <- specTmVars <$> get
-  let skip   = any (\x -> S.member x lazyVs || GM.isInternal x) xs
+  let skip   = any (\x -> S.member x lazyVs || nocheck x) xs
   let chk    = not (structuralTerm cfg) || any (\x -> S.member x termVs) xs
   return     $ chk && not skip
-  where 
+  where
+    nocheck  = if typeclass cfg then GM.isEmbeddedDictVar else GM.isInternal
     xs       = bindersOf bind
 
 -- nonStructTerm && not skip
@@ -313,11 +314,13 @@ consCBSizedTys γ xes
        let rts   = (recType autoenv <$>) <$> xeets
        let xts   = zip xs ts
        γ'       <- foldM extender γ xts
-       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . GM.isPredVar) <$> vs)
+       let γs    = zipWith makeRecInvariants [γ' `setTRec` zip xs rts' | rts' <- rts] (filter (not . noMakeRec) <$> vs)
        let xets' = zip3 xs es ts
        mapM_ (uncurry $ consBind True) (zip γs xets')
        return γ'
   where
+       noMakeRec      = if allowTC then GM.isEmbeddedDictVar else GM.isPredVar
+       allowTC        = typeclass (getConfig γ)
        (xs, es)       = unzip xes
        dxs            = F.pprint <$> xs
        collectArgs    = GM.collectArguments . length . ty_binds . toRTypeRep . unOCons . unTemplate
@@ -627,7 +630,7 @@ cconsE' γ e (RAllP p t)
   where
     t'         = replacePredsWithRefs su <$> t
     su         = (uPVar p, pVartoRConc p)
-    (css, t'') = splitConstraints t'
+    (css, t'') = splitConstraints (typeclass (getConfig γ)) t'
     γ'         = L.foldl' addConstraints γ css
 
 cconsE' γ (Let b e) t
@@ -716,12 +719,13 @@ addFunctionConstraint γ _ _ _
   = impossible (Just $ getLocation γ) "addFunctionConstraint: called on non function argument"
 
 splitConstraints :: TyConable c
-                 => RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
-splitConstraints (RRTy cs _ OCons t)
-  = let (css, t') = splitConstraints t in (cs:css, t')
-splitConstraints (RFun x tx@(RApp c _ _ _) t r) | isClass c
-  = let (css, t') = splitConstraints t in (css, RFun x tx t' r)
-splitConstraints t
+                 => Bool -> RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
+splitConstraints allowTC (RRTy cs _ OCons t)
+  = let (css, t') = splitConstraints allowTC t in (cs:css, t')
+splitConstraints allowTC (RFun x tx@(RApp c _ _ _) t r) | isErasable c
+  = let (css, t') = splitConstraints allowTC  t in (css, RFun x tx t' r)
+  where isErasable = if allowTC then isEmbeddedDict else isClass
+splitConstraints _ t
   = ([], t)
 
 -------------------------------------------------------------------
@@ -1121,8 +1125,10 @@ dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
-dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isClass c
+dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isErasable c
   = (flip (RFun x tx)) r <$> dropConstraints γ t
+  where
+    isErasable = if typeclass (getConfig γ) then isEmbeddedDict else isClass
 dropConstraints γ (RRTy cts _ OCons t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
        addC (SubC  γ' t1 t2)  "dropConstraints"
@@ -1160,13 +1166,14 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
   let (rtd,yts',_) = unfoldR tdc xt ys
   yts             <- projectTypes pIs yts'
-  let ys''         = F.symbol <$> filter (not . GM.isEvVar) ys
+  let ys''         = F.symbol <$> filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
   let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
   cγ'             <- addBinders γ   x' cbs
   addBinders cγ' x' [(x', xt)]
+  where allowTC    = typeclass (getConfig γ)
   
 caseEnv γ x acs a _ _ = do 
   let x'  = F.symbol x
@@ -1296,10 +1303,11 @@ lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
 lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
-                              (Just p1, Just p2) | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
+                              (Just p1, Just p2) | not ((if allowTC then GM.isEmbeddedDictExpr else GM.isPredExpr) e2) -- (isClassPred $ exprType e2)
                                                  -> Just $ F.EApp p1 p2
                               (Just p1, Just _ ) -> Just p1
                               _  -> Nothing
+  where allowTC = typeclass (getConfig γ)
 lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
                                        _  -> Nothing
@@ -1348,7 +1356,7 @@ makeSingleton γ e t
   | higherOrderFlag γ, App f x <- simplify e
   = case (funExpr γ f, argForAllExpr x) of
       (Just f', Just x')
-                 | not (GM.isPredExpr x) -- (isClassPred $ exprType x)
+                 | not (if (typeclass (getConfig γ)) then GM.isEmbeddedDictExpr x else GM.isPredExpr x) -- (isClassPred $ exprType x)
                  -> strengthenMeet t (uTop $ F.exprReft (F.EApp f' x'))
       (Just f', Just _)
                  -> strengthenMeet t (uTop $ F.exprReft f')
@@ -1376,7 +1384,7 @@ funExpr _ (Var v)
 
 funExpr γ (App e1 e2)
   = case (funExpr γ e1, argExpr γ e2) of
-      (Just e1', Just e2') | not (GM.isPredExpr e2) -- (isClassPred $ exprType e2)
+      (Just e1', Just e2') | not (if typeclass (getConfig γ) then GM.isEmbeddedDictExpr e2 else GM.isPredExpr e2) -- (isClassPred $ exprType e2)
                            -> Just (F.EApp e1' e2')
       (Just e1', Just _)
                            -> Just e1'
