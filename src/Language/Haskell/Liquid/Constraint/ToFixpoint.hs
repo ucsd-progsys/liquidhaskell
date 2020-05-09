@@ -7,7 +7,6 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
   ) where
 
 import           Prelude hiding (error)
-import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
@@ -90,8 +89,8 @@ makeAxiomEnvironment info xts fcs
            (doExpand sp cfg <$> fcs)
            (makeRewrites info <$> fcs)
   where
-    eqs      = if (oldPLE cfg) 
-                then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
+    eqs      = if oldPLE cfg
+                then makeEquations (typeclass cfg) sp ++ map (uncurry $ specTypeEq emb) xts
                 else axioms  
     emb      = gsTcEmbeds (gsName sp)
     cfg      = getConfig  info
@@ -216,8 +215,8 @@ makeSimplify (x, t)
     fromEVar (F.EVar x) = x
     fromEVar _ = impossible Nothing "makeSimplify.fromEVar"
 
-makeEquations :: TargetSpec -> [F.Equation]
-makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
+makeEquations :: Bool -> TargetSpec -> [F.Equation]
+makeEquations allowTC sp = [ F.mkEquation f xts (equationBody allowTC (F.EVar f) xArgs e mbT) t
                       | F.Equ f xts e t _ <- axioms 
                       , let xArgs          = F.EVar . fst <$> xts
                       , let mbT            = if null xArgs then Nothing else M.lookup f sigs
@@ -227,18 +226,18 @@ makeEquations sp = [ F.mkEquation f xts (equationBody (F.EVar f) xArgs e mbT) t
     refl         = gsRefl sp
     sigs         = M.fromList [ (GM.simplesymbol v, t) | (v, t) <- gsTySigs (gsSig sp) ]
 
-equationBody :: F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
-equationBody f xArgs e mbT
+equationBody :: Bool -> F.Expr -> [F.Expr] -> F.Expr -> Maybe LocSpecType -> F.Expr
+equationBody allowTC f xArgs e mbT
   | Just t <- mbT = F.pAnd [eBody, rBody t]
   | otherwise     = eBody
   where
     eBody         = F.PAtom F.Eq (F.eApps f xArgs) e
-    rBody t       = specTypeToLogic xArgs (F.eApps f xArgs) (val t)
+    rBody t       = specTypeToLogic allowTC xArgs (F.eApps f xArgs) (val t)
 
 -- NV Move this to types?
 -- sound but imprecise approximation of a type in the logic
-specTypeToLogic :: [F.Expr] -> F.Expr -> SpecType -> F.Expr
-specTypeToLogic es e t
+specTypeToLogic :: Bool -> [F.Expr] -> F.Expr -> SpecType -> F.Expr
+specTypeToLogic allowTC es e t
   | ok        = F.subst su (F.PImp (F.pAnd args) res)
   | otherwise = F.PTrue
   where
@@ -259,7 +258,7 @@ specTypeToLogic es e t
 
 
     su           = F.mkSubst $ zip xs es
-    (cls, nocls) = L.partition (isClassType.snd) $ zip (ty_binds trep) (ty_args trep)
+    (cls, nocls) = L.partition ((if allowTC then isEmbeddedClass else isClassType).snd) $ zip (ty_binds trep) (ty_args trep)
                  :: ([(F.Symbol, SpecType)], [(F.Symbol, SpecType)])
     (xs, ts)     = unzip nocls :: ([F.Symbol], [SpecType])
 
