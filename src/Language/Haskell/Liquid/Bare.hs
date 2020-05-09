@@ -543,7 +543,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = SpSig
   , gsAsmSigs  = F.notracepp "gsAsmSigs" asmSigs
   , gsRefSigs  = [] 
   , gsDicts    = dicts 
-  , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes dicts (Bare.meClasses  measEnv) cbs 
+  , gsMethods  = if noclasscheck cfg then [] else Bare.makeMethodTypes (typeclass cfg) dicts (Bare.meClasses  measEnv) cbs 
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
   , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
@@ -769,7 +769,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   { gsCtors      = -- F.notracepp "GS-CTORS" 
                    [ (x, tt) 
                        | (x, t) <- Bare.meDataCons measEnv
-                       , let tt  = Bare.plugHoles sigEnv name (Bare.LqTV x) t 
+                       , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
   , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
@@ -902,7 +902,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
     -- tycons        = F.tracepp "TYCONS" $ Misc.replaceWith tcpCon tcs wiredTyCons
     -- datacons      =  Bare.makePluggedDataCons embs tyi (Misc.replaceWith (dcpCon . val) (F.tracepp "DATACONS" $ concat dcs) wiredDataCons)
     tycons        = tcs ++ knownWiredTyCons env myName 
-    datacons      = Bare.makePluggedDataCon embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
+    datacons      = Bare.makePluggedDataCon (typeclass cfg) embs tyi <$> (concat dcs ++ knownWiredDataCons env myName)
     tds           = [(name, tcpCon tcp, dd) | (name, tcp, Just dd) <- tcDds]
     adts          = Bare.makeDataDecls cfg embs myName tds       datacons
     dm            = Bare.dataConMap adts

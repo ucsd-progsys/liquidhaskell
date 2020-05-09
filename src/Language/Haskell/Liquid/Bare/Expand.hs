@@ -486,13 +486,13 @@ cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Lo
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name x bt
   = id 
-  . fmap (plugHoles sigEnv name x)
+  . fmap (plugHoles (typeclass (getConfig env)) sigEnv name x)
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
-  . fmap (maybePlug       sigEnv name x)
+  . fmap (maybePlug (typeclass (getConfig env))  sigEnv name x)
   -- we do not qualify/resolve Expr/Pred when typeclass is enabled
   -- since ghci will not be able to recognize fully qualified names
   -- instead, we leave qualification to ghc elaboration
@@ -539,13 +539,13 @@ bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (va
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)
 
-maybePlug :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
-maybePlug sigEnv name kx = case Bare.plugSrc kx of 
+maybePlug :: Bool -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
+maybePlug allowTC sigEnv name kx = case Bare.plugSrc kx of 
                              Nothing -> id  
-                             Just _  -> plugHoles sigEnv name kx 
+                             Just _  -> plugHoles allowTC sigEnv name kx 
 
-plugHoles :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
-plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
+plugHoles :: Bool -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
+plugHoles allowTC sigEnv name = Bare.makePluggedSig allowTC name embs tyi exports
   where 
     embs              = Bare.sigEmbs     sigEnv 
     tyi               = Bare.sigTyRTyMap sigEnv 
