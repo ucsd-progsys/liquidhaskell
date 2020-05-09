@@ -165,17 +165,6 @@ makeRewriteOne tce (_,t)
        
     tRep = toRTypeRep $ val t 
 
-_isClassOrDict :: Id -> Bool
-_isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x) 
-                    $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
-
-hasClassArg :: Id -> Bool
-hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
-  where 
-    msg       = "hasClassArg: " ++ showpp (x, t:ts)
-    (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
-
-
 doExpand :: TargetSpec -> Config -> F.SubC Cinfo -> Bool
 doExpand sp cfg sub = Config.allowGlobalPLE cfg
                    || (Config.allowLocalPLE cfg && maybe False (isPLEVar sp) (subVar sub))
