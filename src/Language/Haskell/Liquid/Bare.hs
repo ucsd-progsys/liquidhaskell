@@ -962,7 +962,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
   }
   where 
     measures      = mconcat (Ms.mkMSpec' dcSelectors : (Bare.makeMeasureSpec env sigEnv name <$> M.toList specs))
-    (cs, ms)      = Bare.makeMeasureSpec'     measures
+    (cs, ms)      = Bare.makeMeasureSpec' (typeclass $ getConfig env)   measures
     cms           = Bare.makeClassMeasureSpec measures
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
