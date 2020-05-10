@@ -185,7 +185,7 @@ coreAltToDef allowTC x z zs y t alts
       . ctor 
       . (`subst1` (F.symbol dx, F.mkEApp (GM.namedLocSymbol d) (F.eVar <$> xs'))) 
      <$> coreToLg allowTC e
-      where xs' = filter (not . GM.isEvVar) xs
+      where xs' = filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) xs
     mkAlt _ _ _ _ alt 
       = throw $ "Bad alternative" ++ GM.showPpr alt
 
@@ -344,7 +344,7 @@ altToLg :: Bool -> Expr -> C.CoreAlt -> LogicM (C.AltCon, Expr)
 altToLg allowTC de (a@(C.DataAlt d), xs, e) = do 
   p  <- coreToLg allowTC e
   dm <- gets lsDCMap
-  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip (filter (not . GM.isEvVar) xs) [1..]]
+  let su = mkSubst $ concat [ dataConProj dm de d x i | (x, i) <- zip (filter (not . if allowTC then GM.isEmbeddedDictVar else GM.isEvVar) xs) [1..]]
   return (a, subst su p)
 
 altToLg allowTC _ (a, _, e)

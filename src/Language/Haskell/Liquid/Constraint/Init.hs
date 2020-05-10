@@ -62,11 +62,10 @@ initEnv info
        let fVars = giImpVars (giSrc info)
        let dcs   = filter isConLikeId (snd <$> gsFreeSyms (gsName sp))
        let dcs'  = filter isConLikeId fVars
-       let allTc = typeclass (getConfig info)
-       defaults <- forM fVars $ \x -> liftM (x,) (trueTy allTc $ varType x)
-       dcsty    <- forM dcs   (makeDataConTypes allTc)
-       dcsty'   <- forM dcs'  (makeDataConTypes allTc)
-       (hs,f0)  <- refreshHoles allTc $ grty info                           -- asserted refinements     (for defined vars)
+       defaults <- forM fVars $ \x -> liftM (x,) (trueTy allowTC $ varType x)
+       dcsty    <- forM dcs   (makeDataConTypes allowTC)
+       dcsty'   <- forM dcs'  (makeDataConTypes allowTC)
+       (hs,f0)  <- refreshHoles allowTC $ grty info                           -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
@@ -88,16 +87,17 @@ initEnv info
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       rTrue   <- mapM (mapSndM (true allTc)) f6 
+       rTrue   <- mapM (mapSndM (true allowTC)) f6 
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
   where
+    allowTC        = typeclass (getConfig info)
     sp           = giSpec info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
-    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
+    makeExactDc dcs = if exactDCFlag info then map (strengthenDataConType allowTC) dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
     addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
 

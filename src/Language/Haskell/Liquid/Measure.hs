@@ -212,7 +212,7 @@ stitchArgs allowTC sp dc allXs allTs
                       ++ zipWith g xs (ofType <$> ts)
   | otherwise          = panicFieldNumMismatch sp dc nXs nTs
     where
-      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ Ghc.isEvVarType t) allTs
+      (pts, ts)        = L.partition (\t -> notracepp ("isPredTy: " ++ showpp t) $ (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ) t) allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
