@@ -967,7 +967,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec embs cs (datacons ++ cls)]
+    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec (typeclass (getConfig env)) embs cs (datacons ++ cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- unpacking the environment
     tyi           = Bare.tcTyConMap    tycEnv 
