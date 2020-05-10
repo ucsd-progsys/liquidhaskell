@@ -1,5 +1,6 @@
 {-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ViewPatterns              #-}
@@ -27,7 +28,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Optics
-import           Control.Monad                              (unless)
+import           Control.Monad                              (unless, when, void)
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -110,12 +111,37 @@ makeTargetSpec :: Config
                -> TargetSrc
                -> BareSpec
                -> TargetDependencies
-               -> Either [Error] (TargetSpec, LiftedSpec)
-makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
+               -> Ghc.Ghc (Either [Error] (TargetSpec, LiftedSpec))
+makeTargetSpec cfg lmap targetSrc bareSpec dependencies = 
   -- Check that our input 'BareSpec' doesn't contain duplicates.
-  validatedBareSpec <- Bare.checkBareSpec (giTargetMod targetSrc) (review bareSpecIso bareSpec)
-  ghcSpec           <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs validatedBareSpec)
-  pure $ view targetSpecGetter ghcSpec
+  case Bare.checkBareSpec (giTargetMod targetSrc) (review bareSpecIso bareSpec) of
+    Left errs -> pure $ Left errs
+    Right validatedBareSpec -> do
+      -- we should be able to setContext regardless of whether
+      -- we use the ghc api. However, ghc will complain
+      -- if the filename does not match the module name
+      when (typeclass cfg) $ do
+        Ghc.setContext [iimport |(modName, _) <- allSpecs validatedBareSpec,
+                        let iimport = if isTarget modName
+                                      then Ghc.IIModule (getModName modName)
+                                      else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+        void $ Ghc.execStmt
+          "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+          Ghc.execOptions        
+      ghcSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs validatedBareSpec)
+      pure $ view targetSpecGetter <$> ghcSpec
   where
     toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
     toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
@@ -135,20 +161,20 @@ makeGhcSpec :: Config
             -> GhcSrc 
             -> LogicMap 
             -> [(ModName, Ms.BareSpec)] 
-            -> Either [Error] GhcSpec
+            -> Ghc.Ghc (Either [Error] GhcSpec)
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap mspecs0  = do
-  _validTargetSpec <- Bare.checkTargetSpec (map snd mspecs) 
+  sp     <- pure $ makeGhcSpec0 cfg src lmap mspecs
+  let renv             = ghcSpecEnv sp 
+      _validTargetSpec = Bare.checkTargetSpec (map snd mspecs) 
                                            (view targetSrcIso src)
                                            renv 
                                            cbs 
                                            (fst . view targetSpecGetter $ sp)
-  pure sp
+  pure (_validTargetSpec >> pure sp)
   where 
     mspecs =  [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0, isTarget m ] 
            ++ [ (m, sp) | (m, sp) <- mspecs0, not (isTarget m)]
-    sp     = makeGhcSpec0 cfg src lmap mspecs 
-    renv   = ghcSpecEnv sp 
     cbs    = _giCbs src
 
 checkThrow :: Ex.Exception e => Either e c -> c

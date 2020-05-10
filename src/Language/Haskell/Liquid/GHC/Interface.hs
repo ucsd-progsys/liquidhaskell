@@ -1,4 +1,5 @@
 {-# LANGUAGE NoMonomorphismRestriction  #-}
+{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
@@ -438,7 +439,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   
   let targetSrc = view targetSrcIso ghcSrc
 
-  case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
+  makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>= \case
     Left  validationErrors -> Bare.checkThrow (Left validationErrors)
     Right (targetSpec, liftedSpec) -> do
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
