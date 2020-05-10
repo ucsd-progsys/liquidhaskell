@@ -70,15 +70,15 @@ refreshArgsTop (x, t)
 --   invariant is /obviously/ enforced.
 --   Constraint generation should ONLY use @freshTy_type@ and @freshTy_expr@
 
-freshTy_type        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_type k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
-                   <$> freshTy_reftype k (ofType τ)
+freshTy_type        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
+freshTy_type allowTC k e τ  =  F.notracepp ("freshTy_type: " ++ F.showpp k ++ GM.showPpr e) 
+                   <$> freshTy_reftype allowTC k (ofType τ)
 
-freshTy_expr        :: KVKind -> CoreExpr -> Type -> CG SpecType
-freshTy_expr k e _  = freshTy_reftype k $ exprRefType e
+freshTy_expr        :: Bool -> KVKind -> CoreExpr -> Type -> CG SpecType
+freshTy_expr allowTC k e _  = freshTy_reftype allowTC k $ exprRefType e
 
-freshTy_reftype     :: KVKind -> SpecType -> CG SpecType
-freshTy_reftype k _t = (fixTy t >>= refresh) =>> addKVars k
+freshTy_reftype     :: Bool -> KVKind -> SpecType -> CG SpecType
+freshTy_reftype allowTC k _t = (fixTy t >>= refresh allowTC) =>> addKVars k
   where
     t                = {- F.tracepp ("freshTy_reftype:" ++ show k) -} _t
 
@@ -109,9 +109,9 @@ specTypeKVars :: SpecType -> [F.KVar]
 specTypeKVars = foldReft (const False) False (\ _ r ks -> (kvars $ ur_reft r) ++ ks) []
 
 --------------------------------------------------------------------------------
-trueTy  :: Type -> CG SpecType
+trueTy  :: Bool -> Type -> CG SpecType
 --------------------------------------------------------------------------------
-trueTy = ofType' >=> true
+trueTy allowTC = ofType' >=> true allowTC
 
 ofType' :: Type -> CG SpecType
 ofType' = fixTy . ofType

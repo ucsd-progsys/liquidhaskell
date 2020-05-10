@@ -66,8 +66,8 @@ makeMeasureDefinition allowTC tycEnv lmap cbs x =
     Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted allowTC (Ghc.varType v) mdef) 
                      where 
                        vx           = F.atLoc x (F.symbol v)
-                       mdef         = coreToDef' tycEnv lmap vx v def
-                       vinfo        = GM.varLocInfo logicType v
+                       mdef         = coreToDef' allowTC tycEnv lmap vx v def
+                       vinfo        = GM.varLocInfo (logicType allowTC) v
 
 makeUnSorted :: Bool -> Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
 makeUnSorted allowTC t defs
@@ -92,10 +92,10 @@ makeUnSorted allowTC t defs
     xx = F.vv $ Just 10000
     isErasable = if allowTC then GM.isEmbeddedDictType else Ghc.isClassPred
 
-coreToDef' :: Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr 
+coreToDef' :: Bool -> Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr 
            -> [Def LocSpecType Ghc.DataCon] 
-coreToDef' tycEnv lmap vx v def = 
-  case runToLogic embs lmap dm (errHMeas vx) (coreToDef vx v def) of
+coreToDef' allowTC tycEnv lmap vx v def = 
+  case runToLogic embs lmap dm (errHMeas vx) (coreToDef allowTC vx v def) of
     Right l -> l
     Left e  -> Ex.throw e
   where 
@@ -106,21 +106,21 @@ errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 --------------------------------------------------------------------------------
-makeHaskellInlines :: GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
+makeHaskellInlines :: Bool -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
                    -> [(LocSymbol, LMap)]
 --------------------------------------------------------------------------------
-makeHaskellInlines src embs lmap spec 
-         = makeMeasureInline embs lmap cbs <$> inls 
+makeHaskellInlines allowTC src embs lmap spec 
+         = makeMeasureInline allowTC embs lmap cbs <$> inls 
   where
     cbs  = nonRecCoreBinds (_giCbs src) 
     inls = S.toList        (Ms.inlines spec)
 
-makeMeasureInline :: F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
+makeMeasureInline :: Bool -> F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
                   -> (LocSymbol, LMap)
-makeMeasureInline embs lmap cbs x = 
+makeMeasureInline allowTC embs lmap cbs x = 
   case GM.findVarDef (val x) cbs of 
     Nothing       -> Ex.throw $ errHMeas x "Cannot inline haskell function"
-    Just (v, def) -> (vx, coreToFun' embs Nothing lmap vx v def ok)
+    Just (v, def) -> (vx, coreToFun' allowTC embs Nothing lmap vx v def ok)
                      where 
                        vx         = F.atLoc x (F.symbol v)
                        ok (xs, e) = LMap vx (F.symbol <$> xs) (either id id e)
@@ -130,12 +130,12 @@ makeMeasureInline embs lmap cbs x =
 --   but NOT when lifting inlines (which do not have case-of). 
 --   For details, see [NOTE:Lifting-Stages] 
 
-coreToFun' :: F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
+coreToFun' :: Bool -> F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
            -> (([Ghc.Var], Either F.Expr F.Expr) -> a) -> a
-coreToFun' embs dmMb lmap x v def ok = either Ex.throw ok act 
+coreToFun' allowTC embs dmMb lmap x v def ok = either Ex.throw ok act 
   where 
     act  = runToLogic embs lmap dm err xFun 
-    xFun = coreToFun x v def  
+    xFun = coreToFun allowTC x v def  
     err  = errHMeas x  
     dm   = Mb.fromMaybe mempty dmMb 
 

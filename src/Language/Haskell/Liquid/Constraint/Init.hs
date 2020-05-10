@@ -62,10 +62,11 @@ initEnv info
        let fVars = giImpVars (giSrc info)
        let dcs   = filter isConLikeId (snd <$> gsFreeSyms (gsName sp))
        let dcs'  = filter isConLikeId fVars
-       defaults <- forM fVars $ \x -> liftM (x,) (trueTy $ varType x)
-       dcsty    <- forM dcs   makeDataConTypes
-       dcsty'   <- forM dcs'  makeDataConTypes
-       (hs,f0)  <- refreshHoles $ grty info                           -- asserted refinements     (for defined vars)
+       let allTc = typeclass (getConfig info)
+       defaults <- forM fVars $ \x -> liftM (x,) (trueTy allTc $ varType x)
+       dcsty    <- forM dcs   (makeDataConTypes allTc)
+       dcsty'   <- forM dcs'  (makeDataConTypes allTc)
+       (hs,f0)  <- refreshHoles allTc $ grty info                           -- asserted refinements     (for defined vars)
        f0''     <- refreshArgs' =<< grtyTop info                      -- default TOP reftype      (for exported vars without spec)
        let f0'   = if notruetypes $ getConfig sp then [] else f0''
        f1       <- refreshArgs'   defaults                            -- default TOP reftype      (for all vars)
@@ -87,7 +88,7 @@ initEnv info
        let lt2s  = [ (F.symbol x, rTypeSort tce t) | (x, t) <- f1' ]
        let tcb   = mapSnd (rTypeSort tce) <$> concat bs
        let cbs   = giCbs . giSrc $ info
-       rTrue   <- mapM (mapSndM true) f6 
+       rTrue   <- mapM (mapSndM (true allTc)) f6 
        let γ0    = measEnv sp (head bs) cbs tcb lt1s lt2s (f6 ++ bs!!3) (bs!!5) hs info
        γ  <- globalize <$> foldM (+=) γ0 ( [("initEnv", x, y) | (x, y) <- concat $ (rTrue:tail bs)])
        return γ {invs = is (invs1 ++ invs2)}
@@ -109,8 +110,8 @@ addPolyInfo t = mkUnivs (go <$> as) ps t'
                then (setRtvPol a False,r)  
                else (a,r) 
 
-makeDataConTypes :: Var -> CG (Var, SpecType)
-makeDataConTypes x = (x,) <$> (trueTy $ varType x)
+makeDataConTypes :: Bool -> Var -> CG (Var, SpecType)
+makeDataConTypes allowTC x = (x,) <$> (trueTy allowTC $ varType x)
 
 makeAutoDecrDataCons :: [(Id, SpecType)] -> S.HashSet TyCon -> [Id] -> ([LocSpecType], [(Id, SpecType)])
 makeAutoDecrDataCons dcts specenv dcs
@@ -234,7 +235,7 @@ assmGrty f info = [ (x, val t) | (x, t) <- sigs, x `S.member` xs ]
 
 
 recSelectorsTy :: TargetInfo -> CG [(Var, SpecType)]
-recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (varType v)
+recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (typeclass (getConfig info)) (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) &&  isRecordSelector v
@@ -244,7 +245,7 @@ recSelectorsTy info = forM topVs $ \v -> (v,) <$> trueTy (varType v)
 
 
 grtyTop :: TargetInfo -> CG [(Var, SpecType)]
-grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (varType v)
+grtyTop info     = forM topVs $ \v -> (v,) <$> trueTy (typeclass (getConfig info)) (varType v)
   where
     topVs        = filter isTop $ giDefVars (giSrc info)
     isTop v      = isExportedVar (giSrc info) v && not (v `S.member` sigVs) && not (isRecordSelector v)
