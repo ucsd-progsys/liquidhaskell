@@ -97,7 +97,7 @@ initEnv info
     ialias       = mkRTyConIAl (gsIaliases (gsData sp))
     vals f       = map (mapSnd val) . f
     mapSndM f    = \(x,y) -> ((x,) <$> f y)
-    makeExactDc dcs = if exactDCFlag info then map (strengthenDataConType allowTC) dcs else dcs
+    makeExactDc dcs = if exactDCFlag info then map strengthenDataConType dcs else dcs
     is autoinv   = mkRTyConInv    (gsInvariants (gsData sp) ++ ((Nothing,) <$> autoinv))
     addPolyInfo' = if reflection (getConfig info) then map (mapSnd addPolyInfo) else id 
 
