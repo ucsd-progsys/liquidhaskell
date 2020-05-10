@@ -1672,7 +1672,7 @@ grabArgs τs τ
   = reverse (τ:τs)
 
 isNonValueTy :: Type -> Bool
-isNonValueTy = GM.isPredType
+isNonValueTy = GM.isEmbeddedDictType -- GM.isPredType
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
