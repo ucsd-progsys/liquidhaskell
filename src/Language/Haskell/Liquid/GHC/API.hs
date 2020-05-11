@@ -31,7 +31,7 @@ module Language.Haskell.Liquid.GHC.API (
   , isEvVarType
   , isEqPrimPred
   , dataConExTyVars
-
+  , gHC_REAL
   ) where 
 
 import GHC            as Ghc
@@ -98,7 +98,7 @@ import FastString     as Ghc
 import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType, isEqPrimPred)
 import Data.Foldable  (asum)
 import Util           (lengthIs)
-import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey)
+import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL)
 #endif
 #endif
 
