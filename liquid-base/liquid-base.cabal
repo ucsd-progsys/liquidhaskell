@@ -25,58 +25,65 @@ data-files:         src/Data/*.spec
                     src/Control/Exception/*.spec
 
 library
-  exposed-modules:  Data.Foldable
-                    Data.Tuple
-                    Data.Char
-                    Data.Void
-                    Data.Word
-                    Data.Maybe
-                    Data.Monoid
-                    Data.Either
-                    Data.Ord
-                    Data.Proxy
-                    Data.Bits
-                    Data.List
-                    Data.List.NonEmpty
-                    Data.Int
-                    Data.Function
-                    Data.Functor
-                    Data.String
-                    Data.Ratio
-                    Data.IORef
-                    Data.Traversable
-                    Data.Typeable
-                    Data.Data
-                    Debug.Trace
-                    Control.Applicative
+  exposed-modules:  Control.Applicative
                     Control.Category
-                    Control.Monad
-                    Control.Monad.ST
                     Control.Exception
                     Control.Exception.Base
+                    Control.Monad
+                    Control.Monad.ST
+                    Data.Bits
+                    Data.Char
+                    Data.Data
+                    Data.Either
+                    Data.Foldable
+                    Data.Function
+                    Data.Functor
+                    Data.IORef
+                    Data.Int
+                    Data.List
+                    Data.List.NonEmpty
+                    Data.Maybe
+                    Data.Monoid
+                    Data.Ord
+                    Data.Proxy
+                    Data.Ratio
+                    Data.String
+                    Data.Traversable
+                    Data.Tuple
+                    Data.Typeable
+                    Data.Void
+                    Data.Word
+                    Debug.Trace
+                    Foreign.C.String
+                    Foreign.C.Types
+                    Foreign.Concurrent
+                    Foreign.ForeignPtr
+                    Foreign.Marshal.Alloc
+                    Foreign.Marshal.Array
+                    Foreign.Marshal.Utils
+                    Foreign.Ptr
+                    Foreign.Storable
                     GHC.Base
+                    GHC.Exts
+                    GHC.ForeignPtr
                     GHC.Generics
+                    GHC.IO
+                    GHC.IO.Buffer
+                    GHC.IO.BufferedIO
+                    GHC.IO.Handle
+                    GHC.IO.Handle.Internals
+                    GHC.IO.Handle.Types
                     GHC.Int
                     GHC.List
                     GHC.Num
-                    GHC.TypeLits
+                    GHC.Ptr
                     GHC.Real
                     GHC.ST
+                    GHC.TypeLits
                     GHC.Word
-                    GHC.Ptr
-                    GHC.Exts
-                    GHC.ForeignPtr
-                    GHC.IO
-                    GHC.IO.Handle
                     Numeric
-                    Foreign.C.Types
-                    Foreign.C.String
-                    Foreign.Concurrent
-                    Foreign.Ptr
-                    Foreign.ForeignPtr
-                    Foreign.Storable
-                    Foreign.Marshal.Alloc
                     System.IO
+                    System.IO.Error
                     System.IO.Unsafe
                     Text.Read
                     Liquid.Prelude.Totality
