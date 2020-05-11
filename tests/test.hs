@@ -701,7 +701,6 @@ textIgnored
     , "Data/Text/Encoding/Utf32.hs"
     , "Data/Text/Encoding/Utf8.hs"
     , "Data/Text/Fusion/CaseMapping.hs"
-    , "Data/Text/Fusion/Internal.hs"
     , "Data/Text/IO.hs"
     , "Data/Text/IO/Internal.hs"
     , "Data/Text/Lazy/Builder/Functions.hs"

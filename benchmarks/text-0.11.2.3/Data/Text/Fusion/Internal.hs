@@ -1,3 +1,6 @@
+{-@ LIQUID "--no-termination" @-}
+{-@ LIQUID "--no-totality"    @-}
+
 {-# LANGUAGE BangPatterns, ExistentialQuantification #-}
 -- |
 -- Module      : Data.Text.Fusion.Internal

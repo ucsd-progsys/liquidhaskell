@@ -31,6 +31,7 @@ library
                     Control.Exception.Base
                     Control.Monad
                     Control.Monad.ST
+                    Control.Monad.ST.Unsafe
                     Data.Bits
                     Data.Char
                     Data.Data
@@ -54,6 +55,7 @@ library
                     Data.Void
                     Data.Word
                     Debug.Trace
+                    Foreign
                     Foreign.C.String
                     Foreign.C.Types
                     Foreign.Concurrent
