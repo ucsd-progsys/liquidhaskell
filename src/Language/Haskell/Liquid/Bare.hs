@@ -833,7 +833,7 @@ makeSpecData :: GhcSrc -> Bare.Env -> Bare.SigEnv -> Bare.MeasEnv -> GhcSpecSig 
 ------------------------------------------------------------------------------------------
 makeSpecData src env sigEnv measEnv sig specs = SpData 
   { gsCtors      = -- F.notracepp "GS-CTORS" 
-                   [ (x, tt) 
+                   [ (x, if allowTC then t else tt) 
                        | (x, t) <- Bare.meDataCons measEnv
                        , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
                    ]
@@ -844,6 +844,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
   , gsUnsorted   = usI ++ (concatMap msUnSorted $ concatMap measures specs)
   }
   where
+    allowTC      = typeclass (getConfig env)
     measVars     = Bare.meSyms      measEnv -- ms'
                 ++ Bare.meClassSyms measEnv -- cms' 
                 ++ Bare.varMeasures env
