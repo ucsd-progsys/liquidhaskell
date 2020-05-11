@@ -548,8 +548,8 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                   $ eeWithLamsCore'
               substTy = zip tyBinders origTyBinders
               eeWithLams =
-                coreToLogic (GM.tracePpr "eeWithLamsCore" eeWithLamsCore')
-              (bs', ee) = F.tracepp "grabLams" $ grabLams ([], eeWithLams)
+                coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore')
+              (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
               (dictbs, nondictbs) =
                 L.partition (F.isPrefixOfSym (F.symbol "$d")) bs'
           -- invariant: length nondictbs == length origBinders

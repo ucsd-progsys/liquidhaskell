@@ -838,7 +838,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = F.tracepp "gsMeasures" $ Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
+  , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
   , gsInvariants = Misc.nubHashOn (F.loc . snd) invs 
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
   , gsUnsorted   = usI ++ (concatMap msUnSorted $ concatMap measures specs)
@@ -849,8 +849,8 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                 ++ Bare.meClassSyms measEnv -- cms' 
                 ++ Bare.varMeasures env
     measuresSp   = Bare.meMeasureSpec measEnv  
-    ms1          = F.tracepp "ms1" $ M.elems (Ms.measMap measuresSp)
-    ms2          = F.tracepp "ms2" $       Ms.imeas   measuresSp
+    ms1          = M.elems (Ms.measMap measuresSp)
+    ms2          = Ms.imeas   measuresSp
     mySpec       = M.lookupDefault mempty name specs
     name         = _giTargetMod      src
     (minvs,usI)  = makeMeasureInvariants env name sig mySpec
