@@ -318,8 +318,10 @@ liquidHaskellPass cfg modGuts = do
       let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
 
       -- Call into the existing Liquid interface
-      res <- liftIO $ LH.liquidOne pmrTargetInfo
-      case o_result res of
+      out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+      -- despite the name, 'exitWithResult' simply print on stdout extra info.
+      void . liftIO $ LH.exitWithResult cfg [giTarget (giSrc pmrTargetInfo)] out
+      case o_result out of
         Safe -> pure ()
         _    -> liftIO exitFailure
 

@@ -17,8 +17,8 @@ module Language.Haskell.Liquid.Liquid (
    -- * Liquid Constraint Generation 
   , liquidConstraints
 
-  -- * Internal (provisional)
-  , liquidOne
+   -- * Checking a single module
+  , checkTargetInfo
   ) where
 
 import           Prelude hiding (error)
@@ -31,7 +31,7 @@ import           CoreSyn
 import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
-import           Control.Monad (when)
+import           Control.Monad (when, unless)
 import qualified Data.Maybe as Mb
 import qualified Data.List  as L 
 import qualified Control.Exception as Ex
@@ -151,10 +151,21 @@ handle = return . Left . result
 --------------------------------------------------------------------------------
 liquidOne :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-liquidOne info
+liquidOne info = do
+  out' <- checkTargetInfo info
+  unless (compileSpec cfg) $ DC.saveResult tgt out'
+  exitWithResult cfg [tgt] out'
+  where 
+    cfg  = getConfig info
+    tgt  = giTarget (giSrc info)
+
+--------------------------------------------------------------------------------
+checkTargetInfo :: TargetInfo -> IO (Output Doc)
+--------------------------------------------------------------------------------
+checkTargetInfo info
   | compileSpec cfg = do 
     donePhase Loud "Only compiling specifications [skipping verification]"
-    exitWithResult cfg [tgt] (mempty { o_result = F.Safe })
+    pure mempty { o_result = F.Safe }
   | otherwise = do
     whenNormal $ donePhase Loud "Extracted Core using GHC"
     -- whenLoud  $ do putStrLn $ showpp info
@@ -166,10 +177,8 @@ liquidOne info
                    putStrLn $ showCBs (untidyCore cfg) cbs'
                    -- putStrLn $ render $ pprintCBs cbs'
                    -- putStrLn $ showPpr cbs'
-    edcs <- newPrune      cfg cbs' tgt info
-    out' <- liquidQueries cfg      tgt info edcs
-    DC.saveResult       tgt  out'
-    exitWithResult cfg [tgt] out'
+    edcs <- newPrune cfg cbs' tgt info
+    liquidQueries cfg tgt info edcs
   where 
     cfg  = getConfig info
     tgt  = giTarget (giSrc info)
