@@ -744,7 +744,8 @@ specTypeToLHsType :: SpecType -> LHsType GhcPs
 specTypeToLHsType =
   flip (ghylo (distPara @SpecType) distAna) (fmap pure . project) $ \case
     RVarF (RTV tv) _ -> nlHsTyVar
-      (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv) --(symbolToRdrNameNs tvName (F.symbol tv)) 
+      -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
+      (symbolToRdrNameNs tvName (F.symbol tv)) 
     RFunF _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy NoExtField (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
@@ -752,7 +753,7 @@ specTypeToLHsType =
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
       NoExtField
       ForallInvis
-      [noLoc $ UserTyVar NoExtField (noLoc $ getRdrName tv)]
+      [noLoc $ UserTyVar NoExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> nlHsTyConApp

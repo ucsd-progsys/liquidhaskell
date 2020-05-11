@@ -217,13 +217,13 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
   let sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
   let myRTE    = myRTEnv       src env sigEnv rtEnv  
-  let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
-  let sData    = makeSpecData  src env sigEnv measEnv sig specs 
-  let refl     = makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
-  let laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
   elaboratedSig<- if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
                              else pure sig
+  let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
+  let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs 
+  let refl     = makeSpecRefl  cfg src measEnv specs env name elaboratedSig tycEnv 
+  let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
   pure $ SP 
     { _gsConfig = cfg 
     , _gsImps   = makeImports mspecs
@@ -838,7 +838,7 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                        , let tt  = Bare.plugHoles (typeclass $ getConfig env) sigEnv name (Bare.LqTV x) t 
                    ]
   , gsMeas       = [ (F.symbol x, uRType <$> t) | (x, t) <- measVars ] 
-  , gsMeasures   = Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
+  , gsMeasures   = F.tracepp "gsMeasures" $ Bare.qualifyTopDummy env name <$> (ms1 ++ ms2)
   , gsInvariants = Misc.nubHashOn (F.loc . snd) invs 
   , gsIaliases   = concatMap (makeIAliases env sigEnv) (M.toList specs)
   , gsUnsorted   = usI ++ (concatMap msUnSorted $ concatMap measures specs)
@@ -849,8 +849,8 @@ makeSpecData src env sigEnv measEnv sig specs = SpData
                 ++ Bare.meClassSyms measEnv -- cms' 
                 ++ Bare.varMeasures env
     measuresSp   = Bare.meMeasureSpec measEnv  
-    ms1          = M.elems (Ms.measMap measuresSp)
-    ms2          =          Ms.imeas   measuresSp
+    ms1          = F.tracepp "ms1" $ M.elems (Ms.measMap measuresSp)
+    ms2          = F.tracepp "ms2" $       Ms.imeas   measuresSp
     mySpec       = M.lookupDefault mempty name specs
     name         = _giTargetMod      src
     (minvs,usI)  = makeMeasureInvariants env name sig mySpec
