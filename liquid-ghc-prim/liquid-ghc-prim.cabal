@@ -22,6 +22,7 @@ library
                     GHC.Types
                     GHC.CString
                     GHC.Classes
+                    GHC.Tuple
 
   hs-source-dirs:     src
   build-depends:      ghc-prim
