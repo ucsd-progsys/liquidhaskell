@@ -320,7 +320,7 @@ isGoodApp :: Knowledge -> Expr -> Bool
 isGoodApp γ e 
   | (EVar f, es) <- splitEApp e
   , Just i       <- L.lookup f (knSummary γ)
-  = length es == i
+  = length es >= i
   | otherwise
   = False 
     
@@ -556,19 +556,20 @@ f <$$> xs = f Misc.<$$> xs
 evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ _ (EVar f, es) 
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
-  , length (eqArgs eq) == length es 
+  , length (eqArgs eq) <= length es 
   = do env <- seSort <$> gets evEnv
-       return $ substEq env eq es
+       let (es1,es2) = splitAt (length (eqArgs eq)) es
+       return $ eApps (substEq env eq es1) es2 
 
-evalApp γ _ (EVar f, [e]) 
+evalApp γ _ (EVar f, e:es) 
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
-  = return $ subst (mkSubst $ zip (smArgs rw) as) (smBody rw)
+  = return $ eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es 
 
 evalApp _ e _
-  = return e
-
+  = return e 
+  
 --------------------------------------------------------------------------------
 -- | 'substEq' unfolds or instantiates an equation at a particular list of
 --   argument values. We must also substitute the sort-variables that appear
