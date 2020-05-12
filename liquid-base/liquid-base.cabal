@@ -84,6 +84,7 @@ library
                     GHC.TypeLits
                     GHC.Word
                     Numeric
+                    System.Exit
                     System.IO
                     System.IO.Error
                     System.IO.Unsafe
