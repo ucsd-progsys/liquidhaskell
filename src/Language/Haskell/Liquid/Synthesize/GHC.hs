@@ -203,6 +203,14 @@ handleCommas (c:cs)
       then init c : "," : handleCommas cs
       else c : handleCommas cs
 
+fixCommas :: [String] -> [String]
+fixCommas [] = []
+fixCommas [x] = [x]
+fixCommas (x:y:xs)
+  = if y == ","
+      then (x++y) : fixCommas xs
+      else x : fixCommas (y:xs)
+
 fixParen :: [String] -> [String]
 fixParen [] = []
 fixParen [x] = [x]
@@ -251,7 +259,7 @@ pprintAlts _ _
 -- TODO Remove variables generated for type class constraints
 countTcConstraints :: Type -> Int
 countTcConstraints t = 
-  let ws = words (show t)
+  let ws = words (showTy t)
 
       countCommas :: [String] -> Int
       countCommas []     = 0
