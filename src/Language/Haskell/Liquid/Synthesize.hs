@@ -27,7 +27,7 @@ import qualified CoreSyn as GHC
 import           Var 
 import           TyCon
 import           DataCon
-import           Text.PrettyPrint.HughesPJ ((<+>), text)
+import           Text.PrettyPrint.HughesPJ (text, ($+$))
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Data.Maybe
@@ -65,8 +65,8 @@ synthesize tgt fcfg cginfo =
 
       return $ ErrHole loc (
         if not (null fills)
-          then text "\n Hole Fills:\n" <+> pprintMany (map (coreToHs topLvlBndr . fromAnf) fills)
-          else mempty) mempty (symbol x) t 
+          then text "\n Hole Fills:" $+$ pprintMany (map (coreToHs topLvlBndr . fromAnf) fills)
+          else mempty) mempty (symbol x) typeOfTopLvlBnd 
 
 
 synthesize' :: SMT.Context -> CGInfo -> SSEnv -> SpecType ->  Var -> SpecType -> [Var] -> SState -> IO [CoreExpr]

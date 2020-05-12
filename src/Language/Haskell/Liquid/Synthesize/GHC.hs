@@ -132,14 +132,19 @@ discardModName v = last (splitOn "." (show v))
 rmModName :: String -> String
 rmModName s = 
   let ts = splitOn "." s
-  in  maintainParen ts ++ last ts
+  in  maintainLParen ts ++ last ts ++ maintainRParen ts
 
-maintainParen :: [String] -> String
-maintainParen ts 
+maintainLParen :: [String] -> String
+maintainLParen ts 
   = if length ts > 1 && head (head ts) == '('
       then  "("
       else  ""
 
+maintainRParen :: [String] -> String
+maintainRParen ts 
+  = if last (last ts) == '('
+      then  ")"
+      else  ""
 
 pprintFormals :: Int -> Var -> CoreExpr -> String
 pprintFormals i v (Lam b e) 
@@ -186,9 +191,38 @@ pprintBody _ e
 
 fixApplication :: String -> String
 fixApplication e = 
-  let ws = words (replaceNewLine e)
+  let ws' = words (replaceNewLine e)
+      ws = handleCommas ws'
       cleanWs = rmTypeAppl ws
-  in  unwords (map rmModName cleanWs)
+      -- cleanWs  = fixCommas cleanWs'
+  in  unwords (fixCommas $ fixParen (map rmModName cleanWs))
+
+handleCommas :: [String] -> [String]
+handleCommas [] = []
+handleCommas (c:cs)
+  = if last c == ','
+      then init c : "," : handleCommas cs
+      else c : handleCommas cs
+
+fixCommas :: [String] -> [String]
+fixCommas [] = []
+fixCommas [x] = [x]
+fixCommas (x:y:xs)
+  = if y == ","
+      then (x++y) : fixCommas xs
+      else x : fixCommas (y:xs)
+
+fixParen :: [String] -> [String]
+fixParen [] = []
+fixParen [x] = [x]
+fixParen (x:y:xs) 
+  = if replicate (length y) ')' == y
+      then  let w0 = x ++ y 
+                w = if head w0 == '(' && last w0 == ')' 
+                      then tail (init w0) 
+                      else w0
+            in  w : fixParen xs
+      else x : fixParen (y:xs)
 
 rmTypeAppl :: [String] -> [String]
 rmTypeAppl [] 
@@ -197,8 +231,16 @@ rmTypeAppl (c:cs)
   = if c == "@"
       then  case cs of 
               [] -> error " Type application: Badly formatted string. "
-              (_: cs') -> rmTypeAppl cs'
+              (c': cs') -> 
+                let p = paren c'
+                in  if null p then rmTypeAppl cs' else p : rmTypeAppl cs'
       else c:rmTypeAppl cs
+
+paren :: String -> String 
+paren [] 
+  = []
+paren (c:cs) 
+  = if c == ')' then c : paren cs else paren cs
 
 replaceNewLine :: String -> String
 replaceNewLine [] 
@@ -214,6 +256,8 @@ pprintAlts i (DataAlt dataCon, vs, e)
     pprintBody (i+caseIndent) e ++ "\n"
 pprintAlts _ _
   = error " Pretty printing for pattern match on datatypes. "
+
+-- TODO Remove variables generated for type class constraints
 
 -----------------------------------------------------------------------------------
 --  |                          Prune trivial expressions                       | --
