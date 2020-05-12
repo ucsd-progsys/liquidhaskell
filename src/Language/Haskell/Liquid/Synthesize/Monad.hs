@@ -36,6 +36,7 @@ import           Data.List
 import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
 import           TyCon
+import           Language.Haskell.Liquid.Types.Specs
 
 localMaxMatchDepth :: SM Int 
 localMaxMatchDepth = maxMatchDepth . getConfig . sCGEnv <$> get
@@ -63,6 +64,7 @@ data SState
            , sDepth     :: !Int
            , sExprMem   :: !ExprMemory 
            , sExprId    :: !Int
+           , sArgsId    :: !Int
            , sArgsDepth :: !Int
            , sUniVars   :: ![Var]
            , sFix       :: !Var
@@ -101,7 +103,7 @@ evalSM act ctx env st = do
 
 initState :: SMT.Context -> F.Config -> CGInfo -> CGEnv -> REnv -> Var -> [Var] -> SSEnv -> IO SState 
 initState ctx fcfg cgi cgenv renv xtop uniVars env = 
-  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 0 uniVars xtop [] Nothing Nothing ([], []) 0 []
+  return $ SState renv env 0 [] ctx cgi cgenv fcfg 0 exprMem0 0 0 0 uniVars xtop [] Nothing Nothing ([], []) 0 []
   where exprMem0 = initExprMem env
 
 getSEnv :: SM SSEnv
@@ -401,6 +403,27 @@ functionCands goalTy = do
 varError :: SM Var
 varError = do 
   info    <- ghcI . sCGI <$> get
-  let env  = B.makeEnv (gsConfig $ giSpec info) (giSrc info) mempty mempty 
+  let env  = B.makeEnv (gsConfig $ giSpec info) (toGhcSrc $ giSrc info) mempty mempty 
   let name = giTargetMod $ giSrc info
   return $ B.lookupGhcVar env name "Var" (dummyLoc $ symbol "Language.Haskell.Liquid.Synthesize.Error.err")
+
+toGhcSrc :: TargetSrc -> GhcSrc 
+toGhcSrc a = Src
+      { _giIncDir    = giIncDir a
+      , _giTarget    = giTarget a
+      , _giTargetMod = giTargetMod a
+      , _giCbs       = giCbs a
+      , _gsTcs       = gsTcs a
+      , _gsCls       = gsCls a
+      , _giDerVars   = giDerVars a
+      , _giImpVars   = giImpVars a
+      , _giDefVars   = giDefVars a
+      , _giUseVars   = giUseVars a
+      , _gsExports   = gsExports a
+      , _gsFiTcs     = gsFiTcs a
+      , _gsFiDcs     = gsFiDcs a
+      , _gsPrimTcs   = gsPrimTcs a
+      , _gsQualImps  = gsQualImps a
+      , _gsAllImps   = gsAllImps a
+      , _gsTyThings  = gsTyThings a
+      }
