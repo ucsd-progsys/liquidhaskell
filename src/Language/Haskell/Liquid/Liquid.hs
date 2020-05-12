@@ -245,14 +245,14 @@ solveCs cfg tgt cgi info names = do
   let resErr        = applySolution sol . cinfoError . snd <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
-  let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
+  let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
                                  `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
   let lErrors       = applySolution sol <$> logErrors cgi
   hErrors          <- if (typedHoles cfg) 
                         then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
                         else return [] 
-  let resModel      = resModel  `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
