@@ -241,7 +241,7 @@ executable target
   default-language: Haskell2010
   buildable:        False
 
-test-suite liquidhaskell-test
+test-suite test
   type:             exitcode-stdio-1.0
   main-is:          test.hs
   other-modules:    Paths_liquidhaskell
@@ -297,6 +297,6 @@ test-suite synthesis
                   , text
                   , directory 
                   , ghc
-                  , data-default
+                  , extra
   default-language: Haskell2010
   ghc-options:      -W
