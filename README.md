@@ -17,7 +17,7 @@ Questions
 -----------
 If you have any questions
 
-* Join the Liquid Haskell [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTY1YzBiY2JlZjBjMTM5M2ZkMjNmZDk5ZjA2MGQyZjQ5ZjBmYjZjNGMzOTUyMTU2MDlmM2YzZDM2YjhiMWFjM2I)
+* Join the Liquid Haskell [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE)
 * Mail the [users mailing list](https://groups.google.com/forum/#!forum/liquidhaskell)
 * Create a github issue
 
@@ -266,6 +266,16 @@ To allow reasoning about function extensionality use the `extensionality flag`. 
 ```
 {-@ LIQUID "--extensionality" @-}
 ```
+
+
+Fast Checking
+-------------
+
+The option `--fast` or `--nopolyinfer` greatly recudes verification time, can also reduces precision of type checking. 
+It, per module, deactivates inference of refinements during 
+instantiation of polymorphic type variables. 
+It is suggested to use on theorem proving style when reflected 
+functions are trivially refined. 
 
 Incremental Checking
 --------------------
@@ -672,7 +682,7 @@ We use the flag `--prune-unsorted` to prune away unsorted expressions
 
 
 Case Expansion
--------------------------
+----------------------
 
 By default LiquidHaskell expands all data constructors to the case statements.
 For example,
@@ -1008,13 +1018,17 @@ and compelling example.
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
 
-#### Class Laws
+#### Failing Specifications 
 
-Class laws can be defined and checked using the `class laws` 
-and `instance laws` keywords. For an example, see: 
+The `fail b` declaration checks that the definition of `b` is unsafe. E.g., the followin is SAFE.
 
-* [class-laws/pos/SemiGroup.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/06d22aa070933d9ea833e30d84ed91de2a28eaee/tests/class-laws/pos/SemiGroup.hs)
-* [class-laws/pos/SemiGroup.hs](tests/class-laws/pos/SemiGroup.hs)
+    {-@ fail unsafe @-}
+    {-@ unsafe :: () -> { 0 == 1 } @-}
+    unsafe :: () -> () 
+    unsafe _ = ()
+
+An error is created if `fail` definitions are safe or binders defined as `fail` are used by (failing or not) definitions. 
+
 
 #### Type Aliases
 

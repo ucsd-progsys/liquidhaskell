@@ -123,10 +123,10 @@ import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
-import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg) -- , dataConImplicitIds)
+import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
 
-import Data.List (sort, foldl')
+import Data.List (foldl')
 
 
 
@@ -437,17 +437,6 @@ eqRSort _ _ _
 --------------------------------------------------------------------------------
 -- | Wrappers for GHC Type Elements --------------------------------------------
 --------------------------------------------------------------------------------
-
-instance Eq Predicate where
-  (==) = eqpd
-
-eqpd :: Predicate -> Predicate -> Bool
-eqpd (Pr vs) (Pr ws)
-  = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
-    where
-      vs' = sort vs
-      ws' = sort ws
-
 
 instance Eq RTyVar where
   -- FIXME: need to compare unique and string because we reuse
@@ -1623,7 +1612,12 @@ typeSort tce = go
     go t@(FunTy _ _)    = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
-    go (TyConApp c τs)  = tyConFTyCon tce c (go <$> τs)
+    go (TyConApp c τs)  
+      | isNewTyCon c
+      , not (isRecursivenewTyCon c) 
+      = go (Ghc.newTyConInstRhs c τs)
+      | otherwise  
+      = tyConFTyCon tce c (go <$> τs)
     go (AppTy t1 t2)    = fApp (go t1) [go t2]
     go (TyVarTy tv)     = tyVarSort tv
     go (CastTy t _)     = go t
@@ -1983,7 +1977,7 @@ instance PPrint (RTProp c tv r) => Show (RTProp c tv r) where
 -- | (in positive positions, in negative positions, in undetermined positions)
 -- | undetermined positions are due to type constructors and type application
 -------------------------------------------------------------------------------
-tyVarsPosition :: RType c tv r -> Positions tv 
+tyVarsPosition :: RType RTyCon tv r -> Positions tv 
 tyVarsPosition = go (Just True)
   where 
     go p (RVar t _)        = report p t
@@ -1991,13 +1985,17 @@ tyVarsPosition = go (Just True)
     go p (RImpF _ t1 t2 _) = go (flip p) t1 <> go p t2 
     go p (RAllT _ t _)     = go p t 
     go p (RAllP _ t)       = go p t 
-    go _ (RApp _ ts _ _)   = mconcat (go Nothing <$> ts)
+    go p (RApp c ts _ _)   = mconcat (zipWith go (getPosition p <$> varianceTyArgs (rtc_info c)) ts)
     go p (RAllE _ t1 t2)   = go p t1 <> go p t2 
     go p (REx _ t1 t2)     = go p t1 <> go p t2
     go _ (RExprArg _)      = mempty
     go p (RAppTy t1 t2 _)  = go p t1 <> go p t2 
     go p (RRTy _ _ _ t)    = go p t 
     go _ (RHole _)         = mempty
+
+    getPosition :: Maybe Bool -> Variance -> Maybe Bool
+    getPosition b Contravariant = not <$> b 
+    getPosition b _             = b  
 
     report Nothing v      = (Pos [] [] [v])
     report (Just True) v  = (Pos [v] [] [])

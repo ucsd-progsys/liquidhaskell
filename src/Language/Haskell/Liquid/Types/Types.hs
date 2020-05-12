@@ -15,6 +15,8 @@
 {-# LANGUAGE ConstraintKinds            #-}
 {-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE TupleSections              #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE DerivingVia                #-}
 
 -- | This module should contain all the global type definitions and basic instances.
 
@@ -193,6 +195,9 @@ module Language.Haskell.Liquid.Types.Types (
   , Def (..)
   , Body (..)
   , MSpec (..)
+  
+  -- * Scoping Info
+  , BScope
 
   -- * Type Classes
   , RClass (..)
@@ -259,6 +264,7 @@ import qualified Data.Foldable                          as F
 import           Data.Hashable
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
+import qualified Data.List                              as L
 import           Data.Maybe                             (fromMaybe, mapMaybe)
 import           Data.Function                          (on)
 import           Data.List                              (foldl', nub)
@@ -269,6 +275,7 @@ import           Language.Fixpoint.Misc
 
 import qualified Language.Fixpoint.Types as F
 
+import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
@@ -276,6 +283,16 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.UX.Config
 import           Data.Default
 
+
+-----------------------------------------------------------------------------
+-- | Information about scope Binders Scope in
+-----------------------------------------------------------------------------
+{- In types with base refinement, e.g., {out:T {inner:a | ri} | ro }
+If BScope = True , then the outer binder out is     in scope on ri
+If BScope = False, then the outer binder out is not in scope on ri
+-}
+
+type BScope = Bool    
 -----------------------------------------------------------------------------
 -- | Information about Type Constructors
 -----------------------------------------------------------------------------
@@ -471,7 +488,18 @@ instance NFData a   => NFData   (PVKind a)
 
 type UsedPVar      = PVar ()
 
-newtype Predicate  = Pr [UsedPVar] deriving (Generic, Data, Typeable)
+newtype Predicate  = Pr [UsedPVar] 
+  deriving (Generic, Data, Typeable)
+  deriving Hashable via Generically Predicate
+
+instance Eq Predicate where
+  (Pr vs) == (Pr ws)
+      = and $ (length vs' == length ws') : [v == w | (v, w) <- zip vs' ws']
+        where
+          vs' = L.sort vs
+          ws' = L.sort ws
+
+
 
 instance B.Binary Predicate
 
@@ -555,6 +583,7 @@ data BTyCon = BTyCon
   , btc_prom  :: !Bool           -- ^ Is Promoted Data Con?
   }
   deriving (Generic, Data, Typeable)
+  deriving Hashable via Generically BTyCon
 
 instance B.Binary BTyCon
 
@@ -745,7 +774,8 @@ data RType c tv r
 
   | RHole r -- ^ let LH match against the Haskell type and add k-vars, e.g. `x:_`
             --   see tests/pos/Holes.hs
-  deriving (Generic, Data, Typeable, Functor)
+  deriving (Eq, Generic, Data, Typeable, Functor)
+  deriving Hashable via Generically (RType c tv r)
 
 instance (B.Binary c, B.Binary tv, B.Binary r) => B.Binary (RType c tv r)
 instance (NFData c, NFData tv, NFData r)       => NFData (RType c tv r)
@@ -780,6 +810,7 @@ data RTVar tv s = RTVar
   { ty_var_value :: tv
   , ty_var_info  :: RTVInfo s
   } deriving (Generic, Data, Typeable)
+    deriving Hashable via Generically (RTVar tv s)
 
 mapTyVarValue :: (tv1 -> tv2) -> RTVar tv1 s -> RTVar tv2 s
 mapTyVarValue f v = v {ty_var_value = f $ ty_var_value v}
@@ -796,8 +827,9 @@ data RTVInfo s
                                  -- any refinement (ie is polymorphic on refinements), 
                                  -- false iff instantiation is with true refinement 
             } deriving (Generic, Data, Typeable, Functor)
+              deriving Hashable via Generically (RTVInfo s)
 
-            
+
 setRtvPol :: RTVar tv a -> Bool -> RTVar tv a 
 setRtvPol (RTVar a i) b = RTVar a (i{rtv_is_pol = b})
 
@@ -831,7 +863,8 @@ instance (B.Binary s)              => B.Binary (RTVInfo s)
 data Ref τ t = RProp
   { rf_args :: [(Symbol, τ)]
   , rf_body :: t -- ^ Abstract refinement associated with `RTyCon`
-  } deriving (Generic, Data, Typeable, Functor)
+  } deriving (Eq, Generic, Data, Typeable, Functor)
+    deriving Hashable via Generically (Ref τ t)
 
 instance (B.Binary τ, B.Binary t) => B.Binary (Ref τ t)
 instance (NFData τ,   NFData t)   => NFData   (Ref τ t)
@@ -860,7 +893,8 @@ data UReft r = MkUReft
   { ur_reft   :: !r
   , ur_pred   :: !Predicate
   }
-  deriving (Generic, Data, Typeable, Functor, Foldable, Traversable)
+  deriving (Eq, Generic, Data, Typeable, Functor, Foldable, Traversable)
+  deriving Hashable via Generically (UReft r)
 
 instance B.Binary r => B.Binary (UReft r)
 
@@ -1032,7 +1066,8 @@ data RInstance t = RI
   { riclass :: BTyCon
   , ritype  :: [t]
   , risigs  :: [(F.LocSymbol, RISig t)]
-  } deriving (Generic, Functor, Data, Typeable, Show)
+  } deriving (Eq, Generic, Functor, Data, Typeable, Show)
+    deriving Hashable via Generically (RInstance t)
 
 data RILaws ty = RIL
   { rilName    :: BTyCon
@@ -1040,10 +1075,12 @@ data RILaws ty = RIL
   , rilTyArgs  :: [ty]
   , rilEqus    :: [(F.LocSymbol, F.LocSymbol)]
   , rilPos     :: F.Located ()
-  } deriving (Show, Functor, Data, Typeable, Generic)
+  } deriving (Eq, Show, Functor, Data, Typeable, Generic)
+    deriving Hashable via Generically (RILaws ty)
 
 data RISig t = RIAssumed t | RISig t
-  deriving (Generic, Functor, Data, Typeable, Show)
+  deriving (Eq, Generic, Functor, Data, Typeable, Show)
+  deriving Hashable via Generically (RISig t)
 
 instance F.PPrint t => F.PPrint (RISig t) where
   pprintTidy k = ppRISig k (empty :: Doc) 
@@ -1112,6 +1149,7 @@ data DataDecl   = DataDecl
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
   , tycKind   :: !DataDeclKind         -- ^ User-defined or Auto-lifted
   } deriving (Data, Typeable, Generic)
+    deriving Hashable via Generically DataDecl
 
 -- | The name of the `TyCon` corresponding to a `DataDecl`
 data DataName
@@ -1127,18 +1165,21 @@ data DataCtor = DataCtor
   , dcFields :: [(Symbol, BareType)]   -- ^ field-name and field-Type pairs 
   , dcResult :: Maybe BareType         -- ^ Possible output (if in GADT form)
   } deriving (Data, Typeable, Generic)
+    deriving Hashable via Generically DataCtor
 
 -- | Termination expressions
 data SizeFun
   = IdSizeFun              -- ^ \x -> F.EVar x
   | SymSizeFun F.LocSymbol -- ^ \x -> f x
   deriving (Data, Typeable, Generic)
+  deriving Hashable via Generically SizeFun
 
 -- | What kind of `DataDecl` is it?
 data DataDeclKind
   = DataUser           -- ^ User defined data-definitions         (should have refined fields)
   | DataReflected      -- ^ Automatically lifted data-definitions (do not have refined fields)
   deriving (Eq, Data, Typeable, Generic, Show)
+  deriving Hashable via Generically DataDeclKind
 
 instance Show SizeFun where
   show IdSizeFun      = "IdSizeFun"
@@ -1238,7 +1279,8 @@ data RTAlias x a = RTA
   , rtVArgs :: [Symbol]           -- ^ value parameters
   , rtBody  :: a                  -- ^ what the alias expands to
   -- , rtMod   :: !ModName           -- ^ module where alias was defined
-  } deriving (Data, Typeable, Generic, Functor)
+  } deriving (Eq, Data, Typeable, Generic, Functor)
+    deriving Hashable via Generically (RTAlias x a)
 -- TODO support ghosts in aliases?
 
 instance (B.Binary x, B.Binary a) => B.Binary (RTAlias x a)
@@ -1441,7 +1483,7 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
-  syms        = foldReft    (\_ r acc -> F.syms r ++ acc) []
+  syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
@@ -1485,7 +1527,7 @@ mapExprReft f = mapReft g
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial t = foldReft (\_ r b -> F.isTauto r && b) True t
+isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
@@ -1630,30 +1672,33 @@ mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (
 -- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (F.Reftable r, TyConable c) => (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (F.Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft  f = foldReft' (\_ _ -> False) id (\γ _ -> f γ)
+foldReft  bsc f = foldReft' (\_ _ -> False) bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (F.Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
+          -> BScope
           -> (RType c tv r -> b)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind g f = efoldReft logicBind
-                            (\_ _ -> [])
-                            (\_ -> [])
-                            g
-                            (\γ t r z -> f γ t r z)
-                            (\_ γ -> γ)
-                            F.emptySEnv
+foldReft' logicBind bsc g f 
+  = efoldReft logicBind bsc 
+              (\_ _ -> [])
+              (\_ -> [])
+              g
+              (\γ t r z -> f γ t r z)
+              (\_ γ -> γ)
+              F.emptySEnv
 
 
 
 -- efoldReft :: F.Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (F.Reftable r, TyConable c)
           => (Symbol -> RType c tv r -> Bool)
+          -> BScope
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
           -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
           -> (RType c tv r -> a)
@@ -1663,7 +1708,7 @@ efoldReft :: (F.Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft logicBind cb dty g f fp = go
+efoldReft logicBind bsc cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
@@ -1679,7 +1724,8 @@ efoldReft logicBind cb dty g f fp = go
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
        where
          γ'                             = insertSEnv x (g t) γ
-    go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' (insertSEnv (rTypeValueVar me) (g me) γ) z ts) rs)
+    go γ z me@(RApp _ ts rs r)          = f γ (Just me) r (ho' γ (go' γ' z ts) rs)
+       where γ' = if bsc then insertSEnv (rTypeValueVar me) (g me) γ else γ 
 
     go γ z (RAllE x t t')               = go (insertSEnv x (g t) γ) (go γ z t) t'
     go γ z (REx x t t')                 = go (insertSEnv x (g t) γ) (go γ z t) t'
@@ -1966,6 +2012,7 @@ data Body
   | P Expr          -- ^ Measure Refinement: {v | (? v) <=> p }
   | R Symbol Expr   -- ^ Measure Refinement: {v | p}
   deriving (Show, Data, Typeable, Generic, Eq)
+  deriving Hashable via Generically Body
 
 data Def ty ctor = Def
   { measure :: F.LocSymbol
@@ -1974,6 +2021,7 @@ data Def ty ctor = Def
   , binds   :: [(Symbol, Maybe ty)]    -- measure binders: the ADT argument fields
   , body    :: Body
   } deriving (Show, Data, Typeable, Generic, Eq, Functor)
+    deriving Hashable via Generically (Def ty ctor)
 
 data Measure ty ctor = M
   { msName :: F.LocSymbol
@@ -1981,7 +2029,8 @@ data Measure ty ctor = M
   , msEqns :: [Def ty ctor]
   , msKind :: !MeasureKind 
   , msUnSorted :: !UnSortedExprs -- potential unsorted expressions used at measure denifinitions
-  } deriving (Data, Typeable, Generic, Functor)
+  } deriving (Eq, Data, Typeable, Generic, Functor)
+    deriving Hashable via Generically (Measure ty ctor)
 
 type UnSortedExprs = [UnSortedExpr] -- mempty = []
 type UnSortedExpr  = ([F.Symbol], F.Expr)
@@ -1995,6 +2044,7 @@ data MeasureKind
   | MsSelector    -- ^ due to selector-fields e.g. `data Foo = Foo { fld :: Int }` 
   | MsChecker     -- ^ due to checkers  e.g. `is-F` for `data Foo = F ... | G ...` 
   deriving (Eq, Ord, Show, Data, Typeable, Generic)
+  deriving Hashable via Generically MeasureKind
 
 instance F.Loc (Measure a b) where 
   srcSpan = F.srcSpan . msName
@@ -2095,7 +2145,8 @@ data RClass ty = RClass
   , rcSupers  :: [ty]
   , rcTyVars  :: [BTyVar]
   , rcMethods :: [(F.LocSymbol, ty)]
-  } deriving (Show, Functor, Data, Typeable, Generic)
+  } deriving (Eq, Show, Functor, Data, Typeable, Generic)
+    deriving Hashable via Generically (RClass ty)
 
 
 instance F.PPrint t => F.PPrint (RClass t) where 
@@ -2336,7 +2387,7 @@ instance F.PPrint BTyVar where
 
 instance F.PPrint RTyVar where
   pprintTidy k (RTV α)
-   | True {- ppTyVar ppEnv -}  = F.pprintTidy k (F.symbol α) -- shows full tyvar
+   | ppTyVar ppEnv  = F.pprintTidy k (F.symbol α) -- shows full tyvar
    | otherwise      = ppr_tyvar_short α           -- drops the unique-suffix
    where
      ppr_tyvar_short :: TyVar -> Doc

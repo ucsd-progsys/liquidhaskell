@@ -61,6 +61,7 @@ gt x y = x > y
 -------------------------------------------------------------------
 
 
+{-@ ignore liquidAssertB @-}
 {-@ assume liquidAssertB :: x:{v:Bool | v} -> {v: Bool | v} @-}
 {-# NOINLINE liquidAssertB #-}
 liquidAssertB :: Bool -> Bool
@@ -71,23 +72,26 @@ liquidAssertB b = b
 liquidAssert :: Bool -> a -> a
 liquidAssert _ x = x
 
+{-@ ignore liquidAssume @-}
 {-@ assume liquidAssume :: b:Bool -> a -> {v: a | b}  @-}
 {-# NOINLINE liquidAssume #-}
 liquidAssume :: Bool -> a -> a
 liquidAssume b x = if b then x else error "liquidAssume fails"
 
+{-@ ignore liquidAssumeB @-}
 {-@ assume liquidAssumeB :: forall <p :: a -> Bool>. (a<p> -> {v:Bool| v}) -> a -> a<p> @-}
 liquidAssumeB :: (a -> Bool) -> a -> a
 liquidAssumeB p x | p x = x
                   | otherwise = error "liquidAssumeB fails"
 
 
+{-@ ignore unsafeError @-}
 {-# NOINLINE unsafeError #-}
 unsafeError :: String -> a
 unsafeError = error
 
 
-{-@ assume liquidError :: {v:String | 0 = 1} -> a  @-}
+{-@ liquidError :: {v:String | 0 = 1} -> a  @-}
 {-# NOINLINE liquidError #-}
 liquidError :: String -> a
 liquidError = error

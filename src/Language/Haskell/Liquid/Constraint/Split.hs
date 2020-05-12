@@ -84,7 +84,7 @@ splitW (WfC γ t@(RVar _ _))
 
 splitW (WfC γ t@(RApp _ ts rs _))
   =  do ws    <- bsplitW γ t
-        γ'    <- γ `extendEnvWithVV` t
+        γ'    <- if bscope (getConfig γ) then γ `extendEnvWithVV` t else return γ
         ws'   <- concat <$> mapM (splitW . WfC γ') ts
         ws''  <- concat <$> mapM (rsplitW γ)       rs
         return $ ws ++ ws' ++ ws''
@@ -255,7 +255,7 @@ splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
 splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
-       γ'    <- γ `extendEnvWithVV` t1'
+       γ'    <- if (bscope (getConfig γ)) then γ `extendEnvWithVV` t1' else return γ
        let RApp c t1s r1s _ = t1'
        let RApp _ t2s r2s _ = t2'
        let isapplied = True -- TC.tyConArity (rtc_tc c) == length t1s

@@ -67,7 +67,6 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Play          (isHoleVar) 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.Types                 hiding (binds, Loc, loc, Def)
 import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
 -- import           Language.Haskell.Liquid.Types.Strata
 -- import qualified Language.Haskell.Liquid.Types.RefType         as RT
@@ -82,24 +81,26 @@ import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
+import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
+
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
 --------------------------------------------------------------------------------
-generateConstraints      :: GhcInfo -> CGInfo
+generateConstraints      :: TargetInfo -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
     act                  = do { γ <- initEnv info; consAct γ cfg info }
     cfg                  = getConfig   info
 
-generateConstraintsWithEnv :: GhcInfo -> CGInfo -> CGEnv -> CGInfo
+generateConstraintsWithEnv :: GhcInfo -> TargetInfo -> CGEnv -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
   where
     act                  = consAct γ cfg info
     cfg                  = getConfig   info
 
-consAct :: CGEnv -> Config -> GhcInfo -> CG ()
+consAct :: CGEnv -> Config -> TargetInfo -> CG ()
 consAct γ cfg info = do
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
@@ -269,7 +270,7 @@ consCBLet γ cb = do
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Corebind -------------------------------------------
 --------------------------------------------------------------------------------
-consCBTop :: Config -> GhcInfo -> CGEnv -> CoreBind -> CG CGEnv
+consCBTop :: Config -> TargetInfo -> CGEnv -> CoreBind -> CG CGEnv
 --------------------------------------------------------------------------------
 consCBTop cfg info γ cb
   | all (trustVar cfg info) xs
@@ -294,10 +295,10 @@ consCBTop _ _ γ cb
       topBind (Rec [(v,_)]) = Just v
       topBind _             = Nothing
 
-trustVar :: Config -> GhcInfo -> Var -> Bool
+trustVar :: Config -> TargetInfo -> Var -> Bool
 trustVar cfg info x = not (checkDerived cfg) && derivedVar (giSrc info) x
 
-derivedVar :: GhcSrc -> Var -> Bool
+derivedVar :: TargetSrc -> Var -> Bool
 derivedVar src x = S.member x (giDerVars src)
 
 doTermCheck :: Config -> Bind Var -> CG Bool
@@ -651,7 +652,7 @@ cconsE' γ (Let b e) t
 
 cconsE' γ (Case e x _ cases) t
   = do γ'  <- consCBLet γ (NonRec x e)
-       forM_ cases $ cconsCase (addArgument γ' x) x t nonDefAlts
+       forM_ cases $ cconsCase γ' x t nonDefAlts
     where
        nonDefAlts = [a | (a, _, _) <- cases, a /= DEFAULT]
        _msg = "cconsE' #nonDefAlts = " ++ show (length (nonDefAlts))
@@ -664,8 +665,8 @@ cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
 cconsE' γ (Lam x e) (RFun y ty t r)
   | not (isTyVar x)
   = do γ' <- γ += ("cconsE", x', ty)
-       cconsE (addArgument γ' x) e t'
-       addFunctionConstraint (addArgument γ x) x e (RFun x' ty t' r')
+       cconsE γ' e t'
+       addFunctionConstraint γ x e (RFun x' ty t' r')
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x
@@ -824,7 +825,9 @@ consE _ (Lit c)
 
 consE γ e'@(App e a@(Type τ))
   = do RAllT α te _ <- checkAll ("Non-all TyApp with expr", e) γ <$> consE γ e
-       t            <- if rtv_is_pol (ty_var_info α) && isGeneric γ (ty_var_value α) te then freshTy_type TypeInstE e τ else trueTy τ
+       t            <- if not (nopolyinfer (getConfig γ)) && isPos α && isGenericVar (ty_var_value α) te 
+                         then freshTy_type TypeInstE e τ 
+                         else trueTy τ
        addW          $ WfC γ t
        t'           <- refreshVV t
        tt0          <- instantiatePreds γ e' (subsTyVar_meet' (ty_var_value α, t') te)
@@ -832,6 +835,8 @@ consE γ e'@(App e a@(Type τ))
        case rTVarToBind α of
          Just (x, _) -> return $ maybe (checkUnbound γ e' x tt a) (F.subst1 tt . (x,)) (argType τ)
          Nothing     -> return tt
+  where 
+    isPos α = not (extensionality (getConfig γ)) || rtv_is_pol (ty_var_info α)
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
@@ -876,7 +881,7 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- tyConEmbed <$> get
-       return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton (addArgument γ x) tce x e1
+       return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton γ tce x e1
     where
       FunTy τx _ = exprType e
 
@@ -1169,17 +1174,14 @@ caseEnv γ x _   (DataAlt c) ys pIs = do
   tdc             <- (γ ??= (dataConWorkId c) >>= refreshVV)
   let (rtd,yts',_) = unfoldR tdc xt ys
   yts             <- projectTypes pIs yts'
-  let ys''         = F.symbol <$> filter (not . GM.isPredVar) ys
+  let ys''         = F.symbol <$> filter (not . GM.isEvVar) ys
   let r1           = dataConReft   c   ys''
   let r2           = dataConMsReft rtd ys''
   let xt           = (xt0 `F.meet` rtd) `strengthen` (uTop (r1 `F.meet` r2))
   let cbs          = safeZip "cconsCase" (x':ys') (xt0 : yts)
   cγ'             <- addBinders γ   x' cbs
-  cγ              <- addBinders cγ' x' [(x', xt)]
-  return           $ addArguments cγ ys
-  -- where
-    -- ys'' = F.symbol <$> (filter (not . isClassPred . varType) ys)
-
+  addBinders cγ' x' [(x', xt)]
+  
 caseEnv γ x acs a _ _ = do 
   let x'  = F.symbol x
   xt'    <- (`strengthen` uTop (altReft γ acs a)) <$> (γ ??= x)
@@ -1294,9 +1296,7 @@ argType _
 
 
 argExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-argExpr γ (Var v)     | M.member v $ aenv γ, higherOrderFlag γ
-                      = F.EVar <$> (M.lookup v $ aenv γ)
-argExpr _ (Var vy)    = Just $ F.eVar vy
+argExpr _ (Var v)     = Just $ F.eVar v
 argExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 argExpr γ (Tick _ e)  = argExpr γ e
 argExpr γ (App e (Type _)) = argExpr γ e 
@@ -1305,10 +1305,7 @@ argExpr _ _           = Nothing
 
 -- NIKI TODO: merge arg/lam/fun-Expr
 lamExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
-lamExpr γ (Var v)     | M.member v $ aenv γ
-                      = F.EVar <$> (M.lookup v $ aenv γ)
-lamExpr γ (Var v)     | S.member v (fargs γ)
-                      =  Just $ F.eVar v
+lamExpr _ (Var v)     =  Just $ F.eVar v
 lamExpr γ (Lit c)     = snd  $ literalConst (emb γ) c
 lamExpr γ (Tick _ e)  = lamExpr γ e
 lamExpr γ (App e (Type _)) = lamExpr γ e
@@ -1317,10 +1314,10 @@ lamExpr γ (App e1 e2) = case (lamExpr γ e1, lamExpr γ e2) of
                                                  -> Just $ F.EApp p1 p2
                               (Just p1, Just _ ) -> Just p1
                               _  -> Nothing
-lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr (addArgument γ x) e) of
+lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
                                        _  -> Nothing
-lamExpr γ (Lam x e)   = case lamExpr (addArgument γ x) e of
+lamExpr γ (Lam x e)   = case lamExpr γ e of
                             Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
@@ -1351,7 +1348,7 @@ varRefType' γ x t'
   | otherwise
   = strengthen t' xr
   where
-    xr = singletonReft (M.lookup x $ aenv γ) x
+    xr = singletonReft x
     x' = F.symbol x
     strengthen
       | higherOrderFlag γ
@@ -1388,12 +1385,7 @@ makeSingleton γ e t
 
 funExpr :: CGEnv -> CoreExpr -> Maybe F.Expr
 
--- reflectefd functions
-funExpr γ (Var v) | M.member v $ aenv γ
-  = F.EVar <$> (M.lookup v $ aenv γ)
-
--- local function arguments
-funExpr γ (Var v) | S.member v (fargs γ) || GM.isDataConId v
+funExpr _ (Var v) 
   = Just $ F.EVar (F.symbol v)
 
 funExpr γ (App e1 e2)
@@ -1415,9 +1407,8 @@ simplify (Lam x e) | isTyVar x = simplify e
 simplify e                = e
 
 
-singletonReft :: (F.Symbolic a, F.Symbolic a1) => Maybe a -> a1 -> UReft F.Reft
-singletonReft (Just x) _ = uTop $ F.symbolReft x
-singletonReft Nothing  v = uTop $ F.symbolReft $ F.symbol v
+singletonReft :: (F.Symbolic a) => a -> UReft F.Reft
+singletonReft = uTop . F.symbolReft . F.symbol
 
 -- | RJ: `nomeet` replaces `strengthenS` for `strengthen` in the definition
 --   of `varRefType`. Why does `tests/neg/strata.hs` fail EVEN if I just replace
@@ -1453,16 +1444,6 @@ exprLoc _                       = Nothing
 isType :: Expr CoreBndr -> Bool
 isType (Type _)                 = True
 isType a                        = eqType (exprType a) predType
-
--- | @isGeneric@ determines whether the @RTyVar@ CAN and SHOULD be instantiated in a refined manner.
-isGeneric :: CGEnv -> RTyVar -> SpecType -> Bool
-isGeneric γ α t = isGenericVar α t && not (isPLETerm γ)
-
--- | @isPLETerm γ@ returns @True@ if the "currrent" top-level binder in γ has PLE enabled.
-isPLETerm :: CGEnv -> Bool  
-isPLETerm γ 
-  | Just x <- cgVar γ = {- F.tracepp ("isPLEVar:" ++ F.showpp x) $ -} isPLEVar (giSpec . cgInfo $ γ) x 
-  | otherwise         = False 
 
 -- | @isGenericVar@ determines whether the @RTyVar@ has no class constraints
 isGenericVar :: RTyVar -> SpecType -> Bool

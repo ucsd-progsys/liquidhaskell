@@ -1,4 +1,5 @@
 -- see https://github.com/ucsd-progsys/liquidhaskell/issues/1074
+{-@ LIQUID "--bscope"         @-}
 
 module Blank where
 

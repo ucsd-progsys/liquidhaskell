@@ -45,6 +45,7 @@ data Config = Config
   -- , structuralTerm :: Bool       -- ^ use structural termination checker
   , nostructuralterm :: Bool    -- ^ disable structural termination check
   , gradual        :: Bool       -- ^ enable gradual type checking
+  , bscope         :: Bool       -- ^ scope of the outer binders on the inner refinements
   , gdepth         :: Int        -- ^ depth of gradual concretization
   , ginteractive   :: Bool       -- ^ interactive gradual solving
   , totalHaskell   :: Bool       -- ^ Check for termination and totality, Overrides no-termination flags
@@ -84,8 +85,10 @@ data Config = Config
   , noslice         :: Bool        -- ^ Disable non-concrete KVar slicing
   , noLiftedImport  :: Bool        -- ^ Disable loading lifted specifications (for "legacy" libs)
   , proofLogicEval  :: Bool        -- ^ Enable proof-by-logical-evaluation
+  , oldPLE          :: Bool        -- ^ Enable proof-by-logical-evaluation
   , proofLogicEvalLocal  :: Bool   -- ^ Enable proof-by-logical-evaluation locally, per function
   , extensionality  :: Bool        -- ^ Enable extensional interpretation of function equality 
+  , nopolyinfer     :: Bool        -- ^ No inference of polymorphic type application. 
   , reflection      :: Bool        -- ^ Allow "reflection"; switches on "--higherorder" and "--exactdc"
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  

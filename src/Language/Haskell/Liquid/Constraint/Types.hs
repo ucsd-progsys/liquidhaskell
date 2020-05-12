@@ -52,8 +52,6 @@ module Language.Haskell.Liquid.Constraint.Types
 
   , removeInvariant, restoreInvariant, makeRecInvariants
 
-  , addArgument, addArguments
-
   , getTemplates
   ) where
 
@@ -74,13 +72,14 @@ import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
 
 import           Language.Haskell.Liquid.GHC.SpanStack
-import           Language.Haskell.Liquid.Types hiding   (binds)
 import           Language.Haskell.Liquid.Misc           (thrd3)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
 import           Language.Fixpoint.Misc
 
 import qualified Language.Haskell.Liquid.UX.CTags      as Tg
+
+import           Language.Haskell.Liquid.Types hiding   (binds)
 
 type CG = State CGInfo
 
@@ -93,7 +92,6 @@ data CGEnv = CGE
   , constEnv :: !(F.SEnv F.Sort)   -- ^ Distinct literals
   , fenv   :: !FEnv              -- ^ Fixpoint Environment
   , recs   :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
-  , fargs  :: !(S.HashSet Var)   -- ^ recursive defs being processed (for annotations)
   , invs   :: !RTyConInv         -- ^ Datatype invariants
   , rinvs  :: !RTyConInv         -- ^ Datatype recursive invariants: ignored in the base case assumed in rec call
   , ial    :: !RTyConIAl         -- ^ Datatype checkable invariants
@@ -108,10 +106,8 @@ data CGEnv = CGE
   , forallcb :: !(M.HashMap Var F.Expr)              -- ^ Polymorhic let bindings 
   , holes  :: !HEnv                                  -- ^ Types with holes, will need refreshing
   , lcs    :: !LConstraint                           -- ^ Logical Constraints
-  , aenv   :: !(M.HashMap Var F.Symbol)              -- ^ axiom environment maps reflected Haskell functions to the logical functions
   , cerr   :: !(Maybe (TError SpecType))             -- ^ error that should be reported at the user
-  -- , cgCfg  :: !Config                                -- ^ top-level config options
-  , cgInfo :: !GhcInfo                               -- ^ top-level GhcInfo
+  , cgInfo :: !TargetInfo                            -- ^ top-level TargetInfo
   , cgVar  :: !(Maybe Var)                           -- ^ top level function being checked
   } -- deriving (Data, Typeable)
 
@@ -207,7 +203,7 @@ data CGInfo = CGInfo
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
   , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
-  , ghcI       :: !GhcInfo
+  , ghcI       :: !TargetInfo
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors
   , unsorted   :: !F.Templates                 -- ^ Potentially unsorted expressions
   }
@@ -266,21 +262,6 @@ data RInv = RInv { _rinv_args :: [RSort]   -- empty list means that the invarian
 
 type RTyConInv = M.HashMap RTyCon [RInv]
 type RTyConIAl = M.HashMap RTyCon [RInv]
-
-
-addArgument :: CGEnv -> Var -> CGEnv
-addArgument γ v
- | higherOrderFlag γ
- = γ {fargs = S.insert v (fargs γ) }
- | otherwise
- = γ
-
-addArguments :: CGEnv -> [Var] -> CGEnv
-addArguments γ vs
- | higherOrderFlag γ
- = foldl addArgument γ vs
- | otherwise
- = γ
 
 --------------------------------------------------------------------------------
 mkRTyConInv    :: [(Maybe Var, F.Located SpecType)] -> RTyConInv
@@ -422,7 +403,7 @@ instance NFData RInv where
   rnf (RInv x y z) = rnf x `seq` rnf y `seq` rnf z
 
 instance NFData CGEnv where
-  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _ _ _)
+  rnf (CGE x1 _ x3 _ x4 x5 x55 x6 x7 x8 x9 _ _ _ x10 _ _ _ _ _ _ _ _ _ _)
     = x1 `seq` {- rnf x2 `seq` -} seq x3
          `seq` rnf x5
          `seq` rnf x55

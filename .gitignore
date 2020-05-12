@@ -49,3 +49,4 @@ css/
 *.smt2
 .liquid
 .dir-locals.el
+.tasty-rerun-log

@@ -155,6 +155,10 @@ config = cmdArgsMode $ Config {
     = def &= help "Enable gradual refinement type checking"
           &= name "gradual"
 
+ , bscope
+    = def &= help "scope of the outer binders on the inner refinements"
+          &= name "bscope"
+
  , gdepth
     = 1
     &= help ("Size of gradual conretizations, 1 by default")
@@ -324,6 +328,11 @@ config = cmdArgsMode $ Config {
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
+  , oldPLE
+    = def  
+        &= help "Enable Proof-by-Logical-Evaluation"
+        &= name "oldple"
+
   , proofLogicEvalLocal
     = def  
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
@@ -333,6 +342,11 @@ config = cmdArgsMode $ Config {
     = def 
         &= help "Enable extensional interpretation of function equality"
         &= name "extensionality"
+
+  , nopolyinfer
+    = def 
+        &= help "No inference of polymorphic type application. Gives imprecision, but speedup."
+        &= name "fast"
 
   , reflection 
     = def 
@@ -548,6 +562,7 @@ defConfig = Config
   , rankNTypes        = False 
   , noclasscheck      = False 
   , gradual           = False
+  , bscope            = False 
   , gdepth            = 1
   , ginteractive      = False
   , totalHaskell      = def -- True 
@@ -587,9 +602,11 @@ defConfig = Config
   , noslice           = False
   , noLiftedImport    = False
   , proofLogicEval    = False
+  , oldPLE            = False
   , proofLogicEvalLocal = False
   , reflection        = False
   , extensionality    = False 
+  , nopolyinfer       = False
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False

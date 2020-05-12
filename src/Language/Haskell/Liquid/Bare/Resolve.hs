@@ -69,7 +69,8 @@ import qualified Language.Haskell.Liquid.Misc          as Misc
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import qualified Language.Haskell.Liquid.Types.Errors  as Errors 
 import           Language.Haskell.Liquid.Types.Types   
-import           Language.Haskell.Liquid.Types.Specs 
+import           Language.Haskell.Liquid.Measure       (BareSpec)
+import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
 import           Language.Haskell.Liquid.Types.Visitors 
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
@@ -87,8 +88,8 @@ makeEnv cfg src lmap specs = RE
   , reSyms      = syms 
   , _reSubst    = makeVarSubst   src 
   , _reTyThings = makeTyThingMap src 
-  , reQualImps  = gsQualImps     src
-  , reAllImps   = gsAllImps      src
+  , reQualImps  = _gsQualImps     src
+  , reAllImps   = _gsAllImps      src
   , reLocalVars = makeLocalVars  src 
   , reSrc       = src
   , reGlobSyms  = S.fromList     globalSyms 
@@ -109,7 +110,7 @@ getGlobalSyms (_, spec)
     mbName = F.val . msName
 
 makeLocalVars :: GhcSrc -> LocalVars 
-makeLocalVars = localVarMap . localBinds . giCbs
+makeLocalVars = localVarMap . localBinds . _giCbs
 
 -- TODO: rewrite using CoreVisitor
 localBinds :: [Ghc.CoreBind] -> [Ghc.Var]
@@ -152,7 +153,7 @@ makeVarSubst src = F.mkSubst unqualSyms
                        , v        <- Mb.maybeToList (okUnqualified me mxs) 
                        , not (isWiredInName x)
                    ] 
-    me           = F.symbol (giTargetMod src) 
+    me           = F.symbol (_giTargetMod src) 
 
 -- | @okUnqualified mod mxs@ takes @mxs@ which is a list of modulenames-var 
 --   pairs all of which have the same unqualified symbol representation. 
@@ -208,7 +209,7 @@ isEmptySymbol x = F.lengthSym x == 0
 
 srcThings :: GhcSrc -> [Ghc.TyThing] 
 srcThings src = myTracepp "SRCTHINGS" 
-              $ Misc.hashNubWith F.showpp (gsTyThings src ++ mySrcThings src) 
+              $ Misc.hashNubWith F.showpp (_gsTyThings src ++ mySrcThings src) 
 
 mySrcThings :: GhcSrc -> [Ghc.TyThing] 
 mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
@@ -222,9 +223,9 @@ mySrcThings src = [ Ghc.AnId   x | x <- vars ]
 
 srcTyCons :: GhcSrc -> [Ghc.TyCon]
 srcTyCons src = concat 
-  [ gsTcs     src 
-  , gsFiTcs   src 
-  , gsPrimTcs src
+  [ _gsTcs     src 
+  , _gsFiTcs   src 
+  , _gsPrimTcs src
   , srcVarTcs src 
   ]
 
@@ -240,7 +241,7 @@ typeTyCons t = tops t ++ inners t
     tops     = Mb.maybeToList . Ghc.tyConAppTyCon_maybe
     inners   = concatMap typeTyCons . snd . Ghc.splitAppTys 
 
--- | We prioritize the @Ghc.Var@ in @srcVars@ because @giDefVars@ and @gsTyThings@ 
+-- | We prioritize the @Ghc.Var@ in @srcVars@ because @_giDefVars@ and @gsTyThings@ 
 --   have _different_ values for the same binder, with different types where the 
 --   type params are alpha-renamed. However, for absref, we need _the same_ 
 --   type parameters as used by GHC as those are used inside the lambdas and
@@ -249,11 +250,11 @@ typeTyCons t = tops t ++ inners t
 
 srcVars :: GhcSrc -> [Ghc.Var]
 srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat 
-  [ key "SRC-VAR-DEF" 0 <$> giDefVars src 
-  , key "SRC-VAR-DER" 1 <$> S.toList (giDerVars src)
-  , key "SRC-VAR-IMP" 2 <$> giImpVars src 
-  , key "SRC-VAR-USE" 3 <$> giUseVars src 
-  , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- gsTyThings src ]
+  [ key "SRC-VAR-DEF" 0 <$> _giDefVars src 
+  , key "SRC-VAR-DER" 1 <$> S.toList (_giDerVars src)
+  , key "SRC-VAR-IMP" 2 <$> _giImpVars src 
+  , key "SRC-VAR-USE" 3 <$> _giUseVars src 
+  , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- _gsTyThings src ]
   ]
   where 
     key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
@@ -411,12 +412,11 @@ substEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a ->
 substEnv env name l bs = F.substa (qualifySymbol env name l bs) 
 
 instance Qualify SpecType where 
-  qualify = substFreeEnv           
+  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5            
 
 instance Qualify BareType where 
-  qualify = substFreeEnv 
+  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5 
 
--- Do not substitute variables bound e.g. by function types
 substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 
 
@@ -599,8 +599,8 @@ allowExtResolution env lx = case fileMb of
   Just f    -> myTracepp ("allowExt: " ++ show (f, tgtFile)) 
                  $ f == tgtFile || Misc.isIncludeFile incDir f || F.isExtFile F.Spec f 
   where 
-    tgtFile = giTarget (reSrc env)
-    incDir  = giIncDir (reSrc env)
+    tgtFile = _giTarget (reSrc env)
+    incDir  = _giIncDir (reSrc env)
     fileMb  = Errors.srcSpanFileMb (GM.fSrcSpan lx) 
 
 lookupThings :: Env -> F.Symbol -> [(F.Symbol, Ghc.TyThing)] 
@@ -947,7 +947,7 @@ resolveLocalBinds env xtes = [ (x,t,es) | (x, (t, es)) <- topTs ++ replace locTs
     (locTs, topTs)         = partitionLocalBinds [ (x, (t, es)) | (x, t, es) <- xtes] 
     replace                = M.toList . replaceSigs . M.fromList 
     replaceSigs sigm       = coreVisitor replaceVisitor M.empty sigm cbs 
-    cbs                    = giCbs (reSrc env)
+    cbs                    = _giCbs (reSrc env)
 
 replaceVisitor :: CoreVisitor SymMap SigMap 
 replaceVisitor = CoreVisitor 

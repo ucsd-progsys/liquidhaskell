@@ -16,10 +16,19 @@ install:
 - stack --version
 
 # Install Microsoft Z3 from NuGet
-- nuget install z3x64win -Version 4.5.0.1	
+# - nuget install z3x64win -Version 4.8.7	
+# - dotnet add C:\projects\liquidhaskell\ package Microsoft.Z3.x64 --version 4.8.7
+# - set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
+# - z3 --version
 
-- set PATH=%PATH%;%cd%;%cd%\z3x64win.4.5.0.1\tools
+# Download latest stable z3
+- curl -sS -oz3.zip -L --insecure  https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-win.zip
+- 7z x z3.zip
+- echo %CD%
+- DIR
+- set PATH=%PATH%;C:\projects\liquidhaskell\z3-4.8.7-x64-win\bin;C:\projects\liquidhaskell
 - z3 --version
+
 
 build_script:
 # Build LiquidHaskell
@@ -33,7 +42,7 @@ build_script:
 - liquid --version
 
 # ZIP execturable 
-- 7z a liquidhaskell.zip liquid.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\tools\*.exe %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\lib\*.dll %APPVEYOR_BUILD_FOLDER%\z3x64win.4.5.0.1\*.dll
+- 7z a liquidhaskell.zip liquid.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll 
 
 test_script:
 - echo "" | stack --no-terminal test liquidhaskell --fast --test-arguments "-p Micro"

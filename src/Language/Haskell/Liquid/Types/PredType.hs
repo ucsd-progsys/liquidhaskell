@@ -391,7 +391,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
-    rvs      = foldReft (\_ r acc -> rvReft r : acc) []
+    rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)

@@ -339,7 +339,7 @@ instance Expand BareDef where
     , body  = expand rtEnv l (body  d) 
     } 
 
-instance Expand BareSpec where 
+instance Expand Ms.BareSpec where 
   expand = expandBareSpec
 
 instance Expand a => Expand (F.Located a) where 
@@ -357,7 +357,7 @@ instance Expand a => Expand [a] where
 instance Expand a => Expand (M.HashMap k a) where 
   expand rtEnv l = fmap (expand rtEnv l) 
 
-expandBareSpec :: BareRTEnv -> F.SourcePos -> BareSpec -> BareSpec
+expandBareSpec :: BareRTEnv -> F.SourcePos -> Ms.BareSpec -> Ms.BareSpec
 expandBareSpec rtEnv l sp = sp 
   { measures   = expand rtEnv l (measures   sp) 
   , asmSigs    = expand rtEnv l (asmSigs    sp)

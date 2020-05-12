@@ -4,11 +4,24 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: fpco/stack-build:lts
+      - image: fpco/stack-build:lts-15.4
     steps:
+      - run: apt-get update && apt-get install -y git ssh
+      
+      - run: 
+          name: Install z3 
+          command: |
+            wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip
+            unzip z3-4.8.7-x64-ubuntu-16.04.zip
+            rm -f z3-4.8.7-x64-ubuntu-16.04.zip
+            cp z3-4.8.7-x64-ubuntu-16.04/bin/libz3.a /usr/local/lib
+            cp z3-4.8.7-x64-ubuntu-16.04/bin/z3 /usr/local/bin
+            cp z3-4.8.7-x64-ubuntu-16.04/include/* /usr/local/include
+            rm -rf z3-4.8.7-x64-ubuntu-16.04
+            z3 --version
+
       - checkout
       - add_ssh_keys
-      - run: apt-get update && apt-get install -y z3 git ssh
       #- run: find .git
       #- run: sed -i '/fixpoint.git/a fetch = +refs/pull/*/head:refs/remotes/origin/pr/*' .git/modules/liquid-fixpoint/config
       - run: git submodule sync
