@@ -11,33 +11,29 @@ import           System.FilePath
 import           System.Process
 import           System.IO
 import           System.Directory
-import           System.FilePath.Posix
 import           System.Exit
 import           System.IO.Unsafe
-import           Data.List
-import           CoreSyn
-import           Debug.Trace 
 import           Data.Tuple.Extra
 
 -------------------------------------------------------------
 -- | Contains the input files
 -------------------------------------------------------------
 synthesisTestsDir :: FilePath
-synthesisTestsDir = "tests/synth/"
+synthesisTestsDir = "tests/synthesis/tests"
 -------------------------------------------------------------
 
 -------------------------------------------------------------
 -- | Contains the results of the synthesis on the inputs
 -------------------------------------------------------------
 logDir :: FilePath
-logDir = "tests/logs/synthesis/logs"
+logDir = "tests/synthesis/logs"
 -------------------------------------------------------------
 
 -------------------------------------------------------------
 -- | Contains the outputs that we need to check logs against
 -------------------------------------------------------------
 outputsDir :: FilePath
-outputsDir = "tests/logs/synthesis/static"
+outputsDir = "tests/synthesis/static"
 -------------------------------------------------------------
 
 main :: IO ()
@@ -149,5 +145,5 @@ tests :: [(FilePath, T.Text, [[T.Text]])] -> TestTree
 tests inputs = 
     let answers = processAnswers inputs
         units   = map buildTestCase answers
-    in  trace (" answers " ++ show answers) $ testGroup " Tests for synthesis " units
+    in  testGroup " Tests for synthesis " units
 
