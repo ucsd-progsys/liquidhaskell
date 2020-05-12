@@ -111,8 +111,9 @@ fromAnf' _ _
 
 -- | Function used for pretty printing core as Haskell source.
 --   Input does not contain let bindings.
-coreToHs :: Var -> CoreExpr -> String
-coreToHs v e = pprintSymbols (discardModName v ++ pprintFormals caseIndent v e)
+coreToHs :: SpecType -> Var -> CoreExpr -> String
+coreToHs t v e = pprintSymbols (discardModName v ++ pprintFormals caseIndent v e (tracepp " cnt " cnt) [])
+  where cnt = countTcConstraints t
 
 symbols :: String
 symbols = [':']
@@ -146,13 +147,15 @@ maintainRParen ts
       then  ")"
       else  ""
 
-pprintFormals :: Int -> Var -> CoreExpr -> String
-pprintFormals i v (Lam b e) 
-  = if isTyVar b 
-      then pprintFormals i v e
-      else " " ++ show b ++ pprintFormals i v e
-pprintFormals i _ e 
-  = " =" ++ pprintBody i e
+pprintFormals :: Int -> Var -> CoreExpr -> Int -> [Var] -> String
+pprintFormals i v (Lam b e) cnt vs
+  = if isTyVar b
+      then pprintFormals i v e cnt vs
+      else  if cnt > 0 
+              then  pprintFormals i v e (cnt - 1) (b:vs)
+              else  " " ++ show b ++ pprintFormals i v e cnt vs
+pprintFormals i _ e cnt vs
+  = " =" ++ pprintBody vs i e
 
 caseIndent :: Int 
 caseIndent = 4
@@ -169,24 +172,30 @@ errorExprPp _
 pprintVar :: Var -> String 
 pprintVar v = if isTyVar v then "" else " " ++ discardModName v
 
-pprintBody :: Int -> CoreExpr -> String
-pprintBody i (Lam b e) 
-  = pprintFormals i b e
-pprintBody _ (Var v)
-  = pprintVar v
-pprintBody _ e@App{}
-  = if errorExprPp e
-      then " error \" Dead code! \" "
-      else " " ++ fixApplication (show e)
-pprintBody _ l@Lit{}
+pprintBody :: [Var] -> Int -> CoreExpr -> String
+pprintBody vs i (Lam b e) 
+  = pprintFormals i b e 0 vs
+pprintBody vs _ (Var v)
+  = case find (== v) vs of 
+      Nothing -> pprintVar v
+      Just _  -> ""
+pprintBody vs _ e@App{}
+  = let pprintApp = fixApplication (show e)
+        noTcVars  = filter (\x -> case find (== x) (map show vs) of 
+                                    Nothing -> True
+                                    Just _  -> False) (words pprintApp)
+    in  if errorExprPp e
+          then " error \" Dead code! \" "
+          else " " ++ unwords noTcVars
+pprintBody _ _ l@Lit{}
   = " " ++ show l
-pprintBody i (Case scr _ _ alts)
+pprintBody vs i (Case scr _ _ alts)
   = "\n" ++ indent i ++ 
-    "case" ++ pprintBody i scr ++ " of\n" ++ 
-    concatMap (pprintAlts (i + caseIndent)) alts 
-pprintBody _ Type{} 
+    "case" ++ pprintBody vs i scr ++ " of\n" ++ 
+    concatMap (pprintAlts vs (i + caseIndent)) alts 
+pprintBody _ _ Type{} 
   = ""
-pprintBody _ e
+pprintBody _ _ e
   = error (" Not yet implemented for e = " ++ show e)
 
 fixApplication :: String -> String
@@ -249,17 +258,17 @@ replaceNewLine (c:cs)
       then ' ' : replaceNewLine cs 
       else c : replaceNewLine cs
 
-pprintAlts :: Int -> Alt Var -> String
-pprintAlts i (DataAlt dataCon, vs, e)
+pprintAlts :: [Var] -> Int -> Alt Var -> String
+pprintAlts vars i (DataAlt dataCon, vs, e)
   = indent i ++ show dataCon ++ concatMap (\v -> " " ++ show v) vs ++ " ->" ++ 
-    pprintBody (i+caseIndent) e ++ "\n"
-pprintAlts _ _
+    pprintBody vars (i+caseIndent) e ++ "\n"
+pprintAlts _ _ _
   = error " Pretty printing for pattern match on datatypes. "
 
 -- TODO Remove variables generated for type class constraints
-countTcConstraints :: Type -> Int
+countTcConstraints :: SpecType -> Int
 countTcConstraints t = 
-  let ws = words (showTy t)
+  let ws = words (show t)
 
       countCommas :: [String] -> Int
       countCommas []     = 0
