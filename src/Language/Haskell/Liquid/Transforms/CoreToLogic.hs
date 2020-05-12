@@ -25,6 +25,8 @@ import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
 import qualified Var
 import qualified TyCon 
 import           Coercion
+import qualified Outputable                            as O
+import qualified CoreSubst                             as C
 import qualified Pair
 -- import qualified Text.Printf as Printf
 import qualified CoreSyn                               as C
@@ -260,6 +262,8 @@ coreToLogic allowTC cb = coreToLg allowTC (normalize allowTC cb)
 
 
 coreToLg :: Bool -> C.CoreExpr -> LogicM Expr
+coreToLg allowTC  (C.Let (C.NonRec x (C.Coercion c)) e)
+  = coreToLg allowTC (C.substExpr O.empty (C.extendCvSubst C.emptySubst x c) e)
 coreToLg allowTC  (C.Let b e)
   = subst1 <$> coreToLg allowTC e <*>  makesub allowTC b
 coreToLg allowTC (C.Tick _ e)          = coreToLg allowTC e
@@ -283,7 +287,7 @@ coreToLg allowTC (C.Lit l)             = case mkLit l of
 coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
                                             e'     <- coreToLg allowTC   e
                                             return (ECoerc s t e')
-coreToLg allowTC e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
+coreToLg _       e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
 
 

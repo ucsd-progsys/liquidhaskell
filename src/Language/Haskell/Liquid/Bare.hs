@@ -253,7 +253,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
              dm
              (\x -> todo Nothing ("coreToLogic not working " ++ x))
              (CoreToLogic.coreToLogic allowTC e) of
-        Left _ -> impossible Nothing "can't reach here"
+        Left msg -> panic Nothing (F.showpp msg)
         Right e -> e    
     elaborateSig si auxsig = do
       tySigs <-
