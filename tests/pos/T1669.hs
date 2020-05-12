@@ -1,5 +1,5 @@
 {-@ LIQUID "--reflection" @-}
-{-@ LIQUID "--ple-local" @-}
+{-@ LIQUID "--ple" @-}
 {-@ LIQUID "--no-totality" @-}
 
 module A where
@@ -22,7 +22,6 @@ semigroupPNat :: Semigroup PNat
 semigroupPNat = CSemigroup cmappend
 
 
-{-@ ple clawAssociative @-}
 {-@ clawAssociative :: v:PNat -> v':PNat -> v'':PNat  
   -> { mappend semigroupPNat (mappend semigroupPNat v v') v'' == mappend semigroupPNat v (mappend semigroupPNat v' v'')}@-}
 clawAssociative :: PNat -> PNat -> PNat -> ()
