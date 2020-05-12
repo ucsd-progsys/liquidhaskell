@@ -82,6 +82,7 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -93,7 +94,7 @@ generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg inf
     act                  = do { γ <- initEnv info; consAct γ cfg info }
     cfg                  = getConfig   info
 
-generateConstraintsWithEnv :: GhcInfo -> TargetInfo -> CGEnv -> CGInfo
+generateConstraintsWithEnv :: TargetInfo -> CGInfo -> CGEnv -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
   where
