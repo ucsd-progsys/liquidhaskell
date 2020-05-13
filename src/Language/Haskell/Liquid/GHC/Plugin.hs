@@ -134,7 +134,7 @@ plugin = GHC.defaultPlugin {
   , typeCheckResultAction = typecheckHook
   , installCoreToDos      = coreHook
   , dynflagsPlugin        = customDynFlags
-  , pluginRecompile       = \_ -> pure ForceRecompile
+  , pluginRecompile       = \_ -> pure NoForceRecompile
   , interfaceLoadAction   = loadInterfaceHook
   }
 
