@@ -84,13 +84,13 @@ mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
 --   a (refined) data constructor into a @SpecType@ for that constructor.
 --   TODO: duplicated with Liquid.Measure.makeDataConType
 -------------------------------------------------------------------------------
-dataConPSpecType :: DataConP -> [(Var, SpecType)]
+dataConPSpecType :: Bool -> DataConP -> [(Var, SpecType)]
 -------------------------------------------------------------------------------
-dataConPSpecType dcp    = [(workX, workT), (wrapX, wrapT) ]
+dataConPSpecType allowTC dcp    = [(workX, workT), (wrapX, wrapT) ]
   where
     workT | isVanilla   = wrapT
           | otherwise   = dcWorkSpecType   dc wrapT
-    wrapT               = dcWrapSpecType   dc dcp
+    wrapT               = dcWrapSpecType   allowTC  dc dcp
     workX               = dataConWorkId    dc            -- This is the weird one for GADTs
     wrapX               = dataConWrapId    dc            -- This is what the user expects to see
     isVanilla           = isVanillaDataCon dc
@@ -165,16 +165,20 @@ meetWorkWrapRep c workR wrapR
 strengthenRType :: SpecType -> SpecType -> SpecType
 strengthenRType wkT wrT = maybe wkT (strengthen wkT) (stripRTypeBase wrT)
 
-dcWrapSpecType :: DataCon -> DataConP -> SpecType
-dcWrapSpecType dc (DataConP _ _ vs ps cs yts rt _ _ _)
+
+-- maybe a tc flag is unnecessary but I don't know if {-@ class ... @-}
+-- would reach here
+dcWrapSpecType :: Bool -> DataCon -> DataConP -> SpecType
+dcWrapSpecType allowTC dc (DataConP _ _ vs ps cs yts rt _ _ _)
   = {- F.tracepp ("dcWrapSpecType: " ++ show dc ++ " " ++ F.showpp rt) $ -}
     mkArrow makeVars' ps [] ts' rt'
   where
+    isCls    = Ghc.isClassTyCon $ Ghc.dataConTyCon dc
     (xs, ts) = unzip (reverse yts)
     mkDSym z = (F.symbol z) `F.suffixSymbol` (F.symbol dc)
     ys       = mkDSym <$> xs
     tx _  []     []     []     = []
-    tx su (x:xs) (y:ys) (t:ts) = (y, F.subst (F.mkSubst su) t, mempty)
+    tx su (x:xs) (y:ys) (t:ts) = (y, if allowTC && isCls then t else F.subst (F.mkSubst su) t, mempty)
                                : tx ((x, F.EVar y):su) xs ys ts
     tx _ _ _ _ = panic Nothing "PredType.dataConPSpecType.tx called on invalid inputs"
     yts'     = tx [] xs ys ts
@@ -388,7 +392,7 @@ substRCon msg (_, RProp ss t1@(RApp c1 ts1 rs1 r1)) t2@(RApp c2 ts2 rs2 _) πs r
 
     su = F.mkSubst $ zipWith (\s1 s2 -> (s1, F.EVar s2)) (rvs t1) (rvs t2)
 
-    rvs      = foldReft False (\_ r acc -> rvReft r : acc) []
+    rvs      = foldReft (const False) False (\_ r acc -> rvReft r : acc) [] 
     rvReft r = let F.Reft(s,_) = F.toReft r in s
 
 substRCon msg su t _ _        = {- panic Nothing -} errorP "substRCon: " $ msg ++ " " ++ showpp (su, t)

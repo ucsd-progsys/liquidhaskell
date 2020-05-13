@@ -367,6 +367,10 @@ config = cmdArgsMode $ Config {
     = def 
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+  , typeclass
+    = def
+        &= help "Enable Typeclass"
+        &= name "typeclass"
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -600,6 +604,7 @@ defConfig = Config
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False
+  , typeclass         = False
   }
 
 ------------------------------------------------------------------------

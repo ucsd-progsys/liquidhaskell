@@ -42,10 +42,10 @@ import           Language.Haskell.Liquid.Types.RefType
 
 class (Applicative m, Monad m) => Freshable m a where
   fresh   :: m a
-  true    :: a -> m a
-  true    = return
-  refresh :: a -> m a
-  refresh = return
+  true    :: Bool -> a -> m a
+  true _  = return
+  refresh :: Bool -> a -> m a
+  refresh _ = return
 
 
 instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Symbol where
@@ -61,15 +61,15 @@ instance (Freshable m Integer, Monad m, Applicative m) => Freshable m [F.Expr] w
 
 instance (Freshable m Integer, Monad m, Applicative m) => Freshable m F.Reft where
   fresh                  = panic Nothing "fresh Reft"
-  true    (F.Reft (v,_)) = return $ F.Reft (v, mempty)
-  refresh (F.Reft (_,_)) = (F.Reft .) . (,) <$> freshVV <*> fresh
+  true    allowTC (F.Reft (v,_)) = return $ F.Reft (v, mempty)
+  refresh allowTC (F.Reft (_,_)) = (F.Reft .) . (,) <$> freshVV <*> fresh
     where
       freshVV            = F.vv . Just <$> fresh
 
 instance Freshable m Integer => Freshable m RReft where
   fresh             = panic Nothing "fresh RReft"
-  true (MkUReft r _)    = MkUReft <$> true r    <*> return mempty
-  refresh (MkUReft r _) = MkUReft <$> refresh r <*> return mempty
+  true allowTC (MkUReft r _)    = MkUReft <$> true allowTC r    <*> return mempty
+  refresh allowTC (MkUReft r _) = MkUReft <$> refresh allowTC r <*> return mempty
 
 instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRType r) where
   fresh   = panic Nothing "fresh RefType"
@@ -77,101 +77,101 @@ instance (Freshable m Integer, Freshable m r, F.Reftable r ) => Freshable m (RRT
   true    = trueRefType
 
 -----------------------------------------------------------------------------------------------
-trueRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
+trueRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => Bool -> RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-trueRefType (RAllT α t r)
-  = RAllT α <$> true t <*> true r 
+trueRefType allowTC (RAllT α t r)
+  = RAllT α <$> true allowTC t <*> true allowTC r 
 
-trueRefType (RAllP π t)
-  = RAllP π <$> true t
+trueRefType allowTC (RAllP π t)
+  = RAllP π <$> true allowTC t
 
-trueRefType (RImpF _ t t' _)
-  = rImpF <$> fresh <*> true t <*> true t'
+trueRefType allowTC (RImpF _ t t' _)
+  = rImpF <$> fresh <*> true allowTC t <*> true allowTC t'
 
-trueRefType (RFun _ t t' _)
-  = rFun <$> fresh <*> true t <*> true t'
+trueRefType allowTC (RFun _ t t' _)
+  = rFun <$> fresh <*> true allowTC t <*> true allowTC t'
 
-trueRefType (RApp c ts _  _) | isClass c
-  = rRCls c <$> mapM true ts
+trueRefType allowTC (RApp c ts _  _) | if allowTC then isEmbeddedDict c else isClass c
+  = rRCls c <$> mapM (true allowTC) ts
 
-trueRefType (RApp c ts rs r)
-  = RApp c <$> mapM true ts <*> mapM trueRef rs <*> true r
+trueRefType allowTC (RApp c ts rs r)
+  = RApp c <$> mapM (true allowTC) ts <*> mapM (trueRef allowTC) rs <*> true allowTC r
 
-trueRefType (RAppTy t t' _)
-  = RAppTy <$> true t <*> true t' <*> return mempty
+trueRefType allowTC (RAppTy t t' _)
+  = RAppTy <$> true allowTC t <*> true allowTC t' <*> return mempty
 
-trueRefType (RVar a r)
-  = RVar a <$> true r
+trueRefType allowTC (RVar a r)
+  = RVar a <$> true allowTC r
 
-trueRefType (RAllE y ty tx)
+trueRefType allowTC (RAllE y ty tx)
   = do y'  <- fresh
-       ty' <- true ty
-       tx' <- true tx
+       ty' <- true allowTC ty
+       tx' <- true allowTC tx
        return $ RAllE y' ty' (tx' `F.subst1` (y, F.EVar y'))
 
-trueRefType (RRTy e o r t)
-  = RRTy e o r <$> trueRefType t
+trueRefType allowTC (RRTy e o r t)
+  = RRTy e o r <$> trueRefType allowTC t
 
-trueRefType (REx _ t t')
-  = REx <$> fresh <*> true t <*> true t'
+trueRefType allowTC (REx _ t t')
+  = REx <$> fresh <*> true allowTC t <*> true allowTC t'
 
-trueRefType t@(RExprArg _)
+trueRefType allowTC t@(RExprArg _)
   = return t
 
-trueRefType t@(RHole _)
+trueRefType allowTC t@(RHole _)
   = return t
 
 trueRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
-        => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
-trueRef (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
-trueRef (RProp s t) = RProp s <$> trueRefType t
+        => Bool -> Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
+trueRef allowTC (RProp _ (RHole _)) = panic Nothing "trueRef: unexpected RProp _ (RHole _))"
+trueRef allowTC (RProp s t) = RProp s <$> trueRefType allowTC t
 
 
 -----------------------------------------------------------------------------------------------
-refreshRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => RRType r -> m (RRType r)
+refreshRefType :: (Freshable m Integer, Freshable m r, F.Reftable r) => Bool -> RRType r -> m (RRType r)
 -----------------------------------------------------------------------------------------------
-refreshRefType (RAllT α t r)
-  = RAllT α <$> refresh t <*> true r
+refreshRefType allowTC (RAllT α t r)
+  = RAllT α <$> refresh allowTC t <*> true allowTC r
 
-refreshRefType (RAllP π t)
-  = RAllP π <$> refresh t
+refreshRefType allowTC (RAllP π t)
+  = RAllP π <$> refresh allowTC t
 
-refreshRefType (RImpF b t t' _)
-  | b == F.dummySymbol = rImpF <$> fresh <*> refresh t <*> refresh t'
-  | otherwise          = rImpF     b     <$> refresh t <*> refresh t'
+refreshRefType allowTC (RImpF b t t' _)
+  | b == F.dummySymbol = rImpF <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise          = rImpF     b     <$> refresh allowTC t <*> refresh allowTC t'
 
-refreshRefType (RFun b t t' _)
-  | b == F.dummySymbol = rFun <$> fresh <*> refresh t <*> refresh t'
-  | otherwise          = rFun     b     <$> refresh t <*> refresh t'
+refreshRefType allowTC (RFun b t t' _)
+  | b == F.dummySymbol = rFun <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise          = rFun     b     <$> refresh allowTC t <*> refresh allowTC t'
 
-refreshRefType (RApp rc ts _ _) | isClass rc
+refreshRefType allowTC (RApp rc ts _ _) | isClass rc
   = return $ rRCls rc ts
 
-refreshRefType (RApp rc ts rs r)
-  = RApp rc <$> mapM refresh ts <*> mapM refreshRef rs <*> refresh r
+refreshRefType allowTC (RApp rc ts rs r)
+  = RApp rc <$> mapM (refresh allowTC) ts <*> mapM (refreshRef allowTC) rs <*> refresh allowTC r
 
-refreshRefType (RVar a r)
-  = RVar a <$> refresh r
+refreshRefType allowTC (RVar a r)
+  = RVar a <$> refresh allowTC r
 
-refreshRefType (RAppTy t t' r)
-  = RAppTy <$> refresh t <*> refresh t' <*> refresh r
+refreshRefType allowTC (RAppTy t t' r)
+  = RAppTy <$> refresh allowTC t <*> refresh allowTC t' <*> refresh allowTC r
 
-refreshRefType (RAllE y ty tx)
+refreshRefType allowTC (RAllE y ty tx)
   = do y'  <- fresh
-       ty' <- refresh ty
-       tx' <- refresh tx
+       ty' <- refresh allowTC ty
+       tx' <- refresh allowTC tx
        return $ RAllE y' ty' (tx' `F.subst1` (y, F.EVar y'))
 
-refreshRefType (RRTy e o r t)
-  = RRTy e o r <$> refreshRefType t
+refreshRefType allowTC (RRTy e o r t)
+  = RRTy e o r <$> refreshRefType allowTC t
 
-refreshRefType t
+refreshRefType allowTC t
   = return t
 
 refreshRef :: (F.Reftable r, Freshable f r, Freshable f Integer)
-           => Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
-refreshRef (RProp _ (RHole _)) = panic Nothing "refreshRef: unexpected (RProp _ (RHole _))"
-refreshRef (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType t
+           => Bool -> Ref τ (RType RTyCon RTyVar r) -> f (Ref τ (RRType r))
+refreshRef allowTC (RProp _ (RHole _)) = panic Nothing "refreshRef: unexpected (RProp _ (RHole _))"
+refreshRef allowTC (RProp s t) = RProp <$> mapM freshSym s <*> refreshRefType allowTC t
 
 freshSym :: Freshable f a => (t, t1) -> f (a, t1)
 freshSym (_, t)        = (, t) <$> fresh
@@ -268,20 +268,20 @@ refreshPs = mapPropM go
 
 --------------------------------------------------------------------------------
 refreshHoles :: (F.Symbolic t, F.Reftable r, TyConable c, Freshable f r)
-             => [(t, RType c tv r)] -> f ([F.Symbol], [(t, RType c tv r)])
-refreshHoles vts = first catMaybes . unzip . map extract <$> mapM refreshHoles' vts
+             => Bool -> [(t, RType c tv r)] -> f ([F.Symbol], [(t, RType c tv r)])
+refreshHoles allowTC vts = first catMaybes . unzip . map extract <$> mapM (refreshHoles' allowTC) vts
   where
   --   extract :: (t, t1, t2) -> (t, (t1, t2))
     extract (a,b,c) = (a,(b,c))
 
 refreshHoles' :: (F.Symbolic a, F.Reftable r, TyConable c, Freshable m r)
-              => (a, RType c tv r) -> m (Maybe F.Symbol, a, RType c tv r)
-refreshHoles' (x,t)
+              => Bool -> (a, RType c tv r) -> m (Maybe F.Symbol, a, RType c tv r)
+refreshHoles' allowTC (x,t)
   | noHoles t = return (Nothing, x, t)
   | otherwise = (Just $ F.symbol x,x,) <$> mapReftM tx t
   where
-    tx r | hasHole r = refresh r
+    tx r | hasHole r = refresh allowTC r
          | otherwise = return r
 
 noHoles :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-noHoles = and . foldReft False (\_ r bs -> not (hasHole r) : bs) []
+noHoles = and . foldReft (const False) False (\_ r bs -> not (hasHole r) : bs) []

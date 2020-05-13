@@ -54,7 +54,7 @@ module Language.Haskell.Liquid.Types.Types (
   , rTyConPVs
   , rTyConPropVs
   -- , isClassRTyCon
-  , isClassType, isEqType, isRVar, isBool
+  , isClassType, isEqType, isRVar, isBool, isEmbeddedClass
 
   -- * Refinement Types
   , RType (..), Ref(..), RTProp, rPropP
@@ -641,6 +641,10 @@ isClassType :: TyConable c => RType c t t1 -> Bool
 isClassType (RApp c _ _ _) = isClass c
 isClassType _              = False
 
+isEmbeddedClass :: TyConable c => RType c t t1 -> Bool
+isEmbeddedClass (RApp c _ _ _) = isEmbeddedDict c
+isEmbeddedClass _              = False
+
 -- rTyConPVHPs = filter isHPropPV . rtc_pvars
 -- isHPropPV   = not . isPropPV
 
@@ -926,12 +930,18 @@ class (Eq c) => TyConable c where
   isTuple  :: c -> Bool
   ppTycon  :: c -> Doc
   isClass  :: c -> Bool
+  isEmbeddedDict :: c -> Bool
   isEqual  :: c -> Bool
+  isOrdCls  :: c -> Bool
+  isEqCls   :: c -> Bool
 
   isNumCls  :: c -> Bool
   isFracCls :: c -> Bool
 
   isClass   = const False
+  isEmbeddedDict c = isNumCls c || isEqual c || isOrdCls c || isEqCls c
+  isOrdCls  = const False
+  isEqCls   = const False
   isEqual   = const False
   isNumCls  = const False
   isFracCls = const False
@@ -963,6 +973,8 @@ instance TyConable RTyCon where
                 (tyConClass_maybe $ rtc_tc c)
   isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
                 (tyConClass_maybe $ rtc_tc c)
+  isOrdCls  c = maybe False isOrdClass (tyConClass_maybe $ rtc_tc c)
+  isEqCls   c = isEqCls (rtc_tc c)
 
 
 instance TyConable TyCon where
@@ -977,7 +989,9 @@ instance TyConable TyCon where
                 (tyConClass_maybe $ c)
   isFracCls c = maybe False (isClassOrSubClass isFractionalClass)
                 (tyConClass_maybe $ c)
-
+  isOrdCls c  = maybe False isOrdClass
+                (tyConClass_maybe c)
+  isEqCls  c  = isPrelEqTyCon c
 
 isClassOrSubClass :: (Class -> Bool) -> Class -> Bool
 isClassOrSubClass p cls
@@ -1471,7 +1485,7 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
-  syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
+  syms        = foldReft (const False) False (\_ r acc -> F.syms r ++ acc) []
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
@@ -1514,8 +1528,10 @@ mapExprReft f = mapReft g
   where
     g (MkUReft (F.Reft (x, e)) p) = MkUReft (F.Reft (x, f x e)) p
 
+-- const False (not dropping dict) is probably fine since there will not be refinement on
+-- dictionaries
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
+isTrivial t = foldReft (const False) False (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
@@ -1660,20 +1676,21 @@ mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (
 -- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (F.Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (F.Reftable r, TyConable c) => (c -> Bool) -> BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft  bsc f = foldReft' (\_ _ -> False) bsc id (\γ _ -> f γ)
+foldReft isErasable bsc f = foldReft' isErasable (\_ _ -> False) bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (F.Reftable r, TyConable c)
-          => (Symbol -> RType c tv r -> Bool)
+          => (c -> Bool)
+          -> (Symbol -> RType c tv r -> Bool)
           -> BScope
           -> (RType c tv r -> b)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' logicBind bsc g f 
-  = efoldReft logicBind bsc 
+foldReft' isErasable logicBind bsc g f 
+  = efoldReft isErasable logicBind bsc 
               (\_ _ -> [])
               (\_ -> [])
               g
@@ -1685,7 +1702,8 @@ foldReft' logicBind bsc g f
 
 -- efoldReft :: F.Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (F.Reftable r, TyConable c)
-          => (Symbol -> RType c tv r -> Bool)
+          => (c -> Bool) -- ^ Determines which type constructors should be erased.
+          -> (Symbol -> RType c tv r -> Bool)
           -> BScope
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
           -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
@@ -1696,7 +1714,7 @@ efoldReft :: (F.Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft logicBind bsc cb dty g f fp = go
+efoldReft isErasable logicBind bsc cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
@@ -1706,7 +1724,7 @@ efoldReft logicBind bsc cb dty g f fp = go
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RImpF x t t' r)             = go γ z (RFun x t t' r)
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
-       | isClass c                      = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
+       | isErasable c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x t t' r)
        | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')

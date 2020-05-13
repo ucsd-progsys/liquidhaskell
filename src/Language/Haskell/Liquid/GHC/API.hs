@@ -31,7 +31,7 @@ module Language.Haskell.Liquid.GHC.API (
   , isEvVarType
   , isEqPrimPred
   , dataConExTyVars
-
+  , gHC_REAL
   ) where 
 
 import GHC            as Ghc
@@ -45,7 +45,7 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import NameSet        as Ghc
 import InstEnv        as Ghc 
 import Literal        as Ghc
-import TcType         as Ghc (isClassPred)
+import TcType         as Ghc (isClassPred, tcSplitMethodTy, tcSplitAppTys)
 import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
@@ -98,7 +98,7 @@ import FastString     as Ghc
 import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType, isEqPrimPred)
 import Data.Foldable  (asum)
 import Util           (lengthIs)
-import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey)
+import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL)
 #endif
 #endif
 

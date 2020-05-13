@@ -46,16 +46,16 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 --   this module is responsible for plugging the holes we obviously cannot
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
-makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> Ghc.NameSet
+makePluggedSig :: Bool -> ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> Ghc.NameSet
                -> Bare.PlugTV Ghc.Var -> LocSpecType
                -> LocSpecType
 
-makePluggedSig name embs tyi exports kx t 
+makePluggedSig allowTC name embs tyi exports kx t 
   | Just x <- kxv = mkPlug x 
   | otherwise     = t
   where 
     kxv           = Bare.plugSrc kx
-    mkPlug x      = plugHoles kx embs tyi  r τ t
+    mkPlug x      = plugHoles allowTC kx embs tyi  r τ t
       where
         τ         = Ghc.expandTypeSynonyms (Ghc.varType x)
         r         = maybeTrue x name exports
@@ -69,20 +69,21 @@ makePluggedSig name embs tyi exports kx t
 -- plugHoles _         = plugHoles_old
 
 plugHoles :: (Ghc.NamedThing a, PPrint a, Show a) 
-          => Bare.PlugTV a
+          => Bool
+          -> Bare.PlugTV a
           -> F.TCEmb Ghc.TyCon
           -> Bare.TyConMap
           -> (SpecType -> RReft -> RReft)
           -> Ghc.Type
           -> LocSpecType
           -> LocSpecType
-plugHoles (Bare.HsTV x) a b = plugHoles_old a b x 
-plugHoles (Bare.LqTV x) a b = plugHoles_new a b x 
-plugHoles _             _ _ = \_ _ t -> t
+plugHoles allowTC (Bare.HsTV x) a b = plugHoles_old allowTC a b x 
+plugHoles allowTC (Bare.LqTV x) a b = plugHoles_new allowTC a b x 
+plugHoles _ _                   _ _ = \_ _ t -> t
 
 
-makePluggedDataCon :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
-makePluggedDataCon embs tyi ldcp 
+makePluggedDataCon :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
+makePluggedDataCon allowTC embs tyi ldcp 
   | mismatchFlds      = Ex.throw (err "fields")
   | mismatchTyVars    = Ex.throw (err "type variables")
   | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
@@ -91,9 +92,9 @@ makePluggedDataCon embs tyi ldcp
                           , dcpTyRes      = tRes 
                           }
   where 
-    (tArgs, tRes)     = plugMany       embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
+    (tArgs, tRes)     = plugMany allowTC  embs tyi ldcp (das, dts, dt) (dcVars, dcArgs, dcpTyRes dcp)
     (das, _, dts, dt) = {- F.notracepp ("makePluggedDC: " ++ F.showpp dc) $ -} Ghc.dataConSig dc
-    dcArgs            = filter (not . isClassType . snd) $ reverse (dcpTyArgs dcp)
+    dcArgs            = filter (not . (if allowTC then isEmbeddedClass else isClassType) . snd) $ reverse (dcpTyArgs dcp)
     dcVars            = if isGADT 
                           then padGADVars $ L.nub (dcpFreeTyVars dcp ++ (concatMap (map ty_var_value . freeTyVars) (dcpTyRes dcp:(snd <$> dcArgs))))
                           else dcpFreeTyVars dcp 
@@ -125,16 +126,16 @@ makePluggedDataCon embs tyi ldcp
 -- 
 --   and not, forall b. a -> a -> Bool.
 
-plugMany :: F.TCEmb Ghc.TyCon -> Bare.TyConMap 
+plugMany :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap 
          -> Located DataConP            
          -> ([Ghc.Var], [Ghc.Type],             Ghc.Type)   -- ^ hs type 
          -> ([RTyVar] , [(F.Symbol, SpecType)], SpecType)   -- ^ lq type 
          -> ([(F.Symbol, SpecType)], SpecType)              -- ^ plugged lq type
-plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes) 
+plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes) 
                      = F.notracepp msg (drop nTyVars (zip xs ts), t) 
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
-    pT               = plugHoles (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
+    pT               = plugHoles allowTC (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr (Ghc.mkFunTy Ghc.VisArg) hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
@@ -145,25 +146,26 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
 
 plugHoles_old, plugHoles_new 
   :: (Ghc.NamedThing a, PPrint a, Show a)
-  => F.TCEmb Ghc.TyCon
+  => Bool
+  -> F.TCEmb Ghc.TyCon
   -> Bare.TyConMap 
   -> a
   -> (SpecType -> RReft -> RReft)
   -> Ghc.Type
   -> LocSpecType
   -> LocSpecType
-  
+
 -- NOTE: this use of toType is safe as rt' is derived from t.
-plugHoles_old tce tyi x f t0 zz@(Loc l l' st0) 
+plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
     . mkArrow (zip (updateRTVar <$> αs') rs) ps' [] [] 
     . makeCls cs' 
     . goPlug tce tyi err f (subts su rt) 
     . mapExprReft (\_ -> F.applyCoSub coSub) 
     . subts su 
-    $ st 
+    $ st
   where 
-    tyvsmap      = case Bare.runMapTyVars (toType rt) st err of
+    tyvsmap      = case Bare.runMapTyVars allowTC (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
     su           = [(y, rTyVar x)           | (x, y) <- tyvsmap]
@@ -184,7 +186,7 @@ plugHoles_old tce tyi x f t0 zz@(Loc l l' st0)
                           (Ghc.getSrcSpan x) 
 
 
-plugHoles_new tce tyi x f t0 zz@(Loc l l' st0) 
+plugHoles_new allowTC tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
     . mkArrow (zip (updateRTVar <$> as'') rs) ps [] [] 
     . makeCls cs' 
@@ -196,7 +198,7 @@ plugHoles_new tce tyi x f t0 zz@(Loc l l' st0)
     (as',rs)     = unzip as 
     cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
-    su           = case Bare.runMapTyVars (toType rt) st err of
+    su           = case Bare.runMapTyVars allowTC (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)

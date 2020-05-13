@@ -93,6 +93,7 @@ data Config = Config
   , compileSpec     :: Bool        -- ^ Only "compile" the spec -- into .bspec file -- don't do any checking. 
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  
   , typedHoles      :: Bool        -- ^ Warn about "typed-holes"
+  , typeclass       :: Bool        -- ^ enable typeclass support.
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
