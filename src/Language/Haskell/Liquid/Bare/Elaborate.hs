@@ -603,8 +603,8 @@ renameBinderCoerc f = rename
   rename (   F.PImp e0 e1      ) = F.PImp (rename e0) (rename e1)
   rename (   F.PIff e0 e1      ) = F.PIff (rename e0) (rename e1)
   rename (   F.PAtom brel e0 e1) = F.PAtom brel (rename e0) (rename e1)
-  rename (F.ECoerc t0 t1 e') =
-    F.ECoerc (renameSort t0) (renameSort t1) (rename e')
+  rename (F.ECoerc t0 t1 e') = rename e'
+    
   rename e = panic
     Nothing
     ("renameBinderCoerc: Not sure how to handle the expression " ++ F.showpp e)
