@@ -142,6 +142,9 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies =
         void $ Ghc.execStmt
           "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
           Ghc.execOptions        
+        void $ Ghc.execStmt
+          "let {len :: [a] -> Int; len _ = undefined}"
+          Ghc.execOptions        
       ghcSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs validatedBareSpec)
       pure $ view targetSpecGetter <$> ghcSpec
   where

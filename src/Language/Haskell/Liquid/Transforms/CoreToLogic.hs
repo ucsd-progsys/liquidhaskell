@@ -426,6 +426,10 @@ makeApp _ _ f [e]
   | val f == symbol ("GHC.Num.fromInteger" :: String)
   , ECon c <- e
   = ECon c
+  | (modName, sym) <- GM.splitModuleName (val f)
+  , symbol ("Ghci" :: String) `isPrefixOfSym` modName
+  , sym == "len"
+  = EApp (EVar sym) e
 
 makeApp _ _ f [e1, e2]
   | Just op <- M.lookup (val f) bops
