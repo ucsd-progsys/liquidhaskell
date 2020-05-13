@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE CPP #-}
 module Language.Haskell.Liquid.Synthesize.GHC where
 
 import qualified CoreSyn                       as GHC
@@ -43,9 +44,15 @@ goalType ::  Type ->   --  This is the goal type. It is used for basic types.
               Type ->  --   This type comes from the environment.
               Bool     --   True if the 2nd arg produces expression 
                        --   of type equal to 1st argument.
+#if __GLASGOW_HASKELL__ >= 810
 goalType τ (FunTy _ _ t'') 
   | t'' == τ  = True
   | otherwise = goalType τ t''
+#else
+goalType τ (FunTy _ t'') 
+  | t'' == τ  = True
+  | otherwise = goalType τ t''
+#endif
 goalType τ                 t 
   | τ == t    = True
   | otherwise = False
@@ -53,7 +60,11 @@ goalType τ                 t
 -- Subgoals are function's arguments.
 createSubgoals :: Type -> [Type] 
 createSubgoals (ForAllTy _ htype) = createSubgoals htype
+#if __GLASGOW_HASKELL__ >= 810
 createSubgoals (FunTy _ t1 t2)      = t1 : createSubgoals t2
+#else
+createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
+#endif
 createSubgoals t                  = [t]
 
 subgoals :: Type ->               -- Given a function type,
