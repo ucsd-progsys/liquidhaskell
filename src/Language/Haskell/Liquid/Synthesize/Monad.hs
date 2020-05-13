@@ -37,6 +37,7 @@ import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
 import           TyCon
 import           Language.Haskell.Liquid.Types.Specs
+import           TyCoRep
 
 localMaxMatchDepth :: SM Int 
 localMaxMatchDepth = maxMatchDepth . getConfig . sCGEnv <$> get

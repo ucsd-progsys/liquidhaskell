@@ -25,6 +25,7 @@ import           Var
 import           Data.Tuple.Extra
 import           Debug.Trace
 import           Language.Fixpoint.Types.PrettyPrint (tracepp)
+import           TyCoRep
 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.

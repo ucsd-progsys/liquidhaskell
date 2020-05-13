@@ -43,7 +43,7 @@ goalType ::  Type ->   --  This is the goal type. It is used for basic types.
               Type ->  --   This type comes from the environment.
               Bool     --   True if the 2nd arg produces expression 
                        --   of type equal to 1st argument.
-goalType τ (FunTy _ t'') 
+goalType τ (FunTy _ _ t'') 
   | t'' == τ  = True
   | otherwise = goalType τ t''
 goalType τ                 t 
@@ -53,7 +53,7 @@ goalType τ                 t
 -- Subgoals are function's arguments.
 createSubgoals :: Type -> [Type] 
 createSubgoals (ForAllTy _ htype) = createSubgoals htype
-createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
+createSubgoals (FunTy _ t1 t2)      = t1 : createSubgoals t2
 createSubgoals t                  = [t]
 
 subgoals :: Type ->               -- Given a function type,

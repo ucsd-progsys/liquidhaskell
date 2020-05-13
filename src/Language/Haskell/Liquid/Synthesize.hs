@@ -36,6 +36,7 @@ import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.List 
 import           Data.Tuple.Extra
 import           CoreUtils (exprType)
+import           TyCoRep
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 
