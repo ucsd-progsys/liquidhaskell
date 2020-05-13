@@ -1,0 +1,15 @@
+flags:
+  liquidhaskell:
+    devel: true
+extra-package-dbs: []
+ghc-options:
+  hscolour: -w
+packages:
+- liquid-fixpoint
+- .
+extra-deps:
+- hashable-1.3.0.0
+- optics-0.2
+- optics-th-0.2
+- tasty-rerun-1.1.14
+resolver: lts-14.12

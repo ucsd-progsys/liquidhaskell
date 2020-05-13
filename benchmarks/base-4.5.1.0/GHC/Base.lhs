@@ -111,7 +111,6 @@ import GHC.CString
 import GHC.Prim
 import {-# SOURCE #-} GHC.Show
 import {-# SOURCE #-} GHC.Err
-import {-# SOURCE #-} GHC.IO (failIO)
 
 -- This is not strictly speaking required by this module, but is an
 -- implicit dependency whenever () or tuples are mentioned, so adding it
@@ -246,7 +245,6 @@ instance  Monad []  where
     m >>= k             = foldr ((++) . k) [] m
     m >> k              = foldr ((++) . (\ _ -> k)) [] m
     return x            = [x]
-    fail _              = []
 \end{code}
 
 A few list functions that appear here because they are used here.
@@ -611,7 +609,6 @@ instance  Monad IO  where
     m >> k    = m >>= \ _ -> k
     return    = returnIO
     (>>=)     = bindIO
-    fail s    = failIO s
 
 returnIO :: a -> IO a
 returnIO x = IO $ \ s -> (# s, x #)

@@ -95,7 +95,6 @@ instance Monad FIO where
   (FIO g) >>= f = FIO $ \x -> case g x of {(y, s) -> (runState (f y)) s} 
   (FIO g) >>  f = FIO $ \x -> case g x of {(y, s) -> (runState f    ) s}    
   return w      = FIO $ \x -> (w, x)
-  fail          = error
 
 
 {-@ ok3   :: FilePath -> FIO String @-}

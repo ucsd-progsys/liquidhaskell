@@ -138,7 +138,7 @@ newtype LiquidRunner = LiquidRunner String
   deriving (Show, Read, Eq, Ord, Typeable, IsString, Semigroup, Monoid)
 
 instance IsOption LiquidRunner where
-  defaultValue = LiquidRunner "stack exec -- liquid"
+  defaultValue = LiquidRunner "stack --silent exec -- liquid"
   parseValue = Just . LiquidRunner
   optionName = return "liquid-runner"
   optionHelp = return "Specifies the full path or command which will run 'liquid'."
@@ -159,7 +159,11 @@ errorTests = group "Error-Messages"
     -- , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
     -- , errorTest "tests/errors/MissingAbsRefArgs.hs"   2 "Illegal type specification for `Fixme.bar`"
 
-    errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
+    errorTest "tests/errors/ReWrite8.hs"            2 "Could not generate any rewrites from equality"
+  , errorTest "tests/errors/ReWrite7.hs"            2 "Could not generate any rewrites from equality"
+  , errorTest "tests/errors/ReWrite6.hs"            2 "Unable to use ReWrite6.bad as a rewrite because it does not prove an equality"
+  , errorTest "tests/errors/ReWrite5.hs"            2 "parameter \"xs\" contains an inner refinement"
+  , errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
   , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Error: Multiple specifications for `pig`"
   , errorTest "tests/errors/MultiRecSels.hs"        2 "Duplicated definitions for field `left`" 
   , errorTest "tests/errors/DupFunSigs.hs"          2 "Multiple specifications for `Main.fromWeekDayNum`"

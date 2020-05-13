@@ -81,7 +81,6 @@ instance  Monad Maybe  where
     Nothing  >>  _      = Nothing
 
     return              = Just
-    fail _              = Nothing
 
 -- ---------------------------------------------------------------------------
 -- Functions over Maybe

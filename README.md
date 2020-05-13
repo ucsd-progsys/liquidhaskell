@@ -1303,6 +1303,59 @@ constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell
 assumes that each list element that is created satisfies
 this invariant.
 
+
+Rewriting
+=========
+
+*Experimental*
+
+You use the `rewriteWith` annotation to indicate equalities that PLE will apply automatically. For example, suppose that you have proven associativity
+of `++` for lists.
+
+``` haskell
+{-@ assoc :: xs:[a] -> ys:[a] -> zs:[a] 
+          -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
+```
+
+Using the `rewriteWith` annotation, PLE will automatically apply the equality for associativity whenever it encounters an expression of the form `xs ++ (ys ++ zs)` or `(xs ++ ys) ++ zs`. For example, you can prove `assoc2` for free.
+
+``` haskell
+{-@ rewriteWith assoc2 [assoc] @-} 
+{-@ assoc2 :: xs:[a] -> ys:[a] -> zs:[a] -> ws:[a]
+          -> { xs ++ (ys ++ (zs ++ ws)) == ((xs ++ ys) ++ zs) ++ ws } @-}
+assoc2 :: [a] -> [a] -> [a] -> [a] -> ()
+assoc2 xs ys zs ws = () 
+```
+
+You can also annotate a function as being a global rewrite rule by using the
+`rewrite` annotation, in which case PLE will apply it across the entire module.
+
+``` haskell
+{-@ rewrite assoc @-}
+{-@ assoc :: xs:[a] -> ys:[a] -> zs:[a] 
+          -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
+```
+
+
+### Limitations
+
+Currently, rewriting does not work if the equality that uses the rewrite rule
+includes parameters that contain inner refinements ([test](tests/errors/ReWrite5.hs)).
+
+Rewriting works by pattern-matching expressions to determine if there is a
+variable substitution that would allow it to match against either side of a
+rewrite rule. If so, that substitution is applied to the opposite side and the
+corresponding equality is generated. If one side of the equality contains any
+parameters that are not bound on the other side, it will not be possible to
+generate a rewrite in that direction, because those variables cannot be
+instantiated. Likewise, if there are free variables on both sides of an
+equality, no rewrite can be generated at all ([test](tests/errors/ReWrite7.hs)).
+
+It's possible in theory for rewriting rules to diverge. We have a simple check 
+to ensure that rewriting rules that will always diverge do not get instantiated. 
+However, it's possible that applying a combination of rewrite rules could cause
+divergence.
+
 Formal Grammar of Refinement Predicates
 =======================================
 

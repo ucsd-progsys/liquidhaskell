@@ -53,17 +53,20 @@ addPost :: CGEnv -> SpecType -> CG SpecType
 --------------------------------------------------------------------------------
 addPost γ (RRTy e r OInv t)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("addPost", x,t)) γ e
-       addC (SubR γ' OInv r) "precondition" >> return t
+       addC (SubR γ' OInv r) "precondition-oinv" >> return t
 
 addPost γ (RRTy e r OTerm t)
   = do γ' <- foldM (\γ (x, t) -> γ += ("addPost", x, t)) γ e
-       addC (SubR γ' OTerm r) "precondition" >> return t
+       addC (SubR γ' OTerm r) "precondition-oterm" >> return t
 
-addPost _ (RRTy _ _ OCons t)
-  = return t
-
-addPost _ t
-  = return t
+addPost γ (RRTy cts _ OCons t)
+  = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
+       addC (SubC  γ' t1 t2)  "precondition-ocons"
+       addPost γ t
+  where
+    (xts, t1, t2) = envToSub cts
+addPost _ t 
+  = return t 
 
 --------------------------------------------------------------------------------
 -- | Add Well formedness Constraint
@@ -137,3 +140,15 @@ addA _ _ _ !a
 lookupNewType :: TC.TyCon -> CG (Maybe SpecType)
 lookupNewType tc
   = M.lookup tc . newTyEnv <$> get
+
+
+--------------------------------------------------------------------------------
+{-@ envToSub :: {v:[(a, b)] | 2 <= len v} -> ([(a, b)], b, b) @-}
+envToSub :: [(a, b)] -> ([(a, b)], b, b)
+--------------------------------------------------------------------------------
+envToSub = go []
+  where
+    go _   []              = impossible Nothing "This cannot happen: envToSub on 0 elems"
+    go _   [(_,_)]         = impossible Nothing "This cannot happen: envToSub on 1 elem"
+    go ack [(_,l), (_, r)] = (reverse ack, l, r)
+    go ack (x:xs)          = go (x:ack) xs

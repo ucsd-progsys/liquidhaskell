@@ -454,6 +454,10 @@ data TError t =
                 , var     :: !Doc
                 , clients :: ![Doc]
                 }
+   
+  | ErrRewrite  { pos :: !SrcSpan
+                , msg :: !Doc
+                }
 
   | ErrOther    { pos   :: SrcSpan
                 , msg   :: !Doc
@@ -1015,6 +1019,11 @@ ppError' _ dSp _ (ErrRClass p0 c is)
 
 ppError' _ dSp dCtx (ErrTyCon _ msg ty)
   = dSp <+> text "Illegal data refinement for" <+> ppTicks ty
+        $+$ dCtx
+        $+$ nest 4 msg
+
+ppError' _ dSp dCtx (ErrRewrite _ msg )
+  = dSp <+> text "Rewrite error"
         $+$ dCtx
         $+$ nest 4 msg
 

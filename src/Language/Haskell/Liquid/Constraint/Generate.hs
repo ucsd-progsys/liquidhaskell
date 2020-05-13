@@ -35,6 +35,7 @@ import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
 import           CoAxiom
 import           PrelNames
+import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (exprType)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Class                                         (className)
 import           Var
@@ -57,7 +58,6 @@ import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types.Visitor
 import qualified Language.Fixpoint.Types                       as F
 import qualified Language.Fixpoint.Types.Visitor               as F
--- import           Language.Fixpoint.Solver.Instantiate
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
@@ -67,14 +67,8 @@ import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Play          (isHoleVar) 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
-import           Language.Haskell.Liquid.Types.Names       (anyTypeSymbol)
--- import           Language.Haskell.Liquid.Types.Strata
--- import qualified Language.Haskell.Liquid.Types.RefType         as RT
--- import           Language.Haskell.Liquid.Types.PredType        hiding (freeTyVars)
--- import           Language.Haskell.Liquid.Types.Literals
 import qualified Language.Haskell.Liquid.GHC.Misc         as GM -- ( isInternal, collectArguments, tickSrcSpan, showPpr )
 import           Language.Haskell.Liquid.Misc
--- NOPROVER import           Language.Haskell.Liquid.Constraint.Axioms
 import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.Constraint.Constraint
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -684,7 +678,7 @@ cconsE' γ (Cast e co) t
 
 cconsE' γ e@(Cast e' c) t
   = do t' <- castTy γ (exprType e) e' c
-       addC (SubC γ t' t) ("cconsE Cast: " ++ GM.showPpr e)
+       addC (SubC γ (F.notracepp ("Casted Type for " ++ GM.showPpr e ++ "\n init type " ++ showpp t) t') t) ("cconsE Cast: " ++ GM.showPpr e)
 
 cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
@@ -699,7 +693,7 @@ lambdaSingleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
-    sx = typeSort tce $ varType x
+    sx = typeSort tce $ Ghc.expandTypeSynonyms $ varType x
 lambdaSingleton _ _ _ _
   = mempty
 
@@ -884,7 +878,7 @@ consE γ  e@(Lam x e1)
        tce     <- tyConEmbed <$> get
        return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton γ tce x e1
     where
-      FunTy τx _ = exprType e
+      FunTy { ft_arg = τx } = exprType e
 
 consE γ e@(Let _ _)
   = cconsFreshE LetE γ e
@@ -1046,9 +1040,17 @@ castTy γ t e _
   = castTy' γ t e
 
 
-castTy' _ τ (Var x)
+castTy' γ τ (Var x)
   = do t <- trueTy τ
-       return (t `strengthen` (uTop $ F.uexprReft $ F.expr x))
+       -- tx <- varRefType γ x -- NV HERE: the refinements of the var x do not get into the 
+       --                      -- environment. Check 
+       let ce = eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) 
+                       (typeSort (emb γ) τ) 
+                       $ F.expr x  
+       return ((t `strengthen` (uTop $ F.uexprReft $ ce)) {- `F.meet` tx -})
+  where eCoerc s t e 
+         | s == t    = e
+         | otherwise = F.ECoerc s t e 
 
 castTy' γ t (Tick _ e)
   = castTy' γ t e
@@ -1319,7 +1321,7 @@ lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
                                        _  -> Nothing
 lamExpr γ (Lam x e)   = case lamExpr γ e of
-                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
+                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
 

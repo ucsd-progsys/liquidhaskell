@@ -21,14 +21,12 @@ import           CoreSyn
 import           TysPrim                          (intPrimTy)
 import           Data.Hashable
 import           DataCon
-import           Literal
-import           FastString                       (fastStringToByteString)
-import           Var
 
 import           Data.List                        (foldl', (\\), delete)
 import qualified Data.HashSet                     as S
 import           Prelude                          hiding (error)
 import           Language.Fixpoint.Misc
+import           Language.Haskell.Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.GHC.Misc ()
 
@@ -132,7 +130,7 @@ exprLiterals = go
     go' _                  = []
 
 
-    tyLitToLit (StrTyLit fs) = MachStr (fastStringToByteString fs)
+    tyLitToLit (StrTyLit fs) = LitString (bytesFS fs)
     tyLitToLit (NumTyLit i)  = LitNumber LitNumInt (fromIntegral i) intPrimTy
 
 

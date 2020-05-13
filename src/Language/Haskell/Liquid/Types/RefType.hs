@@ -13,6 +13,7 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE ImplicitParams            #-}
 {-# LANGUAGE ConstraintKinds           #-}
+{-# LANGUAGE ViewPatterns              #-}
 
 -- | Refinement Types. Mostly mirroring the GHC Type definition, but with
 --   room for refinements of various sorts.
@@ -90,17 +91,15 @@ module Language.Haskell.Liquid.Types.RefType (
   ) where
 
 -- import           GHC.Stack
-import TyCoRep
 import Prelude hiding (error)
 -- import qualified Prelude
 import WwLib
 import FamInstEnv (emptyFamInstEnv)
 import Name             hiding (varName)
 import Var
-import GHC              hiding (Located)
 import DataCon
 import qualified TyCon  as TC
-import Type             (splitFunTys, expandTypeSynonyms, substTyWith, isClassPred, isEqPred, isNomEqPred)
+import Type             (splitFunTys, expandTypeSynonyms, substTyWith)
 import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
                          intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
@@ -124,7 +123,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, Located, mapType, tyConName)
 
 import Data.List (foldl')
 
@@ -152,7 +151,7 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
     ts           = ty_args trep
-    isValTy      = not . GM.isPredType . toType
+    isValTy      = not . Ghc.isEvVarType . toType
 
 
 pdVar :: PVar t -> Predicate
@@ -620,7 +619,7 @@ strengthenRefType_ ::
 strengthenRefTypeGen t1 t2 = strengthenRefType_ f t1 t2
   where
     f (RVar v1 r1) t  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
-    f t (RVar v1 r1)  = RVar v1 (r1 `meet` fromMaybe mempty (stripRTypeBase t))
+    f t (RVar _ r1)  = t `strengthen` r1
     f t1 t2           = panic Nothing $ printf "strengthenRefTypeGen on differently shaped types \nt1 = %s [shape = %s]\nt2 = %s [shape = %s]"
                          (pprt_raw t1) (showpp (toRSort t1)) (pprt_raw t2) (showpp (toRSort t2))
 
@@ -831,7 +830,7 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
 appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'') 
   where
-    _msg  = "appRTyCon-family: " ++ showpp (GHC.isFamilyTyCon c, GHC.tyConArity c, toType <$> ts)
+    _msg  = "appRTyCon-family: " ++ showpp (Ghc.isFamilyTyCon c, Ghc.tyConRealArity c, toType <$> ts)
     resTc = RTyCon c ps'' (rtc_info rc'')
     c     = rtc_tc rc
    
@@ -878,7 +877,7 @@ famInstArgs c = case Ghc.tyConFamInst_maybe c of
                      $ Just (c', take (length ts - cArity) ts) 
     Nothing       -> Nothing
     where 
-      cArity      = Ghc.tyConArity c
+      cArity      = Ghc.tyConRealArity c
 
 -- TODO:faminst-preds: case Ghc.tyConFamInst_maybe c of
 -- TODO:faminst-preds:   Just (c', ts) -> F.tracepp ("famInstTyConType: " ++ F.showpp (c, Ghc.tyConArity c, ts)) 
@@ -1110,7 +1109,7 @@ subsFreeRAppTy _ _ t t' r'
 
 -- | @mkRApp@ is the refined variant of GHC's @mkTyConApp@ which ensures that 
 --    that applications of the "function" type constructor are normalized to 
---    the special case @FunTy@ representation. The extra `_rep1`, and `_rep2` 
+--    the special case @FunTy _@ representation. The extra `_rep1`, and `_rep2` 
 --    parameters come from the "levity polymorphism" changes in GHC 8.6 (?)
 --    See [NOTE:Levity-Polymorphism]
 
@@ -1151,7 +1150,7 @@ mkRApp m s c ts rs r r'
         https://hackage.haskell.org/package/ghc-8.6.4/docs/src/Type.html#mkTyConApp
 
      which normalizes applications of the `FunTyCon` constructor to use the special 
-     case `FunTy` representation thus, so that we are not stuck with incompatible 
+     case `FunTy _` representation thus, so that we are not stuck with incompatible 
      representations e.g. 
 
         thing -> thing                                                  ... (using RFun)
@@ -1380,9 +1379,9 @@ ofType_ tx = go . expandTypeSynonyms
   where
     go (TyVarTy α)
       = tcFVar tx α
-    go (FunTy τ τ')
+    go (FunTy _ τ τ')
       = rFun dummySymbol (go τ) (go τ')
-    go (ForAllTy (TvBndr α _) τ)
+    go (ForAllTy (Bndr α _) τ)
       = RAllT (tcFTVar tx α) (go τ) mempty
     go (TyConApp c τs)
       | Just (αs, τ) <- TC.synTyConDefn_maybe c
@@ -1452,7 +1451,7 @@ isBaseTy :: Type -> Bool
 isBaseTy (TyVarTy _)     = True
 isBaseTy (AppTy _ _)     = False
 isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
-isBaseTy (FunTy _ _)     = False
+isBaseTy (FunTy  _ _ _)  = False
 isBaseTy (ForAllTy _ _)  = False
 isBaseTy (LitTy _)       = True
 isBaseTy (CastTy _ _)    = False
@@ -1478,9 +1477,9 @@ toType  :: (ToTypeable r) => RRType r -> Type
 toType (RImpF x t t' r)
  = toType (RFun x t t' r)
 toType (RFun _ t t' _)
-  = FunTy (toType t) (toType t')
+  = FunTy VisArg (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType (RAllT a t _) | RTV α <- ty_var_value a
-  = ForAllTy (TvBndr α Required) (toType t)
+  = ForAllTy (Bndr α Required) (toType t)
 toType (RAllP _ t)
   = toType t
 toType (RVar (RTV α) _)
@@ -1609,7 +1608,7 @@ typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce = go
   where
     go :: Type -> Sort
-    go t@(FunTy _ _)    = typeSortFun tce t
+    go t@(FunTy  _ _ _) = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)  
@@ -1664,7 +1663,7 @@ typeSortFun tce t = mkFFunc 0 sos
     τs            = grabArgs [] t
 
 grabArgs :: [Type] -> Type -> [Type]
-grabArgs τs (FunTy τ1 τ2)
+grabArgs τs (FunTy _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
   | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
@@ -1675,7 +1674,7 @@ grabArgs τs τ
   = reverse (τ:τs)
 
 isNonValueTy :: Type -> Bool
-isNonValueTy t = {- Ghc.isPredTy -} isClassPred t || isEqPred t
+isNonValueTy = GM.isPredType
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
@@ -1712,52 +1711,16 @@ classBinds _ (RApp c ts _ _)
 classBinds emb (RApp c [_, _, (RVar a _), t] _ _)
   | isEqual c
   = [(symbol a, rTypeSortedReft emb t)]
-classBinds  emb (RApp c [_, (RVar a _), t] _ _)
-  | showpp c == "Data.Type.Equality.~<[]>"  -- see [NOTE:type-equality-hack]
+classBinds  emb ty@(RApp c [_, (RVar a _), t] _ _)
+  | isEqualityConstr ty 
   = [(symbol a, rTypeSortedReft emb t)]
   | otherwise 
   = notracepp ("CLASSBINDS-0: " ++ showpp c) [] 
 classBinds _ t
   = notracepp ("CLASSBINDS-1: " ++ showpp (toType t, isEqualityConstr t)) []
 
-{- | [NOTE:type-equality-hack]
-
-God forgive me for this AWFUL HACK.
-
-How can I “test for” (i.e. write a function of type `Type -> Bool`)
-
-that returns `True` for values (i.e. `Type`s) that print out as:
-
- ```
-     typ ~ GHC.Types.Int
- ```
-
- or with, which some more detail, looks like
-
- ```
-    (~ (TYPE LiftedRep) typ GHC.Types.Int)
- ```
-
- and which are generated from Haskell source that looks like
-
- ```
- instance PersistEntity Blob where
-    data EntityField Blob typ
-       = typ ~ Int => BlobXVal |
-         typ ~ Int => BlobYVal
- ```
-
- see tests/neg/BinahUpdateLib1.hs
-
- I would have thought that `Type.isEqPred` or `Type.isNomEqPred` described here
-
- https://downloads.haskell.org/~ghc/8.2.1/docs/html/libraries/ghc-8.2.1/src/Type.html#isEqPred
-
- and which is what `isEqualityConstr` below is doing, but alas it doesn't work.
--}
-
 isEqualityConstr :: SpecType -> Bool
-isEqualityConstr = (isEqPred  .||. isNomEqPred) . toType
+isEqualityConstr (toType -> ty) = Ghc.isEqPred ty || Ghc.isEqPrimPred ty
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------
@@ -1878,7 +1841,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
     goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
 
-    go pos (FunTy t1 t2)   = go (not pos) t1 ++ go pos t2
+    go pos (FunTy _ t1 t2) = go (not pos) t1 ++ go pos t2
     go pos (ForAllTy _ t)  = go pos t
     go pos (TyVarTy v)     = [(v, pos)]
     go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
@@ -1910,7 +1873,7 @@ dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon = dcs S.empty
   where
     dcs vis c               = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
-    go  vis (FunTy t1 t2)   = go vis t1 `S.union` go vis t2
+    go  vis (FunTy _ t1 t2) = go vis t1 `S.union` go vis t2
     go  vis (ForAllTy _ t)  = go vis t
     go  _   (TyVarTy _)     = S.empty
     go  vis (AppTy t1 t2)   = go vis t1 `S.union` go vis t2

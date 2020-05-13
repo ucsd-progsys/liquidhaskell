@@ -79,7 +79,6 @@ instance Functor ReadPrec where
 
 instance Monad ReadPrec where
   return x  = P (\_ -> return x)
-  fail s    = P (\_ -> fail s)
   P f >>= k = P (\n -> do a <- f n; let P f' = k a in f' n)
   
 instance MonadPlus ReadPrec where
