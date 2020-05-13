@@ -45,7 +45,7 @@ buildDictSubst = cata f
 
 
 inlineAux :: Module -> CoreProgram -> CoreProgram
-inlineAux m cbs = occurAnalysePgm m (const False) (const False) [] (map f cbs)
+inlineAux m cbs =  (map f cbs)
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
