@@ -143,7 +143,7 @@ jobs:
 
   cabal_810_plugin:
     docker:
-      - image: adinapoli/ghc:8.10.1-slim
+      - image: phadej/ghc:8.10.1-bionic-slim
     steps:
       - cabal_build_and_test:
           extra_test_flags: "--flag plugin"
