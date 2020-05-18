@@ -98,6 +98,7 @@ commands:
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
+            stack build --fast liquid-base
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
             stack --stack-yaml << parameters.stack_yaml_file >> sdist
