@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf                 #-}
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
@@ -187,8 +188,20 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
                (hpm_module parsedModule) 
   }
 
+  --
   -- \"The ugly hack\": grab the unoptimised core binds here.
-  parsed          <- GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
+  --
+
+  -- Optimisation: If this is running with '-O0' and with 'HscInterpreted', we avoid the
+  -- extra call to 'parseModule'.
+  interpreted     <- isInteractive <$> getDynFlags
+  parsed          <- if | interpreted -> pure ParsedModule {
+                                           pm_mod_summary = modSummary
+                                         , pm_parsed_source = hpm_module parsedModule
+                                         , pm_extra_src_files = hpm_src_files parsedModule
+                                         , pm_annotations = hpm_annotations parsedModule
+                                         }
+                        | otherwise   -> GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
 
   -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
   -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere.
@@ -239,6 +252,10 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
 --------------------------------------------------------------------------------
+
+isInteractive :: DynFlags -> Bool
+isInteractive df = optLevel df == 0 && hscTarget df == HscInterpreted
+
 
 -- | LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
 -- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by
