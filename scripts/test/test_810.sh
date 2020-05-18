@@ -2,7 +2,6 @@
 
 TASTY_GLOB_PATTERN=$1
 
-stack build --fast liquid-base && 
-    stack test -j1 liquidhaskell:test \
-    --flag liquidhaskell:devel \
-    --ta="-p /$TASTY_GLOB_PATTERN/" --fast
+stack build --fast --test --no-run-tests && 
+    stack test --fast -j1 liquidhaskell:test \
+    --ta="-p /$TASTY_GLOB_PATTERN/"

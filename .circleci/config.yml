@@ -77,6 +77,9 @@ commands:
       liquid_runner:
         type: string
         default: "stack --silent exec -- liquid"
+      extra_test_flags:
+        type: string
+        default: ""
     steps:
       - setup_project
       - restore_cache:
@@ -86,8 +89,7 @@ commands:
           name: Dependencies
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> setup
-            # rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-            stack --stack-yaml << parameters.stack_yaml_file >> build liquidhaskell --only-dependencies --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> build --fast --only-dependencies --test --no-run-tests
       - save_cache:
           key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
           paths:
@@ -98,9 +100,9 @@ commands:
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack build --fast liquid-base
-            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
-            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
+            stack --stack-yaml << parameters.stack_yaml_file >> build --fast --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> test --fast -j1 liquidhaskell:test << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack --stack-yaml << parameters.stack_yaml_file >> test --fast -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
             stack --stack-yaml << parameters.stack_yaml_file >> sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
             stack --stack-yaml << parameters.stack_yaml_file >> haddock liquidhaskell  --no-haddock-deps --haddock-arguments="--no-print-missing-docs"
@@ -121,6 +123,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
             liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid-legacy"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquidhaskell:devel --flag liquidhaskell:-testNewExecutable"
 
   stack_810_legacy_executable:
     docker:
@@ -129,6 +132,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             liquid_runner: "stack --silent exec -- liquid-legacy"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquidhaskell:devel --flag liquidhaskell:-testNewExecutable"
 
   stack_810:
     docker:

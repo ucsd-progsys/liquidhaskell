@@ -253,9 +253,9 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
 -- | \"Unoptimising\" things ----------------------------------------------------
 --------------------------------------------------------------------------------
 
+-- | Returns 'True' if this likely to be an \"interactive\" session (e.g. 'ghci').
 isInteractive :: DynFlags -> Bool
 isInteractive df = optLevel df == 0 && hscTarget df == HscInterpreted
-
 
 -- | LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
 -- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by

@@ -70,6 +70,10 @@ flag deterministic-profiling
   description: Support building against GHC with <https://phabricator.haskell.org/D4388>
                backported
 
+flag testNewExecutable
+  default:     True
+  description: Use the new (not the legacy one) for testing.
+
 library
   exposed-modules:    Gradual.Concretize
                       Gradual.GUI
@@ -302,7 +306,7 @@ test-suite test
                   , transformers         >= 0.3
   default-language: Haskell98
   ghc-options:      -W -threaded
-  if impl(ghc >= 8.10)
+  if flag(testNewExecutable)
     cpp-options: -DUSE_NEW_EXECUTABLE
 
 test-suite liquidhaskell-parser
