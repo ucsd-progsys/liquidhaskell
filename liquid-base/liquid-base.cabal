@@ -37,6 +37,7 @@ library
                     Data.Foldable
                     Data.Function
                     Data.Functor
+                    Data.Functor.Compose
                     Data.IORef
                     Data.Int
                     Data.List
@@ -50,6 +51,7 @@ library
                     Data.Traversable
                     Data.Tuple
                     Data.Typeable
+                    Data.Version
                     Data.Void
                     Data.Word
                     Debug.Trace
@@ -82,11 +84,13 @@ library
                     GHC.TypeLits
                     GHC.Word
                     Numeric
+                    System.Environment
                     System.Exit
                     System.IO
                     System.IO.Error
                     System.IO.Unsafe
                     Text.Read
+                    Text.Printf
                     Liquid.Prelude.Totality
                     Liquid.Prelude.Real
                     Liquid.Prelude.NotReal
