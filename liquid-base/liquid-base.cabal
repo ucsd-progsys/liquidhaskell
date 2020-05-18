@@ -20,9 +20,7 @@ data-files:         src/Data/*.spec
                     src/Liquid/Prelude/*.spec
                     src/Foreign/C/*.spec
                     src/Foreign/*.spec
-                    src/Debug/Trace.spec
                     src/Control/*.spec
-                    src/Control/Exception/*.spec
 
 library
   exposed-modules:  Control.Applicative

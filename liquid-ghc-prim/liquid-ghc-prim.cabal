@@ -12,10 +12,7 @@ homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Simple
 cabal-version:      >= 1.22
 
-data-files:         src/GHC/Types.spec
-                    src/GHC/CString.spec
-                    src/GHC/Classes.spec
-                    src/GHC/Prim.spec
+data-files:         src/GHC/*.spec
 
 library
   exposed-modules:  GHC.Prim

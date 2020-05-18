@@ -7,6 +7,13 @@ ghc-options:
 allow-newer: true # 8.10.1
 packages:
 - liquid-fixpoint
+- liquid-ghc-prim
+- liquid-base
+- liquid-bytestring
+- liquid-prelude
+- liquid-vector
+- liquid-containers
+- liquid-parallel
 - .
 extra-deps:
 - tasty-rerun-1.1.14

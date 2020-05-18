@@ -237,6 +237,24 @@ library
 
 executable liquid
   main-is:            src/Liquid.hs
+  build-depends:      base >= 4.9.1.0 && < 5
+                    , liquidhaskell
+                    , process
+  default-language:   Haskell98
+  default-extensions: PatternGuards
+  ghc-options:        -W -threaded -fdefer-typed-holes
+
+  if flag(devel)
+    ghc-options: -Werror
+
+  if impl(ghc >= 8.10)
+    buildable: True
+  else
+    buildable: False
+
+-- This is the (legacy and deprecated) 'liquid' executable which uses the old GHC Interface.
+executable liquid-legacy
+  main-is:            src/LiquidLegacy.hs
   build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
   default-language:   Haskell98
   default-extensions: PatternGuards
