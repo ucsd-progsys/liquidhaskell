@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # We do not want to use '-e' here as 'grep' might fail in case of a no-match.
 
