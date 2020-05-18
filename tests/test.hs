@@ -627,7 +627,7 @@ extraOptions dir absDir testFileFullPath = mappend (dirOpts dir) (testOpts testF
 testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> ExtraOptions -> String
 ---------------------------------------------------------------------------
 testCmd bin dir file smt (ExtraOptions (GhcSuitableOpts (LO ghcOpts)) (LiquidOnlyOpts (LO liquidOnlyOpts)))
-#ifdef USE_PLUGIN
+#ifdef USE_NEW_EXECUTABLE
   = printf "%s -i. -i%s %s %s %s" bin dir ghcOpts liquidOpts (dir </> file)
   where
     liquidOpts = 

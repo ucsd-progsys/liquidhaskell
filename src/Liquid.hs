@@ -1,6 +1,6 @@
 
 {-| Calling LiquidHaskell via the source plugin.
-  This executable is a simple wrapper around 'ghc', which will be called with LiquidHaskell source plugin.
+  This executable is a simple wrapper around 'ghc', which gets passed an '-fplugin' option.
 -}
 
 import System.Environment (lookupEnv, getArgs)

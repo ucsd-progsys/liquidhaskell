@@ -113,26 +113,21 @@ commands:
 
 jobs:
 
-  cabal_865:
-    docker:
-      - image: phadej/ghc:8.6.5-bionic-slim
-    steps:
-      - cabal_build_and_test
-
-  cabal_810:
-    docker:
-      - image: phadej/ghc:8.10.1-bionic-slim
-    steps:
-      - cabal_build_and_test:
-          setup_test_extra_steps: "find include -type f -name '*.hs' | grep -v Old | grep -v Example | grep -v RTick | xargs cabal v2-run liquid -- --compile-spec"
-
-  stack_865:
+  stack_865_legacy_executable:
     docker:
       - image: fpco/stack-build:lts-15.4
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
-            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
+            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid-legacy"
+
+  stack_810_legacy_executable:
+    docker:
+      - image: fpco/stack-build:lts-15.4
+    steps:
+        - stack_build_and_test:
+            stack_yaml_file: "stack.yaml"
+            liquid_runner: "stack --silent exec -- liquid-legacy"
 
   stack_810:
     docker:
@@ -141,23 +136,23 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
 
-  cabal_810_plugin:
+  cabal_810:
     docker:
       - image: phadej/ghc:8.10.1-bionic-slim
     steps:
       - cabal_build_and_test:
           extra_test_flags: "--flag plugin"
-          liquid_runner: "--liquid-runner=cabal -v0 v2-exec ghc -- -v0 --make -no-link \
+          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquid -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env) \
-                          -package liquid-base -package liquid-prelude -package liquid-vector \
+                          -package liquid-prelude -package liquid-vector \
                           -package liquid-containers -package liquid-bytestring -package liquidhaskell \
-                          -package Cabal \
-                          -fplugin=Language.Haskell.Liquid.GHC.Plugin "
+                          -package Cabal "
 
 workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_865
+      - stack_865_legacy_executable
+      - stack_810_legacy_executable
       - stack_810
-      - cabal_810_plugin
+      - cabal_810
