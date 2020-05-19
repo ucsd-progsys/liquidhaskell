@@ -48,7 +48,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (atLoc, PPrint (..), FixResult (..), Located (..))
+import           Language.Fixpoint.Types                (atLoc, FixResult (..))
 import           Language.Fixpoint.Utils.Files
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc

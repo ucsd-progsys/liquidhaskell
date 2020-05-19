@@ -41,7 +41,7 @@ import BasicTypes
 -- import TyCon
 import TysWiredIn
 
-import Language.Haskell.Liquid.GHC.TypeRep
+import Language.Haskell.Liquid.GHC.TypeRep ()
 import CoreSyn hiding (mkTyArg)
 
 -- | Horrible hack to support hardwired symbols like

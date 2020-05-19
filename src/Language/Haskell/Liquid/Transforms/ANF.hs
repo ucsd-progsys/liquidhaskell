@@ -19,20 +19,13 @@ import qualified DsMonad
 import           DsMonad                          (initDsWithModGuts)
 import           GHC                              hiding (exprType)
 import           HscTypes
-import           OccName                          (OccName, mkVarOccFS)
-import           Id                               (mkUserLocal)
 import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
-import           Var                              (varType, setVarType)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg)
-import           Type                             (mkForAllTys, substTy, mkForAllTys, mkTvSubstPrs, isTyVar)
-import           TyCon                            (tyConDataCons_maybe)
--- import           DataCon                          (dataConInstArgTys)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           UniqSupply                       (MonadUnique, getUniqueM)
-import           Unique                           (getKey)
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F

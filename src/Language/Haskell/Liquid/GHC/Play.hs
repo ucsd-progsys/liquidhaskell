@@ -13,7 +13,6 @@ import Var
 import DataCon
 
 import TyCon
-import Type      (tyConAppArgs_maybe, tyConAppTyCon_maybe, binderVar, isFunTy)
 import PrelNames (isStringClassName)
 
 import           Control.Arrow       ((***))

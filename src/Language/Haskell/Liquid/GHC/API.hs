@@ -24,12 +24,12 @@ module Language.Haskell.Liquid.GHC.API (
   , ft_af, ft_arg, ft_res
   , bytesFS
   , mkFunTy
+  , isEvVarType
+  , isEqPrimPred
 #endif
 #endif
 
   , tyConRealArity
-  , isEvVarType
-  , isEqPrimPred
   , dataConExTyVars
 
   ) where 
@@ -92,14 +92,11 @@ import qualified GHC.Real
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
 import Type           as Ghc hiding (typeKind , isPredTy)
-import qualified Type as Ghc
 import TyCon          as Ghc 
 import TyCoRep        as Ghc
 import FastString     as Ghc
 import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType, isEqPrimPred)
 import Data.Foldable  (asum)
-import Util           (lengthIs)
-import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey)
 #endif
 #endif
 

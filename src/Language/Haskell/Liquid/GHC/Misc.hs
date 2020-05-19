@@ -16,27 +16,18 @@
 
 module Language.Haskell.Liquid.GHC.Misc where
 
-import           Class                                      (classKey)
 import           Data.String
 import qualified Data.List as L
 import           PrelNames                                  (fractionalClassKeys)
-import           FamInstEnv
 import           Debug.Trace
--- import qualified ConLike                                    as Ghc
 
 import qualified CoreUtils
 import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)
 import           Prelude                                    hiding (error)
-import           Avail                                      (availsToNameSet)
-import           BasicTypes                                 (Arity, noOccInfo)
 import           CoreSyn                                    hiding (Expr, sourceName)
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
-import           HscTypes                                   (ModGuts(..), HscEnv(..), FindResult(..),
-                                                             Dependencies(..))
-import           TysWiredIn                                 (anyTy)
-import           NameSet                                    (NameSet)
 import           Bag
 import           ErrUtils
 import           CoreLint
@@ -44,14 +35,12 @@ import           CoreMonad
 
 import           Text.Parsec.Pos                            (incSourceColumn, sourceName, sourceLine, sourceColumn, newPos)
 
-import           Module                                     (moduleNameFS)
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
 import           TcRnDriver
 -- import           TcRnTypes
 
 
-import           Type                                       (expandTypeSynonyms, liftedTypeKind)
 import           IdInfo
 import qualified TyCon                                      as TC
 import           Data.Char                                  (isLower, isSpace, isUpper)

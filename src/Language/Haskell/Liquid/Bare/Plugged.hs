@@ -22,7 +22,7 @@ import qualified Language.Fixpoint.Types.Visitor   as F
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM 
 import qualified Language.Haskell.Liquid.GHC.API   as Ghc 
 import           Language.Haskell.Liquid.GHC.Types (StableName, mkStableName)
-import           Language.Haskell.Liquid.Types.RefType (updateRTVar, addTyConInfo, ofType, rTyVar, subts, toType, uReft)
+import           Language.Haskell.Liquid.Types.RefType ()
 import           Language.Haskell.Liquid.Types
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import qualified Language.Haskell.Liquid.Bare.Types as Bare

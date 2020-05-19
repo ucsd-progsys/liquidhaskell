@@ -87,7 +87,6 @@ import GHC.LanguageExtensions
 
 import Control.Exception
 import Control.Monad
-import Control.Monad.IO.Class
 
 import Data.Bifunctor
 import Data.Data
@@ -109,7 +108,7 @@ import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
-import Language.Haskell.Liquid.Bare hiding (GhcSpec(..))
+import Language.Haskell.Liquid.Bare
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.GHC.Types (MGIModGuts(..), miModGuts)
 import Language.Haskell.Liquid.GHC.Play
@@ -125,7 +124,6 @@ import Language.Haskell.Liquid.Types hiding (Spec)
 -- import Language.Haskell.Liquid.Types.PrettyPrint
 -- import Language.Haskell.Liquid.Types.Visitors
 import Language.Haskell.Liquid.UX.CmdLine
-import Language.Haskell.Liquid.UX.Config (totalityCheck)
 import Language.Haskell.Liquid.UX.QuasiQuoter
 import Language.Haskell.Liquid.UX.Tidy
 import Language.Fixpoint.Utils.Files
@@ -859,21 +857,6 @@ moduleFile modGraph ext (S.toList -> paths) name
       Nothing -> getFileInDirs (extModuleName name ext) paths
       Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise = getFileInDirs (extModuleName name ext) paths
-
-specIncludes :: Ext -> [FilePath] -> [FilePath] -> Ghc [FilePath]
-specIncludes ext paths reqs = do
-  let libFile = extFileNameR ext $ symbolString preludeName
-  let incFiles = catMaybes $ reqFile ext <$> reqs
-  liftIO $ forM (libFile : incFiles) $ \f -> do
-    mfile <- getFileInDirs f paths
-    case mfile of
-      Just file -> return file
-      Nothing   -> panic Nothing $ "cannot find " ++ f ++ " in " ++ show paths
-
-reqFile :: Ext -> FilePath -> Maybe FilePath
-reqFile ext s
-  | isExtFile ext s = Just s
-  | otherwise = Nothing
 
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------
