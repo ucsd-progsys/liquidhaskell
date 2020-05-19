@@ -29,6 +29,9 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Diff check mode
    , diffcheck
 
+   -- * Show info about this version of LiquidHaskell
+   , printLiquidHaskellBanner
+
 ) where
 
 import Prelude hiding (error)
@@ -391,9 +394,12 @@ getOpts as = do
                          as
   cfg    <- fixConfig cfg1
   when (json cfg) $ setVerbosity Quiet
-  whenNormal $ putStrLn copyright
   withSmtSolver cfg
 
+-- | Shows the LiquidHaskell banner, that includes things like the copyright, the
+-- git commit and the version.
+printLiquidHaskellBanner :: IO ()
+printLiquidHaskellBanner = whenNormal $ putStrLn copyright
 
 cmdArgsRun' :: Mode (CmdArgs a) -> [String] -> IO a
 cmdArgsRun' md as
