@@ -2,7 +2,7 @@
 
 TASTY_GLOB_PATTERN=$1
 
-RUNNER="\"stack exec -- liquid -v0 -hide-package ghc-prim -hide-package containers -hide-package vector -hide-package bytestring\""
+RUNNER="\"stack --silent exec -- liquid -v0 \""
 
 stack build --fast --test --no-run-tests && 
     stack test --fast -j1 liquidhaskell:test \

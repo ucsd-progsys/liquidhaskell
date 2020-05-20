@@ -19,12 +19,12 @@ flag devel
 
 executable liquid
   main-is:            src/Liquid.hs
-  build-depends:      liquid-base >= 0.8.6.0
+  build-depends:      liquid-base   >= 0.8.6.0
                     , liquidhaskell
-                    , process
+                    , process       >= 1.6.0.0
+                    , cmdargs       >= 0.10
   default-language:   Haskell98
-  default-extensions: PatternGuards
-  ghc-options:        -W -threaded -fdefer-typed-holes
+  ghc-options:        -W -O2 -threaded -fdefer-typed-holes
 
   if flag(devel)
     ghc-options: -Werror

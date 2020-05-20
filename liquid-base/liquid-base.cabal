@@ -30,6 +30,7 @@ library
                     Control.Monad
                     Control.Monad.ST
                     Control.Monad.ST.Unsafe
+                    Data.Bifunctor
                     Data.Bits
                     Data.Char
                     Data.Data
