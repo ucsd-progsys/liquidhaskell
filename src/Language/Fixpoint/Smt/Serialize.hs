@@ -217,15 +217,13 @@ smt2App env e
 
 smt2Coerc :: SymEnv -> Sort -> Sort -> Expr -> Builder.Builder
 smt2Coerc env t1 t2 e 
-  | t1 == t2  = smt2 env e
+  | t1' == t2'  = smt2 env e
   | otherwise = build "({} {})" (symbolBuilder coerceFn , smt2 env e)
   where 
     coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
     t         = FFunc t1 t2
-
--- unCast :: Expr -> Expr
--- unCast (ECst e _) = unCast e
--- unCast e          = e
+    t1'       = smtSortMono e env t1 
+    t2'       = smtSortMono e env t2
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
