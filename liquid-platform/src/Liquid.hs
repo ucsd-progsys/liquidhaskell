@@ -23,7 +23,14 @@ partitionArgs :: [String] -> ([GhcArg], [LiquidArg])
 partitionArgs args = partitionEithers (map parseArg args)
   where
     parseArg :: String -> Either GhcArg LiquidArg
-    parseArg a = bimap (const a) (const a) (CmdArgs.process config [a])
+    parseArg a 
+      | forwardToGhc a = Left a
+      | otherwise      = bimap (const a) (const a) (CmdArgs.process config [a])
+
+    -- Unfortunate consequence of the facts things like '-i' needs to be forwarded to GHC
+    -- and not the LH executable.
+    forwardToGhc :: String -> Bool
+    forwardToGhc = isPrefixOf "-i"
 
 main :: IO a
 main = do
