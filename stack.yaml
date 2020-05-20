@@ -1,5 +1,5 @@
 flags:
-  liquidhaskell:
+  liquid-platform:
     devel: true
 extra-package-dbs: []
 ghc-options:
@@ -14,6 +14,7 @@ packages:
 - liquid-vector
 - liquid-containers
 - liquid-parallel
+- liquid-platform
 - .
 extra-deps:
 - tasty-rerun-1.1.14

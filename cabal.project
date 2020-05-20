@@ -7,9 +7,10 @@ packages: .
           ./liquid-parallel
           ./liquid-prelude
           ./liquid-vector
+          ./liquid-platform
 
 package liquid-fixpoint
   flags: devel
 
-package liquidhaskell
+package liquid-platform
   flags: devel

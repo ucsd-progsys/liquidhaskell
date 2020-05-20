@@ -56,11 +56,6 @@ source-repository head
   type:     git
   location: https://github.com/ucsd-progsys/liquidhaskell/
 
-flag devel
-  default:     False
-  manual:      True
-  description: turn on stricter error reporting for development
-
 flag include
   default:     False
   description: use in-tree include directory
@@ -233,54 +228,6 @@ library
 
   if flag(deterministic-profiling)
     cpp-options: -DDETERMINISTIC_PROFILING
-
-executable liquid
-  main-is:            src/Liquid.hs
-  build-depends:      base >= 4.9.1.0 && < 5
-                    , liquidhaskell
-                    , process
-  default-language:   Haskell98
-  default-extensions: PatternGuards
-  ghc-options:        -W -threaded -fdefer-typed-holes
-
-  if flag(devel)
-    ghc-options: -Werror
-
-  if impl(ghc >= 8.10)
-    buildable: True
-  else
-    buildable: False
-
--- This is the (legacy and deprecated) 'liquid' executable which uses the old GHC Interface.
-executable liquid-legacy
-  main-is:            src/LiquidLegacy.hs
-  build-depends:      base >= 4.9.1.0 && < 5, liquidhaskell
-  default-language:   Haskell98
-  default-extensions: PatternGuards
-  ghc-options:        -W -threaded -fdefer-typed-holes
-
-  if flag(devel)
-    ghc-options: -Werror
-
-executable gradual
-  main-is:          src/Gradual.hs
-  build-depends:    base            >= 4.8.1.0 && < 5
-                  , cmdargs
-                  , hscolour
-                  , liquid-fixpoint >= 0.7.0.5
-                  , liquidhaskell
-  default-language: Haskell2010
-  buildable:        False
-  ghc-options:      -W -threaded 
-
-  if flag(devel)
-    ghc-options: -Werror
-
-executable target
-  main-is:          src/Target.hs
-  build-depends:    base >= 4.8.1.0 && < 5, hint, liquidhaskell
-  default-language: Haskell2010
-  buildable:        False
 
 test-suite test
   type:             exitcode-stdio-1.0

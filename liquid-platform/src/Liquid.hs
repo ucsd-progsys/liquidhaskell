@@ -7,11 +7,14 @@ import System.Environment (lookupEnv, getArgs)
 import System.Process
 import System.Exit
 import Data.Maybe
+import Data.List (partition, isPrefixOf)
 
 main :: IO a
 main = do
   args <- getArgs
   ghcPath <- fromMaybe "ghc" <$> lookupEnv "LIQUID_GHC_PATH"
+
+  let (cliArgs, targets) = partition ("-" `isPrefixOf`) args
 
   let p = proc ghcPath $ [ "-O0"
                          , "--make"
@@ -20,6 +23,8 @@ main = do
                          , "-plugin-package", "liquidhaskell"
                          , "-package", "liquid-base"
                          , "-hide-package", "base"
-                         ] <> args
+                         ] 
+                         <> targets 
+                         <> map (mappend "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:") cliArgs
 
   withCreateProcess p $ \_mbStdIn _mbStdOut _mbStdErr pHandle -> waitForProcess pHandle >>= exitWith
