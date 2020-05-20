@@ -16,7 +16,7 @@ module Language.Fixpoint.Solver.Sanitize
   ) where
 
 import           Language.Fixpoint.Types.PrettyPrint
-import           Language.Fixpoint.Types.Visitor (symConsts, isConcC, isKvarC, mapKVars, mapKVarSubsts, stripCasts)
+import           Language.Fixpoint.Types.Visitor 
 import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirstOrder)
 -- import           Language.Fixpoint.Defunctionalize 
 import qualified Language.Fixpoint.Misc                            as Misc
@@ -51,6 +51,7 @@ sanitize cfg =    -- banIllScopedKvars
          >=>         banConstraintFreeVars
          >=> Misc.fM addLiterals
          >=> Misc.fM (eliminateEta cfg)
+         >=> Misc.fM cancelCoercion
 
 
 --------------------------------------------------------------------------------
@@ -82,6 +83,15 @@ addLiterals si = si { F.dLits = F.unionSEnv (F.dLits si) lits'
   where
     lits'      = M.fromList [ (F.symbol x, F.strSort) | x <- symConsts si ]
 
+
+
+cancelCoercion :: F.SInfo a -> F.SInfo a
+cancelCoercion = mapExpr (trans (defaultVisitor { txExpr = go }) () ())
+  where 
+    go _ (F.ECoerc t1 t2 (F.ECoerc t2' t1' e)) 
+      | t1 == t1' && t2 == t2'
+      = e 
+    go _ e = e 
 
 --------------------------------------------------------------------------------
 -- | `eliminateEta` converts equations of the form f x = g x into f = g

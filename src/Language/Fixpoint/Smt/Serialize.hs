@@ -222,8 +222,8 @@ smt2Coerc env t1 t2 e
   where 
     coerceFn  = symbolAtName coerceName env (ECoerc t1 t2 e) t
     t         = FFunc t1 t2
-    t1'       = smtSortMono e env t1 
-    t2'       = smtSortMono e env t2
+    t1'       = smt2SortMono e env t1 
+    t2'       = smt2SortMono e env t2
 
 splitEApp' :: Expr -> (Expr, [Expr])
 splitEApp'            = go []
