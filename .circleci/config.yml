@@ -76,7 +76,7 @@ commands:
         default: "stack.yaml"
       liquid_runner:
         type: string
-        default: "stack --silent exec -- liquid"
+        default: "stack --silent exec -- liquid -v0"
       extra_test_flags:
         type: string
         default: ""
@@ -123,7 +123,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
             liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid-legacy"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquidhaskell:devel --flag liquidhaskell:-testNewExecutable"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:-testNewExecutable"
 
   stack_810_legacy_executable:
     docker:
@@ -132,7 +132,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
             liquid_runner: "stack --silent exec -- liquid-legacy"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquidhaskell:devel --flag liquidhaskell:-testNewExecutable"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:-testNewExecutable"
 
   stack_810:
     docker:
@@ -140,19 +140,16 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
-            liquid_runner: "stack exec -- liquid -v0 -hide-package ghc-prim -hide-package containers -hide-package vector -hide-package bytestring"
+            liquid_runner: "stack exec -- liquid -v0"
 
   cabal_810:
     docker:
       - image: phadej/ghc:8.10.1-bionic-slim
     steps:
       - cabal_build_and_test:
-          extra_test_flags: "--flag plugin"
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquid -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env) \
-                          -package liquid-prelude -package liquid-vector \
-                          -package liquid-containers -package liquid-bytestring -package liquidhaskell \
-                          -package Cabal "
+                          -package=liquidhaskell -package=Cabal "
 
 workflows:
   version: 2
