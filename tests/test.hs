@@ -683,6 +683,14 @@ negIgnored :: [FilePath]
 negIgnored 
   = [ "Lib.hs"
     , "LibSpec.hs"
+    -- See: https://github.com/ucsd-progsys/liquidhaskell/issues/1677
+    , "QQTySyn2.hs"
+    , "QQTySyn1.hs"
+    , "QQTySig.hs"
+    , "elim-ex-map-3.hs"
+    , "elim-ex-map-2.hs"
+    , "elim-ex-map-1.hs"
+    , "elim-ex-let.hs"
     ]
 
 bsIgnored :: [FilePath]
