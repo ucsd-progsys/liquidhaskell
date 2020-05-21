@@ -18,7 +18,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
+module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
 
 import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error)
@@ -76,6 +76,7 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -84,12 +85,18 @@ generateConstraints      :: TargetInfo -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
-    act                  = consAct cfg info
+    act                  = do { γ <- initEnv info; consAct γ cfg info }
     cfg                  = getConfig   info
 
-consAct :: Config -> TargetInfo -> CG ()
-consAct cfg info = do
-  γ       <- initEnv      info
+generateConstraintsWithEnv :: TargetInfo -> CGInfo -> CGEnv -> CGInfo
+--------------------------------------------------------------------------------
+generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
+  where
+    act                  = consAct γ cfg info
+    cfg                  = getConfig   info
+
+consAct :: CGEnv -> Config -> TargetInfo -> CG ()
+consAct γ cfg info = do
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
@@ -191,10 +198,11 @@ makeRecType :: (Enum a1, Eq a1, Num a1, F.Symbolic a)
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
-    (xs', ts') = unzip $ replaceN (last is) (makeDecrType autoenv vdxs) xts
+    (xs', ts') = unzip $ replaceN (last is) (fromLeft $ makeDecrType autoenv vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
     trep       = toRTypeRep $ unOCons t
+    fromLeft (Left x) = x 
 
 unOCons :: RType c tv r -> RType c tv r
 unOCons (RAllT v t r)      = RAllT v (unOCons t) r 
@@ -424,6 +432,9 @@ consCB _ _ γ (NonRec x _) | isDictionary x
     where
        isDictionary = isJust . dlookup (denv γ)
 
+
+consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
+  = return γ 
 
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
@@ -673,9 +684,9 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
 
 cconsE' γ e t
-  = do te  <- consE γ e
-       te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
+  = do  te  <- consE γ e
+        te' <- instantiatePreds γ e te >>= addPost γ
+        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
 lambdaSingleton γ tce x e

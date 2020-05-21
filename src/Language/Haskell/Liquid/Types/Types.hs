@@ -228,7 +228,7 @@ module Language.Haskell.Liquid.Types.Types (
   , Axiom(..), HAxiom
 
   -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
-  , rtyVarType
+  , rtyVarType, tyVarVar
   )
   where
 
@@ -602,6 +602,11 @@ instance NFData RTyCon
 
 rtyVarType :: RTyVar -> Type
 rtyVarType (RTV v) = TyVarTy v
+
+tyVarVar :: RTVar RTyVar c -> Var
+tyVarVar (RTVar (RTV v) _) = v
+
+
 
 mkBTyCon :: F.LocSymbol -> BTyCon
 mkBTyCon x = BTyCon x False False
@@ -1022,6 +1027,9 @@ instance F.Fixpoint BTyCon where
 
 instance F.Fixpoint Cinfo where
   toFix = text . showPpr . ci_loc
+
+instance Show Cinfo where
+  show = show . F.toFix
 
 instance F.PPrint RTyCon where
   pprintTidy k c 
@@ -2183,12 +2191,12 @@ instance B.Binary ty => B.Binary (RClass ty)
 -- | Var Hole Info -----------------------------------------------------
 ------------------------------------------------------------------------
 
-data HoleInfo t = HoleInfo {htype :: t, hloc :: SrcSpan, henv :: AREnv t }
+data HoleInfo i t = HoleInfo {htype :: t, hloc :: SrcSpan, henv :: AREnv t, info :: i }
 
-instance Functor HoleInfo where 
+instance Functor (HoleInfo i) where 
   fmap f hinfo = hinfo{htype = f (htype hinfo), henv = fmap f (henv hinfo)}
 
-instance (F.PPrint t) => F.PPrint (HoleInfo t) where
+instance (F.PPrint t) => F.PPrint (HoleInfo  i t) where
   pprintTidy k hinfo = text "type:" <+> F.pprintTidy k (htype hinfo) 
                        <+> text "\n loc:" <+> F.pprintTidy k (hloc hinfo) 
   -- to print the hole environment uncomment the following

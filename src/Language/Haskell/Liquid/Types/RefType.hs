@@ -86,6 +86,8 @@ module Language.Haskell.Liquid.Types.RefType (
   
   , tyVarsPosition, Positions(..)
 
+  , isNumeric
+
   ) where
 
 -- import           GHC.Stack
@@ -902,7 +904,7 @@ plainRTyConPVars tyi rc = (rc', rTyConPVs rc')
 -- RJ: The code of `isNumeric` is incomprehensible.
 -- Please fix it to use intSort instead of intFTyCon
 isNumeric :: TCEmb TyCon -> RTyCon -> Bool
-isNumeric tce c = mySort == FTC F.intFTyCon || mySort == F.FInt
+isNumeric tce c = F.isNumeric mySort 
   where
     -- mySort      = M.lookupDefault def rc tce
     mySort      = maybe def fst (F.tceLookup rc tce)
@@ -1743,7 +1745,7 @@ isDecreasing _ _ _
 makeDecrType :: Symbolic a
              => S.HashSet TyCon
              -> [(a, (Symbol, RType RTyCon t (UReft Reft)))]
-             -> (Symbol, RType RTyCon t (UReft Reft))
+             -> Either (Symbol, RType RTyCon t (UReft Reft)) String 
 makeDecrType autoenv = mkDType autoenv [] []
 
 mkDType :: Symbolic a
@@ -1751,9 +1753,9 @@ mkDType :: Symbolic a
         -> [(Symbol, Symbol, Symbol -> Expr)]
         -> [Expr]
         -> [(a, (Symbol, RType RTyCon t (UReft Reft)))]
-        -> (Symbol, RType RTyCon t (UReft Reft))
+        -> Either (Symbol, RType RTyCon t (UReft Reft)) String 
 mkDType autoenv xvs acc [(v, (x, t))]
-  = (x, ) $ t `strengthen` tr
+  = Left ((x, ) $ t `strengthen` tr)
   where
     tr = uTop $ Reft (vv, pOr (r:acc))
     r  = cmpLexRef xvs (v', vv, f)
@@ -1770,7 +1772,7 @@ mkDType autoenv xvs acc ((v, (x, t)):vxts)
 
 
 mkDType _ _ _ _
-  = panic Nothing "RefType.mkDType called on invalid input"
+  = Right "RefType.mkDType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
 isSizeable autoenv tc = S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
