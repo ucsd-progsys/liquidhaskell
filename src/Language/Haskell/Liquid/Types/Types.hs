@@ -115,7 +115,7 @@ module Language.Haskell.Liquid.Types.Types (
   -- * Constructing & Destructing RTypes
   , RTypeRep(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow
-  , mkUnivs, bkUniv, bkClass, bkUnivClass
+  , mkUnivs, bkUniv, bkClass, bkUnivClass, bkUnivClass'
   , rImpF, rFun, rCls, rRCls
 
   -- * Manipulating `Predicates`
@@ -1385,6 +1385,30 @@ bkUniv :: RType tv c r -> ([(RTVar c (RType tv c ()), r)], [PVar (RType tv c ())
 bkUniv (RAllT α t r) = let (αs, πs, t') = bkUniv t in ((α, r):αs, πs, t')
 bkUniv (RAllP π t)   = let (αs, πs, t') = bkUniv t in (αs, π:πs, t')
 bkUniv t             = ([], [], t)
+
+
+-- bkFun :: RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+-- bkFun (RFun x t t' r) = let (xs, ts, rs, t'') = bkFun t'  in (x:xs, t:ts, r:rs, t'')
+-- bkFun t               = ([], [], [], t)
+
+bkUnivClass' :: SpecType ->
+  ([(SpecRTVar, RReft)], [PVar RSort], [(Symbol, SpecType, RReft)], SpecType)
+bkUnivClass' t = (as, ps, zip3 bs ts rs, t2)
+  where
+    (as, ps, t1) = bkUniv  t
+    (bs, ts, rs, t2)     = bkClass' t1
+
+bkClass' :: TyConable t => RType t t1 a -> ([Symbol], [RType t t1 a], [a], RType t t1 a)
+bkClass' (RImpF x t@(RApp c _ _ _) t' r)
+  | isClass c
+  = let (xs, ts, rs, t'') = bkClass' t' in (x:xs, t:ts, r:rs, t'')
+bkClass' (RFun x t@(RApp c _ _ _) t' r)
+  | isClass c
+  = let (xs, ts, rs, t'') = bkClass' t' in (x:xs, t:ts, r:rs, t'')
+bkClass' (RRTy e r o t)
+  = let (xs, ts, rs, t'') = bkClass' t in (xs, ts, rs, RRTy e r o t'')
+bkClass' t
+  = ([], [],[],t)
 
 bkClass :: (F.PPrint c, TyConable c) => RType c tv r -> ([(c, [RType c tv r])], RType c tv r)
 bkClass (RImpF _ (RApp c t _ _) t' _)

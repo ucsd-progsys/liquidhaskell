@@ -188,23 +188,22 @@ plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
 
 plugHoles_new allowTC tce tyi x f t0 zz@(Loc l l' st0) 
     = Loc l l' 
-    . mkArrow (zip (updateRTVar <$> as'') rs) ps [] [] 
-    . makeCls cs' 
+    . mkArrow (zip (updateRTVar <$> as'') rs) ps [] (if length cs > length cs' then cs else cs')
+    -- . makeCls cs' 
     . goPlug tce tyi err f rt' 
     $ st 
   where 
     rt'          = tx rt
     as''         = subRTVar su <$> as'
     (as',rs)     = unzip as 
-    cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
+    -- cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
     su           = case Bare.runMapTyVars allowTC (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
-    (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,_ ,st) = bkUnivClass st0
+    (as,_,cs,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,cs' ,st) = bkUnivClass' st0
 
-    makeCls cs t = foldr (uncurry rFun) t cs
     err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
