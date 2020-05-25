@@ -630,7 +630,7 @@ exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
 exitWithResult cfg targets out = do
   annm <- {-# SCC "annotate" #-} annotate cfg targets out
-  whenNormal $ donePhase Loud "annotate"
+  whenLoud $ donePhase Loud "annotate"
   -- let r = o_result out -- `addErrors` o_errors out
   consoleResult cfg out annm
   return out -- { o_result = r }

@@ -4,6 +4,8 @@
   This executable is a simple wrapper around 'ghc', which gets passed an '-fplugin' option.
 -}
 
+import Control.Monad
+
 import System.Environment (lookupEnv, getArgs)
 import System.Process
 import System.Exit
@@ -12,9 +14,9 @@ import Data.Either (partitionEithers)
 import Data.Bifunctor
 import Data.Functor ((<&>))
 import qualified System.Console.CmdArgs.Explicit as CmdArgs
-import Data.List (partition, isPrefixOf)
+import Data.List (partition, isPrefixOf, (\\))
 
-import Language.Haskell.Liquid.UX.CmdLine (config)
+import Language.Haskell.Liquid.UX.CmdLine (config, printLiquidHaskellBanner, getOpts)
 
 type GhcArg    = String
 type LiquidArg = String
@@ -31,6 +33,11 @@ partitionArgs args = partitionEithers (map parseArg args)
     -- and not the LH executable.
     forwardToGhc :: String -> Bool
     forwardToGhc = isPrefixOf "-i"
+
+
+helpNeeded :: [String] -> Bool
+helpNeeded = elem "--help"
+
 
 main :: IO a
 main = do
@@ -68,5 +75,10 @@ main = do
                          <> map (mappend "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:") liquidArgs
                          <> ghcArgs
                          <> targets
+
+  -- Call into 'getOpts' so that things like the json reporter will correctly set the verbosity of the
+  -- logging and avoid printing the banner.
+  _ <- getOpts (args \\ ghcArgs)
+  unless (helpNeeded args) printLiquidHaskellBanner
 
   withCreateProcess p $ \_mbStdIn _mbStdOut _mbStdErr pHandle -> waitForProcess pHandle >>= exitWith

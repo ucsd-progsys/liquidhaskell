@@ -630,9 +630,7 @@ testCmd bin dir file smt (ExtraOptions (GhcSuitableOpts (LO ghcOpts)) (LiquidOnl
 #ifdef USE_NEW_EXECUTABLE
   = printf "%s -i. -i%s %s %s %s" bin dir ghcOpts liquidOpts (dir </> file)
   where
-    liquidOpts = 
-      let fullOpts = ("--smtsolver=" ++ show smt) : words liquidOnlyOpts
-      in L.intercalate " " . map (printf "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:%s") $ fullOpts
+    liquidOpts = ("--smtsolver=" ++ show smt) <> " " <> liquidOnlyOpts
 #else
   = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file (ghcOpts <> " " <> liquidOnlyOpts)
 #endif
