@@ -53,48 +53,23 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
 import           Data.Binary                             as B
 import           Data.Data                                ( Data )
 import           Data.Foldable
-import           Text.Parsec                              ( SourcePos )
 import           Outputable                        hiding ( (<>) )
 import           GHC.Generics                      hiding ( moduleName )
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
-import           GHC                                      ( LImportDecl
-                                                          , GhcRn
-                                                          , Name
+import           GHC                                      ( Name
                                                           , TyThing
                                                           , TyCon
                                                           )
 import           Var                                      ( Var )
-import           HscTypes                                 ( ModGuts )
-import           TcRnTypes                                ( TcGblEnv(tcg_rn_imports) )
-import           UniqFM
-import           Module                                   ( ModuleName
-                                                          , UnitId
-                                                          , Module(..)
-                                                          , moduleName
-                                                          , moduleUnitId
-                                                          , unitIdString
-                                                          , moduleNameString
-                                                          , mkModuleName
-                                                          , stringToUnitId
-                                                          , moduleStableString
-                                                          , stableModuleCmp
-                                                          )
+import           Module                                   ( Module, moduleStableString )
 
-import           Data.Map                                 ( Map )
-import qualified Data.Map.Strict                         as M
 import qualified Data.HashSet        as HS
-import           Data.HashSet                             ( HashSet )
 import           Data.Hashable
-import qualified Data.Text.Lazy                          as TL
 
 import           Language.Fixpoint.Types.Spans
-import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
-
-
-import qualified Data.List as L
 
 
 data LiquidLib = LiquidLib
@@ -151,16 +126,6 @@ cachedSpecModule (CachedSpec (StableModule m) _) = m
 
 fromCached :: CachedSpec -> (StableModule, LiftedSpec)
 fromCached (CachedSpec sm s) = (sm, s)
-
---
--- Merging specs together.
---
-
--- | Checks if the two input declarations are equal, by checking not only that their value
--- is the same, but also that they are declared exactly in the same place.
-sameSig :: (LocSymbol, LocBareType) -> (LocSymbol, LocBareType) -> Bool
-sameSig (ls1, lbt1) (ls2, lbt2) =
-  (ls1 == ls2 ) && (srcSpan lbt1 == srcSpan lbt2)
 
 ---
 --- A Liquid spec and its (many) flavours

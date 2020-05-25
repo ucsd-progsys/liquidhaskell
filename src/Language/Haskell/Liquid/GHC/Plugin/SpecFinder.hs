@@ -20,31 +20,23 @@ import           Language.Haskell.Liquid.GHC.Plugin.Util  ( pluginAbort, deseria
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs     hiding (Spec)
-import           Language.Haskell.Liquid.GHC.Interface
 import qualified Language.Haskell.Liquid.Misc            as Misc
 import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import           Optics
 import qualified Outputable                              as O
-import           GHC
+import           GHC                                     hiding (lookupModule)
 import           HscTypes
 import           CoreMonad                                ( getDynFlags )
-import           Module
 import           Finder                                   ( findExposedPackageModule
-                                                          , FindResult(..)
                                                           )
 
-import qualified Data.HashSet                            as HS
-import qualified Data.Map.Strict                         as M
-import qualified Data.List                               as L
-import           Data.Function                            ( (&) )
 import           Data.Bifunctor
 import           Data.Foldable
 import           Data.Maybe
 
 import           Control.Exception
-import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe

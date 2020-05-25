@@ -14,18 +14,9 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       ) where
 
 import           GhcPlugins                              as GHC
-import           Outputable                               ( SDoc
-                                                          , showSDoc
-                                                          , text
-                                                          , (<+>)
-                                                          , showSDocUnsafe
-                                                          )
 import           UniqDFM
 import           IfaceSyn
-import           GHC                                      ( DynFlags )
-import           CoreMonad                                ( CoreM )
 import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
-import           HscTypes                                 ( ModIface )
 import           Data.Foldable                            ( asum )
 
 import           Control.Monad.IO.Class
@@ -33,19 +24,16 @@ import           Control.Monad
 
 import qualified Data.Binary                             as B
 import           Data.Binary                              ( Binary )
-import qualified Data.Binary.Get                         as B
-import           Data.ByteString.Lazy                     ( ByteString )
 import qualified Data.ByteString.Lazy                    as B
 import           Data.Typeable
-import           Data.Maybe                               ( listToMaybe, catMaybes )
+import           Data.Maybe                               ( listToMaybe )
 import           Data.Data
 import           Data.Either                              ( partitionEithers )
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           , LiquidLib
                                                           )
-import           Language.Haskell.Liquid.Types.Specs      ( BareSpec )
-import           Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike)
+
 
 pluginAbort :: MonadIO m => String -> m a
 pluginAbort = liftIO . throwGhcExceptionIO . ProgramError
@@ -113,12 +101,6 @@ serialiseBinaryObject obj modGuts = annotated
 
     serialise :: Annotation
     serialise = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) obj)
-
-deserialiseBareSpec :: Module -> ExternalPackageState -> HomePackageTable -> Maybe BareSpec
-deserialiseBareSpec thisModule = deserialiseBinaryObject @BareSpec thisModule
-
-serialiseBareSpec :: BareSpec -> ModGuts -> ModGuts
-serialiseBareSpec specs = serialiseBinaryObject @BareSpec specs
 
 -- | Serialise a 'LiquidLib', removing the termination checks from the target.
 serialiseLiquidLib :: LiquidLib -> ModGuts -> ModGuts
