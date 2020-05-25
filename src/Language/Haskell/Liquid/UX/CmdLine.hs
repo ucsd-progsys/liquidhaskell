@@ -29,6 +29,9 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Diff check mode
    , diffcheck
 
+   -- * Show info about this version of LiquidHaskell
+   , printLiquidHaskellBanner
+
 ) where
 
 import Prelude hiding (error)
@@ -367,6 +370,16 @@ config = cmdArgsMode $ Config {
     = def 
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+  , maxMatchDepth 
+    = def
+        &= name "max-match-depth"
+        &= help "Define the number of expressions to pattern match on (typed-holes must be on to use this flag)."
+  , maxAppDepth
+    = def
+        &= name "max-app-depth"
+  , maxArgsDepth
+    = def 
+        &= name "max-args-depth"
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -391,9 +404,12 @@ getOpts as = do
                          as
   cfg    <- fixConfig cfg1
   when (json cfg) $ setVerbosity Quiet
-  whenNormal $ putStrLn copyright
   withSmtSolver cfg
 
+-- | Shows the LiquidHaskell banner, that includes things like the copyright, the
+-- git commit and the version.
+printLiquidHaskellBanner :: IO ()
+printLiquidHaskellBanner = whenNormal $ putStrLn copyright
 
 cmdArgsRun' :: Mode (CmdArgs a) -> [String] -> IO a
 cmdArgsRun' md as
@@ -600,6 +616,9 @@ defConfig = Config
   , compileSpec       = False
   , noCheckImports    = False
   , typedHoles        = False
+  , maxMatchDepth     = 4
+  , maxAppDepth       = 2
+  , maxArgsDepth      = 1
   }
 
 ------------------------------------------------------------------------

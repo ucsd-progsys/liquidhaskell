@@ -1,6 +1,7 @@
 {-# LANGUAGE NamedFieldPuns      #-}
 {-# LANGUAGE TupleSections       #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards     #-}
 
 {-@ LIQUID "--diff"     @-}
 
@@ -40,6 +41,8 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Solver
 import qualified Language.Fixpoint.Types as F
+import           Language.Haskell.Liquid.Types
+import           Language.Haskell.Liquid.Synthesize (synthesize)
 import           Language.Haskell.Liquid.Types.RefType (applySolution)
 import           Language.Haskell.Liquid.UX.Errors
 import           Language.Haskell.Liquid.UX.CmdLine
@@ -63,6 +66,7 @@ liquid :: [String] -> IO b
 --------------------------------------------------------------------------------
 liquid args = do 
   cfg     <- getOpts args 
+  printLiquidHaskellBanner
   (ec, _) <- runLiquid Nothing cfg
   exitWith ec
 
@@ -231,7 +235,6 @@ updTargetInfoTermVars i  = updInfo i  (ST.terminationVars i)
     updSpec   sp   vs = sp   { gsTerm = updSpTerm (gsTerm sp)   vs }
     updSpTerm gsT  vs = gsT  { gsNonStTerm = S.fromList vs         } 
       
-
 dumpCs :: CGInfo -> IO ()
 dumpCs cgi = do
   putStrLn "***************************** SubCs *******************************"
@@ -244,24 +247,28 @@ dumpCs cgi = do
 pprintMany :: (PPrint a) => [a] -> Doc
 pprintMany xs = vcat [ F.pprint x $+$ text " " | x <- xs ]
 
-instance Show Cinfo where
-  show = show . F.toFix
-
 solveCs :: Config -> FilePath -> CGInfo -> TargetInfo -> Maybe [String] -> IO (Output Doc)
 solveCs cfg tgt cgi info names = do
   finfo            <- cgInfoFInfo info cgi
-  F.Result r0 sol _ <- solve (fixConfig tgt cfg) finfo
+  let fcfg          = fixConfig tgt cfg
+  F.Result r0 sol _ <- solve fcfg finfo
   let failBs        = gsFail $ gsTerm $ giSpec info
   let (r,rf)        = splitFails (S.map val failBs) r0 
   let resErr        = applySolution sol . cinfoError . snd <$> r
   -- resModel_        <- fmap (e2u cfg sol) <$> getModels info cfg resErr
   let resModel_     = e2u cfg sol <$> resErr
-  let resModel      = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
+  let resModel'     = resModel_  `addErrors` (e2u cfg sol <$> logErrors cgi)
                                  `addErrors` makeFailErrors (S.toList failBs) rf 
-                                 `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info) 
+                                 `addErrors` makeFailUseErrors (S.toList failBs) (giCbs $ giSrc info)
+  let lErrors       = applySolution sol <$> logErrors cgi
+  hErrors          <- if (typedHoles cfg) 
+                        then synthesize tgt fcfg (cgi{holesMap = applySolution sol <$> holesMap  cgi}) 
+                        else return [] 
+  let resModel      = resModel' `addErrors` (e2u cfg sol <$> (lErrors ++ hErrors)) 
   let out0          = mkOutput cfg resModel sol (annotMap cgi)
   return            $ out0 { o_vars    = names    }
                            { o_result  = resModel }
+
 
 e2u :: Config -> F.FixSolution -> Error -> UserError
 e2u cfg s = fmap F.pprint . tidyError cfg s

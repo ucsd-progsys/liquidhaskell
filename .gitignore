@@ -36,6 +36,8 @@ cabal.sandbox.config
 .ghc.environment.*
 cabal.project.local
 
+tests/synthesis/logs/*
+!tests/synthesis/logs/.gitkeep
 /tests/logs/
 /.stack-work/
 /.vagrant/

@@ -7,6 +7,8 @@
 {-# LANGUAGE TupleSections        #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE MonoLocalBinds       #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE FlexibleInstances    #-}
 
 module Language.Haskell.Liquid.Types.PrettyPrint
   ( -- * Printable RTypes
@@ -26,6 +28,7 @@ import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import           Data.String
 import           ErrUtils                         (ErrMsg)
+import qualified CoreSyn as GHC
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F 
 import           Language.Haskell.Liquid.GHC.API  as Ghc hiding (maybeParen, LM)
@@ -62,6 +65,12 @@ instance PPrint SourceError where
   pprintTidy _ = text . show
 
 instance PPrint Var where
+  pprintTidy _ = pprDoc
+
+instance PPrint (GHC.Expr Var) where
+  pprintTidy _ = pprDoc
+
+instance PPrint (GHC.Bind Var) where
   pprintTidy _ = pprDoc
 
 instance PPrint Name where

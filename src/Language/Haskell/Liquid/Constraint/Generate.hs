@@ -19,7 +19,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints ) where
+module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
 
 #if !MIN_VERSION_base(4,14,0)
 import Control.Monad.Fail
@@ -76,6 +76,7 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -84,12 +85,18 @@ generateConstraints      :: TargetInfo -> CGInfo
 --------------------------------------------------------------------------------
 generateConstraints info = {-# SCC "ConsGen" #-} execState act $ initCGI cfg info
   where
-    act                  = consAct cfg info
+    act                  = do { γ <- initEnv info; consAct γ cfg info }
     cfg                  = getConfig   info
 
-consAct :: Config -> TargetInfo -> CG ()
-consAct cfg info = do
-  γ       <- initEnv      info
+generateConstraintsWithEnv :: TargetInfo -> CGInfo -> CGEnv -> CGInfo
+--------------------------------------------------------------------------------
+generateConstraintsWithEnv info cgi γ = {-# SCC "ConsGenEnv" #-} execState act cgi
+  where
+    act                  = consAct γ cfg info
+    cfg                  = getConfig   info
+
+consAct :: CGEnv -> Config -> TargetInfo -> CG ()
+consAct γ cfg info = do
   let sSpc = gsSig . giSpec $ info  
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
@@ -191,10 +198,11 @@ makeRecType :: (Enum a1, Eq a1, Num a1, F.Symbolic a)
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
-    (xs', ts') = unzip $ replaceN (last is) (makeDecrType autoenv vdxs) xts
+    (xs', ts') = unzip $ replaceN (last is) (fromLeft $ makeDecrType autoenv vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
     trep       = toRTypeRep $ unOCons t
+    fromLeft (Left x) = x 
 
 unOCons :: RType c tv r -> RType c tv r
 unOCons (RAllT v t r)      = RAllT v (unOCons t) r 
@@ -424,6 +432,9 @@ consCB _ _ γ (NonRec x _) | isDictionary x
     where
        isDictionary = isJust . dlookup (denv γ)
 
+
+consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
+  = return γ 
 
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
@@ -673,16 +684,16 @@ cconsE' γ (Var x) t | isHoleVar x && typedHoles (getConfig γ)
   = addHole x t γ 
 
 cconsE' γ e t
-  = do te  <- consE γ e
-       te' <- instantiatePreds γ e te >>= addPost γ
-       addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
+  = do  te  <- consE γ e
+        te' <- instantiatePreds γ e te >>= addPost γ
+        addC (SubC γ te' t) ("cconsE: " ++ "\n t = " ++ showpp t ++ "\n te = " ++ showpp te ++ GM.showPpr e)
 
 lambdaSingleton :: CGEnv -> F.TCEmb TyCon -> Var -> CoreExpr -> UReft F.Reft
 lambdaSingleton γ tce x e
   | higherOrderFlag γ, Just e' <- lamExpr γ e
   = uTop $ F.exprReft $ F.ELam (F.symbol x, sx) e'
   where
-    sx = typeSort tce $ varType x
+    sx = typeSort tce $ Ghc.expandTypeSynonyms $ varType x
 lambdaSingleton _ _ _ _
   = mempty
 
@@ -1029,11 +1040,17 @@ castTy γ t e _
   = castTy' γ t e
 
 
-castTy' _ τ (Var x)
+castTy' γ τ (Var x)
   = do t <- trueTy τ
        -- tx <- varRefType γ x -- NV HERE: the refinements of the var x do not get into the 
        --                      -- environment. Check 
-       return ((t `strengthen` (uTop $ F.uexprReft $ F.expr x)) {- `F.meet` tx -})
+       let ce = eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) 
+                       (typeSort (emb γ) τ) 
+                       $ F.expr x  
+       return ((t `strengthen` (uTop $ F.uexprReft $ ce)) {- `F.meet` tx -})
+  where eCoerc s t e 
+         | s == t    = e
+         | otherwise = F.ECoerc s t e 
 
 castTy' γ t (Tick _ e)
   = castTy' γ t e
@@ -1304,7 +1321,7 @@ lamExpr γ (Let (NonRec x ex) e) = case (lamExpr γ ex, lamExpr γ e) of
                                        (Just px, Just p) -> Just (p `F.subst1` (F.symbol x, px))
                                        _  -> Nothing
 lamExpr γ (Lam x e)   = case lamExpr γ e of
-                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ varType x) p
+                            Just p -> Just $ F.ELam (F.symbol x, typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) p
                             _ -> Nothing
 lamExpr _ _           = Nothing
 
