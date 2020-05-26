@@ -342,8 +342,8 @@ liquidHaskellPass cfg modGuts = do
       -- despite the name, 'exitWithResult' simply print on stdout extra info.
       void . liftIO $ LH.exitWithResult cfg [giTarget (giSrc pmrTargetInfo)] out
       case o_result out of
-        Safe -> pure ()
-        _    -> liftIO exitFailure
+        Safe _stats -> pure ()
+        _           -> liftIO exitFailure
 
       debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
       pure finalGuts

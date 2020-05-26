@@ -243,7 +243,7 @@ mkAnnMap cfg res ann     = ACSS.Ann
                              }
 
 mkStatus :: FixResult t -> ACSS.Status
-mkStatus (Safe)          = ACSS.Safe
+mkStatus (Safe _)        = ACSS.Safe
 mkStatus (Unsafe _)      = ACSS.Unsafe
 mkStatus (Crash _ _)     = ACSS.Error
 

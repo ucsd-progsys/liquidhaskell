@@ -169,7 +169,7 @@ checkTargetInfo :: TargetInfo -> IO (Output Doc)
 checkTargetInfo info
   | compileSpec cfg = do 
     donePhase Loud "Only compiling specifications [skipping verification]"
-    pure mempty { o_result = F.Safe }
+    pure mempty { o_result = F.Safe mempty }
   | otherwise = do
     whenLoud $ donePhase Loud "Extracted Core using GHC"
     -- whenLoud  $ do putStrLn $ showpp info
@@ -300,11 +300,11 @@ makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
 
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)
-splitFails _ r@(F.Safe)      = (r,mempty)
+splitFails _ r@(F.Safe _)    = (r,mempty)
 splitFails fs (F.Unsafe xs)  = (mkRes r, snd <$> rfails)
   where 
     (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
-    mkRes [] = F.Safe
+    mkRes [] = F.Safe mempty
     mkRes xs = F.Unsafe xs 
 
   

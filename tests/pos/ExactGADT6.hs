@@ -6,7 +6,7 @@
 module ExactGADT6 where
 
 class PersistEntity record where
-    data EntityField record :: * -> *
+    data EntityField record ty :: *
 
 instance PersistEntity Blob where
     {-@ data EntityField Blob typ where

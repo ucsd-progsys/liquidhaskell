@@ -62,6 +62,7 @@ import Language.Fixpoint.Misc
 import Language.Fixpoint.Types.Names
 import Language.Fixpoint.Types             hiding (panic, Error, Result, saveQuery)
 import qualified Language.Fixpoint.Types as F
+import Language.Fixpoint.Solver.Stats as Solver
 import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.GHC.Misc
@@ -72,7 +73,7 @@ import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 
 import Text.Parsec.Pos                     (newPos)
-import Text.PrettyPrint.HughesPJ           hiding (Mode)
+import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
 
 
 
@@ -649,13 +650,13 @@ consoleResultFull cfg out _ = do
 
 consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
 consoleResultJson _ _ annm = do
-  putStrLn "RESULT"
+  putStrLn "LIQUID"
   B.putStrLn . encode . annErrors $ annm
 
 resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
-resultWithContext (F.Unsafe es)   = F.Unsafe      <$> errorsWithContext es
-resultWithContext (F.Crash  es s) = (`F.Crash` s) <$> errorsWithContext es
-resultWithContext (F.Safe)        = return F.Safe 
+resultWithContext (F.Unsafe es)    = F.Unsafe      <$> errorsWithContext es
+resultWithContext (F.Crash  es s)  = (`F.Crash` s) <$> errorsWithContext es
+resultWithContext (F.Safe   stats) = return (F.Safe stats)
 
 instance Show (CtxError Doc) where
   show = showpp
@@ -679,9 +680,9 @@ writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
 
 
 resDocs :: F.Tidy -> F.FixResult CError -> [Doc]
-resDocs _ F.Safe           = [text "RESULT: SAFE"]
-resDocs k (F.Crash xs s)   = text "RESULT: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
-resDocs k (F.Unsafe xs)    = text "RESULT: UNSAFE" : pprManyOrdered k "" (nub xs)
+resDocs _ (F.Safe  stats)  = [text $ "LIQUID: SAFE (" <> show (Solver.numChck stats) <> " constraints checked)"]
+resDocs k (F.Crash xs s)   = text "LIQUID: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
+resDocs k (F.Unsafe xs)    = text "LIQUID: UNSAFE" : pprManyOrdered k "" (nub xs)
 
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
@@ -695,7 +696,7 @@ reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys
 
 addErrors :: FixResult a -> [a] -> FixResult a
 addErrors r []             = r
-addErrors Safe errs        = Unsafe errs
+addErrors (Safe _) errs    = Unsafe errs
 addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
 
