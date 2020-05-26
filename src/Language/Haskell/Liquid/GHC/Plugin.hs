@@ -192,16 +192,23 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
   -- \"The ugly hack\": grab the unoptimised core binds here.
   --
 
-  -- Optimisation: If this is running with '-O0' and with 'HscInterpreted', we avoid the
-  -- extra call to 'parseModule'.
-  interpreted     <- isInteractive <$> getDynFlags
-  parsed          <- if | interpreted -> pure ParsedModule {
-                                           pm_mod_summary = modSummary
-                                         , pm_parsed_source = hpm_module parsedModule
-                                         , pm_extra_src_files = hpm_src_files parsedModule
-                                         , pm_annotations = hpm_annotations parsedModule
-                                         }
-                        | otherwise   -> GhcMonadLike.parseModule (LH.keepRawTokenStream modSummary)
+  -- Run 'parseModule' with a \"cleaned\" 'ModSummary'. We need this to avoid entering in an endless loop when
+  -- the LiquidHaskell plugin code runs via GHCi. The culprit seems to be the definition of 'parseModule',
+  -- which calls 'hscParse', and the latter has these lines at the end:
+  --
+  --    -- apply parse transformation of plugins
+  --    let applyPluginAction p opts
+  --          = parsedResultAction p opts mod_summary
+  --    withPlugins dflags applyPluginAction res
+  --
+  -- This seems to suggest we call any plugin-registered parsing hooks, including ours (!!), leading to
+  -- a loop, albeit it's unclear why this does not happen for non-interactive GHC. What we do here, instead,
+  -- is to clean all the plugins from the 'DynFlags' we use in the sandbox, so that we break the recursion.
+  let cleanedSummary = modSummary { ms_hspp_opts = (ms_hspp_opts modSummary) { cachedPlugins = []
+                                                                             , staticPlugins = []
+                                                                             }
+                                  }
+  parsed <- GhcMonadLike.parseModule (LH.keepRawTokenStream cleanedSummary)
 
   -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
   -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere.
@@ -210,7 +217,7 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
 
   liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
 
-  --debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
+  debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
 
   -- Resolve names and imports
   env <- askHscEnv
@@ -226,7 +233,7 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
   let thisModule = ms_mod modSummary
   let stableData = mkTcData typechecked resolvedNames availTyCons availVars
 
-  --debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
+  debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
 
   -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
   liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
@@ -252,10 +259,6 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
 --------------------------------------------------------------------------------
-
--- | Returns 'True' if this likely to be an \"interactive\" session (e.g. 'ghci').
-isInteractive :: DynFlags -> Bool
-isInteractive df = optLevel df == 0 && hscTarget df == HscInterpreted
 
 -- | LiquidHaskell requires the unoptimised core binds in order to work correctly, but at the same time the
 -- user can invoke GHC with /any/ optimisation flag turned out. This is why we grab the core binds by
@@ -467,11 +470,11 @@ processModule LiquidHaskellContext{..} = do
                                          (S.toList lhRelevantModules)
 
   debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
-  forM_ (HM.keys . getDependencies $ dependencies) $ 
-    debugLog . moduleStableString . unStableModule
+  when debugLogs $
+    forM_ (HM.keys . getDependencies $ dependencies) $ debugLog . moduleStableString . unStableModule
 
-  --debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
-  --debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
+  debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
+  debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
 
@@ -526,13 +529,11 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   let things         = tcResolvedNames tcData
   let impVars        = LH.importVars coreBinds ++ LH.classCons (mgi_cls_inst mgiModGuts)
 
-  --liftIO $ do
-  --  print $ "_gsTcs   => " ++ show allTcs
-  --  print $ "_gsFiTcs => " ++ show fiTcs
-  --  print $ "_gsFiDcs => " ++ show fiDcs
-  --  print $ "dataCons => " ++ show dataCons
-  --  print $ "defVars  => " ++ show (L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData)
-
+  debugLog $ "_gsTcs   => " ++ show allTcs
+  debugLog $ "_gsFiTcs => " ++ show fiTcs
+  debugLog $ "_gsFiDcs => " ++ show fiDcs
+  debugLog $ "dataCons => " ++ show dataCons
+  debugLog $ "defVars  => " ++ show (L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData)
 
   return $ TargetSrc
     { giIncDir    = mempty
