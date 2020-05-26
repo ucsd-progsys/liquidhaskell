@@ -167,6 +167,7 @@ result cfg wkl s = do
   lift $ writeLoud "Computing Result"
   stat    <- result_ cfg wkl s
   lift $ whenLoud $ putStrLn $ "RESULT: " ++ show (F.sid <$> stat)
+
   F.Result (ci <$> stat) <$> solResult cfg s <*> return mempty
   where
     ci c = (F.subcId c, F.sinfo c)
@@ -175,11 +176,14 @@ solResult :: Config -> Sol.Solution -> SolveM (M.HashMap F.KVar F.Expr)
 solResult cfg = minimizeResult cfg . Sol.result
 
 result_ :: (F.Loc a, NFData a) => Config -> W.Worklist a -> Sol.Solution -> SolveM (F.FixResult (F.SimpC a))
-result_  cfg w s = res <$> filterM (isUnsat s) cs
+result_  cfg w s = do
+  filtered <- filterM (isUnsat s) cs
+  sts      <- stats
+  pure $ res sts filtered
   where
-    cs           = isChecked cfg (W.unsatCandidates w)
-    res []       = F.Safe
-    res cs'      = F.Unsafe cs'
+    cs         = isChecked cfg (W.unsatCandidates w)
+    res sts [] = F.Safe sts
+    res _ cs'  = F.Unsafe cs'
 
 isChecked :: Config -> [F.SimpC a] -> [F.SimpC a]
 isChecked cfg cs = case checkCstr cfg of 
