@@ -634,7 +634,10 @@ renameBinderSort f = rename
 --   for identifiers (compared to using the string API)
 fixExprToHsExpr :: S.HashSet F.Symbol -> F.Expr -> LHsExpr GhcPs
 fixExprToHsExpr env (F.ECon c) = constantToHsExpr c
-fixExprToHsExpr env (F.EVar x) = nlHsVar (symbolToRdrName env x)
+fixExprToHsExpr env (F.EVar x)
+  | x == "GHC.Types.[]" =  GM.notracePpr "Empty" $ nlHsVar (mkVarUnqual (mkFastString "[]"))
+  | x == "GHC.Types.:" = GM.notracePpr "Cons" $ nlHsVar (mkVarUnqual (mkFastString ":"))
+  | otherwise = GM.notracePpr "Var" $ nlHsVar (symbolToRdrName env x)
 fixExprToHsExpr env (F.EApp e0 e1) =
   mkHsApp (fixExprToHsExpr env e0) (fixExprToHsExpr env e1)
 fixExprToHsExpr env (F.ENeg e) =
