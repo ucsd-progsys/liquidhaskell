@@ -589,13 +589,23 @@ extraOptions dir absDir testFileFullPath = mappend (dirOpts dir) (testOpts testF
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-        , mkGhcOpt (LO $ printf "-i%s/include " absDir)
+        , mkGhcOpt (LO $ printf "-i%s/include " absDir) <>
+#ifdef USE_NEW_EXECUTABLE
+          mkGhcOpt (LO "-w")
+#else
+          mkLiquidOpt (LO "--ghc-option=-w")
+#endif
         )
       , ( "benchmarks/text-0.11.2.3"
         , mkLiquidOpt "--bscope --no-check-imports " <>
           mkGhcOpt    (LO $ printf "-i%s/../bytestring-0.9.2.1 " absDir) <>
           mkGhcOpt    (LO $ printf "-i%s/../bytestring-0.9.2.1/include " absDir) <>
-          mkGhcOpt    (LO $ printf "-i%s/../../include" absDir)
+          mkGhcOpt    (LO $ printf "-i%s/../../include" absDir) <>
+#ifdef USE_NEW_EXECUTABLE
+          mkGhcOpt    (LO "-w")
+#else
+          mkLiquidOpt (LO "--ghc-option=-w")
+#endif
         )
       , ( "benchmarks/vector-0.10.0.1"
         , mkGhcOpt (LO $ printf "-i%s/." absDir)
