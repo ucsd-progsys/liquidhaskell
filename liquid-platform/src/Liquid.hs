@@ -55,9 +55,14 @@ main = do
   let (cliArgs, targets)    = partition (isPrefixOf "-") args
   let (ghcArgs, liquidArgs) = partitionArgs cliArgs
 
+  -- NOTE: Typically for the executable we want to recompile everything-everytime so that
+  -- we could always get an "answer" out of LH. However, using `-fforce-recomp` as the default
+  -- is dangerous, because the executable is used also during tests, so runtime is going to be
+  -- badly affected. If users wants to enable recompilation, they would simply pass
+  -- '-fforce-recomp' as a CLI argument.
+
   let p = proc ghcPath $ [ "-O0"
                          , "-no-link"
-                         , "-fforce-recomp"
                          , "-fplugin=Language.Haskell.Liquid.GHC.Plugin"
                          , "-plugin-package", "liquidhaskell"
                          , "-package", "liquid-ghc-prim"
