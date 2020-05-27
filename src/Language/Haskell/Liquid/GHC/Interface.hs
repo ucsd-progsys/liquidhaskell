@@ -538,7 +538,7 @@ qImports qns  = QImports
 ---------------------------------------------------------------------------------------
 lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
 lookupTyThings hscEnv tcm mg =
-  forM (mgNames mg) $ \n -> do 
+  forM (mgNames mg ++ instNames mg) $ \n -> do 
     tt1 <-          lookupName                   n 
     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
     tt3 <-          modInfoLookupName mi         n 
@@ -580,6 +580,9 @@ _dumpRdrEnv _hscEnv modGuts = do
 
 mgNames :: MGIModGuts -> [Ghc.Name] 
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
+
+instNames :: MGIModGuts -> [Ghc.Name]
+instNames = fmap is_dfun_name . join . maybeToList . mgi_cls_inst
 
 ---------------------------------------------------------------------------------------
 -- | @makeDependencies@ loads BareSpec for target and imported modules 

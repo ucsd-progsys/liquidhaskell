@@ -78,14 +78,14 @@ import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
-import           Control.Monad                              ((>=>))
+import           Control.Monad                              ((>=>), foldM)
 import           Outputable                                 (Outputable (..), text, ppr)
 import qualified Outputable                                 as Out
 import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
-import           Language.Fixpoint.Misc                     (safeHead) -- , safeLast, safeInit)
+import           Language.Fixpoint.Misc                     (safeHead, safeLast, errorstar) -- , safeLast, safeInit)
 import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
@@ -168,6 +168,18 @@ stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
    where
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
       occ  = mkVarOcc s
+
+-- FIXME: plugging in dummy type like this is really dangerous
+maybeAuxVar :: Symbol -> Maybe Var
+maybeAuxVar s
+  | isMethod sym = Just sv
+  | otherwise = Nothing 
+  where (_, uid) = splitModuleUnique s
+        sym = dropModuleNames s
+        sv = mkExportedLocalId VanillaId name anyTy 
+        -- 'x' is chosen for no particular reason..
+        name = mkInternalName (mkUnique 'x' uid) occ noSrcSpan
+        occ = mkVarOcc (T.unpack (symbolText sym))
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon = stringTyConWithKind anyTy
@@ -640,6 +652,23 @@ instance NFData Var where
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
+
+takeModuleUnique :: Symbol -> Symbol
+takeModuleUnique = mungeNames tailName sepUnique   "takeModuleUnique: "
+  where
+    tailName msg = symbol . safeLast msg
+
+splitModuleUnique :: Symbol -> (Symbol, Int)
+splitModuleUnique x = (dropModuleNamesAndUnique x, base62ToI (takeModuleUnique x))
+
+base62ToI :: Symbol -> Int
+base62ToI s =  fromMaybe (errorstar "base62ToI Out Of Range") $ go (F.symbolText s)
+  where
+    digitToI :: OM.Map Char Int
+    digitToI = OM.fromList $ zip (['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']) [0..]
+    f acc (flip OM.lookup digitToI -> x) = (acc * 62 +) <$> x
+    go s = foldM f 0 (T.unpack s)
+
 
 splitModuleName :: Symbol -> (Symbol, Symbol)
 splitModuleName x = (takeModuleNames x, dropModuleNamesAndUnique x)

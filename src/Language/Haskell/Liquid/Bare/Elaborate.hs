@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveFunctor             #-}
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE LambdaCase                #-}
+{-# LANGUAGE OverloadedStrings         #-}
 -- | This module uses GHC API to elaborate the resolves expressions
 
 -- TODO: Genearlize to BareType and replace the existing resolution mechanisms
@@ -551,7 +552,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                 coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore')
               (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
               (dictbs, nondictbs) =
-                L.partition (F.isPrefixOfSym (F.symbol "$d")) bs'
+                L.partition (F.isPrefixOfSym "$d") bs'
           -- invariant: length nondictbs == length origBinders
               subst = if length nondictbs == length origBinders
                 then F.notracepp "SUBST" $ zip (L.reverse nondictbs) origBinders
@@ -776,6 +777,43 @@ specTypeToLHsType =
     RHoleF _                 -> noLoc $ HsWildCardTy NoExtField
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
+
+
+bareTypeToLHsType :: BareType -> LHsType GhcPs
+-- surprised that the type application is necessary
+bareTypeToLHsType =
+  flip (ghylo (distPara @BareType) distAna) (fmap pure . project) $ \case
+    RVarF (BTV tv) _ -> nlHsTyVar
+      -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
+      (symbolToRdrNameNs tvName (F.symbol tv)) 
+    RFunF _ (tin, tin') (_, tout) _
+      | isClassType tin -> noLoc $ HsQualTy NoExtField (noLoc [tin']) tout
+      | otherwise       -> nlHsFunTy tin' tout
+    RImpFF _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
+    RAllTF (ty_var_value -> (BTV tv)) (_, t) _ -> noLoc $ HsForAllTy
+      NoExtField
+      ForallInvis
+      [noLoc $ UserTyVar NoExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
+      t
+    RAllPF _ (_, ty)                    -> ty
+    RAppF BTyCon { btc_tc = tc } ts _ _ -> nlHsTyConApp
+      (symbolToRdrNameNs tcName (F.val tc))
+      [ hst | (t, hst) <- ts, notExprArg t ]
+     where
+      notExprArg (RExprArg _) = False
+      notExprArg _            = True
+    RAllEF _ (_, tin) (_, tout) -> nlHsFunTy tin tout
+    RExF   _ (_, tin) (_, tout) -> nlHsFunTy tin tout
+    -- impossible
+    RAppTyF _ (RExprArg _, _) _ ->
+      impossible Nothing "RExprArg should not appear here"
+    RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
+    -- YL: todo..
+    RRTyF _ _ _ (_, t)       -> t
+    RHoleF _                 -> noLoc $ HsWildCardTy NoExtField
+    RExprArgF _ ->
+      todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
+
 
 -- the core expression returned by ghc might be eta-expanded
 -- we need to do elimination so Pred doesn't contain lambda terms

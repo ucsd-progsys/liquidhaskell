@@ -29,6 +29,7 @@ module Language.Haskell.Liquid.Bare (
 import           Prelude                                    hiding (error)
 import           Optics
 import           Control.Monad                              (unless, when, void, forM)
+import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B
 import qualified Data.Maybe                                 as Mb
@@ -781,7 +782,8 @@ allAsmSigs env myName specs = Misc.groupList
 
 resolveAsmVar :: Bare.Env -> ModName -> Bool -> LocSymbol -> Maybe Ghc.Var 
 resolveAsmVar env name True  lx = Just $ Bare.lookupGhcVar env name "resolveAsmVar-True"  lx
-resolveAsmVar env name False lx = Bare.maybeResolveSym     env name "resolveAsmVar-False" lx  
+resolveAsmVar env name False lx = Bare.maybeResolveSym     env name "resolveAsmVar-False" lx
+                              <|> GM.maybeAuxVar (F.val lx)
 
 getAsmSigs :: ModName -> ModName -> Ms.BareSpec -> [(Bool, LocSymbol, LocBareType)]  
 getAsmSigs myName name spec 
