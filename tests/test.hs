@@ -69,11 +69,11 @@ unitTests
   = group "Unit" [
       testGroup "native-pos" <$> dirTests nativeCmd "tests/pos"    skipNativePos  ExitSuccess
     , testGroup "native-neg" <$> dirTests nativeCmd "tests/neg"    ["float.fq"]   (ExitFailure 1)
-    , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []             (ExitFailure 2)
+    , testGroup "elim-crash" <$> dirTests nativeCmd "tests/crash"  []             (ExitFailure 1)
     , testGroup "elim-pos1"  <$> dirTests elimCmd   "tests/pos"    []             ExitSuccess
     , testGroup "elim-pos2"  <$> dirTests elimCmd   "tests/elim"   []             ExitSuccess
     , testGroup "elim-neg"   <$> dirTests elimCmd   "tests/neg"    ["float.fq"]   (ExitFailure 1)
-    , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 2)
+    , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
 
