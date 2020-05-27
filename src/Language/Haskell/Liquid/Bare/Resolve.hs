@@ -57,6 +57,7 @@ import qualified Data.List                         as L
 import qualified Data.HashSet                      as S 
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
+import qualified Data.Text                         as T
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
 
 import qualified Language.Fixpoint.Utils.Files         as F 
@@ -622,9 +623,32 @@ matchMod env tgtName defName allowExt = go
      && ms == [tgtName]   = [0]                       -- local variable, see tests-names-pos-local00.hs
      | ms == [defName]    = [1]
      | allowExt && isExt  = [matchImp env defName 2]  -- to allow matching re-exported names e.g. Data.Set.union for Data.Set.Internal.union
-     | otherwise          = []  
+     | otherwise          = []
      where 
-       isExt              = allowExt && any (`F.isPrefixOfSym` defName) ms
+       isExt              = any (`isParentModuleOf` defName) ms
+
+-- | Returns 'True' if the 'Symbol' given as a first argument represents a parent module for the second.
+--
+-- >>> L.symbolic "Data.Text" `isParentModuleOf` L.symbolic "Data.Text.Internal"
+-- True
+--
+-- Invariants:
+--
+-- * The empty 'Symbol' is always considered the module prefix of the second,
+--   in compliance with 'isPrefixOfSym' (AND: why?)
+-- * If the parent \"hierarchy\" is smaller than the children's one, this is clearly not a parent module.
+isParentModuleOf :: F.Symbol -> F.Symbol -> Bool
+isParentModuleOf parentModule childModule
+  | isEmptySymbol parentModule = True
+  | otherwise                  =
+    length parentHierarchy <= length childHierarchy && all (uncurry (==)) (zip parentHierarchy childHierarchy)
+  where
+    parentHierarchy :: [T.Text]
+    parentHierarchy = T.splitOn "." . F.symbolText $ parentModule
+
+    childHierarchy :: [T.Text]
+    childHierarchy = T.splitOn "." . F.symbolText $ childModule
+
 
 symbolModules :: Env -> F.Symbol -> (F.Symbol, Maybe [F.Symbol])
 symbolModules env s = (x, glerb <$> modMb) 
