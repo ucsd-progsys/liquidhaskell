@@ -118,7 +118,7 @@ checkTargetSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
                      ++ checkMeasures emb env ms
                      ++ checkClassMeasures                                        (gsMeasures (gsData sp))
                      ++ checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
-                     ++ mapMaybe checkMismatch                     sigs
+                     ++ mapMaybe checkMismatch                     (L.filter (\(v,_) -> not (GM.isSCSel v || GM.isMethod v)) sigs)
                      ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
