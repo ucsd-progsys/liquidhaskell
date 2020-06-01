@@ -40,6 +40,17 @@ You may want to [try LiquidHaskell online](http://goto.ucsd.edu:8090/index.html)
 
 See [install instructions](INSTALL.md)
 
+Usage
+-----
+
+**As of Q2 2020, LiquidHaskell is now available as a GHC [compiler plugin][], but we still offer a temporary
+executable (which uses the plugin internally) to give users enough time to complete migrations to the new
+system**. In the rest of the section we will refer to the `liquid` executable but virtually all the commands
+shown below are easily portable to the plugin. For a more thorough description of how the source plugin
+works, checkout the [Tutorial](src/Language/Haskell/Liquid/GHC/Plugin/Tutorial.hs) documentation.
+
+**We recommend switching to the new compiler plugin as soon as possible.**
+
 How To Run
 ----------
 
@@ -1655,4 +1666,4 @@ Here's the magic diff that we did at some point that we keep bumping up to new G
 
 https://github.com/ucsd-progsys/liquidhaskell/commit/d380018850297b8f1878c33d0e4c586a1fddc2b8#diff-3644b76a8e6b3405f5492d8194da3874R224 
 
-
+[compiler plugin]: https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/extending_ghc.html#compiler-plugins

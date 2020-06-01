@@ -175,6 +175,7 @@ library
 
   if impl(ghc >= 8.10)
       exposed-modules:    Language.Haskell.Liquid.GHC.Plugin
+                          Language.Haskell.Liquid.GHC.Plugin.Tutorial
       other-modules:      Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                           Language.Haskell.Liquid.GHC.Plugin.Types
                           Language.Haskell.Liquid.GHC.Plugin.Util
