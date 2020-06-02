@@ -210,8 +210,6 @@ makeGhcSpec0 cfg src lmap mspecs = SP
                 -- Preserve user-defined 'dvariance'.
               , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
                 -- Preserve rinstances.
-              , invariants = Ms.invariants finalLiftedSpec ++ Ms.invariants mySpec
-                -- Preserve invariants.
               }
   }
   where
