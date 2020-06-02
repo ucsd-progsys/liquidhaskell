@@ -486,24 +486,24 @@ cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> Lo
               -> Either UserError LocSpecType 
 -----------------------------------------------------------------------------------------
 cookSpecTypeE env sigEnv name@(ModName _ mname) x bt
-  = id 
-  . fmap (if doplug then plugHoles (typeclass (getConfig env)) sigEnv name x else id) 
+  = id
+  . fmap (if doplug then plugHoles allowTC sigEnv name x else id) 
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
-  . fmap (if doplug then maybePlug (typeclass (getConfig env))  sigEnv name x else id)
+  . fmap (if doplug then maybePlug allowTC  sigEnv name x else id)
   -- we do not qualify/resolve Expr/Pred when typeclass is enabled
   -- since ghci will not be able to recognize fully qualified names
   -- instead, we leave qualification to ghc elaboration
-  . fmap (if typeclass (getConfig env) then id else Bare.qualifyTop env name l) 
+  . fmap (Bare.qualifyTop env name l )
   . bareSpecType       env name 
   . bareExpandType     rtEnv
   $ bt 
   where
     allowTC = typeclass (getConfig env)
-    modT   = mname `S.member` wiredInMods
+    -- modT   = mname `S.member` wiredInMods
     doplug
       | Bare.LqTV v <- x
       , GM.isMethod v || GM.isSCSel v

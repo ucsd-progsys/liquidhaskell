@@ -13,9 +13,11 @@ where
 import           Control.Monad                  ( forM, guard )
 import qualified Data.List                     as L
 import qualified Data.HashSet                  as S
+import           Data.Hashable                  ()
 import qualified Data.Maybe                    as Mb
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Misc        as Misc
+import           Optics
 import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
@@ -279,6 +281,35 @@ substClassOpBinding tcbind dc methods e = go e
   go e                    = e
 
 
+renameTvs :: (F.Symbolic tv, F.PPrint tv) => (tv -> tv) -> RType c tv r -> RType c tv r
+renameTvs rename t
+  | RVar tv r <- t
+  = RVar (rename tv) r
+  | RFun b tin tout r <- t
+  = RFun b (renameTvs rename tin) (renameTvs rename tout) r
+  | RImpF b tin tout r <- t
+  = RImpF b (renameTvs rename tin) (renameTvs rename tout) r
+  | RAllT (RTVar tv info) tres r <- t
+  = RAllT (RTVar (rename tv) info) (renameTvs rename tres) r
+  | RAllP b tres <- t
+  = RAllP (renameTvs rename <$> b) (renameTvs rename tres)
+  | RApp tc ts tps r <- t
+  -- TODO: handle rtprop properly
+  = RApp tc (renameTvs rename <$> ts) tps r
+  | RAllE b allarg ty <- t
+  = RAllE b (renameTvs rename allarg) (renameTvs rename ty)
+  | REx b exarg ty <- t
+  = REx b   (renameTvs rename exarg) (renameTvs rename ty)
+  | RExprArg _ <- t
+  = t
+  | RAppTy arg res r <- t
+  = RAppTy (renameTvs rename arg) (renameTvs rename res) r
+  | RRTy env r obl ty <- t
+  = RRTy (over (each % _2) (renameTvs rename) env) r obl (renameTvs rename ty)
+  | RHole _ <- t
+  = t
+  
+
 makeClassAuxTypes ::
      (SpecType -> Ghc.Ghc SpecType)
   -> [F.Located DataConP]
@@ -295,7 +326,6 @@ makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcp
       guard $ dc == dc'
       pure (dcp, inst, methods)
 
-      
 makeClassAuxTypesOne ::
      (SpecType -> Ghc.Ghc SpecType)
   -> (F.Located DataConP, Ghc.ClsInst, [Ghc.Var])
@@ -321,7 +351,12 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     elaboratedSig  <- flip addCoherenceOblig preft <$> elab fullSig
 
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
-    pure (method, F.dummyLoc retSig)
+    let tysub  = M.fromList $ zip (allTyVars retSig) (allTyVars (ofType (Ghc.varType method) :: SpecType))
+        cosub  = M.fromList [ (F.symbol a, F.fObj (GM.namedLocSymbol b)) |  (a,RTV b) <- M.toList tysub]
+        tysubf x = F.notracepp ("cosub:" ++ F.showpp cosub) $ tysub ^. at x % non x
+        subbedTy = mapReft (Bare.coSubRReft cosub) (renameTvs tysubf retSig)
+    -- need to make the variable names consistent
+    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars subbedTy)) $ subbedTy))
 
   -- "is" is used as a shorthand for instance, following the convention of the Ghc api
   where

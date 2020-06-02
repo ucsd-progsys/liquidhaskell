@@ -36,7 +36,8 @@ module Language.Haskell.Liquid.Bare.Resolve
   , knownGhcType 
 
   -- * Misc 
-  , srcVars 
+  , srcVars
+  , coSubRReft
 
   -- * Conversions from Bare
   , ofBareTypeE
@@ -693,8 +694,8 @@ ofBareType env name l ps t = either fail id (ofBareTypeE env name l ps t)
     -- fail                   = Misc.errorP "error-ofBareType" . F.showpp 
 
 ofBareTypeE :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> Either UserError SpecType
-ofBareTypeE env name l ps t = ofBRType env name (if allowTC then const id else resolveReft env name l ps t) l t
-  where allowTC = typeclass (getConfig env) -- don't resolve here. resolve later using elaboration instead
+ofBareTypeE env name l ps t = ofBRType env name (resolveReft env name l ps t) l t
+--  where allowTC = False -- don't resolve here. resolve later using elaboration instead
 
 resolveReft :: Env -> ModName -> F.SourcePos -> Maybe [PVar BSort] -> BareType -> [F.Symbol] -> RReft -> RReft 
 resolveReft env name l ps t bs
