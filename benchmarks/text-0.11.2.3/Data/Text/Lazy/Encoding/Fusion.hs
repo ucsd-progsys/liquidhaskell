@@ -1,4 +1,6 @@
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
+{-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--compile-spec" @-}
 
 -- |
 -- Module      : Data.Text.Lazy.Encoding.Fusion
@@ -38,7 +40,7 @@ import Data.Text.Fusion (Step(..), Stream(..))
 import Data.Text.Fusion.Size
 import Data.Text.UnsafeChar (unsafeChr, unsafeChr8, unsafeChr32)
 import Data.Text.UnsafeShift (shiftL)
-import Data.Word (Word8, Word16, Word32)
+import Data.Word
 import qualified Data.Text.Encoding.Utf8 as U8
 import qualified Data.Text.Encoding.Utf16 as U16
 import qualified Data.Text.Encoding.Utf32 as U32

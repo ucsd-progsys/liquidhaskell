@@ -394,7 +394,9 @@ textOrder = Just . mkOrder $
   , "Data/Text/Lazy/Fusion.hs"
   , "Data/Text/Lazy.hs"
   , "Data/Text/Lazy/Builder.hs"
+  , "Data/Text/Encoding/Fusion.hs"
   , "Data/Text/Encoding.hs"
+  , "Data/Text/Lazy/Encoding/Fusion.hs"
   , "Data/Text/Lazy/Encoding.hs"
   ] 
   
@@ -711,7 +713,6 @@ textIgnored
   = [ "Setup.lhs"
     -- , "Data/Text/Axioms.hs"
     , "Data/Text/Encoding/Error.hs"
-    , "Data/Text/Encoding/Fusion.hs"
     , "Data/Text/Encoding/Fusion/Common.hs"
     , "Data/Text/Encoding/Utf16.hs"
     , "Data/Text/Encoding/Utf32.hs"
@@ -725,7 +726,6 @@ textIgnored
     , "Data/Text/Lazy/Builder/Internal.hs"
     , "Data/Text/Lazy/Builder/RealFloat.hs"
     , "Data/Text/Lazy/Builder/RealFloat/Functions.hs"
-    , "Data/Text/Lazy/Encoding/Fusion.hs"
     , "Data/Text/Lazy/IO.hs"
     , "Data/Text/Lazy/Read.hs"
     , "Data/Text/Read.hs"
