@@ -9,7 +9,6 @@
 module Blank where
 
 import GHC.Exts
-import GHC.Prim
 import GHC.Word
 
 -- denotes the offset at which bits are no longer guaranteed to be defined

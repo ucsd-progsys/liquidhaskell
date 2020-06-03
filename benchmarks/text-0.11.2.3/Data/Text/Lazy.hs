@@ -233,7 +233,7 @@ import qualified GHC.CString as GHC
 #else
 import qualified GHC.Base as GHC
 #endif
-import GHC.Prim (Addr#)
+import GHC.Exts (Addr#)
 
 --LIQUID
 -- import Data.Int

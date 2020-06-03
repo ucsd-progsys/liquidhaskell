@@ -15,7 +15,12 @@ cabal-version:      >= 1.22
 data-files:         src/GHC/*.spec
 
 library
-  exposed-modules:  GHC.Prim
+  exposed-modules:  
+                    -- We can't really export 'GHC.Prim' or this won't build on Windows,
+                    -- unfortunately. The issue is that 'GHC.Prim' is a special snowflake,
+                    -- treated specially by the GHC pipeline. In particular, GHC doesn't
+                    -- generate a '.hi' file for it, and this causes Windows' builds to choke.
+                    -- GHC.Prim
                     GHC.Types
                     GHC.CString
                     GHC.Classes

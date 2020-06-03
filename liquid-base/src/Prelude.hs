@@ -9,7 +9,6 @@ import GHC.Exts
 import GHC.Int
 import GHC.List
 import GHC.Num
-import GHC.Prim
 import GHC.Real
 import GHC.Types
 import GHC.Word

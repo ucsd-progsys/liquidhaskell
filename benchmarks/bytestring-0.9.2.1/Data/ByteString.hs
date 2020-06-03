@@ -268,7 +268,7 @@ import System.IO                (hGetBufNonBlocking)
 import System.IO.Error          (isEOFError)
 
 -- import GHC.Handle
-import GHC.Prim                 (Word#, (+#), writeWord8OffAddr#)
+import GHC.Exts                 (Word#, (+#), writeWord8OffAddr#)
 import GHC.Base                 (build)
 import GHC.Word hiding (Word8)
 import GHC.Ptr                  (Ptr(..))

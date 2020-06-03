@@ -1,6 +1,5 @@
 module spec GHC.CString where
 
-import GHC.Prim
 import GHC.Types
 
 measure strLen :: Addr# -> GHC.Types.Int
