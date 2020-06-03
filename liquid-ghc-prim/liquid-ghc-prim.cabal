@@ -1,5 +1,5 @@
 name:               liquid-ghc-prim
-version:            0.8.6.0
+version:            0.8.10.1
 synopsis:           Drop-in ghc-prim replacement for LiquidHaskell
 description:        Drop-in ghc-prim replacement for LiquidHaskell.
 license:            BSD3
@@ -15,7 +15,7 @@ cabal-version:      >= 1.22
 data-files:         src/GHC/*.spec
 
 library
-  exposed-modules:  
+  exposed-modules:
                     -- We can't really export 'GHC.Prim' or this won't build on Windows,
                     -- unfortunately. The issue is that 'GHC.Prim' is a special snowflake,
                     -- treated specially by the GHC pipeline. In particular, GHC doesn't
@@ -28,7 +28,7 @@ library
 
   hs-source-dirs:     src
   build-depends:      ghc-prim
-                    , liquidhaskell        >= 0.8.6.0
+                    , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
                       NoImplicitPrelude

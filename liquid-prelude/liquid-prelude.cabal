@@ -1,5 +1,5 @@
 name:               liquid-prelude
-version:            0.8.6.0
+version:            0.8.10.1
 synopsis:           General utility modules for LiquidHaskell
 description:        General utility modules for LiquidHaskell.
 license:            BSD3
@@ -25,10 +25,10 @@ library
                     Language.Haskell.Liquid.Synthesize.Error
                     KMeansHelper
   hs-source-dirs:     src
-  build-depends:      liquid-base          >= 0.8.6.0 
+  build-depends:      liquid-base          >= 0.8.10.1
                     , bytestring           >= 0.10
                     , containers           >= 0.5
-                    , liquidhaskell        >= 0.8.6.0
+                    , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   if impl(ghc >= 8.10)
     ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin 

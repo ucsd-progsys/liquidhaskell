@@ -1,5 +1,5 @@
 name:               liquid-base
-version:            0.8.6.0
+version:            0.8.10.1
 synopsis:           Drop-in base replacement for LiquidHaskell
 description:        Drop-in base replacement for LiquidHaskell.
 license:            BSD3
@@ -99,7 +99,7 @@ library
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , liquid-ghc-prim
-                    , liquidhaskell        >= 0.8.6.0
+                    , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
                       NoImplicitPrelude

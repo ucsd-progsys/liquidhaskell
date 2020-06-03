@@ -1,5 +1,5 @@
 name:               liquid-parallel
-version:            0.8.6.0
+version:            0.8.10.1
 synopsis:           LiquidHaskell specs for the parallel package
 description:        LiquidHaskell specs for the parallel package.
 license:            BSD3
@@ -17,9 +17,9 @@ data-files:           src/Control/Parallel/Strategies.spec
 library
   exposed-modules:    Control.Parallel.Strategies
   hs-source-dirs:     src
-  build-depends:      liquid-base          >= 0.8.6.0 
+  build-depends:      liquid-base          >= 0.8.10.1
                     , parallel             >= 3.0.0.0
-                    , liquidhaskell        >= 0.8.6.0
+                    , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
   if impl(ghc >= 8.10)

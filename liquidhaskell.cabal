@@ -1,5 +1,5 @@
 name:               liquidhaskell
-version:            0.8.6.0
+version:            0.8.10.1
 synopsis:           Liquid Types for Haskell
 description:        Liquid Types for Haskell.
 license:            BSD3

@@ -1,5 +1,5 @@
 name:               liquid-containers
-version:            0.8.6.0
+version:            0.8.10.1
 synopsis:           LiquidHaskell specs for the containers package
 description:        LiquidHaskell specs for the containers package.
 license:            BSD3
@@ -18,9 +18,9 @@ library
   exposed-modules:    Data.Set
                       Data.Map
   hs-source-dirs:     src
-  build-depends:      liquid-base          >= 0.8.6.0 
+  build-depends:      liquid-base          >= 0.8.10.1
                     , containers           >= 0.5.9.2
-                    , liquidhaskell        >= 0.8.6.0
+                    , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
   if impl(ghc >= 8.10)
