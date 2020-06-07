@@ -99,7 +99,7 @@ makeAssumeType allowTC tce lmap dm x mbT v def
     ref        = F.Reft (F.vv_, F.PAtom F.Eq (F.EVar F.vv_) le)
     mkErr s    = ErrHMeas (sourcePosSrcSpan $ loc x) (pprint $ val x) (PJ.text s)
     bbs        = filter isBoolBind xs
-    (xs, def') = grabBody allowTC (Ghc.expandTypeSynonyms τ) $ normalize allowTC def
+    (xs, def') = GM.notracePpr "grabBody" $ grabBody allowTC (Ghc.expandTypeSynonyms τ) $ normalize allowTC def
     su         = F.mkSubst  $ zip (F.symbol     <$> xs) xArgs
                            ++ zip (simplesymbol <$> xs) xArgs
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
@@ -115,6 +115,8 @@ grabBody allowTC@False (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | Ghc.is
   = grabBody allowTC t e 
 grabBody allowTC@True (Ghc.FunTy { Ghc.ft_arg = tx, Ghc.ft_res = t}) e | isEmbeddedDictType tx 
   = grabBody allowTC t e 
+grabBody allowTC torig@Ghc.FunTy {} (Ghc.Let (Ghc.NonRec x e) body) 
+  = grabBody allowTC torig (subst (x,e) body)
 grabBody allowTC (Ghc.FunTy { Ghc.ft_res = t}) (Ghc.Lam x e) 
   = (x:xs, e') where (xs, e') = grabBody allowTC t e
 grabBody allowTC t (Ghc.Tick _ e) 
