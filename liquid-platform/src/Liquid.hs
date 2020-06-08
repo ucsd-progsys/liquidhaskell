@@ -25,7 +25,7 @@ partitionArgs :: [String] -> ([GhcArg], [LiquidArg])
 partitionArgs args = partitionEithers (map parseArg args)
   where
     parseArg :: String -> Either GhcArg LiquidArg
-    parseArg a 
+    parseArg a
       | forwardToGhc a = Left a
       | otherwise      = bimap (const a) (const a) (CmdArgs.process config [a])
 
@@ -76,6 +76,7 @@ main = do
                          , "-hide-package", "containers"
                          , "-hide-package", "vector"
                          , "-hide-package", "bytestring"
+                         , "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:--normal" -- normal logging.
                          ]
                          <> map (mappend "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:") liquidArgs
                          <> ghcArgs

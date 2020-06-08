@@ -19,10 +19,14 @@ flag devel
 
 executable liquid
   main-is:            src/Liquid.hs
-  build-depends:      liquid-base   >= 0.8.10.1
-                    , liquidhaskell >= 0.8.10.1
-                    , process       >= 1.6.0.0
-                    , cmdargs       >= 0.10
+  build-depends:      liquid-base       >= 0.8.10.1
+                    , liquid-containers >= 0.8.10.1
+                    , liquid-prelude    >= 0.8.10.1
+                    , liquid-vector     >= 0.8.10.1
+                    , liquid-bytestring >= 0.8.10.1
+                    , liquidhaskell     >= 0.8.10.1
+                    , process           >= 1.6.0.0
+                    , cmdargs           >= 0.10
   default-language:   Haskell98
   ghc-options:        -W -O2 -threaded -fdefer-typed-holes
 

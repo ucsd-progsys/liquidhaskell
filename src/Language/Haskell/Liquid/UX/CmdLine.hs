@@ -49,8 +49,9 @@ import System.Exit
 import System.Environment
 import System.Console.CmdArgs.Explicit
 import System.Console.CmdArgs.Implicit     hiding (Loud)
+import qualified System.Console.CmdArgs.Verbosity as CmdArgs
 import System.Console.CmdArgs.Text
-import GitHash 
+import GitHash
 
 import Data.List                           (nub)
 
@@ -89,7 +90,13 @@ defaultMaxParams = 2
 ---------------------------------------------------------------------------------
 config :: Mode (CmdArgs Config)
 config = cmdArgsMode $ Config {
-   files
+  loggingVerbosity
+    = enum [ Quiet        &= name "quiet"   &= help "Minimal logging verbosity"
+           , Normal       &= name "normal"  &= help "Normal logging verbosity"
+           , CmdArgs.Loud &= name "verbose" &= help "Verbose logging"
+           ]
+
+ , files
     = def &= typ "TARGET"
           &= args
           &= typFile
@@ -110,10 +117,10 @@ config = cmdArgsMode $ Config {
     = def
           &= help "Allow higher order binders into the logic"
 
- , smtTimeout 
+ , smtTimeout
     = def
-          &= help "Timeout of smt queries in msec"    
-      
+          &= help "Timeout of smt queries in msec"
+
  , higherorderqs
     = def
           &= help "Allow higher order qualifiers to get automatically instantiated"
@@ -138,23 +145,23 @@ config = cmdArgsMode $ Config {
           &= name "prune-unsorted"
 
  , notermination
-    = def 
+    = def
           &= help "Disable Termination Check"
           &= name "no-termination-check"
 
- , rankNTypes 
+ , rankNTypes
     = def &= help "Adds precise reasoning on presence of rankNTypes"
-          &= name "rankNTypes" 
+          &= name "rankNTypes"
 
  , noclasscheck
-    = def 
+    = def
           &= help "Disable Class Instance Check"
           &= name "no-class-check"
 
  , nostructuralterm
     = def &= name "no-structural-termination"
-          &= help "Disable structural termination check" 
-          
+          &= help "Disable structural termination check"
+
  , gradual
     = def &= help "Enable gradual refinement type checking"
           &= name "gradual"
@@ -188,7 +195,7 @@ config = cmdArgsMode $ Config {
     = def &= help "Check GHC generated binders (e.g. Read, Show instances)"
           &= name "check-derived"
 
- , caseExpandDepth 
+ , caseExpandDepth
     = 2   &= help "Maximum depth at which to expand DEFAULT in case-of (default=2)"
           &= name "max-case-expand"
 
@@ -328,50 +335,50 @@ config = cmdArgsMode $ Config {
           -- PLE-OPT &= name "automatic-instances"
 
   , proofLogicEval
-    = def  
+    = def
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "ple"
 
   , oldPLE
-    = def  
+    = def
         &= help "Enable Proof-by-Logical-Evaluation"
         &= name "oldple"
 
   , proofLogicEvalLocal
-    = def  
+    = def
         &= help "Enable Proof-by-Logical-Evaluation locally, per function"
         &= name "ple-local"
 
   , extensionality
-    = def 
+    = def
         &= help "Enable extensional interpretation of function equality"
         &= name "extensionality"
 
   , nopolyinfer
-    = def 
+    = def
         &= help "No inference of polymorphic type application. Gives imprecision, but speedup."
         &= name "fast"
 
-  , reflection 
-    = def 
-        &= help "Enable reflection of Haskell functions and theorem proving" 
+  , reflection
+    = def
+        &= help "Enable reflection of Haskell functions and theorem proving"
         &= name "reflection"
 
-  , compileSpec 
-    = def 
+  , compileSpec
+    = def
         &= name "compile-spec"
-        &= help "Only compile specifications (into .bspec file); skip verification" 
+        &= help "Only compile specifications (into .bspec file); skip verification"
 
   , noCheckImports
-    = def 
+    = def
         &= name "no-check-imports"
-        &= help "Do not check the transitive imports; only check the target files." 
+        &= help "Do not check the transitive imports; only check the target files."
 
   , typedHoles
-    = def 
+    = def
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
-  , maxMatchDepth 
+  , maxMatchDepth
     = def
         &= name "max-match-depth"
         &= help "Define the number of expressions to pattern match on (typed-holes must be on to use this flag)."
@@ -379,10 +386,9 @@ config = cmdArgsMode $ Config {
     = def
         &= name "max-app-depth"
   , maxArgsDepth
-    = def 
+    = def
         &= name "max-args-depth"
-  } &= verbosity
-    &= program "liquid"
+  } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
     &= details [ "LiquidHaskell is a Refinement Type based verifier for Haskell"
@@ -404,6 +410,7 @@ getOpts as = do
                                 }
                          as
   cfg    <- fixConfig cfg1
+  setVerbosity (loggingVerbosity cfg)
   when (json cfg) $ setVerbosity Quiet
   withSmtSolver cfg
 
@@ -494,7 +501,7 @@ gitInfo  = msg
     msg    = case giTry of
                Left _   -> " no git information"
                Right gi -> gitMsg gi
-    
+
 gitMsg :: GitInfo -> String
 gitMsg gi = concat
   [ " [", giBranch gi, "@", giHash gi
@@ -551,32 +558,33 @@ parsePragma   :: Located String -> IO Config
 parsePragma = withPragma defConfig
 
 defConfig :: Config
-defConfig = Config 
-  { files             = def
+defConfig = Config
+  { loggingVerbosity  = Quiet
+  , files             = def
   , idirs             = def
   , fullcheck         = def
   , linear            = def
   , stringTheory      = def
   , higherorder       = def
-  , smtTimeout        = def 
+  , smtTimeout        = def
   , higherorderqs     = def
   , diffcheck         = def
   , saveQuery         = def
   , checks            = def
-  , nostructuralterm  = def 
+  , nostructuralterm  = def
   , noCheckUnknown    = def
-  , notermination     = False 
-  , rankNTypes        = False 
-  , noclasscheck      = False 
+  , notermination     = False
+  , rankNTypes        = False
+  , noclasscheck      = False
   , gradual           = False
-  , bscope            = False 
+  , bscope            = False
   , gdepth            = 1
   , ginteractive      = False
-  , totalHaskell      = def -- True 
+  , totalHaskell      = def -- True
   , nowarnings        = def
   , noannotations     = def
   , checkDerived      = False
-  , caseExpandDepth   = 2 
+  , caseExpandDepth   = 2
   , notruetypes       = def
   , nototality        = False
   , pruneUnsorted     = def
@@ -612,7 +620,7 @@ defConfig = Config
   , oldPLE            = False
   , proofLogicEvalLocal = False
   , reflection        = False
-  , extensionality    = False 
+  , extensionality    = False
   , nopolyinfer       = False
   , compileSpec       = False
   , noCheckImports    = False
@@ -631,7 +639,7 @@ exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
 exitWithResult cfg targets out = do
   annm <- {-# SCC "annotate" #-} annotate cfg targets out
-  whenLoud $ donePhase Loud "annotate"
+  whenNormal $ donePhase Loud "annotate"
   -- let r = o_result out -- `addErrors` o_errors out
   consoleResult cfg out annm
   return out -- { o_result = r }
@@ -664,7 +672,7 @@ instance Show (CtxError Doc) where
 writeCheckVars :: Symbolic a => Maybe [a] -> IO ()
 writeCheckVars Nothing     = return ()
 writeCheckVars (Just [])   = colorPhaseLn Loud "Checked Binders: None" ""
-writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" "" 
+writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
                           >> forM_ ns (putStrLn . symbolString . dropModuleNames . symbol)
 
 type CError = CtxError Doc

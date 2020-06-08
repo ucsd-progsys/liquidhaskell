@@ -171,11 +171,11 @@ checkTargetInfo info
     donePhase Loud "Only compiling specifications [skipping verification]"
     pure mempty { o_result = F.Safe mempty }
   | otherwise = do
-    whenLoud $ donePhase Loud "Extracted Core using GHC"
+    whenNormal $ donePhase Loud "Extracted Core using GHC"
     -- whenLoud  $ do putStrLn $ showpp info
                  -- putStrLn "*************** Original CoreBinds ***************************"
                  -- putStrLn $ render $ pprintCBs (cbs info)
-    whenLoud $ donePhase Loud "Transformed Core"
+    whenNormal $ donePhase Loud "Transformed Core"
     whenLoud  $ do donePhase Loud "transformRecExpr"
                    putStrLn "*************** Transform Rec Expr CoreBinds *****************"
                    putStrLn $ showCBs (untidyCore cfg) cbs'
