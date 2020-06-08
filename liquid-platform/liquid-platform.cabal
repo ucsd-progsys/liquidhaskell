@@ -17,6 +17,12 @@ flag devel
   manual:      True
   description: turn on stricter error reporting for development
 
+-- See: https://gitlab.haskell.org/ghc/ghc/issues/17236
+flag legacy
+  default:     False
+  manual:      True
+  description: Disable building the new executable for environments that doesn't support it yet (e.g. Windows)
+
 executable liquid
   main-is:            src/Liquid.hs
   build-depends:      liquid-base       >= 0.8.10.1
@@ -33,7 +39,7 @@ executable liquid
   if flag(devel)
     ghc-options: -Werror
 
-  if impl(ghc >= 8.10)
+  if impl(ghc >= 8.10) && !flag(legacy)
     buildable: True
   else
     buildable: False
