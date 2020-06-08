@@ -8,7 +8,7 @@ module Language.Fixpoint.Utils.Progress (
 
 import           Control.Monad                    (when)
 import           System.IO.Unsafe                 (unsafePerformIO)
-import           System.Console.CmdArgs.Verbosity (isNormal, isLoud)
+import           System.Console.CmdArgs.Verbosity (isNormal, getVerbosity, Verbosity(..))
 import           Data.IORef
 import           System.Console.AsciiProgress
 -- import           Language.Fixpoint.Misc (traceShow)
@@ -19,8 +19,8 @@ pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
 withProgress n act = do
-  loud <- isLoud
-  case loud of
+  showBar <- ((/=) Quiet) <$> getVerbosity
+  case showBar of
     False -> act
     True  -> displayConsoleRegions $ do
       -- putStrLn $ "withProgress: " ++ show n
