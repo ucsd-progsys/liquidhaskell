@@ -58,7 +58,7 @@ library
         liquid-base
       , liquidhaskell
   default-language: Haskell2010
-  ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin  -- Add this!
+  ghc-options: -fplugin=LiquidHaskell  -- Add this!
 @
 
 We will talk about the use (and need) for @liquid-base@ in the next section, but let's ignore it for now.
@@ -150,7 +150,7 @@ For example let's image we want to skip verification of our 'Toy.A' module. At t
     name:           toy-package-a
       ..
       default-language: Haskell2010
-      ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin -fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:--compilespec
+      ghc-options: -fplugin=LiquidHaskell -fplugin-opt=LiquidHaskell:--compilespec
     @
 
 -}

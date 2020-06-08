@@ -63,7 +63,7 @@ main = do
 
   let p = proc ghcPath $ [ "-O0"
                          , "-no-link"
-                         , "-fplugin=Language.Haskell.Liquid.GHC.Plugin"
+                         , "-fplugin=LiquidHaskell"
                          , "-plugin-package", "liquidhaskell"
                          , "-package", "liquid-ghc-prim"
                          , "-package", "liquid-base"
@@ -76,9 +76,9 @@ main = do
                          , "-hide-package", "containers"
                          , "-hide-package", "vector"
                          , "-hide-package", "bytestring"
-                         , "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:--normal" -- normal logging.
+                         , "-fplugin-opt=LiquidHaskell:--normal" -- normal logging.
                          ]
-                         <> map (mappend "-fplugin-opt=Language.Haskell.Liquid.GHC.Plugin:") liquidArgs
+                         <> map (mappend "-fplugin-opt=LiquidHaskell:") liquidArgs
                          <> ghcArgs
                          <> targets
 

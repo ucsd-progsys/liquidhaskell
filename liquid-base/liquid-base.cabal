@@ -104,4 +104,4 @@ library
   default-extensions: PackageImports
                       NoImplicitPrelude
   if impl(ghc >= 8.10)
-    ghc-options: -fplugin=Language.Haskell.Liquid.GHC.Plugin 
+    ghc-options: -fplugin=LiquidHaskell
