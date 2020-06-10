@@ -15,7 +15,6 @@ import           SrcLoc
 import           Outputable hiding (showPpr, panic, (<>), showSDoc, text)
 
 import qualified TyCon as TC
-import           Text.PrettyPrint.HughesPJ (text)
 
 import qualified Data.HashMap.Strict as M
 import qualified Data.Text           as T
@@ -28,8 +27,6 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc
-import qualified Language.Fixpoint.Types                    as F
 
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.
@@ -113,7 +110,6 @@ addHole x t γ
       hinfo = HoleInfo t loc env
       loc   = srcSpan $ cgLoc γ
       env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
-      x'    = F.symbol x -- text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
 
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications

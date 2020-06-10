@@ -76,7 +76,6 @@ import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Bare.DataType (makeDataConChecker)
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, Def)
-import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- | Constraint Generation: Toplevel -------------------------------------------
@@ -198,11 +197,10 @@ makeRecType :: (Enum a1, Eq a1, Num a1, F.Symbolic a)
 makeRecType autoenv t vs dxs is
   = mergecondition t $ fromRTypeRep $ trep {ty_binds = xs', ty_args = ts'}
   where
-    (xs', ts') = unzip $ replaceN (last is) (fromLeft $ makeDecrType autoenv vdxs) xts
+    (xs', ts') = unzip $ replaceN (last is) (safeFromLeft "makeRecType" $ makeDecrType autoenv vdxs) xts
     vdxs       = zip vs dxs
     xts        = zip (ty_binds trep) (ty_args trep)
     trep       = toRTypeRep $ unOCons t
-    fromLeft (Left x) = x 
 
 unOCons :: RType c tv r -> RType c tv r
 unOCons (RAllT v t r)      = RAllT v (unOCons t) r 

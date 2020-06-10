@@ -31,10 +31,6 @@ import           Text.PrettyPrint.HughesPJ (text, ($+$))
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Data.Maybe
-import           Debug.Trace 
-import           Language.Haskell.Liquid.GHC.TypeRep
-import           Data.List 
-import           Data.Tuple.Extra
 import           CoreUtils (exprType)
 import           TyCoRep
 
@@ -43,7 +39,7 @@ synthesize tgt fcfg cginfo =
   mapM go (M.toList $ holesMap cginfo)
   where 
     measures = map (val . msName) ((gsMeasures . gsData . giSpec . ghcI) cginfo)
-    go (x, HoleInfo t loc env (cgi,cge)) = do 
+    go (x, HoleInfo _ loc env (cgi,cge)) = do 
       let topLvlBndr = fromMaybe (error "Top-level binder not found") (cgVar cge)
           typeOfTopLvlBnd = fromMaybe (error "Type: Top-level symbol not found") (M.lookup (symbol topLvlBndr) (reGlobal env))
           coreProgram = giCbs $ giSrc $ ghcI cgi

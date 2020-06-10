@@ -82,7 +82,6 @@ library
                       Gradual.Trivial
                       Gradual.Types
                       Gradual.Uniquify
-                      -- Language.Haskell.Liquid.Bag
                       Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
@@ -233,7 +232,7 @@ library
                     , extra 
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
-  ghc-options:        -W -fwarn-missing-signatures
+  ghc-options:        -W -fwarn-missing-signatures -Werror
 
   if flag(include)
     hs-source-dirs: devel
@@ -264,7 +263,7 @@ test-suite test
                   , text
                   , transformers         >= 0.3
   default-language: Haskell98
-  ghc-options:      -W -threaded
+  ghc-options:      -W -threaded -Werror
   if flag(testNewExecutable)
     cpp-options: -DUSE_NEW_EXECUTABLE
 
@@ -282,7 +281,7 @@ test-suite liquidhaskell-parser
                   , tasty-ant-xml
                   , tasty-hunit     >= 0.9
   default-language: Haskell2010
-  ghc-options:      -W
+  ghc-options:      -W -Werror
 
 test-suite synthesis
   type:             exitcode-stdio-1.0
@@ -301,4 +300,4 @@ test-suite synthesis
                   , ghc
                   , extra
   default-language: Haskell2010
-  ghc-options:      -W
+  ghc-options:      -W -Werror
