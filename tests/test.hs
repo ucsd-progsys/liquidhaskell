@@ -21,7 +21,7 @@ import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.List as L 
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Sum(..), (<>))
+import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.String
 import Data.String.Conv
