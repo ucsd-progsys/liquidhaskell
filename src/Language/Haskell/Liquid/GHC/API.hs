@@ -32,7 +32,7 @@ module Language.Haskell.Liquid.GHC.API (
   , tyConRealArity
   , dataConExTyVars
 
-  ) where 
+  ) where
 
 import Avail          as Ghc
 import GHC            as Ghc
@@ -40,22 +40,22 @@ import ConLike        as Ghc
 import Var            as Ghc
 import Module         as Ghc
 import DataCon        as Ghc
-import TysWiredIn     as Ghc  
-import BasicTypes     as Ghc 
-import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase) 
+import TysWiredIn     as Ghc
+import BasicTypes     as Ghc
+import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import NameSet        as Ghc
-import InstEnv        as Ghc 
+import InstEnv        as Ghc
 import Literal        as Ghc
 import TcType         as Ghc (isClassPred)
 import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
-import SrcLoc         as Ghc 
-import Name           as Ghc hiding (varName) 
+import SrcLoc         as Ghc
+import Name           as Ghc hiding (varName)
 import TysPrim        as Ghc
 import HscTypes       as Ghc
-import HscMain        as Ghc 
-import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported) 
+import HscMain        as Ghc
+import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 
 --
 -- Compatibility layer for different GHC versions.
@@ -92,7 +92,7 @@ import qualified GHC.Real
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
 import Type           as Ghc hiding (typeKind , isPredTy)
-import TyCon          as Ghc 
+import TyCon          as Ghc
 import TyCoRep        as Ghc
 import FastString     as Ghc
 import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType, isEqPrimPred)
@@ -199,7 +199,7 @@ split the type apart with either 'splitFunTy_maybe' or 'splitForAllTy_maybe'.
 
 For GHC < 8.10.1 'isPredTy' is effectively the same as the new 'isEvVarType', which covers the cases
 for coercion types and \"normal\" type coercions. The 8.6.5 version of 'isPredTy' had a special case to
-handle a 'TyConApp' in the case of type equality (i.e. ~ ) which was removed in the implementation 
+handle a 'TyConApp' in the case of type equality (i.e. ~ ) which was removed in the implementation
 for 8.10.1, which essentially calls 'tcIsConstraintKind' straight away.
 -}
 
