@@ -30,7 +30,7 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 
   , tyConRealArity
---   , dataConExTyVars
+  , dataConExTyVars
 
   ) where 
 
@@ -76,7 +76,7 @@ import FastString        as Ghc hiding (bytesFS, LitString)
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
 import Type              as Ghc hiding (typeKind, mkFunTy)
--- import qualified Type    as Ghc
+import qualified Type    as Ghc
 import qualified TyCoRep as Ty
 import qualified Literal as Lit
 import qualified TyCon   as Ty
@@ -219,8 +219,8 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
--- dataConExTyVars :: DataCon -> [TyVar]
--- dataConExTyVars = dataConExTyCoVars
+dataConExTyVars :: DataCon -> [TyVar]
+dataConExTyVars = dataConExTyCoVars
 
 #endif
 
