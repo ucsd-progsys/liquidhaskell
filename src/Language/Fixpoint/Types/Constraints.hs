@@ -109,6 +109,7 @@ import           Language.Fixpoint.Types.Refinements
 import           Language.Fixpoint.Types.Substitutions
 import           Language.Fixpoint.Types.Environments
 import qualified Language.Fixpoint.Utils.Files as Files
+import qualified Language.Fixpoint.Solver.Stats as Solver
 
 import           Language.Fixpoint.Misc
 import           Text.PrettyPrint.HughesPJ.Compat
@@ -285,11 +286,11 @@ instance Monoid (Result a) where
 
 unsafe, safe :: Result a
 unsafe = mempty {resStatus = Unsafe []}
-safe   = mempty {resStatus = Safe}
+safe   = mempty {resStatus = Safe mempty}
 
 isSafe :: Result a -> Bool
-isSafe (Result Safe _ _) = True
-isSafe _                 = False
+isSafe (Result (Safe _) _ _) = True
+isSafe _                     = False
 
 isUnsafe :: Result a -> Bool
 isUnsafe r | Unsafe _ <- resStatus r
@@ -297,7 +298,7 @@ isUnsafe r | Unsafe _ <- resStatus r
 isUnsafe _ = False
 
 instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
-  toFix Safe             = text "Safe"
+  toFix (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 
   -- toFix (UnknownError d) = text $ "Unknown Error: " ++ d
   toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " xs ++ [parens (text msg)]
   toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
@@ -402,6 +403,7 @@ instance Hashable Qualifier
 instance Hashable QualPattern
 instance Hashable QualParam
 instance Hashable Equation
+
 
 ---------------------------------------------------------------------------
 -- | "Smart Constructors" for Constraints ---------------------------------

@@ -8,7 +8,7 @@ module Language.Fixpoint.Utils.Progress (
 
 import           Control.Monad                    (when)
 import           System.IO.Unsafe                 (unsafePerformIO)
-import           System.Console.CmdArgs.Verbosity (isNormal)
+import           System.Console.CmdArgs.Verbosity (isNormal, getVerbosity, Verbosity(..))
 import           Data.IORef
 import           System.Console.AsciiProgress
 -- import           Language.Fixpoint.Misc (traceShow)
@@ -18,12 +18,16 @@ pbRef :: IORef (Maybe ProgressBar)
 pbRef = unsafePerformIO (newIORef Nothing)
 
 withProgress :: Int -> IO a -> IO a
-withProgress n act = displayConsoleRegions $ do
-  -- putStrLn $ "withProgress: " ++ show n
-  progressInit n
-  r <- act
-  progressClose
-  return r
+withProgress n act = do
+  showBar <- ((/=) Quiet) <$> getVerbosity
+  case showBar of
+    False -> act
+    True  -> displayConsoleRegions $ do
+      -- putStrLn $ "withProgress: " ++ show n
+      progressInit n
+      r <- act
+      progressClose
+      return r
   
 progressInit :: Int -> IO ()
 progressInit n = do

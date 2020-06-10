@@ -964,7 +964,7 @@ defsFInfo defs = {-# SCC "defsFI" #-} FI cm ws bs ebs lts dts kts qs binfo adts 
 
 fixResultP :: Parser a -> Parser (FixResult a)
 fixResultP pp
-  =  (reserved "SAT"   >> return Safe)
+  =  (reserved "SAT"   >> return (Safe mempty))
  <|> (reserved "UNSAT" >> Unsafe <$> brackets (sepBy pp comma))
  <|> (reserved "CRASH" >> crashP pp)
 

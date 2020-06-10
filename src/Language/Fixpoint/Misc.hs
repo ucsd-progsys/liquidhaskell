@@ -99,7 +99,7 @@ editDistance xs ys = table ! (m, n)
 ------------ Support for Colored Logging ------------------------------------------
 -----------------------------------------------------------------------------------
 
-data Moods = Ok | Loud | Sad | Happy | Angry
+data Moods = Ok | Loud | Sad | Happy | Angry | Wary
 
 moodColor :: Moods -> Color
 moodColor Ok    = Black
@@ -107,6 +107,7 @@ moodColor Loud  = Blue
 moodColor Sad   = Magenta
 moodColor Happy = Green
 moodColor Angry = Red
+moodColor Wary  = Yellow
 
 wrapStars :: String -> String
 wrapStars msg = "\n**** " ++ msg ++ " " ++ replicate (74 - length msg) '*'

@@ -28,8 +28,6 @@ module Language.Fixpoint.Solver.Monad
        )
        where
 
-import           Control.DeepSeq
-import           GHC.Generics
 import           Language.Fixpoint.Utils.Progress
 import qualified Language.Fixpoint.Types.Config  as C
 import           Language.Fixpoint.Types.Config  (Config)
@@ -37,19 +35,18 @@ import qualified Language.Fixpoint.Types   as F
 -- import qualified Language.Fixpoint.Misc    as Misc
 -- import           Language.Fixpoint.SortCheck
 import qualified Language.Fixpoint.Types.Solutions as F
-import           Language.Fixpoint.Types   (pprint)
 -- import qualified Language.Fixpoint.Types.Errors  as E
 import           Language.Fixpoint.Smt.Serialize ()
 import           Language.Fixpoint.Types.PrettyPrint ()
 import           Language.Fixpoint.Smt.Interface
 -- import qualified Language.Fixpoint.Smt.Theories as Thy
 import           Language.Fixpoint.Solver.Sanitize
+import           Language.Fixpoint.Solver.Stats
 import           Language.Fixpoint.Graph.Types (SolverInfo (..))
 -- import           Language.Fixpoint.Solver.Solution
 -- import           Data.Maybe           (catMaybes)
 import           Data.List            (partition)
 -- import           Data.Char            (isUpper)
-import           Text.PrettyPrint.HughesPJ (text)
 import           Control.Monad.State.Strict
 import qualified Data.HashMap.Strict as M
 import           Data.Maybe (catMaybes)
@@ -67,29 +64,10 @@ data SolverState = SS
   , ssStats   :: !Stats            -- ^ Solver Statistics
   }
 
-data Stats = Stats 
-  { numCstr :: !Int -- ^ # Horn Constraints
-  , numIter :: !Int -- ^ # Refine Iterations
-  , numBrkt :: !Int -- ^ # smtBracket    calls (push/pop)
-  , numChck :: !Int -- ^ # smtCheckUnsat calls
-  , numVald :: !Int -- ^ # times SMT said RHS Valid
-  } deriving (Show, Generic)
-
-instance NFData Stats
-
 stats0    :: F.GInfo c b -> Stats
 stats0 fi = Stats nCs 0 0 0 0
   where
     nCs   = M.size $ F.cm fi
-
-
-instance F.PTable Stats where
-  ptable s = F.DocTable [ (text "# Constraints"         , pprint (numCstr s))
-                        , (text "# Refine Iterations"   , pprint (numIter s))
-                        , (text "# SMT Brackets"        , pprint (numBrkt s))
-                        , (text "# SMT Queries (Valid)" , pprint (numVald s))
-                        , (text "# SMT Queries (Total)" , pprint (numChck s))
-                        ]
 
 --------------------------------------------------------------------------------
 runSolverM :: Config -> SolverInfo b c -> SolveM a -> IO a

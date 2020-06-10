@@ -277,6 +277,10 @@ data DataDecl = DDecl
   , ddCtors :: [DataCtor]         -- ^ Datatype Ctors. Invariant: type variables bound in ctors are greater than ddVars
   } deriving (Eq, Ord, Show, Data, Typeable, Generic)
 
+
+instance Loc DataDecl where
+    srcSpan (DDecl ty _ _) = srcSpan ty
+
 instance Symbolic DataDecl where
   symbol = symbol . ddTyCon
 

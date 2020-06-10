@@ -71,6 +71,7 @@ library
                     Language.Fixpoint.Solver.Sanitize
                     Language.Fixpoint.Solver.Solution
                     Language.Fixpoint.Solver.Solve
+                    Language.Fixpoint.Solver.Stats
                     Language.Fixpoint.Solver.TrivialSort
                     Language.Fixpoint.Solver.UniqifyBinds
                     Language.Fixpoint.Solver.UniqifyKVars
@@ -116,7 +117,6 @@ library
                   , directory
                   , fgl
                   , filepath
-                  , ghc-prim
                   , hashable
                   , intern
                   , mtl
