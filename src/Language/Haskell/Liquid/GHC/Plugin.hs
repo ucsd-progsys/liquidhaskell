@@ -342,7 +342,7 @@ liquidHaskellPass cfg modGuts = do
       -- Call into the existing Liquid interface
       out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
       -- despite the name, 'exitWithResult' simply print on stdout extra info.
-      void . liftIO $ LH.exitWithResult cfg [giTarget (giSrc pmrTargetInfo)] out
+      void . liftIO $ LH.exitWithResult dynFlags cfg [giTarget (giSrc pmrTargetInfo)] out
       case o_result out of
         Safe _stats -> pure ()
         _           -> liftIO exitFailure

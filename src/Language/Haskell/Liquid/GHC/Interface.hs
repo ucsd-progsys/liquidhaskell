@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   -- * Determine the build-order for target files
    realTargets
 
+  , getInterfaceDynFlags
+
   -- * Extract all information needed for verification
   , getTargetInfos
   , runLiquidGhc
@@ -158,6 +160,9 @@ realTargets  mbEnv cfg tgtFs
   where 
     check f    = not <$> skipTarget tgts f 
     tgts       = S.fromList tgtFs
+
+getInterfaceDynFlags :: Maybe HscEnv -> Config -> IO DynFlags
+getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg $ getSessionDynFlags
 
 orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
 orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
