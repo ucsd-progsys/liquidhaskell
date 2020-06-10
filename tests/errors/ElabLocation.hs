@@ -3,6 +3,8 @@
 --   is compared against '0' which appears in the refinement for '/'.)
 --   You can fix this by `embed Ratio * as Int` 
 
+module ElabLocation where
+
 import Data.Ratio 
 
 foo :: Ratio Int -> Bool

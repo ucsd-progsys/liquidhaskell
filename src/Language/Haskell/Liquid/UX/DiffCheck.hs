@@ -48,8 +48,9 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (atLoc, PPrint (..), FixResult (..), Located (..))
+import           Language.Fixpoint.Types                (atLoc, FixResult (..))
 import           Language.Fixpoint.Utils.Files
+import           Language.Fixpoint.Solver.Stats         as Solver
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import           Language.Haskell.Liquid.Types.Visitors
@@ -430,7 +431,7 @@ adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm c
 adjustResult _  _  r              = r
 
 errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
-errorsResult _ []                 = Safe
+errorsResult _ []                 = Safe mempty
 errorsResult f es                 = f es
 
 adjustErrors :: LMap -> ChkItv -> [TError a] -> [TError a]
@@ -506,6 +507,11 @@ instance FromJSON SourcePos where
                                 <*> v .: "sourceLine"
                                 <*> v .: "sourceColumn"
   parseJSON _          = mempty
+
+instance ToJSON Solver.Stats where
+  toJSON = genericToJSON defaultOptions
+  toEncoding = genericToEncoding defaultOptions
+instance FromJSON Solver.Stats
 
 instance ToJSON ErrorResult where
   toJSON = genericToJSON defaultOptions

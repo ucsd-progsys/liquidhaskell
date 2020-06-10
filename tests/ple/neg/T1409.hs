@@ -1,6 +1,8 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
 
+module T1409 where
+
 data Peano = Z | S Peano
 
 {-@ reflect isEven @-}

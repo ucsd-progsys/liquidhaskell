@@ -1,6 +1,8 @@
 
 -- https://github.com/ucsd-progsys/liquidhaskell/issues/1245
 
+module T1245 where
+
 import qualified Data.Set as S 
 
 

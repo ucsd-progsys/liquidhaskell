@@ -113,7 +113,7 @@ import Data.Int (Int64)
 import Data.Text.Fusion.Internal
 import Data.Text.Fusion.CaseMapping (foldMapping, lowerMapping, upperMapping)
 import Data.Text.Fusion.Size
-import GHC.Prim (Addr#, chr#, indexCharOffAddr#, ord#)
+import GHC.Exts (Addr#, chr#, indexCharOffAddr#, ord#)
 import GHC.Types (Char(..), Int(..))
 
 

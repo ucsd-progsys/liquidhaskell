@@ -35,9 +35,10 @@ import qualified Data.HashMap.Strict                   as M
 import qualified Language.Fixpoint.Types               as F 
 import qualified Language.Haskell.Liquid.Measure       as Ms
 import qualified Language.Haskell.Liquid.Types.RefType as RT 
-import           Language.Haskell.Liquid.Types.Types   
+import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Specs   hiding (BareSpec)
 import           Language.Haskell.Liquid.GHC.API       as Ghc hiding (Located) 
+import           Language.Haskell.Liquid.GHC.Types     (StableName)
 
 
 type ModSpecs = M.HashMap ModName Ms.BareSpec
@@ -97,7 +98,7 @@ type TyThingMap = M.HashMap F.Symbol [(F.Symbol, Ghc.TyThing)]
 data SigEnv = SigEnv 
   { sigEmbs       :: !(F.TCEmb Ghc.TyCon) 
   , sigTyRTyMap   :: !RT.TyConMap 
-  , sigExports    :: !Ghc.NameSet
+  , sigExports    :: !(S.HashSet StableName)
   , sigRTEnv      :: !BareRTEnv
   }
 

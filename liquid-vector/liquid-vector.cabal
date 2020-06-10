@@ -1,0 +1,31 @@
+name:               liquid-vector
+version:            0.8.10.1
+synopsis:           LiquidHaskell specs for the vector package
+description:        LiquidHaskell specs for the vector package.
+license:            BSD3
+license-file:       LICENSE
+copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+author:             Ranjit Jhala, Niki Vazou, Eric Seidel
+maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
+category:           Language
+homepage:           https://github.com/ucsd-progsys/liquidhaskell
+build-type:         Simple
+cabal-version:      >= 1.22
+
+data-files:           src/Data/Vector.spec
+
+library
+  exposed-modules:    Data.Vector
+                      Data.Vector.Mutable
+                      Data.Vector.Generic.Mutable
+                      Data.Vector.Primitive.Mutable
+                      Data.Vector.Internal.Check
+                      Data.Vector.Unboxed.Mutable
+  hs-source-dirs:     src
+  build-depends:      liquid-base          >= 0.8.10.1
+                    , vector               >= 0.10
+                    , liquidhaskell        >= 0.8.10.1
+  default-language:   Haskell98
+  default-extensions: PackageImports
+  if impl(ghc >= 8.10)
+    ghc-options: -fplugin=LiquidHaskell

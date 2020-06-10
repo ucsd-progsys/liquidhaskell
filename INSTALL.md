@@ -18,16 +18,18 @@ Note: It should be findable from PATH. LiquidHaskell is executing it as a child 
 
 ## Step 2: Install `liquid` via Package Manager
 
+The `liquid` executable is provided as part of a standalone, battery-included package called `liquid-platform`.
+
 Simply do:
 
-    cabal install liquidhaskell
+    cabal install liquid-platform
 
 We are working to put `liquid` on `stackage`.
 
 You can designate a specific version of LiquidHaskell to ensure that the correct
 GHC version is in the environment. As an example,
 
-    cabal install liquidhaskell-0.6.0.0
+    cabal install liquid-platform-0.9.0.0
 
 ## Step 2: Install `liquid` from Source
 
@@ -41,14 +43,29 @@ This requires that you have installed [stack][stack] (which we strongly recommen
 
     git clone --recursive git@github.com:ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
-    stack install
-    
+    stack install liquid-platform
+
 If you haven't set up your ssh keys with github, use the `https` method to clone and build
-    
+
     git clone --recursive https://github.com/ucsd-progsys/liquidhaskell.git
     cd liquidhaskell
-    stack install
-    
+    stack install liquid-platform
+
+#### A note on the GHC_PACKAGE_PATH
+
+In order for `liquid` to work correctly, it needs to have access to auxiliary packages
+installed as part of the executable. Therefore, you might need to extend your `$GHC_PACKAGE_PATH` to
+have it point to the right location(s). Typically the easiest way is to call `stack path`, which will
+print a lot of diagnostic output. From that it should be suffient to copy the paths printed as part of
+`ghc-package-path: <some-paths>` and extend the `GHC_PACKAGE_PATH` this way 
+(typically editing your `.bashrc` to make the changes permanent):
+
+```
+export GHC_PACKAGE_PATH=$GHC_PACKAGE_PATH:<some-paths>
+```
+
+After that, running `liquid` anywhere from the filesystem should work.
+
 
 ## Troubleshooting
 

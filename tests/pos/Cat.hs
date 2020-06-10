@@ -1,6 +1,9 @@
 {-@ LIQUID "--no-totality" @-}
 
 {-# LANGUAGE GADTs #-}
+
+module Cat where
+
 import Control.Category
 import Prelude hiding ((.), id)
 

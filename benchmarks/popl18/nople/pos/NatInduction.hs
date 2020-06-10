@@ -35,3 +35,5 @@ godelProp n = n == n
 data POr  a b = POrLeft a | POrRight b 
 data PAnd a b = PAnd a b 
 
+main :: IO ()
+main = pure ()

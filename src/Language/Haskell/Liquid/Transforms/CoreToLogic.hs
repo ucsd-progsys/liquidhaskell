@@ -20,7 +20,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
 
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
-import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
 import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
 -- import qualified Id 
 import qualified Var
@@ -29,7 +29,6 @@ import           Coercion
 import qualified Pair
 -- import qualified Text.Printf as Printf
 import qualified CoreSyn                               as C
-import           Literal
 import           IdInfo
 import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
@@ -38,8 +37,6 @@ import qualified Data.Char
 import qualified Text.Printf as Printf 
 import           Data.Text.Encoding
 import           Data.Text.Encoding.Error
-import           TysWiredIn
-import           Name                                  (getSrcSpan)
 import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity

@@ -17,6 +17,9 @@ module Language.Haskell.Liquid.Liquid (
 
    -- * Liquid Constraint Generation 
   , liquidConstraints
+
+   -- * Checking a single module
+  , checkTargetInfo
   ) where
 
 import           Prelude hiding (error)
@@ -29,7 +32,7 @@ import           CoreSyn
 import           HscTypes                         (SourceError)
 import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
-import           Control.Monad (when)
+import           Control.Monad (when, unless)
 import qualified Data.Maybe as Mb
 import qualified Data.List  as L 
 import qualified Control.Exception as Ex
@@ -57,7 +60,6 @@ import           Language.Haskell.Liquid.Types
 
 
 type MbEnv = Maybe HscEnv
-
 
 --------------------------------------------------------------------------------
 liquid :: [String] -> IO b
@@ -153,10 +155,21 @@ handle = return . Left . result
 --------------------------------------------------------------------------------
 liquidOne :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-liquidOne info
+liquidOne info = do
+  out' <- checkTargetInfo info
+  unless (compileSpec cfg) $ DC.saveResult tgt out'
+  exitWithResult cfg [tgt] out'
+  where 
+    cfg  = getConfig info
+    tgt  = giTarget (giSrc info)
+
+--------------------------------------------------------------------------------
+checkTargetInfo :: TargetInfo -> IO (Output Doc)
+--------------------------------------------------------------------------------
+checkTargetInfo info
   | compileSpec cfg = do 
     donePhase Loud "Only compiling specifications [skipping verification]"
-    exitWithResult cfg [tgt] (mempty { o_result = F.Safe })
+    pure mempty { o_result = F.Safe mempty }
   | otherwise = do
     whenNormal $ donePhase Loud "Extracted Core using GHC"
     -- whenLoud  $ do putStrLn $ showpp info
@@ -168,14 +181,12 @@ liquidOne info
                    putStrLn $ showCBs (untidyCore cfg) cbs'
                    -- putStrLn $ render $ pprintCBs cbs'
                    -- putStrLn $ showPpr cbs'
-    edcs <- newPrune      cfg cbs' tgt info
-    out' <- liquidQueries cfg      tgt info edcs
-    DC.saveResult       tgt  out'
-    exitWithResult cfg [tgt] out'
+    edcs <- newPrune cfg cbs' tgt info
+    liquidQueries cfg tgt info edcs
   where 
     cfg  = getConfig info
     tgt  = giTarget (giSrc info)
-    cbs' = giCbs (giSrc info) 
+    cbs' = giCbs (giSrc info)
 
 newPrune :: Config -> [CoreBind] -> FilePath -> TargetInfo -> IO (Either [CoreBind] [DC.DiffCheck])
 newPrune cfg cbs tgt info
@@ -289,11 +300,11 @@ makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
 
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)
-splitFails _ r@(F.Safe)      = (r,mempty)
+splitFails _ r@(F.Safe _)    = (r,mempty)
 splitFails fs (F.Unsafe xs)  = (mkRes r, snd <$> rfails)
   where 
     (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
-    mkRes [] = F.Safe
+    mkRes [] = F.Safe mempty
     mkRes xs = F.Unsafe xs 
 
   

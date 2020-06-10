@@ -1,3 +1,6 @@
+
+module T1593 where
+
 {-@ LIQUID "--reflection"     @-}
 
 -- not ok

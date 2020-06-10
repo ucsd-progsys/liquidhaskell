@@ -11,3 +11,6 @@ myFst (x, y) = x
 
 {-@ bar :: xs:[(Int, Int)] -> {v:Int | v == foo xs } @-}
 bar x = foo x
+
+main :: IO ()
+main = pure ()

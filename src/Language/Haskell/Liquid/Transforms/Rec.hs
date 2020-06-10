@@ -30,11 +30,7 @@ import           Language.Haskell.Liquid.Misc         (mapSndM)
 import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
 import           MkCore                               (mkCoreLams)
-import           Name                                 (isSystemName)
 import           Prelude                              hiding (error)
-import           Type                                 (mkForAllTys, splitForAllTys)
-
--- import qualified Data.List                            (foldl', isInfixOf)
 
 import qualified Data.List                            as L
 

@@ -1,5 +1,5 @@
 flags:
-  liquidhaskell:
+  liquid-platform:
     devel: true
 extra-package-dbs: []
 ghc-options:
@@ -7,6 +7,14 @@ ghc-options:
 allow-newer: true # 8.10.1
 packages:
 - liquid-fixpoint
+- liquid-ghc-prim
+- liquid-base
+- liquid-bytestring
+- liquid-prelude
+- liquid-vector
+- liquid-containers
+- liquid-parallel
+- liquid-platform
 - .
 extra-deps:
 - tasty-rerun-1.1.14

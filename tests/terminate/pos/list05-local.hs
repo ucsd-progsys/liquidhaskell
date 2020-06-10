@@ -1,3 +1,6 @@
+
+module List05_local where
+
 {-@ decrease go 2 @-}
 
 rev = go [] 

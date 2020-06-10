@@ -1,4 +1,4 @@
-
+{-# LANGUAGE MagicHash #-}
 -- | See https://github.com/ucsd-progsys/liquidhaskell/issues/716
 --   due to the weird case-of thwarting ANF, you need the qualifier from the
 --   output type of `narrow16Word` (apparently we don't scrape assumes?) 
@@ -9,7 +9,6 @@
 module Blank where
 
 import GHC.Exts
-import GHC.Prim
 import GHC.Word
 
 -- denotes the offset at which bits are no longer guaranteed to be defined

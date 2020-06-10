@@ -45,7 +45,8 @@ import           Control.Monad                                (when, forM_)
 
 import           System.Exit                                  (ExitCode (..))
 import           System.FilePath                              (takeFileName, dropFileName, (</>))
-import           System.Directory                             (findExecutable, copyFile)
+import           System.Directory                             (findExecutable)
+import qualified System.Directory                             as Dir
 import qualified Data.List                                    as L
 import qualified Data.Vector                                  as V
 import qualified Data.ByteString.Lazy                         as B
@@ -120,8 +121,15 @@ mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
 mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
 
+-- | Like 'copyFile' from 'System.Directory', but ensure that the parent /temporary/ directory 
+-- (i.e. \".liquid\") exists on disk, creating it if necessary.
+copyFileCreateParentDirIfMissing :: FilePath -> FilePath -> IO ()
+copyFileCreateParentDirIfMissing src tgt = do
+  Dir.createDirectoryIfMissing False $ tempDirectory tgt
+  Dir.copyFile src tgt
+
 writeFilesOrStrings :: FilePath -> [Either FilePath String] -> IO ()
-writeFilesOrStrings tgtFile = mapM_ $ either (`copyFile` tgtFile) (tgtFile `appendFile`)
+writeFilesOrStrings tgtFile = mapM_ $ either (`copyFileCreateParentDirIfMissing` tgtFile) (tgtFile `appendFile`)
 
 generateHtml :: FilePath -> FilePath -> ACSS.AnnMap -> IO ()
 generateHtml srcF htmlF annm
@@ -129,7 +137,7 @@ generateHtml srcF htmlF annm
        let lhs  = isExtFile LHs srcF
        let body = {-# SCC "hsannot" #-} ACSS.hsannot False (Just tokAnnot) lhs (src, annm)
        cssFile <- getCssPath
-       copyFile cssFile (dropFileName htmlF </> takeFileName cssFile)
+       copyFileCreateParentDirIfMissing cssFile (dropFileName htmlF </> takeFileName cssFile)
        renderHtml lhs htmlF srcF (takeFileName cssFile) body
 
 renderHtml :: Bool -> FilePath -> String -> String -> String -> IO ()
@@ -235,7 +243,7 @@ mkAnnMap cfg res ann     = ACSS.Ann
                              }
 
 mkStatus :: FixResult t -> ACSS.Status
-mkStatus (Safe)          = ACSS.Safe
+mkStatus (Safe _)        = ACSS.Safe
 mkStatus (Unsafe _)      = ACSS.Unsafe
 mkStatus (Crash _ _)     = ACSS.Error
 

@@ -1,10 +1,13 @@
+{-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
+
+module BinahUpdate where
+
 {-@ LIQUID "--no-adt" 	                           @-}
 {-@ LIQUID "--exact-data-con"                      @-}
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--ple" @-} 
 
-{-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
 class PersistEntity record where
     data EntityField record :: * -> *

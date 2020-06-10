@@ -52,3 +52,9 @@ css/
 .liquid
 .dir-locals.el
 .tasty-rerun-log
+hie.yaml
+.vim
+tests/**/*.dyn_hi
+tests/**/*.dyn_o
+tests/**/*.hi-boot
+tests/**/*.o-boot

@@ -26,12 +26,18 @@ commands:
   cabal_build_and_test:
     description: "Build the project and run the tests"
     parameters:
+      extra_test_flags:
+        type: string
+        default: ""
       liquid_runner:
         type: string
         default: "--liquid-runner=cabal v2-run liquid -- "
       ghc_options:
         type: string
         default: "--ghc-options=\"+RTS -M2G -RTS\""
+      setup_test_extra_steps:
+        type: string
+        default: ""
     steps:
       - setup_project
       - restore_cache:
@@ -51,13 +57,12 @@ commands:
           name: Setup Test
           command: |
             mkdir -p /tmp/junit/cabal
-            # Liquid-check some of the .hs file in include first (but why?) filter out the broken ones.
-            find include -type f -name '*.hs' | grep -v Old | grep -v Example | grep -v RTick | xargs cabal v2-run liquid -- --compile-spec
+            << parameters.setup_test_extra_steps >>
       - run:
           name: Test
           command: |
-            cabal v2-test -j1 liquidhaskell:test --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
-            cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+            liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
       - store_test_results:
           path: /tmp/junit/cabal
       - store_artifacts:
@@ -71,7 +76,10 @@ commands:
         default: "stack.yaml"
       liquid_runner:
         type: string
-        default: "stack --silent exec -- liquid"
+        default: "stack --silent exec -- liquid -v0"
+      extra_test_flags:
+        type: string
+        default: ""
     steps:
       - setup_project
       - restore_cache:
@@ -81,8 +89,7 @@ commands:
           name: Dependencies
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> setup
-            # rm -fr $(stack path --dist-dir) $(stack path --local-install-root)
-            stack --stack-yaml << parameters.stack_yaml_file >> build liquidhaskell --only-dependencies --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> build --only-dependencies --test --no-run-tests
       - save_cache:
           key: stack-{{ checksum "<< parameters.stack_yaml_file >>" }}
           paths:
@@ -93,7 +100,8 @@ commands:
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test --flag liquidhaskell:include --flag liquidhaskell:devel --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
+            stack --stack-yaml << parameters.stack_yaml_file >> build --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
             stack --stack-yaml << parameters.stack_yaml_file >> sdist
             # stack haddock liquidhaskell --flag liquidhaskell:-devel --no-haddock-deps --haddock-arguments="--no-print-missing-docs --odir=$CIRCLE_ARTIFACTS"
@@ -108,25 +116,23 @@ commands:
 
 jobs:
 
-  cabal_865:
-    docker:
-      - image: phadej/ghc:8.6.5-bionic-slim
-    steps:
-      - cabal_build_and_test
-
-  cabal_810:
-    docker:
-      - image: phadej/ghc:8.10.1-bionic-slim
-    steps:
-      - cabal_build_and_test
-
-  stack_865:
+  stack_865_legacy_executable:
     docker:
       - image: fpco/stack-build:lts-15.4
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
-            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
+            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid-legacy"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:-testNewExecutable"
+
+  stack_810_legacy_executable:
+    docker:
+      - image: fpco/stack-build:lts-15.4
+    steps:
+        - stack_build_and_test:
+            stack_yaml_file: "stack.yaml"
+            liquid_runner: "stack --silent exec -- liquid-legacy"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:-testNewExecutable"
 
   stack_810:
     docker:
@@ -135,9 +141,20 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
 
+  cabal_810:
+    docker:
+      - image: phadej/ghc:8.10.1-bionic-slim
+    steps:
+      - cabal_build_and_test:
+          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquid -- -v0 \
+                          -package-env=$(./scripts/generate_testing_ghc_env) \
+                          -package=liquidhaskell -package=Cabal "
+
 workflows:
   version: 2
   build_stack_and_cabal:
     jobs:
-      - stack_865
+      - stack_865_legacy_executable
+      - stack_810_legacy_executable
       - stack_810
+      - cabal_810

@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                       #-}
 {-# LANGUAGE DeriveFoldable            #-}
 {-# LANGUAGE DeriveTraversable         #-}
 {-# LANGUAGE StandaloneDeriving        #-}
@@ -20,6 +21,10 @@
 
 module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, generateConstraintsWithEnv, caseEnv, consE ) where
 
+#if !MIN_VERSION_base(4,14,0)
+import Control.Monad.Fail
+#endif
+
 import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error)
 import           GHC.Stack
@@ -36,17 +41,12 @@ import           TyCon
 import           CoAxiom
 import           PrelNames
 import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (exprType)
-import           Language.Haskell.Liquid.GHC.TypeRep
-import           Class                                         (className)
-import           Var
+import           Language.Haskell.Liquid.GHC.TypeRep           ()
 import           IdInfo
-import           Name        hiding (varName)
-import           FastString (fastStringToByteString)
 import           Unify
 import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import           Control.Monad.State
-import           Control.Monad.Fail 
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
 import qualified Data.HashMap.Strict                           as M
 import qualified Data.HashSet                                  as S
@@ -1288,7 +1288,7 @@ argType :: Type -> Maybe F.Expr
 argType (LitTy (NumTyLit i))
   = mkI i
 argType (LitTy (StrTyLit s))
-  = mkS $ fastStringToByteString s
+  = mkS $ bytesFS s
 argType (TyVarTy x)
   = Just $ F.EVar $ F.symbol $ varName x
 argType t

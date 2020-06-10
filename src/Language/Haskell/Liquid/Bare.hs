@@ -35,15 +35,17 @@ import qualified Data.List                                  as L
 import qualified Data.HashMap.Strict                        as M
 import qualified Data.HashSet                               as S
 import           Text.PrettyPrint.HughesPJ                  hiding (first, (<>)) -- (text, (<+>))
+import           System.FilePath                            (dropExtension)
 import           System.Directory                           (doesFileExist)
 import           System.Console.CmdArgs.Verbosity           (whenLoud)
-import           Language.Fixpoint.Utils.Files             
+import           Language.Fixpoint.Utils.Files              as Files
 import           Language.Fixpoint.Misc                     as Misc 
 import           Language.Fixpoint.Types                    hiding (dcFields, DataDecl, Error, panic)
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
+import           Language.Haskell.Liquid.GHC.Types          (StableName)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure            as Ms
@@ -190,13 +192,28 @@ makeGhcSpec0 cfg src lmap mspecs = SP
   , _gsName   = makeSpecName env     tycEnv measEnv   name 
   , _gsVars   = makeSpecVars cfg src mySpec env measEnv
   , _gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , _gsLSpec  = makeLiftedSpec   src env refl sData sig qual myRTE lSpec1 {
-                   impSigs   = makeImports mspecs,
-                   expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
-                   dataDecls = dataDecls mySpec2 
-                   } 
+  , _gsLSpec  = finalLiftedSpec
+              { impSigs   = makeImports mspecs
+              , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
+              , dataDecls = dataDecls mySpec2
+              , measures  = Ms.measures mySpec
+                -- We want to export measures in a 'LiftedSpec', especially if they are
+                -- required to check termination of some 'liftedSigs' we export. Due to the fact
+                -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
+                -- we take them from 'mySpec', which has those.
+              , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
+                -- Export all the assumptions (not just the ones created out of reflection) in
+                -- a 'LiftedSpec'.
+              , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
+                -- Preserve user-defined 'imeasures'.
+              , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
+                -- Preserve user-defined 'dvariance'.
+              , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
+                -- Preserve rinstances.
+              }
   }
   where
+    finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
     -- build up spec components 
     myRTE    = myRTEnv       src env sigEnv rtEnv  
     qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
@@ -284,6 +301,14 @@ makeLiftedSpec0 cfg src embs lmap mySpec = mempty
   { Ms.ealiases  = lmapEAlias . snd <$> Bare.makeHaskellInlines src embs lmap mySpec 
   , Ms.reflects  = Ms.reflects mySpec
   , Ms.dataDecls = Bare.makeHaskellDataDecls cfg name mySpec tcs  
+  , Ms.embeds    = Ms.embeds mySpec
+  -- We do want 'embeds' to survive and to be present into the final 'LiftedSpec'. The
+  -- caveat is to decide which format is more appropriate. We obviously cannot store
+  -- them as a 'TCEmb TyCon' as serialising a 'TyCon' would be fairly exponsive. This
+  -- needs more thinking.
+  , Ms.cmeasures = Ms.cmeasures mySpec
+  -- We do want 'cmeasures' to survive and to be present into the final 'LiftedSpec'. The
+  -- caveat is to decide which format is more appropriate. This needs more thinking.
   }
   where 
     tcs          = uniqNub (_gsTcs src ++ refTcs)
@@ -732,7 +757,7 @@ _grepClassAssumes  = concatMap go
     goOne (x, RIAssumed t) = Just (fmap (F.symbol . (".$c" ++ ) . F.symbolString) x, t)
     goOne (_, RISig _)     = Nothing
 
-makeSigEnv :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Ghc.NameSet -> BareRTEnv -> Bare.SigEnv 
+makeSigEnv :: F.TCEmb Ghc.TyCon -> Bare.TyConMap -> S.HashSet StableName -> BareRTEnv -> Bare.SigEnv 
 makeSigEnv embs tyi exports rtEnv = Bare.SigEnv
   { sigEmbs     = embs 
   , sigTyRTyMap = tyi 
@@ -874,7 +899,7 @@ makeSpecName env tycEnv measEnv name = SpNames
   where 
     datacons, cls :: [DataConP]
     datacons   = Bare.tcDataCons tycEnv 
-    cls        = F.tracepp "meClasses" $ Bare.meClasses measEnv 
+    cls        = F.notracepp "meClasses" $ Bare.meClasses measEnv 
     tycons     = Bare.tcTyCons   tycEnv 
 
 
@@ -976,7 +1001,9 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
   , Ms.qualifiers = filter (isLocInFile srcF) (gsQualifiers qual)
   }
   where
-    mkSigs xts    = [ toBare (x, t) | (x, t) <- xts,  S.member x sigVars && (isExported src x) ] 
+    mkSigs xts    = [ toBare (x, t) | (x, t) <- xts
+                    ,  S.member x sigVars && (isExportedVar (view targetSrcIso src) x) 
+                    ] 
     toBare (x, t) = (varLocSym x, Bare.specToBare <$> t)
     xbs           = toBare <$> reflTySigs 
     sigVars       = S.difference defVars reflVars
@@ -986,14 +1013,20 @@ makeLiftedSpec src _env refl sData sig qual myRTE lSpec0 = lSpec0
     -- myAliases fld = M.elems . fld $ myRTE 
     srcF          = _giTarget src 
 
-isExported :: GhcSrc -> Ghc.Var -> Bool
-isExported info v = n `Ghc.elemNameSet` ns
-  where
-    n                = Ghc.getName v
-    ns               = _gsExports info
-
+-- | Returns 'True' if the input determines a location within the input file. Due to the fact we might have
+-- Haskell sources which have \"companion\" specs defined alongside them, we also need to account for this
+-- case, by stripping out the extensions and check that the LHS is a Haskell source and the RHS a spec file.
 isLocInFile :: (F.Loc a) => FilePath -> a ->  Bool 
-isLocInFile f lx = f == (locFile lx) 
+isLocInFile f lx = f == lifted || isCompanion
+  where
+    lifted :: FilePath
+    lifted = locFile lx
+
+    isCompanion :: Bool
+    isCompanion =
+      (==) (dropExtension f) (dropExtension lifted)
+       &&  isExtFile Hs f
+       &&  isExtFile Files.Spec lifted
 
 locFile :: (F.Loc a) => a -> FilePath 
 locFile = Misc.fst3 . F.sourcePosElts . F.sp_start . F.srcSpan

@@ -73,7 +73,7 @@ import qualified Foreign.Concurrent as FC (newForeignPtr)
 
 --import Data.Generics            (Data(..), Typeable(..))
 
-import GHC.Prim                 (Addr#)
+import GHC.Exts                 (Addr#)
 import GHC.Ptr                  (Ptr(..))
 #endif
 

@@ -26,13 +26,12 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
 import           CoreSyn
 import           Language.Haskell.Liquid.GHC.API
-import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep ()
 import qualified CoreUtils
 import qualified Var
 import qualified MkCore
 import           Data.Maybe     (fromMaybe)
-import           Control.Monad  (msum)
-import Control.Monad.State hiding (lift)
+import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
 import qualified          Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Misc (safeZipWithError, mapThd3, Nat)
@@ -40,7 +39,6 @@ import           Language.Haskell.Liquid.GHC.Play (substExpr)
 import           Language.Haskell.Liquid.GHC.Resugar
 import           Language.Haskell.Liquid.GHC.Misc (unTickExpr, isTupleId, showPpr, mkAlive) -- , showPpr, tracePpr)
 import           Language.Haskell.Liquid.UX.Config  (Config, noSimplifyCore)
--- import           Debug.Trace
 import qualified Data.List as L
 import qualified Data.HashMap.Strict as M
 

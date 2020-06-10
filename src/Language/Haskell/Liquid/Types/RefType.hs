@@ -99,9 +99,6 @@ import Name             hiding (varName)
 import Var
 import DataCon
 import qualified TyCon  as TC
-import Type             (splitFunTys, expandTypeSynonyms, substTyWith)
-import TysWiredIn       (listTyCon, intDataCon, trueDataCon, falseDataCon,
-                         intTyCon, charTyCon, typeNatKind, typeSymbolKind, stringTy, intTy)
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -124,7 +121,7 @@ import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
 import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, Located, mapType, tyConName)
-
+import           Language.Haskell.Liquid.GHC.TypeRep () -- Eq Type instance
 import Data.List (foldl')
 
 

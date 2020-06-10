@@ -1,6 +1,11 @@
 # Changes
 
-## NEXT 0.8.6.0
+## NEXT 0.8.10.1
+
+- Support for GHC 8.10.1
+- LiquidHaskell is now available as a GHC Plugin
+
+## 0.8.6.0
 
 - Automatically check (transitive) dependencies
 - Built with GHC 8.6.4

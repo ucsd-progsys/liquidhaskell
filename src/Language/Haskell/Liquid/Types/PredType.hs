@@ -31,10 +31,9 @@ module Language.Haskell.Liquid.Types.PredType (
 
 import           Prelude                         hiding (error)
 import           DataCon
-import           Name                            (getSrcSpan)
 import           Text.PrettyPrint.HughesPJ
 import           Language.Haskell.Liquid.GHC.API
-import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M
 import qualified Data.Maybe                                 as Mb 

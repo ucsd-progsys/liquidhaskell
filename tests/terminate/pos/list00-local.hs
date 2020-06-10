@@ -1,4 +1,6 @@
 
+module List00_Local where
+
 lrev :: [a] -> [a]
 lrev = go [] 
   where  

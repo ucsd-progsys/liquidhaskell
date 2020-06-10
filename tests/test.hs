@@ -138,7 +138,7 @@ newtype LiquidRunner = LiquidRunner String
   deriving (Show, Read, Eq, Ord, Typeable, IsString, Semigroup, Monoid)
 
 instance IsOption LiquidRunner where
-  defaultValue = LiquidRunner "stack --silent exec -- liquid"
+  defaultValue = LiquidRunner "stack --silent exec -- liquid -v0"
   parseValue = Just . LiquidRunner
   optionName = return "liquid-runner"
   optionHelp = return "Specifies the full path or command which will run 'liquid'."
@@ -159,87 +159,87 @@ errorTests = group "Error-Messages"
     -- , errorTest "tests/errors/AmbiguousInline.hs"     2 "Ambiguous specification symbol `min`"
     -- , errorTest "tests/errors/MissingAbsRefArgs.hs"   2 "Illegal type specification for `Fixme.bar`"
 
-    errorTest "tests/errors/ReWrite8.hs"            2 "Could not generate any rewrites from equality"
-  , errorTest "tests/errors/ReWrite7.hs"            2 "Could not generate any rewrites from equality"
-  , errorTest "tests/errors/ReWrite6.hs"            2 "Unable to use ReWrite6.bad as a rewrite because it does not prove an equality"
-  , errorTest "tests/errors/ReWrite5.hs"            2 "parameter \"xs\" contains an inner refinement"
-  , errorTest "tests/errors/ShadowFieldInline.hs"   2 "Error: Multiple specifications for `pig`"
-  , errorTest "tests/errors/ShadowFieldReflect.hs"  2 "Error: Multiple specifications for `pig`"
-  , errorTest "tests/errors/MultiRecSels.hs"        2 "Duplicated definitions for field `left`" 
-  , errorTest "tests/errors/DupFunSigs.hs"          2 "Multiple specifications for `Main.fromWeekDayNum`"
-  , errorTest "tests/errors/DupMeasure.hs"          2 "Error: Multiple specifications for `lenA`"
-  , errorTest "tests/errors/ShadowMeasure.hs"       2 "Multiple specifications for `shadow`"
-  , errorTest "tests/errors/DupData.hs"             2 "Multiple specifications for `OVec`"
-  , errorTest "tests/errors/EmptyData.hs"           2 "one or more fields in the data declaration for `A`"
-  , errorTest "tests/errors/BadGADT.hs"             2 "Error: Specified type does not refine Haskell type for `Main.Nil2`" 
-  , errorTest "tests/errors/TerminationExprSort.hs" 2 "Illegal termination specification for `TerminationExpr.showSep`"
-  , errorTest "tests/errors/TerminationExprNum.hs"  2 "Illegal termination specification for `TerminationExpr.showSep`"
-  , errorTest "tests/errors/TerminationExprUnb.hs"  2 "Illegal termination specification for `go`"
-  , errorTest "tests/errors/UnboundVarInSpec.hs"    2 "Illegal type specification for `Fixme.foo`"
-  , errorTest "tests/errors/UnboundVarInAssume.hs"  2 "Illegal type specification for `Assume.incr`"
-  , errorTest "tests/errors/UnboundCheckVar.hs"     2 "Unknown variable `UnboundCheckVar.ink`"
-  , errorTest "tests/errors/UnboundFunInSpec.hs"    2 "Illegal type specification for `Goo.three`"
-  , errorTest "tests/errors/UnboundFunInSpec1.hs"   2 "Illegal type specification for `Goo.foo`"
-  , errorTest "tests/errors/UnboundFunInSpec2.hs"   2 "Illegal type specification for `Goo.foo`"
-  , errorTest "tests/errors/UnboundVarInLocSig.hs"  2 "Illegal type specification for `bar`" 
-  , errorTest "tests/errors/Fractional.hs"          2 "Illegal type specification for `Crash.f`"
-  , errorTest "tests/errors/T773.hs"                2 "Illegal type specification for `LiquidR.incr`"
-  , errorTest "tests/errors/T774.hs"                2 "Illegal type specification for `LiquidR.incr`"
-  , errorTest "tests/errors/T1498.hs"               2 "Standalone class method refinement"
-  , errorTest "tests/errors/T1498A.hs"              2 "Error: Bad Data Specification"
-  , errorTest "tests/errors/Inconsistent0.hs"       2 "Specified type does not refine Haskell type for `Ast.id1`" 
-  , errorTest "tests/errors/Inconsistent1.hs"       2 "Specified type does not refine Haskell type for `Boo.incr` (Checked)"
-  , errorTest "tests/errors/Inconsistent2.hs"       2 "Specified type does not refine Haskell type for `Mismatch.foo` (Checked)"
-  , errorTest "tests/errors/BadAliasApp.hs"         2 "Malformed application of type alias `ListN`"
-  , errorTest "tests/errors/BadPragma0.hs"          2 "Illegal pragma"
-  , errorTest "tests/errors/BadPragma1.hs"          2 "Illegal pragma"
-  , errorTest "tests/errors/BadPragma2.hs"          2 "Illegal pragma"
-  , errorTest "tests/errors/BadSyn1.hs"             2 "Malformed application of type alias `Fooz`"
-  , errorTest "tests/errors/BadSyn2.hs"             2 "Malformed application of type alias `Zoo.Foo`"
-  , errorTest "tests/errors/BadSyn3.hs"             2 "Malformed application of type alias `Zoo.Foo`"
-  , errorTest "tests/errors/BadSyn4.hs"             2 "Malformed application of type alias `Foo.Point`"
-  , errorTest "tests/errors/BadAnnotation.hs"       2 "Malformed annotation"
-  , errorTest "tests/errors/BadAnnotation1.hs"      2 "Malformed annotation"
-  , errorTest "tests/errors/CyclicExprAlias0.hs"    2 "Cyclic type alias definition"
-  , errorTest "tests/errors/CyclicExprAlias1.hs"    2 "Cyclic type alias definition" 
-  , errorTest "tests/errors/CyclicExprAlias2.hs"    2 "Cyclic type alias definition"
-  , errorTest "tests/errors/CyclicExprAlias3.hs"    2 "Cyclic type alias definition"
-  , errorTest "tests/errors/DupAlias.hs"            2 "Multiple definitions of Type Alias `BoundedNat`"
-  , errorTest "tests/errors/DupAlias.hs"            2 "Multiple definitions of Pred Alias `Foo`"
-  , errorTest "tests/errors/BadDataConType.hs"      2 "Illegal type specification for `Boo.fldY`" 
-  , errorTest "tests/errors/BadDataConType1.hs"     2 "Error: Specified type does not refine Haskell type for `Boo.C`" 
+    errorTest "tests/errors/ReWrite8.hs"            1 "Could not generate any rewrites from equality"
+  , errorTest "tests/errors/ReWrite7.hs"            1 "Could not generate any rewrites from equality"
+  , errorTest "tests/errors/ReWrite6.hs"            1 "Unable to use ReWrite6.bad as a rewrite because it does not prove an equality"
+  , errorTest "tests/errors/ReWrite5.hs"            1 "parameter \"xs\" contains an inner refinement"
+  , errorTest "tests/errors/ShadowFieldInline.hs"   1 "Error: Multiple specifications for `pig`"
+  , errorTest "tests/errors/ShadowFieldReflect.hs"  1 "Error: Multiple specifications for `pig`"
+  , errorTest "tests/errors/MultiRecSels.hs"        1 "Duplicated definitions for field `left`" 
+  , errorTest "tests/errors/DupFunSigs.hs"          1 "Multiple specifications for `Main.fromWeekDayNum`"
+  , errorTest "tests/errors/DupMeasure.hs"          1 "Error: Multiple specifications for `lenA`"
+  , errorTest "tests/errors/ShadowMeasure.hs"       1 "Multiple specifications for `shadow`"
+  , errorTest "tests/errors/DupData.hs"             1 "Multiple specifications for `OVec`"
+  , errorTest "tests/errors/EmptyData.hs"           1 "one or more fields in the data declaration for `A`"
+  , errorTest "tests/errors/BadGADT.hs"             1 "Error: Specified type does not refine Haskell type for `Main.Nil2`" 
+  , errorTest "tests/errors/TerminationExprSort.hs" 1 "Illegal termination specification for `TerminationExpr.showSep`"
+  , errorTest "tests/errors/TerminationExprNum.hs"  1 "Illegal termination specification for `TerminationExpr.showSep`"
+  , errorTest "tests/errors/TerminationExprUnb.hs"  1 "Illegal termination specification for `go`"
+  , errorTest "tests/errors/UnboundVarInSpec.hs"    1 "Illegal type specification for `Fixme.foo`"
+  , errorTest "tests/errors/UnboundVarInAssume.hs"  1 "Illegal type specification for `Assume.incr`"
+  , errorTest "tests/errors/UnboundCheckVar.hs"     1 "Unknown variable `UnboundCheckVar.ink`"
+  , errorTest "tests/errors/UnboundFunInSpec.hs"    1 "Illegal type specification for `Goo.three`"
+  , errorTest "tests/errors/UnboundFunInSpec1.hs"   1 "Illegal type specification for `Goo.foo`"
+  , errorTest "tests/errors/UnboundFunInSpec2.hs"   1 "Illegal type specification for `Goo.foo`"
+  , errorTest "tests/errors/UnboundVarInLocSig.hs"  1 "Illegal type specification for `bar`" 
+  , errorTest "tests/errors/Fractional.hs"          1 "Illegal type specification for `Crash.f`"
+  , errorTest "tests/errors/T773.hs"                1 "Illegal type specification for `LiquidR.incr`"
+  , errorTest "tests/errors/T774.hs"                1 "Illegal type specification for `LiquidR.incr`"
+  , errorTest "tests/errors/T1498.hs"               1 "Standalone class method refinement"
+  , errorTest "tests/errors/T1498A.hs"              1 "Error: Bad Data Specification"
+  , errorTest "tests/errors/Inconsistent0.hs"       1 "Specified type does not refine Haskell type for `Ast.id1`" 
+  , errorTest "tests/errors/Inconsistent1.hs"       1 "Specified type does not refine Haskell type for `Boo.incr` (Checked)"
+  , errorTest "tests/errors/Inconsistent2.hs"       1 "Specified type does not refine Haskell type for `Mismatch.foo` (Checked)"
+  , errorTest "tests/errors/BadAliasApp.hs"         1 "Malformed application of type alias `ListN`"
+  , errorTest "tests/errors/BadPragma0.hs"          1 "Illegal pragma"
+  , errorTest "tests/errors/BadPragma1.hs"          1 "Illegal pragma"
+  , errorTest "tests/errors/BadPragma2.hs"          1 "Illegal pragma"
+  , errorTest "tests/errors/BadSyn1.hs"             1 "Malformed application of type alias `Fooz`"
+  , errorTest "tests/errors/BadSyn2.hs"             1 "Malformed application of type alias `Zoo.Foo`"
+  , errorTest "tests/errors/BadSyn3.hs"             1 "Malformed application of type alias `Zoo.Foo`"
+  , errorTest "tests/errors/BadSyn4.hs"             1 "Malformed application of type alias `Foo.Point`"
+  , errorTest "tests/errors/BadAnnotation.hs"       1 "Malformed annotation"
+  , errorTest "tests/errors/BadAnnotation1.hs"      1 "Malformed annotation"
+  , errorTest "tests/errors/CyclicExprAlias0.hs"    1 "Cyclic type alias definition"
+  , errorTest "tests/errors/CyclicExprAlias1.hs"    1 "Cyclic type alias definition" 
+  , errorTest "tests/errors/CyclicExprAlias2.hs"    1 "Cyclic type alias definition"
+  , errorTest "tests/errors/CyclicExprAlias3.hs"    1 "Cyclic type alias definition"
+  , errorTest "tests/errors/DupAlias.hs"            1 "Multiple definitions of Type Alias `BoundedNat`"
+  , errorTest "tests/errors/DupAlias.hs"            1 "Multiple definitions of Pred Alias `Foo`"
+  , errorTest "tests/errors/BadDataConType.hs"      1 "Illegal type specification for `Boo.fldY`" 
+  , errorTest "tests/errors/BadDataConType1.hs"     1 "Error: Specified type does not refine Haskell type for `Boo.C`" 
                                                        -- "Illegal type specification for `Boo.fldY`" 
 
-  , errorTest "tests/errors/BadDataConType2.hs"     2 "different numbers of fields for `Boo.C`" 
-  , errorTest "tests/errors/LiftMeasureCase.hs"     2 "Cannot create measure 'Measures.foo': Does not have a case-of at the top-level"
-  , errorTest "tests/errors/HigherOrderBinder.hs"   2 "Illegal type specification for `Main.foo`"
-  , errorTest "tests/errors/HoleCrash1.hs"          2 "Illegal type specification for `ListDemo.t`"
-  , errorTest "tests/errors/HoleCrash2.hs"          2 "Malformed application of type alias `Geq`"
-  , errorTest "tests/errors/HoleCrash3.hs"          2 "Specified type does not refine Haskell type for `ListDemo.countUp`"
-  , errorTest "tests/errors/BadPredApp.hs"          2 "Malformed predicate application"
-  , errorTest "tests/errors/LocalHole.hs"           2 "Illegal type specification for `go`"
-  , errorTest "tests/errors/UnboundAbsRef.hs"       2 "Cannot apply unbound abstract refinement `p`"
+  , errorTest "tests/errors/BadDataConType2.hs"     1 "different numbers of fields for `Boo.C`" 
+  , errorTest "tests/errors/LiftMeasureCase.hs"     1 "Cannot create measure 'Measures.foo': Does not have a case-of at the top-level"
+  , errorTest "tests/errors/HigherOrderBinder.hs"   1 "Illegal type specification for `Main.foo`"
+  , errorTest "tests/errors/HoleCrash1.hs"          1 "Illegal type specification for `ListDemo.t`"
+  , errorTest "tests/errors/HoleCrash2.hs"          1 "Malformed application of type alias `Geq`"
+  , errorTest "tests/errors/HoleCrash3.hs"          1 "Specified type does not refine Haskell type for `ListDemo.countUp`"
+  , errorTest "tests/errors/BadPredApp.hs"          1 "Malformed predicate application"
+  , errorTest "tests/errors/LocalHole.hs"           1 "Illegal type specification for `go`"
+  , errorTest "tests/errors/UnboundAbsRef.hs"       1 "Cannot apply unbound abstract refinement `p`"
   -- , errorTest "tests/errors/BadQualifier.hs"        2 "Illegal qualifier specification for `Foo`"
-  , errorTest "tests/errors/ParseClass.hs"          2 "Cannot parse specification"
-  , errorTest "tests/errors/ParseBind.hs"           2 "Cannot parse specification"
-  , errorTest "tests/errors/MultiInstMeasures.hs"   2 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
-  , errorTest "tests/errors/BadDataDeclTyVars.hs"   2 "Mismatch in number of type variables for `L`"
-  , errorTest "tests/errors/BadDataCon2.hs"         2 "GHC and Liquid specifications have different numbers of fields for `Boo.Cuthb`"
-  , errorTest "tests/errors/BadSig0.hs"             2 "Error: Illegal type specification for `Zoo.foo`"
-  , errorTest "tests/errors/BadSig1.hs"             2 "Error: Illegal type specification for `Ev.EZ`"
-  , errorTest "tests/errors/BadData1.hs"            2 "`Main.EntityField` is not the type constructed by"
-  , errorTest "tests/errors/BadData2.hs"            2 "`Boo.Hog` is not the type constructed by `Cuthb`"
-  , errorTest "tests/errors/T1140.hs"               2 "Specified type does not refine Haskell type for `Blank.foo`"
+  , errorTest "tests/errors/ParseClass.hs"          1 "Cannot parse specification"
+  , errorTest "tests/errors/ParseBind.hs"           1 "Cannot parse specification"
+  , errorTest "tests/errors/MultiInstMeasures.hs"   1 "Multiple instance measures `sizeOf` for type `GHC.Ptr.Ptr`"
+  , errorTest "tests/errors/BadDataDeclTyVars.hs"   1 "Mismatch in number of type variables for `L`"
+  , errorTest "tests/errors/BadDataCon2.hs"         1 "GHC and Liquid specifications have different numbers of fields for `Boo.Cuthb`"
+  , errorTest "tests/errors/BadSig0.hs"             1 "Error: Illegal type specification for `Zoo.foo`"
+  , errorTest "tests/errors/BadSig1.hs"             1 "Error: Illegal type specification for `Ev.EZ`"
+  , errorTest "tests/errors/BadData1.hs"            1 "`Main.EntityField` is not the type constructed by"
+  , errorTest "tests/errors/BadData2.hs"            1 "`Boo.Hog` is not the type constructed by `Cuthb`"
+  , errorTest "tests/errors/T1140.hs"               1 "Specified type does not refine Haskell type for `Blank.foo`"
   , errorTest "tests/errors/InlineSubExp0.hs"       1 "== f B C"
   , errorTest "tests/errors/InlineSubExp1.hs"       1 "== f B (g A)"
-  , errorTest "tests/errors/EmptySig.hs"            2 "Error: Cannot parse specification"
-  , errorTest "tests/errors/MissingReflect.hs"      2 "Error: Illegal type specification for `Main.empty_foo`" 
-  , errorTest "tests/errors/MissingSizeFun.hs"      2 "Error: Unknown variable `llen2`" 
-  , errorTest "tests/errors/MissingAssume.hs"       2 "Error: Unknown variable `goober`" 
-  , errorTest "tests/errors/HintMismatch.hs"        2 "HINT: Use the hole"
-  , errorTest "tests/errors/ElabLocation.hs"        2 "ElabLocation.hs:11:14-11:15: Error"
-  , errorTest "tests/errors/ErrLocation.hs"         1 "ErrLocation.hs:7:13-19: Error"
-  , errorTest "tests/errors/ErrLocation2.hs"        1 "ErrLocation2.hs:9:20: Error"
+  , errorTest "tests/errors/EmptySig.hs"            1 "Error: Cannot parse specification"
+  , errorTest "tests/errors/MissingReflect.hs"      1 "Error: Illegal type specification for `Main.empty_foo`" 
+  , errorTest "tests/errors/MissingSizeFun.hs"      1 "Error: Unknown variable `llen2`" 
+  , errorTest "tests/errors/MissingAssume.hs"       1 "Error: Unknown variable `goober`" 
+  , errorTest "tests/errors/HintMismatch.hs"        1 "HINT: Use the hole"
+  , errorTest "tests/errors/ElabLocation.hs"        1 "ElabLocation.hs:13:14-13:15: Error"
+  , errorTest "tests/errors/ErrLocation.hs"         1 "ErrLocation.hs:9:13-19: Error"
+  , errorTest "tests/errors/ErrLocation2.hs"        1 "ErrLocation2.hs:11:20: Error"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
@@ -292,7 +292,7 @@ microTests = group "Micro"
   , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
   , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
   , mkMicro "class-laws-pos" "tests/class-laws/pos"  ExitSuccess
-  , mkMicro "class-laws-crash" "tests/class-laws/crash" (ExitFailure 2)
+  , mkMicro "class-laws-crash" "tests/class-laws/crash" (ExitFailure 1)
   , mkMicro "class-laws-neg"   "tests/class-laws/neg"   (ExitFailure 1)
   , mkMicro "implicit-pos"   "tests/implicit/pos"    ExitSuccess
   , mkMicro "implicit-neg"   "tests/implicit/neg"   (ExitFailure 1)
@@ -394,7 +394,9 @@ textOrder = Just . mkOrder $
   , "Data/Text/Lazy/Fusion.hs"
   , "Data/Text/Lazy.hs"
   , "Data/Text/Lazy/Builder.hs"
+  , "Data/Text/Encoding/Fusion.hs"
   , "Data/Text/Encoding.hs"
+  , "Data/Text/Lazy/Encoding/Fusion.hs"
   , "Data/Text/Lazy/Encoding.hs"
   ] 
   
@@ -520,16 +522,17 @@ runLiquidOn :: SmtSolver
             -> IO (ExitCode, T.Text)
 --------------------------------------------------------------------------------
 runLiquidOn smt opts (LiquidRunner bin) dir file = do
+  absoluteDir <- canonicalizePath dir
   createDirectoryIfMissing True $ takeDirectory log
   hSetBuffering stdout NoBuffering
   withFile log WriteMode $ \h -> do
-    let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir test) opts
+    let cmd     = testCmd bin dir file smt $ mappend (extraOptions dir absoluteDir testFileFullPath) (mkLiquidOpt opts)
     (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
     exitCode   <- waitForProcess ph
     (exitCode,) <$> T.readFile log
   where
-    test = dir </> file
-    log = "tests/logs/cur" </> test <.> "log"
+    testFileFullPath = dir </> file
+    log = "tests/logs/cur" </> testFileFullPath <.> "log"
 
 
 binPath :: FilePath -> IO FilePath
@@ -552,49 +555,97 @@ knownToFail Z3   = [ "tests/pos/linspace.hs"
                    , "tests/equationalproofs/pos/MapAppend.hs"
                    ]
 
+-- | An option (like \"-i\") that also GHC can understand. This newtype is useful to
+-- separate \"package-resolution\" options that we can feed to both the plugin /and/
+-- the executable with options that are liquidhaskell-specific.
+newtype GhcSuitableOpts = GhcSuitableOpts LiquidOpts deriving (Monoid, Semigroup)
+newtype LiquidOnlyOpts  = LiquidOnlyOpts  LiquidOpts deriving (Monoid, Semigroup)
+
+data ExtraOptions = ExtraOptions { 
+    ghcSuitableOpts :: GhcSuitableOpts
+  , liquidOnlyOpts  :: LiquidOnlyOpts
+  }
+
+mkGhcOpt :: LiquidOpts -> ExtraOptions
+mkGhcOpt o = ExtraOptions (GhcSuitableOpts o) mempty
+
+mkLiquidOpt :: LiquidOpts -> ExtraOptions
+mkLiquidOpt o = ExtraOptions mempty (LiquidOnlyOpts o)
+
+instance Semigroup ExtraOptions where
+    (ExtraOptions o1 o2) <> (ExtraOptions o3 o4) = ExtraOptions (o1 <> o3) (o2 <> o4)
+
+instance Monoid ExtraOptions where
+    mempty  = ExtraOptions mempty mempty
+    mappend = (<>)
+
 --------------------------------------------------------------------------------
-extraOptions :: FilePath -> FilePath -> LiquidOpts
+extraOptions :: FilePath 
+             -- ^ The current directory /relative/ path.
+             -> FilePath
+             -- ^ The current directory /absolute/ path.
+             -> FilePath 
+             -> ExtraOptions
 --------------------------------------------------------------------------------
-extraOptions dir test = mappend (dirOpts dir) (testOpts test)
+extraOptions dir absDir testFileFullPath = mappend (dirOpts dir) (testOpts testFileFullPath)
   where
     dirOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "benchmarks/bytestring-0.9.2.1"
-        , "-iinclude"
+        , mkGhcOpt (LO $ printf "-i%s/include " absDir) <>
+#ifdef USE_NEW_EXECUTABLE
+          mkGhcOpt (LO "-w")
+#else
+          mkLiquidOpt (LO "--ghc-option=-w")
+#endif
         )
       , ( "benchmarks/text-0.11.2.3"
-        , "--bscope --no-check-imports -i../bytestring-0.9.2.1 -i../bytestring-0.9.2.1/include -i../../include"
+        , mkLiquidOpt "--bscope --no-check-imports " <>
+          mkGhcOpt    (LO $ printf "-i%s/../bytestring-0.9.2.1 " absDir) <>
+          mkGhcOpt    (LO $ printf "-i%s/../bytestring-0.9.2.1/include " absDir) <>
+          mkGhcOpt    (LO $ printf "-i%s/../../include" absDir) <>
+#ifdef USE_NEW_EXECUTABLE
+          mkGhcOpt    (LO "-w")
+#else
+          mkLiquidOpt (LO "--ghc-option=-w")
+#endif
         )
       , ( "benchmarks/vector-0.10.0.1"
-        , "-i."
+        , mkGhcOpt (LO $ printf "-i%s/." absDir)
         )
       , ( "tests/import/client"
-        , "-i../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../lib" absDir)
         )
       , ( "benchmarks/popl18/nople/pos"
-        , "-i../../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../../lib" absDir)
         )
       , ( "benchmarks/popl18/nople/neg"
-        , "-i../../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../../lib" absDir)
         )
       , ( "benchmarks/popl18/ple/pos"
-        , "-i../../lib"
+        , mkGhcOpt (LO $ printf "-i%s/../../lib" absDir)
         )
       ]
     testOpts = flip (Map.findWithDefault mempty) $ Map.fromList
       [ ( "tests/pos/Class2.hs"
-        , "-i../neg"
+        , mkGhcOpt (LO $ printf "-i%s/../neg" absDir)
         )
       , ( "tests/pos/FFI.hs"
-        , "-i../ffi-include --c-files=../ffi-include/foo.c"
+        , mkGhcOpt (LO $ printf "-i%s/../ffi-include" absDir) <> 
+          mkLiquidOpt "--c-files=../ffi-include/foo.c"
         )
       ]
 
 ---------------------------------------------------------------------------
-testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> LiquidOpts -> String
+testCmd :: FilePath -> FilePath -> FilePath -> SmtSolver -> ExtraOptions -> String
 ---------------------------------------------------------------------------
-testCmd bin dir file smt (LO opts)
-  = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file opts
-  -- = printf "%s -i %s --smtsolver %s %s %s" bin dir (show smt) file opts
+testCmd bin dir file smt (ExtraOptions (GhcSuitableOpts (LO ghcOpts)) (LiquidOnlyOpts (LO liquidOnlyOpts)))
+#ifdef USE_NEW_EXECUTABLE
+  = printf "%s -i. -i%s %s %s %s" bin dir ghcOpts liquidOpts (dir </> file)
+  where
+    liquidOpts = ("--smtsolver=" ++ show smt) <> " " <> liquidOnlyOpts
+#else
+  = printf "cd %s && %s -i . --smtsolver %s %s %s" dir bin (show smt) file (ghcOpts <> " " <> liquidOnlyOpts)
+#endif
 
 noPleIgnored :: [FilePath]
 noPleIgnored 
@@ -642,6 +693,14 @@ negIgnored :: [FilePath]
 negIgnored 
   = [ "Lib.hs"
     , "LibSpec.hs"
+    -- See: https://github.com/ucsd-progsys/liquidhaskell/issues/1677
+    , "QQTySyn2.hs"
+    , "QQTySyn1.hs"
+    , "QQTySig.hs"
+    , "elim-ex-map-3.hs"
+    , "elim-ex-map-2.hs"
+    , "elim-ex-map-1.hs"
+    , "elim-ex-let.hs"
     ]
 
 bsIgnored :: [FilePath]
@@ -654,13 +713,11 @@ textIgnored
   = [ "Setup.lhs"
     -- , "Data/Text/Axioms.hs"
     , "Data/Text/Encoding/Error.hs"
-    , "Data/Text/Encoding/Fusion.hs"
     , "Data/Text/Encoding/Fusion/Common.hs"
     , "Data/Text/Encoding/Utf16.hs"
     , "Data/Text/Encoding/Utf32.hs"
     , "Data/Text/Encoding/Utf8.hs"
     , "Data/Text/Fusion/CaseMapping.hs"
-    , "Data/Text/Fusion/Internal.hs"
     , "Data/Text/IO.hs"
     , "Data/Text/IO/Internal.hs"
     , "Data/Text/Lazy/Builder/Functions.hs"
@@ -669,7 +726,6 @@ textIgnored
     , "Data/Text/Lazy/Builder/Internal.hs"
     , "Data/Text/Lazy/Builder/RealFloat.hs"
     , "Data/Text/Lazy/Builder/RealFloat/Functions.hs"
-    , "Data/Text/Lazy/Encoding/Fusion.hs"
     , "Data/Text/Lazy/IO.hs"
     , "Data/Text/Lazy/Read.hs"
     , "Data/Text/Read.hs"

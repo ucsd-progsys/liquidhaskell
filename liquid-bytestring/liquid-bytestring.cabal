@@ -1,0 +1,36 @@
+name:               liquid-bytestring
+version:            0.8.10.1
+synopsis:           LiquidHaskell specs for the bytestring package
+description:        LiquidHaskell specs for the bytestring package.
+license:            BSD3
+license-file:       LICENSE
+copyright:          2010-19 Ranjit Jhala & Niki Vazou & Eric L. Seidel, University of California, San Diego.
+author:             Ranjit Jhala, Niki Vazou, Eric Seidel
+maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
+category:           Language
+homepage:           https://github.com/ucsd-progsys/liquidhaskell
+build-type:         Simple
+cabal-version:      >= 1.22
+
+data-files:           src/Data/ByteString.spec
+                      src/Data/ByteString/Short.spec
+                      src/Data/ByteString/Lazy.spec
+                      src/Data/ByteString/Unsafe.spec
+                      src/Data/ByteString/Char8.spec
+                      src/Data/ByteString/Lazy/Char8.spec
+
+library
+  exposed-modules:    Data.ByteString
+                      Data.ByteString.Short
+                      Data.ByteString.Unsafe
+                      Data.ByteString.Char8
+                      Data.ByteString.Lazy
+                      -- Data.ByteString.Lazy.Char8
+  hs-source-dirs:     src
+  build-depends:      liquid-base          >= 0.8.10.1
+                    , bytestring           >= 0.10
+                    , liquidhaskell        >= 0.8.10.1
+  default-language:   Haskell98
+  default-extensions: PackageImports
+  if impl(ghc >= 8.10)
+    ghc-options: -fplugin=LiquidHaskell

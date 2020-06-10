@@ -46,16 +46,18 @@ data Size = Exact { getExact :: Nat }
 
 {-@ type SizeN N = {v:Size | (((getSize v) = n) && (not (isUnknown v)))} @-}
 
-{-@ measure getSize :: Data.Text.Fusion.Size.Size -> Nat 
-    getSize (Data.Text.Fusion.Size.Exact n) = n
-    getSize (Data.Text.Fusion.Size.Max   n) = n
-  @-}
+{-@ measure getSize @-}
 
-{-@ measure isUnknown :: Data.Text.Fusion.Size.Size -> Bool
-    isUnknown (Data.Text.Fusion.Size.Exact n) = false
-    isUnknown (Data.Text.Fusion.Size.Max   n) = false
-    isUnknown (Data.Text.Fusion.Size.Unknown) = true
-  @-}
+{-@ getSize :: Size -> Nat @-}
+getSize :: Size -> Int
+getSize (Data.Text.Fusion.Size.Exact n) = n
+getSize (Data.Text.Fusion.Size.Max   n) = n
+
+{-@ measure isUnknown @-}
+isUnknown :: Size -> Bool
+isUnknown (Data.Text.Fusion.Size.Exact n) = False
+isUnknown (Data.Text.Fusion.Size.Max   n) = False
+isUnknown (Data.Text.Fusion.Size.Unknown) = True
 
 {-@ qualif IsUnknown(v:Data.Text.Fusion.Size.Size) : (isUnknown v) @-}
 {-@ qualif IsKnown(v:Data.Text.Fusion.Size.Size) : not (isUnknown v) @-}

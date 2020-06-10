@@ -31,21 +31,26 @@ install:
 
 
 build_script:
-# Build LiquidHaskell
-- echo "" | stack --no-terminal build --ghc-options="-fexternal-interpreter" --copy-bins --local-bin-path .
+# Build LiquidHaskell (the legacy executable)
+# until https://gitlab.haskell.org/ghc/ghc/issues/17236 is fixed.
+- echo "" | rm -rf .stack-work
+- echo "" | stack --no-terminal build --ghc-options="-fexternal-interpreter" liquidhaskell:lib --copy-bins --local-bin-path .
+- echo "" | stack --no-terminal build liquid-fixpoint:exe:fixpoint liquid-platform:exe:liquid-legacy --flag liquid-platform:legacy --copy-bins --local-bin-path .
 
 # Copy runtime DLLs
 - call appveyor-copy.bat
 
 # Test if they are working
 - fixpoint --version
-- liquid --version
+- liquid-legacy --version
 
-# ZIP execturable 
-- 7z a liquidhaskell.zip liquid.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll 
+# ZIP execturable
+- 7z a liquidhaskell.zip liquid-legacy.exe fixpoint.exe .\include\CoreToLogic.lg LICENSE LICENSE_Z3 libstdc++-6.dll libgcc_s_seh-1.dll libwinpthread-1.dll
 
+# Run the tests (using the legacy executable)
 test_script:
-- echo "" | stack --no-terminal test liquidhaskell --fast --test-arguments "-p Micro"
+- echo "" | stack --no-terminal test liquidhaskell:liquidhaskell-parser --fast --flag liquidhaskell:-testNewExecutable
+- echo "" | stack --no-terminal test liquidhaskell:test --fast --ta="--liquid-runner \"stack --silent exec -- liquid-legacy\"" --flag liquidhaskell:-testNewExecutable --test-arguments "-p Micro"
 
 artifacts:
 - path: liquidhaskell.zip

@@ -19,4 +19,7 @@ fromWeekDayNum i = weekdays !! (i-1)
 {-@ fromWeekDayNum :: WeekDay -> WeekDayNum @-}
 toWeekDayNum :: WeekDay -> WeekDayNum
 toWeekDayNum wd = case wd `elemIndex` weekdays of
-		    Just i -> i + 1
+        Just i -> i + 1
+
+main :: IO ()
+main = pure ()

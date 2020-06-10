@@ -1,4 +1,7 @@
 {-# LANGUAGE BangPatterns, CPP, Rank2Types #-}
+{-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--no-check-imports" @-}
+{-@ LIQUID "--compilespec" @-}
 
 -- |
 -- Module      : Data.Text.Encoding.Fusion
@@ -34,6 +37,7 @@ module Data.Text.Encoding.Fusion
 #if defined(ASSERTS)
 import Control.Exception (assert)
 #endif
+import qualified Data.ByteString.Lazy.Internal as LIQUID
 import Data.ByteString.Internal (ByteString(..), mallocByteString, memcpy)
 import Data.Text.Fusion (Step(..), Stream(..))
 import Data.Text.Fusion.Size
@@ -41,7 +45,7 @@ import Data.Text.Encoding.Error
 import Data.Text.Encoding.Fusion.Common
 import Data.Text.UnsafeChar (unsafeChr, unsafeChr8, unsafeChr32)
 import Data.Text.UnsafeShift (shiftL, shiftR)
-import Data.Word (Word8, Word16, Word32)
+import Data.Word
 import Foreign.ForeignPtr (withForeignPtr, ForeignPtr)
 import Foreign.Storable (pokeByteOff)
 import System.IO.Unsafe (unsafePerformIO)

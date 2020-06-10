@@ -213,7 +213,11 @@ checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> [Error]
 checkSizeFun emb env tys = mkError <$> mapMaybe go tys
   where
     mkError ((f, tcp), msg)  = ErrTyCon (GM.sourcePosSrcSpan $ tcpLoc tcp)
-                                 (text "Size function" <+> pprint (f x) <+> text "should have type int." $+$   msg)
+                                 (text "Size function" <+> pprint (f x) 
+                                                       <+> text "should have type int, but it was " 
+                                                       <+> pprint (tcpCon tcp)
+                                                       <+> text "."
+                                                       $+$   msg)
                                  (pprint (tcpCon tcp))
     go tcp = case tcpSizeFun tcp of
                Nothing                   -> Nothing

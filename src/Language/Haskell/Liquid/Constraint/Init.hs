@@ -23,7 +23,6 @@ import           Type
 import           TyCon
 import           Var
 import           Id                                           -- hiding (isExportedId)
--- import           IdInfo
 import           Name        hiding (varName)
 import           Control.Monad.State
 import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes)
@@ -33,26 +32,17 @@ import qualified Data.List                                     as L
 import           Data.Bifunctor
 import qualified Language.Fixpoint.Types                       as F
 
-import           Language.Haskell.Liquid.UX.Config (terminationCheck)
 import qualified Language.Haskell.Liquid.UX.CTags              as Tg
 import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
--- import           Language.Haskell.Liquid.GHC.Interface         (isExportedVar)
--- import           Language.Haskell.Liquid.Types.Names
--- import           Language.Haskell.Liquid.Types.RefType
--- import           Language.Haskell.Liquid.Types.Visitors        hiding (freeVars)
--- import           Language.Haskell.Liquid.Types.Meet
--- import           Language.Haskell.Liquid.Types.Literals
 import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types
 
 import           Language.Haskell.Liquid.Types hiding (binds, Loc, loc, freeTyVars, Def)
-
--- import Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 initEnv :: TargetInfo -> CG CGEnv

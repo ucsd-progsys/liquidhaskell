@@ -1,4 +1,6 @@
 
+module List04_local where
+
 {-@ data L [llen] @-}
 data L a = N | C a (L a)
 
