@@ -219,8 +219,8 @@ tyConRealArity tc = go 0 (tyConKind tc)
         Nothing -> acc
         Just ks -> go (acc + 1) ks
 
-dataConExTyVars :: DataCon -> [TyVar]
-dataConExTyVars = dataConExTyCoVars
+-- dataConExTyVars :: DataCon -> [TyVar]
+-- dataConExTyVars = dataConExTyCoVars
 
 #endif
 
