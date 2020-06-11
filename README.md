@@ -551,14 +551,14 @@ series of invocations, e.g.
 In this case, you can introduce a ghost parameter that *orders the functions*
 
 ```haskell
-    {-@ isEven :: n:Nat -> z:{v:Int | v = 0} -> Bool / [n, z] @-}
-    isEven :: Int -> Int -> Bool
-    isEven 0 _ = True
-    isEven n _ = isOdd (n-1) 1
+    {-@ isEven :: n:Nat -> Bool / [n, 0] @-}
+    isEven :: Int -> Bool
+    isEven 0 = True
+    isEven n = isOdd (n-1)
 
-    {-@ isOdd :: n:Nat -> z:{v:Int | v = 1} -> Bool / [n, z] @-}
-    isOdd :: Int -> Int -> Bool
-    isOdd  n _ = not (isEven n 0)
+    {-@ isOdd :: n:Nat -> Bool / [n, 1] @-}
+    isOdd :: Int -> Bool
+    isOdd  n = not $ isEven n
 ```
 
 thus recovering a decreasing measure for the pair of functions, the
