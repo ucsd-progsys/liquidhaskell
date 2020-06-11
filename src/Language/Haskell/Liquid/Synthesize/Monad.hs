@@ -31,12 +31,10 @@ import           Var
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict           as M
 import           Data.Maybe
-import           Language.Haskell.Liquid.GHC.TypeRep
 import           Data.List
 import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
 import           TyCon
-import           Language.Haskell.Liquid.Types.Specs
 import           TyCoRep
 
 localMaxMatchDepth :: SM Int 

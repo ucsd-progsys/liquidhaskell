@@ -16,7 +16,6 @@ import           CoreSyn                        ( CoreExpr )
 import qualified CoreSyn                       as GHC
 import           Data.Maybe
 import           Control.Monad.State.Lazy
-import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Constraint.Fresh
                                                 ( trueTy )
 import           Data.List

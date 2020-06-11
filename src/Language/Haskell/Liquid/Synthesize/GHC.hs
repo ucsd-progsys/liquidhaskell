@@ -25,7 +25,6 @@ import           TysWiredIn
 
 import           Data.List
 import           Data.List.Split
-import           Debug.Trace
 
 instance Default Type where
     def = TyVarTy alphaTyVar 
@@ -165,7 +164,7 @@ pprintFormals i v (Lam b e) cnt vs
       else  if cnt > 0 
               then  pprintFormals i v e (cnt - 1) (b:vs)
               else  " " ++ show b ++ pprintFormals i v e cnt vs
-pprintFormals i _ e cnt vs
+pprintFormals i _ e _ vs
   = " =" ++ pprintBody vs i e
 
 caseIndent :: Int 
