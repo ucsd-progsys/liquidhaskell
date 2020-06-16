@@ -1,6 +1,7 @@
 -- Should be able to apply multiple rewrite rules
 module ReWrite6 where
 
+{-@ LIQUID "--max-rw-ordering-constraints=0" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ infix ++ @-}
