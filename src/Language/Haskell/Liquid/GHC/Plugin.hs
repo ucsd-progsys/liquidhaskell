@@ -479,15 +479,19 @@ processModule LiquidHaskellContext{..} = do
   debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+  dynFlags <- getDynFlags
 
   case makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies of
 
-    -- If we didn't pass validation, abort compilation and show the errors.
-    Left errors -> do
-      dynFlags <- getDynFlags
-      Util.pluginAbort (O.showSDoc dynFlags $ O.text $ showpp errors)
+    -- Print warnings and errors, aborting the compilation.
+    Left diagnostics -> do
+      liftIO $ do
+        mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
+        mapM_ (printError Full dynFlags) (allErrors diagnostics)
+        exitFailure
 
-    Right (targetSpec, liftedSpec) -> do
+    Right (warnings, targetSpec, liftedSpec) -> do
+      liftIO $ mapM_ (printWarning dynFlags) warnings
       let targetInfo = TargetInfo targetSrc targetSpec
 
       debugLog $ "bareSpec ==> "   ++ show bareSpec
