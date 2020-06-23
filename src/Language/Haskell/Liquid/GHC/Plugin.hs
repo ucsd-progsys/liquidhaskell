@@ -26,6 +26,7 @@ import           GHC                               hiding ( Target
                                                           , desugarModule
                                                           )
 
+import qualified GHC                                     as GHC
 import           Plugins                                 as GHC
 import           TcRnTypes                               as GHC
 import           TcRnMonad                               as GHC
@@ -87,6 +88,8 @@ import           Language.Haskell.Liquid.UX.CmdLine
 
 import           Optics
 
+import GHC.Paths (libdir)
+
 
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
@@ -96,10 +99,6 @@ import           Optics
 cfgRef :: IORef Config
 cfgRef = unsafePerformIO $ newIORef defConfig
 {-# NOINLINE cfgRef #-}
-
-pipelineDataRef :: IORef (HM.HashMap StableModule PipelineData)
-pipelineDataRef = unsafePerformIO $ newIORef mempty
-{-# NOINLINE pipelineDataRef #-}
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
@@ -123,7 +122,7 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 
 plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
-    parsedResultAction    = parseHook
+    parsedResultAction    = \_ _ pm -> pure pm
   , typeCheckResultAction = typecheckHook
   , installCoreToDos      = coreHook
   , dynflagsPlugin        = customDynFlags
@@ -162,6 +161,7 @@ configureDynFlags df =
 -- module declarations (i.e. 'LhsDecl GhcPs') which can be later be consumed in the typechecking phase.
 -- The goal for this phase is /not/ to turn spec comments into a fully-fledged data structure, but rather
 -- carry those string fragments (together with their 'SourcePos') into the next phase.
+    {-
 parseHook :: [CommandLineOption]
           -> ModSummary
           -> HsParsedModule
@@ -215,10 +215,6 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
       pipelineData :: PipelineData
       pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
 
-  -- Here, we save everything we will need later for consumption in a later phase.
-  liftIO $
-    atomicModifyIORef' pipelineDataRef (\old -> (HM.insert (toStableModule thisModule) pipelineData old , ()))
-
   debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
   debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
   debugLog $ "Spec comments: "   ++ show comments
@@ -236,6 +232,7 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
                                                                            , staticPlugins = []
                                                                            }
                                 }
+-}
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
@@ -280,22 +277,46 @@ instance Unoptimise (DynFlags, HscEnv) where
 -- 2. Although /LH/ works on \"Core\", it requires the _unoptimised_ \"Core\" that we
 --    grab from the parsing phase and we thread it across the entire plugin lifecycle.
 typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
-typecheckHook _ _ tcGblEnv = do
-  dynFlags <- getDynFlags
+typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
   cfg <- liftIO getConfig
 
-  -- Recover saved data for the current module.
-  debugLog "Accessing saved pipeline data ..."
-  pipelineDataMap <- liftIO (readIORef pipelineDataRef)
-  debugLog $ "Stored modules in pipeline data map: " <> show (HM.keys pipelineDataMap)
   debugLog $ "We are in module: " <> show (toStableModule thisModule)
-  let mbPipelineData = (HM.lookup (toStableModule thisModule)) pipelineDataMap
-  case mbPipelineData of
-    Nothing           -> Util.pluginAbort (O.showSDoc dynFlags $ O.text "No LiquidHaskell suitable data found for " O.<+> O.ppr thisModule)
-    Just pipelineData -> liquidHaskellCheck cfg pipelineData tcGblEnv
+  oldEnv <- askHscEnv
+  pipelineData <- runGhcT (Just libdir) $ do
+    setSession oldEnv
+    parsed <- GHC.parseModule (LH.keepRawTokenStream cleanedSummary)
+    let comments  = LH.extractSpecComments (pm_annotations parsed)
+    typechecked     <- GHC.typecheckModule (LH.ignoreInline parsed)
+
+    unoptimisedGuts <- dm_core_module <$> GHC.desugarModule typechecked
+
+    env <- getSession
+
+    resolvedNames <- LH.lookupTyThings env (pm_mod_summary parsed)
+                                           (fst . tm_internals_ $ typechecked)
+    availTyCons   <- LH.availableTyCons env (pm_mod_summary parsed)
+                                            (fst . tm_internals_ $ typechecked)
+                                            (tcg_exports . fst . tm_internals_ $ typechecked)
+    availVars     <- LH.availableVars env (pm_mod_summary parsed)
+                                          (fst . tm_internals_ $ typechecked)
+                                          (tcg_exports . fst . tm_internals_ $ typechecked)
+
+    let tcData       = mkTcData (tm_renamed_source typechecked) resolvedNames availTyCons availVars
+    pure $ PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
+
+
+  liquidHaskellCheck cfg pipelineData tcGblEnv
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
+
+    cleanedSummary :: ModSummary
+    cleanedSummary =
+        modSummary { ms_hspp_opts = (ms_hspp_opts modSummary) { cachedPlugins = []
+                                                              , staticPlugins = []
+                                                              }
+                   }
+
 
 -- | Partially calls into LiquidHaskell's GHC API.
 liquidHaskellCheck :: LH.Config -> PipelineData -> TcGblEnv -> TcM TcGblEnv

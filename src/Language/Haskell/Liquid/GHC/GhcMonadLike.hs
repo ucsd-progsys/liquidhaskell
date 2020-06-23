@@ -25,6 +25,7 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , parseModule
   , typecheckModule
   , desugarModule
+  , desugarModule'
   , findModule
   , lookupModule
   ) where
@@ -61,6 +62,7 @@ import Maybes
 import Panic
 import GhcMake
 import Finder
+import Exception (ExceptionMonad)
 
 import Optics
 
@@ -82,6 +84,9 @@ instance HasHscEnv TcM where
 instance HasHscEnv Hsc where
   askHscEnv = Hsc $ \e w -> pure (e, w)
 
+instance (ExceptionMonad m, HasHscEnv m) => HasHscEnv (GhcT m) where
+  askHscEnv = getSession
+
 -- | A typeclass which is /very/ similar to the existing 'GhcMonad', but it doesn't impose a
 -- 'ExceptionMonad' constraint.
 class (Functor m, MonadIO m, HasHscEnv m, HasDynFlags m) => GhcMonadLike m
@@ -91,6 +96,7 @@ instance GhcMonadLike Ghc
 instance GhcMonadLike (IfM lcl)
 instance GhcMonadLike TcM
 instance GhcMonadLike Hsc
+instance (ExceptionMonad m, GhcMonadLike m) => GhcMonadLike (GhcT m)
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModuleGraph :: GhcMonadLike m => m ModuleGraph
@@ -231,6 +237,19 @@ desugarModule originalModSum typechecked = do
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
   liftIO $ hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
+
+desugarModule' :: GhcMonadLike m 
+               => ModSummary 
+               -> TcGblEnv
+               -> m ModGuts
+desugarModule' originalModSum gblEnv = do
+  -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
+  dynFlags          <- getDynFlags
+  let modSum         = originalModSum { ms_hspp_opts = dynFlags }
+
+  hsc_env <- askHscEnv
+  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts modSum }
+  liftIO $ hscDesugar hsc_env_tmp modSum gblEnv
 
 
 -- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the
