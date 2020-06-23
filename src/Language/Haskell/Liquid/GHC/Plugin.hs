@@ -29,7 +29,6 @@ import           GHC                               hiding ( Target
 import           Plugins                                 as GHC
 import           TcRnTypes                               as GHC
 import           TcRnMonad                               as GHC
-import           Annotations                             as GHC
 
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
@@ -90,6 +89,7 @@ import           Language.Haskell.Liquid.UX.CmdLine
 
 import           Optics
 
+
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
 ---------------------------------------------------------------------------------
@@ -99,13 +99,9 @@ cfgRef :: IORef Config
 cfgRef = unsafePerformIO $ newIORef defConfig
 {-# NOINLINE cfgRef #-}
 
-pipelineDataRef :: IORef (ModuleEnv PipelineData)
-pipelineDataRef = unsafePerformIO $ newIORef emptyModuleEnv
+pipelineDataRef :: IORef (HM.HashMap StableModule PipelineData)
+pipelineDataRef = unsafePerformIO $ newIORef mempty
 {-# NOINLINE pipelineDataRef #-}
-
-liquidLibsRef :: IORef (ModuleEnv Annotation)
-liquidLibsRef = unsafePerformIO $ newIORef emptyModuleEnv
-{-# NOINLINE liquidLibsRef #-}
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
@@ -173,10 +169,10 @@ parseHook :: [CommandLineOption]
           -> HsParsedModule
           -> Hsc HsParsedModule
 parseHook _ (unoptimise -> modSummary) parsedModule = do
-  -- NOTE: We need to reverse the order of the extracted spec comments because in the plugin infrastructure
-  -- those would appear in reverse order and LiquidHaskell is sensible to the order in which these
-  -- annotations appears.
-  let comments  = L.reverse $ LH.extractSpecComments (hpm_annotations parsedModule)
+  -- NOTE: Be careful with the ordering of 'SpecComment's, because in the plugin infrastructure
+  -- if those would appear in a different order than what LiquidHaskell expects, the parser would choke,
+  -- as the latter is stateful with regards to the infix operators.
+  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
 
   -- Run 'parseModule' with a \"cleaned\" 'ModSummary'. We need this to avoid entering in an endless loop when
   -- the LiquidHaskell plugin code runs via GHCi. The culprit seems to be the definition of 'parseModule',
@@ -214,7 +210,8 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
   let tcData       = mkTcData typechecked resolvedNames availTyCons availVars
   let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
 
-  liftIO $ atomicModifyIORef' pipelineDataRef (\old -> (extendModuleEnv old thisModule pipelineData, ()))
+  liftIO $
+    atomicModifyIORef' pipelineDataRef (\old -> (HM.insert (toStableModule thisModule) pipelineData old , ()))
 
   debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
   debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
@@ -278,8 +275,8 @@ typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
 typecheckHook _ _ tcGblEnv = do
   dynFlags <- getDynFlags
   cfg <- liftIO getConfig
-  mbPipelinData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef pipelineDataRef)
-  case mbPipelinData of
+  mbPipelineData <- (HM.lookup (toStableModule thisModule)) <$> liftIO (readIORef pipelineDataRef)
+  case mbPipelineData of
     Nothing           -> Util.pluginAbort (O.showSDoc dynFlags $ O.text "No LiquidHaskell suitable data found for " O.<+> O.ppr thisModule)
     Just pipelineData -> liquidHaskellCheck cfg pipelineData tcGblEnv
   where
@@ -290,7 +287,7 @@ typecheckHook _ _ tcGblEnv = do
 liquidHaskellCheck :: LH.Config -> PipelineData -> TcGblEnv -> TcM TcGblEnv
 liquidHaskellCheck cfg pipelineData tcGblEnv = do
 
-  let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
+  let specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
   inputSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
 
   debugLog $ " Input spec: \n" ++ show inputSpec
@@ -323,9 +320,9 @@ liquidHaskellCheck cfg pipelineData tcGblEnv = do
     _           -> liftIO exitFailure
 
   let serialisedSpec = Util.serialiseLiquidLib pmrClientLib thisModule
+  debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
-  liftIO $ atomicModifyIORef' liquidLibsRef (\old -> (extendModuleEnv old thisModule serialisedSpec, ()))
-  pure tcGblEnv
+  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
@@ -558,26 +555,7 @@ getFamInstances guts = famInstEnvElts (mg_fam_inst_env guts)
 ---------------------------------------------------------------------------------
 
 coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-coreHook _ passes =
-  pure (CoreDoPluginPass "LiquidHaskell" liquidHaskellPass : passes)
-
--- | Stores the serialised 'LiftedSpec' into the 'ModGuts', as an 'Annotation', so that it would eventually
--- end up in the interface file.
-liquidHaskellPass :: ModGuts -> CoreM ModGuts
-liquidHaskellPass modGuts = do
-  mbLiquidLib <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef liquidLibsRef)
-  case mbLiquidLib of
-    Nothing -> do
-      -- Return the original 'ModGuts', as this could be a \"normal\", non-LH-annotated module.
-      pure modGuts
-    Just serialisedSpec -> do
-      let finalGuts  = modGuts { mg_anns = serialisedSpec : mg_anns modGuts }
-
-      debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
-      pure finalGuts
-  where
-    thisModule :: Module
-    thisModule = mg_module modGuts
+coreHook _ passes = pure passes
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook _ iface = pure iface

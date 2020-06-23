@@ -72,9 +72,9 @@ extractModuleAnnotations guts = (guts', extracted)
 -- Serialising and deserialising Specs
 --
 
-deserialiseBinaryObject :: forall a. (Typeable a, Binary a) 
-                        => Module 
-                        -> ExternalPackageState 
+deserialiseBinaryObject :: forall a. (Typeable a, Binary a)
+                        => Module
+                        -> ExternalPackageState
                         -> HomePackageTable
                         -> Maybe a
 deserialiseBinaryObject thisModule eps hpt = asum [extractFromHpt, extractFromEps]
