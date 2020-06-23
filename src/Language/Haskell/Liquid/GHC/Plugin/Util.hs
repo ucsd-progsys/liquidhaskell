@@ -92,18 +92,14 @@ deserialiseBinaryObject thisModule eps hpt = asum [extractFromHpt, extractFromEp
     deserialise :: [B.Word8] -> a
     deserialise payload = B.decode (B.pack payload)
 
-serialiseBinaryObject :: forall a. (Binary a, Typeable a) => a -> ModGuts -> ModGuts
-serialiseBinaryObject obj modGuts = annotated
+serialiseBinaryObject :: forall a. (Binary a, Typeable a) => a -> Module -> Annotation
+serialiseBinaryObject obj thisModule = serialised
   where
-    thisModule     = mg_module modGuts
-    annotated      = modGuts { mg_anns = newAnnotation : mg_anns modGuts }
-    newAnnotation  = serialise
-
-    serialise :: Annotation
-    serialise = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) obj)
+    serialised :: Annotation
+    serialised = Annotation (ModuleTarget thisModule) (toSerialized (B.unpack . B.encode) obj)
 
 -- | Serialise a 'LiquidLib', removing the termination checks from the target.
-serialiseLiquidLib :: LiquidLib -> ModGuts -> ModGuts
+serialiseLiquidLib :: LiquidLib -> Module -> Annotation
 serialiseLiquidLib lib = serialiseBinaryObject @LiquidLib lib
 
 deserialiseLiquidLib :: Module -> ExternalPackageState -> HomePackageTable -> Maybe LiquidLib
