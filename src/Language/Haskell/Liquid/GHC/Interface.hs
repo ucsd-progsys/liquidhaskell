@@ -50,6 +50,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , availableTyCons
   , availableVars
   , updLiftedSpec
+  , loadDependenciesOf
   ) where
 
 import Prelude hiding (error)
@@ -447,7 +448,7 @@ keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
   { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
 
-loadDependenciesOf :: ModuleName -> Ghc ()
+loadDependenciesOf :: GhcMonad m => ModuleName -> m ()
 loadDependenciesOf modName = do
   loadResult <- load $ LoadDependenciesOf modName
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $

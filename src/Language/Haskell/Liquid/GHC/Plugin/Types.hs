@@ -63,6 +63,7 @@ import           HscTypes                                 (ModGuts)
 import           GHC                                      ( Name
                                                           , TyThing
                                                           , TyCon
+                                                          , RenamedSource
                                                           )
 import           Var                                      ( Var )
 import           Module                                   ( Module, moduleStableString )
@@ -216,14 +217,14 @@ instance Outputable TcData where
       <+> text " }"
 
 -- | Constructs a 'TcData' out of a 'TcGblEnv'.
-mkTcData :: GhcMonadLike.TypecheckedModule
+mkTcData :: Maybe RenamedSource
          -> [(Name, Maybe TyThing)]
          -> [TyCon]
          -> [Var]
          -> TcData
-mkTcData tcModule resolvedNames availTyCons availVars = TcData {
-    tcAllImports       = LH.allImports       (GhcMonadLike.tm_renamed_source tcModule)
-  , tcQualifiedImports = LH.qualifiedImports (GhcMonadLike.tm_renamed_source tcModule)
+mkTcData mbSource resolvedNames availTyCons availVars = TcData {
+    tcAllImports       = LH.allImports       mbSource
+  , tcQualifiedImports = LH.qualifiedImports mbSource
   , tcResolvedNames    = resolvedNames
   , tcAvailableTyCons  = availTyCons
   , tcAvailableVars    = availVars
