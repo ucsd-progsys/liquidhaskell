@@ -120,7 +120,6 @@ import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
-import qualified Language.Haskell.Liquid.Bare     as Bare
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
@@ -530,8 +529,8 @@ makeGhcSrc cfg file typechecked modSum = do
     , _gsFiTcs     = fiTcs 
     , _gsFiDcs     = fiDcs
     , _gsPrimTcs   = TysPrim.primTyCons
-    , _gsQualImps  = qualifiedImports (tm_renamed_source typechecked)
-    , _gsAllImps   = allImports       (tm_renamed_source typechecked)
+    , _gsQualImps  = qualifiedImports (maybe mempty (view _2) (tm_renamed_source typechecked))
+    , _gsAllImps   = allImports       (maybe mempty (view _2) (tm_renamed_source typechecked))
     , _gsTyThings  = [ t | (_, Just t) <- things ] 
     }
 
@@ -542,15 +541,15 @@ _impThings vars  = filter ok
     ok (AnId x) = S.member x vs  
     ok _        = True 
 
-allImports :: Maybe RenamedSource -> S.HashSet Symbol 
+allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol 
 allImports = \case
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
-  Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
+  []-> Debug.trace "WARNING: Missing RenamedSource" mempty 
+  imps -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
-qualifiedImports :: Maybe RenamedSource -> QImports 
+qualifiedImports :: [LImportDecl GhcRn] -> QImports 
 qualifiedImports = \case
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
-  Just (_,imps,_,_) -> qImports [ (qn, n) | i         <- imps
+  []   -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
+  imps -> qImports [ (qn, n) | i         <- imps
                                           , let decl   = unLoc i
                                           , let m      = unLoc (ideclName decl)  
                                           , qm        <- maybeToList (unLoc <$> ideclAs decl) 

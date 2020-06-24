@@ -87,17 +87,7 @@ import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.UX.CmdLine
 
 import           Optics
-import qualified Data.Text.IO as TIO
-import qualified Data.Text as T
-import Data.Time (getCurrentTime)
 
-import GHC.Paths (libdir)
-
-logPhaseDisk :: Module -> String -> String -> IO ()
-logPhaseDisk mdl lbl content = do
-  now <- getCurrentTime
-  TIO.writeFile (lbl <> "_" <> moduleNameString (moduleName mdl) <> ".log")
-                (T.pack content)
 
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
@@ -130,12 +120,9 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 
 plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
-    parsedResultAction    = \_ _ pm -> pure pm
-  , typeCheckResultAction = typecheckHook
-  , installCoreToDos      = coreHook
+    typeCheckResultAction = typecheckHook
   , dynflagsPlugin        = customDynFlags
-  , pluginRecompile       = \_ -> pure NoForceRecompile
-  , interfaceLoadAction   = loadInterfaceHook
+  , pluginRecompile       = purePlugin
   }
 
 --------------------------------------------------------------------------------
@@ -160,78 +147,6 @@ configureDynFlags df =
             `xopt_set` MagicHash
             `xopt_set` DeriveGeneric
             `xopt_set` StandaloneDeriving
-
---------------------------------------------------------------------------------
--- | Parsing phase -------------------------------------------------------------
---------------------------------------------------------------------------------
-
--- | Hook into the parsing phase and extract \"LiquidHaskell\"'s spec comments, turning them into
--- module declarations (i.e. 'LhsDecl GhcPs') which can be later be consumed in the typechecking phase.
--- The goal for this phase is /not/ to turn spec comments into a fully-fledged data structure, but rather
--- carry those string fragments (together with their 'SourcePos') into the next phase.
-    {-
-parseHook :: [CommandLineOption]
-          -> ModSummary
-          -> HsParsedModule
-          -> Hsc HsParsedModule
-parseHook _ (unoptimise -> modSummary) parsedModule = do
-  -- NOTE: Be careful with the ordering of 'SpecComment's, because in the plugin infrastructure
-  -- if those would appear in a different order than what LiquidHaskell expects, the parser would choke,
-  -- as the latter is stateful with regards to the infix operators.
-  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
-
-  -- Run 'parseModule' with a \"cleaned\" 'ModSummary'. We need this to avoid entering in an endless loop when
-  -- the LiquidHaskell plugin code runs via GHCi. The culprit seems to be the definition of 'parseModule',
-  -- which calls 'hscParse', and the latter has these lines at the end:
-  --
-  --    -- apply parse transformation of plugins
-  --    let applyPluginAction p opts
-  --          = parsedResultAction p opts mod_summary
-  --    withPlugins dflags applyPluginAction res
-  --
-  -- This seems to suggest we call any plugin-registered parsing hooks, including ours (!!), leading to
-  -- a loop, albeit it's unclear why this does not happen for non-interactive GHC. What we do here, instead,
-  -- is to clean all the plugins from the 'DynFlags' we use in the sandbox, so that we break the recursion.
-  parsed <- GhcMonadLike.parseModule (LH.keepRawTokenStream cleanedSummary)
-
-  -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
-  -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere
-  -- (i.e., here).
-  typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
-
-  -- \"The ugly hack\": grab the unoptimised core binds here.
-  unoptimisedGuts <- GhcMonadLike.desugarModule modSummary typechecked
-
-  -- Resolve names and imports
-  env <- askHscEnv
-  resolvedNames <- LH.lookupTyThings env (GhcMonadLike.tm_mod_summary typechecked)
-                                         (GhcMonadLike.tm_gbl_env typechecked)
-  availTyCons   <- LH.availableTyCons env (GhcMonadLike.tm_mod_summary typechecked)
-                                          (GhcMonadLike.tm_gbl_env typechecked)
-                                          (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
-  availVars     <- LH.availableVars env (GhcMonadLike.tm_mod_summary typechecked)
-                                        (GhcMonadLike.tm_gbl_env typechecked)
-                                        (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
-
-  let tcData       = mkTcData typechecked resolvedNames availTyCons availVars
-  let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
-
-  debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
-  debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
-  debugLog $ "Spec comments: "   ++ show comments
-
-  pure parsedModule
-
-  where
-    thisModule :: Module
-    thisModule = ms_mod modSummary
-
-    cleanedSummary :: ModSummary
-    cleanedSummary = modSummary { ms_hspp_opts = (ms_hspp_opts modSummary) { cachedPlugins = []
-                                                                           , staticPlugins = []
-                                                                           }
-                                }
--}
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
@@ -269,44 +184,34 @@ instance Unoptimise (DynFlags, HscEnv) where
 -- | We hook at this stage of the pipeline in order to call \"liquidhaskell\". This
 -- might seems counterintuitive as LH works on a desugared module. However, there
 -- are a bunch of reasons why we do this:
+--
 -- 1. Tools like \"ghcide\" works by running the compilation pipeline up until
 --    this stage, which means that we won't be able to report errors and warnings
 --    if we call /LH/ any later than here;
 --
 -- 2. Although /LH/ works on \"Core\", it requires the _unoptimised_ \"Core\" that we
---    grab from the parsing phase and we thread it across the entire plugin lifecycle.
+--    grab from parsing (again) the module by using the GHC API, so we are really
+--    independent from the \"normal\" compilation pipeline.
+--
 typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
 typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
-  dynFlags <- getDynFlags
-  cfg <- liftIO getConfig
 
-  oldEnv <- askHscEnv
-  pipelineData <- runGhcT (Just libdir) $ do
-    setSession oldEnv
-    parsed <- GHC.parseModule (LH.keepRawTokenStream cleanedSummary)
-    let comments  = LH.extractSpecComments (pm_annotations parsed)
-    --liftIO $ logPhaseDisk thisModule "typecheckHook.before_typechecked" mempty
-    typechecked     <- GHC.typecheckModule (LH.ignoreInline parsed)
-    --liftIO $ logPhaseDisk thisModule "typecheckHook.after_typechecked" mempty
+  parsed        <- GhcMonadLike.parseModule (LH.keepRawTokenStream cleanedSummary)
+  let comments  = LH.extractSpecComments (pm_annotations parsed)
 
-    unoptimisedGuts <- dm_core_module <$> GHC.desugarModule typechecked
+  typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
+  env             <- askHscEnv
+  resolvedNames   <- LH.lookupTyThings env modSummary tcGblEnv
+  availTyCons     <- LH.availableTyCons env modSummary tcGblEnv (tcg_exports tcGblEnv)
+  availVars       <- LH.availableVars env modSummary tcGblEnv (tcg_exports tcGblEnv)
 
-    env <- getSession
+  unoptimisedGuts <- GhcMonadLike.desugarModule modSummary typechecked
 
-    resolvedNames <- LH.lookupTyThings env (pm_mod_summary parsed)
-                                           (fst . tm_internals_ $ typechecked)
-    availTyCons   <- LH.availableTyCons env (pm_mod_summary parsed)
-                                            (fst . tm_internals_ $ typechecked)
-                                            (tcg_exports . fst . tm_internals_ $ typechecked)
-    availVars     <- LH.availableVars env (pm_mod_summary parsed)
-                                          (fst . tm_internals_ $ typechecked)
-                                          (tcg_exports . fst . tm_internals_ $ typechecked)
+  let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
+  let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
 
-    let tcData       = mkTcData (tm_renamed_source typechecked) resolvedNames availTyCons availVars
-    pure $ PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
+  liquidHaskellCheck pipelineData tcGblEnv
 
-
-  liquidHaskellCheck cfg pipelineData tcGblEnv
   where
     thisModule :: Module
     thisModule = tcg_mod tcGblEnv
@@ -318,12 +223,10 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
                                                               }
                    }
 
-
 -- | Partially calls into LiquidHaskell's GHC API.
-liquidHaskellCheck :: LH.Config -> PipelineData -> TcGblEnv -> TcM TcGblEnv
-liquidHaskellCheck cfg pipelineData tcGblEnv = do
-
-  -- liftIO $ logPhaseDisk thisModule "liquidHaskellCheck" mempty
+liquidHaskellCheck :: PipelineData -> TcGblEnv -> TcM TcGblEnv
+liquidHaskellCheck pipelineData tcGblEnv = do
+  cfg <- liftIO getConfig
 
   let specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
   inputSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
@@ -592,13 +495,3 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
 
 getFamInstances :: ModGuts -> [FamInst]
 getFamInstances guts = famInstEnvElts (mg_fam_inst_env guts)
-
----------------------------------------------------------------------------------
--- | Unused stages of the compilation pipeline ----------------------------------
----------------------------------------------------------------------------------
-
-coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-coreHook _ passes = pure passes
-
-loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
-loadInterfaceHook _ iface = pure iface
