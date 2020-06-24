@@ -420,15 +420,20 @@ data ProcessModuleResult = ProcessModuleResult {
 getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
 getLiquidSpec thisModule specComments specQuotes = do
 
-  (_, commSpec) <- either throw (return . second (view bareSpecIso)) $
-    hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
-
-  res <- SpecFinder.findCompanionSpec thisModule
-  case res of
-    SpecFound _ _ companionSpec -> do
-      debugLog $ "Companion spec found for " ++ renderModule thisModule
-      pure $ commSpec <> companionSpec
-    _ -> pure commSpec
+  let commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
+  case commSpecE of
+    Left errs -> do
+      dynFlags <- getDynFlags
+      liftIO $ do
+        mapM_ (printError Full dynFlags) errs
+        exitFailure
+    Right (view bareSpecIso . snd -> commSpec) -> do
+      res <- SpecFinder.findCompanionSpec thisModule
+      case res of
+        SpecFound _ _ companionSpec -> do
+          debugLog $ "Companion spec found for " ++ renderModule thisModule
+          pure $ commSpec <> companionSpec
+        _ -> pure commSpec
 
 processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
