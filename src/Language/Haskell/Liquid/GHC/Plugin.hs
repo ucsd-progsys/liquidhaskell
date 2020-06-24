@@ -57,10 +57,8 @@ import           FamInstEnv
 import qualified TysPrim
 import           GHC.LanguageExtensions
 
-import           Control.Exception
 import           Control.Monad
 
-import           Data.Bifunctor
 import           Data.Coerce
 import           Data.List                               as L
                                                    hiding ( intersperse )
@@ -422,10 +420,10 @@ getLiquidSpec thisModule specComments specQuotes = do
 
   let commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
-    Left errs -> do
+    Left errors -> do
       dynFlags <- getDynFlags
       liftIO $ do
-        mapM_ (printError Full dynFlags) errs
+        mapM_ (printError Full dynFlags) errors
         exitFailure
     Right (view bareSpecIso . snd -> commSpec) -> do
       res <- SpecFinder.findCompanionSpec thisModule

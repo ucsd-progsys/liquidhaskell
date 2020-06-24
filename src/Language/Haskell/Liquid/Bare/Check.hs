@@ -36,7 +36,7 @@ import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare 
-import           Debug.Trace (trace)
+
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
