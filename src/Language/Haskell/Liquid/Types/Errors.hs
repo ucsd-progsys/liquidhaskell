@@ -765,13 +765,13 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
 
 ppError' td dCtx (ErrSubType _ _ c tA tE)
   = text "Liquid Type Mismatch"
-        $+$ dCtx
-        $+$ (ppFull td $ ppReqInContext td tA tE c)
+        $+$ nest 2 (dCtx
+                    $+$ (ppFull td $ ppReqInContext td tA tE c))
 
 ppError' td dCtx (ErrSubTypeModel _ _ c tA tE)
   = text "Liquid Type Mismatch"
-        $+$ dCtx
-        $+$ (ppFull td $ ppReqModelInContext td tA tE c)
+        $+$ nest 2 (dCtx
+                    $+$ (ppFull td $ ppReqModelInContext td tA tE c))
 
 ppError' td  dCtx (ErrFCrash _ _ c tA tE)
   = text "Fixpoint Crash on Constraint"
