@@ -26,9 +26,6 @@ import           Language.Fixpoint.SortCheck               (checkSorted, checkSo
 import qualified Language.Fixpoint.Types                   as F 
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
 import           Language.Haskell.Liquid.Misc              (condNull, snd4)
-import           Language.Haskell.Liquid.Types.PredType    (pvarRType)
-import           Language.Haskell.Liquid.Types.PrettyPrint (pprintSymbol)
-import           Language.Haskell.Liquid.Types.RefType     (classBinds, ofType, rTypeSort, rTypeSortedReft, subsTyVars_meet, toType)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
