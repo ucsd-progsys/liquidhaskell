@@ -29,7 +29,6 @@ import           GHC                               hiding ( Target
 import           Plugins                                 as GHC
 import           TcRnTypes                               as GHC
 import           TcRnMonad                               as GHC
-import           GHC.ThToHs                              as GHC
 
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
@@ -43,7 +42,6 @@ import           Language.Haskell.Liquid.GHC.Plugin.SpecFinder
                                                          as SpecFinder
 
 import           Language.Haskell.Liquid.GHC.Types       (MGIModGuts(..), miModGuts)
-import qualified Language.Haskell.Liquid.GHC.API         as Ghc
 import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
 import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
@@ -55,15 +53,12 @@ import           DynFlags
 import           HscTypes                          hiding ( Target )
 import           InstEnv
 import           Module
-import           Panic                                    ( throwGhcException )
 import           FamInstEnv
 import qualified TysPrim
 import           GHC.LanguageExtensions
 
-import           Control.Exception
 import           Control.Monad
 
-import           Data.Bifunctor
 import           Data.Coerce
 import           Data.List                               as L
                                                    hiding ( intersperse )
@@ -77,14 +72,12 @@ import qualified Data.HashMap.Strict                     as HM
 
 import           System.Exit
 import           System.IO.Unsafe                         ( unsafePerformIO )
-import           Text.Parsec.Pos
 import           Language.Fixpoint.Types           hiding ( panic
                                                           , Error
                                                           , Result
                                                           , Expr
                                                           )
 
-import qualified Language.Haskell.TH.Syntax              as TH
 import qualified Language.Haskell.Liquid.Measure         as Ms
 import           Language.Haskell.Liquid.Parse
 import           Language.Haskell.Liquid.Transforms.ANF
@@ -93,6 +86,7 @@ import           Language.Haskell.Liquid.Bare
 import           Language.Haskell.Liquid.UX.CmdLine
 
 import           Optics
+
 
 ---------------------------------------------------------------------------------
 -- | State and configuration management -----------------------------------------
@@ -103,13 +97,9 @@ cfgRef :: IORef Config
 cfgRef = unsafePerformIO $ newIORef defConfig
 {-# NOINLINE cfgRef #-}
 
-unoptimisedRef :: IORef (Unoptimised ModGuts)
-unoptimisedRef = unsafePerformIO $ newIORef (error "Impossible, unoptimisedRef was un-initialised.")
-{-# NOINLINE unoptimisedRef #-}
-
-tcStableRef :: IORef (ModuleEnv TcData)
-tcStableRef = unsafePerformIO $ newIORef emptyModuleEnv
-{-# NOINLINE tcStableRef #-}
+pipelineDataRef :: IORef (HM.HashMap StableModule PipelineData)
+pipelineDataRef = unsafePerformIO $ newIORef mempty
+{-# NOINLINE pipelineDataRef #-}
 
 -- | Set to 'True' to enable debug logging.
 debugLogs :: Bool
@@ -131,7 +121,7 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 -- | The Plugin entrypoint ------------------------------------------------------
 ---------------------------------------------------------------------------------
 
-plugin :: GHC.Plugin 
+plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
     parsedResultAction    = parseHook
   , typeCheckResultAction = typecheckHook
@@ -172,27 +162,15 @@ configureDynFlags df =
 -- module declarations (i.e. 'LhsDecl GhcPs') which can be later be consumed in the typechecking phase.
 -- The goal for this phase is /not/ to turn spec comments into a fully-fledged data structure, but rather
 -- carry those string fragments (together with their 'SourcePos') into the next phase.
-parseHook :: [CommandLineOption] 
-          -> ModSummary 
-          -> HsParsedModule 
+parseHook :: [CommandLineOption]
+          -> ModSummary
+          -> HsParsedModule
           -> Hsc HsParsedModule
 parseHook _ (unoptimise -> modSummary) parsedModule = do
-  -- NOTE: We need to reverse the order of the extracted spec comments because in the plugin infrastructure
-  -- those would appear in reverse order and LiquidHaskell is sensible to the order in which these
-  -- annotations appears.
-  let comments  = L.reverse $ LH.extractSpecComments (hpm_annotations parsedModule)
-
-  commentsExps <- mapM (liftIO . TH.runQ . TH.liftData . SpecComment) comments
-
-  let module' = parsedModule { 
-      hpm_module =
-          fmap (specCommentsToModuleAnnotations (zip comments commentsExps)) 
-               (hpm_module parsedModule) 
-  }
-
-  --
-  -- \"The ugly hack\": grab the unoptimised core binds here.
-  --
+  -- NOTE: Be careful with the ordering of 'SpecComment's, because in the plugin infrastructure
+  -- if those would appear in a different order than what LiquidHaskell expects, the parser would choke,
+  -- as the latter is stateful with regards to the infix operators.
+  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
 
   -- Run 'parseModule' with a \"cleaned\" 'ModSummary'. We need this to avoid entering in an endless loop when
   -- the LiquidHaskell plugin code runs via GHCi. The culprit seems to be the definition of 'parseModule',
@@ -206,57 +184,48 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
   -- This seems to suggest we call any plugin-registered parsing hooks, including ours (!!), leading to
   -- a loop, albeit it's unclear why this does not happen for non-interactive GHC. What we do here, instead,
   -- is to clean all the plugins from the 'DynFlags' we use in the sandbox, so that we break the recursion.
-  let cleanedSummary = modSummary { ms_hspp_opts = (ms_hspp_opts modSummary) { cachedPlugins = []
-                                                                             , staticPlugins = []
-                                                                             }
-                                  }
   parsed <- GhcMonadLike.parseModule (LH.keepRawTokenStream cleanedSummary)
 
   -- Calling 'typecheckModule' here will load some interfaces which won't be re-opened by the
-  -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere.
+  -- 'loadInterfaceAction'. Therefore it's necessary we do all the lookups for necessary specs elsewhere
+  -- (i.e., here).
   typechecked     <- GhcMonadLike.typecheckModule (LH.ignoreInline parsed)
+
+  -- \"The ugly hack\": grab the unoptimised core binds here.
   unoptimisedGuts <- GhcMonadLike.desugarModule modSummary typechecked
-
-  liftIO $ writeIORef unoptimisedRef (toUnoptimised unoptimisedGuts)
-
-  debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
 
   -- Resolve names and imports
   env <- askHscEnv
   resolvedNames <- LH.lookupTyThings env (GhcMonadLike.tm_mod_summary typechecked)
                                          (GhcMonadLike.tm_gbl_env typechecked)
-  availTyCons   <- LH.availableTyCons env (GhcMonadLike.tm_mod_summary typechecked) 
+  availTyCons   <- LH.availableTyCons env (GhcMonadLike.tm_mod_summary typechecked)
                                           (GhcMonadLike.tm_gbl_env typechecked)
                                           (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
-  availVars     <- LH.availableVars env (GhcMonadLike.tm_mod_summary typechecked) 
+  availVars     <- LH.availableVars env (GhcMonadLike.tm_mod_summary typechecked)
                                         (GhcMonadLike.tm_gbl_env typechecked)
                                         (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
 
-  let thisModule = ms_mod modSummary
-  let stableData = mkTcData typechecked resolvedNames availTyCons availVars
+  let tcData       = mkTcData typechecked resolvedNames availTyCons availVars
+  let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
+
+  liftIO $
+    atomicModifyIORef' pipelineDataRef (\old -> (HM.insert (toStableModule thisModule) pipelineData old , ()))
 
   debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
+  debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
+  debugLog $ "Spec comments: "   ++ show comments
 
-  -- Extend the 'ModuleEnv' held by the 'tcStableRef' with the data from this module.
-  liftIO $ atomicModifyIORef' tcStableRef (\old -> (extendModuleEnv old thisModule stableData, ()))
-
-  pure module'
+  pure parsedModule
 
   where
-    specCommentsToModuleAnnotations :: [((SourcePos, String), TH.Exp)] -> HsModule GhcPs -> HsModule GhcPs
-    specCommentsToModuleAnnotations comments m = 
-      m { hsmodDecls = map toAnnotation comments ++ hsmodDecls m }
-      where
-        toAnnotation :: ((SourcePos, String), TH.Exp) -> LHsDecl GhcPs
-        toAnnotation ((pos, _specContent), thExpr) = 
-            let located = GHC.L (LH.sourcePosSrcSpan pos)
-                hsExpr = either (throwGhcException . ProgramError 
-                                                   . mappend "specCommentsToModuleAnnotations failed : " 
-                                                   . O.showSDocUnsafe) id $ 
-                           convertToHsExpr Ghc.Generated (LH.sourcePosSrcSpan pos) thExpr
-                annDecl = HsAnnotation @GhcPs noExtField Ghc.NoSourceText ModuleAnnProvenance hsExpr
-            in located $ AnnD noExtField annDecl
+    thisModule :: Module
+    thisModule = ms_mod modSummary
 
+    cleanedSummary :: ModSummary
+    cleanedSummary = modSummary { ms_hspp_opts = (ms_hspp_opts modSummary) { cachedPlugins = []
+                                                                           , staticPlugins = []
+                                                                           }
+                                }
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
@@ -272,7 +241,7 @@ class Unoptimise a where
 
 instance Unoptimise DynFlags where
   type UnoptimisedTarget DynFlags = DynFlags
-  unoptimise df = updOptLevel 0 df 
+  unoptimise df = updOptLevel 0 df
     { debugLevel   = 1
     , ghcLink      = LinkInMemory
     , hscTarget    = HscInterpreted
@@ -288,73 +257,83 @@ instance Unoptimise (DynFlags, HscEnv) where
   unoptimise (unoptimise -> df, env) = env { hsc_dflags = df }
 
 --------------------------------------------------------------------------------
--- | Core phase ----------------------------------------------------------------
+-- | Typechecking phase --------------------------------------------------------
 --------------------------------------------------------------------------------
 
-coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
-coreHook _ passes = do
+-- | We hook at this stage of the pipeline in order to call \"liquidhaskell\". This
+-- might seems counterintuitive as LH works on a desugared module. However, there
+-- are a bunch of reasons why we do this:
+-- 1. Tools like \"ghcide\" works by running the compilation pipeline up until
+--    this stage, which means that we won't be able to report errors and warnings
+--    if we call /LH/ any later than here;
+--
+-- 2. Although /LH/ works on \"Core\", it requires the _unoptimised_ \"Core\" that we
+--    grab from the parsing phase and we thread it across the entire plugin lifecycle.
+typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
+typecheckHook _ _ tcGblEnv = do
+  dynFlags <- getDynFlags
   cfg <- liftIO getConfig
-  pure (CoreDoPluginPass "Language.Haskell.Liquid.GHC.Plugin" (liquidHaskellPass cfg) : passes)
+  mbPipelineData <- (HM.lookup (toStableModule thisModule)) <$> liftIO (readIORef pipelineDataRef)
+  case mbPipelineData of
+    Nothing           -> Util.pluginAbort (O.showSDoc dynFlags $ O.text "No LiquidHaskell suitable data found for " O.<+> O.ppr thisModule)
+    Just pipelineData -> liquidHaskellCheck cfg pipelineData tcGblEnv
+  where
+    thisModule :: Module
+    thisModule = tcg_mod tcGblEnv
 
 -- | Partially calls into LiquidHaskell's GHC API.
-liquidHaskellPass :: LH.Config -> ModGuts -> CoreM ModGuts
-liquidHaskellPass cfg modGuts = do
+liquidHaskellCheck :: LH.Config -> PipelineData -> TcGblEnv -> TcM TcGblEnv
+liquidHaskellCheck cfg pipelineData tcGblEnv = do
 
-  let thisModule = mg_module modGuts
-
-  -- Immediately check if this is a LH-annotated module. If not, skip it altogether.
-  -- Generate the bare-specs. Here we call 'extractSpecComments' which is what allows us to
-  -- retrieve the 'SpecComment' information we computed in the 'parseHook' phase.
-  let (guts', specComments) = Util.extractSpecComments modGuts
-  let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
-  inputSpec <- getLiquidSpec thisModule specComments specQuotes
+  let specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
+  inputSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
 
   debugLog $ " Input spec: \n" ++ show inputSpec
 
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   dynFlags <- getDynFlags
-  mbTcData <- (`lookupModuleEnv` thisModule) <$> liftIO (readIORef tcStableRef)
-  unoptimisedGuts <- liftIO $ readIORef unoptimisedRef
 
-  case mbTcData of
-    Nothing -> Util.pluginAbort (O.showSDoc dynFlags $ O.text "No tcData found for " O.<+> O.ppr thisModule)
-    Just tcData -> do
+  debugLog $ "Relevant ===> \n" ++ (unlines $ map renderModule $ (S.toList $ relevantModules modGuts))
 
-      debugLog $ "Relevant ===> \n" ++ 
-        (unlines $ map renderModule $ (S.toList $ relevantModules modGuts))
+  logicMap <- liftIO $ LH.makeLogicMap
 
-      logicMap <- liftIO $ LH.makeLogicMap
+  let lhContext = LiquidHaskellContext {
+        lhGlobalCfg       = cfg
+      , lhInputSpec       = inputSpec
+      , lhModuleLogicMap  = logicMap
+      , lhModuleSummary   = modSummary
+      , lhModuleTcData    = pdTcData pipelineData
+      , lhModuleGuts      = pdUnoptimisedCore pipelineData
+      , lhRelevantModules = relevantModules modGuts
+      }
 
-      let lhContext = LiquidHaskellContext {
-            lhGlobalCfg       = cfg
-          , lhInputSpec       = inputSpec
-          , lhModuleLogicMap  = logicMap
-          , lhModuleSummary   = modSummary
-          , lhModuleTcData    = tcData
-          , lhModuleGuts      = unoptimisedGuts
-          , lhRelevantModules = relevantModules modGuts
-          }
+  ProcessModuleResult{..} <- processModule lhContext
 
-      ProcessModuleResult{..} <- processModule lhContext
+  -- Call into the existing Liquid interface
+  out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+  -- despite the name, 'exitWithResult' simply print on stdout extra info.
+  void . liftIO $ LH.exitWithResult dynFlags cfg [giTarget (giSrc pmrTargetInfo)] out
+  case o_result out of
+    Safe _stats -> pure ()
+    _           -> liftIO exitFailure
 
-      let finalGuts = Util.serialiseLiquidLib pmrClientLib guts'
+  let serialisedSpec = Util.serialiseLiquidLib pmrClientLib thisModule
+  debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
 
-      -- Call into the existing Liquid interface
-      out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
-      -- despite the name, 'exitWithResult' simply print on stdout extra info.
-      void . liftIO $ LH.exitWithResult cfg [giTarget (giSrc pmrTargetInfo)] out
-      case o_result out of
-        Safe _stats -> pure ()
-        _           -> liftIO exitFailure
+  pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
+  where
+    thisModule :: Module
+    thisModule = tcg_mod tcGblEnv
 
-      debugLog $ "Serialised annotations ==> " ++ (O.showSDocUnsafe . O.vcat . map O.ppr . mg_anns $ finalGuts)
-      pure finalGuts
+    modGuts :: ModGuts
+    modGuts = fromUnoptimised . pdUnoptimisedCore $ pipelineData
+
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------
 --------------------------------------------------------------------------------
 
-loadDependencies :: forall m. GhcMonadLike m 
+loadDependencies :: forall m. GhcMonadLike m
                  => Config
                  -- ^ The 'Config' associated to the /current/ module being compiled.
                  -> ExternalPackageState
@@ -378,11 +357,11 @@ loadDependencies currentModuleConfig eps hpt thisModule mods = do
       pure acc
     processResult _ (SpecFound originalModule location _) = do
       dynFlags <- getDynFlags
-      debugLog $ "[T:" ++ show (moduleName thisModule) 
+      debugLog $ "[T:" ++ show (moduleName thisModule)
               ++ "] Spec found for " ++ renderModule originalModule ++ ", at location " ++ show location
       Util.pluginAbort (O.showSDoc dynFlags $ O.text "A BareSpec was returned as a dependency, this is not allowed, in " O.<+> O.ppr thisModule)
     processResult !acc (LibFound originalModule location lib) = do
-      debugLog $ "[T:" ++ show (moduleName thisModule) 
+      debugLog $ "[T:" ++ show (moduleName thisModule)
               ++ "] Lib found for " ++ renderModule originalModule ++ ", at location " ++ show location
       pure $ TargetDependencies {
           getDependencies = HM.insert (toStableModule originalModule) (libTarget lib) (getDependencies $ acc <> libDeps lib)
@@ -439,15 +418,20 @@ data ProcessModuleResult = ProcessModuleResult {
 getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
 getLiquidSpec thisModule specComments specQuotes = do
 
-  (_, commSpec) <- either throw (return . second (view bareSpecIso)) $ 
-    hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
-
-  res <- SpecFinder.findCompanionSpec thisModule
-  case res of
-    SpecFound _ _ companionSpec -> do
-      debugLog $ "Companion spec found for " ++ renderModule thisModule
-      pure $ commSpec <> companionSpec
-    _ -> pure commSpec
+  let commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
+  case commSpecE of
+    Left errors -> do
+      dynFlags <- getDynFlags
+      liftIO $ do
+        mapM_ (printError Full dynFlags) errors
+        exitFailure
+    Right (view bareSpecIso . snd -> commSpec) -> do
+      res <- SpecFinder.findCompanionSpec thisModule
+      case res of
+        SpecFound _ _ companionSpec -> do
+          debugLog $ "Companion spec found for " ++ renderModule thisModule
+          pure $ commSpec <> companionSpec
+        _ -> pure commSpec
 
 processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
@@ -479,15 +463,19 @@ processModule LiquidHaskellContext{..} = do
   debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+  dynFlags <- getDynFlags
 
   case makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies of
 
-    -- If we didn't pass validation, abort compilation and show the errors.
-    Left errors -> do
-      dynFlags <- getDynFlags
-      Util.pluginAbort (O.showSDoc dynFlags $ O.text $ showpp errors)
+    -- Print warnings and errors, aborting the compilation.
+    Left diagnostics -> do
+      liftIO $ do
+        mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
+        mapM_ (printError Full dynFlags) (allErrors diagnostics)
+        exitFailure
 
-    Right (targetSpec, liftedSpec) -> do
+    Right (warnings, targetSpec, liftedSpec) -> do
+      liftIO $ mapM_ (printWarning dynFlags) warnings
       let targetInfo = TargetInfo targetSrc targetSpec
 
       debugLog $ "bareSpec ==> "   ++ show bareSpec
@@ -507,12 +495,12 @@ processModule LiquidHaskellContext{..} = do
     thisModule = mg_module modGuts
 
 ---------------------------------------------------------------------------------------
--- | @makeGhcSrc@ builds all the source-related information needed for consgen 
+-- | @makeGhcSrc@ builds all the source-related information needed for consgen
 ---------------------------------------------------------------------------------------
 
 makeTargetSrc :: GhcMonadLike m
               => Config
-              -> FilePath 
+              -> FilePath
               -> TcData
               -> ModGuts
               -> HscEnv
@@ -569,8 +557,8 @@ getFamInstances guts = famInstEnvElts (mg_fam_inst_env guts)
 -- | Unused stages of the compilation pipeline ----------------------------------
 ---------------------------------------------------------------------------------
 
-typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
-typecheckHook _ _ tcGblEnv =  pure tcGblEnv
+coreHook :: [CommandLineOption] -> [CoreToDo] -> CoreM [CoreToDo]
+coreHook _ passes = pure passes
 
 loadInterfaceHook :: [CommandLineOption] -> ModIface -> IfM lcl ModIface
 loadInterfaceHook _ iface = pure iface

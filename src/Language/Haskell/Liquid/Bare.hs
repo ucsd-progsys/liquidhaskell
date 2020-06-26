@@ -20,9 +20,6 @@ module Language.Haskell.Liquid.Bare (
   -- * Loading and Saving lifted specs from/to disk
   , loadLiftedSpec
   , saveLiftedSpec
-
-  -- * Internal utilities
-  , checkThrow
   ) where
 
 import           Prelude                                    hiding (error)
@@ -105,56 +102,74 @@ functions like 'liquid' or 'liquidOne' to verify our program is correct, the lat
 to disk so that we can retrieve it later without having to re-check the relevant Haskell file.
 -}
 
--- | 'makeTargetSpec' constructs the 'TargetSpec' and then validates it. Upon success, the 'TargetSpec' 
--- and the 'LiftedSpec' are returned.
+-- | 'makeTargetSpec' constructs the 'TargetSpec' and then validates it. Upon success, the 'TargetSpec'
+-- and the 'LiftedSpec' are returned. We perform error checking in \"two phases\": during the first phase,
+-- we check for errors and warnings in the input 'BareSpec' and the dependencies. During this phase we ideally
+-- want to short-circuit in case the validation failure is found in one of the dependencies (to avoid
+-- printing potentially endless failures).
+-- The second phase involves creating the 'TargetSpec', and returning either the full list of diagnostics
+-- (errors and warnings) in case things went wrong, or the final 'TargetSpec' and 'LiftedSpec' together
+-- with a list of 'Warning's, which shouldn't abort the compilation (modulo explicit request from the user,
+-- to treat warnings and errors).
 makeTargetSpec :: Config
                -> LogicMap
                -> TargetSrc
                -> BareSpec
                -> TargetDependencies
-               -> Either [Error] (TargetSpec, LiftedSpec)
+               -> Either Diagnostics ([Warning], TargetSpec, LiftedSpec)
 makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
-  -- Check that our input 'BareSpec' doesn't contain duplicates.
-  validatedBareSpec <- Bare.checkBareSpec (giTargetMod targetSrc) (review bareSpecIso bareSpec)
-  ghcSpec           <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs validatedBareSpec)
-  pure $ view targetSpecGetter ghcSpec
+  let depsDiagnostics     = mapM (uncurry Bare.checkBareSpec) legacyDependencies
+  let bareSpecDiagnostics = Bare.checkBareSpec (giTargetMod targetSrc) legacyBareSpec
+  case depsDiagnostics >> bareSpecDiagnostics of
+   Left d | noErrors d -> secondPhase (allWarnings d)
+   Left d              -> Left  d
+   Right ()            -> secondPhase mempty
   where
+    secondPhase :: [Warning] -> Either Diagnostics ([Warning], TargetSpec, LiftedSpec)
+    secondPhase phaseOneWarns = do
+      (warns, ghcSpec) <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
+      let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
+      pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
+
     toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
     toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
 
     toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
     toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
 
+    legacyDependencies :: [(ModName, Ms.BareSpec)]
+    legacyDependencies = map toLegacyDep . M.toList . getDependencies $ dependencies
+
     allSpecs :: Ms.BareSpec -> [(ModName, Ms.BareSpec)]
-    allSpecs validSpec = 
-      toLegacyTarget validSpec : (map toLegacyDep . M.toList . getDependencies $ dependencies)
+    allSpecs validSpec = toLegacyTarget validSpec : legacyDependencies
+
+    legacyBareSpec :: Spec LocBareType F.LocSymbol
+    legacyBareSpec = review bareSpecIso bareSpec
 
 -------------------------------------------------------------------------------------
--- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then 
---   validates it using @checkGhcSpec@. 
+-- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then
+--   validates it using @checkGhcSpec@.
 -------------------------------------------------------------------------------------
-makeGhcSpec :: Config 
-            -> GhcSrc 
-            -> LogicMap 
-            -> [(ModName, Ms.BareSpec)] 
-            -> Either [Error] GhcSpec
+makeGhcSpec :: Config
+            -> GhcSrc
+            -> LogicMap
+            -> [(ModName, Ms.BareSpec)]
+            -> Either Diagnostics ([Warning], GhcSpec)
 -------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap mspecs0  = do
-  _validTargetSpec <- Bare.checkTargetSpec (map snd mspecs) 
-                                           (view targetSrcIso src)
-                                           renv 
-                                           cbs 
-                                           (fst . view targetSpecGetter $ sp)
-  pure sp
-  where 
-    mspecs =  [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0, isTarget m ] 
-           ++ [ (m, sp) | (m, sp) <- mspecs0, not (isTarget m)]
-    sp     = makeGhcSpec0 cfg src lmap mspecs 
-    renv   = ghcSpecEnv sp 
-    cbs    = _giCbs src
-
-checkThrow :: Ex.Exception e => Either e c -> c
-checkThrow = either Ex.throw id 
+makeGhcSpec cfg src lmap validatedSpecs = do
+  case diagnostics of
+    Left e | noErrors e -> pure (allWarnings e, sp)
+    Left e              -> Left e
+    Right ()            -> pure (mempty, sp)
+  where
+    diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
+                                       (view targetSrcIso src)
+                                       renv
+                                       cbs
+                                       (fst . view targetSpecGetter $ sp)
+    sp          = makeGhcSpec0 cfg src lmap validatedSpecs
+    renv        = ghcSpecEnv sp
+    cbs         = _giCbs src
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds

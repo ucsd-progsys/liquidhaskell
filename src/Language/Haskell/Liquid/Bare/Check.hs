@@ -16,7 +16,7 @@ import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
 import           Data.Maybe
 import           Data.Function                             (on)
-import           Text.PrettyPrint.HughesPJ
+import           Text.PrettyPrint.HughesPJ                 hiding ((<>))
 import qualified Data.List                                 as L
 import qualified Data.HashMap.Strict                       as M
 import qualified Data.HashSet                              as S
@@ -33,28 +33,30 @@ import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
 import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare 
-import           Debug.Trace (trace)
+
 
 ----------------------------------------------------------------------------------------------
 -- | Checking BareSpec ------------------------------------------------------------------------
 ----------------------------------------------------------------------------------------------
-checkBareSpec :: ModName -> Ms.BareSpec -> Either [Error] Ms.BareSpec 
-checkBareSpec _ sp = Misc.applyNonNull (Right sp) Left $ concat 
-  [ checkUnique   "measure"    measures 
-  , checkUnique   "field"      fields 
-  , checkDisjoints             [ inlines
-                               , hmeasures
-                               , S.fromList measures
-                               , reflects
-                               , S.fromList fields 
-                               ]  
-  ] 
-  where 
-    inlines   = Ms.inlines    sp 
-    hmeasures = Ms.hmeas      sp 
-    reflects  = Ms.reflects   sp 
-    measures  = msName    <$> Ms.measures sp 
-    fields    = concatMap dataDeclFields (Ms.dataDecls sp) 
+checkBareSpec :: ModName -> Ms.BareSpec -> Either Diagnostics ()
+checkBareSpec _ sp
+  | allChecks == emptyDiagnostics = Right ()
+  | otherwise = Left allChecks
+  where
+    allChecks = mconcat [ checkUnique   "measure"    measures
+                        , checkUnique   "field"      fields
+                        , checkDisjoints             [ inlines
+                                                     , hmeasures
+                                                     , S.fromList measures
+                                                     , reflects
+                                                     , S.fromList fields
+                                                     ]
+                        ]
+    inlines   = Ms.inlines    sp
+    hmeasures = Ms.hmeas      sp
+    reflects  = Ms.reflects   sp
+    measures  = msName    <$> Ms.measures sp
+    fields    = concatMap dataDeclFields (Ms.dataDecls sp)
 
 dataDeclFields :: DataDecl -> [F.LocSymbol]
 dataDeclFields = filter (not . GM.isTmpSymbol . F.val) 
@@ -70,8 +72,8 @@ dataCtorFields c
 isGadt :: DataCtor -> Bool 
 isGadt = isJust . dcResult 
 
-checkUnique :: String -> [F.LocSymbol] -> [Error]
-checkUnique _ = checkUnique' F.val GM.fSrcSpan 
+checkUnique :: String -> [F.LocSymbol] -> Diagnostics
+checkUnique _ = mkDiagnostics mempty . checkUnique' F.val GM.fSrcSpan 
 
 checkUnique' :: (PPrint a, Eq a, Hashable a) 
              => (t -> a) -> (t -> Ghc.SrcSpan) -> [t] -> [Error]
@@ -82,14 +84,13 @@ checkUnique' nameF locF ts = [ErrDupSpecs l (pprint n) ls | (n, ls@(l:_)) <- dup
     dups                   = [ z      | z@(_, _:_:_) <- Misc.groupList nts       ] 
     nts                    = [ (n, l) | t <- ts, let n = nameF t, let l = locF t ]
 
-checkDisjoints :: [S.HashSet F.LocSymbol] -> [Error]
-checkDisjoints []     = [] 
-checkDisjoints [_]    = [] 
-checkDisjoints (s:ss) = checkDisjoint s (S.unions ss) 
-                     ++ checkDisjoints ss 
+checkDisjoints :: [S.HashSet F.LocSymbol] -> Diagnostics
+checkDisjoints []     = emptyDiagnostics
+checkDisjoints [_]    = emptyDiagnostics
+checkDisjoints (s:ss) = checkDisjoint s (S.unions ss) <> checkDisjoints ss
 
-checkDisjoint :: S.HashSet F.LocSymbol -> S.HashSet F.LocSymbol -> [Error]
-checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2) 
+checkDisjoint :: S.HashSet F.LocSymbol -> S.HashSet F.LocSymbol -> Diagnostics
+checkDisjoint s1 s2 = checkUnique "disjoint" (S.toList s1 ++ S.toList s2)
 
 ----------------------------------------------------------------------------------------------
 -- | Checking TargetSpec
@@ -100,36 +101,39 @@ checkTargetSpec :: [Ms.BareSpec]
                 -> F.SEnv F.SortedReft
                 -> [CoreBind]
                 -> TargetSpec
-                -> Either [Error] TargetSpec
-checkTargetSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
+                -> Either Diagnostics ()
+checkTargetSpec specs src env cbs sp
+  | diagnostics == emptyDiagnostics = Right ()
+  | otherwise                       = Left diagnostics
   where
-    errors           =  mapMaybe (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
-                     ++ condNull noPrune 
-                        (mapMaybe (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
-                     ++ mapMaybe (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     ++ checkTySigs         allowHO bsc cbs            emb tcEnv env                (gsSig sp)
-                     -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
-                     ++ mapMaybe (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
-                     ++ mapMaybe (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
-                     ++ checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData sp))
-                     ++ checkMeasures emb env ms
-                     ++ checkClassMeasures                                        (gsMeasures (gsData sp))
-                     ++ checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
-                     ++ mapMaybe checkMismatch                     sigs
-                     ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
+    diagnostics      :: Diagnostics
+    diagnostics      =  foldMap (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
+                     <> condNull noPrune
+                        (foldMap (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
+                     <> foldMap (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
+                     <> checkTySigs         allowHO bsc cbs            emb tcEnv env                (gsSig sp)
+                     -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp))
+                     <> foldMap (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
+                     <> foldMap (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
+                     <> checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData sp))
+                     <> checkMeasures emb env ms
+                     <> checkClassMeasures                                        (gsMeasures (gsData sp))
+                     <> checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
+                     <> foldMap checkMismatch sigs
+                     <> checkDuplicate                                            (gsTySigs     (gsSig sp))
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
-                     ++ checkDuplicate                                            (gsAsmSigs    (gsSig sp))
-                     ++ checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
-                     ++ checkRTAliases "Type Alias" env            tAliases
-                     ++ checkRTAliases "Pred Alias" env            eAliases
+                     <> checkDuplicate                                            (gsAsmSigs    (gsSig sp))
+                     <> checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
+                     <> checkRTAliases "Type Alias" env            tAliases
+                     <> checkRTAliases "Pred Alias" env            eAliases
                      -- ++ _checkDuplicateFieldNames                   (gsDconsP sp)
                      -- NV TODO: allow instances of refined classes to be refined
                      -- but make sure that all the specs are checked.
                      -- ++ checkRefinedClasses                        rClasses rInsts
-                     ++ checkSizeFun emb env                                      (gsTconsP (gsName sp))
-                     ++ checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
-                     ++ checkLawInstances (gsLaws sp)
-                     ++ checkRewrites sp
+                     <> checkSizeFun emb env                                      (gsTconsP (gsName sp))
+                     <> checkPlugged (catMaybes [ fmap (F.dropSym 2 $ GM.simplesymbol x,) (getMethodType t) | (x, t) <- gsMethods (gsSig sp) ])
+                     <> checkLawInstances (gsLaws sp)
+                     <> checkRewrites sp
 
     _rClasses         = concatMap (Ms.classes  ) specs
     _rInsts           = concatMap (Ms.rinstance) specs
@@ -151,49 +155,53 @@ checkTargetSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
 
 
 
-checkPlugged :: PPrint v => [(v, LocSpecType)] -> [Error] 
-checkPlugged xs = mkErr <$> filter (hasHoleTy . val . snd) xs 
-  where 
-    mkErr (x,t) = ErrBadData (GM.sourcePosSrcSpan $ loc t) (pprint x) msg 
+checkPlugged :: PPrint v => [(v, LocSpecType)] -> Diagnostics
+checkPlugged xs = mkDiagnostics mempty (map mkErr (filter (hasHoleTy . val . snd) xs))
+  where
+    mkErr (x,t) = ErrBadData (GM.sourcePosSrcSpan $ loc t) (pprint x) msg
     msg        = "Cannot resolve type hole `_`. Use explicit type instead."
 
 
 --------------------------------------------------------------------------------
-checkTySigs :: Bool -> BScope -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
+checkTySigs :: Bool
+            -> BScope
+            -> [CoreBind]
+            -> F.TCEmb TyCon
+            -> Bare.TyConMap
+            -> F.SEnv F.SortedReft
             -> GhcSpecSig
-            -> [Error]
+            -> Diagnostics
 --------------------------------------------------------------------------------
 checkTySigs allowHO bsc cbs emb tcEnv env sig
-                   = concatMap (check env) topTs
-                   -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
-                   -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
-                   ++ coreVisitor checkVisitor env [] cbs 
-  where 
+                   = mconcat (map (check env) topTs)
+                     -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
+                     -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs])
+                  <> coreVisitor checkVisitor env emptyDiagnostics cbs
+  where
     check env      = checkSigTExpr allowHO bsc emb tcEnv env
     locTm          = M.fromList locTs
-    (locTs, topTs) = Bare.partitionLocalBinds vtes 
+    (locTs, topTs) = Bare.partitionLocalBinds vtes
     vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
-    vExprs         = M.fromList  [ (x, es) | (x, _, es) <- gsTexprs sig ] 
+    vExprs         = M.fromList  [ (x, es) | (x, _, es) <- gsTexprs sig ]
 
-    checkVisitor  :: CoreVisitor (F.SEnv F.SortedReft) [Error]
-    checkVisitor   = CoreVisitor 
-                       { envF  = \env v     -> F.insertSEnv (F.symbol v) (vSort v) env 
-                       , bindF = \env acc v -> errs env v ++ acc 
-                       , exprF = \_   acc _ -> acc 
-                       }  
+    checkVisitor  :: CoreVisitor (F.SEnv F.SortedReft) Diagnostics
+    checkVisitor   = CoreVisitor
+                       { envF  = \env v     -> F.insertSEnv (F.symbol v) (vSort v) env
+                       , bindF = \env acc v -> errs env v <> acc
+                       , exprF = \_   acc _ -> acc
+                       }
     vSort            = Bare.varSortedReft emb
     errs env v       = case M.lookup v locTm of 
-                         Nothing -> [] 
+                         Nothing -> emptyDiagnostics
                          Just t  -> check env (v, t) 
 
-checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
-              -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
-              -> [Error]
-checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) 
-           = catMaybes [mbErr1, mbErr2] 
-   where 
-    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t) 
-    mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
+checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft
+              -> (Var, (LocSpecType, Maybe [Located F.Expr]))
+              -> Diagnostics
+checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) = mbErr1 <> mbErr2
+   where
+    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
+    mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
 
 _checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
 _checkQualifiers = mapMaybe . checkQualifier
@@ -206,12 +214,12 @@ checkQualifier env q =  mkE <$> checkSortFull (F.srcSpan q) γ F.boolSort  (F.qB
 
 -- | Used for termination checking. If we have no \"len\" defined /yet/ (for example we are checking
 -- 'GHC.Prim') then we want to skip this check.
-checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> [Error]
-checkSizeFun emb env tys = mkError <$> mapMaybe go tys
+checkSizeFun :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [TyConP] -> Diagnostics
+checkSizeFun emb env tys = mkDiagnostics mempty (map mkError (mapMaybe go tys))
   where
     mkError ((f, tcp), msg)  = ErrTyCon (GM.sourcePosSrcSpan $ tcpLoc tcp)
-                                 (text "Size function" <+> pprint (f x) 
-                                                       <+> text "should have type int, but it was " 
+                                 (text "Size function" <+> pprint (f x)
+                                                       <+> text "should have type int, but it was "
                                                        <+> pprint (tcpCon tcp)
                                                        <+> text "."
                                                        $+$   msg)
@@ -264,13 +272,25 @@ _firstDuplicate = go . L.sort
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
-checkInv :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (Maybe Var, LocSpecType) -> Maybe Error
+checkInv :: Bool
+         -> BScope
+         -> F.TCEmb TyCon
+         -> Bare.TyConMap
+         -> F.SEnv F.SortedReft
+         -> (Maybe Var, LocSpecType)
+         -> Diagnostics
 checkInv allowHO bsc emb tcEnv env (_, t) = checkTy allowHO bsc err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
 
-checkIAl :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> [(LocSpecType, LocSpecType)] -> [Error]
-checkIAl allowHO bsc emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowHO bsc emb tcEnv env) ials
+checkIAl :: Bool
+         -> BScope
+         -> F.TCEmb TyCon
+         -> Bare.TyConMap
+         -> F.SEnv F.SortedReft
+         -> [(LocSpecType, LocSpecType)]
+         -> Diagnostics
+checkIAl allowHO bsc emb tcEnv env = mconcat . map (checkIAlOne allowHO bsc emb tcEnv env)
 
 checkIAlOne :: Bool
             -> BScope
@@ -278,8 +298,8 @@ checkIAlOne :: Bool
             -> Bare.TyConMap
             -> F.SEnv F.SortedReft
             -> (LocSpecType, LocSpecType)
-            -> [Maybe (TError SpecType)]
-checkIAlOne allowHO bsc emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
+            -> Diagnostics
+checkIAlOne allowHO bsc emb tcEnv env (t1, t2) = mconcat $ checkEq : (tcheck <$> [t1, t2])
   where
     tcheck t = checkTy allowHO bsc (err t) emb tcEnv env t
     err    t = ErrIAl (GM.sourcePosSrcSpan $ loc t) (val t)
@@ -287,34 +307,53 @@ checkIAlOne allowHO bsc emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
     t1'      = toRSort $ val t1
     t2'      :: RSort
     t2'      = toRSort $ val t2
-    checkEq  = if t1' == t2' then Nothing else Just errmis
+    checkEq  = if t1' == t2' then emptyDiagnostics else mkDiagnostics mempty [errmis]
     errmis   = ErrIAlMis (GM.sourcePosSrcSpan $ loc t1) (val t1) (val t2) emsg
     emsg     = pprint t1 <+> text "does not match with" <+> pprint t2
 
 
 -- FIXME: Should _ be removed if it isn't used?
-checkRTAliases :: String -> t -> [Located (RTAlias s a)] -> [Error]
+checkRTAliases :: String -> t -> [Located (RTAlias s a)] -> Diagnostics
 checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
 
-checkBind :: (PPrint v) => Bool -> BScope -> Doc -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
+checkBind :: (PPrint v)
+          => Bool
+          -> BScope
+          -> Doc
+          -> F.TCEmb TyCon
+          -> Bare.TyConMap
+          -> F.SEnv F.SortedReft
+          -> (v, LocSpecType)
+          -> Diagnostics
 checkBind allowHO bsc s emb tcEnv env (v, t) = checkTy allowHO bsc msg emb tcEnv env t
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
 
 
-checkTerminationExpr :: (Eq v, PPrint v) => F.TCEmb TyCon -> F.SEnv F.SortedReft -> (v, LocSpecType, [F.Located F.Expr]) -> Maybe Error
+checkTerminationExpr :: (Eq v, PPrint v)
+                     => F.TCEmb TyCon
+                     -> F.SEnv F.SortedReft
+                     -> (v, LocSpecType, [F.Located F.Expr])
+                     -> Diagnostics
 checkTerminationExpr emb env (v, Loc l _ t, les)
-            = (mkErr "ill-sorted" <$> go les) <|> (mkErr "non-numeric" <$> go' les)
+            = (mkErr "ill-sorted" $ go les) <> (mkErr "non-numeric" $ go' les)
   where
     -- es      = val <$> les
-    mkErr k = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e t d)
+    mkErr :: Doc -> Maybe (F.Expr, Doc) -> Diagnostics
+    mkErr _ Nothing = emptyDiagnostics
+    mkErr k (Just e) =
+      mkDiagnostics mempty [uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) k e t d) e]
     -- mkErr   = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "ill-sorted" ) e t d)
     -- mkErr'  = uncurry (\ e d -> ErrTermSpec (GM.sourcePosSrcSpan l) (pprint v) (text "non-numeric") e t d)
 
+    go :: [F.Located F.Expr] -> Maybe (F.Expr, Doc)
     go      = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (val e))     Nothing
+
+    go' :: [F.Located F.Expr] -> Maybe (F.Expr, Doc)
     go'     = L.foldl' (\err e -> err <|> (val e,) <$> checkSorted (F.srcSpan e) env' (cmpZero e)) Nothing
+
     env'    = F.sr_sort <$> L.foldl' (\e (x,s) -> F.insertSEnv x s e) env xts
     xts     = concatMap mkClass $ zip (ty_binds trep) (ty_args trep)
     trep    = toRTypeRep t
@@ -325,41 +364,53 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     rSort   = rTypeSortedReft emb
     cmpZero e = F.PAtom F.Le (F.expr (0 :: Int)) (val e)
 
-checkTy :: Bool -> BScope -> (Doc -> Error) -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Error
-checkTy allowHO bsc mkE emb tcEnv env t = mkE <$> checkRType allowHO bsc emb env (Bare.txRefSort tcEnv emb t)
+checkTy :: Bool
+        -> BScope
+        -> (Doc -> Error)
+        -> F.TCEmb TyCon
+        -> Bare.TyConMap
+        -> F.SEnv F.SortedReft
+        -> LocSpecType
+        -> Diagnostics
+checkTy allowHO bsc mkE emb tcEnv env t =
+  case checkRType allowHO bsc emb env (Bare.txRefSort tcEnv emb t) of
+    Nothing -> emptyDiagnostics
+    Just d  -> mkDiagnostics mempty [mkE d]
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 
-checkDupIntersect     :: [(Var, LocSpecType)] -> [(Var, LocSpecType)] -> [Error]
-checkDupIntersect xts asmSigs = concatMap mkWrn {- trace msg -} dups
+checkDupIntersect     :: [(Var, LocSpecType)] -> [(Var, LocSpecType)] -> Diagnostics
+checkDupIntersect xts asmSigs =
+  mkDiagnostics (map mkWrn {- trace msg -} dups) mempty
   where
-    mkWrn (x, t)     = pprWrn x (GM.sourcePosSrcSpan $ loc t)
-    dups             = L.intersectBy ((==) `on` fst) asmSigs xts
-    pprWrn v l       = trace ("WARNING: Assume Overwrites Specifications for "++ show v ++ " : " ++ GM.showPpr l) []
+    mkWrn (x, t)   = mkWarning (GM.sourcePosSrcSpan $ loc t) (pprWrn x)
+    dups           = L.intersectBy ((==) `on` fst) asmSigs xts
+    pprWrn v       = text $ "Assume Overwrites Specifications for " ++ show v
     -- msg              = "CHECKDUPINTERSECT:" ++ msg1 ++ msg2
     -- msg1             = "\nCheckd-SIGS:\n" ++ showpp (M.fromList xts)
     -- msg2             = "\nAssume-SIGS:\n" ++ showpp (M.fromList asmSigs)
 
 
-checkDuplicate :: [(Var, LocSpecType)] -> [Error]
-checkDuplicate = checkUnique' fst (GM.fSrcSpan . snd)
+checkDuplicate :: [(Var, LocSpecType)] -> Diagnostics
+checkDuplicate = mkDiagnostics mempty . checkUnique' fst (GM.fSrcSpan . snd)
 
-checkClassMethods :: Maybe [ClsInst] -> [Var] ->  [(Var, LocSpecType)] -> [Error]
-checkClassMethods Nothing      _   _   = [] 
-checkClassMethods (Just clsis) cms xts = [ErrMClass (GM.sourcePosSrcSpan $ loc t) (pprint x)| (x,t) <- dups ]
-  where 
-    dups = F.notracepp "DPS" $ filter ((`elem` ms) . fst) xts' 
+checkClassMethods :: Maybe [ClsInst] -> [Var] ->  [(Var, LocSpecType)] -> Diagnostics
+checkClassMethods Nothing      _   _   = emptyDiagnostics
+checkClassMethods (Just clsis) cms xts =
+  mkDiagnostics mempty [ErrMClass (GM.sourcePosSrcSpan $ loc t) (pprint x)| (x,t) <- dups ]
+  where
+    dups = F.notracepp "DPS" $ filter ((`elem` ms) . fst) xts'
     ms   = F.notracepp "MS"  $ concatMap (classMethods . is_cls) clsis
-    xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts 
-    cls  = F.notracepp "CLS" cms   
+    xts' = F.notracepp "XTS" $ filter (not . (`elem` cls) . fst) xts
+    cls  = F.notracepp "CLS" cms
 
 -- checkDuplicate xts = mkErr <$> dups
   -- where
     -- mkErr (x, ts) = ErrDupSpecs (getSrcSpan x) (pprint x) (GM.fSrcSpan <$> ts)
     -- dups          = [z | z@(_, _:_:_) <- M.toList $ group xts ]
 
-checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> [Error]
-checkDuplicateRTAlias s tas = mkErr <$> dups
+checkDuplicateRTAlias :: String -> [Located (RTAlias s a)] -> Diagnostics
+checkDuplicateRTAlias s tas = mkDiagnostics mempty (map mkErr dups)
   where
     mkErr xs@(x:_)          = ErrDupAlias (GM.fSrcSpan x)
                                           (text s)
@@ -369,8 +420,8 @@ checkDuplicateRTAlias s tas = mkErr <$> dups
     dups                    = [z | z@(_:_:_) <- L.groupBy ((==) `on` (rtName . val)) tas]
 
 
-checkMismatch        :: (Var, LocSpecType) -> Maybe Error
-checkMismatch (x, t) = if ok then Nothing else Just err
+checkMismatch        :: (Var, LocSpecType) -> Diagnostics
+checkMismatch (x, t) = if ok then emptyDiagnostics else mkDiagnostics mempty [err]
   where
     ok               = tyCompat x (val t')
     err              = errTypeMismatch x t'
@@ -527,13 +578,13 @@ checkReft sp env emb (Just t) _ = (\z -> dr $+$ z) <$> checkSortedReftFull sp en
 ---------------------------------------------------------------------------------------------------
 -- | @checkMeasures@ determines if a measure definition is wellformed -----------------------------
 ---------------------------------------------------------------------------------------------------
-checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataCon] -> [Error]
+checkMeasures :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> [Measure SpecType DataCon] -> Diagnostics
 ---------------------------------------------------------------------------------------------------
-checkMeasures emb env = concatMap (checkMeasure emb env)
+checkMeasures emb env = foldMap (checkMeasure emb env)
 
-checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> [Error]
+checkMeasure :: F.TCEmb TyCon -> F.SEnv F.SortedReft -> Measure SpecType DataCon -> Diagnostics
 checkMeasure emb γ (M name@(Loc src _ n) sort body _ _)
-  = [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
+  = mkDiagnostics mempty [ txerror e | Just e <- checkMBody γ emb name sort <$> body ]
   where
     txerror = ErrMeas (GM.sourcePosSrcSpan src) (pprint n)
 
@@ -645,8 +696,8 @@ hasInnerRefinement (RRTy env _ _ ty) =
   isRefined ty || any (isRefined . snd) env
 hasInnerRefinement _ = False
 
-checkRewrites :: TargetSpec -> [Error]
-checkRewrites targetSpec = concatMap getRewriteErrors rwSigs
+checkRewrites :: TargetSpec -> Diagnostics
+checkRewrites targetSpec = mkDiagnostics mempty (concatMap getRewriteErrors rwSigs)
   where
     rwSigs = filter ((`S.member` rws) . fst) sigs
     refl   = gsRefl targetSpec
@@ -656,8 +707,8 @@ checkRewrites targetSpec = concatMap getRewriteErrors rwSigs
                    (S.fromList $ concat $ M.elems (gsRewritesWith refl))
 
 
-checkClassMeasures :: [Measure SpecType DataCon] -> [Error]
-checkClassMeasures ms = mapMaybe checkOne byTyCon
+checkClassMeasures :: [Measure SpecType DataCon] -> Diagnostics
+checkClassMeasures ms = mkDiagnostics mempty (mapMaybe checkOne byTyCon)
   where
   byName = L.groupBy ((==) `on` (val . msName)) ms
 

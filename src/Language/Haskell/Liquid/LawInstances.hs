@@ -3,52 +3,58 @@ module Language.Haskell.Liquid.LawInstances ( checkLawInstances ) where
 
 import qualified Data.List                                  as L
 import qualified Data.Maybe                                 as Mb
-import           Text.PrettyPrint.HughesPJ 
+import           Text.PrettyPrint.HughesPJ                  hiding ((<>))
 
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Equality
-import           Language.Haskell.Liquid.GHC.API            
+import           Language.Haskell.Liquid.GHC.API
 import qualified Language.Fixpoint.Types                     as F
 
-checkLawInstances :: GhcSpecLaws -> [Error]    
-checkLawInstances speclaws = concatMap go (gsLawInst speclaws) 
-  where go l = checkOneInstance (lilName l) (Mb.fromMaybe [] $ L.lookup (lilName l) (gsLawDefs speclaws)) l 
+checkLawInstances :: GhcSpecLaws -> Diagnostics
+checkLawInstances speclaws = foldMap go (gsLawInst speclaws)
+  where go l = checkOneInstance (lilName l) (Mb.fromMaybe [] $ L.lookup (lilName l) (gsLawDefs speclaws)) l
 
-checkOneInstance :: Class -> [(Var, LocSpecType)] -> LawInstance -> [Error]
-checkOneInstance c laws li 
-  = checkExtra c li ((fst <$> laws) ++ classMethods c) (lilEqus li) ++ concatMap (\l -> checkOneLaw c l li) laws
+checkOneInstance :: Class -> [(Var, LocSpecType)] -> LawInstance -> Diagnostics
+checkOneInstance c laws li
+  = checkExtra c li ((fst <$> laws) ++ classMethods c) (lilEqus li) <> foldMap (\l -> checkOneLaw c l li) laws
 
-checkExtra :: Class  -> LawInstance -> [Var] -> [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))] -> [Error]
-checkExtra c li _laws insts = mkError <$> ({- (msgExtra <$> extra) ++ -}  (msgUnfoundLaw <$> unfoundLaws) ++ (msgUnfoundInstance <$> unfoundInstances))
-    where 
-        unfoundInstances = [ x | (_, (Right x,_)) <- insts] 
-        unfoundLaws = [ x | (Right x, _) <- insts] 
+checkExtra :: Class
+           -> LawInstance
+           -> [Var]
+           -> [(VarOrLocSymbol, (VarOrLocSymbol, Maybe LocSpecType))]
+           -> Diagnostics
+checkExtra c li _laws insts =
+    let allMsgs = {- (msgExtra <$> extra) ++ -} (msgUnfoundLaw <$> unfoundLaws) ++ (msgUnfoundInstance <$> unfoundInstances)
+    in mkDiagnostics mempty (mkError <$> allMsgs)
+    where
+        unfoundInstances = [ x | (_, (Right x,_)) <- insts]
+        unfoundLaws = [ x | (Right x, _) <- insts]
         _extra = [] -- this breaks on extra super requirements [ (x,i) | (Left x, (Left i, _)) <- insts, not (x `L.elem` laws)] 
-        mkError = ErrILaw (lilPos li) (pprint c) (pprint $ lilTyArgs li) 
+        mkError = ErrILaw (lilPos li) (pprint c) (pprint $ lilTyArgs li)
         _msgExtra (x,_)      = pprint x <+> text "is not a defined law."
         msgUnfoundLaw i      = pprint i <+> text "is not a defined law."
         msgUnfoundInstance i = pprint i <+> text "is not a defined instance."
 
-checkOneLaw :: Class -> (Var, LocSpecType) -> LawInstance -> [Error]
-checkOneLaw c (x, t) li 
-  | Just (Left _, Just ti) <- lix 
+checkOneLaw :: Class -> (Var, LocSpecType) -> LawInstance -> Diagnostics
+checkOneLaw c (x, t) li
+  | Just (Left _, Just ti) <- lix
   = unify mkError c li t ti
   | Just (Right _l, _) <- lix
-  = [mkError (text "is not found.")]
+  = mkDiagnostics mempty [mkError (text "is not found.")]
   | otherwise
-  = [mkError (text "is not defined.")]
-  where 
+  = mkDiagnostics mempty [mkError (text "is not defined.")]
+  where
     lix = L.lookup (Left x) (lilEqus li)
     mkError txt = ErrILaw (lilPos li) (pprint c) (pprintXs $ lilTyArgs li)
                           (text "The instance for the law" <+> pprint x <+> txt)
-    pprintXs [l] = pprint l 
-    pprintXs xs  = pprint xs 
+    pprintXs [l] = pprint l
+    pprintXs xs  = pprint xs
 
-unify :: (Doc -> Error) -> Class -> LawInstance -> LocSpecType -> LocSpecType -> [Error]
-unify mkError c li t1 t2 
-  = if t11 =*= t22 then [] else err
-  where 
-    err = [mkError (text "is invalid:\nType" <+> pprint t1 <+> text "\nis different than\n" <+> pprint t2
+unify :: (Doc -> Error) -> Class -> LawInstance -> LocSpecType -> LocSpecType -> Diagnostics
+unify mkError c li t1 t2
+  = if t11 =*= t22 then emptyDiagnostics else err
+  where
+    err = mkDiagnostics mempty [mkError (text "is invalid:\nType" <+> pprint t1 <+> text "\nis different than\n" <+> pprint t2
        --  text "\nesubt1 = " <+> pprint esubst1  
        -- text "\nesubt = " <+> pprint esubst  
        -- text "\ncompared\n" <+> pprint t11 <+> text "\nWITH\n" <+> pprint t22 

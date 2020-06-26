@@ -22,6 +22,10 @@ module Language.Haskell.Liquid.Types.PrettyPrint
   , pprintLongList
   , pprintSymbol
 
+  -- * Printing diagnostics
+  , printWarning
+  , printError
+
   ) where
 
 import qualified Data.HashMap.Strict              as M
@@ -32,9 +36,10 @@ import qualified CoreSyn as GHC
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F 
 import           Language.Haskell.Liquid.GHC.API  as Ghc hiding (maybeParen, LM)
+import           Language.Haskell.Liquid.GHC.Logging (putErrMsg)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
-import           Language.Haskell.Liquid.Types.Types    
+import           Language.Haskell.Liquid.Types.Types
 import           Prelude                          hiding (error)
 import           Text.PrettyPrint.HughesPJ        hiding ((<>))
 
@@ -402,3 +407,10 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
     | otherwise  = pprintTidy k p <-> text " & " <-> pprintTidy k r
 
 --------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- | Pretty-printing errors ----------------------------------------------------
+--------------------------------------------------------------------------------
+
+printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
+printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)

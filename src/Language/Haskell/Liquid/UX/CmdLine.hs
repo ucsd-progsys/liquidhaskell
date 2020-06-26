@@ -4,6 +4,7 @@
 {-# LANGUAGE TemplateHaskell           #-}
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE TypeSynonymInstances      #-}
+{-# LANGUAGE NamedFieldPuns            #-}
 {-# OPTIONS_GHC -fno-cse #-}
 
 -- | This module contains all the code needed to output the result which
@@ -68,9 +69,12 @@ import Language.Haskell.Liquid.UX.Annotate
 import Language.Haskell.Liquid.UX.Config
 import Language.Haskell.Liquid.GHC.Misc
 import Language.Haskell.Liquid.Misc
-import Language.Haskell.Liquid.Types.PrettyPrint
+import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
+
+import qualified Language.Haskell.Liquid.GHC.API as GHC
+import qualified Language.Haskell.Liquid.GHC.Logging as GHC
 
 
 import Text.Parsec.Pos                     (newPos)
@@ -635,26 +639,26 @@ defConfig = Config
 ------------------------------------------------------------------------
 
 ------------------------------------------------------------------------
-exitWithResult :: Config -> [FilePath] -> Output Doc -> IO (Output Doc)
+exitWithResult :: GHC.DynFlags -> Config -> [FilePath] -> Output Doc -> IO (Output Doc)
 ------------------------------------------------------------------------
-exitWithResult cfg targets out = do
+exitWithResult dynFlags cfg targets out = do
   annm <- {-# SCC "annotate" #-} annotate cfg targets out
   whenNormal $ donePhase Loud "annotate"
   -- let r = o_result out -- `addErrors` o_errors out
-  consoleResult cfg out annm
+  consoleResult dynFlags cfg out annm
   return out -- { o_result = r }
 
-consoleResult :: Config -> Output a -> ACSS.AnnMap -> IO ()
-consoleResult cfg
+consoleResult :: GHC.DynFlags -> Config -> Output a -> ACSS.AnnMap -> IO ()
+consoleResult dynFlags cfg
   | json cfg  = consoleResultJson cfg
-  | otherwise = consoleResultFull cfg
+  | otherwise = consoleResultFull dynFlags cfg
 
-consoleResultFull :: Config -> Output a -> t -> IO ()
-consoleResultFull cfg out _ = do
+consoleResultFull :: GHC.DynFlags -> Config -> Output a -> t -> IO ()
+consoleResultFull dynFlags cfg out _ = do
    let r = o_result out
    writeCheckVars $ o_vars out
    cr <- resultWithContext r
-   writeResult cfg (colorResult r) cr
+   writeResult dynFlags cfg (colorResult r) cr
 
 consoleResultJson :: t -> t1 -> ACSS.AnnMap -> IO ()
 consoleResultJson _ _ annm = do
@@ -677,20 +681,30 @@ writeCheckVars (Just ns)   = colorPhaseLn Loud "Checked Binders:" ""
 
 type CError = CtxError Doc
 
-writeResult :: Config -> Moods -> F.FixResult CError -> IO ()
-writeResult cfg c          = mapM_ (writeDoc c) . zip [0..] . resDocs tidy
+-- | Writes the result of this LiquidHaskell run to /stdout/.
+writeResult :: GHC.DynFlags -> Config -> Moods -> F.FixResult CError -> IO ()
+writeResult dynFlags cfg c fixResult = do
+  let (header, docErrors) = resDocs tidy fixResult
+  writeHeader header
+  forM_ docErrors $ uncurry (GHC.putErrMsg dynFlags)
   where
-    tidy                   = if shortErrors cfg then F.Lossy else F.Full
-    writeDoc c (i, d)      = writeBlock c i $ lines $ render d
-    writeBlock _ _ []      = return ()
-    writeBlock c 0 ss      = forM_ ss (colorPhaseLn c "")
-    writeBlock _  _ ss     = forM_ ("\n" : ss) putStrLn
+    tidy :: F.Tidy
+    tidy = if shortErrors cfg then F.Lossy else F.Full
 
+    writeHeader :: Doc -> IO ()
+    writeHeader d = colorPhaseLn c "" (render d)
 
-resDocs :: F.Tidy -> F.FixResult CError -> [Doc]
-resDocs _ (F.Safe  stats)  = [text $ "LIQUID: SAFE (" <> show (Solver.numChck stats) <> " constraints checked)"]
-resDocs k (F.Crash xs s)   = text "LIQUID: ERROR"  : text s : pprManyOrdered k "" (errToFCrash <$> xs)
-resDocs k (F.Unsafe xs)    = text "LIQUID: UNSAFE" : pprManyOrdered k "" (nub xs)
+-- | Given a 'FixResult' parameterised over a 'CError', this function returns the \"header\" to show to
+-- the user (i.e. \"SAFE\" or \"UNSAFE\") plus a list of 'Doc's together with the 'SrcSpan' they refer to.
+resDocs :: F.Tidy -> F.FixResult CError -> (Doc, [(GHC.SrcSpan, Doc)])
+resDocs _ (F.Safe  stats) =
+  (text $ "LIQUID: SAFE (" <> show (Solver.numChck stats) <> " constraints checked)", mempty)
+resDocs k (F.Crash xs s)  = (text "LIQUID: ERROR" <+> text s, map (cErrToSpanned k . errToFCrash) xs)
+resDocs k (F.Unsafe xs)   = (text "LIQUID: UNSAFE", map (cErrToSpanned k) (nub xs))
+
+-- | Renders a 'CError' into a 'Doc' and its associated 'SrcSpan'.
+cErrToSpanned :: F.Tidy -> CError -> (GHC.SrcSpan, Doc)
+cErrToSpanned k CtxError{ctErr} = (pos ctErr, pprintTidy k ctErr)
 
 errToFCrash :: CtxError a -> CtxError a
 errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
@@ -709,4 +723,4 @@ addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
 addErrors r  _             = r
 
 instance Fixpoint (F.FixResult CError) where
-  toFix = vcat . resDocs F.Full
+  toFix = vcat . map snd . snd . resDocs F.Full

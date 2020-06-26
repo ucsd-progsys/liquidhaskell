@@ -108,6 +108,7 @@ library
                       Language.Haskell.Liquid.GHC.API
                       Language.Haskell.Liquid.GHC.GhcMonadLike
                       Language.Haskell.Liquid.GHC.Interface
+                      Language.Haskell.Liquid.GHC.Logging
                       Language.Haskell.Liquid.GHC.Misc
                       Language.Haskell.Liquid.GHC.Play
                       Language.Haskell.Liquid.GHC.Resugar

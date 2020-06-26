@@ -54,8 +54,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-
-
+import           Language.Haskell.Liquid.GHC.API (DynFlags)
 
 type MbEnv = Maybe HscEnv
 
@@ -75,7 +74,8 @@ liquidConstraints cfg = do
   z <- actOrDie $ second Just <$> getTargetInfos Nothing cfg (files cfg)
   case z of
     Left e -> do
-      exitWithResult cfg (files cfg) $ mempty { o_result = e }
+      dynFlags <- getInterfaceDynFlags Nothing cfg
+      exitWithResult dynFlags cfg (files cfg) $ mempty { o_result = e }
       return $ Right $ resultExit e 
     Right (gs, _) -> 
       return $ Left $ map generateConstraints gs
@@ -108,34 +108,35 @@ checkTargets cfg  = go
 runLiquidTargets :: MbEnv -> Config -> [FilePath] -> IO (ExitCode, MbEnv)
 --------------------------------------------------------------------------------
 runLiquidTargets mE cfg targetFiles = do
+  dynFlags <- getInterfaceDynFlags mE cfg
   z <- actOrDie $ second Just <$> getTargetInfos mE cfg targetFiles
   case z of
     Left e -> do
-      exitWithResult cfg targetFiles $ mempty { o_result = e }
+      exitWithResult dynFlags cfg targetFiles $ mempty { o_result = e }
       return (resultExit e, mE)
     Right (gs, mE') -> do
-      d <- checkMany cfg mempty gs
+      d <- checkMany dynFlags cfg mempty gs
       return (ec d, mE')
   where
     ec = resultExit . o_result
 
 --------------------------------------------------------------------------------
-checkMany :: Config -> Output Doc -> [TargetInfo] -> IO (Output Doc)
+checkMany :: DynFlags -> Config -> Output Doc -> [TargetInfo] -> IO (Output Doc)
 --------------------------------------------------------------------------------
-checkMany cfg d (g:gs) = do
-  d' <- checkOne cfg g
-  checkMany cfg (d `mappend` d') gs
+checkMany dynFlags cfg d (g:gs) = do
+  d' <- checkOne dynFlags cfg g
+  checkMany dynFlags cfg (d `mappend` d') gs
 
-checkMany _   d [] =
+checkMany _ _ d [] =
   return d
 
 --------------------------------------------------------------------------------
-checkOne :: Config -> TargetInfo -> IO (Output Doc)
+checkOne :: DynFlags -> Config -> TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-checkOne cfg g = do
-  z <- actOrDie $ liquidOne g
+checkOne dynFlags cfg g = do
+  z <- actOrDie $ liquidOne dynFlags g
   case z of
-    Left  e -> exitWithResult cfg [giTarget (giSrc g)] $ mempty { o_result = e }
+    Left  e -> exitWithResult dynFlags cfg [giTarget (giSrc g)] $ mempty { o_result = e }
     Right r -> return r
 
 
@@ -151,13 +152,13 @@ handle :: (Result a) => a -> IO (Either ErrorResult b)
 handle = return . Left . result
 
 --------------------------------------------------------------------------------
-liquidOne :: TargetInfo -> IO (Output Doc)
+liquidOne :: DynFlags -> TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-liquidOne info = do
+liquidOne dynFlags info = do
   out' <- checkTargetInfo info
   unless (compileSpec cfg) $ DC.saveResult tgt out'
-  exitWithResult cfg [tgt] out'
-  where 
+  exitWithResult dynFlags cfg [tgt] out'
+  where
     cfg  = getConfig info
     tgt  = giTarget (giSrc info)
 
