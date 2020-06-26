@@ -588,14 +588,15 @@ ppError :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
 --------------------------------------------------------------------------------
 ppError k dCtx e = ppError' k dCtx e
 
-nests :: Foldable t => Int -> t Doc -> Doc
-nests n      = foldr (\d acc -> nest n (d $+$ acc)) empty
+nests :: Int -> [Doc] -> Doc
+nests n = foldr (\d acc ->  d $+$ nest n acc) empty
+-- nests n = foldr (\d acc -> nest n (d $+$ acc)) empty
 
 sepVcat :: Doc -> [Doc] -> Doc
 sepVcat d ds = vcat $ L.intersperse d ds
 
 blankLine :: Doc
-blankLine    = sizedText 5 " "
+blankLine = sizedText 5 "."
 
 ppFull :: Tidy -> Doc -> Doc
 ppFull Full  d = d
@@ -604,16 +605,16 @@ ppFull Lossy _ = empty
 ppReqInContext :: PPrint t => Tidy -> t -> t -> M.HashMap Symbol t -> Doc
 ppReqInContext td tA tE c
   = sepVcat blankLine
-      [ nests 2 [ text "Inferred type"
+      [ nests 2 [ text "The inferred type"
                 , text "VV :" <+> pprintTidy td tA]
-      , nests 2 [ text "not a subtype of Required type"
+      , nests 2 [ text "is not a subtype of the required type"
                 , text "VV :" <+> pprintTidy td tE]
       , ppContext td c
       ]
 
 ppContext :: PPrint t => Tidy -> M.HashMap Symbol t -> Doc
 ppContext td c
-  | 0 < length xts = nests 2 [ text "In Context"
+  | 0 < length xts = nests 2 [ text "in the context"
                              , vsep (map (uncurry (pprintBind td)) xts)
                              ]
   | otherwise      = empty
@@ -627,11 +628,11 @@ ppReqModelInContext
   :: (PPrint t) => Tidy -> WithModel t -> t -> (M.HashMap Symbol (WithModel t)) -> Doc
 ppReqModelInContext td tA tE c
   = sepVcat blankLine
-      [ nests 2 [ text "Inferred type"
+      [ nests 2 [ text "The inferred type"
                 , pprintModel td "VV" tA]
-      , nests 2 [ text "not a subtype of Required type"
+      , nests 2 [ text "is not a subtype of the required type"
                 , pprintModel td "VV" (NoModel tE)]
-      , nests 2 [ text "In Context"
+      , nests 2 [ text "in the context"
                 , vsep (map (uncurry (pprintModel td)) (M.toList c))
                 ]
       ]
@@ -765,12 +766,13 @@ ppError' _td _dCtx (ErrHole _ msg _ x t)
 
 ppError' td dCtx (ErrSubType _ _ c tA tE)
   = text "Liquid Type Mismatch"
-        $+$ nest 2 (dCtx
-                    $+$ (ppFull td $ ppReqInContext td tA tE c))
+    $+$ nest 4 (blankLine 
+                $+$ dCtx
+                $+$ (ppFull td $ ppReqInContext td tA tE c))
 
 ppError' td dCtx (ErrSubTypeModel _ _ c tA tE)
   = text "Liquid Type Mismatch"
-        $+$ nest 2 (dCtx
+        $+$ nest 4 (dCtx
                     $+$ (ppFull td $ ppReqModelInContext td tA tE c))
 
 ppError' td  dCtx (ErrFCrash _ _ c tA tE)

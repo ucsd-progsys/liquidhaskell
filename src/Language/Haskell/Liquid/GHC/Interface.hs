@@ -119,7 +119,7 @@ import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
-import qualified Language.Haskell.Liquid.Bare     as Bare
+-- import qualified Language.Haskell.Liquid.Bare     as Bare
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
