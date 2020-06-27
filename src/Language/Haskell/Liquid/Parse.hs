@@ -69,10 +69,15 @@ hsSpecificationP modName specComments specQuotes =
     (errs, _) ->
       Left errs
   where
+    go :: ([Error], [BPspec])   -- accumulated errors and parsed specs (in reverse order)
+       -> PState                -- parser state (primarily infix operator priorities)
+       -> [(SourcePos, String)] -- remaining unparsed spec comments
+       -> ([Error], [BPspec])   -- final errors and parsed specs
     go (errs, specs) _ []
       = (reverse errs, reverse specs)
     go (errs, specs) pstate ((pos, specComment):xs)
-      = case parseWithError pstate specP pos specComment of
+      = -- 'specP' parses a single spec comment, i.e., a single LH directive
+        case parseWithError pstate specP pos specComment of
           Left err        -> go (err:errs, specs) pstate xs
           Right (st,spec) -> go (errs,spec:specs) st xs
 
@@ -845,6 +850,7 @@ dummyTyId      = ""
 
 type BPspec = Pspec LocBareType LocSymbol
 
+-- | The AST for a single parsed spec.
 data Pspec ty ctor
   = Meas    (Measure ty ctor)                             -- ^ 'measure' definition
   | Assm    (LocSymbol, ty)                               -- ^ 'assume' signature (unchecked)
@@ -1029,8 +1035,24 @@ qualifySpec name sp = sp { sigs      = [ (tx x, t)  | (x, t)  <- sigs sp]
                          -- , asmSigs   = [ (tx x, t)  | (x, t)  <- asmSigs sp]
                          }
   where
+    tx :: Located Symbol -> Located Symbol
     tx = fmap (qualifySymbol name)
 
+-- | Turns a list of parsed specifications into a "bare spec".
+--
+-- This is primarily a rearrangement, as the bare spec is a record containing
+-- different kinds of spec directives in different positions, whereas the input
+-- list is a mixed list.
+--
+-- In addition, the sigs of the spec (these are asserted/checked LH type
+-- signatues) are being qualified, i.e., the binding occurrences are prefixed
+-- with the module name.
+--
+-- Andres: It is unfortunately totally unclear to me what the justification
+-- for the qualification is, and in particular, why it is being done for
+-- the asserted signatures only. My trust is not exactly improved by the
+-- commented out line in 'qualifySpec'.
+--
 mkSpec :: ModName -> [BPspec] -> (ModName, Measure.Spec LocBareType LocSymbol)
 mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   { Measure.measures   = [m | Meas   m <- xs]

@@ -170,7 +170,11 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
   -- NOTE: Be careful with the ordering of 'SpecComment's, because in the plugin infrastructure
   -- if those would appear in a different order than what LiquidHaskell expects, the parser would choke,
   -- as the latter is stateful with regards to the infix operators.
-  let comments  = LH.extractSpecComments (hpm_annotations parsedModule)
+  --
+  -- The following 'comments' contains the plain textual spec comments extracted from the
+  -- source file. The LH parser is called later.
+  let comments :: [(SourcePos, String)]
+      comments = LH.extractSpecComments (hpm_annotations parsedModule)
 
   -- Run 'parseModule' with a \"cleaned\" 'ModSummary'. We need this to avoid entering in an endless loop when
   -- the LiquidHaskell plugin code runs via GHCi. The culprit seems to be the definition of 'parseModule',
@@ -205,15 +209,21 @@ parseHook _ (unoptimise -> modSummary) parsedModule = do
                                         (GhcMonadLike.tm_gbl_env typechecked)
                                         (tcg_exports $ GhcMonadLike.tm_gbl_env typechecked)
 
-  let tcData       = mkTcData typechecked resolvedNames availTyCons availVars
-  let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
+  let tcData :: TcData
+      tcData = mkTcData typechecked resolvedNames availTyCons availVars
 
+      pipelineData :: PipelineData
+      pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
+
+  -- Here, we save everything we will need later for consumption in a later phase.
   liftIO $
     atomicModifyIORef' pipelineDataRef (\old -> (HM.insert (toStableModule thisModule) pipelineData old , ()))
 
   debugLog $ "Resolved names:\n" ++ (O.showSDocUnsafe $ O.ppr resolvedNames)
   debugLog $ "Optimised Core:\n" ++ (O.showSDocUnsafe $ O.ppr (mg_binds unoptimisedGuts))
   debugLog $ "Spec comments: "   ++ show comments
+
+  debugLog $ "*** parseHook completed successfully ***\n"
 
   pure parsedModule
 
@@ -273,7 +283,13 @@ typecheckHook :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
 typecheckHook _ _ tcGblEnv = do
   dynFlags <- getDynFlags
   cfg <- liftIO getConfig
-  mbPipelineData <- (HM.lookup (toStableModule thisModule)) <$> liftIO (readIORef pipelineDataRef)
+
+  -- Recover saved data for the current module.
+  debugLog "Accessing saved pipeline data ..."
+  pipelineDataMap <- liftIO (readIORef pipelineDataRef)
+  debugLog $ "Stored modules in pipeline data map: " <> show (HM.keys pipelineDataMap)
+  debugLog $ "We are in module: " <> show (toStableModule thisModule)
+  let mbPipelineData = (HM.lookup (toStableModule thisModule)) pipelineDataMap
   case mbPipelineData of
     Nothing           -> Util.pluginAbort (O.showSDoc dynFlags $ O.text "No LiquidHaskell suitable data found for " O.<+> O.ppr thisModule)
     Just pipelineData -> liquidHaskellCheck cfg pipelineData tcGblEnv
@@ -285,8 +301,15 @@ typecheckHook _ _ tcGblEnv = do
 liquidHaskellCheck :: LH.Config -> PipelineData -> TcGblEnv -> TcM TcGblEnv
 liquidHaskellCheck cfg pipelineData tcGblEnv = do
 
-  let specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
-  inputSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
+  -- The 'specQuotes' contain stuff we need from imported modules, extracted
+  -- from the annotations in their interface files.
+  let specQuotes :: [BPspec]
+      specQuotes = LH.extractSpecQuotes' tcg_mod tcg_anns tcGblEnv
+
+  -- Here, we are calling Liquid Haskell's parser, acting on the unparsed
+  -- spec comments stored in the pipeline data, supported by the specQuotes
+  -- obtained from the imported modules.
+  inputSpec :: BareSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
 
   debugLog $ " Input spec: \n" ++ show inputSpec
 
@@ -295,7 +318,9 @@ liquidHaskellCheck cfg pipelineData tcGblEnv = do
 
   debugLog $ "Relevant ===> \n" ++ (unlines $ map renderModule $ (S.toList $ relevantModules modGuts))
 
-  logicMap <- liftIO $ LH.makeLogicMap
+  logicMap :: LogicMap <- liftIO $ LH.makeLogicMap
+
+  -- debugLog $ "Logic map:\n" ++ show logicMap
 
   let lhContext = LiquidHaskellContext {
         lhGlobalCfg       = cfg
@@ -415,10 +440,15 @@ data ProcessModuleResult = ProcessModuleResult {
   -- ^ The 'GhcInfo' for the current 'Module' that LiquidHaskell will process.
   }
 
+-- | Parse the spec comments from one module, supported by the
+-- spec quotes from the imported module. Also looks for
+-- "companion specs" for the current module and merges them in
+-- if it finds one.
 getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
 getLiquidSpec thisModule specComments specQuotes = do
 
-  let commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
+  let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
+      commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
     Left errors -> do
       dynFlags <- getDynFlags

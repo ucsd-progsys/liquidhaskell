@@ -295,6 +295,9 @@ type SpecMeasure   = Measure LocSpecType DataCon
 -- for a 'BareSpec' are lists, so that we can report these errors to the end user: it would be an error
 -- to silently ignore the duplication and leave the duplicate resolution to whichever 'Eq' instance is
 -- implemented for the relevant field.
+--
+-- Also, a 'BareSpec' has not yet been subject to name resolution, so it may refer
+-- to undefined or out-of-scope entities.
 newtype BareSpec =
   MkBareSpec { getBareSpec :: Spec LocBareType F.LocSymbol }
   deriving (Generic, Show, Semigroup, Monoid, Binary)
