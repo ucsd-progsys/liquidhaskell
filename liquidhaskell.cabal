@@ -219,7 +219,7 @@ library
                     , optics               >= 0.2
                     , optparse-simple
                     , githash
-                    , parsec               >= 3.1
+                    , megaparsec           >= 8
                     , pretty               >= 1.1
                     , split
                     , syb                  >= 0.4.4
@@ -291,9 +291,11 @@ test-suite liquidhaskell-parser
   other-modules:    Paths_liquidhaskell
   hs-source-dirs:   tests
   build-depends:    base            >= 4.8.1.0 && < 5
+                  , directory       >= 1.2.5 && < 1.4
+                  , filepath
                   , liquid-fixpoint >= 0.8.0.0
                   , liquidhaskell
-                  , parsec
+                  , megaparsec
                   , syb
                   , tasty           >= 0.10
                   , tasty-ant-xml

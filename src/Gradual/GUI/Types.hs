@@ -56,7 +56,7 @@ kVarSpan k = SS lc lc
   where
     L (l, c) = symbolLoc k
     fn  = takeFileName $ symbolString k
-    lc = toSourcePos (fn, l, c) 
+    lc = safeSourcePos fn l c
 
 takeFileName :: String -> String 
 takeFileName ('$':xs) = takeWhile (/= ' ') xs 

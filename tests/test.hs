@@ -247,8 +247,8 @@ errorTests = group "Error-Messages"
 
 macroTests :: IO TestTree
 macroTests = group "Macro"
-   [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess
-   , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1)
+   [ testGroup "unit-pos"       <$> dirTests "tests/pos"                            posIgnored        ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
+   , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1) (Just " UNSAFE ") Nothing
    ] 
 
 goldenTests :: IO TestTree
@@ -268,40 +268,42 @@ goldenTest testName dir filePrefix testOpts =
 
 microTests :: IO TestTree
 microTests = group "Micro"
-  [ mkMicro "parser-pos"     "tests/parser/pos"      ExitSuccess
-  , mkMicro "basic-pos"      "tests/basic/pos"       ExitSuccess
-  , mkMicro "basic-neg"      "tests/basic/neg"       (ExitFailure 1)
-  , mkMicro "measure-pos"    "tests/measure/pos"     ExitSuccess          -- measPosOrder
-  , mkMicro "measure-neg"    "tests/measure/neg"     (ExitFailure 1)
-  , mkMicro "datacon-pos"    "tests/datacon/pos"     ExitSuccess          
-  , mkMicro "datacon-neg"    "tests/datacon/neg"     (ExitFailure 1)
-  , mkMicro "names-pos"      "tests/names/pos"       ExitSuccess
-  , mkMicro "names-neg"      "tests/names/neg"       (ExitFailure 1)
-  , mkMicro "reflect-pos"    "tests/reflect/pos"     ExitSuccess
-  , mkMicro "reflect-neg"    "tests/reflect/neg"     (ExitFailure 1) 
-  , mkMicro "absref-pos"     "tests/absref/pos"      ExitSuccess
-  , mkMicro "absref-neg"     "tests/absref/neg"      (ExitFailure 1)
-  -- , mkMicro "import-lib"     "tests/import/lib"      ExitSuccess       -- NOT disabled; but via CHECK-IMPORTS
-  , mkMicro "import-cli"     "tests/import/client"   ExitSuccess
-  , mkMicro "class-pos"      "tests/classes/pos"     ExitSuccess
-  , mkMicro "class-neg"      "tests/classes/neg"     (ExitFailure 1)        
-  , mkMicro "ple-pos"        "tests/ple/pos"         ExitSuccess
-  , mkMicro "ple-neg"        "tests/ple/neg"         (ExitFailure 1)
-  , mkMicro "rankN-pos"      "tests/RankNTypes/pos"         ExitSuccess
-  , mkMicro "terminate-pos"  "tests/terminate/pos"   ExitSuccess
-  , mkMicro "terminate-neg"  "tests/terminate/neg"   (ExitFailure 1)
-  , mkMicro "pattern-pos"    "tests/pattern/pos"     ExitSuccess
-  , mkMicro "class-laws-pos" "tests/class-laws/pos"  ExitSuccess
-  , mkMicro "class-laws-crash" "tests/class-laws/crash" (ExitFailure 1)
-  , mkMicro "class-laws-neg"   "tests/class-laws/neg"   (ExitFailure 1)
-  , mkMicro "implicit-pos"   "tests/implicit/pos"    ExitSuccess
-  , mkMicro "implicit-neg"   "tests/implicit/neg"   (ExitFailure 1)
+  [ mkMicroPos "parser-pos"     "tests/parser/pos"
+  , mkMicroPos "basic-pos"      "tests/basic/pos"
+  , mkMicroNeg "basic-neg"      "tests/basic/neg"
+  , mkMicroPos "measure-pos"    "tests/measure/pos"         -- measPosOrder
+  , mkMicroNeg "measure-neg"    "tests/measure/neg"
+  , mkMicroPos "datacon-pos"    "tests/datacon/pos"
+  , mkMicroNeg "datacon-neg"    "tests/datacon/neg"
+  , mkMicroPos "names-pos"      "tests/names/pos"
+  , mkMicroNeg "names-neg"      "tests/names/neg"
+  , mkMicroPos "reflect-pos"    "tests/reflect/pos"
+  , mkMicroNeg "reflect-neg"    "tests/reflect/neg"
+  , mkMicroPos "absref-pos"     "tests/absref/pos"
+  , mkMicroNeg "absref-neg"     "tests/absref/neg"
+  -- , mkMicroPos "import-lib"     "tests/import/lib"      -- NOT disabled; but via CHECK-IMPORTS
+  , mkMicroPos "import-cli"     "tests/import/client"
+  , mkMicroPos "class-pos"      "tests/classes/pos"
+  , mkMicroNeg "class-neg"      "tests/classes/neg"
+  , mkMicroPos "ple-pos"        "tests/ple/pos"
+  , mkMicroNeg "ple-neg"        "tests/ple/neg"
+  , mkMicroPos "rankN-pos"      "tests/RankNTypes/pos"
+  , mkMicroPos "terminate-pos"  "tests/terminate/pos"
+  , mkMicroNeg "terminate-neg"  "tests/terminate/neg"
+  , mkMicroPos "pattern-pos"    "tests/pattern/pos"
+  , mkMicroPos "class-laws-pos" "tests/class-laws/pos"
+  , mkMicroLaw "class-laws-crash" "tests/class-laws/crash"
+  , mkMicroNeg "class-laws-neg"   "tests/class-laws/neg"
+  , mkMicroPos "implicit-pos"   "tests/implicit/pos"
+  , mkMicroNeg "implicit-neg"   "tests/implicit/neg"
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
   ]
-  where 
-    mkMicro name dir res    = testGroup name <$> dirTests  dir [] res 
+  where
+    mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")
+    mkMicroNeg name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just " UNSAFE ") Nothing
+    mkMicroLaw name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
 
 
 posIgnored    = [ "mapreduce.hs" ]
@@ -310,12 +312,12 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess
-  , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess
-  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess
-  , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess
-  , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess
-  , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1)
+  [ testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "icfp_pos"    <$> odirTests  "benchmarks/icfp15/pos"                icfpIgnored   icfpOrder   ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "icfp_neg"    <$> odirTests  "benchmarks/icfp15/neg"                icfpIgnored   icfpOrder   (ExitFailure 1) (Just " UNSAFE ") Nothing
   ]
 
 -- AUTO-ORDER _impLibOrder :: Maybe FileOrder 
@@ -404,43 +406,43 @@ textOrder = Just . mkOrder $
 
 proverTests :: IO TestTree
 proverTests = group "Prover"
-  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess
-  , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess
-  , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess
-  , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1)
-  , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess
+  [ testGroup "foundations"     <$> dirTests  "benchmarks/sf"                []                          ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "prover_ple_lib"  <$> odirTests "benchmarks/popl18/lib"        []             proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "without_ple_pos" <$> odirTests "benchmarks/popl18/nople/pos"  noPleIgnored   proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
+  , testGroup "without_ple_neg" <$> odirTests "benchmarks/popl18/nople/neg"  noPleIgnored   proverOrder (ExitFailure 1) (Just " UNSAFE ") Nothing
+  , testGroup "with_ple"        <$> odirTests "benchmarks/popl18/ple/pos"    autoIgnored    proverOrder  ExitSuccess    (Just " SAFE ") (Just " UNSAFE ")
   ]
 
 
 selfTests :: IO TestTree
 selfTests
   = group "Self" [
-      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess
+      testGroup "liquid"      <$> dirTests "src"  [] ExitSuccess (Just " SAFE ") (Just " UNSAFE ")
   ]
 
 --------------------------------------------------------------------------------
 -- | For each file in `root` check, that we get the given exit `code.`
 --------------------------------------------------------------------------------
-dirTests :: FilePath -> [FilePath] -> ExitCode -> IO [TestTree]
+dirTests :: FilePath -> [FilePath] -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO [TestTree]
 --------------------------------------------------------------------------------
-dirTests root ignored ecode = odirTests root ignored Nothing ecode 
+dirTests root ignored ecode yesLog noLog = odirTests root ignored Nothing ecode yesLog noLog
 
 --------------------------------------------------------------------------------
-odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> IO [TestTree]
+odirTests :: FilePath -> [FilePath] -> Maybe FileOrder -> ExitCode -> Maybe T.Text -> Maybe T.Text -> IO [TestTree]
 --------------------------------------------------------------------------------
-odirTests root ignored fo ecode = do 
+odirTests root ignored fo ecode yesLog noLog = do
   files     <- walkDirectory False root
   -- print (show files)
   let tests  = sortOrder fo [ rel | f <- files
                                   , isTest f
                                   , let rel = makeRelative root f
-                                  , rel `notElem` ignored 
+                                  , rel `notElem` ignored
                             ]
   -- print (show tests)
-  return     $ mkCodeTest ecode root <$> tests
+  return     $ mkCodeTest ecode yesLog noLog root <$> tests
 
-mkCodeTest :: ExitCode -> FilePath -> FilePath -> TestTree
-mkCodeTest code dir file = mkTest (EC file code Nothing) dir file
+mkCodeTest :: ExitCode -> Maybe T.Text -> Maybe T.Text -> FilePath -> FilePath -> TestTree
+mkCodeTest code yesLog noLog dir file = mkTest (EC file code yesLog noLog) dir file
 
 isTest   :: FilePath -> Bool
 isTest f =  takeExtension f == ".hs"
@@ -454,6 +456,9 @@ type FileOrder = Map.Map FilePath Int
 getOrder :: FileOrder -> FilePath -> Int 
 getOrder m f = Map.findWithDefault (1 + Map.size m) f m 
 
+-- | Creates an order from a list. Files not in this order will be treated as
+-- coming later.
+--
 mkOrder :: [FilePath] -> FileOrder 
 mkOrder fs = Map.fromList (zip fs [0..])
 
@@ -479,23 +484,31 @@ errorTest :: FilePath -> Int -> T.Text -> IO TestTree
 --------------------------------------------------------------------------------
 errorTest path status err = return (mkTest ec dir file)
   where
-    ec                    = EC file (ExitFailure status) (Just err)
+    ec                    = EC file (ExitFailure status) (Just err) Nothing
     (dir, file)           = splitFileName path
 
 --------------------------------------------------------------------------------
-data ExitCheck = EC { ecTest :: FilePath, ecCode :: ExitCode, ecLog :: Maybe T.Text }
+data ExitCheck = EC { ecTest :: FilePath, ecCode :: ExitCode, ecLog :: Maybe T.Text, ecNotLog :: Maybe T.Text }
                  deriving (Show)
 
 ecAssert :: ExitCheck -> ExitCode -> T.Text -> Assertion
 ecAssert ec (ExitFailure 137) _   =
   printf "WARNING: possible OOM while testing %s: IGNORING" (ecTest ec)
 
-ecAssert (EC _ code Nothing)  c t   =
-  assertEqual ("Wrong exit code" <> show t) code c
-
-ecAssert (EC _ code (Just t)) c log = do
-  assertEqual "Wrong exit code" code c
-  assertBool ("Did not match message: " ++ T.unpack t) (T.isInfixOf t log)
+ecAssert (EC _ code yesLog noLog) c log = do
+  assertEqual ("Wrong exit code; output:\n" <> output) code c
+  if (c == ExitSuccess && T.null log)
+    then do
+      hPutStr stderr "(skipping as apparently already compiled ...) "
+    else do
+      case yesLog of
+        Nothing -> pure ()
+        Just t  -> assertBool ("Did not match message: " <> show (T.unpack t) <> "\n" <> output) (T.isInfixOf t log)
+      case noLog of
+        Nothing -> pure ()
+        Just t  -> assertBool ("Did match unexpected message: " <> show (T.unpack t) <> "\n" <> output) (not (T.isInfixOf t log))
+  where
+    output = unlines (map ("  > " ++) (lines (T.unpack log)))
 
 --------------------------------------------------------------------------------
 mkTest :: ExitCheck -> FilePath -> FilePath -> TestTree

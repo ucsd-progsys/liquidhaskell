@@ -83,7 +83,6 @@ import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 import qualified Language.Haskell.Liquid.GHC.API as GHC
 
 
-import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
 
 
@@ -490,7 +489,7 @@ envCfg = do
     Just s  -> parsePragma $ envLoc s
   where
     envLoc  = Loc l l
-    l       = newPos "ENVIRONMENT" 0 0
+    l       = safeSourcePos "ENVIRONMENT" 1 1
 
 copyright :: String
 copyright = concat $ concat

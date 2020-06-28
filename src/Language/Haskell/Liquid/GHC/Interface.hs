@@ -106,8 +106,9 @@ import qualified Data.HashMap.Strict as HM
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
 import System.FilePath
+import System.IO
 import System.IO.Temp
-import Text.Parsec.Pos
+import Text.Megaparsec.Error
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
@@ -738,7 +739,8 @@ extractSpecComment (GHC.L sp (AnnBlockComment text))
   | isPrefixOf "{-@" text                                   -- invalid specification
   = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
-    offsetPos = incSourceColumn (srcSpanSourcePos sp) 3
+    offsetPos = case srcSpanSourcePos sp of
+      SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
 extractSpecComment _ = Nothing
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
@@ -835,8 +837,22 @@ transParseSpecs modGraph paths seenFiles specs newFiles = do
 noTerm :: Ms.BareSpec -> Ms.BareSpec
 noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
 
+-- | Parse a spec file by path.
+--
+-- On a parse error, we fail.
+--
+-- TODO, Andres: It would be better to fail more systematically, but currently we
+-- seem to have an option between throwing an error which will be reported badly,
+-- or printing the error ourselves.
+--
 parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
-parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayReadFile file
+parseSpecFile file = do
+  contents <- Misc.sayReadFile file
+  case specSpecificationP file contents of
+    Left peb -> do
+      hPutStrLn stderr (errorBundlePretty peb)
+      panic Nothing "parsing spec file failed"
+    Right x  -> pure x
 
 -- Find Hquals Files -----------------------------------------------------------
 
@@ -880,8 +896,10 @@ makeLogicMap :: IO LogicMap
 makeLogicMap = do
   lg    <- Misc.getCoreToLogicPath
   lspec <- Misc.sayReadFile lg
-  case parseSymbolToLogic lg lspec of 
-    Left e   -> throw e 
+  case parseSymbolToLogic lg lspec of
+    Left peb -> do
+      hPutStrLn stderr (errorBundlePretty peb)
+      panic Nothing "makeLogicMap failed"
     Right lm -> return (lm <> listLMap)
 
 listLMap :: LogicMap -- TODO-REBARE: move to wiredIn

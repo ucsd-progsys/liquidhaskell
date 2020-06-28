@@ -242,7 +242,7 @@ ppSpecType k = rtypeDoc     k
     noCasts e          = e
 
 instance Show Error where
-  show = showpp
+  show e = render (pprint (pos e) <+> pprint e)
 
 instance Ex.Exception Error
 instance Ex.Exception [Error]

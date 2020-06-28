@@ -23,15 +23,15 @@ import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
 
-import Text.Parsec.Pos
-
 import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
-import Language.Haskell.Liquid.UX.Tidy
+
+import System.IO
+import Text.Megaparsec.Error
 
 --------------------------------------------------------------------------------
 -- LiquidHaskell Specification QuasiQuoter -------------------------------------
@@ -52,7 +52,9 @@ lqDec :: String -> Q [Dec]
 lqDec src = do
   pos <- locSourcePos <$> location
   case singleSpecP pos src of
-    Left err -> throwErrorInQ $ errorToUserError err
+    Left peb -> do
+      runIO (hPutStrLn stderr (errorBundlePretty peb))
+      fail "LH quasiquoter parse error"
     Right spec -> do
       prg <- pragAnnD ModuleAnnotation $
                conE 'LiquidQuote `appE` dataToExpQ' spec
@@ -195,7 +197,7 @@ newtype LiquidQuote = LiquidQuote { liquidQuoteSpec :: BPspec }
 
 locSourcePos :: Loc -> SourcePos
 locSourcePos loc =
-  newPos (loc_filename loc) (fst $ loc_start loc) (snd $ loc_start loc)
+  safeSourcePos (loc_filename loc) (fst $ loc_start loc) (snd $ loc_start loc)
 
 dataToExpQ' :: Data a => a -> Q Exp
 dataToExpQ' = dataToExpQ (const Nothing `extQ` textToExpQ)

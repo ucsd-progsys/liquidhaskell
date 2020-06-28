@@ -6,6 +6,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
@@ -14,54 +15,55 @@ module Language.Haskell.Liquid.Parse
   , BPspec
   , Pspec(..)
   , parseSymbolToLogic
+  , parseTest'
   )
   where
 
 import           Control.Arrow                          (second)
 import           Control.Monad
+import           Control.Monad.Identity
+import qualified Data.Foldable                          as F
 import           Data.String
+import           Data.Void
 import           Prelude                                hiding (error)
-import           Text.Parsec
-import           Text.Parsec.Error                      (newErrorMessage, Message (..))
-import           Text.Parsec.Pos
+import           Text.Megaparsec                        hiding (ParseError)
+import           Text.Megaparsec.Char
+-- import           Text.Parsec
+-- import           Text.Parsec.Error                      (newErrorMessage, Message (..))
+-- import           Text.Parsec.Pos
 
 -- import           Text.Parsec.Char                       (newline) 
-import qualified Text.Parsec.Token                      as Token
-import qualified Data.Text                              as T
+-- import qualified Text.Parsec.Token                      as Token
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 -- import           Data.Monoid
 import           Data.Data
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
-import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum, isDigit)
+import           Data.Char                              (isSpace, isAlphaNum)
 import           Data.List                              (foldl', partition)
 import           GHC                                    (ModuleName, mkModuleName)
 import qualified Text.PrettyPrint.HughesPJ              as PJ 
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>)) 
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Types          
+import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
+import           Language.Haskell.Liquid.Types
+-- import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (stringLiteral, dataDeclP, angles, refBindP, refP, refDefP)
+import           Language.Fixpoint.Parse                hiding (dataDeclP, refBindP, refP, refDefP, parseTest')
 
 import Control.Monad.State
 
 -- import Debug.Trace
 
---------------------------------------------------------------------------------
--- | Top Level Parsing API -----------------------------------------------------
---------------------------------------------------------------------------------
+-- * Top-level parsing API
 
--- | Used to parse .hs and .lhs files (via ApiAnnotations)
-
--------------------------------------------------------------------------------
+-- | Used to parse .hs and .lhs files (via ApiAnnotations).
 hsSpecificationP :: ModuleName
                  -> [(SourcePos, String)]
                  -> [BPspec]
                  -> Either [Error] (ModName, Measure.BareSpec)
--------------------------------------------------------------------------------
 hsSpecificationP modName specComments specQuotes =
   case go ([], []) initPStateWithList $ reverse specComments of
     ([], specs) ->
@@ -77,38 +79,42 @@ hsSpecificationP modName specComments specQuotes =
       = (reverse errs, reverse specs)
     go (errs, specs) pstate ((pos, specComment):xs)
       = -- 'specP' parses a single spec comment, i.e., a single LH directive
-        case parseWithError pstate specP pos specComment of
-          Left err        -> go (err:errs, specs) pstate xs
-          Right (st,spec) -> go (errs,spec:specs) st xs
-
--- | Used to parse .spec files
+        -- we allow a "block" of specs now
+        case parseWithError pstate (block specP) pos specComment of
+          Left err        -> go (parseErrorBundleToErrors err ++ errs, specs) pstate xs
+          Right (st,spec) -> go (errs,spec ++ specs) st xs
 
 initPStateWithList :: PState
-initPStateWithList 
+initPStateWithList
   = (initPState composeFun)
                { empList    = Just (EVar ("GHC.Types.[]" :: Symbol))
                , singList   = Just (\e -> EApp (EApp (EVar ("GHC.Types.:"  :: Symbol)) e) (EVar ("GHC.Types.[]" :: Symbol)))
                }
   where composeFun = Just $ EVar functionComposisionSymbol
 
+-- | Used to parse .spec files.
+specSpecificationP  :: SourceName -> String -> Either (ParseErrorBundle String Void) (ModName, Measure.BareSpec)
 --------------------------------------------------------------------------
-specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
---------------------------------------------------------------------------
-specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList specificationP (newPos f 1 1) s
+specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList (specificationP <* eof) (initialPos f) s
 
+-- | Parses a module spec.
+--
+-- A module spec is a module only containing spec constructs for Liquid Haskell,
+-- and no "normal" Haskell code.
+--
 specificationP :: Parser (ModName, Measure.BareSpec)
-specificationP = do 
+specificationP = do
   reserved "module"
   reserved "spec"
   name   <- symbolP
   reserved "where"
-  xs     <- if True then grabs (specP <* whiteSpace) else sepBy specP newline
+  xs     <- block specP
   return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
 
 -- debugP = grabs (specP <* whiteSpace)
 
 -------------------------------------------------------------------------------
-singleSpecP :: SourcePos -> String -> Either Error BPspec
+singleSpecP :: SourcePos -> String -> Either (ParseErrorBundle String Void) BPspec
 -------------------------------------------------------------------------------
 singleSpecP pos = mapRight snd . parseWithError initPStateWithList specP pos
 
@@ -116,58 +122,80 @@ mapRight :: (a -> b) -> Either l a -> Either l b
 mapRight f (Right x) = Right $ f x
 mapRight _ (Left x)  = Left x
 
----------------------------------------------------------------------------
-parseWithError :: PState -> Parser a -> SourcePos -> String -> Either Error (PState, a)
----------------------------------------------------------------------------
+-- Note [PState in parser]
+--
+-- In the original parsec parser, 'PState' did not contain the supply counter.
+-- The supply counter was separately initialised to 0 on every parser call, e.g.
+-- in 'parseWithError'.
+--
+-- Now, the supply counter is a part of 'PState' and would normally be threaded
+-- between subsequent parsing calls within s single file, as for example issued
+-- by 'hsSpecificationP'. This threading seems correct to me (Andres). It sounds
+-- like we would want to have the same behaviour of the counter whether we are
+-- parsing several separate specs or a single combined spec.
+--
+-- However, I am getting one test failure due to the threading change, namely
+-- Tests.Micro.class-laws-pos.FreeVar.hs, because in a unification call two
+-- variables occurring in a binding position do not match. This seems like a bug
+-- in the unifier. I'm nevertheless reproucing the "old" supply behaviour for
+-- now. This should be revisited later. TODO.
+
+-- | Entry point for parsers.
+--
+-- Resets the supply in the given state to 0, see Note [PState in parser].
+-- Also resets the layout stack, as different spec comments in a file can
+-- start at different columns, and we do not want layout info to carry
+-- across different such comments.
+--
+parseWithError :: forall a. PState -> Parser a -> SourcePos -> String -> Either (ParseErrorBundle String Void) (PState, a)
 parseWithError pstate parser p s =
-  case runState (runParserT doParse 0 (sourceName p) s) pstate of
-    (Left e, _)            -> Left  $ parseErrorError e
-    (Right (r, "", _), st) -> Right (st, r)
-    (Right (_, rem, _), _) -> Left  $ parseErrorError $ remParseError p s rem
+  case snd (runIdentity (runParserT' (runStateT doParse pstate{supply = 0, layoutStack = Empty}) internalParserState)) of
+    Left peb -> Left peb
+    Right (r, st) -> Right (st, r)
   where
-    -- See http://stackoverflow.com/questions/16209278/parsec-consume-all-input
-    doParse = setPosition p >> remainderP (whiteSpace *> parser <* (whiteSpace >> eof))
+    doParse :: Parser a
+    doParse = spaces *> parser <* eof
+    internalParserState =
+      State
+        { stateInput = s
+        , stateOffset = 0
+        , statePosState =
+          PosState
+            { pstateInput = s
+            , pstateOffset = 0
+            , pstateSourcePos = p
+            , pstateTabWidth = defaultTabWidth
+            , pstateLinePrefix = ""
+            }
+        , stateParseErrors = []
+        }
 
+-- | Function to test parsers interactively.
+parseTest' :: Show a => Parser a -> String -> IO ()
+parseTest' parser input =
+  parseTest (evalStateT parser initPStateWithList) input
+
+parseErrorBundleToErrors :: ParseErrorBundle String Void -> [Error]
+parseErrorBundleToErrors (ParseErrorBundle errors posState) =
+  let
+    (es, _) = attachSourcePos errorOffset errors posState
+  in
+    parseErrorError <$> F.toList es
 
 ---------------------------------------------------------------------------
-parseErrorError     :: ParseError -> Error
+parseErrorError     :: (ParseError, SourcePos) -> Error
 ---------------------------------------------------------------------------
-parseErrorError e = ErrParse sp msg e
+parseErrorError (e, pos) = ErrParse sp msg e
   where
-    pos             = errorPos e
     sp              = sourcePosSrcSpan pos
     msg             = "Error Parsing Specification from:" <+> PJ.text (sourceName pos)
-
----------------------------------------------------------------------------
-remParseError       :: SourcePos -> String -> String -> ParseError
----------------------------------------------------------------------------
-remParseError p s r = newErrorMessage msg $ newPos (sourceName p) line col
-  where
-    msg             = Message "Leftover while parsing"
-    (line, col)     = remLineCol p s r
-
-remLineCol             :: SourcePos -> String -> String -> (Int, Int)
-remLineCol pos src rem = (line + offLine, col + offCol)
-  where
-    line               = 1 + srcLine - remLine
-    srcLine            = length srcLines
-    remLine            = length remLines
-    offLine            = sourceLine pos - 1
-    col                = 1 + srcCol - remCol
-    srcCol             = length $ srcLines !! (line - 1)
-    remCol             = length $ head remLines
-    offCol             = if line == 1 then sourceColumn pos - 1 else 0
-    srcLines           = lines  src
-    remLines           = lines  rem
-
-
 
 --------------------------------------------------------------------------------
 -- Parse to Logic  -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-parseSymbolToLogic :: SourceName -> String -> Either Error LogicMap
-parseSymbolToLogic f = mapRight snd . parseWithError initPStateWithList toLogicP (newPos f 1 1)
+parseSymbolToLogic :: SourceName -> String -> Either (ParseErrorBundle String Void) LogicMap
+parseSymbolToLogic f = mapRight snd . parseWithError initPStateWithList toLogicP (initialPos f)
 
 toLogicP :: Parser LogicMap
 toLogicP
@@ -176,32 +204,15 @@ toLogicP
 toLogicOneP :: Parser  (LocSymbol, [Symbol], Expr)
 toLogicOneP
   = do reserved "define"
-       (x:xs) <- many1 (locParserP symbolP)
+       (x:xs) <- some (locSymbolP)
        reservedOp "="
        e      <- exprP
        return (x, val <$> xs, e)
 
 
 defineP :: Parser (LocSymbol, Symbol)
-defineP = do v <- locParserP binderP
-             spaces
-             reservedOp "="
-             spaces
-             x <- binderP
-             return (v, x)
-
---------------------------------------------------------------------------------
--- Lexer Tokens ----------------------------------------------------------------
---------------------------------------------------------------------------------
-
-dot :: Parser String
-dot = Token.dot lexer
-
-angles :: Parser a -> Parser a
-angles = Token.angles lexer
-
-stringLiteral :: Parser String
-stringLiteral = Token.stringLiteral lexer
+defineP =
+  (,) <$> locBinderP <* reservedOp "=" <*> binderP
 
 --------------------------------------------------------------------------------
 -- | BareTypes -----------------------------------------------------------------
@@ -265,18 +276,16 @@ btP = do
             PC _ t2 <- btP
             -- TODO:AZ return an error if s == PcExplicit
             return $ PC sb $ foldr (rFun dummySymbol) t2 (getClasses t1))
-         <|> 
-          (do 
-             spaces 
-             b <- locParserP infixSymbolP
-             spaces
-             PC _ t2 <- btP 
+         <|>
+          (do
+             b <- locInfixSymbolP
+             PC _ t2 <- btP
              return $ PC sb $ (RApp (mkBTyCon b) [t1,t2] [] mempty))
          <|> return c)
 
 
 compP :: Parser ParamComp
-compP = circleP <* whiteSpace <|> parens btP <?> "compP"
+compP = circleP <|> parens btP <?> "compP"
 
 circleP :: Parser ParamComp
 circleP
@@ -286,7 +295,7 @@ circleP
  <|> bareTypeBracesP                        -- starts with '{'
  <|> unnamedCircleP
  <|> anglesCircleP                          -- starts with '<'
- <|> nullPC <$> (dummyP (bbaseP <* spaces)) -- starts with '_' or '[' or '(' or lower or "'" or upper
+ <|> nullPC <$> (dummyP bbaseP)             -- starts with '_' or '[' or '(' or lower or "'" or upper
  <?> "circleP"
 
 anglesCircleP :: Parser ParamComp
@@ -304,8 +313,8 @@ holePC = do
 
 namedCircleP :: Parser ParamComp
 namedCircleP = do
-  lb <- locParserP lowerIdP
-  (do _ <- colon
+  lb <- locLowerIdP
+  (do _ <- reservedOp ":"
       let b = val lb
       PC (PcExplicit b) <$> bareArgP b
     <|> do
@@ -315,7 +324,7 @@ namedCircleP = do
 
 unnamedCircleP :: Parser ParamComp
 unnamedCircleP = do
-  lb <- locParserP dummyBindP
+  lb <- located dummyBindP
   let b = val lb
   t1 <- bareArgP b
   return $ PC (PcImplicit b) t1
@@ -340,11 +349,11 @@ bareTypeBracesP = do
            <|>
             (do
                     x  <- symbolP
-                    _ <- colon
+                    _ <- reservedOp ":"
                     -- NOSUBST i  <- freshIntP
                     t  <- bbaseP
                     reservedOp "|"
-                    ra <- refasHoleP <* spaces
+                    ra <- refasHoleP
                     -- xi is a unique var based on the name in x.
                     -- su replaces any use of x in the balance of the expression with the unique val
                     -- NOSUBST let xi = intSymbol x i
@@ -361,7 +370,7 @@ bareTypeBracesP = do
       = (reserved "_" >> return hole)
      <|> try (pAnd <$> brackets (sepBy predP semi))
     helper p = braces $ do
-      t <- ((RHole . uTop . Reft . ("VV",)) <$> (p <* spaces))
+      t <- (RHole . uTop . Reft . ("VV",)) <$> p
       return (Left $ nullPC t)
 
 
@@ -369,7 +378,7 @@ bareArgP :: Symbol -> Parser BareType
 bareArgP vvv
   =  refDefP vvv refasHoleP bbaseP    -- starts with '{'
  <|> holeP                            -- starts with '_'
- <|> (dummyP (bbaseP <* spaces))
+ <|> (dummyP bbaseP)
  <|> parens bareTypeP                 -- starts with '('
                                       -- starts with '_', '[', '(', lower, upper
  <?> "bareArgP"
@@ -379,7 +388,7 @@ bareAtomP :: (Parser Expr -> Parser (Reft -> BareType) -> Parser BareType)
 bareAtomP ref
   =  ref refasHoleP bbaseP
  <|> holeP
- <|> (dummyP (bbaseP <* spaces))
+ <|> (dummyP bbaseP)
  <?> "bareAtomP"
 
 bareAtomBindP :: Parser BareType
@@ -397,17 +406,17 @@ refBindBindP rp kindP'
   = braces (
       ((do
               x  <- symbolP
-              _ <- colon
+              _ <- reservedOp ":"
               -- NOSUBST i  <- freshIntP
               t  <- kindP'
               reservedOp "|"
-              ra <- rp <* spaces
+              ra <- rp
               -- xi is a unique var based on the name in x.
               -- su replaces any use of x in the balance of the expression with the unique val
               -- NOSUBST let xi = intSymbol x i
               -- NOSUBST let su v = if v == x then xi else v
               return $ {- substa su $ NOSUBST -} t (Reft (x, ra)) ))
-     <|> ((RHole . uTop . Reft . ("VV",)) <$> (rp <* spaces))
+     <|> ((RHole . uTop . Reft . ("VV",)) <$> rp)
      <?> "refBindBindP"
    )
 
@@ -420,7 +429,7 @@ refDefP vv rp kindP' = braces $ do
   x       <- optBindP vv
   -- NOSUBST i       <- freshIntP
   t       <- try (kindP' <* reservedOp "|") <|> return (RHole . uTop) <?> "refDefP"
-  ra      <- (rp <* spaces)
+  ra      <- rp
   -- xi is a unique var based on the name in x.
   -- su replaces any use of x in the balance of the expression with the unique val
   -- NOSUBST let xi   = intSymbol x i
@@ -437,10 +446,10 @@ optBindP :: Symbol -> Parser Symbol
 optBindP x = try bindP <|> return x
 
 holeP :: Parser BareType
-holeP    = reserved "_" >> spaces >> return (RHole $ uTop $ Reft ("VV", hole))
+holeP    = reserved "_" >> return (RHole $ uTop $ Reft ("VV", hole))
 
 holeRefP :: Parser (Reft -> BareType)
-holeRefP = reserved "_" >> spaces >> return (RHole . uTop)
+holeRefP = reserved "_" >> return (RHole . uTop)
 
 -- NOPROP refasHoleP :: Parser Expr
 -- NOPROP refasHoleP  = try refaP
@@ -452,20 +461,13 @@ refasHoleP
  <|> refaP
  <?> "refasHoleP"
 
--- FIXME: the use of `blanks = oneOf " \t"` here is a terrible and fragile hack
--- to avoid parsing:
---
---   foo :: a -> b
---   bar :: a
---
--- as `foo :: a -> b bar`..
 bbaseP :: Parser (Reft -> BareType)
 bbaseP
   =  holeRefP  -- Starts with '_'
- <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> liftM2 bLst (brackets (optional bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> try parseHelper  -- starts with lower
- <|> liftM4 bCon bTyConP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
+ <|> liftM4 bCon bTyConP predicatesP (many bareTyArgP) mmonoPredicateP
            -- starts with "'" or upper case char
  <?> "bbaseP"
  where
@@ -481,7 +483,7 @@ maybeBind p = do {bd <- maybeP' bbindP; ty <- p ; return (bd, ty)}
 
 lowerIdTail :: Symbol -> Parser (Reft -> BareType)
 lowerIdTail l =
-     (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP blanks))
+     (    (liftM2 bAppTy (return $ bTyVar l) (some bareTyArgP))
       <|> (liftM2 bRVar  (return $ bTyVar l) monoPredicateP))
 
 bTyConP :: Parser BTyCon
@@ -503,19 +505,16 @@ mkClassBTyCon x = BTyCon x True False
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  holeRefP
- <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> liftM2 bLst (brackets (optional bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> try (liftM4 bCon bTyConP predicatesP (return []) (return mempty))
  <|> liftM2 bRVar (bTyVar <$> lowerIdP) monoPredicateP
  <?> "bbaseNoAppP"
 
-maybeP :: ParsecT s u m a -> ParsecT s u m (Maybe a)
-maybeP p = liftM Just p <|> return Nothing
-
 bareTyArgP :: Parser BareType
 bareTyArgP
-  =  (RExprArg . fmap expr <$> locParserP integer)
- <|> try (braces $ RExprArg <$> locParserP exprP)
+  =  (RExprArg . fmap expr <$> locNatural)
+ <|> try (braces $ RExprArg <$> located exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
  <?> "bareTyArgP"
@@ -523,7 +522,7 @@ bareTyArgP
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> (dummyP (bbaseNoAppP <* blanks))
+ <|> (dummyP bbaseNoAppP)
  <?> "bareAtomNoAppP"
 
 
@@ -578,12 +577,6 @@ tyVarDefsP
  <|> many (bTyVar <$> tyVarIdP)
  <?> "tyVarDefsP"
 
--- TODO:AZ use something from Token instead
-tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> condIdP (lower <|> char '_') alphanums isNotReserved -- (isSmall . head)
-  where
-    alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
-
 tyKindVarIdP :: Parser Symbol
 tyKindVarIdP = do
    tv <- tyVarIdP
@@ -601,7 +594,7 @@ predVarDefsP
 
 predVarDefP :: Parser (PVar BSort)
 predVarDefP
-  = bPVar <$> predVarIdP <*> dcolon <*> propositionSortP
+  = bPVar <$> predVarIdP <*> reservedOp "::" <*> propositionSortP
 
 predVarIdP :: Parser Symbol
 predVarIdP
@@ -619,7 +612,7 @@ propositionSortP :: Parser [(Symbol, BSort)]
 propositionSortP = map (Misc.mapSnd toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
-propositionTypeP = either parserFail return =<< (mkPropositionType <$> bareTypeP)
+propositionTypeP = either fail return =<< (mkPropositionType <$> bareTypeP)
 
 mkPropositionType :: BareType -> Either String [(Symbol, BareType)]
 mkPropositionType t
@@ -631,7 +624,8 @@ mkPropositionType t
     err       = "Proposition type with non-Bool output: " ++ showpp t
 
 xyP :: Parser x -> Parser a -> Parser y -> Parser (x, y)
-xyP lP sepP rP = (\x _ y -> (x, y)) <$> lP <*> (spaces >> sepP) <*> rP
+xyP lP sepP rP =
+  (,) <$> lP <* sepP <*> rP
 
 dummyBindP :: Parser Symbol
 dummyBindP = tempSymbol "db" <$> freshIntP
@@ -660,7 +654,7 @@ symsP :: (IsString tv, Monoid r)
       => Parser [(Symbol, RType c tv r)]
 symsP
   = do reservedOp "\\"
-       ss <- sepBy symbolP spaces
+       ss <- many symbolP
        reservedOp "->"
        return $ (, dummyRSort) <$> ss
  <|> return []
@@ -724,7 +718,7 @@ funArgsP  = try realP <|> empP <?> "funArgsP"
 
 boundP :: Parser (Bound (Located BareType) Expr)
 boundP = do
-  name   <- locParserP upperIdP
+  name   <- locUpperIdP
   reservedOp "="
   vs     <- bvsP
   params <- many (parens tyBindP)
@@ -740,7 +734,7 @@ boundP = do
            <|> return []
            <?> "bargsP"
     bvsP   =     ( do reserved "forall"
-                      xs <- many (locParserP (bTyVar <$> symbolP))
+                      xs <- many (fmap bTyVar <$> locSymbolP)
                       reservedOp  "."
                       return (fmap (`RVar` mempty) <$> xs)
                  )
@@ -749,13 +743,10 @@ boundP = do
 
 infixGenP :: Assoc -> Parser ()
 infixGenP assoc = do
-   spaces
    p <- maybeDigit
-   spaces
-   s <- infixIdP
-   spaces
-   addOperatorP (FInfix p s Nothing assoc)
-
+   s <- infixIdP -- TODO: Andres: infixIdP was defined as many (satisfy (`notElem` [' ', '.'])) which does not make sense at all
+   -- Andres: going via Symbol seems unnecessary and wasteful here
+   addOperatorP (FInfix p (symbolString s) Nothing assoc)
 
 infixP :: Parser ()
 infixP = infixGenP AssocLeft
@@ -768,8 +759,7 @@ infixrP = infixGenP AssocRight
 
 maybeDigit :: Parser (Maybe Int)
 maybeDigit
-  = try (satisfy isDigit >>= return . Just . read . (:[]))
-  <|> return Nothing
+  = optional (lexeme (read . pure <$> digitChar))
 
 ------------------------------------------------------------------------
 ----------------------- Wrapped Constructors ---------------------------
@@ -891,7 +881,7 @@ data Pspec ty ctor
   | Varia   (LocSymbol, [Variance])                       -- ^ 'variance' annotations, marking type constructor params as co-, contra-, or in-variant
   | BFix    ()                                            -- ^ fixity annotation
   | Define  (LocSymbol, Symbol)                           -- ^ 'define' annotation for specifying aliases c.f. `include-CoreToLogic.lg`
-  deriving (Data, Typeable)
+  deriving (Data, Show, Typeable)
 
 instance (PPrint ty, PPrint ctor) => PPrint (Pspec ty ctor) where 
   pprintTidy = ppPspec 
@@ -1168,67 +1158,66 @@ specP
 -- the same name.
 fallbackSpecP :: String -> Parser BPspec -> Parser BPspec
 fallbackSpecP kw p = do
-  (Loc l1 l2 _) <- locParserP (reserved kw)
+  (Loc l1 l2 _) <- locReserved kw
   (p <|> liftM Asrts (tyBindsRemP (Loc l1 l2 (symbol kw)) ))
 
 -- | Same as tyBindsP, except the single initial symbol has already been matched
 tyBindsRemP :: LocSymbol -> Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
 tyBindsRemP sym = do
-  dcolon
+  reservedOp "::"
   tb <- termBareTypeP
   return ([sym],tb)
 
 pragmaP :: Parser (Located String)
-pragmaP = locParserP stringLiteral
+pragmaP = locStringLiteral
 
 autoinstP :: Parser (LocSymbol, Maybe Int)
-autoinstP = do x <- locParserP binderP
-               spaces
-               i <- maybeP (reserved "with" >> integer)
+autoinstP = do x <- locBinderP
+               i <- optional (reserved "with" >> natural)
                return (x, fromIntegral <$> i)
 
 lazyVarP :: Parser LocSymbol
-lazyVarP = locParserP binderP
+lazyVarP = locBinderP
 
 
 rewriteVarP :: Parser LocSymbol
-rewriteVarP = locParserP binderP
+rewriteVarP = locBinderP
 
 rewriteWithP :: Parser (LocSymbol, [LocSymbol])
-rewriteWithP = do s  <- locParserP binderP 
-                  spaces
-                  ss <- brackets $ sepBy1 (locParserP binderP) comma
-                  spaces
-                  return (s, ss)
+rewriteWithP =
+  (,) <$> locBinderP <*> brackets (sepBy1 locBinderP comma)
 
 failVarP :: Parser LocSymbol
-failVarP = locParserP binderP
+failVarP = locBinderP
 
 axiomP :: Parser LocSymbol
-axiomP = locParserP binderP
+axiomP = locBinderP
 
 hboundP :: Parser LocSymbol
-hboundP = locParserP binderP
+hboundP = locBinderP
 
 inlineP :: Parser LocSymbol
-inlineP = locParserP binderP
+inlineP = locBinderP
 
 asizeP :: Parser LocSymbol
-asizeP = locParserP binderP
+asizeP = locBinderP
 
 decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = Misc.mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
+decreaseP = Misc.mapSnd f <$> liftM2 (,) locBinderP (many natural)
   where
     f     = ((\n -> fromInteger n - 1) <$>)
 
 filePathP     :: Parser FilePath
-filePathP     = angles $ many1 pathCharP
+filePathP     = angles $ some pathCharP
   where
+    pathCharP :: Parser Char
     pathCharP = choice $ char <$> pathChars
+
+    pathChars :: [Char]
     pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 datavarianceP :: Parser (Located Symbol, [Variance])
-datavarianceP = liftM2 (,) locUpperIdP (spaces >> many varianceP)
+datavarianceP = liftM2 (,) locUpperIdP (many varianceP)
 
 varianceP :: Parser Variance
 varianceP = (reserved "bivariant"     >> return Bivariant)
@@ -1238,25 +1227,20 @@ varianceP = (reserved "bivariant"     >> return Bivariant)
         <?> "Invalid variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP :: Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsP = do 
-  (xs, z) <- xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
-  when (null xs) (parserFail $ "Type signature " ++ show z ++ " must have non-empty list of binders!") 
-  return (xs, z)
-
+tyBindsP =
+  xyP (sepBy1 locBinderP comma) (reservedOp "::") termBareTypeP
 
 tyBindNoLocP :: Parser (LocSymbol, BareType)
 tyBindNoLocP = second val <$> tyBindP
 
-
-tyBindP    :: Parser (LocSymbol, Located BareType)
-tyBindP    = xyP xP dcolon tP
-  where
-    xP     = locParserP binderP
-    tP     = locParserP genBareTypeP
+-- | Parses a type signature as it occurs in "assume" and "assert" directives.
+tyBindP :: Parser (LocSymbol, Located BareType)
+tyBindP =
+  (,) <$> locBinderP <* reservedOp "::" <*> located genBareTypeP
 
 termBareTypeP :: Parser (Located BareType, Maybe [Located Expr])
 termBareTypeP = do
-  t <- locParserP genBareTypeP
+  t <- located genBareTypeP
   (termTypeP t
     <|> return (t, Nothing))
 
@@ -1264,85 +1248,78 @@ termTypeP :: Located BareType ->Parser (Located BareType, Maybe [Located Expr])
 termTypeP t
   = do
        reservedOp "/"
-       es <- brackets $ sepBy (locParserP exprP) comma
+       es <- brackets $ sepBy (located exprP) comma
        return (t, Just es)
 
 -- -------------------------------------
 
 invariantP :: Parser (Located BareType)
-invariantP = locParserP genBareTypeP
+invariantP = located genBareTypeP
 
 invaliasP :: Parser (Located BareType, Located BareType)
 invaliasP
-  = do t  <- locParserP genBareTypeP
+  = do t  <- located genBareTypeP
        reserved "as"
-       ta <- locParserP genBareTypeP
+       ta <- located genBareTypeP
        return (t, ta)
 
 genBareTypeP :: Parser BareType
 genBareTypeP = bareTypeP
 
 embedP :: Parser (Located Symbol, FTycon, TCArgs)
-embedP = do 
-  x <- locUpperIdP 
-  a <- try (reserved "*" >> return WithArgs) <|> return NoArgs 
-  _ <- spaces >> reserved "as"
-  t <- fTyConP   
+embedP = do
+  x <- locUpperIdP
+  a <- try (reserved "*" >> return WithArgs) <|> return NoArgs -- TODO: reserved "*" looks suspicious
+  _ <- reserved "as"
+  t <- fTyConP
   return (x, t, a)
   --  = xyP locUpperIdP symbolTCArgs (reserved "as") fTyConP
 
 
 aliasP :: Parser (Located (RTAlias Symbol BareType))
-aliasP  = rtAliasP id     bareTypeP
+aliasP  = rtAliasP id     bareTypeP <?> "aliasP"
 
 ealiasP :: Parser (Located (RTAlias Symbol Expr))
 ealiasP = try (rtAliasP symbol predP)
       <|> rtAliasP symbol exprP
       <?> "ealiasP"
 
+-- | Parser for a LH type synonym.
 rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
 rtAliasP f bodyP
-  -- TODO:AZ pretty sure that all the 'spaces' can be removed below, given
-  --         proper use of reserved and reservedOp now
-  = do pos  <- getPosition
+  = do pos  <- getSourcePos
        name <- upperIdP
-       spaces
-       args <- sepBy aliasIdP blanks
-       whiteSpace >> reservedOp "=" >> whiteSpace
+       args <- many aliasIdP
+       reservedOp "="
        body <- bodyP
-       posE <- getPosition
+       posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
        return $ Loc pos posE (RTA name (f <$> tArgs) vArgs body)
 
-aliasIdP :: Parser Symbol
-aliasIdP = condIdP (letter <|> char '_') alphaNums (isAlpha . head)
-           where
-             alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
-
 hmeasureP :: Parser BPspec
 hmeasureP = do
-  b <- locParserP binderP
-  spaces
-  ((do dcolon
-       ty <- locParserP genBareTypeP
-       whiteSpace
-       eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
+  setLayout
+  b <- locBinderP
+  ((do reservedOp "::"
+       ty <- located genBareTypeP
+       popLayout >> popLayout
+       eqns <- block $ try $ measureDefP (rawBodyP <|> tyBodyP ty)
        return (Meas $ Measure.mkM b ty eqns MsMeasure mempty))
-    <|> (return (HMeas b))
+    <|> (popLayout >> popLayout >> return (HMeas b))
     )
 
 measureP :: Parser (Measure (Located BareType) LocSymbol)
-measureP = do 
-  (x, ty) <- tyBindP
-  whiteSpace
-  eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
+measureP = do
+  (x, ty) <- indentedLine tyBindP
+  optional semi
+  eqns    <- block $ measureDefP (rawBodyP <|> tyBodyP ty)
   return   $ Measure.mkM x ty eqns MsMeasure mempty
 
 -- | class measure
 cMeasureP :: Parser (Measure (Located BareType) ())
 cMeasureP
   = do (x, ty) <- tyBindP
-       return $ Measure.mkM x ty [] MsClass mempty 
+       return $ Measure.mkM x ty [] MsClass mempty
 
 iMeasureP :: Parser (Measure (Located BareType) LocSymbol)
 iMeasureP = measureP
@@ -1350,7 +1327,7 @@ iMeasureP = measureP
 
 oneClassArg :: Parser [Located BareType]
 oneClassArg
-  = sing <$> locParserP (rit <$> classBTyConP <*> (map val <$> classParams))
+  = sing <$> located (rit <$> classBTyConP <*> (map val <$> classParams))
   where
     rit t as    = RApp t ((`RVar` mempty) <$> as) [] mempty
     classParams =  (reserved "where" >> return [])
@@ -1359,46 +1336,40 @@ oneClassArg
 
 instanceLawP :: Parser (RILaws (Located BareType))
 instanceLawP
-  = do l1   <- getPosition
+  = do l1   <- getSourcePos
        sups <- supersP
        c    <- classBTyConP
-       spaces
-       tvs  <- manyTill (locParserP bareTypeP) (try $ reserved "where")
-       spaces
-       ms   <- grabs eqBinderP
-       spaces
-       l2   <- getPosition
+       tvs  <- manyTill (located bareTypeP) (try $ reserved "where")
+       ms   <- block eqBinderP
+       l2   <- getSourcePos
        return $ RIL c sups tvs ms (Loc l1 l2 ())
   where
-    superP   = locParserP (toRCls <$> bareAtomBindP)
+    superP   = located (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
     toRCls x = x
 
-    eqBinderP = xyP xP (spaces >> string "=" <* spaces) (xP <* spaces)
-      
-    xP = locParserP binderP
-    
+    eqBinderP = xyP xP (reservedOp "=") xP
+
+    xP = locBinderP
 
 instanceP :: Parser (RInstance (Located BareType))
 instanceP
   = do _    <- supersP
        c    <- classBTyConP
-       spaces
        tvs  <- (try oneClassArg) <|> (manyTill iargsP (try $ reserved "where"))
-       ms   <- sepBy riMethodSigP semi
-       spaces
+       ms   <- block riMethodSigP
        return $ RI c tvs ms
   where
-    superP   = locParserP (toRCls <$> bareAtomBindP)
+    superP   = located (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
     toRCls x = x
 
     iargsP   =   (mkVar . bTyVar <$> tyVarIdP)
-            <|> (parens $ locParserP $ bareTypeP)
+            <|> (parens $ located $ bareTypeP)
 
 
     mkVar v  = dummyLoc $ RVar v mempty
@@ -1417,13 +1388,11 @@ classP :: Parser (RClass (Located BareType))
 classP
   = do sups <- supersP
        c    <- classBTyConP
-       spaces
        tvs  <- manyTill (bTyVar <$> tyVarIdP) (try $ reserved "where")
-       ms   <- try (grabs tyBindP) -- <|> sepBy tyBindP semi
-       spaces
+       ms   <- block tyBindP -- <|> sepBy tyBindP semi
        return $ RClass c sups tvs ms
   where
-    superP   = locParserP (toRCls <$> bareAtomBindP)
+    superP   = located (toRCls <$> bareAtomBindP)
     supersP  = try (((parens (superP `sepBy1` comma)) <|> fmap pure superP)
                        <* reservedOp "=>")
                <|> return []
@@ -1434,7 +1403,7 @@ rawBodyP
   = braces $ do
       v <- symbolP
       reservedOp "|"
-      p <- predP <* spaces
+      p <- predP
       return $ R v p
 
 tyBodyP :: Located BareType -> Parser Body
@@ -1449,57 +1418,43 @@ tyBodyP ty
           outTy (RFun _ _ t _) = Just t
           outTy _              = Nothing
 
-locUpperIdP' :: Parser (Located Symbol)
-locUpperIdP' = locParserP upperIdP'
+locUpperOrInfixIdP :: Parser (Located Symbol)
+locUpperOrInfixIdP = locUpperIdP' <|> locInfixCondIdP
 
-upperIdP' :: Parser Symbol
-upperIdP' = try (symbol <$> condIdP' (isUpper . head))
-        <|> (symbol <$> infixCondIdP')
-
--- TODO:AZ this looks dodgy, rather use reserved, reservedOp
-condIdP'  :: (String -> Bool) -> Parser Symbol
-condIdP' f
-  = do c  <- letter
-       let isAlphaNumOr' c = isAlphaNum c || ('\''== c)
-       cs <- many (satisfy isAlphaNumOr')
-       blanks
-       if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
-
-infixCondIdP' :: Parser Symbol
-infixCondIdP'
-  = do sym <- parens $ do
-         c1 <- colon
-         -- This is the same thing as 'startsVarSymASCII' from ghc-boot-th,
-         -- but LH can't use that at the moment since it requires GHC 7.10.
-         let isASCIISymbol = (`elem` ("!#$%&*+./<=>?@\\^|~-" :: String))
-         ss <- many (satisfy isASCIISymbol)
-         c2 <- colon
-         return $ symbol $ T.pack $ c1 ++ ss ++ c2
-       blanks
-       return sym
+locBinderP :: Parser (Located Symbol)
+locBinderP =
+  located binderP -- TODO
 
 -- | LHS of the thing being defined
+--
+-- TODO, Andres: this is still very broken
+--
+{-
 binderP :: Parser Symbol
 binderP    = pwr    <$> parens (idP bad)
          <|> symbol <$> idP badc
   where
-    idP p  = many1 (satisfy (not . p))
+    idP p  = takeWhile1P Nothing (not . p)
     badc c = (c == ':') || (c == ',') || bad c
     bad c  = isSpace c || c `elem` ("(,)[]" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
-
-
-grabs :: ParsecT s u m a -> ParsecT s u m [a]
-grabs p = try (liftM2 (:) p (grabs p))
-       <|> return []
+-}
+binderP :: Parser Symbol
+binderP =
+      (symbol . (\ x -> "(" <> x <> ")") . symbolText) <$> parens (infixBinderIdP)
+  <|> binderIdP
+  -- Note: It is important that we do *not* use the LH/fixpoint reserved words here,
+  -- because, for example, we must be able to use "assert" as an identifier.
+  --
+  -- TODO, Andres: I have no idea why we make the parens part of the symbol here.
+  -- But I'm reproducing this behaviour for now, as it is backed up via a few tests.
 
 measureDefP :: Parser Body -> Parser (Def (Located BareType) LocSymbol)
 measureDefP bodyP
-  = do mname   <- locParserP symbolP
+  = do mname   <- locSymbolP
        (c, xs) <- measurePatP
-       whiteSpace >> reservedOp "=" >> whiteSpace
+       reservedOp "="
        body    <- bodyP
-       whiteSpace
        let xs'  = (symbol . val) <$> xs
        return   $ Def mname (symbol <$> c) Nothing ((, Nothing) <$> xs') body
 
@@ -1513,18 +1468,18 @@ tupPatP :: Parser (Located Symbol, [Located Symbol])
 tupPatP  = mkTupPat  <$> sepBy1 locLowerIdP comma
 
 conPatP :: Parser (Located Symbol, [Located Symbol])
-conPatP  = (,)       <$> locParserP dataConNameP <*> sepBy locLowerIdP whiteSpace
+conPatP  = (,)       <$> dataConNameP <*> many locLowerIdP
 
 consPatP :: IsString a
          => Parser (Located a, [Located Symbol])
-consPatP = mkConsPat <$> locLowerIdP  <*> colon <*> locLowerIdP
+consPatP = mkConsPat <$> locLowerIdP  <*> reservedOp ":" <*> locLowerIdP
 
 nilPatP :: IsString a
         => Parser (Located a, [t])
-nilPatP  = mkNilPat  <$> brackets whiteSpace
+nilPatP  = mkNilPat  <$> brackets (pure ())
 
 nullaryConPatP :: Parser (Located Symbol, [t])
-nullaryConPatP = nilPatP <|> ((,[]) <$> locParserP dataConNameP)
+nullaryConPatP = nilPatP <|> ((,[]) <$> dataConNameP)
                  <?> "nullaryConPatP"
 
 mkTupPat :: Foldable t => t a -> (Located Symbol, t a)
@@ -1547,34 +1502,34 @@ tupDataCon n    = dummyLoc $ symbol $ "(" <> replicate (n - 1) ',' <> ")"
 dataConFieldsP :: Parser [(Symbol, BareType)]
 dataConFieldsP
    =  braces (sepBy predTypeDDP comma)
-  <|> sepBy dataConFieldP spaces
+  <|> many dataConFieldP
   <?> "dataConFieldP"
 
 dataConFieldP :: Parser (Symbol, BareType)
 dataConFieldP
    =  parens (try predTypeDDP <|> dbTypeP)
-  <|> dbTypeP
+  <|> dbTyArgP -- unparenthesised constructor fields must be "atomic"
   <?> "dataConFieldP"
   where
     dbTypeP = (,) <$> dummyBindP <*> bareTypeP
+    dbTyArgP = (,) <$> dummyBindP <*> bareTyArgP
 
 predTypeDDP :: Parser (Symbol, BareType)
 predTypeDDP = (,) <$> bbindP <*> bareTypeP
 
 bbindP   :: Parser Symbol
-bbindP   = lowerIdP <* dcolon
+bbindP   = lowerIdP <* reservedOp "::"
 
 dataConP :: [Symbol] -> Parser DataCtor
 dataConP as = do
-  x   <- locParserP dataConNameP
-  spaces
+  x   <- dataConNameP
   xts <- dataConFieldsP
   return $ DataCtor x as [] xts Nothing
 
 adtDataConP :: [Symbol] -> Parser DataCtor
 adtDataConP as = do
-  x     <- locParserP dataConNameP
-  dcolon
+  x     <- dataConNameP
+  reservedOp "::"
   tr    <- toRTypeRep <$> bareTypeP
   return $ DataCtor x (tRepVars as tr) [] (tRepFields tr) (Just $ ty_res tr)
 
@@ -1586,13 +1541,16 @@ tRepVars as tr = case fst <$> ty_vars tr of
 tRepFields :: RTypeRep c tv r -> [(Symbol, RType c tv r)]
 tRepFields tr = zip (ty_binds tr) (ty_args tr)
 
-dataConNameP :: Parser Symbol
+-- TODO: fix Located
+dataConNameP :: Parser (Located Symbol)
 dataConNameP
-  =  try upperIdP
+  =  located
+ (   try upperIdP
  <|> pwr <$> parens (idP bad)
  <?> "dataConNameP"
+ )
   where
-     idP p  = many1 (satisfy (not . p))
+     idP p  = takeWhile1P Nothing (not . p)
      bad c  = isSpace c || c `elem` ("(,)" :: String)
      pwr s  = symbol $ "(" <> s <> ")"
 
@@ -1603,9 +1561,8 @@ dataSizeP
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do
-  pos <- getPosition
-  x   <- locUpperIdP'
-  spaces
+  pos <- getSourcePos
+  x   <- locUpperOrInfixIdP
   fsize <- dataSizeP
   (dataDeclBodyP pos x fsize <|> return (emptyDecl x pos fsize))
 
@@ -1619,12 +1576,11 @@ emptyDecl x pos _
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
-  vanilla    <- null <$> sepBy locUpperIdP blanks
-  as         <- sepBy noWhere blanks
+  vanilla    <- null <$> many locUpperIdP
+  as         <- many noWhere -- TODO: check this again
   ps         <- predVarDefsP
   (pTy, dcs) <- dataCtorsP as
   let dn      = dataDeclName pos x vanilla dcs
-  whiteSpace
   return      $ DataDecl dn as ps dcs pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
@@ -1642,15 +1598,14 @@ dataCtorsP as = do
   return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol
-noWhere = 
+noWhere =
   try $ do
   s <- tyVarIdP
-  if s == "where"
-    then parserZero
-    else return s
+  guard (s /= "where")
+  return s
 
 dataPropTyP :: Parser (Maybe BareType)
-dataPropTyP = Just <$> between dcolon (reserved "where") bareTypeP
+dataPropTyP = Just <$> between (reservedOp "::") (reserved "where") bareTypeP
 
 ---------------------------------------------------------------------
 -- | Parsing Qualifiers ---------------------------------------------
@@ -1665,3 +1620,98 @@ fTyConP
   <|> (reserved "bool"    >> return boolFTyCon)
   <|> (symbolFTycon      <$> locUpperIdP)
   <?> "fTyConP"
+
+---------------------------------------------------------------------
+-- Identifiers ------------------------------------------------------
+---------------------------------------------------------------------
+
+-- Andres, TODO: Fix all the rules for identifiers. This was limited to all lowercase letters before.
+tyVarIdR :: Parser Symbol
+tyVarIdR =
+  condIdR (lowerChar <|> char '_') isAlphaNum isNotReserved "unexpected reserved name"
+
+tyVarIdP :: Parser Symbol
+tyVarIdP =
+  lexeme tyVarIdR
+
+aliasIdR :: Parser Symbol
+aliasIdR =
+  condIdR (letterChar <|> char '_') isAlphaNum (const True) "unexpected"
+
+aliasIdP :: Parser Symbol
+aliasIdP =
+  lexeme aliasIdR
+
+-- | Andres, TODO: This must be liberal with respect to reserved words (LH reserved words are
+-- not Haskell reserved words, and we want to redefine all sorts of internal stuff).
+--
+-- Also, this currently accepts qualified names by allowing '.' ...
+-- Moreover, it seems that it is currently allowed to use qualified symbolic names in
+-- unparenthesised form. Oh, the parser is also used for reflect, where apparently
+-- symbolic names appear in unqualified and unparenthesised form.
+-- Furthermore, : is explicitly excluded because a : can directly, without whitespace,
+-- follow a binder ...
+--
+binderIdR :: Parser Symbol
+binderIdR =
+  condIdR (letterChar <|> char '_' <|> satisfy isHaskellOpStartChar) (\ c -> isAlphaNum c || isHaskellOpStartChar c || c `elem` ("_'" :: String)) (const True) "unexpected"
+
+binderIdP :: Parser Symbol
+binderIdP =
+  lexeme binderIdR
+
+infixBinderIdR :: Parser Symbol
+infixBinderIdR =
+  condIdR (letterChar <|> char '_' <|> satisfy isHaskellOpChar) (\ c -> isAlphaNum c || isHaskellOpChar c || c `elem` ("_'" :: String)) (const True) "unexpected"
+
+infixBinderIdP :: Parser Symbol
+infixBinderIdP =
+  lexeme infixBinderIdR
+
+upperIdR' :: Parser Symbol
+upperIdR' =
+  condIdR upperChar (\ c -> isAlphaNum c || c == '\'') (const True) "unexpected"
+
+locUpperIdP' :: Parser (Located Symbol)
+locUpperIdP' =
+  locLexeme upperIdR'
+
+-- Andres, TODO: This used to force a colon at the end. Also, it used to not
+-- allow colons in the middle. Finally, it should probably exclude all reserved
+-- operators. I'm just excluding :: because I'm pretty sure that would be
+-- undesired.
+--
+infixCondIdR :: Parser Symbol
+infixCondIdR =
+  condIdR (char ':') isHaskellOpChar (/= "::") "unexpected double colon"
+
+-- Andres, TODO: This used to be completely ad-hoc. It's still not good though.
+infixIdR :: Parser Symbol
+infixIdR =
+  condIdR (satisfy isHaskellOpChar) isHaskellOpChar (/= "::") "unexpected double colon"
+
+infixIdP :: Parser Symbol
+infixIdP =
+  lexeme infixIdR
+
+{-
+infixVarIdR :: Parser Symbol
+infixVarIdR =
+  condIdR (satisfy isHaskellOpStartChar) isHaskellOpChar (const True)
+
+infixVarIdP :: Parser Symbol
+infixVarIdP =
+  lexeme infixVarIdR
+-}
+
+isHaskellOpChar :: Char -> Bool
+isHaskellOpChar c
+  = c `elem` (":!#$%&*+./<=>?@\\^|~-" :: String)
+
+isHaskellOpStartChar :: Char -> Bool
+isHaskellOpStartChar c
+  = c `elem` ("!#$%&*+./<=>?@\\^|~-" :: String)
+
+locInfixCondIdP :: Parser (Located Symbol)
+locInfixCondIdP =
+  locLexeme infixCondIdR

@@ -54,7 +54,7 @@ isWiredIn :: F.LocSymbol -> Bool
 isWiredIn x = isWiredInLoc x  || isWiredInName (val x) || isWiredInShape x
 
 isWiredInLoc :: F.LocSymbol -> Bool
-isWiredInLoc x  = l == l' && l == 0 && c == c' && c' == 0
+isWiredInLoc x  = l == l' && l == F.safePos 1 && c == c' && c' == F.safePos 1
   where
     (l , c)  = spe (loc x)
     (l', c') = spe (locE x)
