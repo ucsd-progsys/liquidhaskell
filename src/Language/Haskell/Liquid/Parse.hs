@@ -6,6 +6,7 @@
 {-# LANGUAGE TupleSections             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE DeriveDataTypeable        #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Haskell.Liquid.Parse
   ( hsSpecificationP
@@ -19,32 +20,38 @@ module Language.Haskell.Liquid.Parse
 
 import           Control.Arrow                          (second)
 import           Control.Monad
+import           Control.Monad.Identity
+import qualified Data.Foldable                          as F
 import           Data.String
 import           Prelude                                hiding (error)
-import           Text.Parsec
-import           Text.Parsec.Error                      (newErrorMessage, Message (..))
-import           Text.Parsec.Pos
+import           Text.Megaparsec                        hiding (ParseError)
+import           Text.Megaparsec.Char
+-- import           Text.Parsec
+-- import           Text.Parsec.Error                      (newErrorMessage, Message (..))
+-- import           Text.Parsec.Pos
 
 -- import           Text.Parsec.Char                       (newline) 
-import qualified Text.Parsec.Token                      as Token
-import qualified Data.Text                              as T
+-- import qualified Text.Parsec.Token                      as Token
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 -- import           Data.Monoid
 import           Data.Data
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
-import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum, isDigit)
+import           Data.Char                              (isSpace, isAlpha, isUpper, isAlphaNum)
 import           Data.List                              (foldl', partition)
+import           Data.List.NonEmpty                     (NonEmpty(..))
+import qualified Data.Set                               as Set
 import           GHC                                    (ModuleName, mkModuleName)
 import qualified Text.PrettyPrint.HughesPJ              as PJ 
 import           Text.PrettyPrint.HughesPJ.Compat       ((<+>)) 
 import           Language.Fixpoint.Types                hiding (panic, SVar, DDecl, DataDecl, DataCtor (..), Error, R, Predicate)
-import           Language.Haskell.Liquid.GHC.Misc
-import           Language.Haskell.Liquid.Types          
+import           Language.Haskell.Liquid.GHC.Misc       hiding (getSourcePos)
+import           Language.Haskell.Liquid.Types
+-- import           Language.Haskell.Liquid.Types.Errors
 import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (stringLiteral, dataDeclP, angles, refBindP, refP, refDefP)
+import           Language.Fixpoint.Parse                hiding (dataDeclP, refBindP, refP, refDefP)
 
 import Control.Monad.State
 
@@ -78,7 +85,7 @@ hsSpecificationP modName specComments specQuotes =
     go (errs, specs) pstate ((pos, specComment):xs)
       = -- 'specP' parses a single spec comment, i.e., a single LH directive
         case parseWithError pstate specP pos specComment of
-          Left err        -> go (err:errs, specs) pstate xs
+          Left err        -> go (F.toList err ++ errs, specs) pstate xs
           Right (st,spec) -> go (errs,spec:specs) st xs
 
 -- | Used to parse .spec files
@@ -92,9 +99,9 @@ initPStateWithList
   where composeFun = Just $ EVar functionComposisionSymbol
 
 --------------------------------------------------------------------------
-specSpecificationP  :: SourceName -> String -> Either Error (ModName, Measure.BareSpec)
+specSpecificationP  :: SourceName -> String -> Either (NonEmpty Error) (ModName, Measure.BareSpec)
 --------------------------------------------------------------------------
-specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList specificationP (newPos f 1 1) s
+specSpecificationP f s = mapRight snd $  parseWithError initPStateWithList specificationP (initialPos f) s
 
 specificationP :: Parser (ModName, Measure.BareSpec)
 specificationP = do 
@@ -102,13 +109,13 @@ specificationP = do
   reserved "spec"
   name   <- symbolP
   reserved "where"
-  xs     <- if True then grabs (specP <* whiteSpace) else sepBy specP newline
+  xs     <- if True then grabs (specP <* spaces) else sepBy specP newline
   return $ mkSpec (ModName SpecImport $ mkModuleName $ symbolString name) xs
 
 -- debugP = grabs (specP <* whiteSpace)
 
 -------------------------------------------------------------------------------
-singleSpecP :: SourcePos -> String -> Either Error BPspec
+singleSpecP :: SourcePos -> String -> Either (NonEmpty Error) BPspec
 -------------------------------------------------------------------------------
 singleSpecP pos = mapRight snd . parseWithError initPStateWithList specP pos
 
@@ -116,47 +123,88 @@ mapRight :: (a -> b) -> Either l a -> Either l b
 mapRight f (Right x) = Right $ f x
 mapRight _ (Left x)  = Left x
 
+-- NOTE [PState in parser]
+--
+-- In the original parsec parser, 'PState' did not contain the supply counter.
+-- The supply counter was separately initialised to 0 on every parser call, e.g.
+-- in 'parseWithError'.
+--
+-- Now, the supply counter is a part of 'PState' and would normally be threaded
+-- between subsequent parsing calls within s single file, as for example issued
+-- by 'hsSpecificationP'. This threading seems correct to me (Andres). It sounds
+-- like we would want to have the same behaviour of the counter whether we are
+-- parsing several separate specs or a single combined spec.
+--
+-- However, I am getting one test failure due to the threading change, namely
+-- Tests.Micro.class-laws-pos.FreeVar.hs, because in a unification call two
+-- variables occurring in a binding position do not match. This seems like a bug
+-- in the unifier. I'm nevertheless reproucing the "old" supply behaviour for
+-- now. This should be revisited later. TODO.
+
+-- | Entry point for parsers.
+--
+-- Resets the supply in the given state to 0, see Note [PState in parser].
+--
 ---------------------------------------------------------------------------
-parseWithError :: PState -> Parser a -> SourcePos -> String -> Either Error (PState, a)
+parseWithError :: forall a. PState -> Parser a -> SourcePos -> String -> Either (NonEmpty Error) (PState, a)
 ---------------------------------------------------------------------------
 parseWithError pstate parser p s =
-  case runState (runParserT doParse 0 (sourceName p) s) pstate of
-    (Left e, _)            -> Left  $ parseErrorError e
-    (Right (r, "", _), st) -> Right (st, r)
-    (Right (_, rem, _), _) -> Left  $ parseErrorError $ remParseError p s rem
+  case snd (runIdentity (runParserT' (runStateT doParse pstate{supply = 0}) internalParserState)) of
+    Left (ParseErrorBundle errors posState) ->
+      let
+        (es, _) = attachSourcePos errorOffset errors posState
+      in
+        Left (parseErrorError <$> es)
+    Right ((r, "", _), st) -> Right (st, r)
+    Right ((_, rem, _), _) -> Left (remParseError p s rem :| [])
   where
     -- See http://stackoverflow.com/questions/16209278/parsec-consume-all-input
-    doParse = setPosition p >> remainderP (whiteSpace *> parser <* (whiteSpace >> eof))
+    doParse :: Parser (a, String, SourcePos)
+    doParse = remainderP (spaces *> parser <* (spaces >> eof))
+    internalParserState =
+      State
+        { stateInput = s
+        , stateOffset = 0
+        , statePosState =
+          PosState
+            { pstateInput = s
+            , pstateOffset = 0
+            , pstateSourcePos = p
+            , pstateTabWidth = defaultTabWidth
+            , pstateLinePrefix = ""
+            }
+        , stateParseErrors = []
+        }
 
 
 ---------------------------------------------------------------------------
-parseErrorError     :: ParseError -> Error
+parseErrorError     :: (ParseError, SourcePos) -> Error
 ---------------------------------------------------------------------------
-parseErrorError e = ErrParse sp msg e
+parseErrorError (e, pos) = ErrParse sp msg e
   where
-    pos             = errorPos e
     sp              = sourcePosSrcSpan pos
     msg             = "Error Parsing Specification from:" <+> PJ.text (sourceName pos)
 
 ---------------------------------------------------------------------------
-remParseError       :: SourcePos -> String -> String -> ParseError
+remParseError       :: SourcePos -> String -> String -> Error
 ---------------------------------------------------------------------------
-remParseError p s r = newErrorMessage msg $ newPos (sourceName p) line col
+remParseError p s r =  -- newErrorMessage msg $ newPos (sourceName p) line col
+  parseErrorError (FancyError 0 (Set.singleton (ErrorFail "Leftover while parsing")), safeSourcePos (sourceName p) line col)
   where
-    msg             = Message "Leftover while parsing"
     (line, col)     = remLineCol p s r
 
+-- Andres: I don't understand the purpose of this calculation.
 remLineCol             :: SourcePos -> String -> String -> (Int, Int)
 remLineCol pos src rem = (line + offLine, col + offCol)
   where
     line               = 1 + srcLine - remLine
     srcLine            = length srcLines
     remLine            = length remLines
-    offLine            = sourceLine pos - 1
+    offLine            = unPos (sourceLine pos) - 1
     col                = 1 + srcCol - remCol
     srcCol             = length $ srcLines !! (line - 1)
     remCol             = length $ head remLines
-    offCol             = if line == 1 then sourceColumn pos - 1 else 0
+    offCol             = if line == 1 then unPos (sourceColumn pos) - 1 else 0
     srcLines           = lines  src
     remLines           = lines  rem
 
@@ -166,8 +214,8 @@ remLineCol pos src rem = (line + offLine, col + offCol)
 -- Parse to Logic  -------------------------------------------------------------
 --------------------------------------------------------------------------------
 
-parseSymbolToLogic :: SourceName -> String -> Either Error LogicMap
-parseSymbolToLogic f = mapRight snd . parseWithError initPStateWithList toLogicP (newPos f 1 1)
+parseSymbolToLogic :: SourceName -> String -> Either (NonEmpty Error) LogicMap
+parseSymbolToLogic f = mapRight snd . parseWithError initPStateWithList toLogicP (initialPos f)
 
 toLogicP :: Parser LogicMap
 toLogicP
@@ -176,7 +224,7 @@ toLogicP
 toLogicOneP :: Parser  (LocSymbol, [Symbol], Expr)
 toLogicOneP
   = do reserved "define"
-       (x:xs) <- many1 (locParserP symbolP)
+       (x:xs) <- some (locParserP symbolP)
        reservedOp "="
        e      <- exprP
        return (x, val <$> xs, e)
@@ -189,19 +237,6 @@ defineP = do v <- locParserP binderP
              spaces
              x <- binderP
              return (v, x)
-
---------------------------------------------------------------------------------
--- Lexer Tokens ----------------------------------------------------------------
---------------------------------------------------------------------------------
-
-dot :: Parser String
-dot = Token.dot lexer
-
-angles :: Parser a -> Parser a
-angles = Token.angles lexer
-
-stringLiteral :: Parser String
-stringLiteral = Token.stringLiteral lexer
 
 --------------------------------------------------------------------------------
 -- | BareTypes -----------------------------------------------------------------
@@ -276,7 +311,7 @@ btP = do
 
 
 compP :: Parser ParamComp
-compP = circleP <* whiteSpace <|> parens btP <?> "compP"
+compP = circleP <* spaces <|> parens btP <?> "compP"
 
 circleP :: Parser ParamComp
 circleP
@@ -462,10 +497,10 @@ refasHoleP
 bbaseP :: Parser (Reft -> BareType)
 bbaseP
   =  holeRefP  -- Starts with '_'
- <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> liftM2 bLst (brackets (optional bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> try parseHelper  -- starts with lower
- <|> liftM4 bCon bTyConP predicatesP (sepBy bareTyArgP blanks) mmonoPredicateP
+ <|> liftM4 bCon bTyConP predicatesP (sepBy bareTyArgP spacesSameLine) mmonoPredicateP
            -- starts with "'" or upper case char
  <?> "bbaseP"
  where
@@ -481,7 +516,7 @@ maybeBind p = do {bd <- maybeP' bbindP; ty <- p ; return (bd, ty)}
 
 lowerIdTail :: Symbol -> Parser (Reft -> BareType)
 lowerIdTail l =
-     (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP blanks))
+     (    (liftM2 bAppTy (return $ bTyVar l) (sepBy1 bareTyArgP spacesSameLine))
       <|> (liftM2 bRVar  (return $ bTyVar l) monoPredicateP))
 
 bTyConP :: Parser BTyCon
@@ -503,18 +538,15 @@ mkClassBTyCon x = BTyCon x True False
 bbaseNoAppP :: Parser (Reft -> BareType)
 bbaseNoAppP
   =  holeRefP
- <|> liftM2 bLst (brackets (maybeP bareTypeP)) predicatesP
+ <|> liftM2 bLst (brackets (optional bareTypeP)) predicatesP
  <|> liftM2 bTup (parens $ sepBy (maybeBind bareTypeP) comma) predicatesP
  <|> try (liftM4 bCon bTyConP predicatesP (return []) (return mempty))
  <|> liftM2 bRVar (bTyVar <$> lowerIdP) monoPredicateP
  <?> "bbaseNoAppP"
 
-maybeP :: ParsecT s u m a -> ParsecT s u m (Maybe a)
-maybeP p = liftM Just p <|> return Nothing
-
 bareTyArgP :: Parser BareType
 bareTyArgP
-  =  (RExprArg . fmap expr <$> locParserP integer)
+  =  (RExprArg . fmap expr <$> locParserP natural)
  <|> try (braces $ RExprArg <$> locParserP exprP)
  <|> try bareAtomNoAppP
  <|> try (parens bareTypeP)
@@ -523,7 +555,7 @@ bareTyArgP
 bareAtomNoAppP :: Parser BareType
 bareAtomNoAppP
   =  refP bbaseNoAppP
- <|> (dummyP (bbaseNoAppP <* blanks))
+ <|> (dummyP (bbaseNoAppP <* spacesSameLine))
  <?> "bareAtomNoAppP"
 
 
@@ -580,7 +612,7 @@ tyVarDefsP
 
 -- TODO:AZ use something from Token instead
 tyVarIdP :: Parser Symbol
-tyVarIdP = symbol <$> condIdP (lower <|> char '_') alphanums isNotReserved -- (isSmall . head)
+tyVarIdP = symbol <$> condIdP (lowerChar <|> char '_') alphanums isNotReserved -- (isSmall . head)
   where
     alphanums = S.fromList $ ['a'..'z'] ++ ['0'..'9']
 
@@ -619,7 +651,7 @@ propositionSortP :: Parser [(Symbol, BSort)]
 propositionSortP = map (Misc.mapSnd toRSort) <$> propositionTypeP
 
 propositionTypeP :: Parser [(Symbol, BareType)]
-propositionTypeP = either parserFail return =<< (mkPropositionType <$> bareTypeP)
+propositionTypeP = either fail return =<< (mkPropositionType <$> bareTypeP)
 
 mkPropositionType :: BareType -> Either String [(Symbol, BareType)]
 mkPropositionType t
@@ -768,7 +800,7 @@ infixrP = infixGenP AssocRight
 
 maybeDigit :: Parser (Maybe Int)
 maybeDigit
-  = try (satisfy isDigit >>= return . Just . read . (:[]))
+  = try (digitChar >>= return . Just . read . (:[]))
   <|> return Nothing
 
 ------------------------------------------------------------------------
@@ -1184,7 +1216,7 @@ pragmaP = locParserP stringLiteral
 autoinstP :: Parser (LocSymbol, Maybe Int)
 autoinstP = do x <- locParserP binderP
                spaces
-               i <- maybeP (reserved "with" >> integer)
+               i <- optional (reserved "with" >> natural)
                return (x, fromIntegral <$> i)
 
 lazyVarP :: Parser LocSymbol
@@ -1217,14 +1249,17 @@ asizeP :: Parser LocSymbol
 asizeP = locParserP binderP
 
 decreaseP :: Parser (LocSymbol, [Int])
-decreaseP = Misc.mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many integer)
+decreaseP = Misc.mapSnd f <$> liftM2 (,) (locParserP binderP) (spaces >> many natural)
   where
     f     = ((\n -> fromInteger n - 1) <$>)
 
 filePathP     :: Parser FilePath
-filePathP     = angles $ many1 pathCharP
+filePathP     = angles $ some pathCharP
   where
+    pathCharP :: Parser Char
     pathCharP = choice $ char <$> pathChars
+
+    pathChars :: [Char]
     pathChars = ['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ ['.', '/']
 
 datavarianceP :: Parser (Located Symbol, [Variance])
@@ -1238,9 +1273,9 @@ varianceP = (reserved "bivariant"     >> return Bivariant)
         <?> "Invalid variance annotation\t Use one of bivariant, invariant, covariant, contravariant"
 
 tyBindsP :: Parser ([LocSymbol], (Located BareType, Maybe [Located Expr]))
-tyBindsP = do 
+tyBindsP = do
   (xs, z) <- xyP (sepBy (locParserP binderP) comma) dcolon termBareTypeP
-  when (null xs) (parserFail $ "Type signature " ++ show z ++ " must have non-empty list of binders!") 
+  when (null xs) (fail $ "Type signature " ++ show z ++ " must have non-empty list of binders!")
   return (xs, z)
 
 
@@ -1304,18 +1339,18 @@ rtAliasP :: (Symbol -> tv) -> Parser ty -> Parser (Located (RTAlias tv ty))
 rtAliasP f bodyP
   -- TODO:AZ pretty sure that all the 'spaces' can be removed below, given
   --         proper use of reserved and reservedOp now
-  = do pos  <- getPosition
+  = do pos  <- getSourcePos
        name <- upperIdP
        spaces
-       args <- sepBy aliasIdP blanks
-       whiteSpace >> reservedOp "=" >> whiteSpace
+       args <- sepBy aliasIdP spacesSameLine
+       spaces >> reservedOp "=" >> spaces
        body <- bodyP
-       posE <- getPosition
+       posE <- getSourcePos
        let (tArgs, vArgs) = partition (isSmall . headSym) args
        return $ Loc pos posE (RTA name (f <$> tArgs) vArgs body)
 
 aliasIdP :: Parser Symbol
-aliasIdP = condIdP (letter <|> char '_') alphaNums (isAlpha . head)
+aliasIdP = condIdP (letterChar <|> char '_') alphaNums (isAlpha . head)
            where
              alphaNums = S.fromList $ ['A' .. 'Z'] ++ ['a'..'z'] ++ ['0'..'9']
 
@@ -1325,7 +1360,7 @@ hmeasureP = do
   spaces
   ((do dcolon
        ty <- locParserP genBareTypeP
-       whiteSpace
+       spaces
        eqns <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
        return (Meas $ Measure.mkM b ty eqns MsMeasure mempty))
     <|> (return (HMeas b))
@@ -1334,7 +1369,7 @@ hmeasureP = do
 measureP :: Parser (Measure (Located BareType) LocSymbol)
 measureP = do 
   (x, ty) <- tyBindP
-  whiteSpace
+  spaces
   eqns    <- grabs $ measureDefP (rawBodyP <|> tyBodyP ty)
   return   $ Measure.mkM x ty eqns MsMeasure mempty
 
@@ -1359,7 +1394,7 @@ oneClassArg
 
 instanceLawP :: Parser (RILaws (Located BareType))
 instanceLawP
-  = do l1   <- getPosition
+  = do l1   <- getSourcePos
        sups <- supersP
        c    <- classBTyConP
        spaces
@@ -1367,7 +1402,7 @@ instanceLawP
        spaces
        ms   <- grabs eqBinderP
        spaces
-       l2   <- getPosition
+       l2   <- getSourcePos
        return $ RIL c sups tvs ms (Loc l1 l2 ())
   where
     superP   = locParserP (toRCls <$> bareAtomBindP)
@@ -1419,7 +1454,7 @@ classP
        c    <- classBTyConP
        spaces
        tvs  <- manyTill (bTyVar <$> tyVarIdP) (try $ reserved "where")
-       ms   <- try (grabs tyBindP) -- <|> sepBy tyBindP semi
+       ms   <- grabs tyBindP -- <|> sepBy tyBindP semi
        spaces
        return $ RClass c sups tvs ms
   where
@@ -1457,13 +1492,19 @@ upperIdP' = try (symbol <$> condIdP' (isUpper . head))
         <|> (symbol <$> infixCondIdP')
 
 -- TODO:AZ this looks dodgy, rather use reserved, reservedOp
+--
+-- Andres: Also, this is almost the same as 'condIdP', but then
+-- not quite (use of hash set vs predicate).
+--
 condIdP'  :: (String -> Bool) -> Parser Symbol
-condIdP' f
-  = do c  <- letter
+condIdP' p
+  = do c  <- letterChar
        let isAlphaNumOr' c = isAlphaNum c || ('\''== c)
-       cs <- many (satisfy isAlphaNumOr')
-       blanks
-       if f (c:cs) then return (symbol $ T.pack $ c:cs) else parserZero
+       cs <- takeWhileP Nothing isAlphaNumOr'
+       spacesSameLine
+       let s = c:cs
+       guard (p s)
+       pure (symbol (c : cs))
 
 infixCondIdP' :: Parser Symbol
 infixCondIdP'
@@ -1472,10 +1513,10 @@ infixCondIdP'
          -- This is the same thing as 'startsVarSymASCII' from ghc-boot-th,
          -- but LH can't use that at the moment since it requires GHC 7.10.
          let isASCIISymbol = (`elem` ("!#$%&*+./<=>?@\\^|~-" :: String))
-         ss <- many (satisfy isASCIISymbol)
+         ss <- takeWhileP Nothing isASCIISymbol
          c2 <- colon
-         return $ symbol $ T.pack $ c1 ++ ss ++ c2
-       blanks
+         return $ symbol $ c1 ++ ss ++ c2
+       spacesSameLine
        return sym
 
 -- | LHS of the thing being defined
@@ -1483,23 +1524,27 @@ binderP :: Parser Symbol
 binderP    = pwr    <$> parens (idP bad)
          <|> symbol <$> idP badc
   where
-    idP p  = many1 (satisfy (not . p))
+    idP p  = takeWhile1P Nothing (not . p)
     badc c = (c == ':') || (c == ',') || bad c
     bad c  = isSpace c || c `elem` ("(,)[]" :: String)
     pwr s  = symbol $ "(" `mappend` s `mappend` ")"
 
-
-grabs :: ParsecT s u m a -> ParsecT s u m [a]
-grabs p = try (liftM2 (:) p (grabs p))
+-- | A variant of 'many' with 'try'.
+--
+grabs :: Parser a -> Parser [a]
+grabs = many . try
+{-
+           try (liftM2 (:) p (grabs p))
        <|> return []
+-}
 
 measureDefP :: Parser Body -> Parser (Def (Located BareType) LocSymbol)
 measureDefP bodyP
   = do mname   <- locParserP symbolP
        (c, xs) <- measurePatP
-       whiteSpace >> reservedOp "=" >> whiteSpace
+       spaces >> reservedOp "=" >> spaces
        body    <- bodyP
-       whiteSpace
+       spaces
        let xs'  = (symbol . val) <$> xs
        return   $ Def mname (symbol <$> c) Nothing ((, Nothing) <$> xs') body
 
@@ -1513,7 +1558,7 @@ tupPatP :: Parser (Located Symbol, [Located Symbol])
 tupPatP  = mkTupPat  <$> sepBy1 locLowerIdP comma
 
 conPatP :: Parser (Located Symbol, [Located Symbol])
-conPatP  = (,)       <$> locParserP dataConNameP <*> sepBy locLowerIdP whiteSpace
+conPatP  = (,)       <$> locParserP dataConNameP <*> sepBy locLowerIdP spaces
 
 consPatP :: IsString a
          => Parser (Located a, [Located Symbol])
@@ -1521,7 +1566,7 @@ consPatP = mkConsPat <$> locLowerIdP  <*> colon <*> locLowerIdP
 
 nilPatP :: IsString a
         => Parser (Located a, [t])
-nilPatP  = mkNilPat  <$> brackets whiteSpace
+nilPatP  = mkNilPat  <$> brackets spaces
 
 nullaryConPatP :: Parser (Located Symbol, [t])
 nullaryConPatP = nilPatP <|> ((,[]) <$> locParserP dataConNameP)
@@ -1592,7 +1637,7 @@ dataConNameP
  <|> pwr <$> parens (idP bad)
  <?> "dataConNameP"
   where
-     idP p  = many1 (satisfy (not . p))
+     idP p  = takeWhile1P Nothing (not . p)
      bad c  = isSpace c || c `elem` ("(,)" :: String)
      pwr s  = symbol $ "(" <> s <> ")"
 
@@ -1603,7 +1648,7 @@ dataSizeP
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do
-  pos <- getPosition
+  pos <- getSourcePos
   x   <- locUpperIdP'
   spaces
   fsize <- dataSizeP
@@ -1619,12 +1664,12 @@ emptyDecl x pos _
 
 dataDeclBodyP :: SourcePos -> LocSymbol -> Maybe SizeFun -> Parser DataDecl
 dataDeclBodyP pos x fsize = do
-  vanilla    <- null <$> sepBy locUpperIdP blanks
-  as         <- sepBy noWhere blanks
+  vanilla    <- null <$> sepBy locUpperIdP spacesSameLine
+  as         <- sepBy noWhere spacesSameLine
   ps         <- predVarDefsP
   (pTy, dcs) <- dataCtorsP as
   let dn      = dataDeclName pos x vanilla dcs
-  whiteSpace
+  spaces
   return      $ DataDecl dn as ps dcs pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
@@ -1642,12 +1687,11 @@ dataCtorsP as = do
   return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol
-noWhere = 
+noWhere =
   try $ do
   s <- tyVarIdP
-  if s == "where"
-    then parserZero
-    else return s
+  guard (s /= "where")
+  return s
 
 dataPropTyP :: Parser (Maybe BareType)
 dataPropTyP = Just <$> between dcolon (reserved "where") bareTypeP

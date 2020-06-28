@@ -9,7 +9,7 @@
 --
 -- Run as:
 --
--- $ stack test :liquidhaskell-parser
+--  $ stack test :liquidhaskell-parser
 
 module Main where
 
@@ -22,7 +22,8 @@ import           Language.Fixpoint.Types.Spans
 import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Fixpoint.Types       as F 
 
-import           Text.Parsec.Pos
+import           Text.Megaparsec.Pos
+
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.Runners.AntXML
@@ -176,7 +177,7 @@ testSpecP =
 
     , testCase "qualif" $
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?==
-          "qualif Foo defined at \"<test>\" (line 1, column 8)"
+          "qualif Foo defined at <test>:1:8"
 
     , testCase "decrease" $
        parseSingleSpec "decrease insert 3" @?==
@@ -476,7 +477,8 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?==
-            "Cannot parse specification:\n    unexpected ':'\n    expecting monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"~>\", \"=>\", \"/\" or end of input"
+            "<test>:1:13 Cannot parse specification:\n    expecting \"->\", \"=>\", \"~>\", '/', bareTyArgP, endofinput, mmonoPredicateP, ormonoPredicateP :| []"
+            -- "Cannot parse specification:\n    unexpected ':'\n    expecting monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"~>\", \"=>\", \"/\" or end of input"
     ]
 
 
@@ -487,12 +489,14 @@ testErrorReporting =
   testGroup "Error reporting"
     [ testCase "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " $
           parseSingleSpec "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " @?==
-            "Cannot parse specification:\n    unexpected end of input\n    expecting bareTyArgP"
+            "<test>:1:45 Cannot parse specification:\n    expecting \"->\", \"=>\", \"~>\", endofinput, mmonoPredicateP, orpredicatesP :| []"
+            -- "Cannot parse specification:\n    unexpected end of input\n    expecting bareTyArgP"
 
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?==
           -- parseSingleSpec "ff :: {v :  }" @?==
-            "Cannot parse specification:\n    unexpected \":\"\n    expecting operator, white space or \"}\""
+            "<test>:1:17 Cannot parse specification:\n    expecting \"->\", \"<:\", \"=>\", \"~>\", '|', bareTyArgP, mmonoPredicateP, or monoPredicateP :| []"
+            -- "Cannot parse specification:\n    unexpected \":\"\n    expecting operator, white space or \"}\""
     ]
 
 -- ---------------------------------------------------------------------

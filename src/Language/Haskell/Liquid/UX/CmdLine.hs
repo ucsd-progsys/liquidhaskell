@@ -77,7 +77,6 @@ import qualified Language.Haskell.Liquid.GHC.API as GHC
 import qualified Language.Haskell.Liquid.GHC.Logging as GHC
 
 
-import Text.Parsec.Pos                     (newPos)
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
 
 
@@ -484,7 +483,7 @@ envCfg = do
     Just s  -> parsePragma $ envLoc s
   where
     envLoc  = Loc l l
-    l       = newPos "ENVIRONMENT" 0 0
+    l       = safeSourcePos "ENVIRONMENT" 1 1
 
 copyright :: String
 copyright = concat $ concat

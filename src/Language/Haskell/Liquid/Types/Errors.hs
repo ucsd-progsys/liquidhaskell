@@ -17,6 +17,9 @@ module Language.Haskell.Liquid.Types.Errors (
   -- * Generic Error Type
     TError (..)
 
+  -- * Parse error synonym
+  , ParseError
+
   -- * Error with Source Context
   , CtxError (..)
   , errorsWithContext
@@ -65,11 +68,13 @@ import           Data.Aeson                   hiding (Result)
 import           Data.Hashable
 import qualified Data.HashMap.Strict          as M
 import qualified Data.List                    as L
+import           Data.Void
 import           System.Directory
 import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
-import           Text.Parsec.Error            (ParseError)
-import           Text.Parsec.Error            (errorMessages, showErrorMessages)
+import qualified Text.Megaparsec              as P
+-- import           Text.Parsec.Error            (ParseError)
+-- import           Text.Parsec.Error            (errorMessages, showErrorMessages)
 
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import qualified Language.Fixpoint.Misc       as Misc
@@ -77,12 +82,12 @@ import qualified Language.Haskell.Liquid.Misc     as Misc
 import           Language.Haskell.Liquid.Misc ((<->))
 import           Language.Haskell.Liquid.Types.Generics
 
+type ParseError = P.ParseError String Void
+
 instance PPrint ParseError where
   pprintTidy _ e = vcat $ tail $ text <$> ls
     where
-      ls         = lines $ showErrorMessages "or" "unknown parse error"
-                               "expecting" "unexpected" "end of input"
-                               (errorMessages e)
+      ls         = lines $ P.parseErrorTextPretty e
 
 --------------------------------------------------------------------------------
 -- | Context information for Error Messages ------------------------------------
@@ -467,9 +472,6 @@ data TError t =
 errDupSpecs :: Doc -> Misc.ListNE SrcSpan -> TError t
 errDupSpecs d spans@(sp:_) = ErrDupSpecs sp d spans
 errDupSpecs _ _            = impossible Nothing "errDupSpecs with empty spans!"
-
-instance NFData ParseError where
-  rnf t = seq t ()
 
 -- FIXME ES: this is very suspicious, why can't we have multiple errors
 -- arising from the same span?

@@ -100,13 +100,13 @@ import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
 import qualified Data.Map            as M
+import qualified Data.List.NonEmpty  as NE
 import qualified Data.HashMap.Strict as HM
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
 import System.Directory
 import System.FilePath
 import System.IO.Temp
-import Text.Parsec.Pos
 import Text.PrettyPrint.HughesPJ        hiding (first, (<>))
 import Language.Fixpoint.Types          hiding (panic, Error, Result, Expr)
 import qualified Language.Fixpoint.Misc as Misc
@@ -738,7 +738,8 @@ extractSpecComment (GHC.L sp (AnnBlockComment text))
   | isPrefixOf "{-@" text                                   -- invalid specification
   = uError $ ErrParseAnn sp "A valid specification must have a closing '@-}'."
   where
-    offsetPos = incSourceColumn (srcSpanSourcePos sp) 3
+    offsetPos = case srcSpanSourcePos sp of
+      SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
 extractSpecComment _ = Nothing
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
@@ -836,7 +837,7 @@ noTerm :: Ms.BareSpec -> Ms.BareSpec
 noTerm spec = spec { Ms.decr = mempty, Ms.lazy = mempty, Ms.termexprs = mempty }
 
 parseSpecFile :: FilePath -> IO (ModName, Ms.BareSpec)
-parseSpecFile file = either throw return . specSpecificationP file =<< Misc.sayReadFile file
+parseSpecFile file = either (throw . NE.head) return . specSpecificationP file =<< Misc.sayReadFile file
 
 -- Find Hquals Files -----------------------------------------------------------
 
@@ -881,7 +882,7 @@ makeLogicMap = do
   lg    <- Misc.getCoreToLogicPath
   lspec <- Misc.sayReadFile lg
   case parseSymbolToLogic lg lspec of 
-    Left e   -> throw e 
+    Left e   -> throw (NE.head e)
     Right lm -> return (lm <> listLMap)
 
 listLMap :: LogicMap -- TODO-REBARE: move to wiredIn

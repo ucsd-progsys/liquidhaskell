@@ -16,14 +16,13 @@ import SrcLoc (SrcSpan)
 
 import Data.Data
 import Data.List
+import Data.List.NonEmpty (NonEmpty(..))
 
 import qualified Data.Text as T
 
 import Language.Haskell.TH.Lib
 import Language.Haskell.TH.Syntax
 import Language.Haskell.TH.Quote
-
-import Text.Parsec.Pos
 
 import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import qualified Language.Fixpoint.Types as F
@@ -52,7 +51,7 @@ lqDec :: String -> Q [Dec]
 lqDec src = do
   pos <- locSourcePos <$> location
   case singleSpecP pos src of
-    Left err -> throwErrorInQ $ errorToUserError err
+    Left (err :| _) -> throwErrorInQ $ errorToUserError err
     Right spec -> do
       prg <- pragAnnD ModuleAnnotation $
                conE 'LiquidQuote `appE` dataToExpQ' spec
@@ -195,7 +194,7 @@ newtype LiquidQuote = LiquidQuote { liquidQuoteSpec :: BPspec }
 
 locSourcePos :: Loc -> SourcePos
 locSourcePos loc =
-  newPos (loc_filename loc) (fst $ loc_start loc) (snd $ loc_start loc)
+  safeSourcePos (loc_filename loc) (fst $ loc_start loc) (snd $ loc_start loc)
 
 dataToExpQ' :: Data a => a -> Q Exp
 dataToExpQ' = dataToExpQ (const Nothing `extQ` textToExpQ)
