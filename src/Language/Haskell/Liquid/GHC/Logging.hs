@@ -28,12 +28,10 @@ import qualified Outputable as O
 -- Unfortunately we need the two imports (one of which via CPP) below to bring in scope 'PPrint' instances.
 import Language.Haskell.Liquid.Types.Errors ()
 
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+#ifdef LIQUID_NO_PLUGIN
 
 import qualified Language.Fixpoint.Types.PrettyPrint as LH
 
-#endif
 #endif
 
 -- | Like the original 'putLogMsg', but internally converts the input 'Doc' (from the \"pretty\" library)
@@ -52,18 +50,20 @@ putLogMsg dynFlags reason sev srcSpan mbStyle =
     style' = fromMaybe (O.defaultErrStyle dynFlags) mbStyle
 
 putWarnMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
-putWarnMsg dynFlags srcSpan =
-  putLogMsg dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ O.defaultErrStyle dynFlags)
+putWarnMsg _dynFlags srcSpan doc =
+#ifdef LIQUID_NO_PLUGIN
+  putStrLn (PJ.render $ LH.pprint srcSpan PJ.<> PJ.text ": warning: " PJ.<+> doc)
+#else
+  putLogMsg _dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ O.defaultErrStyle _dynFlags) doc
+#endif
 
 putErrMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
-putErrMsg dynFlags srcSpan doc =
-  -- Necessary evil to support the \"legacy\" plugin.
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+putErrMsg _dynFlags srcSpan doc =
+  -- Necessary evil to support the \"legacy\" executable.
+#ifdef LIQUID_NO_PLUGIN
   putStrLn (PJ.render $ LH.pprint srcSpan PJ.<> PJ.text ": error: " PJ.<+> doc)
 #else
-  putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
-#endif
+  putLogMsg _dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
 #endif
 
 -- | Like 'putErrMsg', but it uses GHC's internal 'Doc'. This can be very convenient when logging things

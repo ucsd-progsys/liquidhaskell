@@ -49,8 +49,8 @@ build_script:
 
 # Run the tests (using the legacy executable)
 test_script:
-- echo "" | stack --no-terminal test liquidhaskell:liquidhaskell-parser --fast --flag liquidhaskell:-testNewExecutable
-- echo "" | stack --no-terminal test liquidhaskell:test --fast --ta="--liquid-runner \"stack --silent exec -- liquid-legacy\"" --flag liquidhaskell:-testNewExecutable --test-arguments "-p Micro"
+- echo "" | stack --no-terminal test liquidhaskell:liquidhaskell-parser --fast --flag liquidhaskell:no-plugin
+- echo "" | stack --no-terminal test liquidhaskell:test --fast --ta="--liquid-runner \"stack --silent exec -- liquid-legacy\"" --flag liquidhaskell:no-plugin --test-arguments "-p Micro"
 
 artifacts:
 - path: liquidhaskell.zip
