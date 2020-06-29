@@ -199,7 +199,7 @@ ppr_rtype bb p (RApp c ts rs r)
   | isEmpty rsDoc && isEmpty tsDoc
   = F.ppTy r $ ppT c
   | otherwise
-  = F.ppTy r $ parens $ ppT c <+> rsDoc <+> tsDoc
+  = F.ppTy r $ parens $ (text "RApp:c => " <-> ppT c) <+> (text "rs: " <-> rsDoc) <+> (text "ts: " <-> tsDoc)
   where
     rsDoc            = ppReftPs bb p rs
     tsDoc            = hsep (ppr_rtype bb p <$> ts)

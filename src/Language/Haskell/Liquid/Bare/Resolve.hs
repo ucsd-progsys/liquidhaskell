@@ -305,11 +305,12 @@ instance Qualify F.Equation where
 -- REBARE: qualifyAxiomEq v su eq = subst su eq { eqName = symbol v}
 
 instance Qualify F.Symbol where 
-  qualify env name l bs x = qualifySymbol env name l bs x 
+  qualify env name l bs x = 
+    F.tracepp ("qualifySymbol " ++ F.showpp x ++ " ==> ") (qualifySymbol env name l bs x)
 
 qualifySymbol :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
 qualifySymbol env name l bs x
-  | isSpl     = x 
+  | isSpl     = F.tracepp ("qualifySymbol isSpl? => " ++ show isSpl) x
   | otherwise = case resolveLocSym env name "Symbol" (F.Loc l l x) of 
                   Left  _ -> x 
                   Right v -> v 
@@ -371,10 +372,11 @@ instance Qualify DataCtor where
     }
  
 instance Qualify DataDecl where 
-  qualify env name l bs d = d 
-    { tycDCons  = qualify env name l bs (tycDCons  d)
-    , tycPropTy = qualify env name l bs (tycPropTy d) 
-    } 
+  qualify env name l bs d = 
+    let d' = d { tycDCons  = qualify env name l bs (tycDCons  d)
+               , tycPropTy = qualify env name l bs (tycPropTy d) 
+               } 
+    in F.tracepp ("qualify DataDecl " ++ F.showpp d ++ " ==> ") d'
 
 instance Qualify ModSpecs where 
   qualify env name l bs = Misc.hashMapMapWithKey (\_ -> qualify env name l bs) 
@@ -416,7 +418,11 @@ instance Qualify SpecType where
   qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5            
 
 instance Qualify BareType where 
-  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5 
+  qualify x1 x2 x3 x4 input = 
+    let output = emapReftHack (substFreeEnv x1 x2 x3) 
+                              (\(x::BTyCon) -> x { btc_tc = qualify x1 x2 x3 x4 (btc_tc x) })
+                              x4 input
+    in F.tracepp ("qualify BareType " ++ F.showpp input ++ " ===> ") output
 
 substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 

@@ -129,7 +129,7 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- * Traversing `RType`
   , efoldReft, foldReft, foldReft'
-  , emapReft, mapReft, mapReftM, mapPropM
+  , emapReft, emapReftHack, mapReft, mapReftM, mapPropM
   , mapExprReft
   , mapBot, mapBind
   , foldRType
@@ -997,7 +997,7 @@ instance TyConable BTyCon where
   isList  = isList . btc_tc
   isTuple = isTuple . btc_tc
   isClass = isClassBTyCon
-  ppTycon = ppTycon . btc_tc
+  ppTycon x = text "bTyCon:" <-> (ppTycon . btc_tc $ x)
 
 
 instance Eq RTyCon where
@@ -1518,6 +1518,20 @@ isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
 
+emapReftHack ::  ([Symbol] -> r1 -> r2) -> (c -> c) -> [Symbol] -> RType c tv r1 -> RType c tv r2
+emapReftHack f _ γ (RVar α r)          = RVar  α (f γ r)
+emapReftHack f _ γ (RAllT α t r)       = RAllT α (emapReft f γ t) (f γ r)
+emapReftHack f _ γ (RAllP π t)         = RAllP π (emapReft f γ t)
+emapReftHack f _ γ (RImpF x t t' r)    = RImpF  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
+emapReftHack f _ γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
+emapReftHack f g γ (RApp c ts rs r)    = RApp  (g c) (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
+emapReftHack f _ γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
+emapReftHack f _ γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
+emapReftHack _ _ _ (RExprArg e)        = RExprArg e
+emapReftHack f _ γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
+emapReftHack f _ γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r) o (emapReft f γ t)
+emapReftHack f _ γ (RHole r)           = RHole (f γ r)
+
 emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType c tv r1 -> RType c tv r2
 emapReft f γ (RVar α r)          = RVar  α (f γ r)
 emapReft f γ (RAllT α t r)       = RAllT α (emapReft f γ t) (f γ r)
@@ -1534,7 +1548,7 @@ emapReft f γ (RHole r)           = RHole (f γ r)
 
 emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
 emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
-emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
+emapRef  f γ (RProp s t)          = RProp s $ emapReft f γ t
 
 emapExprArg :: ([Symbol] -> Expr -> Expr) -> [Symbol] -> RType c tv r -> RType c tv r
 emapExprArg f = go

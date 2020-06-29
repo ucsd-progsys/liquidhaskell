@@ -78,11 +78,12 @@ import qualified Data.HashMap.Strict                     as HM
 import           System.Exit
 import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Text.Parsec.Pos
-import           Language.Fixpoint.Types           hiding ( panic
-                                                          , Error
-                                                          , Result
-                                                          , Expr
-                                                          )
+import           Language.Fixpoint.Types.PrettyPrint ()
+import           Language.Fixpoint.Types           as F hiding ( panic
+                                                               , Error
+                                                               , Result
+                                                               , Expr
+                                                               )
 
 import qualified Language.Haskell.TH.Syntax              as TH
 import qualified Language.Haskell.Liquid.Measure         as Ms
@@ -309,7 +310,8 @@ liquidHaskellPass cfg modGuts = do
   let specQuotes = LH.extractSpecQuotes' mg_module mg_anns modGuts
   inputSpec <- getLiquidSpec thisModule specComments specQuotes
 
-  debugLog $ " Input spec: \n" ++ show inputSpec
+  debugLog $ " Input spec: \n" ++ (show inputSpec)
+  debugLog $ " Input dataDecls: \n" ++ (F.showpp $ dataDecls $ getBareSpec inputSpec)
 
   modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
   dynFlags <- getDynFlags
@@ -480,6 +482,8 @@ processModule LiquidHaskellContext{..} = do
 
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
 
+  liftIO $ putStrLn $ "Module => " ++ (O.showSDocUnsafe $ O.ppr thisModule)
+
   case makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies of
 
     -- If we didn't pass validation, abort compilation and show the errors.
@@ -492,6 +496,7 @@ processModule LiquidHaskellContext{..} = do
 
       debugLog $ "bareSpec ==> "   ++ show bareSpec
       debugLog $ "liftedSpec ==> " ++ show liftedSpec
+      debugLog $ "liftedSpec (dataDecls): \n" ++ (F.showpp $ liftedDataDecls $ liftedSpec)
 
       let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 

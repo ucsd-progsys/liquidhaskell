@@ -262,12 +262,15 @@ class Expand a where
 -- | @qualifyExpand@ first qualifies names so that we can successfully resolve 
 --   them during expansion. 
 ----------------------------------------------------------------------------------
-qualifyExpand :: (Expand a, Bare.Qualify a) 
+qualifyExpand :: (Expand a, Bare.Qualify a, PPrint a) 
               => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> [F.Symbol] -> a -> a 
 ----------------------------------------------------------------------------------
-qualifyExpand env name rtEnv l bs
-  = expand rtEnv l  
-  . Bare.qualify env name l bs
+qualifyExpand env name rtEnv l bs input
+  = let output = expand rtEnv l . Bare.qualify env name l bs $ input
+    in F.tracepp ( "qualifyExpand, bare.env = " 
+                   ++ F.showpp (Bare.reSyms env) 
+                   ++ ", rtEnv = " ++ F.showpp rtEnv
+                   ++ ", bs = " ++ F.showpp bs) output
 
 ----------------------------------------------------------------------------------
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
@@ -371,7 +374,9 @@ expandBareSpec rtEnv l sp = sp
   where f      = expand rtEnv l 
   
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
-expandBareType rtEnv _ = go 
+expandBareType rtEnv _ inputType = 
+  let outputType = go inputType
+  in F.tracepp ("inputType => " ++ F.showpp inputType) outputType
   where
     go (RApp c ts rs r)  = case lookupRTEnv c rtEnv of 
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r 
