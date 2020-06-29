@@ -25,7 +25,6 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , parseModule
   , typecheckModule
   , desugarModule
-  , desugarModule'
   , findModule
   , lookupModule
   ) where
@@ -233,24 +232,10 @@ desugarModule originalModSum typechecked = do
   let modSum         = originalModSum { ms_hspp_opts = dynFlags }
   let parsedMod'     = (view tmParsedModule typechecked) { pm_mod_summary = modSum }
   let typechecked'   = set tmParsedModule parsedMod' typechecked
-  
+
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
   liftIO $ hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
-
-desugarModule' :: GhcMonadLike m 
-               => ModSummary 
-               -> TcGblEnv
-               -> m ModGuts
-desugarModule' originalModSum gblEnv = do
-  -- See [NOTE:ghc810] on why we override the dynFlags here before calling 'desugarModule'.
-  dynFlags          <- getDynFlags
-  let modSum         = originalModSum { ms_hspp_opts = dynFlags }
-
-  hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts modSum }
-  liftIO $ hscDesugar hsc_env_tmp modSum gblEnv
-
 
 -- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the
 -- filesystem and package database to find the corresponding 'Module',
