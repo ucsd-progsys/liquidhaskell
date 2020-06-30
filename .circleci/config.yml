@@ -122,7 +122,7 @@ jobs:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
             liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810_legacy_executable:
     docker:
@@ -139,6 +139,7 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
+            extra_test_flags: " liquid-platform:liquidhaskell "
 
   cabal_810:
     docker:
