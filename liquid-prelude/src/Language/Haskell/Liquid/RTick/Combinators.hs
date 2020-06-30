@@ -209,9 +209,9 @@ _ >=? n = n
 {-@ predicate COSTEQ T1 T2 = tval T1 == tval T2 && tcost T1 == tcost T2 @-}
 
 {-@ (<=>.)
-  :: t1:Tick a
-  -> { t2:Tick a | COSTEQ t1 t2 }
-  -> { t3:Tick a | COSTEQ t1 t2 && COSTEQ t1 t3 && COSTEQ t2 t3 }
+      :: t1:Tick a
+      -> { t2:Tick a | COSTEQ t1 t2 }
+      -> { t3:Tick a | COSTEQ t1 t2 && COSTEQ t1 t3 && COSTEQ t2 t3 }
 @-}
 infixl 3 <=>.
 (<=>.) :: Tick a -> Tick a -> Tick a
@@ -219,8 +219,8 @@ infixl 3 <=>.
 {-# INLINE (<=>.) #-}
 
 {-@ assume (<=>?)
-  :: t1:Tick a -> t2:Tick a
-  -> { t3:Tick a | COSTEQ t1 t2 && COSTEQ t1 t3 && t2 == t3 }
+      :: t1:Tick a -> t2:Tick a
+      -> { t3:Tick a | COSTEQ t1 t2 && COSTEQ t1 t3 && t2 == t3 }
 @-}
 infixl 3 <=>?
 (<=>?) :: Tick a -> Tick a -> Tick a
@@ -233,9 +233,9 @@ infixl 3 <=>?
 {-@ predicate IMP T1 T2 = tval T1 == tval T2 && tcost T1 >= tcost T2 @-}
 
 {-@ (>~>.)
-  :: t1:Tick a
-  -> { t2:Tick a | IMP t1 t2 }
-  -> { t3:Tick a | IMP t1 t2 && IMP t1 t3 && t2 == t3 }
+      :: t1:Tick a
+      -> { t2:Tick a | IMP t1 t2 }
+      -> { t3:Tick a | IMP t1 t2 && IMP t1 t3 && t2 == t3 }
 @-}
 infixl 3 >~>.
 (>~>.) :: Tick a -> Tick a -> Tick a
@@ -243,8 +243,8 @@ infixl 3 >~>.
 {-# INLINE (>~>.) #-}
 
 {-@ assume (>~>?)
-  :: t1:Tick a -> t2:Tick a
-  -> { t3:Tick a | IMP t1 t2 && IMP t1 t3 && t2 == t3 }
+      :: t1:Tick a -> t2:Tick a
+      -> { t3:Tick a | IMP t1 t2 && IMP t1 t3 && t2 == t3 }
 @-}
 infixl 3 >~>?
 (>~>?) :: Tick a -> Tick a -> Tick a
@@ -257,10 +257,10 @@ infixl 3 >~>?
 {-@ predicate QIMP T1 N T2 = tval T1 == tval T2 && tcost T1 == tcost T2 + N @-}
 
 {-@ (.>==)
-  :: t1:Tick a
-  -> n:Int
-  -> { t2:Tick a | QIMP t1 n t2 }
-  -> { t3:Tick a | QIMP t1 n t2 && QIMP t1 n t3 && t2 == t3 }
+      :: t1:Tick a
+      -> n:Int
+      -> { t2:Tick a | QIMP t1 n t2 }
+      -> { t3:Tick a | QIMP t1 n t2 && QIMP t1 n t3 && t2 == t3 }
 @-}
 infixl 3 .>==
 (.>==) :: Tick a -> Int -> Tick a -> Tick a
@@ -268,8 +268,8 @@ infixl 3 .>==
 {-# INLINE (.>==) #-}
 
 {-@ assume (?>==)
-  :: t1:Tick a -> n:Nat -> t2:Tick a
-  -> { t3:Tick a | QIMP t1 n t2 && QIMP t1 n t3 && t2 == t3 }
+     :: t1:Tick a -> n:Nat -> t2:Tick a
+     -> { t3:Tick a | QIMP t1 n t2 && QIMP t1 n t3 && t2 == t3 }
 @-}
 infixl 3 ?>==
 (?>==) :: Tick a -> Int -> Tick a -> Tick a
@@ -282,9 +282,9 @@ infixl 3 ?>==
 {-@ predicate DIM T1 T2 = tval T1 == tval T2 && tcost T1 <= tcost T2 @-}
 
 {-@ (<~<.)
-  :: t1:Tick a
-  -> { t2:Tick a | DIM t1 t2 }
-  -> { t3:Tick a | DIM t1 t2 && DIM t1 t3 && t2 == t3 }
+      :: t1:Tick a
+      -> { t2:Tick a | DIM t1 t2 }
+      -> { t3:Tick a | DIM t1 t2 && DIM t1 t3 && t2 == t3 }
 @-}
 infixl 3 <~<.
 (<~<.) :: Tick a -> Tick a -> Tick a
@@ -292,8 +292,8 @@ infixl 3 <~<.
 {-# INLINE (<~<.) #-}
 
 {-@ assume (<~<?)
-  :: t1:Tick a -> t2:Tick a
-  -> { t3:Tick a | DIM t1 t2 && DIM t1 t3 && t2 == t3 }
+     :: t1:Tick a -> t2:Tick a
+     -> { t3:Tick a | DIM t1 t2 && DIM t1 t3 && t2 == t3 }
 @-}
 infixl 3 <~<?
 (<~<?) :: Tick a -> Tick a -> Tick a
@@ -306,10 +306,10 @@ infixl 3 <~<?
 {-@ predicate QDIM T1 N T2 = tval T1 == tval T2 && tcost T1 + N == tcost T2 @-}
 
 {-@ (.<==)
-  :: t1:Tick a
-  -> n:Nat
-  -> { t2:Tick a | QDIM t1 n t2 }
-  -> { t3:Tick a | QDIM t1 n t2 && QDIM t1 n t3 && t2 == t3 }
+      :: t1:Tick a
+      -> n:Nat
+      -> { t2:Tick a | QDIM t1 n t2 }
+      -> { t3:Tick a | QDIM t1 n t2 && QDIM t1 n t3 && t2 == t3 }
 @-}
 infixl 3 .<==
 (.<==) :: Tick a -> Int -> Tick a -> Tick a
@@ -317,8 +317,8 @@ infixl 3 .<==
 {-# INLINE (.<==) #-}
 
 {-@ assume (?<==)
-  :: t1:Tick a -> n:Nat -> t2:Tick a
-  -> { t3:Tick a | QDIM t1 n t2 && QDIM t1 n t3 && t2 == t3 }
+      :: t1:Tick a -> n:Nat -> t2:Tick a
+      -> { t3:Tick a | QDIM t1 n t2 && QDIM t1 n t3 && t2 == t3 }
 @-}
 infixl 3 ?<==
 (?<==) :: Tick a -> Int -> Tick a -> Tick a

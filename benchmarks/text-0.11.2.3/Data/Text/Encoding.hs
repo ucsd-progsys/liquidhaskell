@@ -368,11 +368,11 @@ foreign import ccall unsafe "_hs_text_decode_utf8" c_decode_utf8'
 c_decode_utf8 :: A.MArray s -> Ptr CSize -> Ptr Word8 -> Ptr Word8 -> IO (Ptr Word8)
 c_decode_utf8 ma = c_decode_utf8' (A.maBA ma)
 {-@ assume
-    c_decode_utf8 :: a:A.MArray s
-                  -> d:{v:PtrV CSize | (BtwnI (deref v) 0 (maLen a))}
-                  -> c:PtrV Word8
-                  -> end:{v:PtrV Word8 | (((plen v) <= (plen c))
-                                       && ((pbase v) = (pbase c)))}
-                  -> IO {v:(PtrV Word8) | ((BtwnI (plen v) (plen end) (plen c))
-                                        && ((pbase v) = (pbase end)))}
+      c_decode_utf8 :: a:A.MArray s
+                    -> d:{v:PtrV CSize | (BtwnI (deref v) 0 (maLen a))}
+                    -> c:PtrV Word8
+                    -> end:{v:PtrV Word8 | (((plen v) <= (plen c))
+                                         && ((pbase v) = (pbase c)))}
+                    -> IO {v:(PtrV Word8) | ((BtwnI (plen v) (plen end) (plen c))
+                                          && ((pbase v) = (pbase end)))}
   @-}

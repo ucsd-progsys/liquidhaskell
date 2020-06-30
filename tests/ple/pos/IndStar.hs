@@ -8,8 +8,8 @@ module Star where
 type Rel a = a -> a -> Bool
 
 {-@ data Star [toNat] a where
-      Refl :: r:Rel a -> x:a -> Prop (Star r x x)
-    | Step :: r:Rel a -> x:a -> y:{a | r x y} -> z:a -> Prop (Star r y z) -> Prop (Star r x z)
+        Refl :: r:Rel a -> x:a -> Prop (Star r x x)
+      | Step :: r:Rel a -> x:a -> y:{a | r x y} -> z:a -> Prop (Star r y z) -> Prop (Star r x z)
   @-}
 
 {-@ thm :: r:Rel a -> x:a -> y:a -> z:a

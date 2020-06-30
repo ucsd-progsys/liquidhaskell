@@ -18,9 +18,9 @@ mergesort' [xs] = xs
 mergesort' xss = mergesort' (merge_pairs xss)
 
 {-@ predicate DLen X Y = 
-    (if ((len X) > 1) 
-     then ((len Y) < (len X)) 
-     else ((len X) = (len Y))) 
+      (if ((len X) > 1) 
+       then ((len Y) < (len X)) 
+       else ((len X) = (len Y))) 
   @-}
 
 {-@ merge_pairs :: (Ord a) => xs:[OList a] -> {v:[OList a] | (DLen xs v)} @-}

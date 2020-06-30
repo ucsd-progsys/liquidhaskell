@@ -125,8 +125,8 @@ tests  = [ e1              -- 15
 -}
 
 {-@ data ResTy where
-      R_Res  :: x:Val -> t:Type -> Prop (ValTy x t) -> Prop (ResTy (Result x) t) 
-    | R_Time :: t:Type -> Prop (ResTy Timeout t) 
+        R_Res  :: x:Val -> t:Type -> Prop (ValTy x t) -> Prop (ResTy (Result x) t) 
+      | R_Time :: t:Type -> Prop (ResTy Timeout t) 
   @-}
 
 data ResTyP where 
@@ -154,12 +154,12 @@ data ResTy where
  -}
 
 {-@ data ValTy where
-      V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
-    | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
-    | V_Clos :: g:TEnv -> s:VEnv -> f:Var -> x:Var -> t1:Type -> t2:Type -> e:Expr 
-             -> Prop (StoTy g s) 
-             -> Prop (ExprTy (TBind x t1 (TBind f (TFun t1 t2) g)) e t2)
-             -> Prop (ValTy (VClos f x e s) (TFun t1 t2)) 
+        V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
+      | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
+      | V_Clos :: g:TEnv -> s:VEnv -> f:Var -> x:Var -> t1:Type -> t2:Type -> e:Expr 
+               -> Prop (StoTy g s) 
+               -> Prop (ExprTy (TBind x t1 (TBind f (TFun t1 t2) g)) e t2)
+               -> Prop (ValTy (VClos f x e s) (TFun t1 t2)) 
   @-}
 
 data ValTyP where 
@@ -187,11 +187,11 @@ data ValTy where
  -}
 
 {-@ data StoTy where
-      S_Emp  :: Prop (StoTy TEmp VEmp) 
-    | S_Bind :: x:Var -> t:Type -> val:Val -> g:TEnv -> s:VEnv
-             -> Prop (ValTy val t) 
-             -> Prop (StoTy g   s) 
-             -> Prop (StoTy (TBind x t g) (VBind x val s)) 
+        S_Emp  :: Prop (StoTy TEmp VEmp) 
+      | S_Bind :: x:Var -> t:Type -> val:Val -> g:TEnv -> s:VEnv
+               -> Prop (ValTy val t) 
+               -> Prop (StoTy g   s) 
+               -> Prop (StoTy (TBind x t g) (VBind x val s)) 
   @-}
 
 data StoTyP where 
@@ -251,23 +251,23 @@ lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
 -}
 
 {-@ data ExprTy where 
-      E_Bool :: g:TEnv -> b:Bool 
-             -> Prop (ExprTy g (EBool b) TBool)
-    | E_Int  :: g:TEnv -> i:Int  
-             -> Prop (ExprTy g (EInt i)  TInt)
-    | E_Bin  :: g:TEnv -> o:Op -> e1:Expr -> e2:Expr 
-             -> Prop (ExprTy g e1 (opIn o)) 
-             -> Prop (ExprTy g e2 (opIn o))
-             -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
-    | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
-             -> Prop (ExprTy g (EVar x) t)
-    | E_Fun  :: g:TEnv -> f:Var -> x:Var -> t1:Type -> e:Expr -> t2:Type
-             -> Prop (ExprTy (TBind x t1 (TBind f (TFun t1 t2) g)) e t2)
-             -> Prop (ExprTy g (EFun f x t1 e) (TFun t1 t2))       
-    | E_App  :: g:TEnv -> e1:Expr -> e2:Expr -> t1:Type -> t2:Type 
-             -> Prop (ExprTy g e1 (TFun t1 t2))
-             -> Prop (ExprTy g e2 t1)
-             -> Prop (ExprTy g (EApp e1 e2) t2)
+        E_Bool :: g:TEnv -> b:Bool 
+               -> Prop (ExprTy g (EBool b) TBool)
+      | E_Int  :: g:TEnv -> i:Int  
+               -> Prop (ExprTy g (EInt i)  TInt)
+      | E_Bin  :: g:TEnv -> o:Op -> e1:Expr -> e2:Expr 
+               -> Prop (ExprTy g e1 (opIn o)) 
+               -> Prop (ExprTy g e2 (opIn o))
+               -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
+      | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
+               -> Prop (ExprTy g (EVar x) t)
+      | E_Fun  :: g:TEnv -> f:Var -> x:Var -> t1:Type -> e:Expr -> t2:Type
+               -> Prop (ExprTy (TBind x t1 (TBind f (TFun t1 t2) g)) e t2)
+               -> Prop (ExprTy g (EFun f x t1 e) (TFun t1 t2))       
+      | E_App  :: g:TEnv -> e1:Expr -> e2:Expr -> t1:Type -> t2:Type 
+               -> Prop (ExprTy g e1 (TFun t1 t2))
+               -> Prop (ExprTy g e2 t1)
+               -> Prop (ExprTy g (EApp e1 e2) t2)
   @-}
 data ExprTyP where 
   ExprTy :: TEnv -> Expr -> Type -> ExprTyP  

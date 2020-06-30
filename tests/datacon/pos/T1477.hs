@@ -8,10 +8,10 @@ data User = User
 
 instance PersistEntity User where
   {-@ data EntityField User field  where
-        UserId     :: EntityField User _
-      | UserName   :: EntityField User _ 
-      | UserFriend :: EntityField User _ 
-      | UserSsn    :: EntityField User _ 
+          UserId     :: EntityField User _
+        | UserName   :: EntityField User _ 
+        | UserFriend :: EntityField User _ 
+        | UserSsn    :: EntityField User _ 
     @-}
   data EntityField User typ
     = typ ~ Int => UserId      |

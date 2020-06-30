@@ -176,7 +176,7 @@ append (C x xs) ys = x `C` (append xs ys)
 
 -- | For input Distribution 
 {-@ appendTakeDrop :: i:Nat -> xs:{List a | i <= llen xs} 
-  -> {xs == append (take i xs) (drop i xs) }  @-}
+      -> {xs == append (take i xs) (drop i xs) }  @-}
 
 appendTakeDrop :: Int -> List a -> Proof 
 appendTakeDrop i N 

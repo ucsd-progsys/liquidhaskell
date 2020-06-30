@@ -26,8 +26,8 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
   @-}
 
 {-@ data Dict key val <range :: key -> val -> Bool>
-  = D ( ddom :: [key])
-      ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)
+      = D ( ddom :: [key])
+          ( dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i>)
   @-}
 
 
@@ -147,7 +147,7 @@ select :: (Dict key val -> Bool) -> Table key val -> Table key val
 select prop xs = filter prop xs
 
 {-@ values :: forall <range :: key -> val -> Bool>.
-  k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
+      k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
 values :: key -> [Dict key val]  -> [val]
 values k = map (goValues k)
 
@@ -173,7 +173,7 @@ extend k v (D ks f) = D (k:ks) (\i -> if i == k then v else f i)
 
 data P k v = (:=) { kkey :: k, kval :: v }
 {-@ data P k v <range :: k -> v -> Bool>
-  = (:=) { kkey :: k, kval :: v<range kkey> }
+      = (:=) { kkey :: k, kval :: v<range kkey> }
   @-}
 infixr 3 +=
 

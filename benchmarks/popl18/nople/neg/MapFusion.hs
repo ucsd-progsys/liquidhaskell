@@ -18,12 +18,12 @@ map f xs
 
 
 {-@ map_fusion_0 :: f:(a -> a) -> g:(a -> a) -> xs:L a
-   -> {v:Proof | map (compose f g) xs /= (compose (map f) (map g)) (xs) } @-}
+      -> {v:Proof | map (compose f g) xs /= (compose (map f) (map g)) (xs) } @-}
 map_fusion_0  :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion_0 = undefined
 
 {-@ map_fusion :: f:(a -> a) -> g:(a -> a) -> xs:L a
-   -> {v:Proof | map (compose f g) xs /= (compose (map f) (map g)) (xs) } @-}
+      -> {v:Proof | map (compose f g) xs /= (compose (map f) (map g)) (xs) } @-}
 map_fusion :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion f g N
   = toProof $

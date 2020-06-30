@@ -45,7 +45,7 @@ id x = x
 
 
 {-@ assume fun_eq :: f:(a -> b) -> g:(a -> b) 
-   -> (x:a -> {f x == g x}) -> {f == g} 
+      -> (x:a -> {f x == g x}) -> {f == g} 
   @-}   
 fun_eq :: (a -> b) -> (a -> b) -> (a -> Proof) -> Proof   
 fun_eq _ _ _ = trivial     

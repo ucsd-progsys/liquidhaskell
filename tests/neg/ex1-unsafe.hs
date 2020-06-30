@@ -13,8 +13,8 @@ data Vec a = Nil | Cons a (Vec a)
 -- | We can encode the notion of length as an inductive measure @llen@
 
 {-@ measure llen     :: forall a. Vec a -> Int
-    llen (Nil)       = 0
-    llen (Cons x xs) = 1 + llen(xs)
+      llen (Nil)       = 0
+      llen (Cons x xs) = 1 + llen(xs)
   @-}
 
 

@@ -116,8 +116,8 @@ tests  = [ e1              -- 15
 -}
 
 {-@ data ResTy where
-      R_Res  :: x:Val -> t:Type -> Prop (ValTy x t) -> Prop (ResTy (Result x) t) 
-    | R_Time :: t:Type -> Prop (ResTy Timeout t) 
+        R_Res  :: x:Val -> t:Type -> Prop (ValTy x t) -> Prop (ResTy (Result x) t) 
+      | R_Time :: t:Type -> Prop (ResTy Timeout t) 
   @-}
 
 data ResTyP where 
@@ -142,8 +142,8 @@ data ResTy where
  -}
 
 {-@ data ValTy where
-      V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
-    | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
+        V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
+      | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
   @-}
 
 data ValTyP where 
@@ -169,11 +169,11 @@ data ValTy where
  -}
 
 {-@ data StoTy where
-      S_Emp  :: Prop (StoTy TEmp VEmp) 
-    | S_Bind :: x:Var -> t:Type -> val:Val -> g:TEnv -> s:VEnv
-             -> Prop (ValTy val t) 
-             -> Prop (StoTy g   s) 
-             -> Prop (StoTy (TBind x t g) (VBind x val s)) 
+        S_Emp  :: Prop (StoTy TEmp VEmp) 
+      | S_Bind :: x:Var -> t:Type -> val:Val -> g:TEnv -> s:VEnv
+               -> Prop (ValTy val t) 
+               -> Prop (StoTy g   s) 
+               -> Prop (StoTy (TBind x t g) (VBind x val s)) 
   @-}
 
 data StoTyP where 
@@ -230,16 +230,16 @@ lookupTEnv x (TBind y v env)  = if x == y then Just v else lookupTEnv x env
 -}
 
 {-@ data ExprTy where 
-      E_Bool :: g:TEnv -> b:Bool 
-             -> Prop (ExprTy g (EBool b) TBool)
-    | E_Int  :: g:TEnv -> i:Int  
-             -> Prop (ExprTy g (EInt i)  TInt)
-    | E_Bin  :: g:TEnv -> o:Op -> e1:Expr -> e2:Expr 
-             -> Prop (ExprTy g e1 (opIn1 o)) 
-             -> Prop (ExprTy g e2 (opIn2 o))
-             -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
-    | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
-             -> Prop (ExprTy g (EVar x) t)
+        E_Bool :: g:TEnv -> b:Bool 
+               -> Prop (ExprTy g (EBool b) TBool)
+      | E_Int  :: g:TEnv -> i:Int  
+               -> Prop (ExprTy g (EInt i)  TInt)
+      | E_Bin  :: g:TEnv -> o:Op -> e1:Expr -> e2:Expr 
+               -> Prop (ExprTy g e1 (opIn1 o)) 
+               -> Prop (ExprTy g e2 (opIn2 o))
+               -> Prop (ExprTy g (EBin o e1 e2) (opOut o))
+      | E_Var  :: g:TEnv -> x:Var -> t:{Type| lookupTEnv x g == Just t} 
+               -> Prop (ExprTy g (EVar x) t)
   @-}
 data ExprTyP where 
   ExprTy :: TEnv -> Expr -> Type -> ExprTyP  

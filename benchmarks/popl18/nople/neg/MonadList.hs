@@ -63,7 +63,7 @@ right_identity (C x xs)
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 {-@ associativity :: m:L a -> f: (a -> L b) -> g:(b -> L c)
-  -> {v:Proof | bind (bind m f) g /= bind m (\x:a -> (bind (f x) g))} @-}
+      -> {v:Proof | bind (bind m f) g /= bind m (\x:a -> (bind (f x) g))} @-}
 associativity :: L a -> (a -> L b) -> (b -> L c) -> Proof
 associativity N f g
   = toProof $

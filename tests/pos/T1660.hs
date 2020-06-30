@@ -20,8 +20,8 @@ data EqT  :: * -> *  where
    EqFun  :: (a -> b) -> (a -> b) -> (a -> EqT b) -> EqT (a -> b)
 
 {-@ data EqT  :: * -> *  where 
-     EqSMT  :: Eq a => x:a -> y:a -> {v:() | x == y} -> EqRT a {x} {y}
-   | EqFun  :: ff:(a -> b) -> gg:(a -> b) -> (x:a -> {v:EqT b | eqT (ff x) (gg x)}) -> EqRT (a -> b) {ff} {gg}
+       EqSMT  :: Eq a => x:a -> y:a -> {v:() | x == y} -> EqRT a {x} {y}
+     | EqFun  :: ff:(a -> b) -> gg:(a -> b) -> (x:a -> {v:EqT b | eqT (ff x) (gg x)}) -> EqRT (a -> b) {ff} {gg}
 @-}   
 
 

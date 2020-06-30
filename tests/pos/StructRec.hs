@@ -7,8 +7,8 @@ data OList a =
    | Ln{h :: a, t :: OList a}
 
 {-@ data OList a =
-      Mt
-    | Ln{h :: a, t :: OList {v:a | h <= v}} @-}
+        Mt
+      | Ln{h :: a, t :: OList {v:a | h <= v}} @-}
 
 insert :: (Ord a) => a -> OList a -> OList a
 insert y Mt        = Ln y Mt

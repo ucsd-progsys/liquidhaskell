@@ -1,6 +1,5 @@
+{-@ LIQUID "--ple-local" @-}
 module Automate where
-
-{-@ LIQUID "--automatic-instances=smtinstances" @-}
 
 import Language.Haskell.Liquid.ProofCombinators 
 

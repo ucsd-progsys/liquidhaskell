@@ -50,7 +50,7 @@ right_identity (C x xs)
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 
 {-@ assume associativity :: m:L a -> f: (a -> L b) -> g:(b -> L c)
-  -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
+      -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
 associativity :: L a -> (a -> L b) -> (b -> L c) -> Proof
 associativity Emp f g
   = trivial 

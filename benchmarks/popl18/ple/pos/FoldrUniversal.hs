@@ -21,13 +21,13 @@ compose :: (b -> c) -> (a -> b) ->  a -> c
 compose f g x = f (g x)
 
 {-@ foldrUniversal
-  :: f:(a -> b -> b)
-  -> h:(L a -> b)
-  -> e:b
-  -> ys:L a
-  -> base:{h Emp == e }
-  -> step: (x:a -> xs:L a -> {h (C x xs) == f x (h xs)})
-  -> { h ys == foldr f e ys }
+      :: f:(a -> b -> b)
+      -> h:(L a -> b)
+      -> e:b
+      -> ys:L a
+      -> base:{h Emp == e }
+      -> step: (x:a -> xs:L a -> {h (C x xs) == f x (h xs)})
+      -> { h ys == foldr f e ys }
   @-}
 foldrUniversal
     :: (a -> b -> b)

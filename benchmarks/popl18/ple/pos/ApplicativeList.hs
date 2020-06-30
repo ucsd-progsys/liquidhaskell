@@ -129,7 +129,7 @@ seq_nill (C x xs)
   = seq_nill xs
 
 {-@ append_fmap :: f:(a -> b) -> xs:L a -> ys: L a
-   -> {append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}
+      -> {append (fmap f xs) (fmap f ys) == fmap f (append xs ys) } @-}
 append_fmap :: (a -> b) -> L a -> L a -> Proof
 append_fmap _ N _         = trivial 
 append_fmap f (C _ xs) ys = append_fmap f xs ys  
@@ -145,7 +145,7 @@ seq_fmap f (C g gs) xs
   &&& map_fusion0 f g xs
 
 {-@ append_distr :: xs:L a -> ys:L a -> zs:L a
-   -> {v:Proof | append xs (append ys zs) == append (append xs ys) zs } @-}
+      -> {v:Proof | append xs (append ys zs) == append (append xs ys) zs } @-}
 append_distr :: L a -> L a -> L a -> Proof
 append_distr N _ _ = trivial
 append_distr (C _ xs) ys zs = append_distr xs ys zs 
@@ -162,7 +162,7 @@ seq_one N = trivial
 seq_one (C _ xs) = seq_one xs 
 
 {-@ seq_append :: fs1:L (a -> b) -> fs2: L (a -> b) -> xs: L a
-   -> { seq (append fs1 fs2) xs == append (seq fs1 xs) (seq fs2 xs) } @-}
+      -> { seq (append fs1 fs2) xs == append (seq fs1 xs) (seq fs2 xs) } @-}
 seq_append :: L (a -> b) -> L (a -> b) -> L a -> Proof
 seq_append N _ _ = trivial 
 seq_append (C f1 fs1) fs2 xs 
@@ -170,7 +170,7 @@ seq_append (C f1 fs1) fs2 xs
   &&& seq_append fs1 fs2 xs 
 
 {-@ map_fusion0 :: f:(a -> a) -> g:(a -> a) -> xs:L a
-    -> {v:Proof | fmap (compose f g) xs == fmap f (fmap g xs) } @-}
+      -> {v:Proof | fmap (compose f g) xs == fmap f (fmap g xs) } @-}
 map_fusion0 :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion0 _ _ N = trivial
 map_fusion0 f g (C _ xs) = map_fusion0 f g xs

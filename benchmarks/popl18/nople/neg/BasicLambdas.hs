@@ -1,6 +1,6 @@
 
 {-@ LIQUID "--higherorder"      @-}
-{-@ LIQUID "--autoproofs"      @-}
+{- LIQUID "--autoproofs"      @-}
 {-@ LIQUID "--exact-data-cons" @-}
 module Append where
 

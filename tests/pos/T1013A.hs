@@ -18,10 +18,10 @@ _compose f g x = f (g x)
 data Rec1 f p = Rec1 { unRec1 :: f p }
 
 {-@ data VerifiedFunctor m = VerifiedFunctor {
-      fmap        :: forall a b. (a -> b) -> m a -> m b
-    , fmapCompose :: forall a b c. f:(b -> c) -> g:(a -> b) -> x:m a
-                  -> { fmap (_compose f g) x == _compose (fmap f) (fmap g) x }
-  }
+        fmap        :: forall a b. (a -> b) -> m a -> m b
+      , fmapCompose :: forall a b c. f:(b -> c) -> g:(a -> b) -> x:m a
+                    -> { fmap (_compose f g) x == _compose (fmap f) (fmap g) x }
+      }
   @-}
 data VerifiedFunctor m = VerifiedFunctor {
     fmap        :: forall a b. (a -> b) -> m a -> m b

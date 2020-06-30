@@ -34,8 +34,8 @@ data Dict key val = D {ddom :: [key], dfun :: key -> val}
   @-}
 
 {-@ data Dict key val <range :: key -> val -> Bool>
-  = D { ddom :: [key]
-      , dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i> }
+      = D { ddom :: [key]
+          , dfun :: i:{v:key | Set_mem v (listElts ddom)} -> val<range i> }
   @-}
 
 
@@ -81,7 +81,7 @@ union xs ys = xs ++ ys
 diff  xs ys = xs \\ ys
 
 {-@ predicate Append XS YS V =
-  ((listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
+      ((listElts (ddom V)) = Set_cup (listElts (ddom YS)) (listElts (ddom XS)) )
   @-}
 
 
@@ -162,7 +162,7 @@ select p (x:xs) | p x       = x : select p xs
                 | otherwise =     select p xs
 
 {-@ values :: forall <range :: key -> val -> Bool>.
-  k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
+      k:key -> [{v:Dict <range> key val | Set_mem k (listElts (ddom v))}]  -> [val<range k>] @-}
 values :: key -> [Dict key val]  -> [val]
 values k = map go
   where

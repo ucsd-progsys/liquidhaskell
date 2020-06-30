@@ -35,7 +35,7 @@ module SemiGroup where
     @-}
 
     {-@ mappendListAssoc :: x:[a] -> y:[a] -> z:[a] 
-      -> { mappendList x (mappendList y z) == mappendList (mappendList x y) z } @-}
+          -> { mappendList x (mappendList y z) == mappendList (mappendList x y) z } @-}
     mappendListAssoc :: [a] -> [a] -> [a] -> () 
     mappendListAssoc xs ys zs
       = ()  

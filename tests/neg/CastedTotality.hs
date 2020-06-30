@@ -1,7 +1,5 @@
 module Fixme where
 
-{-@ LIQUID "--totality" @-}
-
 import Language.Haskell.Liquid.Prelude
 
 main = show x

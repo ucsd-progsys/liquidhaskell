@@ -36,8 +36,8 @@ data List a
   | Cons { lHd :: a, lTl :: List a }
 
 {-@ data List [llen] a <p :: x0:a -> x1:a -> Bool>
-  = Nil
-  | Cons { lHd :: a, lTl :: List <p> (a <p lHd>) }
+      = Nil
+      | Cons { lHd :: a, lTl :: List <p> (a <p lHd>) }
   @-}
 
 -- | List Membership -----------------------------------------------------------
@@ -50,12 +50,12 @@ data Ins a where
   There :: a -> a -> List a -> List a -> Ins a -> Ins a
 
 {-@ data Ins [insNat] a where
-      Here  :: m:a -> ms:List a
-            -> Prop (Ins m ms (Cons m ms))
+        Here  :: m:a -> ms:List a
+              -> Prop (Ins m ms (Cons m ms))
 
-    | There :: m:a -> n:a -> ns:List a -> mns:List a
-            -> Prop (Ins m ns mns)
-            -> Prop (Ins m (Cons n ns) (Cons n mns))
+      | There :: m:a -> n:a -> ns:List a -> mns:List a
+              -> Prop (Ins m ns mns)
+              -> Prop (Ins m (Cons n ns) (Cons n mns))
   @-}
 
 -- | Permutations --------------------------------------------------------------
@@ -68,11 +68,11 @@ data Perm a where
   ConsPerm :: a -> List a -> List a -> List a -> Ins a -> Perm a -> Perm a
 
 {-@ data Perm [permNat] a where
-      NilPerm  :: Prop (Perm Nil Nil)
-    | ConsPerm :: m:a -> ms:List a -> ns:List a -> mns:List a
-               -> Prop (Ins m ns mns)
-               -> Prop (Perm ms ns)
-               -> Prop (Perm (Cons m ms) mns)
+        NilPerm  :: Prop (Perm Nil Nil)
+      | ConsPerm :: m:a -> ms:List a -> ns:List a -> mns:List a
+                 -> Prop (Ins m ns mns)
+                 -> Prop (Perm ms ns)
+                 -> Prop (Perm (Cons m ms) mns)
   @-}
 
 

@@ -1100,8 +1100,8 @@ mulF :: Int -> Int -> Int
 mulF = P.undefined
 
 {-@ axiom_mul :: i:Nat -> n:Nat -> l:Nat -> len0:Nat -> d0:Nat
-    -> {v:Bool | (v <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
-                               => (((d0 + l) <= len0) && ((d0+l) = (mul (l) (i+1))))))}
+      -> {v:Bool | (v <=> (((i<n) && (len0 = (mul l n)) && (d0 = (mul l i)))
+                                 => (((d0 + l) <= len0) && ((d0+l) = (mul (l) (i+1))))))}
   @-}
 axiom_mul :: Int -> Int -> Int -> Int -> Int -> Bool
 axiom_mul = P.undefined

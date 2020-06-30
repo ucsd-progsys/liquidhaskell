@@ -57,6 +57,6 @@ data EqT  :: * -> *  where
    EqFun  :: (a -> b) -> (a -> b) -> (a -> EqT b) -> EqT (a -> b)
 
 {-@ data EqT  :: * -> *  where 
-     EqSMT  :: Eq a => x:a -> y:a -> (a -> {v:[a] | 0 < len v}) -> EqRT a {x} {y}
-   | EqFun  :: ff:(a -> b) -> gg:(a -> b) -> (x:a -> {d:EqT b | eqT (ff x) (gg x)}) -> EqRT (a -> b) {ff} {gg}
+        EqSMT  :: Eq a => x:a -> y:a -> (a -> {v:[a] | 0 < len v}) -> EqRT a {x} {y}
+      | EqFun  :: ff:(a -> b) -> gg:(a -> b) -> (x:a -> {d:EqT b | eqT (ff x) (gg x)}) -> EqRT (a -> b) {ff} {gg}
 @-}   

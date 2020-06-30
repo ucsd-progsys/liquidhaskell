@@ -5,7 +5,7 @@
 module DataBase (values) where
 
 {-@ values :: forall <rr2 :: key -> val -> Bool>.
-  k:key -> [Dict <rr2> key val]  -> [val<rr2 k>] @-}
+      k:key -> [Dict <rr2> key val]  -> [val<rr2 k>] @-}
 values :: key -> [Dict key val]  -> [val]
 values k = map (go k)
   where
@@ -16,6 +16,6 @@ values k = map (go k)
 data Dict key val = D {ddom :: [key], dfun :: key -> val}
 
 {-@ data Dict key val <rr :: key -> val -> Bool>
-  = D ( ddom :: [key])
-      ( dfun :: i:key -> val<rr i>)
+      = D ( ddom :: [key])
+          ( dfun :: i:key -> val<rr i>)
   @-}

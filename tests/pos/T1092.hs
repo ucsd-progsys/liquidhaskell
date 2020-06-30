@@ -5,11 +5,11 @@ module VerifiedEqInstances where
 import Language.Haskell.Liquid.ProofCombinators
 
 {-@ data VerifiedEq a = VEQ {
-      eq :: a -> a -> Bool
-    , refl :: x:a -> { v:() | eq x x }
-    , sym :: x:a -> y:a -> { v:() | eq x y ==> eq y x }
-    , trans :: x:a -> y:a -> z:a -> { v:() | eq x y && eq y z ==> eq x z }
-    }
+        eq :: a -> a -> Bool
+      , refl :: x:a -> { v:() | eq x x }
+      , sym :: x:a -> y:a -> { v:() | eq x y ==> eq y x }
+      , trans :: x:a -> y:a -> z:a -> { v:() | eq x y && eq y z ==> eq x z }
+      }
 @-}
 data VerifiedEq a = VEQ {
     eq    :: a -> a -> Bool

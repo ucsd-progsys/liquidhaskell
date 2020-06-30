@@ -38,10 +38,10 @@ data RefinedPersistFilter = EQUAL
 
 
 {-@ data RefinedFilter record typ <p :: User -> Bool> = RefinedFilter
-    { refinedFilterField  :: EntityField record typ
-    , refinedFilterValue  :: typ
-    , refinedFilterFilter :: RefinedPersistFilter
-    } 
+      { refinedFilterField  :: EntityField record typ
+      , refinedFilterValue  :: typ
+      , refinedFilterFilter :: RefinedPersistFilter
+      } 
   @-}
 
 {-@ data variance RefinedFilter covariant covariant contravariant @-}

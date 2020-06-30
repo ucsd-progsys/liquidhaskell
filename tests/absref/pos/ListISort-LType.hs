@@ -7,8 +7,8 @@ import Language.Haskell.Liquid.Prelude
 --------------------------------------------------------------------
 
 {-@ data List [llen] a <p :: x0:a -> x1:a -> Bool>  
-  = Nil 
-  | Cons { lHd :: a, lTl :: List <p> (a <p lHd>) }
+      = Nil 
+      | Cons { lHd :: a, lTl :: List <p> (a <p lHd>) }
   @-}
 
 {-@ measure llen @-}

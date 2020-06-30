@@ -23,8 +23,8 @@ data Ev where
 
       -- {v:Ev | prop v = Ev Z}
 {-@ data Ev where
-      EZ  :: Prop (Ev Z)
-    | ESS :: evn:Peano -> {evpf:Ev | prop evpf = Ev evn} -> {zing : Ev | prop zing = Ev (S (S evn)) }
+        EZ  :: Prop (Ev Z)
+      | ESS :: evn:Peano -> {evpf:Ev | prop evpf = Ev evn} -> {zing : Ev | prop zing = Ev (S (S evn)) }
   @-}
 
 {-@ test :: n:Peano -> {v:Ev | prop v = Ev (S (S n))} -> {v:Ev | prop v = Ev n} @-}

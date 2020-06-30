@@ -12,8 +12,8 @@ import qualified Data.Map      as M
 
 -- if I just write measure fromList the measure definition is not imported
 {-@ measure fromList :: [k] -> Bag k
-fromList ([])   = (Map_default 0)
-fromList (x:xs) = Map_store (fromList xs) x (1 + (Map_select (fromList xs) x))
+      fromList ([])   = (Map_default 0)
+      fromList (x:xs) = Map_store (fromList xs) x (1 + (Map_select (fromList xs) x))
 @-}
 
 

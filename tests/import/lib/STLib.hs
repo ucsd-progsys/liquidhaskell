@@ -26,15 +26,15 @@ instance Applicative (ST s) where
 
 instance Monad (ST s) where
   {-@ instance Monad (ST s) where
-      return :: forall <p :: a -> s -> Bool>. x:a -> ST <{v:s<p x>| true}, p, {v:a | true}> s a ;
-      >>=    :: forall <pbind :: s -> Bool, qbind :: a -> s -> Bool, rbind :: b -> s -> Bool>.
-                                ST <pbind, qbind> s a
-                            -> (xbind:a -> ST <{v:s<qbind xbind> | true}, rbind> s b)
-                            -> ST <pbind, rbind> s b;
-      >>    :: forall <pbind :: s -> Bool, qbind :: a -> s -> Bool, rbind :: b -> s -> Bool>.
-                               ST <pbind, qbind> s a
-                            -> (ST <{v:s| true}, rbind> s b)
-                            -> ST <pbind, rbind> s b
+        return :: forall <p :: a -> s -> Bool>. x:a -> ST <{v:s<p x>| true}, p, {v:a | true}> s a ;
+        >>=    :: forall <pbind :: s -> Bool, qbind :: a -> s -> Bool, rbind :: b -> s -> Bool>.
+                                  ST <pbind, qbind> s a
+                              -> (xbind:a -> ST <{v:s<qbind xbind> | true}, rbind> s b)
+                              -> ST <pbind, rbind> s b;
+        >>    :: forall <pbind :: s -> Bool, qbind :: a -> s -> Bool, rbind :: b -> s -> Bool>.
+                                 ST <pbind, qbind> s a
+                              -> (ST <{v:s| true}, rbind> s b)
+                              -> ST <pbind, rbind> s b
     @-}
   return x    = S $ \s -> (x, s)
   (S m) >> k  = S $ \s -> let (a, s') = m s in apply k s'

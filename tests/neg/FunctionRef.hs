@@ -1,5 +1,5 @@
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--totality"        @-}
+module HigherOrder where
 
 {-@ measure ackF :: Int -> Int -> Int  @-}
 

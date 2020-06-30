@@ -567,10 +567,10 @@ foreign import ccall unsafe "string.h memcmp" memcmp
 foreign import ccall unsafe "string.h memcpy" c_memcpy
     :: Ptr Word8 -> Ptr Word8 -> CSize -> IO (Ptr Word8)
 {-@ assume
-    memcpy :: dst:(PtrV Word8)
-           -> src:(PtrV Word8)
-           -> size: {v:CSize| (v <= (plen src) && v <= (plen dst))}
-           -> IO ()
+      memcpy :: dst:(PtrV Word8)
+             -> src:(PtrV Word8)
+             -> size: {v:CSize| (v <= (plen src) && v <= (plen dst))}
+             -> IO ()
   @-}
 memcpy :: Ptr Word8 -> Ptr Word8 -> CSize -> IO ()
 memcpy p q s = c_memcpy p q s >> return ()
@@ -621,10 +621,10 @@ foreign import ccall unsafe "static fpstring.h fps_minimum" c_minimum
 foreign import ccall unsafe "static fpstring.h fps_count" c_count
     :: Ptr Word8 -> CULong -> Word8 -> IO CULong
 {-@ assume
-    c_count :: p:(Ptr Word8)
-            -> n:{v:CULong | (OkPLen v p)}
-            -> Word8
-            -> (IO {v:CULong | ((0 <= v) && (v <= n)) }) @-}
+      c_count :: p:(Ptr Word8)
+              -> n:{v:CULong | (OkPLen v p)}
+              -> Word8
+              -> (IO {v:CULong | ((0 <= v) && (v <= n)) }) @-}
 
 
 -- ---------------------------------------------------------------------

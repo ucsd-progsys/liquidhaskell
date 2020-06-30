@@ -18,11 +18,11 @@ class VerifiedNum a where
 
 instance VerifiedNum Int where
 {-@ instance VerifiedNum Int where 
-    + :: x:Int -> y:Int -> OkInt {x + y} 
+      + :: x:Int -> y:Int -> OkInt {x + y} 
   @-}
 	x + y = (Prelude.+) x y  
 {-@ instance VerifiedNum Int where 
-    - :: x:Int -> y:Int -> OkInt {x - y} 
+      - :: x:Int -> y:Int -> OkInt {x - y} 
   @-}
 	x - y = (Prelude.-) x y  
 

@@ -34,7 +34,7 @@ module SemiGroup where
     mappendInt x y = x + y 
     
     {-@ mappendIntAssoc :: x:Int -> y:Int -> z:Int 
-      -> { mappendInt x (mappendInt y z) == mappendInt (mappendInt x y) z } @-}
+          -> { mappendInt x (mappendInt y z) == mappendInt (mappendInt x y) z } @-}
     mappendIntAssoc :: Int -> Int -> Int -> () 
     mappendIntAssoc _ _ _ = () 
     
@@ -53,7 +53,7 @@ module SemiGroup where
     @-}
     
     {-@ mappendMaybeAssoc :: SG a => x:Maybe a -> y:Maybe a -> z:Maybe a 
-      -> { mappendMaybe x (mappendMaybe y z) == mappendMaybe (mappendMaybe x y) z } @-}
+          -> { mappendMaybe x (mappendMaybe y z) == mappendMaybe (mappendMaybe x y) z } @-}
     mappendMaybeAssoc :: SG a => Maybe a -> Maybe a -> Maybe a -> () 
     mappendMaybeAssoc (Just x) (Just y) (Just z)
       = assocSG x y z 
@@ -74,7 +74,7 @@ module SemiGroup where
     @-}
 
     {-@ mappendListAssoc :: x:[a] -> y:[a] -> z:[a] 
-      -> { mappendList x (mappendList y z) == mappendList (mappendList x y) z } @-}
+          -> { mappendList x (mappendList y z) == mappendList (mappendList x y) z } @-}
     mappendListAssoc :: [a] -> [a] -> [a] -> () 
     mappendListAssoc (x:xs) ys zs
       = mappendListAssoc xs ys zs  

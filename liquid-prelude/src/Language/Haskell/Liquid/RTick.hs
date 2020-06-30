@@ -83,7 +83,7 @@ instance F.Functor Tick where
 
 {-@ reflect fmap @-}
 {-@ fmap :: f:(a -> b) -> t1:Tick a
-    -> { t:Tick b | Tick (tcost t1) (f (tval t1)) == t }
+      -> { t:Tick b | Tick (tcost t1) (f (tval t1)) == t }
 @-}
 fmap :: (a -> b) -> Tick a -> Tick b
 fmap f (Tick m x) = Tick m (f x)
@@ -99,7 +99,7 @@ pure x = Tick 0 x
 
 {-@ reflect <*> @-}
 {-@ (<*>) :: t1:Tick (a -> b) -> t2:Tick a
-    -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
                     tcost t1 + tcost t2 == tcost t }
 @-}
 infixl 4 <*>
@@ -108,7 +108,7 @@ Tick m f <*> Tick n x = Tick (m + n) (f x)
 
 {-@ reflect liftA2 @-}
 {-@ liftA2 :: f:(a -> b -> c) -> t1:Tick a -> t2:Tick b
-    -> { t:Tick c | f (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick c | f (tval t1) (tval t2) == tval  t &&
                       tcost t1 + tcost t2 == tcost t }
 @-}
 liftA2 :: (a -> b -> c) -> Tick a -> Tick b -> Tick c
@@ -125,7 +125,7 @@ return x = Tick 0 x
 
 {-@ reflect >>= @-}
 {-@ (>>=) :: t1:Tick a -> f:(a -> Tick b)
-    -> { t:Tick b | tval (f (tval t1))  == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))  == tval  t &&
          tcost t1 + tcost (f (tval t1)) == tcost t }
 @-}
 infixl 4 >>=
@@ -134,7 +134,7 @@ Tick m x >>= f = let Tick n y = f x in Tick (m + n) y
 
 {-@ reflect =<< @-}
 {-@ (=<<) :: f:(a -> Tick b) -> t1:Tick a
-    -> { t:Tick b | tval (f (tval t1))  == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))  == tval  t &&
          tcost t1 + tcost (f (tval t1)) == tcost t }
 @-}
 infixl 4 =<<
@@ -143,7 +143,7 @@ f =<< Tick m x = let Tick n y = f x in Tick (m + n) y
 
 {-@ reflect ap @-}
 {-@ ap :: t1:(Tick (a -> b)) -> t2:Tick a
-    -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
                     tcost t1 + tcost t2 == tcost t }
 @-}
 ap :: Tick (a -> b) -> Tick a -> Tick b
@@ -156,7 +156,7 @@ liftM f (Tick m x) = Tick m (f x)
 
 {-@ reflect liftM2 @-}
 {-@ liftM2 :: f:(a -> b -> c) -> t1:Tick a -> t2:Tick b
-    -> { t:Tick c | f (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick c | f (tval t1) (tval t2) == tval  t &&
                       tcost t1 + tcost t2 == tcost t }
 @-}
 liftM2 :: (a -> b -> c) -> Tick a -> Tick b -> Tick c
@@ -166,8 +166,8 @@ liftM2 f (Tick m x) (Tick n y) = Tick (m + n) (f x y)
 
 {-@ reflect eqBind @-}
 {-@ eqBind :: n:Int -> t1:Tick a
-    -> f:(a -> { tf:Tick b | n == tcost tf })
-    -> { t:Tick b | tval (f (tval t1))  == tval  t &&
+      -> f:(a -> { tf:Tick b | n == tcost tf })
+      -> { t:Tick b | tval (f (tval t1))  == tval  t &&
                            tcost t1 + n == tcost t }
 @-}
 eqBind :: Int -> Tick a -> (a -> Tick b) -> Tick b
@@ -175,16 +175,16 @@ eqBind _ (Tick m x) f = let Tick n y = f x in Tick (m + n) y
 
 {-@ reflect leqBind @-}
 {-@ leqBind :: n:Int -> t1:Tick a
-    -> f:(a -> { tf:Tick b | n >= tcost tf })
-    -> { t:Tick b | tcost t1 + n >= tcost t }
+      -> f:(a -> { tf:Tick b | n >= tcost tf })
+      -> { t:Tick b | tcost t1 + n >= tcost t }
 @-}
 leqBind :: Int -> Tick a -> (a -> Tick b) -> Tick b
 leqBind _ (Tick m x) f = let Tick n y = f x in Tick (m + n) y
 
 {-@ reflect geqBind @-}
 {-@ geqBind :: n:Int -> t1:Tick a
-    -> f:(a -> { tf:Tick b | n <= tcost tf })
-    -> { t2:Tick b | tcost t1 + n <= tcost t2 }
+      -> f:(a -> { tf:Tick b | n <= tcost tf })
+      -> { t2:Tick b | tcost t1 + n <= tcost t2 }
 @-}
 geqBind :: Int -> Tick a -> (a -> Tick b) -> Tick b
 geqBind _ (Tick m x) f = let Tick n y = f x in Tick (m + n) y
@@ -195,7 +195,7 @@ geqBind _ (Tick m x) f = let Tick n y = f x in Tick (m + n) y
 
 {-@ reflect step @-}
 {-@ step :: m:Int -> t1:Tick a
-    -> { t:Tick a | tval t1 == tval t && m + tcost t1 == tcost t }
+      -> { t:Tick a | tval t1 == tval t && m + tcost t1 == tcost t }
 @-}
 step :: Int -> Tick a -> Tick a
 step m (Tick n x) = Tick (m + n) x
@@ -213,7 +213,7 @@ wait x = Tick 1 x
 --
 {-@ reflect waitN @-}
 {-@ waitN :: n:Nat -> x:a
-    -> { t:Tick a | x == tval t && n == tcost t }
+      -> { t:Tick a | x == tval t && n == tcost t }
 @-}
 waitN :: Int -> a -> Tick a
 waitN n x = Tick n x
@@ -231,7 +231,7 @@ go x = Tick (-1) x
 --
 {-@ reflect goN @-}
 {-@ goN :: { n:Nat | n > 0 } -> x:a
-    -> { t:Tick a | x == tval t && (-n) == tcost t }
+      -> { t:Tick a | x == tval t && (-n) == tcost t }
 @-}
 goN :: Int -> a -> Tick a
 goN n x = Tick (-n) x
@@ -241,7 +241,7 @@ goN n x = Tick (-n) x
 --
 {-@ reflect wmap @-}
 {-@ wmap :: f:(a -> b) -> t1:Tick a
-    -> { t:Tick b | Tick (1 + tcost t1) (f (tval t1)) == t }
+      -> { t:Tick b | Tick (1 + tcost t1) (f (tval t1)) == t }
 @-}
 wmap :: (a -> b) -> Tick a -> Tick b
 wmap f (Tick m x) = Tick (1 + m) (f x)
@@ -251,7 +251,7 @@ wmap f (Tick m x) = Tick (1 + m) (f x)
 --
 {-@ reflect wmapN @-}
 {-@ wmapN :: { m:Nat | m > 0 } -> f:(a -> b) -> t1:Tick a
-    -> { t:Tick b | Tick (m + tcost t1) (f (tval t1)) == t }
+      -> { t:Tick b | Tick (m + tcost t1) (f (tval t1)) == t }
 @-}
 wmapN :: Int -> (a -> b) -> Tick a -> Tick b
 wmapN m f (Tick n x) = Tick (m + n) (f x)
@@ -261,7 +261,7 @@ wmapN m f (Tick n x) = Tick (m + n) (f x)
 --
 {-@ reflect gmap @-}
 {-@ gmap :: f:(a -> b) -> t1:Tick a
-    -> { t:Tick b | Tick (tcost t1 - 1) (f (tval t1)) == t }
+      -> { t:Tick b | Tick (tcost t1 - 1) (f (tval t1)) == t }
 @-}
 gmap :: (a -> b) -> Tick a -> Tick b
 gmap f (Tick m x) = Tick (m - 1) (f x)
@@ -271,7 +271,7 @@ gmap f (Tick m x) = Tick (m - 1) (f x)
 --
 {-@ reflect gmapN @-}
 {-@ gmapN :: { m:Nat | m > 0 } -> f:(a -> b) -> t1:Tick a
-    -> { t:Tick b | Tick (tcost t1 - m) (f (tval t1)) == t }
+      -> { t:Tick b | Tick (tcost t1 - m) (f (tval t1)) == t }
 @-}
 gmapN :: Int -> (a -> b) -> Tick a -> Tick b
 gmapN m f (Tick n x) = Tick (n - m) (f x)
@@ -281,7 +281,7 @@ gmapN m f (Tick n x) = Tick (n - m) (f x)
 --
 {-@ reflect </> @-}
 {-@ (</>) :: t1:(Tick (a -> b)) -> t2:Tick a
-    -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
                 1 + tcost t1 + tcost t2 == tcost t }
 @-}
 infixl 4 </>
@@ -293,7 +293,7 @@ Tick m f </> Tick n x = Tick (1 + m + n) (f x)
 --
 {-@ reflect <//> @-}
 {-@ (<//>) :: t1:(Tick (a -> b)) -> t2:Tick a
-    -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
                 2 + tcost t1 + tcost t2 == tcost t }
 @-}
 infixl 4 <//>
@@ -305,7 +305,7 @@ Tick m f <//> Tick n x = Tick (2 + m + n) (f x)
 --
 {-@ reflect <\> @-}
 {-@ (<\>) :: t1:(Tick (a -> b)) -> t2:Tick a
-    -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
                 tcost t1 + tcost t2 - 1 == tcost t }
 @-}
 infixl 4 <\>
@@ -317,7 +317,7 @@ Tick m f <\> Tick n x = Tick (m + n - 1) (f x)
 --
 {-@ reflect <\\> @-}
 {-@ (<\\>) :: t1:(Tick (a -> b)) -> t2:Tick a
-    -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
+      -> { t:Tick b | (tval t1) (tval t2) == tval  t &&
                 tcost t1 + tcost t2 - 2 == tcost t }
 @-}
 infixl 4 <\\>
@@ -329,7 +329,7 @@ Tick m f <\\> Tick n x = Tick (m + n - 2) (f x)
 --
 {-@ reflect >/= @-}
 {-@ (>/=) :: t1:Tick a -> f:(a -> Tick b)
-    -> { t:Tick b | (tval (f (tval t1))      == tval  t) &&
+      -> { t:Tick b | (tval (f (tval t1))      == tval  t) &&
          (1 + tcost t1 + tcost (f (tval t1))) == tcost t }
 @-}
 infixl 4 >/=
@@ -341,7 +341,7 @@ Tick m x >/= f = let Tick n y = f x in Tick (1 + m + n) y
 --
 {-@ reflect =/< @-}
 {-@ (=/<) :: f:(a -> Tick b) -> t1:Tick a
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          1 + tcost t1 + tcost (f (tval t1)) == tcost t }
 @-}
 infixl 4 =/<
@@ -353,7 +353,7 @@ f =/< Tick m x = let Tick n y = f x in Tick (1 + m + n) y
 --
 {-@ reflect >//= @-}
 {-@ (>//=) :: t1:Tick a -> f:(a -> Tick b)
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          2 + tcost t1 + tcost (f (tval t1)) == tcost t }
 @-}
 infixl 4 >//=
@@ -365,7 +365,7 @@ Tick m x >//= f = let Tick n y = f x in Tick (2 + m + n) y
 --
 {-@ reflect =//< @-}
 {-@ (=//<) :: f:(a -> Tick b) -> t1:Tick a
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          2 + tcost t1 + tcost (f (tval t1)) == tcost t }
 @-}
 infixl 4 =//<
@@ -377,7 +377,7 @@ f =//< Tick m x = let Tick n y = f x in Tick (2 + m + n) y
 --
 {-@ reflect >\= @-}
 {-@ (>\=) :: t1:Tick a -> f:(a -> Tick b)
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          tcost t1 + tcost (f (tval t1)) - 1 == tcost t }
 @-}
 infixl 4 >\=
@@ -389,7 +389,7 @@ Tick m x >\= f = let Tick n y = f x in Tick (m + n - 1) y
 --
 {-@ reflect =\< @-}
 {-@ (=\<) :: f:(a -> Tick b) -> t1:Tick a
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          tcost t1 + tcost (f (tval t1)) - 1 == tcost t }
 @-}
 infixl 4 =\<
@@ -401,7 +401,7 @@ f =\< Tick m x = let Tick n y = f x in Tick (m + n - 1) y
 --
 {-@ reflect >\\= @-}
 {-@ (>\\=) :: t1:Tick a -> f:(a -> Tick b)
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          tcost t1 + tcost (f (tval t1)) - 2 == tcost t }
 @-}
 infixl 4 >\\=
@@ -413,7 +413,7 @@ Tick m x >\\= f = let Tick n y = f x in Tick (m + n - 2) y
 --
 {-@ reflect =\\< @-}
 {-@ (=\\<) :: f:(a -> Tick b) -> t1:Tick a
-    -> { t:Tick b | tval (f (tval t1))      == tval  t &&
+      -> { t:Tick b | tval (f (tval t1))      == tval  t &&
          tcost t1 + tcost (f (tval t1)) - 2 == tcost t }
 @-}
 infixl 4 =\\<
@@ -426,8 +426,8 @@ f =\\< Tick m x = let Tick n y = f x in Tick (m + n - 2) y
 
 {-@ reflect pay @-}
 {-@ pay :: m:Int
-    -> { t1:Tick a | m <= tcost t1 }
-    -> { t:Tick ({ t2 : Tick a | tcost t1 - m == tcost t2 }) | m == tcost t }
+      -> { t1:Tick a | m <= tcost t1 }
+      -> { t:Tick ({ t2 : Tick a | tcost t1 - m == tcost t2 }) | m == tcost t }
 @-}
 pay :: Int -> Tick a -> Tick (Tick a)
 pay m (Tick n x) = Tick m (Tick (n - m) x)
@@ -435,6 +435,6 @@ pay m (Tick n x) = Tick m (Tick (n - m) x)
 
 {-@ reflect zipWithM @-}
 {-@ zipWithM :: f:(a -> b -> Tick c) -> x:Tick a -> y:Tick b
--> {t:Tick c | tcost t == tcost x + tcost y + tcost (f (tval x) (tval y))} @-}
+      -> {t:Tick c | tcost t == tcost x + tcost y + tcost (f (tval x) (tval y))} @-}
 zipWithM :: (a -> b -> Tick c) -> Tick a -> Tick b -> Tick c
 zipWithM f (Tick c1 x1) (Tick c2 x2) = let Tick c x = f x1 x2 in Tick (c + c1 + c2) x
