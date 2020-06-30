@@ -52,6 +52,11 @@ executable liquid-legacy
   default-extensions: PatternGuards
   ghc-options:        -W -threaded -fdefer-typed-holes
 
+  if flag(legacy)
+    buildable: True
+  else
+    buildable: False
+
   if flag(devel)
     ghc-options: -Werror
 

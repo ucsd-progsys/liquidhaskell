@@ -80,6 +80,9 @@ commands:
       extra_test_flags:
         type: string
         default: ""
+      extra_build_flags:
+        type: string
+        default: ""
     steps:
       - setup_project
       - restore_cache:
@@ -100,7 +103,7 @@ commands:
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack --stack-yaml << parameters.stack_yaml_file >> build --test --no-run-tests
+            stack --stack-yaml << parameters.stack_yaml_file >> build << parameters.extra_build_flags >> --test --no-run-tests
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
             stack --stack-yaml << parameters.stack_yaml_file >> sdist
@@ -133,6 +136,7 @@ jobs:
             stack_yaml_file: "stack.yaml"
             liquid_runner: "stack --silent exec -- liquid-legacy"
             extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:legacy --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
+            extra_build_flags: "--flag liquidhaskell:no-plugin"
 
   stack_810:
     docker:
