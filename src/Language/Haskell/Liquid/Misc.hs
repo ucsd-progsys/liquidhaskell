@@ -300,8 +300,8 @@ tryIgnore s a =
     return ()
 
 
-condNull :: Bool -> [a] -> [a]
-condNull c xs = if c then xs else []
+condNull :: Monoid m => Bool -> m -> m
+condNull c xs = if c then xs else mempty
 
 firstJust :: (a -> Maybe b) -> [a] -> Maybe b
 firstJust f xs = listToMaybe $ mapMaybe f xs

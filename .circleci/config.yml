@@ -6,8 +6,8 @@ commands:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
       - run: apt-get update && apt-get install -y git ssh unzip
-      - run: 
-          name: Install z3 
+      - run:
+          name: Install z3
           command: |
             wget https://github.com/Z3Prover/z3/releases/download/z3-4.8.7/z3-4.8.7-x64-ubuntu-16.04.zip
             unzip z3-4.8.7-x64-ubuntu-16.04.zip
@@ -31,7 +31,7 @@ commands:
         default: ""
       liquid_runner:
         type: string
-        default: "--liquid-runner=cabal v2-run liquid -- "
+        default: "--liquid-runner=cabal v2-run liquidhaskell -- "
       ghc_options:
         type: string
         default: "--ghc-options=\"+RTS -M2G -RTS\""
@@ -76,7 +76,7 @@ commands:
         default: "stack.yaml"
       liquid_runner:
         type: string
-        default: "stack --silent exec -- liquid -v0"
+        default: "stack --silent exec -- liquidhaskell -v0"
       extra_test_flags:
         type: string
         default: ""
@@ -100,7 +100,6 @@ commands:
           command: |
             stack --stack-yaml << parameters.stack_yaml_file >> clean
             mkdir -p /tmp/junit/stack
-            stack --stack-yaml << parameters.stack_yaml_file >> build --test --no-run-tests
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:test << parameters.extra_test_flags >> --ta="--liquid-runner \"<< parameters.liquid_runner >>\"" --ta="-t 1200s --xml=/tmp/junit/stack/main-test-results.xml": #--liquid-opts='--cores=1'":
             stack --stack-yaml << parameters.stack_yaml_file >> test -j1 liquidhaskell:liquidhaskell-parser --ta="--xml=/tmp/junit/stack/parser-test-results.xml":
             stack --stack-yaml << parameters.stack_yaml_file >> sdist
@@ -122,8 +121,8 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
-            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid-legacy"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:-testNewExecutable"
+            liquid_runner: "stack --stack-yaml=/root/project/stack-8.6.5.yaml --silent exec -- liquid"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810_legacy_executable:
     docker:
@@ -131,8 +130,8 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
-            liquid_runner: "stack --silent exec -- liquid-legacy"
-            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:-testNewExecutable"
+            liquid_runner: "stack --silent exec -- liquid"
+            extra_test_flags: "--flag liquidhaskell:include --flag liquid-platform:devel --flag liquidhaskell:no-plugin"
 
   stack_810:
     docker:
@@ -140,13 +139,14 @@ jobs:
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
+            extra_test_flags: " liquid-platform:liquidhaskell "
 
   cabal_810:
     docker:
       - image: phadej/ghc:8.10.1-bionic-slim
     steps:
       - cabal_build_and_test:
-          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquid -- -v0 \
+          liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env) \
                           -package=liquidhaskell -package=Cabal "
 

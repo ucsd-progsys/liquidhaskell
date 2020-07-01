@@ -36,6 +36,9 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
     , mkCompanionSpec
     , mergeInputWithCompanion
 
+    -- * Carrying data across stages of the compilation pipeline
+    , PipelineData(..)
+
     -- * Acquiring and manipulating data from the typechecking phase
     , TcData
     , tcAllImports
@@ -55,10 +58,12 @@ import           Data.Data                                ( Data )
 import           Data.Foldable
 import           Outputable                        hiding ( (<>) )
 import           GHC.Generics                      hiding ( moduleName )
-import qualified Language.Haskell.Liquid.GHC.GhcMonadLike as GhcMonadLike
+import           HscTypes                                 (ModGuts)
 import           GHC                                      ( Name
                                                           , TyThing
                                                           , TyCon
+                                                          , LImportDecl
+                                                          , GhcRn
                                                           )
 import           Var                                      ( Var )
 import           Module                                   ( Module, moduleStableString )
@@ -110,7 +115,7 @@ instance Eq CachedSpec where
     (CachedSpec id1 _) == (CachedSpec id2 _) = id1 == id2
 
 instance Hashable CachedSpec where
-    hashWithSalt s (CachedSpec (StableModule mdl) _) = 
+    hashWithSalt s (CachedSpec (StableModule mdl) _) =
       hashWithSalt s (moduleStableString mdl)
 
 -- | Converts the input 'BareSpec' into a 'CachedSpec', inforcing the invariant that termination checking
@@ -158,33 +163,30 @@ downcastSpec = \case
 mergeInputWithCompanion :: LiquidSpec InputSpec -> LiquidSpec CompanionSpec -> LiquidSpec InputSpec
 mergeInputWithCompanion (MkInputSpec s1) (MkCompanionSpec s2) = MkInputSpec (s1 <> s2)
 
-{-
--- | Merges a 'InputSpec' with its 'ClientSpec'. Here we need to be careful when it comes to signatures,
--- because the 'ClientSpec' will "lift" the definition by \"pointing\" to the source line of the actual
--- Haskell function definition, whereas the 'ClientSpec' would refer only to the source line of the LH
--- annotation, and this could lead to \"multiple declarations\" false positives.
--- On top of this, we disable the termination checks for the resulting spec, as this will be stored inside
--- as an interface's annotation.
-mergeInputWithClient :: LiquidSpec InputSpec -> LiquidSpec ClientSpec -> LiquidSpec ClientSpec
-mergeInputWithClient (MkInputSpec s1) (MkClientSpec s2) = MkClientSpec . LH.noTerm $
-  (s1 <> s2) { 
-      sigs       = L.deleteFirstsBy (\a b -> fst a == fst b) (sigs s1) (asmSigs s2)
-    , aliases    = L.nubBy (\a b -> srcSpan a == srcSpan b) (aliases  s1 <> aliases s2)
-    , ealiases   = L.nubBy (\a b -> srcSpan a == srcSpan b) (ealiases s1 <> ealiases s2)
-    , qualifiers = L.nub (qualifiers s1 <> qualifiers s2)
-    , dataDecls  = L.nub (dataDecls s1 <> dataDecls s2)
-    }
--}
-
 -- | Just a small wrapper around the 'SourcePos' and the text fragment of a LH spec comment.
 newtype SpecComment =
     SpecComment (SourcePos, String)
-    deriving Data
+    deriving (Show, Data)
 
 newtype Unoptimised a = Unoptimised { fromUnoptimised :: a }
 
 toUnoptimised :: a -> Unoptimised a
 toUnoptimised = Unoptimised
+
+--
+-- Passing data between stages of the pipeline
+--
+-- The plugin architecture doesn't provide a default system to \"thread\" data across stages of the
+-- compilation pipeline, which means that plugin implementors have two choices:
+--
+-- 1. Serialise any data they want to carry around inside annotations, but this can be potentially costly;
+-- 2. Pass data inside IORefs.
+
+data PipelineData = PipelineData {
+    pdUnoptimisedCore :: Unoptimised ModGuts
+  , pdTcData :: TcData
+  , pdSpecComments :: [SpecComment]
+  }
 
 -- | Data which can be \"safely\" passed to the \"Core\" stage of the pipeline.
 -- The notion of \"safely\" here is a bit vague: things like imports are somewhat
@@ -207,7 +209,7 @@ data TcData = TcData {
   }
 
 instance Outputable TcData where
-    ppr (TcData{..}) = 
+    ppr (TcData{..}) =
           text "TcData { imports     = " <+> text (show $ HS.toList tcAllImports)
       <+> text "       , qImports    = " <+> text (show tcQualifiedImports)
       <+> text "       , names       = " <+> ppr tcResolvedNames
@@ -215,14 +217,14 @@ instance Outputable TcData where
       <+> text " }"
 
 -- | Constructs a 'TcData' out of a 'TcGblEnv'.
-mkTcData :: GhcMonadLike.TypecheckedModule 
-         -> [(Name, Maybe TyThing)] 
+mkTcData :: [LImportDecl GhcRn]
+         -> [(Name, Maybe TyThing)]
          -> [TyCon]
          -> [Var]
          -> TcData
-mkTcData tcModule resolvedNames availTyCons availVars = TcData {
-    tcAllImports       = LH.allImports       (GhcMonadLike.tm_renamed_source tcModule)
-  , tcQualifiedImports = LH.qualifiedImports (GhcMonadLike.tm_renamed_source tcModule)
+mkTcData imps resolvedNames availTyCons availVars = TcData {
+    tcAllImports       = LH.allImports       imps
+  , tcQualifiedImports = LH.qualifiedImports imps
   , tcResolvedNames    = resolvedNames
   , tcAvailableTyCons  = availTyCons
   , tcAvailableVars    = availVars

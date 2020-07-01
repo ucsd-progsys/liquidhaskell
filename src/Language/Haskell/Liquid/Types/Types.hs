@@ -179,10 +179,19 @@ module Language.Haskell.Liquid.Types.Types (
   , RTEnv (..), BareRTEnv, SpecRTEnv, BareRTAlias, SpecRTAlias
   -- , mapRT, mapRE
 
-  -- * Errors and Error Messages
+  -- * Diagnostics, Warnings, Errors and Error Messages
   , module Language.Haskell.Liquid.Types.Errors
   , Error
   , ErrorResult
+  , Warning
+  , mkWarning
+  , Diagnostics
+  , mkDiagnostics
+  , emptyDiagnostics
+  , noErrors
+  , allWarnings
+  , allErrors
+  , printWarning
 
   -- * Source information (associated with constraints)
   , Cinfo (..)
@@ -253,7 +262,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.List                              as L
 import           Data.Maybe                             (fromMaybe, mapMaybe)
 import           Data.Function                          (on)
-import           Data.List                              (foldl', nub)
+import           Data.List                              as L (foldl', nub, null)
 import           Data.Text                              (Text)
 import           Text.PrettyPrint.HughesPJ              hiding (first, (<>)) 
 import           Text.Printf
@@ -263,6 +272,7 @@ import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.Logging as GHC
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Errors
 import           Language.Haskell.Liquid.Misc
@@ -1881,6 +1891,52 @@ instance Monoid REnv where
 
 instance NFData REnv where
   rnf (REnv {}) = ()
+
+--------------------------------------------------------------------------------
+-- | Diagnostic info -----------------------------------------------------------
+--------------------------------------------------------------------------------
+
+data Warning = Warning {
+    warnSpan :: SrcSpan
+  , warnDoc  :: Doc
+  } deriving (Eq, Show)
+
+mkWarning :: SrcSpan -> Doc -> Warning
+mkWarning = Warning
+
+data Diagnostics = Diagnostics {
+    dWarnings :: [Warning]
+  , dErrors   :: [Error]
+  } deriving Eq
+
+instance Semigroup Diagnostics where
+  (Diagnostics w1 e1) <> (Diagnostics w2 e2) = Diagnostics (w1 <> w2) (e1 <> e2)
+
+instance Monoid Diagnostics where
+  mempty  = emptyDiagnostics
+  mappend = (<>)
+
+mkDiagnostics :: [Warning] -> [Error] -> Diagnostics
+mkDiagnostics = Diagnostics
+
+emptyDiagnostics :: Diagnostics
+emptyDiagnostics = Diagnostics mempty mempty
+
+noErrors :: Diagnostics -> Bool
+noErrors = L.null . dErrors
+
+allWarnings :: Diagnostics -> [Warning]
+allWarnings = dWarnings
+
+allErrors :: Diagnostics -> [Error]
+allErrors = dErrors
+
+--------------------------------------------------------------------------------
+-- | Printing Warnings ---------------------------------------------------------
+--------------------------------------------------------------------------------
+
+printWarning :: DynFlags -> Warning -> IO ()
+printWarning dyn (Warning span doc) = GHC.putWarnMsg dyn span doc
 
 --------------------------------------------------------------------------------
 -- | Error Data Type -----------------------------------------------------------

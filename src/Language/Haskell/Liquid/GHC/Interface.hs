@@ -14,6 +14,8 @@ module Language.Haskell.Liquid.GHC.Interface (
   -- * Determine the build-order for target files
    realTargets
 
+  , getInterfaceDynFlags
+
   -- * Extract all information needed for verification
   , getTargetInfos
   , runLiquidGhc
@@ -48,6 +50,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , availableTyCons
   , availableVars
   , updLiftedSpec
+  , loadDependenciesOf
   ) where
 
 import Prelude hiding (error)
@@ -117,7 +120,6 @@ import Language.Haskell.Liquid.GHC.GhcMonadLike (GhcMonadLike, askHscEnv)
 import Language.Haskell.Liquid.WiredIn (isDerivedInstance) 
 import qualified Language.Haskell.Liquid.Measure  as Ms
 import qualified Language.Haskell.Liquid.Misc     as Misc
-import qualified Language.Haskell.Liquid.Bare     as Bare
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Transforms.ANF
 import Language.Haskell.Liquid.Types hiding (Spec)
@@ -158,6 +160,9 @@ realTargets  mbEnv cfg tgtFs
   where 
     check f    = not <$> skipTarget tgts f 
     tgts       = S.fromList tgtFs
+
+getInterfaceDynFlags :: Maybe HscEnv -> Config -> IO DynFlags
+getInterfaceDynFlags mbEnv cfg = runLiquidGhc mbEnv cfg $ getSessionDynFlags
 
 orderTargets :: Maybe HscEnv -> Config -> [FilePath] -> IO [FilePath] 
 orderTargets mbEnv cfg tgtFiles = runLiquidGhc mbEnv cfg $ do 
@@ -442,7 +447,7 @@ keepRawTokenStream :: ModSummary -> ModSummary
 keepRawTokenStream modSummary = modSummary
   { ms_hspp_opts = ms_hspp_opts modSummary `gopt_set` Opt_KeepRawTokenStream }
 
-loadDependenciesOf :: ModuleName -> Ghc ()
+loadDependenciesOf :: GhcMonad m => ModuleName -> m ()
 loadDependenciesOf modName = do
   loadResult <- load $ LoadDependenciesOf modName
   when (failed loadResult) $ liftIO $ throwGhcExceptionIO $ ProgramError $
@@ -467,12 +472,16 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let modSum    = pm_mod_summary (tm_parsed_module typechecked)
   ghcSrc       <- makeGhcSrc    cfg file     typechecked modSum
   dependencies <- makeDependencies cfg depGraph specEnv modSum bareSpec
-  
+
   let targetSrc = view targetSrcIso ghcSrc
+  dynFlags <- getDynFlags
 
   case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
-    Left  validationErrors -> Bare.checkThrow (Left validationErrors)
-    Right (targetSpec, liftedSpec) -> do
+    Left diagnostics -> do
+      mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
+      throw (allErrors diagnostics)
+    Right (warns, targetSpec, liftedSpec) -> do
+      mapM_ (liftIO . printWarning dynFlags) warns
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
       _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
       return      $ TargetInfo targetSrc targetSpec
@@ -520,8 +529,8 @@ makeGhcSrc cfg file typechecked modSum = do
     , _gsFiTcs     = fiTcs 
     , _gsFiDcs     = fiDcs
     , _gsPrimTcs   = TysPrim.primTyCons
-    , _gsQualImps  = qualifiedImports (tm_renamed_source typechecked)
-    , _gsAllImps   = allImports       (tm_renamed_source typechecked)
+    , _gsQualImps  = qualifiedImports (maybe mempty (view _2) (tm_renamed_source typechecked))
+    , _gsAllImps   = allImports       (maybe mempty (view _2) (tm_renamed_source typechecked))
     , _gsTyThings  = [ t | (_, Just t) <- things ] 
     }
 
@@ -532,15 +541,15 @@ _impThings vars  = filter ok
     ok (AnId x) = S.member x vs  
     ok _        = True 
 
-allImports :: Maybe RenamedSource -> S.HashSet Symbol 
+allImports :: [LImportDecl GhcRn] -> S.HashSet Symbol 
 allImports = \case
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" mempty 
-  Just (_,imps,_,_) -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
+  []-> Debug.trace "WARNING: Missing RenamedSource" mempty 
+  imps -> S.fromList (symbol . unLoc . ideclName . unLoc <$> imps)
 
-qualifiedImports :: Maybe RenamedSource -> QImports 
+qualifiedImports :: [LImportDecl GhcRn] -> QImports 
 qualifiedImports = \case
-  Nothing           -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
-  Just (_,imps,_,_) -> qImports [ (qn, n) | i         <- imps
+  []   -> Debug.trace "WARNING: Missing RenamedSource" (qImports mempty) 
+  imps -> qImports [ (qn, n) | i         <- imps
                                           , let decl   = unLoc i
                                           , let m      = unLoc (ideclName decl)  
                                           , qm        <- maybeToList (unLoc <$> ideclAs decl) 

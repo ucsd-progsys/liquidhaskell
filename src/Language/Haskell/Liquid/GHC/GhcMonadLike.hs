@@ -52,6 +52,7 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           , tm_renamed_source
                                                           )
 import qualified CoreMonad
+import qualified EnumSet
 import DynFlags
 import TcRnMonad
 import Outputable
@@ -60,6 +61,7 @@ import Maybes
 import Panic
 import GhcMake
 import Finder
+import Exception (ExceptionMonad)
 
 import Optics
 
@@ -81,6 +83,9 @@ instance HasHscEnv TcM where
 instance HasHscEnv Hsc where
   askHscEnv = Hsc $ \e w -> pure (e, w)
 
+instance (ExceptionMonad m, HasHscEnv m) => HasHscEnv (GhcT m) where
+  askHscEnv = getSession
+
 -- | A typeclass which is /very/ similar to the existing 'GhcMonad', but it doesn't impose a
 -- 'ExceptionMonad' constraint.
 class (Functor m, MonadIO m, HasHscEnv m, HasDynFlags m) => GhcMonadLike m
@@ -90,6 +95,7 @@ instance GhcMonadLike Ghc
 instance GhcMonadLike (IfM lcl)
 instance GhcMonadLike TcM
 instance GhcMonadLike Hsc
+instance (ExceptionMonad m, GhcMonadLike m) => GhcMonadLike (GhcT m)
 
 -- NOTE(adn) Taken from the GHC API, adapted to work for a 'GhcMonadLike' monad.
 getModuleGraph :: GhcMonadLike m => m ModuleGraph
@@ -176,15 +182,18 @@ data TypecheckedModule = TypecheckedModule {
 
 typecheckModule :: GhcMonadLike m => ParsedModule -> m TypecheckedModule
 typecheckModule pmod = do
+  -- Suppress all the warnings, so that they won't be printed (which would result in them being
+  -- printed twice, one by GHC and once here).
   let ms = pm_mod_summary pmod
   hsc_env <- askHscEnv
-  let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts ms }
+  let dynFlags' = ms_hspp_opts ms
+  let hsc_env_tmp = hsc_env { hsc_dflags = dynFlags' { warningFlags = EnumSet.empty } }
   (tc_gbl_env, rn_info)
         <- liftIO $ hscTypecheckRename hsc_env_tmp ms $
                        HsParsedModule { hpm_module = parsedSource pmod,
                                         hpm_src_files = pm_extra_src_files pmod,
                                         hpm_annotations = pm_annotations pmod }
-  return TypecheckedModule { 
+  return TypecheckedModule {
       tm_parsed_module  = pmod
     , tm_renamed_source = rn_info
     , tm_mod_summary    = ms
@@ -223,11 +232,10 @@ desugarModule originalModSum typechecked = do
   let modSum         = originalModSum { ms_hspp_opts = dynFlags }
   let parsedMod'     = (view tmParsedModule typechecked) { pm_mod_summary = modSum }
   let typechecked'   = set tmParsedModule parsedMod' typechecked
-  
+
   hsc_env <- askHscEnv
   let hsc_env_tmp = hsc_env { hsc_dflags = ms_hspp_opts (view tmModSummary typechecked') }
   liftIO $ hscDesugar hsc_env_tmp (view tmModSummary typechecked') (view tmGblEnv typechecked')
-
 
 -- | Takes a 'ModuleName' and possibly a 'UnitId', and consults the
 -- filesystem and package database to find the corresponding 'Module',
