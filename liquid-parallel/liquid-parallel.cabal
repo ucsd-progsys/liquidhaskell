@@ -17,8 +17,8 @@ data-files:           src/Control/Parallel/Strategies.spec
 library
   exposed-modules:    Control.Parallel.Strategies
   hs-source-dirs:     src
-  build-depends:      liquid-base          < 5
-                    , parallel             >= 3.2.0.0
+  build-depends:      liquid-base          < 4.15
+                    , parallel             >= 3.2.0.0 && < 3.3
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports

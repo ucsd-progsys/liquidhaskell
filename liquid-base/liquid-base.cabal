@@ -97,7 +97,7 @@ library
                     Liquid.Prelude.NotReal
                     Prelude
   hs-source-dirs:     src
-  build-depends:      base                 >= 4.14.0.0 && < 5
+  build-depends:      base                 == 4.14.0.0
                     , liquid-ghc-prim
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98

@@ -19,7 +19,7 @@ library
                       Data.Map
   hs-source-dirs:     src
   build-depends:      liquid-base          < 5
-                    , containers           >= 0.6.0.0
+                    , containers           >= 0.6.2.1 && < 0.7
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports

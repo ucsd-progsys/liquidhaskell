@@ -28,7 +28,7 @@ library
                       -- Data.ByteString.Lazy.Char8
   hs-source-dirs:     src
   build-depends:      liquid-base          < 5
-                    , bytestring           >= 0.10.0.0
+                    , bytestring           >= 0.10.10.0 && < 0.11
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
