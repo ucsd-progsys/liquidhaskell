@@ -18,4 +18,5 @@ We are thrilled to get PRs!
 * Please create pull requests against the `develop` branch.
 * Please be sure to include test cases that illustrate the effect of the PR
   - e.g. show new features that that are supported or how it fixes some previous issue
-* If the PR adds a `LIQUID` pragma or option, please also add documentation in [options.md](options.md) or [specifications.md](specifications.md) 
+* If the PR adds a `LIQUID` pragma or option, please also add documentation 
+  - e.g. in [options.md](options.md) or [specifications.md](specifications.md) 
