@@ -1,5 +1,5 @@
 name:               liquid-base
-version:            0.8.10.1
+version:            4.14.0.0
 synopsis:           Drop-in base replacement for LiquidHaskell
 description:        Drop-in base replacement for LiquidHaskell.
 license:            BSD3
@@ -97,7 +97,7 @@ library
                     Liquid.Prelude.NotReal
                     Prelude
   hs-source-dirs:     src
-  build-depends:      base                 >= 4.11.1.0 && < 5
+  build-depends:      base                 >= 4.14.0.0 && < 5
                     , liquid-ghc-prim
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98

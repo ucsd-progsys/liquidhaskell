@@ -1,5 +1,5 @@
 name:               liquid-bytestring
-version:            0.8.10.1
+version:            0.10.10.0
 synopsis:           LiquidHaskell specs for the bytestring package
 description:        LiquidHaskell specs for the bytestring package.
 license:            BSD3
@@ -27,8 +27,8 @@ library
                       Data.ByteString.Lazy
                       -- Data.ByteString.Lazy.Char8
   hs-source-dirs:     src
-  build-depends:      liquid-base          >= 0.8.10.1
-                    , bytestring           >= 0.10
+  build-depends:      liquid-base          < 5
+                    , bytestring           >= 0.10.0.0
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
