@@ -1,5 +1,5 @@
 name:               liquid-vector
-version:            0.8.10.1
+version:            0.12.1.2
 synopsis:           LiquidHaskell specs for the vector package
 description:        LiquidHaskell specs for the vector package.
 license:            BSD3
@@ -22,8 +22,8 @@ library
                       Data.Vector.Internal.Check
                       Data.Vector.Unboxed.Mutable
   hs-source-dirs:     src
-  build-depends:      liquid-base          >= 0.8.10.1
-                    , vector               >= 0.10
+  build-depends:      liquid-base          < 5
+                    , vector               >= 0.12.1.2 && < 0.13.0.0
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell98
   default-extensions: PackageImports
