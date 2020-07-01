@@ -1,0 +1,12 @@
+site_name: LiquidHaskell 
+
+nav:
+    - Home: index.md
+    - Install: install.md
+    - Run: run.md
+    - Options: options.md
+    - Specifications: specifications.md
+    - Community: contributing.md    
+    - Developer's Guide: develop.md         
+
+theme: litera
