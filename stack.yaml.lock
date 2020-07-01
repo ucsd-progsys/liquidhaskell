@@ -40,12 +40,33 @@ packages:
   original:
     hackage: text-format-0.3.2
 - completed:
-    hackage: optics-0.2@sha256:813ef6cc4d2e2b5ee00435831031f38917ba01d1e56dcb62dc18cd0315a9ccb7,6296
+    hackage: optics-0.3@sha256:5f62fca47b01ce065bb999724b8cdd45e747537892ee00faeac4b4b20d821aee,6494
     pantry-tree:
-      size: 1003
-      sha256: 8a74dbcd983fcc96b7b6c5c9fc6da7240dd2e5bdab7caa4927b8287a4cbe5c0f
+      size: 1077
+      sha256: 20d41262ffcb59bf63801c9529d639b9a1037be7cc0a812e2379007f151ff463
   original:
-    hackage: optics-0.2
+    hackage: optics-0.3
+- completed:
+    hackage: optics-core-0.3@sha256:0464583aaef715f8e48b8c9ce3fab9866345de93e740dae32d5c5e9a57097bf7,4532
+    pantry-tree:
+      size: 5030
+      sha256: d87366c3a2d4099a7a1d54df029a38e24b591ba8fb88d56fabf0c5c4bc345a51
+  original:
+    hackage: optics-core-0.3
+- completed:
+    hackage: optics-th-0.3@sha256:b4746b3d142feb2dc9dfcf76b49a11fd04321aa0ee9c1bcd297c5e8dc393803c,1965
+    pantry-tree:
+      size: 653
+      sha256: 24e990405793450726f6364034614c715537b0ed3f21fafc9ce0267979feb01b
+  original:
+    hackage: optics-th-0.3
+- completed:
+    hackage: optics-extra-0.3@sha256:b1b9917596a4305069aa95eaf3083afe88c6db3c84ed6f52e926c82d0c56eea9,3382
+    pantry-tree:
+      size: 1809
+      sha256: 1f5bed915d1696d2f217e494f9e2d70929f33d6a9647996c3fa6c36f4f189c9d
+  original:
+    hackage: optics-extra-0.3
 - completed:
     hackage: Diff-0.3.4@sha256:5ab20a407f9e65d13b642c3cd414906a40280343a31b388f6ed69b9228fe42c1,1127
     pantry-tree:
@@ -60,38 +81,6 @@ packages:
       sha256: caa9306e519c601ab0170d113daa03c1163db53e5466be2968bbd61a771bebcb
   original:
     hackage: aeson-1.4.7.1
-- completed:
-    subdir: optics-core
-    cabal-file:
-      size: 4481
-      sha256: 5ef54e29886b22220d98e899877053a6d007d74146582243b2aed1f6aff1c6d3
-    name: optics-core
-    version: '0.2'
-    git: https://github.com/well-typed/optics.git
-    pantry-tree:
-      size: 5115
-      sha256: f201dc2f8e36774d93805afc13218bc470b5c2f46859d58213709ab54b779897
-    commit: 0a4940cc927df3f50151692282f8b148bf326886
-  original:
-    subdir: optics-core
-    git: https://github.com/well-typed/optics.git
-    commit: 0a4940cc927df3f50151692282f8b148bf326886
-- completed:
-    subdir: optics-th
-    cabal-file:
-      size: 1941
-      sha256: 3ed5f59070dd410e8f6471f5b37ca6f9b9f73b6b1f5e42941f48a16a292b2472
-    name: optics-th
-    version: '0.2'
-    git: https://github.com/well-typed/optics.git
-    pantry-tree:
-      size: 653
-      sha256: 0507fcb38b53196e5d5399b294cf88b22a1d43acc2a6c064e22f6d180fe6b406
-    commit: 0a4940cc927df3f50151692282f8b148bf326886
-  original:
-    subdir: optics-th
-    git: https://github.com/well-typed/optics.git
-    commit: 0a4940cc927df3f50151692282f8b148bf326886
 snapshots:
 - completed:
     size: 491163
