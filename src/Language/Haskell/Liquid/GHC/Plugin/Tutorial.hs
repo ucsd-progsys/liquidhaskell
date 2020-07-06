@@ -25,14 +25,22 @@ module Language.Haskell.Liquid.GHC.Plugin.Tutorial (
 
 This tutorial describes the general approach of using LiquidHaskell using the new compiler plugin. Due
 to some recent changes and improvements to the compiler plugin API (which LiquidHaskell requires) the
-__minimum version of GHC supported for the plugin is 8.10.1.__
+__minimum supported version of GHC is 8.10.1.__
 
 -}
 
 {- $firstPackage
 
 Generally speaking, in order to integrate LiquidHaskell (/LH/ for brevity from now on) with your existing
-(or brand new) project, all it takes is to add the following in your cabal manifest:
+(or brand new) project, we need a few things:
+
+* We need to tell GHC that we want to __use the LH plugin__, and it can be done by adding the
+  @-fplugin=LiquidHaskell@ option in the @ghc-options@ of your Cabal manifest;
+
+* We need to tell LH where to find the /specs/ (i.e. the refinements) for the types in @base@. To do this,
+  we need to depend on a special, __drop-in replacement__ for @base@ called @liquid-base@.
+
+If we do all the above, our Cabal manifest should look similar to this:
 
 @
 cabal-version: 1.12
@@ -55,13 +63,12 @@ library
   hs-source-dirs:
       src
   build-depends:
-        liquid-base
+        liquid-base                    -- Add this!
       , liquidhaskell
   default-language: Haskell2010
   ghc-options: -fplugin=LiquidHaskell  -- Add this!
 @
 
-We will talk about the use (and need) for @liquid-base@ in the next section, but let's ignore it for now.
 Let's now define a very simple module called 'Toy.A':
 
 @
@@ -99,7 +106,8 @@ Building library for toy-package-a-0.1.0.0..
 **** LIQUID: SAFE (7 constraints checked) **************************************
 @
 
-If we try to violate a refinement:
+The \"SAFE\" banner here is LH's way of saying "all is well". What happens if we try to violate a
+refinement? Let's find out. If change @one@ to look like this:
 
 @
 {-@ one :: {v:Int | v = 1 } @-}
@@ -107,7 +115,7 @@ one :: Int
 one = 2
 @
 
-And we recompile the project, GHC (or rather, /LH/) will bark at us:
+Upon next recompilation, GHC (or rather, /LH/) will bark at us:
 
 @
 Building library for toy-package-a-0.1.0.0..
@@ -115,17 +123,18 @@ Building library for toy-package-a-0.1.0.0..
 
 **** LIQUID: UNSAFE ************************************************************
 
-
- src\/Toy\/A.hs:33:1-7: Error: Liquid Type Mismatch
-
- 33 | one = 2
-      ^^^^^^^
-
-   Inferred type
-     VV : {v : GHC.Types.Int | v == 2}
-
-   not a subtype of Required type
-     VV : {VV : GHC.Types.Int | VV == 1}
+src\/Toy\/A.hs:36:1: error:
+    Liquid Type Mismatch
+    .
+    The inferred type
+      VV : {v : GHC.Types.Int | v == 2}
+    .
+    is not a subtype of the required type
+      VV : {VV : GHC.Types.Int | VV == 1}
+    .
+   |
+36 | one = 2
+   | ^^^^^^^
 @
 
 -}
@@ -138,7 +147,7 @@ For example let's image we want to skip verification of our 'Toy.A' module. At t
 1. We can add the option directly in the module, as a \"pragma\":
 
     @
-    {-@ LIQUID "--compilespec" @-}
+    \{\-\@ LIQUID "--compilespec" \@\-\}
     module Toy.A ( notThree, one, two) where
     ...
     @
@@ -199,17 +208,29 @@ be so easy, for a number of reasons:
   to reach;
 
 * The package is fairly important in the Haskell ecosystem and making changes to it might not be so easy,
-  especially for packages which comes as part of a GHC installation (think @base@, for example).
+  especially for packages which come as part of a GHC installation (think @base@, for example).
 
-The designed workflow in these cases is to create a __brand new package__ (a sort of __mirror_ package),
+The designed workflow in these cases is to create a __brand new package__ (that we can call \"mirror\" package),
 which would re-export /everything/ from the \"mirrored\" package while adding all the required /LH/
-annotations. There are some guidelines to this process:
+annotations. This is what we have done for things like @base@, @ghc-prim@ and @containers@, for example, by
+providing @liquid-containers@, @liquid-ghc-prim@ and @liquid-base@, the latter being what we have used in
+the tutorial to get started.
 
-1. Typically you want to clearly identify this package as part of the /LH/ __ecosystem__, i.e. using an
+There are some very simple guidelines to drive this process:
+
+1. Typically you want to clearly identify this package as part of the /LH ecosystem/ by using an
    appropriate prefix for your package name, something like @liquid-foo@ where @foo@ is the original
    package you are adding annotations for;
 
-2. __TBC__ We need to give guidelines for PVP versioning, 
-   for example @liquid-\<package-name\>-\<package-version\>-\<liquid-version\>@.
+2. You need to abide to a set of PVP rules, like tracking the version of the upstream package first and
+   in case of changes to either the LH language or the specs in the mirror package, bump the last two
+   digits of the version scheme, in a format like this:
 
+   @liquid-\<package-name\>-A.B.C.D.X.Y@
+
+   Where @A.B.C.D@ would be used to track the upstream package version and @X.Y@ would enumerate the
+   versions of this mirror package. Bumping @X@ would signify there was a breaking change in the /LH/
+   language that required a new release of this plugin, whereas bumping @Y@ would mean something changed
+   in the __specs__ provided as part of this mirror package (e.g. more refinements were added, bugs were
+   fixed etc).
 -}
