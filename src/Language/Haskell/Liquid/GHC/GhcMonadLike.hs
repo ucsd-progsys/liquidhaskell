@@ -53,7 +53,6 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           )
 import qualified CoreMonad
 import qualified EnumSet
-import DynFlags
 import TcRnMonad
 import Outputable
 import UniqFM

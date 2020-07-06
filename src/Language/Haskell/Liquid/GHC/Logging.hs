@@ -16,12 +16,14 @@ module Language.Haskell.Liquid.GHC.Logging (
   , putWarnMsg
   , putErrMsg
   , putErrMsg'
+  , mkLongErrAt
   ) where
 
 import Data.Maybe
 
-import qualified GHC
-import qualified DynFlags as GHC
+import qualified TcRnMonad as GHC
+
+import qualified Language.Haskell.Liquid.GHC.API as GHC
 import qualified Text.PrettyPrint.HughesPJ as PJ
 import qualified Outputable as O
 
@@ -33,6 +35,9 @@ import Language.Haskell.Liquid.Types.Errors ()
 import qualified Language.Fixpoint.Types.PrettyPrint as LH
 
 #endif
+
+fromPJDoc :: PJ.Doc -> O.SDoc
+fromPJDoc = O.text . PJ.render
 
 -- | Like the original 'putLogMsg', but internally converts the input 'Doc' (from the \"pretty\" library)
 -- into GHC's internal 'SDoc'.
@@ -71,3 +76,7 @@ putErrMsg _dynFlags srcSpan doc =
 putErrMsg' :: GHC.DynFlags -> GHC.SrcSpan -> O.SDoc -> IO ()
 putErrMsg' dynFlags srcSpan =
   GHC.putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan (O.defaultErrStyle dynFlags)
+
+-- | Like GHC's 'mkLongErrAt', but it builds the final 'ErrMsg' out of two \"HughesPJ\"'s 'Doc's.
+mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn GHC.ErrMsg
+mkLongErrAt srcSpan msg extra = GHC.mkLongErrAt srcSpan (fromPJDoc msg) (fromPJDoc extra)
