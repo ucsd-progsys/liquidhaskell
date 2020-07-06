@@ -29,7 +29,6 @@ import qualified CoreSyn                                    as Core
 import           CostCentre
 import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
 import           Bag
-import           ErrUtils
 import           CoreLint
 import           CoreMonad
 
@@ -55,7 +54,6 @@ import           Control.Arrow                              (second)
 import           Control.Monad                              ((>=>))
 import           Outputable                                 (Outputable (..), text, ppr)
 import qualified Outputable                                 as Out
-import           DynFlags
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F

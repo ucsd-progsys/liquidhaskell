@@ -54,7 +54,6 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.GHC.API (DynFlags)
 
 type MbEnv = Maybe HscEnv
 
@@ -74,8 +73,7 @@ liquidConstraints cfg = do
   z <- actOrDie $ second Just <$> getTargetInfos Nothing cfg (files cfg)
   case z of
     Left e -> do
-      dynFlags <- getInterfaceDynFlags Nothing cfg
-      exitWithResult dynFlags cfg (files cfg) $ mempty { o_result = e }
+      exitWithResult cfg (files cfg) $ mempty { o_result = e }
       return $ Right $ resultExit e 
     Right (gs, _) -> 
       return $ Left $ map generateConstraints gs
@@ -108,35 +106,37 @@ checkTargets cfg  = go
 runLiquidTargets :: MbEnv -> Config -> [FilePath] -> IO (ExitCode, MbEnv)
 --------------------------------------------------------------------------------
 runLiquidTargets mE cfg targetFiles = do
-  dynFlags <- getInterfaceDynFlags mE cfg
   z <- actOrDie $ second Just <$> getTargetInfos mE cfg targetFiles
   case z of
     Left e -> do
-      exitWithResult dynFlags cfg targetFiles $ mempty { o_result = e }
+      exitWithResult cfg targetFiles $ mempty { o_result = e }
       return (resultExit e, mE)
     Right (gs, mE') -> do
-      d <- checkMany dynFlags cfg mempty gs
+      d <- checkMany cfg mempty gs
       return (ec d, mE')
   where
     ec = resultExit . o_result
 
 --------------------------------------------------------------------------------
-checkMany :: DynFlags -> Config -> Output Doc -> [TargetInfo] -> IO (Output Doc)
+checkMany :: Config -> Output Doc -> [TargetInfo] -> IO (Output Doc)
 --------------------------------------------------------------------------------
-checkMany dynFlags cfg d (g:gs) = do
-  d' <- checkOne dynFlags cfg g
-  checkMany dynFlags cfg (d `mappend` d') gs
+checkMany cfg d (g:gs) = do
+  d' <- checkOne cfg g
+  checkMany cfg (d `mappend` d') gs
 
-checkMany _ _ d [] =
+checkMany _ d [] =
   return d
 
 --------------------------------------------------------------------------------
-checkOne :: DynFlags -> Config -> TargetInfo -> IO (Output Doc)
+checkOne :: Config -> TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-checkOne dynFlags cfg g = do
-  z <- actOrDie $ liquidOne dynFlags g
+checkOne cfg g = do
+  z <- actOrDie $ liquidOne g
   case z of
-    Left  e -> exitWithResult dynFlags cfg [giTarget (giSrc g)] $ mempty { o_result = e }
+    Left  e -> do
+      let out = mempty { o_result = e }
+      exitWithResult cfg [giTarget (giSrc g)] out
+      pure out
     Right r -> return r
 
 
@@ -152,12 +152,13 @@ handle :: (Result a) => a -> IO (Either ErrorResult b)
 handle = return . Left . result
 
 --------------------------------------------------------------------------------
-liquidOne :: DynFlags -> TargetInfo -> IO (Output Doc)
+liquidOne :: TargetInfo -> IO (Output Doc)
 --------------------------------------------------------------------------------
-liquidOne dynFlags info = do
+liquidOne info = do
   out' <- checkTargetInfo info
   unless (compileSpec cfg) $ DC.saveResult tgt out'
-  exitWithResult dynFlags cfg [tgt] out'
+  exitWithResult cfg [tgt] out'
+  pure out'
   where
     cfg  = getConfig info
     tgt  = giTarget (giSrc info)
@@ -304,6 +305,6 @@ splitFails fs (F.Unsafe xs)  = (mkRes r, snd <$> rfails)
   where 
     (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
     mkRes [] = F.Safe mempty
-    mkRes xs = F.Unsafe xs 
+    mkRes ys = F.Unsafe ys 
 
   
