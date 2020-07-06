@@ -33,6 +33,10 @@ module Language.Haskell.Liquid.UX.CmdLine (
    -- * Show info about this version of LiquidHaskell
    , printLiquidHaskellBanner
 
+   -- * Internals
+   , resDocs
+   , resultWithContext
+
 ) where
 
 import Prelude hiding (error)

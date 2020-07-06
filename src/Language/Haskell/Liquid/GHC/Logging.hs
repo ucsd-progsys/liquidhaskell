@@ -12,7 +12,8 @@
 {-# LANGUAGE CPP #-}
 
 module Language.Haskell.Liquid.GHC.Logging (
-    putLogMsg
+    fromPJDoc
+  , putLogMsg
   , putWarnMsg
   , putErrMsg
   , putErrMsg'

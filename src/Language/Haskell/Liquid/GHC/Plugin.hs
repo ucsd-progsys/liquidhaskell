@@ -35,6 +35,8 @@ import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import qualified Language.Haskell.Liquid.Liquid          as LH
 import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH (reportErrors)
+import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (fromPJDoc)
+import qualified Language.Fixpoint.Types as F
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
@@ -261,10 +263,14 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   -- Call into the existing Liquid interface
   out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
   -- despite the name, 'exitWithResult' simply print on stdout extra info.
-  void . liftIO $ LH.exitWithResult dynFlags cfg [giTarget (giSrc pmrTargetInfo)] out
+  -- void . liftIO $ LH.exitWithResult dynFlags cfg [giTarget (giSrc pmrTargetInfo)] out
   case o_result out of
     Safe _stats -> pure ()
-    _           -> failM
+    _           -> do
+      cr <- liftIO $ LH.resultWithContext (o_result out)
+      let (_, docErrors) = LH.resDocs F.Full cr
+      forM docErrors (\(spn, err) -> mkLongErrAt spn (LH.fromPJDoc err) O.empty) >>= GHC.reportErrors
+      failM
 
   let serialisedSpec = Util.serialiseLiquidLib pmrClientLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
