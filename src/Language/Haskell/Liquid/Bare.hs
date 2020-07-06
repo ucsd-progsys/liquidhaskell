@@ -236,7 +236,9 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     lSpec0   = makeLiftedSpec0 cfg src embs lmap mySpec0 
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
-    env      = Bare.makeEnv cfg src lmap mspecs  
+    env      = 
+      let foo = Bare.makeEnv cfg src lmap mspecs  
+      in F.notracepp (F.showpp $ Bare.debugDumpEnv foo) () `seq` foo
     (mySpec0, iSpecs0) = splitSpecs name mspecs 
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src 

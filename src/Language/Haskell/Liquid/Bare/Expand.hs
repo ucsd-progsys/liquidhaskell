@@ -267,7 +267,7 @@ qualifyExpand :: (Expand a, Bare.Qualify a, PPrint a)
 ----------------------------------------------------------------------------------
 qualifyExpand env name rtEnv l bs input
   = let output = expand rtEnv l . Bare.qualify env name l bs $ input
-    in F.tracepp ( "qualifyExpand, bare.env = " 
+    in F.notracepp ( "qualifyExpand, bare.env = " 
                    ++ F.showpp (Bare.reSyms env) 
                    ++ ", rtEnv = " ++ F.showpp rtEnv
                    ++ ", bs = " ++ F.showpp bs) output
@@ -376,7 +376,7 @@ expandBareSpec rtEnv l sp = sp
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
 expandBareType rtEnv _ inputType = 
   let outputType = go inputType
-  in F.tracepp ("inputType => " ++ F.showpp inputType) outputType
+  in F.notracepp ("inputType => " ++ F.showpp inputType) outputType
   where
     go (RApp c ts rs r)  = case lookupRTEnv c rtEnv of 
                              Just rta -> expandRTAliasApp (GM.fSourcePos c) rta (go <$> ts) r 

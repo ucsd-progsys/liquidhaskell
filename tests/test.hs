@@ -491,7 +491,7 @@ ecAssert ec (ExitFailure 137) _   =
   printf "WARNING: possible OOM while testing %s: IGNORING" (ecTest ec)
 
 ecAssert (EC _ code Nothing)  c t   = do
-  print t
+  -- print t
   assertEqual ("Wrong exit code" <> show t) code c
 
 ecAssert (EC _ code (Just t)) c log = do
