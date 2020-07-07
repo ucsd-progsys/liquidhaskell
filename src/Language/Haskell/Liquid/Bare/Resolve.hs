@@ -320,14 +320,14 @@ instance Qualify F.Equation where
 
 instance Qualify F.Symbol where 
   qualify env name l bs x = 
-    F.tracepp ("qualifySymbol " ++ F.showpp x ++ " ==> ") (qualifySymbol env name l bs x)
+    F.notracepp ("qualifySymbol " ++ F.showpp x ++ " ==> ") (qualifySymbol env name l bs x)
 
 qualifySymbol :: Env -> ModName -> F.SourcePos -> [F.Symbol] -> F.Symbol -> F.Symbol                                                   
 qualifySymbol env name l bs x
-  | isSpl     = F.tracepp ("qualifySymbol isSpl? => " ++ show isSpl) x
+  | isSpl     = F.notracepp ("qualifySymbol isSpl? => " ++ show isSpl) x
   | otherwise = case resolveLocSym env name "Symbol" (F.Loc l l x) of 
-                  Left  _ -> F.tracepp ("qualifySymbol: Entered Left for "  ++ F.showpp x) $ x
-                  Right v -> F.tracepp ("qualifySymbol: Entered Right for " ++ F.showpp x) $ v
+                  Left  _ -> F.notracepp ("qualifySymbol: Entered Left for "  ++ F.showpp x) $ x
+                  Right v -> F.notracepp ("qualifySymbol: Entered Right for " ++ F.showpp x) $ v
   where 
     isSpl     = isSplSymbol env bs x
 
@@ -390,7 +390,7 @@ instance Qualify DataDecl where
     let d' = d { tycDCons  = qualify env name l bs (tycDCons  d)
                , tycPropTy = qualify env name l bs (tycPropTy d) 
                } 
-    in F.tracepp ("qualify DataDecl " ++ F.showpp d ++ " ==> ") d'
+    in F.notracepp ("qualify DataDecl " ++ F.showpp d ++ " ==> ") d'
 
 instance Qualify ModSpecs where 
   qualify env name l bs = Misc.hashMapMapWithKey (\_ -> qualify env name l bs) 
@@ -437,7 +437,7 @@ instance Qualify BareType where
                               (\(x::BTyCon) -> x { btc_tc = qualify x1 x2 x3 x4 (btc_tc x) })
                               x4 input
                  -- emapReft (substFreeEnv x1 x2 x3) x4 input
-    in F.tracepp ("qualify BareType " ++ F.showpp input ++ " ===> ") output
+    in F.notracepp ("qualify BareType " ++ F.showpp input ++ " ===> ") output
 
 substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 
@@ -575,7 +575,7 @@ resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModNam
             -> Either UserError a 
 resolveWith kind f env name str lx =
   -- case Mb.mapMaybe f things of 
-  case F.tracepp ("rankedThings for " ++ F.showpp (F.val lx) ++ " => ") (rankedThings f things) of
+  case F.notracepp ("rankedThings for " ++ F.showpp (F.val lx) ++ " => ") (rankedThings f things) of
     []  -> Left  (errResolve kind str lx) 
     [x] -> Right x 
     xs  -> Left $ ErrDupNames sp (pprint (F.val lx)) (pprint <$> xs)

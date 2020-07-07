@@ -482,7 +482,7 @@ processModule LiquidHaskellContext{..} = do
 
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
 
-  liftIO $ putStrLn $ "Module => " ++ (O.showSDocUnsafe $ O.ppr thisModule)
+  --liftIO $ putStrLn $ "Module => " ++ (O.showSDocUnsafe $ O.ppr thisModule)
 
   case makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies of
 

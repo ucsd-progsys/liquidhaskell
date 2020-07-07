@@ -997,7 +997,7 @@ instance TyConable BTyCon where
   isList  = isList . btc_tc
   isTuple = isTuple . btc_tc
   isClass = isClassBTyCon
-  ppTycon x = text "bTyCon:" <-> (ppTycon . btc_tc $ x)
+  ppTycon x = {- text "bTyCon:" <-> -} (ppTycon . btc_tc $ x)
 
 
 instance Eq RTyCon where
