@@ -336,11 +336,17 @@ executable mirror-modules
   if flag(mirror-modules-helper)
     build-depends: base >= 4.9.1.0 && < 5
                  , shelly < 1.10.0
+                 , text
+                 , filepath
                  , optparse-applicative < 0.16.1.0
     buildable: True
   else
     buildable: False
 
   default-language:   Haskell2010
-  default-extensions: OverloadedStrings
+  default-extensions:
+    OverloadedStrings
+    RecordWildCards
+    MultiWayIf
+    LambdaCase
   ghc-options:        -W -threaded

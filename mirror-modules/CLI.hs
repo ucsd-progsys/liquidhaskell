@@ -16,15 +16,15 @@ data OverrideFiles
 newtype Flag ix = Flag { unFlag :: Bool }
 
 data CLI = CLI {
-    overrideFiles :: Flag OverrideFiles
-  , modulesList   :: FilePath
+    overrideFiles       :: Flag OverrideFiles
+  , modulesList         :: FilePath
   -- ^ A path to a list of modules to create.
-  , targetPackage :: FilePath
-  -- ^ A path to a valid \"liquid-*\" package.
+  , moduleHierarchyRoot :: FilePath
+  -- ^ A path to the root of the module hierarchy for the package we would like to target.
   }
 
 parseCLI :: Parser CLI
-parseCLI = CLI <$> parseOverrideFiles <*> parseModulesList <*> parseTargetPackage
+parseCLI = CLI <$> parseOverrideFiles <*> parseModulesList <*> parseModuleRoot
 
 parseOverrideFiles :: Parser (Flag OverrideFiles)
 parseOverrideFiles =
@@ -39,9 +39,9 @@ parseModulesList =
             <> help "The path to a file containing a newline-separated list of modules to mirror."
             )
 
-parseTargetPackage :: Parser FilePath
-parseTargetPackage =
+parseModuleRoot :: Parser FilePath
+parseModuleRoot =
   strOption (  short 't'
             <> long "target"
-            <> help "The path to a target package we would like adding modules to."
+            <> help "The path to the root of the module hierarchy for the target package. (example: liquid-foo/src)"
             )
