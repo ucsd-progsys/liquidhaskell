@@ -1483,9 +1483,9 @@ instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) wh
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
-  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) []
-  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) []
-  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) [] t
+  substf f    = emapExprArg (\_ -> F.substf f) []      . emapReft (F.substf . F.substfExcept f) id []
+  subst su    = emapExprArg (\_ -> F.subst su) []      . emapReft (F.subst  . F.substExcept su) id []
+  subst1 t su = emapExprArg (\_ e -> F.subst1 e su) [] $ emapReft (\xs r -> F.subst1Except xs r su) id [] t
 
 
 instance F.Reftable Predicate where
@@ -1526,25 +1526,30 @@ isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
 isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
-mapReft f = emapReft (const f) []
+mapReft f = emapReft (const f) id []
 
-emapReft ::  ([Symbol] -> r1 -> r2) -> [Symbol] -> RType c tv r1 -> RType c tv r2
-emapReft f γ (RVar α r)          = RVar  α (f γ r)
-emapReft f γ (RAllT α t r)       = RAllT α (emapReft f γ t) (f γ r)
-emapReft f γ (RAllP π t)         = RAllP π (emapReft f γ t)
-emapReft f γ (RImpF x t t' r)    = RImpF  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
-emapReft f γ (RFun x t t' r)     = RFun  x (emapReft f γ t) (emapReft f (x:γ) t') (f (x:γ) r)
-emapReft f γ (RApp c ts rs r)    = RApp  c (emapReft f γ <$> ts) (emapRef f γ <$> rs) (f γ r)
-emapReft f γ (RAllE z t t')      = RAllE z (emapReft f γ t) (emapReft f γ t')
-emapReft f γ (REx z t t')        = REx   z (emapReft f γ t) (emapReft f γ t')
-emapReft _ _ (RExprArg e)        = RExprArg e
-emapReft f γ (RAppTy t t' r)     = RAppTy (emapReft f γ t) (emapReft f γ t') (f γ r)
-emapReft f γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f γ) <$> e) (f γ r) o (emapReft f γ t)
-emapReft f γ (RHole r)           = RHole (f γ r)
+emapReft ::  ([Symbol] -> r1 -> r2) -> (c -> c) -> [Symbol] -> RType c tv r1 -> RType c tv r2
+emapReft f _ γ (RVar α r)          = RVar  α (f γ r)
+emapReft f g γ (RAllT α t r)       = RAllT α (emapReft f g γ t) (f γ r)
+emapReft f g γ (RAllP π t)         = RAllP π (emapReft f g γ t)
+emapReft f g γ (RImpF x t t' r)    = RImpF x (emapReft f g γ t) (emapReft f g (x:γ) t') (f (x:γ) r)
+emapReft f g γ (RFun x t t' r)     =
+  -- Do not recursively qualify @c@ in case of a @RFun@.
+  RFun  x (emapReft f id γ t) (emapReft f id (x:γ) t') (f (x:γ) r)
+emapReft f g γ (RApp c ts rs r)    =
+  -- This is /THE/ interesting case: we need to expand @c@ here, as in its most common monomorphic
+  -- instantiation this would be a @BTyCon@, which /does/ contain a @Symbol@ inside.
+  RApp  (g c) (emapReft f g γ <$> ts) (emapRef f g γ <$> rs) (f γ r)
+emapReft f g γ (RAllE z t t')      = RAllE z (emapReft f g γ t) (emapReft f g γ t')
+emapReft f g γ (REx z t t')        = REx   z (emapReft f g γ t) (emapReft f g γ t')
+emapReft _ _ _ (RExprArg e)        = RExprArg e
+emapReft f g γ (RAppTy t t' r)     = RAppTy (emapReft f g γ t) (emapReft f g γ t') (f γ r)
+emapReft f g γ (RRTy e r o t)      = RRTy  (mapSnd (emapReft f g γ) <$> e) (f γ r) o (emapReft f g γ t)
+emapReft f _ γ (RHole r)           = RHole (f γ r)
 
-emapRef :: ([Symbol] -> t -> s) ->  [Symbol] -> RTProp c tv t -> RTProp c tv s
-emapRef  f γ (RProp s (RHole r))  = RProp s $ RHole (f γ r)
-emapRef  f γ (RProp s t)         = RProp s $ emapReft f γ t
+emapRef :: ([Symbol] -> t -> s) -> (c -> c) -> [Symbol] -> RTProp c tv t -> RTProp c tv s
+emapRef  f _ γ (RProp s (RHole r)) = RProp s $ RHole (f γ r)
+emapRef  f g γ (RProp s t)         = RProp s $ emapReft f g γ t
 
 emapExprArg :: ([Symbol] -> Expr -> Expr) -> [Symbol] -> RType c tv r -> RType c tv r
 emapExprArg f = go

@@ -11,6 +11,7 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeApplications      #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -76,6 +77,8 @@ import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Bare.Types 
 import           Language.Haskell.Liquid.Bare.Misc   
 import           Language.Haskell.Liquid.WiredIn 
+
+import qualified Generics.SYB                          as Syb
 
 myTracepp :: (F.PPrint a) => String -> a -> a
 myTracepp = F.notracepp 
@@ -412,11 +415,19 @@ instance Qualify F.Qualifier where
 substEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substEnv env name l bs = F.substa (qualifySymbol env name l bs) 
 
-instance Qualify SpecType where 
-  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5            
+instance Qualify SpecType where
+  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) id x4 x5
 
-instance Qualify BareType where 
-  qualify x1 x2 x3 x4 x5 = emapReft (substFreeEnv x1 x2 x3) x4 x5 
+instance Qualify BTyCon where
+  qualify env modName sourcePos knownSymbols bTyCon =
+    bTyCon { btc_tc = qualify env modName sourcePos knownSymbols (btc_tc bTyCon) }
+
+-- Remember that @type BareType = RType BTyCon BTyVar RReft@, so the instance below
+-- is effectively recursively qualifying an @RType@.
+instance Qualify BareType where
+  qualify env modName sourcePos knownSymbols bareType =
+    let qualifyBTyCon = qualify @BTyCon env modName sourcePos knownSymbols
+    in  emapReft (substFreeEnv env modName sourcePos) qualifyBTyCon knownSymbols bareType
 
 substFreeEnv :: (F.Subable a) => Env -> ModName -> F.SourcePos -> [F.Symbol] -> a -> a 
 substFreeEnv env name l bs = F.substf (F.EVar . qualifySymbol env name l bs) 
