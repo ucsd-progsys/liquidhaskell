@@ -71,6 +71,11 @@ flag no-plugin
   manual:      True
   description: Disables the use of the GHC plugin. Use the legacy executable for testing.
 
+flag mirror-modules-helper
+  default:     False
+  manual:      True
+  description: Build the "mirror-modules" helper executable.
+
 library
   exposed-modules:    Gradual.Concretize
                       Gradual.GUI
@@ -319,3 +324,23 @@ test-suite synthesis
                   , extra
   default-language: Haskell2010
   ghc-options:      -W
+
+
+-- This executable can be used to generate modules for mirror-packages.
+executable mirror-modules
+  main-is:        Main.hs
+  hs-source-dirs: mirror-modules
+
+  other-modules: CLI
+
+  if flag(mirror-modules-helper)
+    build-depends: base >= 4.9.1.0 && < 5
+                 , shelly < 1.10.0
+                 , optparse-applicative < 0.16.1.0
+    buildable: True
+  else
+    buildable: False
+
+  default-language:   Haskell2010
+  default-extensions: OverloadedStrings
+  ghc-options:        -W -threaded
