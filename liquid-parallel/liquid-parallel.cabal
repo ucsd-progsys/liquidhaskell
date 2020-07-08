@@ -15,7 +15,9 @@ cabal-version:      >= 1.22
 data-files:           src/Control/Parallel/Strategies.spec
 
 library
-  exposed-modules:    Control.Parallel.Strategies
+  exposed-modules:    Control.Seq
+                      Control.Parallel
+                      Control.Parallel.Strategies
   hs-source-dirs:     src
   build-depends:      liquid-base          >= 0.8.10.1
                     , parallel             >= 3.0.0.0
