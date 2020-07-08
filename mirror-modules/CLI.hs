@@ -6,6 +6,7 @@ module CLI (
 
 
 import Options.Applicative
+import qualified Data.Text as T
 
 
 -- Flags
@@ -19,12 +20,16 @@ data CLI = CLI {
     overrideFiles       :: Flag OverrideFiles
   , modulesList         :: FilePath
   -- ^ A path to a list of modules to create.
+  , mirrorPackageName   :: T.Text
   , moduleHierarchyRoot :: FilePath
   -- ^ A path to the root of the module hierarchy for the package we would like to target.
   }
 
 parseCLI :: Parser CLI
-parseCLI = CLI <$> parseOverrideFiles <*> parseModulesList <*> parseModuleRoot
+parseCLI = CLI <$> parseOverrideFiles
+               <*> parseModulesList
+               <*> parsePackageName
+               <*> parseModuleRoot
 
 parseOverrideFiles :: Parser (Flag OverrideFiles)
 parseOverrideFiles =
@@ -34,14 +39,21 @@ parseOverrideFiles =
 
 parseModulesList :: Parser FilePath
 parseModulesList =
-  strOption (  short 'i'
+  strOption (  short 'l'
             <> long "modules-list"
             <> help "The path to a file containing a newline-separated list of modules to mirror."
             )
 
+parsePackageName :: Parser T.Text
+parsePackageName = T.pack <$>
+  strOption (  short 'p'
+            <> long "mirror-package-name"
+            <> help "The name of the mirror package we are targeting."
+            )
+
 parseModuleRoot :: Parser FilePath
 parseModuleRoot =
-  strOption (  short 't'
+  strOption (  short 'i'
             <> long "target"
             <> help "The path to the root of the module hierarchy for the target package. (example: liquid-foo/src)"
             )
