@@ -15,12 +15,32 @@ cabal-version:      >= 1.22
 data-files:           src/Data/Vector.spec
 
 library
-  exposed-modules:    Data.Vector
-                      Data.Vector.Mutable
+  exposed-modules:    Data.Vector.Internal.Check
+                      Data.Vector.Fusion.Util
+                      Data.Vector.Fusion.Stream.Monadic
+                      Data.Vector.Fusion.Bundle.Size
+                      Data.Vector.Fusion.Bundle.Monadic
+                      Data.Vector.Fusion.Bundle
+
+                      Data.Vector.Generic.Mutable.Base
                       Data.Vector.Generic.Mutable
+                      Data.Vector.Generic.Base
+                      Data.Vector.Generic.New
+                      Data.Vector.Generic
+
                       Data.Vector.Primitive.Mutable
-                      Data.Vector.Internal.Check
+                      Data.Vector.Primitive
+
+                      Data.Vector.Storable.Internal
+                      Data.Vector.Storable.Mutable
+                      Data.Vector.Storable
+
+                      Data.Vector.Unboxed.Base
                       Data.Vector.Unboxed.Mutable
+                      Data.Vector.Unboxed
+
+                      Data.Vector.Mutable
+                      Data.Vector
   hs-source-dirs:     src
   build-depends:      liquid-base          >= 0.8.10.1
                     , vector               >= 0.10
