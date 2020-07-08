@@ -21,10 +21,19 @@ executable liquidhaskell
   main-is:            src/Liquid.hs
   default-language:   Haskell98
   ghc-options:        -W -O2 -threaded -fdefer-typed-holes
+
   if impl(ghc < 8.10.1)
     buildable: False
   else
     buildable: True
+
+  if flag(devel)
+    ghc-options: -Werror
+    build-depends:      liquidhaskell     >= 0.8.10.1
+                      , base              < 5
+                      , process           >= 1.6.0.0
+                      , cmdargs           >= 0.10
+  else
     build-depends:      liquid-base       >= 0.8.10.1
                       , liquid-containers >= 0.8.10.1
                       , liquid-prelude    >= 0.8.10.1
@@ -33,9 +42,6 @@ executable liquidhaskell
                       , liquidhaskell     >= 0.8.10.1
                       , process           >= 1.6.0.0
                       , cmdargs           >= 0.10
-
-  if flag(devel)
-    ghc-options: -Werror
 
 executable gradual
   main-is:          src/Gradual.hs
