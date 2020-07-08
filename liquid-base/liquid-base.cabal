@@ -235,6 +235,11 @@ library
                     Type.Reflection.Unsafe
                     Unsafe.Coerce
 
+                    -- Liquid special modules
+                    Liquid.Prelude.Real
+                    Liquid.Prelude.NotReal
+                    Liquid.Prelude.Totality
+
   hs-source-dirs:     src
   build-depends:      base                 >= 4.11.1.0 && < 5
                     , liquid-ghc-prim
