@@ -51,6 +51,9 @@ data-files:         include/*.hquals
                     include/Language/Haskell/Liquid/*.hs
                     include/Language/Haskell/Liquid/*.pred
 
+                    -- Needed for the mirror-modules helper
+                    mirror-modules/templates/MirrorModule.mustache
+
 cabal-version:      >= 1.22
 
 source-repository head
@@ -332,6 +335,7 @@ executable mirror-modules
   hs-source-dirs: mirror-modules
 
   other-modules: CLI
+                 Paths_liquidhaskell
 
   if flag(mirror-modules-helper)
     build-depends: base >= 4.9.1.0 && < 5
@@ -339,6 +343,7 @@ executable mirror-modules
                  , text < 1.3
                  , filepath < 1.5
                  , containers < 0.7
+                 , mustache < 2.4
                  , optparse-applicative < 0.16.1.0
     buildable: True
   else

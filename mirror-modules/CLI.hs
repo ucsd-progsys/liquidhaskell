@@ -48,7 +48,7 @@ parsePackageName :: Parser T.Text
 parsePackageName = T.pack <$>
   strOption (  short 'p'
             <> long "mirror-package-name"
-            <> help "The name of the mirror package we are targeting."
+            <> help "The name of the mirror package we are targeting. (example: liquid-foo)"
             )
 
 parseModuleRoot :: Parser FilePath
