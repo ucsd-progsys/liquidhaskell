@@ -26,17 +26,22 @@ module Language.Haskell.Liquid.Types.PrettyPrint
   , printWarning
   , printError
 
+  -- * Reporting errors in the typechecking phase
+  , reportErrors
+
   ) where
+
+import           Control.Monad
 
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import           Data.String
-import           ErrUtils                         (ErrMsg)
+import qualified TcRnMonad                        as Ghc
 import qualified CoreSyn as GHC
 import           Language.Fixpoint.Misc
-import qualified Language.Fixpoint.Types          as F 
+import qualified Language.Fixpoint.Types          as F
 import           Language.Haskell.Liquid.GHC.API  as Ghc hiding (maybeParen, LM)
-import           Language.Haskell.Liquid.GHC.Logging (putErrMsg)
+import           Language.Haskell.Liquid.GHC.Logging (putErrMsg, mkLongErrAt)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Types
@@ -414,3 +419,9 @@ instance (PPrint r, F.Reftable r) => PPrint (UReft r) where
 
 printError :: (Show e, F.PPrint e) => F.Tidy -> DynFlags -> TError e -> IO ()
 printError k dyn err = putErrMsg dyn (pos err) (ppError k empty err)
+
+-- | Similar in spirit to 'reportErrors' from the GHC API, but it uses our pretty-printer
+-- and shim functions under the hood.
+reportErrors :: (Show e, F.PPrint e) => F.Tidy -> [TError e] -> Ghc.TcRn ()
+reportErrors k errs =
+  forM errs (\err -> mkLongErrAt (pos err) (ppError k empty err) mempty) >>= Ghc.reportErrors

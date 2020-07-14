@@ -34,6 +34,8 @@ import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import qualified Language.Haskell.Liquid.Liquid          as LH
+import qualified Language.Haskell.Liquid.Types.PrettyPrint as LH (reportErrors)
+import qualified Language.Haskell.Liquid.GHC.Logging     as LH   (fromPJDoc)
 
 import           Language.Haskell.Liquid.GHC.Plugin.Types
 import           Language.Haskell.Liquid.GHC.Plugin.Util as Util
@@ -69,7 +71,6 @@ import           Data.Set                                 ( Set )
 import qualified Data.HashSet                            as HS
 import qualified Data.HashMap.Strict                     as HM
 
-import           System.Exit
 import           System.IO.Unsafe                         ( unsafePerformIO )
 import           Language.Fixpoint.Types           hiding ( panic
                                                           , Error
@@ -208,7 +209,7 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
   let tcData = mkTcData (tcg_rn_imports tcGblEnv) resolvedNames availTyCons availVars
   let pipelineData = PipelineData (toUnoptimised unoptimisedGuts) tcData (map SpecComment comments)
 
-  liquidHaskellCheck pipelineData tcGblEnv
+  liquidHaskellCheck pipelineData modSummary tcGblEnv
 
   where
     thisModule :: Module
@@ -222,8 +223,8 @@ typecheckHook _ (unoptimise -> modSummary) tcGblEnv = do
                    }
 
 -- | Partially calls into LiquidHaskell's GHC API.
-liquidHaskellCheck :: PipelineData -> TcGblEnv -> TcM TcGblEnv
-liquidHaskellCheck pipelineData tcGblEnv = do
+liquidHaskellCheck :: PipelineData -> ModSummary -> TcGblEnv -> TcM TcGblEnv
+liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   cfg <- liftIO getConfig
 
   -- The 'specQuotes' contain stuff we need from imported modules, extracted
@@ -237,10 +238,6 @@ liquidHaskellCheck pipelineData tcGblEnv = do
   inputSpec :: BareSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
 
   debugLog $ " Input spec: \n" ++ show inputSpec
-
-  modSummary <- GhcMonadLike.getModSummary (moduleName thisModule)
-  dynFlags <- getDynFlags
-
   debugLog $ "Relevant ===> \n" ++ (unlines $ map renderModule $ (S.toList $ relevantModules modGuts))
 
   logicMap :: LogicMap <- liftIO $ LH.makeLogicMap
@@ -261,11 +258,15 @@ liquidHaskellCheck pipelineData tcGblEnv = do
 
   -- Call into the existing Liquid interface
   out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
-  -- despite the name, 'exitWithResult' simply print on stdout extra info.
-  void . liftIO $ LH.exitWithResult dynFlags cfg [giTarget (giSrc pmrTargetInfo)] out
+
+  -- Report the outcome of the checking
+  LH.reportResult (\outputResult ->
+      forM (LH.orMessages outputResult)
+        (\(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty) >>= GHC.reportErrors
+      ) cfg [giTarget (giSrc pmrTargetInfo)] out
   case o_result out of
     Safe _stats -> pure ()
-    _           -> liftIO exitFailure
+    _           -> failM
 
   let serialisedSpec = Util.serialiseLiquidLib pmrClientLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
@@ -369,17 +370,15 @@ data ProcessModuleResult = ProcessModuleResult {
 -- spec quotes from the imported module. Also looks for
 -- "companion specs" for the current module and merges them in
 -- if it finds one.
-getLiquidSpec :: GhcMonadLike m => Module -> [SpecComment] -> [BPspec] -> m BareSpec
+getLiquidSpec :: Module -> [SpecComment] -> [BPspec] -> TcM BareSpec
 getLiquidSpec thisModule specComments specQuotes = do
 
   let commSpecE :: Either [Error] (ModName, Spec LocBareType LocSymbol)
       commSpecE = hsSpecificationP (moduleName thisModule) (coerce specComments) specQuotes
   case commSpecE of
     Left errors -> do
-      dynFlags <- getDynFlags
-      liftIO $ do
-        mapM_ (printError Full dynFlags) errors
-        exitFailure
+      LH.reportErrors Full errors
+      failM
     Right (view bareSpecIso . snd -> commSpec) -> do
       res <- SpecFinder.findCompanionSpec thisModule
       case res of
@@ -388,7 +387,7 @@ getLiquidSpec thisModule specComments specQuotes = do
           pure $ commSpec <> companionSpec
         _ -> pure commSpec
 
-processModule :: GhcMonadLike m => LiquidHaskellContext -> m ProcessModuleResult
+processModule :: LiquidHaskellContext -> TcM ProcessModuleResult
 processModule LiquidHaskellContext{..} = do
   debugLog ("Module ==> " ++ renderModule thisModule)
   hscEnv              <- askHscEnv
@@ -424,10 +423,9 @@ processModule LiquidHaskellContext{..} = do
 
     -- Print warnings and errors, aborting the compilation.
     Left diagnostics -> do
-      liftIO $ do
-        mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
-        mapM_ (printError Full dynFlags) (allErrors diagnostics)
-        exitFailure
+      liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
+      LH.reportErrors Full (allErrors diagnostics)
+      failM
 
     Right (warnings, targetSpec, liftedSpec) -> do
       liftIO $ mapM_ (printWarning dynFlags) warnings

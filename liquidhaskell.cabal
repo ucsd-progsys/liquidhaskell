@@ -69,7 +69,7 @@ flag deterministic-profiling
 flag no-plugin
   default:     False
   manual:      True
-  description: Disables the use of the GHC plugin. Use the legacy executable for testing.
+  description: Use the legacy executable for testing.
 
 library
   exposed-modules:    Gradual.Concretize

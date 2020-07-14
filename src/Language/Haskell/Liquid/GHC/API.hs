@@ -56,6 +56,8 @@ import TysPrim        as Ghc
 import HscTypes       as Ghc
 import HscMain        as Ghc
 import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
+import ErrUtils       as Ghc
+import DynFlags       as Ghc
 
 --
 -- Compatibility layer for different GHC versions.
