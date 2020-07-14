@@ -9,10 +9,14 @@ author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
-build-type:         Simple
+build-type:         Custom
 cabal-version:      >= 1.22
 
 data-files:         src/GHC/*.spec
+
+
+custom-setup
+  setup-depends: Cabal, base
 
 library
   exposed-modules:
