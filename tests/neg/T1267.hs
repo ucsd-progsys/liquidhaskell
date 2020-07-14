@@ -1,5 +1,4 @@
-{- LIQUID "--max-case-expand=0" @-}
-{-@ LIQUID "--no-case-expand" @-}
+{-@ LIQUID "--max-case-expand=0" @-}
 
 module NoCaseExpand where
 

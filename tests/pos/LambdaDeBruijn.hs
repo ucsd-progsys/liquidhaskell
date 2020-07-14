@@ -38,7 +38,7 @@ sub ((vx, x):su) v | v == vx   = x
 
 
 {-@ subst :: e:Expr -> su:Subst -> MEVar e su
-    / [ (if (isEVar e) then 0 else 1), (if (isRenaming su) then 0 else 1), elen e] @-}
+      / [ (if (isEVar e) then 0 else 1), (if (isRenaming su) then 0 else 1), elen e] @-}
 
 subst EUnit        su = EUnit
 subst (EVar v)     su = sub su v

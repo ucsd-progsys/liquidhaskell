@@ -1,7 +1,7 @@
 module Measures where
 
 {-@ data Wrapper a <p :: a -> Bool, r :: a -> a -> Bool > 
-    = Wrap (rgref_ref :: a<p>) @-}
+      = Wrap (rgref_ref :: a<p>) @-}
 data Wrapper a = Wrap (a)
 
 -- Two measures

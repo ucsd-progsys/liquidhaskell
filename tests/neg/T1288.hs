@@ -1,3 +1,4 @@
+module T1288 where
 
 {-@ measure foo @-}
 foo :: () -> Int

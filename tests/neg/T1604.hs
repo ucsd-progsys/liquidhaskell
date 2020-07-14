@@ -1,5 +1,6 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+module T1604 where
 
 data Val = V { val :: Int }
 {-@ data Val = V { val :: Int } @-}

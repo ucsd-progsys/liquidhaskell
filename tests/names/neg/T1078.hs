@@ -1,3 +1,5 @@
+module T1078 where
+
 -- TODO-REBARE: filter gsAsmSigs to ONLY keep USED vars.
 
 -- needed to bring `bslen` into scope

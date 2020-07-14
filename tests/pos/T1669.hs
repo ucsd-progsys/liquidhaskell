@@ -23,7 +23,7 @@ semigroupPNat = CSemigroup cmappend
 
 
 {-@ clawAssociative :: v:PNat -> v':PNat -> v'':PNat  
-  -> { mappend semigroupPNat (mappend semigroupPNat v v') v'' == mappend semigroupPNat v (mappend semigroupPNat v' v'')}@-}
+      -> { mappend semigroupPNat (mappend semigroupPNat v v') v'' == mappend semigroupPNat v (mappend semigroupPNat v' v'')}@-}
 clawAssociative :: PNat -> PNat -> PNat -> ()
 clawAssociative Z     _ _ = ()
 -- clawAssociative (S p) m n = clawAssociative p m n

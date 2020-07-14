@@ -15,9 +15,9 @@ data OurMonad m = OurMonad {
 
 {-@
 data OurMonad m = OurMonad {
-  bind   :: forall a b. m a -> (a -> m b) -> m b,
-  return :: forall a.   a -> m a
-}
+    bind   :: forall a b. m a -> (a -> m b) -> m b,
+    return :: forall a.   a -> m a
+  }
 @-}
 
 {-@ reflect kleisli @-}

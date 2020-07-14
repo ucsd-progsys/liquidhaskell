@@ -17,17 +17,17 @@ head (x:_) = x
 
 {-@ rewrite singleProof @-}
 {-@ assume singleProof :: 
-      { xs : [a] | True } 
-  ->  { ys : [a] | True } 
-  ->  { xs = ys ++ [] } @-}
+          { xs : [a] | True } 
+      ->  { ys : [a] | True } 
+      ->  { xs = ys ++ [] } @-}
 singleProof :: [a] -> [a] -> ()
 singleProof _ _ = ()
 
 -- Reject both sides free vars (assumed fn)
 {-@ sp :: 
-      { xs : [a] | True } 
-  ->  { ys : [a] | True } 
-  ->  { xs = ys ++ [] } @-}
+          { xs : [a] | True } 
+      ->  { ys : [a] | True } 
+      ->  { xs = ys ++ [] } @-}
 sp :: [a] -> [a] -> ()
 sp _ _ = ()
 

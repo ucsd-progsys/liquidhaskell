@@ -1,3 +1,5 @@
+module Variance1 where
+
 import Data.Binary
 
 

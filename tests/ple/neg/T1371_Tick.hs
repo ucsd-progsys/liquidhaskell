@@ -1,6 +1,6 @@
-
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple"        @-}
+module T1371_Tick where
 
 data Foo = Tick Foo | Tock Foo | Fin deriving (Show)
 

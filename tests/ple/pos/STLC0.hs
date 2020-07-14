@@ -99,8 +99,8 @@ tests  = [ e1              -- 15
 -}
 
 {-@ data ResTy where
-      R_Res  :: x:Val -> t:Type -> Prop (ValTy x t) -> Prop (ResTy (Result x) t) 
-    | R_Time :: t:Type -> Prop (ResTy Timeout t) 
+        R_Res  :: x:Val -> t:Type -> Prop (ValTy x t) -> Prop (ResTy (Result x) t) 
+      | R_Time :: t:Type -> Prop (ResTy Timeout t) 
   @-}
 
 data ResTyP where 
@@ -125,8 +125,8 @@ data ResTy where
  -}
 
 {-@ data ValTy where
-      V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
-    | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
+        V_Bool :: b:Bool -> Prop (ValTy (VBool b) TBool) 
+      | V_Int  :: i:Int  -> Prop (ValTy (VInt i)  TInt) 
   @-}
 
 data ValTyP where 
@@ -173,14 +173,14 @@ opOut And = TBool
 -}
 
 {-@ data ExprTy where 
-      E_Bool :: b:Bool 
-             -> Prop (ExprTy (EBool b) TBool)
-    | E_Int  :: i:Int  
-             -> Prop (ExprTy (EInt i)  TInt)
-    | E_Bin  :: o:Op -> e1:Expr -> e2:Expr 
-             -> Prop (ExprTy e1 (opIn1 o)) 
-             -> Prop (ExprTy e2 (opIn2 o))
-             -> Prop (ExprTy (EBin o e1 e2) (opOut o))
+        E_Bool :: b:Bool 
+               -> Prop (ExprTy (EBool b) TBool)
+      | E_Int  :: i:Int  
+               -> Prop (ExprTy (EInt i)  TInt)
+      | E_Bin  :: o:Op -> e1:Expr -> e2:Expr 
+               -> Prop (ExprTy e1 (opIn1 o)) 
+               -> Prop (ExprTy e2 (opIn2 o))
+               -> Prop (ExprTy (EBin o e1 e2) (opOut o))
   @-}
 data ExprTyP where 
   ExprTy :: Expr -> Type -> ExprTyP  

@@ -165,12 +165,12 @@ thmSuffixAt xs i ys = ys === drop i xs *** QED
 argMin :: (Ord a) => (Int -> a) -> IMap a -> (Int, Int -> ())
 loop   :: (Ord a) => (Int -> a) -> IMap a -> Int -> a -> Int -> (Int -> ()) -> (Int, Int -> ())
 
-{-@ data IMap [size] a <p :: Int -> a -> Bool> = 
-      Bind { key  :: Int
-           , val  :: a<p key> 
-           , rest :: {v: IMap <p> a | size v = key} 
-           } 
-    | Emp 
+{-@ data IMap [size] a <p :: Int -> a -> Bool> =
+        Bind { key  :: Int
+             , val  :: a<p key>
+             , rest :: {v: IMap <p> a | size v = key}
+             }
+      | Emp
   @-}
 data IMap a = Bind Int a (IMap a) | Emp 
 

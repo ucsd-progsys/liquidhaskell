@@ -31,8 +31,8 @@ class Sized s where
 
 instance Sized List where
   {-@ instance measure sz :: List a -> Int
-      sz (Nil)       = 0
-      sz (Cons x xs) = 1 + (sz xs)
+        sz (Nil)       = 0
+        sz (Cons x xs) = 1 + (sz xs)
     @-}
   size = length
 

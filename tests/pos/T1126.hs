@@ -16,7 +16,7 @@ class OptEq2 a where
 
 instance OptEq2 a where
 {-@ instance OptEq2 a where
-  cmp :: x:a -> y:{a| x == y} -> a
+      cmp :: x:a -> y:{a| x == y} -> a
   @-}
   cmp x _ = x
 

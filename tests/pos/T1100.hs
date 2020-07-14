@@ -13,8 +13,8 @@ class PersistEntity record where
 
 instance PersistEntity Blob where
   {-@ data EntityField Blob typ where
-        BlobXVal :: EntityField Blob {v:Int | v >= 0}
-      | BlobYVal :: EntityField Blob Int
+          BlobXVal :: EntityField Blob {v:Int | v >= 0}
+        | BlobYVal :: EntityField Blob Int
     @-}
     data EntityField Blob typ where
         BlobXVal :: EntityField Blob Int

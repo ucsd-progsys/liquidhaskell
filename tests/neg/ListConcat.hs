@@ -5,8 +5,8 @@ import Data.Set (Set(..))
 import Prelude hiding (concat)
 
 {-@ measure llElts :: [[a]] -> (Set a) 
-    llElts([])   = {v | Set_emp v }
-    llElts(x:xs) = {v | v = Set_cup (listElts x) (llElts xs) }
+      llElts([])   = {v | Set_emp v }
+      llElts(x:xs) = {v | v = Set_cup (listElts x) (llElts xs) }
   @-}
 
 

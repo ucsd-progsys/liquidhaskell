@@ -15,9 +15,9 @@ data Blob = Blob
 
 instance PersistEntity Blob where
   {-@ data EntityField Blob typ <q :: Entity Blob -> Entity Blob -> Bool> where
-        Model.BlobName   :: EntityField <{\row v -> entityKey v = bblobFriend (entityVal row)}> Blob {v:_ | True}
-      | Model.BlobFriend :: EntityField <{\row v -> entityKey v = bblobFriend (entityVal row)}> Blob {v:_ | True}
-      | Model.BlobSsn    :: EntityField <{\row v -> entityKey v = entityKey             row }> Blob {v:_ | True}
+          Model.BlobName   :: EntityField <{\row v -> entityKey v = bblobFriend (entityVal row)}> Blob {v:_ | True}
+        | Model.BlobFriend :: EntityField <{\row v -> entityKey v = bblobFriend (entityVal row)}> Blob {v:_ | True}
+        | Model.BlobSsn    :: EntityField <{\row v -> entityKey v = entityKey             row }> Blob {v:_ | True}
     @-}
    data EntityField Blob typ where 
      BlobName   :: EntityField Blob String 

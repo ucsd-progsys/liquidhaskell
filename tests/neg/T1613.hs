@@ -10,9 +10,9 @@ myid :: a -> a
 myid x = x
 
 {-@ data MyApplicative f = CMyApplicative
-  { p1MyApplicative :: MyFunctor f
-  , myprop :: forall a b. x:f a -> f:(a -> b) -> {myid x /= x}
-  } @-}
+      { p1MyApplicative :: MyFunctor f
+      , myprop :: forall a b. x:f a -> f:(a -> b) -> {myid x /= x}
+      } @-}
 
 data MyApplicative f = CMyApplicative
   { p1MyApplicative :: MyFunctor f

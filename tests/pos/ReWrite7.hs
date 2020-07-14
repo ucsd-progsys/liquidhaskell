@@ -26,18 +26,18 @@ const' x _ = x
 
 {-@ reflect mbind @-}
 {-@ mbind ::
-     om : OurMonad m
-  -> x  : m a
-  -> f  : (a -> m b)
-  -> {v : m b | v == mbind om x f } @-}
+         om : OurMonad m
+      -> x  : m a
+      -> f  : (a -> m b)
+      -> {v : m b | v == mbind om x f } @-}
 mbind :: OurMonad m -> m a -> (a -> m b) -> m b
 mbind = bind
 
 {-@ reflect mseq @-}
 {-@ mseq :: om : OurMonad m
- -> ma : m a
- -> mb : m b
- -> {v : m b | v = mbind om ma (const' mb) } @-}
+     -> ma : m a
+     -> mb : m b
+     -> {v : m b | v = mbind om ma (const' mb) } @-}
 mseq :: OurMonad m -> m a -> m b -> m b
 mseq om ma mb = mbind om ma (const' mb)
 
@@ -80,14 +80,14 @@ kp om f g x = ()
   
 {-@ rewriteWith proof [kp] @-}
 {-@ proof ::
-     mp : MonadPlus m
-  ->  p : Int
-  ->  x : Int
-  ->  tupl : ([Int], [Int])
-  ->{ v : () |
-   lhs mp p x tupl =
-   rhs mp p x tupl
-}
+           mp : MonadPlus m
+        ->  p : Int
+        ->  x : Int
+        ->  tupl : ([Int], [Int])
+        ->{ v : () |
+         lhs mp p x tupl =
+         rhs mp p x tupl
+      }
 @-}
 proof :: MonadPlus m -> Int -> Int -> ([Int], [Int]) -> ()
 proof mp p x (ys,zs) = ()

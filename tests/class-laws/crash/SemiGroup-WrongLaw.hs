@@ -34,7 +34,7 @@ module SemiGroup where
     mappendInt x y = x + y 
     
     {-@ mappendIntAssoc :: x:Int -> y:Int -> z:Int 
-      -> { mappendInt x (mappendInt y z) == mappendInt (mappendInt x y) x } @-}
+          -> { mappendInt x (mappendInt y z) == mappendInt (mappendInt x y) x } @-}
     mappendIntAssoc :: Int -> Int -> Int -> () 
     mappendIntAssoc _ _ _ = undefined  
     

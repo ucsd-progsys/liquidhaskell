@@ -22,7 +22,7 @@ map f (C x xs) = f x `C` map f xs
 
 
 {-@ map_fusion :: f:(a -> a) -> g:(a -> a) -> xs:L a
-   -> {map (compose f g) xs == compose (map f) (map g) xs } @-}
+      -> {map (compose f g) xs == compose (map f) (map g) xs } @-}
 map_fusion :: (a -> a) -> (a -> a) -> L a -> Proof
 map_fusion _ _ N        = trivial 
 map_fusion f g (C x xs) =  map_fusion f g xs

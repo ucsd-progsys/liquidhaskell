@@ -62,7 +62,7 @@ right_identity (x ::: xs)
 
 -- | Associativity:	  (m >>= f) >>= g ≡	m >>= (\x -> f x >>= g)
 {-@ associativity :: m:L a -> f: (a -> L b) -> g:(b -> L c)
-  -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
+      -> {bind (bind m f) g == bind m (\x:a -> (bind (f x) g)) } @-}
 associativity :: L a -> (a -> L b) -> (b -> L c) -> Proof
 associativity Emp f g
   =   bind (bind Emp f) g

@@ -10,8 +10,8 @@ class Compare a where
 
 instance Compare Int where	
 {-@ instance Compare Int where 
-	cmax :: Odd -> Odd -> Odd ;
-	cmin :: Int -> Int -> Int
+      cmax :: Odd -> Odd -> Odd ;
+      cmin :: Int -> Int -> Int
   @-}
 
 	cmax y x = if x >= y then x else y

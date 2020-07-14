@@ -47,7 +47,7 @@ theorem_mult_0_r (S n) = ( natMult (S n) O
                          ) *** QED
 
 {-@ theorem_plus_n_Sm :: n : Peano -> m : Peano
-  -> { S (natPlus n m) = natPlus n (S m) }
+      -> { S (natPlus n m) = natPlus n (S m) }
 @-}
 theorem_plus_n_Sm :: Peano -> Peano -> Proof
 theorem_plus_n_Sm O     m = ( natPlus O m, natPlus O (S m) ) *** QED
@@ -57,7 +57,7 @@ theorem_plus_n_Sm (S n) m = ( natPlus (S n) m
                             ) *** QED
 
 {-@ theorem_plus_comm :: n : Peano -> m : Peano
-  -> { natPlus n m = natPlus m n }
+      -> { natPlus n m = natPlus m n }
 @-}
 theorem_plus_comm :: Peano -> Peano -> Proof
 theorem_plus_comm O     m = ( natPlus O m, theorem_plus_n_O m ) *** QED
@@ -67,7 +67,7 @@ theorem_plus_comm (S n) m = ( natPlus (S n) m
                             ) *** QED
 
 {-@ theorem_plus_assoc :: n : Peano -> m : Peano -> p : Peano
-  -> { natPlus n (natPlus m p) = (natPlus (natPlus n m) p) }
+      -> { natPlus n (natPlus m p) = (natPlus (natPlus n m) p) }
 @-}
 theorem_plus_assoc :: Peano -> Peano -> Peano -> Proof
 theorem_plus_assoc O     m p = ( natPlus O (natPlus m p)
@@ -95,7 +95,7 @@ theorem_double_plus (S n) = ( double (S n)
                             ) *** QED
 
 {-@ theorem_plus_swap :: n : Peano -> m : Peano -> p : Peano
-  -> { natPlus n (natPlus m p) = natPlus m (natPlus n p) }
+      -> { natPlus n (natPlus m p) = natPlus m (natPlus n p) }
 @-}
 theorem_plus_swap :: Peano -> Peano -> Peano -> Proof
 theorem_plus_swap n m p = ( theorem_plus_assoc n m p
@@ -104,7 +104,7 @@ theorem_plus_swap n m p = ( theorem_plus_assoc n m p
                           ) *** QED
 
 {-@ lemma_mult_distrib_S_n :: m : Peano -> n : Peano
-  -> { natMult m (S n) = natPlus m (natMult m n) }
+      -> { natMult m (S n) = natPlus m (natMult m n) }
 @-}
 lemma_mult_distrib_S_n :: Peano -> Peano -> Proof
 lemma_mult_distrib_S_n O     n = ( natMult O (S n)

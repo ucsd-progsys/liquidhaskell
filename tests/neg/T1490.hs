@@ -1,3 +1,5 @@
+module T1490 where
+
 newtype MyId a = MyId a
 
 

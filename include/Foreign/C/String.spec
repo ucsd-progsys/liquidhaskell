@@ -8,4 +8,4 @@ type CStringLenN N = ((GHC.Ptr.Ptr Foreign.C.Types.CChar), {v:Nat | v = N})<{\p 
 // measure cStringLen :: Foreign.C.String.CStringLen -> GHC.Types.Int
 
 measure cStringLen :: ((GHC.Ptr.Ptr Foreign.C.Types.CChar), GHC.Types.Int) -> GHC.Types.Int 
-cStringLen (c, n) = n
+  cStringLen (c, n) = n

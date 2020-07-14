@@ -49,7 +49,7 @@ include <len.hquals>
 GHC.List.!!         :: xs:[a] -> {v: _ | ((0 <= v) && (v < len(xs)))} -> a
 
 
- zip :: xs : [a] -> ys:[b] 
+zip :: xs : [a] -> ys:[b]
             -> {v : [(a, b)] | ((((len v) <= (len xs)) && ((len v) <= (len ys)))
             && (((len xs) = (len ys)) => ((len v) = (len xs))) )}
 

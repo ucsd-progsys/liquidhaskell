@@ -9,7 +9,7 @@ import Prelude hiding (Monad, return )
 data ST s a = ST {runState :: s -> (a,s)}
 
 {-@ data ST s a <r :: a -> Bool>
-  = ST (runState :: x:s -> (a<r>, s)) @-}
+      = ST (runState :: x:s -> (a<r>, s)) @-}
 
 {-@ runState :: forall <r :: a -> Bool>. ST <r> s a -> x:s -> (a<r>, s) @-}
 
@@ -20,7 +20,7 @@ class Foo m where
 
 instance Foo (ST s) where
   {-@ instance Foo ST s where
-    return :: forall s a. x:a -> ST <{\v -> x == v}> s a
+        return :: forall s a. x:a -> ST <{\v -> x == v}> s a
     @-}
   return x     = ST $ \s -> (x, s)
 

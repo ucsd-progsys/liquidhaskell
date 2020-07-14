@@ -5,6 +5,6 @@ class A a where
   
 instance A Int where
 {-@ instance A Int where
-    f :: _ -> {x : Int | 0 < x}
+      f :: _ -> {x : Int | 0 < x}
   @-}
   f n = (-1)

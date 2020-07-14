@@ -1,3 +1,5 @@
+module Newtypes where
+
 newtype Foo a = Bar Int
 
 {-@ newtype Foo a = Bar {x :: Nat} @-}

@@ -102,20 +102,20 @@ lawFlowAntisymmetryHL _ _   = ()
 
 
 {-@ lawFlowTransitivityHL :: a:HighLow -> b:HighLow -> c:HighLow 
-  -> {(canFlowToHL a b && canFlowToHL b c) => canFlowToHL a c} @-}
+      -> {(canFlowToHL a b && canFlowToHL b c) => canFlowToHL a c} @-}
 lawFlowTransitivityHL :: HighLow -> HighLow -> HighLow -> ()
 lawFlowTransitivityHL _ _ _ = () 
 
 
 {-@ ple lawMeetHL @-}
 {-@ lawMeetHL :: z:HighLow -> x:HighLow -> y:HighLow -> w:HighLow 
-  -> { z == meetHL x y => (canFlowToHL z x && canFlowToHL z y && ((canFlowToHL w x && canFlowToHL w y) => canFlowToHL w z))} @-}
+      -> { z == meetHL x y => (canFlowToHL z x && canFlowToHL z y && ((canFlowToHL w x && canFlowToHL w y) => canFlowToHL w z))} @-}
 lawMeetHL :: HighLow -> HighLow -> HighLow -> HighLow -> () 
 lawMeetHL _ _ _ _  = ()
 
 
 {-@ ple lawJoinHL @-}
 {-@ lawJoinHL :: z:HighLow -> x:HighLow -> y:HighLow -> w:HighLow 
-  -> { z == joinHL x y => (canFlowToHL x z && canFlowToHL y z && ((canFlowToHL x w && canFlowToHL y w) => canFlowToHL z w))} @-}
+      -> { z == joinHL x y => (canFlowToHL x z && canFlowToHL y z && ((canFlowToHL x w && canFlowToHL y w) => canFlowToHL z w))} @-}
 lawJoinHL :: HighLow -> HighLow -> HighLow -> HighLow -> () 
 lawJoinHL _ _ _ _ = () 

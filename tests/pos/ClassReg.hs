@@ -6,7 +6,7 @@ module Compose where
 data ST s a = ST {runState :: s -> (a,s)}
 
 {-@ data ST s b <r :: s -> b -> Bool> 
-  = ST (runState :: x:s -> (b<r x>, s)) @-}
+      = ST (runState :: x:s -> (b<r x>, s)) @-}
 
 
 class MM m where

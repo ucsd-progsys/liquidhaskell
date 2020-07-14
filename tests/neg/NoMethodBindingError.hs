@@ -1,7 +1,5 @@
 module Foo where
 
-{-@ LIQUID "--totality" @-}
-
 class Foo a where
   foo :: a -> a
 

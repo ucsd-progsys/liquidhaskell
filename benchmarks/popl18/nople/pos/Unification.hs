@@ -79,14 +79,14 @@ applyOne su t
 -- | Proving the required theorems
 theoremFun :: Term -> Term -> Term -> Term -> Substitution -> Substitution -> Proof
 {-@ theoremFun
-  :: t11:Term
-  -> t12:Term
-  -> t21:Term
-  -> t22:Term
-  -> θ1:{Substitution | apply θ1 t11 == apply θ1 t21 }
-  -> θ2:{Substitution | apply θ2 (apply θ1 t12) == apply θ2 (apply θ1 t22) }
-  -> { apply (append θ2 θ1) (TFun t11 t12) ==
-       apply (append θ2 θ1) (TFun t21 t22)  }
+      :: t11:Term
+      -> t12:Term
+      -> t21:Term
+      -> t22:Term
+      -> θ1:{Substitution | apply θ1 t11 == apply θ1 t21 }
+      -> θ2:{Substitution | apply θ2 (apply θ1 t12) == apply θ2 (apply θ1 t22) }
+      -> { apply (append θ2 θ1) (TFun t11 t12) ==
+           apply (append θ2 θ1) (TFun t21 t22)  }
   @-}
 theoremFun t11 t12 t21 t22 θ1 θ2
   =   apply (append θ2 θ1) (TFun t11 t12)
@@ -108,7 +108,7 @@ theoremFun t11 t12 t21 t22 θ1 θ2
 
 split_fun :: Term -> Term -> Substitution -> Proof
 {-@ split_fun :: t1:Term -> t2:Term -> θ:Substitution
-   -> {apply θ (TFun t1 t2) == TFun (apply θ t1) (apply θ t2)} / [llen θ] @-}
+      -> {apply θ (TFun t1 t2) == TFun (apply θ t1) (apply θ t2)} / [llen θ] @-}
 split_fun t1 t2 Emp
   =   apply Emp (TFun t1 t2)
   ==. TFun t1 t2
@@ -125,10 +125,10 @@ split_fun t1 t2 (C su θ)
 
 append_apply :: Substitution -> Substitution -> Term -> Proof
 {-@ append_apply
-   :: θ1:Substitution
-   -> θ2:Substitution
-   -> t :Term
-   -> {apply θ1 (apply θ2 t) == apply (append θ1 θ2) t}
+      :: θ1:Substitution
+      -> θ2:Substitution
+      -> t :Term
+      -> {apply θ1 (apply θ2 t) == apply (append θ1 θ2) t}
   @-}
 append_apply Emp θ2 t
   =   apply Emp (apply θ2 t)

@@ -1,3 +1,5 @@
+module FlipArgs where
+
 -------------------------------------------------------------------------------
 -- | How to use bounds when the argument orders are backwards -----------------
 --   https://github.com/ucsd-progsys/liquidhaskell/issues/1452
