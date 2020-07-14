@@ -1,5 +1,5 @@
 name:               liquid-ghc-prim
-version:            0.8.10.1
+version:            0.6.1
 synopsis:           Drop-in ghc-prim replacement for LiquidHaskell
 description:        Drop-in ghc-prim replacement for LiquidHaskell.
 license:            BSD3
@@ -27,9 +27,9 @@ library
                     GHC.Tuple
 
   hs-source-dirs:     src
-  build-depends:      ghc-prim
+  build-depends:      ghc-prim             == 0.6.1
                     , liquidhaskell        >= 0.8.10.1
-  default-language:   Haskell98
+  default-language:   Haskell2010
   default-extensions: PackageImports
                       NoImplicitPrelude
                       MagicHash

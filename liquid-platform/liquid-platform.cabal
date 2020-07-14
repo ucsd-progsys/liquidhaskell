@@ -19,20 +19,20 @@ flag devel
 
 executable liquidhaskell
   main-is:            src/Liquid.hs
-  default-language:   Haskell98
-  ghc-options:        -W -O2 -threaded -fdefer-typed-holes
+  default-language:   Haskell2010
+  ghc-options:        -W -O2 -threaded
   if impl(ghc < 8.10.1)
     buildable: False
   else
     buildable: True
-    build-depends:      liquid-base       >= 0.8.10.1
-                      , liquid-containers >= 0.8.10.1
+    build-depends:      liquid-base       >= 4.14.0.0 && < 5
+                      , liquid-containers >= 0.6.2.1  && < 0.7
                       , liquid-prelude    >= 0.8.10.1
-                      , liquid-vector     >= 0.8.10.1
-                      , liquid-bytestring >= 0.8.10.1
+                      , liquid-vector     >= 0.12.1.2 && < 0.13
+                      , liquid-bytestring >= 0.10.0.0 && < 0.11
                       , liquidhaskell     >= 0.8.10.1
-                      , process           >= 1.6.0.0
-                      , cmdargs           >= 0.10
+                      , process           >= 1.6.0.0 && < 1.7
+                      , cmdargs           >= 0.10    && < 0.11
 
   if flag(devel)
     ghc-options: -Werror

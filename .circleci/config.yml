@@ -47,6 +47,7 @@ commands:
           name: Dependencies
           command: |
             cabal v2-update
+            cabal v2-clean
             cabal v2-build -j1 all
       - save_cache:
           key: cabal-{{ checksum "liquidhaskell.cabal" }}
