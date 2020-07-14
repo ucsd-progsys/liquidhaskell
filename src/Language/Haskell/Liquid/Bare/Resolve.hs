@@ -11,6 +11,8 @@
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE TupleSections         #-}
+{-# LANGUAGE TypeApplications      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -519,7 +521,7 @@ knownGhcDataCon env name lx = Mb.isJust v
 -------------------------------------------------------------------------------
 class ResolveSym a where 
   resolveLocSym :: Env -> ModName -> String -> LocSymbol -> Either UserError a 
-  
+
 instance ResolveSym Ghc.Var where 
   resolveLocSym = resolveWith "variable" $ \case 
                     Ghc.AnId x -> Just x 
@@ -535,10 +537,23 @@ instance ResolveSym Ghc.DataCon where
                     Ghc.AConLike (Ghc.RealDataCon x) -> Just x 
                     _                                -> Nothing
 
-instance ResolveSym F.Symbol where 
-  resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of 
-    Left _               -> Right (val lx)
+instance ResolveSym F.Symbol where
+  resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of
+    -- If we can't resolve the input 'Symbol' from an 'Id', try again
+    -- by grabbing the 'Id' of an 'AConLike', if any.
+    -- See test T1688.
+    Left _               -> case resolveLocSym env name "Var" lx of
+      Left _  -> Right (val lx)
+      Right v -> Right (F.symbol $ unWrap (v :: Wrapped Ghc.Var))
     Right (v :: Ghc.Var) -> Right (F.symbol v)
+
+newtype Wrapped a = Wrapped { unWrap :: a } deriving (PPrint)
+
+instance ResolveSym (Wrapped Ghc.Var) where
+  resolveLocSym = resolveWith "variable" $ \case
+                    Ghc.AConLike (Ghc.RealDataCon x) -> Just $ Wrapped (Ghc.dataConWorkId x)
+                    _                                -> Nothing
+
 
 resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
             -> Either UserError a 
