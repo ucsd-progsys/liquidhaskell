@@ -61,6 +61,7 @@ liquid :: [String] -> IO b
 --------------------------------------------------------------------------------
 liquid args = do 
   cfg     <- getOpts args 
+  printLiquidHaskellBanner
   (ec, _) <- runLiquid Nothing cfg
   exitWith ec
 
