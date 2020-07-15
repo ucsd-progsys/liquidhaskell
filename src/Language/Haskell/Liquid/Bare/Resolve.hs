@@ -12,7 +12,6 @@
 {-# LANGUAGE ConstraintKinds       #-}
 {-# LANGUAGE TupleSections         #-}
 {-# LANGUAGE TypeApplications      #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Language.Haskell.Liquid.Bare.Resolve 
   ( -- * Creating the Environment
@@ -537,22 +536,66 @@ instance ResolveSym Ghc.DataCon where
                     Ghc.AConLike (Ghc.RealDataCon x) -> Just x 
                     _                                -> Nothing
 
+
+{- Note [ResolveSym for Symbol]
+
+In case we need to resolve (aka qualify) a 'Symbol', we need to do some extra work. Generally speaking,
+all these 'ResolveSym' instances perform a lookup into a 'Map' keyed by the 'Symbol' in
+order to find a 'TyThing'. More specifically such map is known as the 'TyThingMap':
+
+type TyThingMap = M.HashMap F.Symbol [(F.Symbol, Ghc.TyThing)]
+
+This means, in practice, that we might have more than one result indexed by a given 'Symbol', and we need
+to make a choice. The function 'rankedThings' does this. By default, we try to extract only /identifiers/
+(i.e. a GHC's 'Id') out of an input 'TyThing', but in the case of test \"T1688\", something different happened.
+By tracing calls to 'rankedThings' (called by 'resolveLocSym') there were cases where we had something like
+this as our input TyThingMap:
+
+[
+ 1 : T1688Lib : Data constructor T1688Lib.Lambda,
+ 1 : T1688Lib : Identifier T1688Lib.Lambda
+]
+
+Here name resolution worked because 'resolveLocSym' used the 'ResolveSym' instance defined for 'GHC.Var' that
+looks only for 'Id's (contained inside 'Identifier's, and we had one). In some other cases, though,
+'resolveLocSym' got called with only this:
+
+[1 : T1688Lib : Data constructor T1688Lib.Lambda]
+
+This would /not/ yield a match, despite the fact a \"Data constructor\" in principle /does/ contain an 'Id'
+(it can be extracted out of a 'RealDataCon' by calling 'dataConWorkId'). In the case of test T1688, such
+failed lookup caused the 'Symbol' to /not/ qualify, which in turn caused the symbols inside the type synonym:
+
+ProofOf( Step (App (Lambda x e) v) e)
+
+To not qualify. Finally, by the time 'expand' was called, the 'ProofOf' type alias would be replaced with
+the correct refinement, but the unqualified 'Symbol's would now cause a test failure when refining the client
+module.
+
+It's not clear to me (Alfredo) why 'resolveLocSym' is called multiple times within the same module with
+different inputs, but it definitely makes sense to allow for the special case here, at least for 'Symbol's.
+
+Probably finding the /root cause/ would entail partially rewriting the name resoultion engine.
+
+-}
+
+
 instance ResolveSym F.Symbol where
-  resolveLocSym env name _ lx = case resolveLocSym env name "Var" lx of
+  resolveLocSym env name _ lx =
     -- If we can't resolve the input 'Symbol' from an 'Id', try again
     -- by grabbing the 'Id' of an 'AConLike', if any.
-    -- See test T1688.
-    Left _               -> case resolveLocSym env name "Var" lx of
-      Left _  -> Right (val lx)
-      Right v -> Right (F.symbol $ unWrap (v :: Wrapped Ghc.Var))
-    Right (v :: Ghc.Var) -> Right (F.symbol v)
+    -- See Note [ResolveSym for Symbol].
+    let resolved =  resolveLocSym env name "Var" lx
+                 <> resolveWith "variable" lookupVarInsideRealDataCon env name "Var" lx
+    in case resolved of
+      Left _               -> Right (val lx)
+      Right (v :: Ghc.Var) -> Right (F.symbol v)
+    where
+      lookupVarInsideRealDataCon :: Ghc.TyThing -> Maybe Ghc.Var
+      lookupVarInsideRealDataCon = \case
+        Ghc.AConLike (Ghc.RealDataCon x) -> Just (Ghc.dataConWorkId x)
+        _                                -> Nothing
 
-newtype Wrapped a = Wrapped { unWrap :: a } deriving (PPrint)
-
-instance ResolveSym (Wrapped Ghc.Var) where
-  resolveLocSym = resolveWith "variable" $ \case
-                    Ghc.AConLike (Ghc.RealDataCon x) -> Just $ Wrapped (Ghc.dataConWorkId x)
-                    _                                -> Nothing
 
 
 resolveWith :: (PPrint a) => PJ.Doc -> (Ghc.TyThing -> Maybe a) -> Env -> ModName -> String -> LocSymbol 
