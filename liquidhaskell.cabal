@@ -51,6 +51,9 @@ data-files:         include/*.hquals
                     include/Language/Haskell/Liquid/*.hs
                     include/Language/Haskell/Liquid/*.pred
 
+                    -- Needed for the mirror-modules helper
+                    mirror-modules/templates/MirrorModule.mustache
+
 cabal-version:      >= 1.22
 
 source-repository head
@@ -70,6 +73,11 @@ flag no-plugin
   default:     False
   manual:      True
   description: Use the legacy executable for testing.
+
+flag mirror-modules-helper
+  default:     False
+  manual:      True
+  description: Build the "mirror-modules" helper executable.
 
 library
   exposed-modules:    Gradual.Concretize
@@ -319,3 +327,32 @@ test-suite synthesis
                   , extra
   default-language: Haskell2010
   ghc-options:      -W
+
+
+-- This executable can be used to generate modules for mirror-packages.
+executable mirror-modules
+  main-is:        Main.hs
+  hs-source-dirs: mirror-modules
+
+  other-modules: CLI
+                 Paths_liquidhaskell
+
+  if flag(mirror-modules-helper)
+    build-depends: base >= 4.9.1.0 && < 5
+                 , shelly < 1.10
+                 , text < 1.3
+                 , filepath < 1.5
+                 , containers < 0.7
+                 , mustache < 2.4
+                 , optparse-applicative < 0.16.1.0
+    buildable: True
+  else
+    buildable: False
+
+  default-language:   Haskell2010
+  default-extensions:
+    OverloadedStrings
+    RecordWildCards
+    MultiWayIf
+    LambdaCase
+  ghc-options:        -W -threaded
