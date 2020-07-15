@@ -21,10 +21,15 @@ library
                     -- treated specially by the GHC pipeline. In particular, GHC doesn't
                     -- generate a '.hi' file for it, and this causes Windows' builds to choke.
                     -- GHC.Prim
-                    GHC.Types
                     GHC.CString
                     GHC.Classes
+                    GHC.Debug
+                    GHC.IntWord64
+                    GHC.Magic
+                    GHC.Prim.Ext
+                    GHC.PrimopWrappers
                     GHC.Tuple
+                    GHC.Types
 
   hs-source-dirs:     src
   build-depends:      ghc-prim             == 0.6.1

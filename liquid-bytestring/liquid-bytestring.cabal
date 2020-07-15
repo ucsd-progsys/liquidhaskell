@@ -21,11 +21,28 @@ data-files:           src/Data/ByteString.spec
 
 library
   exposed-modules:    Data.ByteString
-                      Data.ByteString.Short
-                      Data.ByteString.Unsafe
                       Data.ByteString.Char8
+                      Data.ByteString.Unsafe
+                      Data.ByteString.Internal
                       Data.ByteString.Lazy
+                      Data.ByteString.Lazy.Internal
+                      Data.ByteString.Short
+                      Data.ByteString.Short.Internal
+
+                      Data.ByteString.Builder
+                      Data.ByteString.Builder.Extra
+                      Data.ByteString.Builder.Prim
+
+                      Data.ByteString.Builder.Internal
+                      Data.ByteString.Builder.Prim.Internal
+                      Data.ByteString.Lazy.Builder
+                      Data.ByteString.Lazy.Builder.Extras
+                      Data.ByteString.Lazy.Builder.ASCII
+
+                      -- FIXME: This is commented out as unfortunately it doesn't refine
+                      -- correctly with modern versions of bytestring.
                       -- Data.ByteString.Lazy.Char8
+
   hs-source-dirs:     src
   build-depends:      liquid-base          < 5
                     , bytestring           >= 0.10.10.0 && < 0.11
