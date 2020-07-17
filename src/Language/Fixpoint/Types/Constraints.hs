@@ -285,7 +285,7 @@ instance Monoid (Result a) where
   mappend       = (<>)
 
 unsafe, safe :: Result a
-unsafe = mempty {resStatus = Unsafe []}
+unsafe = mempty {resStatus = Unsafe mempty []}
 safe   = mempty {resStatus = Safe mempty}
 
 isSafe :: Result a -> Bool
@@ -293,7 +293,7 @@ isSafe (Result (Safe _) _ _) = True
 isSafe _                     = False
 
 isUnsafe :: Result a -> Bool
-isUnsafe r | Unsafe _ <- resStatus r
+isUnsafe r | Unsafe _ _ <- resStatus r
   = True
 isUnsafe _ = False
 
@@ -301,7 +301,7 @@ instance (Ord a, Fixpoint a) => Fixpoint (FixResult (SubC a)) where
   toFix (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 
   -- toFix (UnknownError d) = text $ "Unknown Error: " ++ d
   toFix (Crash xs msg)   = vcat $ [ text "Crash!" ] ++  pprSinfos "CRASH: " xs ++ [parens (text msg)]
-  toFix (Unsafe xs)      = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
+  toFix (Unsafe _ xs)    = vcat $ text "Unsafe:" : pprSinfos "WARNING: " xs
 
 pprSinfos :: (Ord a, Fixpoint a) => String -> [SubC a] -> [Doc]
 pprSinfos msg = map ((text msg <->) . toFix) . L.sort . fmap sinfo

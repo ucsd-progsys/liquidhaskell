@@ -175,24 +175,24 @@ data FixResult a = Crash [a] String
                  -- ^ The 'Solver' statistics, which include also the constraints /actually/
                  -- checked. A program will be \"trivially safe\" in case this
                  -- number is 0.
-                 | Unsafe ![a]
+                 | Unsafe Solver.Stats ![a]
                    deriving (Data, Typeable, Foldable, Traversable, Show, Generic)
 
 instance (NFData a) => NFData (FixResult a)
 
 instance Eq a => Eq (FixResult a) where
-  Crash xs _ == Crash ys _        = xs == ys
-  Unsafe xs == Unsafe ys          = xs == ys
-  Safe s1   == Safe s2            = s1 == s2
-  _         == _                  = False
+  Crash xs _   == Crash ys _         = xs == ys
+  Unsafe s1 xs == Unsafe s2 ys       = xs == ys && s1 == s2 
+  Safe s1      == Safe s2            = s1 == s2
+  _            == _                  = False
 
 instance Semigroup (FixResult a) where
-  Safe s1     <> Safe s2     = Safe (s1 <> s2)
-  Safe _      <> x           = x
-  x           <> Safe _      = x
-  _           <> c@(Crash{}) = c
-  c@(Crash{}) <> _           = c
-  (Unsafe xs) <> (Unsafe ys) = Unsafe (xs ++ ys)
+  Safe s1        <> Safe s2        = Safe (s1 <> s2)
+  Safe _         <> x              = x
+  x              <> Safe _         = x
+  _              <> c@(Crash{})    = c
+  c@(Crash{})    <> _              = c
+  (Unsafe s1 xs) <> (Unsafe s2 ys) = Unsafe (s1 <> s2) (xs ++ ys)
 
 instance Monoid (FixResult a) where
   mempty  = Safe mempty
@@ -200,18 +200,18 @@ instance Monoid (FixResult a) where
 
 instance Functor FixResult where
   fmap f (Crash xs msg)   = Crash (f <$> xs) msg
-  fmap f (Unsafe xs)      = Unsafe (f <$> xs)
+  fmap f (Unsafe s xs)    = Unsafe s (f <$> xs)
   fmap _ (Safe stats)     = Safe stats
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : ((("CRASH:" <+>) . toFix) <$> xs)
-resultDoc (Unsafe xs)      = vcat $ text "Unsafe:"           : ((("WARNING:" <+>) . toFix) <$> xs)
+resultDoc (Unsafe _ xs)    = vcat $ text "Unsafe:"           : ((("WARNING:" <+>) . toFix) <$> xs)
 
 colorResult :: FixResult a -> Moods
 colorResult (Safe (Solver.totalWork -> 0)) = Wary
 colorResult (Safe _)                       = Happy
-colorResult (Unsafe _)                     = Angry
+colorResult (Unsafe _ _)                   = Angry
 colorResult (_)                            = Sad
 
 resultExit :: FixResult a -> ExitCode
