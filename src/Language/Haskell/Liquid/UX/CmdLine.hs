@@ -682,7 +682,7 @@ reportResultJson annm = do
   B.putStrLn . encode . annErrors $ annm
 
 resultWithContext :: F.FixResult UserError -> IO (FixResult CError)
-resultWithContext (F.Unsafe es)    = F.Unsafe      <$> errorsWithContext es
+resultWithContext (F.Unsafe s es)  = F.Unsafe s    <$> errorsWithContext es
 resultWithContext (F.Crash  es s)  = (`F.Crash` s) <$> errorsWithContext es
 resultWithContext (F.Safe   stats) = return (F.Safe stats)
 
@@ -723,7 +723,7 @@ resDocs k (F.Crash xs s)  =
     orHeader = text "LIQUID: ERROR" <+> text s
   , orMessages = map (cErrToSpanned k . errToFCrash) xs
   }
-resDocs k (F.Unsafe xs)   =
+resDocs k (F.Unsafe _ xs)   =
   OutputResult {
     orHeader   = text "LIQUID: UNSAFE"
   , orMessages = map (cErrToSpanned k) (nub xs)
@@ -744,10 +744,10 @@ errToFCrash ce = ce { ctErr    = tx $ ctErr ce}
 reportUrl = text "Please submit a bug report at: https://github.com/ucsd-progsys/liquidhaskell" -}
 
 addErrors :: FixResult a -> [a] -> FixResult a
-addErrors r []             = r
-addErrors (Safe _) errs    = Unsafe errs
-addErrors (Unsafe xs) errs = Unsafe (xs ++ errs)
-addErrors r  _             = r
+addErrors r []               = r
+addErrors (Safe s) errs      = Unsafe s errs
+addErrors (Unsafe s xs) errs = Unsafe s (xs ++ errs)
+addErrors r  _               = r
 
 instance Fixpoint (F.FixResult CError) where
   toFix = vcat . map snd . orMessages . resDocs F.Full
