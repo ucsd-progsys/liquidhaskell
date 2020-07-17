@@ -181,9 +181,9 @@ result_  cfg w s = do
   sts      <- stats
   pure $ res sts filtered
   where
-    cs         = isChecked cfg (W.unsatCandidates w)
-    res sts [] = F.Safe sts
-    res _ cs'  = F.Unsafe cs'
+    cs          = isChecked cfg (W.unsatCandidates w)
+    res sts []  = F.Safe sts
+    res sts cs' = F.Unsafe sts cs'
 
 isChecked :: Config -> [F.SimpC a] -> [F.SimpC a]
 isChecked cfg cs = case checkCstr cfg of 
