@@ -426,7 +426,7 @@ adjustTypes lm cm (AI m)          = AI $ M.fromList
                                               , Just sp' <- [adjustSrcSpan lm cm sp]]
 
 adjustResult :: LMap -> ChkItv -> ErrorResult -> ErrorResult
-adjustResult lm cm (Unsafe es)    = errorsResult Unsafe      $ adjustErrors lm cm es
+adjustResult lm cm (Unsafe s es)  = errorsResult (Unsafe s)  $ adjustErrors lm cm es
 adjustResult lm cm (Crash es z)   = errorsResult (`Crash` z) $ adjustErrors lm cm es
 adjustResult _  _  r              = r
 

@@ -244,16 +244,16 @@ mkAnnMap cfg res ann     = ACSS.Ann
 
 mkStatus :: FixResult t -> ACSS.Status
 mkStatus (Safe _)        = ACSS.Safe
-mkStatus (Unsafe _)      = ACSS.Unsafe
+mkStatus (Unsafe _ _)    = ACSS.Unsafe
 mkStatus (Crash _ _)     = ACSS.Error
 
 
 
 mkAnnMapErr :: PPrint (TError t)
             => FixResult (TError t) -> [(Loc, Loc, String)]
-mkAnnMapErr (Unsafe ls)  = mapMaybe cinfoErr ls
-mkAnnMapErr (Crash ls _) = mapMaybe cinfoErr ls
-mkAnnMapErr _            = []
+mkAnnMapErr (Unsafe _ ls) = mapMaybe cinfoErr ls
+mkAnnMapErr (Crash ls _)  = mapMaybe cinfoErr ls
+mkAnnMapErr _             = []
 
 cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)
 cinfoErr e = case pos e of

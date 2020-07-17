@@ -301,10 +301,10 @@ makeFailErrors bs cis = [ mkError x | x <- bs, notElem (val x) vs ]
 splitFails :: S.HashSet Var -> F.FixResult (a, Cinfo) -> (F.FixResult (a, Cinfo),  [Cinfo])
 splitFails _ r@(F.Crash _ _) = (r,mempty)
 splitFails _ r@(F.Safe _)    = (r,mempty)
-splitFails fs (F.Unsafe xs)  = (mkRes r, snd <$> rfails)
+splitFails fs (F.Unsafe s xs)  = (mkRes r, snd <$> rfails)
   where 
     (rfails,r) = L.partition (Mb.maybe False (`S.member` fs) . ci_var . snd) xs 
-    mkRes [] = F.Safe mempty
-    mkRes ys = F.Unsafe ys 
+    mkRes [] = F.Safe s
+    mkRes ys = F.Unsafe s ys 
 
   
