@@ -1,12 +1,13 @@
 site_name: LiquidHaskell 
 
 nav:
-    - Home: index.md
-    - Install: install.md
-    - Run: run.md
+    - Online: "https://liquid-demo.programming.systems/index.html"
+    - Blog: "https://ucsd-progsys.github.io/liquidhaskell-blog/"
+    - Plugin: plugin.md 
+    - Legacy: legacy.md
     - Options: options.md
     - Specifications: specifications.md
     - Community: contributing.md    
-    - Developer's Guide: develop.md         
+    - Development: develop.md         
 
 theme: litera
