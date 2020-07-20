@@ -15,7 +15,7 @@ cabal-version:      >= 1.22
 data-files:           src/Data/Vector.spec
 
 custom-setup
-  setup-depends: Cabal, base
+  setup-depends: Cabal, base, liquidhaskell
 
 library
   exposed-modules:    Data.Vector

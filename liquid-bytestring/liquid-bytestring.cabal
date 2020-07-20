@@ -20,7 +20,7 @@ data-files:           src/Data/ByteString.spec
                       src/Data/ByteString/Lazy/Char8.spec
 
 custom-setup
-  setup-depends: Cabal, base
+  setup-depends: Cabal, base, liquidhaskell
 
 library
   exposed-modules:    Data.ByteString

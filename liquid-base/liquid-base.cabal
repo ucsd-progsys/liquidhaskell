@@ -23,7 +23,7 @@ data-files:         src/Data/*.spec
                     src/Control/*.spec
 
 custom-setup
-  setup-depends: Cabal, base
+  setup-depends: Cabal, base, liquidhaskell
 
 library
   exposed-modules:  Control.Applicative

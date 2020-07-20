@@ -16,7 +16,7 @@ data-files:         src/GHC/*.spec
 
 
 custom-setup
-  setup-depends: Cabal, base
+  setup-depends: Cabal, base, liquidhaskell
 
 library
   exposed-modules:
