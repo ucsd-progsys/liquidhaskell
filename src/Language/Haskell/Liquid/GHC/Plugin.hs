@@ -59,6 +59,7 @@ import qualified TysPrim
 import           GHC.LanguageExtensions
 
 import           Control.Monad
+import           Control.Exception                        (evaluate)
 
 import           Data.Coerce
 import           Data.List                               as L
@@ -260,10 +261,7 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
 
   -- Report the outcome of the checking
-  LH.reportResult (\outputResult ->
-      forM (LH.orMessages outputResult)
-        (\(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty) >>= GHC.reportErrors
-      ) cfg [giTarget (giSrc pmrTargetInfo)] out
+  LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
   case o_result out of
     Safe _stats -> pure ()
     _           -> failM
@@ -278,6 +276,11 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
 
     modGuts :: ModGuts
     modGuts = fromUnoptimised . pdUnoptimisedCore $ pipelineData
+
+    errorLogger :: OutputResult -> TcM ()
+    errorLogger outputResult = do
+      errs <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
+      GHC.reportErrors errs
 
 
 --------------------------------------------------------------------------------
@@ -419,8 +422,16 @@ processModule LiquidHaskellContext{..} = do
   targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
   dynFlags <- getDynFlags
 
-  case makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies of
+  -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
+  -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
+  -- call 'evaluate' to force any exception and catch it, if we can.
 
+  result <-
+    (liftIO $ evaluate (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies))
+      `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
+      `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
+
+  case result of
     -- Print warnings and errors, aborting the compilation.
     Left diagnostics -> do
       liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
