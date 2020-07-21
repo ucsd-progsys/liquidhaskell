@@ -91,6 +91,7 @@ library
                       Gradual.Trivial
                       Gradual.Types
                       Gradual.Uniquify
+                      Language.Haskell.Liquid.Cabal
                       Language.Haskell.Liquid.Bare
                       Language.Haskell.Liquid.Bare.Axiom
                       Language.Haskell.Liquid.Bare.Check
@@ -207,6 +208,7 @@ library
                     , aeson
                     , binary
                     , bytestring           >= 0.10
+                    , Cabal                < 3.3
                     , cereal
                     , cmdargs              >= 0.10
                     , containers           >= 0.5
