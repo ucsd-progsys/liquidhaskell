@@ -21,6 +21,14 @@ of your project in the cabal file, after which `stack` or `cabal` automatically:
 
 ## Installation and Use
 
+1. Install an SMT Solver Download and install at least one of
+
+    Z3 or Microsoft official binary
+    CVC4
+    MathSat
+
+Note: The SMT solver binary should be on your PATH; LiquidHaskell will execute it as a child process.
+
 The following concrete examples show how the source plugin works
 
 - [Tutorial documentation](src/Language/Haskell/Liquid/GHC/Plugin/Tutorial.hs) 
