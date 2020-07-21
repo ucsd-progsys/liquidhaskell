@@ -261,10 +261,6 @@ executable liquid
   default-extensions: PatternGuards
   ghc-options:        -W -threaded -fdefer-typed-holes
 
-  if impl(ghc < 8.10) || flag(no-plugin)
-    buildable: True
-  else
-    buildable: False
 
 test-suite test
   type:             exitcode-stdio-1.0
