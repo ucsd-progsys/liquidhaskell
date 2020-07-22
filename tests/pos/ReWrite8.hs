@@ -16,6 +16,13 @@ data MonadPlus m = MonadPlus {
   , choose :: forall a. m a -> m a -> m a
 }
 
+{-@ data MonadPlus m = MonadPlus {
+      monad  :: OurMonad m
+    , zero   :: forall a. m a
+    , choose :: forall a. m a -> m a -> m a
+    }
+  @-}
+
 {-@ reflect mmonad @-}
 {-@ mmonad :: mp : MonadPlus m -> {v : OurMonad m | v = mmonad mp }@-}
 mmonad = monad
@@ -24,6 +31,14 @@ data OurMonad m = OurMonad {
   bind   :: forall a b. m a -> (a -> m b) -> m b,
   mreturn :: forall a.   a -> m a
 }
+
+{-@ data OurMonad m = OurMonad {
+      bind   :: forall a b. m a -> (a -> m b) -> m b,
+      mreturn :: forall a.   a -> m a
+    } 
+  @-}
+
+
 
 {-@ reflect mbind @-}
 {-@ mbind ::
