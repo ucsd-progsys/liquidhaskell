@@ -240,6 +240,8 @@ errorTests = group "Error-Messages"
   , errorTest "tests/errors/ElabLocation.hs"        1 "ElabLocation.hs:13:14-13:15: Error"
   , errorTest "tests/errors/ErrLocation.hs"         1 "ErrLocation.hs:9:13"
   , errorTest "tests/errors/ErrLocation2.hs"        1 "ErrLocation2.hs:11:20: error:"
+  , errorTest "tests/reflect/neg/frog.hs"           1 "Unbound symbol GHC.Err.undefined"
+  , errorTest "tests/reflect/neg/T1708.hs"          1 "Unbound symbol T1708.bool1"
   -- , errorTest "tests/errors/UnknownTyConHole.hs"    2 "HINT: Use the hole" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField1.hs"        2 "Error: Unknown field `goober`" 
   -- TODO-REBARE ?, errorTest "tests/errors/MissingField2.hs"        2 "Error: Unknown field `fxx`" 
@@ -495,7 +497,10 @@ ecAssert (EC _ code Nothing)  c t   =
 
 ecAssert (EC _ code (Just t)) c log = do
   assertEqual "Wrong exit code" code c
-  assertBool ("Did not match message: " ++ T.unpack t) (T.isInfixOf t log)
+  let msg = "Did not match error message.\n" ++
+            "Expected: " ++ T.unpack t ++ "\n" ++
+            "Actual:   " ++ T.unpack log
+  assertBool msg (T.isInfixOf t log)
 
 --------------------------------------------------------------------------------
 mkTest :: ExitCheck -> FilePath -> FilePath -> TestTree
