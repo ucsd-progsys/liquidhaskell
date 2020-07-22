@@ -1,12 +1,21 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
+LIQUIDHASKELL_VER=$(cat "liquidhaskell.cabal" | grep "^version" | awk '{print $2}')
 TO_UPLOAD=($(ls | grep "^liquid\-.*" | xargs echo))
 GREEN='\033[0;32m'
 NC='\033[0m' # no colour
 UPLOAD_CMD=(stack upload)
+SDIST_CMD=(stack sdist .)
+TMP_TAR_DIR=$(mktemp -d /tmp/liquid-release.XXXXXX)
 
 # Run the upload command to actually upload the packages.
 function doUpload {
+
+    ${SDIST_CMD[@]} "--tar-dir=$TMP_TAR_DIR"
+    ${UPLOAD_CMD[@]} "$TMP_TAR_DIR/liquidhaskell-$LIQUIDHASKELL_VER.tar.gz"
+
     for pkg in "${TO_UPLOAD[@]}"
     do
         ${UPLOAD_CMD[@]} $pkg
@@ -19,6 +28,7 @@ function showRecap {
 
     echo -e "\nThe following packages will be uploaded:\n"
 
+    echo -e liquidhaskell-${GREEN}$LIQUIDHASKELL_VER${NC}
     for pkg in "${TO_UPLOAD[@]}"
     do
         pkg_version=$(cat $pkg/$pkg.cabal | grep "^version" | awk '{print $2}')
@@ -26,6 +36,10 @@ function showRecap {
     done
 
     echo -e "\nHere is what I will run:\n"
+
+    # Special treatment for liquidhaskell (due to the megarepo structure)
+    echo "${SDIST_CMD[@]} --tar-dir=$TMP_TAR_DIR"
+    echo "${UPLOAD_CMD[@]} $TMP_TAR_DIR/liquidhaskell-$LIQUIDHASKELL_VER.tar.gz"
 
     for pkg in "${TO_UPLOAD[@]}"
     do
