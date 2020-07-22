@@ -273,3 +273,14 @@ Here's the magic diff that we did at some point that we keep bumping up to new G
 https://github.com/ucsd-progsys/liquidhaskell/commit/d380018850297b8f1878c33d0e4c586a1fddc2b8#diff-3644b76a8e6b3405f5492d8194da3874R224 
 
 [compiler plugin]: https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/extending_ghc.html#compiler-plugins
+
+## Releasing on Hackage
+
+*NOTE: The following section is relevant only for few developers, i.e. the ones which are directly involved
+in the release process. Most contributors can skip this section.*
+
+We provide a conveniency script to upload all the `liquid-*` packages (**including** `liquid-fixpoint`) on
+Hackage, in a lockstep fashion. To do so, it's possible to simply run the `scripts/release_to_hackage.sh`
+Bash script. The script doesn't accept any argument and it tries to determine the packages
+to upload by scanning the $PWD for packages named appropriately. It will ask the user for confirmation
+before proceeding, and `stack upload` will be used under the hood.
