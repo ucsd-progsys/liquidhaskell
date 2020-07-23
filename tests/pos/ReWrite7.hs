@@ -1,11 +1,11 @@
 -- A more challenging example
 {-# LANGUAGE Rank2Types #-}
 
-{-@ LIQUID "--max-rw-ordering-constraints=0" @-}
 {-@ LIQUID "--extensionality" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--prune-unsorted" @-}
+{-@ LIQUID "--max-rw-ordering-constraints=0" @-}
 
 
 module ReWrite7 where
@@ -16,10 +16,25 @@ data MonadPlus m = MonadPlus {
   , choose :: forall a. m a -> m a -> m a
 }
 
+{-@ data MonadPlus m = MonadPlus {
+      mmonad  :: OurMonad m
+    , zero   :: forall a. m a
+    , choose :: forall a. m a -> m a -> m a
+    }
+  @-}
+
+
 data OurMonad m = OurMonad {
   bind :: forall a b. m a -> (a -> m b) -> m b,
   mreturn :: forall a.   a -> m a
 }
+
+{-@ data OurMonad m = OurMonad {
+      bind   :: forall a b. m a -> (a -> m b) -> m b,
+      mreturn :: forall a.   a -> m a
+    } 
+  @-}
+
 
 {-@ reflect const' @-}
 {-@ const' :: x : a -> y : b -> {v: a | v = x} @-}
@@ -27,18 +42,18 @@ const' x _ = x
 
 {-@ reflect mbind @-}
 {-@ mbind ::
-     om : OurMonad m
-  -> x  : m a
-  -> f  : (a -> m b)
-  -> {v : m b | v == mbind om x f } @-}
+         om : OurMonad m
+      -> x  : m a
+      -> f  : (a -> m b)
+      -> {v : m b | v == mbind om x f } @-}
 mbind :: OurMonad m -> m a -> (a -> m b) -> m b
 mbind = bind
 
 {-@ reflect mseq @-}
 {-@ mseq :: om : OurMonad m
- -> ma : m a
- -> mb : m b
- -> {v : m b | v = mbind om ma (const' mb) } @-}
+     -> ma : m a
+     -> mb : m b
+     -> {v : m b | v = mbind om ma (const' mb) } @-}
 mseq :: OurMonad m -> m a -> m b -> m b
 mseq om ma mb = mbind om ma (const' mb)
 
@@ -81,14 +96,14 @@ kp om f g x = ()
   
 {-@ rewriteWith proof [kp] @-}
 {-@ proof ::
-     mp : MonadPlus m
-  ->  p : Int
-  ->  x : Int
-  ->  tupl : ([Int], [Int])
-  ->{ v : () |
-   lhs mp p x tupl =
-   rhs mp p x tupl
-}
+           mp : MonadPlus m
+        ->  p : Int
+        ->  x : Int
+        ->  tupl : ([Int], [Int])
+        ->{ v : () |
+         lhs mp p x tupl =
+         rhs mp p x tupl
+      }
 @-}
 proof :: MonadPlus m -> Int -> Int -> ([Int], [Int]) -> ()
 proof mp p x (ys,zs) = ()

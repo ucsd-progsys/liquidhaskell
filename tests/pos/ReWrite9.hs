@@ -12,6 +12,7 @@ import Prelude hiding (length, (++))
 (x:xs) ++ ys = x:(xs ++ys)
 
 {-@ reflect length @-}
+length :: [a] -> Int
 length []     = 0
 length (_:xs) = 1 + length xs
 

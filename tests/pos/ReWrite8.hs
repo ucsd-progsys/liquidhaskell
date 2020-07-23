@@ -16,6 +16,13 @@ data MonadPlus m = MonadPlus {
   , choose :: forall a. m a -> m a -> m a
 }
 
+{-@ data MonadPlus m = MonadPlus {
+      monad  :: OurMonad m
+    , zero   :: forall a. m a
+    , choose :: forall a. m a -> m a -> m a
+    }
+  @-}
+
 {-@ reflect mmonad @-}
 {-@ mmonad :: mp : MonadPlus m -> {v : OurMonad m | v = mmonad mp }@-}
 mmonad = monad
@@ -25,12 +32,20 @@ data OurMonad m = OurMonad {
   mreturn :: forall a.   a -> m a
 }
 
+{-@ data OurMonad m = OurMonad {
+      bind   :: forall a b. m a -> (a -> m b) -> m b,
+      mreturn :: forall a.   a -> m a
+    } 
+  @-}
+
+
+
 {-@ reflect mbind @-}
 {-@ mbind ::
      om : OurMonad m
-  -> x  : m a
-  -> f  : (a -> m b)
-  -> {v : m b | v == mbind om x f } @-}
+     -> x  : m a
+     -> f  : (a -> m b)
+     -> {v : m b | v == mbind om x f } @-}
 mbind :: OurMonad m -> m a -> (a -> m b) -> m b
 mbind = bind
 
@@ -42,9 +57,9 @@ guard m False = zero m
 
 {-@ reflect mseq @-}
 {-@ mseq :: om : OurMonad m
- -> ma : m a
- -> mb : m b
- -> {v : m b | v = mbind om ma (const' mb) } @-}
+      -> ma : m a
+      -> mb : m b
+      -> {v : m b | v = mbind om ma (const' mb) } @-}
 mseq :: OurMonad m -> m a -> m b -> m b
 mseq om ma mb = mbind om ma (const' mb)
 
@@ -53,11 +68,11 @@ mseq om ma mb = mbind om ma (const' mb)
 const' x _ = x
 
 {-@ assume guardSeq ::
-       mp : MonadPlus m
-    -> p  : Bool
-    -> q  : Bool
-    -> {v : () | guard mp (and p q)
-               = mseq (mmonad mp) (guard mp p) (guard mp q) }
+         mp : MonadPlus m
+      -> p  : Bool
+      -> q  : Bool
+      -> {v : () | guard mp (and p q)
+                 = mseq (mmonad mp) (guard mp p) (guard mp q) }
 @-}
 guardSeq :: MonadPlus m -> Bool -> Bool -> ()
 guardSeq _ _ _ = ()
@@ -82,14 +97,14 @@ step5Lambda mp p x (ys, zs) =
     
 {-@ rewriteWith step4LambdaEqStep5Lambda [guardSeq] @-}
 {-@ step4LambdaEqStep5Lambda ::
-     mp : MonadPlus m
-  ->  p : Int
-  ->  x : Int
-  -> tupl : ([Int], [Int])
-  ->{ v : () |
-   step4Lambda mp p x tupl =
-   step5Lambda mp p x tupl
-}
+         mp : MonadPlus m
+      ->  p : Int
+      ->  x : Int
+      -> tupl : ([Int], [Int])
+      ->{ v : () |
+       step4Lambda mp p x tupl =
+       step5Lambda mp p x tupl
+      }
 @-}
 step4LambdaEqStep5Lambda :: MonadPlus m -> Int -> Int -> ([Int], [Int]) -> ()
 step4LambdaEqStep5Lambda mp p x (ys, zs) = ()
