@@ -95,6 +95,7 @@ data Config = Config
   , maxMatchDepth       :: Int
   , maxAppDepth         :: Int
   , maxArgsDepth        :: Int
+  , pluginWarns         :: Bool       -- ^ When used as a plugin, convert all errors to GHC warnings
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

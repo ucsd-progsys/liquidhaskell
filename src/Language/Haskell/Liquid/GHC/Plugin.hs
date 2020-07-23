@@ -264,7 +264,7 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
   case o_result out of
     Safe _stats -> pure ()
-    _           -> failM
+    _           -> if (pluginWarns cfg) then pure () else failM
 
   let serialisedSpec = Util.serialiseLiquidLib pmrClientLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)

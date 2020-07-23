@@ -398,6 +398,10 @@ config = cmdArgsMode $ Config {
   , maxArgsDepth
     = def
         &= name "max-args-depth"
+  , pluginWarns
+    = def 
+        &= name "plugin-warnings"
+        &= help "When used as a GHC plugin, display all errors as warnings (to not block GHC builds)"
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -638,6 +642,7 @@ defConfig = Config
   , maxMatchDepth     = 4
   , maxAppDepth       = 2
   , maxArgsDepth      = 1
+  , pluginWarns       = False
   }
 
 
