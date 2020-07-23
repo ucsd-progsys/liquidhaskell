@@ -1,5 +1,4 @@
 fixpoint "--rewrite"
-fixpoint "--norwterminationcheck"
 
 data List 0 = [
   | VNil  { }

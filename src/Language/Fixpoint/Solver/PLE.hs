@@ -637,10 +637,9 @@ knowledge cfg ctx si = KN
   , knConsts                   = Mb.catMaybes $ map makeCons sims 
   , knAutoRWs                  = aenvAutoRW aenv
   , knRWTerminationOpts        =
-      if (noRWTerminationCheck cfg)
-      then RWTerminationCheckDisabled
-      else RWTerminationCheckEnabled (maxRWOrderingConstraints cfg)
-      
+      if (rwTerminationCheck cfg)
+      then RWTerminationCheckEnabled (maxRWOrderingConstraints cfg)
+      else RWTerminationCheckDisabled
   } 
   where 
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 

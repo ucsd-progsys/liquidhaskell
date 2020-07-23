@@ -92,7 +92,7 @@ data Config = Config
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , maxRWOrderingConstraints :: Maybe Int
-  , noRWTerminationCheck     :: Bool
+  , rwTerminationCheck     :: Bool
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -182,7 +182,7 @@ defConfig = Config {
   , checkCstr                = []    &= help "Only check these specific constraint-ids" 
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"
-  , noRWTerminationCheck     = False   &= help "Disable rewrite divergence checker"
+  , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   }
   &= verbosity
   &= program "fixpoint"
