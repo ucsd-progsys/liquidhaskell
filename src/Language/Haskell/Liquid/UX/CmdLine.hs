@@ -406,10 +406,10 @@ config = cmdArgsMode $ Config {
                  ++ "Lower values can speedup verification, but rewriting may terminate prematurely. "
                  ++ "Leave empty to consider all symbols." )
   ,
-    noRWTerminationCheck
+    rwTerminationCheck
     = def
-        &= name "no-rw-termination-check"
-        &= help (   "Disable the rewrite divergence checker. " 
+        &= name "rw-termination-check"
+        &= help (   "Enable the rewrite divergence checker. " 
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
   } &= program "liquid"
@@ -653,7 +653,7 @@ defConfig = Config
   , maxAppDepth              = 2
   , maxArgsDepth             = 1
   , maxRWOrderingConstraints = Nothing
-  , noRWTerminationCheck     = False
+  , rwTerminationCheck       = False
   }
 
 

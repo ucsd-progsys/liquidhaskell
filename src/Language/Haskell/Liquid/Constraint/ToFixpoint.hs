@@ -58,7 +58,7 @@ fixConfig tgt cfg = def
   , FC.extensionality           = extensionality    cfg 
   , FC.oldPLE                   = oldPLE cfg
   , FC.maxRWOrderingConstraints = maxRWOrderingConstraints cfg
-  , FC.noRWTerminationCheck     = noRWTerminationCheck cfg
+  , FC.rwTerminationCheck       = rwTerminationCheck cfg
   }
 
 

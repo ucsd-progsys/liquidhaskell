@@ -2,6 +2,7 @@ module ReWrite10 where
 
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--rw-termination-check" @-}
 {-@ infix ++ @-}
 
 import Prelude hiding (length, (++))
