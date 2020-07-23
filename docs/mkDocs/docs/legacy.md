@@ -30,12 +30,9 @@ You can install the `liquid` binary via package manager *or* source.
 
 #### Via Package Manager
 
-The `liquid` executable is provided as part of a standalone,
-battery-included package called `liquid-platform`.
-
 Simply do:
 
-    cabal install liquid-platform
+    cabal install liquidhaskell
 
 We are working to put `liquid` on `stackage`.
 
@@ -43,7 +40,7 @@ You can designate a specific version of LiquidHaskell to
 ensure that the correct GHC version is in the environment. 
 As an example,
 
-    cabal install liquid-platform-0.9.0.0
+    cabal install liquidhaskell-0.9.0.0
 
 #### Build from Source
 
@@ -57,11 +54,11 @@ either using `stack` (recommended) or `cabal`. In either case:
 
 2. `build` the package with [stack][stack] 
 
-    stack install liquid-platform
+    stack install liquidhaskell
 
 3. or with [cabal][cabal] 
 
-    cabal v2-build liquid-platform
+    cabal v2-build liquidhaskell
 
 #### A note on the GHC_PACKAGE_PATH
 
