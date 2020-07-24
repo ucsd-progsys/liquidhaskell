@@ -68,6 +68,7 @@ library
                     Language.Fixpoint.Solver.Instantiate
                     Language.Fixpoint.Solver.PLE
                     Language.Fixpoint.Solver.Monad
+                    Language.Fixpoint.Solver.Rewrite
                     Language.Fixpoint.Solver.Sanitize
                     Language.Fixpoint.Solver.Solution
                     Language.Fixpoint.Solver.Solve

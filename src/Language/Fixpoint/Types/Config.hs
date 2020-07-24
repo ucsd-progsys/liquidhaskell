@@ -90,7 +90,9 @@ data Config = Config
   , oldPLE           :: Bool           -- ^ Use old version of PLE
   , noIncrPle        :: Bool           -- ^ Use incremental PLE
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
-  , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality 
+  , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
+  , maxRWOrderingConstraints :: Maybe Int
+  , rwTerminationCheck     :: Bool
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -145,40 +147,42 @@ useElim cfg = eliminate cfg /= None
 
 defConfig :: Config
 defConfig = Config {
-    srcFile          = "out"   &= args    &= typFile
-  , defunction       = False   &= help "Allow higher order binders into fixpoint environment"
-  , solver           = def     &= help "Name of SMT Solver"
-  , linear           = False   &= help "Use uninterpreted integer multiplication and division"
-  , stringTheory     = False   &= help "Interpretation of String Theory by SMT"
-  , allowHO          = False   &= help "Allow higher order binders into fixpoint environment"
-  , allowHOqs        = False   &= help "Allow higher order qualifiers"
-  , eliminate        = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
-  , elimBound        = Nothing &= name "elimBound"   &= help "(alpha) Maximum eliminate-chain depth"
-  , smtTimeout       = Nothing &= name "smtTimeout"  &= help "smt timeout in msec"
-  , elimStats        = False   &= help "(alpha) Print eliminate stats"
-  , solverStats      = False   &= help "Print solver stats"
-  , save             = False   &= help "Save Query as .fq and .bfq files"
-  , metadata         = False   &= help "Print meta-data associated with constraints"
-  , stats            = False   &= help "Compute constraint statistics"
-  , etaElim          = False   &= help "eta elimination in function definition"
-  , parts            = False   &= help "Partition constraints into indepdendent .fq files"
-  , cores            = def     &= help "(numeric) Number of threads to use"
-  , minPartSize      = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
-  , maxPartSize      = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
-  , minimize         = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
-  , minimizeQs       = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
-  , minimizeKs       = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
-  , minimalSol       = False &= help "Shrink fixpoint by removing implied qualifiers"
-  , gradual          = False &= help "Solve gradual-refinement typing constraints"
-  , ginteractive     = False &= help "Interactive Gradual Solving"
-  , autoKuts         = False &= help "Ignore given Kut vars, compute from scratch"
-  , nonLinCuts       = False &= help "Treat non-linear kvars as cuts"
-  , noslice          = False &= help "Disable non-concrete KVar slicing"
-  , rewriteAxioms    = False &= help "allow axiom instantiation via rewriting"
-  , oldPLE           = False &= help "Use old version of PLE"
-  , noIncrPle        = False &= help "Don't use incremental PLE"
-  , checkCstr        = []    &= help "Only check these specific constraint-ids" 
-  , extensionality   = False &= help "Allow extensional interpretation of extensionality"
+    srcFile                  = "out"   &= args    &= typFile
+  , defunction               = False   &= help "Allow higher order binders into fixpoint environment"
+  , solver                   = def     &= help "Name of SMT Solver"
+  , linear                   = False   &= help "Use uninterpreted integer multiplication and division"
+  , stringTheory             = False   &= help "Interpretation of String Theory by SMT"
+  , allowHO                  = False   &= help "Allow higher order binders into fixpoint environment"
+  , allowHOqs                = False   &= help "Allow higher order qualifiers"
+  , eliminate                = None    &= help "Eliminate KVars [none = quals for all-kvars, cuts = quals for cut-kvars, all = eliminate all-kvars (TRUE for cuts)]"
+  , elimBound                = Nothing &= name "elimBound"   &= help "(alpha) Maximum eliminate-chain depth"
+  , smtTimeout               = Nothing &= name "smtTimeout"  &= help "smt timeout in msec"
+  , elimStats                = False   &= help "(alpha) Print eliminate stats"
+  , solverStats              = False   &= help "Print solver stats"
+  , save                     = False   &= help "Save Query as .fq and .bfq files"
+  , metadata                 = False   &= help "Print meta-data associated with constraints"
+  , stats                    = False   &= help "Compute constraint statistics"
+  , etaElim                  = False   &= help "eta elimination in function definition"
+  , parts                    = False   &= help "Partition constraints into indepdendent .fq files"
+  , cores                    = def     &= help "(numeric) Number of threads to use"
+  , minPartSize              = defaultMinPartSize &= help "(numeric) Minimum partition size when solving in parallel"
+  , maxPartSize              = defaultMaxPartSize &= help "(numeric) Maximum partiton size when solving in parallel."
+  , minimize                 = False &= help "Delta debug to minimize fq file (unsat with min constraints)"
+  , minimizeQs               = False &= help "Delta debug to minimize fq file (sat with min qualifiers)"
+  , minimizeKs               = False &= help "Delta debug to minimize fq file (sat with max kvars replaced by True)"
+  , minimalSol               = False &= help "Shrink fixpoint by removing implied qualifiers"
+  , gradual                  = False &= help "Solve gradual-refinement typing constraints"
+  , ginteractive             = False &= help "Interactive Gradual Solving"
+  , autoKuts                 = False &= help "Ignore given Kut vars, compute from scratch"
+  , nonLinCuts               = False &= help "Treat non-linear kvars as cuts"
+  , noslice                  = False &= help "Disable non-concrete KVar slicing"
+  , rewriteAxioms            = False &= help "allow axiom instantiation via rewriting"
+  , oldPLE                   = False &= help "Use old version of PLE"
+  , noIncrPle                = False &= help "Don't use incremental PLE"
+  , checkCstr                = []    &= help "Only check these specific constraint-ids" 
+  , extensionality           = False &= help "Allow extensional interpretation of extensionality"
+  , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"
+  , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   }
   &= verbosity
   &= program "fixpoint"
