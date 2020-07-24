@@ -4,13 +4,15 @@
 {-# LANGUAGE TupleSections      #-}
 {-# LANGUAGE OverloadedStrings  #-}
 
-module Language.Haskell.Liquid.UX.QuasiQuoter (
-    -- * LiquidHaskell Specification QuasiQuoter
-    lq
+module Language.Haskell.Liquid.UX.QuasiQuoter 
+-- (
+--     -- * LiquidHaskell Specification QuasiQuoter
+--     lq
 
-    -- * QuasiQuoter Annotations
-  , LiquidQuote(..)
-  ) where
+--     -- * QuasiQuoter Annotations
+--   , LiquidQuote(..)
+--   ) 
+  where
 
 import SrcLoc (SrcSpan)
 

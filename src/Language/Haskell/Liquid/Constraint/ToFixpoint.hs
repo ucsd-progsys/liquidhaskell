@@ -11,7 +11,7 @@ import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
-import           Language.Fixpoint.Solver.PLE (unify)
+import           Language.Fixpoint.Solver.Rewrite (unify)
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
@@ -35,28 +35,30 @@ import           Language.Haskell.Liquid.Types hiding     ( binds )
 
 fixConfig :: FilePath -> Config -> FC.Config
 fixConfig tgt cfg = def
-  { FC.solver           = Mb.fromJust (smtsolver cfg)
-  , FC.linear           = linear            cfg
-  , FC.eliminate        = eliminate         cfg
-  , FC.nonLinCuts       = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
-  , FC.save             = saveQuery         cfg
-  , FC.srcFile          = tgt
-  , FC.cores            = cores             cfg
-  , FC.minPartSize      = minPartSize       cfg
-  , FC.maxPartSize      = maxPartSize       cfg
-  , FC.elimStats        = elimStats         cfg
-  , FC.elimBound        = elimBound         cfg
-  , FC.allowHO          = higherOrderFlag   cfg
-  , FC.allowHOqs        = higherorderqs     cfg
-  , FC.smtTimeout       = smtTimeout        cfg 
-  , FC.stringTheory     = stringTheory      cfg
-  , FC.gradual          = gradual           cfg
-  , FC.ginteractive     = ginteractive       cfg
-  , FC.noslice          = noslice           cfg
-  , FC.rewriteAxioms    = Config.allowPLE   cfg
-  , FC.etaElim          = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
-  , FC.extensionality   = extensionality    cfg 
-  , FC.oldPLE           = oldPLE cfg
+  { FC.solver                   = Mb.fromJust (smtsolver cfg)
+  , FC.linear                   = linear            cfg
+  , FC.eliminate                = eliminate         cfg
+  , FC.nonLinCuts               = not (higherOrderFlag cfg) -- eliminate cfg /= FC.All
+  , FC.save                     = saveQuery         cfg
+  , FC.srcFile                  = tgt
+  , FC.cores                    = cores             cfg
+  , FC.minPartSize              = minPartSize       cfg
+  , FC.maxPartSize              = maxPartSize       cfg
+  , FC.elimStats                = elimStats         cfg
+  , FC.elimBound                = elimBound         cfg
+  , FC.allowHO                  = higherOrderFlag   cfg
+  , FC.allowHOqs                = higherorderqs     cfg
+  , FC.smtTimeout               = smtTimeout        cfg 
+  , FC.stringTheory             = stringTheory      cfg
+  , FC.gradual                  = gradual           cfg
+  , FC.ginteractive             = ginteractive       cfg
+  , FC.noslice                  = noslice           cfg
+  , FC.rewriteAxioms            = Config.allowPLE   cfg
+  , FC.etaElim                  = not (exactDC cfg) && extensionality cfg -- SEE: https://github.com/ucsd-progsys/liquidhaskell/issues/1601
+  , FC.extensionality           = extensionality    cfg 
+  , FC.oldPLE                   = oldPLE cfg
+  , FC.maxRWOrderingConstraints = maxRWOrderingConstraints cfg
+  , FC.rwTerminationCheck       = rwTerminationCheck cfg
   }
 
 
