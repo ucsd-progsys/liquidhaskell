@@ -80,57 +80,6 @@ instantiation of polymorphic type variables.
 It is suggested to use on theorem proving style when reflected 
 functions are trivially refined. 
 
-## Incremental Checking
-
-LiquidHaskell supports *incremental* checking where each run only checks
-the part of the program that has been modified since the previous run.
-
-```
-    $ liquid --diff foo.hs
-```
-
-Each run of `liquid` saves the file to a `.bak` file and the *subsequent* run
-
-    + does a `diff` to see what has changed w.r.t. the `.bak` file
-    + only generates constraints for the `[CoreBind]` corresponding to the
-       changed top-level binders and their transitive dependencies.
-
-The time savings are quite significant. For example:
-
-```
-    $ time liquid --notermination -i . Data/ByteString.hs > log 2>&1
-
-    real	7m3.179s
-    user	4m18.628s
-    sys	    0m21.549s
-```
-
-Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
-
-```
-    $ time liquid -d --notermination -i . Data/ByteString.hs > log 2>&1
-
-    real	0m11.584s
-    user	0m6.008s
-    sys	    0m0.696s
-```
-
-The diff is only performed against **code**, i.e. if you only change
-specifications, qualifiers, measures, etc. `liquid -d` will not perform
-any checks. In this case, you may specify individual definitions to verify:
-
-```
-    $ liquid -b bar -b baz foo.hs
-```
-
-This will verify `bar` and `baz`, as well as any functions they use.
-
-If you always want to run a given file with diff-checking, add
-the pragma:
-
-    {-@ LIQUID "--diff" @-}
-
-
 ## Full Checking (DEFAULT)
 
 To force LiquidHaskell to check the **whole** file (DEFAULT), use:
@@ -229,7 +178,7 @@ Use the `--no-termination` option to disable the check
 
     {-@ LIQUID "--no-termination" @-}
 
-See the [specifications documentation][specifications] for how to write termination 
+See the [specifications section](specifications.md) for how to write termination 
 specifications.
 
 
@@ -353,7 +302,9 @@ and multiplication as uninterpreted functions use the `linear` flag
 
     liquid --linear test.hs
 
-## Counter examples (Experimental!)
+## Counter examples
+
+**Status:** `experimental`
 
 When given the `--counter-examples` flag, LiquidHaskell will attempt to produce
 counter-examples for the type errors it discovers. For example, see
@@ -407,4 +358,4 @@ verification attempts.
   your system. If not, `hscolour` is used to render the HTML.
 
   It is also possible to generate *slide shows* from the above.
-  See the [slides directory](docs/slides) for an example.
+  See the [slides directory](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/docs/slides) for an example.
