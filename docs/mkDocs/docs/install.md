@@ -1,3 +1,7 @@
+# How to install
+
+This sections documents how to install LH and its dependencies.
+
 ## External software requirements
 
 In order to use `liquidhaskell`, you will need a [SMT solver](https://en.wikipedia.org/wiki/Satisfiability_modulo_theories)
@@ -9,4 +13,6 @@ installed on your system. Download and install at least one of:
 
 Note: The SMT solver binary should be on your `PATH`; LiquidHaskell will execute it as a child process.
 
-Once installed, you can now use LH as [a plugin](plugin.md) or using the legacy [executable](legacy.md).
+## Next
+
+Once installed, you can now install and use LH as [a plugin](plugin.md) or legacy [executable](legacy.md).

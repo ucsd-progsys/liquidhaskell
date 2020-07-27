@@ -11,7 +11,7 @@ for examples.
 
 Read the below for more details on how to:
 
-* **Install** [external software](external.md) dependencies required by LH
+* **Install** [external software](install.md) dependencies required by LH
 * **Install** and use LH as a [GHC Plugin](plugin.md)
 * **Install** and use the (legacy) LH standalone [executable](legacy.md) 
 * Use the command line [options](options.md) supported by LH
@@ -30,9 +30,10 @@ If the above whets your appetite, you may enjoy working through the following lo
 * [120 minute workshop with more examples](http://ucsd-progsys.github.io/lh-workshop/01-index.html)
 * [Long ish Tutorial](http://ucsd-progsys.github.io/liquidhaskell-tutorial/)
 
-## Contribute
+## Get involved
 
 If you are interested to contribute to LH and its ecosystem, you may want to:
 
+* Read the contribution [guidelines](contributing.md)
 * Read our [developers' guide](develop.md) to LH
-* Join the LH [community](contributing.md) to discuss issues related to LH
+* Join the LH [community](community.md) to discuss issues related to LH

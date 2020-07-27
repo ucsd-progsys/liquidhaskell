@@ -20,7 +20,7 @@ of your project in the cabal file, after which `stack` or `cabal` automatically:
 
 ## External software requirements
 
-Make sure all the required [external software](external.md) software is installed before proceeding.
+Make sure all the required [external software](install.md) software is installed before proceeding.
 
 ## Getting started
 

@@ -6,7 +6,7 @@ kept around for backwards compatibility. It will eventually be removed from futu
 
 ## External software requirements
 
-Make sure all the required [external software](external.md) software is installed before proceeding.
+Make sure all the required [external software](install.md) software is installed before proceeding.
 
 ## Installation options
 

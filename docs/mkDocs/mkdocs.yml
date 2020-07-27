@@ -1,13 +1,19 @@
-site_name: LiquidHaskell 
+site_name: LiquidHaskell
 
 nav:
-    - Online: "https://liquid-demo.programming.systems/index.html"
-    - Blog: "https://ucsd-progsys.github.io/liquidhaskell-blog/"
-    - Plugin: plugin.md 
-    - Legacy: legacy.md
-    - Options: options.md
-    - Specifications: specifications.md
-    - Community: contributing.md    
-    - Development: develop.md         
+    - Install:
+      - 'External Dependencies': install.md
+      - 'Plugin': plugin.md
+      - 'Legacy Executable': legacy.md
+    - Play: "https://liquid-demo.programming.systems/index.html"
+    - Learn:
+      - Blog: "https://ucsd-progsys.github.io/liquidhaskell-blog/"
+      - Options: options.md
+      - Specifications: specifications.md
+    - "Get Involved": contributing.md
 
 theme: litera
+
+markdown_extensions:
+    - toc:
+        permalink: true
