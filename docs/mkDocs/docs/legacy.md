@@ -1,34 +1,18 @@
 # Installing and Running the Legacy LiquidHaskell Executable
 
 **We strongly recommend** that you use the [GHC Plugin](plugin.md) 
-available in version 0.8.10 onwards. The legacy executable has been 
-kept around for backwards compatibility but will eventually be deprecated.
+available in version 0.8.10 onwards, as the legacy executable is deprecated and has been 
+kept around for backwards compatibility. It will eventually be removed from future LH releases.
 
+## External software requirements
 
-## Install
+Make sure all the required [external software](external.md) software is installed before proceeding.
 
-To run the legacy LiquidHaskell executable you need to install:
-
-1. An SMT solver
-2. LH itself as a standalone binary
+## Installation options
 
 You can install the `liquid` binary via package manager *or* source.
 
-### 1. Install SMT Solver
-
-Download and install *at least one* of
-
-+ [Z3](https://github.com/Z3Prover/z3/releases) or [Microsoft official binary](https://www.microsoft.com/en-us/download/details.aspx?id=52270)
-+ [CVC4](http://cvc4.cs.stanford.edu/web/)
-+ [MathSat](http://mathsat.fbk.eu/download.html)
-
-**Note:** The SMT solver binary should be on your `PATH`; LiquidHaskell will execute it as a child process.
-
-### 2. Install Legacy Binary
-
-You can install the `liquid` binary via package manager *or* source.
-
-#### Via Package Manager
+### Via Package Manager
 
 Simply do:
 
@@ -38,72 +22,34 @@ We are working to put `liquid` on `stackage`.
 
 You can designate a specific version of LiquidHaskell to
 ensure that the correct GHC version is in the environment. 
-As an example,
+For example:
 
-    cabal install liquidhaskell-0.9.0.0
+    cabal install liquidhaskell-0.8.10.1
 
-#### Build from Source
+### Build from Source
 
 If you want the most recent version, you can build from source as follows,
 either using `stack` (recommended) or `cabal`. In either case:
 
-1. *recursively* `clone` the repo 
+1. *recursively* `clone` the repo:
 
-    git clone --recursive https://github.com/ucsd-progsys/liquidhaskell.git
+    ```git clone --recursive https://github.com/ucsd-progsys/liquidhaskell.git```
+
+2. Go inside the `liquidhaskell` directory:
+
+    ```
     cd liquidhaskell
-
-2. `build` the package with [stack][stack] 
-
-    stack install liquidhaskell
-
-3. or with [cabal][cabal] 
-
-    cabal v2-build liquidhaskell
-
-#### A note on the GHC_PACKAGE_PATH
-
-To work correctly `liquid` requires access to auxiliary packages
-installed as part of the executable. Therefore, you might need to 
-extend your `$GHC_PACKAGE_PATH` to have it point to the right location(s). 
-
-Typically the easiest way is to call `stack path`, which will print 
-a lot of diagnostic output. From that it should be suffient to copy 
-the paths printed as part of `ghc-package-path: <some-paths>` and 
-extend the `GHC_PACKAGE_PATH` this way (typically editing your `.bashrc` 
-to make the changes permanent):
-
-```
-export GHC_PACKAGE_PATH=$GHC_PACKAGE_PATH:<some-paths>
-```
-
-After that, running `liquid` anywhere from the filesystem should work.
-
-### Troubleshooting
-
-1. If you're on Windows, please make sure the SMT solver is installed
-    in the **same** directory as LiquidHaskell itself (i.e. wherever
-    `cabal` or `stack` puts your binaries). That is, do:
-
-    ```
-    which liquid
     ```
 
-    and make sure that `z3` or `cvc4` or `mathsat` are in the `PATH`
-    returned by the above.
+3. Build the package:
 
-2. If you installed via `stack` and are experiencing path related woes, try:
+    a. with [stack][stack]:
 
-    ```
-    stack exec -- liquid path/to/file.hs
-    ```
+        stack install liquidhaskell
 
-## Running the Legacy Binary
+    b. or with [cabal][cabal]:
 
-To verify a file called `foo.hs` at type
-
-```bash
-$ liquid foo.hs
-```
+        cabal v2-build liquidhaskell
 
 ## Running in GHCi
 
@@ -114,7 +60,6 @@ $ stack ghci liquidhaskell
 ghci> :m +Language.Haskell.Liquid.Liquid
 ghci> liquid ["tests/pos/Abs.hs"]
 ```
-
 
 [stack]: https://github.com/commercialhaskell/stack/blob/master/doc/install_and_upgrade.md
 [cabal]: https://www.haskell.org/cabal/

@@ -3,9 +3,8 @@
 As of LH version 0.8.10, mirroring GHC-8.10, LiquidHaskell 
 is available as a [GHC compiler plugin](https://downloads.haskell.org/~ghc/8.10.1/docs/html/users_guide/extending_ghc.html). 
 
-(We still offer a [legacy executable](legacy.md) which uses 
-the plugin internally, to give users enough time to complete 
-migrations to the new system.)
+(We still offer the old [legacy executable](legacy.md), to give users enough time to complete migrations
+to the new system.)
 
 ## Benefits
 
@@ -19,19 +18,19 @@ of your project in the cabal file, after which `stack` or `cabal` automatically:
 
 **We recommend switching to the new compiler plugin as soon as possible.**
 
-## Installation and Use
+## External software requirements
 
-1. Install an SMT Solver Download and install at least one of
+Make sure all the required [external software](external.md) software is installed before proceeding.
 
-    Z3 or Microsoft official binary
-    CVC4
-    MathSat
+## Getting started
 
-Note: The SMT solver binary should be on your PATH; LiquidHaskell will execute it as a child process.
+We offer a detailed "getting started" walkthrough in the form of a documented Haskell module. 
+You can read it [here](src/Language/Haskell/Liquid/GHC/Plugin/Tutorial.hs).
 
-The following concrete examples show how the source plugin works
+## Examples
 
-- [Tutorial documentation](src/Language/Haskell/Liquid/GHC/Plugin/Tutorial.hs) 
+The following concrete examples show the source plugin in action:
+
 - [Sample package](https://github.com/ucsd-progsys/lh-plugin-demo)
 - [Sample client package](https://github.com/ucsd-progsys/lh-plugin-demo-client)
 
@@ -41,7 +40,5 @@ codebase.
 
 ## Editor Support
 
-**In plugin-mode** you get to automatically reuse **all** `ghc` 
-based support for your editor as is. Again, the sample packages 
-include examples for `vscode`, `vim` and `emacs`.
-
+One of the added benefit of the plugin is that you get to automatically reuse **all** ghc-based support
+for your editor as is. Again, the sample packages include examples for `vscode`, `vim` and `emacs`.
