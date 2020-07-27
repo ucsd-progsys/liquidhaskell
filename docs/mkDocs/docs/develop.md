@@ -281,6 +281,11 @@ in the release process. Most contributors can skip this section.*
 
 We provide a conveniency script to upload all the `liquid-*` packages (**including** `liquid-fixpoint`) on
 Hackage, in a lockstep fashion. To do so, it's possible to simply run the `scripts/release_to_hackage.sh`
-Bash script. The script doesn't accept any argument and it tries to determine the packages
-to upload by scanning the $PWD for packages named appropriately. It will ask the user for confirmation
-before proceeding, and `stack upload` will be used under the hood.
+Bash script. The script tries to determine the packages to upload by scanning the $PWD for packages named
+appropriately. It will ask the user for confirmation before proceeding, and `cabal upload` will be used
+under the hood. Any options passed to the script will be routed to `cabal`. For example, to upload a package
+using a particular combination of user and password:
+
+```
+./scripts/release_to_hackage.sh -u foo -p bar
+```
