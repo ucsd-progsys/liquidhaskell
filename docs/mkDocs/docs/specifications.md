@@ -1,8 +1,6 @@
 # Writing Specifications
 
-
-Modules WITHOUT code
---------------------
+## Modules WITHOUT code
 
 When checking a file `target.hs`, you can specify an _include_ directory by
 
@@ -13,7 +11,7 @@ you **do not have the code**, you can create a `.spec` file at:
 
     /path/to/include/Foo/Bar/Baz.spec
 
-See, for example, the contents of
+See, for example, the contents of:
 
 + [include/Prelude.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Prelude.spec)
 + [include/Data/List.spec](https://github.com/ucsd-progsys/liquidhaskell/blob/master/include/Data/List.spec)
@@ -27,71 +25,77 @@ See, for example, the contents of
   see below for standalone specifications for **internal** or **home** modules.
 
 
-Modules WITH code: Data
------------------------
+## Modules WITH code: Data
 
 Write the specification directly into the .hs or .lhs file,
-above the data definition. See, for example, [tests/pos/Map.hs](tests/pos/Map.hs)
+above the data definition. See, for example, [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Map.hs):
 
-    {-@
-    data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
-      = Tip
-      | Bin (sz    :: Size)
-            (key   :: k)
-            (value :: a)
-            (left  :: Map <l, r> (k <l key>) a)
-            (right :: Map <l, r> (k <r key>) a)
-    @-}
-    data Map k a = Tip
-                 | Bin Size k a (Map k a) (Map k a)
+```haskell
+{-@
+data Map k a <l :: k -> k -> Prop, r :: k -> k -> Prop>
+  = Tip
+  | Bin (sz    :: Size)
+        (key   :: k)
+        (value :: a)
+        (left  :: Map <l, r> (k <l key>) a)
+        (right :: Map <l, r> (k <r key>) a)
+@-}
+data Map k a = Tip
+             | Bin Size k a (Map k a) (Map k a)
+```
 
 You can also write invariants for data type definitions
-together with the types. For example, see [tests/pos/record0.hs](tests/pos/record0.hs)
+together with the types. For example, see [tests/pos/record0.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/record0.hs):
 
-    {-@ data LL a = BXYZ { size  :: {v: Int | v > 0 }
-                         , elems :: {v: [a] | (len v) = size }
-                         }
-    @-}
+```haskell
+{-@ 
+data LL a = BXYZ { size  :: {v: Int | v > 0 }
+                 , elems :: {v: [a] | (len v) = size }
+                 }
+@-}
+```
 
 Finally you can specify the variance of type variables for data types.
-For example, see [tests/pos/Variance.hs](tests/pos/Variance.hs), where data type `Foo` has four
+For example, see [tests/pos/Variance.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Variance.hs), where data type `Foo` has four
 type variables `a`, `b`, `c`, `d`, specified as invariant, bivariant,
 covariant and contravariant, respectively.
 
-    data Foo a b c d
-    {-@ data variance Foo invariant bivariant covariant contravariant @-}
+```
+{-@ data variance Foo invariant bivariant covariant contravariant @-}
+data Foo a b c d
+```
 
-
-Modules WITH code: Functions
-----------------------------
-
-Write the specification directly into the .hs or .lhs file,
-above the function definition. [For example](tests/pos/spec0.hs)
-
-    {-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
-    incr   :: Int -> Int
-    incr x = x + 1
-
-Modules WITH code: Type Classes
--------------------------------
+## Modules WITH code: Functions
 
 Write the specification directly into the .hs or .lhs file,
-above the type class definition. [For example](tests/pos/Class.hs)
+above the function definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/spec0.hs):
 
-    {-@ class Sized s where
-          size :: forall a. x:s a -> {v:Int | v = (size x)}
-    @-}
-    class Sized s where
-      size :: s a -> Int
+```haskell
+{-@ incr :: x:{v: Int | v > 0} -> {v: Int | v > x} @-}
+incr   :: Int -> Int
+incr x = x + 1
+```
+
+## Modules WITH code: Type Classes
+
+Write the specification directly into the .hs or .lhs file,
+above the type class definition. [For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs):
+
+```haskell
+{-@ class Sized s where
+      size :: forall a. x:s a -> {v:Int | v = (size x)}
+@-}
+class Sized s where
+  size :: s a -> Int
+```
 
 Any measures used in the refined class definition will need to be
 *generic* (see [Specifying Measures](#specifying-measures)).
 
-
 As an alternative, you can refine class instances.
-[For example](tests/classes/pos/Inst00.hs)
+[For example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/classes/pos/Inst00.hs):
 
-~~~~
+```haskell
 instance Compare Int where
 
 {-@ instance Compare Int where
@@ -99,16 +103,13 @@ instance Compare Int where
   @-}
 
 cmax y x = if x >= y then x else y
-~~~~
+```
 
-When `cmax` method is used on `Int`, liquidHaskell will give it
-the refined type `Odd -> Odd -> Odd`.
+When `cmax` method is used on `Int`, `liquidHaskell` will give it the refined type `Odd -> Odd -> Odd`.
 
-Note that currently liquidHaskell does not allow refining instances of
-refined classes.
+_Note that currently `liquidHaskell` does not allow refining instances of refined classes_.
 
-Modules WITH code: QuasiQuotation
----------------------------------
+## Modules WITH code: QuasiQuotation
 
 Instead of writing both a Haskell type signature *and* a
 LiquidHaskell specification for a function, the `lq`
@@ -163,8 +164,7 @@ a type inside `lq` which refers to a refined type alias
 for which there is not a plain Haskell type synonym of the
 same name will result in a "not in scope" error from GHC.
 
-Standalone Specifications for Internal Modules
-----------------------------------------------
+## Standalone Specifications for Internal Modules
 
 Recall that the `.spec` mechanism is only for modules whose
 code is absent; if code is present then there can be multiple,
@@ -205,10 +205,9 @@ import LibSpec  -- use this if you DO want the spec, in addition to OR instead o
 bar = foo 1     -- if you `import LibSpec` then this call is rejected by LH
 ```
 
-Inductive Predicates
---------------------
+## Inductive Predicates
 
-**Very Experimental**
+**Status:** `very_experimental`
 
 LH recently added support for *Inductive Predicates*
 in the style of Isabelle, Coq etc. These are encoded
@@ -217,16 +216,15 @@ simply as plain Haskell GADTs but suitably refined.
 Apologies for the minimal documentation; see the
 following examples for details:
 
-* [Even and Odd](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndEven.hs)
+* [Palindrome](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPalindrome.hs)
 * [Permutations](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndPerm.hs)
 * [Transitive Closure](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/IndStar.hs)
 * [RegExp Derivatives](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/RegexpDerivative.hs)
 * [Type Safety of STLC](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/ple/pos/STLC2.hs)
 
-Implicit Arguments
-------------------
+## Implicit Arguments
 
-**Experimental**
+**Status:** `experimental`
 
 There is experimental support for implicit arguments, solved for with congruence closure. For example, consider [Implicit1.hs](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/tests/pos/Implicit1.hs):
 
@@ -243,45 +241,47 @@ test1 = foo (\_ -> 10)
 Here, the refinement on `(\_ -> 10) :: Int -> { v:Int | v = 10 }` allows us to solve for `n = 10`, the implicit argument to `foo`.
 
 
-Refinement Type Aliases
------------------------
+## Refinement Type Aliases
 
-#### Predicate Aliases
+### Predicate Aliases
 
 Often, the propositions in the refinements can get rather long and
 verbose. You can write predicate aliases like so:
 
-    {-@ predicate Lt X Y = X < Y        @-}
-    {-@ predicate Ge X Y = not (Lt X Y) @-}
+```haskell
+{-@ predicate Lt X Y = X < Y        @-}
+{-@ predicate Ge X Y = not (Lt X Y) @-}
+```
 
-and then use the aliases inside refinements, [for example](tests/pos/pred.hs)
+and then use the aliases inside refinements, [for example](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/pred.hs)
 
-    {-@ incr :: x:{v:Int | (Pos v)} -> { v:Int | ((Pos v) && (Ge v x))} @-}
-    incr :: Int -> Int
-    incr x = x + 1
+```haskell
+{-@ incr :: x:{v:Int | (Pos v)} -> { v:Int | ((Pos v) && (Ge v x))} @-}
+incr :: Int -> Int
+incr x = x + 1
+```
 
-See [Data.Map](benchmarks/esop2013-submission/Base.hs) for a more substantial
+See [Data.Map](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/benchmarks/esop2013-submission/Base.hs) for a more substantial
 and compelling example.
 
 **Syntax:** The key requirements for type aliases are:
 
 - Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
+### Failing Specifications 
 
-#### Failing Specifications 
+The `fail b` declaration checks that the definition of `b` is unsafe. E.g., the following is SAFE.
 
-The `fail b` declaration checks that the definition of `b` is unsafe. E.g., the followin is SAFE.
-
-    {-@ fail unsafe @-}
-    {-@ unsafe :: () -> { 0 == 1 } @-}
-    unsafe :: () -> () 
-    unsafe _ = ()
+```haskell
+{-@ fail unsafe @-}
+{-@ unsafe :: () -> { 0 == 1 } @-}
+unsafe :: () -> () 
+unsafe _ = ()
+```
 
 An error is created if `fail` definitions are safe or binders defined as `fail` are used by (failing or not) definitions. 
 
-
-#### Type Aliases
-
+### Type Aliases
 
 Similarly, it is often quite tedious to keep writing
 
@@ -316,32 +316,29 @@ and:
 
     {-@ assert insert :: (Ord a) => a -> SortedList a -> SortedList a @-}
 
-see [tests/pos/ListSort.hs](tests/pos/ListSort.hs)
+see [tests/pos/ListSort.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/ListSort.hs)
 
 and:
 
     {-@ assert insert :: (Ord k) => k -> a -> OMap k a -> OMap k a @-}
 
-see [tests/pos/Map.hs](tests/pos/Map.hs)
+see [tests/pos/Map.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Map.hs)
 
 **Syntax:** The key requirements for type aliases are:
 
 1. Type parameters are specified in **lower**case: `a`, `b`, `c` etc.
 2. Value parameters are specified in **upper**case: `X`, `Y`, `Z` etc.
 
-
-Infix  Operators
----------------------
+## Infix  Operators
 
 You can define infix types and logical operators in logic [Haskell's infix notation](https://www.haskell.org/onlinereport/decls.html#fixity).
 For example, if `(+++)` is defined as a measure or reflected function, you can use it infix by declaring
 
     {-@ infixl 9 +++ @-}
 
-
 Note: infix operators cannot contain the dot character `.`.
 
-If `(==>)` is a Haskell infix type ([see](tests/pos/T1567.hs)) 
+If `(==>)` is a Haskell infix type ([see](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/T1567.hs)) 
 
     infixr 1 ==> 
 
@@ -350,81 +347,82 @@ then to use it as infix in the refinements types you need to add the refinement 
     {-@ infixr 1 ==> @-}
     {-@ test :: g:(f ==> g) -> f x -> f y -> ()  @-} 
 
+## Specifying Measures
 
-Specifying Measures
--------------------
+They can be placed in a `.spec` file or in a .hs/.lhs file wrapped around `{-@ @-}`.
 
-Can be placed in .spec file or in .hs/.lhs file wrapped around `{-@ @-}`
-
-Value measures: [include/GHC/Base.spec](include/GHC/Base.spec)
+Value measures: [GHC/Base.spec](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/liquid-base/src/GHC/Base.spec)
 
     measure len :: forall a. [a] -> GHC.Types.Int
     len ([])     = 0
     len (y:ys)   = 1 + len(ys)
 
-Propositional measures: [tests/pos/LambdaEval.hs](tests/pos/LambdaEval.hs)
+Propositional measures: [tests/pos/LambdaEval.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/LambdaEval.hs)
 
-    {-@
-    measure isValue      :: Expr -> Bool
-    isValue (Const i)    = true
-    isValue (Lam x e)    = true
-    isValue (Var x)      = false
-    isValue (App e1 e2)  = false
-    isValue (Plus e1 e2) = false
-    isValue (Fst e)      = false
-    isValue (Snd e)      = false
-    isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
-    @-}
+```haskell
+{-@
+measure isValue      :: Expr -> Bool
+isValue (Const i)    = true
+isValue (Lam x e)    = true
+isValue (Var x)      = false
+isValue (App e1 e2)  = false
+isValue (Plus e1 e2) = false
+isValue (Fst e)      = false
+isValue (Snd e)      = false
+isValue (Pair e1 e2) = ((? (isValue(e1))) && (? (isValue(e2))))
+@-}
+```
 
-Raw measures: [tests/pos/meas8.hs](tests/pos/meas8.hs)
+Raw measures: [tests/pos/meas8.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/meas8.hs)
 
-    {-@ measure rlen :: [a] -> Int
-    rlen ([])   = {v | v = 0}
-    rlen (y:ys) = {v | v = (1 + rlen(ys))}
-    @-}
+```haskell
+{-@ measure rlen :: [a] -> Int
+rlen ([])   = {v | v = 0}
+rlen (y:ys) = {v | v = (1 + rlen(ys))}
+@-}
+```
 
-Generic measures: [tests/pos/Class.hs](tests/pos/Class.hs)
+Generic measures: [tests/pos/Class.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class.hs)
 
-    {-@ class measure size :: a -> Int @-}
-    {-@ instance measure size :: [a] -> Int
-        size ([])   = 0
-        size (x:xs) = 1 + (size xs)
-    @-}
-    {-@ instance measure size :: Tree a -> Int
-        size (Leaf)       = 0
-        size (Node x l r) = 1 + (size l) + (size r)
-    @-}
+```haskell
+{-@ class measure size :: a -> Int @-}
+{-@ instance measure size :: [a] -> Int
+    size ([])   = 0
+    size (x:xs) = 1 + (size xs)
+@-}
+{-@ instance measure size :: Tree a -> Int
+    size (Leaf)       = 0
+    size (Node x l r) = 1 + (size l) + (size r)
+@-}
+```
 
 **Note:** Measure names **do not** have to be the same as
 field name, e.g. we could call the measure `sz` in the above
-as shown in [tests/pos/Class2.hs](tests/pos/Class2.hs).
+as shown in [tests/pos/Class2.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Class2.hs).
 
-
-Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](tests/pos/HaskellMeasure.hs)
+Haskell Functions as Measures (beta): [tests/pos/HaskellMeasure.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/HaskellMeasure.hs)
 
 Inductive Haskell Functions from Data Types to some type can be lifted to logic
 
 ```haskell
-    {-@ measure llen @-}
-    llen        :: [a] -> Int
-    llen []     = 0
-    llen (x:xs) = 1 + llen xs
+{-@ measure llen @-}
+llen        :: [a] -> Int
+llen []     = 0
+llen (x:xs) = 1 + llen xs
 ```
 
-The above definition
-  - refines list's data constructors types with the llen information, and
-  - specifies a singleton type for the haskell function
-        `llen :: xs:[a] -> {v:Int | v == llen xs}`
-    If the user specifies another type for llen, say
-        `llen :: xs:[a] -> {v:Int | llen xs >= 0}`
-    then the auto generated singleton type is overwritten.
+The above definition:
 
-Inlines 
--------
+* refines list's data constructors types with the llen information, and
+* specifies a singleton type for the haskell function `llen :: xs:[a] -> {v:Int | v == llen xs}`.
+  If the user specifies another type for `llen`, say `llen :: xs:[a] -> {v:Int | llen xs >= 0}`,
+  then the auto generated singleton type is overwritten.
 
-The `inline`  lets you use a Haskell function in a type specification. 
+## Inlines 
 
-```
+The `inline` lets you use a Haskell function in a type specification. 
+
+```haskell
 {-@ inline max @-}
 {-@ max :: Int -> Int -> Int @-}
 max :: Int -> Int -> Int
@@ -450,10 +448,9 @@ However, as they are *expanded* at compile time, `inline` functions
 **cannot be recursive**. The can call _other_ (non-recursive) inline functions.
 
 If you want to talk about arbitrary (recursive) functions inside your types, 
-then you need to use `reflect` described [in the blog] (https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html)
+then you need to use `reflect` described [in the blog](https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html).
 
-Self-Invariants
-===============
+# Self-Invariants
 
 Sometimes, we require specifications that allow *inner* components of a
 type to refer to the *outer* components, typically, to measure-based
@@ -466,7 +463,7 @@ states that the *inner* `a` enjoys the property that the *outer* container
 is definitely a `Just` and furthermore, the inner value is exactly the same
 as the `fromJust` property of the outer container.
 
-As another example, suppose we have a [measure](include/Data/Set.spec):
+As another example, suppose we have a [measure](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/liquid-containers/src/Data/Set.spec):
 
     measure listElts :: [a] -> (Set a)
     listElts([])   = {v | (? Set_emp(v))}
@@ -481,21 +478,19 @@ set of the elements belonging to the entire list.
 
 One often needs these *circular* or *self* invariants to connect different
 levels (or rather, to *reify* the connections between the two levels.) See
-[this test](tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
-[Data.Map.Base](benchmarks/esop2013-submission/Base.hs) for a complex one.
+[this test](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/maybe4.hs) for a simple example and `hedgeUnion` and
+[Data.Map.Base](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/benchmarks/esop2013-submission/Base.hs) for a complex one.
 
 
-
-Abstract and Bounded Refinements
-================================
+# Abstract and Bounded Refinements
 
 This is probably the best example of the abstract refinement syntax:
 
-+ [Abstract Refinements](tests/pos/Map.hs)
-+ [Bounded Refinements](benchmarks/icfp15/pos/Overview.lhs)
++ [Abstract Refinements](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/Map.hs)
++ [Bounded Refinements](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/benchmarks/icfp15/pos/Overview.lhs)
 
 Unfortunately, the best documentation for these two advanced features
-is the relevant papers at
+is the relevant papers at:
 
 + [ESOP 2013](https://ranjitjhala.github.io/static/abstract_refinement_types.pdf)
 + [ICFP 2015](https://arxiv.org/abs/1507.00385)
@@ -504,8 +499,8 @@ The bounds correspond to Horn implications between abstract refinements,
 which, as in the classical setting, correspond to subtyping constraints
 that must be satisfied by the concrete refinements used at any call-site.
 
-Dependent Pairs
-===============
+# Dependent Pairs
+
 Dependent Pairs are expressed by binding the initial tuples of the pair. For example
 `incrPair` defines an increasing pair.
 
@@ -520,8 +515,8 @@ Invariants
 
 LH lets you locally associate invariants with specific data types.
 
-For example, in [tests/measure/pos/Using00.hs](tests/measure/pos/Using00.hs) every
-list is treated as a Stream. To establish this local invariant one can use the
+For example, in [tests/measure/pos/Using00.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/measure/pos/Using00.hs) every
+list is treated as a `Stream`. To establish this local invariant one can use the
 `using` declaration
 
     {-@ using ([a]) as  {v:[a] | (len v > 0)} @-}
@@ -533,11 +528,10 @@ calls* to List's constructors (ie., `:` and `[]`) satisfy it, and
 will assume that each list element that is created satisfies
 this invariant.
 
-With this, at the [above](tests/measure/neg/Using00.hs) test LiquidHaskell
+With this, at the [above](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/measure/neg/Using00.hs) test LiquidHaskell
 proves that taking the `head` of a list is safe.
-But, at [tests/measure/neg/Using00.hs](tests/measure/neg/Using00.hs) the usage of
+But, at [tests/measure/neg/Using00.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/measure/neg/Using00.hs) the usage of
 `[]` falsifies this local invariant resulting in an "Invariant Check" error.
-
 
 **WARNING:** There is an older _global_ invariant mechanism that
 attaches a refinement to a datatype globally.
@@ -553,11 +547,9 @@ constructors (ie., `:` and `[]`) satisfy it.(TODO!) Then, LiquidHaskell
 assumes that each list element that is created satisfies
 this invariant.
 
+# Rewriting
 
-Rewriting
-=========
-
-*Experimental*
+**Status:** `experimental`
 
 You use the `rewriteWith` annotation to indicate equalities that PLE will apply automatically. For example, suppose that you have proven associativity
 of `++` for lists.
@@ -586,11 +578,10 @@ You can also annotate a function as being a global rewrite rule by using the
           -> { xs ++ (ys ++ zs) == (xs ++ ys) ++ zs } @-}
 ```
 
-
-### Limitations
+## Limitations
 
 Currently, rewriting does not work if the equality that uses the rewrite rule
-includes parameters that contain inner refinements ([test](tests/errors/ReWrite5.hs)).
+includes parameters that contain inner refinements ([test](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/errors/ReWrite5.hs)).
 
 Rewriting works by pattern-matching expressions to determine if there is a
 variable substitution that would allow it to match against either side of a
@@ -599,29 +590,24 @@ corresponding equality is generated. If one side of the equality contains any
 parameters that are not bound on the other side, it will not be possible to
 generate a rewrite in that direction, because those variables cannot be
 instantiated. Likewise, if there are free variables on both sides of an
-equality, no rewrite can be generated at all ([test](tests/errors/ReWrite7.hs)).
+equality, no rewrite can be generated at all ([test](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/errors/ReWrite7.hs)).
 
 It's possible in theory for rewriting rules to diverge. We have a simple check 
 to ensure that rewriting rules that will always diverge do not get instantiated. 
 However, it's possible that applying a combination of rewrite rules could cause
 divergence.
 
-Formal Grammar of Refinement Predicates
-=======================================
+# Formal Grammar of Refinement Predicates
 
-(C)onstants
------------
+## (C)onstants
 
     c := 0, 1, 2, ...
 
-(V)ariables
------------
+## (V)ariables
 
     v := x, y, z, ...
 
-
-(E)xpressions
--------------
+## (E)xpressions
 
     e := v                      -- variable
        | c                      -- constant
@@ -631,8 +617,7 @@ Formal Grammar of Refinement Predicates
        | (v e1 e2 ... en)       -- uninterpreted function application
        | (if p then e else e)   -- if-then-else
 
-(R)elations
------------
+## (R)elations
 
     r := ==               -- equality
        | /=               -- disequality
@@ -641,9 +626,7 @@ Formal Grammar of Refinement Predicates
        | >                -- greater than
        | <                -- less than
 
-
-(P)redicates
-------------
+## (P)redicates
 
     p := (e r e)          -- binary relation
        | (v e1 e2 ... en) -- predicate (or alias) application
@@ -654,16 +637,13 @@ Formal Grammar of Refinement Predicates
        | true
        | false
 
-
-Specifying Qualifiers
-=====================
+# Specifying Qualifiers
 
 There are several ways to specify qualifiers.
 
-By Separate `.hquals` Files
----------------------------
+## By Separate `.hquals` Files
 
-You can write qualifier files e.g. [Prelude.hquals](include/Prelude.hquals)
+You can write qualifier files e.g. [Prelude.hquals](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/include/Prelude.hquals)..
 
 If a module is called or imports
 
@@ -673,21 +653,19 @@ Then the system automatically searches for
 
     include/Foo/Bar/Baz.hquals
 
-By Including `.hquals` Files
-----------------------------
+## By Including `.hquals` Files
 
 Additional qualifiers may be used by adding lines of the form:
 
     {-@ include <path/to/file.hquals> @-}
 
-to the Haskell source. See, [this](tests/pos/meas5.hs) for example.
+to the Haskell source. See, [this](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/meas5.hs) for example.
 
 
-In Haskell Source or Spec Files
--------------------------------
+## In Haskell Source or Spec Files
 
 Finally, you can specifiers directly inside source (.hs or .lhs) or spec (.spec)
-files by writing as shown [here](tests/pos/qualTest.hs)
+files by writing as shown [here](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/qualTest.hs)
 
     {-@ qualif Foo(v:Int, a: Int) : (v = a + 100)   @-}
 
@@ -700,19 +678,18 @@ the specifications you write i.e.
 3. data constructor definitions.
 
 
-
-## Termination Metrics
+# Termination Metrics
 
 In recursive functions the *first* algebraic or integer argument should be decreasing.
 
 The default decreasing measure for lists is length and Integers its value.
 
-### Default Termination Metrics
+## Default Termination Metrics
 
 The user can specify the *size* of a data-type in the data definition
 
 ```haskell
-    {-@ data L [llen] a = Nil | Cons { x::a, xs:: L a} @-}
+{-@ data L [llen] a = Nil | Cons { x::a, xs:: L a} @-}
 ```
 
 In the above, the measure `llen`, which needs to be defined by the user
@@ -721,9 +698,9 @@ will use this default metric to _automatically_ prove that the following
 terminates:
 
 ```haskell
-    append :: L a -> L a -> L a  
-    append N           ys = ys
-    append (Cons x xs) ys = Cons x (append xs ys)
+append :: L a -> L a -> L a  
+append N           ys = ys
+append (Cons x xs) ys = Cons x (append xs ys)
 ```
 
 as, by default the *first* (non-function) argument with an
@@ -733,14 +710,15 @@ and non-negative at each recursive call.
 A default termination metric is a Haskell function that is proved terminating 
 using structural induction. To deactivate structional induction check on the 
 termination metric, use the `--trust-sizes` flag. 
-### Explicit Termination Metrics
 
-However, consider the function `reverse`
+## Explicit Termination Metrics
+
+However, consider the function `reverse`:
 
 ```haskell
-    reverseAcc :: L a -> L a -> L a  
-    reverseAcc acc N           = acc
-    reverseAcc acc (Cons x xs) = reverseAcc (Cons x acc) xs
+reverseAcc :: L a -> L a -> L a  
+reverseAcc acc N           = acc
+reverseAcc acc (Cons x xs) = reverseAcc (Cons x acc) xs
 ```
 
 Here, the first argument does not decrease, instead
@@ -748,7 +726,7 @@ the second does. We can tell LH to use the second
 argument using the *explicit termination metric*
 
 ```haskell
-    reverseAcc :: L a -> xs:L a -> L a / [llen xs]  
+reverseAcc :: L a -> xs:L a -> L a / [llen xs]  
 ```  
 
 which tells LH that the `llen` of the second argument `xs`
@@ -757,30 +735,29 @@ is what decreases at each recursive call.
 Decreasing expressions can be arbitrary refinement expressions, e.g.,
 
 ```haskell
-    {-@ merge :: Ord a => xs:L a -> ys:L a -> L a / [llen xs + llen ys] @-}
+{-@ merge :: Ord a => xs:L a -> ys:L a -> L a / [llen xs + llen ys] @-}
 ```
 
 states that at each recursive call of `merge` the _sum of the lengths_
 of its arguments will decrease.
 
-### Lexicographic Termination Metrics
+## Lexicographic Termination Metrics
 
 Some functions do not decrease on a single argument, but rather a
 combination of arguments, e.g. the Ackermann function.
 
 ```haskell
-    {-@ ack :: m:Int -> n:Int -> Nat / [m, n] @-}
-    ack m n
-      | m == 0          = n + 1
-      | m > 0 && n == 0 = ack (m-1) 1
-      | m > 0 && n >  0 = ack (m-1) (ack m (n-1))
+{-@ ack :: m:Int -> n:Int -> Nat / [m, n] @-}
+ack m n
+  | m == 0          = n + 1
+  | m > 0 && n == 0 = ack (m-1) 1
+  | m > 0 && n >  0 = ack (m-1) (ack m (n-1))
 ```
 
 In all but one recursive call `m` decreases, in the final call `m`
 does not decrease but `n` does. We can capture this notion of `m`
 normally decreases, but if it does not, `n` will decrease with a
 *lexicographic* termination metric `[m, n]`.
-
 
 An alternative way to express this specification is by annotating
 the function's type with the appropriate *numeric* decreasing expressions.
@@ -790,47 +767,48 @@ As an example, you can give `ack` a type
 
 stating that the *numeric* expressions `[m, n]` are lexicographically decreasing.
 
-### Mutually Recursive Functions
+## Mutually Recursive Functions
 
 When dealing with mutually recursive functions you may run into a
 situation where the decreasing parameter must be measured *across* a
 series of invocations, e.g.
 
 ```haskell
-    even :: Int -> Bool
-    even 0 = True
-    even n = odd (n-1)
+even :: Int -> Bool
+even 0 = True
+even n = odd (n-1)
 
-    odd :: Int -> Bool
-    odd  n = not (even n)
+odd :: Int -> Bool
+odd  n = not (even n)
 ```
 
 In this case, you can introduce a ghost parameter that *orders the functions*
 
 ```haskell
-    {-@ isEven :: n:Nat -> Bool / [n, 0] @-}
-    isEven :: Int -> Bool
-    isEven 0 = True
-    isEven n = isOdd (n-1)
+{-@ isEven :: n:Nat -> Bool / [n, 0] @-}
+isEven :: Int -> Bool
+isEven 0 = True
+isEven n = isOdd (n-1)
 
-    {-@ isOdd :: n:Nat -> Bool / [n, 1] @-}
-    isOdd :: Int -> Bool
-    isOdd  n = not $ isEven n
+{-@ isOdd :: n:Nat -> Bool / [n, 1] @-}
+isOdd :: Int -> Bool
+isOdd  n = not $ isEven n
 ```
 
 thus recovering a decreasing measure for the pair of functions, the
 pair of arguments. This can be encoded with the lexicographic
 termination annotation as shown above.
-See [tests/pos/mutrec.hs](tests/pos/mutrec.hs) for the full example.
+See [tests/pos/mutrec.hs](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/pos/mutrec.hs) 
+for the full example.
 
-### Automatic Termination Metrics
+## Automatic Termination Metrics
 
 Apart from specifying a specific decreasing measure for
 an Algebraic Data Type, the user can specify that the ADT
 follows the expected decreasing measure by
 
 ```haskell
-    {-@ autosize L @-}
+{-@ autosize L @-}
 ```
 
 Then, LH will define an instance of the function `autosize`
@@ -842,20 +820,20 @@ of `L a` with the `autosize :: a -> Int` information, such
 that
 
 ```haskell
-    Nil  :: {v:L a | autosize v = 0}
-    Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
+Nil  :: {v:L a | autosize v = 0}
+Cons :: x:a -> xs:L a -> {v:L a | autosize v = 1 + autosize xs}
 ```
 
 Also, an invariant that `autosize` is non negative will be generated
 
 ```haskell
-    invariant  {v:L a| autosize v >= 0 }
+invariant  {v:L a| autosize v >= 0 }
 ```
 
 This information is all LiquidHaskell needs to prove termination
 on functions that recurse on `L a` (on ADTs in general.)
 
-### Disabling Termination Checking
+## Disabling Termination Checking
 
 To *disable* termination checking for `foo` that is,
 to *assume* that it is terminating (possibly for some
@@ -863,10 +841,12 @@ complicated reason currently beyond the scope of LH)
 you can write
 
 ```haskell
-    {-@ lazy foo @-}
+{-@ lazy foo @-}
 ```
 
-## Synthesis
+# Synthesis
+
+**Status:** `experimental`
 
 LH has some very preliminary support for program synthesis.
 
@@ -874,11 +854,11 @@ LH has some very preliminary support for program synthesis.
 
 Activate the flag for typed holes in LiquidHaskell. E.g.
 from command line: 
-    
+
     liquid --typedholes
 
 In a Haskell source file: 
-    
+
     {-@ LIQUID --typed-holes @-}
 
 Using the flag for typed holes, two more flags can be used:
@@ -890,14 +870,16 @@ Using the flag for typed holes, two more flags can be used:
 Having the program specified in a Haskell source file, use 
 GHC' s hole variables, e.g.:
 
-    {-@ myMap :: (a -> b) -> xs:[a] -> {v:[b] | len v == len xs} @-}
-    myMap :: (a -> b) -> [a] -> [b]
-    myMap = _goal
+```haskell
+{-@ myMap :: (a -> b) -> xs:[a] -> {v:[b] | len v == len xs} @-}
+myMap :: (a -> b) -> [a] -> [b]
+myMap = _goal
+```
 
-### Limitations
+## Limitations
 
 This is an experimental feature, so potential users could only 
-expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/synth).
+expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/synthesis).
 
 Current limitations include:
 

@@ -25,7 +25,7 @@ Make sure all the required [external software](install.md) software is installed
 ## Getting started
 
 We offer a detailed "getting started" walkthrough in the form of a documented Haskell module. 
-You can read it [here](src/Language/Haskell/Liquid/GHC/Plugin/Tutorial.hs).
+You can read it [here](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/src/Language/Haskell/Liquid/GHC/Plugin/Tutorial.hs).
 
 ## Examples
 
