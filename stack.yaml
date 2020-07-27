@@ -28,5 +28,6 @@ extra-deps:
 - optics-extra-0.3
 - Diff-0.3.4
 - aeson-1.4.7.1
+- unordered-containers-0.2.11.0
 resolver: lts-15.4
 compiler: ghc-8.10.1

@@ -81,6 +81,13 @@ packages:
       sha256: caa9306e519c601ab0170d113daa03c1163db53e5466be2968bbd61a771bebcb
   original:
     hackage: aeson-1.4.7.1
+- completed:
+    hackage: unordered-containers-0.2.11.0@sha256:ba70b8a9d7eebc2034bf92e5690b2dd71200e76aa9f3f93e0b6be3f27f244d18,4998
+    pantry-tree:
+      size: 1416
+      sha256: d9b83f62373f509a441223f22f12e22e39b38ef3275dfca7c190a4795bebfed5
+  original:
+    hackage: unordered-containers-0.2.11.0
 snapshots:
 - completed:
     size: 491163

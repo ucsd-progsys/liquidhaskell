@@ -239,7 +239,7 @@ library
                     , time                 >= 1.4
                     , time
                     , transformers         >= 0.3
-                    , unordered-containers >= 0.2
+                    , unordered-containers >= 0.2.11.0
                     , vector               >= 0.10
                     , extra
   default-language:   Haskell98
