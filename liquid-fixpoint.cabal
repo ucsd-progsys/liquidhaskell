@@ -1,3 +1,4 @@
+cabal-version:      2.4
 name:               liquid-fixpoint
 version:            0.8.0.2
 synopsis:           Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
@@ -15,7 +16,7 @@ description:
   In addition to the .cabal dependencies you require
   .
   * A Z3 (<http://z3.codeplex.com>) or CVC4 (<http://cvc4.cs.nyu.edu>) binary.
-license:            BSD3
+license:            BSD-3-Clause
 license-file:       LICENSE
 copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
@@ -30,7 +31,6 @@ extra-source-files: tests/neg/*.fq
                     win/Language/Fixpoint/Utils/*.hs
                     tests/logs/cur/pin
                     Makefile
-cabal-version:      >= 1.10
 
 source-repository head
   type:     git
@@ -42,6 +42,7 @@ flag devel
   description: turn on stricter error reporting for development
 
 library
+  autogen-modules:  Paths_liquid_fixpoint
   exposed-modules:  Language.Fixpoint.Defunctionalize
                     Language.Fixpoint.Graph
                     Language.Fixpoint.Graph.Deps
