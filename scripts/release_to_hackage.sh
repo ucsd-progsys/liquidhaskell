@@ -6,19 +6,22 @@ LIQUIDHASKELL_VER=$(cat "liquidhaskell.cabal" | grep "^version" | awk '{print $2
 TO_UPLOAD=($(ls | grep "^liquid\-.*" | xargs echo))
 GREEN='\033[0;32m'
 NC='\033[0m' # no colour
-UPLOAD_CMD=(stack upload)
-SDIST_CMD=(stack sdist .)
+UPLOAD_CMD=(cabal upload)
+SDIST_CMD=(stack sdist)
 TMP_TAR_DIR=$(mktemp -d /tmp/liquid-release.XXXXXX)
+USER_PROVIDED_OPTIONS=$@
 
 # Run the upload command to actually upload the packages.
 function doUpload {
 
-    ${SDIST_CMD[@]} "--tar-dir=$TMP_TAR_DIR"
-    ${UPLOAD_CMD[@]} "$TMP_TAR_DIR/liquidhaskell-$LIQUIDHASKELL_VER.tar.gz"
+    ${SDIST_CMD[@]} . "--tar-dir=$TMP_TAR_DIR"
+    ${UPLOAD_CMD[@]} ${USER_PROVIDED_OPTIONS[@]} "$TMP_TAR_DIR/liquidhaskell-$LIQUIDHASKELL_VER.tar.gz"
 
     for pkg in "${TO_UPLOAD[@]}"
     do
-        ${UPLOAD_CMD[@]} $pkg
+        pkg_version=$(cat $pkg/$pkg.cabal | grep "^version" | awk '{print $2}')
+        ${SDIST_CMD[@]} $pkg "--tar-dir=$TMP_TAR_DIR"
+        ${UPLOAD_CMD[@]} ${USER_PROVIDED_OPTIONS[@]} "$TMP_TAR_DIR/${pkg}-${pkg_version}.tar.gz"
     done
 }
 
@@ -38,12 +41,17 @@ function showRecap {
     echo -e "\nHere is what I will run:\n"
 
     # Special treatment for liquidhaskell (due to the megarepo structure)
-    echo "${SDIST_CMD[@]} --tar-dir=$TMP_TAR_DIR"
-    echo "${UPLOAD_CMD[@]} $TMP_TAR_DIR/liquidhaskell-$LIQUIDHASKELL_VER.tar.gz"
+    echo "${SDIST_CMD[@]} . --tar-dir=$TMP_TAR_DIR"
+    echo "${UPLOAD_CMD[@]} ${USER_PROVIDED_OPTIONS[@]} $TMP_TAR_DIR/liquidhaskell-$LIQUIDHASKELL_VER.tar.gz"
+
+    echo ""
 
     for pkg in "${TO_UPLOAD[@]}"
     do
-        echo "${UPLOAD_CMD[@]} ${pkg}"
+        pkg_version=$(cat $pkg/$pkg.cabal | grep "^version" | awk '{print $2}')
+        echo "${SDIST_CMD[@]} $pkg --tar-dir=$TMP_TAR_DIR"
+        echo "${UPLOAD_CMD[@]} ${USER_PROVIDED_OPTIONS[@]} $TMP_TAR_DIR/${pkg}-${pkg_version}.tar.gz"
+        echo ""
     done
 
     echo ""
