@@ -1,6 +1,19 @@
 # Writing Specifications
 
+This section documents how you can actually annotate new or existing code with refinement types, leveraging
+the full power of LiquidHaskell.
+
 ## Modules WITHOUT code
+
+The following section is slightly different depending on whether you are using the plugin (which you should!)
+or the legacy executable.
+
+### (Plugin) Adding refinements for external modules
+
+See the [plugin](plugin.md) section, which cointains a link to a walkthrough document that describes how to add
+refinements for external packages (cfr. **"Providing Specifications for Existing Packages"**)
+
+### (Legacy executable) Adding refinements for external modules
 
 When checking a file `target.hs`, you can specify an _include_ directory by
 
@@ -23,7 +36,6 @@ See, for example, the contents of:
   default when running `liquid`.
 + The `.spec` mechanism is *only for external modules** without code,
   see below for standalone specifications for **internal** or **home** modules.
-
 
 ## Modules WITH code: Data
 
