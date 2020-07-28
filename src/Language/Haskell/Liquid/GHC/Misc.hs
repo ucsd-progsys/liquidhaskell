@@ -460,12 +460,12 @@ localVarSymbol v
   | otherwise             = suffixSymbol vs us
   where
     us                    = symbol $ showPpr $ getDataConVarUnique v
-    vs                    = exportedVarSymbol v 
+    vs                    = exportedVarSymbol v
 
 exportedVarSymbol :: Var -> Symbol
-exportedVarSymbol x = notracepp msg . symbol . getName $ x            
-  where 
-    msg = "exportedVarSymbol: " ++ showPpr x 
+exportedVarSymbol x = notracepp msg . symbol . getName $ x
+  where
+    msg = "exportedVarSymbol: " ++ showPpr x
 
 qualifiedNameSymbol :: Name -> Symbol
 qualifiedNameSymbol n = symbol $ concatFS [modFS, occFS, uniqFS]

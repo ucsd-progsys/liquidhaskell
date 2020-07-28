@@ -57,8 +57,10 @@ import qualified Data.List                         as L
 import qualified Data.HashSet                      as S 
 import qualified Data.Maybe                        as Mb
 import qualified Data.HashMap.Strict               as M
+import qualified Data.Set                          as Set
 import qualified Data.Text                         as T
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
+import           Data.Hashable
 
 import qualified Language.Fixpoint.Utils.Files         as F 
 import qualified Language.Fixpoint.Types               as F 
@@ -78,7 +80,31 @@ import           Language.Haskell.Liquid.Bare.Misc
 import           Language.Haskell.Liquid.WiredIn 
 
 myTracepp :: (F.PPrint a) => String -> a -> a
-myTracepp = F.notracepp 
+myTracepp = F.notracepp
+
+-- | A small wrapper suitable to override the \"stock\" 'Ord' instance for a type where we need to base
+-- ordering on a different criteria, /temporarily/. In case two elements have the same rank, the comparison
+-- is performed on the underlying 'Ord' instance for 'a'.
+-- This is useful in this module in the call to 'srcVars', to avoid all those expensive 'sortNub' later on.
+data Ranked a = Ranked !Int a deriving Eq
+
+instance Functor Ranked where
+  fmap f (Ranked r a) = Ranked r (f a)
+
+instance (Ord a) => Ord (Ranked a) where
+  compare (Ranked r1 a) (Ranked r2 b) =
+    case r1 `compare` r2 of
+      EQ -> a `compare` b
+      x  -> x
+
+rank :: Int -> a -> Ranked a
+rank = Ranked
+
+unRank :: Ranked a -> a
+unRank (Ranked _ a) = a
+
+mapRank :: Int -> [a] -> [Ranked a]
+mapRank r = map (rank r)
 
 -------------------------------------------------------------------------------
 -- | Creating an environment 
@@ -98,7 +124,7 @@ makeEnv cfg src lmap specs = RE
   } 
   where 
     globalSyms  = concatMap getGlobalSyms specs
-    syms        = [ (F.symbol v, v) | v <- vars ] 
+    syms        = [ (F.symbol v, v) | (Ranked _ v) <- Set.toList vars ]
     vars        = srcVars src
 
 getGlobalSyms :: (ModName, BareSpec) -> [F.Symbol]
@@ -174,7 +200,7 @@ okUnqualified me mxs     = go mxs
 
 makeSymMap :: GhcSrc -> M.HashMap F.Symbol [(F.Symbol, Ghc.Var)]
 makeSymMap src = Misc.group [ (sym, (m, x)) 
-                                | x           <- srcVars src
+                                | (Ranked _ x) <- Set.toList (srcVars src)
                                 , let (m, sym) = qualifiedSymbol x ]
 
 makeTyThingMap :: GhcSrc -> TyThingMap 
@@ -198,43 +224,48 @@ conLikeSymbol _z                   = Nothing -- panic Nothing ("TODO: conLikeSym
 
 
 
-
 isLocal :: F.Symbol -> Bool
 isLocal = isEmptySymbol 
 
 qualifiedSymbol :: (F.Symbolic a) => a -> (F.Symbol, F.Symbol)
-qualifiedSymbol = splitModuleNameExact . F.symbol 
+qualifiedSymbol = splitModuleNameExact . F.symbol
 
 isEmptySymbol :: F.Symbol -> Bool 
 isEmptySymbol x = F.lengthSym x == 0 
 
-srcThings :: GhcSrc -> [Ghc.TyThing] 
-srcThings src = myTracepp "SRCTHINGS" 
-              $ Misc.hashNubWith F.showpp (_gsTyThings src ++ mySrcThings src) 
+srcThings :: GhcSrc -> [Ghc.TyThing]
+srcThings src = myTracepp "SRCTHINGS"
+              $ Misc.hashNubWith F.showpp (_gsTyThings src ++ mySrcThings src)
 
-mySrcThings :: GhcSrc -> [Ghc.TyThing] 
-mySrcThings src = [ Ghc.AnId   x | x <- vars ] 
-               ++ [ Ghc.ATyCon c | c <- tcs  ] 
-               ++ [ aDataCon   d | d <- dcs  ] 
-  where 
-    vars        = Misc.sortNub $ dataConVars dcs ++ srcVars  src
-    dcs         = Misc.sortNub $ concatMap Ghc.tyConDataCons tcs 
-    tcs         = Misc.sortNub $ srcTyCons src  
-    aDataCon    = Ghc.AConLike . Ghc.RealDataCon 
+mySrcThings :: GhcSrc -> [Ghc.TyThing]
+mySrcThings src =
+    (map (Ghc.AnId   . unRank) . Set.toDescList) vars <>
+    (map (Ghc.ATyCon . unRank) . Set.toDescList) tcs <>
+    (map (aDataCon   . unRank) . Set.toDescList) dcs
+  where
+    vars :: Set.Set (Ranked Ghc.Var)
+    vars = dataConVars dcs <> srcVars src
 
-srcTyCons :: GhcSrc -> [Ghc.TyCon]
-srcTyCons src = concat 
-  [ _gsTcs     src 
-  , _gsFiTcs   src 
-  , _gsPrimTcs src
-  , srcVarTcs src 
-  ]
+    dcs :: Set.Set (Ranked Ghc.DataCon)
+    dcs = Set.foldl' (\acc (Ranked r t) -> acc <> Set.fromList (mapRank r (Ghc.tyConDataCons t))) mempty tcs
 
-srcVarTcs :: GhcSrc -> [Ghc.TyCon]
-srcVarTcs = varTyCons . srcVars 
+    tcs :: Set.Set (Ranked Ghc.TyCon)
+    tcs = srcTyCons src
 
-varTyCons :: [Ghc.Var] -> [Ghc.TyCon]
-varTyCons = concatMap (typeTyCons . Ghc.dropForAlls . Ghc.varType) 
+    aDataCon :: Ghc.DataCon -> Ghc.TyThing
+    aDataCon = Ghc.AConLike . Ghc.RealDataCon
+
+srcTyCons :: GhcSrc -> Set.Set (Ranked Ghc.TyCon)
+srcTyCons src = Set.fromList (mapRank 0 (_gsTcs src <> _gsFiTcs src <> _gsPrimTcs src)) <> srcVarTcs src
+
+srcVarTcs :: GhcSrc -> Set.Set (Ranked Ghc.TyCon)
+srcVarTcs = varTyCons . srcVars
+  where
+    varTyCons :: Set.Set (Ranked Ghc.Var) -> Set.Set (Ranked Ghc.TyCon)
+    varTyCons xs =
+      let f acc (Ranked r v) =
+            acc <> Set.fromList (mapRank r . typeTyCons . Ghc.dropForAlls . Ghc.varType $ v)
+      in Set.foldl' f mempty xs
 
 typeTyCons :: Ghc.Type -> [Ghc.TyCon]
 typeTyCons t = tops t ++ inners t 
@@ -248,25 +279,16 @@ typeTyCons t = tops t ++ inners t
 --   type parameters as used by GHC as those are used inside the lambdas and
 --   other bindings in the code. See also [NOTE: Plug-Holes-TyVars] and 
 --      tests-absref-pos-Papp00.hs 
+srcVars :: GhcSrc -> Set.Set (Ranked Ghc.Var)
+srcVars src = Set.filter (Ghc.isId . unRank) $
+  (Set.fromList $ mapRank 0 (_giDefVars src)) <>
+  (Set.fromList $ mapRank 1 (S.toList $ _giDerVars src)) <>
+  (Set.fromList $ mapRank 2 (_giImpVars src)) <>
+  (Set.fromList $ mapRank 3 (_giUseVars src)) <>
+  (Set.fromList $ mapRank 4 [ x | Ghc.AnId x <- _gsTyThings src ])
 
-srcVars :: GhcSrc -> [Ghc.Var]
-srcVars src = filter Ghc.isId .  fmap Misc.thd3 . Misc.fstByRank $ concat 
-  [ key "SRC-VAR-DEF" 0 <$> _giDefVars src 
-  , key "SRC-VAR-DER" 1 <$> S.toList (_giDerVars src)
-  , key "SRC-VAR-IMP" 2 <$> _giImpVars src 
-  , key "SRC-VAR-USE" 3 <$> _giUseVars src 
-  , key "SRC-VAR-THN" 4 <$> [ x | Ghc.AnId x <- _gsTyThings src ]
-  ]
-  where 
-    key :: String -> Int -> Ghc.Var -> (Int, F.Symbol, Ghc.Var)
-    key _ i x  = (i, F.symbol x, {- dump s -} x) 
-    _dump msg x = fst . myTracepp msg $ (x, RT.ofType (Ghc.expandTypeSynonyms (Ghc.varType x)) :: SpecType)
-
-dataConVars :: [Ghc.DataCon] -> [Ghc.Var]
-dataConVars dcs = concat 
-  [ Ghc.dataConWorkId <$> dcs 
-  , Ghc.dataConWrapId <$> dcs 
-  ] 
+dataConVars :: Set.Set (Ranked Ghc.DataCon) -> Set.Set (Ranked Ghc.Var)
+dataConVars dcs = Set.map (fmap Ghc.dataConWorkId) dcs <> Set.map (fmap Ghc.dataConWrapId) dcs
 
 -------------------------------------------------------------------------------
 -- | Qualify various names 
