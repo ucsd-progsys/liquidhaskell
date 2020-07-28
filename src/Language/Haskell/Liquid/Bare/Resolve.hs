@@ -60,7 +60,6 @@ import qualified Data.HashMap.Strict               as M
 import qualified Data.Set                          as Set
 import qualified Data.Text                         as T
 import qualified Text.PrettyPrint.HughesPJ         as PJ 
-import           Data.Hashable
 
 import qualified Language.Fixpoint.Utils.Files         as F 
 import qualified Language.Fixpoint.Types               as F 
