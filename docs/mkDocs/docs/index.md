@@ -13,7 +13,6 @@ Read the below for more details on how to:
 
 * **Install** [external software](install.md) dependencies required by LH
 * **Install** and use LH as a [GHC Plugin](plugin.md)
-* **Install** and use the (legacy) LH standalone [executable](legacy.md) 
 * Use the command line [options](options.md) supported by LH
 * Write refinement type [specifications](specifications.md)
 

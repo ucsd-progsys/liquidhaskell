@@ -1,16 +1,16 @@
 site_name: LiquidHaskell
 
 nav:
-    - Install:
-      - 'External Dependencies': install.md
-      - 'Plugin': plugin.md
-      - 'Legacy Executable': legacy.md
+    - Home: index.md
+    - Install: plugin.md
     - Play: "https://liquid-demo.programming.systems/index.html"
     - Learn:
       - Blog: "https://ucsd-progsys.github.io/liquidhaskell-blog/"
       - Options: options.md
       - Specifications: specifications.md
     - "Get Involved": contributing.md
+    - "<i class='fa fa-github'></i>&nbsp;Github": "https://github.com/ucsd-progsys/liquidhaskell"
+
 
 theme: litera
 
