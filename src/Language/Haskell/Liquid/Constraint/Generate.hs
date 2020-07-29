@@ -437,14 +437,16 @@ consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
-  = do t        <- trueTy τ
-       addW      $ WfC γ t
-       let xts   = dmap (fmap (f t)) d
+  = do t        <- mapM trueTy τ
+       mapM addW (WfC γ <$> t)
+       let xts   = dmap (fmap (\x ->foldl f x t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
-    f t' (RAllT α te _) = subsTyVar_meet' (ty_var_value α, t') te
+    f t' (RAllT α te _)    = subsTyVar_meet' (ty_var_value α, t') te
+--     f [t'] tt@(RAllT α te _)    = subsTyVar_meet' (ty_var_value α, t') te
+--     f (t':ts) tt@(RAllT α te _) = f ts $ subsTyVar_meet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
@@ -452,10 +454,13 @@ consCB _ _ γ (NonRec x e)
        to' <- consBind False γ (x, e, to) >>= (addPostTemplate γ)
        extender γ (x, makeSingleton γ (simplify e) <$> to')
 
-grepDictionary :: CoreExpr -> Maybe (Var, Type)
-grepDictionary (App (Var w) (Type t)) = Just (w, t)
-grepDictionary (App e (Var _))        = grepDictionary e
-grepDictionary _                      = Nothing
+grepDictionary :: CoreExpr -> Maybe (Var, [Type])
+grepDictionary = go [] 
+  where 
+    go ts (App (Var w) (Type t)) = Just (w, reverse (t:ts))
+    go ts (App e (Type t))       = go (t:ts) e
+    go ts (App e (Var _))        = go ts e
+    go _ _                       = Nothing
 
 --------------------------------------------------------------------------------
 consBind :: Bool -> CGEnv -> (Var, CoreExpr, Template SpecType) -> CG (Template SpecType)
@@ -1454,7 +1459,7 @@ isGenericVar α t =  all (\(c, α') -> (α'/=α) || isGenericClass c ) (classCon
                         | (c, ts) <- tyClasses t
                         , t'      <- ts
                         , α'      <- freeTyVars t']
-    isGenericClass c = className c `elem` [ordClassName, eqClassName, functorClassName, monadClassName]
+    isGenericClass c = className c `elem` [ordClassName, eqClassName] -- , functorClassName, monadClassName]
 
 -- instance MonadFail CG where 
 --  fail msg = panic Nothing msg

@@ -1,4 +1,3 @@
-{-@ LIQUID "--no-pattern-inline" @-}
 module Foo () where
 
 import Language.Haskell.Liquid.Prelude

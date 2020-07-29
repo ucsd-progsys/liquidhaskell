@@ -1,6 +1,7 @@
 -------------------------------------------------------------------------------------------
 -- | Polymorphic user (NOT WORKING)
 -------------------------------------------------------------------------------------------
+{-@ LIQUID "--no-pattern-inline" @-}
 
 module B where
 
@@ -44,7 +45,7 @@ instance Monad m => Monad (TaggedT user m) where
 
   return :: a -> TaggedT<{\_ -> True}, {\_ -> False}> user m a
 @-}
-instance Monad m => Monad (TaggedT user m) where
+instance Monad m =>  Monad (TaggedT user m) where
   x >>= f = TaggedT $ unTag x >>= \y -> unTag (f y)
   
 -------------------------------------------------------------------------------------------
