@@ -68,6 +68,7 @@ import           Data.Maybe              -- (fromMaybe)
 import qualified Data.List               as L
 import qualified Data.HashSet            as S
 import qualified Data.HashMap.Strict     as M
+import qualified Data.IntMap.Strict      as IntMap
 import qualified Language.Fixpoint.Types as F
 
 
@@ -158,7 +159,7 @@ addBind :: SrcSpan -> F.Symbol -> F.SortedReft -> CG ((F.Symbol, F.Sort), F.Bind
 addBind l x r = do
   st          <- get
   let (i, bs') = F.insertBindEnv x r (binds st)
-  put          $ st { binds = bs' } { bindSpans = M.insert i l (bindSpans st) }
+  put          $ st { binds = bs' } { bindSpans = IntMap.insert i l (bindSpans st) }
   return ((x, F.sr_sort r), {- traceShow ("addBind: " ++ showpp x) -} i)
 
 addClassBind :: CGEnv -> SrcSpan -> SpecType -> CG [((F.Symbol, F.Sort), F.BindId)]

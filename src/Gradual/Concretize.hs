@@ -9,6 +9,7 @@ import Language.Fixpoint.Types
 import Gradual.Misc
 
 import qualified Data.HashMap.Strict       as M
+import qualified Data.IntMap.Strict        as IntMap
 -- import Debug.Trace 
 
 class Gradual a where
@@ -35,6 +36,9 @@ instance GSubable (SimpC a) where
 
 instance (GSubable v) => GSubable (M.HashMap SubcId v) where
   gsubst i m = M.map (gsubst i) m
+
+instance (GSubable v) => GSubable (IntMap.IntMap v) where
+  gsubst i m = IntMap.map (gsubst i) m
 
 instance GSubable SortedReft where
   gsubst i (RR s r) = RR s $ gsubst i r 

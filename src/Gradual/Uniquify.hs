@@ -23,6 +23,7 @@ import Language.Fixpoint.Types.Names        (gradIntSymbol)
 
 import Control.DeepSeq
 
+import qualified Data.IntMap.Strict        as IntMap
 import qualified Data.HashMap.Strict       as M
 import qualified Data.List                 as L
 
@@ -44,8 +45,8 @@ uniquify fi = (km', fi{cm = cm', ws = ws', bs = bs'})
 
 uniquifyCS :: (NFData a, Fixpoint a, Loc a)
            => BindEnv
-           -> M.HashMap SubcId (SimpC a)
-           -> (M.HashMap SubcId (SimpC a), GSpan, BindEnv)
+           -> IntMap.IntMap (SimpC a)
+           -> (IntMap.IntMap (SimpC a), GSpan, BindEnv)
 uniquifyCS bs cs = (x, km, benv st)
   where
     (x, st) = runState (uniq cs) (initUniqueST bs)
@@ -56,6 +57,9 @@ class Unique a where
 
 instance Unique a => Unique (M.HashMap SubcId a) where
   uniq m = M.fromList <$> mapM (\(i,x) -> (i,) <$> uniq x) (M.toList m)
+
+instance Unique a => Unique (IntMap.IntMap a) where
+  uniq m = IntMap.fromList <$> mapM (\(i,x) -> (i,) <$> uniq x) (IntMap.toList m)
 
 instance Loc a => Unique (SimpC a) where
   uniq cs = do

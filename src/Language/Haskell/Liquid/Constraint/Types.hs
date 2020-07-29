@@ -65,6 +65,7 @@ import qualified TyCon   as TC
 import qualified DataCon as DC
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import qualified Data.HashMap.Strict as M
+import qualified Data.IntMap.Strict  as IntMap
 import qualified Data.HashSet        as S
 import qualified Data.List           as L
 import           Control.DeepSeq
@@ -201,7 +202,7 @@ data CGInfo = CGInfo
   , logErrors  :: ![Error]                     -- ^ Errors during constraint generation
   , kvProf     :: !KVProf                      -- ^ Profiling distribution of KVars
   , recCount   :: !Int                         -- ^ number of recursive functions seen (for benchmarks)
-  , bindSpans  :: M.HashMap F.BindId SrcSpan   -- ^ Source Span associated with Fixpoint Binder
+  , bindSpans  :: IntMap.IntMap SrcSpan        -- ^ Source Span associated with Fixpoint Binder
   , allowHO    :: !Bool
   , ghcI       :: !TargetInfo
   , dataConTys :: ![(Var, SpecType)]           -- ^ Refined Types of Data Constructors

@@ -25,6 +25,7 @@ import           Language.Haskell.Liquid.UX.DiffCheck (coreDeps, dependsOn)
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
+import qualified Data.IntMap.Strict                as IntMap
 import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
@@ -85,7 +86,7 @@ targetFInfo info cgi = mappend (mempty { F.ae = ax }) fi
     ax               = makeAxiomEnvironment info (dataConTys cgi) (F.cm fi)
     -- msg              = show . map F.symbol . M.keys . tyConInfo
 
-makeAxiomEnvironment :: TargetInfo -> [(Var, SpecType)] -> M.HashMap F.SubcId (F.SubC Cinfo) -> F.AxiomEnv
+makeAxiomEnvironment :: TargetInfo -> [(Var, SpecType)] -> IntMap.IntMap (F.SubC Cinfo) -> F.AxiomEnv
 makeAxiomEnvironment info xts fcs
   = F.AEnv eqs  
            (concatMap makeSimplify xts)
