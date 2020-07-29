@@ -439,14 +439,12 @@ consCB _ _ γ (NonRec x def)
   , Just d      <- dlookup (denv γ) w
   = do t        <- mapM trueTy τ
        mapM addW (WfC γ <$> t)
-       let xts   = dmap (fmap (\x ->foldl f x t)) d
+       let xts   = dmap (fmap (foldl1 (flip f) t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }
        t        <- trueTy (varType x)
        extender γ' (x, Assumed t)
    where
     f t' (RAllT α te _)    = subsTyVar_meet' (ty_var_value α, t') te
---     f [t'] tt@(RAllT α te _)    = subsTyVar_meet' (ty_var_value α, t') te
---     f (t':ts) tt@(RAllT α te _) = f ts $ subsTyVar_meet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
