@@ -224,7 +224,7 @@ library
                     , gitrev
                     , hashable             >= 1.3
                     , hscolour             >= 1.22
-                    , liquid-fixpoint      >= 0.8.0.0
+                    , liquid-fixpoint      >= 0.8.10.1
                     , mtl                  >= 2.1
                     , optics               >= 0.2
                     , optparse-simple
@@ -297,7 +297,7 @@ test-suite liquidhaskell-parser
   other-modules:    Paths_liquidhaskell
   hs-source-dirs:   tests
   build-depends:    base            >= 4.8.1.0 && < 5
-                  , liquid-fixpoint >= 0.8.0.0
+                  , liquid-fixpoint >= 0.8.10.1
                   , liquidhaskell
                   , parsec
                   , syb
@@ -313,7 +313,7 @@ test-suite synthesis
   other-modules:    Paths_liquidhaskell
   hs-source-dirs:   tests
   build-depends:    base            >= 4.8.1.0 && < 5
-                  , liquid-fixpoint >= 0.8.0.0
+                  , liquid-fixpoint >= 0.8.10.1
                   , liquidhaskell
                   , tasty           >= 0.7
                   , tasty-hunit
