@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquid-fixpoint
-version:            0.8.0.2
+version:            0.8.10.1
 synopsis:           Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 description:
   This package implements an SMTLIB based Horn-Clause\/Logical Implication constraint
