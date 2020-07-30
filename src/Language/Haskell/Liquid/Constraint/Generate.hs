@@ -446,7 +446,6 @@ consCB _ _ γ (NonRec x def)
    where
     f [t']    (RAllT α te _) = subsTyVar_meet' (ty_var_value α, t') te
     f (t':ts) (RAllT α te _) = f ts $ subsTyVar_meet' (ty_var_value α, t') te
---     f t' (RAllT α te _)    = subsTyVar_meet' (ty_var_value α, t') te
     f _ _ = impossible Nothing "consCB on Dictionary: this should not happen"
 
 consCB _ _ γ (NonRec x e)
