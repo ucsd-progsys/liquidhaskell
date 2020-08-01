@@ -409,7 +409,7 @@ fastEval γ ctx e =
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = case splitEApp e of 
                            (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es) 
-                                         evalApp γ (eApps f' es) (f',es')
+                                         evalApp γ ctx (eApps f' es) (f',es')
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = do e'  <- fastEval γ ctx e
                              return $ ENeg e'
@@ -479,7 +479,7 @@ evalStep γ ctx e@(EApp _ _)     = case splitEApp e of
             es' <- mapM (evalStep γ ctx) es
             if es /= es'
               then return (eApps f' es')
-              else evalApp γ (eApps f' es') (f',es')
+              else evalApp γ ctx (eApps f' es') (f',es')
 evalStep γ ctx e@(PAtom r e1 e2) =
   fromMaybeM (PAtom r <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
 evalStep γ ctx (ENeg e) = ENeg <$> evalStep γ ctx e
@@ -510,21 +510,33 @@ f <$$> xs = f Misc.<$$> xs
 
 
  
-evalApp :: Knowledge -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ _ (EVar f, es) 
+evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
+evalApp γ ctx e (EVar f, es) 
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , length (eqArgs eq) <= length es 
   = do env <- seSort <$> gets evEnv
+       ac <- gets evAccum
        let (es1,es2) = splitAt (length (eqArgs eq)) es
-       return $ eApps (substEq env eq es1) es2 
+       shortcut (substEq env eq es1) es2
+  where
+    shortcut e'@(EIte i e1 e2) es2 = do
+      b   <- fastEval γ ctx i
+      b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
+      nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
+      r <- if b' 
+        then shortcut e1 es2
+        else if nb' then shortcut e2 es2
+        else return $ eApps (EIte b e1 e2) es2
+      return r
+    shortcut e' es2 = return $ eApps e' es2
 
-evalApp γ _ (EVar f, e:es) 
+evalApp γ _ _ (EVar f, e:es) 
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = return $ eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es 
 
-evalApp _ e _
+evalApp _ _ e _
   = return e 
   
 --------------------------------------------------------------------------------
