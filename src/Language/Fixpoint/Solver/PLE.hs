@@ -511,15 +511,14 @@ f <$$> xs = f Misc.<$$> xs
 
  
 evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ ctx e (EVar f, es) 
+evalApp γ ctx _ (EVar f, es)
   | Just eq <- L.find ((== f) . eqName) (knAms γ)
   , length (eqArgs eq) <= length es 
   = do env <- seSort <$> gets evEnv
-       ac <- gets evAccum
        let (es1,es2) = splitAt (length (eqArgs eq)) es
        shortcut (substEq env eq es1) es2
   where
-    shortcut e'@(EIte i e1 e2) es2 = do
+    shortcut (EIte i e1 e2) es2 = do
       b   <- fastEval γ ctx i
       b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
       nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
