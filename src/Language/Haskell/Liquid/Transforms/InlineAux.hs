@@ -44,7 +44,7 @@ buildDictSubst = cata f
 
 
 inlineAux :: UX.Config -> Module -> CoreProgram -> CoreProgram
-inlineAux cfg m cbs =  if UX.inlineAux cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
+inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
