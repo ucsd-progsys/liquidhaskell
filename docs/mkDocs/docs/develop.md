@@ -33,7 +33,7 @@ This is how you can use this:
 #### Stack
 
 ```
-LIQUID_DEV_MODE=true stack build
+env LIQUID_DEV_MODE=true stack build
 ```
 
 #### Cabal
