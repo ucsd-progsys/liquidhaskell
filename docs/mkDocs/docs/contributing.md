@@ -1,18 +1,31 @@
-# Contributions
+# Get involved
 
-We are excited for you to try LH!
+We are excited for you to try LH! 
 
-## Community
+In this section you can find instructions on how to submit your first PR as well as practical instructions
+on how develop LiquidHaskell.
 
-If you have any questions
+## Hacking on LiquidHaskell
 
-* Join the Liquid Haskell [slack channel](https://join.slack.com/t/liquidhaskell/shared_invite/enQtMjY4MTk3NDkwODE3LTFmZGFkNGEzYWRkNDJmZDQ0ZGU1MzBiZWZiZDhhNmY3YTJiMjUzYTRlNjMyZDk1NDU3ZGIxYzhlOTIzN2UxNWE)
-* Mail the [users mailing list](https://groups.google.com/forum/#!forum/liquidhaskell)
-* Create a [github issue](https://github.com/ucsd-progsys/liquidhaskell/issues)
+If you want to extend LH to fix a bug or provide a new feature, you might be interested in reading
+our [Developer's guide](develop.md).
 
-## Pull requests
+## Reporting a bug
 
-We are thrilled to get PRs!
+If something doesn't work as it should, please consider opening a [github issue](https://github.com/ucsd-progsys/liquidhaskell/issues)
+to let us know. If possible, try to:
+
+* Try to use a descriptive title;
+* State as clearly as possible what is the problem you are facing;
+* Provide a small Haskell file producing the issue;
+* Write down the expected behaviour vs the actual behaviour;
+* If possible, let us know if you have used the [plugin](plugin.md) or the [executable](legacy.md) and
+  which _GHC version_ you are using.
+
+## Your first Pull Request
+
+We are thrilled to get PRs! Please follow these guidelines, as doing so will increase the chances of 
+having your PR accepted:
 
 * The main LH repo [lives here](https://github.com/ucsd-progsys/liquidhaskell)
 * Please create pull requests against the `develop` branch.
@@ -20,3 +33,7 @@ We are thrilled to get PRs!
   - e.g. show new features that that are supported or how it fixes some previous issue
 * If the PR adds a `LIQUID` pragma or option, please also add documentation 
   - e.g. in [options.md](options.md) or [specifications.md](specifications.md) 
+
+## Ask for help
+
+If you have further questions or you just need help, you can always reach out to the [community](community.md).

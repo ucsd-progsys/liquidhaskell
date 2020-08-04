@@ -5,18 +5,19 @@ checking.
 
 To see all options, run `liquid --help`. 
 
-Each option can be passed in at the command line, or directly
-added to the source file via a **pragma**
+You can pass options in different ways:
 
-```haskell
-    {-@ LIQUID "option-within-quotes" @-}
-```
+1. From the **command line**, if you use the **legacy executable**:
 
-for example, to disable termination checking (see below)
+        liquid --opt1 --opt2 ...
 
-```haskell
-    {-@ LIQUID "--no-termination" @-}
-```
+2. As a **plugin option**:
+
+        ghc-options: -fplugin-opt=LiquidHaskell:--opt1 -fplugin-opt=LiquidHaskell:--opt2
+
+3. As a **pragma**, directly added to the source file:
+
+        {-@ LIQUID "opt1" @-}
 
 You may also put command line options in the environment variable
 `LIQUIDHASKELL_OPTS`. For example, if you add the line:
@@ -32,6 +33,10 @@ to your `.bashrc` then, by default, all files will be
 Below, we list the various options and what they are used for. 
 
 ## Theorem Proving 
+
+**Options:** `reflection`, `ple`, `ple-local`, `extensionality`
+
+**Directives:** `automatic-instances`
 
 To enable theorem proving, e.g. as [described here](https://ucsd-progsys.github.io/liquidhaskell-blog/tags/reflection.html)
 use the option 
@@ -65,14 +70,16 @@ liquid annotation
 {-@ automatic-instances theorem @-}
 ```
 
-To allow reasoning about function extensionality use the `extensionality flag`. [See](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs)
+To allow reasoning about function extensionality use the `--extensionality` flag. 
+[See test T1577](https://github.com/ucsd-progsys/liquidhaskell/blob/880c78f94520d76fa13880eac050f21dacb592fd/tests/pos/T1577.hs).
 
 ```
 {-@ LIQUID "--extensionality" @-}
 ```
 
-
 ## Fast Checking
+
+**Options:** `fast`, `nopolyinfer`
 
 The option `--fast` or `--nopolyinfer` greatly recudes verification time, can also reduces precision of type checking. 
 It, per module, deactivates inference of refinements during 
@@ -82,18 +89,13 @@ functions are trivially refined.
 
 ## Incremental Checking
 
-LiquidHaskell supports *incremental* checking where each run only checks
-the part of the program that has been modified since the previous run.
+**Options:** `diff`
 
-```
-    $ liquid --diff foo.hs
-```
-
-Each run of `liquid` saves the file to a `.bak` file and the *subsequent* run
-
-    + does a `diff` to see what has changed w.r.t. the `.bak` file
-    + only generates constraints for the `[CoreBind]` corresponding to the
-       changed top-level binders and their transitive dependencies.
+The LiquidHaskell executable supports *incremental* checking where each run only checks
+the part of the program that has been modified since the previous run. Each run of `liquid` saves the file
+to a `.bak` file and the *subsequent* run does a `diff` to see what has changed w.r.t. the `.bak` file only
+generates constraints for the `[CoreBind]` corresponding to the changed top-level binders and their
+transitive dependencies.
 
 The time savings are quite significant. For example:
 
@@ -108,7 +110,7 @@ The time savings are quite significant. For example:
 Now if you go and tweak the definition of `spanEnd` on line 1192 and re-run:
 
 ```
-    $ time liquid -d --notermination -i . Data/ByteString.hs > log 2>&1
+    $ time liquid --diff --notermination -i . Data/ByteString.hs > log 2>&1
 
     real	0m11.584s
     user	0m6.008s
@@ -130,23 +132,19 @@ the pragma:
 
     {-@ LIQUID "--diff" @-}
 
-
 ## Full Checking (DEFAULT)
 
-To force LiquidHaskell to check the **whole** file (DEFAULT), use:
+**Options:** `full`
 
-    $ liquid --full foo.hs
-
-to the file. This will override any other `--diff` incantation
-elsewhere (e.g. inside the file.)
-
-
-If you always want to run a given file with full-checking, add
-the pragma:
+You can force LiquidHaskell to check the **whole** file (which is the _DEFAULT_) using the `--full` option.
+This will override any other `--diff` incantation elsewhere (e.g. inside the file). If you always want
+to run a given file with full-checking, add the pragma:
 
     {-@ LIQUID "--full" @-}
 
 ## Specifying Different SMT Solvers
+
+**Options:** `smtsolver`
 
 By default, LiquidHaskell uses the SMTLIB2 interface for Z3.
 
@@ -167,25 +165,26 @@ dependencies). If you do so, you can use that interface with:
 
     $ liquid --smtsolver=z3mem foo.hs
 
-
 ## Short Error Messages
+
+**Options:** `short-errors`
 
 By default, subtyping error messages will contain the inferred type, the
 expected type -- which is **not** a super-type, hence the error -- and a
 context containing relevant variables and their type to help you understand
 the error. If you don't want the above and instead, want only the
-**source position** of the error use:
-
-    --short-errors
+**source position** of the error use `--short-errors`.
 
 ## Short (Unqualified) Module Names
 
-By default, the inferred types will have fully qualified module names.
-To use unqualified names, much easier to read, use:
+**Options:** `short-names`
 
-    --short-names
+By default, the inferred types will have fully qualified module names.
+To use unqualified names, much easier to read, use `--short-names`.
 
 ## Disabling Checks on Functions
+
+**Directives:** `ignore`
 
 You can _disable_ checking of a particular function (e.g. because it is unsafe,
 or somehow not currently outside the scope of LH) by using the `ignore` directive.
@@ -203,43 +202,43 @@ See `tests/pos/Ignores.hs` for an example.
 
 ## Totality Check
 
+**Options:** `no-totality`
+
 LiquidHaskell proves the absence of pattern match failures.
 
 For example, the definition
 
-    fromJust :: Maybe a -> a
-    fromJust (Just a) = a
+```haskell
+fromJust :: Maybe a -> a
+fromJust (Just a) = a
+```
 
 is not total and it will create an error message.
 If we exclude `Nothing` from its domain, for example using the following specification
 
-    {-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
+```haskell
+{-@ fromJust :: {v:Maybe a | (isJust v)} -> a @-}
+```
 
 `fromJust` will be safe.
 
 Use the `no-totality` flag to disable totality checking.
 
-    liquid --no-totality test.hs
-
 ## Termination Check
 
-By **default** a termination check is performed on all recursive functions.
+**Options:** `no-termination`
 
-Use the `--no-termination` option to disable the check
+By **default** a termination check is performed on all recursive functions, but you can disable the check
+with the `--no-termination` option.
 
-    {-@ LIQUID "--no-termination" @-}
-
-See the [specifications documentation][specifications] for how to write termination 
-specifications.
-
+See the [specifications section](specifications.md) for how to write termination specifications.
 
 ## Total Haskell
 
+**Options:** `total-Haskell`
+
 LiquidHaskell provides a total Haskell flag that checks both totallity and termination of the program,
 overriding a potential no-termination flag.
-
-    liquid --total-Haskell test.hs
-
 
 ## Lazy Variables
 
@@ -250,45 +249,49 @@ A variable can be specified as `LAZYVAR`
 With this annotation the definition of `z` will be checked at the points where
 it is used. For example, with the above annotation the following code is SAFE:
 
-    foo   = if x > 0 then z else x
-      where
-        z = 42 `safeDiv` x
-        x = choose 0
+```haskell
+foo   = if x > 0 then z else x
+  where
+    z = 42 `safeDiv` x
+    x = choose 0
+```
 
 By default, all the variables starting with `fail` are marked as LAZY, to defer
 failing checks at the point where these variables are used.
 
 ## No measure fields
 
+**Options:** `no-measure-fields`
+
 When a data type is refined, Liquid Haskell automatically turns the data constructor fields into measures.
 For example,
 
-    {-@ data L a = N | C {hd :: a, tl :: L a} @-}
+```haskell
+{-@ data L a = N | C {hd :: a, tl :: L a} @-}
+```
 
-will automatically create two measures `hd` and `td`.
-To deactivate this automatic measure definition, and speed up verification, you can use the `no-measure-fields` flag.
-
-    liquid --no-measure-fields test.hs
-
-
+will automatically create two measures `hd` and `td`. To deactivate this automatic measure definition,
+and speed up verification, you can use the `--no-measure-fields` flag.
 
 ## Prune Unsorted Predicates
+
+**Options:** `prune-unsorted`
 
 The `--prune-unsorted` flag is needed when using *measures over specialized instances* of ADTs. 
 
 For example, consider a measure over lists of integers
 
 ```haskell
-    sum :: [Int] -> Int
-    sum [] = 0
-    sum (x:xs) = 1 + sum xs
+sum :: [Int] -> Int
+sum [] = 0
+sum (x:xs) = 1 + sum xs
 ```
 
 This measure will translate into strengthening the types of list constructors
 
 ```
-    [] :: {v:[Int] | sum v = 0 }
-    (:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
+[] :: {v:[Int] | sum v = 0 }
+(:) :: x:Int -> xs:[Int] -> {v:[Int] | sum v = x + sum xs}
 ```
 
 But what if our list is polymorphic `[a]` and later instantiate to list of ints?
@@ -296,8 +299,8 @@ The workaround we have right now is to strengthen the polymorphic list with the
 `sum` information
 
 ```
-    [] :: {v:[a] | sum v = 0 }
-    (:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
+[] :: {v:[a] | sum v = 0 }
+(:) :: x:a -> xs:[a] -> {v:[a] | sum v = x + sum xs}
 ```
 
 But for non numeric `a`s, refinements like `x + sum xs` are ill-sorted! 
@@ -305,55 +308,53 @@ But for non numeric `a`s, refinements like `x + sum xs` are ill-sorted!
 We use the flag `--prune-unsorted` to prune away unsorted expressions 
 (like `x + sum xs`) inside refinements.
 
-
-```
-    liquid --prune-unsorted test.hs
-```
-
-
 ## Case Expansion
+
+**Options:** `no-case-expand`
 
 By default LiquidHaskell expands all data constructors to the case statements.
 For example, given the definition
 
 ```haskell 
-  data F = A1 | A2 | .. | A10
+data F = A1 | A2 | .. | A10
 ```
 
 LiquidHaskell will expand the code
 
 ```haskell
-  case f of {A1 -> True; _ -> False}
+case f of {A1 -> True; _ -> False}
 ```
 
 to 
 
 ```haskell
-  case f of {A1 -> True; A2 -> False; ...; A10 -> False}
+case f of {A1 -> True; A2 -> False; ...; A10 -> False}
 ```
 
 This expansion can lead to more precise code analysis
 but it can get really expensive due to code explosion.
-The `no-case-expand` flag prevents this expansion and keeps the user
+The `--no-case-expand` flag prevents this expansion and keeps the user
 provided cases for the case expression.
-
-    liquid --no-case-expand test.hs
-
 
 ## Higher order logic
 
-The flag `--higherorder` allows reasoning about higher order functions.
+**Options:** `higherorder`
 
+The flag `--higherorder` allows reasoning about higher order functions.
 
 ## Restriction to Linear Arithmetic
 
+**Options:** `linear`
+
 When using `z3` as the solver, LiquidHaskell allows for non-linear arithmetic:
 division and multiplication on integers are interpreted by `z3`. To treat division
-and multiplication as uninterpreted functions use the `linear` flag
+and multiplication as uninterpreted functions use the `--linear` flag.
 
-    liquid --linear test.hs
+## Counter examples
 
-## Counter examples (Experimental!)
+**Options:** `counter-examples`
+
+**Status:** `experimental`
 
 When given the `--counter-examples` flag, LiquidHaskell will attempt to produce
 counter-examples for the type errors it discovers. For example, see
@@ -407,4 +408,4 @@ verification attempts.
   your system. If not, `hscolour` is used to render the HTML.
 
   It is also possible to generate *slide shows* from the above.
-  See the [slides directory](docs/slides) for an example.
+  See the [slides directory](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/docs/slides) for an example.
