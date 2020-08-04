@@ -313,7 +313,8 @@ gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
 benchTests :: IO TestTree
 benchTests = group "Benchmarks"
-  [ testGroup "esop"        <$> dirTests  "benchmarks/esop2013-submission"        esopIgnored               ExitSuccess
+  [ testGroup "cse230"      <$> dirTests   "benchmarks/cse230/src/Week10"         []                        ExitSuccess
+  , testGroup "esop"        <$> dirTests   "benchmarks/esop2013-submission"       esopIgnored               ExitSuccess
   , testGroup "vect-algs"   <$> odirTests  "benchmarks/vector-algorithms-0.5.4.2" []            vectOrder   ExitSuccess
   , testGroup "bytestring"  <$> odirTests  "benchmarks/bytestring-0.9.2.1"        bsIgnored     bsOrder     ExitSuccess
   , testGroup "text"        <$> odirTests  "benchmarks/text-0.11.2.3"             textIgnored   textOrder   ExitSuccess

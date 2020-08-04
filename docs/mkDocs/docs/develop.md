@@ -172,3 +172,4 @@ Hackage, in a lockstep fashion. To do so, it's possible to simply run the `scrip
 Bash script. The script doesn't accept any argument and it tries to determine the packages
 to upload by scanning the `$PWD` for packages named appropriately. It will ask the user for confirmation
 before proceeding, and `stack upload` will be used under the hood.
+
