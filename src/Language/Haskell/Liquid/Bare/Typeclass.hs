@@ -351,12 +351,12 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
     elaboratedSig  <- flip addCoherenceOblig preft <$> elab fullSig
 
     let retSig =  mapExprReft (\_ -> substAuxMethod dfunSym methodsSet) (F.notracepp ("elaborated" ++ GM.showPpr method) elaboratedSig)
-    let tysub  = M.fromList $ zip (allTyVars retSig) (allTyVars (ofType (Ghc.varType method) :: SpecType))
+    let tysub  = F.notracepp "tysub" $ M.fromList $ zip (F.notracepp "newtype-vars" $ allTyVars' (F.notracepp "new-type" $  retSig)) (F.notracepp "ghc-type-vars" (allTyVars' ((F.notracepp "ghc-type" $ ofType (Ghc.varType method)) :: SpecType)))
         cosub  = M.fromList [ (F.symbol a, F.fObj (GM.namedLocSymbol b)) |  (a,RTV b) <- M.toList tysub]
         tysubf x = F.notracepp ("cosub:" ++ F.showpp cosub) $ tysub ^. at x % non x
         subbedTy = mapReft (Bare.coSubRReft cosub) (renameTvs tysubf retSig)
     -- need to make the variable names consistent
-    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars subbedTy)) $ subbedTy))
+    pure (method, F.dummyLoc (F.notracepp ("vars:" ++ F.showpp (F.symbol <$> allTyVars' subbedTy)) $ subbedTy))
 
   -- "is" is used as a shorthand for instance, following the convention of the Ghc api
   where
