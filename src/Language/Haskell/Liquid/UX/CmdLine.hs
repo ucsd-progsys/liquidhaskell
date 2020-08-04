@@ -374,6 +374,10 @@ config = cmdArgsMode $ Config {
     = def
         &= help "Enable Typeclass"
         &= name "typeclass"
+  , inlineAux
+    = def
+        &= help "Enable inlining of class methods"
+        &= name "inline-aux"
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -611,6 +615,7 @@ defConfig = Config
   , noCheckImports    = False
   , typedHoles        = False
   , typeclass         = False
+  , inlineAux         = False
   }
 
 ------------------------------------------------------------------------

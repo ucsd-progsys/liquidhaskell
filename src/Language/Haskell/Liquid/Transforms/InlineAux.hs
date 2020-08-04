@@ -2,10 +2,9 @@
 
 module Language.Haskell.Liquid.Transforms.InlineAux
   ( inlineAux
-  , inlineDFun
   )
 where
-
+import qualified Language.Haskell.Liquid.UX.Config  as UX
 import           CoreSyn
 import           DynFlags
 import qualified Outputable                    as O
@@ -44,8 +43,8 @@ buildDictSubst = cata f
                | otherwise = s
 
 
-inlineAux :: Module -> CoreProgram -> CoreProgram
-inlineAux m cbs =  (map f cbs)
+inlineAux :: UX.Config -> Module -> CoreProgram -> CoreProgram
+inlineAux cfg m cbs =  if UX.inlineAux cfg then occurAnalysePgm m (const False) (const False) [] (map f cbs) else cbs
  where
   f :: CoreBind -> CoreBind
   f all@(NonRec x e)
@@ -63,21 +62,21 @@ inlineAux m cbs =  (map f cbs)
   auxToMethodToAux = mconcat $ fmap (uncurry dfunIdSubst) (grepDFunIds cbs)
 
 
-inlineDFun :: DynFlags -> CoreProgram -> IO CoreProgram
-inlineDFun df cbs = pure cbs-- mapM go cbs
- -- where
- --  go orig@(NonRec x e) | isDFunId x = do
- --                           -- e''' <- simplifyExpr df e''
- --                           let newBody = mkCoreApps (GM.tracePpr ("substituted type:" ++ GM.showPpr (exprType (mkCoreApps e' binders))) e') (fmap Var binders)
- --                               bind = NonRec (mkWildValBinder (exprType newBody)) newBody
- --                           pure $ NonRec x (mkLet bind e)
- --                       | otherwise  = pure orig
- --   where
- --    -- wcBinder = mkWildValBinder t
- --    (binders, _) = GM.tracePpr "collectBinders"$ collectBinders e
- --    e' = substExprAll O.empty subst e
- --  go recs = pure recs
- --  subst = buildDictSubst cbs
+-- inlineDFun :: DynFlags -> CoreProgram -> IO CoreProgram
+-- inlineDFun df cbs = mapM go cbs
+--  where
+--   go orig@(NonRec x e) | isDFunId x = do
+--                            -- e''' <- simplifyExpr df e''
+--                            let newBody = mkCoreApps (GM.tracePpr ("substituted type:" ++ GM.showPpr (exprType (mkCoreApps e' (Var <$> binders)))) e') (fmap Var binders)
+--                                bind = NonRec (mkWildValBinder (exprType newBody)) newBody
+--                            pure $ NonRec x (mkLet bind e)
+--                        | otherwise  = pure orig
+--    where
+--     -- wcBinder = mkWildValBinder t
+--     (binders, _) = GM.tracePpr "collectBinders"$ collectBinders e
+--     e' = substExprAll O.empty subst e
+--   go recs = pure recs
+--   subst = buildDictSubst cbs
 
 
 

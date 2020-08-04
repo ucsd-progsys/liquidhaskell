@@ -94,6 +94,7 @@ data Config = Config
   , noCheckImports  :: Bool        -- ^ Do not check the transitive imports  
   , typedHoles      :: Bool        -- ^ Warn about "typed-holes"
   , typeclass       :: Bool        -- ^ enable typeclass support.
+  , inlineAux       :: Bool        -- ^ 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver

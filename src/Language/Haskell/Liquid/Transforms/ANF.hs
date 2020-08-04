@@ -38,7 +38,7 @@ import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
 
-import           Language.Haskell.Liquid.UX.Config  as UX
+import           Language.Haskell.Liquid.UX.Config  as UX hiding (inlineAux)
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
@@ -73,7 +73,7 @@ anormalize cfg hscEnv modGuts = do
       γ0       = emptyAnfEnv cfg
       rwr_cbs  = rewriteBinds cfg orig_cbs
       orig_cbs = transformRecExpr inl_cbs
-      inl_cbs  = inlineAux (mg_module modGuts) $ mg_binds modGuts
+      inl_cbs  = inlineAux cfg (mg_module modGuts) $ mg_binds modGuts
       untidy   = UX.untidyCore cfg
 
 {-
