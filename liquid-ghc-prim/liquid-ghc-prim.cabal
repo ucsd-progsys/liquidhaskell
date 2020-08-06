@@ -1,3 +1,4 @@
+cabal-version:      1.24
 name:               liquid-ghc-prim
 version:            0.6.1
 synopsis:           Drop-in ghc-prim replacement for LiquidHaskell
@@ -10,7 +11,6 @@ maintainer:         Ranjit Jhala <jhala@cs.ucsd.edu>
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquidhaskell
 build-type:         Custom
-cabal-version:      >= 1.22
 
 data-files:         src/GHC/*.spec
 
