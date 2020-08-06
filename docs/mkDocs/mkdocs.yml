@@ -12,7 +12,7 @@ nav:
     - "<i class='fa fa-github'></i>&nbsp;Github": "https://github.com/ucsd-progsys/liquidhaskell"
 
 
-theme: litera
+theme: spacelab
 
 markdown_extensions:
     - toc:
