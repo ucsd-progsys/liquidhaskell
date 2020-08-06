@@ -366,7 +366,12 @@ lineDiff' new old = (changedLines, lm)
   where
     changedLines  = diffLines 1 diffLineCount
     lm            = foldr setShift IM.empty $ diffShifts diffLineCount
-    diffLineCount = fmap length <$> getGroupedDiff new old
+    diffLineCount = diffMap length <$> getGroupedDiff new old
+
+diffMap :: (a -> b) -> Diff a -> Diff b
+diffMap f (First x)  = First (f x)
+diffMap f (Second x) = Second (f x)
+diffMap f (Both x y) = Both (f x) (f y)
 
 -- | Identifies lines that have changed
 diffLines :: Int        -- ^ Starting line
@@ -389,10 +394,6 @@ diffShifts = go 1 1
     go old new (First n  : d) = go old (new + n) d
     go _   _   []             = []
 
-instance Functor Diff where
-  fmap f (First x)  = First (f x)
-  fmap f (Second x) = Second (f x)
-  fmap f (Both x y) = Both (f x) (f y)
 
 -- | @save@ creates an .saved version of the @target@ file, which will be
 --    used to find what has changed the /next time/ @target@ is checked.
