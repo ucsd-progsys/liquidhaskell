@@ -162,7 +162,7 @@ matchOnExpr t (GHC.Var v, tx, c)
   = matchOn t (v, tx, c)
 matchOnExpr t (e, tx, c)
   = do  freshV <- freshVarType tx
-        freshSpecTy <- liftCG $ trueTy tx
+        freshSpecTy <- liftCG $ (trueTy False) tx
         -- use consE
         addEnv freshV freshSpecTy
         es <- matchOn t (freshV, tx, c)
@@ -175,7 +175,7 @@ matchOn t (v, tx, c) =
 
 makeAlt :: SpecType -> (Var, Type) -> DataCon -> SM [GHC.CoreAlt]
 makeAlt t (x, TyConApp _ ts) c = locally $ do
-  ts <- liftCG $ mapM trueTy τs
+  ts <- liftCG $ mapM (trueTy False) τs
   xs <- mapM freshVar ts    
   newScruts <- synthesizeScrut xs
   modify (\s -> s { scrutinees = scrutinees s ++ newScruts } )
