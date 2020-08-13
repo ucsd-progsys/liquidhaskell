@@ -378,6 +378,16 @@ config = cmdArgsMode $ Config {
     = def
         &= help "Enable inlining of class methods"
         &= name "aux-inline"
+  , maxMatchDepth 
+    = def
+        &= name "max-match-depth"
+        &= help "Define the number of expressions to pattern match on (typed-holes must be on to use this flag)."
+  , maxAppDepth
+    = def
+        &= name "max-app-depth"
+  , maxArgsDepth
+    = def 
+        &= name "max-args-depth"
   } &= verbosity
     &= program "liquid"
     &= help    "Refinement Types for Haskell"
@@ -616,6 +626,9 @@ defConfig = Config
   , typedHoles        = False
   , typeclass         = False
   , auxInline         = False
+  , maxMatchDepth     = 4
+  , maxAppDepth       = 2
+  , maxArgsDepth      = 1
   }
 
 ------------------------------------------------------------------------

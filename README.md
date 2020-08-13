@@ -1294,7 +1294,7 @@ attaches a refinement to a datatype globally.
 Do not use this mechanism -- it is *unsound* and about to
 deprecated in favor of something that is [actually sound](https://github.com/ucsd-progsys/liquidhaskell/issues/126)
 
-Forexample,  the length of a list cannot be negative
+For example,  the length of a list cannot be negative
 
     {-@ invariant {v:[a] | (len v >= 0)} @-}
 
@@ -1448,6 +1448,54 @@ the specifications you write i.e.
 1. all imported type signatures,
 2. measure bodies and,
 3. data constructor definitions.
+
+Basic support for program synthesis
+===================================
+
+How to use it
+-------------
+
+Activate the flag for typed holes in LiquidHaskell. E.g.
+from command line: 
+    
+    liquid --typedholes
+
+In a Haskell source file: 
+    
+    {-@ LIQUID --typed-holes @-}
+
+Using the flag for typed holes, two more flags can be used:
+
+- **max-match-depth**: Maximum number of pattern match expressions used during synthesis (default value: 4).
+
+- **max-app-depth**: Maximum number of same function applications used during synthesis (default value: 2).
+
+Having the program specified in a Haskell source file, use 
+GHC' s hole variables, e.g.:
+
+    {-@ myMap :: (a -> b) -> xs:[a] -> {v:[b] | len v == len xs} @-}
+    myMap :: (a -> b) -> [a] -> [b]
+    myMap = _goal
+
+Current limitations
+-------------------
+
+This is an experimental feature, so potential users could only 
+expect to synthesize programs, like [these](https://github.com/ucsd-progsys/liquidhaskell/tree/develop/tests/synth).
+
+Current limitations include:
+
+- No boolean conditionals are synthesized.
+- Holes can only appear at top level, e.g.: 
+
+        {-@ f :: x: [a] -> { v: [a] | v == x } @-}
+        f :: [a] -> [a]
+        -- This works
+        f = _hole
+        -- This does not work
+        f x = _hole
+
+- Only one hole can appear in each module.
 
 
 Generating HTML Output

@@ -228,12 +228,17 @@ data TError t =
                , texp :: !t
                } -- ^ liquid type error
 
-  | ErrHole    { pos :: !SrcSpan
-               , msg :: !Doc
-               , ctx :: !(M.HashMap Symbol t)
-               , var :: !Doc 
-               , thl :: !t 
+  | ErrHole    { pos  :: !SrcSpan
+               , msg  :: !Doc
+               , ctx  :: !(M.HashMap Symbol t)
+               , svar :: !Symbol 
+               , thl  :: !t 
                } -- ^ hole type 
+
+  | ErrHoleCycle    
+               { pos  :: !SrcSpan
+               , holesCycle :: [Symbol] -- Var?
+               } -- ^ hole dependencies form a cycle error
 
   | ErrAssType { pos  :: !SrcSpan
                , obl  :: !Oblig
@@ -752,9 +757,14 @@ ppError' td dSp dCtx err@(ErrSubType _ _ _ _ tE)
         $+$ text "Your function is not total: not all patterns are defined." 
         $+$ hint err -- "Hint: Use \"--no-totality\" to deactivate totality checking."
 
-ppError' _td dSp _dCtx (ErrHole _ _ _ x t)
+ppError' _td dSp _dCtx (ErrHoleCycle _ holes)
+  = dSp <+> "Cycle of holes found"
+        $+$ pprint holes
+
+ppError' _td dSp _dCtx (ErrHole _ msg _ x t)
   = dSp <+> "Hole Found"
         $+$ pprint x <+> "::" <+> pprint t 
+        $+$ msg
 
 ppError' td dSp dCtx (ErrSubType _ _ c tA tE)
   = dSp <+> text "Liquid Type Mismatch"

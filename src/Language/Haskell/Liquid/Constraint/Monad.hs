@@ -29,6 +29,7 @@ import           Language.Fixpoint.Misc hiding (errorstar)
 import           Language.Haskell.Liquid.GHC.Misc -- (concatMapM)
 import           Language.Haskell.Liquid.GHC.SpanStack (srcSpan)
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc
+import qualified Language.Fixpoint.Types                    as F
 
 --------------------------------------------------------------------------------
 -- | `addC` adds a subtyping constraint into the global pool.
@@ -102,14 +103,17 @@ addLocA !xo !l !t
 -- | Used for annotating holes 
 
 addHole :: Var -> SpecType -> CGEnv -> CG () 
-addHole x t γ = do 
-  modify $ \s -> s {holesMap = M.insertWith (<>) x hinfo $ holesMap s}
-  addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
+addHole x t γ 
+  | typedHoles (getConfig γ) = 
+      do  st <- get 
+          modify $ \s -> s {holesMap = M.insert x (hinfo (st, γ)) $ holesMap s}
+          -- addWarning $ ErrHole loc ("hole found") (reGlobal env <> reLocal env) x' t 
+  | otherwise = return ()
     where 
-      hinfo = [HoleInfo t loc env]
+      hinfo = HoleInfo t loc env
       loc   = srcSpan $ cgLoc γ
       env   = mconcat [renv γ, grtys γ, assms γ, intys γ]
-      x'    = text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
+      x'    = F.symbol x -- text $ showSDoc $ Ghc.pprNameUnqualified $ Ghc.getName x
 
 --------------------------------------------------------------------------------
 -- | Update annotations for a location, due to (ghost) predicate applications

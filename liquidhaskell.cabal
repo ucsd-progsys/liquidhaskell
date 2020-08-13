@@ -41,6 +41,7 @@ data-files:         include/*.hquals
                     include/GHC/*.spec
                     include/GHC/IO/*.spec
                     include/Language/Haskell/Liquid/*.hs
+                    include/Language/Haskell/Liquid/Synthesize/*.hs
                     include/Language/Haskell/Liquid/*.pred
                     include/System/*.spec
                     include/710/Data/*.spec
@@ -122,6 +123,13 @@ library
                       Language.Haskell.Liquid.Parse
                       Language.Haskell.Liquid.Prelude
                       Language.Haskell.Liquid.ProofCombinators
+                      Language.Haskell.Liquid.Synthesize.GHC
+                      Language.Haskell.Liquid.Synthesize.Termination
+                      Language.Haskell.Liquid.Synthesize.Monad
+                      Language.Haskell.Liquid.Synthesize.Misc
+                      Language.Haskell.Liquid.Synthesize.Generate
+                      Language.Haskell.Liquid.Synthesize.Check
+                      Language.Haskell.Liquid.Synthesize.Env
                       Language.Haskell.Liquid.Termination.Structural
                       Language.Haskell.Liquid.Transforms.ANF
                       Language.Haskell.Liquid.Transforms.CoreToLogic
@@ -147,6 +155,7 @@ library
                       Language.Haskell.Liquid.Types.Types
                       Language.Haskell.Liquid.Types.Variance
                       Language.Haskell.Liquid.Types.Visitors
+                      Language.Haskell.Liquid.Synthesize
                       Language.Haskell.Liquid.UX.ACSS
                       Language.Haskell.Liquid.UX.Annotate
                       Language.Haskell.Liquid.UX.CTags
@@ -187,6 +196,7 @@ library
                     , githash
                     , parsec               >= 3.1
                     , pretty               >= 1.1
+                    , split
                     , syb                  >= 0.4.4
                     , template-haskell     >= 2.9
                     , temporary            >= 1.2
@@ -198,8 +208,9 @@ library
                     , vector               >= 0.10
                     , recursion-schemes
                     , free
+                    , extra 
   default-language:   Haskell98
-  default-extensions: PatternGuards
+  default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures
 
   if flag(include)
@@ -276,5 +287,24 @@ test-suite liquidhaskell-parser
                   , tasty           >= 0.10
                   , tasty-ant-xml
                   , tasty-hunit     >= 0.9
+  default-language: Haskell2010
+  ghc-options:      -W
+
+test-suite synthesis
+  type:             exitcode-stdio-1.0
+  main-is:          Synthesis.hs
+  other-modules:    Paths_liquidhaskell
+  hs-source-dirs:   tests
+  build-depends:    base            >= 4.8.1.0 && < 5
+                  , liquid-fixpoint >= 0.8.0.0
+                  , liquidhaskell
+                  , tasty           >= 0.7
+                  , tasty-hunit
+                  , process
+                  , filepath
+                  , text
+                  , directory 
+                  , ghc
+                  , extra
   default-language: Haskell2010
   ghc-options:      -W

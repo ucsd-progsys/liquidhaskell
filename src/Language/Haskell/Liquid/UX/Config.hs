@@ -95,6 +95,9 @@ data Config = Config
   , typedHoles      :: Bool        -- ^ Warn about "typed-holes"
   , typeclass       :: Bool        -- ^ enable typeclass support.
   , auxInline       :: Bool        -- ^ 
+  , maxMatchDepth   :: Int
+  , maxAppDepth     :: Int
+  , maxArgsDepth    :: Int
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 instance Serialize SMTSolver
