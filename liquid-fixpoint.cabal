@@ -160,6 +160,7 @@ test-suite test
   main-is:          test.hs
   other-modules:    Paths_liquid_fixpoint
   hs-source-dirs:   tests
+  build-tool-depends: liquid-fixpoint:fixpoint
   build-depends:    base          >= 4.9.1.0 && < 5
                   , containers    >= 0.5
                   , directory
