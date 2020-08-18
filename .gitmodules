@@ -1,6 +1,6 @@
 [submodule "liquid-fixpoint"]
 	path = liquid-fixpoint
-	url = git@github.com:ucsd-progsys/liquid-fixpoint.git
+	url = https://github.com/ucsd-progsys/liquid-fixpoint.git
 [submodule "ghc-options"]
 	path = ghc-options
 	url = https://github.com/ranjitjhala/ghc-options.git
