@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquid-fixpoint
-version:            0.8.10.1
+version:            0.8.10.2
 synopsis:           Predicate Abstraction-based Horn-Clause/Implication Constraint Solver
 description:
   This package implements an SMTLIB based Horn-Clause\/Logical Implication constraint
@@ -21,7 +21,7 @@ license-file:       LICENSE
 copyright:          2010-17 Ranjit Jhala, University of California, San Diego.
 author:             Ranjit Jhala, Niki Vazou, Eric Seidel
 maintainer:         jhala@cs.ucsd.edu
-tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4
+tested-with:        GHC == 7.10.3, GHC == 8.0.1, GHC == 8.4.3, GHC == 8.6.4, GHC == 8.10.1
 category:           Language
 homepage:           https://github.com/ucsd-progsys/liquid-fixpoint
 build-type:         Simple
