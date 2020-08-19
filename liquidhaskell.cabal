@@ -1,6 +1,6 @@
 cabal-version:      2.4
 name:               liquidhaskell
-version:            0.8.10.1
+version:            0.8.10.2
 synopsis:           Liquid Types for Haskell
 description:        Liquid Types for Haskell.
 license:            BSD-3-Clause

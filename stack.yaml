@@ -29,4 +29,4 @@ extra-deps:
 - Diff-0.3.4
 - aeson-1.4.7.1
 resolver: lts-15.4
-compiler: ghc-8.10.1
+compiler: ghc-8.10.2
