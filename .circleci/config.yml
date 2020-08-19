@@ -144,7 +144,7 @@ jobs:
 
   cabal_810:
     docker:
-      - image: phadej/ghc:8.10.1-bionic-slim
+      - image: adinapoli/ghc:8.10.2-bionic-slim
     steps:
       - cabal_build_and_test:
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
