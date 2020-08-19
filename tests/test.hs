@@ -112,18 +112,14 @@ mkTest testCmd code dir file
         assertEqual "" True True
       else do
         createDirectoryIfMissing True $ takeDirectory log
-        bin <- binPath "fixpoint"
         withFile log WriteMode $ \h -> do
-          let cmd     = testCmd bin dir file
+          let cmd     = testCmd "fixpoint" dir file
           (_,_,_,ph) <- createProcess $ (shell cmd) {std_out = UseHandle h, std_err = UseHandle h}
           c          <- waitForProcess ph
           assertEqual "Wrong exit code" code c
   where
     test = dir </> file
     log  = let (d,f) = splitFileName file in dir </> d </> ".liquid" </> f <.> "log"
-
-binPath :: FilePath -> IO FilePath
-binPath pkgName = (</> pkgName) <$> getBinDir
 
 knownToFail = []
 ---------------------------------------------------------------------------

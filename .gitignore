@@ -31,3 +31,4 @@ Session.vim
 /external/ocamlgraph/config.log
 /TAGS
 /tags
+*.swp
