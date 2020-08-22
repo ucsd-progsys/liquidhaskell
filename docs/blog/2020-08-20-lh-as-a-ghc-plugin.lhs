@@ -33,8 +33,8 @@ tedious to get to work on *existing* code bases, for various reasons.
 
 We're delighted to announce the release of [LH version 0.8.10.2](http://ucsd-progsys.github.io/liquidhaskell/).
 
-Thanks to the ingenuity and tireless efforts of our friends [Alfredo Di Napoli](TODO) 
-and [Andres Loh](TODO) at [Well-Typed](http://www.well-typed.com/), this new version 
+Thanks to the ingenuity and tireless efforts of our friends [Alfredo Di Napoli](http://www.alfredodinapoli.com/) 
+and [Andres Loh](https://www.andres-loeh.de/) at [Well-Typed](http://www.well-typed.com/), this new version 
 solves all three of the above problems in a single stroke, making it vastly simpler 
 (dare we say, quite straightforward!) to run LH on your Haskell code.
 
@@ -45,8 +45,8 @@ LH could be re-engineered as a **GHC Compiler Plugin** using some cool new featu
 in GHC 8.10 that allows the integration of external checkers during compilation.
 
 I strongly encourage you to check out Alfredo's talk at the [Haskell Implementor's 
-Workshop](TODO) if you want to learn more about the rather non-trivial mechanics 
-of how this re-engineering was achieved.
+Workshop](https://icfp20.sigplan.org/details/hiw-2020-papers/1/Liquid-Haskell-as-a-GHC-Plugin) 
+if you want to learn more about the rather non-trivial mechanics of how this plugin was engineered.
 
 However, in this post, lets look at *how* and *why* to use the plugin, 
 in particular, how the plugin lets us
@@ -320,19 +320,31 @@ What I have enjoyed the most about the plugin is that now (almost) all the GHC-b
 tools that I use in my regular Haskell development workflow, automatically incorporate 
 LH too! For example, reloading a module in `ghci` automatically re-runs LH on that file.
 
-This means, that my the mega robust, editor-independent `ghcid` now automatically 
-produces LH type errors when you save a file.
+**`ghcid`** 
 
-![TODO GHCID]
+This means, that my the mega robust, editor-independent `ghcid` now automatically 
+produces LH type errors when you save a file. Here's `ghcid` running in a terminal.
+
+![ghcid](ghcid.gif)
 
 Further editor specific tools now produce little red squiggles or their equivalent 
-for LH errors too, e.g. in VSCODE
+for LH errors too.
 
-![TODO VSCODE]
+**`vscode`**
 
-or in Emacs 
+VSCode with the `Simple GHC (Haskell) Integration` plugin
 
-![TODO EMACS]
+![VS Code](vscode.gif)
+
+**`emacs`**
+
+![Doom/Emacs with `dante`](emacs.gif)
+
+**`vim`**
+
+Vim/Neovim with `ALE` and the `stack-build` linter
+
+![Vim/Neovim with `ALE` and the `stack-build` linter](vim.png)
 
 **Benefits**
 
