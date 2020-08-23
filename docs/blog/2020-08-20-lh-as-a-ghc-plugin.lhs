@@ -6,6 +6,7 @@ comments: true
 author: Ranjit Jhala 
 published: true
 tags: basic
+demo: refinements101.hs
 ---
 
 <div class="hidden">
@@ -17,10 +18,9 @@ incr x = x + 1
 \end{code}
 </div>
 
-We enjoy working with LH.
-
-However, we would be the very first to confess that it has been incredibly
-tedious to get to work on *existing* code bases, for various reasons.
+I enjoy working with LH. However, I'd be the very first to confess 
+that it has been incredibly tedious to get to work on *existing* code 
+bases, for various reasons.
 
 1. LH ran *one file at a time*; it was a hassle to get **systematically analyze** 
    all the modules in a single package.
@@ -29,25 +29,23 @@ tedious to get to work on *existing* code bases, for various reasons.
    across packages.
 
 3. LH had *no integration* with the standard compilation cycle; it was difficult 
-   to get robust, development-time feedback using `ghci` based tools.
+   to get robust, **development-time feedback** using `ghci` based tools.
 
-We're delighted to announce the release of [LH version 0.8.10.2](http://ucsd-progsys.github.io/liquidhaskell/).
+I'm delighted to announce the release of [LH version 0.8.10.2](http://ucsd-progsys.github.io/liquidhaskell/).
 
 Thanks to the ingenuity and tireless efforts of our friends [Alfredo Di Napoli](http://www.alfredodinapoli.com/) 
 and [Andres Loh](https://www.andres-loeh.de/) at [Well-Typed](http://www.well-typed.com/), this new version 
 solves all three of the above problems in a single stroke, making it vastly simpler 
-(dare we say, quite straightforward!) to run LH on your Haskell code.
+(dare I say, quite straightforward!) to run LH on your Haskell code.
 
 <!-- more -->
 
 Alfredo and Andres' key insight was that all the above problems could be solved if 
 LH could be re-engineered as a **GHC Compiler Plugin** using some cool new features 
 in GHC 8.10 that allows the integration of external checkers during compilation.
-
 I strongly encourage you to check out Alfredo's talk at the [Haskell Implementor's 
 Workshop](https://icfp20.sigplan.org/details/hiw-2020-papers/1/Liquid-Haskell-as-a-GHC-Plugin) 
 if you want to learn more about the rather non-trivial mechanics of how this plugin was engineered.
-
 However, in this post, lets look at *how* and *why* to use the plugin, 
 in particular, how the plugin lets us
 
@@ -57,7 +55,7 @@ in particular, how the plugin lets us
 
 3. Use tools like `ghci` based IDE tooling (e.g. `ghcid` or `ghcide` to get interactive feedback),
 
-all of which ultimately, we hope, make Liquid Haskell easier for people to use.
+all of which ultimately, I hope, make Liquid Haskell easier to use.
 
 1. Analyzing Packages
 ---------------------
@@ -89,7 +87,7 @@ bump n = incr n
 
 which imports `Demo.Lib` and uses `incr`.
 
-**Updating .cabal To Compile With LiquidHaskell**
+### Updating `.cabal` to compile with the LH plugin
 
 To "check" this code with LH we need only tell GHC to use it as a plugin, in two steps.
 
@@ -108,14 +106,11 @@ To "check" this code with LH we need only tell GHC to use it as a plugin, in two
 ```
 
 That's it. Now, everytime you (re-)build the code, GHC will _automatically_ 
-run LH on the changed modules!
-
-(If you use `stack` you may have to specify a few more dependencies, as shown 
-in the `stack.yaml`; there are none needed if you use `cabal-v2`.)
-
-If you clone the repo and run, e.g. `cabal v2-build` or `stack build` you'll 
-get the following result (after the relevant dependencies are downloaded and 
-built of course...)
+run LH on the changed modules! If you use `stack` you may have to specify 
+a few more dependencies, as shown in the `stack.yaml`; there are none needed 
+if you use `cabal-v2`. If you clone the repo and run, e.g. `cabal v2-build` 
+or `stack build` you'll get the following result, after the relevant dependencies 
+are downloaded and built of course...
 
 ```
 rjhala@khao-soi ~/r/lh-plugin-demo (main)> stack build
@@ -127,12 +122,12 @@ Preprocessing library for lh-plugin-demo-0.1.0.0..
 Building library for lh-plugin-demo-0.1.0.0..
 [1 of 2] Compiling Demo.Lib
 
-**** LIQUID: SAFE (2 constraints checked) **************************************
+**** LIQUID: SAFE (2 constraints checked) *****************************
 [2 of 2] Compiling Demo.Client
 
-**** LIQUID: UNSAFE ************************************************************
+**** LIQUID: UNSAFE ***************************************************
 
-/Users/rjhala/lh-plugin-demolh-plugin-demo/src/Demo/Client.hs:6:15: error:
+/Users/rjhala/lh-plugin-demo/src/Demo/Client.hs:6:15: error:
     Liquid Type Mismatch
     .
     The inferred type
@@ -169,32 +164,29 @@ Preprocessing library for lh-plugin-demo-0.1.0.0..
 Building library for lh-plugin-demo-0.1.0.0..
 [2 of 2] Compiling Demo.Client
 
-**** LIQUID: SAFE (2 constraints checked) **************************************
+**** LIQUID: SAFE (2 constraints checked) ****************************
 lh-plugin-demo> copy/register
-Installing library in /Users/rjhala/lh-plugin-demolh-plugin-demo/.stack-work/install/x86_64-osx/25cf05073cd98ecdcaf727ff1d4d2240528bd5147258b03420d18fab24cea688/8.10.1/lib/x86_64-osx-ghc-8.10.1/lh-plugin-demo-0.1.0.0-BSYdPMv6Mh2HKdGhASFJd7
+Installing library in ... 
 Registering library for lh-plugin-demo-0.1.0.0..
 ```
 
-**Benefits**
+### Benefits
 
 There are a couple of benefits to note immediately
 
-+ A plain `build` (e.g. `stack build` or `cabal v2-build`) 
-  takes care of all the installing _and_ checking!
++ A plain `stack build` or `cabal v2-build` takes care of all the installing _and_ checking!
 
-+ You don't have to fiddle around with _downloading_ 
-  and _installing_ LH; that's just part of the regular build.
++ No need to separately _install_ LH; its part of the regular build.
 
 + GHC's recompilation machinery ensures that only the relevant 
   modules are checked, e.g. the second time round, LH did not need 
   to analyze `Lib.hs` only `Client.hs`
 
-
 2. Shipping Specifications with Packages
 ----------------------------------------
 
 While the above is nice, in principle it could have been done 
-with some clever `makefile` trickery (perhaps?). What we're much 
+with some clever `makefile` trickery (perhaps?). What I'm much 
 more excited about is that now, for the first time, you can 
 *ship refinement type specifications within plain Haskell packages*.
 
@@ -236,9 +228,9 @@ Preprocessing library for lh-plugin-demo-client-0.1.0.0..
 Building library for lh-plugin-demo-client-0.1.0.0..
 [1 of 1] Compiling Demo.ExternalClient
 
-**** LIQUID: UNSAFE ************************************************************
+**** LIQUID: UNSAFE ****************************************************
 
-/Users/rjhala/research/lh-plugin-demo-client/src/Demo/ExternalClient.hs:8:22: error:
+/Users/rjhala/lh-plugin-demo-client/src/Demo/ExternalClient.hs:8:22: error:
     Liquid Type Mismatch
     .
     The inferred type
@@ -274,32 +266,33 @@ Preprocessing library for lh-plugin-demo-client-0.1.0.0..
 Building library for lh-plugin-demo-client-0.1.0.0..
 [1 of 1] Compiling Demo.ExternalClient
 
-**** LIQUID: SAFE (3 constraints checked) **************************************
+**** LIQUID: SAFE (3 constraints checked) *****************************
 
 lh-plugin-demo-client> copy/register
-Installing library in /Users/rjhala/research/lh-plugin-demo-client/.stack-work/install/x86_64-osx/be84244537710872bd72e7c125cfd0f048a0fbd58c045a2c4b6ee69b0e496895/8.10.1/lib/x86_64-osx-ghc-8.10.1/lh-plugin-demo-client-0.1.0.0-IZA4xHpTVbe2q5udqpWMHj
+Installing library in ... 
 Registering library for lh-plugin-demo-client-0.1.0.0..
 ```
 
-**Prelude Specifications**
+### Prelude Specifications
 
 Did you notice the strange `liquid-base` dependency in the cabal files? 
+
 Previously, LH came installed with a "built-in" set of specifications for 
 various `prelude` modules. This was _hacked_ inside LH in a rather unfortunate 
 manner, which made these specifications very difficult to extend. 
 
 Moving forward, all the refinement specifications e.g. for `GHC.List` or `Data.Vector` 
 or `Data.Set` or `Data.Bytestring` simply live in packages that *mirror* the original 
-versions, e.g. `liquid-base`,  `liquid-vector`, `liquid-containers`, `liquid-bytestring.
-Each `liquid-X` package directly *re-exports* the contents of the corresponding `X` package,
+versions, e.g. `liquid-base`,  `liquid-vector`, `liquid-containers`, `liquid-bytestring`.
+Each `liquid-X` package directly _re-exports_ all the contents of the corresponding `X` package,
 but with any additional refinement type specifications. 
 
 So if you want to verify that _your_ code has no `vector`-index overflow errors, you simply 
-build with `liquid-vector` instead of `vector`! (Of course, in an ideal, and hopefully 
+build with `liquid-vector` instead of `vector`! Of course, in an ideal, and hopefully 
 not too distant future, we'd get the refinement types directly inside `vector`, `containers` 
-or `bytestring`.)
+or `bytestring`.
 
-**Benefits**
+### Benefits
 
 So to recap, the plugin offers several nice benefits with respect to *shipping specifications*
 
@@ -320,36 +313,36 @@ What I have enjoyed the most about the plugin is that now (almost) all the GHC-b
 tools that I use in my regular Haskell development workflow, automatically incorporate 
 LH too! For example, reloading a module in `ghci` automatically re-runs LH on that file.
 
-**`ghcid`** 
+### `ghcid`
 
 This means, that my the mega robust, editor-independent `ghcid` now automatically 
 produces LH type errors when you save a file. Here's `ghcid` running in a terminal.
 
-![ghcid](ghcid.gif)
+![ghcid](/static/img/plugin-ghcid.gif)
 
-Further editor specific tools now produce little red squiggles or their equivalent 
-for LH errors too.
+### `vscode`
 
-**`vscode`**
+Editor plugins now produce little red squiggles for LH errors too.
+Here's `code` with the `Simple GHC (Haskell) Integration` plugin
 
-VSCode with the `Simple GHC (Haskell) Integration` plugin
+![](/static/img/plugin-vscode.gif)
 
-![VS Code](vscode.gif)
+### `emacs`
 
-**`emacs`**
+Here's `doom-emacs` with the `dante` plugin 
 
-![Doom/Emacs with `dante`](emacs.gif)
+![](/static/img/plugin-emacs.gif)
 
-**`vim`**
+### `vim`
 
-Vim/Neovim with `ALE` and the `stack-build` linter
+And here is `neovim` with `ALE` and the `stack-build` linter
 
-![Vim/Neovim with `ALE` and the `stack-build` linter](vim.png)
+![](/static/img/plugin-vim.png)
 
-**Benefits**
+### Benefits
 
 + Some of this _was_ possible before: we had to write special LH modes for different 
-  editors, but now we can simply work with the increasingly more robust GHCi and 
+  editors. However, now we can simply work with the increasingly more robust GHCi and 
   Language-Server based tools already available for major editors and IDEs.
 
 4. Caveats
@@ -379,5 +372,5 @@ and what things it enables. In particular, by virtue of being a GHC plugin, LH c
 
 3. Provide errors via existing GHC/i based editor tooling. 
 
-All of which, we hope, makes it a lot easier to run LH on your code.
+All of which, I hope, makes it a lot easier to run LH on your code.
 
