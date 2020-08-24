@@ -734,6 +734,7 @@ instance Simplifiable Expr where
       tx e 
         | Just e' <- M.lookup e (icSimpl ictx)
         = e' 
+      tx (EBin bop e1 e2) = applyConstantFolding bop e1 e2
       tx (EApp (EVar f) a)
         | Just (dc, c)  <- L.lookup f (knConsts γ) 
         , (EVar dc', _) <- splitEApp a
@@ -749,8 +750,47 @@ instance Simplifiable Expr where
         , (EVar dc', es) <- splitEApp a
         , dc == dc' 
         = es!!i
-      tx e = e  
+      tx e = e
+      
+applyConstantFolding :: Bop -> Expr -> Expr -> Expr
+applyConstantFolding bop e1 e2 =
+  case (e1, e2) of
+    ((ECon (R left)), (ECon (R right))) ->
+      Mb.fromMaybe e (cfR bop left right)
+    ((ECon (R left)), (ECon (I right))) ->
+      Mb.fromMaybe e (cfR bop left (fromIntegral right))
+    ((ECon (I left)), (ECon (R right))) ->
+      Mb.fromMaybe e (cfR bop (fromIntegral left) right)
+    ((ECon (I left)), (ECon (I right))) ->
+      Mb.fromMaybe e (cfI bop left right)
+    _ -> e
+  where
+    
+    e = EBin bop e1 e2
+    
+    getOp :: Num a => Bop -> Maybe (a -> a -> a)
+    getOp Minus    = Just (-)
+    getOp Plus     = Just (+)
+    getOp Times    = Just (*)
+    getOp RTimes   = Just (*)
+    getOp _        = Nothing
 
+    cfR :: Bop -> Double -> Double -> Maybe Expr
+    cfR bop left right = fmap go (getOp' bop)
+      where
+        go f = ECon $ R $ f left right
+        
+        getOp' Div      = Just (/)
+        getOp' RDiv     = Just (/)
+        getOp' op       = getOp op
+
+    cfI :: Bop -> Integer -> Integer -> Maybe Expr
+    cfI bop left right = fmap go (getOp' bop)
+      where
+        go f = ECon $ I $ f left right
+        
+        getOp' Mod = Just mod
+        getOp' op  = getOp op
 
 
 -------------------------------------------------------------------------------
