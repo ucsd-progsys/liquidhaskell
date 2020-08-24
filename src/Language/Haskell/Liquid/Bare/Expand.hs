@@ -266,7 +266,7 @@ qualifyExpand :: (Expand a, Bare.Qualify a)
               => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> [F.Symbol] -> a -> a 
 ----------------------------------------------------------------------------------
 qualifyExpand env name rtEnv l bs
-  = expand rtEnv l  
+  = expand rtEnv l
   . Bare.qualify env name l bs
 
 ----------------------------------------------------------------------------------
