@@ -345,7 +345,7 @@ instance Expand Ms.BareSpec where
 instance Expand a => Expand (F.Located a) where 
   expand rtEnv _ = expandLoc rtEnv 
 
-instance (Expand a, PPrint a) => Expand (F.LocSymbol, a) where 
+instance Expand a => Expand (F.LocSymbol, a) where 
   expand rtEnv l (x, y) = (x, expand rtEnv l y)
 
 instance Expand a => Expand (Maybe a) where 
