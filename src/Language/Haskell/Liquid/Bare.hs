@@ -199,7 +199,7 @@ makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc
 makeGhcSpec0 cfg src lmap mspecs = SP 
   { _gsConfig = cfg 
   , _gsImps   = makeImports mspecs
-  , _gsSig    = addReflSigs refl sig 
+  , _gsSig    = addReflSigs env name rtEnv refl sig
   , _gsRefl   = refl 
   , _gsLaws   = laws 
   , _gsData   = sData 
@@ -562,10 +562,23 @@ getReflects  = fmap val . S.toList . S.unions . fmap (names . snd) . M.toList
 -- | @updateReflSpecSig@ uses the information about reflected functions to update the 
 --   "assumed" signatures. 
 ------------------------------------------------------------------------------------------
-addReflSigs :: GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
+addReflSigs :: Bare.Env -> ModName -> BareRTEnv -> GhcSpecRefl -> GhcSpecSig -> GhcSpecSig
 ------------------------------------------------------------------------------------------
-addReflSigs refl sig = sig { gsRefSigs = reflSigs, gsAsmSigs = wreflSigs ++ filter notReflected (gsAsmSigs sig) }
-  where 
+addReflSigs env name rtEnv refl sig =
+  sig { gsRefSigs = map expandReflectedSignature reflSigs
+      , gsAsmSigs = wreflSigs ++ filter notReflected (gsAsmSigs sig)
+      }
+  where
+
+    -- See T1738. We need to expand and qualify any reflected signature /here/, after any
+    -- relevant binder has been detected and \"promoted\". The problem stems from the fact that any input
+    -- 'BareSpec' will have a 'reflects' list of binders to reflect under the form of an opaque 'Var', that
+    -- qualifyExpand can't touch when we do a first pass in 'makeGhcSpec0'. However, once we reflected all
+    -- the functions, we are left with a pair (Var, LocSpecType). The latter /needs/ to be qualified and
+    -- expanded again, for example in case it has expression aliases derived from 'inlines'.
+    expandReflectedSignature :: (Ghc.Var, LocSpecType) -> (Ghc.Var, LocSpecType)
+    expandReflectedSignature = fmap (Bare.qualifyExpand env name rtEnv (F.dummyPos "expand-refSigs") [])
+
     (wreflSigs, reflSigs)   = L.partition ((`elem` gsWiredReft refl) . fst) 
                                  [ (x, t) | (x, t, _) <- gsHAxioms refl ]   
     reflected       = fst <$> (wreflSigs ++ reflSigs)
