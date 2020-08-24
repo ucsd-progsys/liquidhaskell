@@ -229,6 +229,7 @@ library
                     , optics               >= 0.2
                     , optparse-applicative < 0.16.0.0
                     , optparse-simple
+                    , optparse-applicative < 0.16.0.0
                     , githash
                     , parsec               >= 3.1
                     , pretty               >= 1.1
