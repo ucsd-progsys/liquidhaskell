@@ -34,8 +34,8 @@ build_script:
 # Build LiquidHaskell (the legacy executable)
 # until https://gitlab.haskell.org/ghc/ghc/issues/17236 is fixed.
 - echo "" | rm -rf .stack-work
-- echo "" | stack --no-terminal build --ghc-options="-fexternal-interpreter" liquidhaskell:lib --flag liquidhaskell:no-plugin --copy-bins --local-bin-path .
-- echo "" | stack --no-terminal build liquid-fixpoint:exe:fixpoint liquidhaskell:exe:liquid --flag liquidhaskell:no-plugin --copy-bins --local-bin-path .
+- echo "" | stack --no-terminal build --compiler=ghc-8.10.1 --ghc-options="-fexternal-interpreter" liquidhaskell:lib --flag liquidhaskell:no-plugin --copy-bins --local-bin-path .
+- echo "" | stack --no-terminal build --compiler=ghc-8.10.1 liquid-fixpoint:exe:fixpoint liquidhaskell:exe:liquid --flag liquidhaskell:no-plugin --copy-bins --local-bin-path .
 
 # Copy runtime DLLs
 - call appveyor-copy.bat
@@ -49,8 +49,8 @@ build_script:
 
 # Run the tests (using the legacy executable)
 test_script:
-- echo "" | stack --no-terminal test liquidhaskell:liquidhaskell-parser --fast --flag liquidhaskell:no-plugin
-- echo "" | stack --no-terminal test liquidhaskell:test --fast --flag liquidhaskell:no-plugin --ta="--liquid-runner \"stack --silent exec -- liquid\""  --test-arguments "-p Micro"
+- echo "" | stack --compiler=ghc-8.10.1 --no-terminal test liquidhaskell:liquidhaskell-parser --fast --flag liquidhaskell:no-plugin
+- echo "" | stack --compiler=ghc-8.10.1 --no-terminal test liquidhaskell:test --fast --flag liquidhaskell:no-plugin --ta="--liquid-runner \"stack --compiler=ghc-8.10.1 --silent exec -- liquid\""  --test-arguments "-p Micro"
 
 artifacts:
 - path: liquidhaskell.zip

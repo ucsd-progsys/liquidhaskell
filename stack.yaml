@@ -28,5 +28,7 @@ extra-deps:
 - optics-extra-0.3
 - Diff-0.4.0
 - aeson-1.4.7.1
+
 resolver: lts-16.8
-compiler: ghc-8.10.1
+compiler: ghc-8.10.2
+

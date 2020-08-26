@@ -68,12 +68,12 @@ packages:
   original:
     hackage: optics-extra-0.3
 - completed:
-    hackage: Diff-0.4.0@sha256:b5cfbeed498f555a18774ffd549bbeff7a24bdfe5984154dcfc9f4328a3c2847,1275
+    hackage: Diff-0.3.4@sha256:5ab20a407f9e65d13b642c3cd414906a40280343a31b388f6ed69b9228fe42c1,1127
     pantry-tree:
-      size: 415
-      sha256: 01b215c454152a0fe10a5378a4013d92e89da2f0695ffffc466ead5f3343cf3a
+      size: 416
+      sha256: 48d1b942ff99293d69a8ca4ea60f372093e5aeea73f63d11829ceca01d63c7fd
   original:
-    hackage: Diff-0.4.0
+    hackage: Diff-0.3.4
 - completed:
     hackage: aeson-1.4.7.1@sha256:6d8d2fd959b7122a1df9389cf4eca30420a053d67289f92cdc0dbc0dab3530ba,7098
     pantry-tree:
@@ -83,7 +83,7 @@ packages:
     hackage: aeson-1.4.7.1
 snapshots:
 - completed:
-    size: 532379
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/8.yaml
-    sha256: 2ad3210d2ad35f3176005d68369a18e4d984517bfaa2caade76f28ed0b2e0521
-  original: lts-16.8
+    size: 491163
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/15/4.yaml
+    sha256: bc60043a06b58902b533baa80fb566c0ec495c41e428bc0f8c1e8c15b2a4c468
+  original: lts-15.4
