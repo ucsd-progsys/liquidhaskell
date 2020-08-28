@@ -1,0 +1,13 @@
+diff --git a/Data/Git/Monad.hs b/Data/Git/Monad.hs
+index 480af9f..27c3b3e 100644
+--- a/Data/Git/Monad.hs
++++ b/Data/Git/Monad.hs
+@@ -130 +130 @@ instance Resolvable Git.RefName where
+-class (Functor m, Applicative m, Monad m) => GitMonad m where
++class (Functor m, Applicative m, Monad m, MonadFail m) => GitMonad m where
+@@ -242,0 +243 @@ instance Monad GitM where
++instance MonadFail GitM where
+@@ -315,0 +317 @@ instance Monad CommitAccessM where
++instance MonadFail CommitAccessM where
+@@ -476,0 +479 @@ instance Monad CommitM where
++instance MonadFail CommitM where

@@ -1,4 +1,4 @@
-{ makeEnv ? false, config ? { /*allowBroken = true;*/ }, ... }:
+{ makeEnv ? false, config ? { allowBroken = true; }, ... }:
 let
   pins = import ./pins.nix { inherit config; };
 in

@@ -27,34 +27,31 @@ let
           }
         );
         # declare each of the packages contained in this repo
-        liquid-base = lhComponent (self.callCabal2nix "liquid-base" ./liquid-base {});
-        liquid-bytestring = lhComponent (self.callCabal2nix "liquid-bytestring" ./liquid-bytestring {});
-        liquid-containers = lhComponent (self.callCabal2nix "liquid-containers" ./liquid-containers {});
-        liquid-fixpoint = lhComponent (self.callCabal2nix "liquid-fixpoint" (nixpkgs.nix-gitignore.gitignoreSource [] ./liquid-fixpoint) {});
-        liquid-ghc-prim = lhComponent (self.callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim {});
-        liquid-parallel = lhComponent (self.callCabal2nix "liquid-parallel" ./liquid-parallel {});
-        liquid-platform = lhComponent (self.callCabal2nix "liquid-platform" ./liquid-platform {});
-        liquid-prelude = lhComponent (self.callCabal2nix "liquid-prelude" ./liquid-prelude {});
-        liquid-vector = lhComponent (self.callCabal2nix "liquid-vector" ./liquid-vector {});
-        liquidhaskell = lhComponent (self.callCabal2nix "liquidhaskell" (nixpkgs.nix-gitignore.gitignoreSource [] ./.) {});
+        ## LH support packages
+        liquid-fixpoint = overrideCabal (self.callCabal2nix "liquid-fixpoint" (nixpkgs.nix-gitignore.gitignoreSource [] ./liquid-fixpoint) {}) (old: withZ3 old { doCheck = true; doHaddock = true; preCheck = ''export PATH="$PWD/dist/build/fixpoint:$PATH"''; });
+        liquidhaskell = overrideCabal (self.callCabal2nix "liquidhaskell" (nixpkgs.nix-gitignore.gitignoreSource [] ./.) {}) (old: withZ3 old { doCheck = true; doHaddock = true; preCheck = "export TASTY_LIQUID_RUNNER='./dist/build/liquid/liquid'"; });
+        ## LH spec packages
+        liquid-base = overrideCabal (self.callCabal2nix "liquid-base" ./liquid-base {}) (old: withZ3 old { doCheck = true; });
+        liquid-bytestring = overrideCabal (self.callCabal2nix "liquid-bytestring" ./liquid-bytestring {}) (old: withZ3 old { doCheck = true; });
+        liquid-containers = overrideCabal (self.callCabal2nix "liquid-containers" ./liquid-containers {}) (old: withZ3 old { doCheck = true; doHaddock = true; });
+        liquid-ghc-prim = overrideCabal (self.callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim {}) (old: withZ3 old { doCheck = true; });
+        liquid-prelude = overrideCabal (self.callCabal2nix "liquid-prelude" ./liquid-prelude {}) (old: withZ3 old { doCheck = true; });
+        liquid-vector = overrideCabal (self.callCabal2nix "liquid-vector" ./liquid-vector {}) (old: withZ3 old { doCheck = true; doHaddock = true; });
+        ## LH bundles
+        liquid-parallel = overrideCabal (self.callCabal2nix "liquid-parallel" ./liquid-parallel {}) (old: withZ3 old { doCheck = true; doHaddock = true; });
+        liquid-platform = overrideCabal (self.callCabal2nix "liquid-platform" ./liquid-platform {}) (old: { doCheck = true; doHaddock = true; });
         # declare dependencies using the latest hackage releases as of Thu 27 Aug 2020 04:08:52 PM UTC
         hashable = self.callHackage "hashable" "1.3.0.0" {}; # ouch; requires recompilation of around 30 packages
         optics = self.callHackage "optics" "0.3" {};
         optics-core = self.callHackage "optics-core" "0.3.0.1" {};
         optics-extra = self.callHackage "optics-extra" "0.3" {};
         optics-th = self.callHackage "optics-th" "0.3.0.2" {};
-        #memory = self.callHackage "memory" "0.15.0" {};
-        #tls = self.callHackage "tls" "1.5.4" {};
+        # declare test-dependencies using the latest hackage releases as of Thu 27 Aug 2020 04:08:52 PM UTC
+        memory = self.callHackage "memory" "0.15.0" {};
+        git = overrideCabal (self.callHackage "git" "0.3.0" {}) (old: { patches = [ ./git-0.3.0_fix-monad-fail-for-ghc-8.10.1.patch ]; });
       };
     }
   );
-  # define a function to turn on tests and haddocks and enable z3 for select packages
-  lhComponent = pkg: nixpkgs.haskell.lib.overrideCabal pkg (
-    old: {
-      doCheck = false; # TODO
-      doHaddock = false; # TODO
-      buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ];
-    }
-  );
+  withZ3 = old: new: new // { buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ]; };
 in
 { inherit nixpkgs; inherit haskellPackages; }
