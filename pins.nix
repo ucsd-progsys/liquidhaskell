@@ -30,13 +30,13 @@ let
         liquid-base = lhComponent (self.callCabal2nix "liquid-base" ./liquid-base {});
         liquid-bytestring = lhComponent (self.callCabal2nix "liquid-bytestring" ./liquid-bytestring {});
         liquid-containers = lhComponent (self.callCabal2nix "liquid-containers" ./liquid-containers {});
-        liquid-fixpoint = lhComponent (self.callCabal2nix "liquid-fixpoint" ./liquid-fixpoint {});
+        liquid-fixpoint = lhComponent (self.callCabal2nix "liquid-fixpoint" (nixpkgs.nix-gitignore.gitignoreSource [] ./liquid-fixpoint) {});
         liquid-ghc-prim = lhComponent (self.callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim {});
         liquid-parallel = lhComponent (self.callCabal2nix "liquid-parallel" ./liquid-parallel {});
         liquid-platform = lhComponent (self.callCabal2nix "liquid-platform" ./liquid-platform {});
         liquid-prelude = lhComponent (self.callCabal2nix "liquid-prelude" ./liquid-prelude {});
         liquid-vector = lhComponent (self.callCabal2nix "liquid-vector" ./liquid-vector {});
-        liquidhaskell = lhComponent (self.callCabal2nix "liquidhaskell" ./. {});
+        liquidhaskell = lhComponent (self.callCabal2nix "liquidhaskell" (nixpkgs.nix-gitignore.gitignoreSource [] ./.) {});
         # declare dependencies using the latest hackage releases as of Thu 27 Aug 2020 04:08:52 PM UTC
         hashable = self.callHackage "hashable" "1.3.0.0" {}; # ouch; requires recompilation of around 30 packages
         optics = self.callHackage "optics" "0.3" {};
