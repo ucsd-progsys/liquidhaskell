@@ -26,7 +26,8 @@ import Language.Haskell.Liquid.Types.Errors
 
 isMeasureType :: Type -> Bool 
 isMeasureType (ForAllTy _ t)             = isMeasureType t 
-isMeasureType (FunTy _ (TyConApp c _) t) = isAlgTyCon c && notFun t 
+isMeasureType (FunTy _ (TyConApp c _) t) 
+  = (not (c == intTyCon)) && isAlgTyCon c && notFun t 
   where notFun (FunTy _ _ _) = False 
         notFun _             = True 
 isMeasureType _                          = False 
