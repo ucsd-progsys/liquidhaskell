@@ -30,9 +30,10 @@ isMeasureType (FunTy _ t1 t2)
   | isPredType t1 
   = isMeasureType t2 
 isMeasureType (FunTy _ (TyConApp c _) t) 
-  = (not (c == intTyCon)) && isAlgTyCon c && notFun t 
+  = {- (not (c `elem` prims)) && -} isAlgTyCon c && notFun t 
   where notFun (FunTy _ _ _) = False 
         notFun _             = True 
+        -- prims = [unitTyCon, intTyCon]
 isMeasureType _                          = False 
 
 isRecursivenewTyCon :: TyCon -> Bool 

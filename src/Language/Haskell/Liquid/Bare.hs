@@ -253,17 +253,32 @@ makeGhcSpec0 cfg src lmap mspecs = SP
     embs     = makeEmbeds          src env ((name, mySpec0) : M.toList iSpecs0)
     -- extract name and specs
     env      = Bare.makeEnv cfg src lmap mspecs  
-    (mySpec0, iSpecs0) = splitSpecs name $ map (makeMeasures env) mspecs 
+    (mySpec0, iSpecs0) = splitSpecs name $ map (makeMeasures src env) mspecs 
     -- check barespecs 
     name     = F.notracepp ("ALL-SPECS" ++ zzz) $ _giTargetMod  src 
     zzz      = F.showpp (fst <$> mspecs)
 
 
-makeMeasures :: Bare.Env -> (ModName, Ms.BareSpec) -> (ModName, Ms.BareSpec) 
-makeMeasures env (name, spec) = (name, spec{Ms.hmeas = S.fromList ms, Ms.reflects = S.fromList rs})
+makeMeasures :: GhcSrc -> Bare.Env -> (ModName, Ms.BareSpec) -> (ModName, Ms.BareSpec) 
+makeMeasures src env (name, spec) = (name, spec{Ms.hmeas = S.fromList ms, Ms.reflects = S.fromList rs})
   where 
     (ms, rs)  = L.partition isMeasure $ S.toList $ (Ms.reflects spec <> Ms.hmeas spec)
-    isMeasure = Ghc.isMeasureType . Ghc.varType . Bare.lookupGhcVar env name "reflects"
+    isMeasure = (\v -> ((Ghc.isMeasureType $ Ghc.varType v) && (isMeasureDef $ L.lookup v bindDefs))) . makeVar
+    makeVar   = Bare.lookupGhcVar env name "reflects"
+
+    isMeasureDef Nothing  = False 
+    isMeasureDef (Just e) = go e 
+      where 
+        go (Ghc.Lam _ e)      = go e 
+        go (Ghc.Tick _ e)     = go e 
+        go (Ghc.Case _ _ _ _) = True 
+        go _                  = False 
+
+
+    bindDefs = concatMap pairOfDefs $ _giCbs src  
+
+    pairOfDefs (Ghc.Rec xes)    = xes
+    pairOfDefs (Ghc.NonRec x e) = [(x,e)]
 
 
 splitSpecs :: ModName -> [(ModName, Ms.BareSpec)] -> (Ms.BareSpec, Bare.ModSpecs) 
