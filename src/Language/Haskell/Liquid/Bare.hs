@@ -262,8 +262,8 @@ makeGhcSpec0 cfg src lmap mspecs = SP
 makeMeasures :: GhcSrc -> Bare.Env -> (ModName, Ms.BareSpec) -> (ModName, Ms.BareSpec) 
 makeMeasures src env (name, spec) = (name, spec{Ms.hmeas = S.fromList ms, Ms.reflects = S.fromList rs})
   where 
-    (ms, rs)  = L.partition isMeasure $ S.toList $ (Ms.reflects spec <> Ms.hmeas spec)
-    isMeasure = (\v -> ((Ghc.isMeasureType $ Ghc.varType v) && (isMeasureDef $ L.lookup v bindDefs))) . makeVar
+    (ms, rs)  = {- F.tracepp "ms vs rs = " $ -} L.partition isMeasure $ S.toList $ (Ms.reflects spec <> Ms.hmeas spec)
+    isMeasure = (\v -> ((Ghc.isMeasureType $ Ghc.expandTypeSynonyms $ Ghc.varType v) && (isMeasureDef $ L.lookup v bindDefs))) . makeVar
     makeVar   = Bare.lookupGhcVar env name "reflects"
 
     isMeasureDef Nothing  = False 
