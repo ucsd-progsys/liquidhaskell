@@ -580,15 +580,15 @@ elabEApp  :: ElabEnv -> Expr -> Expr -> CheckM (Expr, Sort, Expr, Sort, Sort)
 elabEApp f@(_, g) e1 e2 = do
   (e1', s1)     <- notracepp ("elabEApp1: e1 = " ++ showpp e1) <$> elab f e1
   (e2', s2)     <- elab f e2
-  (s1', s2', s) <- elabAppSort g e1 e2 s1 s2
-  return           (e1', s1', e2', s2', s)
+  (e1'', e2'', s1', s2', s) <- elabAppSort g e1' e2' s1 s2
+  return           (e1'', s1', e2'', s2', s)
 
-elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Sort, Sort, Sort)
+elabAppSort :: Env -> Expr -> Expr -> Sort -> Sort -> CheckM (Expr, Expr, Sort, Sort, Sort)
 elabAppSort f e1 e2 s1 s2 = do
   let e            = Just (EApp e1 e2)
   (sIn, sOut, su) <- checkFunSort s1
   su'             <- unify1 f e su sIn s2
-  return           $ (apply su' s1, apply su' s2, apply su' sOut)
+  return           $ (applyExpr (Just su') e1, applyExpr (Just su') e2, apply su' s1, apply su' s2, apply su' sOut)
 
 
 --------------------------------------------------------------------------------
