@@ -72,6 +72,15 @@ lval (LLet x e1 e2) s = lval e2 (set s x (lval e1 s))
 inlyne :: LExp -> AExp
 inlyne lexp = replace lexp (init (N 0))
 
+
+-- NIKI TO FIX
+-- The below is required because the sort `GState Int AExp`
+-- does not appear in the logic, so apply :: Int -> GState Int AExp
+-- was not generated
+{-@ reflect help @-}
+help :: GState Int AExp
+help = init (N 0)
+
 {-@ reflect contains @-}
 contains :: (Eq k) => GState k v -> k -> Bool
 contains (Bind k v kvs) key
