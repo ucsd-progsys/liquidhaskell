@@ -2,7 +2,7 @@
 -- c.f. https://piazza.com/class/jqk23zupq7a62c?cid=72
 
 {-@ LIQUID "--reflection"  @-}
-{-@ LIQUID "--ple"         @-}  -- Bug goes away if this line is commented
+-- {-@ LIQUID "--ple"         @-}  -- Bug goes away if this line is commented
 {-@ LIQUID "--short-names" @-}
 
 module Test where

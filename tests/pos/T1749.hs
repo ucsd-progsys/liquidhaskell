@@ -1,5 +1,6 @@
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--reflection" @-}
+module T1749 where 
 
 data Value = B Bool | I Int
 
