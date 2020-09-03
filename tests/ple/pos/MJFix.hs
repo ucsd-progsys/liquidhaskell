@@ -2,7 +2,7 @@
 -- c.f. https://piazza.com/class/jqk23zupq7a62c?cid=72
 
 {-@ LIQUID "--reflection"  @-}
--- {-@ LIQUID "--ple"         @-}  -- Bug goes away if this line is commented
+{-@ LIQUID "--ple"         @-}  -- Bug goes away if this line is commented
 {-@ LIQUID "--short-names" @-}
 
 module Test where
@@ -71,6 +71,15 @@ lval (LLet x e1 e2) s = lval e2 (set s x (lval e1 s))
 {-@ reflect inlyne @-}
 inlyne :: LExp -> AExp
 inlyne lexp = replace lexp (init (N 0))
+
+
+-- NIKI TO FIX
+-- The below is required because the sort `GState Int AExp`
+-- does not appear in the logic, so apply :: Int -> GState Int AExp
+-- was not generated
+{-@ reflect help @-}
+help :: GState Int AExp
+help = init (N 0)
 
 {-@ reflect contains @-}
 contains :: (Eq k) => GState k v -> k -> Bool
