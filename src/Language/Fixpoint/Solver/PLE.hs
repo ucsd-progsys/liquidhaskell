@@ -680,6 +680,7 @@ reWriteDDecl ddecl = concatMap go (ddCtors ddecl)
 
 askSMT :: Config -> SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
 askSMT cfg ctx bs e
+--   | isContraPred e     = return False 
   | isTautoPred  e     = return True
   | null (Vis.kvars e) = SMT.checkValidWithContext ctx [] PTrue e'
   | otherwise          = return False
