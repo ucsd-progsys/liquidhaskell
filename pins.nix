@@ -2,9 +2,9 @@
 let
   nixpkgs = import (
     builtins.fetchTarball {
-      # fetch latest nixpkgs https://github.com/NixOS/nixpkgs-channels/tree/nixos-20.03 as of Thu 27 Aug 2020 04:08:52 PM UTC
-      url = "https://github.com/NixOS/nixpkgs-channels/archive/feff2fa6659799fe7439038b3eba453d62a16e69.tar.gz";
-      sha256 = "0vlnrwlxl6xf6b8rmiy7as2lhi015nklyj2xdiy3ly8xznq69ll9";
+      # fetch latest nixpkgs https://github.com/NixOS/nixpkgs-channels/tree/nixos-20.03 as of Fri 04 Sep 2020 11:43:55 PM UTC
+      url = "https://github.com/NixOS/nixpkgs-channels/archive/5607e74b1dd2c9bf19fcb35ddf5ee68b3228f67c.tar.gz";
+      sha256 = "1glq1gsbq7n8564w798aa37j2v7xyn2baawfdrg9gi8ll4fbyajl";
     }
   ) { inherit config; };
   # liquidhaskell plugin requires ghc 8.10.1
@@ -13,9 +13,9 @@ let
   haskellPackages = haskellCompilerPackages.override (
     old: {
       all-cabal-hashes = nixpkgs.fetchurl {
-        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Thu 27 Aug 2020 04:08:52 PM UTC
-        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/2f5cbba0f21b2be91d0fc2a9d303525a09c6129d.tar.gz";
-        sha256 = "1q44anb5wfngpmhhphs32iviygn8khbp7qvw893ss6sd8pgf8pbg";
+        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Fri 04 Sep 2020 11:43:55 PM UTC
+        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/e8c1a5421b098eb15defb7573cfce04f7fa71c54.tar.gz";
+        sha256 = "1hh3saqwwr91qj1qkik7i6np1jbvq6r29vcd615bb0hg1glxaprq";
       };
       overrides = self: super: with nixpkgs.haskell.lib; rec {
         # turn off tests and haddocks and version bounds by default
@@ -52,6 +52,24 @@ let
       };
     }
   );
+  # helper to include z3 during build and test of a package
   withZ3 = old: new: new // { buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ]; };
+  #
+  projectPackages = with haskellPackages; [
+    liquid-base
+    liquid-bytestring
+    liquid-containers
+    liquid-fixpoint
+    liquid-ghc-prim
+    liquid-parallel
+    liquid-platform
+    liquid-prelude
+    liquid-vector
+    liquidhaskell
+  ];
 in
-{ inherit nixpkgs; inherit haskellPackages; }
+{
+  inherit nixpkgs;
+  inherit haskellPackages;
+  inherit projectPackages;
+}

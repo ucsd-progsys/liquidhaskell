@@ -1,19 +1,17 @@
-{ config ? { allowBroken = true; }, ... }:
+{ envFor ? null, config ? { allowBroken = true; }, ... }:
 let
   pins = import ./pins.nix { inherit config; };
 in
-pins.nixpkgs.buildEnv {
-  name = "liquidhaskell-packages";
-  paths = with pins.haskellPackages; [
-    liquid-base
-    liquid-bytestring
-    liquid-containers
-    liquid-fixpoint
-    liquid-ghc-prim
-    liquid-parallel
-    liquid-platform
-    liquid-prelude
-    liquid-vector
-    liquidhaskell
-  ];
+if envFor == null
+then pins.nixpkgs.buildEnv {
+  name = "liquidhaskell-project";
+  paths = pins.projectPackages;
 }
+else pins.haskellPackages."${envFor}".env.overrideAttrs (
+  old: {
+    nativeBuildInputs = old.nativeBuildInputs ++ [
+      pins.nixpkgs.cabal-install
+      pins.nixpkgs.ghcid
+    ];
+  }
+)
