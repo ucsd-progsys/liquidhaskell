@@ -1,31 +1,113 @@
 /*
- * to build all of the packages in the project
+ * to build and test all of the packages in the project
  *
  *    nix-build
  *
  * to get an environment for development of one package in the project
  *
- *    nix-shell --argstr envFor liquidhaskell
+ *    nix-shell --argstr envFor liquid-vector
  *
- * to extend and override in a new nix expression
+ *    (for the liquidhaskell package, you should use the metapackage environment for development)
+ *    nix-shell --argstr envFor liquidhaskell_test-runner-metapackage
  *
- *    Eg. for liquid-fixpoint, which lives in its own repo and shouldn't need to repeat everything
- *    TODO: import this repo's pins.nix and override the haskellPackages it contains
+ * to extend and override the nixpkgs/haskellPackages pins in a new nix expression
+ *
+ *    Eg. for liquid-fixpoint, which lives in its own repo and shouldn't need to repeat everything defined here
+ *    TODO: import this repo's default.nix, extract the passthru.haskellPackages it contains and use that
  */
 { envFor ? null, config ? { allowBroken = true; }, ... }:
 let
-  pins = import ./pins.nix { inherit config; };
+  nixpkgs = import (
+    builtins.fetchTarball {
+      # fetch latest nixpkgs https://github.com/NixOS/nixpkgs-channels/tree/nixos-20.03 as of Fri 11 Sep 2020 05:48:57 AM UTC
+      url = "https://github.com/NixOS/nixpkgs-channels/archive/4bd1938e03e1caa49a6da1ec8cff802348458f05.tar.gz";
+      sha256 = "0529npmibafjr80i2bhqg22pjr3d5qz1swjcq2jkdla1njagkq2k";
+    }
+  ) { inherit config; };
+
+
+  # override haskell compiler version, add and override dependencies in nixpkgs
+  haskellPackages = nixpkgs.haskell.packages."ghc8101".override (
+    old: {
+      all-cabal-hashes = nixpkgs.fetchurl {
+        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Fri 11 Sep 2020 05:48:57 AM UTC
+        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/fdf36e3692e7cd30da7b9da4b1d7b87eb14fe787.tar.gz";
+        sha256 = "1qirm02bv3p11x2bjl72d62lj5lm4a88wg93fi272a8h7a8496wn";
+      };
+      overrides = self: super: with nixpkgs.haskell.lib; rec {
+        mkDerivation = args: super.mkDerivation (
+          args // { doCheck = false; doHaddock = false; jailbreak = true; }
+        );
+
+        liquidhaskell = self.callCabal2nix "liquidhaskell" (nixpkgs.nix-gitignore.gitignoreSource [] ./.) {}; # no tests are run
+        liquid-fixpoint = beComponent
+          (self.callCabal2nix "liquid-fixpoint" (nixpkgs.nix-gitignore.gitignoreSource [] ./liquid-fixpoint) {})
+          (old: { preCheck = ''export PATH="$PWD/dist/build/fixpoint:$PATH"''; }); # bring the `fixpoint` binary into scope for tests run by nix-build
+
+        liquid-base = beComponent (self.callCabal2nix "liquid-base" ./liquid-base {}) (_: { doHaddock = false; });
+        liquid-bytestring = beComponent (self.callCabal2nix "liquid-bytestring" ./liquid-bytestring {}) (_: { doHaddock = false; });
+        liquid-containers = beComponent (self.callCabal2nix "liquid-containers" ./liquid-containers {}) (_: {});
+        liquid-ghc-prim = beComponent (self.callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim {}) (_: { doHaddock = false; });
+        liquid-parallel = beComponent (self.callCabal2nix "liquid-parallel" ./liquid-parallel {}) (_: {});
+        liquid-vector = beComponent (self.callCabal2nix "liquid-vector" ./liquid-vector {}) (_: {});
+
+        liquid-platform = beComponent (self.callCabal2nix "liquid-platform" ./liquid-platform {}) (_: {});
+        liquid-prelude = beComponent (self.callCabal2nix "liquid-prelude" ./liquid-prelude {}) (_: { doHaddock = false; });
+
+        # using latest hackage releases as of Fri 11 Sep 2020 05:48:57 AM UTC
+        hashable = self.callHackage "hashable" "1.3.0.0" {}; # ouch; requires recompilation of around 30 packages
+        optics = self.callHackage "optics" "0.3" {};
+        optics-core = self.callHackage "optics-core" "0.3.0.1" {};
+        optics-extra = self.callHackage "optics-extra" "0.3" {};
+        optics-th = self.callHackage "optics-th" "0.3.0.2" {};
+        # declare test-dependencies using the latest hackage releases as of Thu 27 Aug 2020 04:08:52 PM UTC
+        memory = self.callHackage "memory" "0.15.0" {};
+        git = overrideCabal (self.callHackage "git" "0.3.0" {}) (old: { patches = [ ./git-0.3.0_fix-monad-fail-for-ghc-8.10.1.patch ]; });
+
+        # declare a duplicate liquidhaskell packages that depends on the above so that we can run the tests
+        liquidhaskell_test-runner-metapackage = beComponent liquidhaskell (
+          old: {
+            # SETUP COMMAND? runhaskell --ghc-arg=-hide-package=base Setup.hs
+            testHaskellDepends = old.testHaskellDepends ++ projectPackages;
+            preCheck = ''
+              export TASTY_PATTERN=basic-pos
+              export TASTY_LIQUID_RUNNER="liquidhaskell -v0"
+              # hostname stub
+              mkdir b; export PATH="$PATH:b"; echo "echo fakehost" > b/hostname; chmod +x b/hostname
+            '';
+            passthru = { inherit nixpkgs; inherit haskellPackages; inherit projectPackages; };
+          }
+        );
+      };
+    }
+  );
+  # packages part of this local project
+  projectPackages = with haskellPackages; [
+    liquid-fixpoint
+    liquidhaskell
+
+    liquid-base
+    liquid-bytestring
+    liquid-containers
+    liquid-ghc-prim
+    liquid-parallel
+    liquid-vector
+
+    liquid-platform
+    liquid-prelude
+  ];
+  # helper to turn on tests, haddocks, and have z3 around
+  beComponent = pkg: another: nixpkgs.haskell.lib.overrideCabal pkg (
+    old:
+      { doCheck = true; doHaddock = true; buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ]; }
+      // another old
+  );
 in
 if envFor == null
-then pins.nixpkgs.buildEnv {
-  name = "liquidhaskell-project";
-  paths = pins.projectPackages;
-}
-else pins.haskellPackages."${envFor}".env.overrideAttrs (
-  old: {
-    nativeBuildInputs = old.nativeBuildInputs ++ [
-      pins.nixpkgs.cabal-install
-      pins.nixpkgs.ghcid
-    ];
-  }
-)
+then haskellPackages.liquidhaskell_test-runner-metapackage
+else haskellPackages."${envFor}".env.overrideAttrs
+  (
+    old: {
+      nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.cabal-install nixpkgs.ghcid ];
+    }
+  )

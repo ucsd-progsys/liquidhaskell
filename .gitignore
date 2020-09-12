@@ -1,3 +1,6 @@
+*.nix
+result
+
 dist
 cabal-dev
 .hsenv
