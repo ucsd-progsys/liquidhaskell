@@ -94,13 +94,14 @@ createLogs = do
 runLiquid :: FilePath -> IO (ExitCode, T.Text)
 runLiquid tgt = do
     -- hack to make this slightly more consistent with ./tests/test.hs (which
-    -- uses tasty-runner options)
+    -- uses tasty-runner options); this opens us up to shell-injection though,
+    -- since the code here is just building a shell command
     liquidBinPath <- lookupEnv "TASTY_LIQUID_RUNNER"
-    let (bin, args) = maybe ("stack", ["exec", "--", "liquid"]) (, []) liquidBinPath
+    let bin    = maybe "stack exec -- liquid " (++ " ") liquidBinPath
         inFile = synthesisTestsDir </> tgt
         log    = logDir </> (dropExtension tgt <.> ".log")
     withFile log WriteMode $ \h -> do
-        (_, _, _, ph) <- createProcess $ (proc bin $ args ++ [inFile]) { std_out = UseHandle h, std_err = UseHandle h }
+        (_, _, _, ph) <- createProcess $ (shell (bin ++ inFile)) { std_out = UseHandle h, std_err = UseHandle h }
         exitCode      <- waitForProcess ph
         (exitCode, ) <$> T.readFile log
 
