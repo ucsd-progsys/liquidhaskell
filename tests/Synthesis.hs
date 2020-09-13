@@ -14,6 +14,7 @@ import           System.Directory
 import           System.Exit
 import           System.IO.Unsafe
 import           Data.Tuple.Extra
+import Debug.Trace
 
 -------------------------------------------------------------
 -- | Contains the input files
@@ -72,7 +73,7 @@ walkFile text = dropWhile (not . startsWith keyword) ls
 handleLog :: T.Text -> [[T.Text]]
 handleLog text =
     let toBeParsed = walkFile text
-        sols = T.splitOn (T.pack delim) (T.unlines (tail toBeParsed))
+        sols = T.splitOn (T.pack delim) (T.unlines (if null toBeParsed then traceShow text $ tail toBeParsed else tail toBeParsed))
         noTrailing = map (filter (not . T.null)) (map (map T.strip) (map T.lines sols))
     in  noTrailing
 
