@@ -13,7 +13,6 @@ import           System.IO
 import           System.Directory
 import           System.Exit
 import           System.IO.Unsafe
-import           System.Environment (lookupEnv)
 import           Data.Tuple.Extra
 
 -------------------------------------------------------------
@@ -93,11 +92,7 @@ createLogs = do
 
 runLiquid :: FilePath -> IO (ExitCode, T.Text)
 runLiquid tgt = do
-    -- hack to make this slightly more consistent with ./tests/test.hs (which
-    -- uses tasty-runner options); this opens us up to shell-injection though,
-    -- since the code here is just building a shell command
-    liquidBinPath <- lookupEnv "TASTY_LIQUID_RUNNER"
-    let bin    = maybe "stack exec -- liquid " (++ " ") liquidBinPath
+    let bin    = "stack exec -- liquid " 
         inFile = synthesisTestsDir </> tgt
         log    = logDir </> (dropExtension tgt <.> ".log")
     withFile log WriteMode $ \h -> do
