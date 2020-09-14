@@ -111,9 +111,7 @@ let
           old: {
             testDepends = old.testDepends or [] ++ [ nixpkgs.hostname ];
             testHaskellDepends = old.testHaskellDepends ++ projectPackages;
-            preCheck = ''
-              export TASTY_LIQUID_RUNNER="liquidhaskell -v0"
-            '';
+            preCheck = ''export TASTY_LIQUID_RUNNER="liquidhaskell -v0"'';
             passthru = { inherit nixpkgs; inherit haskellPackages; inherit projectPackages; };
           }
         );
