@@ -5,12 +5,12 @@
 
 packages:
 - completed:
-    hackage: tasty-rerun-1.1.14@sha256:ba9c19a281535bea566e1044bc02c36ef17abcb310af4b6a149ec11780c7ce35,3083
+    hackage: tasty-rerun-1.1.15@sha256:5907483d0a475dfbdccce293ec75fb668c4d2e0f6d015398729d4f894febb432,3226
     pantry-tree:
       size: 284
-      sha256: f6b89e2e06d38d0a2d73c220648811a54684b476778904416b22f1ccae7eab67
+      sha256: 1a43cb49158a42d149f0af4a82ae042136d8ebb0f9d0ce405465cd57c84b8dca
   original:
-    hackage: tasty-rerun-1.1.14
+    hackage: tasty-rerun-1.1.15
 - completed:
     hackage: fgl-visualize-0.1.0.1@sha256:e682066053a6e75478a08fd6822dd0143a3b8ea23244bdb01dd389a266447c5e,995
     pantry-tree:
