@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.GHC.API (
 
 -- Specific imports for 8.6.5 and 8.8.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
   , VarBndr
   , AnonArgFlag(..)
   , pattern FunTy
