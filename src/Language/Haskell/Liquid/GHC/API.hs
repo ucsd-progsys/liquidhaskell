@@ -10,17 +10,24 @@
 module Language.Haskell.Liquid.GHC.API (
     module Ghc
 
+-- Specific imports for 8.6.5
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
-  , VarBndr
-  , AnonArgFlag(..)
   , pattern Bndr
-  , pattern FunTy
-  , pattern AnonTCB
   , pattern LitString
   , pattern LitFloat
   , pattern LitDouble
   , pattern LitChar
+#endif
+#endif
+
+-- Specific imports for 8.6.5 and 8.8.x
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+  , VarBndr
+  , AnonArgFlag(..)
+  , pattern FunTy
+  , pattern AnonTCB
   , ft_af, ft_arg, ft_res
   , bytesFS
   , mkFunTy
@@ -46,7 +53,7 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import NameSet        as Ghc
 import InstEnv        as Ghc
 import Literal        as Ghc
-import TcType         as Ghc (isClassPred)
+import TcType         as Ghc hiding (typeKind, mkFunTy, isEvVarType)
 import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
@@ -69,6 +76,17 @@ import DynFlags       as Ghc
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
 
+import qualified Literal as Lit
+
+#endif
+#endif
+
+--
+-- Specific imports for GHC 8.6.5 & 8.8.x
+--
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+
 import                   Binary
 import                   Data.ByteString (ByteString)
 import                   Data.Data (Data)
@@ -77,10 +95,9 @@ import Kind              as Ghc (classifiesTypeWithValues)
 import FastString        as Ghc hiding (bytesFS, LitString)
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
-import Type              as Ghc hiding (typeKind, mkFunTy)
-import qualified Type    as Ghc
+import Type              as Ghc hiding (typeKind, mkFunTy, isEvVarType)
+import qualified Type    as Ghc hiding (typeKind)
 import qualified TyCoRep as Ty
-import qualified Literal as Lit
 import qualified TyCon   as Ty
 import qualified Var     as Var
 import qualified GHC.Real
@@ -102,11 +119,39 @@ import Data.Foldable  (asum)
 #endif
 #endif
 
---
--- GHC-specific functions and pattern synonyms
---
+
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+pattern LitString :: ByteString -> Lit.Literal
+pattern LitString bs <- Lit.MachStr bs where
+    LitString bs = Lit.MachStr bs
+
+pattern LitFloat :: GHC.Real.Ratio Integer -> Lit.Literal
+pattern LitFloat f <- Lit.MachFloat f where
+    LitFloat f = Lit.MachFloat f
+
+pattern LitDouble :: GHC.Real.Ratio Integer -> Lit.Literal
+pattern LitDouble d <- Lit.MachDouble d where
+    LitDouble d = Lit.MachDouble d
+
+pattern LitChar :: Char -> Lit.Literal
+pattern LitChar c <- Lit.MachChar c where
+    LitChar c = Lit.MachChar c
+
+pattern Bndr :: var -> argf -> Var.TyVarBndr var argf
+pattern Bndr var argf <- TvBndr var argf where
+    Bndr var argf = TvBndr var argf
+
+type VarBndr = TyVarBndr
+
+#endif
+#endif
+
+--
+-- Compat shim for GHC-8.6.5 and GHC-8.8.x
+--
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
 
 -- | The non-dependent version of 'ArgFlag'.
 
@@ -141,12 +186,6 @@ bytesFS = fastStringToByteString
 mkFunTy :: AnonArgFlag -> Type -> Type -> Type
 mkFunTy _ = Ty.FunTy
 
-pattern Bndr :: var -> argf -> Var.TyVarBndr var argf
-pattern Bndr var argf <- TvBndr var argf where
-    Bndr var argf = TvBndr var argf
-
-type VarBndr = TyVarBndr
-
 pattern FunTy :: AnonArgFlag -> Type -> Type -> Type
 pattern FunTy { ft_af, ft_arg, ft_res } <- ((VisArg,) -> (ft_af, Ty.FunTy ft_arg ft_res)) where
     FunTy _ft_af ft_arg ft_res = Ty.FunTy ft_arg ft_res
@@ -154,22 +193,6 @@ pattern FunTy { ft_af, ft_arg, ft_res } <- ((VisArg,) -> (ft_af, Ty.FunTy ft_arg
 pattern AnonTCB :: AnonArgFlag -> Ty.TyConBndrVis
 pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
     AnonTCB _af = Ty.AnonTCB
-
-pattern LitString :: ByteString -> Lit.Literal
-pattern LitString bs <- Lit.MachStr bs where
-    LitString bs = Lit.MachStr bs
-
-pattern LitFloat :: GHC.Real.Ratio Integer -> Lit.Literal
-pattern LitFloat f <- Lit.MachFloat f where
-    LitFloat f = Lit.MachFloat f
-
-pattern LitDouble :: GHC.Real.Ratio Integer -> Lit.Literal
-pattern LitDouble d <- Lit.MachDouble d where
-    LitDouble d = Lit.MachDouble d
-
-pattern LitChar :: Char -> Lit.Literal
-pattern LitChar c <- Lit.MachChar c where
-    LitChar c = Lit.MachChar c
 
 -- See NOTE [tyConRealArity].
 tyConRealArity :: TyCon -> Int
@@ -182,6 +205,17 @@ isEvVarType = Ghc.isPredTy
 isEqPrimPred :: Type -> Bool
 isEqPrimPred = Ghc.isPredTy
 
+#endif
+
+-- Compat shim for 8.8.x
+
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+
+dataConExTyVars :: DataCon -> [TyVar]
+dataConExTyVars = dataConExTyCoVars
+
+#endif
 #endif
 
 {- | [NOTE:tyConRealArity]
