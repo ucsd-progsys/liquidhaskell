@@ -18,13 +18,13 @@ module Language.Haskell.Liquid.GHC.API (
   , pattern LitFloat
   , pattern LitDouble
   , pattern LitChar
+  , VarBndr
 #endif
 #endif
 
 -- Specific imports for 8.6.5 and 8.8.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
-  , VarBndr
   , AnonArgFlag(..)
   , pattern FunTy
   , pattern AnonTCB
@@ -53,7 +53,6 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import NameSet        as Ghc
 import InstEnv        as Ghc
 import Literal        as Ghc
-import TcType         as Ghc hiding (typeKind, mkFunTy, isEvVarType)
 import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
@@ -77,6 +76,11 @@ import DynFlags       as Ghc
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
 
 import qualified Literal as Lit
+import FastString        as Ghc hiding (bytesFS, LitString)
+import TcType            as Ghc hiding (typeKind, mkFunTy)
+import Type              as Ghc hiding (typeKind, mkFunTy)
+import qualified Var     as Var
+import qualified GHC.Real
 
 #endif
 #endif
@@ -91,16 +95,24 @@ import                   Binary
 import                   Data.ByteString (ByteString)
 import                   Data.Data (Data)
 import                   Outputable
-import Kind              as Ghc (classifiesTypeWithValues)
-import FastString        as Ghc hiding (bytesFS, LitString)
+import Kind              as Ghc
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
-import Type              as Ghc hiding (typeKind, mkFunTy, isEvVarType)
-import qualified Type    as Ghc hiding (typeKind)
 import qualified TyCoRep as Ty
 import qualified TyCon   as Ty
-import qualified Var     as Var
-import qualified GHC.Real
+
+#endif
+#endif
+
+--
+-- Specific imports for 8.8.x
+--
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+
+import FastString        as Ghc hiding (bytesFS)
+import TcType            as Ghc hiding (typeKind, mkFunTy)
+import Type              as Ghc hiding (typeKind, mkFunTy, isEvVarType)
 
 #endif
 #endif
@@ -112,9 +124,10 @@ import qualified GHC.Real
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
 import Type           as Ghc hiding (typeKind , isPredTy)
 import TyCon          as Ghc
+import TcType         as Ghc
 import TyCoRep        as Ghc
 import FastString     as Ghc
-import Predicate      as Ghc (isEqPred, getClassPredTys_maybe, isEvVarType, isEqPrimPred)
+import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType)
 import Data.Foldable  (asum)
 #endif
 #endif
