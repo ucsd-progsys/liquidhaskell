@@ -29,7 +29,19 @@ available and so its tests wont run, for that use #2 above.
     nix-shell --argstr target liquid-vector
 
 */
-{ target ? null, tests ? true, config ? { allowBroken = true; }, ... }:
+{
+  # Set `mkEnv` to choose whether to return a package or a development
+  # environment. The default is to follow inNixShell.
+  mkEnv ? null
+, # Set `tests` to choose whether to run the test suites in liquid haskell
+  # packages.
+  tests ? true
+, # Set `target` to choose the package from haskellPackages which will be
+  # returned (eg. name of a liquidhaskell package).
+  target ? "liquidhaskell_test-runner-metapackage"
+, # nixpkgs config
+  config ? { allowBroken = true; }
+}:
 let
   nixpkgs = import (
     builtins.fetchTarball {
@@ -134,11 +146,9 @@ let
     liquid-prelude
   ];
   # derivation to build
-  drv = if target == null
-  then haskellPackages.liquidhaskell_test-runner-metapackage
-  else haskellPackages."${target}";
+  drv = haskellPackages."${target}";
 in
-if nixpkgs.lib.inNixShell
+if (mkEnv != null && mkEnv) || (mkEnv == null && nixpkgs.lib.inNixShell)
 then drv.env.overrideAttrs
   (old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.cabal-install nixpkgs.ghcid ]; })
 else drv
