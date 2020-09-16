@@ -113,6 +113,7 @@ import qualified TyCon   as Ty
 import FastString           as Ghc hiding (bytesFS)
 import TcType               as Ghc hiding (typeKind, mkFunTy)
 import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType)
+import qualified Type       as Ghc (isEvVarType)
 import qualified PrelNames  as Ghc
 
 #endif
@@ -160,6 +161,11 @@ type VarBndr = TyVarBndr
 
 isEqPrimPred :: Type -> Bool
 isEqPrimPred = Ghc.isPredTy
+
+-- See NOTE [isEvVarType].
+isEvVarType :: Type -> Bool
+isEvVarType = Ghc.isPredTy
+
 
 #endif
 #endif
@@ -215,10 +221,6 @@ pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
 tyConRealArity :: TyCon -> Int
 tyConRealArity = tyConArity
 
--- See NOTE [isEvVarType].
-isEvVarType :: Type -> Bool
-isEvVarType = Ghc.isPredTy
-
 #endif
 
 -- Compat shim for 8.8.x
@@ -235,6 +237,10 @@ isEqPrimPred ty
   = tc `hasKey` Ghc.eqPrimTyConKey || tc `hasKey` Ghc.eqReprPrimTyConKey
   | otherwise
   = False
+
+-- See NOTE [isEvVarType].
+isEvVarType :: Type -> Bool
+isEvVarType = Ghc.isEvVarType
 
 #endif
 #endif
