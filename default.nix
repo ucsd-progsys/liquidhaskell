@@ -29,7 +29,7 @@ available and so its tests wont run, for that use #2 above.
     nix-shell --argstr target liquid-vector
 
 */
-{ target ? null, config ? { allowBroken = true; }, ... }:
+{ target ? null, tests ? true, config ? { allowBroken = true; }, ... }:
 let
   nixpkgs = import (
     builtins.fetchTarball {
@@ -41,7 +41,7 @@ let
   # helper to turn on tests, haddocks, and have z3 around
   beComponent = pkg: another: nixpkgs.haskell.lib.overrideCabal pkg (
     old:
-      { doCheck = true; doHaddock = true; buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ]; }
+      { doCheck = tests; doHaddock = true; buildTools = old.buildTools or [] ++ [ nixpkgs.z3 ]; }
       // another old
   );
   # package set for haskell compiler version
