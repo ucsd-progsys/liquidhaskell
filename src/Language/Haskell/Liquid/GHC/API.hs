@@ -110,9 +110,10 @@ import qualified TyCon   as Ty
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
 
-import FastString        as Ghc hiding (bytesFS)
-import TcType            as Ghc hiding (typeKind, mkFunTy)
-import Type              as Ghc hiding (typeKind, mkFunTy, isEvVarType)
+import FastString           as Ghc hiding (bytesFS)
+import TcType               as Ghc hiding (typeKind, mkFunTy)
+import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType)
+import qualified PrelNames  as Ghc
 
 #endif
 #endif
@@ -156,6 +157,9 @@ pattern Bndr var argf <- TvBndr var argf where
     Bndr var argf = TvBndr var argf
 
 type VarBndr = TyVarBndr
+
+isEqPrimPred :: Type -> Bool
+isEqPrimPred = Ghc.isPredTy
 
 #endif
 #endif
@@ -215,9 +219,6 @@ tyConRealArity = tyConArity
 isEvVarType :: Type -> Bool
 isEvVarType = Ghc.isPredTy
 
-isEqPrimPred :: Type -> Bool
-isEqPrimPred = Ghc.isPredTy
-
 #endif
 
 -- Compat shim for 8.8.x
@@ -227,6 +228,13 @@ isEqPrimPred = Ghc.isPredTy
 
 dataConExTyVars :: DataCon -> [TyVar]
 dataConExTyVars = dataConExTyCoVars
+
+isEqPrimPred :: Type -> Bool
+isEqPrimPred ty
+  | Just tc <- tyConAppTyCon_maybe ty
+  = tc `hasKey` Ghc.eqPrimTyConKey || tc `hasKey` Ghc.eqReprPrimTyConKey
+  | otherwise
+  = False
 
 #endif
 #endif
