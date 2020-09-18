@@ -201,7 +201,7 @@ existingSpan k (Just span) kspans
 
 
 spanDiff :: SrcSpan -> SrcSpan -> SrcSpan
-spanDiff (SS _ end1) (SS _ end2) = SS (toSourcePos (f,l,c-1)) end2
+spanDiff (SS _ end1) (SS _ end2) = SS (toSourcePos (f,l,predPos c)) end2
   where (f,l,c) = sourcePosElts end1
 
 inSpan :: SrcSpan -> SrcSpan -> Bool 

@@ -8,4 +8,4 @@ liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:test \
   --test-option="-p /$TASTY_GLOB_PATTERN/" \
   --test-option="--liquid-runner=cabal -v0 v2-exec liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env) \
-                          -package=liquidhaskell -package=Cabal " \
+                          -package=liquidhaskell -package=liquid-base -package=Cabal " \

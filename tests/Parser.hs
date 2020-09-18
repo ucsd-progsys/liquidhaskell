@@ -9,10 +9,11 @@
 --
 -- Run as:
 --
--- $ stack test :liquidhaskell-parser
+--  $ stack test :liquidhaskell-parser
 
 module Main where
 
+import           Control.Monad (filterM, unless)
 import           Data.Data
 import           Data.Char (isSpace) 
 import           Data.Generics.Aliases
@@ -22,7 +23,12 @@ import           Language.Fixpoint.Types.Spans
 import qualified Language.Haskell.Liquid.Parse as LH
 import qualified Language.Fixpoint.Types       as F 
 
-import           Text.Parsec.Pos
+import           System.Directory
+import           System.FilePath
+
+import           Text.Megaparsec.Error
+import           Text.Megaparsec.Pos
+
 import           Test.Tasty
 import           Test.Tasty.HUnit
 import           Test.Tasty.Runners.AntXML
@@ -34,21 +40,43 @@ main :: IO ()
 -- main = do 
 --   print $ parseSingleSpec "type IncrListD a D = [a]<{\\x y -> (x+D) <= y}>"
 --   return ()
-main =  defaultMainWithIngredients (
-                antXMLRunner:defaultIngredients
-              ) tests
+main = do
+  testSpecFiles' <- testSpecFiles
+  defaultMainWithIngredients (antXMLRunner:defaultIngredients) (tests testSpecFiles')
 
-tests :: TestTree
-tests =
+tests :: TestTree -> TestTree
+tests extra =
   testGroup "ParserTests"
-    [ testSucceeds
+    ([ testSucceeds
     , testSpecP
     , testReservedAliases
     , testFails
     , testErrorReporting
-    ]
+    ] ++ [ extra ])
 
 -- ---------------------------------------------------------------------
+
+-- | Test parsing of entire spec files.
+--
+-- These are included in the normal parser tests, because they call the
+-- parser directly, rather than via an external invocation of the executable
+-- or the plugin.
+--
+testSpecFiles :: IO TestTree
+testSpecFiles =
+  testGroup "spec files" <$> do
+    rawFiles <- listDirectory dir
+    files <- filterM (doesFileExist . (dir </>)) (filter ((== ".spec") . takeExtension) rawFiles)
+    pure ((\ f -> testCase f (go f)) <$> files)
+  where
+    dir = "tests/specfiles/pos"
+    go :: FilePath -> Assertion
+    go f = do
+      txt <- readFile (dir </> f)
+      let r = LH.specSpecificationP f txt
+      case r of
+        Left peb -> assertFailure (errorBundlePretty peb)
+        Right _ -> pure ()
 
 -- Test that the top level production works, each of the sub-elements will be tested separately
 testSpecP :: TestTree
@@ -176,7 +204,7 @@ testSpecP =
 
     , testCase "qualif" $
        parseSingleSpec "qualif Foo(v:Int): v < 0" @?==
-          "qualif Foo defined at \"<test>\" (line 1, column 8)"
+          "qualif Foo defined at <test>:1:8"
 
     , testCase "decrease" $
        parseSingleSpec "decrease insert 3" @?==
@@ -346,11 +374,13 @@ testSucceeds =
           , "  | App (fn :: f) (arg :: f)"
           , "  | Paren (ast :: f)" ])
           @?==
-            "data AstF [f] =    \
-            \   | App :: forall f . fn : f ->arg : f -> * \
-            \   | Lit :: forall f . lq_tmp$db##2 : (Int (AstIndex <{VV : _<ix> | true}>)) -> *  \
-            \   | Paren :: forall f . ast : f -> * \
-            \   | Var :: forall f . lq_tmp$db##5 : (String (AstIndex <{VV : _<ix> | true}>)) -> *"
+            unlines
+              [ "data AstF [f] ="
+              , "  | App :: forall f . fn : f ->arg : f -> *"
+              , "  | Lit :: forall f . lq_tmp$db##2 : Int ->i : (AstIndex <{VV : _<ix> | true}>) -> *"
+              , "  | Paren :: forall f . ast : f -> *"
+              , "  | Var :: forall f . lq_tmp$db##4 : String ->i : (AstIndex <{VV : _<ix> | true}>) -> *"
+              ]
 
     , testCase "type spec 10" $
        parseSingleSpec "assume     :: b:_ -> a -> {v:a | b} " @?==
@@ -476,7 +506,14 @@ testFails =
   testGroup "Does fail"
     [ testCase "Maybe k:Int -> Int" $
           parseSingleSpec "x :: Maybe k:Int -> Int" @?==
-            "Cannot parse specification:\n    unexpected ':'\n    expecting monoPredicateP, bareTyArgP, mmonoPredicateP, white space, \"->\", \"~>\", \"=>\", \"/\" or end of input"
+            unlines
+              [ "<test>:1:13:"
+              , "  |"
+              , "1 | x :: Maybe k:Int -> Int"
+              , "  |             ^"
+              , "unexpected ':'"
+              , "expecting \"->\", \"=>\", \"~>\", '/', bareTyArgP, end of input, mmonoPredicateP, or monoPredicateP"
+              ]
     ]
 
 
@@ -487,22 +524,35 @@ testErrorReporting =
   testGroup "Error reporting"
     [ testCase "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " $
           parseSingleSpec "assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n " @?==
-            "Cannot parse specification:\n    unexpected end of input\n    expecting bareTyArgP"
-
+            unlines
+              [ "<test>:1:45:"
+              , "  |"
+              , "1 | assume mallocForeignPtrBytes :: n:Nat -> IO (ForeignPtrN a n "
+              , "  |                                             ^"
+              , "unexpected '('"
+              , "expecting \"->\", \"=>\", \"~>\", end of input, mmonoPredicateP, or predicatesP"
+              ]
     , testCase "Missing |" $
           parseSingleSpec "ff :: {v:Nat  v >= 0 }" @?==
-          -- parseSingleSpec "ff :: {v :  }" @?==
-            "Cannot parse specification:\n    unexpected \":\"\n    expecting operator, white space or \"}\""
+            unlines
+              [ "<test>:1:17:"
+              , "  |"
+              , "1 | ff :: {v:Nat  v >= 0 }"
+              , "  |                 ^^"
+              , "unexpected \">=\""
+              , "expecting \"->\", \"<:\", \"=>\", \"~>\", '|', bareTyArgP, mmonoPredicateP, or monoPredicateP"
+              ]
     ]
 
 -- ---------------------------------------------------------------------
 
 -- | Parse a single type signature containing LH refinements. To be
 -- used in the REPL.
+--
 parseSingleSpec :: String -> String
-parseSingleSpec src = deSpace $ 
+parseSingleSpec src =
   case LH.singleSpecP (initialPos "<test>") src of
-    Left err  -> show err
+    Left err  -> errorBundlePretty err
     Right res -> F.showpp res -- show (dummyLocs res)
 
 gadtSpec :: String
@@ -512,11 +562,20 @@ gadtSpec = unlines
   , " | ESS :: n:Peano -> {v:Ev | prop v = Ev n} -> {v:Ev | prop v = Ev (S (S n)) }"
   ]
 
-deSpace :: String -> String 
+deSpace :: String -> String
 deSpace = filter (not . isSpace)
 
-(@?==) :: String -> String -> Assertion 
-s1 @?== s2 = (deSpace s1) @?= (deSpace s2)
+(@?==) :: HasCallStack => String -> String -> Assertion
+actual @?== expected =
+  assertEqualModuloSpace expected actual
+
+assertEqualModuloSpace :: HasCallStack => String -> String -> Assertion
+assertEqualModuloSpace expected actual =
+  unless (deSpace expected == deSpace actual) (assertFailure msg)
+  where
+    msg =
+      "expected (modulo whitespace):\n" ++ unlines (map ("  | " ++) (lines expected)) ++ "\n" ++
+      " but got (modulo whitespace):\n" ++ unlines (map ("  | " ++) (lines actual))
 
 ------------------------------------------------------------------------
 
