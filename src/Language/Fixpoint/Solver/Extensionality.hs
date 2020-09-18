@@ -12,7 +12,7 @@ import           Data.Maybe  (fromMaybe)
 import           Language.Fixpoint.Types.Config
 import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Solver.Sanitize (symbolEnv)
-import           Language.Fixpoint.Types hiding (mapSort)
+import           Language.Fixpoint.Types hiding (mapSort, Pos)
 import           Language.Fixpoint.Types.Visitor ( (<$$>), mapSort )
 
 mytracepp :: (PPrint a) => String -> a -> a
