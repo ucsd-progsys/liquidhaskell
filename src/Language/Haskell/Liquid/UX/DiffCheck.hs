@@ -48,13 +48,13 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (atLoc, FixResult (..))
+import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats         as Solver
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 -- import           Language.Haskell.Liquid.Types.Visitors
-import           Text.Parsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+-- import           Text.Megaparsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
 -- import           Language.Haskell.Liquid.Types.Errors
 import qualified Data.ByteString                        as B
@@ -495,8 +495,8 @@ checkedItv chDefs = foldr (`IM.insert` ()) IM.empty is
 
 instance ToJSON SourcePos where
   toJSON p = object [   "sourceName"   .= f
-                      , "sourceLine"   .= l
-                      , "sourceColumn" .= c
+                      , "sourceLine"   .= unPos l
+                      , "sourceColumn" .= unPos c
                       ]
              where
                f    = sourceName   p
@@ -504,7 +504,7 @@ instance ToJSON SourcePos where
                c    = sourceColumn p
 
 instance FromJSON SourcePos where
-  parseJSON (Object v) = newPos <$> v .: "sourceName"
+  parseJSON (Object v) = safeSourcePos <$> v .: "sourceName"
                                 <*> v .: "sourceLine"
                                 <*> v .: "sourceColumn"
   parseJSON _          = mempty
@@ -541,7 +541,7 @@ file :: Located a -> FilePath
 file = sourceName . loc
 
 line :: Located a -> Int
-line  = sourceLine . loc
+line  = unPos . sourceLine . loc
 
 lineE :: Located a -> Int
-lineE = sourceLine . locE
+lineE = unPos . sourceLine . locE

@@ -17,9 +17,9 @@ data MonadPlus m = MonadPlus {
 }
 
 {-@ data MonadPlus m = MonadPlus {
-      mmonad  :: OurMonad m
-    , zero   :: forall a. m a
-    , choose :: forall a. m a -> m a -> m a
+        mmonad  :: OurMonad m
+      , zero   :: forall a. m a
+      , choose :: forall a. m a -> m a -> m a
     }
   @-}
 
