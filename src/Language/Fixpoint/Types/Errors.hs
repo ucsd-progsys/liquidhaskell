@@ -23,7 +23,7 @@ module Language.Fixpoint.Types.Errors (
   , FixResult (..)
   , colorResult
   , resultDoc
-  , resultExit 
+  , resultExit
 
   -- * Error Type
   , Error, Error1

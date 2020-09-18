@@ -1,12 +1,13 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.Fixpoint.Horn.Parse (hornP) where 
+module Language.Fixpoint.Horn.Parse (hornP) where
 
 import           Language.Fixpoint.Parse
-import qualified Language.Fixpoint.Types        as F 
-import qualified Language.Fixpoint.Horn.Types   as H 
-import           Text.Parsec       hiding (State)
+import qualified Language.Fixpoint.Types        as F
+import qualified Language.Fixpoint.Horn.Types   as H
+import           Text.Megaparsec                hiding (State)
+import           Text.Megaparsec.Char           (char)
 import qualified Data.HashMap.Strict            as M
 
 -------------------------------------------------------------------------------
@@ -18,9 +19,9 @@ hornP = do
 
 mkQuery :: [HThing a] -> H.Query a
 mkQuery things = H.Query
-  { H.qQuals =        [ q | HQual q <- things ] 
-  , H.qVars  =        [ k | HVar  k <- things ] 
-  , H.qCstr  = H.CAnd [ c | HCstr c <- things ] 
+  { H.qQuals =        [ q | HQual q <- things ]
+  , H.qVars  =        [ k | HVar  k <- things ]
+  , H.qCstr  = H.CAnd [ c | HCstr c <- things ]
   , H.qCon   = M.fromList  [ (x,t) | HCon x t <- things]
   , H.qDis   = M.fromList  [ (x,t) | HDis x t <- things]
   }
@@ -32,7 +33,7 @@ data HThing a
   = HQual !F.Qualifier
   | HVar  !(H.Var a)
   | HCstr !(H.Cstr a)
-  
+
   -- for uninterpred functions and ADT constructors
   | HCon  F.Symbol F.Sort
   | HDis  F.Symbol F.Sort
@@ -41,8 +42,8 @@ data HThing a
   deriving (Functor)
 
 hThingP :: Parser (HThing ())
-hThingP  = parens body 
-  where 
+hThingP  = parens body
+  where
     body =  HQual <$> (reserved "qualif"     *> hQualifierP)
         <|> HCstr <$> (reserved "constraint" *> hCstrP)
         <|> HVar  <$> (reserved "var"        *> hVarP)
@@ -53,54 +54,54 @@ hThingP  = parens body
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr ())
 -------------------------------------------------------------------------------
-hCstrP = parens body 
-  where 
-    body =  H.CAnd  <$> (reserved "and"    *> many1 hCstrP)
-        <|> H.All   <$> (reserved "forall" *> hBindP)       <*> hCstrP 
-        <|> H.Any   <$> (reserved "exists" *> hBindP)       <*> hCstrP 
+hCstrP = parens body
+  where
+    body =  H.CAnd  <$> (reserved "and"    *> some hCstrP)
+        <|> H.All   <$> (reserved "forall" *> hBindP)       <*> hCstrP
+        <|> H.Any   <$> (reserved "exists" *> hBindP)       <*> hCstrP
         <|> H.Head  <$> hPredP                              <*> pure ()
 
 hBindP :: Parser H.Bind
-hBindP   = parens $ do 
+hBindP   = parens $ do
   (x, t) <- symSortP
-  p      <- hPredP 
+  p      <- hPredP
   return  $ H.Bind x t p
-  
--------------------------------------------------------------------------------
-hPredP :: Parser H.Pred 
--------------------------------------------------------------------------------
-hPredP = parens body 
-  where 
-    body =  H.Var  <$> kvSymP                           <*> many1 symbolP
-        <|> H.PAnd <$> (reserved "and" *> many1 hPredP)
-        <|> H.Reft <$> predP 
 
-kvSymP :: Parser F.Symbol 
-kvSymP = char '$' *> symbolP 
+-------------------------------------------------------------------------------
+hPredP :: Parser H.Pred
+-------------------------------------------------------------------------------
+hPredP = parens body
+  where
+    body =  H.Var  <$> kvSymP                           <*> some symbolP
+        <|> H.PAnd <$> (reserved "and" *> some hPredP)
+        <|> H.Reft <$> predP
+
+kvSymP :: Parser F.Symbol
+kvSymP = char '$' *> symbolP
 
 -------------------------------------------------------------------------------
 -- | Qualifiers
 -------------------------------------------------------------------------------
 hQualifierP :: Parser F.Qualifier
 hQualifierP = do
-  pos    <- getPosition
+  pos    <- getSourcePos
   n      <- upperIdP
-  params <- parens (many1 symSortP) 
+  params <- parens (some symSortP)
   body   <- parens predP
   return  $ F.mkQual n (mkParam <$> params) body pos
 
-mkParam :: (F.Symbol, F.Sort) -> F.QualParam 
+mkParam :: (F.Symbol, F.Sort) -> F.QualParam
 mkParam (x, t) = F.QP x F.PatNone t
 
 -------------------------------------------------------------------------------
--- | Horn Variables 
+-- | Horn Variables
 -------------------------------------------------------------------------------
 
 hVarP :: Parser (H.Var ())
-hVarP = H.HVar <$> kvSymP <*> parens (many1 (parens sortP)) <*> pure ()
+hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure ()
 
 -------------------------------------------------------------------------------
--- | Helpers 
+-- | Helpers
 -------------------------------------------------------------------------------
 
 symSortP :: Parser (F.Symbol, F.Sort)

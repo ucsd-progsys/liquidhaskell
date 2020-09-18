@@ -69,11 +69,11 @@ testSortP =
 
     , testCase "bv32" $
         show (doParse' sortP "test" "BitVec Size32") @?=
-              "FApp (FTC (TC \"BitVec\" defined from: \"test\" (line 1, column 1) to: \"test\" (line 1, column 8) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined from: \"test\" (line 1, column 8) to: \"test\" (line 1, column 14) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))"
+              "FApp (FTC (TC \"BitVec\" defined at: test:1:1-1:7 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined at: test:1:8-1:14 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))"
 
     , testCase "bv64" $
         show (doParse' sortP "test" "BitVec Size64") @?=
-              "FApp (FTC (TC \"BitVec\" defined from: \"test\" (line 1, column 1) to: \"test\" (line 1, column 8) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size64\" defined from: \"test\" (line 1, column 8) to: \"test\" (line 1, column 14) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))"
+              "FApp (FTC (TC \"BitVec\" defined at: test:1:1-1:7 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size64\" defined at: test:1:8-1:14 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))"
 
     , testCase "FInt int" $
         show (doParse' sortP "test" "int") @?= "FInt"
@@ -96,7 +96,7 @@ testSortP =
 
     , testCase "SYMBOL" $
         show (doParse' sortP "test" "F#y") @?=
-             "FTC (TC \"F#y\" defined from: \"test\" (line 1, column 1) to: \"test\" (line 1, column 4) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))"
+             "FTC (TC \"F#y\" defined at: test:1:1-1:4 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))"
 
     , testCase "FVar 3" $
         show (doParse' sortP "test" "@(3)") @?= "FVar 3"
@@ -136,7 +136,7 @@ testFunAppP =
   testGroup "FunAppP"
     [ testCase "ECon (litP)" $
         show (doParse' funAppP "test" "lit \"#x00000008\" (BitVec  Size32)") @?=
-          "ECon (L \"#x00000008\" (FApp (FTC (TC \"BitVec\" defined from: \"test\" (line 1, column 19) to: \"test\" (line 1, column 27) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined from: \"test\" (line 1, column 27) to: \"test\" (line 1, column 33) (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))))"
+          "ECon (L \"#x00000008\" (FApp (FTC (TC \"BitVec\" defined at: test:1:19-1:25 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False}))) (FTC (TC \"Size32\" defined at: test:1:27-1:33 (TCInfo {tc_isNum = False, tc_isReal = False, tc_isString = False})))))"
 
     , testCase "ECon (exprFunSpacesP)" $
         show (doParse' funAppP "test" "fooBar baz qux") @?= "EApp (EApp (EVar \"fooBar\") (EVar \"baz\")) (EVar \"qux\")"

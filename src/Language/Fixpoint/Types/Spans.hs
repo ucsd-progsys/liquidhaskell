@@ -7,8 +7,15 @@
 module Language.Fixpoint.Types.Spans (
 
   -- * Concrete Location Type
-    SourcePos
+    SourcePos(..)
+  , SourceName
   , SrcSpan (..)
+  , Pos
+  , predPos
+  , safePos
+  , safeSourcePos
+  , succPos
+  , unPos
 
   -- * Located Values
   , Loc (..)
@@ -40,7 +47,7 @@ import qualified Data.Binary                   as B
 import           GHC.Generics                  (Generic)
 import           Language.Fixpoint.Types.PrettyPrint
 -- import           Language.Fixpoint.Misc
-import           Text.Parsec.Pos
+import           Text.Megaparsec.Pos
 import           Text.PrettyPrint.HughesPJ
 import           Text.Printf
 -- import           Debug.Trace
@@ -54,11 +61,54 @@ class Loc a where
   srcSpan :: a -> SrcSpan
 
 -----------------------------------------------------------------------
--- | Retrofitting instances to SourcePos ------------------------------
+-- Additional (orphan) instances for megaparsec's Pos type ------------
 -----------------------------------------------------------------------
 
-instance NFData SourcePos where
-  rnf = rnf . ofSourcePos
+instance B.Binary Pos where
+  put = B.put . unPos
+  get = mkPos <$> B.get
+
+instance Serialize Pos where
+  put = put . unPos
+  get = mkPos <$> get
+
+instance Hashable Pos where
+  hashWithSalt i = hashWithSalt i . unPos
+
+instance PrintfArg Pos where
+  formatArg = formatArg . unPos
+  parseFormat = parseFormat . unPos
+
+-- | Computes, safely, the predecessor of a 'Pos' value, stopping at 1.
+predPos :: Pos -> Pos
+predPos pos =
+  mkPos $
+  case unPos pos of
+    1 -> 1
+    atLeastTwo -> atLeastTwo - 1
+
+-- | Computes the successor of a 'Pos' value.
+succPos :: Pos -> Pos
+succPos pos =
+  mkPos $ unPos pos + 1
+
+-- | Create, safely, as position. If a non-positive number is given,
+-- we use 1.
+--
+safePos :: Int -> Pos
+safePos i
+  | i <= 0    = mkPos 1
+  | otherwise = mkPos i
+
+-- | Create a source position from integers, using 1 in case of
+-- non-positive numbers.
+safeSourcePos :: FilePath -> Int -> Int -> SourcePos
+safeSourcePos file line col =
+  SourcePos file (safePos line) (safePos col)
+
+-----------------------------------------------------------------------
+-- | Retrofitting instances to SourcePos ------------------------------
+-----------------------------------------------------------------------
 
 instance B.Binary SourcePos where
   put = B.put . ofSourcePos
@@ -69,10 +119,19 @@ instance Serialize SourcePos where
   get = toSourcePos <$> get
 
 instance PPrint SourcePos where
-  pprintTidy _ = text . show
+  pprintTidy _ = ppSourcePos
 
 instance Hashable SourcePos where
   hashWithSalt i   = hashWithSalt i . sourcePosElts
+
+-- | This is a compatibility type synonym for megaparsec vs. parsec.
+type SourceName = FilePath
+
+-- | This is a compatibility type synonym for megaparsec vs. parsec.
+type Line = Pos
+
+-- | This is a compatibility type synonym for megaparsec vs. parsec.
+type Column = Pos
 
 ofSourcePos :: SourcePos -> (SourceName, Line, Column)
 ofSourcePos p = (f, l, c)
@@ -82,14 +141,15 @@ ofSourcePos p = (f, l, c)
    c = sourceColumn p
 
 toSourcePos :: (SourceName, Line, Column) -> SourcePos
-toSourcePos (f, l, c) = newPos f l c
+toSourcePos (f, l, c) = SourcePos f l c
 
 sourcePosElts :: SourcePos -> (SourceName, Line, Column)
-sourcePosElts s = (src, line, col)
+sourcePosElts = ofSourcePos
+
+ppSourcePos :: SourcePos -> Doc
+ppSourcePos z = text (printf "%s:%d:%d" f l c)
   where
-    src         = sourceName   s
-    line        = sourceLine   s
-    col         = sourceColumn s
+    (f,l,c) = sourcePosElts $ z
 
 instance Fixpoint SourcePos where
   toFix = text . show
@@ -121,7 +181,7 @@ instance Traversable Located where
 instance Show a => Show (Located a) where
   show (Loc l l' x)
     | l == l' && l == dummyPos "Fixpoint.Types.dummyLoc" = show x ++ " (dummyLoc)"
-    | otherwise  = show x ++ " defined from: " ++ show l ++ " to: " ++ show l'
+    | otherwise  = show x ++ " defined at: " ++ render (ppSrcSpan (SS l l'))
 
 instance PPrint a => PPrint (Located a) where
   pprintTidy k (Loc _ _ x) = pprintTidy k x
@@ -140,8 +200,8 @@ instance Hashable a => Hashable (Located a) where
 instance (IsString a) => IsString (Located a) where
   fromString = dummyLoc . fromString
 
-srcLine :: (Loc a) => a -> Int 
-srcLine = sourceLine . sp_start . srcSpan 
+srcLine :: (Loc a) => a -> Pos
+srcLine = sourceLine . sp_start . srcSpan
 
 -----------------------------------------------------------------------
 -- | A Reusable SrcSpan Type ------------------------------------------
@@ -208,5 +268,5 @@ dummyLoc = Loc l l
   where
     l    = dummyPos "Fixpoint.Types.dummyLoc"
 
-dummyPos   :: String -> SourcePos
-dummyPos s = newPos s 0 0
+dummyPos   :: FilePath -> SourcePos
+dummyPos = initialPos
