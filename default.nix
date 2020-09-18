@@ -148,7 +148,10 @@ let
   # derivation to build
   drv = haskellPackages."${target}";
 in
-if (mkEnv != null && mkEnv) || (mkEnv == null && nixpkgs.lib.inNixShell)
-then drv.env.overrideAttrs
-  (old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.cabal-install nixpkgs.ghcid ]; })
-else drv
+if
+  (mkEnv != null && mkEnv) || (mkEnv == null && nixpkgs.lib.inNixShell)
+then
+  drv.env.overrideAttrs
+    (old: { nativeBuildInputs = old.nativeBuildInputs ++ [ nixpkgs.cabal-install nixpkgs.ghcid ]; })
+else
+  drv
