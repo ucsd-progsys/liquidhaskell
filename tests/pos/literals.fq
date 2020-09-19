@@ -1,4 +1,4 @@
-//adapted from LH test Strings.hs
+// adapted from LH test Strings.hs
 
 constant lit#bar : (Str)
 constant lit#foo : (Str)
