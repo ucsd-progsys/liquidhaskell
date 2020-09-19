@@ -28,15 +28,8 @@ import           Data.Void
 import           Prelude                                hiding (error)
 import           Text.Megaparsec                        hiding (ParseError)
 import           Text.Megaparsec.Char
--- import           Text.Parsec
--- import           Text.Parsec.Error                      (newErrorMessage, Message (..))
--- import           Text.Parsec.Pos
-
--- import           Text.Parsec.Char                       (newline) 
--- import qualified Text.Parsec.Token                      as Token
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
--- import           Data.Monoid
 import           Data.Data
 import qualified Data.Maybe                             as Mb -- (isNothing, fromMaybe)
 import           Data.Char                              (isSpace, isAlphaNum)
@@ -51,7 +44,7 @@ import           Language.Haskell.Liquid.Types
 import qualified Language.Fixpoint.Misc                 as Misc      
 import qualified Language.Haskell.Liquid.Misc           as Misc
 import qualified Language.Haskell.Liquid.Measure        as Measure
-import           Language.Fixpoint.Parse                hiding (dataDeclP, refBindP, refP, refDefP, parseTest')
+import           Language.Fixpoint.Parse                hiding (defineP, dataDeclP, refBindP, refP, refDefP, parseTest')
 
 import Control.Monad.State
 
