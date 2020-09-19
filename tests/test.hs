@@ -76,11 +76,10 @@ unitTests
     , testGroup "elim-crash" <$> dirTests elimCmd   "tests/crash"  []             (ExitFailure 1)
     , testGroup "proof"      <$> dirTests elimCmd   "tests/proof"     []          ExitSuccess
     , testGroup "rankN"      <$> dirTests elimCmd   "tests/rankNTypes" []         ExitSuccess
-
-    , testGroup "horn-pos"   <$> dirTests elimCmd   "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-neg"   <$> dirTests elimCmd   "tests/horn/neg"  []          (ExitFailure 1)
-    , testGroup "horn-pos"   <$> dirTests nativeCmd "tests/horn/pos"  []          ExitSuccess
-    , testGroup "horn-neg"   <$> dirTests nativeCmd "tests/horn/neg"  []          (ExitFailure 1)
+    , testGroup "horn-pos-el" <$> dirTests elimCmd   "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg-el" <$> dirTests elimCmd   "tests/horn/neg"  []          (ExitFailure 1)
+    , testGroup "horn-pos-na" <$> dirTests nativeCmd "tests/horn/pos"  []          ExitSuccess
+    , testGroup "horn-neg-na" <$> dirTests nativeCmd "tests/horn/neg"  []          (ExitFailure 1)
 
     -- , testGroup "todo"       <$> dirTests elimCmd   "tests/todo"   []            (ExitFailure 1)
     -- , testGroup "todo-crash" <$> dirTests elimCmd   "tests/todo-crash" []        (ExitFailure 2)

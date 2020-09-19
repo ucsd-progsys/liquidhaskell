@@ -70,14 +70,14 @@ printPiSols piSols =
 
 solveEbs :: (F.PPrint a) => F.Config -> Query a -> IO (Query a)
 ------------------------------------------------------------------------------
-solveEbs cfg query@(Query qs vs c cons dist) = do
+solveEbs cfg query@(Query qs vs c cons dist eqns mats) = do
   -- clean up
   let normalizedC = flatten . pruneTauts $ hornify c
   whenLoud $ putStrLn "Normalized EHC:"
   whenLoud $ putStrLn $ F.showpp normalizedC
 
   -- short circuit if no ebinds are present
-  if isNNF c then pure $ Query qs vs normalizedC cons dist else do
+  if isNNF c then pure $ Query qs vs normalizedC cons dist eqns mats else do
   let kvars = boundKvars normalizedC
 
   whenLoud $ putStrLn "Skolemized:"
@@ -122,7 +122,7 @@ solveEbs cfg query@(Query qs vs c cons dist) = do
   let solvedSide = substPiSols solvedPiCstrs side'
   whenLoud $ putStrLn $ F.showpp solvedSide
 
-  pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist)
+  pure $ (Query qs vs (CAnd [solvedHorn, solvedSide]) cons dist eqns mats)
 
 -- | Collects the defining constraint for π
 -- that is, given `∀ Γ.∀ n.π => c`, returns `((π, n:Γ), c)`
@@ -923,9 +923,9 @@ isNNF (All _ c) = isNNF c
 isNNF Any{} = False
 
 calculateCuts :: F.Config -> Query a -> Cstr a -> S.Set F.Symbol
-calculateCuts cfg (Query qs vs _ cons dist) nnf = convert $ FG.depCuts deps
+calculateCuts cfg (Query qs vs _ cons dist eqns mats) nnf = convert $ FG.depCuts deps
   where
-    (_, deps) = elimVars cfg (hornFInfo $ Query qs vs nnf cons dist)
+    (_, deps) = elimVars cfg (hornFInfo cfg $ Query qs vs nnf cons dist eqns mats)
     convert hashset = S.fromList $ F.kv <$> (HS.toList hashset)
 
 forgetPiVars :: S.Set F.Symbol -> Cstr a -> Cstr a

@@ -53,6 +53,8 @@ module Language.Fixpoint.Parse (
   , refDefP     -- (Sorted) Refinements with default binder
   , refBindP    -- (Sorted) Refinements with configurable sub-parsers
   , bvSortP     -- Bit-Vector Sort
+  , defineP     -- function definition equations (PLE)
+  , matchP      -- measure definition equations (PLE)
 
   -- * Layout
   , indentedBlock
@@ -492,12 +494,12 @@ lexer = Token.makeTokenParser languageDef
 -- | Consumes a line comment.
 lhLineComment :: Parser ()
 lhLineComment =
-  L.skipLineComment "//"
+  L.skipLineComment "// "
 
 -- | Consumes a block comment.
 lhBlockComment :: Parser ()
 lhBlockComment =
-  L.skipBlockComment "/*" "*/"
+  L.skipBlockComment "/* " "*/"
 
 -- | Parser that consumes a single char within an identifier (not start of identifier).
 identLetter :: Parser Char
@@ -944,7 +946,8 @@ funcSortP :: Parser Sort
 funcSortP = parens $ mkFFunc <$> intP <* comma <*> sortsP
 
 sortsP :: Parser [Sort]
-sortsP = brackets $ sepBy sortP semi
+sortsP = try (brackets (sepBy sortP semi)) 
+      <|> (brackets (sepBy sortP comma)) 
 
 -- | Parser for sorts (types).
 sortP    :: Parser Sort
