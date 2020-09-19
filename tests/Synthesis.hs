@@ -40,7 +40,7 @@ main :: IO ()
 main = do 
     print " Synthesis test suite "
     result <- fromInput
-    print "SKIP" -- defaultMain (tests result)
+    defaultMain (tests result)
 
 fromInput :: IO [(FilePath, T.Text, [[T.Text]])]
 fromInput = do
