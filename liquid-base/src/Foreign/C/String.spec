@@ -5,8 +5,8 @@ import Foreign.Ptr
 type CStringLen    = ((GHC.Ptr.Ptr Foreign.C.Types.CChar), Nat)<{\p v -> (v <= (plen p))}>
 type CStringLenN N = ((GHC.Ptr.Ptr Foreign.C.Types.CChar), {v:Nat | v = N})<{\p v -> (v <= (plen p))}>
 
-//measure cStringLen :: Foreign.C.String.CStringLen -> GHC.Types.Int
+// measure cStringLen :: Foreign.C.String.CStringLen -> GHC.Types.Int
 measure cStringLen :: ((GHC.Ptr.Ptr Foreign.C.Types.CChar), GHC.Types.Int) -> GHC.Types.Int
 
-//measure cStringLen :: ((GHC.Ptr.Ptr Foreign.C.Types.CChar), GHC.Types.Int) -> GHC.Types.Int 
-//cStringLen (c, n) = n
+// measure cStringLen :: ((GHC.Ptr.Ptr Foreign.C.Types.CChar), GHC.Types.Int) -> GHC.Types.Int 
+// cStringLen (c, n) = n
