@@ -192,6 +192,7 @@ data Query a = Query
   , qDis   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
   , qEqns  :: ![F.Equation]                     -- ^ list of equations
   , qMats  :: ![F.Rewrite]                      -- ^ list of match-es
+  , qData  :: ![F.DataDecl]                     -- ^ list of data-declarations
   }
   deriving (Data, Typeable, Generic, Functor)
 

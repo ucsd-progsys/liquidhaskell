@@ -24,8 +24,9 @@ mkQuery things = H.Query
   , H.qCstr  = H.CAnd     [ c     | HCstr c  <- things ]
   , H.qCon   = M.fromList [ (x,t) | HCon x t <- things ]
   , H.qDis   = M.fromList [ (x,t) | HDis x t <- things ]
-  , H.qEqns  =            [ e     | HDef e <- things ] 
-  , H.qMats  =            [ m     | HMat m <- things ] 
+  , H.qEqns  =            [ e     | HDef e  <- things ] 
+  , H.qMats  =            [ m     | HMat m  <- things ] 
+  , H.qData  =            [ dd    | HDat dd <- things ]
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -41,6 +42,7 @@ data HThing a
   | HDis  F.Symbol F.Sort
   | HDef  F.Equation 
   | HMat  F.Rewrite
+  | HDat  F.DataDecl
   | HOpt !String
   deriving (Functor)
 
@@ -55,6 +57,7 @@ hThingP  = parens body
         <|> HDis  <$> (reserved "distinct"   *> symbolP) <*> sortP
         <|> HDef  <$> (reserved "define"     *> defineP)
         <|> HMat  <$> (reserved "match"      *> matchP)
+        <|> HDat  <$> (reserved "data"       *> dataDeclP)
 
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr ())

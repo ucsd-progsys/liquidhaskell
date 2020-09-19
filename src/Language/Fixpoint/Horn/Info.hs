@@ -29,6 +29,7 @@ hornFInfo cfg q = mempty
   , F.gLits     = F.fromMapSEnv $ H.qCon q
   , F.dLits     = F.fromMapSEnv $ H.qDis q
   , F.ae        = axEnv cfg q cs
+  , F.ddecls    = H.qData q
   }
   where
     be0         = F.emptyBindEnv
