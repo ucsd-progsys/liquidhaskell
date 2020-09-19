@@ -28,11 +28,14 @@ in your path.
 How To Build and Install
 ------------------------
 
+
 Simply do:
 
-    git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
-    cd liquid-fixpoint
-    stack install
+```
+$ git clone https://github.com/ucsd-progsys/liquid-fixpoint.git
+$ cd liquid-fixpoint
+$ stack install
+```
 
 or (`cabal` instead of `stack` if you prefer.)
 
@@ -50,6 +53,16 @@ Currently, we support
     * CVC4
     * MathSat
 
+"Horn" Format 
+-------------
+
+See the examples in `tests/horn/{pos, neg}` eg
+
+- [sum](tests/horn/pos/ple_sum.smt2)
+- [list00](tests/horn/pos/ple_list00.smt2)
+- [list03](tests/horn/pos/ple_list03.smt2)
+
+For how to write VCs "by hand"
 
 
 Configuration Management
