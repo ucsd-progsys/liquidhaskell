@@ -1,18 +1,14 @@
 # TODO
 
-## PLE2
+## Add PLE to Horn
 
-```haskell
-data GuardEquation = ...
+- `constant`
+- `define` 
+- `data` (?)
 
-guardEquation :: Equation -> GuardEquation
-```
+Tests
 
-
-## Example
-
-## LH1424 GADTs/Coerce
-
-- [*] Define coerce-consts (c.f. applySorts)
-- [*] Encode coerce with coerce-consts
-- [*] Encode trivial coerce- without ...
+- [x] proof/pos/ple0.fq
+- [x] proof/pos/sum.fq
+- [x] list00.fq
+- [ ] list03.fq

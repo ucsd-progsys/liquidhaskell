@@ -902,7 +902,7 @@ data Equation = Equ
   , eqSort :: !Sort             -- ^ sort of body
   , eqRec  :: !Bool             -- ^ is this a recursive definition
   }
-  deriving (Eq, Show, Generic)
+  deriving (Data, Eq, Show, Generic)
 
 mkEquation :: Symbol -> [(Symbol, Sort)] -> Expr -> Sort -> Equation
 mkEquation f xts e out = Equ f xts e out (f `elem` syms e)
@@ -965,7 +965,7 @@ data Rewrite  = SMeasure
   , smArgs  :: [Symbol]       -- eg. xs
   , smBody  :: Expr           -- eg. e[xs]
   }
-  deriving (Eq, Show, Generic)
+  deriving (Data, Eq, Show, Generic)
 
 instance Fixpoint AxiomEnv where
   toFix axe = vcat ((toFix <$> aenvEqs axe) ++ (toFix <$> aenvSimpl axe))

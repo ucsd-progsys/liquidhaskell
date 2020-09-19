@@ -16,23 +16,32 @@ import           Data.Either                    (partitionEithers)
 import           GHC.Generics                   (Generic)
 import qualified Language.Fixpoint.Misc         as Misc
 import qualified Language.Fixpoint.Types        as F
+import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
 
-hornFInfo :: H.Query a -> F.FInfo a
-hornFInfo q    = mempty
-  { F.cm       = cs
-  , F.bs       = be2
-  , F.ebinds   = ebs
-  , F.ws       = kvEnvWfCs kve
-  , F.quals    = H.qQuals q
-  , F.gLits    = F.fromMapSEnv $ H.qCon q
-  , F.dLits    = F.fromMapSEnv $ H.qDis q
+hornFInfo :: F.Config -> H.Query a -> F.FInfo a
+hornFInfo cfg q = mempty
+  { F.cm        = cs
+  , F.bs        = be2
+  , F.ebinds    = ebs
+  , F.ws        = kvEnvWfCs kve
+  , F.quals     = H.qQuals q
+  , F.gLits     = F.fromMapSEnv $ H.qCon q
+  , F.dLits     = F.fromMapSEnv $ H.qDis q
+  , F.ae        = axEnv cfg q cs
   }
   where
-    be0        = F.emptyBindEnv
-    (be1, kve) = hornWfs   be0     (H.qVars q)
+    be0         = F.emptyBindEnv
+    (be1, kve)  = hornWfs   be0     (H.qVars q)
     (be2, ebs, cs) = hornSubCs be1 kve hCst
-    hCst       = H.qCstr q
+    hCst           = H.qCstr q
+
+axEnv :: F.Config -> H.Query a -> M.HashMap F.SubcId b -> F.AxiomEnv 
+axEnv cfg q cs = mempty 
+  { F.aenvEqs    = H.qEqns q
+  , F.aenvSimpl  = H.qMats q
+  , F.aenvExpand = if F.rewriteAxioms cfg then const True <$> cs else mempty
+  } 
 
 ----------------------------------------------------------------------------------
 hornSubCs :: F.BindEnv -> KVEnv a -> H.Cstr a

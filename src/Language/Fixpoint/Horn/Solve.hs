@@ -5,8 +5,8 @@
 
 module Language.Fixpoint.Horn.Solve (solveHorn, solve) where
 
-import           System.Exit
-import           Control.DeepSeq
+import System.Exit ( ExitCode )
+import Control.DeepSeq ( NFData )
 import qualified Language.Fixpoint.Solver       as Solver
 import qualified Language.Fixpoint.Parse        as Parse
 import qualified Language.Fixpoint.Types        as F
@@ -14,9 +14,9 @@ import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import qualified Language.Fixpoint.Horn.Parse   as H
 import qualified Language.Fixpoint.Horn.Transformations as Tx
-import           Language.Fixpoint.Horn.Info
+import Language.Fixpoint.Horn.Info ( hornFInfo )
 
-import           System.Console.CmdArgs.Verbosity
+import System.Console.CmdArgs.Verbosity ( whenLoud )
 
 -- import Debug.Trace (traceM)
 
@@ -60,5 +60,5 @@ solve cfg q = do
   whenLoud $ putStrLn "Horn Uniq:"
   whenLoud $ putStrLn $ F.showpp c
   q <- eliminate cfg ({- void $ -} q { H.qCstr = c })
-  Solver.solve cfg (hornFInfo q)
+  Solver.solve cfg (hornFInfo cfg q)
 

@@ -190,6 +190,8 @@ data Query a = Query
   , qCstr  :: !(Cstr a)                         -- ^ list of constraints
   , qCon   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
   , qDis   :: M.HashMap (F.Symbol) (F.Sort)     -- ^ list of constants (uninterpreted functions
+  , qEqns  :: ![F.Equation]                     -- ^ list of equations
+  , qMats  :: ![F.Rewrite]                      -- ^ list of match-es
   }
   deriving (Data, Typeable, Generic, Functor)
 

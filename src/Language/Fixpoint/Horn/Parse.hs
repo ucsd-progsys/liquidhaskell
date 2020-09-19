@@ -19,11 +19,13 @@ hornP = do
 
 mkQuery :: [HThing a] -> H.Query a
 mkQuery things = H.Query
-  { H.qQuals =        [ q | HQual q <- things ]
-  , H.qVars  =        [ k | HVar  k <- things ]
-  , H.qCstr  = H.CAnd [ c | HCstr c <- things ]
-  , H.qCon   = M.fromList  [ (x,t) | HCon x t <- things]
-  , H.qDis   = M.fromList  [ (x,t) | HDis x t <- things]
+  { H.qQuals =            [ q     | HQual q  <- things ]
+  , H.qVars  =            [ k     | HVar  k  <- things ]
+  , H.qCstr  = H.CAnd     [ c     | HCstr c  <- things ]
+  , H.qCon   = M.fromList [ (x,t) | HCon x t <- things ]
+  , H.qDis   = M.fromList [ (x,t) | HDis x t <- things ]
+  , H.qEqns  =            [ e     | HDef e <- things ] 
+  , H.qMats  =            [ m     | HMat m <- things ] 
   }
 
 -- | A @HThing@ describes the kinds of things we may see, in no particular order
@@ -37,7 +39,8 @@ data HThing a
   -- for uninterpred functions and ADT constructors
   | HCon  F.Symbol F.Sort
   | HDis  F.Symbol F.Sort
-
+  | HDef  F.Equation 
+  | HMat  F.Rewrite
   | HOpt !String
   deriving (Functor)
 
@@ -50,6 +53,8 @@ hThingP  = parens body
         <|> HOpt  <$> (reserved "fixpoint"   *> stringLiteral)
         <|> HCon  <$> (reserved "constant"   *> symbolP) <*> sortP
         <|> HDis  <$> (reserved "distinct"   *> symbolP) <*> sortP
+        <|> HDef  <$> (reserved "define"     *> defineP)
+        <|> HMat  <$> (reserved "match"      *> matchP)
 
 -------------------------------------------------------------------------------
 hCstrP :: Parser (H.Cstr ())
