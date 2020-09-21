@@ -39,6 +39,13 @@ module Language.Haskell.Liquid.GHC.API (
   , tyConRealArity
   , dataConExTyVars
 
+-- Specific imports for 8.8.x
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
+  , isEqPred
+#endif
+#endif
+
   ) where
 
 import Avail          as Ghc
@@ -111,8 +118,8 @@ import qualified TyCon   as Ty
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
 
 import FastString           as Ghc hiding (bytesFS)
-import TcType               as Ghc hiding (typeKind, mkFunTy)
-import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType)
+import TcType               as Ghc hiding (typeKind, mkFunTy, isEqPred)
+import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred)
 import qualified Type       as Ghc (isEvVarType)
 import qualified PrelNames  as Ghc
 import Data.Foldable        (asum)
@@ -135,6 +142,8 @@ import Data.Foldable  (asum)
 #endif
 #endif
 
+--
+-- Compat shim for GHC 8.6.5
 
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
@@ -167,6 +176,8 @@ isEqPrimPred = Ghc.isPredTy
 isEvVarType :: Type -> Bool
 isEvVarType = Ghc.isPredTy
 
+tyConRealArity :: TyCon -> Int
+tyConRealArity = tyConArity
 
 #endif
 #endif
@@ -220,7 +231,7 @@ pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
 
 #endif
 
--- Compat shim for 8.8.x
+-- Compat shim for GHC 8.8.x
 
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
@@ -229,6 +240,14 @@ isEqPrimPred :: Type -> Bool
 isEqPrimPred ty
   | Just tc <- tyConAppTyCon_maybe ty
   = tc `hasKey` Ghc.eqPrimTyConKey || tc `hasKey` Ghc.eqReprPrimTyConKey
+  | otherwise
+  = False
+
+isEqPred :: Type -> Bool
+isEqPred ty
+  | Just tc <- tyConAppTyCon_maybe ty
+  , Just cls <- tyConClass_maybe tc
+  = cls `hasKey` Ghc.eqTyConKey || cls `hasKey` Ghc.heqTyConKey
   | otherwise
   = False
 
@@ -254,17 +273,17 @@ split the type apart with either 'splitFunTy_maybe' or 'splitForAllTy_maybe'.
 
 {- | [NOTE:isEvVarType]
 
-For GHC < 8.10.1 'isPredTy' is effectively the same as the new 'isEvVarType', which covers the cases
+For GHC < 8.8.1 'isPredTy' is effectively the same as the new 'isEvVarType', which covers the cases
 for coercion types and \"normal\" type coercions. The 8.6.5 version of 'isPredTy' had a special case to
 handle a 'TyConApp' in the case of type equality (i.e. ~ ) which was removed in the implementation
-for 8.10.1, which essentially calls 'tcIsConstraintKind' straight away.
+for 8.8.1, which essentially calls 'tcIsConstraintKind' straight away.
 -}
 
 --
 -- Support for GHC >= 8.8
 --
 
-#if MIN_VERSION_GLASGOW_HASKELL(8,8,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
 
 -- See NOTE [tyConRealArity].
 tyConRealArity :: TyCon -> Int
