@@ -2,38 +2,38 @@ module spec Data.Set where
 
 embed Data.Set.Internal.Set as Set_Set
 
-// ----------------------------------------------------------------------------------------------
-// -- | Logical Set Operators: Interpreted "natively" by the SMT solver -------------------------
-// ----------------------------------------------------------------------------------------------
+//  ----------------------------------------------------------------------------------------------
+//  -- | Logical Set Operators: Interpreted "natively" by the SMT solver -------------------------
+//  ----------------------------------------------------------------------------------------------
 
 
-// union
+//  union
 measure Set_cup  :: (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a)
 
-// intersection
+//  intersection
 measure Set_cap  :: (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a)
 
-// difference
+//  difference
 measure Set_dif   :: (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a)
 
-// singleton
+//  singleton
 measure Set_sng   :: a -> (Data.Set.Internal.Set a)
 
-// emptiness test
+//  emptiness test
 measure Set_emp   :: (Data.Set.Internal.Set a) -> GHC.Types.Bool
 
-// empty set
+//  empty set
 measure Set_empty :: forall a. GHC.Types.Int -> (Data.Set.Internal.Set a)
 
-// membership test
+//  membership test
 measure Set_mem  :: a -> (Data.Set.Internal.Set a) -> GHC.Types.Bool
 
-// inclusion test
+//  inclusion test
 measure Set_sub  :: (Data.Set.Internal.Set a) -> (Data.Set.Internal.Set a) -> GHC.Types.Bool
 
-// ---------------------------------------------------------------------------------------------
-// -- | Refined Types for Data.Set Operations --------------------------------------------------
-// ---------------------------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------------------------
+//  -- | Refined Types for Data.Set Operations --------------------------------------------------
+//  ---------------------------------------------------------------------------------------------
 
 isSubsetOf    :: (GHC.Classes.Ord a) => x:(Data.Set.Internal.Set a) -> y:(Data.Set.Internal.Set a) -> {v:GHC.Types.Bool | v <=> Set_sub x y}
 member        :: (GHC.Classes.Ord a) => x:a -> xs:(Data.Set.Internal.Set a) -> {v:GHC.Types.Bool | v <=> Set_mem x xs}
@@ -50,9 +50,9 @@ difference    :: GHC.Classes.Ord a => xs:(Data.Set.Internal.Set a) -> ys:(Data.S
 
 fromList :: GHC.Classes.Ord a => xs:[a] -> {v:Data.Set.Internal.Set a | v = listElts xs}
 
-// ---------------------------------------------------------------------------------------------
-// -- | The set of elements in a list ----------------------------------------------------------
-// ---------------------------------------------------------------------------------------------
+//  ---------------------------------------------------------------------------------------------
+//  -- | The set of elements in a list ----------------------------------------------------------
+//  ---------------------------------------------------------------------------------------------
 
 measure listElts :: [a] -> (Data.Set.Internal.Set a)
 listElts([])   = {v | (Set_emp v)}

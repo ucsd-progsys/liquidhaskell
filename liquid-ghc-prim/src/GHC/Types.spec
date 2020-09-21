@@ -1,6 +1,6 @@
 module spec GHC.Types where
 
-// Boxed types
+//  Boxed types
 embed GHC.Types.Double  as real
 embed GHC.Types.Float   as real
 embed GHC.Types.Word    as int

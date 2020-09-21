@@ -8,9 +8,9 @@ data Op = IF Op Op | NOP
 
 {-@ reflect run @-}
 {-@ run ::
-       op : Op
-  -> { is : [Value] | isValid op (stackType is) }
-  -> [Value] @-}
+         op : Op
+      -> { is : [Value] | isValid op (stackType is) }
+      -> [Value] @-}
 run :: Op -> [Value] -> [Value]
 run (IF o1 o2) ((B True):s)  = run o1 s
 run (IF o1 o2) ((B False):s) = run o2 s

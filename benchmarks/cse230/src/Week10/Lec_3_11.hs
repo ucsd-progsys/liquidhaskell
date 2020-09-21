@@ -333,29 +333,29 @@ data FH where
   FHConPost :: Assertion -> Assertion -> Assertion -> Com -> FH -> Valid -> FH 
 
 {-@ data FH where 
-      FHSkip   :: p:_
-               -> Prop (FH p Skip p) 
-    | FHAssign :: q:_ -> x:_ -> a:_
-               -> Prop (FH (bsubst x a q) (Assign x a) q) 
-    | FHSeq    :: p:_ -> c1:_ -> q:_ -> c2:_ -> r:_ 
-               -> Prop (FH p c1 q) 
-               -> Prop (FH q c2 r) 
-               -> Prop (FH p (Seq c1 c2) r) 
-    | FHIf     :: p:_ -> q:_ -> b:_ -> c1:_ -> c2:_
-               -> Prop (FH (bAnd p b)       c1 q) 
-               -> Prop (FH (bAnd p (Not b)) c2 q)
-               -> Prop (FH p (If b c1 c2) q)
-    | FHWhile  :: p:_ -> b:_ -> c:_
-               -> Prop (FH (bAnd p b) c p) 
-               -> Prop (FH p (While b c) (bAnd p (Not b)))
-    | FHConPre :: p':_ -> p:_ -> q:_ -> c:_  
-               -> Imply p' p
-               -> Prop (FH p c q) 
-               -> Prop (FH p' c q)
-    | FHConPost :: p:_ -> q:_ -> q':_ -> c:_  
-                -> Prop (FH p c q) 
-                -> Imply q q'
-                -> Prop (FH p c q')
+        FHSkip   :: p:_
+                 -> Prop (FH p Skip p) 
+      | FHAssign :: q:_ -> x:_ -> a:_
+                 -> Prop (FH (bsubst x a q) (Assign x a) q) 
+      | FHSeq    :: p:_ -> c1:_ -> q:_ -> c2:_ -> r:_ 
+                 -> Prop (FH p c1 q) 
+                 -> Prop (FH q c2 r) 
+                 -> Prop (FH p (Seq c1 c2) r) 
+      | FHIf     :: p:_ -> q:_ -> b:_ -> c1:_ -> c2:_
+                 -> Prop (FH (bAnd p b)       c1 q) 
+                 -> Prop (FH (bAnd p (Not b)) c2 q)
+                 -> Prop (FH p (If b c1 c2) q)
+      | FHWhile  :: p:_ -> b:_ -> c:_
+                 -> Prop (FH (bAnd p b) c p) 
+                 -> Prop (FH p (While b c) (bAnd p (Not b)))
+      | FHConPre :: p':_ -> p:_ -> q:_ -> c:_  
+                 -> Imply p' p
+                 -> Prop (FH p c q) 
+                 -> Prop (FH p' c q)
+      | FHConPost :: p:_ -> q:_ -> q':_ -> c:_  
+                  -> Prop (FH p c q) 
+                  -> Imply q q'
+                  -> Prop (FH p c q')
   @-}
 
 --------------------------------------------------------------------------------

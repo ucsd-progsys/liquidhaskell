@@ -41,6 +41,8 @@ import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
+import           Text.Megaparsec.Error
+
 type SpecFinder m = GhcMonadLike m => Module -> MaybeT m SpecFinderResult
 
 -- | The result of searching for a spec.
@@ -105,11 +107,11 @@ lookupCompanionSpec thisModule = do
       Right raw -> pure $ Just $ specSpecificationP (specFile file) raw
 
   case parsed of
-    Left parsingError -> do
+    Left peb -> do
       dynFlags <- lift getDynFlags
-      let errMsg = O.text "Error when parsing " 
+      let errMsg = O.text "Error when parsing "
              O.<+> O.text (specFile file) O.<+> O.text ":"
-             O.<+> O.text (show parsingError)
+             O.<+> O.text (errorBundlePretty peb)
       lift $ pluginAbort (O.showSDoc dynFlags errMsg)
     Right (_, spec) -> do
       let bareSpec = view bareSpecIso spec
