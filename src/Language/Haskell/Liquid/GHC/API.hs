@@ -115,6 +115,7 @@ import TcType               as Ghc hiding (typeKind, mkFunTy)
 import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType)
 import qualified Type       as Ghc (isEvVarType)
 import qualified PrelNames  as Ghc
+import Data.Foldable        (asum)
 
 #endif
 #endif
@@ -217,19 +218,12 @@ pattern AnonTCB :: AnonArgFlag -> Ty.TyConBndrVis
 pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
     AnonTCB _af = Ty.AnonTCB
 
--- See NOTE [tyConRealArity].
-tyConRealArity :: TyCon -> Int
-tyConRealArity = tyConArity
-
 #endif
 
 -- Compat shim for 8.8.x
 
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
-
-dataConExTyVars :: DataCon -> [TyVar]
-dataConExTyVars = dataConExTyCoVars
 
 isEqPrimPred :: Type -> Bool
 isEqPrimPred ty
@@ -267,10 +261,10 @@ for 8.10.1, which essentially calls 'tcIsConstraintKind' straight away.
 -}
 
 --
--- Support for GHC >= 8.10.0
+-- Support for GHC >= 8.8
 --
 
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,0,0)
 
 -- See NOTE [tyConRealArity].
 tyConRealArity :: TyCon -> Int
