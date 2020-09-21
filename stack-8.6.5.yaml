@@ -10,6 +10,7 @@ packages:
 - .
 extra-deps:
 - hashable-1.3.0.0
+- megaparsec-8.0.0
 - optics-0.2
 - optics-th-0.2
 - tasty-rerun-1.1.14

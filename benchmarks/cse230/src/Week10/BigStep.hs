@@ -60,22 +60,22 @@ data BStep where
   BWhileT :: BExp  -> Com  -> State -> State -> State -> BStep -> BStep -> BStep 
 
 {-@ data BStep  where 
-      BSkip   :: s:State 
-              -> Prop (BStep Skip s s)
-    | BAssign :: x:Vname -> a:AExp -> s:State 
-              -> Prop (BStep (Assign x a) s (asgn x a s)) 
-    | BSeq    :: c1:Com -> c2:Com -> s1:State -> s2:State -> s3:State 
-              -> Prop (BStep c1 s1 s2) -> Prop (BStep c2 s2 s3) 
-              -> Prop (BStep (Seq c1 c2) s1 s3)
-    | BIfT    :: b:BExp -> c1:Com -> c2:Com -> s:{State | bval b s} -> s1:State
-              -> Prop (BStep c1 s s1) -> Prop (BStep (If b c1 c2) s s1)
-    | BIfF    :: b:BExp -> c1:Com -> c2:Com -> s:{State | not (bval b s)} -> s2:State
-              -> Prop (BStep c2 s s2) -> Prop (BStep (If b c1 c2) s s2)
-    | BWhileF :: b:BExp -> c:Com -> s:{State | not (bval b s)} 
-              -> Prop (BStep (While b c) s s)
-    | BWhileT :: b:BExp -> c:Com -> s1:{State | bval b s1} -> s1':State -> s2:State
-              -> Prop (BStep c s1 s1') -> Prop (BStep (While b c) s1' s2)
-              -> Prop (BStep (While b c) s1 s2)
+        BSkip   :: s:State 
+                -> Prop (BStep Skip s s)
+      | BAssign :: x:Vname -> a:AExp -> s:State 
+                -> Prop (BStep (Assign x a) s (asgn x a s)) 
+      | BSeq    :: c1:Com -> c2:Com -> s1:State -> s2:State -> s3:State 
+                -> Prop (BStep c1 s1 s2) -> Prop (BStep c2 s2 s3) 
+                -> Prop (BStep (Seq c1 c2) s1 s3)
+      | BIfT    :: b:BExp -> c1:Com -> c2:Com -> s:{State | bval b s} -> s1:State
+                -> Prop (BStep c1 s s1) -> Prop (BStep (If b c1 c2) s s1)
+      | BIfF    :: b:BExp -> c1:Com -> c2:Com -> s:{State | not (bval b s)} -> s2:State
+                -> Prop (BStep c2 s s2) -> Prop (BStep (If b c1 c2) s s2)
+      | BWhileF :: b:BExp -> c:Com -> s:{State | not (bval b s)} 
+                -> Prop (BStep (While b c) s s)
+      | BWhileT :: b:BExp -> c:Com -> s1:{State | bval b s1} -> s1':State -> s2:State
+                -> Prop (BStep c s1 s1') -> Prop (BStep (While b c) s1' s2)
+                -> Prop (BStep (While b c) s1 s2)
   @-}  
 
 

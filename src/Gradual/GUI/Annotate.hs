@@ -2,7 +2,7 @@ module Gradual.GUI.Annotate (renderHtml) where
 
 import Language.Haskell.Liquid.GHC.Misc   (Loc(..))
 import Language.Fixpoint.Misc (thd3)
-import Language.Fixpoint.Types.Spans hiding (Loc)
+import Language.Fixpoint.Types.Spans hiding (Loc, sourceName)
 
 -- import GHC                     ( SrcSpan (..)
 --                                           , srcSpanStartCol, srcSpanEndCol, srcSpanStartLine, srcSpanEndLine)
@@ -60,7 +60,7 @@ _highlight color eof toks sp = go False toks
 
 inLoc :: Loc -> SrcSpan -> Bool 
 inLoc l (SS start end) 
-  = L (sline, scol) <= l && l <= L (eline, ecol)
+  = L (unPos sline, unPos scol) <= l && l <= L (unPos eline, unPos ecol)
   where
     (_,sline, scol) = sourcePosElts start
     (_,eline, ecol) = sourcePosElts end
@@ -152,4 +152,4 @@ htmlHeader initSrc title = unlines
   ]
 
 htmlClose :: String
-htmlClose  = "\n</body>\n</html>"  
+htmlClose  = "\n</body>\n</html>"

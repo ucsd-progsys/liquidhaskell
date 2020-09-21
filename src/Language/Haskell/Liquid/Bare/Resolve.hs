@@ -136,7 +136,7 @@ localVarMap :: [Ghc.Var] -> LocalVars
 localVarMap vs = 
   Misc.group [ (x, (i, v)) | v    <- vs
                            , x    <- Mb.maybeToList (localKey v) 
-                           , let i = F.srcLine v 
+                           , let i = F.unPos (F.srcLine v)
              ]
 
 localKey   :: Ghc.Var -> Maybe F.Symbol
@@ -446,8 +446,8 @@ lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
   where 
     _msg                  = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
     kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env) 
-    gs                    = [(F.srcLine v, v) | v <- gvs]
-    lxn                   = F.srcLine lx  
+    gs                    = [(F.unPos (F.srcLine v), v) | v <- gvs]
+    lxn                   = F.unPos (F.srcLine lx)
     (_, x)                = unQualifySymbol (F.val lx)
 
 
