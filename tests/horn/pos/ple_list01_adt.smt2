@@ -1,4 +1,5 @@
 (fixpoint "--rewrite")
+(fixpoint "--save")
 
 (data Vec 1 = [
   | VNil  { }

@@ -7,6 +7,9 @@ module Language.Fixpoint.Horn.Solve (solveHorn, solve) where
 
 import System.Exit ( ExitCode )
 import Control.DeepSeq ( NFData )
+import Control.Monad (when)
+import qualified Language.Fixpoint.Misc         as Misc
+import qualified Language.Fixpoint.Utils.Files  as Files
 import qualified Language.Fixpoint.Solver       as Solver
 import qualified Language.Fixpoint.Parse        as Parse
 import qualified Language.Fixpoint.Types        as F
@@ -14,6 +17,7 @@ import qualified Language.Fixpoint.Types.Config as F
 import qualified Language.Fixpoint.Horn.Types   as H
 import qualified Language.Fixpoint.Horn.Parse   as H
 import qualified Language.Fixpoint.Horn.Transformations as Tx
+import Text.PrettyPrint.HughesPJ.Compat ( render )
 import Language.Fixpoint.Horn.Info ( hornFInfo )
 
 import System.Console.CmdArgs.Verbosity ( whenLoud )
@@ -30,10 +34,22 @@ solveHorn cfg = do
   cfg <- if F.eliminate cfg == F.None
            then pure (cfg { F.eliminate =  F.Some })
            else pure cfg
+  
   cfg <- F.withPragmas cfg opts
+
+  when (F.save cfg) (saveHornQuery cfg q)
 
   r <- solve cfg q
   Solver.resultExitCode (fst <$> r)
+
+saveHornQuery :: F.Config -> H.Query () -> IO ()
+saveHornQuery cfg q = do
+  let hq   = F.queryFile Files.HSmt2 cfg
+  putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
+  Misc.ensurePath hq
+  writeFile hq $ render (F.pprint q)
+
+
 
 ----------------------------------------------------------------------------------
 eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)

@@ -34,6 +34,7 @@ module Language.Fixpoint.Horn.Types
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
+import           Data.Maybe (fromMaybe)
 import qualified Data.List               as L
 import qualified Language.Fixpoint.Misc  as Misc
 import qualified Language.Fixpoint.Types as F
@@ -196,7 +197,34 @@ data Query a = Query
   }
   deriving (Data, Typeable, Generic, Functor)
 
+instance F.PPrint (Query a) where 
+  pprintPrec k t q = P.vcat $ L.intersperse " " 
+    [ P.vcat   (ppQual <$> qQuals q)
+    , P.vcat   [ppVar k   | k <- qVars q]
+    , P.vcat   [ppCon x t | (x, t) <- M.toList (qCon q)]
+    , ppThings Nothing (qEqns  q)
+    , ppThings (Just "data ") (qData  q)
+    , P.parens (P.vcat ["constraint", F.pprintPrec (k+2) t (qCstr q)])
+    ]
 
+ppThings :: F.PPrint a => Maybe P.Doc -> [a] -> P.Doc
+ppThings pfx qs = P.vcat [ P.parens $ prefix P.<-> F.pprint q | q <- qs]
+  where 
+    prefix      = fromMaybe "" pfx 
+
+ppCon :: F.Symbol -> F.Sort -> P.Doc
+ppCon x t = P.parens ("constant" P.<+> F.pprint x P.<+> P.parens (F.pprint t))
+
+ppQual :: F.Qualifier -> P.Doc
+ppQual (F.Q n xts p _) =  P.parens ("qualif" P.<+> F.pprint n P.<+> ppBlanks (ppArg <$> xts) P.<+> P.parens (F.pprint p))
+  where 
+    ppArg qp    = F.pprint (F.qpSym qp) P.<+> P.parens (F.pprint (F.qpSort qp))
+
+ppVar :: Var a -> P.Doc
+ppVar (HVar k ts _)  = P.parens ("var" P.<+> "$" P.<-> F.pprint k P.<+> ppBlanks ((P.parens . F.pprint) <$> ts)) 
+
+ppBlanks :: [P.Doc] -> P.Doc
+ppBlanks ds = P.parens (P.hcat (L.intersperse " " ds))
 -------------------------------------------------------------------------------
 -- Pretty Printing
 -------------------------------------------------------------------------------
@@ -224,16 +252,18 @@ instance F.PPrint (Var a) where
   pprintPrec _ _ v = P.ptext $ show v
 
 instance F.PPrint Pred where
-  pprintPrec k t (Reft p) = P.parens $ F.pprintPrec k t p
+  pprintPrec k t (Reft p)   = P.parens $ F.pprintPrec k t p
   pprintPrec _ _ (Var x xs) = P.parens $ P.hsep (P.ptext . F.symbolString <$> x:xs)
-  pprintPrec k t (PAnd ps) = P.parens $ P.vcat $ P.ptext "and" : map (F.pprintPrec (k+2) t) ps
+  pprintPrec k t (PAnd ps)  = P.parens $ P.vcat $ P.ptext "and" : map (F.pprintPrec (k+2) t) ps
 
 instance F.PPrint (Cstr a) where
   pprintPrec k t (Head p _) = P.parens $ F.pprintPrec k t p
-  pprintPrec k t (All b c) =
-    P.parens $ P.vcat [P.ptext "forall" P.<+> F.pprintPrec (k+2) t b, F.pprintPrec (k+1) t c]
-  pprintPrec k t (Any b c) =
-    P.parens $ P.vcat [P.ptext "exists" P.<+> F.pprintPrec (k+2) t b, F.pprintPrec (k+1) t c]
+  pprintPrec k t (All b c)  = P.parens $ P.vcat [ P.ptext "forall" P.<+> F.pprintPrec (k+2) t b
+                                                , F.pprintPrec (k+1) t c
+                                                ]
+  pprintPrec k t (Any b c)  = P.parens $ P.vcat [P.ptext "exists" P.<+> F.pprintPrec (k+2) t b
+                                                , F.pprintPrec (k+1) t c
+                                                ]
   pprintPrec k t (CAnd cs) = P.parens $ P.vcat  $ P.ptext "and" : map (F.pprintPrec (k+2) t) cs
 
 instance F.PPrint Bind where
