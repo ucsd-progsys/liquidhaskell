@@ -176,12 +176,13 @@ ghcSpecEnv sp = fromListSEnv binds
   where
     emb       = gsTcEmbeds (_gsName sp)
     binds     = concat 
-                 [ [(x,        rSort t) | (x, Loc _ _ t) <- gsMeas     (_gsData sp)]
-                 , [(symbol v, rSort t) | (v, Loc _ _ t) <- gsCtors    (_gsData sp)]
-                 , [(symbol v, vSort v) | v              <- gsReflects (_gsRefl sp)]
-                 , [(x,        vSort v) | (x, v)         <- gsFreeSyms (_gsName sp), Ghc.isConLikeId v ]
-                 , [(x, RR s mempty)    | (x, s)         <- wiredSortedSyms       ]
-                 , [(x, RR s mempty)    | (x, s)         <- _gsImps sp       ]
+                 [ [(x,        rSort t) | (x, Loc _ _ t)  <- gsMeas     (_gsData sp)]
+                 , [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors    (_gsData sp)]
+                 , [(symbol v, vSort v) | v               <- gsReflects (_gsRefl sp)]
+                 , [(x,        vSort v) | (x, v)          <- gsFreeSyms (_gsName sp), Ghc.isConLikeId v ]
+                 , [(x, RR s mempty)    | (x, s)          <- wiredSortedSyms       ]
+                 , [(x, RR s mempty)    | (x, s)          <- _gsImps sp       ]
+                 , [(symbol x, rSort t) | (x, Loc _ _ t)  <- gsTySigs (_gsSig sp)   ]
                  ]
     vSort     = Bare.varSortedReft emb
     rSort     = rTypeSortedReft    emb
