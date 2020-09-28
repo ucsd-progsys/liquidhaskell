@@ -398,6 +398,14 @@ qualifyBareSpec env name l bs sp = sp
   } 
   where f      = qualify env name l bs 
 
+instance Qualify a => Qualify (RTAlias F.Symbol a) where
+  qualify env name l bs rtAlias
+   = rtAlias { rtName  = qualify env name l bs (rtName rtAlias)
+             , rtTArgs = qualify env name l bs (rtTArgs rtAlias)
+             , rtVArgs = qualify env name l bs (rtVArgs rtAlias)
+             , rtBody  = qualify env name l bs (rtBody rtAlias)
+             }
+
 instance Qualify F.Expr where 
   qualify = substEnv 
 
