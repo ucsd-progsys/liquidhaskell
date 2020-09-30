@@ -20,9 +20,21 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
 import Language.Haskell.Liquid.GHC.API as Ghc hiding (substTysWith)
-import Language.Haskell.Liquid.GHC.Misc ()
+import Language.Haskell.Liquid.GHC.Misc (isPredType)
 import Language.Haskell.Liquid.Types.Errors
 
+
+isMeasureType :: Type -> Bool 
+isMeasureType (ForAllTy _ t)             = isMeasureType t 
+isMeasureType (FunTy _ t1 t2)
+  | isPredType t1 
+  = isMeasureType t2 
+isMeasureType (FunTy _ (TyConApp c _) t) 
+  = {- (not (c `elem` prims)) && -} isAlgTyCon c && notFun t 
+  where notFun (FunTy _ _ _) = False 
+        notFun _             = True 
+        -- prims = [unitTyCon, intTyCon]
+isMeasureType _                          = False 
 
 isRecursivenewTyCon :: TyCon -> Bool 
 isRecursivenewTyCon c 
