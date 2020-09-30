@@ -93,6 +93,7 @@ let
         optics-core = self.callHackage "optics-core" "0.3.0.1" {};
         optics-extra = self.callHackage "optics-extra" "0.3" {};
         optics-th = self.callHackage "optics-th" "0.3.0.2" {};
+        megaparsec = self.callHackage "megaparsec" "9.0.0" {};
         ## declare test-dependencies using the latest hackage releases as of Thu 27 Aug 2020 04:08:52 PM UTC
         memory = self.callHackage "memory" "0.15.0" {};
         git = overrideCabal (self.callHackage "git" "0.3.0" {}) (
