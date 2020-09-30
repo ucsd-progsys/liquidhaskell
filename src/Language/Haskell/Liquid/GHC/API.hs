@@ -10,7 +10,7 @@
 module Language.Haskell.Liquid.GHC.API (
     module Ghc
 
--- Specific imports for 8.6.5
+-- Specific exports for 8.6.5
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
   , pattern Bndr
@@ -22,7 +22,7 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 #endif
 
--- Specific imports for 8.6.5 and 8.8.x
+-- Specific exports for 8.6.5 and 8.8.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
   , AnonArgFlag(..)
@@ -40,15 +40,16 @@ module Language.Haskell.Liquid.GHC.API (
 
   , tyConRealArity
   , dataConExTyVars
+  , getDependenciesModuleNames
 
--- Specific imports for 8.8.x
+-- Specific exports for 8.8.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(8,10,1,0)
   , isEqPred
 #endif
 #endif
 
--- Specific imports for 8.10.x
+-- Specific exports for 8.10.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
   , Mult
@@ -56,6 +57,15 @@ module Language.Haskell.Liquid.GHC.API (
   , pattern FunTy
   , mkFunTy
   , ft_af, ft_mult, ft_arg, ft_res
+#endif
+#endif
+
+-- Specific exports for 9.x
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  , fsToUnitId
+  , moduleUnitId
+  , thisPackage
 #endif
 #endif
 
@@ -67,31 +77,33 @@ import GHC            as Ghc hiding (Warning)
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import Avail          as Ghc
-import ConLike        as Ghc
-import Var            as Ghc
-import Module         as Ghc
-import DataCon        as Ghc
-import TysWiredIn     as Ghc
 import BasicTypes     as Ghc
+import Class          as Ghc
+import ConLike        as Ghc
 import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
-import NameSet        as Ghc
+import DataCon        as Ghc
+import DynFlags       as Ghc
+import ErrUtils       as Ghc
+import FamInstEnv     as Ghc
+import ForeignCall    (CType)
+import HscMain        as Ghc
+import HscTypes       as Ghc
+import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import InstEnv        as Ghc
 import Literal        as Ghc
-import Class          as Ghc
-import Unique         as Ghc
+import MkId           (mkDataConWorkId)
+import Module         as Ghc
+import Name           as Ghc hiding (varName)
+import NameEnv        (lookupNameEnv_NF)
+import NameSet        as Ghc
+import PrelNames      (gHC_TYPES)
 import RdrName        as Ghc
 import SrcLoc         as Ghc
-import Name           as Ghc hiding (varName)
 import TysPrim        as Ghc
-import HscTypes       as Ghc
-import HscMain        as Ghc
-import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
-import ErrUtils       as Ghc
-import DynFlags       as Ghc
-import ForeignCall    (CType)
-import PrelNames      (gHC_TYPES)
-import NameEnv        (lookupNameEnv_NF)
-import MkId           (mkDataConWorkId)
+import TysWiredIn     as Ghc
+import UniqFM         as Ghc
+import Unique         as Ghc
+import Var            as Ghc
 #endif
 #endif
 
@@ -127,7 +139,7 @@ import                   Data.Data (Data)
 import                   Outputable
 import Kind              as Ghc
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
-import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
+import TyCon             as Ghc hiding (mkAnonTyConBinders, TyConBndrVis(AnonTCB))
 import qualified TyCoRep as Ty
 import qualified TyCon   as Ty
 
@@ -172,8 +184,10 @@ import Data.Foldable  (asum)
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,1,0,0)
 
+import Optics
+
 import Data.Foldable          (asum)
-import GHC.Builtin.Names      as  Ghc hiding (varName)
+import GHC.Builtin.Names      as  Ghc
 import GHC.Builtin.Types      as  Ghc
 import GHC.Builtin.Types.Prim as  Ghc
 import GHC.Core               as  Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
@@ -194,10 +208,12 @@ import GHC.Types.Avail        as  Ghc
 import GHC.Types.Basic        as  Ghc
 import GHC.Types.Id           as  Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import GHC.Types.Literal      as  Ghc
+import GHC.Types.Name         as  Ghc hiding (varName)
 import GHC.Types.Name.Reader  as  Ghc
 import GHC.Types.Name.Set     as  Ghc
 import GHC.Types.SrcLoc       as  Ghc
 import GHC.Types.Unique       as  Ghc
+import GHC.Types.Unique.FM    as  Ghc
 import GHC.Types.Var          as  Ghc
 import GHC.Unit.Module        as  Ghc
 import GHC.Utils.Error        as  Ghc
@@ -300,6 +316,9 @@ isManyDataConTy ty
   = tc `hasKey` manyDataConKey
 isManyDataConTy _ = False
 
+getDependenciesModuleNames :: Dependencies -> [ModuleName]
+getDependenciesModuleNames = map fst . dep_mods
+
 #endif
 #endif
 
@@ -308,6 +327,7 @@ isManyDataConTy _ = False
 
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+
 pattern LitString :: ByteString -> Lit.Literal
 pattern LitString bs <- Lit.MachStr bs where
     LitString bs = Lit.MachStr bs
@@ -375,6 +395,9 @@ instance Binary AnonArgFlag where
     case h of
       0 -> return VisArg
       _ -> return InvisArg
+
+mkAnonTyConBinders :: AnonArgFlag -> [TyVar] -> [TyConBinder]
+mkAnonTyConBinders _ = Ty.mkAnonTyConBinders
 
 bytesFS :: FastString -> ByteString
 bytesFS = fastStringToByteString
@@ -444,7 +467,7 @@ for 8.8.1, which essentially calls 'tcIsConstraintKind' straight away.
 -- Support for GHC >= 8.8
 --
 
-#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,8,1,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
 -- See NOTE [tyConRealArity].
 tyConRealArity :: TyCon -> Int
@@ -472,6 +495,39 @@ pattern FunTy { ft_af, ft_mult, ft_arg, ft_res } <- ((Many,) -> (ft_mult, Ty.Fun
 
 mkFunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
 mkFunTy af _ arg res = Ty.FunTy af arg res
+#endif
+
+--
+-- Compat shim for 9.0.x
+
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+
+-- 'fsToUnitId' is gone in GHC 9, but we can bring code it in terms of 'fsToUnit' and 'toUnitId'.
+fsToUnitId :: FastString -> UnitId
+fsToUnitId = toUnitId . fsToUnit
+
+moduleUnitId :: Module -> UnitId
+moduleUnitId = toUnitId . moduleUnit
+
+thisPackage :: DynFlags -> UnitId
+thisPackage = toUnitId . homeUnit
+
+-- See NOTE [tyConRealArity].
+tyConRealArity :: TyCon -> Int
+tyConRealArity tc = go 0 (tyConKind tc)
+  where
+    go :: Int -> Kind -> Int
+    go !acc k =
+      case asum [fmap (view _3) (splitFunTy_maybe k), fmap snd (splitForAllTy_maybe k)] of
+        Nothing -> acc
+        Just ks -> go (acc + 1) ks
+
+dataConExTyVars :: DataCon -> [TyVar]
+dataConExTyVars = dataConExTyCoVars
+
+getDependenciesModuleNames :: Dependencies -> [ModuleName]
+getDependenciesModuleNames = map gwib_mod . dep_mods
+
 #endif
 
 --

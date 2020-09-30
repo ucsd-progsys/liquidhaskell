@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -51,16 +52,34 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           , tm_parsed_module
                                                           , tm_renamed_source
                                                           )
+
+-- Shared imports for GHC < 9
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified CoreMonad
 import qualified EnumSet
 import TcRnMonad
 import Outputable
-import UniqFM
 import Maybes
 import Panic
 import GhcMake
 import Finder
 import Exception (ExceptionMonad)
+#else
+import GHC.Data.IOEnv (getEnv)
+import GHC.Data.Maybe
+import GHC.Driver.Finder
+import GHC.Driver.Make
+import GHC.Driver.Types
+import GHC.Tc.Types
+import GHC.Tc.Utils.Monad (getTopEnv)
+import GHC.Utils.Exception (ExceptionMonad)
+import GHC.Utils.Outputable
+import GHC.Utils.Panic
+import qualified GHC.Core.Opt.Monad as CoreMonad
+import qualified GHC.Data.EnumSet as EnumSet
+#endif
+#endif
 
 import Optics
 
@@ -106,7 +125,7 @@ getModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootSummary ms) ]
+                      , not (isBootSum ms) ]
    case mods_by_name of
      [] -> do dflags <- getDynFlags
               liftIO $ throwIO $ mkApiErr dflags (text "Module not part of module graph")
@@ -114,12 +133,27 @@ getModSummary mdl = do
      multiple -> do dflags <- getDynFlags
                     liftIO $ throwIO $ mkApiErr dflags (text "getModSummary is ambiguous: " <+> ppr multiple)
 
+
+-- This is a compat-shim for 'isBootSummary', which is used only in this module and it doesn't warrant
+-- a full porting inside the 'GHC.API' module.
+isBootSum :: ModSummary -> Bool
+isBootSum ms =
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+      isBootSummary ms
+#else
+      case isBootSummary ms of
+        NotBoot -> False
+        IsBoot  -> True
+#endif
+#endif
+
 lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
 lookupModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootSummary ms) ]
+                      , not (isBootSum ms) ]
    case mods_by_name of
      [ms] -> pure (Just ms)
      _    -> pure Nothing
@@ -139,10 +173,20 @@ lookupName name = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM TyThing }
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
-modInfoLookupName :: GhcMonadLike m 
-                  => ModuleInfo 
+-- For GHC < 9, UniqFM has a single parameter.
+data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM TyThing }
+#else
+-- For GHC >= 9, UniqFM has two parameters.
+-- just fine.
+data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
+#endif
+#endif
+
+modInfoLookupName :: GhcMonadLike m
+                  => ModuleInfo
                   -> Name
                   -> m (Maybe TyThing)
 modInfoLookupName minf name = do
