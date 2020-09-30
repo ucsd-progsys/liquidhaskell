@@ -45,12 +45,15 @@ mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
 
 traceE :: (Expr,Expr) -> (Expr,Expr)
-traceE (e,e') 
-  | False -- True 
-  , e /= e' 
-  = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e') 
-  | otherwise 
+traceE (e,e')
+  | isEnabled
+  , e /= e'
+  = trace ("\n" ++ showpp e ++ " ~> " ++ showpp e') (e,e')
+  | otherwise
   = (e,e')
+  where
+    isEnabled :: Bool
+    isEnabled = False
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
