@@ -28,11 +28,13 @@ module Language.Haskell.Liquid.GHC.API (
   , AnonArgFlag(..)
   , pattern FunTy
   , pattern AnonTCB
-  , ft_af, ft_arg, ft_res
+  , ft_af, ft_mult, ft_arg, ft_res
   , bytesFS
   , mkFunTy
   , isEvVarType
   , isEqPrimPred
+  , Mult
+  , pattern Many
 #endif
 #endif
 
@@ -46,10 +48,25 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 #endif
 
+-- Specific imports for 8.10.x
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  , Mult
+  , pattern Many
+  , pattern FunTy
+  , mkFunTy
+  , ft_af, ft_mult, ft_arg, ft_res
+#endif
+#endif
+
   ) where
 
-import Avail          as Ghc
 import GHC            as Ghc hiding (Warning)
+
+-- Shared imports for GHC < 9
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import Avail          as Ghc
 import ConLike        as Ghc
 import Var            as Ghc
 import Module         as Ghc
@@ -71,6 +88,12 @@ import HscMain        as Ghc
 import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import ErrUtils       as Ghc
 import DynFlags       as Ghc
+import ForeignCall    (CType)
+import PrelNames      (gHC_TYPES)
+import NameEnv        (lookupNameEnv_NF)
+import MkId           (mkDataConWorkId)
+#endif
+#endif
 
 --
 -- Compatibility layer for different GHC versions.
@@ -131,14 +154,152 @@ import Data.Foldable        (asum)
 -- Specific imports for GHC 8.10
 --
 #ifdef MIN_VERSION_GLASGOW_HASKELL
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
-import Type           as Ghc hiding (typeKind , isPredTy)
-import TyCon          as Ghc
-import TcType         as Ghc
-import TyCoRep        as Ghc
-import FastString     as Ghc
-import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType)
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
+import Type              as  Ghc hiding (typeKind , isPredTy)
+import TyCon             as  Ghc
+import qualified TyCoRep as  Ty
+import TcType            as  Ghc
+import TyCoRep           as  Ghc hiding (Type (FunTy), mkFunTy, ft_arg, ft_res, ft_af)
+import FastString        as  Ghc
+import Predicate         as  Ghc (getClassPredTys_maybe, isEvVarType)
 import Data.Foldable  (asum)
+#endif
+#endif
+
+--
+-- Specific imports for GHC 9
+--
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,1,0,0)
+
+import Data.Foldable          (asum)
+import GHC.Builtin.Names      as  Ghc hiding (varName)
+import GHC.Builtin.Types      as  Ghc
+import GHC.Builtin.Types.Prim as  Ghc
+import GHC.Core               as  Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
+import GHC.Core.Class         as  Ghc
+import GHC.Core.ConLike       as  Ghc
+import GHC.Core.DataCon       as  Ghc
+import GHC.Core.InstEnv       as  Ghc
+import GHC.Core.Predicate     as  Ghc (getClassPredTys_maybe, isEvVarType)
+import GHC.Core.TyCo.Rep      as  Ghc
+import GHC.Core.TyCon         as  Ghc
+import GHC.Core.Type          as  Ghc hiding (typeKind , isPredTy)
+import GHC.Data.FastString    as  Ghc
+import GHC.Driver.Main        as  Ghc
+import GHC.Driver.Session     as  Ghc
+import GHC.Driver.Types       as  Ghc
+import GHC.Tc.Types           as  Ghc
+import GHC.Types.Avail        as  Ghc
+import GHC.Types.Basic        as  Ghc
+import GHC.Types.Id           as  Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
+import GHC.Types.Literal      as  Ghc
+import GHC.Types.Name.Reader  as  Ghc
+import GHC.Types.Name.Set     as  Ghc
+import GHC.Types.SrcLoc       as  Ghc
+import GHC.Types.Unique       as  Ghc
+import GHC.Types.Var          as  Ghc
+import GHC.Unit.Module        as  Ghc
+import GHC.Utils.Error        as  Ghc
+#endif
+#endif
+
+--
+-- Compat shim for GHC < 9 (shared parts)
+--
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+
+type Mult = Type
+-- data Multiplicity = Many | One
+
+pcDataCon :: Name -> [TyVar] -> [Type] -> TyCon -> DataCon
+pcDataCon n univs tys tycon = data_con
+  where
+    data_con = mkDataCon n
+                         False
+                         (mkPrelTyConRepName n)
+                         (map (const (HsSrcBang NoSourceText NoSrcUnpack NoSrcStrict)) tys)
+                         []
+                         univs
+                         []
+                         (error "[TyVarBinder]")
+                         []
+                         []
+                         tys
+                         (mkTyConApp tycon (mkTyVarTys univs))
+                         NoRRI
+                         tycon
+                         (lookupNameEnv_NF (mkTyConTagMap tycon) n)
+                         []
+                         (mkDataConWorkId (mkDataConWorkerName data_con (dataConWorkerUnique (nameUnique n))) data_con)
+                         NoDataConRep
+
+
+mkDataConWorkerName :: DataCon -> Unique -> Name
+mkDataConWorkerName data_con wrk_key =
+    mkWiredInName modu wrk_occ wrk_key
+                  (AnId (dataConWorkId data_con)) UserSyntax
+  where
+    modu    = nameModule dc_name
+    dc_name = dataConName data_con
+    dc_occ  = nameOccName dc_name
+    wrk_occ = mkDataConWorkerOcc dc_occ
+
+pcTyCon :: Name -> Maybe CType -> [TyVar] -> [DataCon] -> TyCon
+pcTyCon name cType tyvars cons
+  = mkAlgTyCon name
+                (mkAnonTyConBinders VisArg tyvars)
+                liftedTypeKind
+                (map (const Representational) tyvars)
+                cType
+                []              -- No stupid theta
+                (mkDataTyConRhs cons)
+                (VanillaAlgTyCon (mkPrelTyConRepName name))
+                False           -- Not in GADT syntax
+
+
+mkWiredInDataConName :: BuiltInSyntax -> Module -> FastString -> Unique -> DataCon -> Name
+mkWiredInDataConName built_in modu fs unique datacon
+  = mkWiredInName modu (mkDataOccFS fs) unique
+                  (AConLike (RealDataCon datacon))    -- Relevant DataCon
+                  built_in
+
+multiplicityTyConKey :: Unique
+multiplicityTyConKey = mkPreludeTyConUnique 192
+
+multiplicityTyConName :: Name
+multiplicityTyConName = mkWiredInTyConName UserSyntax gHC_TYPES (fsLit "Multiplicity")
+                          multiplicityTyConKey multiplicityTyCon
+
+manyDataConName :: Name
+manyDataConName = mkWiredInDataConName BuiltInSyntax gHC_TYPES (fsLit "Many") manyDataConKey manyDataCon
+
+multiplicityTyCon :: TyCon
+multiplicityTyCon = pcTyCon multiplicityTyConName Nothing [] [manyDataCon]
+
+manyDataCon :: DataCon
+manyDataCon = pcDataCon manyDataConName [] [] multiplicityTyCon
+
+manyDataConKey :: Unique
+manyDataConKey = mkPreludeDataConUnique 116
+
+manyDataConTy :: Type
+manyDataConTy = mkTyConTy manyDataConTyCon
+
+manyDataConTyCon :: TyCon
+manyDataConTyCon = promoteDataCon manyDataCon
+
+pattern Many :: Mult
+pattern Many <- (isManyDataConTy -> True)
+  where Many = manyDataConTy
+
+isManyDataConTy :: Mult -> Bool
+isManyDataConTy ty
+  | Just tc <- tyConAppTyCon_maybe ty
+  = tc `hasKey` manyDataConKey
+isManyDataConTy _ = False
+
 #endif
 #endif
 
@@ -218,12 +379,12 @@ instance Binary AnonArgFlag where
 bytesFS :: FastString -> ByteString
 bytesFS = fastStringToByteString
 
-mkFunTy :: AnonArgFlag -> Type -> Type -> Type
-mkFunTy _ = Ty.FunTy
+mkFunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
+mkFunTy _ _ = Ty.FunTy
 
-pattern FunTy :: AnonArgFlag -> Type -> Type -> Type
-pattern FunTy { ft_af, ft_arg, ft_res } <- ((VisArg,) -> (ft_af, Ty.FunTy ft_arg ft_res)) where
-    FunTy _ft_af ft_arg ft_res = Ty.FunTy ft_arg ft_res
+pattern FunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
+pattern FunTy { ft_af, ft_mult, ft_arg, ft_res } <- ((VisArg,Many,) -> (ft_af, ft_mult, Ty.FunTy ft_arg ft_res)) where
+    FunTy _ft_af _ft_mult ft_arg ft_res = Ty.FunTy ft_arg ft_res
 
 pattern AnonTCB :: AnonArgFlag -> Ty.TyConBndrVis
 pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
@@ -298,6 +459,19 @@ tyConRealArity tc = go 0 (tyConKind tc)
 dataConExTyVars :: DataCon -> [TyVar]
 dataConExTyVars = dataConExTyCoVars
 
+#endif
+
+--
+-- Compat shim for 8.10.x
+--
+
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+pattern FunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
+pattern FunTy { ft_af, ft_mult, ft_arg, ft_res } <- ((Many,) -> (ft_mult, Ty.FunTy ft_af ft_arg ft_res)) where
+    FunTy ft_af _ft_mult ft_arg ft_res = Ty.FunTy ft_af ft_arg ft_res
+
+mkFunTy :: AnonArgFlag -> Mult -> Type -> Type -> Type
+mkFunTy af _ arg res = Ty.FunTy af arg res
 #endif
 
 --

@@ -1376,7 +1376,7 @@ ofType_ tx = go . expandTypeSynonyms
   where
     go (TyVarTy α)
       = tcFVar tx α
-    go (FunTy _ τ τ')
+    go (FunTy _ _ τ τ')
       = rFun dummySymbol (go τ) (go τ')
     go (ForAllTy (Bndr α _) τ)
       = RAllT (tcFTVar tx α) (go τ) mempty
@@ -1445,14 +1445,14 @@ isBaseDataCon :: DataCon -> Bool
 isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
 
 isBaseTy :: Type -> Bool
-isBaseTy (TyVarTy _)     = True
-isBaseTy (AppTy _ _)     = False
-isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
-isBaseTy (FunTy  _ _ _)  = False
-isBaseTy (ForAllTy _ _)  = False
-isBaseTy (LitTy _)       = True
-isBaseTy (CastTy _ _)    = False
-isBaseTy (CoercionTy _)  = False
+isBaseTy (TyVarTy _)      = True
+isBaseTy (AppTy _ _)      = False
+isBaseTy (TyConApp _ ts)  = and $ isBaseTy <$> ts
+isBaseTy (FunTy _ _ _ _)  = False
+isBaseTy (ForAllTy _ _)   = False
+isBaseTy (LitTy _)        = True
+isBaseTy (CastTy _ _)     = False
+isBaseTy (CoercionTy _)   = False
 
 
 dataConMsReft :: Reftable r => RType c tv r -> [Symbol] -> Reft
@@ -1474,7 +1474,7 @@ toType  :: (ToTypeable r) => RRType r -> Type
 toType (RImpF x t t' r)
  = toType (RFun x t t' r)
 toType (RFun _ t t' _)
-  = FunTy VisArg (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
+  = FunTy VisArg Many (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType (RAllT a t _) | RTV α <- ty_var_value a
   = ForAllTy (Bndr α Required) (toType t)
 toType (RAllP _ t)
@@ -1605,7 +1605,7 @@ typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce = go
   where
     go :: Type -> Sort
-    go t@(FunTy  _ _ _) = typeSortFun tce t
+    go t@FunTy{}        = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)  
@@ -1660,7 +1660,7 @@ typeSortFun tce t = mkFFunc 0 sos
     τs            = grabArgs [] t
 
 grabArgs :: [Type] -> Type -> [Type]
-grabArgs τs (FunTy _ τ1 τ2)
+grabArgs τs (FunTy _ _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
   | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
@@ -1838,10 +1838,10 @@ makeTyConVariance c = varSignToVariance <$> tvs
 
     goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
 
-    go pos (FunTy _ t1 t2) = go (not pos) t1 ++ go pos t2
-    go pos (ForAllTy _ t)  = go pos t
-    go pos (TyVarTy v)     = [(v, pos)]
-    go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
+    go pos (FunTy _ _ t1 t2) = go (not pos) t1 ++ go pos t2
+    go pos (ForAllTy _ t)    = go pos t
+    go pos (TyVarTy v)       = [(v, pos)]
+    go pos (AppTy t1 t2)     = go pos t1 ++ go pos t2
     go pos (TyConApp c' ts)
        | c == c'
        = []
@@ -1869,11 +1869,11 @@ makeTyConVariance c = varSignToVariance <$> tvs
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon = dcs S.empty
   where
-    dcs vis c               = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
-    go  vis (FunTy _ t1 t2) = go vis t1 `S.union` go vis t2
-    go  vis (ForAllTy _ t)  = go vis t
-    go  _   (TyVarTy _)     = S.empty
-    go  vis (AppTy t1 t2)   = go vis t1 `S.union` go vis t2
+    dcs vis c                 = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+    go  vis (FunTy _ _ t1 t2) = go vis t1 `S.union` go vis t2
+    go  vis (ForAllTy _ t)    = go vis t
+    go  _   (TyVarTy _)       = S.empty
+    go  vis (AppTy t1 t2)     = go vis t1 `S.union` go vis t2
     go  vis (TyConApp c ts)
       | c `S.member` vis
       = S.empty

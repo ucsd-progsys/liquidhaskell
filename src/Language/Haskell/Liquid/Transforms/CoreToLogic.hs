@@ -442,7 +442,7 @@ isPolyCst _              = False
 
 isCst :: Type -> Bool
 isCst (ForAllTy _ t) = isCst t
-isCst (FunTy _ _ _)    = False
+isCst FunTy{}        = False
 isCst _              = True
 
 

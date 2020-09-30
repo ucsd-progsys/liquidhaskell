@@ -41,8 +41,8 @@ eqType' (CoercionTy c1) (CoercionTy c2)
   = c1 == c2  
 eqType'(CastTy t1 c1) (CastTy t2 c2) 
   = eqType' t1 t2 && c1 == c2 
-eqType' (FunTy a1 t11 t12) (FunTy a2 t21 t22)
-  = a1 == a2 && eqType' t11 t21 && eqType' t12 t22  
+eqType' (FunTy a1 m1 t11 t12) (FunTy a2 m2 t21 t22)
+  = a1 == a2 && m1 == m2 && eqType' t11 t21 && eqType' t12 t22  
 eqType' (ForAllTy (Bndr v1 _) t1) (ForAllTy (Bndr v2 _) t2) 
   = eqType' t1 (subst v2 (TyVarTy v1) t2) 
 eqType' (TyVarTy v1) (TyVarTy v2) 
@@ -66,7 +66,7 @@ showTy (TyConApp c ts) = "(RApp   " ++ showPpr c ++ " " ++ sep' ", " (showTy <$>
 showTy (AppTy t1 t2)   = "(TAppTy " ++ (showTy t1 ++ " " ++ showTy t2) ++ ")" 
 showTy (TyVarTy v)   = "(RVar " ++ show (symbol v)  ++ ")" 
 showTy (ForAllTy (Bndr v _) t)  = "ForAllTy " ++ show (symbol v) ++ ". (" ++  showTy t ++ ")"
-showTy (FunTy af t1 t2) = "FunTy " ++ showPpr af ++ " " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
+showTy (FunTy af _m1 t1 t2) = "FunTy " ++ showPpr af ++ " " ++ showTy t1 ++ ". (" ++  showTy t2 ++ ")"
 showTy (CastTy _ _)    = "CastTy"
 showTy (CoercionTy _)  = "CoercionTy"
 showTy (LitTy _)       = "LitTy"
@@ -99,8 +99,8 @@ substType x tx (TyVarTy y)
   = tx 
   | otherwise
   = TyVarTy y 
-substType x tx (FunTy aaf t1 t2)
-  = FunTy aaf (subst x tx t1) (subst x tx t2)
+substType x tx (FunTy aaf m t1 t2)
+  = FunTy aaf m (subst x tx t1) (subst x tx t2)
 substType x tx f@(ForAllTy b@(Bndr y _) t)  
   | symbol x == symbol y 
   = f

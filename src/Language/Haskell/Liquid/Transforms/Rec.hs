@@ -219,7 +219,7 @@ mkFreshIds tvs ids x
        let x' = setVarType x t
        return (ids'', x')
   where
-    mkType ids ty = foldl (\t x -> FunTy VisArg (varType x) t) ty ids -- FIXME(adinapoli): Is 'VisArg' OK here?
+    mkType ids ty = foldl (\t x -> FunTy VisArg Many (varType x) t) ty ids -- FIXME(adinapoli): Is 'VisArg' OK here?
 
 -- NOTE [Don't choose transform-rec binders as decreasing params]
 -- --------------------------------------------------------------

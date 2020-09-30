@@ -12,6 +12,13 @@ packages:
   original:
     hackage: hashable-1.3.0.0
 - completed:
+    hackage: megaparsec-8.0.0@sha256:362f85e243ecbcb550e1de6e5c74ba5a50c09edaa1208c99bc5b9fd242227fc6,3808
+    pantry-tree:
+      size: 1446
+      sha256: 955117c00a86970f2d0c215f33cf5293b16589c04678a0a790c03368ab6fd0aa
+  original:
+    hackage: megaparsec-8.0.0
+- completed:
     hackage: optics-0.2@sha256:813ef6cc4d2e2b5ee00435831031f38917ba01d1e56dcb62dc18cd0315a9ccb7,6296
     pantry-tree:
       size: 1003
