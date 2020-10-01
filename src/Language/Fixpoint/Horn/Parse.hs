@@ -1,7 +1,13 @@
 
 {-# LANGUAGE DeriveFunctor #-}
 
-module Language.Fixpoint.Horn.Parse (hornP) where
+module Language.Fixpoint.Horn.Parse (
+    hornP
+  , hCstrP
+  , hPredP
+  , hQualifierP
+  , hVarP
+) where
 
 import           Language.Fixpoint.Parse
 import qualified Language.Fixpoint.Types        as F
