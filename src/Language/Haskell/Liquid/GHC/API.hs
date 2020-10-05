@@ -88,7 +88,6 @@ module Language.Haskell.Liquid.GHC.API (
   ) where
 
 import GHC            as Ghc hiding (Warning, SrcSpan(RealSrcSpan, UnhelpfulSpan))
-import GHC            as Ghc (SrcSpan)
 
 -- Shared imports for GHC < 9
 #ifdef MIN_VERSION_GLASGOW_HASKELL
@@ -104,6 +103,7 @@ import DynFlags       as Ghc
 import ErrUtils       as Ghc
 import FamInstEnv     as Ghc hiding (pprFamInst)
 import ForeignCall    (CType)
+import GHC            as Ghc (SrcSpan)
 import HscMain        as Ghc
 import HscTypes       as Ghc
 import Id             as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
@@ -114,15 +114,18 @@ import Module         as Ghc
 import Name           as Ghc hiding (varName)
 import NameEnv        (lookupNameEnv_NF)
 import NameSet        as Ghc
+import Outputable     as Ghc hiding ((<>))
 import PrelNames      (gHC_TYPES)
 import RdrName        as Ghc
 import SrcLoc         as Ghc hiding (RealSrcSpan, SrcSpan(UnhelpfulSpan))
-import qualified      SrcLoc
+import TcRnMonad      as Ghc hiding (getGHCiMonad)
+import TcRnTypes      as Ghc
 import TysPrim        as Ghc
 import TysWiredIn     as Ghc
 import UniqFM         as Ghc
 import Unique         as Ghc
 import Var            as Ghc
+import qualified      SrcLoc
 #endif
 #endif
 
@@ -155,7 +158,6 @@ import qualified GHC.Real
 import                   Binary
 import                   Data.ByteString (ByteString)
 import                   Data.Data (Data)
-import                   Outputable
 import Kind              as Ghc
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (mkAnonTyConBinders, TyConBndrVis(AnonTCB))
@@ -218,7 +220,7 @@ import GHC.Core.Predicate     as  Ghc (getClassPredTys_maybe, isEvVarType)
 import GHC.Core.TyCo.Rep      as  Ghc
 import GHC.Core.TyCon         as  Ghc
 import GHC.Core.Type          as  Ghc hiding (typeKind , isPredTy)
-import GHC.Data.Bag           as Ghc
+import GHC.Data.Bag           as  Ghc
 import GHC.Data.FastString    as  Ghc
 import GHC.Driver.Main        as  Ghc
 import GHC.Driver.Session     as  Ghc
@@ -237,6 +239,7 @@ import GHC.Types.Unique.FM    as  Ghc
 import GHC.Types.Var          as  Ghc
 import GHC.Unit.Module        as  Ghc
 import GHC.Utils.Error        as  Ghc
+import GHC.Utils.Outputable   as  Ghc hiding ((<>))
 #endif
 #endif
 

@@ -27,7 +27,14 @@ import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr, sourceName)
 import qualified CoreSyn                                    as Core
 import           CostCentre
-import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
+import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
+                                                                          , sourceName
+                                                                          , showPpr
+                                                                          , showSDocDump
+                                                                          , panic
+                                                                          , showSDoc
+                                                                          )
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc (showSDoc, panic, showSDocDump)
 import           CoreLint
 import           CoreMonad
 
@@ -49,8 +56,6 @@ import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
 import           Control.Monad                              ((>=>))
-import           Outputable                                 (Outputable (..), text, ppr)
-import qualified Outputable                                 as Out
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
@@ -165,14 +170,14 @@ notracePpr _ x = x
 tracePpr :: Outputable a => String -> a -> a
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
-pprShow :: Show a => a -> Out.SDoc
+pprShow :: Show a => a -> Ghc.SDoc
 pprShow = text . show
 
 
 toFixSDoc :: Fixpoint a => a -> PJ.Doc
 toFixSDoc = PJ.text . PJ.render . toFix
 
-sDocDoc :: Out.SDoc -> PJ.Doc
+sDocDoc :: Ghc.SDoc -> PJ.Doc
 sDocDoc   = PJ.text . showSDoc
 
 pprDoc :: Outputable a => a -> PJ.Doc
@@ -184,15 +189,15 @@ showPpr       = showSDoc . ppr
 
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
-showSDoc :: Out.SDoc -> String
-showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle unsafeGlobalDynFlags myQualify {- Out.alwaysQualify -} Out.AllTheWay)
+showSDoc :: Ghc.SDoc -> String
+showSDoc sdoc = Ghc.renderWithStyle unsafeGlobalDynFlags sdoc (Ghc.mkUserStyle unsafeGlobalDynFlags myQualify {- Ghc.alwaysQualify -} Ghc.AllTheWay)
 
-myQualify :: Out.PrintUnqualified
-myQualify = Out.neverQualify { Out.queryQualifyName = Out.alwaysQualifyNames }
--- { Out.queryQualifyName = \_ _ -> Out.NameNotInScope1 }
+myQualify :: Ghc.PrintUnqualified
+myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
+-- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
-showSDocDump :: Out.SDoc -> String
-showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
+showSDocDump :: Ghc.SDoc -> String
+showSDocDump  = Ghc.showSDocDump unsafeGlobalDynFlags
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList
@@ -419,11 +424,11 @@ lookupRdrName hsc_env mod_name rdr_name = do
                     case lookupGRE_RdrName rdr_name env of
                         [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing
-                        _     -> Out.panic "lookupRdrNameInModule"
-                Nothing -> throwCmdLineErrorS dflags $ Out.hsep [Out.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
+                        _     -> Ghc.panic "lookupRdrNameInModule"
+                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
         err -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err
   where dflags = hsc_dflags hsc_env
-        throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
+        throwCmdLineErrorS dflags = throwCmdLineError . Ghc.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
 -- qualImportDecl :: ModuleName -> ImportDecl name
@@ -701,7 +706,7 @@ tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
 
 showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
-  | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
+  | untidy    = Ghc.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
   | otherwise = showPpr
 
 

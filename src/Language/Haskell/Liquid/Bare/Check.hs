@@ -11,7 +11,13 @@ module Language.Haskell.Liquid.Bare.Check
   ) where
 
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
-import           Language.Haskell.Liquid.GHC.API          as Ghc hiding (Located) 
+import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( Located
+                                                                                 , text
+                                                                                 , (<+>)
+                                                                                 , panic
+                                                                                 , ($+$)
+                                                                                 , empty
+                                                                                 )
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
 import           Data.Maybe

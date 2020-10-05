@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Transforms.Rewrite
   ) where
 
 import           CoreSyn
-import           Language.Haskell.Liquid.GHC.API
+import           Language.Haskell.Liquid.GHC.API hiding (showPpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import qualified CoreUtils
 import qualified Var

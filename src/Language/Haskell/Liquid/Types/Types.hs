@@ -241,7 +241,33 @@ module Language.Haskell.Liquid.Types.Types (
   )
   where
 
-import           Language.Haskell.Liquid.GHC.API hiding (Expr, Target, isFunTy, LM)
+import           Language.Haskell.Liquid.GHC.API hiding ( Expr
+                                                        , Target
+                                                        , isFunTy
+                                                        , LM
+                                                        , ($+$)
+                                                        , nest
+                                                        , text
+                                                        , blankLine
+                                                        , (<+>)
+                                                        , vcat
+                                                        , hsep
+                                                        , comma
+                                                        , colon
+                                                        , parens
+                                                        , empty
+                                                        , char
+                                                        , panic
+                                                        , int
+                                                        , hcat
+                                                        , showPpr
+                                                        , punctuate
+                                                        , mapSndM
+                                                        , ($$)
+                                                        , braces
+                                                        , angleBrackets
+                                                        , brackets
+                                                        )
 import           Data.String
 import           GHC.Generics
 import           PrelInfo                               (isNumericClass)

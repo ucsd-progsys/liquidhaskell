@@ -35,7 +35,7 @@ import qualified Data.Maybe                             as Mb -- (fromMaybe, isN
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, showPpr, panic, (<+>))
 import           Language.Haskell.Liquid.GHC.Misc
 -- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))

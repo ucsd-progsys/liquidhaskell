@@ -23,7 +23,7 @@ import Coercion
 import CoAxiom
 
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding (mkTyArg)
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding (mkTyArg, showPpr, panic)
 import           Language.Fixpoint.Types (symbol)
 
 -- e368f3265b80aeb337fbac3f6a70ee54ab14edfd

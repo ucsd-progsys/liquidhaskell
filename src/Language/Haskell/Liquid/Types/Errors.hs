@@ -69,7 +69,23 @@ import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
 import qualified Text.Megaparsec              as P
 
-import           Language.Haskell.Liquid.GHC.API as Ghc hiding (Expr)
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
+                                                               , ($+$)
+                                                               , nest
+                                                               , text
+                                                               , blankLine
+                                                               , (<+>)
+                                                               , vcat
+                                                               , hsep
+                                                               , comma
+                                                               , colon
+                                                               , parens
+                                                               , empty
+                                                               , char
+                                                               , panic
+                                                               , int
+                                                               , hcat
+                                                               )
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc

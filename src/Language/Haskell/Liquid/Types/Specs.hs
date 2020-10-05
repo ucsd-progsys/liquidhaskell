@@ -81,9 +81,9 @@ import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.Generics
 import           Language.Haskell.Liquid.Types.Variance
 import           Language.Haskell.Liquid.Types.Bounds 
-import           Language.Haskell.Liquid.GHC.API 
+import           Language.Haskell.Liquid.GHC.API hiding (text, (<+>))
 import           Language.Haskell.Liquid.GHC.Types
-import           Text.PrettyPrint.HughesPJ              (text, (<+>)) 
+import           Text.PrettyPrint.HughesPJ              (text, (<+>))
 
 
 {- $differentSpecTypes

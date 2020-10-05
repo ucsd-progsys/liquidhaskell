@@ -40,7 +40,35 @@ import qualified TcRnMonad                        as Ghc
 import qualified CoreSyn as GHC
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F
-import           Language.Haskell.Liquid.GHC.API  as Ghc hiding (maybeParen, LM)
+import           Language.Haskell.Liquid.GHC.API  as Ghc hiding ( maybeParen
+                                                                , LM
+                                                                , mkLongErrAt
+                                                                , empty
+                                                                , text
+                                                                , char
+                                                                , arrow
+                                                                , hsep
+                                                                , (<+>)
+                                                                , dcolon
+                                                                , sep
+                                                                , panic
+                                                                , comma
+                                                                , angleBrackets
+                                                                , punctuate
+                                                                , dot
+                                                                , brackets
+                                                                , parens
+                                                                , colon
+                                                                , isEmpty
+                                                                , braces
+                                                                , ($+$)
+                                                                , nest
+                                                                , space
+                                                                , vcat
+                                                                , ($$)
+                                                                , hcat
+                                                                , reportErrors
+                                                                )
 import           Language.Haskell.Liquid.GHC.Logging (putErrMsg, mkLongErrAt)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc

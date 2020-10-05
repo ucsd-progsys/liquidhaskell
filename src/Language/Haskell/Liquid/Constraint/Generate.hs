@@ -40,7 +40,13 @@ import           VarEnv (mkRnEnv2, emptyInScopeSet)
 import           TyCon
 import           CoAxiom
 import           PrelNames
-import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (exprType)
+import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( exprType
+                                                                                 , panic
+                                                                                 , checkErr
+                                                                                 , (<+>)
+                                                                                 , text
+                                                                                 , vcat
+                                                                                 )
 import           Language.Haskell.Liquid.GHC.TypeRep           ()
 import           IdInfo
 import           Unify

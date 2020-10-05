@@ -20,17 +20,14 @@ module Language.Haskell.Liquid.GHC.Logging (
 
 import Data.Maybe
 
-import qualified TcRnMonad as GHC
-
 import qualified Language.Haskell.Liquid.GHC.API as GHC
 import qualified Text.PrettyPrint.HughesPJ as PJ
-import qualified Outputable as O
 
 -- Unfortunately we need the import below to bring in scope 'PPrint' instances.
 import Language.Haskell.Liquid.Types.Errors ()
 
-fromPJDoc :: PJ.Doc -> O.SDoc
-fromPJDoc = O.text . PJ.render
+fromPJDoc :: PJ.Doc -> GHC.SDoc
+fromPJDoc = GHC.text . PJ.render
 
 -- | Like the original 'putLogMsg', but internally converts the input 'Doc' (from the \"pretty\" library)
 -- into GHC's internal 'SDoc'.
@@ -38,27 +35,27 @@ putLogMsg :: GHC.DynFlags
           -> GHC.WarnReason
           -> GHC.Severity
           -> GHC.SrcSpan
-          -> Maybe O.PprStyle
+          -> Maybe GHC.PprStyle
           -> PJ.Doc
           -> IO ()
 putLogMsg dynFlags reason sev srcSpan mbStyle =
-  GHC.putLogMsg dynFlags reason sev srcSpan style' . O.text . PJ.render
+  GHC.putLogMsg dynFlags reason sev srcSpan style' . GHC.text . PJ.render
   where
-    style' :: O.PprStyle
-    style' = fromMaybe (O.defaultErrStyle dynFlags) mbStyle
+    style' :: GHC.PprStyle
+    style' = fromMaybe (GHC.defaultErrStyle dynFlags) mbStyle
 
 putWarnMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg dynFlags srcSpan doc =
-  putLogMsg dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ O.defaultErrStyle dynFlags) doc
+  putLogMsg dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ GHC.defaultErrStyle dynFlags) doc
 
 putErrMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putErrMsg dynFlags srcSpan doc = putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
 
 -- | Like 'putErrMsg', but it uses GHC's internal 'Doc'. This can be very convenient when logging things
 -- which comes directly from GHC rather than LiquidHaskell.
-putErrMsg' :: GHC.DynFlags -> GHC.SrcSpan -> O.SDoc -> IO ()
+putErrMsg' :: GHC.DynFlags -> GHC.SrcSpan -> GHC.SDoc -> IO ()
 putErrMsg' dynFlags srcSpan =
-  GHC.putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan (O.defaultErrStyle dynFlags)
+  GHC.putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan (GHC.defaultErrStyle dynFlags)
 
 -- | Like GHC's 'mkLongErrAt', but it builds the final 'ErrMsg' out of two \"HughesPJ\"'s 'Doc's.
 mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn GHC.ErrMsg

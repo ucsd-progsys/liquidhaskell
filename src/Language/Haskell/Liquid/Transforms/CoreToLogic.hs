@@ -21,7 +21,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
-import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
+import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located, panic)
 -- import qualified Id 
 import qualified Var
 import qualified TyCon 

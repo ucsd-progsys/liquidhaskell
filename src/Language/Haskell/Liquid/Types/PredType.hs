@@ -32,7 +32,14 @@ module Language.Haskell.Liquid.Types.PredType (
 import           Prelude                         hiding (error)
 import           DataCon
 import           Text.PrettyPrint.HughesPJ
-import           Language.Haskell.Liquid.GHC.API
+import           Language.Haskell.Liquid.GHC.API hiding ( panic
+                                                        , (<+>)
+                                                        , hsep
+                                                        , punctuate
+                                                        , comma
+                                                        , parens
+                                                        , showPpr
+                                                        )
 import           Language.Haskell.Liquid.GHC.TypeRep ()
 import           Data.Hashable
 import qualified Data.HashMap.Strict             as M

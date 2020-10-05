@@ -59,7 +59,6 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
 import qualified CoreMonad
 import qualified EnumSet
 import TcRnMonad
-import Outputable
 import Maybes
 import Panic
 import GhcMake

@@ -19,7 +19,7 @@ import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M
 import qualified Data.List           as L
 
-import Language.Haskell.Liquid.GHC.API as Ghc hiding (substTysWith)
+import Language.Haskell.Liquid.GHC.API as Ghc hiding (substTysWith, panic)
 import Language.Haskell.Liquid.GHC.Misc ()
 import Language.Haskell.Liquid.Types.Errors
 

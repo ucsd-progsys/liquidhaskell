@@ -120,7 +120,22 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, Located, mapType, tyConName)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
+                                                                      , Located
+                                                                      , mapType
+                                                                      , tyConName
+                                                                      , punctuate
+                                                                      , hcat
+                                                                      , (<+>)
+                                                                      , parens
+                                                                      , empty
+                                                                      , dcolon
+                                                                      , vcat
+                                                                      , nest
+                                                                      , ($+$)
+                                                                      , panic
+                                                                      , text
+                                                                      )
 import           Language.Haskell.Liquid.GHC.TypeRep () -- Eq Type instance
 import Data.List (foldl')
 

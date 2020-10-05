@@ -23,7 +23,7 @@ import           Literal
 import           MkCore                           (mkCoreLets)
 import           Outputable                       (trace)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg)
+import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg, showPpr, DsM, panic)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
 import           UniqSupply                       (MonadUnique, getUniqueM)
 import           Control.Monad.State.Lazy
