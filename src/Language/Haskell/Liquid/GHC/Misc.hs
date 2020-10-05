@@ -28,7 +28,6 @@ import           CoreSyn                                    hiding (Expr, source
 import qualified CoreSyn                                    as Core
 import           CostCentre
 import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
-import           Bag
 import           CoreLint
 import           CoreMonad
 
@@ -81,7 +80,7 @@ srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan (SourceNote ss _) = RealSrcSpan ss
+tickSrcSpan (SourceNote ss _) = RealSrcSpan ss Nothing
 tickSrcSpan _                 = noSrcSpan
 
 --------------------------------------------------------------------------------
@@ -215,7 +214,7 @@ instance Hashable Loc where
 
 instance Hashable SrcSpan where
   hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
-  hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+  hashWithSalt i (RealSrcSpan s _) = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
@@ -233,7 +232,7 @@ srcSpanFSrcSpan sp = F.SS p p'
     p'             = srcSpanSourcePosE sp
 
 sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
-sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')
+sourcePos2SrcSpan p p' = RealSrcSpan (realSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) Nothing
   where
     (f, l,  c)         = F.sourcePosElts p
     (_, l', c')        = F.sourcePosElts p'
@@ -246,11 +245,11 @@ sourcePosSrcLoc (SourcePos file line col) = mkSrcLoc (fsLit file) (unPos line) (
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "<no source information>"
-srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
+srcSpanSourcePos (RealSrcSpan s _) = realSrcSpanSourcePos s
 
 srcSpanSourcePosE :: SrcSpan -> SourcePos
 srcSpanSourcePosE (UnhelpfulSpan _) = dummyPos "<no source information>"
-srcSpanSourcePosE (RealSrcSpan s)   = realSrcSpanSourcePosE s
+srcSpanSourcePosE (RealSrcSpan s _) = realSrcSpanSourcePosE s
 
 srcSpanFilename :: SrcSpan -> String
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe

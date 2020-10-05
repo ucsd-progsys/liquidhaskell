@@ -1,7 +1,13 @@
--- | This module re-exports a bunch of the GHC API.
+{-| This module re-exports a bunch of the GHC API.
+
+The intended use of this module is to shelter LiquidHaskell from changes to the GHC API, so this is the
+/only/ module LiquidHaskell should import when trying to access any ghc-specific functionality.
+
+--}
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ViewPatterns #-}
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -60,6 +66,13 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 #endif
 
+-- Shared exports for GHC < 9
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  , pattern RealSrcSpan
+#endif
+#endif
+
 -- Specific exports for 9.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
@@ -71,12 +84,13 @@ module Language.Haskell.Liquid.GHC.API (
 
   ) where
 
-import GHC            as Ghc hiding (Warning)
+import GHC            as Ghc hiding (Warning, SrcSpan(RealSrcSpan))
 
 -- Shared imports for GHC < 9
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import Avail          as Ghc
+import Bag            as Ghc
 import BasicTypes     as Ghc
 import Class          as Ghc
 import ConLike        as Ghc
@@ -84,7 +98,7 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import DataCon        as Ghc
 import DynFlags       as Ghc
 import ErrUtils       as Ghc
-import FamInstEnv     as Ghc
+import FamInstEnv     as Ghc hiding (pprFamInst)
 import ForeignCall    (CType)
 import HscMain        as Ghc
 import HscTypes       as Ghc
@@ -98,7 +112,8 @@ import NameEnv        (lookupNameEnv_NF)
 import NameSet        as Ghc
 import PrelNames      (gHC_TYPES)
 import RdrName        as Ghc
-import SrcLoc         as Ghc
+import SrcLoc         as Ghc hiding (RealSrcSpan)
+import qualified      SrcLoc
 import TysPrim        as Ghc
 import TysWiredIn     as Ghc
 import UniqFM         as Ghc
@@ -199,6 +214,7 @@ import GHC.Core.Predicate     as  Ghc (getClassPredTys_maybe, isEvVarType)
 import GHC.Core.TyCo.Rep      as  Ghc
 import GHC.Core.TyCon         as  Ghc
 import GHC.Core.Type          as  Ghc hiding (typeKind , isPredTy)
+import GHC.Data.Bag           as Ghc
 import GHC.Data.FastString    as  Ghc
 import GHC.Driver.Main        as  Ghc
 import GHC.Driver.Session     as  Ghc
@@ -226,8 +242,14 @@ import GHC.Utils.Error        as  Ghc
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
+data BufSpan
+
+pattern RealSrcSpan :: SrcLoc.RealSrcSpan -> Maybe BufSpan -> Ghc.SrcSpan
+pattern RealSrcSpan rss mbSpan <- ((,Nothing) -> (SrcLoc.RealSrcSpan rss, mbSpan))
+  where
+    RealSrcSpan rss _mbSpan = SrcLoc.RealSrcSpan rss
+
 type Mult = Type
--- data Multiplicity = Many | One
 
 pcDataCon :: Name -> [TyVar] -> [Type] -> TyCon -> DataCon
 pcDataCon n univs tys tycon = data_con

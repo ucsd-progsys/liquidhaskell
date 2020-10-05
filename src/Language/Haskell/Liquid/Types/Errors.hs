@@ -51,11 +51,6 @@ module Language.Haskell.Liquid.Types.Errors (
   ) where
 
 import           Prelude                      hiding (error)
-import           SrcLoc
-import           FastString
-import           HscTypes (srcErrorMessages, SourceError)
-import           ErrUtils
-import           Bag
 
 import           GHC.Generics
 import           Control.DeepSeq
@@ -73,9 +68,8 @@ import           System.Directory
 import           System.FilePath
 import           Text.PrettyPrint.HughesPJ
 import qualified Text.Megaparsec              as P
--- import           Text.Parsec.Error            (ParseError)
--- import           Text.Parsec.Error            (errorMessages, showErrorMessages)
 
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding (Expr)
 import           Language.Fixpoint.Types      (pprint, showpp, Tidy (..), PPrint (..), Symbol, Expr)
 import qualified Language.Fixpoint.Misc       as Misc
 import qualified Language.Haskell.Liquid.Misc     as Misc
@@ -126,7 +120,7 @@ srcSpanContext fb sp
   = empty
 
 srcSpanInfo :: SrcSpan -> Maybe (Int, Int, Int, Int)
-srcSpanInfo (RealSrcSpan s)
+srcSpanInfo (RealSrcSpan s _)
               = Just (l, c, l', c')
   where
      l        = srcSpanStartLine s
@@ -511,7 +505,7 @@ instance PPrint SrcSpan where
 
 pprSrcSpan :: SrcSpan -> Doc
 pprSrcSpan (UnhelpfulSpan s) = text $ unpackFS s
-pprSrcSpan (RealSrcSpan s)   = pprRealSrcSpan s
+pprSrcSpan (RealSrcSpan s _) = pprRealSrcSpan s
 
 pprRealSrcSpan :: RealSrcSpan -> Doc
 pprRealSrcSpan span
@@ -695,19 +689,19 @@ realSrcSpan f l1 c1 l2 c2 = mkRealSrcSpan loc1 loc2
     loc2                  = mkRealSrcLoc (fsLit f) l2 c2
 
 srcSpanFileMb :: SrcSpan -> Maybe FilePath
-srcSpanFileMb (RealSrcSpan s) = Just $ unpackFS $ srcSpanFile s
-srcSpanFileMb _               = Nothing
+srcSpanFileMb (RealSrcSpan s _) = Just $ unpackFS $ srcSpanFile s
+srcSpanFileMb _                 = Nothing
 
 
 instance ToJSON SrcSpan where
-  toJSON (RealSrcSpan rsp) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
-  toJSON (UnhelpfulSpan _) = object [ "realSpan" .= False ]
+  toJSON (RealSrcSpan rsp _) = object [ "realSpan" .= True, "spanInfo" .= rsp ]
+  toJSON (UnhelpfulSpan _)   = object [ "realSpan" .= False ]
 
 instance FromJSON SrcSpan where
   parseJSON (Object v) = do tag <- v .: "realSpan"
                             case tag of
                               False -> return noSrcSpan
-                              True  -> RealSrcSpan <$> v .: "spanInfo"
+                              True  -> RealSrcSpan <$> v .: "spanInfo" <*> pure Nothing
   parseJSON _          = mempty
 
 -- Default definition use ToJSON and FromJSON

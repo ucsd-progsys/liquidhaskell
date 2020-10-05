@@ -117,7 +117,7 @@ pprAnnInfoBinds k (l, xvs)
   = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
 
 pprAnnInfoBind :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, (Maybe a, b)) -> Doc
-pprAnnInfoBind k (RealSrcSpan sp, xv)
+pprAnnInfoBind k (RealSrcSpan sp _, xv)
   = xd $$ pprDoc l $$ pprDoc c $$ pprintTidy k n $$ vd $$ text "\n\n\n"
     where
       l        = srcSpanStartLine sp
