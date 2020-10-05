@@ -65,15 +65,10 @@ import GhcMake
 import Finder
 import Exception (ExceptionMonad)
 #else
-import GHC.Data.IOEnv (getEnv)
 import GHC.Data.Maybe
 import GHC.Driver.Finder
 import GHC.Driver.Make
-import GHC.Driver.Types
-import GHC.Tc.Types
-import GHC.Tc.Utils.Monad (getTopEnv)
 import GHC.Utils.Exception (ExceptionMonad)
-import GHC.Utils.Outputable
 import GHC.Utils.Panic
 import qualified GHC.Core.Opt.Monad as CoreMonad
 import qualified GHC.Data.EnumSet as EnumSet

@@ -226,6 +226,7 @@ import GHC.Driver.Main        as  Ghc
 import GHC.Driver.Session     as  Ghc
 import GHC.Driver.Types       as  Ghc
 import GHC.Tc.Types           as  Ghc
+import GHC.Tc.Utils.Monad     as  Ghc hiding (getGHCiMonad)
 import GHC.Types.Avail        as  Ghc
 import GHC.Types.Basic        as  Ghc
 import GHC.Types.Id           as  Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
