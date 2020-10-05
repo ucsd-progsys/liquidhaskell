@@ -25,7 +25,6 @@ module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, genera
 import Control.Monad.Fail
 #endif
 
-import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error)
 import           GHC.Stack
 import           CoreUtils                                     (exprType)
@@ -48,7 +47,6 @@ import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding
                                                                                  , vcat
                                                                                  )
 import           Language.Haskell.Liquid.GHC.TypeRep           ()
-import           IdInfo
 import           Unify
 import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 

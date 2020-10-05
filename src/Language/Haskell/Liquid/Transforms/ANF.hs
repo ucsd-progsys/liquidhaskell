@@ -21,7 +21,6 @@ import           GHC                              hiding (exprType)
 import           HscTypes
 import           Literal
 import           MkCore                           (mkCoreLets)
-import           Outputable                       (trace)
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg, showPpr, DsM, panic)
 import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)

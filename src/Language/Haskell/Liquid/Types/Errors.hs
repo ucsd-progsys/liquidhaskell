@@ -70,6 +70,7 @@ import           Text.PrettyPrint.HughesPJ
 import qualified Text.Megaparsec              as P
 
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
+                                                               , panicDoc
                                                                , ($+$)
                                                                , nest
                                                                , text

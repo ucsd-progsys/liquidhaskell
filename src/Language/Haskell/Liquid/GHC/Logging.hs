@@ -18,8 +18,6 @@ module Language.Haskell.Liquid.GHC.Logging (
   , mkLongErrAt
   ) where
 
-import Data.Maybe
-
 import qualified Language.Haskell.Liquid.GHC.API as GHC
 import qualified Text.PrettyPrint.HughesPJ as PJ
 
@@ -38,17 +36,19 @@ putLogMsg :: GHC.DynFlags
           -> Maybe GHC.PprStyle
           -> PJ.Doc
           -> IO ()
-putLogMsg dynFlags reason sev srcSpan mbStyle =
+putLogMsg dynFlags reason sev srcSpan _mbStyle =
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-  GHC.putLogMsg dynFlags reason sev srcSpan style' . GHC.text . PJ.render
+ GHC.putLogMsg dynFlags reason sev srcSpan style' . GHC.text . PJ.render
+   where
+    style' :: GHC.PprStyle
+    style' = case _mbStyle of
+               Nothing  -> defaultErrStyle dynFlags
+               Just sty -> sty
 #else
   GHC.putLogMsg dynFlags reason sev srcSpan . GHC.text . PJ.render
 #endif
 #endif
-  where
-    style' :: GHC.PprStyle
-    style' = fromMaybe (defaultErrStyle dynFlags) mbStyle
 
 
 defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle

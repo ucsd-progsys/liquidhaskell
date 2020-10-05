@@ -24,7 +24,6 @@ module Language.Haskell.Liquid.Measure (
 
 import           DataCon
 import           GHC                                    hiding (Located)
-import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 
 -- import           Data.Binary                            as B

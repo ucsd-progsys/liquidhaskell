@@ -29,7 +29,6 @@ import           Coercion
 import qualified Pair
 -- import qualified Text.Printf as Printf
 import qualified CoreSyn                               as C
-import           IdInfo
 import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
 import qualified Data.Text                             as T

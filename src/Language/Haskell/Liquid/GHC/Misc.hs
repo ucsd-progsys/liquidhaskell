@@ -18,15 +18,9 @@ module Language.Haskell.Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L
-import           PrelNames                                  (fractionalClassKeys)
 import           Debug.Trace
 
-import qualified CoreUtils
-import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)
 import           Prelude                                    hiding (error)
-import           CoreSyn                                    hiding (Expr, sourceName)
-import qualified CoreSyn                                    as Core
-import           CostCentre
 import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
                                                                           , sourceName
                                                                           , showPpr
@@ -35,17 +29,8 @@ import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
                                                                           , showSDoc
                                                                           )
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc (showSDoc, panic, showSDocDump)
-import           CoreLint
-import           CoreMonad
-
-import           Finder                                     (findImportedModule, cannotFindModule)
-import           Panic                                      (throwGhcException)
-import           TcRnDriver
--- import           TcRnTypes
 
 
-import           IdInfo
-import qualified TyCon                                      as TC
 import           Data.Char                                  (isLower, isSpace, isUpper)
 import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
 import           Data.Hashable
@@ -65,7 +50,7 @@ import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
 
-isAnonBinder :: TC.TyConBinder -> Bool
+isAnonBinder :: Ghc.TyConBinder -> Bool
 isAnonBinder (Bndr _ (AnonTCB _)) = True
 isAnonBinder (Bndr _ _)           = False
 
@@ -101,7 +86,7 @@ stringTyVar s = mkTyVar name liftedTypeKind
 
 -- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var
-stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
+stringVar s t = mkLocalVar VanillaId name Many t vanillaIdInfo
    where
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
       occ  = mkVarOcc s
@@ -111,7 +96,7 @@ stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = TC.mkKindTyCon name [] k [] name
+stringTyConWithKind k c n s = Ghc.mkKindTyCon name [] k [] name
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -336,7 +321,7 @@ collectTyBinders expr
     go tvs e                     = (reverse tvs, e)
 -}
 
-collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
+collectValBinders' :: Ghc.Expr Var -> ([Var], Ghc.Expr Var)
 collectValBinders' = go []
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
@@ -344,7 +329,7 @@ collectValBinders' = go []
     go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
-ignoreLetBinds :: Core.Expr t -> Core.Expr t
+ignoreLetBinds :: Ghc.Expr t -> Ghc.Expr t
 ignoreLetBinds (Let (NonRec _ _) e')
   = ignoreLetBinds e'
 ignoreLetBinds e
@@ -355,7 +340,7 @@ ignoreLetBinds e
 --------------------------------------------------------------------------------
 
 isTupleId :: Id -> Bool
-isTupleId = maybe False DataCon.isTupleDataCon . idDataConM
+isTupleId = maybe False Ghc.isTupleDataCon . idDataConM
 
 idDataConM :: Id -> Maybe DataCon
 idDataConM x = case idDetails x of
@@ -371,7 +356,7 @@ getDataConVarUnique v
   | isId v && isDataConId v = getUnique (idDataCon v)
   | otherwise               = getUnique v
 
-isDictionaryExpression :: Core.Expr Id -> Maybe Id
+isDictionaryExpression :: Ghc.Expr Id -> Maybe Id
 isDictionaryExpression (Tick _ e) = isDictionaryExpression e
 isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
@@ -437,7 +422,6 @@ lookupRdrName hsc_env mod_name rdr_name = do
 ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
   where 
-    go :: HsModule GhcPs -> HsModule GhcPs
     go  x      = x {hsmodDecls = filter go' (hsmodDecls x) }
     go' :: LHsDecl GhcPs -> Bool
     go' x 
@@ -494,12 +478,12 @@ fastStringText = T.decodeUtf8With TE.lenientDecode . bytesFS
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c
   | noTyVars c = []
-  | otherwise  = TC.tyConTyVars c
+  | otherwise  = Ghc.tyConTyVars c
   --where
   --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
 
 noTyVars :: TyCon -> Bool
-noTyVars c =  (TC.isPrimTyCon c || isFunTyCon c || TC.isPromotedDataCon c)
+noTyVars c =  (Ghc.isPrimTyCon c || isFunTyCon c || Ghc.isPromotedDataCon c)
 
 --------------------------------------------------------------------------------
 -- | Symbol Instances
@@ -696,13 +680,13 @@ symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
+lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
-synTyConRhs_maybe = TC.synTyConRhs_maybe
+synTyConRhs_maybe = Ghc.synTyConRhs_maybe
 
 tcRnLookupRdrName :: HscEnv -> Ghc.Located RdrName -> IO (Messages, Maybe [Name])
-tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
+tcRnLookupRdrName = Ghc.tcRnLookupRdrName
 
 showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
@@ -751,7 +735,7 @@ expandVarType = expandTypeSynonyms . varType
 --   shouldn't appear in refinements.
 --------------------------------------------------------------------------------
 isPredExpr :: CoreExpr -> Bool
-isPredExpr = isPredType . CoreUtils.exprType
+isPredExpr = isPredType . Ghc.exprType
 
 isPredVar :: Var -> Bool
 isPredVar v = F.notracepp msg . isPredType . varType $ v
@@ -770,10 +754,10 @@ anyF ps x = or [ p x | p <- ps ]
 --   that are being handled by DEFAULT.
 defaultDataCons :: Type -> [AltCon] -> Maybe [(DataCon, [TyVar], [Type])]
 defaultDataCons (TyConApp tc argτs) ds = do 
-  allDs     <- TC.tyConDataCons_maybe tc
+  allDs     <- Ghc.tyConDataCons_maybe tc
   let seenDs = [d | DataAlt d <- ds ]
   let defDs  = keyDiff showPpr allDs seenDs 
-  return [ (d, Ghc.dataConExTyVars d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
+  return [ (d, Ghc.dataConExTyVars d, map irrelevantMult $ Ghc.dataConInstArgTys d argτs) | d <- defDs ] 
 
 defaultDataCons _ _ = 
   Nothing

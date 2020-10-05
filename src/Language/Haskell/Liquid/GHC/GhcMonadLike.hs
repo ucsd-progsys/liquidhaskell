@@ -58,18 +58,13 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified CoreMonad
 import qualified EnumSet
-import TcRnMonad
 import Maybes
-import Panic
 import GhcMake
-import Finder
 import Exception (ExceptionMonad)
 #else
 import GHC.Data.Maybe
-import GHC.Driver.Finder
 import GHC.Driver.Make
 import GHC.Utils.Exception (ExceptionMonad)
-import GHC.Utils.Panic
 import qualified GHC.Core.Opt.Monad as CoreMonad
 import qualified GHC.Data.EnumSet as EnumSet
 #endif
