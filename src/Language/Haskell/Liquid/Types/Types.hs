@@ -1956,7 +1956,7 @@ data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
                    , ci_var :: !(Maybe Var)
                    }
-                deriving (Eq, Ord, Generic)
+                deriving (Eq, Generic)
 
 instance F.Loc Cinfo where
   srcSpan = srcSpanFSrcSpan . ci_loc

@@ -94,9 +94,6 @@ data CtxError t = CtxError
 instance Eq (CtxError t) where
   e1 == e2 = ctErr e1 == ctErr e2
 
-instance Ord (CtxError t) where
-  e1 <= e2 = ctErr e1 <= ctErr e2
-
 --------------------------------------------------------------------------------
 errorsWithContext :: [TError Doc] -> IO [CtxError Doc]
 --------------------------------------------------------------------------------
@@ -473,10 +470,6 @@ errDupSpecs _ _            = impossible Nothing "errDupSpecs with empty spans!"
 instance Eq (TError a) where
   e1 == e2 = errSpan e1 == errSpan e2
 
-instance Ord (TError a) where
-  e1 <= e2 = errSpan e1 <= errSpan e2
-
-
 errSpan :: TError a -> SrcSpan
 errSpan =  pos
 
@@ -504,8 +497,13 @@ instance PPrint SrcSpan where
   pprintTidy _ = pprSrcSpan
 
 pprSrcSpan :: SrcSpan -> Doc
-pprSrcSpan (UnhelpfulSpan s) = text $ unpackFS s
-pprSrcSpan (RealSrcSpan s _) = pprRealSrcSpan s
+pprSrcSpan (UnhelpfulSpan reason) = text $ case reason of
+  UnhelpfulNoLocationInfo -> "UnhelpfulNoLocationInfo"
+  UnhelpfulWiredIn        -> "UnhelpfulWiredIn"
+  UnhelpfulInteractive    -> "UnhelpfulInteractive"
+  UnhelpfulGenerated      -> "UnhelpfulGenerated"
+  UnhelpfulOther fs       -> unpackFS fs
+pprSrcSpan (RealSrcSpan s _)      = pprRealSrcSpan s
 
 pprRealSrcSpan :: RealSrcSpan -> Doc
 pprRealSrcSpan span

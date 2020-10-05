@@ -6,6 +6,7 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 --}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE EmptyDataDecls #-}
 {-# LANGUAGE ViewPatterns #-}
@@ -70,6 +71,8 @@ module Language.Haskell.Liquid.GHC.API (
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
   , pattern RealSrcSpan
+  , pattern UnhelpfulSpan
+  , UnhelpfulSpanReason(..)
 #endif
 #endif
 
@@ -84,7 +87,8 @@ module Language.Haskell.Liquid.GHC.API (
 
   ) where
 
-import GHC            as Ghc hiding (Warning, SrcSpan(RealSrcSpan))
+import GHC            as Ghc hiding (Warning, SrcSpan(RealSrcSpan, UnhelpfulSpan))
+import GHC            as Ghc (SrcSpan)
 
 -- Shared imports for GHC < 9
 #ifdef MIN_VERSION_GLASGOW_HASKELL
@@ -112,7 +116,7 @@ import NameEnv        (lookupNameEnv_NF)
 import NameSet        as Ghc
 import PrelNames      (gHC_TYPES)
 import RdrName        as Ghc
-import SrcLoc         as Ghc hiding (RealSrcSpan)
+import SrcLoc         as Ghc hiding (RealSrcSpan, SrcSpan(UnhelpfulSpan))
 import qualified      SrcLoc
 import TysPrim        as Ghc
 import TysWiredIn     as Ghc
@@ -244,10 +248,42 @@ import GHC.Utils.Error        as  Ghc
 
 data BufSpan
 
-pattern RealSrcSpan :: SrcLoc.RealSrcSpan -> Maybe BufSpan -> Ghc.SrcSpan
+pattern RealSrcSpan :: SrcLoc.RealSrcSpan -> Maybe BufSpan -> SrcLoc.SrcSpan
 pattern RealSrcSpan rss mbSpan <- ((,Nothing) -> (SrcLoc.RealSrcSpan rss, mbSpan))
   where
     RealSrcSpan rss _mbSpan = SrcLoc.RealSrcSpan rss
+
+data UnhelpfulSpanReason
+  = UnhelpfulNoLocationInfo
+  | UnhelpfulWiredIn
+  | UnhelpfulInteractive
+  | UnhelpfulGenerated
+  | UnhelpfulOther !FastString
+  deriving (Eq, Show)
+
+pattern UnhelpfulSpan :: UnhelpfulSpanReason -> SrcLoc.SrcSpan
+pattern UnhelpfulSpan reason <- (toUnhelpfulReason -> Just reason)
+  where
+    UnhelpfulSpan reason = SrcLoc.UnhelpfulSpan (fromUnhelpfulReason reason)
+
+fromUnhelpfulReason :: UnhelpfulSpanReason -> FastString
+fromUnhelpfulReason = \case
+  UnhelpfulNoLocationInfo -> fsLit "UnhelpfulNoLocationInfo"
+  UnhelpfulWiredIn        -> fsLit "UnhelpfulWiredIn"
+  UnhelpfulInteractive    -> fsLit "UnhelpfulInteractive"
+  UnhelpfulGenerated      -> fsLit "UnhelpfulGenerated"
+  UnhelpfulOther fs       -> fs
+
+toUnhelpfulReason :: SrcLoc.SrcSpan -> Maybe UnhelpfulSpanReason
+toUnhelpfulReason (SrcLoc.RealSrcSpan _) = Nothing
+toUnhelpfulReason (SrcLoc.UnhelpfulSpan fs) = Just $ case unpackFS fs of
+  "UnhelpfulNoLocationInfo" -> UnhelpfulNoLocationInfo
+  "UnhelpfulWiredIn"        -> UnhelpfulWiredIn
+  "UnhelpfulInteractive"    -> UnhelpfulInteractive
+  "UnhelpfulGenerated"      -> UnhelpfulGenerated
+  _                         -> UnhelpfulOther fs
+
+-- Backporting multiplicity
 
 type Mult = Type
 

@@ -213,8 +213,13 @@ instance Hashable Loc where
 --instance (Uniquable a) => Hashable a where
 
 instance Hashable SrcSpan where
-  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
-  hashWithSalt i (RealSrcSpan s _) = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+  hashWithSalt i (UnhelpfulSpan reason) = case reason of
+    UnhelpfulNoLocationInfo -> hashWithSalt i (uniq $ fsLit "UnhelpfulNoLocationInfo")
+    UnhelpfulWiredIn        -> hashWithSalt i (uniq $ fsLit "UnhelpfulWiredIn")
+    UnhelpfulInteractive    -> hashWithSalt i (uniq $ fsLit "UnhelpfulInteractive")
+    UnhelpfulGenerated      -> hashWithSalt i (uniq $ fsLit "UnhelpfulGenerated")
+    UnhelpfulOther fs       -> hashWithSalt i (uniq fs)
+  hashWithSalt i (RealSrcSpan s _)      = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
