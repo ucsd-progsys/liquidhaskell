@@ -172,10 +172,11 @@ _isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x)
                     $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
 
 hasClassArg :: Id -> Bool
-hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
+hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
   where 
-    msg       = "hasClassArg: " ++ showpp (x, t:ts)
+    msg       = "hasClassArg: " ++ showpp (x, t:ts')
     (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
+    ts'       = map Ghc.irrelevantMult ts
 
 
 doExpand :: TargetSpec -> Config -> F.SubC Cinfo -> Bool

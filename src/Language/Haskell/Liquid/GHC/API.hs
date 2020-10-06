@@ -78,7 +78,12 @@ module Language.Haskell.Liquid.GHC.API (
   , mkScaled
   , irrelevantMult
   , dataConInstArgTys
+  , dataConOrigArgTys
+  , dataConRepArgTys
   , mkLocalVar
+  , DataConAppContext(..)
+  , deepSplitProductType_maybe
+  , splitFunTys
 #endif
 #endif
 
@@ -105,54 +110,57 @@ import           GHC                                               as Ghc hiding
 -- Shared imports for GHC < 9
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import Avail               as Ghc
-import Bag                 as Ghc
-import BasicTypes          as Ghc
-import Class               as Ghc
-import CoAxiom             as Ghc
-import Coercion            as Ghc
-import ConLike             as Ghc
-import CoreLint            as Ghc hiding (dumpIfSet)
-import CoreMonad           as Ghc (CoreToDo(..))
-import CoreSyn             as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
-import CoreUtils           as Ghc (exprType)
-import CostCentre          as Ghc
-import DataCon             as Ghc hiding (dataConInstArgTys)
-import DynFlags            as Ghc
-import ErrUtils            as Ghc
-import FamInstEnv          as Ghc hiding (pprFamInst)
-import Finder              as Ghc
-import ForeignCall         (CType)
-import GHC                 as Ghc (SrcSpan)
-import HscMain             as Ghc
-import HscTypes            as Ghc
-import Id                  as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
-import IdInfo              as Ghc
-import InstEnv             as Ghc
-import Literal             as Ghc
-import MkId                (mkDataConWorkId)
-import Module              as Ghc
-import Name                as Ghc hiding (varName)
-import NameEnv             (lookupNameEnv_NF)
-import NameSet             as Ghc
-import Outputable          as Ghc hiding ((<>))
-import Panic               as Ghc
-import PrelInfo            as Ghc
-import PrelNames           as Ghc hiding (wildCardName)
-import RdrName             as Ghc
-import SrcLoc              as Ghc hiding (RealSrcSpan, SrcSpan(UnhelpfulSpan))
-import TcRnDriver          as Ghc
-import TcRnMonad           as Ghc hiding (getGHCiMonad)
-import TcRnTypes           as Ghc
-import TysPrim             as Ghc
-import TysWiredIn          as Ghc
-import UniqFM              as Ghc
-import Unique              as Ghc
-import Var                 as Ghc hiding (mkLocalVar)
-import qualified           SrcLoc
-import qualified Data.Data as Data
-import qualified DataCon   as Ghc
-import qualified Var       as Ghc
+import Avail                    as Ghc
+import Bag                      as Ghc
+import BasicTypes               as Ghc
+import Class                    as Ghc
+import CoAxiom                  as Ghc
+import Coercion                 as Ghc
+import ConLike                  as Ghc
+import CoreLint                 as Ghc hiding (dumpIfSet)
+import CoreMonad                as Ghc (CoreToDo(..))
+import CoreSyn                  as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
+import CoreUtils                as Ghc (exprType)
+import CostCentre               as Ghc
+import DataCon                  as Ghc hiding (dataConInstArgTys, dataConOrigArgTys, dataConRepArgTys)
+import DynFlags                 as Ghc
+import ErrUtils                 as Ghc
+import FamInstEnv               as Ghc hiding (pprFamInst)
+import Finder                   as Ghc
+import ForeignCall              (CType)
+import GHC                      as Ghc (SrcSpan)
+import HscMain                  as Ghc
+import HscTypes                 as Ghc
+import Id                       as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
+import IdInfo                   as Ghc
+import InstEnv                  as Ghc
+import Literal                  as Ghc
+import MkCore                   as Ghc
+import MkId                     (mkDataConWorkId)
+import Module                   as Ghc
+import Name                     as Ghc hiding (varName)
+import NameEnv                  (lookupNameEnv_NF)
+import NameSet                  as Ghc
+import Outputable               as Ghc hiding ((<>))
+import Panic                    as Ghc
+import PrelInfo                 as Ghc
+import PrelNames                as Ghc hiding (wildCardName)
+import RdrName                  as Ghc
+import SrcLoc                   as Ghc hiding (RealSrcSpan, SrcSpan(UnhelpfulSpan))
+import TcRnDriver               as Ghc
+import TcRnMonad                as Ghc hiding (getGHCiMonad)
+import TcRnTypes                as Ghc
+import TysPrim                  as Ghc
+import TysWiredIn               as Ghc
+import UniqFM                   as Ghc
+import Unique                   as Ghc
+import Var                      as Ghc hiding (mkLocalVar)
+import qualified                SrcLoc
+import qualified Data.Bifunctor as Bi
+import qualified Data.Data      as Data
+import qualified DataCon        as Ghc
+import qualified Var            as Ghc
+import qualified WwLib          as Ghc
 #endif
 #endif
 
@@ -169,7 +177,8 @@ import qualified Var       as Ghc
 import qualified Literal as Lit
 import FastString        as Ghc hiding (bytesFS, LitString)
 import TcType            as Ghc hiding (typeKind, mkFunTy)
-import Type              as Ghc hiding (typeKind, mkFunTy)
+import Type              as Ghc hiding (typeKind, mkFunTy, splitFunTys)
+import qualified Type    as Ghc
 import qualified Var     as Var
 import qualified GHC.Real
 
@@ -202,7 +211,8 @@ import qualified TyCon   as Ty
 
 import FastString           as Ghc hiding (bytesFS)
 import TcType               as Ghc hiding (typeKind, mkFunTy, isEqPred)
-import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred)
+import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred, splitFunTys)
+import qualified Type       as Ghc
 import qualified Type       as Ghc (isEvVarType)
 import qualified PrelNames  as Ghc
 import Data.Foldable        (asum)
@@ -215,7 +225,8 @@ import Data.Foldable        (asum)
 --
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
-import Type              as  Ghc hiding (typeKind , isPredTy)
+import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys)
+import qualified Type    as  Ghc
 import TyCon             as  Ghc
 import qualified TyCoRep as  Ty
 import TcType            as  Ghc
@@ -241,15 +252,18 @@ import GHC.Builtin.Types.Prim         as Ghc
 import GHC.Builtin.Utils              as Ghc
 import GHC.Core                       as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import GHC.Core.Class                 as Ghc
+import GHC.Core.Opt.WorkWrap.Utils    as Ghc
+import GHC.Core.Coercion.Axiom        as Ghc
 import GHC.Core.ConLike               as Ghc
 import GHC.Core.DataCon               as Ghc
 import GHC.Core.InstEnv               as Ghc
 import GHC.Core.Lint                  as Ghc hiding (dumpIfSet)
+import GHC.Core.FamInstEnv            as Ghc hiding (pprFamInst)
+import GHC.Core.Make                  as Ghc
 import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, isEvVarType, isEqPrimPred, isEqPred, isClassPred)
 import GHC.Core.TyCo.Rep              as Ghc
 import GHC.Core.TyCon                 as Ghc
-import GHC.Core.Coercion.Axiom        as Ghc
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy)
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
@@ -435,12 +449,35 @@ isManyDataConTy _ = False
 getDependenciesModuleNames :: Dependencies -> [ModuleName]
 getDependenciesModuleNames = map fst . dep_mods
 
-
 dataConInstArgTys :: DataCon -> [Type] -> [Scaled Type]
 dataConInstArgTys dc tys = map (mkScaled Many) (Ghc.dataConInstArgTys dc tys)
 
+dataConOrigArgTys :: DataCon -> [Scaled Type]
+dataConOrigArgTys dc = map (mkScaled Many) (Ghc.dataConOrigArgTys dc)
+
+dataConRepArgTys :: DataCon -> [Scaled Type]
+dataConRepArgTys dc = map (mkScaled Many) (Ghc.dataConRepArgTys dc)
+
 mkLocalVar :: IdDetails -> Name -> Mult -> Type -> IdInfo -> Id
 mkLocalVar idDetails name _ ty info = Ghc.mkLocalVar idDetails name ty info
+
+-- WWlib
+
+data DataConAppContext
+  = DataConAppContext
+  { dcac_dc      :: !DataCon
+  , dcac_tys     :: ![Type]
+  , dcac_arg_tys :: ![(Scaled Type, StrictnessMark)]
+  , dcac_co      :: !Coercion
+  }
+
+deepSplitProductType_maybe :: FamInstEnvs -> Type -> Maybe DataConAppContext
+deepSplitProductType_maybe famInstEnv ty = do
+  (dc, tys, tysWithStricts, co) <- Ghc.deepSplitProductType_maybe famInstEnv ty
+  pure $ DataConAppContext dc tys (map (Bi.first (mkScaled Many)) tysWithStricts) co
+
+splitFunTys :: Type -> ([Scaled Type], Type)
+splitFunTys ty = Bi.first (map (mkScaled Many)) $ Ghc.splitFunTys ty
 
 #endif
 #endif

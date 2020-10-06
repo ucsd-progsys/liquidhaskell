@@ -1086,7 +1086,7 @@ isClassConCo co
   , isClassPred t2
   , (tc,ts) <- splitTyConApp t2
   , [dc]    <- tyConDataCons tc
-  , [tm]    <- dataConOrigArgTys dc
+  , [tm]    <- map irrelevantMult (Ghc.dataConOrigArgTys dc)
                -- tcMatchTy because we have to instantiate the class tyvars
   , Just _  <- ruleMatchTyX (mkUniqSet $ tyConTyVars tc) (mkRnEnv2 emptyInScopeSet) emptyTvSubstEnv tm t1
   = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])

@@ -7,13 +7,6 @@
 module Language.Haskell.Liquid.GHC.Play where
 
 import Prelude hiding (error)
-import GHC
-import CoreSyn
-import Var
-import DataCon
-
-import TyCon
-import PrelNames (isStringClassName)
 
 import           Control.Arrow       ((***))
 import qualified Data.HashMap.Strict as M

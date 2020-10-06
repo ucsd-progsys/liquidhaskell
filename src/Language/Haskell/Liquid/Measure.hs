@@ -193,7 +193,7 @@ defRefType tdc (Def f dc mt xs body)
     as'             = zip as (repeat mempty)
 
 splitType :: Type -> ([TyVar],[Type], Type)
-splitType t  = (αs, ts, tr)
+splitType t  = (αs, map irrelevantMult ts, tr)
   where
     (αs, tb) = splitForAllTys t
     (ts, tr) = splitFunTys tb

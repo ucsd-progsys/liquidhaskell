@@ -93,12 +93,6 @@ module Language.Haskell.Liquid.Types.RefType (
 -- import           GHC.Stack
 import Prelude hiding (error)
 -- import qualified Prelude
-import WwLib
-import FamInstEnv (emptyFamInstEnv)
-import Name             hiding (varName)
-import Var
-import DataCon
-import qualified TyCon  as TC
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -1396,7 +1390,7 @@ ofType_ tx = go . expandTypeSynonyms
     go (ForAllTy (Bndr α _) τ)
       = RAllT (tcFTVar tx α) (go τ) mempty
     go (TyConApp c τs)
-      | Just (αs, τ) <- TC.synTyConDefn_maybe c
+      | Just (αs, τ) <- Ghc.synTyConDefn_maybe c
       = go (substTyWith αs τs τ)
       | otherwise
       = tcFApp tx c (go <$> τs) -- [] mempty
@@ -1457,7 +1451,7 @@ dataConReft c xs
       = mkEApp (dummyLoc $ symbol c) (eVar <$> xs)
 
 isBaseDataCon :: DataCon -> Bool
-isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
+isBaseDataCon c = and $ isBaseTy <$> map irrelevantMult (dataConOrigArgTys c ++ dataConRepArgTys c)
 
 isBaseTy :: Type -> Bool
 isBaseTy (TyVarTy _)      = True
@@ -1642,7 +1636,7 @@ tyConFTyCon tce c ts = case tceLookup c tce of
   where
     niTc             = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
     -- oldRes           = F.notracepp _msg $ M.lookupDefault def c tce
-    -- _msg             = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
+    -- _msg             = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, Ghc.isFamInstTyCon c)
 
 tyVarSort :: TyVar -> Sort
 tyVarSort = FObj . symbol 
@@ -1665,7 +1659,7 @@ typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort 
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
-  | TC.isTupleTyCon c = tupConName
+  | Ghc.isTupleTyCon c = tupConName
   | otherwise         = symbol c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
@@ -1696,18 +1690,21 @@ expandProductType x t
   | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
      where
       isTrivial     = ofType (varType x) == toRSort t
-      τs            = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
+      τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTys $ toType t
       trep          = toRTypeRep t
       (xs',ts',rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
 
 -- splitFunTys :: Type -> ([Type], Type)
 
 
-mkProductTy :: (Monoid t, Monoid r)
+mkProductTy :: forall t r. (Monoid t, Monoid r)
             => (Type, Symbol, RType RTyCon RTyVar r, t)
             -> [(Symbol, RType RTyCon RTyVar r, t)]
-mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe menv τ
+mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ do
+  DataConAppContext{..} <- deepSplitProductType_maybe menv τ
+  pure $ (dcac_dc, dcac_tys, map (\(t,s) -> (irrelevantMult t, s)) dcac_arg_tys, dcac_co)
   where
+    f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RType RTyCon RTyVar r, t)]
     f    = map ((dummySymbol, , mempty) . ofType . fst) . third4
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
@@ -1787,7 +1784,7 @@ mkDType _ _ _ _
   = Right "RefType.mkDType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
-isSizeable autoenv tc = S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
+isSizeable autoenv tc = S.member tc autoenv --   Ghc.isAlgTyCon tc -- && Ghc.isRecursiveTyCon tc
 
 mkDecrFun :: S.HashSet TyCon -> RType RTyCon t t1 -> Symbol -> Expr
 mkDecrFun autoenv (RApp c _ _ _)
@@ -1841,9 +1838,9 @@ makeTyConVariance c = varSignToVariance <$> tvs
   where
     tvs = GM.tyConTyVarsDef c
 
-    varsigns = if TC.isTypeSynonymTyCon c
-                  then go True (fromJust $ TC.synTyConRhs_maybe c)
-                  else L.nub $ concatMap goDCon $ TC.tyConDataCons c
+    varsigns = if Ghc.isTypeSynonymTyCon c
+                  then go True (fromJust $ Ghc.synTyConRhs_maybe c)
+                  else L.nub $ concatMap goDCon $ Ghc.tyConDataCons c
 
     varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
                             []       -> Invariant
@@ -1851,7 +1848,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
                             _        -> Bivariant
 
 
-    goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
+    goDCon dc = concatMap (go True) (map irrelevantMult $ Ghc.dataConOrigArgTys dc)
 
     go pos (FunTy _ _ t1 t2) = go (not pos) t1 ++ go pos t2
     go pos (ForAllTy _ t)    = go pos t
@@ -1884,7 +1881,7 @@ makeTyConVariance c = varSignToVariance <$> tvs
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon = dcs S.empty
   where
-    dcs vis c                 = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
+    dcs vis c                 = mconcat $ go vis <$> [irrelevantMult t | dc <- Ghc.tyConDataCons c, t <- Ghc.dataConOrigArgTys dc]
     go  vis (FunTy _ _ t1 t2) = go vis t1 `S.union` go vis t2
     go  vis (ForAllTy _ t)    = go vis t
     go  _   (TyVarTy _)       = S.empty

@@ -25,7 +25,6 @@ import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located, pa
 -- import qualified Id 
 import qualified Var
 import qualified TyCon 
-import           Coercion
 import qualified Pair
 -- import qualified Text.Printf as Printf
 import qualified CoreSyn                               as C
