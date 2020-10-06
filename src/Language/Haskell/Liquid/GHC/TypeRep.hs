@@ -19,9 +19,6 @@ module Language.Haskell.Liquid.GHC.TypeRep (
   showTy
   ) where
 
-import Coercion
-import CoAxiom
-
 import           Language.Haskell.Liquid.GHC.Misc (showPpr)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding (mkTyArg, showPpr, panic)
 import           Language.Fixpoint.Types (symbol)
@@ -122,8 +119,15 @@ substCoercion x tx (TyConAppCo r c cs)
   = TyConAppCo (subst x tx r) c (subst x tx <$> cs)
 substCoercion x tx (AppCo c1 c2)
   = AppCo (subst x tx c1) (subst x tx c2)
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 substCoercion x tx (FunCo r c1 c2)
   = FunCo r (subst x tx c1) (subst x tx c2)
+#else
+substCoercion x tx (FunCo r cN c1 c2)
+  = FunCo r cN (subst x tx c1) (subst x tx c2) -- TODO(adinapoli) Is this the correct substitution?
+#endif
+#endif
 substCoercion x tx (ForAllCo y c1 c2)
   | symbol x == symbol y 
   = (ForAllCo y c1 c2)

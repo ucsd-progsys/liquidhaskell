@@ -90,6 +90,7 @@ module Language.Haskell.Liquid.GHC.API (
   , thisPackage
   , renderWithStyle
   , mkUserStyle
+  , pattern LitNumber
 #endif
 #endif
 
@@ -104,11 +105,12 @@ import           GHC                                               as Ghc hiding
 -- Shared imports for GHC < 9
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-import qualified Data.Data as Data
 import Avail               as Ghc
 import Bag                 as Ghc
 import BasicTypes          as Ghc
 import Class               as Ghc
+import CoAxiom             as Ghc
+import Coercion            as Ghc
 import ConLike             as Ghc
 import CoreLint            as Ghc hiding (dumpIfSet)
 import CoreMonad           as Ghc (CoreToDo(..))
@@ -116,7 +118,6 @@ import CoreSyn             as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCas
 import CoreUtils           as Ghc (exprType)
 import CostCentre          as Ghc
 import DataCon             as Ghc hiding (dataConInstArgTys)
-import qualified DataCon   as Ghc
 import DynFlags            as Ghc
 import ErrUtils            as Ghc
 import FamInstEnv          as Ghc hiding (pprFamInst)
@@ -136,6 +137,7 @@ import NameEnv             (lookupNameEnv_NF)
 import NameSet             as Ghc
 import Outputable          as Ghc hiding ((<>))
 import Panic               as Ghc
+import PrelInfo            as Ghc
 import PrelNames           as Ghc hiding (wildCardName)
 import RdrName             as Ghc
 import SrcLoc              as Ghc hiding (RealSrcSpan, SrcSpan(UnhelpfulSpan))
@@ -147,8 +149,10 @@ import TysWiredIn          as Ghc
 import UniqFM              as Ghc
 import Unique              as Ghc
 import Var                 as Ghc hiding (mkLocalVar)
-import qualified Var       as Ghc
 import qualified           SrcLoc
+import qualified Data.Data as Data
+import qualified DataCon   as Ghc
+import qualified Var       as Ghc
 #endif
 #endif
 
@@ -234,6 +238,7 @@ import Data.Foldable                  (asum)
 import GHC.Builtin.Names              as Ghc
 import GHC.Builtin.Types              as Ghc
 import GHC.Builtin.Types.Prim         as Ghc
+import GHC.Builtin.Utils              as Ghc
 import GHC.Core                       as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import GHC.Core.Class                 as Ghc
 import GHC.Core.ConLike               as Ghc
@@ -244,6 +249,7 @@ import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, isEvVarType, isEqPrimPred, isEqPred, isClassPred)
 import GHC.Core.TyCo.Rep              as Ghc
 import GHC.Core.TyCon                 as Ghc
+import GHC.Core.Coercion.Axiom        as Ghc
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy)
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
@@ -260,7 +266,7 @@ import GHC.Types.Basic                as Ghc
 import GHC.Types.CostCentre           as Ghc
 import GHC.Types.Id                   as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import GHC.Types.Id.Info              as Ghc
-import GHC.Types.Literal              as Ghc
+import GHC.Types.Literal              as Ghc hiding (LitNumber)
 import GHC.Types.Name                 as Ghc hiding (varName)
 import GHC.Types.Name.Reader          as Ghc
 import GHC.Types.Name.Set             as Ghc
@@ -272,6 +278,7 @@ import GHC.Unit.Module                as Ghc
 import GHC.Utils.Error                as Ghc
 import GHC.Utils.Outputable           as Ghc hiding ((<>), renderWithStyle, mkUserStyle)
 import GHC.Utils.Panic                as Ghc
+import qualified GHC.Types.Literal    as Ghc
 import qualified GHC.Utils.Outputable as Ghc
 #endif
 #endif
@@ -649,6 +656,18 @@ renderWithStyle dynflags sdoc style = Ghc.renderWithStyle (Ghc.initSDocContext d
 
 mkUserStyle :: DynFlags -> PrintUnqualified -> Depth -> PprStyle
 mkUserStyle _ = Ghc.mkUserStyle
+
+--
+-- Literal
+--
+
+-- In GHC 9 'LitNumber' doesn't have the extra 3rd argument, so we simply ignore it in the construction.
+
+pattern LitNumber :: Ghc.LitNumType -> Integer -> Ghc.Type -> Ghc.Literal
+pattern LitNumber numType integer ty <- ((intPrimTy,) -> (ty, Ghc.LitNumber numType integer))
+  where
+    LitNumber numType integer _ = Ghc.LitNumber numType integer
+
 
 #endif
 
