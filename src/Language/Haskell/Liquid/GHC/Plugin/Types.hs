@@ -56,23 +56,14 @@ module Language.Haskell.Liquid.GHC.Plugin.Types
 import           Data.Binary                             as B
 import           Data.Data                                ( Data )
 import           Data.Foldable
-import           Outputable                        hiding ( (<>) )
 import           GHC.Generics                      hiding ( moduleName )
-import           HscTypes                                 (ModGuts)
-import           GHC                                      ( Name
-                                                          , TyThing
-                                                          , TyCon
-                                                          , LImportDecl
-                                                          , GhcRn
-                                                          )
-import           Var                                      ( Var )
-import           Module                                   ( Module, moduleStableString )
 
 import qualified Data.HashSet        as HS
 import           Data.Hashable
 
 import           Language.Fixpoint.Types.Spans
 import           Language.Haskell.Liquid.Types.Specs
+import           Language.Haskell.Liquid.GHC.API         as GHC
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
 import           Language.Fixpoint.Types.Names            ( Symbol )
 

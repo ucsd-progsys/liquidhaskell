@@ -20,15 +20,8 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
   ) where
 
-import qualified Outputable                              as O
-import           GHC                               hiding ( Target
-                                                          , Located
-                                                          , desugarModule
-                                                          )
-
-import           Plugins                                 as GHC
-import           TcRnTypes                               as GHC
-import           TcRnMonad                               as GHC
+import qualified Language.Haskell.Liquid.GHC.API         as O
+import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target)
 
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
@@ -48,14 +41,6 @@ import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
 import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
                                                           , askHscEnv
                                                           )
-import           CoreMonad
-import           DataCon
-import           DynFlags
-import           HscTypes                          hiding ( Target )
-import           InstEnv
-import           Module
-import           FamInstEnv
-import qualified TysPrim
 import           GHC.LanguageExtensions
 
 import           Control.Monad
@@ -503,7 +488,7 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
     , gsCls       = mgi_cls_inst mgiModGuts
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
-    , gsPrimTcs   = TysPrim.primTyCons
+    , gsPrimTcs   = GHC.primTyCons
     , gsQualImps  = tcQualifiedImports tcData
     , gsAllImps   = tcAllImports       tcData
     , gsTyThings  = [ t | (_, Just t) <- things ]

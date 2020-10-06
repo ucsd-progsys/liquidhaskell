@@ -14,4 +14,5 @@ extra-deps:
 - optics-0.2
 - optics-th-0.2
 - tasty-rerun-1.1.14
+- th-compat-0.1
 resolver: lts-14.12

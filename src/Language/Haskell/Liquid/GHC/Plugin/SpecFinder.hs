@@ -25,12 +25,8 @@ import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import           Optics
-import qualified Outputable                              as O
-import           GHC                                     hiding (lookupModule)
-import           HscTypes
-import           CoreMonad                                ( getDynFlags )
-import           Finder                                   ( findExposedPackageModule
-                                                          )
+import qualified Language.Haskell.Liquid.GHC.API         as O
+import           Language.Haskell.Liquid.GHC.API         as GHC hiding (linear)
 
 import           Data.Bifunctor
 import           Data.Foldable

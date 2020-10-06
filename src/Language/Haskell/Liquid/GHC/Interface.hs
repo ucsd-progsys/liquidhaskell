@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -237,7 +238,13 @@ configureDynFlags cfg tmp = do
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
                                     then defaultLogAction
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
                                     else \_ _ _ _ _ _ -> return ()
+#else
+                                    else \_ _ _ _ _   -> return ()
+#endif
+#endif
                  -- redirect .hi/.o/etc files to temp directory
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
@@ -651,8 +658,9 @@ makeDependencies cfg depGraph specEnv modSum _ = do
   return        $ TargetDependencies $ HM.fromList impSpecs
   where
     mkStableModule :: (ModName, Int) -> StableModule
-    mkStableModule (modName, ix) = 
-      toStableModule (Module (fakeUnitId (moduleUnitId targetModule) ix) (getModName modName))
+    mkStableModule (modName, ix) =
+      let realUnit = RealUnit $ Definite (fakeUnitId (moduleUnitId targetModule) ix)
+      in toStableModule (Module realUnit (getModName modName))
 
     fakeUnitId :: UnitId -> Int -> UnitId
     fakeUnitId uid ix = stringToUnitId $ unitIdString uid ++ show ix
@@ -708,7 +716,7 @@ extractSpecComments :: ApiAnns -> [(SourcePos, String)]
 extractSpecComments = mapMaybe extractSpecComment
                     . concat
                     . M.elems
-                    . snd
+                    . apiAnnComments
 
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
@@ -716,8 +724,10 @@ extractSpecComments = mapMaybe extractSpecComment
 --   1. '{-@ S @-}' then it returns the substring 'S',
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
-extractSpecComment :: Ghc.Located AnnotationComment -> Maybe (SourcePos, String)
 
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+extractSpecComment :: Ghc.Located AnnotationComment -> Maybe (SourcePos, String)
 extractSpecComment (Ghc.L sp (AnnBlockComment text))
   | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
   = Just (offsetPos, take (length text - 6) $ drop 3 text)
@@ -727,6 +737,19 @@ extractSpecComment (Ghc.L sp (AnnBlockComment text))
     offsetPos = case srcSpanSourcePos sp of
       SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
 extractSpecComment _ = Nothing
+#else
+extractSpecComment :: Ghc.RealLocated AnnotationComment -> Maybe (SourcePos, String)
+extractSpecComment (Ghc.L sp (AnnBlockComment text))
+  | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
+  = Just (offsetPos, take (length text - 6) $ drop 3 text)
+  | isPrefixOf "{-@" text                                   -- invalid specification
+  = uError $ ErrParseAnn (RealSrcSpan sp Nothing) "A valid specification must have a closing '@-}'."
+  where
+    offsetPos = case srcSpanSourcePos (RealSrcSpan sp Nothing) of
+      SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
+extractSpecComment _ = Nothing
+#endif
+#endif
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
 extractSpecQuotes = 

@@ -39,6 +39,13 @@ packages:
       sha256: f6b89e2e06d38d0a2d73c220648811a54684b476778904416b22f1ccae7eab67
   original:
     hackage: tasty-rerun-1.1.14
+- completed:
+    hackage: th-compat-0.1@sha256:ff11df2bbd6ad519987f8fe5b2fd783349260681a91565a40d4096bb0a536b0b,2818
+    pantry-tree:
+      size: 529
+      sha256: c794a1d447edb8cf039f47514f50eee20c2584452f1a60848f905dc710c9b59f
+  original:
+    hackage: th-compat-0.1
 snapshots:
 - completed:
     size: 545658

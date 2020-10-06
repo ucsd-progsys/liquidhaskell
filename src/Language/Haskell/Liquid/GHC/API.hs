@@ -84,6 +84,9 @@ module Language.Haskell.Liquid.GHC.API (
   , DataConAppContext(..)
   , deepSplitProductType_maybe
   , splitFunTys
+  , mkUserLocal
+  , dataConWrapperType
+  , apiAnnComments
 #endif
 #endif
 
@@ -97,6 +100,7 @@ module Language.Haskell.Liquid.GHC.API (
   , mkUserStyle
   , pattern LitNumber
   , dataConSig
+  , gcatch
 #endif
 #endif
 
@@ -112,6 +116,7 @@ import           GHC                                               as Ghc hiding
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
+--import CoreSubst                as Ghc
 import Annotations              as Ghc
 import Avail                    as Ghc
 import Bag                      as Ghc
@@ -122,14 +127,13 @@ import Coercion                 as Ghc
 import ConLike                  as Ghc
 import CoreLint                 as Ghc hiding (dumpIfSet)
 import CoreMonad                as Ghc (CoreToDo(..))
-import CoreSubst                as Ghc
 import CoreSyn                  as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import CoreUtils                as Ghc (exprType)
 import CostCentre               as Ghc
 import DataCon                  as Ghc hiding (dataConInstArgTys, dataConOrigArgTys, dataConRepArgTys)
 import Digraph                  as Ghc
-import DriverPhases             as Ghc
-import DriverPipeline           as Ghc
+import DriverPhases             as Ghc (Phase(StopLn))
+import DriverPipeline           as Ghc hiding (P)
 import DynFlags                 as Ghc
 import ErrUtils                 as Ghc
 import FamInst                  as Ghc
@@ -137,10 +141,12 @@ import FamInstEnv               as Ghc hiding (pprFamInst)
 import Finder                   as Ghc
 import ForeignCall              (CType)
 import GHC                      as Ghc (SrcSpan)
+import GhcPlugins               as Ghc
 import HscMain                  as Ghc
 import HscTypes                 as Ghc
-import Id                       as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
+import Id                       as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported, mkUserLocal)
 import IdInfo                   as Ghc
+import IfaceSyn                 as Ghc
 import InstEnv                  as Ghc
 import Literal                  as Ghc
 import MkCore                   as Ghc
@@ -162,6 +168,7 @@ import TcRnTypes                as Ghc
 import TysPrim                  as Ghc
 import TysWiredIn               as Ghc
 import Unify                    as Ghc
+import UniqDFM                  as Ghc
 import UniqFM                   as Ghc
 import UniqSet                  as Ghc
 import UniqSupply               as Ghc
@@ -173,6 +180,7 @@ import qualified                SrcLoc
 import qualified Data.Bifunctor as Bi
 import qualified Data.Data      as Data
 import qualified DataCon        as Ghc
+import qualified Id             as Ghc
 import qualified Var            as Ghc
 import qualified WwLib          as Ghc
 #endif
@@ -258,6 +266,8 @@ import Data.Foldable  (asum)
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,1,0,0)
 
 import Optics
+import qualified UnliftIO.Exception as UnliftIO
+import qualified UnliftIO
 
 import Data.Foldable                  (asum)
 import GHC.Builtin.Names              as Ghc
@@ -294,6 +304,15 @@ import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
 import GHC.Driver.Types               as Ghc
 import GHC.HsToCore.Monad             as Ghc
+import GHC.Iface.Syntax               as Ghc
+import GHC.Plugins                    as Ghc ( deserializeWithData
+                                             , fromSerialized
+                                             , toSerialized
+                                             , defaultPlugin
+                                             , Plugin(..)
+                                             , CommandLineOption
+                                             , purePlugin
+                                             )
 import GHC.Tc.Instance.Family         as Ghc
 import GHC.Tc.Module                  as Ghc
 import GHC.Tc.Types                   as Ghc
@@ -310,6 +329,7 @@ import GHC.Types.Name.Reader          as Ghc
 import GHC.Types.Name.Set             as Ghc
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.Unique               as Ghc
+import GHC.Types.Unique.DFM           as Ghc
 import GHC.Types.Unique.FM            as Ghc
 import GHC.Types.Unique.Set           as Ghc
 import GHC.Types.Unique.Supply        as Ghc
@@ -512,6 +532,10 @@ deepSplitProductType_maybe famInstEnv ty = do
 
 splitFunTys :: Type -> ([Scaled Type], Type)
 splitFunTys ty = Bi.first (map (mkScaled Many)) $ Ghc.splitFunTys ty
+
+apiAnnComments :: (Map ApiAnnKey [SrcSpan], Map SrcSpan [Located AnnotationComment])
+               -> Map SrcSpan [Located AnnotationComment]
+apiAnnComments = snd
 
 #endif
 #endif
@@ -743,6 +767,10 @@ pattern LitNumber numType integer ty <- ((intPrimTy,) -> (ty, Ghc.LitNumber numT
 dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
 dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
+
+gcatch :: (UnliftIO.MonadUnliftIO m, Exception e) => m a -> (e -> m a) -> m a
+gcatch = UnliftIO.catch
+
 
 #endif
 

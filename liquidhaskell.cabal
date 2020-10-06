@@ -236,12 +236,14 @@ library
                     , split
                     , syb                  >= 0.4.4
                     , template-haskell     >= 2.9
+                    , th-compat            < 0.2
                     , temporary            >= 1.2
                     , text                 >= 1.2
                     , time                 >= 1.4
                     , time
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
+                    , unliftio
                     , vector               >= 0.10
                     , extra
   default-language:   Haskell98
