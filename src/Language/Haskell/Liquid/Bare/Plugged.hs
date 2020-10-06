@@ -48,11 +48,7 @@ import qualified Language.Haskell.Liquid.Bare.Misc  as Bare
 --   this module is responsible for plugging the holes we obviously cannot
 --   assume, as in e.g. L.H.L.Constraint.* that they do not appear.
 --------------------------------------------------------------------------------
-<<<<<<< HEAD
-makePluggedSig :: ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> S.HashSet StableName
-=======
 makePluggedSig :: Bool -> ModName -> F.TCEmb Ghc.TyCon -> TyConMap -> Ghc.NameSet
->>>>>>> vrdt-hack
                -> Bare.PlugTV Ghc.Var -> LocSpecType
                -> LocSpecType
 

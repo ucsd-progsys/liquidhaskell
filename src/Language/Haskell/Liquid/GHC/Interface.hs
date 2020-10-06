@@ -478,18 +478,17 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   let targetSrc = view targetSrcIso ghcSrc
   dynFlags <- getDynFlags
 
-<<<<<<< HEAD
   case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
     Left diagnostics -> do
       mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
       throw (allErrors diagnostics)
     Right (warns, targetSpec, liftedSpec) -> do
       mapM_ (liftIO . printWarning dynFlags) warns
-=======
-  makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>= \case
-    Left  validationErrors -> Bare.checkThrow (Left validationErrors)
-    Right (targetSpec, liftedSpec) -> do
->>>>>>> vrdt-hack
+      
+      -- makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>= \case
+      --   Left  validationErrors -> Bare.checkThrow (Left validationErrors)
+      --   Right (targetSpec, liftedSpec) -> do
+      
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
       _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
       return      $ TargetInfo targetSrc targetSpec

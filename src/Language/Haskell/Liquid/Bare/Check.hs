@@ -101,47 +101,28 @@ checkTargetSpec :: [Ms.BareSpec]
                 -> F.SEnv F.SortedReft
                 -> [CoreBind]
                 -> TargetSpec
-<<<<<<< HEAD
                 -> Either Diagnostics ()
 checkTargetSpec specs src env cbs sp
   | diagnostics == emptyDiagnostics = Right ()
   | otherwise                       = Left diagnostics
   where
     diagnostics      :: Diagnostics
-    diagnostics      =  foldMap (checkBind allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
+    diagnostics      =  foldMap (checkBind allowTC allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
                      <> condNull noPrune
-                        (foldMap (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
-                     <> foldMap (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     <> foldMap (checkBind allowHO bsc "reflect"      emb tcEnv env) (gsRefSigs    (gsSig sp))
-                     <> checkTySigs         allowHO bsc cbs            emb tcEnv env                (gsSig sp)
+                        (foldMap (checkBind allowTC allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
+                     <> foldMap (checkBind allowTC allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
+                     <> foldMap (checkBind allowTC allowHO bsc "reflect"      emb tcEnv env) (gsRefSigs    (gsSig sp))
+                     <> checkTySigs        allowTC allowHO bsc cbs            emb tcEnv env                (gsSig sp)
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp))
-                     <> foldMap (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
-                     <> foldMap (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
-                     <> checkIAl allowHO bsc emb tcEnv env                            (gsIaliases   (gsData sp))
+                     <> foldMap (checkBind allowTC allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
+                     <> foldMap (checkInv allowTC allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
+                     <> checkIAl allowTC allowHO bsc emb tcEnv env                            (gsIaliases   (gsData sp))
                      <> checkMeasures emb env ms
                      <> checkClassMeasures                                        (gsMeasures (gsData sp))
                      <> checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
-                     <> foldMap checkMismatch sigs
+                     -- <> foldMap checkMismatch sigs
+                     <> foldMap checkMismatch (L.filter (\(v,_) -> not (GM.isSCSel v || GM.isMethod v)) sigs)
                      <> checkDuplicate                                            (gsTySigs     (gsSig sp))
-=======
-                -> Either [Error] TargetSpec
-checkTargetSpec specs src env cbs sp = Misc.applyNonNull (Right sp) Left errors
-  where
-    errors           =  mapMaybe (checkBind allowTC allowHO bsc "measure"      emb tcEnv env) (gsMeas       (gsData sp))
-                     ++ condNull noPrune 
-                        (mapMaybe (checkBind allowTC allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
-                     ++ mapMaybe (checkBind allowTC allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     ++ checkTySigs         allowTC allowHO bsc cbs            emb tcEnv env                (gsSig sp)
-                     -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp)) 
-                     ++ mapMaybe (checkBind allowTC allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
-                     ++ mapMaybe (checkInv allowTC allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
-                     ++ checkIAl allowTC allowHO bsc emb tcEnv env                            (gsIaliases   (gsData sp))
-                     ++ checkMeasures emb env ms
-                     ++ checkClassMeasures                                        (gsMeasures (gsData sp))
-                     ++ checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
-                     ++ mapMaybe checkMismatch                     (L.filter (\(v,_) -> not (GM.isSCSel v || GM.isMethod v)) sigs)
-                     ++ checkDuplicate                                            (gsTySigs     (gsSig sp))
->>>>>>> vrdt-hack
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      <> checkDuplicate                                            (gsAsmSigs    (gsSig sp))
                      <> checkDupIntersect                                         (gsTySigs (gsSig sp)) (gsAsmSigs (gsSig sp))
@@ -185,36 +166,25 @@ checkPlugged xs = mkDiagnostics mempty (map mkErr (filter (hasHoleTy . val . snd
 
 
 --------------------------------------------------------------------------------
-<<<<<<< HEAD
 checkTySigs :: Bool
+            -> Bool
             -> BScope
             -> [CoreBind]
             -> F.TCEmb TyCon
             -> Bare.TyConMap
             -> F.SEnv F.SortedReft
-=======
-checkTySigs :: Bool -> Bool -> BScope -> [CoreBind] -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
->>>>>>> vrdt-hack
             -> GhcSpecSig
             -> Diagnostics
 --------------------------------------------------------------------------------
-<<<<<<< HEAD
-checkTySigs allowHO bsc cbs emb tcEnv env sig
-                   = mconcat (map (check env) topTs)
-                     -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
-                     -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs])
-                  <> coreVisitor checkVisitor env emptyDiagnostics cbs
-  where
-    check env      = checkSigTExpr allowHO bsc emb tcEnv env
-=======
 checkTySigs allowTC allowHO bsc cbs emb tcEnv env sig
-                   = concatMap (check env) topTs
+                   = mconcat (map (check env) topTs)
+                   -- = concatMap (check env) topTs
                    -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
                    -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
-                   ++ coreVisitor checkVisitor env [] cbs 
+                  <> coreVisitor checkVisitor env emptyDiagnostics cbs
+                   -- ++ coreVisitor checkVisitor env [] cbs 
   where 
     check env      = checkSigTExpr allowTC allowHO bsc emb tcEnv env
->>>>>>> vrdt-hack
     locTm          = M.fromList locTs
     (locTs, topTs) = Bare.partitionLocalBinds vtes
     vtes           = [ (x, (t, es)) | (x, t) <- gsTySigs sig, let es = M.lookup x vExprs]
@@ -231,24 +201,15 @@ checkTySigs allowTC allowHO bsc cbs emb tcEnv env sig
                          Nothing -> emptyDiagnostics
                          Just t  -> check env (v, t) 
 
-<<<<<<< HEAD
-checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft
-              -> (Var, (LocSpecType, Maybe [Located F.Expr]))
-              -> Diagnostics
-checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) = mbErr1 <> mbErr2
-   where
-    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
-    mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
-=======
 checkSigTExpr :: Bool -> Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
               -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
               -> [Error]
 checkSigTExpr allowTC allowHO bsc emb tcEnv env (x, (t, es)) 
-           = catMaybes [mbErr1, mbErr2] 
+           = mbErr1 <> mbErr2
    where 
     mbErr1 = checkBind allowTC allowHO bsc empty emb tcEnv env (x, t) 
-    mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
->>>>>>> vrdt-hack
+    mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
+    -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
 
 _checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
 _checkQualifiers = mapMaybe . checkQualifier
@@ -319,35 +280,27 @@ _firstDuplicate = go . L.sort
                 | otherwise = go (x:xs)
     go _                    = Nothing
 
-<<<<<<< HEAD
 checkInv :: Bool
+         -> Bool
          -> BScope
          -> F.TCEmb TyCon
          -> Bare.TyConMap
          -> F.SEnv F.SortedReft
          -> (Maybe Var, LocSpecType)
          -> Diagnostics
-checkInv allowHO bsc emb tcEnv env (_, t) = checkTy allowHO bsc err emb tcEnv env t
+checkInv allowTC allowHO bsc emb tcEnv env (_, t) = checkTy allowTC allowHO bsc err emb tcEnv env t
   where
     err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
 
 checkIAl :: Bool
+         -> Bool
          -> BScope
          -> F.TCEmb TyCon
          -> Bare.TyConMap
          -> F.SEnv F.SortedReft
          -> [(LocSpecType, LocSpecType)]
          -> Diagnostics
-checkIAl allowHO bsc emb tcEnv env = mconcat . map (checkIAlOne allowHO bsc emb tcEnv env)
-=======
-checkInv :: Bool -> Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (Maybe Var, LocSpecType) -> Maybe Error
-checkInv allowTC allowHO bsc emb tcEnv env (_, t) = checkTy allowTC allowHO bsc err emb tcEnv env t
-  where
-    err              = ErrInvt (GM.sourcePosSrcSpan $ loc t) (val t)
-
-checkIAl :: Bool -> Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> [(LocSpecType, LocSpecType)] -> [Error]
-checkIAl allowTC allowHO bsc emb tcEnv env ials = catMaybes $ concatMap (checkIAlOne allowTC allowHO bsc emb tcEnv env) ials
->>>>>>> vrdt-hack
+checkIAl allowTC allowHO bsc emb tcEnv env = mconcat . map (checkIAlOne allowTC allowHO bsc emb tcEnv env)
 
 checkIAlOne :: Bool
             -> Bool
@@ -356,13 +309,8 @@ checkIAlOne :: Bool
             -> Bare.TyConMap
             -> F.SEnv F.SortedReft
             -> (LocSpecType, LocSpecType)
-<<<<<<< HEAD
             -> Diagnostics
-checkIAlOne allowHO bsc emb tcEnv env (t1, t2) = mconcat $ checkEq : (tcheck <$> [t1, t2])
-=======
-            -> [Maybe (TError SpecType)]
-checkIAlOne allowTC allowHO bsc emb tcEnv env (t1, t2) = checkEq : (tcheck <$> [t1, t2])
->>>>>>> vrdt-hack
+checkIAlOne allowTC allowHO bsc emb tcEnv env (t1, t2) = mconcat $ checkEq : (tcheck <$> [t1, t2])
   where
     tcheck t = checkTy allowTC allowHO bsc (err t) emb tcEnv env t
     err    t = ErrIAl (GM.sourcePosSrcSpan $ loc t) (val t)
@@ -381,9 +329,9 @@ checkRTAliases msg _ as = err1s
   where
     err1s               = checkDuplicateRTAlias msg as
 
-<<<<<<< HEAD
 checkBind :: (PPrint v)
           => Bool
+          -> Bool
           -> BScope
           -> Doc
           -> F.TCEmb TyCon
@@ -391,11 +339,7 @@ checkBind :: (PPrint v)
           -> F.SEnv F.SortedReft
           -> (v, LocSpecType)
           -> Diagnostics
-checkBind allowHO bsc s emb tcEnv env (v, t) = checkTy allowHO bsc msg emb tcEnv env t
-=======
-checkBind :: (PPrint v) => Bool -> Bool -> BScope -> Doc -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> (v, LocSpecType) -> Maybe Error
 checkBind allowTC allowHO bsc s emb tcEnv env (v, t) = checkTy allowTC allowHO bsc msg emb tcEnv env t
->>>>>>> vrdt-hack
   where
     msg                      = ErrTySpec (GM.fSrcSpan t) (Just s) (pprint v) (val t)
 
@@ -432,8 +376,8 @@ checkTerminationExpr emb env (v, Loc l _ t, les)
     rSort   = rTypeSortedReft emb
     cmpZero e = F.PAtom F.Le (F.expr (0 :: Int)) (val e)
 
-<<<<<<< HEAD
 checkTy :: Bool
+        -> Bool
         -> BScope
         -> (Doc -> Error)
         -> F.TCEmb TyCon
@@ -441,14 +385,10 @@ checkTy :: Bool
         -> F.SEnv F.SortedReft
         -> LocSpecType
         -> Diagnostics
-checkTy allowHO bsc mkE emb tcEnv env t =
-  case checkRType allowHO bsc emb env (Bare.txRefSort tcEnv emb t) of
+checkTy allowTC allowHO bsc mkE emb tcEnv env t =
+  case checkRType allowTC allowHO bsc emb env (Bare.txRefSort tcEnv emb t) of
     Nothing -> emptyDiagnostics
     Just d  -> mkDiagnostics mempty [mkE d]
-=======
-checkTy :: Bool -> Bool -> BScope -> (Doc -> Error) -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft -> LocSpecType -> Maybe Error
-checkTy allowTC allowHO bsc mkE emb tcEnv env t = mkE <$> checkRType allowTC allowHO bsc emb env (Bare.txRefSort tcEnv emb t)
->>>>>>> vrdt-hack
   where
     _msg =  "CHECKTY: " ++ showpp (val t)
 

@@ -228,49 +228,6 @@ ghcSpecEnv sp = fromListSEnv binds
 -------------------------------------------------------------------------------------
 makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc.Ghc GhcSpec
 -------------------------------------------------------------------------------------
-<<<<<<< HEAD
-makeGhcSpec0 cfg src lmap mspecs = SP 
-  { _gsConfig = cfg 
-  , _gsImps   = makeImports mspecs
-  , _gsSig    = addReflSigs env name rtEnv refl sig
-  , _gsRefl   = refl 
-  , _gsLaws   = laws 
-  , _gsData   = sData 
-  , _gsQual   = qual 
-  , _gsName   = makeSpecName env     tycEnv measEnv   name 
-  , _gsVars   = makeSpecVars cfg src mySpec env measEnv
-  , _gsTerm   = makeSpecTerm cfg     mySpec env       name    
-  , _gsLSpec  = finalLiftedSpec
-              { impSigs   = makeImports mspecs
-              , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
-              , dataDecls = dataDecls mySpec2
-              , measures  = Ms.measures mySpec
-                -- We want to export measures in a 'LiftedSpec', especially if they are
-                -- required to check termination of some 'liftedSigs' we export. Due to the fact
-                -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
-                -- we take them from 'mySpec', which has those.
-              , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
-                -- Export all the assumptions (not just the ones created out of reflection) in
-                -- a 'LiftedSpec'.
-              , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
-                -- Preserve user-defined 'imeasures'.
-              , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
-                -- Preserve user-defined 'dvariance'.
-              , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
-                -- Preserve rinstances.
-              }
-  }
-  where
-    finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
-    -- build up spec components 
-    myRTE    = myRTEnv       src env sigEnv rtEnv  
-    qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
-    sData    = makeSpecData  src env sigEnv measEnv sig specs 
-    refl     = makeSpecRefl  cfg src measEnv specs env name sig tycEnv 
-    laws     = makeSpecLaws env sigEnv (gsTySigs sig ++ gsAsmSigs sig) measEnv specs 
-    sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
-    measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
-=======
 makeGhcSpec0 cfg src lmap mspecsNoCls = do
   tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
   let tyi      = Bare.tcTyConMap   tycEnv 
@@ -281,7 +238,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
   let sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
   let myRTE    = myRTEnv       src env sigEnv rtEnv  
-  elaboratedSig<- if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
+  elaboratedSig <- if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
                              else pure sig
   let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
@@ -291,7 +248,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   pure $ SP 
     { _gsConfig = cfg 
     , _gsImps   = makeImports mspecs
-    , _gsSig    = addReflSigs refl elaboratedSig
+    , _gsSig    = addReflSigs env name rtEnv refl elaboratedSig
     , _gsRefl   = refl 
     , _gsLaws   = laws 
     , _gsData   = sData 
@@ -299,13 +256,28 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     , _gsName   = makeSpecName env     tycEnv measEnv   name 
     , _gsVars   = makeSpecVars cfg src mySpec env measEnv
     , _gsTerm   = makeSpecTerm cfg     mySpec env       name    
-    , _gsLSpec  = makeLiftedSpec   src env refl sData elaboratedSig qual myRTE lSpec1 {
-                     impSigs   = makeImports mspecs,
-                     expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
-                     dataDecls = dataDecls mySpec2 
-                     } 
+    , _gsLSpec  = finalLiftedSpec
+                { impSigs   = makeImports mspecs,
+                , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
+                , dataDecls = dataDecls mySpec2 
+                , measures  = Ms.measures mySpec
+                  -- We want to export measures in a 'LiftedSpec', especially if they are
+                  -- required to check termination of some 'liftedSigs' we export. Due to the fact
+                  -- that 'lSpec1' doesn't contain the measures that we compute via 'makeHaskellMeasures',
+                  -- we take them from 'mySpec', which has those.
+                , asmSigs = Ms.asmSigs finalLiftedSpec ++ Ms.asmSigs mySpec
+                  -- Export all the assumptions (not just the ones created out of reflection) in
+                  -- a 'LiftedSpec'.
+                , imeasures = Ms.imeasures finalLiftedSpec ++ Ms.imeasures mySpec
+                  -- Preserve user-defined 'imeasures'.
+                , dvariance = Ms.dvariance finalLiftedSpec ++ Ms.dvariance mySpec
+                  -- Preserve user-defined 'dvariance'.
+                , rinstance = Ms.rinstance finalLiftedSpec ++ Ms.rinstance mySpec
+                  -- Preserve rinstances.
+                } 
     }
   where
+    finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
     -- typeclass elaboration
     allowTC    = typeclass cfg
     simplifier :: Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr
@@ -335,7 +307,6 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
         si
           { gsTySigs = F.notracepp ("asmSigs" ++ F.showpp (gsAsmSigs si)) tySigs ++ auxsig  }
 
->>>>>>> vrdt-hack
     -- build up environments
     (tycEnv0, datacons)   = makeTycEnv0   cfg name env embs mySpec2 iSpecs2 
     mySpec2  = Bare.qualifyExpand env name rtEnv l [] mySpec1    where l = F.dummyPos "expand-mySpec2"

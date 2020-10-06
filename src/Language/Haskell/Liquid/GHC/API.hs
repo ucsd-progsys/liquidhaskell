@@ -38,7 +38,6 @@ module Language.Haskell.Liquid.GHC.API (
 
   , tyConRealArity
   , dataConExTyVars
-<<<<<<< HEAD
 
 -- Specific imports for 8.8.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
@@ -47,11 +46,8 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 #endif
 
-  ) where
-=======
   , gHC_REAL
   ) where 
->>>>>>> vrdt-hack
 
 import Avail          as Ghc
 import GHC            as Ghc hiding (Warning)
@@ -65,10 +61,7 @@ import CoreSyn        as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import NameSet        as Ghc
 import InstEnv        as Ghc
 import Literal        as Ghc
-<<<<<<< HEAD
-=======
 import TcType         as Ghc (isClassPred, tcSplitMethodTy, tcSplitAppTys)
->>>>>>> vrdt-hack
 import Class          as Ghc
 import Unique         as Ghc
 import RdrName        as Ghc
@@ -148,11 +141,8 @@ import TyCoRep        as Ghc
 import FastString     as Ghc
 import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType)
 import Data.Foldable  (asum)
-<<<<<<< HEAD
-=======
 import Util           (lengthIs)
 import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL)
->>>>>>> vrdt-hack
 #endif
 #endif
 
