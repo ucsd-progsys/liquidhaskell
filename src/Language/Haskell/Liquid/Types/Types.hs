@@ -238,6 +238,8 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
   , rtyVarType, tyVarVar
+
+  , ordSrcSpan
   )
   where
 

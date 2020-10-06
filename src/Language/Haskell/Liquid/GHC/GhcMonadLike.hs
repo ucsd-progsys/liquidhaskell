@@ -28,6 +28,7 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , desugarModule
   , findModule
   , lookupModule
+  , isBootSum
   ) where
 
 import Control.Monad

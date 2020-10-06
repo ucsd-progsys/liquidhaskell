@@ -22,11 +22,11 @@ module Language.Haskell.Liquid.WiredIn
        ) where
 
 import Prelude                                hiding (error)
-import Var
 
 -- import Language.Fixpoint.Misc           (mapSnd)
 import Language.Haskell.Liquid.GHC.Misc
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
+import Language.Haskell.Liquid.GHC.API (Var, Arity, TyVar, Bind(..), Boxity(..), Expr(..), ArgFlag(..))
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
 import Language.Haskell.Liquid.Types.Variance
@@ -36,13 +36,7 @@ import Language.Haskell.Liquid.Types.PredType
 import qualified Language.Fixpoint.Types as F
 import qualified Data.HashSet as S 
 
-import BasicTypes
--- import DataCon
--- import TyCon
-import TysWiredIn
-
 import Language.Haskell.Liquid.GHC.TypeRep ()
-import CoreSyn hiding (mkTyArg)
 
 -- | Horrible hack to support hardwired symbols like
 --      `head`, `tail`, `fst`, `snd`
@@ -124,11 +118,11 @@ wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
 
 listTyDataCons :: ([TyConP] , [DataConP])
 listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize))]
-                   , [(DataConP l0 nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0)
-                     ,(DataConP l0 consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0)])
+                   , [(DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0)
+                     ,(DataConP l0 Ghc.consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0)])
     where
       l0         = F.dummyPos "LH.Bare.listTyDataCons"
-      c          = listTyCon
+      c          = Ghc.listTyCon
       [tyv]      = tyConTyVarsDef c
       t          = rVar tyv :: RSort
       fld        = "fldList"
@@ -152,8 +146,8 @@ tupleTyDataCons n = ( [(TyConP   l0 c  (RTV <$> tyvs) ps tyvarinfo pdvarinfo Not
     tyvarinfo     = replicate n     Covariant
     pdvarinfo     = replicate (n-1) Covariant
     l0            = F.dummyPos "LH.Bare.tupleTyDataCons"
-    c             = tupleTyCon   Boxed n
-    dc            = tupleDataCon Boxed n
+    c             = Ghc.tupleTyCon   Boxed n
+    dc            = Ghc.tupleDataCon Boxed n
     tyvs@(tv:tvs) = tyConTyVarsDef c
     (ta:ts)       = (rVar <$> tyvs) :: [RSort]
     flds          = mks "fld_Tuple"

@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
 
 import           Prelude hiding (error)
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
+import           Language.Haskell.Liquid.GHC.API (Var, Id, TyCon)
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
@@ -28,8 +29,6 @@ import qualified Data.HashMap.Strict               as M
 import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
-import           Var
-import           TyCon                             (TyCon)
 
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 

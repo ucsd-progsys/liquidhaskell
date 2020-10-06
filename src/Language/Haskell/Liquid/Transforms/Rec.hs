@@ -12,24 +12,16 @@ module Language.Haskell.Liquid.Transforms.Rec (
      , isIdTRecBound, setIdTRecBound
      ) where
 
--- import           Bag
--- import           ErrUtils
-import           Coercion
 import           Control.Arrow                        (second)
 import           Control.Monad.State
-import           CoreSyn
-import           CoreUtils
 import qualified Data.HashMap.Strict                  as M
 import           Data.Hashable
-import           Id
-import           IdInfo
-import           Language.Haskell.Liquid.GHC.API      hiding (exprType, panic, mapSndM)
+import           Language.Haskell.Liquid.GHC.API      as Ghc hiding (panic, mapSndM)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.Play
 import           Language.Haskell.Liquid.Misc         (mapSndM)
 import           Language.Fixpoint.Misc               (mapSnd) -- , traceShow)
 import           Language.Haskell.Liquid.Types.Errors
-import           MkCore                               (mkCoreLams)
 import           Prelude                              hiding (error)
 
 import qualified Data.List                            as L

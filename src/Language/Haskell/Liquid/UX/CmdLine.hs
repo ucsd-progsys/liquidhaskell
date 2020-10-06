@@ -42,6 +42,7 @@ module Language.Haskell.Liquid.UX.CmdLine (
 ) where
 
 import Prelude hiding (error)
+import qualified Prelude
 
 
 import Control.Monad
@@ -520,7 +521,8 @@ copyright = concat $ concat
 gitInfo :: String
 gitInfo  = msg
   where
-    giTry  = $$tGitInfoCwdTry
+    giTry :: Either String GitInfo
+    giTry  = Prelude.error ("adinapoli todo") -- $$tGitInfoCwdTry
     msg    = case giTry of
                Left _   -> " no git information"
                Right gi -> gitMsg gi

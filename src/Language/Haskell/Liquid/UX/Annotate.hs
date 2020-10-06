@@ -29,7 +29,6 @@ import           GHC                                          ( SrcSpan (..)
                                           , srcSpanEndLine)
 import           GHC.Exts                                     (groupWith, sortWith)
 import           Prelude                                      hiding (error)
-import qualified SrcLoc
 import           Text.PrettyPrint.HughesPJ                    hiding (first)
 import           Text.Printf
 
@@ -58,6 +57,7 @@ import           Language.Haskell.HsColour.Classify
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.GHC.Misc
+import qualified Language.Haskell.Liquid.GHC.API              as SrcLoc
 import           Language.Fixpoint.Types                      hiding (panic, Error, Loc, Constant (..), Located (..))
 import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.PrettyPrint
@@ -118,7 +118,7 @@ doGenerate cfg tplAnnMap typAnnMap annTyp srcF
        vimF       = extFileName Vim   srcF
 
 mkBots :: Reftable r => AnnInfo (RType c tv r) -> [GHC.SrcSpan]
-mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (compare `on` fst) $ M.toList m
+mkBots (AI m) = [ src | (src, (Just _, t) : _) <- sortBy (ordSrcSpan `on` fst) $ M.toList m
                       , isFalse (rTypeReft t) ]
 
 -- | Like 'copyFile' from 'System.Directory', but ensure that the parent /temporary/ directory 
@@ -257,8 +257,8 @@ mkAnnMapErr _             = []
 
 cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)
 cinfoErr e = case pos e of
-               RealSrcSpan l -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
-               _             -> Nothing
+               RealSrcSpan l _ -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
+               _               -> Nothing
 
 
 -- mkAnnMapTyp :: (RefTypable a c tv r, RefTypable a c tv (), PPrint tv, PPrint a) =>Config-> AnnInfo (RType a c tv r) -> M.HashMap Loc (String, String)
@@ -270,7 +270,7 @@ mkAnnMapBinders cfg (AI m)
   = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst) locBinds
   where
-    locBinds       = [ (l, x) | (RealSrcSpan l, x:_) <- M.toList m, oneLine l]
+    locBinds       = [ (l, x) | (RealSrcSpan l _, x:_) <- M.toList m, oneLine l]
     bindStr (x, v) = (maybe "_" (symbolString . shorten . symbol) x, render v)
     shorten        = if shortNames cfg then dropModuleNames else id
 

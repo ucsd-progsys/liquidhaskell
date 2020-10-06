@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE TemplateHaskell    #-}
@@ -14,8 +15,6 @@ module Language.Haskell.Liquid.UX.QuasiQuoter
 --   ) 
   where
 
-import SrcLoc (SrcSpan)
-
 import Data.Data
 import Data.List
 
@@ -29,6 +28,7 @@ import Language.Fixpoint.Types hiding (Error, Loc, SrcSpan)
 import qualified Language.Fixpoint.Types as F
 
 import Language.Haskell.Liquid.GHC.Misc (fSrcSpan)
+import Language.Haskell.Liquid.GHC.API  (SrcSpan)
 import Language.Haskell.Liquid.Parse
 import Language.Haskell.Liquid.Types
 
@@ -92,7 +92,11 @@ mkSpecDecs (Alias rta) =
     lsym = F.atLoc rta n 
     name = symbolName n 
     n    = rtName (val rta)
+#if MIN_VERSION_template_haskell(2,17,0)
+    tvs  = (\a -> PlainTV (symbolName a) ()) <$> rtTArgs (val rta)
+#else
     tvs  = PlainTV . symbolName <$> rtTArgs (val rta)
+#endif
 mkSpecDecs _ =
   Right []
 
@@ -154,7 +158,11 @@ simplifyBareType'' (tvs, cls) (RAllT tv t _) =
   simplifyBareType'' (ty_var_value tv : tvs, cls) t
 
 simplifyBareType'' (tvs, cls) t =
+#if MIN_VERSION_template_haskell(2,17,0)
+  ForallT ((\t -> PlainTV (symbolName t) SpecifiedSpec) <$> reverse tvs)
+#else
   ForallT (PlainTV . symbolName <$> reverse tvs)
+#endif
     <$> mapM simplifyBareType' (reverse cls)
     <*> simplifyBareType' t
 

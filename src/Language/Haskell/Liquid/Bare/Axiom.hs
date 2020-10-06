@@ -32,10 +32,6 @@ import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Bare.Resolve as Bare
 import           Language.Haskell.Liquid.Bare.Types   as Bare
 
-
-import IdInfo
-import BasicTypes
-
 -----------------------------------------------------------------------------------------------
 makeHaskellAxioms :: Config -> GhcSrc -> Bare.Env -> Bare.TycEnv -> ModName -> LogicMap -> GhcSpecSig -> Ms.BareSpec 
                   -> [(Ghc.Var, LocSpecType, F.Equation)]
@@ -238,13 +234,13 @@ makeCompositionExpression x
       "\nv = " ++ GM.showPpr x ++ 
       "\n realIdUnfolding = " ++ GM.showPpr (Ghc.realIdUnfolding x) ++ 
       "\n maybeUnfoldingTemplate . realIdUnfolding = " ++ GM.showPpr (Ghc.maybeUnfoldingTemplate $ Ghc.realIdUnfolding x ) ++ 
-      "\n inl_src . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (inl_src $ inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_inline . inlinePragInfo . Ghc.idInfo = " ++ GM.showPpr (inl_inline $ inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_sat . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (inl_sat $ inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_act . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (inl_act $ inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_rule . inlinePragInfo . Ghc.idInfo = "   ++ GM.showPpr (inl_rule $ inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inl_rule rule = " ++ GM.showPpr (inl_rule $ inlinePragInfo $ Ghc.idInfo x) ++ 
-      "\n inline spec = " ++ GM.showPpr (inl_inline $ inlinePragInfo $ Ghc.idInfo x)  
+      "\n inl_src . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_src $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
+      "\n inl_inline . inlinePragInfo . Ghc.idInfo = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
+      "\n inl_sat . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_sat $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
+      "\n inl_act . inlinePragInfo . Ghc.idInfo = "    ++ GM.showPpr (Ghc.inl_act $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
+      "\n inl_rule . inlinePragInfo . Ghc.idInfo = "   ++ GM.showPpr (Ghc.inl_rule $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
+      "\n inl_rule rule = " ++ GM.showPpr (Ghc.inl_rule $ Ghc.inlinePragInfo $ Ghc.idInfo x) ++ 
+      "\n inline spec = " ++ GM.showPpr (Ghc.inl_inline $ Ghc.inlinePragInfo $ Ghc.idInfo x)  
      ) x 
    where  
     go (Ghc.ForAllTy a (Ghc.ForAllTy b (Ghc.ForAllTy c (Ghc.FunTy { Ghc.ft_arg = tf, Ghc.ft_res = Ghc.FunTy { Ghc.ft_arg = tg, Ghc.ft_res = tx}}))))

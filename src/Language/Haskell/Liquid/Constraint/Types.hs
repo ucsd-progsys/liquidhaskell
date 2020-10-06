@@ -56,13 +56,6 @@ module Language.Haskell.Liquid.Constraint.Types
   ) where
 
 import Prelude hiding (error)
-import           CoreSyn
-import           Type (TyThing( AnId ))
-import           Var
-import           SrcLoc
-import           Unify (tcUnifyTy)
-import qualified TyCon   as TC
-import qualified DataCon as DC
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
@@ -72,6 +65,12 @@ import           Data.Maybe               (catMaybes, isJust)
 import           Control.Monad.State
 
 import           Language.Haskell.Liquid.GHC.SpanStack
+import           Language.Haskell.Liquid.GHC.API    as Ghc hiding ( (<+>)
+                                                                  , vcat
+                                                                  , parens
+                                                                  , ($+$)
+                                                                  , LC
+                                                                  )
 import           Language.Haskell.Liquid.Misc           (thrd3)
 import           Language.Haskell.Liquid.WiredIn        (wiredSortedSyms)
 import qualified Language.Fixpoint.Types            as F
@@ -98,7 +97,7 @@ data CGEnv = CGE
   , grtys  :: !REnv              -- ^ Top-level variables with (assert)-guarantees to verify
   , assms  :: !REnv              -- ^ Top-level variables with assumed types
   , intys  :: !REnv              -- ^ Top-level variables with auto generated internal types
-  , emb    :: F.TCEmb TC.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
+  , emb    :: F.TCEmb Ghc.TyCon   -- ^ How to embed GHC Tycons into fixpoint sorts
   , tgEnv  :: !Tg.TagEnv          -- ^ Map from top-level binders to fixpoint tag
   , tgKey  :: !(Maybe Tg.TagKey)                     -- ^ Current top-level binder
   , trec   :: !(Maybe (M.HashMap F.Symbol SpecType)) -- ^ Type of recursive function with decreasing constraints
@@ -184,13 +183,13 @@ data CGInfo = CGInfo
   , holesMap   :: !(M.HashMap Var (HoleInfo (CGInfo, CGEnv) SpecType))    -- ^ information for ghc hole expressions
   , tyConInfo  :: !TyConMap                    -- ^ information about type-constructors
   , specDecr   :: ![(Var, [Int])]              -- ^ ^ Lexicographic order of decreasing args (DEPRECATED) 
-  , newTyEnv   :: !(M.HashMap TC.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
+  , newTyEnv   :: !(M.HashMap Ghc.TyCon SpecType)        -- ^ Mapping of new type type constructors with their refined types.
   , termExprs  :: !(M.HashMap Var [F.Located F.Expr])   -- ^ Terminating Metrics for Recursive functions
   , specLVars  :: !(S.HashSet Var)             -- ^ Set of variables to ignore for termination checking
   , specLazy   :: !(S.HashSet Var)             -- ^ "Lazy binders", skip termination checking
   , specTmVars :: !(S.HashSet Var)             -- ^ Binders that FAILED struct termination check that MUST be checked 
-  , autoSize   :: !(S.HashSet TC.TyCon)        -- ^ ? FIX THIS
-  , tyConEmbed :: !(F.TCEmb TC.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
+  , autoSize   :: !(S.HashSet Ghc.TyCon)        -- ^ ? FIX THIS
+  , tyConEmbed :: !(F.TCEmb Ghc.TyCon)          -- ^ primitive Sorts into which TyCons should be embedded
   , kuts       :: !F.Kuts                      -- ^ Fixpoint Kut variables (denoting "back-edges"/recursive KVars)
   , kvPacks    :: ![S.HashSet F.KVar]          -- ^ Fixpoint "packs" of correlated kvars
   , cgLits     :: !(F.SEnv F.Sort)             -- ^ Global symbols in the refinement logic
@@ -313,8 +312,8 @@ addRInv m (x, t)
   = (x, t)
    where
      ids = [id | tc <- M.keys m
-               , dc <- TC.tyConDataCons $ rtc_tc tc
-               , AnId id <- DC.dataConImplicitTyThings dc]
+               , dc <- Ghc.tyConDataCons $ rtc_tc tc
+               , AnId id <- Ghc.dataConImplicitTyThings dc]
      res = ty_res . toRTypeRep
 
 conjoinInvariantShift :: SpecType -> SpecType -> SpecType

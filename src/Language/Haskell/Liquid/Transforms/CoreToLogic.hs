@@ -22,12 +22,8 @@ import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
 import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located, panic)
--- import qualified Id 
-import qualified Var
-import qualified TyCon 
-import qualified Pair
--- import qualified Text.Printf as Printf
-import qualified CoreSyn                               as C
+import qualified Language.Haskell.Liquid.GHC.API       as Ghc
+import qualified Language.Haskell.Liquid.GHC.API       as C
 import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
 import qualified Data.Text                             as T
@@ -228,7 +224,7 @@ measureFail x msg = panic sp e
 isMeasureArg :: Var -> Maybe Type 
 isMeasureArg x 
   | Just tc <- tcMb 
-  , TyCon.isAlgTyCon tc = F.notracepp "isMeasureArg" $ Just t 
+  , Ghc.isAlgTyCon tc = F.notracepp "isMeasureArg" $ Just t 
   | otherwise           = Nothing 
   where 
     t                   = GM.expandVarType x  
@@ -289,7 +285,7 @@ coerceToLg = typeEqToLg . coercionTypeEq
 
 coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
-  | Pair.Pair s t <- -- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
+  | Ghc.Pair s t <- -- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
                        coercionKind co
   = (s, t)
 
@@ -534,13 +530,13 @@ isBangInteger _ = False
 isErasable :: Id -> Bool
 isErasable v = F.notracepp msg $ isGhcSplId v && not (isDCId v) 
   where 
-    msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
+    msg      = "isErasable: " ++ GM.showPpr (v, Ghc.idDetails v)
 
 isGhcSplId :: Id -> Bool
 isGhcSplId v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
 isDCId :: Id -> Bool
-isDCId v = case Var.idDetails v of 
+isDCId v = case Ghc.idDetails v of 
   DataConWorkId _ -> True 
   DataConWrapId _ -> True 
   _               -> False 
@@ -549,7 +545,7 @@ isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 
 isDead :: Id -> Bool
-isDead     = isDeadOcc . occInfo . Var.idInfo
+isDead     = isDeadOcc . occInfo . Ghc.idInfo
 
 class Simplify a where
   simplify :: a -> a

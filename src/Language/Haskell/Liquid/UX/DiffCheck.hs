@@ -32,18 +32,12 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    where
 
 
-import           FastString                             (FastString)
 import           Prelude                                hiding (error)
 import           Data.Aeson
 import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
 import           Data.Maybe                             (listToMaybe, mapMaybe, fromMaybe)
 import qualified Data.IntervalMap.FingerTree            as IM
-import           CoreSyn                                hiding (sourceName)
-import           Name                                   (getSrcSpan, NamedThing)
-import           Outputable                             (Outputable, OutputableBndr)
-import           SrcLoc                                 hiding (Located)
-import           Var
 import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
@@ -53,6 +47,12 @@ import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats         as Solver
 import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Located
+                                                                      , sourceName
+                                                                      , text
+                                                                      , panic
+                                                                      , showPpr
+                                                                      )
 -- import           Language.Haskell.Liquid.Types.Visitors
 -- import           Text.Megaparsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
@@ -301,13 +301,13 @@ meetSpans _ (Just (l,l')) (Just (m,_))
   = [(max l m, l')]
 
 lineSpan :: t -> SrcSpan -> Maybe (Int, Int)
-lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan _ _                = Nothing
+lineSpan _ (RealSrcSpan sp _) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
+lineSpan _ _                  = Nothing
 
 catSpans :: (NamedThing r, OutputableBndr r)
          => Bind r -> [SrcSpan] -> SrcSpan
 catSpans b []               = panic Nothing $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
+catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z _) <- xs, bindFile b == srcSpanFile z]
 
 bindFile
   :: (Outputable r, NamedThing r) =>
@@ -317,8 +317,8 @@ bindFile (Rec xes)    = varFile $ fst $ head xes
 
 varFile :: (Outputable a, NamedThing a) => a -> FastString
 varFile b = case getSrcSpan b of
-              RealSrcSpan z -> srcSpanFile z
-              _             -> panic Nothing $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
+              RealSrcSpan z _ -> srcSpanFile z
+              _               -> panic Nothing $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
 
 
 bindSpans :: NamedThing a => Bind a -> [SrcSpan]
@@ -346,8 +346,8 @@ altSpans :: (NamedThing a, NamedThing a1) => (t, [a], Expr a1) -> [SrcSpan]
 altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
 
 isJunkSpan :: SrcSpan -> Bool
-isJunkSpan (RealSrcSpan _) = False
-isJunkSpan _               = True
+isJunkSpan RealSrcSpan{} = False
+isJunkSpan _             = True
 
 --------------------------------------------------------------------------------
 -- | Diff Interface ------------------------------------------------------------
@@ -455,14 +455,14 @@ adjustSrcSpan lm cm sp
          else Just sp'
 
 isCheckedSpan :: IM.IntervalMap Int a -> SrcSpan -> Bool
-isCheckedSpan cm (RealSrcSpan sp) = isCheckedRealSpan cm sp
-isCheckedSpan _  _                = False
+isCheckedSpan cm (RealSrcSpan sp _) = isCheckedRealSpan cm sp
+isCheckedSpan _  _                  = False
 
 isCheckedRealSpan :: IM.IntervalMap Int a -> RealSrcSpan -> Bool
 isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine
 
 adjustSpan :: LMap -> SrcSpan -> Maybe SrcSpan
-adjustSpan lm (RealSrcSpan rsp)   = RealSrcSpan <$> adjustReal lm rsp
+adjustSpan lm (RealSrcSpan rsp _) = RealSrcSpan <$> adjustReal lm rsp <*> pure Nothing
 adjustSpan _  sp                  = Just sp
 
 adjustReal :: LMap -> RealSrcSpan -> Maybe RealSrcSpan

@@ -549,7 +549,7 @@ toStableModule :: Module -> StableModule
 toStableModule = StableModule
 
 renderModule :: Module -> String
-renderModule m =    "Module { unitId = " <> show (moduleUnitId m)
+renderModule m =    "Module { unitId = " <> (unitIdString $ moduleUnitId m)
                  <> ", name = " <> show (moduleName m) 
                  <> " }"
 
@@ -574,7 +574,8 @@ instance Binary StableModule where
     get = do
       uidStr <- get
       mnStr  <- get
-      pure $ StableModule (Module (stringToUnitId uidStr) (mkModuleName mnStr))
+      let realUnit = RealUnit $ Definite (stringToUnitId uidStr)
+      pure $ StableModule (Module realUnit (mkModuleName mnStr))
 
 -- | The /target/ dependencies that concur to the creation of a 'TargetSpec' and a 'LiftedSpec'.
 newtype TargetDependencies =

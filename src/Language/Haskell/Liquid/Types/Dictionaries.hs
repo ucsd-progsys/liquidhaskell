@@ -17,12 +17,10 @@ import           Data.Hashable
 -- import           Data.Maybe (catMaybes)
 
 import           Prelude                                   hiding (error)
-import           Var
-import           Name                                      (getName)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.Types.PrettyPrint ()
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
-import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
+import qualified Language.Haskell.Liquid.GHC.API        as Ghc
 import           Language.Haskell.Liquid.Types.Types
 -- import           Language.Haskell.Liquid.Types.Visitors (freeVars)
 import           Language.Haskell.Liquid.Types.RefType ()
@@ -55,7 +53,7 @@ makeDictionaryName t ts
 makeDicTypeName :: Ghc.SrcSpan -> SpecType -> String
 makeDicTypeName _ (RFun _ _ _ _)   = "(->)"
 makeDicTypeName _ (RApp c _ _ _)   = F.symbolString . GM.dropModuleNamesCorrect . F.symbol . rtc_tc $ c
-makeDicTypeName _ (RVar (RTV a) _) = show (getName a)      
+makeDicTypeName _ (RVar (RTV a) _) = show (Ghc.getName a)      
 makeDicTypeName sp t               = panic (Just sp) ("makeDicTypeName: called with invalid type " ++ show t)
 
 dropUniv :: SpecType -> SpecType 
@@ -65,7 +63,7 @@ dropUniv t = t' where (_,_,t') = bkUniv t
 -- | Dictionary Environment ----------------------------------------------------
 --------------------------------------------------------------------------------
 
-dfromList :: [(Var, M.HashMap F.Symbol (RISig t))] -> DEnv Var t
+dfromList :: [(Ghc.Var, M.HashMap F.Symbol (RISig t))] -> DEnv Ghc.Var t
 dfromList = DEnv . M.fromList
 
 dmapty :: (a -> b) -> DEnv v a -> DEnv v b

@@ -30,7 +30,6 @@ module Language.Haskell.Liquid.Types.PredType (
   ) where
 
 import           Prelude                         hiding (error)
-import           DataCon
 import           Text.PrettyPrint.HughesPJ
 import           Language.Haskell.Liquid.GHC.API hiding ( panic
                                                         , (<+>)

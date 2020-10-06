@@ -17,6 +17,7 @@ import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding
                                                                                  , panic
                                                                                  , ($+$)
                                                                                  , empty
+                                                                                 , isWiredIn
                                                                                  )
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -610,7 +611,7 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = snd4 $ bkArrowDeep sort
-    ct    = ofType $ dataConUserType c :: SpecType
+    ct    = ofType $ dataConWrapperType c :: SpecType
 
 checkMBodyUnify
   :: RType t t2 t1 -> RType c tv r -> [(t2,RType c tv (),RType c tv r)]

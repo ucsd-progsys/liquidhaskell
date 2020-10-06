@@ -27,28 +27,13 @@ import Control.Monad.Fail
 
 import           Prelude                                       hiding (error)
 import           GHC.Stack
-import           CoreUtils                                     (exprType)
-import           MkCore
-import           Coercion
-import           DataCon
-import           Pair
-import           CoreSyn
-import           SrcLoc                                 hiding (Located)
-import           Type
-import           VarEnv (mkRnEnv2, emptyInScopeSet)
-import           TyCon
-import           CoAxiom
-import           PrelNames
-import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( exprType
-                                                                                 , panic
+import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( panic
                                                                                  , checkErr
                                                                                  , (<+>)
                                                                                  , text
                                                                                  , vcat
                                                                                  )
 import           Language.Haskell.Liquid.GHC.TypeRep           ()
-import           Unify
-import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)

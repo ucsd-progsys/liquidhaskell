@@ -22,7 +22,6 @@ module Language.Haskell.Liquid.Measure (
   , bodyPred
   ) where
 
-import           DataCon
 import           GHC                                    hiding (Located)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 

@@ -96,6 +96,7 @@ module Language.Haskell.Liquid.GHC.API (
   , renderWithStyle
   , mkUserStyle
   , pattern LitNumber
+  , dataConSig
 #endif
 #endif
 
@@ -110,6 +111,8 @@ import           GHC                                               as Ghc hiding
 -- Shared imports for GHC < 9
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+
+import Annotations              as Ghc
 import Avail                    as Ghc
 import Bag                      as Ghc
 import BasicTypes               as Ghc
@@ -119,12 +122,17 @@ import Coercion                 as Ghc
 import ConLike                  as Ghc
 import CoreLint                 as Ghc hiding (dumpIfSet)
 import CoreMonad                as Ghc (CoreToDo(..))
+import CoreSubst                as Ghc
 import CoreSyn                  as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import CoreUtils                as Ghc (exprType)
 import CostCentre               as Ghc
 import DataCon                  as Ghc hiding (dataConInstArgTys, dataConOrigArgTys, dataConRepArgTys)
+import Digraph                  as Ghc
+import DriverPhases             as Ghc
+import DriverPipeline           as Ghc
 import DynFlags                 as Ghc
 import ErrUtils                 as Ghc
+import FamInst                  as Ghc
 import FamInstEnv               as Ghc hiding (pprFamInst)
 import Finder                   as Ghc
 import ForeignCall              (CType)
@@ -142,6 +150,7 @@ import Name                     as Ghc hiding (varName)
 import NameEnv                  (lookupNameEnv_NF)
 import NameSet                  as Ghc
 import Outputable               as Ghc hiding ((<>))
+import Pair                     as Ghc
 import Panic                    as Ghc
 import PrelInfo                 as Ghc
 import PrelNames                as Ghc hiding (wildCardName)
@@ -152,9 +161,14 @@ import TcRnMonad                as Ghc hiding (getGHCiMonad)
 import TcRnTypes                as Ghc
 import TysPrim                  as Ghc
 import TysWiredIn               as Ghc
+import Unify                    as Ghc
 import UniqFM                   as Ghc
+import UniqSet                  as Ghc
+import UniqSupply               as Ghc
 import Unique                   as Ghc
 import Var                      as Ghc hiding (mkLocalVar)
+import VarEnv                   as Ghc
+import VarSet                   as  Ghc
 import qualified                SrcLoc
 import qualified Data.Bifunctor as Bi
 import qualified Data.Data      as Data
@@ -252,29 +266,39 @@ import GHC.Builtin.Types.Prim         as Ghc
 import GHC.Builtin.Utils              as Ghc
 import GHC.Core                       as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import GHC.Core.Class                 as Ghc
-import GHC.Core.Opt.WorkWrap.Utils    as Ghc
+import GHC.Core.Coercion              as Ghc
 import GHC.Core.Coercion.Axiom        as Ghc
 import GHC.Core.ConLike               as Ghc
 import GHC.Core.DataCon               as Ghc
+import GHC.Core.FamInstEnv            as Ghc hiding (pprFamInst)
 import GHC.Core.InstEnv               as Ghc
 import GHC.Core.Lint                  as Ghc hiding (dumpIfSet)
-import GHC.Core.FamInstEnv            as Ghc hiding (pprFamInst)
 import GHC.Core.Make                  as Ghc
 import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
+import GHC.Core.Opt.WorkWrap.Utils    as Ghc
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, isEvVarType, isEqPrimPred, isEqPred, isClassPred)
+import GHC.Core.Subst                 as Ghc (deShadowBinds)
 import GHC.Core.TyCo.Rep              as Ghc
 import GHC.Core.TyCon                 as Ghc
 import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy)
+import GHC.Core.Unify                 as Ghc
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
 import GHC.Data.FastString            as Ghc
+import GHC.Data.Graph.Directed        as Ghc
+import GHC.Data.Pair                  as Ghc
 import GHC.Driver.Finder              as Ghc
 import GHC.Driver.Main                as Ghc
+import GHC.Driver.Phases              as Ghc (Phase(StopLn))
+import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
 import GHC.Driver.Types               as Ghc
+import GHC.HsToCore.Monad             as Ghc
+import GHC.Tc.Instance.Family         as Ghc
 import GHC.Tc.Module                  as Ghc
 import GHC.Tc.Types                   as Ghc
 import GHC.Tc.Utils.Monad             as Ghc hiding (getGHCiMonad)
+import GHC.Types.Annotations          as Ghc
 import GHC.Types.Avail                as Ghc
 import GHC.Types.Basic                as Ghc
 import GHC.Types.CostCentre           as Ghc
@@ -287,7 +311,11 @@ import GHC.Types.Name.Set             as Ghc
 import GHC.Types.SrcLoc               as Ghc
 import GHC.Types.Unique               as Ghc
 import GHC.Types.Unique.FM            as Ghc
+import GHC.Types.Unique.Set           as Ghc
+import GHC.Types.Unique.Supply        as Ghc
 import GHC.Types.Var                  as Ghc
+import GHC.Types.Var.Env              as Ghc
+import GHC.Types.Var.Set              as Ghc
 import GHC.Unit.Module                as Ghc
 import GHC.Utils.Error                as Ghc
 import GHC.Utils.Outputable           as Ghc hiding ((<>), renderWithStyle, mkUserStyle)
@@ -460,6 +488,12 @@ dataConRepArgTys dc = map (mkScaled Many) (Ghc.dataConRepArgTys dc)
 
 mkLocalVar :: IdDetails -> Name -> Mult -> Type -> IdInfo -> Id
 mkLocalVar idDetails name _ ty info = Ghc.mkLocalVar idDetails name ty info
+
+mkUserLocal :: OccName -> Unique -> Mult -> Type -> SrcSpan -> Id
+mkUserLocal occName u _mult ty srcSpan = Ghc.mkUserLocal occName u ty srcSpan
+
+dataConWrapperType :: DataCon -> Type
+dataConWrapperType = dataConUserType
 
 -- WWlib
 
@@ -705,6 +739,10 @@ pattern LitNumber numType integer ty <- ((intPrimTy,) -> (ty, Ghc.LitNumber numT
   where
     LitNumber numType integer _ = Ghc.LitNumber numType integer
 
+-- This function is gone in GHC 9.
+dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
+dataConSig dc
+  = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
 
 #endif
 

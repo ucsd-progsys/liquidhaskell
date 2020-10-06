@@ -13,18 +13,12 @@
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Prelude                          hiding (error)
-import           CoreSyn                          hiding (mkTyArg)
-import           CoreUtils                        (exprType)
-import qualified DsMonad
-import           DsMonad                          (initDsWithModGuts)
-import           GHC                              hiding (exprType)
-import           HscTypes
-import           Literal
-import           MkCore                           (mkCoreLets)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg, showPpr, DsM, panic)
-import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
-import           UniqSupply                       (MonadUnique, getUniqueM)
+import           Language.Haskell.Liquid.GHC.API  as Ghc hiding ( mkTyArg
+                                                                , showPpr
+                                                                , DsM
+                                                                , panic)
+import qualified Language.Haskell.Liquid.GHC.API  as Ghc
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
@@ -86,7 +80,7 @@ modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
 -- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
-normalizeTopBind :: AnfEnv -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
+normalizeTopBind :: AnfEnv -> Bind CoreBndr -> Ghc.DsM [CoreBind]
 normalizeTopBind γ (NonRec x e)
   = do e' <- runDsM $ evalStateT (stitch γ e) (DsST [])
        return [normalizeTyVars $ NonRec x e']
@@ -125,7 +119,7 @@ normalizeForAllTys e = case e of
   (tvs, _) = splitForAllTys (exprType e)
 
 
-newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
+newtype DsM a = DsM {runDsM :: Ghc.DsM a}
    deriving (Functor, Monad, MonadUnique, Applicative)
 
 data DsST = DsST { st_binds :: [CoreBind] }
@@ -367,7 +361,7 @@ freshNormalVar γ t = do
   u     <- getUniqueM
   let i  = getKey u
   let sp = Sp.srcSpan (aeSrcSpan γ)
-  return (mkUserLocal (anfOcc i) u t sp)
+  return (mkUserLocal (anfOcc i) u Ghc.Many t sp)
 
 anfOcc :: Int -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
