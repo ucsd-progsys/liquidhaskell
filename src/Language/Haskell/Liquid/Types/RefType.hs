@@ -36,7 +36,7 @@ module Language.Haskell.Liquid.Types.RefType (
   -- * Functions for manipulating `Predicate`s
   , pdVar
   , findPVar
-  , FreeVar, allTyVars, freeTyVars, tyClasses, tyConName
+  , FreeVar, allTyVars, allTyVars', freeTyVars, tyClasses, tyConName
 
   -- * Quantifying RTypes
   , quantifyRTy
@@ -917,10 +917,14 @@ generalize :: (Eq tv, Monoid r) => RType c tv r -> RType c tv r
 generalize t = mkUnivs (zip (freeTyVars t) (repeat mempty)) [] t
 
 allTyVars :: (Ord tv) => RType c tv r -> [tv]
-allTyVars t = sortNub . fmap ty_var_value $ vs ++ vs'
+allTyVars = sortNub . allTyVars'
+
+allTyVars' :: (Eq tv) => RType c tv r -> [tv]
+allTyVars' t = fmap ty_var_value $ vs ++ vs'
   where
     vs      = map fst . fst3 . bkUniv $ t
     vs'     = freeTyVars    $ t
+
 
 freeTyVars :: Eq tv => RType c tv r -> [RTVar tv (RType c tv ())]
 freeTyVars (RAllP _ t)     = freeTyVars t
@@ -1671,7 +1675,7 @@ grabArgs τs τ
   = reverse (τ:τs)
 
 isNonValueTy :: Type -> Bool
-isNonValueTy = GM.isPredType
+isNonValueTy = GM.isEmbeddedDictType -- GM.isPredType
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))

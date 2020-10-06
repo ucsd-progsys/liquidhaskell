@@ -116,7 +116,7 @@ fill i depth (c : cs) accExprs
   = case subgoals (fst3 c) of 
       Nothing             -> return [] -- Not a function type
       Just (resTy, subGs) ->
-        do  specSubGs <- liftCG $ mapM trueTy (filter (not . isFunction) subGs)
+        do  specSubGs <- liftCG $ mapM (trueTy False) (filter (not . isFunction) subGs)
             mapM_ genArgs specSubGs
             em <- sExprMem <$> get
             let argCands  = map (withSubgoal em) subGs

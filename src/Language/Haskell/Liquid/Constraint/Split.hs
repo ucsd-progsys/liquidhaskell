@@ -151,98 +151,98 @@ updateEnv γ a
   = return γ
 
 ------------------------------------------------------------
-splitC :: SubC -> CG [FixSubC]
+splitC :: Bool -> SubC -> CG [FixSubC]
 ------------------------------------------------------------
 
-splitC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
+splitC allowTC (SubC γ (REx x tx t1) (REx x2 _ t2)) | x == x2
   = do γ' <- γ += ("addExBind 0", x, forallExprRefType γ tx)
-       splitC (SubC γ' t1 t2)
+       splitC allowTC (SubC γ' t1 t2)
 
-splitC (SubC γ t1 (REx x tx t2))
+splitC allowTC (SubC γ t1 (REx x tx t2))
   = do y <- fresh
        γ' <- γ += ("addExBind 1", y, forallExprRefType γ tx)
-       splitC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
+       splitC allowTC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
 -- existential at the left hand side is treated like forall
-splitC (SubC γ (REx x tx t1) t2)
-  = do -- let tx' = traceShow ("splitC: " ++ showpp z) tx
+splitC allowTC (SubC γ (REx x tx t1) t2)
+  = do -- let tx' = traceShow ("splitC allowTC: " ++ showpp z) tx
        y <- fresh
        γ' <- γ += ("addExBind 2", y, forallExprRefType γ tx)
-       splitC (SubC γ' (F.subst1 t1 (x, F.EVar y)) t2)
+       splitC allowTC (SubC γ' (F.subst1 t1 (x, F.EVar y)) t2)
 
-splitC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
+splitC allowTC (SubC γ (RAllE x tx t1) (RAllE x2 _ t2)) | x == x2
   = do γ' <- γ += ("addAllBind 3", x, forallExprRefType γ tx)
-       splitC (SubC γ' t1 t2)
+       splitC allowTC (SubC γ' t1 t2)
 
-splitC (SubC γ (RAllE x tx t1) t2)
+splitC allowTC (SubC γ (RAllE x tx t1) t2)
   = do y  <- fresh
        γ' <- γ += ("addAABind 1", y, forallExprRefType γ tx)
-       splitC (SubC γ' (t1 `F.subst1` (x, F.EVar y)) t2)
+       splitC allowTC (SubC γ' (t1 `F.subst1` (x, F.EVar y)) t2)
 
-splitC (SubC γ t1 (RAllE x tx t2))
+splitC allowTC (SubC γ t1 (RAllE x tx t2))
   = do y  <- fresh
        γ' <- γ += ("addAllBind 2", y, forallExprRefType γ tx)
-       splitC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
+       splitC allowTC (SubC γ' t1 (F.subst1 t2 (x, F.EVar y)))
 
-splitC (SubC γ (RRTy env _ OCons t1) t2)
+splitC allowTC (SubC γ (RRTy env _ OCons t1) t2)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ xts
-       c1 <- splitC (SubC γ' t1' t2')
-       c2 <- splitC (SubC γ  t1  t2 )
+       c1 <- splitC allowTC (SubC γ' t1' t2')
+       c2 <- splitC allowTC (SubC γ  t1  t2 )
        return $ c1 ++ c2
   where
     (xts, t1', t2') = envToSub env
 
-splitC (SubC γ (RRTy e r o t1) t2)
+splitC allowTC (SubC γ (RRTy e r o t1) t2)
   = do γ' <- foldM (\γ (x, t) -> γ `addSEnv` ("splitS", x,t)) γ e
-       c1 <- splitC (SubR γ' o  r)
-       c2 <- splitC (SubC γ t1 t2)
+       c1 <- splitC allowTC (SubR γ' o  r)
+       c2 <- splitC allowTC (SubC γ t1 t2)
        return $ c1 ++ c2
 
-splitC (SubC γ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2))
-  =  do cs'      <- splitC  (SubC γ t2 t1)
-        γ'       <- γ+= ("splitC", x2, t2)
+splitC allowTC (SubC γ (RFun x1 t1 t1' r1) (RFun x2 t2 t2' r2))
+  =  do cs'      <- splitC allowTC  (SubC γ t2 t1)
+        γ'       <- γ+= ("splitC allowTC", x2, t2)
         cs       <- bsplitC γ (RFun x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2)))
                               (RFun x2 t2 t2'  r2)
         let t1x2' = t1' `F.subst1` (x1, F.EVar x2)
-        cs''     <- splitC  (SubC γ' t1x2' t2')
+        cs''     <- splitC allowTC  (SubC γ' t1x2' t2')
         return    $ cs ++ cs' ++ cs''
 
-splitC (SubC γ (RImpF x1 t1 t1' r1) (RImpF x2 t2 t2' r2))
-  =  do cs'      <- splitC  (SubC γ t2 t1)
-        γ'       <- γ+= ("splitC", x2, t2)
+splitC allowTC (SubC γ (RImpF x1 t1 t1' r1) (RImpF x2 t2 t2' r2))
+  =  do cs'      <- splitC allowTC  (SubC γ t2 t1)
+        γ'       <- γ+= ("splitC allowTC", x2, t2)
         cs       <- bsplitC γ (RImpF x1 t1 t1' (r1 `F.subst1` (x1, F.EVar x2)))
                               (RImpF x2 t2 t2'  r2)
         let t1x2' = t1' `F.subst1` (x1, F.EVar x2)
-        cs''     <- splitC  (SubC γ' t1x2' t2')
+        cs''     <- splitC allowTC  (SubC γ' t1x2' t2')
         return    $ cs ++ cs' ++ cs''
 
 
-splitC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
+splitC allowTC (SubC γ t1@(RAppTy r1 r1' _) t2@(RAppTy r2 r2' _))
   =  do cs    <- bsplitC γ t1 t2
-        cs'   <- splitC  (SubC γ r1 r2)
-        cs''  <- splitC  (SubC γ r1' r2')
-        cs''' <- splitC  (SubC γ r2' r1')
+        cs'   <- splitC allowTC  (SubC γ r1 r2)
+        cs''  <- splitC allowTC  (SubC γ r1' r2')
+        cs''' <- splitC allowTC  (SubC γ r2' r1')
         return $ cs ++ cs' ++ cs'' ++ cs'''
 
-splitC (SubC γ t1 (RAllP p t))
-  = splitC $ SubC γ t1 t'
+splitC allowTC (SubC γ t1 (RAllP p t))
+  = splitC allowTC $ SubC γ t1 t'
   where
     t' = fmap (replacePredsWithRefs su) t
     su = (uPVar p, pVartoRConc p)
 
-splitC (SubC γ t1@(RAllP _ _) t2)
+splitC _ (SubC γ t1@(RAllP _ _) t2)
   = panic (Just $ getLocation γ) $ "Predicate in lhs of constraint:" ++ showpp t1 ++ "\n<:\n" ++ showpp t2
 
-splitC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
+splitC allowTC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
   |  α1 ==  α2
   = do γ'  <- updateEnv γ α2
        cs  <- bsplitC γ t1' t2'
-       cs' <- splitC $ SubC γ' t1 (F.subst su t2)
+       cs' <- splitC allowTC $ SubC γ' t1 (F.subst su t2)
        return (cs ++ cs')
   | otherwise
   = do γ'  <- updateEnv γ α2
        cs  <- bsplitC γ t1' t2'
-       cs' <- splitC $ SubC γ' t1 (F.subst su t2'')
+       cs' <- splitC allowTC $ SubC γ' t1 (F.subst su t2'')
        return (cs ++ cs')
   where
     t2'' = subsTyVar_meet' (ty_var_value α2, RVar (ty_var_value α1) mempty) t2
@@ -250,10 +250,10 @@ splitC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
           (Just (x1, _), Just (x2, _)) -> F.mkSubst [(x1, F.EVar x2)]
           _                            -> F.mkSubst []
 
-splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
+splitC allowTC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | (if allowTC then isEmbeddedDict else isClass) c1 && c1 == c2
   = return []
 
-splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+splitC _ (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
        γ'    <- if (bscope (getConfig γ)) then γ `extendEnvWithVV` t1' else return γ
@@ -265,14 +265,14 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
-splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
+splitC _ (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))
   | a1 == a2
   = bsplitC γ t1 t2
 
-splitC (SubC γ t1 t2)
+splitC _ (SubC γ t1 t2)
   = panic (Just $ getLocation γ) $ "(Another Broken Test!!!) splitc unexpected:\n" ++ traceTy t1 ++ "\n  <:\n" ++ traceTy t2
 
-splitC (SubR γ o r)
+splitC _ (SubR γ o r)
   = do ts     <- getTemplates
        let r1' = pruneUnsortedReft γ'' ts r1
        return $ F.subC γ' r1' r2 Nothing tag ci
@@ -316,7 +316,7 @@ splitsCWithVariance :: CGEnv
                     -> [Variance]
                     -> CG [FixSubC]
 splitsCWithVariance γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (typeclass (getConfig γ)) (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
 rsplitsCWithVariance :: Bool
                      -> CGEnv
@@ -390,7 +390,7 @@ rsplitC _ (RProp _ (RHole _)) _
 
 rsplitC γ (RProp s1 r1) (RProp s2 r2)
   = do γ'  <-  foldM (+=) γ [("rsplitC1", x, ofRSort s) | (x, s) <- s2]
-       splitC (SubC γ' (F.subst su r1) r2)
+       splitC (typeclass (getConfig γ)) (SubC γ' (F.subst su r1) r2)
   where su = F.mkSubst [(x, F.EVar y) | ((x,_), (y,_)) <- zip s1 s2]
 
 

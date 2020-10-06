@@ -27,6 +27,7 @@ import           Prelude                                hiding (error)
 -- import           Language.Haskell.Liquid.GHC.TypeRep
 
 import qualified Control.Exception                      as Ex
+import           Control.Monad.Reader
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
@@ -347,22 +348,22 @@ muSort c n  = V.mapSort tx
 -}
 
 --------------------------------------------------------------------------------
-meetDataConSpec :: F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
+meetDataConSpec :: Bool -> F.TCEmb Ghc.TyCon -> [(Ghc.Var, SpecType)] -> [DataConP] 
                 -> [(Ghc.Var, SpecType)]
 --------------------------------------------------------------------------------
-meetDataConSpec emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
+meetDataConSpec allowTC emb xts dcs  = M.toList $ snd <$> L.foldl' upd dcm0 xts
   where
-    dcm0                     = M.fromList (dataConSpec' dcs)
+    dcm0                     = M.fromList (dataConSpec' allowTC dcs)
     upd dcm (x, t)           = M.insert x (Ghc.getSrcSpan x, tx') dcm
                                 where
                                   tx' = maybe t (meetX x t) (M.lookup x dcm)
     meetX x t (sp', t')      = F.notracepp (_msg x t t') $ meetVarTypes emb (pprint x) (Ghc.getSrcSpan x, t) (sp', t') 
     _msg x t t'              = "MEET-VAR-TYPES: " ++ showpp (x, t, t')
 
-dataConSpec' :: [DataConP] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
-dataConSpec' = concatMap tx 
+dataConSpec' :: Bool -> [DataConP] -> [(Ghc.Var, (Ghc.SrcSpan, SpecType))]
+dataConSpec' allowTC = concatMap tx 
   where
-    tx dcp   =  [ (x, res) | (x, t0) <- dataConPSpecType dcp
+    tx dcp   =  [ (x, res) | (x, t0) <- dataConPSpecType allowTC dcp
                           , let t    = RT.expandProductType x t0  
                           , let res  = (GM.fSrcSpan dcp, t)
                 ]
@@ -655,10 +656,42 @@ checkRecordSelectorSigs vts = [ (v, take1 v ts) | (v, ts) <- Misc.groupList vts 
                                 (t:ts) -> Ex.throw (ErrDupSpecs (GM.fSrcSpan t) (pprint v) (GM.fSrcSpan <$> ts) :: Error)
                                 _      -> impossible Nothing "checkRecordSelectorSigs"
 
+
+strengthenClassSel :: Ghc.Var -> LocSpecType -> LocSpecType
+strengthenClassSel v lt = lt { val = t }
+ where
+  t = runReader (go (F.val lt)) (1, [])
+  s = GM.namedLocSymbol v
+  extend :: F.Symbol -> (Int, [F.Symbol]) -> (Int, [F.Symbol])
+  extend x (i, xs) = (i + 1, x : xs)
+  go :: SpecType -> Reader (Int, [F.Symbol]) SpecType
+  go (RAllT a t r) = RAllT a <$> go t <*> pure r
+  go (RAllP p t  ) = RAllP p <$> go t
+  go (RFun x tx t r) | isEmbeddedClass tx =
+    RFun <$> pure x <*> pure tx <*> go t <*> pure r
+  go (RFun x tx t r) = do
+    x' <- unDummy x <$> reader fst
+    r' <- singletonApp s <$> (L.reverse <$> reader snd)
+    RFun x' tx <$> local (extend x') (go t) <*> pure (F.meet r r')
+  go t = RT.strengthen t . singletonApp s . L.reverse <$> reader snd
+
+singletonApp :: F.Symbolic a => F.LocSymbol -> [a] -> UReft F.Reft
+singletonApp s ys = MkUReft r mempty
+  where r = F.exprReft (F.mkEApp s (F.eVar <$> ys))
+
+
+unDummy :: F.Symbol -> Int -> F.Symbol
+unDummy x i | x /= F.dummySymbol = x
+            | otherwise          = F.symbol ("_cls_lq" ++ show i)
+
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
 makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
+    | Just cls <- maybe_cls
+    = let cfs = Ghc.classAllSelIds cls in
+        fmap ((,) <$> fst <*> uncurry strengthenClassSel)
+          [(v, Loc l l' t)| (v,t) <- zip cfs (reverse $ fmap snd args)]
     | null fls                    --    no field labels
     || any (isFunTy . snd) args && not (higherOrderFlag env)   -- OR function-valued fields
     || dcpIsGadt dcp              -- OR GADT style datcon
@@ -666,6 +699,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
     | otherwise 
     = [ (v, t) | (Just v, t) <- zip fs ts ] 
     where
+      maybe_cls = Ghc.tyConClass_maybe (Ghc.dataConTyCon dc)
       dc  = dcpCon dcp
       fls = Ghc.dataConFieldLabels dc
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 

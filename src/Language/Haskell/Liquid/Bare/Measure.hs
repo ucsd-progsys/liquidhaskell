@@ -48,29 +48,29 @@ import qualified Language.Haskell.Liquid.Bare.DataType as Bare
 import qualified Language.Haskell.Liquid.Bare.ToBare   as Bare 
 
 --------------------------------------------------------------------------------
-makeHaskellMeasures :: GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
+makeHaskellMeasures :: Bool -> GhcSrc -> Bare.TycEnv -> LogicMap -> Ms.BareSpec
                     -> [Measure (Located BareType) LocSymbol]
 --------------------------------------------------------------------------------
-makeHaskellMeasures src tycEnv lmap spec 
+makeHaskellMeasures allowTC src tycEnv lmap spec 
           = Bare.measureToBare <$> ms
   where 
-    ms    = makeMeasureDefinition tycEnv lmap cbs <$> mSyms 
+    ms    = makeMeasureDefinition allowTC tycEnv lmap cbs <$> mSyms 
     cbs   = nonRecCoreBinds   (_giCbs src) 
     mSyms = S.toList (Ms.hmeas spec)
   
-makeMeasureDefinition :: Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol 
+makeMeasureDefinition :: Bool -> Bare.TycEnv -> LogicMap -> [Ghc.CoreBind] -> LocSymbol 
                       -> Measure LocSpecType Ghc.DataCon
-makeMeasureDefinition tycEnv lmap cbs x = 
+makeMeasureDefinition allowTC tycEnv lmap cbs x = 
   case GM.findVarDef (val x) cbs of
     Nothing       -> Ex.throw $ errHMeas x "Cannot extract measure from haskell function"
-    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted (Ghc.varType v) mdef) 
+    Just (v, def) -> Ms.mkM vx vinfo mdef MsLifted (makeUnSorted allowTC (Ghc.varType v) mdef) 
                      where 
                        vx           = F.atLoc x (F.symbol v)
-                       mdef         = coreToDef' tycEnv lmap vx v def
-                       vinfo        = GM.varLocInfo logicType v
+                       mdef         = coreToDef' allowTC tycEnv lmap vx v def
+                       vinfo        = GM.varLocInfo (logicType allowTC) v
 
-makeUnSorted :: Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
-makeUnSorted t defs
+makeUnSorted :: Bool -> Ghc.Type -> [Def LocSpecType Ghc.DataCon] -> UnSortedExprs
+makeUnSorted allowTC t defs
   | isMeasureType ta 
   = mempty
   | otherwise
@@ -79,7 +79,7 @@ makeUnSorted t defs
     ta = go $ Ghc.expandTypeSynonyms t
 
     go (Ghc.ForAllTy _ t) = go t 
-    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | Ghc.isClassPred p = go t 
+    go (Ghc.FunTy { Ghc.ft_arg = p, Ghc.ft_res = t}) | isErasable p = go t 
     go (Ghc.FunTy { Ghc.ft_arg = t }) = t 
     go t                  = t -- this should never happen!
 
@@ -90,11 +90,12 @@ makeUnSorted t defs
                              Ms.bodyPred (F.mkEApp (measure def) [F.expr xx]) (body def)) 
 
     xx = F.vv $ Just 10000
+    isErasable = if allowTC then GM.isEmbeddedDictType else Ghc.isClassPred
 
-coreToDef' :: Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr 
+coreToDef' :: Bool -> Bare.TycEnv -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr 
            -> [Def LocSpecType Ghc.DataCon] 
-coreToDef' tycEnv lmap vx v def = 
-  case runToLogic embs lmap dm (errHMeas vx) (coreToDef vx v def) of
+coreToDef' allowTC tycEnv lmap vx v def = 
+  case runToLogic embs lmap dm (errHMeas vx) (coreToDef allowTC vx v def) of
     Right l -> l
     Left e  -> Ex.throw e
   where 
@@ -105,21 +106,21 @@ errHMeas :: LocSymbol -> String -> Error
 errHMeas x str = ErrHMeas (GM.sourcePosSrcSpan $ loc x) (pprint $ val x) (text str)
 
 --------------------------------------------------------------------------------
-makeHaskellInlines :: GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
+makeHaskellInlines :: Bool -> GhcSrc -> F.TCEmb Ghc.TyCon -> LogicMap -> Ms.BareSpec 
                    -> [(LocSymbol, LMap)]
 --------------------------------------------------------------------------------
-makeHaskellInlines src embs lmap spec 
-         = makeMeasureInline embs lmap cbs <$> inls 
+makeHaskellInlines allowTC src embs lmap spec 
+         = makeMeasureInline allowTC embs lmap cbs <$> inls 
   where
     cbs  = nonRecCoreBinds (_giCbs src) 
     inls = S.toList        (Ms.inlines spec)
 
-makeMeasureInline :: F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
+makeMeasureInline :: Bool -> F.TCEmb Ghc.TyCon -> LogicMap -> [Ghc.CoreBind] -> LocSymbol
                   -> (LocSymbol, LMap)
-makeMeasureInline embs lmap cbs x = 
+makeMeasureInline allowTC embs lmap cbs x = 
   case GM.findVarDef (val x) cbs of 
     Nothing       -> Ex.throw $ errHMeas x "Cannot inline haskell function"
-    Just (v, def) -> (vx, coreToFun' embs Nothing lmap vx v def ok)
+    Just (v, def) -> (vx, coreToFun' allowTC embs Nothing lmap vx v def ok)
                      where 
                        vx         = F.atLoc x (F.symbol v)
                        ok (xs, e) = LMap vx (F.symbol <$> xs) (either id id e)
@@ -129,12 +130,12 @@ makeMeasureInline embs lmap cbs x =
 --   but NOT when lifting inlines (which do not have case-of). 
 --   For details, see [NOTE:Lifting-Stages] 
 
-coreToFun' :: F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
+coreToFun' :: Bool -> F.TCEmb Ghc.TyCon -> Maybe Bare.DataConMap -> LogicMap -> LocSymbol -> Ghc.Var -> Ghc.CoreExpr
            -> (([Ghc.Var], Either F.Expr F.Expr) -> a) -> a
-coreToFun' embs dmMb lmap x v def ok = either Ex.throw ok act 
+coreToFun' allowTC embs dmMb lmap x v def ok = either Ex.throw ok act 
   where 
     act  = runToLogic embs lmap dm err xFun 
-    xFun = coreToFun x v def  
+    xFun = coreToFun allowTC x v def  
     err  = errHMeas x  
     dm   = Mb.fromMaybe mempty dmMb 
 
@@ -336,12 +337,12 @@ makeMeasureChecker x s0 dc n = M { msName = x, msSort = s, msEqns = eqn : (eqns 
 
 
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec' :: MSpec SpecType Ghc.DataCon -> ([(Ghc.Var, SpecType)], [(LocSymbol, RRType F.Reft)])
+makeMeasureSpec' :: Bool -> MSpec SpecType Ghc.DataCon -> ([(Ghc.Var, SpecType)], [(LocSymbol, RRType F.Reft)])
 ----------------------------------------------------------------------------------------------
-makeMeasureSpec' mspec0 = (ctorTys, measTys) 
+makeMeasureSpec' allowTC mspec0 = (ctorTys, measTys) 
   where 
     ctorTys             = Misc.mapSnd RT.uRType <$> ctorTys0
-    (ctorTys0, measTys) = Ms.dataConTypes mspec 
+    (ctorTys0, measTys) = Ms.dataConTypes allowTC mspec 
     mspec               = first (mapReft ur_reft) mspec0
 
 ----------------------------------------------------------------------------------------------
