@@ -246,13 +246,9 @@ library
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
-<<<<<<< HEAD
-                    , extra
-=======
                     , recursion-schemes
                     , free
                     , extra 
->>>>>>> vrdt-hack
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse
   ghc-options:        -W -fwarn-missing-signatures

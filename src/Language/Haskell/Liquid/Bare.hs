@@ -120,22 +120,18 @@ makeTargetSpec :: Config
                -> TargetSrc
                -> BareSpec
                -> TargetDependencies
-<<<<<<< HEAD
-               -> Either Diagnostics ([Warning], TargetSpec, LiftedSpec)
+               -> Ghc.Ghc (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
   let depsDiagnostics     = mapM (uncurry Bare.checkBareSpec) legacyDependencies
   let bareSpecDiagnostics = Bare.checkBareSpec (giTargetMod targetSrc) legacyBareSpec
   case depsDiagnostics >> bareSpecDiagnostics of
    Left d | noErrors d -> secondPhase (allWarnings d)
-   Left d              -> Left  d
+   Left d              -> return $ Left d
    Right ()            -> secondPhase mempty
-=======
-               -> Ghc.Ghc (Either [Error] (TargetSpec, LiftedSpec))
-makeTargetSpec cfg lmap targetSrc bareSpec dependencies = 
-  -- Check that our input 'BareSpec' doesn't contain duplicates.
-  case Bare.checkBareSpec (giTargetMod targetSrc) (review bareSpecIso bareSpec) of
-    Left errs -> pure $ Left errs
-    Right validatedBareSpec -> do
+  where
+    secondPhase :: [Warning] -> Ghc.Ghc (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
+    secondPhase phaseOneWarns = do
+
       -- we should be able to setContext regardless of whether
       -- we use the ghc api. However, ghc will complain
       -- if the filename does not match the module name
@@ -162,15 +158,10 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies =
         void $ Ghc.execStmt
           "let {len :: [a] -> Int; len _ = undefined}"
           Ghc.execOptions        
-      ghcSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs validatedBareSpec)
-      pure $ view targetSpecGetter <$> ghcSpec
->>>>>>> vrdt-hack
-  where
-    secondPhase :: [Warning] -> Either Diagnostics ([Warning], TargetSpec, LiftedSpec)
-    secondPhase phaseOneWarns = do
+
       (warns, ghcSpec) <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
       let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
-      pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
+      return $ pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
 
     toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
     toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
@@ -191,51 +182,26 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies =
 -- | @makeGhcSpec@ invokes @makeGhcSpec0@ to construct the @GhcSpec@ and then
 --   validates it using @checkGhcSpec@.
 -------------------------------------------------------------------------------------
-<<<<<<< HEAD
 makeGhcSpec :: Config
             -> GhcSrc
             -> LogicMap
             -> [(ModName, Ms.BareSpec)]
-            -> Either Diagnostics ([Warning], GhcSpec)
+            -> Ghc.Ghc (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap validatedSpecs = do
+  sp <- makeGhcSpec0 cfg src lmap validatedSpecs
+  let diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
+                                       (view targetSrcIso src)
+                                       renv
+                                       cbs
+                                       (fst . view targetSpecGetter $ sp)
+      renv        = ghcSpecEnv sp
   case diagnostics of
     Left e | noErrors e -> pure (allWarnings e, sp)
     Left e              -> Left e
     Right ()            -> pure (mempty, sp)
   where
-    diagnostics = Bare.checkTargetSpec (map snd validatedSpecs)
-                                       (view targetSrcIso src)
-                                       renv
-                                       cbs
-                                       (fst . view targetSpecGetter $ sp)
-    sp          = makeGhcSpec0 cfg src lmap validatedSpecs
-    renv        = ghcSpecEnv sp
     cbs         = _giCbs src
-=======
-makeGhcSpec :: Config 
-            -> GhcSrc 
-            -> LogicMap 
-            -> [(ModName, Ms.BareSpec)] 
-            -> Ghc.Ghc (Either [Error] GhcSpec)
--------------------------------------------------------------------------------------
-makeGhcSpec cfg src lmap mspecs0  = do
-  sp     <- makeGhcSpec0 cfg src lmap mspecs
-  let renv             = ghcSpecEnv sp 
-      _validTargetSpec = Bare.checkTargetSpec (map snd mspecs) 
-                                           (view targetSrcIso src)
-                                           renv 
-                                           cbs 
-                                           (fst . view targetSpecGetter $ sp)
-  pure (_validTargetSpec >> pure sp)
-  where 
-    mspecs =  [ (m, checkThrow $ Bare.checkBareSpec m sp) | (m, sp) <- mspecs0, isTarget m ] 
-           ++ [ (m, sp) | (m, sp) <- mspecs0, not (isTarget m)]
-    cbs    = _giCbs src
-
-checkThrow :: Ex.Exception e => Either e c -> c
-checkThrow = either Ex.throw id 
->>>>>>> vrdt-hack
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
 ghcSpecEnv sp = fromListSEnv binds
