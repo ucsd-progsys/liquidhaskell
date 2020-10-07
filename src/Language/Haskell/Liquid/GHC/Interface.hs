@@ -59,7 +59,7 @@ import Prelude hiding (error)
 import GHC.Paths (libdir)
 import GHC.Serialized
 
-import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootSum)
+import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
 import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
                                                                , panic
@@ -264,7 +264,7 @@ configureGhcTargets tgtFiles = do
   _               <- setTargets targets
   moduleGraph     <- depanal [] False -- see [NOTE:DROP-BOOT-FILES]
 
-  let homeModules  = filter (not . isBootSum) $
+  let homeModules  = filter (not . isBootInterface . isBootSummary) $
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
   _               <- setTargetModules homeNames
@@ -659,8 +659,7 @@ makeDependencies cfg depGraph specEnv modSum _ = do
   where
     mkStableModule :: (ModName, Int) -> StableModule
     mkStableModule (modName, ix) =
-      let realUnit = RealUnit $ Definite (fakeUnitId (moduleUnitId targetModule) ix)
-      in toStableModule (Module realUnit (getModName modName))
+      Ghc.mkStableModule (fakeUnitId (moduleUnitId targetModule) ix) (getModName modName)
 
     fakeUnitId :: UnitId -> Int -> UnitId
     fakeUnitId uid ix = stringToUnitId $ unitIdString uid ++ show ix
@@ -885,7 +884,7 @@ moduleFile :: ModuleGraph -> Ext -> S.HashSet FilePath -> String -> IO (Maybe Fi
 moduleFile modGraph ext (S.toList -> paths) name
   | ext `elem` [Hs, LHs] = do
     let graph = mgModSummaries modGraph
-    case find (\m -> not (isBootSum m) &&
+    case find (\m -> not (isBootInterface . isBootSummary $ m) &&
                      name == moduleNameString (ms_mod_name m)) graph of
       Nothing -> getFileInDirs (extModuleName name ext) paths
       Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)

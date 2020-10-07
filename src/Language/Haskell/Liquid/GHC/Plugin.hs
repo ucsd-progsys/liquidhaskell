@@ -40,6 +40,7 @@ import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
 import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
                                                           , askHscEnv
+                                                          , isBootInterface
                                                           )
 import           GHC.LanguageExtensions
 
@@ -311,7 +312,9 @@ relevantModules :: ModGuts -> Set Module
 relevantModules modGuts = used `S.union` dependencies
   where
     dependencies :: Set Module
-    dependencies = S.fromList $ map (toModule . fst) . filter (not . snd) . dep_mods $ deps
+    dependencies = S.fromList $ map (toModule . gwib_mod)
+                              . filter (not . isBootInterface . gwib_isBoot)
+                              . getDependenciesModuleNames $ deps
 
     deps :: Dependencies
     deps = mg_deps modGuts
@@ -320,7 +323,7 @@ relevantModules modGuts = used `S.union` dependencies
     thisModule = mg_module modGuts
 
     toModule :: ModuleName -> Module
-    toModule = Module (moduleUnitId thisModule)
+    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
 
     used :: Set Module
     used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts

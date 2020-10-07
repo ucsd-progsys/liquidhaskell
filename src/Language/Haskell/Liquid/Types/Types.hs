@@ -2004,17 +2004,11 @@ data ModType = Target | SrcImport | SpecImport
 
 instance Hashable ModType 
 
-instance Hashable ModuleName where
-  hashWithSalt i = hashWithSalt i . show
-
 instance Hashable ModName where
   hashWithSalt i (ModName t n) = hashWithSalt i (t, show n)
 
 instance F.PPrint ModName where
   pprintTidy _ = text . show
-
-instance Show ModuleName where
-  show = moduleNameString
 
 instance F.Symbolic ModName where
   symbol (ModName _ m) = F.symbol m

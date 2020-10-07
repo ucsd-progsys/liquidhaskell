@@ -257,8 +257,8 @@ mkAnnMapErr _             = []
 
 cinfoErr :: PPrint (TError t) => TError t -> Maybe (Loc, Loc, String)
 cinfoErr e = case pos e of
-               RealSrcSpan l _ -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
-               _               -> Nothing
+               SrcLoc.RealSrcSpan l _ -> Just (srcSpanStartLoc l, srcSpanEndLoc l, showpp e)
+               _                      -> Nothing
 
 
 -- mkAnnMapTyp :: (RefTypable a c tv r, RefTypable a c tv (), PPrint tv, PPrint a) =>Config-> AnnInfo (RType a c tv r) -> M.HashMap Loc (String, String)
@@ -270,7 +270,7 @@ mkAnnMapBinders cfg (AI m)
   = map (second bindStr . head . sortWith (srcSpanEndCol . fst))
   $ groupWith (lineCol . fst) locBinds
   where
-    locBinds       = [ (l, x) | (RealSrcSpan l _, x:_) <- M.toList m, oneLine l]
+    locBinds       = [ (l, x) | (SrcLoc.RealSrcSpan l _, x:_) <- M.toList m, oneLine l]
     bindStr (x, v) = (maybe "_" (symbolString . shorten . symbol) x, render v)
     shorten        = if shortNames cfg then dropModuleNames else id
 

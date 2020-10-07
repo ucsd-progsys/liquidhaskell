@@ -6,6 +6,9 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 --}
 
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE EmptyDataDecls #-}
@@ -16,6 +19,7 @@ The intended use of this module is to shelter LiquidHaskell from changes to the 
 
 module Language.Haskell.Liquid.GHC.API (
     module Ghc
+  , module StableModule
 
 -- Specific exports for 8.6.5
 #ifdef MIN_VERSION_GLASGOW_HASKELL
@@ -47,7 +51,6 @@ module Language.Haskell.Liquid.GHC.API (
 
   , tyConRealArity
   , dataConExTyVars
-  , getDependenciesModuleNames
 
 -- Specific exports for 8.8.x
 #ifdef MIN_VERSION_GLASGOW_HASKELL
@@ -87,6 +90,13 @@ module Language.Haskell.Liquid.GHC.API (
   , mkUserLocal
   , dataConWrapperType
   , apiAnnComments
+  , getDependenciesModuleNames
+  , GenWithIsBoot(..)
+  , ModuleNameWithIsBoot
+  , IsBootInterface
+  , isBootSummary
+  , mkIntExprInt
+  , dataConFullSig
 #endif
 #endif
 
@@ -100,12 +110,14 @@ module Language.Haskell.Liquid.GHC.API (
   , mkUserStyle
   , pattern LitNumber
   , dataConSig
+  , getDependenciesModuleNames
   , gcatch
 #endif
 #endif
 
   ) where
 
+import           Language.Haskell.Liquid.GHC.API.StableModule      as StableModule
 import           GHC                                               as Ghc hiding ( Warning
                                                                                  , SrcSpan(RealSrcSpan, UnhelpfulSpan)
                                                                                  , exprType
@@ -116,8 +128,8 @@ import           GHC                                               as Ghc hiding
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
---import CoreSubst                as Ghc
 import Annotations              as Ghc
+import ApiAnnotation            as Ghc
 import Avail                    as Ghc
 import Bag                      as Ghc
 import BasicTypes               as Ghc
@@ -127,13 +139,17 @@ import Coercion                 as Ghc
 import ConLike                  as Ghc
 import CoreLint                 as Ghc hiding (dumpIfSet)
 import CoreMonad                as Ghc (CoreToDo(..))
+import CoreSubst                as Ghc (deShadowBinds)
 import CoreSyn                  as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import CoreUtils                as Ghc (exprType)
 import CostCentre               as Ghc
-import DataCon                  as Ghc hiding (dataConInstArgTys, dataConOrigArgTys, dataConRepArgTys)
+import Data.Map.Strict (Map)
+import DataCon                  as Ghc hiding (dataConInstArgTys, dataConOrigArgTys, dataConRepArgTys, dataConFullSig)
+import qualified DataCon        as Ghc
 import Digraph                  as Ghc
 import DriverPhases             as Ghc (Phase(StopLn))
-import DriverPipeline           as Ghc hiding (P)
+import DriverPipeline           as Ghc hiding (P, getLocation)
+import DsMonad                  as Ghc
 import DynFlags                 as Ghc
 import ErrUtils                 as Ghc
 import FamInst                  as Ghc
@@ -141,15 +157,15 @@ import FamInstEnv               as Ghc hiding (pprFamInst)
 import Finder                   as Ghc
 import ForeignCall              (CType)
 import GHC                      as Ghc (SrcSpan)
-import GhcPlugins               as Ghc
+import GhcPlugins               as Ghc (deserializeWithData , fromSerialized , toSerialized)
 import HscMain                  as Ghc
-import HscTypes                 as Ghc
+import HscTypes                 as Ghc hiding (IsBootInterface, isBootSummary)
 import Id                       as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported, mkUserLocal)
 import IdInfo                   as Ghc
 import IfaceSyn                 as Ghc
 import InstEnv                  as Ghc
 import Literal                  as Ghc
-import MkCore                   as Ghc
+import MkCore                   as Ghc hiding (mkIntExprInt)
 import MkId                     (mkDataConWorkId)
 import Module                   as Ghc
 import Name                     as Ghc hiding (varName)
@@ -158,6 +174,7 @@ import NameSet                  as Ghc
 import Outputable               as Ghc hiding ((<>))
 import Pair                     as Ghc
 import Panic                    as Ghc
+import Plugins                  as Ghc (defaultPlugin, Plugin(..), CommandLineOption, purePlugin)
 import PrelInfo                 as Ghc
 import PrelNames                as Ghc hiding (wildCardName)
 import RdrName                  as Ghc
@@ -180,7 +197,10 @@ import qualified                SrcLoc
 import qualified Data.Bifunctor as Bi
 import qualified Data.Data      as Data
 import qualified DataCon        as Ghc
+import qualified GhcMake
+import qualified HscTypes       as Ghc
 import qualified Id             as Ghc
+import qualified MkCore         as Ghc
 import qualified Var            as Ghc
 import qualified WwLib          as Ghc
 #endif
@@ -221,6 +241,7 @@ import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (mkAnonTyConBinders, TyConBndrVis(AnonTCB))
 import qualified TyCoRep as Ty
 import qualified TyCon   as Ty
+import Platform as Ghc
 
 #endif
 #endif
@@ -247,6 +268,8 @@ import Data.Foldable        (asum)
 --
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
+import DynFlags          as  Ghc (targetPlatform)
+import GHC.Platform      as  Ghc (Platform)
 import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys)
 import qualified Type    as  Ghc
 import TyCon             as  Ghc
@@ -266,8 +289,7 @@ import Data.Foldable  (asum)
 #if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,1,0,0)
 
 import Optics
-import qualified UnliftIO.Exception as UnliftIO
-import qualified UnliftIO
+import qualified Control.Monad.Catch as Ex
 
 import Data.Foldable                  (asum)
 import GHC.Builtin.Names              as Ghc
@@ -494,8 +516,32 @@ isManyDataConTy ty
   = tc `hasKey` manyDataConKey
 isManyDataConTy _ = False
 
-getDependenciesModuleNames :: Dependencies -> [ModuleName]
-getDependenciesModuleNames = map fst . dep_mods
+--
+-- Dependencies and Boot
+--
+type IsBootInterface = GhcMake.IsBoot
+
+-- | This data type just pairs a value 'mod' with an IsBootInterface flag. In
+-- practice, 'mod' is usually a @Module@ or @ModuleName@'.
+data GenWithIsBoot mod = GWIB
+  { gwib_mod :: mod
+  , gwib_isBoot :: IsBootInterface
+  } deriving ( Eq, Ord, Show
+             , Functor, Foldable, Traversable
+             )
+
+type ModuleNameWithIsBoot = GenWithIsBoot ModuleName
+
+isBootSummary :: ModSummary -> IsBootInterface
+isBootSummary ms = case Ghc.isBootSummary ms of
+  True  -> GhcMake.IsBoot
+  False -> GhcMake.NotBoot
+
+getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
+getDependenciesModuleNames = map f . dep_mods
+  where
+    f :: (ModuleName, Bool) -> ModuleNameWithIsBoot
+    f (modName, b) = let isBoot = if b then GhcMake.IsBoot else GhcMake.NotBoot in GWIB modName isBoot
 
 dataConInstArgTys :: DataCon -> [Type] -> [Scaled Type]
 dataConInstArgTys dc tys = map (mkScaled Many) (Ghc.dataConInstArgTys dc tys)
@@ -536,6 +582,15 @@ splitFunTys ty = Bi.first (map (mkScaled Many)) $ Ghc.splitFunTys ty
 apiAnnComments :: (Map ApiAnnKey [SrcSpan], Map SrcSpan [Located AnnotationComment])
                -> Map SrcSpan [Located AnnotationComment]
 apiAnnComments = snd
+
+mkIntExprInt :: Platform -> Int -> CoreExpr
+mkIntExprInt _ int = Ghc.mkIntExprInt unsafeGlobalDynFlags int
+
+dataConFullSig :: DataCon -> ([TyVar], [TyCoVar], [EqSpec], ThetaType, [Scaled Type], Type)
+dataConFullSig dc =
+  let (tyvars, tycovars, eqspecs, theta, tys, ty) = Ghc.dataConFullSig dc
+  in  (tyvars, tycovars, eqspecs, theta, map (mkScaled Many) tys, ty)
+
 
 #endif
 #endif
@@ -743,8 +798,8 @@ tyConRealArity tc = go 0 (tyConKind tc)
 dataConExTyVars :: DataCon -> [TyVar]
 dataConExTyVars = dataConExTyCoVars
 
-getDependenciesModuleNames :: Dependencies -> [ModuleName]
-getDependenciesModuleNames = map gwib_mod . dep_mods
+getDependenciesModuleNames :: Dependencies -> [ModuleNameWithIsBoot]
+getDependenciesModuleNames = dep_mods
 
 renderWithStyle :: DynFlags -> SDoc -> PprStyle -> String
 renderWithStyle dynflags sdoc style = Ghc.renderWithStyle (Ghc.initSDocContext dynflags style) sdoc
@@ -768,9 +823,8 @@ dataConSig :: DataCon -> ([TyCoVar], ThetaType, [Type], Type)
 dataConSig dc
   = (dataConUnivAndExTyCoVars dc, dataConTheta dc, map irrelevantMult $ dataConOrigArgTys dc, dataConOrigResTy dc)
 
-gcatch :: (UnliftIO.MonadUnliftIO m, Exception e) => m a -> (e -> m a) -> m a
-gcatch = UnliftIO.catch
-
+gcatch :: (Ex.MonadCatch m, Exception e) => m a -> (e -> m a) -> m a
+gcatch = Ex.catch
 
 #endif
 

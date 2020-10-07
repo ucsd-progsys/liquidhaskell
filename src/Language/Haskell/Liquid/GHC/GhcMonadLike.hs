@@ -28,7 +28,7 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , desugarModule
   , findModule
   , lookupModule
-  , isBootSum
+  , isBootInterface
   ) where
 
 import Control.Monad
@@ -115,7 +115,7 @@ getModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootSum ms) ]
+                      , not (isBootInterface . isBootSummary $ ms) ]
    case mods_by_name of
      [] -> do dflags <- getDynFlags
               liftIO $ throwIO $ mkApiErr dflags (text "Module not part of module graph")
@@ -124,26 +124,17 @@ getModSummary mdl = do
                     liftIO $ throwIO $ mkApiErr dflags (text "getModSummary is ambiguous: " <+> ppr multiple)
 
 
--- This is a compat-shim for 'isBootSummary', which is used only in this module and it doesn't warrant
--- a full porting inside the 'GHC.API' module.
-isBootSum :: ModSummary -> Bool
-isBootSum ms =
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-      isBootSummary ms
-#else
-      case isBootSummary ms of
-        NotBoot -> False
-        IsBoot  -> True
-#endif
-#endif
+-- Converts a 'IsBootInterface' into a 'Bool'.
+isBootInterface :: IsBootInterface -> Bool
+isBootInterface IsBoot  = True
+isBootInterface NotBoot = False
 
 lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
 lookupModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootSum ms) ]
+                      , not (isBootInterface . isBootSummary $ ms) ]
    case mods_by_name of
      [ms] -> pure (Just ms)
      _    -> pure Nothing

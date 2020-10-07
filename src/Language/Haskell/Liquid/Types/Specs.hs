@@ -29,9 +29,6 @@ module Language.Haskell.Liquid.Types.Specs (
   , LiftedSpec(..)
   -- * Tracking dependencies
   -- $trackingDeps
-  , StableModule(..)
-  , toStableModule
-  , renderModule
   , TargetDependencies(..)
   , dropDependency
   -- * Predicates on spec types
@@ -65,7 +62,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , bareSpecIso
   , liftedSpecGetter
   , unsafeFromLiftedSpec
-  ) where 
+  ) where
 
 import           Optics
 import           GHC.Generics            hiding (to, moduleName)
@@ -534,48 +531,6 @@ data LiftedSpec = LiftedSpec
 
 
 -- $trackingDeps
-
--- | A newtype wrapper around a 'Module' which:
---
--- * Allows a 'Module' to be serialised (i.e. it has a 'Binary' instance)
--- * It tries to use stable comparison and equality under the hood.
---
-newtype StableModule = 
-  StableModule { unStableModule :: Module } 
-  deriving Generic
-
--- | Converts a 'Module' into a 'StableModule'.
-toStableModule :: Module -> StableModule
-toStableModule = StableModule
-
-renderModule :: Module -> String
-renderModule m =    "Module { unitId = " <> (unitIdString $ moduleUnitId m)
-                 <> ", name = " <> show (moduleName m) 
-                 <> " }"
-
-instance Hashable StableModule where
-  hashWithSalt s (StableModule mdl) = hashWithSalt s (moduleStableString mdl)
-
-instance Ord StableModule where
-  (StableModule m1) `compare` (StableModule m2) = stableModuleCmp m1 m2
-
-instance Eq StableModule where
-  (StableModule m1) == (StableModule m2) = (m1 `stableModuleCmp` m2) == EQ
-
-instance Show StableModule where
-    show (StableModule mdl) = "Stable" ++ renderModule mdl
-
-instance Binary StableModule where
-
-    put (StableModule mdl) = do
-      put (unitIdString . moduleUnitId $ mdl)
-      put (moduleNameString . moduleName $ mdl)
-
-    get = do
-      uidStr <- get
-      mnStr  <- get
-      let realUnit = RealUnit $ Definite (stringToUnitId uidStr)
-      pure $ StableModule (Module realUnit (mkModuleName mnStr))
 
 -- | The /target/ dependencies that concur to the creation of a 'TargetSpec' and a 'LiftedSpec'.
 newtype TargetDependencies =

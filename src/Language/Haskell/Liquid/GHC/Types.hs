@@ -73,7 +73,7 @@ nameSetToStableNameSet :: NameSet -> HashSet StableName
 nameSetToStableNameSet = fromList . map mkStableName . nameSetElemsStable
 
 mg_dir_imps :: ModGuts -> [ModuleName]
-mg_dir_imps = getDependenciesModuleNames . mg_deps
+mg_dir_imps = map gwib_mod . getDependenciesModuleNames . mg_deps
 
 mgi_namestring :: MGIModGuts -> String
 mgi_namestring = moduleNameString . moduleName . mgi_module

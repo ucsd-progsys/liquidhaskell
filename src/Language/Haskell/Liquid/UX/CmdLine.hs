@@ -42,7 +42,6 @@ module Language.Haskell.Liquid.UX.CmdLine (
 ) where
 
 import Prelude hiding (error)
-import qualified Prelude
 
 
 import Control.Monad
@@ -82,7 +81,7 @@ import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 import qualified Language.Haskell.Liquid.GHC.API as GHC
-import           Language.Haskell.TH.Syntax.Compat (toCode)
+import           Language.Haskell.TH.Syntax.Compat (fromCode, toCode)
 
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
 
@@ -522,7 +521,7 @@ gitInfo :: String
 gitInfo  = msg
   where
     giTry :: Either String GitInfo
-    giTry  = $$(toCode tGitInfoCwdTry)
+    giTry  = $$(fromCode (toCode tGitInfoCwdTry))
     msg    = case giTry of
                Left _   -> " no git information"
                Right gi -> gitMsg gi
