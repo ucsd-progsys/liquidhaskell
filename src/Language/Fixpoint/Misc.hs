@@ -210,6 +210,9 @@ hashNub = M.keys . M.fromList . fmap (, ())
 sortNub :: (Ord a) => [a] -> [a]
 sortNub = nubOrd . L.sort
 
+sortNubBy :: (Eq a) => (a -> a -> Ordering) -> [a] -> [a]
+sortNubBy f = nubOrd . L.sortBy f
+
 nubOrd :: (Eq a) => [a] -> [a]
 nubOrd (x:t@(y:_))
   | x == y    = nubOrd t
