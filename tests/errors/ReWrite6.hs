@@ -1,3 +1,4 @@
+{-@ LIQUID "--only-rw-eqs" @-}
 module ReWrite6 where
 
 -- Reject non equalities

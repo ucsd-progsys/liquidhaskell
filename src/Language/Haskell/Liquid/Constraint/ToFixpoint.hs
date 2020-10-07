@@ -89,7 +89,7 @@ makeAxiomEnvironment info xts fcs
   = F.AEnv eqs  
            (concatMap makeSimplify xts)
            (doExpand sp cfg <$> fcs)
-           (makeRewrites info <$> fcs)
+           (makeRewrites (onlyRWEqs cfg) info <$> fcs)
   where
     eqs      = if (oldPLE cfg) 
                 then (makeEquations sp ++ map (uncurry $ specTypeEq emb) xts)
@@ -101,8 +101,8 @@ makeAxiomEnvironment info xts fcs
     refl     = gsRefl sp
 
 
-makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
-makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
+makeRewrites :: Bool -> TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
+makeRewrites eqsOnly info sub = concatMap (makeRewriteOne eqsOnly tce)  $ filter ((`S.member` rws) . fst) sigs
   where
     tce        = gsTcEmbeds (gsName spec)
     spec       = giSpec info
@@ -136,20 +136,25 @@ canRewrite freeVars from to = noFreeSyms && doesNotDiverge
     doesNotDiverge     = Mb.isNothing (unify (S.toList freeVars) from to)
                       || Mb.isJust (unify (S.toList freeVars) to from)
 
-refinementEQs :: LocSpecType -> [(F.Expr, F.Expr)]
-refinementEQs t =
+refinementEQs :: Bool -> LocSpecType -> [(F.Expr, F.Expr)]
+refinementEQs eqsOnly t =
   case stripRTypeBase tres of
     Just r ->
-      [ (lhs, rhs) | (F.EEq lhs rhs) <- F.splitPAnd $ F.reftPred (F.toReft r) ]
+      let
+        rp = F.reftPred (F.toReft r)
+      in
+        (if not eqsOnly then [ (rp, F.PTrue) | rp <- F.splitPAnd rp] else []) ++
+        [ (lhs, rhs) | (F.EEq lhs rhs)  <- F.splitPAnd rp ] ++
+        [ (lhs, rhs) | (F.PIff lhs rhs) <- F.splitPAnd rp ]
     Nothing ->
       []
   where
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
   
-makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
-makeRewriteOne tce (_,t)
-  = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
+makeRewriteOne :: Bool -> (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
+makeRewriteOne eqsOnly tce (_,t)
+  = [rw | (lhs, rhs) <- refinementEQs eqsOnly t , rw <- rewrites lhs rhs ]
   where
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]

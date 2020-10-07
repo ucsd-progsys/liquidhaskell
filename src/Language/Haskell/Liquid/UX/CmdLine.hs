@@ -411,6 +411,14 @@ config = cmdArgsMode $ Config {
         &= help (   "Enable the rewrite divergence checker. " 
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
+  ,
+    onlyRWEqs
+    = def
+        &= name "only-rw-eqs"
+        &= help (   "Only perform rewrites of the form a = b. "
+                 ++ "More general rewrites of the form a -> true are not performed. "
+                 ++ "This can reduce verification time."
+                )
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -654,6 +662,7 @@ defConfig = Config
   , maxArgsDepth             = 1
   , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
+  , onlyRWEqs                = False
   }
 
 

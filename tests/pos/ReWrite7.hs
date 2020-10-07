@@ -6,6 +6,7 @@
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--prune-unsorted" @-}
 {-@ LIQUID "--max-rw-ordering-constraints=0" @-}
+{-@ LIQUID "--rw-termination-check" @-}
 
 
 module ReWrite7 where

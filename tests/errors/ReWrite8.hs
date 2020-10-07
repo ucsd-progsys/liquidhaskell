@@ -1,5 +1,6 @@
 module ReWrite8 where
 
+{-@ LIQUID "--only-rw-eqs" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ infix ++ @-}

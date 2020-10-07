@@ -1,5 +1,6 @@
 module ReWrite where 
 
+{-@ LIQUID "--rw-termination-check" @-}
 {-@ LIQUID "--max-rw-ordering-constraints=1" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}

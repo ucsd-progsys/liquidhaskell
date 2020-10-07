@@ -2,6 +2,8 @@
 module ReWrite5 where
 
 {-@ LIQUID "--max-rw-ordering-constraints=0" @-}
+{-@ LIQUID "--rw-termination-check" @-}
+{-@ LIQUID "--only-rw-eqs" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ infix ++ @-}

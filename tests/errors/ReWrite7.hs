@@ -1,4 +1,5 @@
 module ReWrite7 where
+{-@ LIQUID "--only-rw-eqs" @-}
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 

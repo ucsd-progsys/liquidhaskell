@@ -41,7 +41,7 @@ import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
 
 import qualified Language.Haskell.Liquid.Measure           as Ms
 import qualified Language.Haskell.Liquid.Bare.Types        as Bare 
-import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare 
+import qualified Language.Haskell.Liquid.Bare.Resolve      as Bare
 
 
 ----------------------------------------------------------------------------------------------
@@ -648,9 +648,9 @@ dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
     trep = toRTypeRep t
 
 
-getRewriteErrors :: (Var, Located SpecType) -> [TError t]
-getRewriteErrors (rw, t)
-  | null $ refinementEQs t
+getRewriteErrors :: Bool -> (Var, Located SpecType) -> [TError t]
+getRewriteErrors eqsOnly (rw, t)
+  | null $ refinementEQs eqsOnly t
   = [ErrRewrite (GM.fSrcSpan t) $ text $
                 "Unable to use "
                 ++ show rw
@@ -664,7 +664,7 @@ getRewriteErrors (rw, t)
         else []
     where
         refErrs = map getInnerRefErr (filter (hasInnerRefinement . fst) (zip tyArgs syms))
-        allowedRWs = [ (lhs, rhs) | (lhs , rhs) <- refinementEQs t
+        allowedRWs = [ (lhs, rhs) | (lhs , rhs) <- refinementEQs eqsOnly t
                  , canRewrite (S.fromList syms) lhs rhs ||
                    canRewrite (S.fromList syms) rhs lhs
                  ]
@@ -708,13 +708,14 @@ hasInnerRefinement (RRTy env _ _ ty) =
 hasInnerRefinement _ = False
 
 checkRewrites :: TargetSpec -> Diagnostics
-checkRewrites targetSpec = mkDiagnostics mempty (concatMap getRewriteErrors rwSigs)
+checkRewrites targetSpec = mkDiagnostics mempty (concatMap (getRewriteErrors eqsOnly) rwSigs)
   where
-    rwSigs = filter ((`S.member` rws) . fst) sigs
-    refl   = gsRefl targetSpec
-    sig    = gsSig targetSpec
-    sigs   = gsTySigs sig ++ gsAsmSigs sig
-    rws    = S.union (S.map val $ gsRewrites refl)
+    eqsOnly = onlyRWEqs (gsConfig targetSpec)
+    rwSigs  = filter ((`S.member` rws) . fst) sigs
+    refl    = gsRefl targetSpec
+    sig     = gsSig targetSpec
+    sigs    = gsTySigs sig ++ gsAsmSigs sig
+    rws     = S.union (S.map val $ gsRewrites refl)
                    (S.fromList $ concat $ M.elems (gsRewritesWith refl))
 
 

@@ -97,6 +97,7 @@ data Config = Config
   , maxArgsDepth             :: Int
   , maxRWOrderingConstraints :: Maybe Int
   , rwTerminationCheck       :: Bool
+  , onlyRWEqs                :: Bool
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

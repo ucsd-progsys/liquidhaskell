@@ -3,6 +3,7 @@ module ReWrite10 where
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--rw-termination-check" @-}
+{-@ LIQUID "--max-rw-ordering-constraints=0" @-}
 {-@ infix ++ @-}
 
 import Prelude hiding (length, (++))
