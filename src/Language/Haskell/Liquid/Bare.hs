@@ -904,9 +904,9 @@ mkReft :: LocSymbol -> Symbol -> SpecType -> SpecType -> Maybe (Symbol, Expr)
 mkReft x z _t tr 
   | Just q <- stripRTypeBase tr
   = let Reft (v, p) = toReft q
-        su          = mkSubst [(v, mkEApp x [EVar v])]
-        p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
-    in  Just (v, subst su p')
+        su          = mkSubst [(v, mkEApp x [EVar v]), (z,EVar v)]
+        -- p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
+    in  Just (v, subst su p)
 mkReft _ _ _ _  
   = Nothing 
 
