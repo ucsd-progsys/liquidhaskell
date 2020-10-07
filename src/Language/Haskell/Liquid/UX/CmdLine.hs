@@ -387,9 +387,6 @@ config = cmdArgsMode $ Config {
     = def
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
-<<<<<<< HEAD
-  , maxMatchDepth
-=======
   , typeclass
     = def
         &= help "Enable Typeclass"
@@ -398,8 +395,7 @@ config = cmdArgsMode $ Config {
     = def
         &= help "Enable inlining of class methods"
         &= name "aux-inline"
-  , maxMatchDepth 
->>>>>>> vrdt-hack
+  , maxMatchDepth
     = def
         &= name "max-match-depth"
         &= help "Define the number of expressions to pattern match on (typed-holes must be on to use this flag)."
@@ -649,7 +645,6 @@ defConfig = Config
   , noPatternInline          = False
   , noSimplifyCore           = False
   -- PLE-OPT , autoInstantiate   = def
-<<<<<<< HEAD
   , noslice                  = False
   , noLiftedImport           = False
   , proofLogicEval           = False
@@ -661,29 +656,13 @@ defConfig = Config
   , compileSpec              = False
   , noCheckImports           = False
   , typedHoles               = False
+  , typeclass                = False
+  , auxInline                = False
   , maxMatchDepth            = 4
   , maxAppDepth              = 2
   , maxArgsDepth             = 1
   , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
-=======
-  , noslice           = False
-  , noLiftedImport    = False
-  , proofLogicEval    = False
-  , oldPLE            = False
-  , proofLogicEvalLocal = False
-  , reflection        = False
-  , extensionality    = False 
-  , nopolyinfer       = False
-  , compileSpec       = False
-  , noCheckImports    = False
-  , typedHoles        = False
-  , typeclass         = False
-  , auxInline         = False
-  , maxMatchDepth     = 4
-  , maxAppDepth       = 2
-  , maxArgsDepth      = 1
->>>>>>> vrdt-hack
   }
 
 

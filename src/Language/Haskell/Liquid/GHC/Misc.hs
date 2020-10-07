@@ -19,12 +19,8 @@ module Language.Haskell.Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L
-<<<<<<< HEAD
-import           PrelNames                                  (fractionalClassKeys)
-=======
 import           PrelNames                                  (fractionalClassKeys, itName, ordClassKey, numericClassKeys, eqClassKey)
 import           FamInstEnv
->>>>>>> vrdt-hack
 import           Debug.Trace
 
 import qualified CoreUtils

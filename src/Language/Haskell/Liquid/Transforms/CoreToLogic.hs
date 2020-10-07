@@ -20,10 +20,7 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
 
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
-<<<<<<< HEAD
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
-=======
->>>>>>> vrdt-hack
 import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
 -- import qualified Id 
 import qualified Var
