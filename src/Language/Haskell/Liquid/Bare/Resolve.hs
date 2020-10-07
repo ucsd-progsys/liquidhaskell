@@ -136,7 +136,7 @@ localVarMap :: [Ghc.Var] -> LocalVars
 localVarMap vs = 
   Misc.group [ (x, (i, v)) | v    <- vs
                            , x    <- Mb.maybeToList (localKey v) 
-                           , let i = F.srcLine v 
+                           , let i = F.unPos (F.srcLine v)
              ]
 
 localKey   :: Ghc.Var -> Maybe F.Symbol
@@ -398,6 +398,14 @@ qualifyBareSpec env name l bs sp = sp
   } 
   where f      = qualify env name l bs 
 
+instance Qualify a => Qualify (RTAlias F.Symbol a) where
+  qualify env name l bs rtAlias
+   = rtAlias { rtName  = qualify env name l bs (rtName rtAlias)
+             , rtTArgs = qualify env name l bs (rtTArgs rtAlias)
+             , rtVArgs = qualify env name l bs (rtVArgs rtAlias)
+             , rtBody  = qualify env name l bs (rtBody rtAlias)
+             }
+
 instance Qualify F.Expr where 
   qualify = substEnv 
 
@@ -446,8 +454,8 @@ lookupLocalVar env lx gvs = Misc.findNearest lxn kvs
   where 
     _msg                  = "LOOKUP-LOCAL: " ++ F.showpp (F.val lx, lxn, kvs)
     kvs                   = gs ++ M.lookupDefault [] x (reLocalVars env) 
-    gs                    = [(F.srcLine v, v) | v <- gvs]
-    lxn                   = F.srcLine lx  
+    gs                    = [(F.unPos (F.srcLine v), v) | v <- gvs]
+    lxn                   = F.unPos (F.srcLine lx)
     (_, x)                = unQualifySymbol (F.val lx)
 
 

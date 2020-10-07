@@ -32,8 +32,6 @@ import           Bag
 import           CoreLint
 import           CoreMonad
 
-import           Text.Parsec.Pos                            (incSourceColumn, sourceName, sourceLine, sourceColumn, newPos)
-
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
 import           TcRnDriver
@@ -235,20 +233,16 @@ srcSpanFSrcSpan sp = F.SS p p'
     p'             = srcSpanSourcePosE sp
 
 sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
-sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f l c l' c'
+sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')
   where
     (f, l,  c)         = F.sourcePosElts p
     (_, l', c')        = F.sourcePosElts p'
 
 sourcePosSrcSpan   :: SourcePos -> SrcSpan
-sourcePosSrcSpan p = sourcePos2SrcSpan p (incSourceColumn p 1)
+sourcePosSrcSpan p@(SourcePos file line col) = sourcePos2SrcSpan p (SourcePos file line (succPos col))
 
 sourcePosSrcLoc    :: SourcePos -> SrcLoc
-sourcePosSrcLoc p = mkSrcLoc (fsLit file) line col
-  where
-    file          = sourceName p
-    line          = sourceLine p
-    col           = sourceColumn p
+sourcePosSrcLoc (SourcePos file line col) = mkSrcLoc (fsLit file) (unPos line) (unPos col)
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "<no source information>"
@@ -275,7 +269,7 @@ lineCol :: RealSrcSpan -> (Int, Int)
 lineCol l          = (srcSpanStartLine l, srcSpanStartCol l)
 
 realSrcSpanSourcePos :: RealSrcSpan -> SourcePos
-realSrcSpanSourcePos s = newPos file line col
+realSrcSpanSourcePos s = safeSourcePos file line col
   where
     file               = unpackFS $ srcSpanFile s
     line               = srcSpanStartLine       s
@@ -283,7 +277,7 @@ realSrcSpanSourcePos s = newPos file line col
 
 
 realSrcSpanSourcePosE :: RealSrcSpan -> SourcePos
-realSrcSpanSourcePosE s = newPos file line col
+realSrcSpanSourcePosE s = safeSourcePos file line col
   where
     file                = unpackFS $ srcSpanFile s
     line                = srcSpanEndLine       s

@@ -259,15 +259,23 @@ class Expand a where
   expand :: BareRTEnv -> F.SourcePos -> a -> a 
 
 ----------------------------------------------------------------------------------
--- | @qualifyExpand@ first qualifies names so that we can successfully resolve 
---   them during expansion. 
+-- | @qualifyExpand@ first qualifies names so that we can successfully resolve them during expansion.
+--
+-- When expanding, it's important we pass around a 'BareRTEnv' where the type aliases have been qualified as well.
+-- This is subtle, see for example T1761. In that test, we had a type alias \"OneTyAlias a = {v:a | oneFunPred v}\" where
+-- \"oneFunPred\" was marked inline. However, inlining couldn't happen because the 'BareRTEnv' had an
+-- entry for \"T1761.oneFunPred\", so the relevant expansion of \"oneFunPred\" couldn't happen. This was
+-- because the type alias entry inside 'BareRTEnv' mentioned the tuple (\"OneTyAlias\", \"{v:a | oneFunPred v}\") but
+-- the 'snd' element needed to be qualified as well, before trying to expand anything.
 ----------------------------------------------------------------------------------
-qualifyExpand :: (Expand a, Bare.Qualify a) 
-              => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> [F.Symbol] -> a -> a 
+qualifyExpand :: (PPrint a, Expand a, Bare.Qualify a)
+              => Bare.Env -> ModName -> BareRTEnv -> F.SourcePos -> [F.Symbol] -> a -> a
 ----------------------------------------------------------------------------------
 qualifyExpand env name rtEnv l bs
-  = expand rtEnv l
-  . Bare.qualify env name l bs
+  = expand qualifiedRTEnv l . Bare.qualify env name l bs
+  where
+    qualifiedRTEnv :: BareRTEnv
+    qualifiedRTEnv = rtEnv { typeAliases = M.map (Bare.qualify env name l bs) (typeAliases rtEnv) }
 
 ----------------------------------------------------------------------------------
 expandLoc :: (Expand a) => BareRTEnv -> Located a -> Located a 
@@ -277,7 +285,7 @@ instance Expand Expr where
   expand = expandExpr 
 
 instance Expand F.Reft where
-  expand rtEnv l (F.Reft (v, ra)) = F.Reft (v, expand rtEnv l ra) 
+  expand rtEnv l (F.Reft (v, ra)) = F.Reft (v, expand rtEnv l ra)
 
 instance Expand RReft where
   expand rtEnv l = fmap (expand rtEnv l)
@@ -298,9 +306,9 @@ instance Expand SpecType where
 
 -- | @expand@ on a BareType actually applies the type- and expression- aliases.
 instance Expand BareType where 
-  expand rtEnv l 
-    = expandReft     rtEnv l -- apply expression aliases 
-    . expandBareType rtEnv l -- apply type       aliases 
+  expand rtEnv l
+    = expandReft     rtEnv l -- apply expression aliases
+    . expandBareType rtEnv l -- apply type       aliases
 
 instance Expand (RTAlias F.Symbol Expr) where 
   expand rtEnv l x = x { rtBody = expand rtEnv l (rtBody x) } 
@@ -339,7 +347,7 @@ instance Expand BareDef where
     , body  = expand rtEnv l (body  d) 
     } 
 
-instance Expand Ms.BareSpec where 
+instance Expand Ms.BareSpec where
   expand = expandBareSpec
 
 instance Expand a => Expand (F.Located a) where 
@@ -357,9 +365,10 @@ instance Expand a => Expand [a] where
 instance Expand a => Expand (M.HashMap k a) where 
   expand rtEnv l = fmap (expand rtEnv l) 
 
+-- | Expands a 'BareSpec'.
 expandBareSpec :: BareRTEnv -> F.SourcePos -> Ms.BareSpec -> Ms.BareSpec
-expandBareSpec rtEnv l sp = sp 
-  { measures   = expand rtEnv l (measures   sp) 
+expandBareSpec rtEnv l sp = sp
+  { measures   = expand rtEnv l (measures   sp)
   , asmSigs    = expand rtEnv l (asmSigs    sp)
   , sigs       = expand rtEnv l (sigs       sp)
   , localSigs  = expand rtEnv l (localSigs  sp)
@@ -367,9 +376,9 @@ expandBareSpec rtEnv l sp = sp
   , ialiases   = [ (f x, f y) | (x, y) <- ialiases sp ]
   , dataDecls  = expand rtEnv l (dataDecls  sp)
   , newtyDecls = expand rtEnv l (newtyDecls sp)
-  } 
-  where f      = expand rtEnv l 
-  
+  }
+  where f      = expand rtEnv l
+
 expandBareType :: BareRTEnv -> F.SourcePos -> BareType -> BareType 
 expandBareType rtEnv _ = go 
   where
@@ -632,8 +641,8 @@ expandSym rtEnv l s' = expandEApp rtEnv l (EVar s', [])
 
 expandEApp :: BareRTEnv -> F.SourcePos -> (Expr, [Expr]) -> Expr
 expandEApp rtEnv l (EVar f, es) = case mBody of
-    Just re -> expandApp l   re       es' 
-    Nothing -> F.eApps       (EVar f) es' 
+    Just re -> expandApp l   re       es'
+    Nothing -> F.eApps       (EVar f) es'
   where
     eAs     = exprAliases rtEnv
     mBody   = Misc.firstMaybes [M.lookup f eAs, M.lookup (GM.dropModuleUnique f) eAs]

@@ -7,15 +7,15 @@ embed GHC.Types.Double# as real
 embed GHC.Types.Float# as real
 embed GHC.Types.Word    as int 
 
-// TODO: Drop prefix below
-// GHC.Types.EQ :: {v:GHC.Types.Ordering | v = (cmp v) }
-// GHC.Types.LT :: {v:GHC.Types.Ordering | v = (cmp v) }
-// GHC.Types.GT :: {v:GHC.Types.Ordering | v = (cmp v) }
+//  TODO: Drop prefix below
+//  GHC.Types.EQ :: {v:GHC.Types.Ordering | v = (cmp v) }
+//  GHC.Types.LT :: {v:GHC.Types.Ordering | v = (cmp v) }
+//  GHC.Types.GT :: {v:GHC.Types.Ordering | v = (cmp v) }
 
-// measure cmp :: GHC.Types.Ordering -> GHC.Types.Ordering
-// cmp GHC.Types.EQ = { v | v = GHC.Types.EQ }
-// cmp GHC.Types.LT = { v | v = GHC.Types.LT }
-// cmp GHC.Types.GT = { v | v = GHC.Types.GT }
+//  measure cmp :: GHC.Types.Ordering -> GHC.Types.Ordering
+//  cmp GHC.Types.EQ = { v | v = GHC.Types.EQ }
+//  cmp GHC.Types.LT = { v | v = GHC.Types.LT }
+//  cmp GHC.Types.GT = { v | v = GHC.Types.GT }
 
 
 GHC.Types.True  :: {v:GHC.Types.Bool | v     }

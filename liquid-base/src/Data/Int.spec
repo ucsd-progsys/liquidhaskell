@@ -5,4 +5,4 @@ embed Data.Int.Int16 as int
 embed Data.Int.Int32 as int
 embed Data.Int.Int64 as int
 
-// type Nat64 = {v:Data.Int.Int64 | v >= 0}
+//  type Nat64 = {v:Data.Int.Int64 | v >= 0}
