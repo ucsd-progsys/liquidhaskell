@@ -203,7 +203,7 @@ checkTySigs allowTC allowHO bsc cbs emb tcEnv env sig
 
 checkSigTExpr :: Bool -> Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
               -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
-              -> [Error]
+              -> Diagnostics
 checkSigTExpr allowTC allowHO bsc emb tcEnv env (x, (t, es)) 
            = mbErr1 <> mbErr2
    where 

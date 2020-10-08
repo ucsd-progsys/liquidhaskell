@@ -575,13 +575,11 @@ qImports qns  = QImports
 --   for this module; we will use this to create our name-resolution environment 
 --   (see `Bare.Resolve`)                                          
 ---------------------------------------------------------------------------------------
-<<<<<<< HEAD
 lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name, Maybe TyThing)]
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
     names :: [Ghc.Name] 
-    names  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
-
+    names  = fmap (Ghc.gre_name ++ is_dfun_name) . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
 lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
@@ -609,18 +607,18 @@ availableTyCons hscEnv modSum tcGblEnv avails =
 availableVars :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.Var]
 availableVars hscEnv modSum tcGblEnv avails = 
   fmap (\things -> [var | (AnId var) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
-=======
-lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
-lookupTyThings hscEnv tcm mg =
-  forM (mgNames mg ++ instNames mg) $ \n -> do 
-    tt1 <-          lookupName                   n 
-    tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
-    tt3 <-          modInfoLookupName mi         n 
-    tt4 <-          lookupGlobalName             n 
-    return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
-    where 
-      mi = tm_checked_module_info tcm
->>>>>>> vrdt-hack
+
+-- lookupTyThings :: HscEnv -> TypecheckedModule -> MGIModGuts -> Ghc [(Name, Maybe TyThing)] 
+-- lookupTyThings hscEnv tcm mg =
+--   forM (mgNames mg ++ instNames mg) $ \n -> do 
+--     tt1 <-          lookupName                   n 
+--     tt2 <- liftIO $ Ghc.hscTcRcLookupName hscEnv n 
+--     tt3 <-          modInfoLookupName mi         n 
+--     tt4 <-          lookupGlobalName             n 
+--     return (n, Misc.firstMaybes [tt1, tt2, tt3, tt4])
+--     where 
+--       mi = tm_checked_module_info tcm
+
 
 -- lookupName        :: GhcMonad m => Name -> m (Maybe TyThing) 
 -- hscTcRcLookupName :: HscEnv -> Name -> IO (Maybe TyThing)

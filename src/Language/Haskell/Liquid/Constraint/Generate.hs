@@ -440,7 +440,7 @@ consCB _ _ γ (NonRec x _ ) | isHoleVar x && typedHoles (getConfig γ)
 consCB _ _ γ (NonRec x def)
   | Just (w, τ) <- grepDictionary def
   , Just d      <- dlookup (denv γ) w
-  = do t        <- mapM (trueTy (typeclass (getConfig γ)) τ
+  = do t        <- mapM (trueTy (typeclass (getConfig γ))) τ
        mapM addW (WfC γ <$> t)
        let xts   = dmap (fmap (f t)) d
        let  γ'   = γ { denv = dinsert (denv γ) x xts }

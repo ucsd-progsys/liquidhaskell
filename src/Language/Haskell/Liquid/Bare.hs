@@ -136,7 +136,7 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
       -- we use the ghc api. However, ghc will complain
       -- if the filename does not match the module name
       when (typeclass cfg) $ do
-        Ghc.setContext [iimport |(modName, _) <- allSpecs validatedBareSpec,
+        Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
                         let iimport = if isTarget modName
                                       then Ghc.IIModule (getModName modName)
                                       else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
@@ -257,8 +257,8 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     , _gsVars   = makeSpecVars cfg src mySpec env measEnv
     , _gsTerm   = makeSpecTerm cfg     mySpec env       name    
     , _gsLSpec  = finalLiftedSpec
-                { impSigs   = makeImports mspecs,
-                , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ],
+                { impSigs   = makeImports mspecs
+                , expSigs   = [ (F.symbol v, F.sr_sort $ Bare.varSortedReft embs v) | v <- gsReflects refl ]
                 , dataDecls = dataDecls mySpec2 
                 , measures  = Ms.measures mySpec
                   -- We want to export measures in a 'LiftedSpec', especially if they are
