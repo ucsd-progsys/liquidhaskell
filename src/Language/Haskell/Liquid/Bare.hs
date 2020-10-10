@@ -159,9 +159,11 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
           "let {len :: [a] -> Int; len _ = undefined}"
           Ghc.execOptions        
 
-      (warns, ghcSpec) <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
-      let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
-      return $ pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
+      diagOrSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
+      return $ do
+        (warns, ghcSpec) <- diagOrSpec
+        let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
+        pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
 
     toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
     toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
@@ -196,7 +198,7 @@ makeGhcSpec cfg src lmap validatedSpecs = do
                                        cbs
                                        (fst . view targetSpecGetter $ sp)
       renv        = ghcSpecEnv sp
-  case diagnostics of
+  pure $ case diagnostics of
     Left e | noErrors e -> pure (allWarnings e, sp)
     Left e              -> Left e
     Right ()            -> pure (mempty, sp)
@@ -245,6 +247,8 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs 
   let refl     = makeSpecRefl  cfg src measEnv specs env name elaboratedSig tycEnv 
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
+  let finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
+
   pure $ SP 
     { _gsConfig = cfg 
     , _gsImps   = makeImports mspecs
@@ -277,7 +281,6 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
                 } 
     }
   where
-    finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
     -- typeclass elaboration
     allowTC    = typeclass cfg
     simplifier :: Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr
