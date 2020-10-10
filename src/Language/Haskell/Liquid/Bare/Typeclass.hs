@@ -18,6 +18,7 @@ import qualified Data.Maybe                    as Mb
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Misc        as Misc
 import           Optics
+import           TcRnMonad                      ( TcRn )
 import           Language.Haskell.Liquid.Bare.Elaborate
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
@@ -176,9 +177,9 @@ classDeclToDataDecl cls refinedIds = DataDecl
 --    instead of having them chopped off
 elaborateClassDcp
   :: (Ghc.CoreExpr -> F.Expr)
-  -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr)
+  -> (Ghc.CoreExpr -> TcRn Ghc.CoreExpr)
   -> DataConP
-  -> Ghc.Ghc (DataConP, DataConP)
+  -> TcRn (DataConP, DataConP)
 elaborateClassDcp coreToLg simplifier dcp = do
   t' <- flip (zipWith addCoherenceOblig) prefts
     <$> forM fts (elaborateSpecType coreToLg simplifier)
@@ -311,10 +312,10 @@ renameTvs rename t
   
 
 makeClassAuxTypes ::
-     (SpecType -> Ghc.Ghc SpecType)
+     (SpecType -> TcRn SpecType)
   -> [F.Located DataConP]
   -> [(Ghc.ClsInst, [Ghc.Var])]
-  -> Ghc.Ghc [(Ghc.Var, LocSpecType)]
+  -> TcRn [(Ghc.Var, LocSpecType)]
 makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcpInstMethods
   where
     dcpInstMethods = do
@@ -327,9 +328,9 @@ makeClassAuxTypes elab dcps xs = Misc.concatMapM (makeClassAuxTypesOne elab) dcp
       pure (dcp, inst, methods)
 
 makeClassAuxTypesOne ::
-     (SpecType -> Ghc.Ghc SpecType)
+     (SpecType -> TcRn SpecType)
   -> (F.Located DataConP, Ghc.ClsInst, [Ghc.Var])
-  -> Ghc.Ghc [(Ghc.Var, LocSpecType)]
+  -> TcRn [(Ghc.Var, LocSpecType)]
 makeClassAuxTypesOne elab (ldcp, inst, methods) =
   forM methods $ \method -> do
     let (headlessSig, preft) =

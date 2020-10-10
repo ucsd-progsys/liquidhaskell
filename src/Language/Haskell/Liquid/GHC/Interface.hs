@@ -3,7 +3,6 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE LambdaCase                 #-}
 {-# LANGUAGE TupleSections              #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
@@ -477,8 +476,8 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
   let targetSrc = view targetSrcIso ghcSrc
   dynFlags <- getDynFlags
-
-  case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
+  makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>=
+    \case 
     Left diagnostics -> do
       mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
       throw (allErrors diagnostics)
@@ -579,7 +578,9 @@ lookupTyThings :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> m [(Name
 lookupTyThings hscEnv modSum tcGblEnv = forM names (lookupTyThing hscEnv modSum tcGblEnv)
   where
     names :: [Ghc.Name] 
-    names  = fmap (Ghc.gre_name ++ is_dfun_name) . Ghc.globalRdrEnvElts $ tcg_rdr_env tcGblEnv
+    names  = liftM2 (++)
+             (fmap Ghc.gre_name . Ghc.globalRdrEnvElts . tcg_rdr_env)
+             (fmap is_dfun_name . tcg_insts) tcGblEnv
 -- | Lookup a single 'Name' in the GHC environment, yielding back the 'Name' alongside the 'TyThing',
 -- if one is found.
 lookupTyThing :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> Name -> m (Name, Maybe TyThing)
@@ -653,9 +654,6 @@ _dumpRdrEnv _hscEnv modGuts = do
 
 mgNames :: MGIModGuts -> [Ghc.Name] 
 mgNames  = fmap Ghc.gre_name . Ghc.globalRdrEnvElts .  mgi_rdr_env 
-
-instNames :: MGIModGuts -> [Ghc.Name]
-instNames = fmap is_dfun_name . join . maybeToList . mgi_cls_inst
 
 ---------------------------------------------------------------------------------------
 -- | @makeDependencies@ loads BareSpec for target and imported modules 

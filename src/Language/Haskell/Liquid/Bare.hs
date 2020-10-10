@@ -43,6 +43,7 @@ import           Language.Fixpoint.Types                    hiding (dcFields, Da
 import qualified Language.Fixpoint.Types                    as F
 import qualified Language.Haskell.Liquid.Misc               as Misc -- (nubHashOn)
 import qualified Language.Haskell.Liquid.GHC.Misc           as GM
+import           TcRnMonad                                  (TcRn)
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc 
 import           Language.Haskell.Liquid.GHC.Types          (StableName)
 import           Language.Haskell.Liquid.Types
@@ -120,7 +121,7 @@ makeTargetSpec :: Config
                -> TargetSrc
                -> BareSpec
                -> TargetDependencies
-               -> Ghc.Ghc (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
+               -> TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
 makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
   let depsDiagnostics     = mapM (uncurry Bare.checkBareSpec) legacyDependencies
   let bareSpecDiagnostics = Bare.checkBareSpec (giTargetMod targetSrc) legacyBareSpec
@@ -129,36 +130,8 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
    Left d              -> return $ Left d
    Right ()            -> secondPhase mempty
   where
-    secondPhase :: [Warning] -> Ghc.Ghc (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
+    secondPhase :: [Warning] -> TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
     secondPhase phaseOneWarns = do
-
-      -- we should be able to setContext regardless of whether
-      -- we use the ghc api. However, ghc will complain
-      -- if the filename does not match the module name
-      when (typeclass cfg) $ do
-        Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
-                        let iimport = if isTarget modName
-                                      then Ghc.IIModule (getModName modName)
-                                      else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
-        void $ Ghc.execStmt
-          "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
-          Ghc.execOptions
-        void $ Ghc.execStmt
-          "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
-          Ghc.execOptions
-        void $ Ghc.execStmt
-          "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
-          Ghc.execOptions
-        void $ Ghc.execStmt
-          "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
-          Ghc.execOptions
-        void $ Ghc.execStmt
-          "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
-          Ghc.execOptions        
-        void $ Ghc.execStmt
-          "let {len :: [a] -> Int; len _ = undefined}"
-          Ghc.execOptions        
-
       diagOrSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
       return $ do
         (warns, ghcSpec) <- diagOrSpec
@@ -188,7 +161,7 @@ makeGhcSpec :: Config
             -> GhcSrc
             -> LogicMap
             -> [(ModName, Ms.BareSpec)]
-            -> Ghc.Ghc (Either Diagnostics ([Warning], GhcSpec))
+            -> TcRn (Either Diagnostics ([Warning], GhcSpec))
 -------------------------------------------------------------------------------------
 makeGhcSpec cfg src lmap validatedSpecs = do
   sp <- makeGhcSpec0 cfg src lmap validatedSpecs
@@ -228,7 +201,7 @@ ghcSpecEnv sp = fromListSEnv binds
 --   essentially, to get to the `BareRTEnv` as soon as possible, as thats what
 --   lets us use aliases inside data-constructor definitions.
 -------------------------------------------------------------------------------------
-makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> Ghc.Ghc GhcSpec
+makeGhcSpec0 :: Config -> GhcSrc ->  LogicMap -> [(ModName, Ms.BareSpec)] -> TcRn GhcSpec
 -------------------------------------------------------------------------------------
 makeGhcSpec0 cfg src lmap mspecsNoCls = do
   tycEnv <- makeTycEnv1 name env (tycEnv0, datacons) coreToLg simplifier
@@ -283,7 +256,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   where
     -- typeclass elaboration
     allowTC    = typeclass cfg
-    simplifier :: Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr
+    simplifier :: Ghc.CoreExpr -> TcRn Ghc.CoreExpr
     simplifier = pure -- no simplification
     coreToLg e =
       case CoreToLogic.runToLogic
@@ -1044,8 +1017,8 @@ makeTycEnv1 ::
   -> Bare.Env
   -> (Bare.TycEnv, [Located DataConP])
   -> (Ghc.CoreExpr -> F.Expr)
-  -> (Ghc.CoreExpr -> Ghc.Ghc Ghc.CoreExpr)
-  -> Ghc.Ghc Bare.TycEnv
+  -> (Ghc.CoreExpr -> TcRn Ghc.CoreExpr)
+  -> TcRn Bare.TycEnv
 makeTycEnv1 myName env (tycEnv, datacons) coreToLg simplifier = do
   -- fst for selector generation, snd for dataconsig generation
   lclassdcs <- forM classdcs $ traverse (Bare.elaborateClassDcp coreToLg simplifier)

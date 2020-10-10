@@ -20,7 +20,6 @@ module Language.Haskell.Liquid.GHC.Misc where
 import           Data.String
 import qualified Data.List as L
 import           PrelNames                                  (fractionalClassKeys, itName, ordClassKey, numericClassKeys, eqClassKey)
-import           FamInstEnv
 import           Debug.Trace
 
 import qualified CoreUtils
@@ -37,7 +36,7 @@ import           CoreMonad
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
 import           TcRnDriver
-import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM)
+import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn)
 import           TcExpr                                     (tcInferSigma)
 import           TcOrigin                                   (lexprCtOrigin)
 import           Inst                                       (deeplyInstantiate)
@@ -46,13 +45,13 @@ import           TcHsSyn                                    (zonkTopLExpr)
 import           TcEvidence                                 (TcEvBinds(EvBinds))
 import           DsMonad                                    (initDsTc)
 import           DsExpr                                     (dsLExpr)
-import           Predicate                                  (getClassPredTys, mkClassPred)
+import           Predicate                                  (getClassPredTys)
 -- import           TcRnTypes
 
 
 import           IdInfo
 import qualified TyCon                                      as TC
-import           GhcMonad                                   (withSession)
+import           GhcMonad                                   ()
 import           RnExpr                                     (rnLExpr)
 import           Data.Char                                  (isLower, isSpace, isUpper)
 import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
@@ -903,26 +902,25 @@ isEvVar x = isPredVar x || isTyVar x || isCoVar x
 
 -- partially stolen from GHC'sa exprType
 
-elaborateHsExprInst
-  :: GhcMonad m => LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
-elaborateHsExprInst expr = elaborateHsExpr TM_Inst expr
+-- elaborateHsExprInst
+--   :: GhcMonad m => LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+-- elaborateHsExprInst expr = elaborateHsExpr TM_Inst expr
 
 
-elaborateHsExpr
-  :: GhcMonad m => TcRnExprMode -> LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
-elaborateHsExpr mode expr =
-  withSession $ \hsc_env -> liftIO $ hscElabHsExpr hsc_env mode expr
+-- elaborateHsExpr
+--   :: GhcMonad m => TcRnExprMode -> LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+-- elaborateHsExpr mode expr =
+--   withSession $ \hsc_env -> liftIO $ hscElabHsExpr hsc_env mode expr
 
-hscElabHsExpr :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
-hscElabHsExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
-  hsc_env <- Ghc.getHscEnv
-  liftIO $ elabRnExpr hsc_env mode expr
+-- hscElabHsExpr :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
+-- hscElabHsExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
+--   hsc_env <- Ghc.getHscEnv
+--   liftIO $ elabRnExpr hsc_env mode expr
 
 
 elabRnExpr
-  :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
-elabRnExpr hsc_env mode rdr_expr =
-  runTcInteractive hsc_env $ do
+  :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
+elabRnExpr mode rdr_expr = do
     (rn_expr, _fvs) <- rnLExpr rdr_expr
     failIfErrsM
     uniq <- newUnique

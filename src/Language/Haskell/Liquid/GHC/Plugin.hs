@@ -129,6 +129,37 @@ plugin = GHC.defaultPlugin {
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
 
+
+
+      -- -- we should be able to setContext regardless of whether
+      -- -- we use the ghc api. However, ghc will complain
+      -- -- if the filename does not match the module name
+      -- when (typeclass cfg) $ do
+      --   Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+      --                   let iimport = if isTarget modName
+      --                                 then Ghc.IIModule (getModName modName)
+      --                                 else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+      --     Ghc.execOptions        
+      --   void $ Ghc.execStmt
+      --     "let {len :: [a] -> Int; len _ = undefined}"
+      --     Ghc.execOptions        
+
+
+
 -- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
 -- lexer not to throw away block comments, as this is where the LH spec comments
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.

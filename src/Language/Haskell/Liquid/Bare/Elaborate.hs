@@ -12,7 +12,7 @@
 module Language.Haskell.Liquid.Bare.Elaborate
   ( fixExprToHsExpr
   , elaborateSpecType
-  , buildSimplifier
+  -- , buildSimplifier
   )
 where
 
@@ -20,7 +20,6 @@ import qualified Language.Fixpoint.Types       as F
 import           Control.Arrow
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
-import           Language.Haskell.Liquid.Types.Visitors
 import           Language.Haskell.Liquid.Types.Types
 import           Language.Haskell.Liquid.Types.RefType
                                                 ( ofType )
@@ -29,101 +28,92 @@ import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
 import           Control.Monad.Free
 import           Data.Functor.Foldable
+import           TcRnMonad (TcRn)
 import           Data.Char                      ( isUpper )
 import           GHC
-import           GhcPlugins                     ( isDFunId
-                                                , gopt_set
-                                                )
+-- import           GhcPlugins                     ( isDFunId
+--                                                 )
 import           OccName
 import           FastString
 import           CoreSyn
 import           PrelNames
-import qualified Outputable                    as O
+-- import qualified Outputable                    as O
 import           TysWiredIn                     ( boolTyCon
                                                 , true_RDR
                                                 )
-import           ErrUtils
 import           RdrName
 import           BasicTypes
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
-import           CoreSubst               hiding ( substExpr )
-import           SimplCore
-import           CoreMonad
-import           CoreFVs                        ( exprFreeVarsList )
-import           VarEnv                         ( lookupVarEnv
-                                                , lookupInScope
-                                                )
-import           CoreUtils                      ( mkTick )
 import qualified CoreUtils                     as Utils
-import qualified Data.HashMap.Strict           as M
 
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
 -- that is generated in advance. This can greatly simplify the implementation
 -- of elaboration
 
+-- the substitution code is meant to inline dictionary functions
+-- but does not seem to work
+-- lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
+-- lookupIdSubstAll doc env v | Just e <- M.lookup v env = e
+--                            | otherwise                = Var v
+--         -- Vital! See Note [Extending the Subst]
+--   -- | otherwise = WARN( True, text "CoreSubst.lookupIdSubst" <+> doc <+> ppr v
+--   --                           $$ ppr in_scope)
 
-lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
-lookupIdSubstAll doc env v | Just e <- M.lookup v env = e
-                           | otherwise                = Var v
-        -- Vital! See Note [Extending the Subst]
-  -- | otherwise = WARN( True, text "CoreSubst.lookupIdSubst" <+> doc <+> ppr v
-  --                           $$ ppr in_scope)
-
-substExprAll :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
-substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
-
-
-subst_expr_all :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
-subst_expr_all doc subst expr = go expr
- where
-  go (Var v) = lookupIdSubstAll (doc O.$$ O.text "subst_expr_all") subst v
-  go (Type     ty      ) = Type ty
-  go (Coercion co      ) = Coercion co
-  go (Lit      lit     ) = Lit lit
-  go (App  fun     arg ) = App (go fun) (go arg)
-  go (Tick tickish e   ) = Tick tickish (go e)
-  go (Cast e       co  ) = Cast (go e) co
-     -- Do not optimise even identity coercions
-     -- Reason: substitution applies to the LHS of RULES, and
-     --         if you "optimise" an identity coercion, you may
-     --         lose a binder. We optimise the LHS of rules at
-     --         construction time
-
-  go (Lam  bndr    body) = Lam bndr (subst_expr_all doc subst body)
-
-  go (Let  bind    body) = Let (mapBnd go bind) (subst_expr_all doc subst body)
-
-  go (Case scrut bndr ty alts) =
-    Case (go scrut) bndr ty (map (go_alt subst) alts)
-
-  go_alt subst (con, bndrs, rhs) = (con, bndrs, subst_expr_all doc subst rhs)
+-- substExprAll :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
+-- substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
 
 
-mapBnd :: (Expr b -> Expr b) -> Bind b -> Bind b
-mapBnd f (NonRec b e) = NonRec b (f e)
-mapBnd f (Rec bs    ) = Rec (map (second f) bs)
+-- subst_expr_all :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
+-- subst_expr_all doc subst expr = go expr
+--  where
+--   go (Var v) = lookupIdSubstAll (doc O.$$ O.text "subst_expr_all") subst v
+--   go (Type     ty      ) = Type ty
+--   go (Coercion co      ) = Coercion co
+--   go (Lit      lit     ) = Lit lit
+--   go (App  fun     arg ) = App (go fun) (go arg)
+--   go (Tick tickish e   ) = Tick tickish (go e)
+--   go (Cast e       co  ) = Cast (go e) co
+--      -- Do not optimise even identity coercions
+--      -- Reason: substitution applies to the LHS of RULES, and
+--      --         if you "optimise" an identity coercion, you may
+--      --         lose a binder. We optimise the LHS of rules at
+--      --         construction time
 
--- substLet :: CoreExpr -> CoreExpr
--- substLet (Lam b body) = Lam b (substLet body)
--- substLet (Let b body)
---   | NonRec x e <- b = substLet
---     (substExprAll O.empty (extendIdSubst emptySubst x e) body)
---   | otherwise = Let b (substLet body)
--- substLet e = e
+--   go (Lam  bndr    body) = Lam bndr (subst_expr_all doc subst body)
+
+--   go (Let  bind    body) = Let (mapBnd go bind) (subst_expr_all doc subst body)
+
+--   go (Case scrut bndr ty alts) =
+--     Case (go scrut) bndr ty (map (go_alt subst) alts)
+
+--   go_alt subst (con, bndrs, rhs) = (con, bndrs, subst_expr_all doc subst rhs)
 
 
-buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
-buildDictSubst = cata f
- where
-  f Nil = M.empty
-  f (Cons b s) | NonRec x e <- b, isDFunId x -- || isDictonaryId x
-                                             = M.insert x e s
-               | otherwise                   = s
+-- mapBnd :: (Expr b -> Expr b) -> Bind b -> Bind b
+-- mapBnd f (NonRec b e) = NonRec b (f e)
+-- mapBnd f (Rec bs    ) = Rec (map (second f) bs)
 
-buildSimplifier :: CoreProgram -> CoreExpr -> Ghc CoreExpr
-buildSimplifier cbs e = pure e-- do
+-- -- substLet :: CoreExpr -> CoreExpr
+-- -- substLet (Lam b body) = Lam b (substLet body)
+-- -- substLet (Let b body)
+-- --   | NonRec x e <- b = substLet
+-- --     (substExprAll O.empty (extendIdSubst emptySubst x e) body)
+-- --   | otherwise = Let b (substLet body)
+-- -- substLet e = e
+
+
+-- buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
+-- buildDictSubst = cata f
+--  where
+--   f Nil = M.empty
+--   f (Cons b s) | NonRec x e <- b, isDFunId x -- || isDictonaryId x
+--                                              = M.insert x e s
+--                | otherwise                   = s
+
+-- buildSimplifier :: CoreProgram -> CoreExpr -> TcRn CoreExpr
+-- buildSimplifier cbs e = pure e-- do
  --  df <- getDynFlags
  --  liftIO $ simplifyExpr (df `gopt_set` Opt_SuppressUnfoldings) e'
  -- where
@@ -319,9 +309,9 @@ canonicalizeDictBinder bs (e', bs') = (renameDictBinder bs bs' e', bs)
 
 elaborateSpecType
   :: (CoreExpr -> F.Expr)
-  -> (CoreExpr -> Ghc CoreExpr)
+  -> (CoreExpr -> TcRn CoreExpr)
   -> SpecType
-  -> Ghc SpecType
+  -> TcRn SpecType
 elaborateSpecType coreToLogic simplifier t = do
   (t', xs) <- elaborateSpecType' (pure ()) coreToLogic simplifier t
   case xs of
@@ -333,9 +323,9 @@ elaborateSpecType coreToLogic simplifier t = do
 elaborateSpecType'
   :: PartialSpecType
   -> (CoreExpr -> F.Expr) -- core to logic
-  -> (CoreExpr -> Ghc CoreExpr)
+  -> (CoreExpr -> TcRn CoreExpr)
   -> SpecType
-  -> Ghc (SpecType, [F.Symbol]) -- binders for dictionaries
+  -> TcRn (SpecType, [F.Symbol]) -- binders for dictionaries
                    -- should have returned Maybe [F.Symbol]
 elaborateSpecType' partialTp coreToLogic simplify t =
   case F.notracepp "elaborateSpecType'" t of
@@ -503,9 +493,9 @@ elaborateSpecType' partialTp coreToLogic simplify t =
   elaborateReft
     :: (F.PPrint a)
     => (F.Reft, SpecType)
-    -> Ghc a
-    -> ([F.Symbol] -> F.Expr -> Ghc a)
-    -> Ghc a
+    -> TcRn a
+    -> ([F.Symbol] -> F.Expr -> TcRn a)
+    -> TcRn a
   elaborateReft (reft@(F.Reft (vv, e)), vvTy) trivial nonTrivialCont =
     if isTrivial reft
       then trivial
@@ -526,53 +516,40 @@ elaborateSpecType' partialTp coreToLogic simplify t =
             NoExtField
             hsExpr
             (mkLHsSigWcType (specTypeToLHsType querySpecType))
-        (msgs, mbExpr) <- GM.elaborateHsExprInst exprWithTySigs
-
-        -- grab the forall variables from the type of mbExpr
-
-        case mbExpr of
-          Nothing -> panic
-            Nothing
-            (  "Ghc is unable to elaborate the expression: "
-            ++ GM.showPpr exprWithTySigs
-            ++ "\n"
-            ++ -- GM.showPpr
-               (GM.showSDoc $ O.sep (pprErrMsgBagWithLoc (snd msgs)))
-            )
-          Just eeWithLamsCore -> do
-            eeWithLamsCore' <- simplify eeWithLamsCore
-            let
-              (_, tyBinders) =
-                collectSpecTypeBinders
-                  . ofType
-                  . Utils.exprType
-                  $ eeWithLamsCore'
-              substTy = zip tyBinders origTyBinders
-              eeWithLams =
-                coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore')
-              (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
-              (dictbs, nondictbs) =
-                L.partition (F.isPrefixOfSym "$d") bs'
-          -- invariant: length nondictbs == length origBinders
-              subst = if length nondictbs == length origBinders
-                then F.notracepp "SUBST" $ zip (L.reverse nondictbs) origBinders
-                else panic
-                  Nothing
-                  "Oops, Ghc gave back more/less binders than I expected"
-            ret <- nonTrivialCont
-              dictbs
-              ( renameBinderCoerc (\x -> Mb.fromMaybe x (L.lookup x substTy))
-              . F.substa (\x -> Mb.fromMaybe x (L.lookup x subst))
-              $ F.notracepp
-                  (  "elaborated: subst "
-                  ++ F.showpp substTy
-                  ++ "  "
-                  ++ F.showpp
-                       (ofType $ Utils.exprType eeWithLamsCore' :: SpecType)
-                  )
-                  ee
-              )  -- (GM.dropModuleUnique <$> bs')
-            pure (F.notracepp "result" ret)
+        eeWithLamsCore <- GM.elabRnExpr TM_Inst exprWithTySigs
+        eeWithLamsCore' <- simplify eeWithLamsCore
+        let
+          (_, tyBinders) =
+            collectSpecTypeBinders
+              . ofType
+              . Utils.exprType
+              $ eeWithLamsCore'
+          substTy = zip tyBinders origTyBinders
+          eeWithLams =
+            coreToLogic (GM.notracePpr "eeWithLamsCore" eeWithLamsCore')
+          (bs', ee) = F.notracepp "grabLams" $ grabLams ([], eeWithLams)
+          (dictbs, nondictbs) =
+            L.partition (F.isPrefixOfSym "$d") bs'
+      -- invariant: length nondictbs == length origBinders
+          subst = if length nondictbs == length origBinders
+            then F.notracepp "SUBST" $ zip (L.reverse nondictbs) origBinders
+            else panic
+              Nothing
+              "Oops, Ghc gave back more/less binders than I expected"
+        ret <- nonTrivialCont
+          dictbs
+          ( renameBinderCoerc (\x -> Mb.fromMaybe x (L.lookup x substTy))
+          . F.substa (\x -> Mb.fromMaybe x (L.lookup x subst))
+          $ F.notracepp
+              (  "elaborated: subst "
+              ++ F.showpp substTy
+              ++ "  "
+              ++ F.showpp
+                   (ofType $ Utils.exprType eeWithLamsCore' :: SpecType)
+              )
+              ee
+          )  -- (GM.dropModuleUnique <$> bs')
+        pure (F.notracepp "result" ret)
                            -- (F.substa )
   isTrivial :: F.Reft -> Bool
   isTrivial (F.Reft (_, F.PTrue)) = True
