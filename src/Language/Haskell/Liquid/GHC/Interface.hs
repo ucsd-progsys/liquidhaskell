@@ -495,31 +495,6 @@ loadModule' tm = loadModule tm'
       --   void $ Ghc.execStmt
       --     "let {len :: [a] -> Int; len _ = undefined}"
       --     Ghc.execOptions        
--- initWiredIn :: Ghc ()
--- initWiredIn = do
---         Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
---                         let iimport = if isTarget modName
---                                       then Ghc.IIModule (getModName modName)
---                                       else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
---         void $ Ghc.execStmt
---           "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
---           Ghc.execOptions
---         void $ Ghc.execStmt
---           "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
---           Ghc.execOptions
---         void $ Ghc.execStmt
---           "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
---           Ghc.execOptions
---         void $ Ghc.execStmt
---           "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
---           Ghc.execOptions
---         void $ Ghc.execStmt
---           "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
---           Ghc.execOptions        
---         void $ Ghc.execStmt
---           "let {len :: [a] -> Int; len _ = undefined}"
---           Ghc.execOptions    
-
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc TargetInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
@@ -530,6 +505,9 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
   let targetSrc = view targetSrcIso ghcSrc
   dynFlags <- getDynFlags
+  -- set up the interactive context
+  when (typeclass cfg) $
+    initWiredIn (view bareSpecIso bareSpec) dependencies targetSrc
   (msgs, specM) <- withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
     (makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies)
   case specM of
@@ -549,6 +527,49 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
           _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
           return      $ TargetInfo targetSrc targetSpec
+
+initWiredIn :: BareSpec -> TargetDependencies -> TargetSrc -> Ghc ()
+initWiredIn bareSpec dependencies targetSrc = do
+        Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+                        let iimport = if isTarget modName
+                                      then Ghc.IIModule (getModName modName)
+                                      else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+        void $ Ghc.execStmt
+          "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+          Ghc.execOptions
+        void $ Ghc.execStmt
+          "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+          Ghc.execOptions        
+        void $ Ghc.execStmt
+          "let {len :: [a] -> Int; len _ = undefined}"
+          Ghc.execOptions
+  where
+    toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
+    toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
+
+    toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
+    toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
+
+    legacyDependencies :: [(ModName, Ms.BareSpec)]
+    legacyDependencies = map toLegacyDep . HM.toList . getDependencies $ dependencies
+
+    allSpecs :: Ms.BareSpec -> [(ModName, Ms.BareSpec)]
+    allSpecs validSpec = toLegacyTarget validSpec : legacyDependencies
+
+    -- legacyBareSpec :: Spec LocBareType F.LocSymbol
+    legacyBareSpec = review bareSpecIso bareSpec
+
+
+
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
