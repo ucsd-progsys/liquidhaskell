@@ -129,37 +129,6 @@ plugin = GHC.defaultPlugin {
 -- | GHC Configuration & Setup -------------------------------------------------
 --------------------------------------------------------------------------------
 
-
-
-      -- -- we should be able to setContext regardless of whether
-      -- -- we use the ghc api. However, ghc will complain
-      -- -- if the filename does not match the module name
-      -- when (typeclass cfg) $ do
-      --   Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
-      --                   let iimport = if isTarget modName
-      --                                 then Ghc.IIModule (getModName modName)
-      --                                 else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
-      --   void $ Ghc.execStmt
-      --     "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
-      --     Ghc.execOptions
-      --   void $ Ghc.execStmt
-      --     "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
-      --     Ghc.execOptions
-      --   void $ Ghc.execStmt
-      --     "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
-      --     Ghc.execOptions
-      --   void $ Ghc.execStmt
-      --     "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
-      --     Ghc.execOptions
-      --   void $ Ghc.execStmt
-      --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
-      --     Ghc.execOptions        
-      --   void $ Ghc.execStmt
-      --     "let {len :: [a] -> Int; len _ = undefined}"
-      --     Ghc.execOptions        
-
-
-
 -- | Overrides the default 'DynFlags' options. Specifically, we need the GHC
 -- lexer not to throw away block comments, as this is where the LH spec comments
 -- would live. This is why we set the 'Opt_KeepRawTokenStream' option.
@@ -457,8 +426,9 @@ processModule LiquidHaskellContext{..} = do
   -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
   -- call 'evaluate' to force any exception and catch it, if we can.
 
+  -- what to do when maketargetspec is already in the monad?
   result <-
-    (liftIO $ evaluate (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies))
+    makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
       `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
       `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
 

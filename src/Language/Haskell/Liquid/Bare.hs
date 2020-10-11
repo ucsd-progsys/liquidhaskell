@@ -132,6 +132,34 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
   where
     secondPhase :: [Warning] -> TcRn (Either Diagnostics ([Warning], TargetSpec, LiftedSpec))
     secondPhase phaseOneWarns = do
+
+      -- we should be able to setContext regardless of whether
+      -- we use the ghc api. However, ghc will complain
+      -- if the filename does not match the module name
+      -- when (typeclass cfg) $ do
+      --   Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+      --                   let iimport = if isTarget modName
+      --                                 then Ghc.IIModule (getModName modName)
+      --                                 else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+      --     Ghc.execOptions        
+      --   void $ Ghc.execStmt
+      --     "let {len :: [a] -> Int; len _ = undefined}"
+      --     Ghc.execOptions        
+
       diagOrSpec <- makeGhcSpec cfg (review targetSrcIso targetSrc) lmap (allSpecs legacyBareSpec)
       return $ do
         (warns, ghcSpec) <- diagOrSpec

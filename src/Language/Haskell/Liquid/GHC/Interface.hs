@@ -70,6 +70,7 @@ import CoreSyn
 import DataCon
 import Digraph
 import DriverPhases
+import GhcMonad (withSession)
 import DriverPipeline
 import DynFlags
 import Finder
@@ -466,6 +467,59 @@ loadModule' tm = loadModule tm'
     tm'  = tm { tm_parsed_module = pm' }
 
 
+
+
+      -- -- we should be able to setContext regardless of whether
+      -- -- we use the ghc api. However, ghc will complain
+      -- -- if the filename does not match the module name
+      -- when (typeclass cfg) $ do
+      --   Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+      --                   let iimport = if isTarget modName
+      --                                 then Ghc.IIModule (getModName modName)
+      --                                 else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+      --     Ghc.execOptions
+      --   void $ Ghc.execStmt
+      --     "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+      --     Ghc.execOptions        
+      --   void $ Ghc.execStmt
+      --     "let {len :: [a] -> Int; len _ = undefined}"
+      --     Ghc.execOptions        
+-- initWiredIn :: Ghc ()
+-- initWiredIn = do
+--         Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
+--                         let iimport = if isTarget modName
+--                                       then Ghc.IIModule (getModName modName)
+--                                       else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+--         void $ Ghc.execStmt
+--           "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
+--           Ghc.execOptions
+--         void $ Ghc.execStmt
+--           "let {infixr 1 <=>; True <=> False = False; _ <=> _ = True}"
+--           Ghc.execOptions
+--         void $ Ghc.execStmt
+--           "let {infix 4 ==; (==) :: a -> a -> Bool; _ == _ = undefined}"
+--           Ghc.execOptions
+--         void $ Ghc.execStmt
+--           "let {infix 4 /=; (/=) :: a -> a -> Bool; _ /= _ = undefined}"
+--           Ghc.execOptions
+--         void $ Ghc.execStmt
+--           "let {infixl 7 /; (/) :: Num a => a -> a -> a; _ / _ = undefined}"
+--           Ghc.execOptions        
+--         void $ Ghc.execStmt
+--           "let {len :: [a] -> Int; len _ = undefined}"
+--           Ghc.execOptions    
+
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc TargetInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
@@ -476,21 +530,25 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
   let targetSrc = view targetSrcIso ghcSrc
   dynFlags <- getDynFlags
-  makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>=
-    \case 
-    Left diagnostics -> do
-      mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
-      throw (allErrors diagnostics)
-    Right (warns, targetSpec, liftedSpec) -> do
-      mapM_ (liftIO . printWarning dynFlags) warns
+  (msgs, specM) <- withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
+    (makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies)
+  case specM of
+    Nothing -> panic Nothing  $ O.showSDoc dynFlags $ O.sep (Ghc.pprErrMsgBagWithLoc (snd msgs))
+    Just spec ->
+      case spec of
+        Left diagnostics -> do
+          mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
+          throw (allErrors diagnostics)
+        Right (warns, targetSpec, liftedSpec) -> do
+          mapM_ (liftIO . printWarning dynFlags) warns
       
       -- makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies >>= \case
       --   Left  validationErrors -> Bare.checkThrow (Left validationErrors)
       --   Right (targetSpec, liftedSpec) -> do
       
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
-      _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
-      return      $ TargetInfo targetSrc targetSpec
+          _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
+          return      $ TargetInfo targetSrc targetSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
