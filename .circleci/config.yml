@@ -26,6 +26,9 @@ commands:
   cabal_build_and_test:
     description: "Build the project and run the tests"
     parameters:
+      project_file:
+        type: string
+        default: "cabal.project"
       extra_test_flags:
         type: string
         default: ""
@@ -48,7 +51,7 @@ commands:
           command: |
             cabal v2-update
             cabal v2-clean
-            cabal v2-build -j1 all
+            cabal v2-build --project-file << parameters.project_file >> -j1 all
       - save_cache:
           key: cabal-{{ checksum "liquidhaskell.cabal" }}
           paths:
@@ -62,8 +65,8 @@ commands:
       - run:
           name: Test
           command: |
-            liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
-            liquidhaskell_datadir=$PWD cabal v2-test -j1 liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
+            liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:test << parameters.extra_test_flags >> --flag include --flag devel --test-show-details=streaming --test-option="<< parameters.liquid_runner >>" --test-options="-t 1200s --xml=/tmp/junit/cabal/main-test-results.xml"
+            liquidhaskell_datadir=$PWD cabal v2-test -j1 --project-file << parameters.project_file >> liquidhaskell:liquidhaskell-parser --test-show-details=streaming --test-options="--xml=/tmp/junit/cabal/parser-test-results.xml"
       - store_test_results:
           path: /tmp/junit/cabal
       - store_artifacts:
@@ -165,6 +168,7 @@ jobs:
       - image: adinapoli/ghc:9.0.0.20200925
     steps:
       - cabal_build_and_test:
+          project_file: "cabal.ghc9.project"
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec --project-file cabal.ghc9.project liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env cabal.ghc9.project) \
                           -package=liquidhaskell -package=Cabal "
