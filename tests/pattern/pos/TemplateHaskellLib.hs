@@ -4,6 +4,7 @@ module TemplateHaskellLib where
 
 import Language.Haskell.TH.Syntax
 
+foo :: Q Exp
 foo = [| 1 + 2|]
 
 bar :: Q [Dec]
