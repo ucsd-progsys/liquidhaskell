@@ -29,6 +29,7 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , findModule
   , lookupModule
   , isBootInterface
+  , apiComments
   ) where
 
 import Control.Monad
@@ -62,6 +63,7 @@ import qualified EnumSet
 import Maybes
 import GhcMake
 import Exception (ExceptionMonad)
+import qualified Data.Map.Strict as M
 #else
 import GHC.Data.Maybe
 import GHC.Driver.Make
@@ -316,3 +318,15 @@ lookupModule mod_name Nothing = do
       case res of
         Found _ m -> return m
         err       -> throwOneError $ noModError (hsc_dflags hsc_env) noSrcSpan mod_name err
+
+-- Compatibility shim to extract the comments out of an 'ApiAnns', as modern GHCs now puts the
+-- comments (i.e. Haskell comments) in a different field ('apiAnnRogueComments').
+apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
+apiComments =
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  concat . M.elems . apiAnnComments
+#else
+  map (\(L x e) -> L (RealSrcSpan x Nothing) e) . apiAnnRogueComments
+#endif
+#endif

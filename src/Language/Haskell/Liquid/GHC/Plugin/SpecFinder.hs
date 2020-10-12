@@ -29,11 +29,9 @@ import qualified Language.Haskell.Liquid.GHC.API         as O
 import           Language.Haskell.Liquid.GHC.API         as GHC hiding (linear)
 
 import           Data.Bifunctor
-import           Data.Foldable
 import           Data.Maybe
 
 import           Control.Exception
-import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 

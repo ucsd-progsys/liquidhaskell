@@ -15,6 +15,8 @@ package liquid-fixpoint
 package liquid-platform
   flags: devel
 
+-- Temporary section for 9.0.0 support
+
 repository head.hackage.ghc.haskell.org
    url: https://ghc.gitlab.haskell.org/head.hackage/
    secure: True
@@ -28,8 +30,6 @@ source-repository-package
     type: git
     location: https://github.com/adinapoli/text-format.git
     tag: f7782bce9cc2f782a34b56eb859b2fcd9e0c55ea
-
--- Temporary section for 9.0.0 support
 
 with-compiler: ghc-9.0.0.20200925
 

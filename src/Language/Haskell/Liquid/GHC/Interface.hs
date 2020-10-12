@@ -86,7 +86,6 @@ import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
-import qualified Data.Map            as M
 import qualified Data.HashMap.Strict as HM
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
@@ -712,11 +711,7 @@ getFamInstances env = do
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
 extractSpecComments :: ApiAnns -> [(SourcePos, String)]
-extractSpecComments = mapMaybe extractSpecComment
-                    . concat
-                    . M.elems
-                    . apiAnnComments
-
+extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
 --   string, i.e. if the string is of the form:
@@ -724,8 +719,6 @@ extractSpecComments = mapMaybe extractSpecComment
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
 
-#ifdef MIN_VERSION_GLASGOW_HASKELL
-#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 extractSpecComment :: Ghc.Located AnnotationComment -> Maybe (SourcePos, String)
 extractSpecComment (Ghc.L sp (AnnBlockComment text))
   | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
@@ -736,19 +729,6 @@ extractSpecComment (Ghc.L sp (AnnBlockComment text))
     offsetPos = case srcSpanSourcePos sp of
       SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
 extractSpecComment _ = Nothing
-#else
-extractSpecComment :: Ghc.RealLocated AnnotationComment -> Maybe (SourcePos, String)
-extractSpecComment (Ghc.L sp (AnnBlockComment text))
-  | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
-  = Just (offsetPos, take (length text - 6) $ drop 3 text)
-  | isPrefixOf "{-@" text                                   -- invalid specification
-  = uError $ ErrParseAnn (RealSrcSpan sp Nothing) "A valid specification must have a closing '@-}'."
-  where
-    offsetPos = case srcSpanSourcePos (RealSrcSpan sp Nothing) of
-      SourcePos file line col -> safeSourcePos file (unPos line) (unPos col + 3)
-extractSpecComment _ = Nothing
-#endif
-#endif
 
 extractSpecQuotes :: TypecheckedModule -> [BPspec]
 extractSpecQuotes = 
