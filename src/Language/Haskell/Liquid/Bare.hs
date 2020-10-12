@@ -239,16 +239,17 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
   let mySpec   = mySpec2 <> lSpec1 
   let specs    = M.insert name mySpec iSpecs2
   let measEnv  = makeMeasEnv      env tycEnv sigEnv       specs 
-  let sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src)
   let myRTE    = myRTEnv       src env sigEnv rtEnv  
-  elaboratedSig <- if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
+  elaboratedSig <-
+    let sig      = makeSpecSig cfg name specs env sigEnv   tycEnv measEnv (_giCbs src) in
+    if allowTC then Bare.makeClassAuxTypes (elaborateSpecType coreToLg simplifier) datacons instMethods
                               >>= elaborateSig sig
                              else pure sig
   let qual     = makeSpecQual cfg env tycEnv measEnv rtEnv specs 
   let sData    = makeSpecData  src env sigEnv measEnv elaboratedSig specs 
   let refl     = makeSpecRefl  cfg src measEnv specs env name elaboratedSig tycEnv 
   let laws     = makeSpecLaws env sigEnv (gsTySigs elaboratedSig ++ gsAsmSigs elaboratedSig) measEnv specs 
-  let finalLiftedSpec = makeLiftedSpec src env refl sData sig qual myRTE lSpec1
+  let finalLiftedSpec = makeLiftedSpec src env refl sData elaboratedSig qual myRTE lSpec1
 
   pure $ SP 
     { _gsConfig = cfg 
