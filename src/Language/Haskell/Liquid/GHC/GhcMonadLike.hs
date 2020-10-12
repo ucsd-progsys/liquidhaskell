@@ -63,7 +63,6 @@ import qualified EnumSet
 import Maybes
 import GhcMake
 import Exception (ExceptionMonad)
-import qualified Data.Map.Strict as M
 #else
 import GHC.Data.Maybe
 import GHC.Driver.Make
@@ -73,6 +72,7 @@ import qualified GHC.Data.EnumSet as EnumSet
 #endif
 #endif
 
+import qualified Data.Map.Strict as M
 import Optics
 
 class HasHscEnv m where
@@ -322,11 +322,15 @@ lookupModule mod_name Nothing = do
 -- Compatibility shim to extract the comments out of an 'ApiAnns', as modern GHCs now puts the
 -- comments (i.e. Haskell comments) in a different field ('apiAnnRogueComments').
 apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
-apiComments =
+apiComments apiAnns =
+  let comments = concat . M.elems . apiAnnComments $ apiAnns
+  in
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
-  concat . M.elems . apiAnnComments
+      comments
 #else
-  map (\(L x e) -> L (RealSrcSpan x Nothing) e) . apiAnnRogueComments
+     map toRealSrc $ mappend comments (apiAnnRogueComments apiAnns)
+  where
+    toRealSrc (L x e) = L (RealSrcSpan x Nothing) e
 #endif
 #endif
