@@ -24,6 +24,7 @@ EOF
 PKGCACHE="${HOME}/.cabal/packages"
 
 check_pkgcache () {
+  mkdir -p $PKGCACHE
   if [ ! -d "$PKGCACHE" ]; then
     die "package cache folder ('$PKGCACHE') doesn't seem exist; please edit script"
   fi
