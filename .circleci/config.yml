@@ -26,6 +26,9 @@ commands:
   cabal_build_and_test:
     description: "Build the project and run the tests"
     parameters:
+      cabal_update_command:
+        type: string
+        default: "cabal v2-update"
       project_file:
         type: string
         default: "cabal.project"
@@ -49,7 +52,7 @@ commands:
       - run:
           name: Dependencies
           command: |
-            cabal v2-update
+            << parameters.cabal_update_command >>
             cabal v2-clean
             cabal v2-build --project-file << parameters.project_file >> -j1 all
       - save_cache:
@@ -168,6 +171,7 @@ jobs:
       - image: adinapoli/ghc:9.0.0.20200925
     steps:
       - cabal_build_and_test:
+          cabal_update_command: "./scripts/head.hackage.sh update"
           project_file: "cabal.ghc9.project"
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec --project-file cabal.ghc9.project liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env cabal.ghc9.project) \
