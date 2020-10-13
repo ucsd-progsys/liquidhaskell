@@ -47,7 +47,7 @@ data OurMonad m = OurMonad {
      -> f  : (a -> m b)
      -> {v : m b | v == mbind om x f } @-}
 mbind :: OurMonad m -> m a -> (a -> m b) -> m b
-mbind = bind
+mbind (OurMonad b _) = b
 
 {-@ guard :: mp : MonadPlus m -> p : Bool -> {v : m () | v = guard mp p } @-}
 {-@ reflect guard @-}
