@@ -209,7 +209,7 @@ library
                     , aeson
                     , binary
                     , bytestring           >= 0.10
-                    , Cabal                < 3.3
+                    , Cabal                < 3.5
                     , cereal
                     , cmdargs              >= 0.10
                     , containers           >= 0.5
