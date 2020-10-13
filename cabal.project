@@ -14,7 +14,3 @@ package liquid-fixpoint
 
 package liquid-platform
   flags: devel
-
-allow-older:
-  liquid-base:base
-  liquid-ghc-prim:ghc-prim

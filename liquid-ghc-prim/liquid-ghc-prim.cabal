@@ -1,6 +1,6 @@
 cabal-version:      1.24
 name:               liquid-ghc-prim
-version:            0.7.0
+version:            0.6.1
 synopsis:           Drop-in ghc-prim replacement for LiquidHaskell
 description:        Drop-in ghc-prim replacement for LiquidHaskell.
 license:            BSD3
@@ -36,7 +36,7 @@ library
                     GHC.Types
 
   hs-source-dirs:     src
-  build-depends:      ghc-prim             == 0.7.0
+  build-depends:      ghc-prim             == 0.6.1
                     , liquidhaskell        >= 0.8.10.1
   default-language:   Haskell2010
   default-extensions: PackageImports
