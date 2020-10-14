@@ -31,12 +31,6 @@ source-repository-package
     location: https://github.com/adinapoli/text-format.git
     tag: f7782bce9cc2f782a34b56eb859b2fcd9e0c55ea
 
--- Allow Cabal-3.4.0.0 to be used.
-source-repository-package
-    type: git
-    location: https://github.com/adinapoli/ghc-paths.git
-    tag: 0dd283aa3afa41e50bbb5496973d6ec7e5218d2b
-
 with-compiler: ghc-9.0.0.20200925
 
 allow-newer:
