@@ -520,12 +520,15 @@ mkC                    = Just . ECon . (`F.L` F.charSort)  . repr
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
-isBangInteger :: [C.CoreAlt] -> Bool 
-isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)] 
-  =  symbol s  == "GHC.Integer.Type.S#" 
-  && symbol jp == "GHC.Integer.Type.Jp#" 
-  && symbol jn == "GHC.Integer.Type.Jn#"  
-isBangInteger _ = False 
+-- | Tries to determine if a 'CoreAlt' maps to one of the 'Integer' type constructors.
+-- We need the disjuction for GHC >= 9, where the Integer now comes from the \"ghc-bignum\" package,
+-- and it has different names for the constructors.
+isBangInteger :: [C.CoreAlt] -> Bool
+isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
+  =  (symbol s  == "GHC.Integer.Type.S#"  || symbol s  == "GHC.Num.Integer.IS")
+  && (symbol jp == "GHC.Integer.Type.Jp#" || symbol jp == "GHC.Num.Integer.IP")
+  && (symbol jn == "GHC.Integer.Type.Jn#" || symbol jn == "GHC.Num.Integer.IN")
+isBangInteger _ = False
 
 isErasable :: Id -> Bool
 isErasable v = F.notracepp msg $ isGhcSplId v && not (isDCId v) 
