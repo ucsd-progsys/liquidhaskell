@@ -82,8 +82,8 @@ import Foreign.C.Types (CInt(CInt), CSize(CSize))
 import Foreign.C.Types (CInt, CSize)
 #endif
 import GHC.Base (ByteArray#, MutableByteArray#, Int(..),
-                 indexWord16Array#, newByteArray#,
-                 unsafeCoerce#, writeWord16Array#)
+                 indexWord16Array#, newByteArray#, writeWord16Array#)
+import GHC.Exts (unsafeCoerce#) -- Importing from GHC.Exts makes this future-proof (i.e. works for GHC >= 9)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 import Prelude hiding (error, length, read)
