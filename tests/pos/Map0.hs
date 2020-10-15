@@ -30,8 +30,8 @@ mllen (Bin _ _ _ l r) = 1 + if (mllen l < mllen r) then mllen r else mllen l
 {-@ type OMap k a = Map <{\root v -> v < root }, {\root v -> v > root}> k a @-}
 
 {-@ measure mlen :: (Map k a) -> Int
-    mlen(Tip) = 0
-    mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
+      mlen(Tip) = 0
+      mlen(Bin s k v l r) = 1 + (mlen l) + (mlen r)
   @-}
 
 {-@ invariant {v:Map k a | (mlen v) >= 0}@-}

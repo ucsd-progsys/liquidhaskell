@@ -19,11 +19,11 @@ data PairS a b = !a :*: !b deriving (Eq,Ord,Show)
 {-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) { spX ::a, spY ::b<p spX> }  @-}
 
 {-@ measure pfst :: (PairS a b) -> a
-    pfst ((:*:) x y) = x
+      pfst ((:*:) x y) = x
   @-}
 
 {-@ measure psnd :: (PairS a b) -> b
-    psnd ((:*:) x y) = y
+      psnd ((:*:) x y) = y
   @-}
 
 {-@ type FooS a = PairS <{\z v -> v <= (psnd z)}> (PairS a Int) Int @-}

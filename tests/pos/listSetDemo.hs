@@ -11,8 +11,8 @@ import Data.Set (Set (..))
 -- Next, lets write a measure for the set of elements in a list.
 
 {-@ measure elts :: [a] -> (Set a) 
-    elts ([])   = {v | Set_emp v }
-    elts (x:xs) = {v | v = Set_cup (Set_sng x) (elts xs) }
+      elts ([])   = {v | Set_emp v }
+      elts (x:xs) = {v | v = Set_cup (Set_sng x) (elts xs) }
   @-}
 
 -- Next, we tell the solver to interpret @Set@ natively in the refinement logic.

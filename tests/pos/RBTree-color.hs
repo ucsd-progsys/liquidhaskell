@@ -141,8 +141,8 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ type RBT a    = {v: RBTree a | (isRB v)} @-}
 
 {-@ measure isRB        :: RBTree a -> Bool
-    isRB (Leaf)         = true
-    isRB (Node c x l r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
+      isRB (Leaf)         = true
+      isRB (Node c x l r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
   @-}
 
 -- | Almost Red-Black Trees
@@ -150,8 +150,8 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ type ARBT a    = {v: RBTree a | (isARB v) } @-}
 
 {-@ measure isARB        :: (RBTree a) -> Bool
-    isARB (Leaf)         = true 
-    isARB (Node c x l r) = ((isRB l) && (isRB r))
+      isARB (Leaf)         = true 
+      isARB (Node c x l r) = ((isRB l) && (isRB r))
   @-}
 
 -- | Conditionally Red-Black Tree
@@ -161,13 +161,13 @@ makeBlack (Node _ x l r) = Node B x l r
 -- | Color of a tree
 
 {-@ measure col         :: RBTree a -> Color
-    col (Node c x l r)  = c
-    col (Leaf)          = B
+      col (Node c x l r)  = c
+      col (Leaf)          = B
   @-}
 
 {-@ measure isB        :: RBTree a -> Bool
-    isB (Leaf)         = false
-    isB (Node c x l r) = c == B 
+      isB (Leaf)         = false
+      isB (Node c x l r) = c == B 
   @-}
 
 {-@ predicate IsB T = not ((col T) == R) @-}

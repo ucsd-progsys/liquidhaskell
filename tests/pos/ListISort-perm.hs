@@ -53,7 +53,7 @@ data Ins a where
         Here  :: m:a -> ms:List a
               -> Prop (Ins m ms (Cons m ms))
 
-      | There :: m:a -> n:a -> ns:List a -> mns:List a
+        There :: m:a -> n:a -> ns:List a -> mns:List a
               -> Prop (Ins m ns mns)
               -> Prop (Ins m (Cons n ns) (Cons n mns))
   @-}
@@ -69,7 +69,7 @@ data Perm a where
 
 {-@ data Perm [permNat] a where
         NilPerm  :: Prop (Perm Nil Nil)
-      | ConsPerm :: m:a -> ms:List a -> ns:List a -> mns:List a
+        ConsPerm :: m:a -> ms:List a -> ns:List a -> mns:List a
                  -> Prop (Ins m ns mns)
                  -> Prop (Perm ms ns)
                  -> Prop (Perm (Cons m ms) mns)

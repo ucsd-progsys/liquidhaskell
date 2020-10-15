@@ -27,8 +27,8 @@ mllen (Bin _ _ _ l r) = 1 + if (mllen l < mllen r) then mllen r else mllen l
 
 
 {-@ measure mlen :: (Map k a) -> Int
-    mlen(Tip) = 0
-    mlen(Bin s k v l r) = 1 + (if ((mlen l) < (mlen r)) then (mlen r) else (mlen l))
+      mlen(Tip) = 0
+      mlen(Bin s k v l r) = 1 + (if ((mlen l) < (mlen r)) then (mlen r) else (mlen l))
   @-}
 
 {-@ invariant { v:Map k a | mlen v >= 0 } @-}

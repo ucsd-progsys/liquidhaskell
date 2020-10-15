@@ -28,9 +28,9 @@ data Expr
   | App Expr Expr
 
 {-@ measure fv       :: Expr -> (S.Set Bndr)
-    fv (Var x)       = (Set_sng x)
-    fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
-    fv (App e a)     = (Set_cup (fv e) (fv a))
+     fv (Var x)       = (Set_sng x)
+     fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
+     fv (App e a)     = (Set_cup (fv e) (fv a))
   @-}
 
 {-@ measure isAbs @-}

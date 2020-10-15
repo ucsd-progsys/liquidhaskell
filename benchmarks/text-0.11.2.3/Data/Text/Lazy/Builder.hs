@@ -226,7 +226,7 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
   @-}
 
 {-@ measure bufLeft :: Buffer s -> Int
-    bufLeft (Buffer m o u l) = l
+      bufLeft (Buffer m o u l) = l
   @-}
 
 {-@ qualif BufLeft (v:int, a:A.MArray s, o:int, u:int)

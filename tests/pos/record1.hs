@@ -7,7 +7,7 @@ data Map k a  = Tip
   @-}
 
 {-@ measure isBin :: Map k a -> Bool
-    isBin (Tip)          = false
+      isBin (Tip)          = false
   @-}
 
 trim :: Map k a

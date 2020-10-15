@@ -378,17 +378,17 @@ mlen (Bin s k v l r) = 1 + mlen l + mlen r
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
 {-@ measure isJustS :: forall a. MaybeS a -> Bool
-    isJustS (JustS x)  = true
-    isJustS (NothingS) = false
+      isJustS (JustS x)  = true
+      isJustS (NothingS) = false
 @-}
 
 {-@ measure fromJustS :: forall a. MaybeS a -> a
-    fromJustS (JustS x) = x
+      fromJustS (JustS x) = x
   @-}
 
 {-@ measure isBin :: Map k a -> Bool
-    isBin (Bin sz kx x l r) = true
-    isBin (Tip)             = false
+      isBin (Bin sz kx x l r) = true
+      isBin (Tip)             = false
   @-}
 
 {-@ invariant {v0: MaybeS {v: a | ((isJustS v0) && (v = (fromJustS v0)))} | true} @-}

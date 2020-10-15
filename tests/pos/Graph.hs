@@ -26,29 +26,29 @@ data Graph node edge =
 {-@ invariant {v: (Graph node edge) | (getGraphIncoming v) = (getGraphOutgoing v) } @-}
 
 {-@ measure getGraphIncoming :: (Graph node edge) -> (Set edge)
-    getGraphIncoming (Graph m) = (getMapIncoming m)
+      getGraphIncoming (Graph m) = (getMapIncoming m)
   @-}
 
 {-@ measure getGraphOutgoing :: (Graph node edge) -> (Set edge)
-    getGraphOutgoing (Graph m) = (getMapOutgoing m)
+      getGraphOutgoing (Graph m) = (getMapOutgoing m)
   @-}
 
 
 {-@ measure getMapIncoming :: (Map node (Edges edge, Edges e)) -> (Set edge)
-    getMapIncoming (Tip) = {v | Set_emp v }
-    getMapIncoming (Bin size k v lm rm) = (Set_cup (getPairIncoming v) (Set_cup (getMapIncoming lm) (getMapIncoming rm)))
+      getMapIncoming (Tip) = {v | Set_emp v }
+      getMapIncoming (Bin size k v lm rm) = (Set_cup (getPairIncoming v) (Set_cup (getMapIncoming lm) (getMapIncoming rm)))
   @-}
 
 
 {-@ measure getMapOutgoing :: (Map node (Edges edge, Edges edge)) -> (Set edge)
-    getMapOutgoing (Tip) = {v | Set_emp v }
-    getMapOutgoing (Bin size k v lm rm) = Set_cup (getPairOutgoing v) (Set_cup (getMapOutgoing lm) (getMapOutgoing rm))
+      getMapOutgoing (Tip) = {v | Set_emp v }
+      getMapOutgoing (Bin size k v lm rm) = Set_cup (getPairOutgoing v) (Set_cup (getMapOutgoing lm) (getMapOutgoing rm))
   @-}
 
 {-@ measure getPairIncoming :: (Edges edge, Edges e) -> (Set edge)
-    getPairIncoming (x, y) = (getEdgesIncoming x)
+      getPairIncoming (x, y) = (getEdgesIncoming x)
   @-}
 
 {-@ measure getPairOutgoing :: (Edges e, Edges edge) -> (Set edge)
-    getPairOutgoing (x, y) = (getEdgesOutgoing y)
+      getPairOutgoing (x, y) = (getEdgesOutgoing y)
   @-}

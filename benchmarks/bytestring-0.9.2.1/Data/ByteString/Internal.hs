@@ -178,16 +178,16 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 -------------------------------------------------------------------------
 
 {-@ measure bLength     :: ByteString -> Int 
-    bLength (PS p o l)  = l  
+      bLength (PS p o l)  = l  
   @-}  
    
 {-@ measure bOffset     :: ByteString -> Int
-    bOffset (PS p o l)  = o
+      bOffset (PS p o l)  = o
   @-}
 
 
 {-@ measure bPayload   :: ByteString -> (ForeignPtr Word8)
-    bPayload (PS p o l) = p
+      bPayload (PS p o l) = p
   @-}
 
 {-@ predicate BSValid Payload Offset Length = (Offset + Length <= (fplen Payload)) @-}
@@ -211,8 +211,8 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 
 {-@ measure bLengths  :: [ByteString] -> Int
-    bLengths ([])   = 0
-    bLengths (x:xs) = (bLength x) + (bLengths xs)
+      bLengths ([])   = 0
+      bLengths (x:xs) = (bLength x) + (bLengths xs)
   @-}
 
 
@@ -427,15 +427,15 @@ createAndTrimMEQ l f = do
                     return $! (ps, res)
 
 {-@ measure tfst :: (a,b,c) -> a
-    tfst (a,b,c) = a
+      tfst (a,b,c) = a
   @-}
 
 {-@ measure tsnd :: (a,b,c) -> b
-    tsnd (a,b,c) = b
+      tsnd (a,b,c) = b
   @-}
 
 {-@ measure ttrd :: (a,b,c) -> c
-    ttrd (a,b,c) = c
+      ttrd (a,b,c) = c
   @-}
 
 

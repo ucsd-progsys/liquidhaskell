@@ -23,7 +23,7 @@ eqSMT = EqSMT
 {-@
 data EqT :: * -> * where 
    EqSMT  :: Eq a => x:a -> y:a -> {v:() | x == y} -> EqRT a {x} {y}   
- | EqFun  :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:EqT b | eqT (f x) (g x)}) -> EqRT (a -> b) {f} {g}
+   EqFun  :: f:(a -> b) -> g:(a -> b) -> (x:a -> {v:EqT b | eqT (f x) (g x)}) -> EqRT (a -> b) {f} {g}
 @-}
 
 data EqT :: * -> *  where 

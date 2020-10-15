@@ -15,7 +15,7 @@ class Eq a => EqAdequate a where
   toSMT :: a -> a -> PBEq a -> ()
 
 {-@ class Eq a => EqAdequate a where
-  toSMT :: x:a -> y:a -> PEq a {x} {y} -> {x = y} @-}
+      toSMT :: x:a -> y:a -> PEq a {x} {y} -> {x = y} @-}
 
 instance EqAdequate Bool where
 

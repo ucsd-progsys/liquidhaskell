@@ -7,8 +7,8 @@ module Shapes () where
 data Shape = Nil | Cons !Int !Shape 
 
 {-@ measure rank :: Shape -> Int
-    rank (Nil)       = 0
-    rank (Cons d ds) = 1 + (rank ds)
+     rank (Nil)       = 0
+     rank (Cons d ds) = 1 + (rank ds)
   @-}
 
 {-@ type DIM1 = {v:Shape | (rank v) = 1} @-}

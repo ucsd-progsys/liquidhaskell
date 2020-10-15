@@ -55,5 +55,5 @@ fromList :: GHC.Classes.Ord a => xs:[a] -> {v:Data.Set.Internal.Set a | v = list
 //  ---------------------------------------------------------------------------------------------
 
 measure listElts :: [a] -> (Data.Set.Internal.Set a)
-listElts([])   = {v | (Set_emp v)}
-listElts(x:xs) = {v | v = Set_cup (Set_sng x) (listElts xs) }
+  listElts([])   = {v | (Set_emp v)}
+  listElts(x:xs) = {v | v = Set_cup (Set_sng x) (listElts xs) }

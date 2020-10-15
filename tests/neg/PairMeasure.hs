@@ -3,7 +3,7 @@ module Foo () where
 {-@ LIQUID "--bscope" @-}
 
 {-@ measure getfst :: (a, b) -> a
-    getfst (x, y) = x
+      getfst (x, y) = x
   @-}
 
 {-@ type Pair a b   = {v0 : ({v:a | v = (getfst v0)}, b) | true } @-}

@@ -10,6 +10,6 @@ test x = (x,x)
 
 {-@
 measure listlen :: [a] -> Int
-listlen [] = 0
-listlen (x:xs) = 1 + listlen xs
+  listlen [] = 0
+  listlen (x:xs) = 1 + listlen xs
 @-}

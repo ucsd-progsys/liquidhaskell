@@ -15,8 +15,8 @@ data List a = Nil | Cons a (List a)
 -- xs = Nil /\ xs = Cons _ _ <=> false
 
 {-@ measure llen :: (List a) -> Int
-    llen(Nil)       = 0
-    llen(Cons x xs) = 1 + (llen xs)
+      llen(Nil)       = 0
+      llen(Cons x xs) = 1 + (llen xs)
   @-}
 
 {-@ invariant {v:List a | (llen v) >= 0} @-}

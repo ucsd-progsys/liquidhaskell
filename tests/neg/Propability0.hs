@@ -27,8 +27,8 @@ data DPD k = DPD [(k, Double)]
 {-@ data DPD k = DPD (val::{v:[(k, Propability)]|(total v) = 1.0 }) @-}
 
 {-@ measure total :: [(k, Double)] -> Double
-    total([]) = 0.0
-    total(x:xs) = (snd x) + (total xs)
+      total([]) = 0.0
+      total(x:xs) = (snd x) + (total xs)
   @-}
 
 

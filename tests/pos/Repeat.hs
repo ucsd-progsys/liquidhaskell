@@ -11,8 +11,8 @@ data L a <p :: (L a) -> Bool>
 
 {-@
 measure isCons :: L a -> Bool
-isCons (N)     = false
-isCons (C a l) = true
+  isCons (N)     = false
+  isCons (C a l) = true
 @-}
 
 {-@ type Stream a = {v: L <{\v -> (isCons v)}> a | (isCons v)} @-}

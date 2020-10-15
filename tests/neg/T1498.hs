@@ -5,8 +5,8 @@ class FromTo a where
   to   :: Int -> a 
 
 {-@ instance FromTo Int where 
-  from :: Int -> {v:Int | 0 <= v };
-  to   :: {v:Int | 0 <= v } -> Int 
+      from :: Int -> {v:Int | 0 <= v };
+      to   :: {v:Int | 0 <= v } -> Int 
 @-}
 
 instance FromTo Int where 

@@ -84,11 +84,11 @@ main = do
 {-@ predicate RightHeavy T = bFac T == -1 @-}
 
 {-@ measure balanced :: Tree a -> Bool
-balanced (Nil) = true
-balanced (Tree v l r) = ((ht l) <= (ht r) + 1)
-                        && (ht r <= ht l + 1)
-                        && (balanced l)
-                        && (balanced r)
+      balanced (Nil) = true
+      balanced (Tree v l r) = ((ht l) <= (ht r) + 1)
+                              && (ht r <= ht l + 1)
+                              && (balanced l)
+                              && (balanced r)
 @-}
 
 {-@ type AVLTree = {v: Tree a | balanced v} @-}

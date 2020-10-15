@@ -7,12 +7,12 @@ import GHC.Ptr
 
 {-@
 instance measure sizeOf :: (Ptr GHC.Word.Word16) -> Int
-sizeOf (Ptr x) = 2
+  sizeOf (Ptr x) = 2
 @-}
 
 {-@
 instance measure sizeOf :: (Ptr GHC.Word.Word32) -> Int
-sizeOf (Ptr y) = 4
+  sizeOf (Ptr y) = 4
 @-}
 
 {-@

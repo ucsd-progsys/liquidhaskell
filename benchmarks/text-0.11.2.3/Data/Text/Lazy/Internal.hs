@@ -64,20 +64,20 @@ data Text = Empty
   @-}
 
 {-@ measure ltlen :: Text -> Integer
-    ltlen (Empty)      = 0
-    ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
+      ltlen (Empty)      = 0
+      ltlen (Chunk t ts) = (tlen t) + (ltlen ts)
     @-}
 
 
 
 {-@ measure ltlength :: Text -> Integer
-    ltlength (Empty)      = 0
-    ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
+      ltlength (Empty)      = 0
+      ltlength (Chunk t ts) = (tlength t) + (ltlength ts)
   @-}
 
 {-@ measure sum_ltlengths :: [Text] -> Integer
-    sum_ltlengths ([]) = 0
-    sum_ltlengths (t:ts) = (ltlength t) + (sum_ltlengths ts)
+      sum_ltlengths ([]) = 0
+      sum_ltlengths (t:ts) = (ltlength t) + (sum_ltlengths ts)
   @-}
 
 {-@ qualif SumLTLengthsAcc(v:Text, ts:List Text, t:Text):

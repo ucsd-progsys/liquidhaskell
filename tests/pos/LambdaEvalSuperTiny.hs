@@ -26,17 +26,17 @@ data Expr
 @-}
 
 {-@ measure elen :: Expr -> Int
-    elen(Var x)     = 0
-    elen(Lam x e)   = 1 + (elen e)
-    elen(App e1 e2) = 1 + (elen e1) + (elen e2)
+      elen(Var x)     = 0
+      elen(Lam x e)   = 1 + (elen e)
+      elen(App e1 e2) = 1 + (elen e1) + (elen e2)
   @-}
 
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
 {-@  measure isValue :: Expr -> Bool
-     isValue (Lam x e)    = true
-     isValue (Var x)      = false
-     isValue (App e1 e2)  = false
+       isValue (Lam x e)    = true
+       isValue (Var x)      = false
+       isValue (App e1 e2)  = false
   @-}
 
 {-@ type Value = {v: Expr | (isValue v) } @-}

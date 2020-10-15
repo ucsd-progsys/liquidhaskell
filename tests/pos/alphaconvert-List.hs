@@ -32,9 +32,9 @@ data Expr
   | App Expr Expr
 
 {-@ measure fv       :: Expr -> (Set Bndr)
-    fv (Var x)       = (Set_sng x)
-    fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
-    fv (App e a)     = (Set_cup (fv e) (fv a))
+     fv (Var x)       = (Set_sng x)
+     fv (Abs x e)     = (Set_dif (fv e) (Set_sng x))
+     fv (App e a)     = (Set_cup (fv e) (fv a))
   @-}
 
 {-@ measure isAbs  @-}
@@ -135,6 +135,6 @@ elem x []     = False
 elem x (y:ys) = x == y || elem x ys
 
 {-@ measure elts :: [a] -> (Set a)
-    elts ([])    = {v | Set_emp v}
-    elts (x:xs)  = {v | v = Set_cup (Set_sng x) (elts xs) }
+     elts ([])    = {v | Set_emp v}
+     elts (x:xs)  = {v | v = Set_cup (Set_sng x) (elts xs) }
   @-}

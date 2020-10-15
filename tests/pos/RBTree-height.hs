@@ -146,20 +146,20 @@ makeBlack (Node _ x l r) = Node B x l r
 -- | Color of a tree
 
 {-@ measure isB        :: RBTree a -> Bool
-    isB (Leaf)         = false
-    isB (Node c x l r) = c == B 
+      isB (Leaf)         = false
+      isB (Node c x l r) = c == B 
   @-}
 
 -- | Black Height
 
 {-@ measure isBH        :: RBTree a -> Bool
-    isBH (Leaf)         = true
-    isBH (Node c x l r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
+      isBH (Leaf)         = true
+      isBH (Node c x l r) = ((isBH l) && (isBH r) && (bh l) = (bh r))
   @-}
 
 {-@ measure bh        :: RBTree a -> Int
-    bh (Leaf)         = 0
-    bh (Node c x l r) = (bh l) + (if (c == R) then 0 else 1) 
+      bh (Leaf)         = 0
+      bh (Node c x l r) = (bh l) + (if (c == R) then 0 else 1) 
   @-}
 
 -------------------------------------------------------------------------------

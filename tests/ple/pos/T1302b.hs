@@ -110,7 +110,7 @@ data CreditCard = CreditCard
 {-@
 data EntityField Creditcard typ where 
    Field.CreditCardNumber :: EntityField CreditCard {v:_ | True}
- | Field.CreditCardHolder :: EntityField CreditCard {v:_ | True}
+   Field.CreditCardHolder :: EntityField CreditCard {v:_ | True}
 @-}
 
 {-@ assume error :: [Char] -> a @-} 

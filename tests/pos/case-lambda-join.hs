@@ -19,8 +19,8 @@ rbalOK x l r = case r of
   Node R z (Node R y b c) d -> Node R y (Node B x l b) (Node B z c d)
 
 {-@ measure elems :: RBTree a -> (Set a)
-    elems (Leaf)         = (Set_empty 0)
-    elems (Node c k l r) = (Set_cup (Set_sng k) (Set_cup (elems l) (elems r))) 
+      elems (Leaf)         = (Set_empty 0)
+      elems (Node c k l r) = (Set_cup (Set_sng k) (Set_cup (elems l) (elems r))) 
   @-}
 
 {-@ predicate Union V L R  = elems V = Set_cup (elems L) (elems R)                       @-}

@@ -6,13 +6,13 @@ class FromTo a where
 
 
 {-@ class FromTo a where 
-    from :: a -> {v:Int | 10 <= v } 
-    to   :: Int -> a  @-}
+      from :: a -> {v:Int | 10 <= v } 
+      to   :: Int -> a  @-}
   
 
 {-@ instance FromTo Int where 
-  from :: Int -> {v:Int | 0 <= v };
-  to   :: x:{Int | 0 <= x } -> {v:Int | v ==  x} 
+      from :: Int -> {v:Int | 0 <= v };
+      to   :: x:{Int | 0 <= x } -> {v:Int | v ==  x} 
 @-}
 
 instance FromTo Int where 

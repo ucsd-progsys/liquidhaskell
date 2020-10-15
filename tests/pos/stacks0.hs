@@ -12,8 +12,8 @@ data LL a = Nil | Cons { headC :: a
   @-}
 
 {-@ measure elts :: LL a -> (Set a)
-    elts (Nil)       = {v | (Set_emp v)}
-    elts (Cons x xs) = {v | v = (Set_cup (Set_sng x) (elts xs)) }
+      elts (Nil)       = {v | (Set_emp v)}
+      elts (Cons x xs) = {v | v = (Set_cup (Set_sng x) (elts xs)) }
   @-}
 
 {-@ predicate Disjoint X Y = (Set_emp (Set_cap (elts X) (elts Y))) @-}

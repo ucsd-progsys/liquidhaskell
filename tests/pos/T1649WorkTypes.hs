@@ -58,5 +58,5 @@ data EqT  :: * -> *  where
 
 {-@ data EqT  :: * -> *  where 
         EqSMT  :: Eq a => x:a -> y:a -> (a -> {v:[a] | 0 < len v}) -> EqRT a {x} {y}
-      | EqFun  :: ff:(a -> b) -> gg:(a -> b) -> (x:a -> {d:EqT b | eqT (ff x) (gg x)}) -> EqRT (a -> b) {ff} {gg}
+        EqFun  :: ff:(a -> b) -> gg:(a -> b) -> (x:a -> {d:EqT b | eqT (ff x) (gg x)}) -> EqRT (a -> b) {ff} {gg}
 @-}   

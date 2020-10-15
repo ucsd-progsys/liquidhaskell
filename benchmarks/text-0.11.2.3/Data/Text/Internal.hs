@@ -59,15 +59,15 @@ import Language.Haskell.Liquid.Prelude
   @-}
 
 {-@ measure tarr :: Text -> Data.Text.Array.Array
-    tarr (Text a o l) = a
+      tarr (Text a o l) = a
   @-}
 
 {-@ measure toff :: Text -> Int
-    toff (Text a o l) = o
+      toff (Text a o l) = o
   @-}
 
 {-@ measure tlen :: Text -> Int 
-    tlen (Text a o l) = l  
+      tlen (Text a o l) = l  
   @-}
 
 {-@ type TextN  N = {v:Text | (tlen v) = N} @-}
@@ -84,12 +84,12 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif TextNE(v:Text): tlength(v) > 0 @-}
 
 {-@ measure sum_tlens :: [Text] -> Int
-    sum_tlens ([])   = 0
-    sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
+      sum_tlens ([])   = 0
+      sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
   @-}
 
 {-@ measure tlength :: Text -> Int
-    tlength (Text a o l) = numchars a o l
+      tlength (Text a o l) = numchars a o l
   @-}
 
 {-@ type IncrTList a = [a]<{\x y -> (tlength x) < (tlength y)}> @-}
@@ -121,8 +121,8 @@ import Language.Haskell.Liquid.Prelude
   @-}
 
 {-@ measure sum_tlengths :: [Text] -> Int
-    sum_tlengths ([]) = 0
-    sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
+      sum_tlengths ([]) = 0
+      sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
   @-}
 
 {-@ invariant {v:Text | (numchars (tarr v) (toff v) 0) = 0} @-}

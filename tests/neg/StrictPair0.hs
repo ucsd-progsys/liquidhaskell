@@ -3,7 +3,7 @@
 module SPair (poo) where
 
 {-@ measure tsnd :: (a, b) -> b 
-    tsnd (x, y) = y 
+      tsnd (x, y) = y 
   @-} 
 
 {-@ type Foo  a = ((a, Int), Int)<{\z v -> v <= (tsnd z)}> @-}
