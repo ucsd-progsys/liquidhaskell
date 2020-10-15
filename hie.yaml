@@ -1,0 +1,8 @@
+cradle:
+  stack:
+    - path: "./src"
+      component: "liquid-fixpoint:lib"
+    - path: "./bin"
+      component: "liquid-fixpoint:exe:fixpoint"
+    - path: "./tests"
+      component: "liquid-fixpoint:test:test"
