@@ -232,18 +232,21 @@ modifyLayoutStack f =
 setLayout :: Parser ()
 setLayout = do
   i <- L.indentLevel
+  -- traceShow ("setLayout", i) $ pure ()
   modifyLayoutStack (At i)
 
 -- | Temporarily reset the layout information, because we enter
 -- a block with explicit separators.
 --
 resetLayout :: Parser ()
-resetLayout =
+resetLayout = do
+  -- traceShow ("resetLayout") $ pure ()
   modifyLayoutStack Reset
 
 -- | Remove the topmost element from the layout stack.
 popLayout :: Parser ()
-popLayout =
+popLayout = do
+  -- traceShow ("popLayout") $ pure ()
   modifyLayoutStack popLayoutStack
 
 -- | Consumes all whitespace, including LH comments.
@@ -277,6 +280,10 @@ guardIndentLevel ord ref = do
 -- current layout stack. May fail. Returns the parser to run
 -- after the next token.
 --
+-- This function is intended to be used within a layout block
+-- to check whether the next token is valid within the current
+-- block.
+--
 guardLayout :: Parser (Parser ())
 guardLayout = do
   stack <- gets layoutStack
@@ -288,6 +295,25 @@ guardLayout = do
       -- multiple 'After' entries on the stack.
     After i _ -> guardIndentLevel GT i *> pure (pure ())
     _         -> pure (pure ())
+
+-- | Checks the current indentation level with respect to the
+-- current layout stack. The current indentation level must
+-- be strictly greater than the one of the surrounding block.
+-- May fail.
+--
+-- This function is intended to be used before we establish
+-- a new, nested, layout block, which should be indented further
+-- than the surrounding blocks.
+--
+strictGuardLayout :: Parser ()
+strictGuardLayout = do
+  stack <- gets layoutStack
+  -- traceShow ("strictGuardLayout", stack) $ pure ()
+  case stack of
+    At i _    -> guardIndentLevel GT i *> pure ()
+    After i _ -> guardIndentLevel GT i *> pure ()
+    _         -> pure ()
+
 
 -- | Indentation-aware lexeme parser. Before parsing, establishes
 -- whether we are in a position permitted by the layout stack.
@@ -326,15 +352,20 @@ located p = do
   pure (Loc l1 l2 x)
 
 -- | Parse a block delimited by layout.
+-- The block must be indented more than the surrounding blocks,
+-- otherwise we return an empty list.
 --
 -- Assumes that the parser for items does not accept the empty string.
 --
 indentedBlock :: Parser a -> Parser [a]
 indentedBlock p =
-  setLayout *> many (p <* popLayout) <* popLayout
-  -- We have to pop after every p, because the first successful
-  -- token moves from 'At' to 'After'. We have to pop at the end,
-  -- because we want to remove 'At'.
+      strictGuardLayout *> setLayout *> many (p <* popLayout) <* popLayout
+      -- We have to pop after every p, because the first successful
+      -- token moves from 'At' to 'After'. We have to pop at the end,
+      -- because we want to remove 'At'.
+  <|> pure []
+      -- We need to have a fallback with the empty list, because if the
+      -- layout check fails, we still want to accept this as an empty block.
 
 -- | Parse a single line that may be continued via layout.
 indentedLine :: Parser a -> Parser a
