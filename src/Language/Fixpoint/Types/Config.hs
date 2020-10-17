@@ -94,6 +94,7 @@ data Config = Config
   , maxRWOrderingConstraints :: Maybe Int
   , rwTerminationCheck  :: Bool
   , stdin               :: Bool        -- ^ Read input query from stdin  
+  , json                :: Bool        -- ^ Render output in JSON format
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -185,6 +186,7 @@ defConfig = Config {
   , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"
   , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
+  , json                     = False   &= help "Render result in JSON"
   }
   &= verbosity
   &= program "fixpoint"

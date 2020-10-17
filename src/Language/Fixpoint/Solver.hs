@@ -24,8 +24,9 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent                 (setNumCapabilities)
 import           Data.Binary                        (decodeFile)
+import           Data.Aeson                         (encode, toJSON)
 import           System.Exit                        (ExitCode (..))
-import           System.Console.CmdArgs.Verbosity   (whenLoud)
+import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
@@ -57,17 +58,19 @@ solveFQ cfg = do
     cfg'       <- withPragmas cfg opts
     let fi'     = ignoreQualifiers cfg' fi
     r          <- solve cfg' fi'
-    resultExitCode (fst <$> r)
+    resultExitCode cfg (fst <$> r)
   where
     file    = srcFile      cfg
 
 ---------------------------------------------------------------------------
-resultExitCode :: Result SubcId -> IO ExitCode 
+resultExitCode :: Config -> Result SubcId -> IO ExitCode 
 ---------------------------------------------------------------------------
-resultExitCode r = do 
-  colorStrLn (colorResult stat) (statStr $!! stat)
+resultExitCode cfg r = do 
+  whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
+  when (json cfg) $ putStrLn jStr
   return (eCode r)
   where 
+    jStr    = show . encode . toJSON $ r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
     statStr = render . resultDoc 

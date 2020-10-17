@@ -33,7 +33,7 @@ solveHorn cfg = do
   cfg <- F.withPragmas cfg opts
 
   r <- solve cfg q
-  Solver.resultExitCode (fst <$> r)
+  Solver.resultExitCode cfg (fst <$> r)
 
 parseQuery :: F.Config -> IO (H.Query (), [String])
 parseQuery cfg 

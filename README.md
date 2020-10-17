@@ -113,8 +113,7 @@ To increment the `B` component of Liquid Fixpoint, and strip the `D` and `C` com
 
 As before, this will update Liquid Fixpoint and, if necessary, Liquid Haskell
 
-SMTLIB2 Interface
------------------
+## SMTLIB2 Interface
 
 There is a new SMTLIB2 interface directly from Haskell:
 
@@ -122,8 +121,37 @@ There is a new SMTLIB2 interface directly from Haskell:
 
 See `tests/smt2/{Smt.hs, foo.smt2}` for an example of how to use it.
 
-Options
--------
+### Command Line for SMT2 interface
+
+You can use the `.smt2` interface from the command-line as follows:
+
+Use `--stdin` to read files from `stdin`
+
+```
+$ more tests/horn/pos/test01.smt | fixpoint --stdin
+
+Liquid-Fixpoint Copyright 2013-15 Regents of the University of California.
+All Rights Reserved.
+
+Working 175% [==================================================================================================================]
+Safe ( 3  constraints checked)
+```
+
+Use `-q` to disable all output (banner, progress bar etc.)
+
+```
+$ more tests/horn/pos/test01.smt | fixpoint -q --stdin
+```
+
+Use `--json` to get the output as a JSON object (rendered to `stdout`)
+
+```
+$ more tests/horn/pos/abs02-re.smt2 | stack exec -- fixpoint -q --json --stdin
+"{\"result\":\"safe\"}"
+```
+
+
+## Options
 
 `--higherorder` allows higher order binders into the environment
 
