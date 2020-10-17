@@ -24,7 +24,7 @@ solveQuery cfg     = solver cfg `Ex.catch` errorExit
       | otherwise  = solveFQ 
 
 isHorn :: F.Config -> Bool 
-isHorn = F.isExtFile F.Smt2 . F.srcFile
+isHorn cfg = F.isExtFile F.Smt2 (F.srcFile cfg) || F.stdin cfg 
 
 errorExit :: F.Error -> IO ExitCode
 errorExit e = do

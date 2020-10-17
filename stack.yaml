@@ -1,4 +1,9 @@
-resolver: lts-14.0
+
+resolver: lts-16.8
+compiler: ghc-8.10.2
+allow-newer: true
+
+# resolver: lts-14.0
 
 flags:
   liquid-fixpoint:
