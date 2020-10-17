@@ -22,14 +22,13 @@ module Language.Fixpoint.Solver (
   , simplifyFInfo
 ) where
 
-import           Control.Concurrent
-import           Data.Binary
+import           Control.Concurrent                 (setNumCapabilities)
+import           Data.Binary                        (decodeFile)
 import           System.Exit                        (ExitCode (..))
-import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
+import           System.Console.CmdArgs.Verbosity   (whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
-
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
@@ -66,9 +65,7 @@ solveFQ cfg = do
 resultExitCode :: Result SubcId -> IO ExitCode 
 ---------------------------------------------------------------------------
 resultExitCode r = do 
-  -- let str  = render $ resultDoc $!! (const () <$> stat)
-  -- putStrLn "\n"
-  whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
+  colorStrLn (colorResult stat) (statStr $!! stat)
   return (eCode r)
   where 
     stat    = resStatus $!! r

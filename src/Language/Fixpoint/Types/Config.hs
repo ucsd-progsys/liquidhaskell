@@ -92,7 +92,8 @@ data Config = Config
   , checkCstr        :: [Integer]      -- ^ Only check these specific constraints 
   , extensionality   :: Bool           -- ^ Enable extensional interpretation of function equality
   , maxRWOrderingConstraints :: Maybe Int
-  , rwTerminationCheck     :: Bool
+  , rwTerminationCheck  :: Bool
+  , stdin               :: Bool        -- ^ Read input query from stdin  
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -183,6 +184,7 @@ defConfig = Config {
   , extensionality           = False &= help "Allow extensional interpretation of extensionality"
   , maxRWOrderingConstraints = Nothing &= help "Maximum number of functions to consider in rewrite orderings"
   , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
+  , stdin                    = False   &= help "Read input query from stdin"
   }
   &= verbosity
   &= program "fixpoint"
@@ -198,9 +200,10 @@ config :: Mode (CmdArgs Config)
 config = cmdArgsMode defConfig
 
 getOpts :: IO Config
-getOpts = do md <- cmdArgs defConfig
-             putStrLn banner
-             return md
+getOpts = do 
+  md <- cmdArgs defConfig
+  whenNormal (putStrLn banner)
+  return md
 
 banner :: String
 banner =  "\n\nLiquid-Fixpoint Copyright 2013-15 Regents of the University of California.\n"

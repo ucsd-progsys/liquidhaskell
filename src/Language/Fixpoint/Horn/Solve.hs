@@ -24,6 +24,7 @@ import System.Console.CmdArgs.Verbosity ( whenLoud )
 solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
 solveHorn cfg = do
+
   (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
 
   -- If you want to set --eliminate=none, you better make it a pragma

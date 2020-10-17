@@ -1,14 +1,20 @@
 # TODO
 
-## Add PLE to Horn
+## CLI mode
 
-- `constant`
-- `define` 
-- `data` (?)
+https://github.com/ucsd-progsys/liquid-fixpoint/issues/451
 
-Tests
+- [x] quiet mode
+- [ ] read inputs from stdin
+- [ ] write outputs to stdout
+- [ ] write json
+- [ ] tag
 
-- [x] proof/pos/ple0.fq
-- [x] proof/pos/sum.fq
-- [x] list00.fq
-- [ ] list03.fq
+### 1. `-quiet`
+
+### 2. `-in`
+
+### 3. `-json`
+
+### 4. tags
+
