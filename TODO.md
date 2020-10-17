@@ -4,13 +4,8 @@
 
 https://github.com/ucsd-progsys/liquid-fixpoint/issues/451
 
-- [x] quiet mode              `-q`
-- [x] read inputs from stdin  `--stdin`
-- [x] write outputs to stdout 
-- [ ] write json
+- [x] quiet mode       `--quiet`
+- [x] read from stdin  `--stdin`
+- [x] write json       `--json`
 - [ ] tag
-
-### 3. `-json`
-
-### 4. tags
 
