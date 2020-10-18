@@ -33,9 +33,9 @@ solveHorn cfg = do
   cfg <- F.withPragmas cfg opts
 
   r <- solve cfg q
-  Solver.resultExitCode cfg (fst <$> r)
+  Solver.resultExitCode cfg r
 
-parseQuery :: F.Config -> IO (H.Query (), [String])
+parseQuery :: F.Config -> IO (H.Query H.Tag, [String])
 parseQuery cfg 
   | F.stdin cfg = Parse.parseFromStdIn H.hornP
   | otherwise   = Parse.parseFromFile H.hornP (F.srcFile cfg)

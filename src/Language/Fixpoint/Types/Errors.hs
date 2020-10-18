@@ -204,12 +204,16 @@ instance Functor FixResult where
   fmap f (Unsafe s xs)    = Unsafe s (f <$> xs)
   fmap _ (Safe stats)     = Safe stats
 
-instance ToJSON (FixResult a) where
-  toJSON (Safe _ )     = object [ "result"  .= String "safe"   ]
-  toJSON (Unsafe _ _)  = object [ "result"  .= String "unsafe" ]
-  toJSON (Crash _ msg) = object [ "result"  .= String "crash"
-                                , "message" .= msg 
-                                ]
+instance (ToJSON a) => ToJSON (FixResult a) where
+  toJSON (Safe _ )      = object [ "result"  .= String "safe"   ]
+
+  toJSON (Unsafe _ ts)  = object [ "result"  .= String "unsafe" 
+                                 , "tags"    .= toJSON ts
+                                 ]
+  toJSON (Crash ts msg) = object [ "result"  .= String "crash"
+                                 , "message" .= msg 
+                                 , "tags"    .= toJSON ts
+                                 ]
 
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 

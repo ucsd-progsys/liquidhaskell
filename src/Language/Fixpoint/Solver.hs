@@ -24,7 +24,7 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent                 (setNumCapabilities)
 import           Data.Binary                        (decodeFile)
-import           Data.Aeson                         (encode, toJSON)
+import           Data.Aeson                         (ToJSON, encode, toJSON)
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
@@ -63,7 +63,8 @@ solveFQ cfg = do
     file    = srcFile      cfg
 
 ---------------------------------------------------------------------------
-resultExitCode :: Config -> Result SubcId -> IO ExitCode 
+resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a 
+               -> IO ExitCode
 ---------------------------------------------------------------------------
 resultExitCode cfg r = do 
   whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)

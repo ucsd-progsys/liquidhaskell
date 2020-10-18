@@ -17,7 +17,7 @@ import           Text.Megaparsec.Char           (char)
 import qualified Data.HashMap.Strict            as M
 
 -------------------------------------------------------------------------------
-hornP :: Parser (H.Query (), [String])
+hornP :: Parser (H.TagQuery, [String])
 -------------------------------------------------------------------------------
 hornP = do
   hThings <- many hThingP
@@ -50,7 +50,7 @@ data HThing a
   | HOpt !String
   deriving (Functor)
 
-hThingP :: Parser (HThing ())
+hThingP :: Parser (HThing H.Tag)
 hThingP  = parens body
   where
     body =  HQual <$> (reserved "qualif"     *> hQualifierP)
@@ -63,14 +63,15 @@ hThingP  = parens body
         <|> HMat  <$> (reserved "match"      *> matchP)
 
 -------------------------------------------------------------------------------
-hCstrP :: Parser (H.Cstr ())
+hCstrP :: Parser (H.Cstr H.Tag)
 -------------------------------------------------------------------------------
 hCstrP = parens body
   where
-    body =  H.CAnd  <$> (reserved "and"    *> some hCstrP)
-        <|> H.All   <$> (reserved "forall" *> hBindP)       <*> hCstrP
-        <|> H.Any   <$> (reserved "exists" *> hBindP)       <*> hCstrP
-        <|> H.Head  <$> hPredP                              <*> pure ()
+    body =  H.CAnd <$> (reserved "and"    *> some hCstrP)
+        <|> H.All  <$> (reserved "forall" *> hBindP)      <*> hCstrP
+        <|> H.Any  <$> (reserved "exists" *> hBindP)      <*> hCstrP
+        <|> H.Head <$> (reserved "tag"    *> hPredP)      <*> (H.Tag <$> stringLiteral)
+        <|> H.Head <$> hPredP                             <*> pure H.NoTag
 
 hBindP :: Parser H.Bind
 hBindP   = parens $ do
@@ -108,8 +109,8 @@ mkParam (x, t) = F.QP x F.PatNone t
 -- | Horn Variables
 -------------------------------------------------------------------------------
 
-hVarP :: Parser (H.Var ())
-hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure ()
+hVarP :: Parser (H.Var H.Tag)
+hVarP = H.HVar <$> kvSymP <*> parens (some (parens sortP)) <*> pure H.NoTag 
 
 -------------------------------------------------------------------------------
 -- | Helpers
