@@ -24,7 +24,9 @@ module Language.Fixpoint.Solver (
 
 import           Control.Concurrent                 (setNumCapabilities)
 import           Data.Binary                        (decodeFile)
-import           Data.Aeson                         (ToJSON, encode, toJSON)
+import           Data.Aeson                         (ToJSON, encode)
+import qualified Data.Text.Lazy.IO                as LT
+import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
@@ -68,10 +70,10 @@ resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a
 ---------------------------------------------------------------------------
 resultExitCode cfg r = do 
   whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
-  when (json cfg) $ putStrLn jStr
+  when (json cfg) $ LT.putStrLn jStr
   return (eCode r)
   where 
-    jStr    = show . encode . toJSON $ r
+    jStr    = LT.decodeUtf8 . encode $ r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
     statStr = render . resultDoc 
