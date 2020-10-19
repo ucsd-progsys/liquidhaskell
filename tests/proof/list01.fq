@@ -5,6 +5,13 @@ data Vec 1 = [
   | VCons { head : @(0), tail : Vec @(0)}
 ]
 
+define filter (lq1 : func(0 , [a##a29r;bool]),  lq2 : [a##a29r]) : [a##a29r] = {
+  if (isNil lq2) then Nil else (
+      if (lq1 (head lq2)) 
+        then (Cons (head lq2) (filter lq1 (tail lq2))) 
+        else (filter lq1 (tail lq2)))
+}
+
 constant len: (func(1, [(Vec @(0)); int]))
 
 match len VNil       = 0

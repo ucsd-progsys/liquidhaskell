@@ -289,15 +289,32 @@ data Expr = ESym !SymConst
 
 type Pred = Expr
 
-pattern PTrue         = PAnd []
-pattern PTop          = PAnd []
-pattern PFalse        = POr  []
-pattern EBot          = POr  []
-pattern EEq e1 e2     = PAtom Eq    e1 e2
-pattern ETimes e1 e2  = EBin Times  e1 e2
+pattern PTrue :: Expr
+pattern PTrue = PAnd []
+
+pattern PTop :: Expr
+pattern PTop = PAnd []
+
+pattern PFalse :: Expr
+pattern PFalse = POr  []
+
+pattern EBot :: Expr
+pattern EBot = POr  []
+
+pattern EEq :: Expr -> Expr -> Expr
+pattern EEq e1 e2 = PAtom Eq    e1 e2
+
+pattern ETimes :: Expr -> Expr -> Expr
+pattern ETimes e1 e2 = EBin Times  e1 e2
+
+pattern ERTimes :: Expr -> Expr -> Expr
 pattern ERTimes e1 e2 = EBin RTimes e1 e2
-pattern EDiv e1 e2    = EBin Div    e1 e2
-pattern ERDiv e1 e2   = EBin RDiv   e1 e2
+
+pattern EDiv :: Expr -> Expr -> Expr
+pattern EDiv e1 e2 = EBin Div    e1 e2
+
+pattern ERDiv :: Expr -> Expr -> Expr
+pattern ERDiv e1 e2 = EBin RDiv   e1 e2
 
 
 data GradInfo = GradInfo {gsrc :: SrcSpan, gused :: Maybe SrcSpan}
