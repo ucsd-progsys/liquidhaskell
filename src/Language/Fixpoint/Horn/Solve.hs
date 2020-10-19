@@ -47,14 +47,12 @@ parseQuery cfg
   | F.stdin cfg = Parse.parseFromStdIn H.hornP
   | otherwise   = Parse.parseFromFile H.hornP (F.srcFile cfg)
 
-saveHornQuery :: F.Config -> H.Query () -> IO ()
+saveHornQuery :: F.Config -> H.Query H.Tag -> IO ()
 saveHornQuery cfg q = do
   let hq   = F.queryFile Files.HSmt2 cfg
   putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
   Misc.ensurePath hq
   writeFile hq $ render (F.pprint q)
-
-
 
 ----------------------------------------------------------------------------------
 eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
