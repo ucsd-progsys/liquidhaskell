@@ -475,7 +475,20 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   debugLog $ "_gsFiTcs => " ++ show fiTcs
   debugLog $ "_gsFiDcs => " ++ show fiDcs
   debugLog $ "dataCons => " ++ show dataCons
+  debugLog $ "coreBinds => " ++ (O.showSDocUnsafe . O.ppr $ coreBinds)
+  debugLog $ "impVars => " ++ (O.showSDocUnsafe . O.ppr $ impVars)
   debugLog $ "defVars  => " ++ show (L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData)
+  debugLog $ "useVars  => " ++ (O.showSDocUnsafe . O.ppr $ readVars coreBinds)
+  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg mgiModGuts))
+  debugLog $ "gsExports => " ++ (show $ mgi_exports  mgiModGuts)
+  debugLog $ "gsTcs     => " ++ (O.showSDocUnsafe . O.ppr $ allTcs)
+  debugLog $ "gsCls     => " ++ (O.showSDocUnsafe . O.ppr $ mgi_cls_inst mgiModGuts)
+  debugLog $ "gsFiTcs   => " ++ (O.showSDocUnsafe . O.ppr $ fiTcs)
+  debugLog $ "gsFiDcs   => " ++ (show fiDcs)
+  debugLog $ "gsPrimTcs => " ++ (O.showSDocUnsafe . O.ppr $ GHC.primTyCons)
+  debugLog $ "things   => " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ things)
+  debugLog $ "allImports => " ++ (show $ tcAllImports tcData)
+  debugLog $ "qualImports => " ++ (show $ tcQualifiedImports tcData)
 
   return $ TargetSrc
     { giIncDir    = mempty
