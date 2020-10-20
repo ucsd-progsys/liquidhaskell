@@ -21,7 +21,7 @@ import           Language.Fixpoint.SortCheck     (elaborate, applySorts, isFirst
 -- import           Language.Fixpoint.Defunctionalize 
 import qualified Language.Fixpoint.Misc                            as Misc
 import qualified Language.Fixpoint.Types                           as F
-import           Language.Fixpoint.Types.Config (Config, allowHO)
+import           Language.Fixpoint.Types.Config (Config)
 import qualified Language.Fixpoint.Types.Config as Cfg 
 import qualified Language.Fixpoint.Types.Errors                    as E
 import qualified Language.Fixpoint.Smt.Theories                    as Thy
@@ -404,24 +404,22 @@ symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
 
 symbolSorts' :: Config -> F.GInfo c a -> SanitizeM [(F.Symbol, F.Sort)]
-symbolSorts' cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
+symbolSorts' _cfg fi  = (normalize . compact . (defs ++)) =<< bindSorts fi
   where
     normalize       = fmap (map (unShadow txFun dm))
     dm              = M.fromList defs
     defs            = F.toListSEnv . F.gLits $ fi
-    txFun           
+    txFun
       | True        = id
-      | allowHO cfg = id
-      | otherwise   = defuncSort
 
 unShadow :: (F.Sort -> F.Sort) -> M.HashMap F.Symbol a -> (F.Symbol, F.Sort) -> (F.Symbol, F.Sort)
 unShadow tx dm (x, t)
   | M.member x dm  = (x, t)
   | otherwise      = (x, tx t)
 
-defuncSort :: F.Sort -> F.Sort
-defuncSort (F.FFunc {}) = F.funcSort
-defuncSort t            = t
+_defuncSort :: F.Sort -> F.Sort
+_defuncSort (F.FFunc {}) = F.funcSort
+_defuncSort t            = t
 
 compact :: [(F.Symbol, F.Sort)] -> Either E.Error [(F.Symbol, F.Sort)]
 compact xts

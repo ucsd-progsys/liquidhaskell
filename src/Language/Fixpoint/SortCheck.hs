@@ -9,6 +9,7 @@
 {-# LANGUAGE OverloadedStrings     #-}
 {-# LANGUAGE PatternGuards         #-}
 {-# LANGUAGE BangPatterns          #-}
+{-# LANGUAGE RankNTypes            #-}
 
 -- | This module has the functions that perform sort-checking, and related
 -- operations on Fixpoint expressions and predicates.
@@ -80,7 +81,20 @@ import qualified Language.Fixpoint.Smt.Theories   as Thy
 import           Text.PrettyPrint.HughesPJ.Compat
 import           Text.Printf
 
--- import Debug.Trace
+import           GHC.Stack
+
+--import Debug.Trace as Debug
+
+-- If set to 'True', enable precise logging via CallStacks.
+debugLogs :: Bool
+debugLogs = False
+
+traced :: HasCallStack => (HasCallStack => String) -> String
+traced str =
+  if debugLogs
+    then let prettified = prettyCallStack (popCallStack callStack)
+         in str <> " (at " <> prettified <> ")"
+    else str
 
 --------------------------------------------------------------------------------
 -- | Predicates on Sorts -------------------------------------------------------
@@ -298,10 +312,10 @@ mkSearchEnv env x = lookupSEnvWithDistance x env
 
 -- withError :: CheckM a -> ChError -> CheckM a
 -- act `withError` e' = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ val e')))
- 
-withError :: CheckM a -> String -> CheckM a
+
+withError :: HasCallStack => CheckM a -> String -> CheckM a
 act `withError` msg = act `catchError` (\e -> throwError (atLoc e (val e ++ "\n  because\n" ++ msg)))
- 
+
 runCM0 :: SrcSpan -> CheckM a -> Either ChError a
 runCM0 sp act = fst <$> runStateT act (ChS 42 sp)
 
@@ -950,7 +964,7 @@ checkBoolSort e s
   | otherwise     = throwErrorAt (errBoolSort e s)
 
 -- | Checking Relations
-checkRel :: Env -> Brel -> Expr -> Expr -> CheckM ()
+checkRel :: HasCallStack => Env -> Brel -> Expr -> Expr -> CheckM ()
 checkRel f Eq e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
@@ -1068,11 +1082,11 @@ unifyFast True  _ = uMono
 
 
 --------------------------------------------------------------------------------
-unifys :: Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
+unifys :: HasCallStack => Env -> Maybe Expr -> [Sort] -> [Sort] -> CheckM TVSubst
 --------------------------------------------------------------------------------
 unifys f e = unifyMany f e emptySubst
 
-unifyMany :: Env -> Maybe Expr -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
+unifyMany :: HasCallStack => Env -> Maybe Expr -> TVSubst -> [Sort] -> [Sort] -> CheckM TVSubst
 unifyMany f e θ ts ts'
   | length ts == length ts' = foldM (uncurry . unify1 f e) θ $ zip ts ts'
   | otherwise               = throwErrorAt (errUnifyMany ts ts')
@@ -1256,8 +1270,9 @@ errUnifyMany :: [Sort] -> [Sort] -> String
 errUnifyMany ts ts'  = printf "Cannot unify types with different cardinalities %s and %s"
                          (showpp ts) (showpp ts')
 
-errRel :: Expr -> Sort -> Sort -> String
-errRel e t1 t2       = printf "Invalid Relation %s with operand types %s and %s"
+errRel :: HasCallStack => Expr -> Sort -> Sort -> String
+errRel e t1 t2       =
+  traced $ printf "Invalid Relation %s with operand types %s and %s"
                          (showpp e) (showpp t1) (showpp t2)
 
 errOp :: Expr -> Sort -> Sort -> String
