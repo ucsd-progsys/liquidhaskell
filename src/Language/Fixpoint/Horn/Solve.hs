@@ -28,8 +28,8 @@ import System.Console.CmdArgs.Verbosity ( whenLoud )
 solveHorn :: F.Config -> IO ExitCode
 ----------------------------------------------------------------------------------
 solveHorn cfg = do
-  (q, opts) <- Parse.parseFromFile H.hornP (F.srcFile cfg)
-
+  (q, opts) <- parseQuery cfg
+  
   -- If you want to set --eliminate=none, you better make it a pragma
   cfg <- if F.eliminate cfg == F.None
            then pure (cfg { F.eliminate =  F.Some })
@@ -40,16 +40,19 @@ solveHorn cfg = do
   when (F.save cfg) (saveHornQuery cfg q)
 
   r <- solve cfg q
-  Solver.resultExitCode (fst <$> r)
+  Solver.resultExitCode cfg r
 
-saveHornQuery :: F.Config -> H.Query () -> IO ()
+parseQuery :: F.Config -> IO (H.Query H.Tag, [String])
+parseQuery cfg 
+  | F.stdin cfg = Parse.parseFromStdIn H.hornP
+  | otherwise   = Parse.parseFromFile H.hornP (F.srcFile cfg)
+
+saveHornQuery :: F.Config -> H.Query H.Tag -> IO ()
 saveHornQuery cfg q = do
   let hq   = F.queryFile Files.HSmt2 cfg
   putStrLn $ "Saving Horn Query: " ++ hq ++ "\n"
   Misc.ensurePath hq
   writeFile hq $ render (F.pprint q)
-
-
 
 ----------------------------------------------------------------------------------
 eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)

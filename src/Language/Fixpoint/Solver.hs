@@ -22,14 +22,16 @@ module Language.Fixpoint.Solver (
   , simplifyFInfo
 ) where
 
-import           Control.Concurrent
-import           Data.Binary
+import           Control.Concurrent                 (setNumCapabilities)
+import           Data.Binary                        (decodeFile)
+import           Data.Aeson                         (ToJSON, encode)
+import qualified Data.Text.Lazy.IO                as LT
+import qualified Data.Text.Lazy.Encoding          as LT
 import           System.Exit                        (ExitCode (..))
 import           System.Console.CmdArgs.Verbosity   (whenNormal, whenLoud)
 import           Text.PrettyPrint.HughesPJ          (render)
 import           Control.Monad                      (when)
 import           Control.Exception                  (catch)
-
 import           Language.Fixpoint.Solver.Sanitize  (symbolEnv, sanitize)
 import           Language.Fixpoint.Solver.UniqifyBinds (renameAll)
 import           Language.Fixpoint.Defunctionalize (defunctionalize)
@@ -58,19 +60,20 @@ solveFQ cfg = do
     cfg'       <- withPragmas cfg opts
     let fi'     = ignoreQualifiers cfg' fi
     r          <- solve cfg' fi'
-    resultExitCode (fst <$> r)
+    resultExitCode cfg (fst <$> r)
   where
     file    = srcFile      cfg
 
 ---------------------------------------------------------------------------
-resultExitCode :: Result SubcId -> IO ExitCode 
+resultExitCode :: (Fixpoint a, NFData a, ToJSON a) => Config -> Result a 
+               -> IO ExitCode
 ---------------------------------------------------------------------------
-resultExitCode r = do 
-  -- let str  = render $ resultDoc $!! (const () <$> stat)
-  -- putStrLn "\n"
+resultExitCode cfg r = do 
   whenNormal $ colorStrLn (colorResult stat) (statStr $!! stat)
+  when (json cfg) $ LT.putStrLn jStr
   return (eCode r)
   where 
+    jStr    = LT.decodeUtf8 . encode $ r
     stat    = resStatus $!! r
     eCode   = resultExit . resStatus
     statStr = render . resultDoc 
@@ -158,6 +161,7 @@ inParallelUsing f xs = do
    setNumCapabilities (length xs)
    rs <- asyncMapM f xs
    return $ mconcat rs
+
 
 --------------------------------------------------------------------------------
 -- | Native Haskell Solver -----------------------------------------------------

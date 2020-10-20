@@ -84,6 +84,7 @@ module Language.Fixpoint.Parse (
   , doParse'
   , parseTest'
   , parseFromFile
+  , parseFromStdIn
   , remainderP
 
   -- * Utilities
@@ -110,6 +111,7 @@ import qualified Data.HashSet                as S
 import           Data.List                   (foldl')
 import           Data.List.NonEmpty          (NonEmpty(..))
 import qualified Data.Text                   as T
+import qualified Data.Text.IO                as T
 import           Data.Maybe                  (fromJust, fromMaybe)
 import           Data.Void
 import           Text.Megaparsec             hiding (State, ParseError)
@@ -1455,6 +1457,9 @@ parseTest' parser input =
 
 parseFromFile :: Parser b -> SourceName -> IO b
 parseFromFile p f = doParse' p f <$> readFile f
+
+parseFromStdIn :: Parser a -> IO a
+parseFromStdIn p = doParse' p "stdin" . T.unpack <$> T.getContents
 
 -- | Obtain a fresh integer during the parsing process.
 freshIntP :: Parser Integer

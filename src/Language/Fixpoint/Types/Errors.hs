@@ -55,6 +55,7 @@ module Language.Fixpoint.Types.Errors (
 import           System.Exit                        (ExitCode (..))
 import           Control.Exception
 import           Data.Serialize                (Serialize (..))
+import           Data.Aeson                    hiding (Error, Result)
 import           Data.Generics                 (Data)
 import           Data.Typeable
 #if !MIN_VERSION_base(4,14,0)
@@ -203,10 +204,22 @@ instance Functor FixResult where
   fmap f (Unsafe s xs)    = Unsafe s (f <$> xs)
   fmap _ (Safe stats)     = Safe stats
 
+instance (ToJSON a) => ToJSON (FixResult a) where
+  toJSON (Safe _ )      = object [ "result"  .= String "safe"   ]
+
+  toJSON (Unsafe _ ts)  = object [ "result"  .= String "unsafe" 
+                                 , "tags"    .= toJSON ts
+                                 ]
+  toJSON (Crash ts msg) = object [ "result"  .= String "crash"
+                                 , "message" .= msg 
+                                 , "tags"    .= toJSON ts
+                                 ]
+
 resultDoc :: (Fixpoint a) => FixResult a -> Doc
 resultDoc (Safe stats)     = text "Safe (" <+> text (show $ Solver.checked stats) <+> " constraints checked)" 
 resultDoc (Crash xs msg)   = vcat $ text ("Crash!: " ++ msg) : ((("CRASH:" <+>) . toFix) <$> xs)
 resultDoc (Unsafe _ xs)    = vcat $ text "Unsafe:"           : ((("WARNING:" <+>) . toFix) <$> xs)
+
 
 colorResult :: FixResult a -> Moods
 colorResult (Safe (Solver.totalWork -> 0)) = Wary

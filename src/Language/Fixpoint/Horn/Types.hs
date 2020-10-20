@@ -19,6 +19,11 @@ module Language.Fixpoint.Horn.Types
   , Bind  (..)
   , Var   (..) 
 
+    -- * Raw Query
+  , Tag (..)
+  , TagVar
+  , TagQuery 
+
     -- * accessing constraint labels
   , cLabel
 
@@ -34,12 +39,15 @@ module Language.Fixpoint.Horn.Types
 import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           GHC.Generics              (Generic)
+import           Control.DeepSeq ( NFData )
+import qualified Data.Text               as T
 import           Data.Maybe (fromMaybe)
 import qualified Data.List               as L
 import qualified Language.Fixpoint.Misc  as Misc
 import qualified Language.Fixpoint.Types as F
 import qualified Text.PrettyPrint.HughesPJ.Compat as P
 import qualified Data.HashMap.Strict as M
+import           Data.Aeson
 
 -------------------------------------------------------------------------------
 -- | @HVar@ is a Horn variable 
@@ -196,6 +204,30 @@ data Query a = Query
   , qData  :: ![F.DataDecl]                     -- ^ list of data-declarations
   }
   deriving (Data, Typeable, Generic, Functor)
+
+-- | Tag each query with a possible string denoting "provenance"
+
+type TagVar   = Var Tag
+type TagQuery = Query Tag
+data Tag      = NoTag | Tag String
+  deriving (Data, Typeable, Generic, Show) 
+
+instance NFData Tag
+
+instance F.Loc Tag where
+  srcSpan _ = F.dummySpan
+
+instance F.Fixpoint Tag where
+  toFix NoTag   = "\"\"" 
+  toFix (Tag s) = "\"" <> P.text s <> "\""
+  
+instance F.PPrint Tag where
+  pprintPrec _ _ NoTag   = mempty
+  pprintPrec _ _ (Tag s) = P.ptext s 
+
+instance ToJSON Tag where
+  toJSON NoTag   = Null
+  toJSON (Tag s) = String (T.pack s) 
 
 instance F.PPrint (Query a) where 
   pprintPrec k t q = P.vcat $ L.intersperse " " 

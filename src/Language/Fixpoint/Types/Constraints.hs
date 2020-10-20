@@ -87,6 +87,7 @@ module Language.Fixpoint.Types.Constraints (
 
 import qualified Data.Binary as B
 import           Data.Generics             (Data)
+import           Data.Aeson                hiding (Result)
 #if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
 #endif
@@ -272,6 +273,11 @@ data Result a = Result
   , gresSolution :: !GFixSolution 
   }
   deriving (Generic, Show, Functor)
+
+
+
+instance ToJSON a => ToJSON (Result a) where
+  toJSON = toJSON . resStatus
 
 instance Semigroup (Result a) where
   r1 <> r2  = Result stat soln gsoln
