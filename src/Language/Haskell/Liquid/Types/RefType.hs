@@ -1894,8 +1894,13 @@ instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
 instance PPrint DataDecl where
-  pprintTidy k dd = "data" <+> pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> pprint (tycTyVars dd) <+> "="
-                    $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
+  pprintTidy k dd =
+    let
+      prefix = "data" <+> pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> pprint (tycTyVars dd)
+    in
+      case tycDCons dd of
+        Nothing   -> prefix
+        Just cons -> prefix <+> "=" $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- cons ])
 
 instance PPrint DataCtor where
   -- pprintTidy k (DataCtor c as _   xts Nothing)  = pprintTidy k c <+> dcolon ppVars as <+> braces (ppFields k ", " xts)

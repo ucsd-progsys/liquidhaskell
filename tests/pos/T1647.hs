@@ -10,7 +10,7 @@ data ExtT b  where
    ExtT  :: (a -> b) -> ExtT b 
 
 {-@ data ExtT b where 
-    ExtT  :: (a -> b) -> ExtT b 
+      ExtT  :: (a -> b) -> ExtT b 
 @-}   
 
 prop :: a -> a -> ExtT a -> ExtT a
