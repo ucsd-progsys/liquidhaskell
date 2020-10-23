@@ -1,7 +1,46 @@
 # Writing Specifications
 
-This section documents how you can actually annotate new or existing code with refinement types, leveraging
-the full power of LiquidHaskell.
+This section documents how you can actually annotate new or existing code with
+refinement types, leveraging the full power of LiquidHaskell. There are a lot
+of different ways to annotate your code, and so we've included a brief summary
+of each here.
+
+* `{-@ inline <binding-name> @-}` copies a Haskell definition to the refinement logic.
+  ([Jump to: Inlines](#inlines))
+    * All parts of the definition must already be available to the refinement logic.
+    * The definition cannot be recursive.
+* `{-@ measure <function-name>[ <refinement-type>] @-}` copies a Haskell function to the refinement logic,
+  adds an inferred refinement type to the constructor of the function's first argument,
+  and emits an inferred global invariant related to the refinement.
+  ([Jump to: Measures](#specifying-measures))
+    * All parts of the definition must already be available to the refinement logic.
+    * The function must have only one argument and it must pattern match on the constructors of the type.
+    * The function may structurally recurse on the single argument.
+* `{-@ reflect <function-name> @-}` creates an uninterpreted function of the same name in the refinement logic,
+  copies the implementation to a refinement type alias,
+  and adds a refinement to the type of the uninterpreted function that specifies the type alias as a post-condition.
+  ([See more: Section 2.2 of this paper](http://goto.ucsd.edu/~nvazou/refinement-reflection/refinement-reflection.pdf))
+    * All parts of the definition must already be available to the refinement logic.
+    * The function may be recursive.
+* `{-@ type <type-alias-head> = <refinement-type> @-}` introduces a type alias that looks like Haskell syntax but can contain refinements and may be parameterized over both types and values.
+  ([Jump to: Type Aliases](#type-aliases))
+* `{-@ predicate .. @-}` introduces something like `{-@ type .. @-}`.
+  (_Deprecated_, [Jump to: Predicate Aliases](#predicate-aliases))
+* `{-@ invariant <refinement-type> @-}` introduces a globally available refinement which may be used by Liquid Haskel, but is not checked.
+  (_Unchecked_, _Deprecated_, [Jump to: Invariants](#invariants))
+* `{-@ data <data-type-head><termination-measure>[ <data-type-body] @-}` introduces a refined datatype,
+  and introduces measures for each field of a record datatype.
+  ([Jump to: Data Refinements](http://ucsd-progsys.github.io/liquidhaskell/specifications/#modules-with-code-data))
+    * Optionally you may also add refinements to datatype fields.
+    * Optionally you may also add a termination measure to the datatype.
+* `{-@ assume <binding-signature-with-refinement-type> @-}` introduces a refinement type for the named Haskell definition.
+  (_Unchecked_)
+    * For a function, the refinements become pre and post conditions for the functions use.
+* `{-@ <binding-signature-with-refinement-type> @-}` introduces a refinement type for the named Haskell definition.
+    * For a function, the refinements become pre and post conditions for the functions use.
+    * This is probably the most used Liquid Haskell annotation!
+
+The following sections detail more variety for the uses of the above annotations.
 
 ## Modules WITHOUT code
 
