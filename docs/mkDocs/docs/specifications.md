@@ -25,7 +25,7 @@ of each here.
 * `{-@ type <type-alias-head> = <refinement-type> @-}` introduces a type alias that looks like Haskell syntax but can contain refinements and may be parameterized over both types and values.
   ([Jump to: Type Aliases](#type-aliases))
 * `{-@ predicate .. @-}` introduces something like `{-@ type .. @-}`.
-  (_Deprecated_, [Jump to: Predicate Aliases](#predicate-aliases))
+  (_Deprecated, use `inline` instead_, [Jump to: Predicate Aliases](#predicate-aliases))
 * `{-@ invariant <refinement-type> @-}` introduces a globally available refinement which may be used by Liquid Haskel, but is not checked.
   (_Unchecked_, _Deprecated_, [Jump to: Invariants](#invariants))
 * `{-@ data <data-type-head><termination-measure>[ <data-type-body] @-}` introduces a refined datatype,
