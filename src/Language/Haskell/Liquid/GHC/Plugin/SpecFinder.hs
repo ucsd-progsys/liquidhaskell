@@ -58,9 +58,9 @@ data SearchLocation =
   -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
   deriving Show
 
--- | Load any relevant spec in the input 'SpecEnv', by updating it. The update will happen only if necessary,
--- i.e. if the spec is not already present.
-findRelevantSpecs :: forall m. GhcMonadLike m 
+-- | Load any relevant spec for the input list of 'Module's, by querying both the 'ExternalPackageState'
+-- and the 'HomePackageTable'.
+findRelevantSpecs :: forall m. GhcMonadLike m
                   => ExternalPackageState
                   -> HomePackageTable
                   -> [Module]

@@ -2,6 +2,43 @@
 
 Here are some notes that are generally useful for people *developing* LH itself.
 
+## Hacking on the GHC Plugin
+
+For a more thorough walkthrough of the plugin architecture, [start here](develop/plugin_architecture.md).
+
+## The GHC.API module
+
+In order to allow LH to work with multiple GHC versions, we need a way to abstract over all the breaking
+changes of the `ghc` library, that changes with every GHC release. This is accomplished by the
+[GHC.API][] module. The idea is that **rather than importing multiple `ghc` modules, LH developers must
+import this single module in order to write future-proof code**. This is especially important for versions
+of the compiler greater than 9, where the module hierarchy changed substantially, and using the [GHC.API][]
+makes it easier to support new versions of GHC when they are released.
+
+### Fragile import strategy
+
+```haskell
+import Predicate
+import TyCoRep
+
+...
+
+-- This will break if 'isEqPrimPred' is (re)moved or the import hierarchy changes.
+foo :: Type -> Bool
+foo = isEqPrimPred
+```
+
+### Recommended import strategy
+
+```haskell
+import qualified Language.Haskell.Liquid.GHC.API as GHC
+
+...
+
+foo :: GHC.Type -> Bool
+foo = GHC.isEqPrimPred -- OK.
+```
+
 ## Fast (re)compilation
 
 When working on the `liquidhaskell` library, usually all we want is to make changes and quickly recompile
@@ -173,3 +210,4 @@ Bash script. The script doesn't accept any argument and it tries to determine th
 to upload by scanning the `$PWD` for packages named appropriately. It will ask the user for confirmation
 before proceeding, and `stack upload` will be used under the hood.
 
+[GHC.API]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs
