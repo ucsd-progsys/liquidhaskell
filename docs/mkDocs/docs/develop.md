@@ -6,39 +6,6 @@ Here are some notes that are generally useful for people *developing* LH itself.
 
 For a more thorough walkthrough of the plugin architecture, [start here](develop/plugin_architecture.md).
 
-## The GHC.API module
-
-In order to allow LH to work with multiple GHC versions, we need a way to abstract over all the breaking
-changes of the `ghc` library, that changes with every GHC release. This is accomplished by the
-[GHC.API][] module. The idea is that **rather than importing multiple `ghc` modules, LH developers must
-import this single module in order to write future-proof code**. This is especially important for versions
-of the compiler greater than 9, where the module hierarchy changed substantially, and using the [GHC.API][]
-makes it easier to support new versions of GHC when they are released.
-
-### Fragile import strategy
-
-```haskell
-import Predicate
-import TyCoRep
-
-...
-
--- This will break if 'isEqPrimPred' is (re)moved or the import hierarchy changes.
-foo :: Type -> Bool
-foo = isEqPrimPred
-```
-
-### Recommended import strategy
-
-```haskell
-import qualified Language.Haskell.Liquid.GHC.API as GHC
-
-...
-
-foo :: GHC.Type -> Bool
-foo = GHC.isEqPrimPred -- OK.
-```
-
 ## Fast (re)compilation
 
 When working on the `liquidhaskell` library, usually all we want is to make changes and quickly recompile
@@ -87,6 +54,8 @@ If you wish to force building all the libraries again, it's sufficient to issue 
 without the `LIQUID_DEV_MODE`.
 
 ## How To Run Regression Tests
+
+_For a way of running the testsuite for multiple GHC versions, consult the FAQs._
 
 You can run all the tests by
 
@@ -210,4 +179,70 @@ Bash script. The script doesn't accept any argument and it tries to determine th
 to upload by scanning the `$PWD` for packages named appropriately. It will ask the user for confirmation
 before proceeding, and `stack upload` will be used under the hood.
 
+## The GHC.API module
+
+In order to allow LH to work with multiple GHC versions, we need a way to abstract over all the breaking
+changes of the `ghc` library, which might change substantially with every major GHC release. This is
+accomplished by the [GHC.API][] module. The idea is that **rather than importing multiple `ghc` modules,
+LH developers must import this single module in order to write future-proof code**. This is especially
+important for versions of the compiler greater than 9, where the module hierarchy changed substantially,
+and using the [GHC.API][] makes it easier to support new versions of GHC when they are released.
+
+### Fragile import strategy
+
+```haskell
+import Predicate
+import TyCoRep
+
+...
+
+-- This will break if 'isEqPrimPred' is (re)moved or the import hierarchy changes.
+foo :: Type -> Bool
+foo = isEqPrimPred
+```
+
+### Recommended import strategy
+
+```haskell
+import qualified Language.Haskell.Liquid.GHC.API as GHC
+
+...
+
+foo :: GHC.Type -> Bool
+foo = GHC.isEqPrimPred -- OK.
+```
+
+
+# FAQs
+
+## A new version of GHC is out. How do I support it?
+
+Typically the first thing you might want to do is to run a "clean" `cabal v2-build` or `stack build` using
+the latest compiler and "check the damage". If you are lucky, everything works out of the box, otherwise
+compilation might fail with an error, typically because some `ghc` API function has been removed/moved/renamed.
+The way to fix it is to modify the [GHC.API][] shim module and perform any required change, likely by 
+conditionally compiling some code in a `CPP` block. For minor changes, it's usually enough to perform small
+changes, but for more tricky migrations it might be necessary to backport some GHC code, or create some
+patter synonym to deal with changes in type constructors. You can see an example of this technique in
+action by looking at the pattern synonym for [FunTy][].
+
+## Is there a way to run the testsuite for different versions of GHC?
+
+Yes. The easiest way is to run one of the scripts inside the `scripts/test` directory. We provide scripts
+to run the testsuite for a variety of GHC versions, mostly using `stack` but also with `cabal` (e.g.
+`test_810_plugin.sh`). If run without arguments, the script will run the _full_ testsuite. If an argument
+is given, only a particular pattern/test will be run. Running
+
+```
+./scripts/test/test_810_plugin.sh BST
+```
+
+will run all the tests which name matches "BST". In case the "fast recompilation" is desired, it's totally
+possibly to pass `LIQUID_DEV_MODE` to the script, for example:
+
+```
+LIQUID_DEV_MODE=true ./scripts/test/test_810_plugin.sh
+```
+
 [GHC.API]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs
+[FunTy]: https://github.com/ucsd-progsys/liquidhaskell/blob/develop/src/Language/Haskell/Liquid/GHC/API.hs#L224
