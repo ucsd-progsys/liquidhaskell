@@ -23,6 +23,12 @@ extra-source-files: CHANGES.md
                     tests/pos/*.hquals
                     tests/ffi-include/foo.c
                     tests/ffi-include/foo.h
+
+-- The legacy executable requires a set of hardcoded specifications
+-- provided by the files in the 'include' directory. This
+-- directory is now deprecated and you should never edit it, unless you
+-- are specifically fixing a bug in the legacy executable.
+-- Remove these lines below once we stop supporting the legacy plugin.
 data-files:         include/*.hquals
                     include/*.hs
                     include/*.spec
@@ -46,11 +52,11 @@ data-files:         include/*.hquals
                     include/Language/Haskell/Liquid/*.pred
                     include/System/*.spec
                     include/710/Data/*.spec
-                    syntax/liquid.css
-                    -- Remove the lines above once we switch to the source plugin.
                     include/*.hs
                     include/Language/Haskell/Liquid/*.hs
                     include/Language/Haskell/Liquid/*.pred
+
+                    syntax/liquid.css
 
                     -- Needed for the mirror-modules helper
                     mirror-modules/templates/MirrorModule.mustache

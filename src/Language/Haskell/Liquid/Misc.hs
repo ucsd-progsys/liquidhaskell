@@ -138,7 +138,8 @@ isIncludeFile incDir src = -- do
   (incDir `L.isPrefixOf` src)
 
 getIncludeDir :: IO FilePath
-getIncludeDir      = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")
+getIncludeDir = dropFileName <$> getDataFileName ("include" </> "Prelude.spec")
+{-# DEPRECATED getIncludeDir "getIncludeDir is deprecated. The hardcoded include folder will be removed in the future." #-}
 
 getCssPath :: IO FilePath
 getCssPath         = getDataFileName $ "syntax" </> "liquid.css"
