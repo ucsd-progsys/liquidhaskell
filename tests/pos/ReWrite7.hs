@@ -47,7 +47,7 @@ const' x _ = x
       -> f  : (a -> m b)
       -> {v : m b | v == mbind om x f } @-}
 mbind :: OurMonad m -> m a -> (a -> m b) -> m b
-mbind = bind
+mbind (OurMonad b _) = b
 
 {-@ reflect mseq @-}
 {-@ mseq :: om : OurMonad m

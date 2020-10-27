@@ -9,6 +9,7 @@ embed GHC.Types.Bool    as bool
 embed GHC.Types.Char    as Char
 
 embed GHC.Integer.Type.Integer as int
+embed GHC.Num.Integer as int
 
 GHC.Types.True  :: {v:GHC.Types.Bool | v     }
 GHC.Types.False :: {v:GHC.Types.Bool | (~ v) }

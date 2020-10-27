@@ -17,9 +17,7 @@ module Language.Haskell.Liquid.Types.Visitors (
 
   ) where
 
-import           CoreSyn
 import           Data.Hashable
-import           DataCon
 
 import           Data.List                        (foldl', (\\), delete)
 import qualified Data.HashSet                     as S

@@ -23,13 +23,8 @@ module Language.Haskell.Liquid.GHC.Resugar (
   , lower
   ) where
 
-import           DataCon      (DataCon)
-import           CoreSyn
-import           Type
-import qualified MkCore
-import qualified PrelNames as PN
-import           Name         (Name, getName)
 import qualified Data.List as L
+import           Language.Haskell.Liquid.GHC.API  as Ghc hiding (PatBind)
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import qualified Language.Fixpoint.Types          as F 
 import qualified Text.PrettyPrint.HughesPJ        as PJ 
@@ -109,7 +104,7 @@ lift e = exprArgs e (collectArgs e)
 
 exprArgs :: CoreExpr -> (CoreExpr, [CoreExpr]) -> Maybe Pattern
 exprArgs _e (Var op, [Type m, d, Type a, Type b, e1, Lam x e2])
-  | op `is` PN.bindMName
+  | op `is` Ghc.bindMName
   = Just (PatBind e1 x e2 m d a b op)
 
 exprArgs (Case (Var xe) x t [(DataAlt c, ys, Var y)]) _
@@ -155,10 +150,10 @@ is v n = n == getName v
 lower :: Pattern -> CoreExpr
 --------------------------------------------------------------------------------
 lower (PatBind e1 x e2 m d a b op)
-  = MkCore.mkCoreApps (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
+  = Ghc.mkCoreApps (Var op) [Type m, d, Type a, Type b, e1, Lam x e2]
 
 lower (PatReturn e m d t op)
-  = MkCore.mkCoreApps (Var op) [Type m, d, Type t, e]
+  = Ghc.mkCoreApps (Var op) [Type m, d, Type t, e]
 
 lower (PatProject xe x t c ys i)
   = Case (Var xe) x t [(DataAlt c, ys, Var yi)] where yi = ys !! i

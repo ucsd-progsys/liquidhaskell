@@ -3,7 +3,6 @@ module Language.Haskell.Liquid.GHC.Types where
 
 import           Data.HashSet (HashSet, fromList)
 import           Data.Hashable
-import           FamInstEnv
 import           GHC.Generics hiding (moduleName)
 import           Language.Haskell.Liquid.GHC.API
 
@@ -74,7 +73,7 @@ nameSetToStableNameSet :: NameSet -> HashSet StableName
 nameSetToStableNameSet = fromList . map mkStableName . nameSetElemsStable
 
 mg_dir_imps :: ModGuts -> [ModuleName]
-mg_dir_imps m = fst <$> (dep_mods $ mg_deps m)
+mg_dir_imps = map gwib_mod . getDependenciesModuleNames . mg_deps
 
 mgi_namestring :: MGIModGuts -> String
 mgi_namestring = moduleNameString . moduleName . mgi_module

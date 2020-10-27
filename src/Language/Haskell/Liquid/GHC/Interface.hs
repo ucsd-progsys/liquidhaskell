@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE NoMonomorphismRestriction  #-}
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE FlexibleContexts           #-}
@@ -55,37 +56,22 @@ module Language.Haskell.Liquid.GHC.Interface (
 
 import Prelude hiding (error)
 
-import qualified Outputable as O
-import GHC hiding (Target, Located, desugarModule)
-import qualified GHC
 import GHC.Paths (libdir)
 import GHC.Serialized
 
+import           Language.Haskell.Liquid.GHC.GhcMonadLike (isBootInterface)
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
+                                                               , (<+>)
+                                                               , panic
+                                                               , vcat
+                                                               , linear
+                                                               , showPpr
+                                                               , isHomeModule
+                                                               , Target
+                                                               , Located
+                                                               )
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
-import Annotations
-import Avail
-import Class
-import CoreMonad
-import CoreSyn
-import DataCon
-import Digraph
-import DriverPhases
-import DriverPipeline
-import DynFlags
-import Finder
-import HscTypes hiding (Target)
-import IdInfo
-import InstEnv
-import Module
-import Panic (throwGhcExceptionIO)
--- import Serialized
-import TcRnTypes
-import Var
--- import NameSet
-import FastString
-import FamInstEnv
-import FamInst
-import qualified TysPrim
+import qualified Language.Haskell.Liquid.GHC.API as O
 import GHC.LanguageExtensions
 
 import Control.Exception
@@ -100,7 +86,6 @@ import Data.Generics.Aliases (mkT)
 import Data.Generics.Schemes (everywhere)
 
 import qualified Data.HashSet        as S
-import qualified Data.Map            as M
 import qualified Data.HashMap.Strict as HM
 
 import System.Console.CmdArgs.Verbosity hiding (Loud)
@@ -252,7 +237,13 @@ configureDynFlags cfg tmp = do
                  -- prevent GHC from printing anything, unless in Loud mode
                  , log_action   = if loud
                                     then defaultLogAction
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
                                     else \_ _ _ _ _ _ -> return ()
+#else
+                                    else \_ _ _ _ _   -> return ()
+#endif
+#endif
                  -- redirect .hi/.o/etc files to temp directory
                  , objectDir    = Just tmp
                  , hiDir        = Just tmp
@@ -272,7 +263,7 @@ configureGhcTargets tgtFiles = do
   _               <- setTargets targets
   moduleGraph     <- depanal [] False -- see [NOTE:DROP-BOOT-FILES]
 
-  let homeModules  = filter (not . isBootSummary) $
+  let homeModules  = filter (not . isBootInterface . isBootSummary) $
                      flattenSCCs $ topSortModuleGraph False moduleGraph Nothing
   let homeNames    = moduleName . ms_mod <$> homeModules
   _               <- setTargetModules homeNames
@@ -282,7 +273,7 @@ configureGhcTargets tgtFiles = do
 setTargetModules :: [ModuleName] -> Ghc ()
 setTargetModules modNames = setTargets $ mkTarget <$> modNames
   where
-    mkTarget modName = GHC.Target (TargetModule modName) True Nothing
+    mkTarget modName = Ghc.Target (TargetModule modName) True Nothing
 
 compileCFiles :: Config -> Ghc ()
 compileCFiles cfg = do
@@ -338,13 +329,13 @@ modSummaryImports modSummary =
   mapM (importDeclModule (ms_mod modSummary))
        (ms_textual_imps modSummary)
 
-importDeclModule :: GhcMonadLike m => Module -> (Maybe FastString,  GHC.Located ModuleName) -> m Module
+importDeclModule :: GhcMonadLike m => Module -> (Maybe FastString,  Ghc.Located ModuleName) -> m Module
 importDeclModule fromMod (pkgQual, locModName) = do
   hscEnv <- askHscEnv
   let modName = unLoc locModName
   result <- liftIO $ findImportedModule hscEnv modName pkgQual
   case result of
-    Finder.Found _ mod -> return mod
+    Ghc.Found _ mod -> return mod
     _ -> do
       dflags <- getDynFlags
       liftIO $ throwGhcExceptionIO $ ProgramError $
@@ -529,7 +520,7 @@ makeGhcSrc cfg file typechecked modSum = do
     , _gsCls       = mgi_cls_inst modGuts 
     , _gsFiTcs     = fiTcs 
     , _gsFiDcs     = fiDcs
-    , _gsPrimTcs   = TysPrim.primTyCons
+    , _gsPrimTcs   = Ghc.primTyCons
     , _gsQualImps  = qualifiedImports (maybe mempty (view _2) (tm_renamed_source typechecked))
     , _gsAllImps   = allImports       (maybe mempty (view _2) (tm_renamed_source typechecked))
     , _gsTyThings  = [ t | (_, Just t) <- things ] 
@@ -594,7 +585,7 @@ availableTyThings hscEnv modSum tcGblEnv avails = fmap (catMaybes . mconcat) $ f
   pure . map snd $ results
 
 -- | Returns all the available (i.e. exported) 'TyCon's (type constructors) for the input 'Module'.
-availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [GHC.TyCon]
+availableTyCons :: GhcMonadLike m => HscEnv -> ModSummary -> TcGblEnv -> [AvailInfo] -> m [Ghc.TyCon]
 availableTyCons hscEnv modSum tcGblEnv avails = 
   fmap (\things -> [tyCon | (ATyCon tyCon) <- things]) (availableTyThings hscEnv modSum tcGblEnv avails)
 
@@ -666,8 +657,8 @@ makeDependencies cfg depGraph specEnv modSum _ = do
   return        $ TargetDependencies $ HM.fromList impSpecs
   where
     mkStableModule :: (ModName, Int) -> StableModule
-    mkStableModule (modName, ix) = 
-      toStableModule (Module (fakeUnitId (moduleUnitId targetModule) ix) (getModName modName))
+    mkStableModule (modName, ix) =
+      Ghc.mkStableModule (fakeUnitId (moduleUnitId targetModule) ix) (getModName modName)
 
     fakeUnitId :: UnitId -> Int -> UnitId
     fakeUnitId uid ix = stringToUnitId $ unitIdString uid ++ show ix
@@ -705,7 +696,7 @@ checkFilePragmas = Misc.applyNonNull (return ()) throw . mapMaybe err
 --------------------------------------------------------------------------------
 -- | Family instance information
 --------------------------------------------------------------------------------
-makeFamInstEnv :: [FamInst] -> ([GHC.TyCon], [(Symbol, DataCon)])
+makeFamInstEnv :: [FamInst] -> ([Ghc.TyCon], [(Symbol, DataCon)])
 makeFamInstEnv famInsts =
   let fiTcs = [ tc            | FamInst { fi_flavor = DataFamilyInst tc } <- famInsts ]
       fiDcs = [ (symbol d, d) | tc <- fiTcs, d <- tyConDataCons tc ]
@@ -720,20 +711,16 @@ getFamInstances env = do
 -- | Extract Specifications from GHC -------------------------------------------
 --------------------------------------------------------------------------------
 extractSpecComments :: ApiAnns -> [(SourcePos, String)]
-extractSpecComments = mapMaybe extractSpecComment
-                    . concat
-                    . M.elems
-                    . snd
-
+extractSpecComments = mapMaybe extractSpecComment . GhcMonadLike.apiComments
 
 -- | 'extractSpecComment' pulls out the specification part from a full comment
 --   string, i.e. if the string is of the form:
 --   1. '{-@ S @-}' then it returns the substring 'S',
 --   2. '{-@ ... -}' then it throws a malformed SPECIFICATION ERROR, and
 --   3. Otherwise it is just treated as a plain comment so we return Nothing.
-extractSpecComment :: GHC.Located AnnotationComment -> Maybe (SourcePos, String)
 
-extractSpecComment (GHC.L sp (AnnBlockComment text))
+extractSpecComment :: Ghc.Located AnnotationComment -> Maybe (SourcePos, String)
+extractSpecComment (Ghc.L sp (AnnBlockComment text))
   | isPrefixOf "{-@" text && isSuffixOf "@-}" text          -- valid   specification
   = Just (offsetPos, take (length text - 6) $ drop 3 text)
   | isPrefixOf "{-@" text                                   -- invalid specification
@@ -877,11 +864,12 @@ moduleFile :: ModuleGraph -> Ext -> S.HashSet FilePath -> String -> IO (Maybe Fi
 moduleFile modGraph ext (S.toList -> paths) name
   | ext `elem` [Hs, LHs] = do
     let graph = mgModSummaries modGraph
-    case find (\m -> not (isBootSummary m) &&
+    case find (\m -> not (isBootInterface . isBootSummary $ m) &&
                      name == moduleNameString (ms_mod_name m)) graph of
       Nothing -> getFileInDirs (extModuleName name ext) paths
       Just ms -> return $ normalise <$> ml_hs_file (ms_location ms)
   | otherwise = getFileInDirs (extModuleName name ext) paths
+
 
 --------------------------------------------------------------------------------
 -- Assemble Information for Spec Extraction ------------------------------------

@@ -13,10 +13,6 @@ module Language.Haskell.Liquid.GHC.Plugin.Util (
       , pluginAbort
       ) where
 
-import           GhcPlugins                              as GHC
-import           UniqDFM
-import           IfaceSyn
-import           Panic                                    ( throwGhcExceptionIO, GhcException(..) )
 import           Data.Foldable                            ( asum )
 
 import           Control.Monad.IO.Class
@@ -30,6 +26,7 @@ import           Data.Maybe                               ( listToMaybe )
 import           Data.Data
 import           Data.Either                              ( partitionEithers )
 
+import           Language.Haskell.Liquid.GHC.API
 import           Language.Haskell.Liquid.GHC.Plugin.Types ( SpecComment
                                                           , LiquidLib
                                                           )

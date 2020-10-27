@@ -5,6 +5,7 @@
 
 module Language.Haskell.Liquid.Synthesize.Generate where
 
+import           Language.Haskell.Liquid.GHC.API as GHC hiding (Depth)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Synthesize.GHC
                                          hiding ( SSEnv )
@@ -12,19 +13,13 @@ import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.Misc
                                          hiding ( notrace )
 import           Language.Haskell.Liquid.Synthesize.Check
-import           CoreSyn                        ( CoreExpr )
-import qualified CoreSyn                       as GHC
 import           Data.Maybe
 import           Control.Monad.State.Lazy
 import           Language.Haskell.Liquid.Constraint.Fresh
                                                 ( trueTy )
 import           Data.List
-import           CoreUtils (exprType)
-import           Var
 import           Data.Tuple.Extra
-import           Debug.Trace
 import           Language.Fixpoint.Types.PrettyPrint (tracepp)
-import           TyCoRep
 
 -- Generate terms that have type t: This changes the @ExprMemory@ in @SM@ state.
 -- Return expressions type checked against type @specTy@.

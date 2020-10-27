@@ -20,15 +20,8 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
   ) where
 
-import qualified Outputable                              as O
-import           GHC                               hiding ( Target
-                                                          , Located
-                                                          , desugarModule
-                                                          )
-
-import           Plugins                                 as GHC
-import           TcRnTypes                               as GHC
-import           TcRnMonad                               as GHC
+import qualified Language.Haskell.Liquid.GHC.API         as O
+import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target)
 
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
@@ -47,15 +40,8 @@ import qualified Language.Haskell.Liquid.GHC.GhcMonadLike
                                                          as GhcMonadLike
 import           Language.Haskell.Liquid.GHC.GhcMonadLike ( GhcMonadLike
                                                           , askHscEnv
+                                                          , isBootInterface
                                                           )
-import           CoreMonad
-import           DataCon
-import           DynFlags
-import           HscTypes                          hiding ( Target )
-import           InstEnv
-import           Module
-import           FamInstEnv
-import qualified TysPrim
 import           GHC.LanguageExtensions
 
 import           Control.Monad
@@ -326,7 +312,9 @@ relevantModules :: ModGuts -> Set Module
 relevantModules modGuts = used `S.union` dependencies
   where
     dependencies :: Set Module
-    dependencies = S.fromList $ map (toModule . fst) . filter (not . snd) . dep_mods $ deps
+    dependencies = S.fromList $ map (toModule . gwib_mod)
+                              . filter (not . isBootInterface . gwib_isBoot)
+                              . getDependenciesModuleNames $ deps
 
     deps :: Dependencies
     deps = mg_deps modGuts
@@ -335,7 +323,7 @@ relevantModules modGuts = used `S.union` dependencies
     thisModule = mg_module modGuts
 
     toModule :: ModuleName -> Module
-    toModule = Module (moduleUnitId thisModule)
+    toModule = unStableModule . mkStableModule (moduleUnitId thisModule)
 
     used :: Set Module
     used = S.fromList $ foldl' collectUsage mempty . mg_usages $ modGuts
@@ -487,7 +475,20 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
   debugLog $ "_gsFiTcs => " ++ show fiTcs
   debugLog $ "_gsFiDcs => " ++ show fiDcs
   debugLog $ "dataCons => " ++ show dataCons
+  debugLog $ "coreBinds => " ++ (O.showSDocUnsafe . O.ppr $ coreBinds)
+  debugLog $ "impVars => " ++ (O.showSDocUnsafe . O.ppr $ impVars)
   debugLog $ "defVars  => " ++ show (L.nub $ dataCons ++ (letVars coreBinds) ++ tcAvailableVars tcData)
+  debugLog $ "useVars  => " ++ (O.showSDocUnsafe . O.ppr $ readVars coreBinds)
+  debugLog $ "derVars  => " ++ (O.showSDocUnsafe . O.ppr $ HS.fromList (LH.derivedVars cfg mgiModGuts))
+  debugLog $ "gsExports => " ++ (show $ mgi_exports  mgiModGuts)
+  debugLog $ "gsTcs     => " ++ (O.showSDocUnsafe . O.ppr $ allTcs)
+  debugLog $ "gsCls     => " ++ (O.showSDocUnsafe . O.ppr $ mgi_cls_inst mgiModGuts)
+  debugLog $ "gsFiTcs   => " ++ (O.showSDocUnsafe . O.ppr $ fiTcs)
+  debugLog $ "gsFiDcs   => " ++ (show fiDcs)
+  debugLog $ "gsPrimTcs => " ++ (O.showSDocUnsafe . O.ppr $ GHC.primTyCons)
+  debugLog $ "things   => " ++ (O.showSDocUnsafe . O.vcat . map O.ppr $ things)
+  debugLog $ "allImports => " ++ (show $ tcAllImports tcData)
+  debugLog $ "qualImports => " ++ (show $ tcQualifiedImports tcData)
 
   return $ TargetSrc
     { giIncDir    = mempty
@@ -503,7 +504,7 @@ makeTargetSrc cfg file tcData modGuts hscEnv = do
     , gsCls       = mgi_cls_inst mgiModGuts
     , gsFiTcs     = fiTcs
     , gsFiDcs     = fiDcs
-    , gsPrimTcs   = TysPrim.primTyCons
+    , gsPrimTcs   = GHC.primTyCons
     , gsQualImps  = tcQualifiedImports tcData
     , gsAllImps   = tcAllImports       tcData
     , gsTyThings  = [ t | (_, Just t) <- things ]

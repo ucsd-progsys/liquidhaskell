@@ -393,10 +393,3 @@ assume hGetNonBlocking
     :: GHC.IO.Handle
     -> n : { n : Int | 0 <= n }
     -> IO { bs : Data.ByteString.ByteString | bslen bs <= n }
-
-//  assume partition
-    //  :: (Char -> GHC.Types.Bool)
-    //  -> i : Data.ByteString.ByteString
-    //  -> ( { l : Data.ByteString.ByteString | bslen l <= bslen i }
-       //  , { r : Data.ByteString.ByteString | bslen r <= bslen i }
-       //  )
