@@ -177,9 +177,11 @@ smtRead me = {-# SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
+      maybe (return ()) (\h -> hPutStrLnNow h $ Builder.toLazyText ("; SMT Says: " <> (Only $ show r)) (ctxLog me)
       when (ctxVerbose me) $ LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
       return r
+
+
 
 type SmtParser a = Parser T.Text a
 
