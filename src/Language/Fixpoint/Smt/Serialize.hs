@@ -23,9 +23,12 @@ import           Data.Semigroup                 (Semigroup (..))
 #endif
 
 import qualified Data.Text.Lazy.Builder         as Builder
-import           Data.Text.Format
+-- import           Data.Text.Format
 import           Language.Fixpoint.Misc (sortNub, errorstar)
 -- import Debug.Trace (trace)
+
+parens :: Builder.Builder -> Builder.Builder
+parens b = "(" <>  b <> ")"
 
 instance SMTLIB2 (Symbol, Sort) where
   smt2 env c@(sym, t) = build "({} {})" (smt2 env sym, smt2SortMono c env t)

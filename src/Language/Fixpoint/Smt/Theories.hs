@@ -50,10 +50,9 @@ import           Language.Fixpoint.Smt.Types
 import           Data.Maybe (catMaybes)
 import qualified Data.Text.Lazy           as T
 import qualified Data.Text.Lazy.Builder   as Builder
-import           Data.Text.Format
+-- import           Data.Text.Format
 import qualified Data.Text
 import           Data.String                 (IsString(..))
-
 
 {- | [NOTE:Adding-Theories] To add new (SMTLIB supported) theories to
      liquid-fixpoint and upstream, grep for "Map_default" and then add

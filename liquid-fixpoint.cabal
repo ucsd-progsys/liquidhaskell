@@ -130,7 +130,7 @@ library
                   , syb
                   , syb
                   , text
-                  , text-format
+                  -- , text-format
                   , transformers
                   , unordered-containers
                   , aeson

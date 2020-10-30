@@ -84,7 +84,7 @@ import           Data.Semigroup          (Semigroup (..))
 #endif
 
 import qualified Data.Text                as T
-import           Data.Text.Format
+-- import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as Builder
