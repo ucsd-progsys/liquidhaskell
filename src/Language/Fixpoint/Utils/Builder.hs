@@ -8,6 +8,7 @@ import qualified Data.Text.Lazy.Builder as B
 import qualified Data.Text.Lazy         as LT
 import qualified Data.Text              as T
 import qualified Data.List              as L
+import qualified Numeric 
 
 parens :: B.Builder -> B.Builder
 parens b = "(" <>  b <> ")"
@@ -29,6 +30,9 @@ seqs = foldr (<>) mempty . L.intersperse " "
 
 bShow :: (Show a) => a -> B.Builder
 bShow = B.fromString . show
+
+bFloat :: RealFloat a => a -> B.Builder
+bFloat d = B.fromString (Numeric.showFFloat Nothing d "") 
 
 bb :: LT.Text -> B.Builder
 bb = B.fromLazyText

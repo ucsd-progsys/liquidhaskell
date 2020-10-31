@@ -2,10 +2,10 @@
 
 bind 50 x : {v1 : real | [(v1 = 0.2)]}
 bind 56 y : {v2 : real | [(v2 = 0.8 + x)]}
+bind 57 z : {v3 : real | [(v3 = 0.00014)]} 
 
 constraint:
-  env [50;
-       56]
+  env [50; 56; 57]
   lhs {VV#F3 : int | []}
   rhs {VV#F3 : int | [(y = 1.0)]}
   id 3 tag [1]
