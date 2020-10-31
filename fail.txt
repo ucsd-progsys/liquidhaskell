@@ -1,5 +1,8 @@
-   T1459.hs:                               FAIL (0.61s)
-      Data/Vector/Algorithms/AmericanFlag.hs: FAIL (1.35s)
-      Data/ByteString/Char8.hs:               FAIL (4.06s)
-      Data/Text/Encoding.hs:                  FAIL (5.67s)
-      Data/Text/Lazy/Encoding.hs:             FAIL (7.13s)
+
+  Parens.hs:                              FAIL (1.20s)
+  Float.hs:                               FAIL (1.52s)
+
+
+  T1473B.hs:                              FAIL (0.40s)	missing deps liquid-ghc-prim?
+
+
