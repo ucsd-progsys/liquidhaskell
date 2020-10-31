@@ -98,6 +98,7 @@ library
                     Language.Fixpoint.Types.Triggers
                     Language.Fixpoint.Types.Utils
                     Language.Fixpoint.Types.Visitor
+                    Language.Fixpoint.Utils.Builder
                     Language.Fixpoint.Utils.Files
                     Language.Fixpoint.Utils.Progress
                     Language.Fixpoint.Utils.Statistics

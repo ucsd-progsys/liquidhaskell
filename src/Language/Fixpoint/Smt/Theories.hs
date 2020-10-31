@@ -124,14 +124,14 @@ string :: Raw
 string = strConName
 
 bFun :: Raw -> [(B.Builder, B.Builder)] -> B.Builder -> B.Builder -> T.Text
-bFun name xts out body = blt $ key "define-fun" (seq1s [bb name, args, out, body])
+bFun name xts out body = blt $ key "define-fun" (seqs [bb name, args, out, body])
   where
-    args = parenSeq1s [parens (x <+> t) | (x, t) <- xts]
+    args = parenSeqs [parens (x <+> t) | (x, t) <- xts]
 
 bFun' :: Raw -> [B.Builder] -> B.Builder -> T.Text
-bFun' name ts out = blt $ key "define-fun" (seq1s [bb name, args, out])
+bFun' name ts out = blt $ key "define-fun" (seqs [bb name, args, out])
   where
-    args = parenSeq1s ts
+    args = parenSeqs ts
 
 bSort :: Raw -> B.Builder -> T.Text
 bSort name def = blt $ key "define-sort" (bb name <+> "()" <+> def)
@@ -286,7 +286,7 @@ smt2SmtSort SMap         = bb map
 smt2SmtSort (SBitVec n)  = key "_ BitVec" (fromShow n)
 smt2SmtSort (SVar n)     = "T" <> fromShow n
 smt2SmtSort (SData c []) = symbolBuilder c
-smt2SmtSort (SData c ts) = parenSeq1s [symbolBuilder c, smt2SmtSorts ts]
+smt2SmtSort (SData c ts) = parenSeqs [symbolBuilder c, smt2SmtSorts ts]
 
 -- smt2SmtSort (SApp ts)    = build "({} {})" (symbolBuilder tyAppName, smt2SmtSorts ts)
 
