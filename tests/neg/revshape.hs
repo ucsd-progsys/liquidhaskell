@@ -6,10 +6,10 @@ module Shapes () where
 
 data Shape = Nil | Cons !Int !Shape 
 
-{-@ measure rank :: Shape -> Int
-    rank (Nil)       = 0
-    rank (Cons d ds) = 1 + (rank ds)
-  @-}
+{-@ measure rank @-}
+rank :: Shape -> Int
+rank (Nil)       = 0
+rank (Cons d ds) = 1 + (rank ds)
 
 {-@ type DIM1 = {v:Shape | (rank v) = 1} @-}
 {-@ type DIM2 = {v:Shape | (rank v) = 2} @-}

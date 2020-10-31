@@ -21,8 +21,7 @@ data PairS a b = !a :*: !b deriving (Eq,Ord,Show)
 
 {-@ measure psnd @-}
 psnd :: PairS a b -> b
-psnd ((:*:) x y) = y
-
+psnd (x :*: y) = y
 
 {-@ type FooS a = PairS <{\z v -> v <= psnd z}> (PairS a Int) Int @-}
 
