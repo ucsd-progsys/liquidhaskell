@@ -114,9 +114,7 @@ data Array = Array {
                        , aLen :: Nat }
   @-}
 
-{- measure alen :: Array  -> Nat 
-    alen (Array ba n) = n
-  -}
+
 
 
 {-@ type ArrayN N = {v:Array | (aLen v) = N} @-}
@@ -145,10 +143,6 @@ data MArray s = MArray {
                            }
   @-}
 
-
-{- measure malen :: MArray s -> Nat 
-    malen (MArray ba n) = n
-  -}
 
 {-@ type MArrayN s N = {v:MArray s | (maLen v) = N} @-}
 

@@ -53,7 +53,7 @@ data T = {-# UNPACK #-} !Word64 `T` {-# UNPACK #-} !Int
 {-@ qualif Diff(v:int,l:int,d:int): v = (l - d) + 1 @-}
 
 {-@ measure tskip :: T -> Int
-    tskip (T mask skip) = skip
+      tskip (T mask skip) = skip
   @-}
 
 -- | /O(n+m)/ Find the offsets of all non-overlapping indices of

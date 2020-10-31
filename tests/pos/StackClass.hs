@@ -17,14 +17,14 @@ foo = F
 {-@ class measure eltss  :: forall f a. [f a] -> Data.Set.Set a @-}
 
 {-@ instance measure elts :: Stack a -> (Data.Set.Set a)
-    elts (S xs) = (listElts xs)
+      elts (S xs) = (listElts xs)
   @-}
 
 {-@ instance measure elts :: Foo a -> (Data.Set.Set a)
-    elts (F st) = (elts st)
+      elts (F st) = (elts st)
   @-}
 
 {-@ instance measure  eltss :: [(Foo a)] -> (Data.Set.Set a)
-    eltss([]) = {v| Set_emp v }
-    eltss(x:xs) = (Set_cup (elts x) (eltss xs))
+      eltss [] = {v| Set_emp v }
+      eltss (x:xs) = (Set_cup (elts x) (eltss xs))
   @-}
