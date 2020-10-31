@@ -514,9 +514,10 @@ instance ToJSON Solver.Stats where
   toEncoding = genericToEncoding defaultOptions
 instance FromJSON Solver.Stats
 
-instance ToJSON ErrorResult where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
+-- instance ToJSON ErrorResult where
+--   toJSON = genericToJSON defaultOptions
+--   toEncoding = genericToEncoding defaultOptions
+
 instance FromJSON ErrorResult
 
 instance ToJSON Doc where
