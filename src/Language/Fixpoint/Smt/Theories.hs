@@ -129,7 +129,7 @@ bFun name xts out body = blt $ key "define-fun" (seqs [bb name, args, out, body]
     args = parenSeqs [parens (x <+> t) | (x, t) <- xts]
 
 bFun' :: Raw -> [B.Builder] -> B.Builder -> T.Text
-bFun' name ts out = blt $ key "define-fun" (seqs [bb name, args, out])
+bFun' name ts out = blt $ key "declare-fun" (seqs [bb name, args, out])
   where
     args = parenSeqs ts
 
@@ -262,7 +262,7 @@ stringPreamble cfg | stringTheory cfg
 
 stringPreamble _
   = [ bSort string "Int"
-    , bFun' strLen ["String"] "Int" 
+    , bFun' strLen [bb string] "Int" 
     , bFun' strSubstr [bb string, "Int", "Int"] (bb string)
     , bFun' strConcat [bb string, bb string] (bb string)
     ]
@@ -283,8 +283,8 @@ smt2SmtSort SBool        = "Bool"
 smt2SmtSort SString      = bb string
 smt2SmtSort SSet         = bb set
 smt2SmtSort SMap         = bb map
-smt2SmtSort (SBitVec n)  = key "_ BitVec" (fromShow n)
-smt2SmtSort (SVar n)     = "T" <> fromShow n
+smt2SmtSort (SBitVec n)  = key "_ BitVec" (bShow n)
+smt2SmtSort (SVar n)     = "T" <> bShow n
 smt2SmtSort (SData c []) = symbolBuilder c
 smt2SmtSort (SData c ts) = parenSeqs [symbolBuilder c, smt2SmtSorts ts]
 

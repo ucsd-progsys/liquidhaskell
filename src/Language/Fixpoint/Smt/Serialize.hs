@@ -112,10 +112,9 @@ instance SMTLIB2 SymConst where
   smt2 env = smt2 env . symbol
 
 instance SMTLIB2 Constant where
-  smt2 _ (I n)   = fromShow n
-  smt2 _ (R d)   = fromShow d
-  smt2 _ (L t _) = fromShow t
-
+  smt2 _ (I n)   = bShow n
+  smt2 _ (R d)   = bShow d
+  smt2 _ (L t _) = lbb t
 
 instance SMTLIB2 Bop where
   smt2 _ Plus   = "+"
@@ -236,7 +235,7 @@ instance SMTLIB2 Command where
   smt2 env (Declare x ts t)    = parenSeqs ["declare-fun", smt2 env x, parens (smt2many (smt2 env <$> ts)), smt2 env t]
   smt2 env c@(Define t)        = key "declare-sort" (smt2SortMono c env t)
   smt2 env (Assert Nothing p)  = key "assert" (smt2 env p)
-  smt2 env (Assert (Just i) p) = key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> fromShow i))
+  smt2 env (Assert (Just i) p) = key "assert" (parens ("!"<+> smt2 env p <+> ":named p-" <> bShow i))
   smt2 env (Distinct az)
     | length az < 2            = ""
     | otherwise                = key "assert" (key "distinct" (smt2s env az))

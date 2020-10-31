@@ -178,8 +178,8 @@ smtRead me = {-# SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> hPutStrLnNow h $ blt ("; SMT Says: " <> (fromShow r))) (ctxLog me)
-      when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> fromShow r)
+      maybe (return ()) (\h -> hPutStrLnNow h $ blt ("; SMT Says: " <> (bShow r))) (ctxLog me)
+      when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> bShow r)
       return r
 
 
