@@ -100,6 +100,7 @@ import qualified Data.Attoparsec.Text     as A
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.Utils.Builder
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
@@ -177,8 +178,8 @@ smtRead me = {-# SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> hPutStrLnNow h $ Builder.toLazyText ("; SMT Says: " <> (Only $ show r)) (ctxLog me)
-      when (ctxVerbose me) $ LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+      maybe (return ()) (\h -> hPutStrLnNow h $ blt ("; SMT Says: " <> (fromShow r))) (ctxLog me)
+      when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> fromShow r)
       return r
 
 
