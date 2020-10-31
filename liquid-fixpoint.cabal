@@ -131,7 +131,6 @@ library
                   , syb
                   , syb
                   , text
-                  -- , text-format
                   , transformers
                   , unordered-containers
                   , aeson
