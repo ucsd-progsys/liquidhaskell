@@ -125,7 +125,6 @@ constraints:
   streaming-bytestring ==0.1.6,
   syb ==0.7.1,
   texmath ==0.12.0.3,
-  text-format ==0.3.2,
   text-show ==3.8.5,
   th-abstraction ==0.3.2.0,
   th-desugar ==1.10 || ==1.11,
