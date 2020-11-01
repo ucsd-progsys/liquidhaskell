@@ -145,7 +145,7 @@ mk_star_table s    = [("star" := s) += empty]
 
 
 {-@ measure toInt :: Value -> Int
-    toInt(I n) = n
+      toInt (I n) = n
   @-}
 
 {-@ measure isInt @-}
