@@ -25,6 +25,6 @@ foo = F
   @-}
 
 {-@ instance measure  eltss :: [(Foo a)] -> (Data.Set.Set a)
-      eltss([]) = {v| Set_emp v }
-      eltss(x:xs) = (Set_cup (elts x) (eltss xs))
+      eltss [] = {v| Set_emp v }
+      eltss (x:xs) = (Set_cup (elts x) (eltss xs))
   @-}

@@ -17,11 +17,10 @@ instance FromTo Int where
 class A a where
   f :: a -> Int
 
+{-@ instance A Int where
+      f :: Int -> {x : Int | 0 < x}
+  @-}
 instance A Int where
-{-@
-instance A Int where
-  f :: Int -> {x : Int | 0 < x}
-@-}
   f n = (-1)
 
 {-@ g :: Int -> {n : Int | 0 < n} @-}

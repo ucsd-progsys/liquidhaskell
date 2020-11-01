@@ -1,11 +1,4 @@
-{-@ LIQUID "--diffcheck" @-}
-
 module Test (ok, inc) where
-
-
-
-
-
 
 {-@ ok
       :: Int -> Nat

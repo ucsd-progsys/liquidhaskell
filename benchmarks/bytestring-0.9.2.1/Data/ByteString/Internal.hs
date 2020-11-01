@@ -211,7 +211,7 @@ data ByteString = PS {-# UNPACK #-} !(ForeignPtr Word8) -- payload
 
 
 {-@ measure bLengths  :: [ByteString] -> Int
-      bLengths ([])   = 0
+      bLengths []   = 0
       bLengths (x:xs) = (bLength x) + (bLengths xs)
   @-}
 

@@ -221,10 +221,6 @@ data Buffer s = Buffer {-# UNPACK #-} !(A.MArray s)
 
 {-@ qualif MArrayNE(v:A.MArray s): (maLen v) >= 2 @-}
 
-{- measure bufUsed :: Buffer s -> Int
-    bufUsed (Buffer m o u l) = u
-  @-}
-
 {-@ measure bufLeft :: Buffer s -> Int
       bufLeft (Buffer m o u l) = l
   @-}

@@ -76,7 +76,7 @@ import Prelude hiding (undefined)
 
 {-@ measure isJustS    :: (MaybeS a) -> Bool
       isJustS (JustS x)  = true
-      isJustS (NothingS) = false
+      isJustS NothingS = false
   @-}
 
 {-@ qualif PlusOne(v:int, x:int): v = x + 1 @-}

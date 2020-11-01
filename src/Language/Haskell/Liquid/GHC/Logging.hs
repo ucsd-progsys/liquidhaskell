@@ -9,28 +9,23 @@
      to pay the price of a pretty-printing \"roundtrip\".
 -}
 
+{-# LANGUAGE CPP #-}
+
 module Language.Haskell.Liquid.GHC.Logging (
     fromPJDoc
-  , putLogMsg
   , putWarnMsg
   , putErrMsg
-  , putErrMsg'
   , mkLongErrAt
   ) where
 
-import Data.Maybe
-
-import qualified TcRnMonad as GHC
-
 import qualified Language.Haskell.Liquid.GHC.API as GHC
 import qualified Text.PrettyPrint.HughesPJ as PJ
-import qualified Outputable as O
 
 -- Unfortunately we need the import below to bring in scope 'PPrint' instances.
 import Language.Haskell.Liquid.Types.Errors ()
 
-fromPJDoc :: PJ.Doc -> O.SDoc
-fromPJDoc = O.text . PJ.render
+fromPJDoc :: PJ.Doc -> GHC.SDoc
+fromPJDoc = GHC.text . PJ.render
 
 -- | Like the original 'putLogMsg', but internally converts the input 'Doc' (from the \"pretty\" library)
 -- into GHC's internal 'SDoc'.
@@ -38,27 +33,40 @@ putLogMsg :: GHC.DynFlags
           -> GHC.WarnReason
           -> GHC.Severity
           -> GHC.SrcSpan
-          -> Maybe O.PprStyle
+          -> Maybe GHC.PprStyle
           -> PJ.Doc
           -> IO ()
-putLogMsg dynFlags reason sev srcSpan mbStyle =
-  GHC.putLogMsg dynFlags reason sev srcSpan style' . O.text . PJ.render
-  where
-    style' :: O.PprStyle
-    style' = fromMaybe (O.defaultErrStyle dynFlags) mbStyle
+putLogMsg dynFlags reason sev srcSpan _mbStyle =
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+ GHC.putLogMsg dynFlags reason sev srcSpan style' . GHC.text . PJ.render
+   where
+    style' :: GHC.PprStyle
+    style' = case _mbStyle of
+               Nothing  -> defaultErrStyle dynFlags
+               Just sty -> sty
+#else
+  GHC.putLogMsg dynFlags reason sev srcSpan . GHC.text . PJ.render
+#endif
+#endif
+
+
+defaultErrStyle :: GHC.DynFlags -> GHC.PprStyle
+defaultErrStyle _dynFlags =
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+  GHC.defaultErrStyle _dynFlags
+#else
+  GHC.defaultErrStyle
+#endif
+#endif
 
 putWarnMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putWarnMsg dynFlags srcSpan doc =
-  putLogMsg dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ O.defaultErrStyle dynFlags) doc
+  putLogMsg dynFlags GHC.NoReason GHC.SevWarning srcSpan (Just $ defaultErrStyle dynFlags) doc
 
 putErrMsg :: GHC.DynFlags -> GHC.SrcSpan -> PJ.Doc -> IO ()
 putErrMsg dynFlags srcSpan doc = putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan Nothing doc
-
--- | Like 'putErrMsg', but it uses GHC's internal 'Doc'. This can be very convenient when logging things
--- which comes directly from GHC rather than LiquidHaskell.
-putErrMsg' :: GHC.DynFlags -> GHC.SrcSpan -> O.SDoc -> IO ()
-putErrMsg' dynFlags srcSpan =
-  GHC.putLogMsg dynFlags GHC.NoReason GHC.SevError srcSpan (O.defaultErrStyle dynFlags)
 
 -- | Like GHC's 'mkLongErrAt', but it builds the final 'ErrMsg' out of two \"HughesPJ\"'s 'Doc's.
 mkLongErrAt :: GHC.SrcSpan -> PJ.Doc -> PJ.Doc -> GHC.TcRn GHC.ErrMsg

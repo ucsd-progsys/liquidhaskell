@@ -13,7 +13,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ type MatrixCR a C R = {m0:[{v:[a] | (len v) = C}] | (((len m0) = R) && (R > 0 => (cols m0) = C)) } @-}
 
 {-@ measure cols :: [[a]] -> Int
-      cols ([])   = 0
+      cols []   = 0
       cols (x:xs) = (len x)
   @-}
 

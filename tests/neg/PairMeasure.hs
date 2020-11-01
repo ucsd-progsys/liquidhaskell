@@ -2,9 +2,9 @@ module Foo () where
 
 {-@ LIQUID "--bscope" @-}
 
-{-@ measure getfst :: (a, b) -> a
-      getfst (x, y) = x
-  @-}
+{-@ measure getfst @-}
+getfst :: (a, b) -> a
+getfst (x, y) = x
 
 {-@ type Pair a b   = {v0 : ({v:a | v = (getfst v0)}, b) | true } @-}
 
@@ -12,7 +12,7 @@ module Foo () where
 
 {-@ type OList a    = [a]<\h -> {v: a | (v >= h)}> @-}
 
-{-@ getFsts          :: OPList a b -> OList a @-}
+{-@ getFsts :: OPList a b -> OList a @-}
 getFsts []           = [] 
 getFsts ((x,_) : xs) = x : getFsts xs
 

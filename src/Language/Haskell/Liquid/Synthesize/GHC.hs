@@ -4,24 +4,14 @@
 {-# LANGUAGE CPP #-}
 module Language.Haskell.Liquid.Synthesize.GHC where
 
-import qualified CoreSyn                       as GHC
 import qualified Language.Fixpoint.Types       as F
 import           Language.Haskell.Liquid.Types
-import           Var
-import           TyCoRep
-import           CoreSyn
-import           IdInfo
-import           OccName
-import           Unique
-import           Name
-import           TysPrim
 import           Data.Default
 import           Data.Maybe                     ( fromMaybe )
 import           Language.Haskell.Liquid.GHC.TypeRep
+import           Language.Haskell.Liquid.GHC.API as GHC
 import           Language.Fixpoint.Types
 import qualified Data.HashMap.Strict           as M
-import           TyCon
-import           TysWiredIn
 
 import           Data.List
 import           Data.List.Split
@@ -43,28 +33,18 @@ goalType ::  Type ->   --  This is the goal type. It is used for basic types.
               Type ->  --   This type comes from the environment.
               Bool     --   True if the 2nd arg produces expression 
                        --   of type equal to 1st argument.
-#if __GLASGOW_HASKELL__ >= 810
-goalType τ (FunTy _ _ t'') 
+goalType τ FunTy{ ft_res = t'' }
   | t'' == τ  = True
   | otherwise = goalType τ t''
-#else
-goalType τ (FunTy _ t'') 
-  | t'' == τ  = True
-  | otherwise = goalType τ t''
-#endif
-goalType τ                 t 
+goalType τ                 t
   | τ == t    = True
   | otherwise = False
 
 -- Subgoals are function's arguments.
-createSubgoals :: Type -> [Type] 
+createSubgoals :: Type -> [Type]
 createSubgoals (ForAllTy _ htype) = createSubgoals htype
-#if __GLASGOW_HASKELL__ >= 810
-createSubgoals (FunTy _ t1 t2)      = t1 : createSubgoals t2
-#else
-createSubgoals (FunTy t1 t2)      = t1 : createSubgoals t2
-#endif
-createSubgoals t                  = [t]
+createSubgoals (FunTy { ft_arg = t1, ft_res = t2 }) = t1 : createSubgoals t2
+createSubgoals t                                    = [t]
 
 subgoals :: Type ->               -- Given a function type,
             Maybe (Type, [Type])  -- separate the result type from the input types.

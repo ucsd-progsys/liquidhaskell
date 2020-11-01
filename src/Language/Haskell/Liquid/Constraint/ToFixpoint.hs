@@ -8,6 +8,7 @@ module Language.Haskell.Liquid.Constraint.ToFixpoint
 
 import           Prelude hiding (error)
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
+import           Language.Haskell.Liquid.GHC.API (Var, Id, TyCon)
 import qualified Language.Fixpoint.Types.Config as FC
 import           System.Console.CmdArgs.Default (def)
 import qualified Language.Fixpoint.Types        as F
@@ -28,8 +29,6 @@ import qualified Data.HashMap.Strict               as M
 import qualified Data.HashSet                      as S
 -- import           Language.Fixpoint.Misc
 import qualified Language.Haskell.Liquid.Misc      as Misc
-import           Var
-import           TyCon                             (TyCon)
 
 import           Language.Haskell.Liquid.Types hiding     ( binds )
 
@@ -172,10 +171,11 @@ _isClassOrDict x = F.tracepp ("isClassOrDict: " ++ F.showpp x)
                     $ (hasClassArg x || GM.isDictionary x || Mb.isJust (Ghc.isClassOpId_maybe x))
 
 hasClassArg :: Id -> Bool
-hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts))
+hasClassArg x = F.tracepp msg $ (GM.isDataConId x && any Ghc.isClassPred (t:ts'))
   where 
-    msg       = "hasClassArg: " ++ showpp (x, t:ts)
+    msg       = "hasClassArg: " ++ showpp (x, t:ts')
     (ts, t)   = Ghc.splitFunTys . snd . Ghc.splitForAllTys . Ghc.varType $ x
+    ts'       = map Ghc.irrelevantMult ts
 
 
 doExpand :: TargetSpec -> Config -> F.SubC Cinfo -> Bool

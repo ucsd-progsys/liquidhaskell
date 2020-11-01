@@ -3,13 +3,6 @@
 
 module Propability where
 
-
-{- NIKI TO FIX:
-   this should be SAFE but z3 doesnot like it because
-   snd :: Int -> Int instead of
-   snd :: Int -> Real
--}
-
 {-@ type Propability = {v:Double | ((0.0 <= v) && (v <= 1.0)) } @-}
 
 {-@ p :: Propability @-}
@@ -26,12 +19,14 @@ data DPD k = DPD [(k, Double)]
 
 {-@ data DPD k = DPD (val::{v:[(k, Propability)]|(total v) = 1.0 }) @-}
 
-{-@ measure total :: [(k, Double)] -> Double
-      total([]) = 0.0
-      total(x:xs) = (snd x) + (total xs)
-  @-}
+{-@ measure total @-}
+total :: [(k, Double)] -> Double
+total [] = 0.0
+total (x:xs) = mySnd x + (total xs)
 
-
+{-@ measure mySnd @-}
+mySnd :: (a, b) -> b
+mySnd (x, y) = y
 
 dpd0 :: DPD Int
 dpd0 = DPD [(1, 0.9), (2, 0.1)]

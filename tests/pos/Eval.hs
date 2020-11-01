@@ -42,7 +42,7 @@ eval env (Let x e1 e2) = eval env' e2
 {-@ type CExpr G = {v:Expr | Set_sub (free v) (vars G)} @-}
 
 {-@ measure vars :: Env -> (Set Bndr)
-      vars ([])    = {v | Set_emp v }
+      vars []    = {v | Set_emp v }
       vars (b:env) = {v | v = Set_cup (Set_sng (fst b)) (vars env)}
   @-}
 

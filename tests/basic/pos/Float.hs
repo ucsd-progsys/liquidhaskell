@@ -1,9 +1,9 @@
 module Foo where
 
 
-{-@ r :: {v:Float | v > 0} @-}
-r :: Float
-r = 0.014 
+{-@ roxette :: {v:Float | v > 0} @-}
+roxette :: Float
+roxette = 0.014 
 
 cmp :: Bool 
-cmp = r > 0 
+cmp = roxette > 0 

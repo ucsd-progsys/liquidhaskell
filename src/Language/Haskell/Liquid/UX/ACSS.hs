@@ -10,7 +10,7 @@ module Language.Haskell.Liquid.UX.ACSS (
   ) where
 
 import Prelude hiding (error)
-import qualified SrcLoc 
+import qualified Language.Haskell.Liquid.GHC.API as SrcLoc
 
 import Language.Haskell.HsColour.Anchors
 import Language.Haskell.HsColour.Classify as Classify

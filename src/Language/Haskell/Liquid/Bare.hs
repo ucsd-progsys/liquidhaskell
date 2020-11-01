@@ -131,8 +131,8 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
       let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
       pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
 
-    toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
-    toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
+    toLegacyDep :: (Ghc.StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
+    toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . Ghc.unStableModule $ sm), unsafeFromLiftedSpec ls)
 
     toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
     toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)

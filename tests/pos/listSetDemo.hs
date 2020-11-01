@@ -6,18 +6,14 @@ module ListSets () where
 
 -- First, lets import the `Set` type from @Data.Set@
 
-import Data.Set (Set (..)) 
+import qualified Data.Set as S 
 
 -- Next, lets write a measure for the set of elements in a list.
 
-{-@ measure elts :: [a] -> (Set a) 
-      elts ([])   = {v | Set_emp v }
-      elts (x:xs) = {v | v = Set_cup (Set_sng x) (elts xs) }
-  @-}
-
--- Next, we tell the solver to interpret @Set@ natively in the refinement logic.
-
-{-@ embed Set as Set_Set @-}
+{-@ measure elts @-}
+elts :: (Ord a) => [a] -> S.Set a 
+elts []     = S.empty
+elts (x:xs) = S.union (S.singleton x) (elts xs)
 
 -- OK, now we can write some specifications!
 

@@ -152,7 +152,7 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ type ORBTG a X = RBT {v:a | X < v} @-}
 
 {-@ measure isRB        :: RBTree a -> Bool
-      isRB (Leaf)         = true
+      isRB Leaf         = true
       isRB (Node c x l r) = isRB l && isRB r && (c == R => (IsB l && IsB r))
   @-}
 
@@ -162,7 +162,7 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ type ARBTN a N = {v: ARBT a | bh v = N }         @-}
 
 {-@ measure isARB        :: (RBTree a) -> Bool
-      isARB (Leaf)         = true
+      isARB Leaf         = true
       isARB (Node c x l r) = (isRB l && isRB r)
   @-}
 
@@ -174,11 +174,11 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ measure col         :: RBTree a -> Color
       col (Node c x l r)  = c
-      col (Leaf)          = B
+      col Leaf          = B
   @-}
 
 {-@ measure isB        :: RBTree a -> Bool
-      isB (Leaf)         = false
+      isB Leaf         = false
       isB (Node c x l r) = c == B
   @-}
 
@@ -187,12 +187,12 @@ makeBlack (Node _ x l r) = Node B x l r
 -- | Black Height
 
 {-@ measure isBH        :: RBTree a -> Bool
-      isBH (Leaf)         = true
+      isBH Leaf         = true
       isBH (Node c x l r) = (isBH l && isBH r && bh l = bh r)
   @-}
 
 {-@ measure bh        :: RBTree a -> Int
-      bh (Leaf)         = 0
+      bh Leaf         = 0
       bh (Node c x l r) = bh l + if (c == R) then 0 else 1
   @-}
 

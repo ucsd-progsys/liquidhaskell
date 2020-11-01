@@ -6,9 +6,9 @@ data Map k a  = Tip
          = Tip
   @-}
 
-{-@ measure isBin :: Map k a -> Bool
-      isBin (Tip)          = false
-  @-}
+{-@ measure isBin @-}
+isBin :: Map k a -> Bool
+isBin Tip = False
 
 trim :: Map k a
 trim = undefined 

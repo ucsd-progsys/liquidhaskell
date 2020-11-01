@@ -84,7 +84,7 @@ import Language.Haskell.Liquid.Prelude
 {-@ qualif TextNE(v:Text): tlength(v) > 0 @-}
 
 {-@ measure sum_tlens :: [Text] -> Int
-      sum_tlens ([])   = 0
+      sum_tlens []   = 0
       sum_tlens (t:ts) = (tlen t) + (sum_tlens ts)
   @-}
 
@@ -121,7 +121,7 @@ import Language.Haskell.Liquid.Prelude
   @-}
 
 {-@ measure sum_tlengths :: [Text] -> Int
-      sum_tlengths ([]) = 0
+      sum_tlengths [] = 0
       sum_tlengths (t:ts) = (tlength t) + (sum_tlengths ts)
   @-}
 

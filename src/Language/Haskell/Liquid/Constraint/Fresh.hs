@@ -30,11 +30,6 @@ import           Control.Monad.State            (gets, get, put, modify)
 import           Control.Monad                  (when, (>=>))
 import           Prelude                        hiding (error)
 
-import           CoreUtils  (exprType)
-import           Type       (Type)
-import           CoreSyn
-import           Var        (varType, isTyVar, Var)
-
 import           Language.Fixpoint.Misc  ((=>>))
 import qualified Language.Fixpoint.Types as F
 import           Language.Fixpoint.Types.Visitor (kvars)
@@ -43,6 +38,7 @@ import           Language.Haskell.Liquid.Types
 -- import           Language.Haskell.Liquid.Types.Fresh
 import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.GHC.Misc as GM 
+import           Language.Haskell.Liquid.GHC.API as Ghc
 
 --------------------------------------------------------------------------------
 -- | This is all hardwiring stuff to CG ----------------------------------------

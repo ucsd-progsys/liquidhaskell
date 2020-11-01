@@ -6,22 +6,22 @@ class OptEq a where
   (==.) :: a -> a -> a
 
 instance OptEq a where
-{-@ instance OptEq a where
-      ==. :: x:a -> y:{a| x == y} -> a
-  @-}
   (==.) x _ = x
 
+{-@ instance OptEq a where 
+      ==. :: x:a -> y:{a| x == y} -> a
+  @-}
 
 
 class OptEq2 a where
   cmp :: a -> a -> a
 
 instance OptEq2 a where
-{-@ instance OptEq2 a where
-      cmp :: x:a -> y:{a| x == y} -> a
-  @-}
   cmp x _ = x
 
+{-@ instance OptEq2 a where 
+      cmp :: x:a -> y:{a| x == y} -> a
+  @-}
 
 -- This is unsoundly UNSAFE 
 

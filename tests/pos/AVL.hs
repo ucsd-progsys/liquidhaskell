@@ -3,14 +3,14 @@
 module AVL (Tree, singleton, insert, ht, bFac) where
 
 -- Basic functions
-{-@ data Tree [ht] @-} -- a = Nil | Tree (x::a) (l::Tree a) (r::Tree a) @-}
+{-@ data Tree [ht] @-} 
 data Tree a = Nil | Tree a (Tree a) (Tree a) deriving Show
 
 {-@ measure ht @-}
+{-@ ht :: Tree a -> Nat @-}
 ht              :: Tree a -> Int
 ht Nil          = 0
 ht (Tree x l r) = if (ht l) > (ht r) then (1 + ht l) else (1 + ht r)
-{-@ invariant {v:Tree a | 0 <= ht v} @-}
 
 
 {-@ measure bFac @-}
@@ -83,12 +83,12 @@ main = do
 {-@ predicate LeftHeavy T = bFac T == 1 @-}
 {-@ predicate RightHeavy T = bFac T == -1 @-}
 
-{-@ measure balanced :: Tree a -> Bool
-      balanced (Nil) = true
-      balanced (Tree v l r) = ((ht l) <= (ht r) + 1)
-                              && (ht r <= ht l + 1)
-                              && (balanced l)
-                              && (balanced r)
-@-}
+{-@ measure balanced @-}
+balanced :: Tree a -> Bool
+balanced Nil = True
+balanced (Tree v l r) = ((ht l) <= (ht r) + 1)
+                      && (ht r <= ht l + 1)
+                      && (balanced l)
+                      && (balanced r)
 
 {-@ type AVLTree = {v: Tree a | balanced v} @-}

@@ -73,12 +73,12 @@ data ByteString = Empty | Chunk {-# UNPACK #-} !S.ByteString ByteString
   @-}
 
 {-@ measure lbLength :: ByteString -> Int
-      lbLength (Empty)      = 0 
+      lbLength Empty      = 0 
       lbLength (Chunk b bs) = (bLength b) + (lbLength bs)
     @-}
 
 {-@ measure lbLengths  :: [ByteString] -> Int
-      lbLengths ([])   = 0
+      lbLengths []   = 0
       lbLengths (x:xs) = (lbLength x) + (lbLengths xs)
   @-}
 

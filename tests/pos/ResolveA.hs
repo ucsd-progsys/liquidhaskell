@@ -14,9 +14,9 @@ z = RB.A
 {-@ qualif NotA(v:RB.Bar): (notA v) @-}
 
 {-@ measure notA :: RB.Bar -> Bool
-      notA (RB.A) = false
-      notA (RB.B) = true
-      notA (RB.C) = false
+      notA RB.A = false
+      notA RB.B = true
+      notA RB.C = false
   @-}
 
 {-@ predicate NotA V = V != RB.A @-}

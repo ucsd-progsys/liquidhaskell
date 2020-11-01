@@ -29,7 +29,7 @@ class Sized s where
 
 instance Sized MList where
   {-@ instance measure size :: MList a -> Int
-        size (Nil)       = 0
+        size Nil       = 0
         size (Cons x xs) = 1 + size xs
     @-}
   size = length
@@ -46,7 +46,7 @@ bob = length
 
 instance Sized [] where
   {-@ instance measure size :: [a] -> Int
-        size ([])   = 0
+        size []   = 0
         size (x:xs) = 1 + (size xs)
     @-}
   size [] = 0

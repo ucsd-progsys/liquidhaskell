@@ -8,8 +8,7 @@ data BranchList a = BL a
 test :: a -> (a,a)
 test x = (x,x)
 
-{-@
-measure listlen :: [a] -> Int
-  listlen [] = 0
-  listlen (x:xs) = 1 + listlen xs
+{-@ measure listlen :: [a] -> Int
+      listlen [] = 0
+      listlen (x:xs) = 1 + listlen xs
 @-}
