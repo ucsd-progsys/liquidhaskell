@@ -1,6 +1,8 @@
 
 resolver: lts-16.8
 compiler: ghc-8.10.2
+# compiler: ghc-8.8.4
+# compiler: ghc-8.6.5
 allow-newer: true
 
 # resolver: lts-14.0
