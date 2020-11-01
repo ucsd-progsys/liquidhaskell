@@ -137,14 +137,17 @@ piDefConstr k c = ((head ns, head formals), defC)
     go (CAnd cs) = (\(as, bs, cs) -> (concat as, concat bs, cAndMaybes cs)) $ unzip3 $ go <$> cs
     go (All b@(Bind n _ (Var k' xs)) c')
       | k == k' = ([n], [S.toList $ S.fromList xs `S.difference` S.singleton n], Just c')
-      | otherwise = fmap (fmap (All b)) (go c')
-    go (All b c') = fmap (fmap (All b)) (go c')
+      | otherwise = map3 (fmap (All b)) (go c')
+    go (All b c') = map3 (fmap (All b)) (go c')
     go _ = ([], [], Nothing)
 
     cAndMaybes :: [Maybe (Cstr a)] -> Maybe (Cstr a)
     cAndMaybes maybeCs = case catMaybes maybeCs of
       [] -> Nothing
       cs -> Just $ CAnd cs
+
+map3 :: (c -> d) -> (a, b, c) -> (a, b, d)
+map3 f (x, y, z) = (x, y, f z)
 
 -- | Solve out the given pivars
 solPis :: S.Set F.Symbol -> M.HashMap F.Symbol ((F.Symbol, [F.Symbol]), Cstr a) -> M.HashMap F.Symbol Pred
