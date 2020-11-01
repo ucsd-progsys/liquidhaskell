@@ -53,16 +53,16 @@ die x = error x
 {-@ predicate UnElts Xs Ys Zs = elems Xs = Set_cup (elems Ys) (elems Zs) @-}
 
 {-@ measure keys  :: [(a, b)] -> (Set a)
-    keys ([])     = (Set_empty 0)
-    keys (kv:kvs) = (Set_cup (Set_sng (fst kv)) (keys kvs))
+      keys []     = (Set_empty 0)
+      keys (kv:kvs) = (Set_cup (Set_sng (fst kv)) (keys kvs))
   @-}
 
 {-@ measure elems :: [a] -> (Set a)
-    elems ([])    = (Set_empty 0)
-    elems (x:xs)  = (Set_cup (Set_sng x) (elems xs))
+      elems []    = (Set_empty 0)
+      elems (x:xs)  = (Set_cup (Set_sng x) (elems xs))
   @-}
 
 {-@ measure nodups :: [a] -> Bool
-    nodups ([])   = true
-    nodups (x:xs) = (not (Set_mem x (elems xs)) && nodups xs)
+      nodups []   = true
+      nodups (x:xs) = (not (Set_mem x (elems xs)) && nodups xs)
   @-}

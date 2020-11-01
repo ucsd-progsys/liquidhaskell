@@ -247,8 +247,8 @@ import Foreign.ForeignPtr       (ForeignPtr)
 
 
 {-@ measure sumLens :: [[a]] -> Int
-    sumLens ([])   = 0
-    sumLens (x:xs) = len x + (sumLens xs)
+      sumLens []   = 0
+      sumLens (x:xs) = len x + (sumLens xs)
   @-}
 {-@ invariant {v:[[a]] | sumLens v >= 0} @-}
 {-@ qualif SumLensEq(v:List (List a), x:List (List a)): (sumLens v) = (sumLens x) @-}

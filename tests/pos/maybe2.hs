@@ -23,21 +23,21 @@ mlen :: Map k a -> Int
 mlen Tip = 0 
 mlen (Bin _ _ _ l r) = 1 + mlen l + mlen r  
 
-{-@ measure isJustS :: forall a. MaybeS a -> Bool 
-    isJustS (JustS x)  = true
-    isJustS (NothingS) = false
-  @-}
+{-@ measure isJustS @-}
+isJustS :: MaybeS a -> Bool 
+isJustS (JustS x)  = True
+isJustS (NothingS) = False
 
 {-@ measure fromJustS :: forall a. MaybeS a -> a 
-    fromJustS (JustS x) = x 
+      fromJustS (JustS x) = x 
   @-}
 
 {-@ type OMap k a = Map <{\root v -> v < root}, {\root v -> v > root}> k a @-}
 
-{-@ measure isBin :: Map k a -> Bool
-    isBin (Bin sz kx x l r) = true
-    isBin (Tip)             = false
-  @-}
+{-@ measure isBin @-} 
+isBin :: Map k a -> Bool
+isBin (Bin sz kx x l r) = True
+isBin Tip             = False
 
 {-@ isRoot :: t:Map k a -> {v: Bool | v <=> isBin t} @-}
 isRoot (Bin _ _ _ _ _) = True

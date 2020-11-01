@@ -3,13 +3,13 @@
 module Avg where
 
 {-@ measure sumF :: [Double] -> Double
-    sumF([]) = 0.0
-    sumF(x:xs) = x + (sumF xs)
+      sumF [] = 0.0
+      sumF (x:xs) = x + (sumF xs)
   @-}
 
 {-@ measure lenF :: [Double] -> Double
-    lenF([])   = 0.0
-    lenF(x:xs) = (1.0) + (lenF xs)
+      lenF []   = 0.0
+      lenF (x:xs) = (1.0) + (lenF xs)
   @-}
 
 {-@ expression Avg Xs = ((sumF Xs) / (lenF Xs))  @-}

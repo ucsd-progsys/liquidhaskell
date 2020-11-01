@@ -47,7 +47,6 @@ data Size = Exact { getExact :: Nat }
 {-@ type SizeN N = {v:Size | (((getSize v) = n) && (not (isUnknown v)))} @-}
 
 {-@ measure getSize @-}
-
 {-@ getSize :: Size -> Nat @-}
 getSize :: Size -> Int
 getSize (Data.Text.Fusion.Size.Exact n) = n

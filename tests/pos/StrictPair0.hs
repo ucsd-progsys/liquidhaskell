@@ -4,9 +4,9 @@ module SPair (poo) where
 
 import Language.Haskell.Liquid.Prelude (liquidAssert)
 
-{-@ measure tsnd :: (a, b) -> b 
-    tsnd (x, y) = y 
-  @-} 
+{-@ measure tsnd @-}
+tsnd :: (a, b) -> b 
+tsnd (x, y) = y 
 
 {-@ type Foo  a = ((a, Int), Int)<{\z v -> v <= (tsnd z)}> @-}
 

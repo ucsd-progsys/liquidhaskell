@@ -41,33 +41,30 @@ data Expr
   | Snd   { eL :: Expr                }
 @-}
 
-
-
-{-@ measure elen :: (Expr) -> Int
-    elen(Lam x e)    = 1 + (elen e)
-    elen(Var x)      = 0
-    elen(App e1 e2)  = 1 + (elen e1) + (elen e2)
-    elen(Const i)    = 1
-    elen(Plus e1 e2) = 1 + (elen e1) + (elen e2)
-    elen(Pair e1 e2) = 1 + (elen e1) + (elen e2)
-    elen(Fst e)      = 1 + (elen e)
-    elen(Snd e)      = 1 + (elen e)
-@-}
+{-@ measure elen @-}
+elen :: (Expr) -> Int
+elen (Lam x e)    = 1 + (elen e)
+elen (Var x)      = 0
+elen (App e1 e2)  = 1 + (elen e1) + (elen e2)
+elen (Const i)    = 1
+elen (Plus e1 e2) = 1 + (elen e1) + (elen e2)
+elen (Pair e1 e2) = 1 + (elen e1) + (elen e2)
+elen (Fst e)      = 1 + (elen e)
+elen (Snd e)      = 1 + (elen e)
 
 
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
-{-@
-measure isValue      :: Expr -> Bool
-isValue (Const i)    = true
-isValue (Lam x e)    = true
-isValue (Var x)      = false
-isValue (App e1 e2)  = false
-isValue (Plus e1 e2) = false
-isValue (Fst e)      = false
-isValue (Snd e)      = false
+{-@ measure isValue @-} 
+isValue :: Expr -> Bool
+isValue (Const i)    = True
+isValue (Lam x e)    = True
+isValue (Var x)      = False
+isValue (App e1 e2)  = False
+isValue (Plus e1 e2) = False
+isValue (Fst e)      = False
+isValue (Snd e)      = False
 isValue (Pair e1 e2) = (isValue e1) && (isValue e2)
-@-}
 
 {-@ type Value = {v: Expr | isValue v } @-}
 

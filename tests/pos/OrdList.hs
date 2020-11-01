@@ -39,17 +39,17 @@ ollen (Snoc xs _) = 1 + ollen xs
 ollen (Two x y)   = ollen x + ollen y  
 
 {-@ measure olen :: OrdList a -> Int 
-    olen (None)      = 0
-    olen (One x)     = 1
-    olen (Many xs)   = len xs
-    olen (Cons x xs) = 1 + (olen xs)
-    olen (Snoc xs x) = 1 + (olen xs)
-    olen (Two x y)   = (olen x) + (olen y)
+      olen None      = 0
+      olen (One x)     = 1
+      olen (Many xs)   = len xs
+      olen (Cons x xs) = 1 + (olen xs)
+      olen (Snoc xs x) = 1 + (olen xs)
+      olen (Two x y)   = (olen x) + (olen y)
   @-}
 
 {-@ measure olens :: [OrdList a] -> Int
-    olens ([])     = 0
-    olens (ol:ols) = (olen ol) + (olens ols)
+      olens []     = 0
+      olens (ol:ols) = (olen ol) + (olens ols)
   @-}
 
 {-@ type ListNE    a   = {v:[a]       | (len v) > 0} @-}
