@@ -84,7 +84,7 @@ import           Data.Semigroup          (Semigroup (..))
 #endif
 
 import qualified Data.Text                as T
-import           Data.Text.Format
+-- import           Data.Text.Format
 import qualified Data.Text.IO             as TIO
 import qualified Data.Text.Lazy           as LT
 import qualified Data.Text.Lazy.Builder   as Builder
@@ -100,6 +100,7 @@ import qualified Data.Attoparsec.Text     as A
 import           Data.Attoparsec.Internal.Types (Parser)
 import           Text.PrettyPrint.HughesPJ (text)
 import           Language.Fixpoint.SortCheck
+import           Language.Fixpoint.Utils.Builder
 -- import qualified Language.Fixpoint.Types as F
 -- import           Language.Fixpoint.Types.PrettyPrint (tracepp)
 
@@ -177,9 +178,11 @@ smtRead me = {-# SCC "smtRead" #-} do
   case A.eitherResult res of
     Left e  -> Misc.errorstar $ "SMTREAD:" ++ e
     Right r -> do
-      maybe (return ()) (\h -> hPutStrLnNow h $ format "; SMT Says: {}" (Only $ show r)) (ctxLog me)
-      when (ctxVerbose me) $ LTIO.putStrLn $ format "SMT Says: {}" (Only $ show r)
+      maybe (return ()) (\h -> hPutStrLnNow h $ blt ("; SMT Says: " <> (bShow r))) (ctxLog me)
+      when (ctxVerbose me) $ LTIO.putStrLn $ blt ("SMT Says: " <> bShow r)
       return r
+
+
 
 type SmtParser a = Parser T.Text a
 
