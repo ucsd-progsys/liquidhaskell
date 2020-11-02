@@ -205,7 +205,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       { tycName   = dn
       , tycTyVars = F.symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
-      , tycDCons  = decls tc
+      , tycDCons  = Just (decls tc)
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing

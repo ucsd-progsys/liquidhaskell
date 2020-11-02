@@ -69,6 +69,7 @@ dataDeclFields :: DataDecl -> [F.LocSymbol]
 dataDeclFields = filter (not . GM.isTmpSymbol . F.val) 
                . Misc.hashNubWith val 
                . concatMap dataCtorFields 
+               . fromMaybe []
                . tycDCons
 
 dataCtorFields :: DataCtor -> [F.LocSymbol]

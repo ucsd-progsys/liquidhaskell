@@ -40,7 +40,6 @@ find key ((k,v):kvs)
 find _ []     = die "Lookup failed!"
 
 
-
 {-@ die :: {v:String | false} -> b @-}
 die x = error x
 

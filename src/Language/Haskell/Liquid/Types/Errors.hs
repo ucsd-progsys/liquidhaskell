@@ -316,15 +316,17 @@ data TError t =
                 , msg :: !Doc
                 } -- ^ bad data type specification (?)
 
-  | ErrBadGADT  { pos :: !SrcSpan
-                , var :: !Doc
-                , msg :: !Doc
-                } -- ^ bad data type specification (?)
-
   | ErrDataCon  { pos :: !SrcSpan
                 , var :: !Doc
                 , msg :: !Doc
                 } -- ^ refined datacon mismatches haskell datacon
+
+  | ErrDataConMismatch
+                { pos  :: !SrcSpan
+                , var  :: !Doc
+                , dcs  :: [Doc]
+                , rdcs :: [Doc]
+                } -- ^ constructors in refinement do not match original datatype
 
   | ErrInvt     { pos :: !SrcSpan
                 , inv :: !t
@@ -746,7 +748,6 @@ hint :: TError a -> Doc
 hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
   where
     go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
-    go (ErrBadGADT {})  = Just "Use the hole '_' to specify the type of the constructor"
     go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
     go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
     go _                = Nothing
@@ -817,16 +818,16 @@ ppError' _ dCtx (ErrBadData _ v s)
         $+$ dCtx
         $+$ (pprint s <+> "for" <+> ppTicks v)
 
-ppError' _ dCtx err@(ErrBadGADT _ v s)
-  = text "Bad GADT specification for" <+> ppTicks v
-        $+$ dCtx
-        $+$ pprint s
-        $+$ hint err
-
 ppError' _ dCtx (ErrDataCon _ d s)
   = "Malformed refined data constructor" <+> ppTicks d
         $+$ dCtx
         $+$ s
+
+ppError' _ dCtx (ErrDataConMismatch _ d dcs rdcs)
+  = text "Data constructors in refinement do not match original datatype for" <+> ppTicks d
+        $+$ dCtx
+        $+$ nest 4 (text "Constructors in Haskell declaration: " <+> hsep (L.intersperse comma dcs))
+        $+$ nest 4 (text "Constructors in refinement         : " <+> hsep (L.intersperse comma rdcs))
 
 ppError' _ dCtx (ErrBadQual _ n d)
   = text "Illegal qualifier specification for" <+> ppTicks n

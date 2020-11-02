@@ -34,8 +34,8 @@ data Person = Person
 instance PersistEntity Person where
   {-@ data EntityField Person typ where
           Models.PersonNumber :: EntityField Person {v:_ | 0 <= v   }
-        | Models.PersonName   :: EntityField Person {v:_ | 0 < len v}
-        | Models.PersonNums   :: EntityField Person {v:_ | 0 < len v}
+          Models.PersonName   :: EntityField Person {v:_ | 0 < len v}
+          Models.PersonNums   :: EntityField Person {v:_ | 0 < len v}
     @-}
   data EntityField Person typ
     = typ ~ Int => PersonNumber |

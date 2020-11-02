@@ -1561,7 +1561,7 @@ dataDeclP = do
 
 emptyDecl :: LocSymbol -> SourcePos -> Maybe SizeFun -> DataDecl
 emptyDecl x pos fsize@(Just _)
-  = DataDecl (DnName x) [] [] [] pos fsize Nothing DataUser
+  = DataDecl (DnName x) [] [] Nothing pos fsize Nothing DataUser
 emptyDecl x pos _
   = uError (ErrBadData (sourcePosSrcSpan pos) (pprint (val x)) msg)
   where
@@ -1574,7 +1574,7 @@ dataDeclBodyP pos x fsize = do
   ps         <- predVarDefsP
   (pTy, dcs) <- dataCtorsP as
   let dn      = dataDeclName pos x vanilla dcs
-  return      $ DataDecl dn as ps dcs pos fsize pTy DataUser
+  return      $ DataDecl dn as ps (Just dcs) pos fsize pTy DataUser
 
 dataDeclName :: SourcePos -> LocSymbol -> Bool -> [DataCtor] -> DataName
 dataDeclName _ x True  _     = DnName x               -- vanilla data    declaration
@@ -1583,11 +1583,17 @@ dataDeclName p x _  _        = uError (ErrBadData (sourcePosSrcSpan p) (pprint (
   where
     msg                  = "You should specify at least one data constructor for a family instance"
 
+-- | Parse the constructors of a datatype, allowing both classic and GADT-style syntax.
+--
+-- Note that as of 2020-10-14, we changed the syntax of GADT-style datatype declarations
+-- to match Haskell more closely and parse all constructors in a layout-sensitive block,
+-- whereas before we required them to be separated by @|@.
+--
 dataCtorsP :: [Symbol] -> Parser (Maybe BareType, [DataCtor])
 dataCtorsP as = do
   (pTy, dcs) <-     (reservedOp "="     >> ((Nothing, ) <$>                 sepBy (dataConP    as) (reservedOp "|")))
-                <|> (reserved   "where" >> ((Nothing, ) <$>                 sepBy (adtDataConP as) (reservedOp "|")))
-                <|> (                      ((,)         <$> dataPropTyP <*> sepBy (adtDataConP as) (reservedOp "|")))
+                <|> (reserved   "where" >> ((Nothing, ) <$>                 block (adtDataConP as)                 ))
+                <|> (                      ((,)         <$> dataPropTyP <*> block (adtDataConP as)                 ))
   return (pTy, Misc.sortOn (val . dcName) dcs)
 
 noWhere :: Parser Symbol

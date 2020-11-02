@@ -31,9 +31,9 @@ data User = User
 {-@
 data EntityField User field <q :: Entity User -> Entity User -> Bool> where
     UserId :: EntityField <{\row v -> True}> User {v:_ | True}
-  | UserName :: EntityField <{\row v -> entityKey v = userFriend (entityVal row)}> User {v:_ | True}
-  | UserFriend :: EntityField <{\row v -> entityKey v = userFriend (entityVal row)}> User {v:_ | True}
-  | UserSsn :: EntityField <{\row v -> entityKey v = entityKey row}> User {v:_ | True}
+    UserName :: EntityField <{\row v -> entityKey v = userFriend (entityVal row)}> User {v:_ | True}
+    UserFriend :: EntityField <{\row v -> entityKey v = userFriend (entityVal row)}> User {v:_ | True}
+    UserSsn :: EntityField <{\row v -> entityKey v = entityKey row}> User {v:_ | True}
 @-}
 {-@ data variance EntityField covariant covariant contravariant @-}
 

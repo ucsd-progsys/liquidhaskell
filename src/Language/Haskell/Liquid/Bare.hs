@@ -808,7 +808,7 @@ makeNewType env sigEnv name d
     tcMb                      = Bare.lookupGhcDnTyCon env name "makeNewType" tcName
     tcName                    = tycName d
     t                         = Bare.cookSpecType env sigEnv name Bare.GenTV bt
-    bt                        = getTy tcName (tycSrcPos d) (tycDCons d)
+    bt                        = getTy tcName (tycSrcPos d) (Mb.fromMaybe [] (tycDCons d))
     getTy _ l [c]
       | [(_, t)] <- dcFields c = Loc l l t
     getTy n l _                = Ex.throw (err n l) 

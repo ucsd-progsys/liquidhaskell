@@ -4,17 +4,17 @@
 
 {-@ data List a where
        Nil  :: List a
-     | Cons :: listHead:a -> listTail:List a -> List a
+       Cons :: listHead:a -> listTail:List a -> List a
 @-}
 
 {-@ data List1 a b where
        Nil1  :: List1 a b
-     | Cons1 :: listHead:a -> listTail:List a -> List1 a b
+       Cons1 :: listHead:a -> listTail:List a -> List1 a b
 @-}
 
 {-@ data List2 a b <p :: a -> Bool> where
        Nil2  :: List2 a
-     | Cons2 :: listHead:a -> listTail:List a -> List2 a b
+       Cons2 :: listHead:a -> listTail:List a -> List2 a b
 @-}
 
 

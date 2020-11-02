@@ -88,20 +88,20 @@ data Match a where
 
 {-@ data Match [msize] a where
         MEmpty :: Prop (Match Nil Empty)
-      | MChar  :: x:_ -> Prop (Match (single x) (Char x))
-      | MCat   :: s1:_ -> r1:_ -> s2:_ -> r2:_ ->
+        MChar  :: x:_ -> Prop (Match (single x) (Char x))
+        MCat   :: s1:_ -> r1:_ -> s2:_ -> r2:_ ->
                   Prop (Match s1 r1) ->
                   Prop (Match s2 r2) ->
                   Prop (Match {s1 ++ s2} (Cat r1 r2))
-      | MAltL  :: s:_ -> r1:_ -> r2:_ ->
+        MAltL  :: s:_ -> r1:_ -> r2:_ ->
                   Prop (Match s r1) ->
                   Prop (Match s (Alt r1 r2))
-      | MAltR  :: s:_ -> r1:_ -> r2:_ ->
+        MAltR  :: s:_ -> r1:_ -> r2:_ ->
                   Prop (Match s r2) ->
                   Prop (Match s (Alt r1 r2))
-      | MStar0 :: r:_  ->
+        MStar0 :: r:_  ->
                   Prop (Match Nil (Star r))
-      | MStar1 :: s1:{0 < size s1} -> s2:_ -> r:_ ->
+        MStar1 :: s1:{0 < size s1} -> s2:_ -> r:_ ->
                   Prop (Match s1 r) ->
                   Prop (Match s2 (Star r)) ->
                   Prop (Match {s1 ++ s2} (Star r))
