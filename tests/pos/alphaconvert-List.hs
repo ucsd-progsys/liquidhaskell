@@ -134,14 +134,7 @@ xs   \\ y     = [x | x <- xs, x /= y]
 elem x []     = False
 elem x (y:ys) = x == y || elem x ys
 
-<<<<<<< HEAD
-{-@ measure elts :: [a] -> (Set a)
-     elts ([])    = {v | Set_emp v}
-     elts (x:xs)  = {v | v = Set_cup (Set_sng x) (elts xs) }
-  @-}
-=======
 {-@ measure elts @-}
 elts :: (Ord a) => [a] -> S.Set a
 elts []     = S.empty
 elts (x:xs) = S.union (S.singleton x) (elts xs)
->>>>>>> develop

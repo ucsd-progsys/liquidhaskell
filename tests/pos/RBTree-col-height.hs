@@ -145,11 +145,7 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ type RBTN a N = {v: (RBT a) | (bh v) = N }              @-}
 
 {-@ measure isRB        :: RBTree a -> Bool
-<<<<<<< HEAD
-      isRB (Leaf)         = true
-=======
       isRB Leaf         = true
->>>>>>> develop
       isRB (Node c x l r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
   @-}
 
@@ -160,11 +156,7 @@ makeBlack (Node _ x l r) = Node B x l r
 {-@ type ARBTN a N = {v: ARBT a   | (bh v) = N }             @-}
 
 {-@ measure isARB        :: (RBTree a) -> Bool
-<<<<<<< HEAD
-      isARB (Leaf)         = true 
-=======
       isARB Leaf         = true 
->>>>>>> develop
       isARB (Node c x l r) = ((isRB l) && (isRB r))
   @-}
 
