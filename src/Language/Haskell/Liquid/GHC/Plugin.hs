@@ -22,6 +22,7 @@ module Language.Haskell.Liquid.GHC.Plugin (
 
 import qualified Language.Haskell.Liquid.GHC.API         as O
 import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target)
+import qualified Text.PrettyPrint.HughesPJ               as PJ
 
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
@@ -106,10 +107,31 @@ debugLog msg = when debugLogs $ liftIO (putStrLn msg)
 
 plugin :: GHC.Plugin
 plugin = GHC.defaultPlugin {
-    typeCheckResultAction = typecheckHook
+    typeCheckResultAction = liquidPlugin
   , dynflagsPlugin        = customDynFlags
   , pluginRecompile       = purePlugin
   }
+  where
+    -- Unfortunately, we can't make Haddock run the LH plugin, because the former
+    -- does mangle the '.hi' files, causing annotations to not be persisted in the
+    -- 'ExternalPackageState' and/or 'HomePackageTable'. For this reason we disable
+    -- the plugin altogether is the module is being compiled with Haddock.
+    -- See also: https://github.com/ucsd-progsys/liquidhaskell/issues/1727
+    -- for a post-mortem.
+    liquidPlugin :: [CommandLineOption] -> ModSummary -> TcGblEnv -> TcM TcGblEnv
+    liquidPlugin opts summary gblEnv = do
+      dynFlags <- getDynFlags
+      if gopt Opt_Haddock dynFlags
+        then do
+          -- Warn the user
+          let msg     = PJ.vcat [ PJ.text "LH can't be run with Haddock."
+                                , PJ.nest 4 $ PJ.text "Documentation will still be created."
+                                ]
+          let srcLoc  = mkSrcLoc (mkFastString $ ms_hspp_file summary) 1 1
+          let warning = mkWarning (mkSrcSpan srcLoc srcLoc) msg
+          liftIO $ printWarning dynFlags warning
+          pure gblEnv
+        else typecheckHook opts summary gblEnv
 
 --------------------------------------------------------------------------------
 -- | GHC Configuration & Setup -------------------------------------------------
