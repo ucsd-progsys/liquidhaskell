@@ -729,10 +729,10 @@ writeResultStdout (orMessages -> messages) = do
 mkErrorDoc :: PPrint a => a -> Doc -> Doc
 mkErrorDoc sSpan doc = 
   -- Gross on screen, nice for Ghcid
-  pprint sSpan <> (text ": error: " <+> doc)
+  -- pprint sSpan <> (text ": error: " <+> doc)
 
   -- Nice on screen, invisible in Ghcid ...
-  -- (pprint sSpan <> text ": error: ") $+$ (nest 4 doc)
+  (pprint sSpan <> text ": error: ") $+$ (nest 4 doc)
 
 
 -- | Given a 'FixResult' parameterised over a 'CError', this function returns the \"header\" to show to
