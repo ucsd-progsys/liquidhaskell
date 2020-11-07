@@ -1143,6 +1143,7 @@ specP
     <|> (reserved "ple"           >> liftM Insts autoinstP  )
     <|> (reserved "automatic-instances" >> liftM Insts autoinstP  )
     <|> (reserved "LIQUID"        >> liftM Pragma pragmaP   )
+    <|> (reserved "liquid"        >> liftM Pragma pragmaP   )
     <|> {- DEFAULT -}                liftM Asrts  tyBindsP
     <?> "specP"
 
