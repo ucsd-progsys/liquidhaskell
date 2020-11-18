@@ -10,7 +10,9 @@ module Language.Haskell.Liquid.Bare.Check
   , checkBareSpec
   ) where
 
+
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
+
 import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( Located
                                                                                  , text
                                                                                  , (<+>)
