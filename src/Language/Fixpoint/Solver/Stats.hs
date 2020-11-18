@@ -12,6 +12,7 @@ import           GHC.Generics
 import           Text.PrettyPrint.HughesPJ (text)
 import qualified Data.Binary              as B
 import qualified Language.Fixpoint.Types.PrettyPrint as F
+import Data.Aeson
 
 #if !MIN_VERSION_base(4,14,0)
 import           Data.Semigroup            (Semigroup (..))
@@ -45,6 +46,12 @@ instance Semigroup Stats where
           , numChck      = numChck s1      + numChck s2
           , numVald      = numVald s1      + numVald s2
           }
+
+instance ToJSON Stats where
+  toJSON = genericToJSON defaultOptions
+  toEncoding = genericToEncoding defaultOptions
+
+instance FromJSON Stats
 
 instance Monoid Stats where
   mempty  = Stats 0 0 0 0 0
