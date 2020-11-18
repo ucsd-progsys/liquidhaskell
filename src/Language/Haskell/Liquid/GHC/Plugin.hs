@@ -145,16 +145,16 @@ customDynFlags opts dflags = do
   cfg <- liftIO $ LH.getOpts opts
   writeIORef cfgRef cfg
   configureDynFlags dflags
-
-configureDynFlags :: DynFlags -> IO DynFlags
-configureDynFlags df =
-  pure $ df `gopt_set` Opt_ImplicitImportQualified
-            `gopt_set` Opt_PIC
-            `gopt_set` Opt_DeferTypedHoles
-            `gopt_set` Opt_KeepRawTokenStream
-            `xopt_set` MagicHash
-            `xopt_set` DeriveGeneric
-            `xopt_set` StandaloneDeriving
+  where
+    configureDynFlags :: DynFlags -> IO DynFlags
+    configureDynFlags df =
+      pure $ df `gopt_set` Opt_ImplicitImportQualified
+                `gopt_set` Opt_PIC
+                `gopt_set` Opt_DeferTypedHoles
+                `gopt_set` Opt_KeepRawTokenStream
+                `xopt_set` MagicHash
+                `xopt_set` DeriveGeneric
+                `xopt_set` StandaloneDeriving
 
 --------------------------------------------------------------------------------
 -- | \"Unoptimising\" things ----------------------------------------------------
