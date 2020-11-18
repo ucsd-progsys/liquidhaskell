@@ -42,10 +42,11 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
+import           Language.Fixpoint.Types                (notracepp, atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
+-- import qualified Language.Fixpoint.Misc                 as Misc
 import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Solver.Stats         as Solver
-import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
+import           Language.Fixpoint.Solver.Stats ()     
+import           Language.Haskell.Liquid.Misc           (mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Located
                                                                       , sourceName
@@ -53,10 +54,7 @@ import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Located
                                                                       , panic
                                                                       , showPpr
                                                                       )
--- import           Language.Haskell.Liquid.Types.Visitors
--- import           Text.Megaparsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
--- import           Language.Haskell.Liquid.Types.Errors
 import qualified Data.ByteString                        as B
 import qualified Data.ByteString.Lazy                   as LB                                               
 
@@ -67,20 +65,23 @@ import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
 --------------------------------------------------------------------------------
 
 -- | Main type of value returned for diff-check.
-data DiffCheck = DC { newBinds  :: [CoreBind]
-                    , oldOutput :: !(Output Doc)
-                    , newSpec   :: !TargetSpec
-                    }
+data DiffCheck = DC 
+  { newBinds  :: [CoreBind]
+  , oldOutput :: !(Output Doc)
+  , newSpec   :: !TargetSpec
+  }
 
 instance PPrint DiffCheck where
-  pprintTidy k = pprintTidy k . checkedVars
+  pprintTidy k dc = pprintTidy k (checkedVars dc) <> pprintTidy k (oldOutput dc)
+
 
 -- | Variable definitions
-data Def  = D { start  :: Int -- ^ line at which binder definition starts
-              , end    :: Int -- ^ line at which binder definition ends
-              , binder :: Var -- ^ name of binder
-              }
-            deriving (Eq, Ord)
+data Def  = D 
+  { start  :: Int -- ^ line at which binder definition starts
+  , end    :: Int -- ^ line at which binder definition ends
+  , binder :: Var -- ^ name of binder
+  }
+  deriving (Eq, Ord)
 
 -- | Variable dependencies "call-graph"
 type Deps = M.HashMap Var (S.HashSet Var)
@@ -110,9 +111,11 @@ checkedVars              = concatMap names . newBinds
 --------------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> TargetSpec -> IO (Maybe DiffCheck)
 --------------------------------------------------------------------------------
-slice target cbs sp = ifM (doesFileExist savedFile)
-                          doDiffCheck
-                          (return Nothing)
+slice target cbs sp = do 
+  ex <- doesFileExist savedFile
+  if ex 
+    then doDiffCheck 
+    else return Nothing
   where
     savedFile       = extFileName Saved target
     doDiffCheck     = sliceSaved target savedFile cbs sp
@@ -170,9 +173,6 @@ globalDiff srcF ls gspec = measDiff || invsDiff || dconsDiff
     invsDiff  = any (isDiff srcF ls) (snd <$> gsInvariants spec)
     dconsDiff = any (isDiff srcF ls) [ atLoc ldc () | ldc <- gsDconsP (gsName gspec) ]
     spec      = gsData gspec
-    -- (dloc . snd <$> gsDconsP spec)
-    -- dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
-
 
 isDiff :: FilePath -> [Int] -> Located a -> Bool
 isDiff srcF ls x = file x == srcF && any hits ls
@@ -203,11 +203,10 @@ thin cbs sp vs = DC (filterBinds      cbs vs') mempty sp'
     xs         = S.fromList $ fst <$> xts
 
 thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
-thinWith sigs cbs xs = filterBinds cbs ys
+thinWith sigs cbs xs = filterBinds cbs calls
   where
-    ys       = calls `S.union` calledBy
-    calls    = txClosure (coreDeps cbs) sigs (S.fromList xs)
-    calledBy = dependsOn (coreDeps cbs) xs
+    calls    = notracepp ("thinWith-calls "  ++ show xs)   $ txClosure cbDeps sigs (S.fromList xs)
+    cbDeps   = notracepp ("thinWith-cbDeps [sigs = " ++ show sigs ++ "]") $ coreDeps cbs 
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -215,7 +214,10 @@ coreDeps bs = mkGraph $ calls ++ calls'
     calls   = concatMap deps bs
     calls'  = [(y, x) | (x, y) <- calls]
     deps b  = [(x, y) | x <- bindersOf b
-                      , y <- freeVars S.empty b]
+                      , y <- freeVars S.empty b
+                      , S.member y defVars 
+              ]
+    defVars = S.fromList (letVars bs)
 
 -- | Given a call graph, and a list of vars, `dependsOn`
 --   checks all functions to see if they call any of the
@@ -400,20 +402,25 @@ diffShifts = go 1 1
 --------------------------------------------------------------------------------
 saveResult :: FilePath -> Output Doc -> IO ()
 --------------------------------------------------------------------------------
-saveResult target res
-  = do copyFile target saveF
-       B.writeFile errF $ LB.toStrict $ encode res
-    where
-       saveF = extFileName Saved  target
-       errF  = extFileName Cache  target
+saveResult target res = do 
+  putStrLn $ showpp ("saveResult: " <> pprint res)
+  copyFile target saveF
+  B.writeFile errF $ LB.toStrict $ encode res
+  where
+    saveF = extFileName Saved  target
+    errF  = extFileName Cache  target
 
 --------------------------------------------------------------------------------
 loadResult   :: FilePath -> IO (Output Doc)
 --------------------------------------------------------------------------------
-loadResult f = ifM (doesFileExist jsonF) out (return mempty)
+loadResult f = do 
+  ex <- doesFileExist jsonF
+  if ex 
+    then convert <$> B.readFile jsonF
+    else return mempty
   where
+    convert  = fromMaybe mempty . decode . LB.fromStrict 
     jsonF    = extFileName Cache f
-    out      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile jsonF
 
 --------------------------------------------------------------------------------
 adjustOutput :: LMap -> ChkItv -> Output Doc -> Output Doc
@@ -509,15 +516,6 @@ instance FromJSON SourcePos where
                                 <*> v .: "sourceColumn"
   parseJSON _          = mempty
 
-instance ToJSON Solver.Stats where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
-instance FromJSON Solver.Stats
-
--- instance ToJSON ErrorResult where
---   toJSON = genericToJSON defaultOptions
---   toEncoding = genericToEncoding defaultOptions
-
 instance FromJSON ErrorResult
 
 instance ToJSON Doc where
@@ -535,8 +533,8 @@ instance FromJSON a => FromJSON (AnnInfo a)
 instance ToJSON (Output Doc) where
   toJSON = genericToJSON defaultOptions
   toEncoding = genericToEncoding defaultOptions
-instance FromJSON (Output Doc)
-
+instance FromJSON (Output Doc) where
+  parseJSON = genericParseJSON defaultOptions
 
 file :: Located a -> FilePath
 file = sourceName . loc
