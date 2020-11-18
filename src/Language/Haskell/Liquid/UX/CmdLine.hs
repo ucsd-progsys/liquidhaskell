@@ -724,7 +724,16 @@ data OutputResult = OutputResult {
 -- | Writes the result of this LiquidHaskell run to /stdout/.
 writeResultStdout :: OutputResult -> IO ()
 writeResultStdout (orMessages -> messages) = do
-  forM_ messages $ \(sSpan, doc) -> putStrLn (render $ pprint sSpan <> (text ": error: " <+> doc))
+  forM_ messages $ \(sSpan, doc) -> putStrLn (render $ mkErrorDoc sSpan doc {- pprint sSpan <> (text ": error: " <+> doc)-})
+
+mkErrorDoc :: PPrint a => a -> Doc -> Doc
+mkErrorDoc sSpan doc = 
+  -- Gross on screen, nice for Ghcid
+  -- pprint sSpan <> (text ": error: " <+> doc)
+
+  -- Nice on screen, invisible in Ghcid ...
+  (pprint sSpan <> text ": error: ") $+$ (nest 4 doc)
+
 
 -- | Given a 'FixResult' parameterised over a 'CError', this function returns the \"header\" to show to
 -- the user (i.e. \"SAFE\" or \"UNSAFE\") plus a list of 'Doc's together with the 'SrcSpan' they refer to.

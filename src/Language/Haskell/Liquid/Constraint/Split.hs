@@ -352,23 +352,45 @@ addLhsInv γ t = addRTyConInv (invs γ) t `strengthen` r
 bsplitC' :: CGEnv -> SpecType -> SpecType -> F.Templates -> Bool -> [F.SubC Cinfo]
 bsplitC' γ t1 t2 tem isHO
  | isHO
- = F.subC γ' r1'  r2' Nothing tag ci
+ = mkSubC γ' r1'  r2' tag ci
  | F.isFunctionSortedReft r1' && F.isNonTrivial r2'
- = F.subC γ' (r1' {F.sr_reft = mempty}) r2' Nothing tag ci
+ = mkSubC γ' (r1' {F.sr_reft = mempty}) r2' tag ci
  | F.isNonTrivial r2'
- = F.subC γ' r1'  r2' Nothing tag ci
+ = mkSubC γ' r1'  r2' tag ci
  | otherwise
  = []
   where
     γ'  = feBinds $ fenv γ
     r1' = rTypeSortedReft' γ tem t1
     r2' = rTypeSortedReft' γ tem t2
-    ci  = Ci src err (cgVar γ)
+    ci  = \sr -> Ci src (err sr) (cgVar γ)
     tag = getTag γ
-    -- err = Just $ ErrSubType src "subtype" g t1 t2
-    err = Just $ fromMaybe (ErrSubType src (text "subtype") g t1 t2) (cerr γ)
+    err = \sr -> Just $ fromMaybe (ErrSubType src (text "subtype") g t1 (replaceTop t2 sr)) (cerr γ)
     src = getLocation γ
     g   = reLocal $ renv γ
+
+mkSubC :: F.IBindEnv -> F.SortedReft -> F.SortedReft -> F.Tag -> (F.SortedReft -> a) -> [F.SubC a]
+mkSubC g sr1 sr2 tag ci = concatMap (\sr2' -> F.subC g sr1 sr2' Nothing tag (ci sr2')) (splitSortedReft sr2)
+
+splitSortedReft :: F.SortedReft -> [F.SortedReft]
+splitSortedReft (F.RR t (F.Reft (v, r))) = [ F.RR t (F.Reft (v, ra)) | ra <- refaConjuncts r ]
+
+refaConjuncts :: F.Expr -> [F.Expr]
+refaConjuncts p = [p' | p' <- F.conjuncts p, not $ F.isTautoPred p']
+
+replaceTop :: SpecType -> F.SortedReft -> SpecType
+replaceTop (RApp c ts rs r) r'  = RApp c ts rs $ replaceReft r r'
+replaceTop (RVar a r) r'        = RVar a       $ replaceReft r r'
+replaceTop (RFun b t1 t2 r) r'  = RFun b t1 t2 $ replaceReft r r'
+replaceTop (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ replaceReft r r'
+replaceTop (RAllT a t r)    r'  = RAllT a t    $ replaceReft r r'
+replaceTop t _                  = t
+
+replaceReft :: RReft -> F.SortedReft -> RReft
+replaceReft rr (F.RR _ r) = rr {ur_reft = F.Reft (v, F.subst1  p (vr, F.EVar v) )}
+  where
+    F.Reft (v, _)         = ur_reft rr
+    F.Reft (vr,p)         = r
 
 unifyVV :: SpecType -> SpecType -> CG (SpecType, SpecType)
 unifyVV t1@(RApp _ _ _ _) t2@(RApp _ _ _ _)

@@ -40,7 +40,7 @@ class CBVisitable a where
   literals :: a -> [Literal]
 
 instance CBVisitable [CoreBind] where
-  freeVars env cbs = (sortNub xs) \\ ys
+  freeVars env cbs = sortNub xs \\ ys
     where xs = concatMap (freeVars env) cbs
           ys = concatMap bindings cbs
 

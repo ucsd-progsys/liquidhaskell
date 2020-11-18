@@ -2305,6 +2305,9 @@ data Output a = O
   , o_result :: ErrorResult
   } deriving (Typeable, Generic, Functor)
 
+instance (F.PPrint a) => F.PPrint (Output a) where
+  pprintTidy _ out = F.resultDoc (F.pprint <$> o_result out)
+
 emptyOutput :: Output a
 emptyOutput = O Nothing mempty mempty [] mempty
 

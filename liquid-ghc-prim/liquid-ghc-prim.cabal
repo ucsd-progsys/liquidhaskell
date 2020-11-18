@@ -24,7 +24,7 @@ library
                     -- unfortunately. The issue is that 'GHC.Prim' is a special snowflake,
                     -- treated specially by the GHC pipeline. In particular, GHC doesn't
                     -- generate a '.hi' file for it, and this causes Windows' builds to choke.
-                    -- GHC.Prim
+                    GHC.Prim
                     GHC.CString
                     GHC.Classes
                     GHC.Debug
