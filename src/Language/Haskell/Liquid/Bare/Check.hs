@@ -17,7 +17,7 @@ import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding
                                                                                  , panic
                                                                                  , ($+$)
                                                                                  , empty
-                                                                                 -- , isWiredIn
+                                                                                 , isWiredIn
                                                                                  )
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
