@@ -403,7 +403,7 @@ diffShifts = go 1 1
 saveResult :: FilePath -> Output Doc -> IO ()
 --------------------------------------------------------------------------------
 saveResult target res = do 
-  putStrLn $ showpp ("saveResult: " <> pprint res)
+  -- putStrLn $ showpp ("saveResult: " <> pprint res)
   copyFile target saveF
   B.writeFile errF $ LB.toStrict $ encode res
   where
