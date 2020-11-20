@@ -36,7 +36,7 @@ import           Prelude                                hiding (error)
 import           Data.Aeson
 import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
-import           Data.Maybe                             (listToMaybe, mapMaybe, fromMaybe)
+import           Data.Maybe                             (maybeToList, listToMaybe, mapMaybe, fromMaybe)
 import qualified Data.IntervalMap.FingerTree            as IM
 import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
@@ -133,7 +133,7 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
   where
     gDiff     = globalDiff srcF is spec
     sp'       = assumeSpec sigm spec
-    res'      = adjustOutput lm cm result
+    res'      = notracepp ("adjustOutput: " ++ showpp result) $ adjustOutput lm cm result
     cm        = checkedItv (coreDefs cbs')
     cbs'      = thinWith sigs coreBinds (diffVars is defs)
     defs      = coreDefs coreBinds ++ specDefs srcF spec
@@ -267,22 +267,82 @@ specSigs sp = gsTySigs  (gsSig  sp)
            ++ gsAsmSigs (gsSig  sp) 
            ++ gsCtors   (gsData sp)
 
+instance PPrint Def where
+  pprintTidy _ d = text (show d)
+
+
 --------------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 --------------------------------------------------------------------------------
-coreDefs cbs = L.sort [D l l' x | b <- cbs
+coreDefs cbs = coreExprDefs xm xes
+  where
+    xes      = coreVarExprs cbs
+    xm       = varBounds xes
+
+coreExprDefs :: M.HashMap Var (Int, Int) -> [(Var, CoreExpr)]-> [Def]
+coreExprDefs xm xes = 
+  L.sort 
+    [ D l l' x 
+      | (x, e) <- xes
+      , (l, l') <- maybeToList $ coreExprDef xm (x, e)
+    ]
+
+coreExprDef :: M.HashMap Var (Int, Int) -> (Var, CoreExpr) -> Maybe (Int, Int)
+coreExprDef m (x, e) = notracepp ("coreExprDef: " ++ showpp (x, eSp, vSp)) $ meetSpans eSp vSp
+  where
+    eSp              = lineSpan x $ catSpans x $ exprSpans e
+    vSp              = M.lookup x m
+    -- vSp   = lineSpan x (getSrcSpan x)
+
+coreVarExprs :: [CoreBind] -> [(Var, CoreExpr)]
+coreVarExprs = filter ok . concatMap varExprs
+  where
+    ok       = isGoodSrcSpan . getSrcSpan . fst 
+
+varExprs :: Bind a -> [(a, Expr a)]
+varExprs (NonRec x e) = [(x, e)]
+varExprs (Rec xes)    = xes
+
+-- | varBounds computes upper and lower bounds on where each top-level binder's 
+--   definition can be by using ONLY the lines where the binder is defined.
+varBounds :: [(Var, CoreExpr)] -> M.HashMap Var (Int, Int)
+varBounds = M.fromList . notracepp "defBounds" . defBounds . varDefs 
+
+varDefs :: [(Var, CoreExpr)] -> [(Int, Var)]
+varDefs xes = 
+  L.sort [ (l, x) | (x,_) <- xes, let Just (l, _) = lineSpan x (getSrcSpan x) ]
+
+defBounds :: [(Int, Var)] -> [(Var, (Int, Int) )]
+defBounds ((l, x) : lxs@((l', _) : _ )) = (x, (l, l' - 1)) : defBounds lxs
+defBounds _                             = []
+
+{- 
+--------------------------------------------------------------------------------
+coreDefs     :: [CoreBind] -> [Def]
+--------------------------------------------------------------------------------
+coreDefs cbs = tracepp "coreDefs" $ 
+               L.sort [D l l' x | b <- cbs
                                 , x <- bindersOf b
                                 , isGoodSrcSpan (getSrcSpan x)
                                 , (l, l') <- coreDef b]
 
-coreDef :: (NamedThing a, OutputableBndr a)
-        => Bind a -> [(Int, Int)]
-coreDef b    = meetSpans b eSp vSp
+coreDef :: CoreBind -> [(Int, Int)]
+coreDef b 
+  | True  = tracepp ("coreDef: " ++ showpp (vs, vSp)) $ maybeToList vSp
+  | False = tracepp ("coreDef: " ++ showpp (b, eSp, vSp)) $ meetSpans b eSp vSp
   where
-    eSp      = lineSpan b $ catSpans b $ bindSpans b
-    vSp      = lineSpan b $ catSpans b $ getSrcSpan <$> bindersOf b
+    eSp   = lineSpan b $ catSpans b $ bindSpans b
+    vSp   = lineSpan b $ catSpans b $ getSrcSpan <$> vs
+    vs    = bindersOf b 
 
-
+meetSpans :: Maybe (Int, Int) -> Maybe (Int, Int) -> Maybe (Int, Int)
+meetSpans Nothing       _
+  = Nothing
+meetSpans (Just (l,l')) Nothing
+  = Just (l, l')
+meetSpans (Just (l,l')) (Just (m,_))
+  = Just (max l m, l')
+-}
 --------------------------------------------------------------------------------
 -- | `meetSpans` cuts off the start-line to be no less than the line at which
 --   the binder is defined. Without this, i.e. if we ONLY use the ticks and
@@ -294,28 +354,39 @@ coreDef b    = meetSpans b eSp vSp
 --   where `spanEnd` is a single line function around 1092 but where
 --   the generated span starts mysteriously at 222 where Data.List is imported.
 
-meetSpans :: Ord t1 => t -> Maybe (t1, t2) -> Maybe (t1, t3) -> [(t1, t2)]
-meetSpans _ Nothing       _
-  = []
-meetSpans _ (Just (l,l')) Nothing
-  = [(l, l')]
-meetSpans _ (Just (l,l')) (Just (m,_))
-  = [(max l m, l')]
+meetSpans :: Maybe (Int, Int) -> Maybe (Int, Int) -> Maybe (Int, Int)
+meetSpans Nothing       _
+  = Nothing
+meetSpans (Just (l,l')) Nothing
+  = Just (l, l')
+meetSpans (Just (l,l')) (Just (m, m'))
+  = Just (max l m, min l' m')
+
+-- spanLower :: Maybe (Int, Int) -> Maybe Int -> Maybe (Int, Int)
+-- spanLower Nothing        _        = Nothing
+-- spanLower sp             Nothing  = sp
+-- spanLower (Just (l, l')) (Just m) = Just (max l m, l')
+
+-- spanUpper :: Maybe (Int, Int) -> Maybe Int -> Maybe (Int, Int)
+-- spanUpper Nothing        _        = Nothing
+-- spanUpper sp             Nothing  = sp
+-- spanUpper (Just (l, l')) (Just m) = Just (l, min l' m)
+
+
 
 lineSpan :: t -> SrcSpan -> Maybe (Int, Int)
 lineSpan _ (RealSrcSpan sp _) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
 lineSpan _ _                  = Nothing
 
-catSpans :: (NamedThing r, OutputableBndr r)
-         => Bind r -> [SrcSpan] -> SrcSpan
+catSpans :: Var -> [SrcSpan] -> SrcSpan
 catSpans b []               = panic Nothing $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z _) <- xs, bindFile b == srcSpanFile z]
+catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z _) <- xs, varFile b == srcSpanFile z]
 
-bindFile
-  :: (Outputable r, NamedThing r) =>
-     Bind r -> FastString
-bindFile (NonRec x _) = varFile x
-bindFile (Rec xes)    = varFile $ fst $ head xes
+-- bindFile
+--   :: (Outputable r, NamedThing r) =>
+--      Bind r -> FastString
+-- bindFile (NonRec x _) = varFile x
+-- bindFile (Rec xes)    = varFile $ fst $ head xes
 
 varFile :: (Outputable a, NamedThing a) => a -> FastString
 varFile b = case getSrcSpan b of
@@ -429,7 +500,7 @@ adjustOutput lm cm o  = mempty { o_types  = adjustTypes  lm cm (o_types  o) }
                                { o_result = adjustResult lm cm (o_result o) }
 
 adjustTypes :: LMap -> ChkItv -> AnnInfo a -> AnnInfo a
-adjustTypes lm cm (AI m)          = AI $ M.fromList
+adjustTypes lm cm (AI m)          = AI $ if True then mempty else M.fromList -- FIXME PLEASE
                                     [(sp', v) | (sp, v)  <- M.toList m
                                               , Just sp' <- [adjustSrcSpan lm cm sp]]
 
@@ -442,12 +513,13 @@ errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
 errorsResult _ []                 = Safe mempty
 errorsResult f es                 = f es
 
-adjustErrors :: LMap -> ChkItv -> [TError a] -> [TError a]
+adjustErrors :: (PPrint (TError a)) => LMap -> ChkItv -> [TError a] -> [TError a]
 adjustErrors lm cm                = mapMaybe adjustError
   where
-    adjustError e                 = case adjustSrcSpan lm cm (pos e) of
-                                      Just sp' -> Just (e {pos = sp'})
-                                      Nothing  -> Nothing
+    -- adjustError e = notracepp ("adjustError: " ++ showpp (pos e)) $ adjustError' e
+    adjustError e                = case adjustSrcSpan lm cm (pos e) of
+                                     Just sp' -> Just (e {pos = sp'})
+                                     Nothing  -> Nothing
 
     -- adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$>
     -- adjustError e                 = Just e
@@ -456,7 +528,7 @@ adjustErrors lm cm                = mapMaybe adjustError
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
 --------------------------------------------------------------------------------
 adjustSrcSpan lm cm sp
-  = do sp' <- adjustSpan lm sp
+  = do sp' <- {- tracepp ("adjustSpan: " ++ showpp sp ++ show cm) $ -} adjustSpan lm sp
        if isCheckedSpan cm sp'
          then Nothing
          else Just sp'
@@ -474,10 +546,11 @@ adjustSpan _  sp                  = Just sp
 
 adjustReal :: LMap -> RealSrcSpan -> Maybe RealSrcSpan
 adjustReal lm rsp
-  | Just δ <- getShift l1 lm      = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+  | Just δ <- sh                  = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp
+    sh                            = {- tracepp ("adjustReal: " ++ show rsp) $ -} getShift l1 lm
 
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
