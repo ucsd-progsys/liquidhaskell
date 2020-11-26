@@ -411,6 +411,12 @@ config = cmdArgsMode $ Config {
         &= help (   "Enable the rewrite divergence checker. " 
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
+  , 
+    ignoreModule
+    = def
+        &= name "ignore-module"
+        &= help "Completely skip this module, don't even compile any specifications in it."
+ 
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -654,6 +660,7 @@ defConfig = Config
   , maxArgsDepth             = 1
   , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
+  , ignoreModule            = False
   }
 
 

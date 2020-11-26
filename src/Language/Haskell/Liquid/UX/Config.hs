@@ -97,6 +97,7 @@ data Config = Config
   , maxArgsDepth             :: Int
   , maxRWOrderingConstraints :: Maybe Int
   , rwTerminationCheck       :: Bool
+  , ignoreModule             :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

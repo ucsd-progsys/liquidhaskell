@@ -23,7 +23,7 @@ module Language.Haskell.Liquid.GHC.Plugin (
 import qualified Language.Haskell.Liquid.GHC.API         as O
 import           Language.Haskell.Liquid.GHC.API         as GHC hiding (Target)
 import qualified Text.PrettyPrint.HughesPJ               as PJ
-
+import qualified Language.Fixpoint.Types                 as F
 import qualified Language.Haskell.Liquid.GHC.Misc        as LH
 import qualified Language.Haskell.Liquid.UX.CmdLine      as LH
 import qualified Language.Haskell.Liquid.GHC.Interface   as LH
@@ -247,9 +247,9 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   inputSpec :: BareSpec <- getLiquidSpec thisModule (pdSpecComments pipelineData) specQuotes
 
   debugLog $ " Input spec: \n" ++ show inputSpec
-  debugLog $ "Relevant ===> \n" ++ (unlines $ map renderModule $ (S.toList $ relevantModules modGuts))
+  debugLog $ "Relevant ===> \n" ++ unlines (renderModule <$> S.toList (relevantModules modGuts))
 
-  logicMap :: LogicMap <- liftIO $ LH.makeLogicMap
+  logicMap :: LogicMap <- liftIO LH.makeLogicMap
 
   -- debugLog $ "Logic map:\n" ++ show logicMap
 
@@ -262,20 +262,37 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
       , lhModuleGuts      = pdUnoptimisedCore pipelineData
       , lhRelevantModules = relevantModules modGuts
       }
+  
+  isIgnored <- liftIO $ isIgnore inputSpec
+  -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)
 
-  ProcessModuleResult{..} <- processModule lhContext
+  liquidLib <- if isIgnored 
+                then pure emptyLiquidLib 
+                else checkLiquidHaskellContext lhContext 
+ 
+  -- --- 
+  -- -- CAN WE 'IGNORE' THE BELOW? TODO:IGNORE -- issue use `emptyLiquidLib` instead of pmrClientLib
+  -- ProcessModuleResult{..} <- processModule lhContext
+  
+  -- liftIO $ putStrLn "liquidHaskellCheck 7"
 
-  -- Call into the existing Liquid interface
-  out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+  -- -- Call into the existing Liquid interface
+  -- out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+  -- liftIO $ putStrLn "liquidHaskellCheck 8"
 
-  -- Report the outcome of the checking
-  LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
-  case o_result out of
-    Safe _stats -> pure ()
-    _           -> failM
+  -- -- Report the outcome of the checking
+  -- LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
+  -- case o_result out of
+  --   Safe _stats -> pure ()
+  --   _           -> failM
 
-  let serialisedSpec = Util.serialiseLiquidLib pmrClientLib thisModule
+  -- liftIO $ putStrLn "liquidHaskellCheck 9"
+  -- ---
+
+  let serialisedSpec = Util.serialiseLiquidLib liquidLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
+  
+  liftIO $ putStrLn "liquidHaskellCheck 10"
 
   pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
   where
@@ -285,11 +302,34 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
     modGuts :: ModGuts
     modGuts = fromUnoptimised . pdUnoptimisedCore $ pipelineData
 
-    errorLogger :: OutputResult -> TcM ()
-    errorLogger outputResult = do
-      errs <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
-      GHC.reportErrors errs
+checkLiquidHaskellContext :: LiquidHaskellContext -> TcM LiquidLib
+checkLiquidHaskellContext lhContext = do
+  ProcessModuleResult{..} <- processModule lhContext
 
+  -- Call into the existing Liquid interface
+  out <- liftIO $ LH.checkTargetInfo pmrTargetInfo
+
+  let cfg = lhGlobalCfg lhContext
+  -- Report the outcome of the checking
+  LH.reportResult errorLogger cfg [giTarget (giSrc pmrTargetInfo)] out
+  case o_result out of
+    Safe _stats -> pure ()
+    _           -> failM
+  return pmrClientLib
+
+errorLogger :: OutputResult -> TcM ()
+errorLogger outputResult = do
+  errs <- forM (LH.orMessages outputResult) $ \(spn, e) -> mkLongErrAt spn (LH.fromPJDoc e) O.empty
+  GHC.reportErrors errs
+
+emptyLiquidLib :: LiquidLib
+emptyLiquidLib = mkLiquidLib emptyLiftedSpec
+
+isIgnore :: BareSpec -> IO Bool
+isIgnore (MkBareSpec sp) = do 
+  let ps = pragmas sp
+  print ps
+  return $ any ((== "--ignore-module") . F.val) $ ps 
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------
