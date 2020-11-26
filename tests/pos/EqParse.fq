@@ -1,0 +1,21 @@
+bind 0 func0_x0 : {b: int | true}
+bind 1 func0_x1 : {b: int | true}
+bind 2 func0_x2 : {b: int | true}
+bind 3 func0_x3 : {b: int | true}
+bind 4 func0_x4 : {b: int | true}
+bind 5 func0_x5 : {b: bool | true}
+bind 6 func0_x6 : {b: int | (b = func0_x1)}
+bind 7 func0_x7 : {b: int | (b = func0_x2)}
+bind 8 func0_x8 : {b: bool | (b = (func0_x7 = 0))}
+bind 9 func0_x9 : {b: int | (b = (func0_x6 / func0_x7))}
+constraint:
+        env [1;2;7;8]
+        lhs {b: bool | true }
+        rhs {b: bool | (b = false)}
+        id 0 tag []
+
+constraint:
+        env [1; 2; 6; 7]
+        lhs {b: int | (b = (func0_x6 / func0_x7))}
+        rhs {b: int | (b = (func0_x1 / func0_x2))}
+        id 1 tag []
