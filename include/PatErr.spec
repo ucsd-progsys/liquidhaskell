@@ -11,3 +11,5 @@ assume Control.Exception.Base.recSelError :: {v:GHC.Prim.Addr# | totalityError "
 assume Control.Exception.Base.nonExhaustiveGuardsError :: {v:GHC.Prim.Addr# | totalityError "Pattern match(es) are non-exhaustive"} -> a
 
 assume Control.Exception.Base.noMethodBindingError :: {v:GHC.Prim.Addr# | totalityError "Pattern match(es) are non-exhaustive"} -> a
+
+assume Control.Exception.Base.recConError :: {v:GHC.Prim.Addr# | totalityError "Missing field in record construction"} -> a
