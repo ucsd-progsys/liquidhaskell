@@ -1105,6 +1105,7 @@ predP  = makeExprParser pred0P lops
            , [InfixR (reservedOp "||"   >> return (\x y -> POr [x,y]))]
            , [InfixR (reservedOp "=>"   >> return PImp)]
            , [InfixR (reservedOp "==>"  >> return PImp)]
+           , [InfixR (reservedOp "="    >> return PIff)]
            , [InfixR (reservedOp "<=>"  >> return PIff)]]
 
 -- | Parses a relation predicate.
