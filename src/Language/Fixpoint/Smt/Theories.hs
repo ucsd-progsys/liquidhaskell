@@ -72,8 +72,9 @@ elt  = "Elt"
 set  = "LSet"
 map  = "Map"
 
-emp, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
+emp, sng, add, cup, cap, mem, dif, sub, com, sel, sto, mcup, mdef :: Raw
 emp   = "smt_set_emp"
+sng   = "smt_set_sng"
 add   = "smt_set_add"
 cup   = "smt_set_cup"
 cap   = "smt_set_cap"
@@ -147,6 +148,10 @@ z3Preamble u
         [] 
         (bb set) 
         (parens (key "as const" (bb set) <+> "false"))
+    , bFun sng
+        [("x", bb elt)]
+        (bb set)
+        (key3 "store" (parens (key "as const" (bb set) <+> "false")) "x" "true")
     , bFun mem 
         [("x", bb elt), ("s", bb set)] 
         "Bool"
@@ -228,6 +233,7 @@ commonPreamble _ --TODO use uif flag u (see z3Preamble)
     , bSort set    "Int"
     , bSort string "Int"
     , bFun' emp []               (bb set) 
+    , bFun' sng [bb elt]         (bb set)
     , bFun' add [bb set, bb elt] (bb set)
     , bFun' cup [bb set, bb set] (bb set)
     , bFun' cap [bb set, bb set] (bb set)
@@ -300,7 +306,7 @@ smt2App :: VarAs -> SymEnv -> Expr -> [B.Builder] -> Maybe B.Builder
 smt2App _ _ (ECst (EVar f) _) [d]
   | f == setEmpty = Just (bb emp)
   | f == setEmp   = Just (key2 "=" (bb emp) d)
-  | f == setSng   = Just (key2 (bb add) (bb emp) d)
+  | f == setSng   = Just (key (bb sng) d) -- Just (key2 (bb add) (bb emp) d)
 
 smt2App k env f (d:ds)
   | Just fb <- smt2AppArg k env f
@@ -368,6 +374,7 @@ interpSymbols :: [(Symbol, TheorySymbol)]
 interpSymbols =
   [ interpSym setEmp   emp  (FAbs 0 $ FFunc (setSort $ FVar 0) boolSort)
   , interpSym setEmpty emp  (FAbs 0 $ FFunc intSort (setSort $ FVar 0))
+  , interpSym setSng   sng  (FAbs 0 $ FFunc (FVar 0) (setSort $ FVar 0))
   , interpSym setAdd   add   setAddSort
   , interpSym setCup   cup   setBopSort
   , interpSym setCap   cap   setBopSort
