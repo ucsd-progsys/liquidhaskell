@@ -25,6 +25,9 @@ key k b = parenSeqs [k, b]
 key2 :: B.Builder -> B.Builder ->  B.Builder -> B.Builder
 key2 k b1 b2 = parenSeqs [k, b1, b2]
 
+key3 :: B.Builder -> B.Builder ->  B.Builder -> B.Builder ->  B.Builder
+key3 k b1 b2 b3 = parenSeqs [k, b1, b2, b3]
+
 seqs :: [B.Builder] -> B.Builder
 seqs = foldr (<>) mempty . L.intersperse " "
 
