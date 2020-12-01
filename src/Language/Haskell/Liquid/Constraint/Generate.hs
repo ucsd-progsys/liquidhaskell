@@ -443,7 +443,7 @@ consCB _ _ γ (NonRec x e)
        extender γ (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, [Type])
-grepDictionary = go [] 
+grepDictionary e = F.tracepp "Dictionaries" $ go [] e
   where 
     go ts (App (Var w) (Type t)) = Just (w, reverse (t:ts))
     go ts (App e (Type t))       = go (t:ts) e
@@ -926,6 +926,7 @@ getExprDict γ           =  go
     go (Var x)          = case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
     go (Tick _ e)       = go e
     go (App a (Type _)) = go a
+    go (Let _ e)        = go e
     go _                = Nothing
 
 --------------------------------------------------------------------------------
