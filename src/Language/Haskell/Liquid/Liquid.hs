@@ -178,13 +178,12 @@ checkTargetInfo info = do
                      -- putStrLn "*************** Original CoreBinds ***************************"
                      -- putStrLn $ render $ pprintCBs (cbs info)
         whenNormal $ donePhase Loud "Transformed Core"
-        whenNormal $ donePhase Loud ("transformRecExpr" ++  "\n" ++
-                        "*************** Transform Rec Expr CoreBinds *****************" ++  "\n" ++
-                        showCBs (untidyCore cfg) cbs')
+        whenLoud  $ do donePhase Loud "transformRecExpr"
+                       putStrLn "*************** Transform Rec Expr CoreBinds *****************"
+                       putStrLn $ showCBs (untidyCore cfg) cbs'
                        -- putStrLn $ render $ pprintCBs cbs'
                        -- putStrLn $ showPpr cbs'
         edcs <- newPrune cfg cbs' tgt info
-        putStrLn ("CORE = \n\n" ++ showpp cbs') 
         liquidQueries cfg tgt info edcs
 
     cfg :: Config

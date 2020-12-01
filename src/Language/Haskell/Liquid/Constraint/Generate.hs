@@ -443,7 +443,7 @@ consCB _ _ γ (NonRec x e)
        extender γ (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, [Type])
-grepDictionary e = F.tracepp ("Dictionaries of " ++ showpp e) $ go [] e
+grepDictionary = go []
   where 
     go ts (App (Var w) (Type t)) = Just (w, reverse (t:ts))
     go ts (App e (Type t))       = go (t:ts) e
@@ -827,7 +827,7 @@ consE γ e'@(App e a@(Type τ))
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
-      Just riSig -> return $ F.tracepp ("dict type of " ++ showpp e') $  fromRISig riSig
+      Just riSig -> return $ fromRISig riSig
       _          -> do
         ([], πs, te) <- bkUniv <$> consE γ e
         te'          <- instantiatePreds γ e' $ foldr RAllP te πs
