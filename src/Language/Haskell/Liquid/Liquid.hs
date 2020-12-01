@@ -179,8 +179,8 @@ checkTargetInfo info = do
                      -- putStrLn $ render $ pprintCBs (cbs info)
         whenNormal $ donePhase Loud "Transformed Core"
         whenNormal $ donePhase Loud ("transformRecExpr" ++  "\n" ++
-                       putStrLn "*************** Transform Rec Expr CoreBinds *****************" ++  "\n" ++
-                       putStrLn $ showCBs (untidyCore cfg) cbs')
+                        "*************** Transform Rec Expr CoreBinds *****************" ++  "\n" ++
+                        showCBs (untidyCore cfg) cbs')
                        -- putStrLn $ render $ pprintCBs cbs'
                        -- putStrLn $ showPpr cbs'
         edcs <- newPrune cfg cbs' tgt info
