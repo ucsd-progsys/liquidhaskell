@@ -826,7 +826,7 @@ consE γ e'@(App e a@(Type τ))
 
 consE γ e'@(App e a) | Just aDict <- getExprDict γ a
   = case dhasinfo (dlookup (denv γ) aDict) (getExprFun γ e) of
-      Just riSig -> return $ fromRISig riSig
+      Just riSig -> return $ F.tracepp ("dict type of " ++ showpp e') $  fromRISig riSig
       _          -> do
         ([], πs, te) <- bkUniv <$> consE γ e
         te'          <- instantiatePreds γ e' $ foldr RAllP te πs
