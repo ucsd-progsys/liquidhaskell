@@ -184,6 +184,7 @@ checkTargetInfo info = do
                        -- putStrLn $ render $ pprintCBs cbs'
                        -- putStrLn $ showPpr cbs'
         edcs <- newPrune cfg cbs' tgt info
+        putStrLn ("CORE = \n\n" ++ showpp cbs') 
         liquidQueries cfg tgt info edcs
 
     cfg :: Config
