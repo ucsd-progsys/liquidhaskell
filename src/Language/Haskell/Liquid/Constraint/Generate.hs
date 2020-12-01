@@ -443,11 +443,12 @@ consCB _ _ γ (NonRec x e)
        extender γ (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, [Type])
-grepDictionary e = F.tracepp "Dictionaries" $ go [] e
+grepDictionary e = F.tracepp ("Dictionaries of " ++ showpp e) $ go [] e
   where 
     go ts (App (Var w) (Type t)) = Just (w, reverse (t:ts))
     go ts (App e (Type t))       = go (t:ts) e
     go ts (App e (Var _))        = go ts e
+    go ts (Let _ e)              = go ts e 
     go _ _                       = Nothing
 
 --------------------------------------------------------------------------------
