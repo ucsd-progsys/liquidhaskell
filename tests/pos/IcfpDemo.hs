@@ -47,10 +47,10 @@ merge (C x xs) (C y ys)
   | x < y     = x `C` merge xs (y `C` ys)
   | otherwise = y `C` merge (x `C` xs) ys
 
-{-@ measure emp  :: L a -> Bool
-    emp (N)      = true
-    emp (C x xs) = false
-  @-}
+{-@ measure emp @-}
+emp :: L a -> Bool
+emp N        = True
+emp (C x xs) = False
 
 {-@ type Stream a = {xs: L <{\v -> not (emp v)}> a | not (emp xs)} @-}
 

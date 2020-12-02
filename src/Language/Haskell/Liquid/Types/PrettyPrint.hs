@@ -36,11 +36,24 @@ import           Control.Monad
 import qualified Data.HashMap.Strict              as M
 import qualified Data.List                        as L                               -- (sort)
 import           Data.String
-import qualified TcRnMonad                        as Ghc
-import qualified CoreSyn as GHC
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Types          as F
-import           Language.Haskell.Liquid.GHC.API  as Ghc hiding (maybeParen, LM)
+import qualified Language.Haskell.Liquid.GHC.API  as Ghc
+import           Language.Haskell.Liquid.GHC.API  as Ghc ( Class
+                                                         , SrcSpan
+                                                         , PprPrec
+                                                         , DynFlags
+                                                         , Type
+                                                         , Var
+                                                         , Name
+                                                         , ErrMsg
+                                                         , SourceError
+                                                         , TyCon
+                                                         , topPrec
+                                                         , funPrec
+                                                         , srcSpanStartLine
+                                                         , srcSpanStartCol
+                                                         )
 import           Language.Haskell.Liquid.GHC.Logging (putErrMsg, mkLongErrAt)
 import           Language.Haskell.Liquid.GHC.Misc
 import           Language.Haskell.Liquid.Misc
@@ -77,10 +90,10 @@ instance PPrint SourceError where
 instance PPrint Var where
   pprintTidy _ = pprDoc
 
-instance PPrint (GHC.Expr Var) where
+instance PPrint (Ghc.Expr Var) where
   pprintTidy _ = pprDoc
 
-instance PPrint (GHC.Bind Var) where
+instance PPrint (Ghc.Bind Var) where
   pprintTidy _ = pprDoc
 
 instance PPrint Name where
@@ -117,7 +130,7 @@ pprAnnInfoBinds k (l, xvs)
   = vcat $ (pprAnnInfoBind k . (l,)) <$> xvs
 
 pprAnnInfoBind :: (PPrint a, PPrint b) => F.Tidy -> (SrcSpan, (Maybe a, b)) -> Doc
-pprAnnInfoBind k (RealSrcSpan sp, xv)
+pprAnnInfoBind k (Ghc.RealSrcSpan sp _, xv)
   = xd $$ pprDoc l $$ pprDoc c $$ pprintTidy k n $$ vd $$ text "\n\n\n"
     where
       l        = srcSpanStartLine sp

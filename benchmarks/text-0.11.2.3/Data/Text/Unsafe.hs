@@ -72,7 +72,7 @@ unsafeTail t@(Text arr off len) =
 data Iter = Iter {-# UNPACK #-} !Char {-# UNPACK #-} !Int
 
 {-@ measure iter_d :: Iter -> Int
-    iter_d (Iter c d) = d
+      iter_d (Iter c d) = d
   @-}
 
 {-@ qualif IterD(v:Int, i:Iter) : v = (iter_d i) @-}

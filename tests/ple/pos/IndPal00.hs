@@ -17,7 +17,7 @@ data Pal a where
 
 {-@ data Pal a where
         Pal0 :: Prop (Pal []) 
-      | Pals :: x:_ -> xs:_ -> Prop (Pal (x:xs)) 
+        Pals :: x:_ -> xs:_ -> Prop (Pal (x:xs)) 
   @-}
 
 

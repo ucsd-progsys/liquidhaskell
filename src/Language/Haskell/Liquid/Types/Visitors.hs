@@ -17,9 +17,7 @@ module Language.Haskell.Liquid.Types.Visitors (
 
   ) where
 
-import           CoreSyn
 import           Data.Hashable
-import           DataCon
 
 import           Data.List                        (foldl', (\\), delete)
 import qualified Data.HashSet                     as S
@@ -42,7 +40,7 @@ class CBVisitable a where
   literals :: a -> [Literal]
 
 instance CBVisitable [CoreBind] where
-  freeVars env cbs = (sortNub xs) \\ ys
+  freeVars env cbs = sortNub xs \\ ys
     where xs = concatMap (freeVars env) cbs
           ys = concatMap bindings cbs
 

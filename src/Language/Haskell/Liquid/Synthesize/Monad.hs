@@ -7,6 +7,7 @@
 module Language.Haskell.Liquid.Synthesize.Monad where
 
 
+import           Language.Haskell.Liquid.GHC.API as GHC
 import           Language.Haskell.Liquid.Bare.Resolve
                                                as B
 import           Language.Haskell.Liquid.Types
@@ -25,17 +26,11 @@ import           Language.Fixpoint.Types hiding ( SEnv
 import qualified Language.Fixpoint.Types       as F
 import qualified Language.Fixpoint.Types.Config
                                                as F
-import           CoreSyn                        ( CoreExpr )
-import qualified CoreSyn                       as GHC
-import           Var
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict           as M
 import           Data.Maybe
 import           Data.List
-import           CoreUtils                      ( exprType )
 import           Data.Tuple.Extra
-import           TyCon
-import           TyCoRep
 
 localMaxMatchDepth :: SM Int 
 localMaxMatchDepth = maxMatchDepth . getConfig . sCGEnv <$> get

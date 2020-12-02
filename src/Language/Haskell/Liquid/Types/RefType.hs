@@ -93,12 +93,6 @@ module Language.Haskell.Liquid.Types.RefType (
 -- import           GHC.Stack
 import Prelude hiding (error)
 -- import qualified Prelude
-import WwLib
-import FamInstEnv (emptyFamInstEnv)
-import Name             hiding (varName)
-import Var
-import DataCon
-import qualified TyCon  as TC
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
@@ -120,7 +114,22 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.Names
 import qualified Language.Haskell.Liquid.GHC.Misc as GM
 import           Language.Haskell.Liquid.GHC.Play (mapType, stringClassArg, isRecursivenewTyCon)
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, Located, mapType, tyConName)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Expr
+                                                                      , Located
+                                                                      , mapType
+                                                                      , tyConName
+                                                                      , punctuate
+                                                                      , hcat
+                                                                      , (<+>)
+                                                                      , parens
+                                                                      , empty
+                                                                      , dcolon
+                                                                      , vcat
+                                                                      , nest
+                                                                      , ($+$)
+                                                                      , panic
+                                                                      , text
+                                                                      )
 import           Language.Haskell.Liquid.GHC.TypeRep () -- Eq Type instance
 import Data.List (foldl')
 
@@ -1376,12 +1385,12 @@ ofType_ tx = go . expandTypeSynonyms
   where
     go (TyVarTy α)
       = tcFVar tx α
-    go (FunTy _ τ τ')
+    go (FunTy _ _ τ τ')
       = rFun dummySymbol (go τ) (go τ')
     go (ForAllTy (Bndr α _) τ)
       = RAllT (tcFTVar tx α) (go τ) mempty
     go (TyConApp c τs)
-      | Just (αs, τ) <- TC.synTyConDefn_maybe c
+      | Just (αs, τ) <- Ghc.synTyConDefn_maybe c
       = go (substTyWith αs τs τ)
       | otherwise
       = tcFApp tx c (go <$> τs) -- [] mempty
@@ -1442,17 +1451,17 @@ dataConReft c xs
       = mkEApp (dummyLoc $ symbol c) (eVar <$> xs)
 
 isBaseDataCon :: DataCon -> Bool
-isBaseDataCon c = and $ isBaseTy <$> dataConOrigArgTys c ++ dataConRepArgTys c
+isBaseDataCon c = and $ isBaseTy <$> map irrelevantMult (dataConOrigArgTys c ++ dataConRepArgTys c)
 
 isBaseTy :: Type -> Bool
-isBaseTy (TyVarTy _)     = True
-isBaseTy (AppTy _ _)     = False
-isBaseTy (TyConApp _ ts) = and $ isBaseTy <$> ts
-isBaseTy (FunTy  _ _ _)  = False
-isBaseTy (ForAllTy _ _)  = False
-isBaseTy (LitTy _)       = True
-isBaseTy (CastTy _ _)    = False
-isBaseTy (CoercionTy _)  = False
+isBaseTy (TyVarTy _)      = True
+isBaseTy (AppTy _ _)      = False
+isBaseTy (TyConApp _ ts)  = and $ isBaseTy <$> ts
+isBaseTy (FunTy _ _ _ _)  = False
+isBaseTy (ForAllTy _ _)   = False
+isBaseTy (LitTy _)        = True
+isBaseTy (CastTy _ _)     = False
+isBaseTy (CoercionTy _)   = False
 
 
 dataConMsReft :: Reftable r => RType c tv r -> [Symbol] -> Reft
@@ -1474,7 +1483,7 @@ toType  :: (ToTypeable r) => RRType r -> Type
 toType (RImpF x t t' r)
  = toType (RFun x t t' r)
 toType (RFun _ t t' _)
-  = FunTy VisArg (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
+  = FunTy VisArg Many (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType (RAllT a t _) | RTV α <- ty_var_value a
   = ForAllTy (Bndr α Required) (toType t)
 toType (RAllP _ t)
@@ -1605,7 +1614,7 @@ typeSort :: TCEmb TyCon -> Type -> Sort
 typeSort tce = go
   where
     go :: Type -> Sort
-    go t@(FunTy  _ _ _) = typeSortFun tce t
+    go t@FunTy{}        = typeSortFun tce t
     go τ@(ForAllTy _ _) = typeSortForAll tce τ
     -- go (TyConApp c τs)  = fApp (tyConFTyCon tce c) (go <$> τs)
     go (TyConApp c τs)  
@@ -1627,7 +1636,7 @@ tyConFTyCon tce c ts = case tceLookup c tce of
   where
     niTc             = symbolNumInfoFTyCon (dummyLoc $ tyConName c) (isNumCls c) (isFracCls c)
     -- oldRes           = F.notracepp _msg $ M.lookupDefault def c tce
-    -- _msg             = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, TC.isFamInstTyCon c)
+    -- _msg             = "tyConFTyCon c = " ++ show c ++ "default " ++ show (def, Ghc.isFamInstTyCon c)
 
 tyVarSort :: TyVar -> Sort
 tyVarSort = FObj . symbol 
@@ -1650,7 +1659,7 @@ typeSortForAll tce τ  = F.notracepp ("typeSortForall " ++ showpp τ) $ genSort 
 tyConName :: TyCon -> Symbol
 tyConName c
   | listTyCon == c    = listConName
-  | TC.isTupleTyCon c = tupConName
+  | Ghc.isTupleTyCon c = tupConName
   | otherwise         = symbol c
 
 typeSortFun :: TCEmb TyCon -> Type -> Sort
@@ -1660,7 +1669,7 @@ typeSortFun tce t = mkFFunc 0 sos
     τs            = grabArgs [] t
 
 grabArgs :: [Type] -> Type -> [Type]
-grabArgs τs (FunTy _ τ1 τ2)
+grabArgs τs (FunTy _ _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
   | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
@@ -1681,18 +1690,21 @@ expandProductType x t
   | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
      where
       isTrivial     = ofType (varType x) == toRSort t
-      τs            = fst $ splitFunTys $ snd $ splitForAllTys $ toType t
+      τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTys $ toType t
       trep          = toRTypeRep t
       (xs',ts',rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
 
 -- splitFunTys :: Type -> ([Type], Type)
 
 
-mkProductTy :: (Monoid t, Monoid r)
+mkProductTy :: forall t r. (Monoid t, Monoid r)
             => (Type, Symbol, RType RTyCon RTyVar r, t)
             -> [(Symbol, RType RTyCon RTyVar r, t)]
-mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ deepSplitProductType_maybe menv τ
+mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ do
+  DataConAppContext{..} <- deepSplitProductType_maybe menv τ
+  pure $ (dcac_dc, dcac_tys, map (\(t,s) -> (irrelevantMult t, s)) dcac_arg_tys, dcac_co)
   where
+    f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RType RTyCon RTyVar r, t)]
     f    = map ((dummySymbol, , mempty) . ofType . fst) . third4
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
@@ -1772,7 +1784,7 @@ mkDType _ _ _ _
   = Right "RefType.mkDType called on invalid input"
 
 isSizeable  :: S.HashSet TyCon -> TyCon -> Bool
-isSizeable autoenv tc = S.member tc autoenv --   TC.isAlgTyCon tc -- && TC.isRecursiveTyCon tc
+isSizeable autoenv tc = S.member tc autoenv --   Ghc.isAlgTyCon tc -- && Ghc.isRecursiveTyCon tc
 
 mkDecrFun :: S.HashSet TyCon -> RType RTyCon t t1 -> Symbol -> Expr
 mkDecrFun autoenv (RApp c _ _ _)
@@ -1826,9 +1838,9 @@ makeTyConVariance c = varSignToVariance <$> tvs
   where
     tvs = GM.tyConTyVarsDef c
 
-    varsigns = if TC.isTypeSynonymTyCon c
-                  then go True (fromJust $ TC.synTyConRhs_maybe c)
-                  else L.nub $ concatMap goDCon $ TC.tyConDataCons c
+    varsigns = if Ghc.isTypeSynonymTyCon c
+                  then go True (fromJust $ Ghc.synTyConRhs_maybe c)
+                  else L.nub $ concatMap goDCon $ Ghc.tyConDataCons c
 
     varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
                             []       -> Invariant
@@ -1836,12 +1848,12 @@ makeTyConVariance c = varSignToVariance <$> tvs
                             _        -> Bivariant
 
 
-    goDCon dc = concatMap (go True) (DataCon.dataConOrigArgTys dc)
+    goDCon dc = concatMap (go True) (map irrelevantMult $ Ghc.dataConOrigArgTys dc)
 
-    go pos (FunTy _ t1 t2) = go (not pos) t1 ++ go pos t2
-    go pos (ForAllTy _ t)  = go pos t
-    go pos (TyVarTy v)     = [(v, pos)]
-    go pos (AppTy t1 t2)   = go pos t1 ++ go pos t2
+    go pos (FunTy _ _ t1 t2) = go (not pos) t1 ++ go pos t2
+    go pos (ForAllTy _ t)    = go pos t
+    go pos (TyVarTy v)       = [(v, pos)]
+    go pos (AppTy t1 t2)     = go pos t1 ++ go pos t2
     go pos (TyConApp c' ts)
        | c == c'
        = []
@@ -1869,11 +1881,11 @@ makeTyConVariance c = varSignToVariance <$> tvs
 dataConsOfTyCon :: TyCon -> S.HashSet TyCon
 dataConsOfTyCon = dcs S.empty
   where
-    dcs vis c               = mconcat $ go vis <$> [t | dc <- TC.tyConDataCons c, t <- DataCon.dataConOrigArgTys dc]
-    go  vis (FunTy _ t1 t2) = go vis t1 `S.union` go vis t2
-    go  vis (ForAllTy _ t)  = go vis t
-    go  _   (TyVarTy _)     = S.empty
-    go  vis (AppTy t1 t2)   = go vis t1 `S.union` go vis t2
+    dcs vis c                 = mconcat $ go vis <$> [irrelevantMult t | dc <- Ghc.tyConDataCons c, t <- Ghc.dataConOrigArgTys dc]
+    go  vis (FunTy _ _ t1 t2) = go vis t1 `S.union` go vis t2
+    go  vis (ForAllTy _ t)    = go vis t
+    go  _   (TyVarTy _)       = S.empty
+    go  vis (AppTy t1 t2)     = go vis t1 `S.union` go vis t2
     go  vis (TyConApp c ts)
       | c `S.member` vis
       = S.empty
@@ -1894,8 +1906,13 @@ instance PPrint (UReft r) => Show (UReft r) where
   show = showpp
 
 instance PPrint DataDecl where
-  pprintTidy k dd = "data" <+> pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> pprint (tycTyVars dd) <+> "="
-                    $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- tycDCons dd ])
+  pprintTidy k dd =
+    let
+      prefix = "data" <+> pprint (tycName dd) <+> ppMbSizeFun (tycSFun dd) <+> pprint (tycTyVars dd)
+    in
+      case tycDCons dd of
+        Nothing   -> prefix
+        Just cons -> prefix <+> "=" $+$ nest 4 (vcat $ [ "|" <+> pprintTidy k c | c <- cons ])
 
 instance PPrint DataCtor where
   -- pprintTidy k (DataCtor c as _   xts Nothing)  = pprintTidy k c <+> dcolon ppVars as <+> braces (ppFields k ", " xts)

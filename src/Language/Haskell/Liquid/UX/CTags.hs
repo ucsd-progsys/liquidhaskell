@@ -21,8 +21,6 @@ module Language.Haskell.Liquid.UX.CTags (
 
 ) where
 
-import Var
-import CoreSyn
 import Prelude hiding (error)
 
 import qualified Data.HashSet           as S
@@ -30,6 +28,7 @@ import qualified Data.HashMap.Strict    as M
 import qualified Data.Graph             as G
 
 import Language.Fixpoint.Types          (Tag)
+import Language.Haskell.Liquid.GHC.API
 import Language.Haskell.Liquid.Types.Visitors (freeVars)
 import Language.Haskell.Liquid.Types.PrettyPrint ()
 import Language.Fixpoint.Misc     (mapSnd)

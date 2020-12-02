@@ -24,12 +24,8 @@ module Language.Haskell.Liquid.Transforms.Rewrite
 
   ) where
 
-import           CoreSyn
-import           Language.Haskell.Liquid.GHC.API
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding (showPpr)
 import           Language.Haskell.Liquid.GHC.TypeRep ()
-import qualified CoreUtils
-import qualified Var
-import qualified MkCore
 import           Data.Maybe     (fromMaybe)
 import           Control.Monad.State hiding (lift)
 import           Language.Fixpoint.Misc       ({- mapFst, -}  mapSnd)
@@ -232,7 +228,7 @@ rewriteWith tx           = go
 -- simplifyPatTuple :: RewriteRule
 -- simplifyPatTuple e =
 --  case simplifyPatTuple' e of
---    Just e' -> if CoreUtils.exprType e == CoreUtils.exprType e'
+--    Just e' -> if Ghc.exprType e == Ghc.exprType e'
 --                 then Just e'
 --                 else Just (tracePpr ("YIKES: RWR " ++ showPpr e) e')
 --    Nothing -> Nothing
@@ -241,7 +237,7 @@ rewriteWith tx           = go
 _safeSimplifyPatTuple :: RewriteRule
 _safeSimplifyPatTuple e
   | Just e' <- simplifyPatTuple e
-  , CoreUtils.exprType e' == CoreUtils.exprType e
+  , Ghc.exprType e' == Ghc.exprType e
   = Just e'
   | otherwise
   = Nothing
@@ -287,7 +283,7 @@ simplifyPatTuple _
 
 varTuple :: Var -> Maybe (Int, [Type])
 varTuple x
-  | TyConApp c ts <- Var.varType x
+  | TyConApp c ts <- Ghc.varType x
   , isTupleTyCon c
   = Just (length ts, ts)
   | otherwise
@@ -310,7 +306,7 @@ matchTypes xes ts =  xN == tN
   where
     xN            = length xes
     tN            = length ts
-    xts           = Var.varType <$> xs
+    xts           = Ghc.varType <$> xs
     (xs, es)      = unzip xes
     msg           = "RW:matchTypes"
 
@@ -342,7 +338,7 @@ hasTuple ys = stepE
 replaceTuple :: [Var] -> CoreExpr -> CoreExpr -> Maybe CoreExpr
 replaceTuple ys e e'           = stepE e
   where
-    t'                          = CoreUtils.exprType e'
+    t'                          = Ghc.exprType e'
     stepE e
      | Just xs <- isVarTup ys e = Just $ substTuple xs ys e'
      | otherwise                = go e
@@ -385,7 +381,7 @@ _errorSkip x _ = error x
 fixCase :: CoreExpr -> Var -> Type -> ListNE (Alt Var) -> CoreExpr
 fixCase e x _t cs' = Case e x t' cs'
   where
-    t'            = CoreUtils.exprType body
+    t'            = Ghc.exprType body
     (_,_,body)    = c
     c:_           = cs'
 
@@ -408,13 +404,13 @@ replaceIrrefutPat' :: Type -> CoreExpr -> Maybe CoreExpr
 replaceIrrefutPat' t e
   | (Var x, rep:_:args) <- collectArgs e
   , isIrrefutErrorVar x
-  = Just (MkCore.mkCoreApps (Var x) (rep : Type t : args))
+  = Just (Ghc.mkCoreApps (Var x) (rep : Type t : args))
   | otherwise
   = Nothing
 
 isIrrefutErrorVar :: Var -> Bool
--- isIrrefutErrorVar _x = False -- MkCore.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
-isIrrefutErrorVar x = x == MkCore.pAT_ERROR_ID
+-- isIrrefutErrorVar _x = False -- Ghc.iRREFUT_PAT_ERROR_ID == x -- TODO:GHC-863
+isIrrefutErrorVar x = x == Ghc.pAT_ERROR_ID
  
 --------------------------------------------------------------------------------
 -- | `substTuple xs ys e'` returns e' [y1 := x1,...,yn := xn]

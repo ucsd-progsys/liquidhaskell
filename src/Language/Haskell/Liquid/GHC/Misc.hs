@@ -18,28 +18,19 @@ module Language.Haskell.Liquid.GHC.Misc where
 
 import           Data.String
 import qualified Data.List as L
-import           PrelNames                                  (fractionalClassKeys)
 import           Debug.Trace
 
-import qualified CoreUtils
-import qualified DataCon                                    -- (dataConInstArgTys, isTupleDataCon)
 import           Prelude                                    hiding (error)
-import           CoreSyn                                    hiding (Expr, sourceName)
-import qualified CoreSyn                                    as Core
-import           CostCentre
-import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
-import           Bag
-import           CoreLint
-import           CoreMonad
-
-import           Finder                                     (findImportedModule, cannotFindModule)
-import           Panic                                      (throwGhcException)
-import           TcRnDriver
--- import           TcRnTypes
+import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
+                                                                          , sourceName
+                                                                          , showPpr
+                                                                          , showSDocDump
+                                                                          , panic
+                                                                          , showSDoc
+                                                                          )
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc (showSDoc, panic, showSDocDump)
 
 
-import           IdInfo
-import qualified TyCon                                      as TC
 import           Data.Char                                  (isLower, isSpace, isUpper)
 import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
 import           Data.Hashable
@@ -50,8 +41,6 @@ import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
 import           Control.Monad                              ((>=>))
-import           Outputable                                 (Outputable (..), text, ppr)
-import qualified Outputable                                 as Out
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
@@ -61,7 +50,7 @@ import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
 
 
-isAnonBinder :: TC.TyConBinder -> Bool
+isAnonBinder :: Ghc.TyConBinder -> Bool
 isAnonBinder (Bndr _ (AnonTCB _)) = True
 isAnonBinder (Bndr _ _)           = False
 
@@ -81,7 +70,7 @@ srcSpanTick m sp = ProfNote (AllCafsCC m sp) False True
 
 tickSrcSpan ::  Outputable a => Tickish a -> SrcSpan
 tickSrcSpan (ProfNote cc _ _) = cc_loc cc
-tickSrcSpan (SourceNote ss _) = RealSrcSpan ss
+tickSrcSpan (SourceNote ss _) = RealSrcSpan ss Nothing
 tickSrcSpan _                 = noSrcSpan
 
 --------------------------------------------------------------------------------
@@ -97,7 +86,7 @@ stringTyVar s = mkTyVar name liftedTypeKind
 
 -- FIXME: reusing uniques like this is really dangerous
 stringVar :: String -> Type -> Var
-stringVar s t = mkLocalVar VanillaId name t vanillaIdInfo
+stringVar s t = mkLocalVar VanillaId name Many t vanillaIdInfo
    where
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
       occ  = mkVarOcc s
@@ -107,7 +96,7 @@ stringTyCon = stringTyConWithKind anyTy
 
 -- FIXME: reusing uniques like this is really dangerous
 stringTyConWithKind :: Kind -> Char -> Int -> String -> TyCon
-stringTyConWithKind k c n s = TC.mkKindTyCon name [] k [] name
+stringTyConWithKind k c n s = Ghc.mkKindTyCon name [] k [] name
   where
     name          = mkInternalName (mkUnique c n) occ noSrcSpan
     occ           = mkTcOcc s
@@ -166,14 +155,14 @@ notracePpr _ x = x
 tracePpr :: Outputable a => String -> a -> a
 tracePpr s x = trace ("\nTrace: [" ++ s ++ "] : " ++ showPpr x) x
 
-pprShow :: Show a => a -> Out.SDoc
+pprShow :: Show a => a -> Ghc.SDoc
 pprShow = text . show
 
 
 toFixSDoc :: Fixpoint a => a -> PJ.Doc
 toFixSDoc = PJ.text . PJ.render . toFix
 
-sDocDoc :: Out.SDoc -> PJ.Doc
+sDocDoc :: Ghc.SDoc -> PJ.Doc
 sDocDoc   = PJ.text . showSDoc
 
 pprDoc :: Outputable a => a -> PJ.Doc
@@ -185,15 +174,15 @@ showPpr       = showSDoc . ppr
 
 -- FIXME: somewhere we depend on this printing out all GHC entities with
 -- fully-qualified names...
-showSDoc :: Out.SDoc -> String
-showSDoc sdoc = Out.renderWithStyle unsafeGlobalDynFlags sdoc (Out.mkUserStyle unsafeGlobalDynFlags myQualify {- Out.alwaysQualify -} Out.AllTheWay)
+showSDoc :: Ghc.SDoc -> String
+showSDoc sdoc = Ghc.renderWithStyle unsafeGlobalDynFlags sdoc (Ghc.mkUserStyle unsafeGlobalDynFlags myQualify {- Ghc.alwaysQualify -} Ghc.AllTheWay)
 
-myQualify :: Out.PrintUnqualified
-myQualify = Out.neverQualify { Out.queryQualifyName = Out.alwaysQualifyNames }
--- { Out.queryQualifyName = \_ _ -> Out.NameNotInScope1 }
+myQualify :: Ghc.PrintUnqualified
+myQualify = Ghc.neverQualify { Ghc.queryQualifyName = Ghc.alwaysQualifyNames }
+-- { Ghc.queryQualifyName = \_ _ -> Ghc.NameNotInScope1 }
 
-showSDocDump :: Out.SDoc -> String
-showSDocDump  = Out.showSDocDump unsafeGlobalDynFlags
+showSDocDump :: Ghc.SDoc -> String
+showSDocDump  = Ghc.showSDocDump unsafeGlobalDynFlags
 
 instance Outputable a => Outputable (S.HashSet a) where
   ppr = ppr . S.toList
@@ -214,8 +203,13 @@ instance Hashable Loc where
 --instance (Uniquable a) => Hashable a where
 
 instance Hashable SrcSpan where
-  hashWithSalt i (UnhelpfulSpan s) = hashWithSalt i (uniq s)
-  hashWithSalt i (RealSrcSpan s)   = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
+  hashWithSalt i (UnhelpfulSpan reason) = case reason of
+    UnhelpfulNoLocationInfo -> hashWithSalt i (uniq $ fsLit "UnhelpfulNoLocationInfo")
+    UnhelpfulWiredIn        -> hashWithSalt i (uniq $ fsLit "UnhelpfulWiredIn")
+    UnhelpfulInteractive    -> hashWithSalt i (uniq $ fsLit "UnhelpfulInteractive")
+    UnhelpfulGenerated      -> hashWithSalt i (uniq $ fsLit "UnhelpfulGenerated")
+    UnhelpfulOther fs       -> hashWithSalt i (uniq fs)
+  hashWithSalt i (RealSrcSpan s _)      = hashWithSalt i (srcSpanStartLine s, srcSpanStartCol s, srcSpanEndCol s)
 
 fSrcSpan :: (F.Loc a) => a -> SrcSpan
 fSrcSpan = fSrcSpanSrcSpan . F.srcSpan
@@ -233,7 +227,7 @@ srcSpanFSrcSpan sp = F.SS p p'
     p'             = srcSpanSourcePosE sp
 
 sourcePos2SrcSpan :: SourcePos -> SourcePos -> SrcSpan
-sourcePos2SrcSpan p p' = RealSrcSpan $ realSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')
+sourcePos2SrcSpan p p' = RealSrcSpan (realSrcSpan f (unPos l) (unPos c) (unPos l') (unPos c')) Nothing
   where
     (f, l,  c)         = F.sourcePosElts p
     (_, l', c')        = F.sourcePosElts p'
@@ -246,11 +240,11 @@ sourcePosSrcLoc (SourcePos file line col) = mkSrcLoc (fsLit file) (unPos line) (
 
 srcSpanSourcePos :: SrcSpan -> SourcePos
 srcSpanSourcePos (UnhelpfulSpan _) = dummyPos "<no source information>"
-srcSpanSourcePos (RealSrcSpan s)   = realSrcSpanSourcePos s
+srcSpanSourcePos (RealSrcSpan s _) = realSrcSpanSourcePos s
 
 srcSpanSourcePosE :: SrcSpan -> SourcePos
 srcSpanSourcePosE (UnhelpfulSpan _) = dummyPos "<no source information>"
-srcSpanSourcePosE (RealSrcSpan s)   = realSrcSpanSourcePosE s
+srcSpanSourcePosE (RealSrcSpan s _) = realSrcSpanSourcePosE s
 
 srcSpanFilename :: SrcSpan -> String
 srcSpanFilename    = maybe "" unpackFS . srcSpanFileName_maybe
@@ -327,7 +321,7 @@ collectTyBinders expr
     go tvs e                     = (reverse tvs, e)
 -}
 
-collectValBinders' :: Core.Expr Var -> ([Var], Core.Expr Var)
+collectValBinders' :: Ghc.Expr Var -> ([Var], Ghc.Expr Var)
 collectValBinders' = go []
   where
     go tvs (Lam b e) | isTyVar b = go tvs     e
@@ -335,7 +329,7 @@ collectValBinders' = go []
     go tvs (Tick _ e)            = go tvs e
     go tvs e                     = (reverse tvs, e)
 
-ignoreLetBinds :: Core.Expr t -> Core.Expr t
+ignoreLetBinds :: Ghc.Expr t -> Ghc.Expr t
 ignoreLetBinds (Let (NonRec _ _) e')
   = ignoreLetBinds e'
 ignoreLetBinds e
@@ -346,7 +340,7 @@ ignoreLetBinds e
 --------------------------------------------------------------------------------
 
 isTupleId :: Id -> Bool
-isTupleId = maybe False DataCon.isTupleDataCon . idDataConM
+isTupleId = maybe False Ghc.isTupleDataCon . idDataConM
 
 idDataConM :: Id -> Maybe DataCon
 idDataConM x = case idDetails x of
@@ -362,7 +356,7 @@ getDataConVarUnique v
   | isId v && isDataConId v = getUnique (idDataCon v)
   | otherwise               = getUnique v
 
-isDictionaryExpression :: Core.Expr Id -> Maybe Id
+isDictionaryExpression :: Ghc.Expr Id -> Maybe Id
 isDictionaryExpression (Tick _ e) = isDictionaryExpression e
 isDictionaryExpression (Var x)    | isDictionary x = Just x
 isDictionaryExpression _          = Nothing
@@ -415,11 +409,11 @@ lookupRdrName hsc_env mod_name rdr_name = do
                     case lookupGRE_RdrName rdr_name env of
                         [gre] -> return (Just (gre_name gre))
                         []    -> return Nothing
-                        _     -> Out.panic "lookupRdrNameInModule"
-                Nothing -> throwCmdLineErrorS dflags $ Out.hsep [Out.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
+                        _     -> Ghc.panic "lookupRdrNameInModule"
+                Nothing -> throwCmdLineErrorS dflags $ Ghc.hsep [Ghc.ptext (sLit "Could not determine the exports of the module"), ppr mod_name]
         err -> throwCmdLineErrorS dflags $ cannotFindModule dflags mod_name err
   where dflags = hsc_dflags hsc_env
-        throwCmdLineErrorS dflags = throwCmdLineError . Out.showSDoc dflags
+        throwCmdLineErrorS dflags = throwCmdLineError . Ghc.showSDoc dflags
         throwCmdLineError = throwGhcException . CmdLineError
 
 -- qualImportDecl :: ModuleName -> ImportDecl name
@@ -428,7 +422,6 @@ lookupRdrName hsc_env mod_name rdr_name = do
 ignoreInline :: ParsedModule -> ParsedModule
 ignoreInline x = x {pm_parsed_source = go <$> pm_parsed_source x}
   where 
-    go :: HsModule GhcPs -> HsModule GhcPs
     go  x      = x {hsmodDecls = filter go' (hsmodDecls x) }
     go' :: LHsDecl GhcPs -> Bool
     go' x 
@@ -485,12 +478,12 @@ fastStringText = T.decodeUtf8With TE.lenientDecode . bytesFS
 tyConTyVarsDef :: TyCon -> [TyVar]
 tyConTyVarsDef c
   | noTyVars c = []
-  | otherwise  = TC.tyConTyVars c
+  | otherwise  = Ghc.tyConTyVars c
   --where
   --  none         = tracepp ("tyConTyVarsDef: " ++ show c) (noTyVars c)
 
 noTyVars :: TyCon -> Bool
-noTyVars c =  (TC.isPrimTyCon c || isFunTyCon c || TC.isPromotedDataCon c)
+noTyVars c =  (Ghc.isPrimTyCon c || isFunTyCon c || Ghc.isPromotedDataCon c)
 
 --------------------------------------------------------------------------------
 -- | Symbol Instances
@@ -687,17 +680,17 @@ symbolFastString :: Symbol -> FastString
 symbolFastString = mkFastStringByteString . T.encodeUtf8 . symbolText
 
 lintCoreBindings :: [Var] -> CoreProgram -> (Bag MsgDoc, Bag MsgDoc)
-lintCoreBindings = CoreLint.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
+lintCoreBindings = Ghc.lintCoreBindings (defaultDynFlags undefined (undefined "LlvmTargets")) CoreDoNothing
 
 synTyConRhs_maybe :: TyCon -> Maybe Type
-synTyConRhs_maybe = TC.synTyConRhs_maybe
+synTyConRhs_maybe = Ghc.synTyConRhs_maybe
 
 tcRnLookupRdrName :: HscEnv -> Ghc.Located RdrName -> IO (Messages, Maybe [Name])
-tcRnLookupRdrName = TcRnDriver.tcRnLookupRdrName
+tcRnLookupRdrName = Ghc.tcRnLookupRdrName
 
 showCBs :: Bool -> [CoreBind] -> String
 showCBs untidy
-  | untidy    = Out.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
+  | untidy    = Ghc.showSDocDebug unsafeGlobalDynFlags . ppr . tidyCBs
   | otherwise = showPpr
 
 
@@ -742,7 +735,7 @@ expandVarType = expandTypeSynonyms . varType
 --   shouldn't appear in refinements.
 --------------------------------------------------------------------------------
 isPredExpr :: CoreExpr -> Bool
-isPredExpr = isPredType . CoreUtils.exprType
+isPredExpr = isPredType . Ghc.exprType
 
 isPredVar :: Var -> Bool
 isPredVar v = F.notracepp msg . isPredType . varType $ v
@@ -761,10 +754,10 @@ anyF ps x = or [ p x | p <- ps ]
 --   that are being handled by DEFAULT.
 defaultDataCons :: Type -> [AltCon] -> Maybe [(DataCon, [TyVar], [Type])]
 defaultDataCons (TyConApp tc argτs) ds = do 
-  allDs     <- TC.tyConDataCons_maybe tc
+  allDs     <- Ghc.tyConDataCons_maybe tc
   let seenDs = [d | DataAlt d <- ds ]
   let defDs  = keyDiff showPpr allDs seenDs 
-  return [ (d, Ghc.dataConExTyVars d, DataCon.dataConInstArgTys d argτs) | d <- defDs ] 
+  return [ (d, Ghc.dataConExTyVars d, map irrelevantMult $ Ghc.dataConInstArgTys d argτs) | d <- defDs ] 
 
 defaultDataCons _ _ = 
   Nothing

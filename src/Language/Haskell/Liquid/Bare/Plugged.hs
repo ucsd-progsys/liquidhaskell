@@ -137,7 +137,7 @@ plugMany embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
   where 
     (_,(xs,ts,_), t) = bkArrow (val pT) 
     pT               = plugHoles (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
-    hsT              = foldr (Ghc.mkFunTy Ghc.VisArg) hsRes hsArgs' 
+    hsT              = foldr (Ghc.mkFunTy Ghc.VisArg Ghc.Many) hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
     lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ lqArgs 

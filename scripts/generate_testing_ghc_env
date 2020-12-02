@@ -14,8 +14,9 @@ set -o pipefail
 # https://downloads.haskell.org/ghc/latest/docs/html/users_guide/packages.html#package-environments
 
 TMP_GHC_ENVIRONMENT_FILE=$(mktemp /tmp/liquid-ghc-enviroment.XXXXXX)
+PROJECT_FILE=${1:-cabal.project}
 
-cabal v2-exec $PWD/scripts/dump_ghc_environment > $TMP_GHC_ENVIRONMENT_FILE
+cabal v2-exec --project-file $PROJECT_FILE $PWD/scripts/dump_ghc_environment > $TMP_GHC_ENVIRONMENT_FILE
 
 # Remove the packages in the set:
 

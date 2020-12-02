@@ -21,7 +21,7 @@ data Last a where
 
 {-@ data Last [pfSize] a where
         End :: x:a -> Prop (Last x (Cons x Nil))
-      | Mid :: x:a -> y:a -> ys:List a 
+        Mid :: x:a -> y:a -> ys:List a 
             -> Prop (Last x ys) 
             -> Prop (Last x (Cons y ys))
   @-}

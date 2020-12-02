@@ -40,8 +40,8 @@ data Pal a where
 
 {-@ data Pal a where
         Pal0 :: Prop (Pal []) 
-      | Pal1 :: x:_ -> Prop (Pal (single x)) 
-      | Pals :: x:_ -> xs:_ -> Prop (Pal xs) -> Prop (Pal (mkPal x xs)) 
+        Pal1 :: x:_ -> Prop (Pal (single x)) 
+        Pals :: x:_ -> xs:_ -> Prop (Pal xs) -> Prop (Pal (mkPal x xs)) 
   @-}
 
 {-@ assume admit :: _ -> { false } @-}

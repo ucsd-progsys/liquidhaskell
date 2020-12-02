@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -27,6 +28,8 @@ module Language.Haskell.Liquid.GHC.GhcMonadLike (
   , desugarModule
   , findModule
   , lookupModule
+  , isBootInterface
+  , apiComments
   ) where
 
 import Control.Monad
@@ -51,17 +54,25 @@ import           Language.Haskell.Liquid.GHC.API   hiding ( ModuleInfo
                                                           , tm_parsed_module
                                                           , tm_renamed_source
                                                           )
+
+-- Shared imports for GHC < 9
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 import qualified CoreMonad
 import qualified EnumSet
-import TcRnMonad
-import Outputable
-import UniqFM
 import Maybes
-import Panic
 import GhcMake
-import Finder
 import Exception (ExceptionMonad)
+#else
+import GHC.Data.Maybe
+import GHC.Driver.Make
+import GHC.Utils.Exception (ExceptionMonad)
+import qualified GHC.Core.Opt.Monad as CoreMonad
+import qualified GHC.Data.EnumSet as EnumSet
+#endif
+#endif
 
+import qualified Data.Map.Strict as M
 import Optics
 
 class HasHscEnv m where
@@ -106,7 +117,7 @@ getModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootSummary ms) ]
+                      , not (isBootInterface . isBootSummary $ ms) ]
    case mods_by_name of
      [] -> do dflags <- getDynFlags
               liftIO $ throwIO $ mkApiErr dflags (text "Module not part of module graph")
@@ -114,12 +125,18 @@ getModSummary mdl = do
      multiple -> do dflags <- getDynFlags
                     liftIO $ throwIO $ mkApiErr dflags (text "getModSummary is ambiguous: " <+> ppr multiple)
 
+
+-- Converts a 'IsBootInterface' into a 'Bool'.
+isBootInterface :: IsBootInterface -> Bool
+isBootInterface IsBoot  = True
+isBootInterface NotBoot = False
+
 lookupModSummary :: GhcMonadLike m => ModuleName -> m (Maybe ModSummary)
 lookupModSummary mdl = do
    mg <- liftM hsc_mod_graph askHscEnv
    let mods_by_name = [ ms | ms <- mgModSummaries mg
                       , ms_mod_name ms == mdl
-                      , not (isBootSummary ms) ]
+                      , not (isBootInterface . isBootSummary $ ms) ]
    case mods_by_name of
      [ms] -> pure (Just ms)
      _    -> pure Nothing
@@ -139,10 +156,20 @@ lookupName name = do
 -- | Our own simplified version of 'ModuleInfo' to overcome the fact we cannot construct the \"original\"
 -- one as the constructor is not exported, and 'getHomeModuleInfo' and 'getPackageModuleInfo' are not
 -- exported either, so we had to backport them as well.
-data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM TyThing }
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
-modInfoLookupName :: GhcMonadLike m 
-                  => ModuleInfo 
+-- For GHC < 9, UniqFM has a single parameter.
+data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM TyThing }
+#else
+-- For GHC >= 9, UniqFM has two parameters.
+-- just fine.
+data ModuleInfo = ModuleInfo { minf_type_env :: UniqFM Name TyThing }
+#endif
+#endif
+
+modInfoLookupName :: GhcMonadLike m
+                  => ModuleInfo
                   -> Name
                   -> m (Maybe TyThing)
 modInfoLookupName minf name = do
@@ -291,3 +318,19 @@ lookupModule mod_name Nothing = do
       case res of
         Found _ m -> return m
         err       -> throwOneError $ noModError (hsc_dflags hsc_env) noSrcSpan mod_name err
+
+-- Compatibility shim to extract the comments out of an 'ApiAnns', as modern GHCs now puts the
+-- comments (i.e. Haskell comments) in a different field ('apiAnnRogueComments').
+apiComments :: ApiAnns -> [Ghc.Located AnnotationComment]
+apiComments apiAnns =
+  let comments = concat . M.elems . apiAnnComments $ apiAnns
+  in
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+      comments
+#else
+     map toRealSrc $ mappend comments (apiAnnRogueComments apiAnns)
+  where
+    toRealSrc (L x e) = L (RealSrcSpan x Nothing) e
+#endif
+#endif

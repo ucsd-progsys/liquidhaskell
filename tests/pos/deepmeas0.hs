@@ -5,12 +5,12 @@ import Language.Haskell.Liquid.Prelude (liquidError)
 import Data.Set
 
 {-@ measure getfst :: (a, b) -> a
-    getfst (x, y) = x
+      getfst (x, y) = x
   @-}
 
 {-@ measure keys :: [(k, v)] -> (Set k) 
-    keys ([])   = {v | Set_emp v }
-    keys (x:xs) = {v | (v = (Set_cup (Set_sng (getfst x)) (keys xs))) }
+      keys []   = {v | Set_emp v }
+      keys (x:xs) = {v | (v = (Set_cup (Set_sng (getfst x)) (keys xs))) }
   @-}
 
 {-@ getKeys :: kvs:[(a, b)] -> {v:[a] | ((keys kvs) = (listElts v))} @-}

@@ -10,7 +10,7 @@ packages: .
           ./liquid-platform
 
 package liquid-fixpoint
-  flags: devel
+  flags: +devel
 
 package liquid-platform
-  flags: devel
+  flags: +devel

@@ -17,9 +17,9 @@ data Relation a b where
 {-@
 data Relation a b where
   Empty :: Relation Void Void
-  | One :: {v:Int | v = 0 || v = 1} -> Relation () ()
-  | Join :: Relation c b -> Relation d b -> Relation (Either c d) b
-  | Fork :: Relation a c -> Relation a d -> Relation a (Either c d)
+  One :: {v:Int | v = 0 || v = 1} -> Relation () ()
+  Join :: Relation c b -> Relation d b -> Relation (Either c d) b
+  Fork :: Relation a c -> Relation a d -> Relation a (Either c d)
 @-}
 
 -- (Eq, Num, Ord, etc.. instances ...)

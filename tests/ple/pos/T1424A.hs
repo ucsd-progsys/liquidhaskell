@@ -27,8 +27,8 @@ data User = User { userId::Int, userName :: String, userFriend :: Int, userSSN :
 {-@
 data EntityField record typ where
    UserName :: EntityField User String
- | UserFriend :: EntityField User Int
- | UserSSN :: EntityField  User Int
+   UserFriend :: EntityField User Int
+   UserSSN :: EntityField  User Int
 @-}
 data EntityField a b where
   UserName :: EntityField User String

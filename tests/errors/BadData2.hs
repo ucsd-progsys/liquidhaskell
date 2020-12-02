@@ -2,6 +2,8 @@
 
 module Boo where
 
+-- The reason this fails is because the constructor we use in the
+-- refinement for Hog is in fact a constructor of T.
 {-@ data Hog where  
       Cuthb :: Nat -> T 
   @-}

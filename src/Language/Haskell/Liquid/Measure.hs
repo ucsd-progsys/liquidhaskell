@@ -22,9 +22,7 @@ module Language.Haskell.Liquid.Measure (
   , bodyPred
   ) where
 
-import           DataCon
 import           GHC                                    hiding (Located)
-import           Outputable                             (Outputable)
 import           Prelude                                hiding (error)
 import           Text.PrettyPrint.HughesPJ              hiding ((<>)) 
 -- import           Data.Binary                            as B
@@ -35,7 +33,7 @@ import qualified Data.Maybe                             as Mb -- (fromMaybe, isN
 
 import           Language.Fixpoint.Misc
 import           Language.Fixpoint.Types                hiding (panic, R, DataDecl, SrcSpan, LocSymbol)
-import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding (Expr, showPpr, panic, (<+>))
 import           Language.Haskell.Liquid.GHC.Misc
 -- import qualified Language.Haskell.Liquid.Misc as Misc
 import           Language.Haskell.Liquid.Types.Types    -- hiding (GhcInfo(..), GhcSpec (..))
@@ -194,7 +192,7 @@ defRefType tdc (Def f dc mt xs body)
     as'             = zip as (repeat mempty)
 
 splitType :: Type -> ([TyVar],[Type], Type)
-splitType t  = (αs, ts, tr)
+splitType t  = (αs, map irrelevantMult ts, tr)
   where
     (αs, tb) = splitForAllTys t
     (ts, tr) = splitFunTys tb

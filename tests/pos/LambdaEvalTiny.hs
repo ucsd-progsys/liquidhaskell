@@ -22,19 +22,19 @@ data Expr
   | App { eF :: Expr, eArg  ::Expr  }
 @-}
 
-{-@ measure elen :: Expr -> Int
-    elen (Var x)     = 0
-    elen (Lam x e)   = 1 + (elen e)
-    elen (App e1 e2) = 1 + (elen e1) + (elen e2)
-  @-}
+{-@ measure elen @-}
+elen :: Expr -> Int
+elen (Var x)     = 0
+elen (Lam x e)   = 1 + (elen e)
+elen (App e1 e2) = 1 + (elen e1) + (elen e2)
 
 {-@ invariant {v:Expr | (elen v) >= 0} @-}
 
-{-@  measure isValue :: Expr -> Bool
-     isValue (Lam x e)    = true
-     isValue (Var x)      = false
-     isValue (App e1 e2)  = false
-  @-}
+{-@ measure isValue @-}
+isValue :: Expr -> Bool
+isValue (Lam x e)    = True
+isValue (Var x)      = False
+isValue (App e1 e2)  = False
 
 {-@ type Value = {v: Expr | isValue v } @-}
 {-@ type Store = [(Bndr, Value)]            @-}

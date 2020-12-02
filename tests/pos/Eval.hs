@@ -42,13 +42,13 @@ eval env (Let x e1 e2) = eval env' e2
 {-@ type CExpr G = {v:Expr | Set_sub (free v) (vars G)} @-}
 
 {-@ measure vars :: Env -> (Set Bndr)
-    vars ([])    = {v | Set_emp v }
-    vars (b:env) = {v | v = Set_cup (Set_sng (fst b)) (vars env)}
+      vars []    = {v | Set_emp v }
+      vars (b:env) = {v | v = Set_cup (Set_sng (fst b)) (vars env)}
   @-}
 
 {-@ measure free       :: Expr -> (Set Bndr)
-    free (Const i)     = {v | Set_emp v}
-    free (Var x)       = {v | v = Set_sng x}
-    free (Plus e1 e2)  = {v | v = Set_cup (free e1) (free e2)}
-    free (Let x e1 e2) = {v | v = Set_cup (free e1) (Set_dif (free e2) (Set_sng x))}
+      free (Const i)     = {v | Set_emp v}
+      free (Var x)       = {v | v = Set_sng x}
+      free (Plus e1 e2)  = {v | v = Set_cup (free e1) (free e2)}
+      free (Let x e1 e2) = {v | v = Set_cup (free e1) (Set_dif (free e2) (Set_sng x))}
   @-}

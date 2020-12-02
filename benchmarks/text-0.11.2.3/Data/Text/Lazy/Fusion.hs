@@ -53,7 +53,7 @@ data TPairS b = Text :* b
 infixl 2 :*
 
 {-@ measure pslen :: TPairS b -> Int  
-    pslen ((:*) t b) = (ltlen t)
+      pslen ((:*) t b) = (ltlen t)
   @-}
 
 -- | /O(n)/ Convert a 'Text' into a 'Stream Char'.
@@ -80,7 +80,7 @@ data UC s = UC s {-# UNPACK #-} !Int
   @-}
 
 {-@ measure ucInt :: UC s -> Int
-    ucInt (UC s i) = i
+      ucInt (UC s i) = i
   @-}
 
 -- | /O(n)/ Convert a 'Stream Char' into a 'Text', using the given

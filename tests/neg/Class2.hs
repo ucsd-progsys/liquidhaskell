@@ -14,7 +14,7 @@ class Sized s where
 
 instance Sized [] where
   {-@ instance measure sz :: [a] -> Int
-        sz ([])   = 0
+        sz []   = 0
         sz (x:xs) = 1 + (sz xs)
     @-}
 

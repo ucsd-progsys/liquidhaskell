@@ -6,7 +6,7 @@ class HOLaws a where
     eqLaw :: (t -> a) -> t -> t -> Bool 
 
 {-@ class laws HOLaws a where 
-  eqSubstitutivity :: f : (t -> a) -> x:t -> y:t -> { x == y => f x == f y}
+      eqSubstitutivity :: f : (t -> a) -> x:t -> y:t -> { x == y => f x == f y}
   @-}
 
 
@@ -17,8 +17,8 @@ instance HOLaws Int where
     eqLaw = intEq 
 
 {-@ instance laws HOLaws Int where 
-    eqLaw = intEq 
-    eqSubstitutivity = eqSubstitutivityInt
+      eqLaw = intEq 
+      eqSubstitutivity = eqSubstitutivityInt
   @-}    
 
 {-@ reflect intEq @-}    

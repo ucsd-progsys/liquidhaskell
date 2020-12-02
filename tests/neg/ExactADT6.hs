@@ -7,7 +7,7 @@ module ExactADT6 where
 
 {-@ data EntityField typ where
         BlobXVal :: EntityField {v:Int | v >= 0}
-      | BlobYVal :: EntityField Int
+        BlobYVal :: EntityField Int
   @-}
 
 data EntityField typ where

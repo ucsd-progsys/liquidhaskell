@@ -9,11 +9,10 @@ data L a <p :: (L a) -> Bool>
   | C (lHd :: a) (lTl :: L <p> a <<p>>)
 @-}
 
-{-@
-measure isCons :: L a -> Bool
-isCons (N)     = false
-isCons (C a l) = true
-@-}
+{-@ measure isCons @-} 
+isCons :: L a -> Bool
+isCons N       = False
+isCons (C a l) = True
 
 {-@ type Stream a = {v: L <{\v -> (isCons v)}> a | (isCons v)} @-}
 
