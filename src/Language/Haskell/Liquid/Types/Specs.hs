@@ -553,11 +553,11 @@ emptyLiftedSpec = LiftedSpec
   , liftedCmeasures  = mempty
   , liftedImeasures  = mempty
   , liftedClasses    = mempty
-  , liftedClaws      = mempty 
+  , liftedClaws      = mempty
   , liftedRinstance  = mempty
   , liftedIlaws      = mempty
   , liftedDvariance  = mempty
-  , liftedBounds     = mempty 
+  , liftedBounds     = mempty
   , liftedDefs       = mempty
   , liftedAxeqs      = mempty
   }

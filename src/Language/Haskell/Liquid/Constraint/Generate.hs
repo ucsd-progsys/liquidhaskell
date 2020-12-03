@@ -448,7 +448,7 @@ grepDictionary = go []
     go ts (App (Var w) (Type t)) = Just (w, reverse (t:ts))
     go ts (App e (Type t))       = go (t:ts) e
     go ts (App e (Var _))        = go ts e
-    go ts (Let _ e)              = go ts e 
+    go ts (Let _ e)              = go ts e
     go _ _                       = Nothing
 
 --------------------------------------------------------------------------------

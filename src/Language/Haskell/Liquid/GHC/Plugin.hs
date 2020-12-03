@@ -292,7 +292,7 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
   let serialisedSpec = Util.serialiseLiquidLib liquidLib thisModule
   debugLog $ "Serialised annotation ==> " ++ (O.showSDocUnsafe . O.ppr $ serialisedSpec)
   
-  liftIO $ putStrLn "liquidHaskellCheck 10"
+  -- liftIO $ putStrLn "liquidHaskellCheck 10"
 
   pure $ tcGblEnv { tcg_anns = serialisedSpec : tcg_anns tcGblEnv }
   where
@@ -326,10 +326,10 @@ emptyLiquidLib :: LiquidLib
 emptyLiquidLib = mkLiquidLib emptyLiftedSpec
 
 isIgnore :: BareSpec -> IO Bool
-isIgnore (MkBareSpec sp) = do 
+isIgnore (MkBareSpec sp) = do
   let ps = pragmas sp
   print ps
-  return $ any ((== "--ignore-module") . F.val) $ ps 
+  return $ any ((== "--ignore-module") . F.val) ps
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------

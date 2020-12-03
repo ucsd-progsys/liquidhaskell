@@ -42,7 +42,7 @@ import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
-import           Language.Fixpoint.Types                (notracepp, atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
+import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
 -- import qualified Language.Fixpoint.Misc                 as Misc
 import           Language.Fixpoint.Utils.Files
 import           Language.Fixpoint.Solver.Stats ()     
@@ -133,7 +133,7 @@ sliceSaved' srcF is lm (DC coreBinds result spec)
   where
     gDiff     = globalDiff srcF is spec
     sp'       = assumeSpec sigm spec
-    res'      = notracepp ("adjustOutput: " ++ showpp result) $ adjustOutput lm cm result
+    res'      = adjustOutput lm cm result
     cm        = checkedItv (coreDefs cbs')
     cbs'      = thinWith sigs coreBinds (diffVars is defs)
     defs      = coreDefs coreBinds ++ specDefs srcF spec
@@ -205,8 +205,8 @@ thin cbs sp vs = DC (filterBinds      cbs vs') mempty sp'
 thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
 thinWith sigs cbs xs = filterBinds cbs calls
   where
-    calls    = notracepp ("thinWith-calls "  ++ show xs)   $ txClosure cbDeps sigs (S.fromList xs)
-    cbDeps   = notracepp ("thinWith-cbDeps [sigs = " ++ show sigs ++ "]") $ coreDeps cbs 
+    calls    = txClosure cbDeps sigs (S.fromList xs)
+    cbDeps   = coreDeps cbs 
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -288,7 +288,7 @@ coreExprDefs xm xes =
     ]
 
 coreExprDef :: M.HashMap Var (Int, Int) -> (Var, CoreExpr) -> Maybe (Int, Int)
-coreExprDef m (x, e) = notracepp ("coreExprDef: " ++ showpp (x, eSp, vSp)) $ meetSpans eSp vSp
+coreExprDef m (x, e) = meetSpans eSp vSp
   where
     eSp              = lineSpan x $ catSpans x $ exprSpans e
     vSp              = M.lookup x m
@@ -306,7 +306,7 @@ varExprs (Rec xes)    = xes
 -- | varBounds computes upper and lower bounds on where each top-level binder's 
 --   definition can be by using ONLY the lines where the binder is defined.
 varBounds :: [(Var, CoreExpr)] -> M.HashMap Var (Int, Int)
-varBounds = M.fromList . notracepp "defBounds" . defBounds . varDefs 
+varBounds = M.fromList . defBounds . varDefs 
 
 varDefs :: [(Var, CoreExpr)] -> [(Int, Var)]
 varDefs xes = 
@@ -474,7 +474,6 @@ diffShifts = go 1 1
 saveResult :: FilePath -> Output Doc -> IO ()
 --------------------------------------------------------------------------------
 saveResult target res = do 
-  -- putStrLn $ showpp ("saveResult: " <> pprint res)
   copyFile target saveF
   B.writeFile errF $ LB.toStrict $ encode res
   where
@@ -516,19 +515,15 @@ errorsResult f es                 = f es
 adjustErrors :: (PPrint (TError a)) => LMap -> ChkItv -> [TError a] -> [TError a]
 adjustErrors lm cm                = mapMaybe adjustError
   where
-    -- adjustError e = notracepp ("adjustError: " ++ showpp (pos e)) $ adjustError' e
     adjustError e                = case adjustSrcSpan lm cm (pos e) of
                                      Just sp' -> Just (e {pos = sp'})
                                      Nothing  -> Nothing
-
-    -- adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$>
-    -- adjustError e                 = Just e
 
 --------------------------------------------------------------------------------
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
 --------------------------------------------------------------------------------
 adjustSrcSpan lm cm sp
-  = do sp' <- {- tracepp ("adjustSpan: " ++ showpp sp ++ show cm) $ -} adjustSpan lm sp
+  = do sp' <- adjustSpan lm sp
        if isCheckedSpan cm sp'
          then Nothing
          else Just sp'
@@ -550,7 +545,7 @@ adjustReal lm rsp
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp
-    sh                            = {- tracepp ("adjustReal: " ++ show rsp) $ -} getShift l1 lm
+    sh                            = getShift l1 lm
 
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
