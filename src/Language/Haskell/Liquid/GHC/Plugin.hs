@@ -325,7 +325,7 @@ emptyLiquidLib :: LiquidLib
 emptyLiquidLib = mkLiquidLib emptyLiftedSpec
 
 isIgnore :: BareSpec -> Bool
-isIgnore (MkBareSpec sp) = any ((== "--ignore-module") . F.val) (pragmas sp)
+isIgnore (MkBareSpec sp) = any ((== "--skip-module") . F.val) (pragmas sp)
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------

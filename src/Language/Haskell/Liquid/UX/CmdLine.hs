@@ -412,9 +412,9 @@ config = cmdArgsMode $ Config {
                  ++ "Can speed up verification if rewriting terminates, but can also cause divergence."
                 )
   , 
-    ignoreModule
+    skipModule
     = def
-        &= name "ignore-module"
+        &= name "skip-module"
         &= help "Completely skip this module, don't even compile any specifications in it."
  
   } &= program "liquid"
@@ -660,7 +660,7 @@ defConfig = Config
   , maxArgsDepth             = 1
   , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
-  , ignoreModule            = False
+  , skipModule            = False
   }
 
 
