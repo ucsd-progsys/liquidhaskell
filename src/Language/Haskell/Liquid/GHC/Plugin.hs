@@ -263,10 +263,9 @@ liquidHaskellCheck pipelineData modSummary tcGblEnv = do
       , lhRelevantModules = relevantModules modGuts
       }
   
-  isIgnored <- liftIO $ isIgnore inputSpec
   -- liftIO $ putStrLn ("liquidHaskellCheck 6: " ++ show isIg)
 
-  liquidLib <- if isIgnored 
+  liquidLib <- if isIgnore inputSpec 
                 then pure emptyLiquidLib 
                 else checkLiquidHaskellContext lhContext 
  
@@ -325,11 +324,8 @@ errorLogger outputResult = do
 emptyLiquidLib :: LiquidLib
 emptyLiquidLib = mkLiquidLib emptyLiftedSpec
 
-isIgnore :: BareSpec -> IO Bool
-isIgnore (MkBareSpec sp) = do
-  let ps = pragmas sp
-  print ps
-  return $ any ((== "--ignore-module") . F.val) ps
+isIgnore :: BareSpec -> Bool
+isIgnore (MkBareSpec sp) = any ((== "--ignore-module") . F.val) (pragmas sp)
 
 --------------------------------------------------------------------------------
 -- | Working with bare & lifted specs ------------------------------------------
