@@ -7,6 +7,7 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE PartialTypeSignatures      #-}
+{-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE ViewPatterns               #-}
 
 module Language.Haskell.Liquid.GHC.Interface (
@@ -51,6 +52,7 @@ module Language.Haskell.Liquid.GHC.Interface (
   , availableVars
   , updLiftedSpec
   , loadDependenciesOf
+  , withWiredIn
   ) where
 
 import Prelude hiding (error)
@@ -64,6 +66,7 @@ import GHC.Serialized
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
 import Annotations
 import Avail
+import Bag
 import Class
 import CoreMonad
 import CoreSyn
@@ -76,11 +79,15 @@ import DynFlags
 import Finder
 import HscTypes hiding (Target)
 import IdInfo
+import IfaceEnv
 import InstEnv
 import Module
 import Panic (throwGhcExceptionIO)
 -- import Serialized
+import TcEvidence
+import TcBinds
 import TcRnTypes
+import UniqSupply
 import Var
 -- import NameSet
 import FastString
@@ -527,6 +534,72 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
       -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
           _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
           return      $ TargetInfo targetSrc targetSpec
+
+data WiredIn = WiredIn {
+    wiredInName :: Name
+  , wiredInFixity :: Maybe (Int, FixityDirection)
+  , wiredInType :: HsType GhcRn
+  }
+
+withWiredIn :: TcM a -> TcM a
+withWiredIn m = do
+  undef <- lookupUndef
+  wiredIns <- mkWiredIns
+  snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
+  
+ where
+  lookupUndef = do
+    lookupOrig (Module (stringToUnitId "GHC.Err") (mkModuleName "GHC.Err")) (Ghc.mkVarOcc "undefined")
+    -- tcLookupGlobal undefName
+
+  binds :: Name -> [WiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
+  binds undef wiredIns = map (\w -> 
+      let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
+      let co_fn = idHsWrapper in
+      let matches = 
+            let ctxt = LambdaExpr in
+            let grhss = GRHSs NoExtField [Ghc.L locSpan (GRHS NoExtField [] (Ghc.L locSpan (HsVar NoExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
+            MG NoExtField (Ghc.L locSpan [Ghc.L locSpan (Match NoExtField ctxt [] grhss)]) Ghc.Generated 
+      in
+      let b = FunBind ext (Ghc.L locSpan $ wiredInName w) matches co_fn [] in
+      (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
+    ) wiredIns
+
+  sigs wiredIns = concatMap (\w ->
+      let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig NoExtField $ FixitySig NoExtField [Ghc.L locSpan (wiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ wiredInFixity w in
+      let t = 
+            let ext = [] in -- TODO: What goes here? XXX
+            [Ghc.L locSpan $ TypeSig NoExtField [Ghc.L locSpan (wiredInName w)] $ HsWC ext $ HsIB ext $ Ghc.L locSpan $ wiredInType w]
+      in
+      inf <> t
+    ) wiredIns
+
+  locSpan = UnhelpfulSpan "Language.Haskell.Liquid.GHC.Interface: WiredIn"
+
+  mkWiredIns = sequence [impl, dimpl]
+
+  toName s = do
+    u <- getUniqueM
+    return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
+
+  boolTy = do
+    boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
+    return $ Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
+ 
+  -- infixr 1 ==> :: Bool -> Bool -> Bool
+  impl = do
+    n <- toName "==>"
+    b <- boolTy
+    let ty = HsFunTy NoExtField b (Ghc.L locSpan $ HsFunTy NoExtField b b)
+    return $ WiredIn n (Just (1, Ghc.InfixR)) ty
+
+  -- infixr 1 <=> :: Bool -> Bool -> Bool
+  dimpl = do
+    n <- toName "<=>"
+    b <- boolTy
+    let ty = HsFunTy NoExtField b (Ghc.L locSpan $ HsFunTy NoExtField b b)
+    return $ WiredIn n (Just (1, Ghc.InfixR)) ty
+
 
 initWiredIn :: BareSpec -> TargetDependencies -> TargetSrc -> Ghc ()
 initWiredIn bareSpec dependencies targetSrc = do
