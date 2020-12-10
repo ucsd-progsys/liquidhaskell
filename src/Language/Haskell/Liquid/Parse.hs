@@ -843,6 +843,7 @@ data Pspec ty ctor
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
+  | Relational (LocSymbol,LocSymbol,BareType,BareType,Expr)
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | ILaws   (RILaws ty)
@@ -1063,6 +1064,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.cmeasures  = [m | CMeas  m <- xs]
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
+  , Measure.relational = [r | Relational r <- xs]
   , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
@@ -1122,6 +1124,7 @@ specP
                                  <|> liftM DDecl  dataDeclP ))
 
     <|> (reserved "newtype"       >> liftM NTDecl dataDeclP )
+    <|> (reserved "relational"    >> liftM Relational relationalP )
     <|> (reserved "include"       >> liftM Incl   filePathP )
     <|> (fallbackSpecP "invariant"  (liftM Invt   invariantP))
     <|> (reserved "using"         >> liftM Using invaliasP )
@@ -1552,6 +1555,21 @@ dataSizeP :: Parser (Maybe SizeFun)
 dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
+
+relationalP :: Parser (LocSymbol,LocSymbol,BareType,BareType,Expr)
+relationalP = do 
+   x <- locBinderP
+   reserved "~"
+   y <- locBinderP
+   reserved "::"
+   tx <- genBareTypeP
+   reserved "~"
+   ty <- genBareTypeP
+   reserved "~~"
+   expr <- refaP
+   return (x,y,tx,ty,expr)
+
+
 
 dataDeclP :: Parser DataDecl
 dataDeclP = do
