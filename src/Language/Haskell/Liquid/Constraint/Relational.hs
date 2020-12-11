@@ -72,7 +72,7 @@ consRelTop _ ti γ (x,y,t,s,p) = do
   let cbs = giCbs $ giSrc ti 
   let e = findBody x cbs
   let d = findBody y cbs
-  let e' = F.tracepp ("To CHECK " ++ show (e,d,t,s,p)) e
+  let e' = F.tracepp ("\n\nInit To CHECK " ++ show (e,d,t,s,p)) e
   consRel γ [] e' d (val t) (val s) p 
 
 --------------------------------------------------------------
@@ -95,10 +95,13 @@ consRel γ ψ (Let _ e) (Let _ d) t s p =
   consRel γ ψ e d t s p 
 
 consRel γ ψ e@(Var _) d@(Var _) t s p = 
-  return $ F.tracepp ("To CHECK " ++ show (e,d,t,s,p)) ()
+  return $ F.tracepp ("Var\n\nTo CHECK " ++ show (e,d,t,s,p)) ()
 
 consRel γ ψ e@(Lit _) d@(Lit _) t s p = 
-  return $ F.tracepp ("To CHECK " ++ show (e,d,t,s,p)) ()
+  return $ F.tracepp ("Lit\n\nTo CHECK " ++ show (e,d,t,s,p)) ()
+
+consRel γ ψ e@(App _ _) d@(App _ _) t s p = 
+  return $ F.tracepp ("App\n\nTo CHECK " ++ show (e,d,t,s,p)) ()
 
 consRel γ ψ e d t s p = 
   error ("define me!" ++ show (e,d,t,s,p))
