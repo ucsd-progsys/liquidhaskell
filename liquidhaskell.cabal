@@ -121,6 +121,7 @@ library
                       Language.Haskell.Liquid.Constraint.Split
                       Language.Haskell.Liquid.Constraint.ToFixpoint
                       Language.Haskell.Liquid.Constraint.Types
+                      Language.Haskell.Liquid.Constraint.Relational
                       Language.Haskell.Liquid.GHC.API
                       Language.Haskell.Liquid.GHC.API.StableModule
                       Language.Haskell.Liquid.GHC.GhcMonadLike

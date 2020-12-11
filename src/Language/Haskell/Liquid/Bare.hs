@@ -476,6 +476,16 @@ makeDecrs env name mySpec =
            , let v    = Bare.lookupGhcVar env name "decreasing" lx
   ]
 
+makeRelation :: Bare.Env -> ModName -> Bare.SigEnv ->  Ms.BareSpec -> [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, F.Expr)]
+makeRelation env name sigEnv spec = map go (Ms.relational spec)
+  where 
+   go (x,y,tx,ty,e) = let vx = Bare.lookupGhcVar env name "Var" x
+                          vy = Bare.lookupGhcVar env name "Var" y
+                      in ( vx, vy                      
+                         , Bare.cookSpecType env sigEnv name (Bare.HsTV vx) tx
+                         , Bare.cookSpecType env sigEnv name (Bare.HsTV vy) ty
+                         , e)
+
 makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
 makeLazy env name spec = 
   S.map (Bare.lookupGhcVar env name "Var") (Ms.lazy spec)
@@ -600,6 +610,7 @@ makeSpecSig cfg name specs env sigEnv tycEnv measEnv cbs = SpSig
   , gsInSigs   = mempty -- TODO-REBARE :: ![(Var, LocSpecType)]  
   , gsNewTypes = makeNewTypes env sigEnv allSpecs 
   , gsTexprs   = [ (v, t, es) | (v, t, Just es) <- mySigs ] 
+  , gsRelation = makeRelation env name sigEnv mySpec 
   }
   where 
     dicts      = Bare.makeSpecDictionaries env sigEnv specs  

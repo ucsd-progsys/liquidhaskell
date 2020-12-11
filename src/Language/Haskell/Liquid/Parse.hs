@@ -843,7 +843,7 @@ data Pspec ty ctor
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
-  | Relational (LocSymbol,LocSymbol,BareType,BareType,Expr)
+  | Relational (LocSymbol,LocSymbol,LocBareType,LocBareType,Expr)
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | ILaws   (RILaws ty)
@@ -1556,15 +1556,15 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-relationalP :: Parser (LocSymbol,LocSymbol,BareType,BareType,Expr)
+relationalP :: Parser (LocSymbol,LocSymbol,LocBareType,LocBareType,Expr)
 relationalP = do 
    x <- locBinderP
    reserved "~"
    y <- locBinderP
    reserved "::"
-   tx <- genBareTypeP
+   tx <- located genBareTypeP
    reserved "~"
-   ty <- genBareTypeP
+   ty <- located genBareTypeP
    reserved "~~"
    expr <- refaP
    return (x,y,tx,ty,expr)

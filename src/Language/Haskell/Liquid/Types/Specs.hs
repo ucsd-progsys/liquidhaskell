@@ -224,6 +224,7 @@ data GhcSpecSig = SpSig
   , gsDicts    :: !(DEnv Var LocSpecType)            -- ^ Refined Classes from Instances 
   , gsMethods  :: ![(Var, MethodType LocSpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
+  , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr)]
   }
 
 data GhcSpecData = SpData 
@@ -337,7 +338,7 @@ data Spec ty bndr  = Spec
   , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
   , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
-  , relational :: ![(LocSymbol, LocSymbol, BareType, BareType, F.Expr)]
+  , relational :: ![(LocSymbol, LocSymbol, LocBareType, LocBareType, F.Expr)]
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
