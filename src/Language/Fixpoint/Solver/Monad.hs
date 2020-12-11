@@ -25,6 +25,7 @@ module Language.Fixpoint.Solver.Monad
        , tickIter
        , stats
        , numIter
+       , SolverState(..)
        )
        where
 
