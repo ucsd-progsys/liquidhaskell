@@ -48,6 +48,7 @@ import           Language.Fixpoint.Graph
 import           Language.Fixpoint.Parse            (rr')
 import           Language.Fixpoint.Types
 import           Language.Fixpoint.Minimize (minQuery, minQuals, minKvars)
+import           Language.Fixpoint.Solver.Instantiate (instantiate)
 import           Control.DeepSeq
 
 ---------------------------------------------------------------------------
@@ -206,7 +207,10 @@ simplifyFInfo !cfg !fi0 = do
   loudDump 2 cfg si4
   let si5  = {-# SCC "elaborate"  #-} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
-  return $ if extensionality cfg then {-# SCC "expand"     #-} expand cfg si5 else si5
+  let si6 = if extensionality cfg then {-# SCC "expand"     #-} expand cfg si5 else si5
+  if rewriteAxioms cfg && noLazyPLE cfg
+    then instantiate cfg si6 $!! Nothing
+    else return si6
 
 
 solveNative' !cfg !fi0 = do

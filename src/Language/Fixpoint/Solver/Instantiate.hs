@@ -48,7 +48,7 @@ mytracepp = notracepp
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: (Loc a) => Config -> SInfo a -> [SubcId] -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi subcIds
   | not (oldPLE cfg)
   = PLE.instantiate cfg fi subcIds
@@ -63,11 +63,11 @@ instantiate cfg fi subcIds
 ------------------------------------------------------------------------------- 
 -- | New "Incremental" PLE
 ------------------------------------------------------------------------------- 
-incrInstantiate' :: (Loc a) => Config -> SInfo a -> [SubcId] -> IO (SInfo a)
+incrInstantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 ------------------------------------------------------------------------------- 
 incrInstantiate' cfg fi subcIds = do
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c
-                      , i `L.elem` subcIds ]
+                      ,  maybe True (i `L.elem`) subcIds ]
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $ 
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
@@ -281,13 +281,13 @@ getCstr env cid = Misc.safeLookup "Instantiate.getCstr" cid env
 --------------------------------------------------------------------------------
 -- | "Old" GLOBAL PLE 
 --------------------------------------------------------------------------------
-instantiate' :: (Loc a) => Config -> SInfo a -> [SubcId] -> IO (SInfo a)
+instantiate' :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate' cfg fi subcIds = sInfo cfg env fi <$> withCtx cfg file env act
   where
     act ctx         = forM cstrs $ \(i, c) ->
                         ((i,srcSpan c),) . mytracepp  ("INSTANTIATE i = " ++ show i) <$> instSimpC cfg ctx (bs fi) aenv i c
     cstrs           = [ (i, c) | (i, c) <- M.toList (cm fi) , isPleCstr aenv i c
-                               , i `L.elem` subcIds ]
+                               ,  maybe True (i `L.elem`) subcIds ]
     file            = srcFile cfg ++ ".evals"
     env             = symbolEnv cfg fi
     aenv            = {- mytracepp  "AXIOM-ENV" -} (ae fi)

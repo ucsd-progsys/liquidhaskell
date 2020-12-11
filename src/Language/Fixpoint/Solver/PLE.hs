@@ -58,9 +58,10 @@ traceE (e,e')
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
 --------------------------------------------------------------------------------
-instantiate :: (Loc a) => Config -> SInfo a -> [SubcId] -> IO (SInfo a)
+instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
-    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c, i `L.elem` subcIds ]
+    let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c,
+               maybe True (i `L.elem`) subcIds ]
     let t  = mkCTrie cs                                               -- 1. BUILD the Trie
     res   <- withProgress (1 + length cs) $
                withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes

@@ -82,7 +82,7 @@ siKvars = S.fromList . M.keys . F.ws
 
 doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM ()
 doPLE cfg fi0 subcIds = do
-  fi <- liftIO $ instantiate cfg fi0 subcIds
+  fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
   modify $ update' fi
   where
     update' fi ss = ss{ssBinds = F.bs fi'}
@@ -106,7 +106,7 @@ solve_ cfg fi s0 ks wkl = do
   s3       <- {-# SCC "sol-refine" #-} refine s2 wkl
   res0     <- {-# SCC "sol-result" #-} result cfg wkl s3
   res      <- case resStatus res0 of
-    Unsafe _ bads | rewriteAxioms cfg -> do
+    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
       doPLE cfg fi (map fst bads)
       s4 <- {-# SCC "sol-refine" #-} refine s3 wkl
       result cfg wkl s4
