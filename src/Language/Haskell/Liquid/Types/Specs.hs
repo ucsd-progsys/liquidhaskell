@@ -62,6 +62,7 @@ module Language.Haskell.Liquid.Types.Specs (
   , bareSpecIso
   , liftedSpecGetter
   , unsafeFromLiftedSpec
+  , emptyLiftedSpec
   ) where
 
 import           Optics
@@ -529,6 +530,37 @@ data LiftedSpec = LiftedSpec
     deriving Hashable via Generically LiftedSpec 
     deriving Binary   via Generically LiftedSpec 
 
+emptyLiftedSpec :: LiftedSpec
+emptyLiftedSpec = LiftedSpec
+  { liftedMeasures = mempty 
+  , liftedImpSigs  = mempty
+  , liftedExpSigs  = mempty
+  , liftedAsmSigs  = mempty
+  , liftedSigs     = mempty
+  , liftedInvariants = mempty
+  , liftedIaliases   = mempty
+  , liftedImports    = mempty
+  , liftedDataDecls  = mempty
+  , liftedNewtyDecls = mempty
+  , liftedAliases    = mempty
+  , liftedEaliases   = mempty
+  , liftedEmbeds     = mempty
+  , liftedQualifiers = mempty
+  , liftedDecr       = mempty
+  , liftedLvars      = mempty
+  , liftedAutois     = mempty
+  , liftedAutosize   = mempty
+  , liftedCmeasures  = mempty
+  , liftedImeasures  = mempty
+  , liftedClasses    = mempty
+  , liftedClaws      = mempty
+  , liftedRinstance  = mempty
+  , liftedIlaws      = mempty
+  , liftedDvariance  = mempty
+  , liftedBounds     = mempty
+  , liftedDefs       = mempty
+  , liftedAxeqs      = mempty
+  }
 
 -- $trackingDeps
 
