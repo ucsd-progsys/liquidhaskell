@@ -44,13 +44,11 @@ available and so its tests wont run, for that use #2 above.
 }:
 let
   nixpkgs = import
-    (
-      builtins.fetchTarball {
-        # fetch latest nixpkgs https://github.com/NixOS/nixpkgs-channels/tree/nixos-20.03 as of Fri 11 Sep 2020 05:48:57 AM UTC
-        url = "https://github.com/NixOS/nixpkgs/archive/2fbcd0b9df95306199407e36a038d2cc3aa24786.tar.gz";
-        sha256 = "1q51cc51vv02yibj6dwaqp7zv3pz1iqnbzlvmv2fks6pj58xv03w";
-      }
-    )
+    (builtins.fetchTarball {
+      # fetch latest nixpkgs https://github.com/NixOS/nixpkgs/commits/nixos-20.03 as of Thu 17 Dec 2020 09:16:47 PM UTC
+      url = "https://github.com/NixOS/nixpkgs/archive/030e2ce817c8e83824fb897843ff70a15c131b96.tar.gz";
+      sha256 = "110kgp4x5bx44rgw55ngyhayr4s19xwy19n6qw9g01hvhdisilwf";
+    })
     { inherit config; };
   # helper to turn on tests, haddocks, and have z3 around
   beComponent = pkg: another: nixpkgs.haskell.lib.overrideCabal pkg (
@@ -64,9 +62,9 @@ let
   haskellPackages = haskellCompilerPackages.override (
     old: {
       all-cabal-hashes = nixpkgs.fetchurl {
-        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Fri 11 Sep 2020 05:48:57 AM UTC
-        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/9f291c67e7eb860ab12c1dce715a0256acf73997.tar.gz";
-        sha256 = "116svr28jq3h6zmjsmggwjk76vrj253hllgh8pkrgi9k38dkg24m";
+        # fetch latest cabal hashes https://github.com/commercialhaskell/all-cabal-hashes/tree/hackage as of Thu 17 Dec 2020 09:17:17 PM UTC
+        url = "https://github.com/commercialhaskell/all-cabal-hashes/archive/b195164429272e5bc9da2459e5094e94c8ede3b3.tar.gz";
+        sha256 = "07j6l7ppmvgcylyb2pgv6zwa7sx2x25sz7pj94cjfb0h9673nirq";
       };
       overrides = self: super: with nixpkgs.haskell.lib; rec {
         # turn off tests and haddocks and version bounds by default
