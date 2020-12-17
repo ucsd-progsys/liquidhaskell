@@ -485,10 +485,18 @@ elab f (ENeg e) = do
   (e', s) <- elab f e
   return (ENeg e', s)
 
-elab f@(_,g) (EIte p e1 e2) = do
+elab f@(_,g) (ECst (EIte p e1 e2) t) = do
   (p', _)   <- elab f p
-  (e1', s1) <- elab f e1
-  (e2', s2) <- elab f e2
+  (e1', s1) <- elab f (ECst e1 t)
+  (e2', s2) <- elab f (ECst e2 t)
+  s         <- checkIteTy g p e1' e2' s1 s2
+  return (EIte p' (cast e1' s) (cast e2' s), t)
+
+elab f@(_,g) (EIte p e1 e2) = do
+  t <- getIte g e1 e2 
+  (p', _)   <- elab f p
+  (e1', s1) <- elab f (ECst e1 t)
+  (e2', s2) <- elab f (ECst e2 t)
   s         <- checkIteTy g p e1' e2' s1 s2
   return (EIte p' (cast e1' s) (cast e2' s), s)
 
@@ -847,6 +855,12 @@ checkIte f p e1 e2 = do
   t1 <- checkExpr f e1
   t2 <- checkExpr f e2
   checkIteTy f p e1 e2 t1 t2
+
+getIte :: Env -> Expr -> Expr -> CheckM Sort 
+getIte f e1 e2 = do 
+  t1 <- checkExpr f e1 
+  t2 <- checkExpr f e2 
+  (`apply` t1) <$> unifys f Nothing [t1] [t2]
 
 checkIteTy :: Env -> Expr -> Expr -> Expr -> Sort -> Sort -> CheckM Sort
 checkIteTy f p e1 e2 t1 t2
