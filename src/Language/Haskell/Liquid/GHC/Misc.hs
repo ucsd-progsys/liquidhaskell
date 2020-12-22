@@ -28,7 +28,7 @@ import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr, sourceName)
 import qualified CoreSyn                                    as Core
 import           CostCentre
-import           IfaceEnv
+-- import           IfaceEnv
 import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
 import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Bag
@@ -37,7 +37,7 @@ import           CoreMonad
 
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
-import           PrelNames                                  (gHC_ERR)
+-- import           PrelNames                                  (gHC_ERR)
 import           TcRnDriver
 import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn, TcM)
 import           TcExpr                                     (tcInferSigma)
@@ -46,7 +46,7 @@ import           Inst                                       (deeplyInstantiate)
 import           TcSimplify                                 (simplifyInfer, simplifyInteractive, InferMode(..))
 import           TcBinds                                    (tcValBinds)
 import           TcHsSyn                                    (zonkTopLExpr)
-import           TcEvidence                                 (idHsWrapper, TcEvBinds(EvBinds))
+import           TcEvidence                                 (TcEvBinds(EvBinds))
 import           UniqSupply                                 (getUniqueM)
 import           DsMonad                                    (initDsTc)
 import           DsExpr                                     (dsLExpr)
@@ -1010,27 +1010,28 @@ data TcWiredIn = TcWiredIn {
 -- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
 withWiredIn :: TcM a -> TcM a
 withWiredIn m = do
-  undef <- lookupUndef
+  -- undef <- lookupUndef
   wiredIns <- mkWiredIns
-  snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
+  -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
+  snd <$> tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
   
  where
-  lookupUndef = do
-    lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
-    -- tcLookupGlobal undefName
+  -- lookupUndef = do
+  --   lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
+  --   -- tcLookupGlobal undefName
 
-  binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
-  binds undef wiredIns = map (\w -> 
-      let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
-      let co_fn = idHsWrapper in
-      let matches = 
-            let ctxt = LambdaExpr in
-            let grhss = GRHSs NoExtField [Ghc.L locSpan (GRHS NoExtField [] (Ghc.L locSpan (HsVar NoExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
-            MG NoExtField (Ghc.L locSpan [Ghc.L locSpan (Match NoExtField ctxt [] grhss)]) Ghc.Generated 
-      in
-      let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
-      (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
-    ) wiredIns
+  -- binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
+  -- binds undef wiredIns = map (\w -> 
+  --     let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
+  --     let co_fn = idHsWrapper in
+  --     let matches = 
+  --           let ctxt = LambdaExpr in
+  --           let grhss = GRHSs NoExtField [Ghc.L locSpan (GRHS NoExtField [] (Ghc.L locSpan (HsVar NoExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
+  --           MG NoExtField (Ghc.L locSpan [Ghc.L locSpan (Match NoExtField ctxt [] grhss)]) Ghc.Generated 
+  --     in
+  --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
+  --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
+  --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
       let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig NoExtField $ FixitySig NoExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
