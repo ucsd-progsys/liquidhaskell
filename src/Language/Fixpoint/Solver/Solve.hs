@@ -11,7 +11,7 @@
 module Language.Fixpoint.Solver.Solve (solve, solverInfo) where
 
 import           Control.Monad (when, filterM)
-import           Control.Monad.State.Strict (lift)
+import           Control.Monad.State.Strict (liftIO, modify, lift)
 import           Language.Fixpoint.Misc
 import qualified Language.Fixpoint.Misc            as Misc
 import qualified Language.Fixpoint.Types           as F
@@ -32,6 +32,9 @@ import qualified Data.HashMap.Strict as M
 import qualified Data.HashSet        as S
 -- import qualified Data.Maybe          as Mb 
 import qualified Data.List           as L
+import Language.Fixpoint.Types (resStatus, FixResult(Unsafe))
+import qualified Language.Fixpoint.Types.Config as C
+import Language.Fixpoint.Solver.Instantiate (instantiate)
 
 --------------------------------------------------------------------------------
 solve :: (NFData a, F.Fixpoint a, Show a, F.Loc a) => Config -> F.SInfo a -> IO (F.Result (Integer, a))
@@ -76,6 +79,17 @@ solverInfo cfg fI
 siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
+
+doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM ()
+doPLE cfg fi0 subcIds = do
+  fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
+  modify $ update' fi
+  where
+    update' fi ss = ss{ssBinds = F.bs fi'}
+      where
+        fi' = (siQuery sI) {F.hoInfo = F.HOI (C.allowHO cfg) (C.allowHOqs cfg)}
+        sI  = solverInfo cfg fi
+
 --------------------------------------------------------------------------------
 solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        => Config
@@ -87,10 +101,16 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
   let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
-  let s2   = mappend s0 s1 
-  -- let s3   = solveEbinds fi s2 
-  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
-  res     <- {-# SCC "sol-result" #-} result cfg wkl s
+  let s2   = mappend s0 s1
+  -- let s3   = solveEbinds fi s2
+  s3       <- {-# SCC "sol-refine" #-} refine s2 wkl
+  res0     <- {-# SCC "sol-result" #-} result cfg wkl s3
+  res      <- case resStatus res0 of
+    Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
+      doPLE cfg fi (map fst bads)
+      s4 <- {-# SCC "sol-refine" #-} refine s3 wkl
+      result cfg wkl s4
+    _ -> return res0
   st      <- stats
   let res' = {-# SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)

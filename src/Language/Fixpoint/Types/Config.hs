@@ -95,6 +95,7 @@ data Config = Config
   , rwTerminationCheck  :: Bool
   , stdin               :: Bool        -- ^ Read input query from stdin  
   , json                :: Bool        -- ^ Render output in JSON format
+  , noLazyPLE           :: Bool
   } deriving (Eq,Data,Typeable,Show,Generic)
 
 instance Default Config where
@@ -187,6 +188,7 @@ defConfig = Config {
   , rwTerminationCheck       = False   &= help "Disable rewrite divergence checker"
   , stdin                    = False   &= help "Read input query from stdin"
   , json                     = False   &= help "Render result in JSON"
+  , noLazyPLE                = False   &= help "Don't use lazy PLE"
   }
   &= verbosity
   &= program "fixpoint"
