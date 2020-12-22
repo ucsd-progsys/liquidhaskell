@@ -186,4 +186,4 @@ workflows:
       - stack_810_legacy_executable
       - stack_810
       - cabal_810
-      - cabal_900
+#      - cabal_900
