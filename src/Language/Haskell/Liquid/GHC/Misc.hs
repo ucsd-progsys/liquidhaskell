@@ -37,6 +37,7 @@ import           CoreMonad
 
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
+import           PrelNames                                  (gHC_ERR)
 import           TcRnDriver
 import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn, TcM)
 import           TcExpr                                     (tcInferSigma)
@@ -1015,7 +1016,7 @@ withWiredIn m = do
   
  where
   lookupUndef = do
-    lookupOrig (Module (stringToUnitId "GHC.Err") (mkModuleName "GHC.Err")) (Ghc.mkVarOcc "undefined")
+    lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
     -- tcLookupGlobal undefName
 
   binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
@@ -1048,21 +1049,19 @@ withWiredIn m = do
     u <- getUniqueM
     return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
 
-  boolTy = do
-    boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
-    return $ Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
+  boolTy = Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolTyConName
+    -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
+    -- return $ Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
  
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
     n <- toName "==>"
-    b <- boolTy
-    let ty = HsFunTy NoExtField b (Ghc.L locSpan $ HsFunTy NoExtField b b)
+    let ty = HsFunTy NoExtField boolTy (Ghc.L locSpan $ HsFunTy NoExtField boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infixr 1 <=> :: Bool -> Bool -> Bool
   dimpl = do
     n <- toName "<=>"
-    b <- boolTy
-    let ty = HsFunTy NoExtField b (Ghc.L locSpan $ HsFunTy NoExtField b b)
+    let ty = HsFunTy NoExtField boolTy (Ghc.L locSpan $ HsFunTy NoExtField boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
