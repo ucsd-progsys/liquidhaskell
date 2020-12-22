@@ -312,7 +312,7 @@ elaborateSpecType
   -> (CoreExpr -> TcRn CoreExpr)
   -> SpecType
   -> TcRn SpecType
-elaborateSpecType coreToLogic simplifier t = do
+elaborateSpecType coreToLogic simplifier t = GM.withWiredIn $ do
   (t', xs) <- elaborateSpecType' (pure ()) coreToLogic simplifier t
   case xs of
     _ : _ -> panic

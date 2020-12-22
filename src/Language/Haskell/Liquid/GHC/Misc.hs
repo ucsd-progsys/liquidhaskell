@@ -28,7 +28,9 @@ import           Prelude                                    hiding (error)
 import           CoreSyn                                    hiding (Expr, sourceName)
 import qualified CoreSyn                                    as Core
 import           CostCentre
+import           IfaceEnv
 import           Language.Haskell.Liquid.GHC.API            as Ghc hiding (L, sourceName)
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc
 import           Bag
 import           CoreLint
 import           CoreMonad
@@ -36,13 +38,15 @@ import           CoreMonad
 import           Finder                                     (findImportedModule, cannotFindModule)
 import           Panic                                      (throwGhcException)
 import           TcRnDriver
-import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn)
+import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn, TcM)
 import           TcExpr                                     (tcInferSigma)
 import           TcOrigin                                   (lexprCtOrigin)
 import           Inst                                       (deeplyInstantiate)
 import           TcSimplify                                 (simplifyInfer, simplifyInteractive, InferMode(..))
+import           TcBinds                                    (tcValBinds)
 import           TcHsSyn                                    (zonkTopLExpr)
-import           TcEvidence                                 (TcEvBinds(EvBinds))
+import           TcEvidence                                 (idHsWrapper, TcEvBinds(EvBinds))
+import           UniqSupply                                 (getUniqueM)
 import           DsMonad                                    (initDsTc)
 import           DsExpr                                     (dsLExpr)
 import           Predicate                                  (getClassPredTys)
@@ -54,7 +58,7 @@ import qualified TyCon                                      as TC
 import           GhcMonad                                   ()
 import           RnExpr                                     (rnLExpr)
 import           Data.Char                                  (isLower, isSpace, isUpper)
-import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
+import           Data.Maybe                                 (isJust, fromMaybe, fromJust, maybeToList)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
 import qualified Data.Map.Strict                            as OM
@@ -995,3 +999,70 @@ coherenceObligToRefE e rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
         rhs = L.foldr EApp (F.eVar F.vv_) ps1
         ps0 = F.eVar . F.symbol <$> L.reverse rps0
         ps1 = F.eVar . F.symbol <$> L.reverse rps1
+
+data TcWiredIn = TcWiredIn {
+    tcWiredInName :: Name
+  , tcWiredInFixity :: Maybe (Int, FixityDirection)
+  , tcWiredInType :: HsType GhcRn
+  }
+
+-- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
+withWiredIn :: TcM a -> TcM a
+withWiredIn m = do
+  undef <- lookupUndef
+  wiredIns <- mkWiredIns
+  snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
+  
+ where
+  lookupUndef = do
+    lookupOrig (Module (stringToUnitId "GHC.Err") (mkModuleName "GHC.Err")) (Ghc.mkVarOcc "undefined")
+    -- tcLookupGlobal undefName
+
+  binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
+  binds undef wiredIns = map (\w -> 
+      let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
+      let co_fn = idHsWrapper in
+      let matches = 
+            let ctxt = LambdaExpr in
+            let grhss = GRHSs NoExtField [Ghc.L locSpan (GRHS NoExtField [] (Ghc.L locSpan (HsVar NoExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
+            MG NoExtField (Ghc.L locSpan [Ghc.L locSpan (Match NoExtField ctxt [] grhss)]) Ghc.Generated 
+      in
+      let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
+      (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
+    ) wiredIns
+
+  sigs wiredIns = concatMap (\w ->
+      let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig NoExtField $ FixitySig NoExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
+      let t = 
+            let ext = [] in -- TODO: What goes here? XXX
+            [Ghc.L locSpan $ TypeSig NoExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
+      in
+      inf <> t
+    ) wiredIns
+
+  locSpan = UnhelpfulSpan "Language.Haskell.Liquid.GHC.Interface: WiredIn"
+
+  mkWiredIns = sequence [impl, dimpl]
+
+  toName s = do
+    u <- getUniqueM
+    return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
+
+  boolTy = do
+    boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
+    return $ Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
+ 
+  -- infixr 1 ==> :: Bool -> Bool -> Bool
+  impl = do
+    n <- toName "==>"
+    b <- boolTy
+    let ty = HsFunTy NoExtField b (Ghc.L locSpan $ HsFunTy NoExtField b b)
+    return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
+
+  -- infixr 1 <=> :: Bool -> Bool -> Bool
+  dimpl = do
+    n <- toName "<=>"
+    b <- boolTy
+    let ty = HsFunTy NoExtField b (Ghc.L locSpan $ HsFunTy NoExtField b b)
+    return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
+
