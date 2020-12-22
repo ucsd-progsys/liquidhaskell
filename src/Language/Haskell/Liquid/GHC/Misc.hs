@@ -1042,9 +1042,9 @@ withWiredIn m = do
       inf <> t
     ) wiredIns
 
-  locSpan = UnhelpfulSpan "Language.Haskell.Liquid.GHC.Interface: WiredIn"
+  locSpan = UnhelpfulSpan "Language.Haskell.Liquid.GHC.Misc: WiredIn"
 
-  mkWiredIns = sequence [impl, dimpl]
+  mkWiredIns = sequence [impl, dimpl, eq]
 
   toName s = do
     u <- getUniqueM
@@ -1065,4 +1065,12 @@ withWiredIn m = do
     n <- toName "<=>"
     let ty = HsFunTy NoExtField boolTy (Ghc.L locSpan $ HsFunTy NoExtField boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
+
+  -- infix 4 == :: forall a . a -> a -> Bool
+  eq = do
+    n <- toName "=="
+    aName <- Ghc.L locSpan <$> toName "a"
+    let aTy = Ghc.L locSpan $ HsTyVar NoExtField NotPromoted aName
+    let ty = HsForAllTy NoExtField ForallInvis [Ghc.L locSpan $ UserTyVar NoExtField aName] $ Ghc.L locSpan $ HsFunTy NoExtField aTy (Ghc.L locSpan $ HsFunTy NoExtField aTy boolTy)
+    return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
 
