@@ -39,7 +39,7 @@ import           Finder                                     (findImportedModule,
 import           Panic                                      (throwGhcException)
 -- import           PrelNames                                  (gHC_ERR)
 import           TcRnDriver
-import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn, TcM)
+import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn, TcM, discardConstraints)
 import           TcExpr                                     (tcInferSigma)
 import           TcOrigin                                   (lexprCtOrigin)
 import           Inst                                       (deeplyInstantiate)
@@ -1009,7 +1009,7 @@ data TcWiredIn = TcWiredIn {
 
 -- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
 withWiredIn :: TcM a -> TcM a
-withWiredIn m = do
+withWiredIn m = discardConstraints $ do
   -- undef <- lookupUndef
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
