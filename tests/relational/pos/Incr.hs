@@ -1,6 +1,6 @@
 module Fixme where 
 
-
+{-@ plus :: a:Int -> b:Int -> {v:Int | v == a + b} @-}
 plus :: Int -> Int -> Int 
 plus = (+)
 

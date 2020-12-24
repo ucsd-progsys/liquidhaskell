@@ -192,6 +192,7 @@ data Oblig
   = OTerm -- ^ Obligation that proves termination
   | OInv  -- ^ Obligation that proves invariants
   | OCons -- ^ Obligation that proves subtyping constraints
+  | ORel -- ^ Obligation that proves subtyping constraints
   deriving (Eq, Generic, Data, Typeable)
   deriving Hashable via Generically Oblig
 
@@ -200,6 +201,7 @@ instance Show Oblig where
   show OTerm = "termination-condition"
   show OInv  = "invariant-obligation"
   show OCons = "constraint-obligation"
+  show ORel  = "relational-obligation"
 
 instance NFData Oblig
 
@@ -210,6 +212,7 @@ ppOblig :: Oblig -> Doc
 ppOblig OCons = text "Constraint Check"
 ppOblig OTerm = text "Termination Check"
 ppOblig OInv  = text "Invariant Check"
+ppOblig ORel  = text "Relational Check"
 
 --------------------------------------------------------------------------------
 -- | Generic Type for Error Messages -------------------------------------------
