@@ -131,6 +131,15 @@ consRelSynth γ ψ (Tick _ e) d =
 consRelSynth γ ψ e (Tick _ d) =
   {- traceSyn "Right Tick" e d  -} consRelSynth γ ψ e d
 
+consRelSynth γ ψ a1@(App e1 (Type t1)) a2@(App e2 (Type t2)) = do 
+  syn <- consRelSynth γ ψ e1 e2
+  case syn of 
+    (RAllT α1 ft1 _, RAllT α2 ft2 _, p) -> do
+      t1' <- trueTy t1
+      t2' <- trueTy t2
+      undefined
+    _ -> F.panic $ "consRelSynth: malformed types or predicate for function application " ++ F.showpp syn
+
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
   | Var x1 <- GM.unTickExpr d1, Var x2 <- GM.unTickExpr d2 =
     traceSyn "App Expr Var" a1 a2 $ do
@@ -160,6 +169,8 @@ consUnarySynth γ (Var x) =
   case γ ?= F.symbol x of
     Just t -> return t
     Nothing -> F.panic $ "consUnarySynth Var " ++ F.showpp x ++ " not in scope " ++ F.showpp γ 
+consUnarySynth _ (Lit c) = 
+  refreshVV $ uRType $ literalFRefType c
 consUnarySynth _ e = F.panic $ "consUnarySynth is undefined for " ++ F.showpp e
 
 --------------------------------------------------------------
