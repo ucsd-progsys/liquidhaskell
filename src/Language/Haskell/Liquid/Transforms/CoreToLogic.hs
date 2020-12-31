@@ -380,6 +380,8 @@ toPredApp allowTC p = go . Misc.mapFst opSym . splitArgs allowTC $ p
     go (Just f, [e])
       | f == symbol ("not" :: String)
       = PNot <$>  coreToLg allowTC e
+      | f == symbol ("len" :: String)
+      = EApp (EVar "len") <$> coreToLg allowTC e
     go (Just f, [e1, e2])
       | f == symbol ("||" :: String)
       = POr <$> mapM (coreToLg allowTC) [e1, e2]
