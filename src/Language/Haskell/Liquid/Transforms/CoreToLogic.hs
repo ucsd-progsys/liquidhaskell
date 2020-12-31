@@ -3,7 +3,6 @@
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
 {-# LANGUAGE TupleSections          #-}
-
 module Language.Haskell.Liquid.Transforms.CoreToLogic
   ( coreToDef
   , coreToFun
@@ -374,7 +373,7 @@ coreToIte allowTC e (efalse, etrue)
 toPredApp :: Bool -> C.CoreExpr -> LogicM Expr
 toPredApp allowTC p = go . Misc.mapFst opSym . splitArgs allowTC $ p
   where
-    opSym = fmap GM.dropModuleNames . tomaybesymbol
+    opSym = fmap GM.dropModuleNamesAndUnique . tomaybesymbol
     go (Just f, [e1, e2])
       | Just rel <- M.lookup f brels
       = PAtom rel <$> coreToLg allowTC e1 <*> coreToLg allowTC e2
