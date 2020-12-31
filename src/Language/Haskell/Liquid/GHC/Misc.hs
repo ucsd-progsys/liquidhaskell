@@ -1044,15 +1044,20 @@ withWiredIn m = discardConstraints $ do
 
   locSpan = UnhelpfulSpan "Language.Haskell.Liquid.GHC.Misc: WiredIn"
 
-  mkWiredIns = sequence [impl, dimpl, eq]
+  mkWiredIns = sequence [impl, dimpl, eq, len]
 
   toName s = do
     u <- getUniqueM
     return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
 
-  boolTy = Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolTyConName
+  toLoc = Ghc.L locSpan
+  nameToTy = Ghc.L locSpan . HsTyVar NoExtField Ghc.NotPromoted
+
+  boolTy = nameToTy $ toLoc boolTyConName
     -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
     -- return $ Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
+  intTy = nameToTy $ toLoc intTyConName
+  listTy lt = toLoc $ HsAppTy NoExtField (nameToTy $ toLoc listTyConName) lt
  
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
@@ -1070,7 +1075,16 @@ withWiredIn m = discardConstraints $ do
   eq = do
     n <- toName "=="
     aName <- Ghc.L locSpan <$> toName "a"
-    let aTy = Ghc.L locSpan $ HsTyVar NoExtField NotPromoted aName
+    let aTy = nameToTy aName
     let ty = HsForAllTy NoExtField ForallInvis [Ghc.L locSpan $ UserTyVar NoExtField aName] $ Ghc.L locSpan $ HsFunTy NoExtField aTy (Ghc.L locSpan $ HsFunTy NoExtField aTy boolTy)
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
+  
+  -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
+  -- len :: forall a. [a] -> Int
+  len = do
+    n <- toName "len"
+    aName <- Ghc.L locSpan <$> toName "a"
+    let aTy = nameToTy aName
+    let ty = HsForAllTy NoExtField ForallInvis [Ghc.L locSpan $ UserTyVar NoExtField aName] $ Ghc.L locSpan $ HsFunTy NoExtField (listTy aTy) intTy
+    return $ TcWiredIn n Nothing ty
 
