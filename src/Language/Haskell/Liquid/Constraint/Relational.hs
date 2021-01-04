@@ -131,14 +131,16 @@ consRelSynth γ ψ (Tick _ e) d =
 consRelSynth γ ψ e (Tick _ d) =
   {- traceSyn "Right Tick" e d  -} consRelSynth γ ψ e d
 
-consRelSynth γ ψ a1@(App e1 (Type t1)) a2@(App e2 (Type t2)) = do 
-  syn <- consRelSynth γ ψ e1 e2
-  case syn of 
-    (RAllT α1 ft1 _, RAllT α2 ft2 _, p) -> do
-      t1' <- trueTy t1
-      t2' <- trueTy t2
-      undefined
-    _ -> F.panic $ "consRelSynth: malformed types or predicate for function application " ++ F.showpp syn
+consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
+  | Type t1 <- GM.unTickExpr d1, Type t2 <- GM.unTickExpr d2 =
+    traceSyn "App Expr Type" a1 a2 $ do
+    syn <- consRelSynth γ ψ e1 e2
+    case syn of 
+      (RAllT α1 ft1 _, RAllT α2 ft2 _, p) -> do
+        t1' <- trueTy t1
+        t2' <- trueTy t2
+        return (subsTyVar_meet' (ty_var_value α1, t1') ft1, subsTyVar_meet' (ty_var_value α2, t2') ft2, p)
+      _ -> F.panic $ "consRelSynth TYPE: malformed types or predicate for function application " ++ F.showpp syn
 
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
   | Var x1 <- GM.unTickExpr d1, Var x2 <- GM.unTickExpr d2 =
@@ -150,7 +152,7 @@ consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
           consRelCheck γ ψ d1 d2 s1 s2 (qsubst q)
           let subst = F.subst $ F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
           return (subst t1, subst t2, subst $ unapplyRelArgs v1 v2 p)
-        _ -> F.panic $ "consRelSynth: malformed types or predicate for function application " ++ F.showpp syn
+        _ -> F.panic $ "consRelSynth VAR: malformed types or predicate for function application " ++ F.showpp syn
   | otherwise = 
     F.panic $ "conRelSynth: appliction of functions " ++ F.showpp (e1, e2) ++ 
               " to non-variable exprs " ++ F.showpp (d1, d2) 
@@ -209,7 +211,8 @@ consRelSub _ _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different typ
 --------------------------------------------------------------
 
 wfTruth :: SpecType -> SpecType -> F.Expr
-wfTruth RFun { rt_out = t1 } RFun { rt_out = t2 } = 
+wfTruth (RAllT _ t1 _) (RAllT _ t2 _) = wfTruth t1 t2
+wfTruth (RFun _ _ t1 _) (RFun _ _ t2 _) = 
   F.PImp F.PTrue $ wfTruth t1 t2
 wfTruth _ _ = F.PTrue
 
