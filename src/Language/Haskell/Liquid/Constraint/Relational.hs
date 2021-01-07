@@ -26,6 +26,7 @@ import           Control.Monad.Fail
 
 import           Control.Monad.State
 import qualified Data.HashMap.Strict                            as M
+import qualified Data.List                                      as L
 import           Data.String                                    ( IsString(..) )
 import qualified Debug.Trace                                    as D
 import           Language.Fixpoint.Misc
@@ -92,14 +93,11 @@ consRelCheck γ ψ e (Tick _ d) t s p =
 
 consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 _) rt2@(RFun v2 s2 t2 _) pr@(F.PImp q p) = 
   traceChk "Lam" l1 l2 rt1 rt2 pr $ do
-  let evar1 = mkCopyWithSuffix "l" x1
-  let evar2 = mkCopyWithSuffix "r" x2
-  let pvar1 = F.symbol evar1
-  let pvar2 = F.symbol evar2
+  let (evar1, evar2) = mkRelCopies x1 x2
+  let (e1', e2') = subRelCopies e1 x1 e2 x2
+  let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
   γ' <- γ += ("consRelCheck Lam L", pvar1, s1)
   γ'' <- γ' += ("consRelCheck Lam R", pvar2, s2)
-  let e1' = sub (M.singleton x1 $ Var evar1) e1 
-  let e2' = sub (M.singleton x2 $ Var evar2) e2
   let p' = unapplyRelArgs v1 v2 p
   let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
   consRelCheck γ'' (subst q:ψ) e1' e2' (subst t1) (subst t2) (subst p')
@@ -107,9 +105,20 @@ consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 _) rt2@(RFun
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p = 
   traceChk "Let" l1 l2 t1 t2 p $ do
   (s1, s2, q) <- consRelSynth γ ψ d1 d2
-  γ' <- γ += ("consRelCheck Let L", F.symbol x1, s1)
-  γ'' <- γ' += ("consRelCheck Let R", F.symbol x2, s2)
-  consRelCheck γ'' (q:ψ) e1 e2 t1 t2 p
+  let (evar1, evar2) = mkRelCopies x1 x2
+  let (e1', e2') = subRelCopies e1 x1 e2 x2
+  γ' <- γ += ("consRelCheck Let L", F.symbol evar1, s1)
+  γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
+  consRelCheck γ'' (q:ψ) e1' e2' t1 t2 p
+
+consRelCheck γ ψ c1@(Case e1 x1 _ alts1) c2@(Case e2 x2 _ alts2) t1 t2 p 
+  | sameAlts alts1 alts2 = 
+  traceChk "Case" c1 c2 t1 t2 p $ do
+  let (evar1, evar2) = mkRelCopies x1 x2
+  (s1, s2, _) <- consRelSynth γ ψ e1 e2
+  γ' <- γ += ("consRelCheck Case L", F.symbol evar1, s1)
+  γ'' <- γ' += ("consRelCheck Case R", F.symbol evar2, s2)
+  forM_ (zip alts1 alts2) $ consRelCheckAlt γ'' ψ t1 t2 p x1 x2 s1 s2
 
 consRelCheck γ ψ e d t1 t2 p = 
   traceChk "Synth" e d t1 t2 p $ do
@@ -118,6 +127,41 @@ consRelCheck γ ψ e d t1 t2 p =
   γψ <- γ `extendWithExprs` ψ
   addC (SubC γψ s1 t1) ("consRelCheck (Synth): " ++ "s1 = " ++ F.showpp s1 ++ " t1 = " ++ F.showpp t1)
   addC (SubC γψ s2 t2) ("consRelCheck (Synth): " ++ "s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
+
+consRelCheckAlt :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
+  CoreBndr -> CoreBndr -> SpecType -> SpecType -> (Alt CoreBndr, Alt CoreBndr) -> CG ()
+consRelCheckAlt γ ψ t1 t2 p x1 x2 s1 s2 ((c1, bs1, e1), (c2, bs2, e2)) | c1 == c2 = do
+  let (e1', e2') = subRelCopies e1 x1 e2 x2
+  ct1 <- ctorTy γ c1 s1 
+  ct2 <- ctorTy γ c2 s2
+  γ'  <- unapply γ x1 s1 bs1 ct1 
+  γ'' <- unapply γ' x2 s2 bs2 ct2
+  consRelCheck γ'' ψ e1' e2' t1 t2 p
+consRelCheckAlt γ ψ t1 t2 s1 s2 p x1 x2 _ = F.panic "consRelCheckAlt undefined for non-equal sets of alts"
+
+ctorTy :: CGEnv -> AltCon -> SpecType -> CG SpecType
+ctorTy γ (DataAlt c) (RApp _ ts _ _) 
+  | Just ct <- mbct = refreshTy $ ct `instantiateTys` ts
+  | Nothing <- mbct = F.panic $ "ctorTy: data constructor out of scope" ++ F.showpp c
+  where mbct = γ ?= F.symbol (dataConWorkId c)
+ctorTy _ (DataAlt _) t =  F.panic $ "ctorTy: type " ++ F.showpp t ++ " is not ctor type"
+ctorTy _ (LitAlt c) _ = return $ uTop <$> literalFRefType c
+ctorTy γ DEFAULT x = undefined
+
+unapply :: CGEnv -> Var -> SpecType -> [Var] -> SpecType -> CG CGEnv
+unapply γ y yt (z : zs) (RFun x s t _) = do
+  let evar = F.symbol z
+  γ' <- γ += ("unapply arg", evar, s)
+  unapply γ' y yt zs (t `F.subst1` (x, F.EVar evar))
+unapply _ _ _ (_ : _) t = F.panic $ "can't unapply type " ++ F.showpp t
+unapply γ y yt [] t = γ += ("unapply res", F.symbol y, t `F.meet` yt)
+
+instantiateTys :: SpecType -> [SpecType] -> SpecType
+instantiateTys = L.foldl' go
+ where
+  go (RAllT α tbody _) t = subsTyVar_meet' (ty_var_value α, t) tbody
+  go tbody             t = 
+    F.panic $ "instantiateTys: non-polymorphic type " ++ F.showpp tbody ++ " to instantiate with " ++ F.showpp t 
 
 --------------------------------------------------------------
 -- Core Synthesis Rules --------------------------------------
@@ -171,8 +215,11 @@ consUnarySynth γ (Var x) =
   case γ ?= F.symbol x of
     Just t -> return t
     Nothing -> F.panic $ "consUnarySynth Var " ++ F.showpp x ++ " not in scope " ++ F.showpp γ 
-consUnarySynth _ (Lit c) = 
-  refreshVV $ uRType $ literalFRefType c
+consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
+consUnarySynth γ (Let (NonRec x d) e) = do
+  s <- consUnarySynth γ d
+  γ' <- γ += ("consUnarySynth Let", F.symbol x, s)
+  consUnarySynth γ' e
 consUnarySynth _ e = F.panic $ "consUnarySynth is undefined for " ++ F.showpp e
 
 --------------------------------------------------------------
@@ -193,7 +240,7 @@ consRelSub γ ψ t1@RApp {} t2@RApp {} p1 p2 =
   γ' <- γ += ("consRelSub Base L", resL, t1) 
   γ'' <- γ' += ("consRelSub Base R", resR, t2)
   γψ <- γ'' `extendWithExprs` ψ
-  addC (SubR γψ ORel $ uReft (F.vv_, F.PIff (F.EVar F.vv_) $ F.PImp p1 p2)) "consRelSub Base"
+  entl γψ (F.PImp p1 p2) "consRelSub Base"
 
 consRelSub _ _ t1@(RVar _ _) t2@(RVar _ _) _ _ = F.panic $ "consRelSub is undefined for RVar " ++ show (t1, t2)
 consRelSub _ _ t1@(RHole _) t2@(RHole _) _ _ = F.panic $ "consRelSub is undefined for RHole " ++ show (t1, t2)
@@ -219,6 +266,23 @@ wfTruth _ _ = F.PTrue
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
 --------------------------------------------------------------
+
+sameAlts :: [Alt CoreBndr] -> [Alt CoreBndr] -> Bool
+sameAlts alts1 alts2 = ctors alts1 == ctors alts2
+  
+ctors :: [Alt CoreBndr] -> [AltCon]
+ctors = map (\(c, _, _) -> c)
+
+entl :: CGEnv -> F.Expr -> String -> CG ()
+entl γ p = addC (SubR γ ORel $ uReft (F.vv_, F.PIff (F.EVar F.vv_) p))
+
+subRelCopies :: CoreExpr -> Var -> CoreExpr -> Var -> (CoreExpr, CoreExpr)
+subRelCopies e1 x1 e2 x2 = 
+  (sub (M.singleton x1 $ Var evar1) e1, sub (M.singleton x2 $ Var evar2) e2)
+  where (evar1, evar2) = mkRelCopies x1 x2
+
+mkRelCopies :: Var -> Var -> (Var, Var)
+mkRelCopies x1 x2 = (mkCopyWithSuffix "l" x1, mkCopyWithSuffix "r" x2)
 
 mkCopyWithName :: String -> Var -> Var
 mkCopyWithName s v = 
