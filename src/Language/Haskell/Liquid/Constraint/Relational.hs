@@ -91,16 +91,16 @@ consRelCheck γ ψ (Tick _ e) d t s p =
 consRelCheck γ ψ e (Tick _ d) t s p =
   {- traceChk "Right Tick" e d t s p $ -} consRelCheck γ ψ e d t s p
 
-consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 _) rt2@(RFun v2 s2 t2 _) pr@(F.PImp q p) = 
-  traceChk "Lam" l1 l2 rt1 rt2 pr $ do
-  let (evar1, evar2) = mkRelCopies x1 x2
-  let (e1', e2') = subRelCopies e1 x1 e2 x2
-  let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
-  γ' <- γ += ("consRelCheck Lam L", pvar1, s1)
-  γ'' <- γ' += ("consRelCheck Lam R", pvar2, s2)
-  let p' = unapplyRelArgs v1 v2 p
-  let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
-  consRelCheck γ'' (subst q:ψ) e1' e2' (subst t1) (subst t2) (subst p')
+consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 _) rt2@(RFun v2 s2 t2 _) pr@(F.PImp q p)
+  = traceChk "Lam" l1 l2 rt1 rt2 pr $ do
+    let (evar1, evar2) = mkRelCopies x1 x2
+    let (e1', e2')     = subRelCopies e1 x1 e2 x2
+    let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
+    γ'  <- γ += ("consRelCheck Lam L", pvar1, s1)
+    γ'' <- γ' += ("consRelCheck Lam R", pvar2, s2)
+    let p'    = unapplyRelArgs v1 v2 p
+    let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
+    consRelCheck γ'' (subst q : ψ) e1' e2' (subst t1) (subst t2) (subst p')
 
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p = 
   traceChk "Let" l1 l2 t1 t2 p $ do
@@ -125,8 +125,8 @@ consRelCheck γ ψ e d t1 t2 p =
   (s1, s2, q) <- consRelSynth γ ψ e d
   consRelSub γ ψ s1 s2 q p
   γψ <- γ `extendWithExprs` ψ
-  addC (SubC γψ s1 t1) ("consRelCheck (Synth): " ++ "s1 = " ++ F.showpp s1 ++ " t1 = " ++ F.showpp t1)
-  addC (SubC γψ s2 t2) ("consRelCheck (Synth): " ++ "s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
+  addC (SubC γψ s1 t1) ("consRelCheck (Synth): s1 = " ++ F.showpp s1 ++ " t1 = " ++ F.showpp t1)
+  addC (SubC γψ s2 t2) ("consRelCheck (Synth): s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
 
 consRelCheckAlt :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
   CoreBndr -> CoreBndr -> SpecType -> SpecType -> (Alt CoreBndr, Alt CoreBndr) -> CG ()
@@ -184,7 +184,7 @@ consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
         t1' <- trueTy t1
         t2' <- trueTy t2
         return (subsTyVar_meet' (ty_var_value α1, t1') ft1, subsTyVar_meet' (ty_var_value α2, t2') ft2, p)
-      _ -> F.panic $ "consRelSynth TYPE: malformed types or predicate for function application " ++ F.showpp syn
+      _ -> F.panic $ "consRelSynth (App Expr Type): malformed types or predicate for function application " ++ F.showpp syn
 
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
   | Var x1 <- GM.unTickExpr d1, Var x2 <- GM.unTickExpr d2 =
@@ -196,7 +196,7 @@ consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2)
           consRelCheck γ ψ d1 d2 s1 s2 (qsubst q)
           let subst = F.subst $ F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
           return (subst t1, subst t2, subst $ unapplyRelArgs v1 v2 p)
-        _ -> F.panic $ "consRelSynth VAR: malformed types or predicate for function application " ++ F.showpp syn
+        _ -> F.panic $ "consRelSynth (App Expr Var): malformed types or predicate for function application " ++ F.showpp syn
   | otherwise = 
     F.panic $ "conRelSynth: appliction of functions " ++ F.showpp (e1, e2) ++ 
               " to non-variable exprs " ++ F.showpp (d1, d2) 
@@ -211,16 +211,45 @@ consRelSynth γ _ e d = do
 --------------------------------------------------------------
 
 consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
+consUnarySynth γ (Tick _ e) = consUnarySynth γ e
 consUnarySynth γ (Var x) =
   case γ ?= F.symbol x of
     Just t -> return t
-    Nothing -> F.panic $ "consUnarySynth Var " ++ F.showpp x ++ " not in scope " ++ F.showpp γ 
+    Nothing -> F.panic $ "consUnarySynth (Var) " ++ F.showpp x ++ " not in scope " ++ F.showpp γ 
 consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
-consUnarySynth γ (Let (NonRec x d) e) = do
+consUnarySynth γ e@(Let _ _) = do
+  t   <- freshTy_type LetE e $ exprType e
+  addW $ WfC γ t
+  consUnaryCheck γ e t
+  return t
+consUnarySynth γ (App e d) = do
+  et <- consUnarySynth γ e
+  consUnarySynthApp γ e et (GM.unTickExpr d)
+consUnarySynth _ e@(Lam _ _) = F.panic $ "consUnarySynth is undefined for Lam " ++ F.showpp e
+consUnarySynth _ e@(Case _ _ _ _) = F.panic $ "consUnarySynth is undefined for Case " ++ F.showpp e
+consUnarySynth _ e@(Cast _ _) = F.panic $ "consUnarySynth is undefined for Cast " ++ F.showpp e
+consUnarySynth _ e@(Type _) = F.panic $ "consUnarySynth is undefined for Type " ++ F.showpp e
+consUnarySynth _ e@(Coercion _) = F.panic $ "consUnarySynth is undefined for Coercion " ++ F.showpp e
+ 
+consUnarySynthApp :: CGEnv -> CoreExpr -> SpecType -> CoreExpr -> CG SpecType
+consUnarySynthApp γ _ (RFun x s t _) d@(Var y) = do
+  consUnaryCheck γ d s
+  return $ t `F.subst1` (x, F.EVar $ F.symbol y)
+consUnarySynthApp _ _ (RAllT α t _) (Type s) = do
+    s' <- trueTy s
+    return $ subsTyVar_meet' (ty_var_value α, s') t
+consUnarySynthApp _ e ft d = 
+  F.panic $ "consUnarySynthApp malformed type " ++ F.showpp ft ++
+            " of the expr " ++ F.showpp e ++ " applied to " ++ F.showpp d  
+
+consUnaryCheck :: CGEnv -> CoreExpr -> SpecType -> CG ()
+consUnaryCheck γ (Let (NonRec x d) e) t = do
   s <- consUnarySynth γ d
-  γ' <- γ += ("consUnarySynth Let", F.symbol x, s)
-  consUnarySynth γ' e
-consUnarySynth _ e = F.panic $ "consUnarySynth is undefined for " ++ F.showpp e
+  γ' <- γ += ("consUnaryCheck Let", F.symbol x, s)
+  consUnaryCheck γ' e t
+consUnaryCheck γ e t = do
+  s <- consUnarySynth γ e
+  addC (SubC γ s t) ("consUnaryCheck (Synth): s = " ++ F.showpp s ++ " t = " ++ F.showpp t)
 
 --------------------------------------------------------------
 -- Predicate Subtyping  --------------------------------------
