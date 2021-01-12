@@ -209,8 +209,8 @@ consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick _ e) = consUnarySynth γ e
 consUnarySynth γ (Var x) =
   case γ ?= F.symbol x of
-    Just t -> return t
-    Nothing -> F.panic $ "consUnarySynth (Var) " ++ F.showpp x ++ " not in scope " ++ F.showpp γ 
+    Just t -> return $ selfify t x
+    Nothing -> F.panic $ "consUnarySynth (Var) " ++ F.showpp x ++ " not in scope " ++ F.showpp γ
 consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
 consUnarySynth γ e@(Let _ _) = do
   t   <- freshTy_type LetE e $ exprType e
@@ -225,7 +225,12 @@ consUnarySynth _ e@(Case _ _ _ _) = F.panic $ "consUnarySynth is undefined for C
 consUnarySynth _ e@(Cast _ _) = F.panic $ "consUnarySynth is undefined for Cast " ++ F.showpp e
 consUnarySynth _ e@(Type _) = F.panic $ "consUnarySynth is undefined for Type " ++ F.showpp e
 consUnarySynth _ e@(Coercion _) = F.panic $ "consUnarySynth is undefined for Coercion " ++ F.showpp e
- 
+
+selfify :: F.Symbolic a => SpecType -> a -> SpecType
+selfify t@(RApp {}) x = t `strengthen` eq x  
+  where eq = uTop . F.symbolReft . F.symbol
+selfify t _ = t
+
 consUnarySynthApp :: CGEnv -> SpecType -> CoreExpr -> CG SpecType
 consUnarySynthApp γ (RFun x s t _) d@(Var y) = do
   consUnaryCheck γ d s
