@@ -936,9 +936,9 @@ checkOpTy _ _ FInt  FReal
 checkOpTy _ _ FReal FInt
   = return FReal
 
-checkOpTy f _ t t'
-  | t == t'
-  = checkNumeric f t >> return t
+checkOpTy f e t t'
+  | Just s <- unify f (Just e) t t'
+  = checkNumeric f (apply s t) >> return (apply s t)
 
 checkOpTy _ e t t'
   = throwErrorAt (errOp e t t')
