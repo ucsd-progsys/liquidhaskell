@@ -1756,7 +1756,7 @@ efoldReft isErasable logicBind bsc cb dty g f fp = go
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RImpF x t t' r)             = go γ z (RFun x t t' r)
     go γ z me@(RFun _ (RApp c ts _ _) t' r)
-       | isErasable c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
+       | isClass c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x t t' r)
        | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
