@@ -390,8 +390,8 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
       Ghc.classAllSelIds (Ghc.is_cls inst)
     yts = [(GM.dropModuleNames y, t) | (y, t) <- dcpTyArgs dcp]
     mkSymbol x
-      -- | "$cp" `F.isPrefixOfSym` F.symbol x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
-      | F.notracepp ("isDictonaryId:" ++ GM.showPpr x) $ Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
+      | -- F.notracepp ("isDictonaryId:" ++ GM.showPpr x) $
+        Ghc.isDictonaryId x = F.mappendSym "$" (F.dropSym 2 $ GM.simplesymbol x)
       | otherwise = F.dropSym 2 $ GM.simplesymbol x
         -- res = dcpTyRes dcp
     clsTvs = dcpFreeTyVars dcp
