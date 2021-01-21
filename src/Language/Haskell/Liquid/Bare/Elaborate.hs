@@ -37,6 +37,7 @@ import           OccName
 import           FastString
 import           CoreSyn
 import           PrelNames
+import           Language.Haskell.Liquid.GHC.API (prependGHCRealQual)
 -- import qualified Outputable                    as O
 import           TysWiredIn                     ( boolTyCon
                                                 , true_RDR
@@ -679,9 +680,9 @@ bopToHsExpr bop = noLoc (HsVar NoExtField (noLoc (f bop)))
   f F.Minus  = minus_RDR
   f F.Times  = times_RDR
   f F.Div    = mkVarUnqual (fsLit "/")
-  f F.Mod    = varQual_RDR gHC_REAL (fsLit "mod")
+  f F.Mod    = prependGHCRealQual (fsLit "mod")
   f F.RTimes = times_RDR
-  f F.RDiv   = varQual_RDR gHC_REAL (fsLit "/")
+  f F.RDiv   = prependGHCRealQual (fsLit "/")
 
 brelToHsExpr :: F.Brel -> LHsExpr GhcPs
 brelToHsExpr brel = noLoc (HsVar NoExtField (noLoc (f brel)))

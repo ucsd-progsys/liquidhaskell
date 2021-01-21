@@ -46,7 +46,9 @@ module Language.Haskell.Liquid.GHC.API (
 #endif
 #endif
 
-  , gHC_REAL
+  -- , gHC_REAL
+  , prependGHCRealQual
+  , isFromGHCReal
   ) where 
 
 import Avail          as Ghc
@@ -145,6 +147,15 @@ import Util           (lengthIs)
 import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL)
 #endif
 #endif
+
+import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL, varQual_RDR)
+
+prependGHCRealQual :: FastString -> RdrName
+prependGHCRealQual = varQual_RDR gHC_REAL
+
+isFromGHCReal :: NamedThing a => a -> Bool
+isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_REAL
+
 
 --
 -- Compat shim for GHC 8.6.5
