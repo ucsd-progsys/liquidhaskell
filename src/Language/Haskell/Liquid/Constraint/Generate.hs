@@ -1050,7 +1050,7 @@ castTy' γ τ (Var x)
   = do t <- trueTy (typeclass (getConfig γ)) τ
        -- tx <- varRefType γ x -- NV HERE: the refinements of the var x do not get into the 
        --                      -- environment. Check 
-       let ce = if (noADT (getConfig γ)) then F.expr x
+       let ce = if typeclass (getConfig γ) && (noADT (getConfig γ)) then F.expr x
                 else eCoerc (typeSort (emb γ) $ Ghc.expandTypeSynonyms $ varType x) 
                        (typeSort (emb γ) τ) 
                        $ F.expr x  
