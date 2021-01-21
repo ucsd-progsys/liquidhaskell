@@ -83,9 +83,7 @@ inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) 
 lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
 lookupIdSubstAll doc env v | Just e <- M.lookup v env = e
                            | otherwise                = Var v
-        -- Vital! See Note [Extending the Subst]
-  -- | otherwise = WARN( True, text "CoreSubst.lookupIdSubst" <+> doc <+> ppr v
-  --                           $$ ppr in_scope)
+
 
 substExprAll :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
 substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
