@@ -41,7 +41,6 @@ import           Panic                                      (throwGhcException)
 import           TcRnDriver
 import           TcRnMonad                                  (failIfErrsM, newUnique, pushLevelAndCaptureConstraints, unsetWOptM, TcRn, TcM, discardConstraints)
 import           TcExpr                                     (tcInferSigma)
-import           TcOrigin                                   (lexprCtOrigin)
 import           Inst                                       (deeplyInstantiate)
 import           TcSimplify                                 (simplifyInfer, simplifyInteractive, InferMode(..))
 import           TcBinds                                    (tcValBinds)
@@ -50,8 +49,6 @@ import           TcEvidence                                 (TcEvBinds(EvBinds))
 import           UniqSupply                                 (getUniqueM)
 import           DsMonad                                    (initDsTc)
 import           DsExpr                                     (dsLExpr)
-import           Predicate                                  (getClassPredTys)
--- import           TcRnTypes
 
 
 import           IdInfo
@@ -930,7 +927,7 @@ elabRnExpr mode rdr_expr = do
     failIfErrsM
     uniq <- newUnique
     let fresh_it = itName uniq (getLoc rdr_expr)
-        orig     = lexprCtOrigin rn_expr
+        orig     = Ghc.lexprCtOrigin rn_expr
     (tclvl, lie, (tc_expr, res_ty)) <- pushLevelAndCaptureConstraints $ do
       (_tc_expr, expr_ty) <- tcInferSigma rn_expr
       expr_ty'            <- if inst
@@ -970,7 +967,7 @@ instance Outputable HashableType where
 canonSelectorChains :: PredType -> OM.Map HashableType [Id]
 canonSelectorChains t = foldr (OM.unionWith const) mempty (zs : xs)
  where
-  (cls, ts) = getClassPredTys t
+  (cls, ts) = Ghc.getClassPredTys t
   scIdTys   = classSCSelIds cls
   ys        = fmap (\d -> (d, piResultTys (idType d) (ts ++ [t]))) scIdTys
   zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [x])) ys
@@ -1026,18 +1023,18 @@ withWiredIn m = discardConstraints $ do
   --     let co_fn = idHsWrapper in
   --     let matches = 
   --           let ctxt = LambdaExpr in
-  --           let grhss = GRHSs NoExtField [Ghc.L locSpan (GRHS NoExtField [] (Ghc.L locSpan (HsVar NoExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
-  --           MG NoExtField (Ghc.L locSpan [Ghc.L locSpan (Match NoExtField ctxt [] grhss)]) Ghc.Generated 
+  --           let grhss = GRHSs Ghc.noExtField [Ghc.L locSpan (GRHS Ghc.noExtField [] (Ghc.L locSpan (HsVar Ghc.noExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
+  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated 
   --     in
   --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
   --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
   --   ) wiredIns
 
   sigs wiredIns = concatMap (\w ->
-      let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig NoExtField $ FixitySig NoExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
+      let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
       let t = 
             let ext = [] in -- TODO: What goes here? XXX
-            [Ghc.L locSpan $ TypeSig NoExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
+            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
       in
       inf <> t
     ) wiredIns
@@ -1051,24 +1048,24 @@ withWiredIn m = discardConstraints $ do
     return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
 
   toLoc = Ghc.L locSpan
-  nameToTy = Ghc.L locSpan . HsTyVar NoExtField Ghc.NotPromoted
+  nameToTy = Ghc.L locSpan . HsTyVar Ghc.noExtField Ghc.NotPromoted
 
   boolTy = nameToTy $ toLoc boolTyConName
     -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
-    -- return $ Ghc.L locSpan $ HsTyVar NoExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
+    -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
   intTy = nameToTy $ toLoc intTyConName
-  listTy lt = toLoc $ HsAppTy NoExtField (nameToTy $ toLoc listTyConName) lt
+  listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc listTyConName) lt
  
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
     n <- toName "==>"
-    let ty = HsFunTy NoExtField boolTy (Ghc.L locSpan $ HsFunTy NoExtField boolTy boolTy)
+    let ty = HsFunTy Ghc.noExtField boolTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infixr 1 <=> :: Bool -> Bool -> Bool
   dimpl = do
     n <- toName "<=>"
-    let ty = HsFunTy NoExtField boolTy (Ghc.L locSpan $ HsFunTy NoExtField boolTy boolTy)
+    let ty = HsFunTy Ghc.noExtField boolTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infix 4 == :: forall a . a -> a -> Bool
@@ -1076,7 +1073,11 @@ withWiredIn m = discardConstraints $ do
     n <- toName "=="
     aName <- Ghc.L locSpan <$> toName "a"
     let aTy = nameToTy aName
-    let ty = HsForAllTy NoExtField ForallInvis [Ghc.L locSpan $ UserTyVar NoExtField aName] $ Ghc.L locSpan $ HsFunTy NoExtField aTy (Ghc.L locSpan $ HsFunTy NoExtField aTy boolTy)
+    let ty = HsForAllTy Ghc.noExtField
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)    
+             ForallInvis
+#endif
+             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ Ghc.L locSpan $ HsFunTy Ghc.noExtField aTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField aTy boolTy)
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
   
   -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
@@ -1085,6 +1086,10 @@ withWiredIn m = discardConstraints $ do
     n <- toName "len"
     aName <- Ghc.L locSpan <$> toName "a"
     let aTy = nameToTy aName
-    let ty = HsForAllTy NoExtField ForallInvis [Ghc.L locSpan $ UserTyVar NoExtField aName] $ Ghc.L locSpan $ HsFunTy NoExtField (listTy aTy) intTy
+    let ty = HsForAllTy Ghc.noExtField
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+               ForallInvis
+#endif
+               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ Ghc.L locSpan $ HsFunTy Ghc.noExtField (listTy aTy) intTy
     return $ TcWiredIn n Nothing ty
 

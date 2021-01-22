@@ -13,6 +13,8 @@ import           Control.Arrow                  ( second )
 import           OccurAnal                      ( occurAnalysePgm )
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
+import qualified Language.Haskell.Liquid.GHC.API
+                                               as Ghc
 import           Class                          ( classAllSelIds )
 import           Id
 import           CoreFVs                        ( exprFreeVarsList )
@@ -26,7 +28,7 @@ import           GhcPlugins                     ( isDFunId
                                                 , getOccName
                                                 , mkCoreApps
                                                 )
-import           Predicate                      ( isDictId )
+-- import           Predicate                      ( isDictId )
 import qualified Data.HashMap.Strict           as M
 import           CoreSubst
 import           GHC                            ( isDictonaryId )
@@ -145,7 +147,7 @@ inlineAuxExpr dfunId methodToAux e = go e
   go :: CoreExpr -> CoreExpr
   go (Lam b body) = Lam b (go body)
   go (Let b body)
-    | NonRec x e <- b, isDictId x = go
+    | NonRec x e <- b, Ghc.isDictId x = go
     $ substExpr O.empty (extendIdSubst emptySubst x e) body
     | otherwise = Let (mapBnd go b) (go body)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)

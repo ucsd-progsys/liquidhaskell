@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeApplications          #-}
 {-# LANGUAGE LambdaCase                #-}
 {-# LANGUAGE OverloadedStrings         #-}
+{-# LANGUAGE CPP                       #-}
 -- | This module uses GHC API to elaborate the resolves expressions
 
 -- TODO: Genearlize to BareType and replace the existing resolution mechanisms
@@ -37,7 +38,9 @@ import           OccName
 import           FastString
 import           CoreSyn
 import           PrelNames
-import           Language.Haskell.Liquid.GHC.API (prependGHCRealQual)
+import qualified Language.Haskell.Liquid.GHC.API as Ghc
+                                                (prependGHCRealQual, noExtField)
+
 -- import qualified Outputable                    as O
 import           TysWiredIn                     ( boolTyCon
                                                 , true_RDR
@@ -514,7 +517,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
             buildHsExpr (fixExprToHsExpr (S.fromList origBinders) e)
                         querySpecType :: LHsExpr GhcPs
           exprWithTySigs = noLoc $ ExprWithTySig
-            NoExtField
+            Ghc.noExtField
             hsExpr
             (mkLHsSigWcType (specTypeToLHsType querySpecType))
         eeWithLamsCore <- GM.elabRnExpr TM_Inst exprWithTySigs
@@ -666,26 +669,26 @@ fixExprToHsExpr env e =
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs
 -- constantToHsExpr (F.I c) = noLoc (HsLit NoExt (HsInt NoExt (mkIntegralLit c)))
 constantToHsExpr (F.I i) =
-  noLoc (HsOverLit NoExtField (mkHsIntegral (mkIntegralLit i)))
+  noLoc (HsOverLit Ghc.noExtField (mkHsIntegral (mkIntegralLit i)))
 constantToHsExpr (F.R d) =
-  noLoc (HsOverLit NoExtField (mkHsFractional (mkFractionalLit d)))
+  noLoc (HsOverLit Ghc.noExtField (mkHsFractional (mkFractionalLit d)))
 constantToHsExpr _ =
   todo Nothing "constantToHsExpr: Not sure how to handle constructor L"
 
 -- This probably won't work because of the qualifiers
 bopToHsExpr :: F.Bop -> LHsExpr GhcPs
-bopToHsExpr bop = noLoc (HsVar NoExtField (noLoc (f bop)))
+bopToHsExpr bop = noLoc (HsVar Ghc.noExtField (noLoc (f bop)))
  where
   f F.Plus   = plus_RDR
   f F.Minus  = minus_RDR
   f F.Times  = times_RDR
   f F.Div    = mkVarUnqual (fsLit "/")
-  f F.Mod    = prependGHCRealQual (fsLit "mod")
+  f F.Mod    = Ghc.prependGHCRealQual (fsLit "mod")
   f F.RTimes = times_RDR
-  f F.RDiv   = prependGHCRealQual (fsLit "/")
+  f F.RDiv   = Ghc.prependGHCRealQual (fsLit "/")
 
 brelToHsExpr :: F.Brel -> LHsExpr GhcPs
-brelToHsExpr brel = noLoc (HsVar NoExtField (noLoc (f brel)))
+brelToHsExpr brel = noLoc (HsVar Ghc.noExtField (noLoc (f brel)))
  where
   f F.Eq = mkVarUnqual (mkFastString "==")
   f F.Gt = gt_RDR
@@ -729,13 +732,15 @@ specTypeToLHsType =
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv)) 
     RFunF _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLoc $ HsQualTy NoExtField (noLoc [tin']) tout
+      | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
     RImpFF _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
-      NoExtField
+      Ghc.noExtField
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
       ForallInvis
-      [noLoc $ UserTyVar NoExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
+#endif
+      [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> nlHsTyConApp
@@ -752,7 +757,7 @@ specTypeToLHsType =
     RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
     -- YL: todo..
     RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLoc $ HsWildCardTy NoExtField
+    RHoleF _                 -> noLoc $ HsWildCardTy Ghc.noExtField
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
 
@@ -765,13 +770,15 @@ bareTypeToLHsType =
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv)) 
     RFunF _ (tin, tin') (_, tout) _
-      | isClassType tin -> noLoc $ HsQualTy NoExtField (noLoc [tin']) tout
+      | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
     RImpFF _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (BTV tv)) (_, t) _ -> noLoc $ HsForAllTy
-      NoExtField
+      Ghc.noExtField
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
       ForallInvis
-      [noLoc $ UserTyVar NoExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
+#endif
+      [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF BTyCon { btc_tc = tc } ts _ _ -> nlHsTyConApp
@@ -788,7 +795,7 @@ bareTypeToLHsType =
     RAppTyF (_, t) (_, t') _ -> nlHsAppTy t t'
     -- YL: todo..
     RRTyF _ _ _ (_, t)       -> t
-    RHoleF _                 -> noLoc $ HsWildCardTy NoExtField
+    RHoleF _                 -> noLoc $ HsWildCardTy Ghc.noExtField
     RExprArgF _ ->
       todo Nothing "Oops, specTypeToLHsType doesn't know how to handle RExprArg"
 

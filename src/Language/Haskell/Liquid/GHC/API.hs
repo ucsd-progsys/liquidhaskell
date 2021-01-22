@@ -33,6 +33,7 @@ module Language.Haskell.Liquid.GHC.API (
   , mkFunTy
   , isEvVarType
   , isEqPrimPred
+  , noExtField
 #endif
 #endif
 
@@ -49,6 +50,7 @@ module Language.Haskell.Liquid.GHC.API (
   -- , gHC_REAL
   , prependGHCRealQual
   , isFromGHCReal
+  , noExtField
   ) where 
 
 import Avail          as Ghc
@@ -109,8 +111,10 @@ import                   Outputable
 import Kind              as Ghc
 import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
 import TyCon             as Ghc hiding (TyConBndrVis(AnonTCB))
+import         TcRnTypes as Ghc (lexprCtOrigin)
 import qualified TyCoRep as Ty
 import qualified TyCon   as Ty
+import qualified HsExtension
 
 #endif
 #endif
@@ -136,12 +140,14 @@ import Data.Foldable        (asum)
 --
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+import GHC.Hs.Extension as Ghc (noExtField)
 import Type           as Ghc hiding (typeKind , isPredTy)
 import TyCon          as Ghc
 import TcType         as Ghc
 import TyCoRep        as Ghc
 import FastString     as Ghc
-import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType)
+import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType, getClassPredTys, isDictId)
+import TcOrigin       as Ghc (lexprCtOrigin)
 import Data.Foldable  (asum)
 import Util           (lengthIs)
 import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL)
@@ -243,6 +249,9 @@ pattern FunTy { ft_af, ft_arg, ft_res } <- ((VisArg,) -> (ft_af, Ty.FunTy ft_arg
 pattern AnonTCB :: AnonArgFlag -> Ty.TyConBndrVis
 pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
     AnonTCB _af = Ty.AnonTCB
+
+noExtField :: NoExt
+noExtField = NoExt
 
 #endif
 
