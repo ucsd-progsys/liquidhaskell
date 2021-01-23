@@ -247,6 +247,7 @@ library
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
                     , recursion-schemes
+                    , data-fix
                     , free
                     , extra 
   default-language:   Haskell98

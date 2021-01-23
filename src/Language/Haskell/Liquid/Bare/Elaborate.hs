@@ -29,6 +29,7 @@ import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
 import           Control.Monad.Free
 import           Data.Functor.Foldable
+import           Data.Fix                       ( Fix(..) )
 import           TcRnMonad (TcRn)
 import           Data.Char                      ( isUpper )
 import           GHC
