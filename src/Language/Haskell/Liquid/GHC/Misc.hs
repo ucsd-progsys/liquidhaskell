@@ -1033,8 +1033,16 @@ withWiredIn m = discardConstraints $ do
   sigs wiredIns = concatMap (\w ->
       let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
       let t = 
-            let ext = [] in -- TODO: What goes here? XXX
-            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
+            let ext = 
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+                      HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
+#else
+                      [] in
+#endif
+#endif
+            let ext' = [] in
+            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
       in
       inf <> t
     ) wiredIns
