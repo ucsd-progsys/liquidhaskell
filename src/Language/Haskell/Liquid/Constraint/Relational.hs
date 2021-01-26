@@ -145,7 +145,9 @@ consRelCheck γ ψ e d t1 t2 p =
   addC (SubC γψ s2 t2) ("consRelCheck (Synth): s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
 
 consSameCtors :: CGEnv -> PrEnv -> F.Symbol -> F.Symbol -> SpecType -> SpecType -> [AltCon] -> AltCon  -> CG ()
-consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c)  
+consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c) | c == Ghc.trueDataCon || c == Ghc.falseDataCon
+  = entl γ ψ (F.PIff (F.EVar x1) (F.EVar x2)) "consSameCtors DataAlt Bool"
+consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c)
   = entl γ ψ (F.PIff (isCtor c $ F.EVar x1) (isCtor c $ F.EVar x2)) "consSameCtors DataAlt"
 consSameCtors γ ψ x1 x2 _ _ _ (LitAlt l)
   = F.panic "consSameCtors undefined for literals"
