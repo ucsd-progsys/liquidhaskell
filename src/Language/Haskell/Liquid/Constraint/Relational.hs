@@ -49,7 +49,7 @@ import           Language.Haskell.Liquid.GHC.API                as Ghc hiding
                                                                         vcat,
                                                                         (<+>))
 import qualified Language.Haskell.Liquid.GHC.Misc               as GM
-import           Language.Haskell.Liquid.GHC.Play               (isHoleVar, Subable(sub))
+import           Language.Haskell.Liquid.GHC.Play               (isHoleVar, Subable(sub, subTy))
 import qualified Language.Haskell.Liquid.GHC.Resugar            as Rs
 import qualified Language.Haskell.Liquid.GHC.SpanStack          as Sp
 import           Language.Haskell.Liquid.GHC.TypeRep            ()
@@ -91,17 +91,19 @@ consRelCheck γ ψ (Tick _ e) d t s p =
 consRelCheck γ ψ e (Tick _ d) t s p =
   {- traceChk "Right Tick" e d t s p $ -} consRelCheck γ ψ e d t s p
 
--- consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAllT s2 t2 r2) p
---   = traceChk "Lam Type" l1 l2 rt1 rt2 p $ do
---     entlFunRefts γ ψ r1 r2
---     γ' <- γ `extendWithTyVar` α1
---     γ'' <- γ' `extendWithTyVar` α2
---     consRelCheck γ'' ψ e1 e2 (sub (s1, α1) t1) (sub (s2, α2) t2) p
---   where sub (α', α) = subsTyVar_meet' (ty_var_value α', rVar α)
+consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAllT s2 t2 r2) p
+  = traceChk "Lam Type" l1 l2 rt1 rt2 p $ do
+    entlFunRefts γ ψ r1 r2 "consRelCheck Lam Type"
+    let (tvar1, tvar2) = mkRelCopies α1 α2
+    let (e1', e2')     = subRelCopies e1 α1 e2 α2
+    γ' <- γ `extendWithTyVar` tvar1
+    γ'' <- γ' `extendWithTyVar` tvar2
+    consRelCheck γ'' ψ e1' e2' (sub (s1, tvar1) t1) (sub (s2, tvar2) t2) p
+  where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
 
 consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFun v2 s2 t2 r2) pr@(F.PImp q p)
   = traceChk "Lam Expr" l1 l2 rt1 rt2 pr $ do
-    entlFunRefts γ ψ r1 r2
+    entlFunRefts γ ψ r1 r2 "consRelCheck Lam Expr"
     let (evar1, evar2) = mkRelCopies x1 x2
     let (e1', e2')     = subRelCopies e1 x1 e2 x2
     let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
@@ -214,13 +216,18 @@ consRelSynth γ _ e d = do
 
 consRelSynthApp :: CGEnv -> PrEnv -> SpecType -> SpecType -> 
   F.Expr -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, F.Expr)
-consRelSynthApp γ ψ (RAllT α1 ft1 r1) (RAllT α2 ft2 r2) p (Type t1) (Type t2) = do
-  entlFunRefts γ ψ r1 r2
-  t1' <- trueTy t1
-  t2' <- trueTy t2
-  return (subsTyVar_meet' (ty_var_value α1, t1') ft1, subsTyVar_meet' (ty_var_value α2, t2') ft2, p)
+consRelSynthApp γ ψ (RAllT α1 ft1 r1) (RAllT α2 ft2 r2) p (Type t1) (Type t2) =
+  do
+    entlFunRefts γ ψ r1 r2 "consRelSynthApp"
+    t1' <- trueTy t1
+    t2' <- trueTy t2
+    return
+      ( subsTyVar_meet' (ty_var_value α1, t1') ft1
+      , subsTyVar_meet' (ty_var_value α2, t2') ft2
+      , p
+      )
 consRelSynthApp γ ψ (RFun v1 s1 t1 r1) (RFun v2 s2 t2 r2) (F.PImp q p) d1@(Var x1) d2@(Var x2) = do
-  entlFunRefts γ ψ r1 r2
+  entlFunRefts γ ψ r1 r2 "consRelSynthApp"
   let qsubst = F.subst $ F.mkSubst [(v1, F.EVar resL), (v2, F.EVar resR)]
   consRelCheck γ ψ d1 d2 s1 s2 (qsubst q)
   let subst = F.subst $ F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
@@ -358,15 +365,21 @@ entl γ ψ p msg = do
   γψ <- γ `extendWithExprs` ψ
   addC (SubR γψ ORel $ uReft (F.vv_, F.PIff (F.EVar F.vv_) p)) msg
 
-entlFunRefts :: CGEnv -> [F.Expr] -> RReft -> RReft -> CG ()
-entlFunRefts γ ψ r1 r2 = do
-  entl γ ψ (F.reftPred $ ur_reft r1) "entlFunRefts L"
-  entl γ ψ (F.reftPred $ ur_reft r2) "entlFunRefts R"  
+entlFunReft :: CGEnv -> [F.Expr] -> RReft -> String -> CG ()
+entlFunReft γ ψ r msg = do
+  entl γ ψ (F.reftPred $ ur_reft r) $ "entlFunRefts " ++ msg
+
+entlFunRefts :: CGEnv -> [F.Expr] -> RReft -> RReft -> String -> CG ()
+entlFunRefts γ ψ r1 r2 msg = do
+  entl γ ψ (F.reftPred $ ur_reft r1) $ "entlFunRefts " ++ msg ++ " L"
+  entl γ ψ (F.reftPred $ ur_reft r2) $ "entlFunRefts " ++ msg ++ " R"
 
 subRelCopies :: CoreExpr -> Var -> CoreExpr -> Var -> (CoreExpr, CoreExpr)
-subRelCopies e1 x1 e2 x2 = 
-  (sub (M.singleton x1 $ Var evar1) e1, sub (M.singleton x2 $ Var evar2) e2)
-  where (evar1, evar2) = mkRelCopies x1 x2
+subRelCopies e1 x1 e2 x2 = (subExpAndTy x1 evar1 e1, subExpAndTy x2 evar2 e2)
+  where
+    subExpAndTy :: Var -> Var -> CoreExpr -> CoreExpr
+    subExpAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
+    (evar1, evar2) = mkRelCopies x1 x2
 
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix "l" x1, mkCopyWithSuffix "r" x2)
