@@ -529,14 +529,7 @@ fromMaybeM a ma = do
 (<$$>) :: (Monad m) => (a -> m b) -> [a] -> m [b]
 f <$$> xs = f Misc.<$$> xs
 
-useFuel :: Symbol -> EvalST ()
-useFuel f = do 
-  m <- gets evFuel
-  let k = tracepp ("USE-FUEL " ++ showpp f) $ M.lookupDefault 0 f m
-  modify (\st -> st { evFuel = M.insert f (k+1) m }) 
 
-getFuel :: Symbol -> EvalST Int 
-getFuel f = gets (M.lookupDefault 0 f . evFuel)
 
 evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
 evalApp γ ctx _e0 (EVar f, es)
@@ -545,7 +538,7 @@ evalApp γ ctx _e0 (EVar f, es)
   = do 
        env  <- gets (seSort . evEnv)
        fuel <- getFuel f
-       if (fuel <= 3 {- TODO:FUEL:CONFIG-PARAM -}) 
+       if fuel <= maxFuel 
          then do
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
@@ -885,3 +878,15 @@ _splitBranches f = go
     go' (PImp c e) = (c, e) 
     go' e          = (PTrue, e)
 
+-- TODO:FUEL Config
+maxFuel :: Int
+maxFuel = 11 
+
+useFuel :: Symbol -> EvalST ()
+useFuel f = do 
+  m <- gets evFuel
+  let k = tracepp ("USE-FUEL " ++ showpp f) $ M.lookupDefault 0 f m
+  modify (\st -> st { evFuel = M.insert f (k+1) m }) 
+
+getFuel :: Symbol -> EvalST Int 
+getFuel f = gets (M.lookupDefault 0 f . evFuel)
