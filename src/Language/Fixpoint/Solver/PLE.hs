@@ -53,7 +53,7 @@ traceE (e,e')
   = (e,e')
   where
     isEnabled :: Bool
-    isEnabled = True -- False
+    isEnabled = False
 
 --------------------------------------------------------------------------------
 -- | Strengthen Constraint Environments via PLE 
@@ -82,7 +82,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty mempty
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg)
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -98,7 +98,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where 
     diff0        = []
     res0         = M.empty 
-    ctx0         = initCtx $ ((mkEq <$> es0) ++ (mkEq' <$> es0'))
+    ctx0         = initCtx env ((mkEq <$> es0) ++ (mkEq' <$> es0'))
     es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
     es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
     mkEq  eq     = (EVar $ eqName eq, eqBody eq)
@@ -243,15 +243,15 @@ type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
-initCtx :: [(Expr,Expr)] -> ICtx
-initCtx es   = ICtx 
+initCtx :: InstEnv a -> [(Expr,Expr)] -> ICtx
+initCtx env es   = ICtx 
   { icAssms  = mempty 
   , icCands  = mempty 
   , icEquals = S.fromList es
   , icSolved = mempty
   , icSimpl  = mempty 
   , icSubcId = Nothing
-  , icFuel   = mempty
+  , icFuel   = evFuel (ieEvEnv env)
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -350,7 +350,14 @@ data EvalEnv = EvalEnv
   , evFuel     :: FuelCount
   }
 
-type FuelCount = M.HashMap Symbol Int
+data FuelCount = FC 
+  { fcMap :: M.HashMap Symbol Int
+  , fcMax :: Maybe Int
+  } 
+  deriving (Show)
+
+defFuelCount :: Config -> FuelCount
+defFuelCount cfg = FC mempty (fuel cfg)
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
@@ -365,7 +372,7 @@ getAutoRws γ ctx =
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (EvAccum, FuelCount)
 evalOne γ env ctx e | null (getAutoRws γ ctx) = do
     (e', st) <- runStateT (fastEval γ ctx e) (env { evFuel = icFuel ctx }) 
-    let evAcc' = if (tracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
+    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx e = do
   env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) 
@@ -449,7 +456,7 @@ fastEval γ ctx e =
 
 eval :: Knowledge -> ICtx -> [(Expr, TermOrigin)] -> EvalST ()
 eval _ ctx path
-  | pathExprs <- map fst (tracepp "EVAL1: path" path)
+  | pathExprs <- map fst (mytracepp "EVAL1: path" path)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
   = when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
@@ -465,7 +472,7 @@ eval γ ctx path =
     when evalIsNewExpr $ eval γ (addConst (e, e')) (path ++ [(e', PLE)])
     mapM_ (\rw -> (eval γ ctx) (path ++ [rw])) rws
   where
-    pathExprs = map fst (tracepp "EVAL2: path" path)
+    pathExprs = map fst (mytracepp "EVAL2: path" path)
     e         = last pathExprs
     autorws   = getAutoRws γ ctx
 
@@ -537,8 +544,8 @@ evalApp γ ctx _e0 (EVar f, es)
   , length (eqArgs eq) <= length es 
   = do 
        env  <- gets (seSort . evEnv)
-       fuel <- getFuel f
-       if fuel <= maxFuel 
+       okFuel <- checkFuel f
+       if okFuel
          then do
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
@@ -878,15 +885,23 @@ _splitBranches f = go
     go' (PImp c e) = (c, e) 
     go' e          = (PTrue, e)
 
--- TODO:FUEL Config
-maxFuel :: Int
-maxFuel = 11 
+-- -- TODO:FUEL Config
+-- maxFuel :: Int
+-- maxFuel = 11 
 
 useFuel :: Symbol -> EvalST ()
 useFuel f = do 
-  m <- gets evFuel
-  let k = tracepp ("USE-FUEL " ++ showpp f) $ M.lookupDefault 0 f m
-  modify (\st -> st { evFuel = M.insert f (k+1) m }) 
+  modify (\st -> st { evFuel = useFuelCount f (evFuel st) })
 
-getFuel :: Symbol -> EvalST Int 
-getFuel f = gets (M.lookupDefault 0 f . evFuel)
+useFuelCount :: Symbol -> FuelCount -> FuelCount 
+useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
+  where 
+    k             = M.lookupDefault 0 f m 
+    m             = fcMap fc
+
+checkFuel :: Symbol -> EvalST Bool
+checkFuel f = do 
+  fc <- gets evFuel
+  case (M.lookup f (fcMap fc), fcMax fc) of
+    (Just fk, Just n) -> pure (fk <= n)
+    _                 -> pure True
