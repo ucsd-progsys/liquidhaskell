@@ -45,9 +45,9 @@ available and so its tests wont run, for that use #2 above.
 let
   nixpkgs = import
     (builtins.fetchTarball {
-      # fetch latest nixpkgs https://github.com/NixOS/nixpkgs/commits/nixos-20.03 as of Thu 17 Dec 2020 09:16:47 PM UTC
-      url = "https://github.com/NixOS/nixpkgs/archive/030e2ce817c8e83824fb897843ff70a15c131b96.tar.gz";
-      sha256 = "110kgp4x5bx44rgw55ngyhayr4s19xwy19n6qw9g01hvhdisilwf";
+      # fetch latest nixpkgs https://github.com/NixOS/nixpkgs/commits/nixos-20.09 as of Sun 31 Jan 2021 11:11:41 PM UTC
+      url = "https://github.com/NixOS/nixpkgs/archive/f18fbc33930d7569cfedb8acd75177d0ff7c8678.tar.gz";
+      sha256 = "0hwr10angc0jw6yil7ssvi66phmkwf9lbnqmndiwiyv8z6pq7pw6";
     })
     { inherit config; };
   # helper to turn on tests, haddocks, and have z3 around
@@ -57,7 +57,7 @@ let
     // another old
   );
   # package set for haskell compiler version
-  haskellCompilerPackages = nixpkgs.haskell.packages."ghc8101";
+  haskellCompilerPackages = nixpkgs.haskell.packages."ghc8102";
   # override package set to inject project components
   haskellPackages = haskellCompilerPackages.override (
     old: {
