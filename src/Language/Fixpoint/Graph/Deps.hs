@@ -173,7 +173,7 @@ kvSucc fi = succs cm rdBy
     cm    = F.cm     fi
 
 succs :: (F.TaggedC c a) => CMap (c a) -> KVRead -> CMap [F.SubcId]
-succs cm rdBy = (sortNub . concatMap kvReads . kvWrites) <$> cm
+succs cm rdBy = sortNub . concatMap kvReads . kvWrites <$> cm
   where
     kvReads k = M.lookupDefault [] k rdBy
     kvWrites  = V.kvars . F.crhs

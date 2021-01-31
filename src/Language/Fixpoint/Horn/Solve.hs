@@ -59,10 +59,7 @@ eliminate :: (F.PPrint a) => F.Config -> H.Query a -> IO (H.Query a)
 ----------------------------------------------------------------------------------
 eliminate cfg q
   | F.eliminate cfg == F.Existentials = do
-    q <- Tx.solveEbs cfg q
-    -- b <- SI.checkValid cfg "/tmp/asdf.smt2" [] F.PTrue $ Tx.cstrToExpr side
-    -- if b then print "checked side condition" else error "side failed"
-    pure q
+    Tx.solveEbs cfg q
   | F.eliminate cfg == F.Horn = do
     let c = Tx.elim $ H.qCstr q
     whenLoud $ putStrLn "Horn Elim:"
