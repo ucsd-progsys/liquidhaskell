@@ -82,7 +82,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg)
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -98,7 +98,7 @@ pleTrie t env = loopT env ctx0 diff0 Nothing res0 t
   where 
     diff0        = []
     res0         = M.empty 
-    ctx0         = initCtx $ ((mkEq <$> es0) ++ (mkEq' <$> es0'))
+    ctx0         = initCtx env ((mkEq <$> es0) ++ (mkEq' <$> es0'))
     es0          = L.filter (null . eqArgs) (aenvEqs   . ieAenv $ env)
     es0'         = L.filter (null . smArgs) (aenvSimpl . ieAenv $ env)
     mkEq  eq     = (EVar $ eqName eq, eqBody eq)
@@ -148,23 +148,32 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
         exprs <> (S.fromList $ concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
     go ictx =  do let cands = icCands ictx
-                  let env' = env {  evAccum    = icEquals   ictx <> evAccum env }
-                  evalResults   <- SMT.smtBracket ctx "PLE.evaluate" $ do
+                  let env' = env { evAccum = icEquals ictx <> evAccum env 
+                                 , evFuel  = icFuel   ictx 
+                                 }
+                  (ictx', evalResults)  <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               mapM (evalOne γ env' ictx) (S.toList cands)
+                               foldM (evalOneCandStep γ env') (ictx, []) (S.toList cands) 
+                               -- foldM (\ictx e -> undefined) 
+                               -- mapM (evalOne γ env' ictx) (S.toList cands)
                   let us = mconcat evalResults 
                   if S.null (us `S.difference` icEquals ictx)
                         then return ictx 
                         else do  let oks      = fst `S.map` us
                                  let us'      = withRewrites us 
                                  let eqsSMT   = evalToSMT "evalCandsLoop" cfg ctx `S.map` us'
-                                 let ictx'    = ictx { icSolved = icSolved ictx <> oks 
-                                                     , icEquals = icEquals ictx <> us'
-                                                     , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
-                                 let newcands = mconcat (makeCandidates γ ictx' <$> S.toList (cands <> (snd `S.map` us)))
-                                 go (ictx' { icCands = S.fromList newcands})
+                                 let ictx''   = ictx' { icSolved = icSolved ictx <> oks 
+                                                      , icEquals = icEquals ictx <> us'
+                                                      , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
+                                 let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
+                                 go (ictx'' { icCands = S.fromList newcands})
                                  
-
+-- evalOneCands :: Knowledge -> EvalEnv -> ICtx -> [Expr] -> IO (ICtx, [EvAccum])
+-- evalOneCands γ env' ictx = foldM step (ictx, [])
+evalOneCandStep :: Knowledge -> EvalEnv -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
+evalOneCandStep γ env' (ictx, acc) e = do 
+  (res, fm) <- evalOne γ env' ictx e 
+  return (ictx { icFuel = fm}, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
 rewrite e rw = Mb.catMaybes $ map (`rewriteTop` rw) (notGuardedApps e)
@@ -215,6 +224,7 @@ data ICtx    = ICtx
   , icSolved   :: S.HashSet Expr            -- ^ Terms that we have already expanded
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
+  , icFuel     :: !FuelCount                -- ^ Current fuel-count
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -233,14 +243,15 @@ type CTrie   = T.Trie   SubcId
 type CBranch = T.Branch SubcId
 type Diff    = [BindId]    -- ^ in "reverse" order
 
-initCtx :: [(Expr,Expr)] -> ICtx
-initCtx es = ICtx 
-  { icAssms    = mempty 
-  , icCands    = mempty 
-  , icEquals   = S.fromList es
-  , icSolved   = mempty
-  , icSimpl    = mempty 
-  , icSubcId   = Nothing
+initCtx :: InstEnv a -> [(Expr,Expr)] -> ICtx
+initCtx env es   = ICtx 
+  { icAssms  = mempty 
+  , icCands  = mempty 
+  , icEquals = S.fromList es
+  , icSolved = mempty
+  , icSimpl  = mempty 
+  , icSubcId = Nothing
+  , icFuel   = evFuel (ieEvEnv env)
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -270,7 +281,7 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
                     }
   where         
-    initEqs   = S.fromList $ concat [rewrite e rw | e  <- (cands ++ (snd <$> S.toList (icEquals ctx)))
+    initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
                                                   , rw <- knSims ieKnowl]
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
@@ -304,13 +315,13 @@ makeCandidates :: Knowledge -> ICtx -> Expr -> [Expr]
 makeCandidates γ ctx expr 
   = mytracepp ("\n" ++ show (length cands) ++ " New Candidates") cands
   where 
-    cands = filter (\e -> isRedex γ e && (not (e `S.member` icSolved ctx))) (notGuardedApps expr)
+    cands = filter (\e -> isRedex γ e && not (e `S.member` icSolved ctx)) (notGuardedApps expr)
 
 isRedex :: Knowledge -> Expr -> Bool 
 isRedex γ e = isGoodApp γ e || isIte e 
   where 
-    isIte (EIte _ _ _) = True 
-    isIte _            = False 
+    isIte EIte {} = True 
+    isIte _       = False 
 
 
 isGoodApp :: Knowledge -> Expr -> Bool 
@@ -336,7 +347,17 @@ type EvAccum = S.HashSet (Expr, Expr)
 data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
+  , evFuel     :: FuelCount
   }
+
+data FuelCount = FC 
+  { fcMap :: M.HashMap Symbol Int
+  , fcMax :: Maybe Int
+  } 
+  deriving (Show)
+
+defFuelCount :: Config -> FuelCount
+defFuelCount cfg = FC mempty (fuel cfg)
 
 type EvalST a = StateT EvalEnv IO a
 --------------------------------------------------------------------------------
@@ -348,12 +369,14 @@ getAutoRws γ ctx =
     cid <- icSubcId ctx
     M.lookup cid $ knAutoRWs γ
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO EvAccum
-evalOne γ env ctx e | null $ getAutoRws γ ctx = do
-    (e',st) <- runStateT (fastEval γ ctx e) env 
-    return $ if e' == e then evAccum st else S.insert (e, e') (evAccum st)
-evalOne γ env ctx e =
-  evAccum <$> execStateT (eval γ ctx [(e, PLE)]) env
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (EvAccum, FuelCount)
+evalOne γ env ctx e | null (getAutoRws γ ctx) = do
+    (e', st) <- runStateT (fastEval γ ctx e) (env { evFuel = icFuel ctx }) 
+    let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
+    return (evAcc', evFuel st) 
+evalOne γ env ctx e = do
+  env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) 
+  return (evAccum env', evFuel env')
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -395,16 +418,17 @@ fastEval _ ctx e
   = return v
   
 fastEval γ ctx e =
-  do acc       <- S.toList . evAccum <$> get
+  do acc <- gets (S.toList . evAccum)
      case L.lookup e acc of
         Just e' -> fastEval γ ctx e'
         _ -> do
           e'  <- simplify γ ctx <$> go e
-          if e /= e'
-            then do modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st)
-                                      })
-                    fastEval γ (addConst (e,e') ctx) e'
-            else return e
+          if e /= e' 
+            then do 
+              modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st) })
+              fastEval γ (addConst (e,e') ctx) e'
+            else 
+              return e
   where
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
@@ -412,8 +436,9 @@ fastEval γ ctx e =
     go e@(EIte b e1 e2) = fastEvalIte γ ctx e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = case splitEApp e of 
-                           (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es) 
+                           (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)
                                          evalApp γ ctx (eApps f' es) (f',es')
+
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = do e'  <- fastEval γ ctx e
                              return $ ENeg e'
@@ -431,7 +456,7 @@ fastEval γ ctx e =
 
 eval :: Knowledge -> ICtx -> [(Expr, TermOrigin)] -> EvalST ()
 eval _ ctx path
-  | pathExprs <- map fst path
+  | pathExprs <- map fst (mytracepp "EVAL1: path" path)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
   = when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
@@ -440,14 +465,14 @@ eval γ ctx path =
   do
     rws <- getRWs 
     e'  <- simplify γ ctx <$> evalStep γ ctx e
-    let evalIsNewExpr = L.notElem e' pathExprs
-    let exprsToAdd    = (if evalIsNewExpr then [e'] else []) ++ map fst rws
+    let evalIsNewExpr = e' `L.notElem` pathExprs
+    let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
     let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
     modify (\st -> st { evAccum = S.union evAccum' (evAccum st)})
     when evalIsNewExpr $ eval γ (addConst (e, e')) (path ++ [(e', PLE)])
     mapM_ (\rw -> (eval γ ctx) (path ++ [rw])) rws
   where
-    pathExprs = map fst path
+    pathExprs = map fst (mytracepp "EVAL2: path" path)
     e         = last pathExprs
     autorws   = getAutoRws γ ctx
 
@@ -513,19 +538,24 @@ f <$$> xs = f Misc.<$$> xs
 
 
 
- 
 evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ ctx _ (EVar f, es)
-  | Just eq <- L.find ((== f) . eqName) (knAms γ)
+evalApp γ ctx _e0 (EVar f, es)
+  | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
   , length (eqArgs eq) <= length es 
-  = do env <- seSort <$> gets evEnv
-       let (es1,es2) = splitAt (length (eqArgs eq)) es
-       shortcut (substEq env eq es1) es2
+  = do 
+       env  <- gets (seSort . evEnv)
+       okFuel <- checkFuel f
+       if okFuel
+         then do
+                useFuel f
+                let (es1,es2) = splitAt (length (eqArgs eq)) es
+                shortcut (substEq env eq es1) es2          -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+         else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
       b   <- fastEval γ ctx i
-      b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
-      nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
+      b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
+      nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
       r <- if b' 
         then shortcut e1 es2
         else if nb' then shortcut e2 es2
@@ -597,7 +627,7 @@ fastEvalIte γ ctx _ b0 e1 e2 = do
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b' 
-    then return $ e1 
+    then return e1 
     else if nb' then return $ e2 
     else return $ EIte b e1 e2  
 
@@ -623,10 +653,10 @@ data Knowledge = KN
   , knContext           :: SMT.Context
   , knPreds             :: SMT.Context -> [(Symbol, Sort)] -> Expr -> IO Bool
   , knLams              :: ![(Symbol, Sort)]
-  , knSummary           :: ![(Symbol, Int)]      -- summary of functions to be evaluates (knSims and knAsms) with their arity
-  , knDCs               :: !(S.HashSet Symbol)     -- data constructors drawn from Rewrite 
-  , knSels              :: !(SelectorMap) 
-  , knConsts            :: !(ConstDCMap)
+  , knSummary           :: ![(Symbol, Int)]     -- ^ summary of functions to be evaluates (knSims and knAsms) with their arity
+  , knDCs               :: !(S.HashSet Symbol)  -- ^ data constructors drawn from Rewrite 
+  , knSels              :: !SelectorMap 
+  , knConsts            :: !ConstDCMap
   , knAutoRWs           :: M.HashMap SubcId [AutoRewrite]
   , knRWTerminationOpts :: RWTerminationOpts
   }
@@ -855,3 +885,23 @@ _splitBranches f = go
     go' (PImp c e) = (c, e) 
     go' e          = (PTrue, e)
 
+-- -- TODO:FUEL Config
+-- maxFuel :: Int
+-- maxFuel = 11 
+
+useFuel :: Symbol -> EvalST ()
+useFuel f = do 
+  modify (\st -> st { evFuel = useFuelCount f (evFuel st) })
+
+useFuelCount :: Symbol -> FuelCount -> FuelCount 
+useFuelCount f fc = fc { fcMap = M.insert f (k + 1) m }
+  where 
+    k             = M.lookupDefault 0 f m 
+    m             = fcMap fc
+
+checkFuel :: Symbol -> EvalST Bool
+checkFuel f = do 
+  fc <- gets evFuel
+  case (M.lookup f (fcMap fc), fcMax fc) of
+    (Just fk, Just n) -> pure (fk <= n)
+    _                 -> pure True

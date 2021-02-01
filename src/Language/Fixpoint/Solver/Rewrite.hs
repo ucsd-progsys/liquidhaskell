@@ -22,6 +22,7 @@ import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
 import           Language.Fixpoint.Types hiding (simplify)
 import qualified Data.Text as TX
+import Text.PrettyPrint (text)
 
 type Op = Symbol
 type OpOrdering = [Symbol]
@@ -131,6 +132,9 @@ subsequencesOfSize n xs = let l = length xs
                              in zipWith (++) ([]:next) (map (map (x:)) next ++ [[]])
 
 data TermOrigin = PLE | RW OpOrdering deriving (Show, Eq)
+
+instance PPrint TermOrigin where
+  pprintTidy _ = text . show
 
 data DivergeResult = Diverging | NotDiverging OpOrdering
 

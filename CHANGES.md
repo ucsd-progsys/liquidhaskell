@@ -4,6 +4,7 @@
 
 - Fix bugs in PLE
 - Move to GHC 8.6.4 
+- Add `fuel` parameter to debug unfolding in PLE
 
 ## 0.8.0.1 
 
