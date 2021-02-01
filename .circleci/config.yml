@@ -3,14 +3,92 @@ version: 2.1
 
 commands:
 
+  nix_install_cmd:
+    description: "Install nix"
+    steps:
+      - run: |
+          curl -L https://nixos.org/nix/install > ~/install-nix.sh
+          sh ~/install-nix.sh
+          ln -s ~/.nix-profile/etc/profile.d/nix.sh ~
+          source ~/nix.sh && nix-env --version
+
+  nix_checkout_cmd:
+    description: "Checkout LH and its submodules"
+    steps:
+      - checkout
+      - run: |
+          source ~/nix.sh && nix-shell -p git --run 'git submodule sync'
+          source ~/nix.sh && nix-shell -p git --run 'git submodule update --init'
+
+  nix_restore_cache_cmd:
+    steps:
+      - restore_cache:
+          key: nix_store_1
+      - run: |
+          if test -d ~/nix; then
+            sudo mv ~/nix /nix
+          fi
+
+  nix_save_cache_cmd:
+    steps:
+      - run: cp -r /nix ~/nix
+      - save_cache:
+          key: nix_store_1
+          paths:
+            - ~/nix
+
+  nix_build_minimum_cmd:
+    description: "Build liquid-fixpoint and liquidhaskell"
+    steps:
+      - nix_restore_cache_cmd
+      - nix_install_cmd
+      - nix_checkout_cmd
+      - run: source ~/nix.sh && nix-shell --arg tests false --argstr target liquidhaskell --run true
+      - nix_save_cache_cmd
+      - run: source ~/nix.sh && nix-build --arg tests false --argstr target liquidhaskell
+
+  nix_build_all_cmd:
+    description: "Build all components of liquidhaskell"
+    steps:
+      - nix_restore_cache_cmd
+      - nix_install_cmd
+      - nix_checkout_cmd
+      - run: source ~/nix.sh && nix-shell --arg tests false --run true
+      - nix_save_cache_cmd
+      - run: source ~/nix.sh && nix-build --arg tests false
+
+  nix_build_and_test_cmd:
+    description: "Build and test all components of liquidhaskell"
+    steps:
+      - nix_restore_cache_cmd
+      - nix_install_cmd
+      - nix_checkout_cmd
+      - run: source ~/nix.sh && nix-shell --run true
+      - nix_save_cache_cmd
+      - run: source ~/nix.sh && nix-build
+
 jobs:
 
+  nix_build_minimum:
+    machine: true
+    steps:
+      - nix_build_minimum_cmd
+
+  nix_build_all:
+    machine: true
+    steps:
+      - nix_build_all_cmd
+
+  nix_build_and_test:
+    machine: true
+    steps:
+      - nix_build_and_test_cmd
 
 workflows:
   version: 2
   build_nix:
     jobs:
-      - nix_build_job:
+      - nix_build_minimum:
           filters:
             branches:
               only:
