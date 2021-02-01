@@ -671,6 +671,7 @@ defConfig = Config
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
+  , fuel 	             = Nothing
   }
 
 
