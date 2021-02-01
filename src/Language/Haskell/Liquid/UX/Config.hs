@@ -99,6 +99,7 @@ data Config = Config
   , rwTerminationCheck       :: Bool
   , skipModule               :: Bool       -- ^ Skip this module entirely (don't even compile any specs in it)
   , noLazyPLE                :: Bool
+  , fuel                     :: Maybe Int  -- ^ Maximum PLE "fuel" (unfold depth) (default=infinite) 
   } deriving (Generic, Data, Typeable, Show, Eq)
 
 allowPLE :: Config -> Bool

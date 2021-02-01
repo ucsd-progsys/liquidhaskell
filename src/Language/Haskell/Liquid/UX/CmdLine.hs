@@ -422,6 +422,10 @@ config = cmdArgsMode $ Config {
         &= name "no-lazy-ple"
         &= help "Don't use Lazy PLE"
  
+  , fuel 
+    = Nothing 
+        &= help "Maximum fuel (per-function unfoldings) for PLE"
+
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -667,6 +671,7 @@ defConfig = Config
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
+  , fuel 	             = Nothing
   }
 
 
