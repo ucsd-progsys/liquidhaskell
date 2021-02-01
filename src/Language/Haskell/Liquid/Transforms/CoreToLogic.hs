@@ -264,9 +264,9 @@ coreToLg (C.Var x)
 coreToLg e@(C.App _ _)         = toPredApp e
 coreToLg (C.Case e b _ alts)
   | eqType (GM.expandVarType b) boolTy  = checkBoolAlts alts >>= coreToIte e
-coreToLg (C.Lam x e)           = do p     <- coreToLg e
-                                    tce   <- lsEmb <$> getState
-                                    return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
+-- coreToLg (C.Lam x e)           = do p     <- coreToLg e
+--                                     tce   <- lsEmb <$> getState
+--                                     return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
 coreToLg (C.Case e b _ alts)   = do p <- coreToLg e
                                     casesToLg b p alts
 coreToLg (C.Lit l)             = case mkLit l of
@@ -275,6 +275,8 @@ coreToLg (C.Lit l)             = case mkLit l of
 coreToLg (C.Cast e c)          = do (s, t) <- coerceToLg c
                                     e'     <- coreToLg   e
                                     return (ECoerc s t e')
+coreToLg e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
+                                        "\n\n Try using a helper function to remove the lambda.")
 coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
 
