@@ -244,7 +244,6 @@ library
                     , split
                     , syb                  >= 0.4.4
                     , template-haskell     >= 2.9
-                    , th-compat            < 0.2
                     , temporary            >= 1.2
                     , text                 >= 1.2
                     , time                 >= 1.4

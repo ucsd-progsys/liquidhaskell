@@ -81,7 +81,6 @@ import Language.Haskell.Liquid.Types       hiding (typ)
 import qualified Language.Haskell.Liquid.UX.ACSS as ACSS
 
 import qualified Language.Haskell.Liquid.GHC.API as GHC
-import           Language.Haskell.TH.Syntax.Compat (fromCode, toCode)
 
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
 
@@ -532,7 +531,7 @@ gitInfo :: String
 gitInfo  = msg
   where
     giTry :: Either String GitInfo
-    giTry  = $$(fromCode (toCode tGitInfoCwdTry))
+    giTry  = $$(tGitInfoCwdTry)
     msg    = case giTry of
                Left _   -> " no git information"
                Right gi -> gitMsg gi
