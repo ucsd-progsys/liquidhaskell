@@ -3,86 +3,90 @@ version: 2.1
 
 commands:
 
-  nix_install_cmd:
-    description: "Install nix"
-    steps:
-      - run: |
-          curl -L https://nixos.org/nix/install > ~/install-nix.sh
-          sh ~/install-nix.sh
-          ln -s ~/.nix-profile/etc/profile.d/nix.sh ~
-          source ~/nix.sh && nix-env --version
-
-  nix_checkout_cmd:
-    description: "Checkout LH and its submodules"
+  checkout_cmd:
+    description: "Checkout code and submodules"
     steps:
       - checkout
       - run: |
-          source ~/nix.sh && nix-shell -p git --run 'git submodule sync'
-          source ~/nix.sh && nix-shell -p git --run 'git submodule update --init'
+          git submodule sync
+          git submodule update --init
+
+  nix_install_cmd:
+    description: "Install nix"
+      # After installation, prefix nix commands with `source ~/nix.sh &&`
+    steps:
+      - run: |
+          curl -L https://nixos.org/nix/install > ~/install-nix.sh
+          sh ~/install-nix.sh && rm ~/install-nix.sh
+          ln -s ~/.nix-profile/etc/profile.d/nix.sh ~
+          source ~/nix.sh && nix-env --version
+
+  nix_cache_key_cmd:
+    description: "Compute the cache key for dependencies without building anything"
+      # For your average derivation
+      #   $ nix-shell --run 'echo $out'
+      # prints approximately the same thing as
+      #   $ grep --only '"out","\([^"]\+\)"' $(env IN_NIX_SHELL=1 nix-instantiate) | head -1
+      # but the second does not build anything.
+    parameters:
+      raw_args:
+        type: string
+    steps:
+      - run: |
+          DRV="$(source ~/nix.sh && env IN_NIX_SHELL=1 nix-instantiate <<parameters.raw_args>>)"
+          grep --only '"out","\([^"]\+\)"' "$DRV" | head -1 > cache.key # stored in the project directory
 
   nix_restore_cache_cmd:
     steps:
       - restore_cache:
-          key: nix_store_1
+          key: nix-store-{{ checksum "cache.key" }}
       - run: |
-          if test -d ~/nix; then
-            sudo mv ~/nix /nix
-          fi
+          sudo mkdir -p      ~/nix /nix
+          sudo mount -o bind ~/nix /nix
 
   nix_save_cache_cmd:
     steps:
-      - run: cp -r /nix ~/nix
       - save_cache:
-          key: nix_store_1
+          key: nix-store-{{ checksum "cache.key" }}
           paths:
             - ~/nix
 
-  nix_build_minimum_cmd:
-    description: "Build liquid-fixpoint and liquidhaskell"
+  nix_build_sequence_cmd:
+    description: "Orchestrate all of the above commands"
+    parameters:
+      raw_args:
+        type: string
     steps:
-      - nix_restore_cache_cmd
+      - checkout_cmd
       - nix_install_cmd
-      - nix_checkout_cmd
-      - run: source ~/nix.sh && nix-shell --arg tests false --argstr target liquidhaskell --run true
-      - nix_save_cache_cmd
-      - run: source ~/nix.sh && nix-build --arg tests false --argstr target liquidhaskell
-
-  nix_build_all_cmd:
-    description: "Build all components of liquidhaskell"
-    steps:
+      - nix_cache_key_cmd:
+          raw_args: <<parameters.raw_args>>
       - nix_restore_cache_cmd
-      - nix_install_cmd
-      - nix_checkout_cmd
-      - run: source ~/nix.sh && nix-shell --arg tests false --run true
+      - run: source ~/nix.sh && nix-shell <<parameters.raw_args>> --run true
       - nix_save_cache_cmd
-      - run: source ~/nix.sh && nix-build --arg tests false
-
-  nix_build_and_test_cmd:
-    description: "Build and test all components of liquidhaskell"
-    steps:
-      - nix_restore_cache_cmd
-      - nix_install_cmd
-      - nix_checkout_cmd
-      - run: source ~/nix.sh && nix-shell --run true
-      - nix_save_cache_cmd
-      - run: source ~/nix.sh && nix-build
+      - run: source ~/nix.sh && nix-build <<parameters.raw_args>>
 
 jobs:
 
   nix_build_minimum:
+    description: "Build liquid-fixpoint and liquidhaskell"
     machine: true
     steps:
-      - nix_build_minimum_cmd
+      - nix_build_sequence_cmd:
+          raw_args: --arg tests false --argstr target liquidhaskell
 
   nix_build_all:
+    description: "Build all components of liquidhaskell"
     machine: true
     steps:
-      - nix_build_all_cmd
+      - nix_build_sequence_cmd:
+          raw_args: --arg tests false
 
   nix_build_and_test:
+    description: "Build and test all components of liquidhaskell"
     machine: true
     steps:
-      - nix_build_and_test_cmd
+      - nix_build_sequence_cmd
 
 workflows:
   version: 2
