@@ -86,14 +86,13 @@ jobs:
     description: "Build and test all components of liquidhaskell"
     machine: true
     steps:
-      - nix_build_sequence_cmd
+      - nix_build_sequence_cmd:
+          raw_args: ''
 
 workflows:
   version: 2
   build_nix:
     jobs:
-      - nix_build_minimum:
-          filters:
-            branches:
-              only:
-                - nixify
+      - nix_build_minimum
+      # nix_build_all
+      # nix_build_and_test
