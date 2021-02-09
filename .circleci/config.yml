@@ -95,5 +95,5 @@ workflows:
   build_nix:
     jobs:
       - nix_build_minimum
-      # nix_build_all
+      - nix_build_all
       # nix_build_and_test
