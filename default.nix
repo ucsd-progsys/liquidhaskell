@@ -69,7 +69,7 @@ let
       overrides = self: super: with nixpkgs.haskell.lib; rec {
         # turn off tests and haddocks and version bounds by default
         mkDerivation = args: super.mkDerivation (
-          args // { doCheck = false; doHaddock = false; jailbreak = true; }
+          args // { doCheck = false; doHaddock = false; jailbreak = true; enableLibraryProfiling = false; }
         );
         # declare each of the packages contained in this repo
         ## LH support packages
