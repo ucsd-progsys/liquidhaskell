@@ -41,11 +41,12 @@ commands:
       - restore_cache:
           key: nix-store-{{ checksum "cache.key" }}
       - run: |
-          sudo mkdir -p      ~/nix /nix
-          sudo mount -o bind ~/nix /nix
+          sudo mkdir -p ~/nix /nix
+          sudo cp -rpf ~/nix /
 
   nix_save_cache_cmd:
     steps:
+      - run: sudo mount -o bind /nix ~/nix
       - save_cache:
           key: nix-store-{{ checksum "cache.key" }}
           paths:
