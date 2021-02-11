@@ -6,10 +6,15 @@
 class PersistEntity record where
     data EntityField record :: * -> *
 
+-- The reason this fails is because the refinement uses 'record'
+-- instead of 'Blob'. Therefore, the lookup for the GHC datatype
+-- will return no constructors, and consequently, LH complains
+-- that our refinement has two.
+--
 instance PersistEntity Blob where
     {-@ data EntityField record typ where
            BlobXVal :: EntityField Blob {v:Int | v >= 0}
-         | BlobYVal :: EntityField Blob Int
+           BlobYVal :: EntityField Blob Int
     @-}
     data EntityField Blob typ where
         BlobXVal :: EntityField Blob Int

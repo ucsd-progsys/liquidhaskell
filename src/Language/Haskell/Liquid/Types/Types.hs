@@ -238,16 +238,42 @@ module Language.Haskell.Liquid.Types.Types (
 
   -- , rtyVarUniqueSymbol, tyVarUniqueSymbol
   , rtyVarType, tyVarVar
+
+  , ordSrcSpan
   )
   where
 
-import           Language.Haskell.Liquid.GHC.API hiding (Expr, Target, isFunTy, LM)
+import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( Expr
+                                                               , Target
+                                                               , isFunTy
+                                                               , LM
+                                                               , ($+$)
+                                                               , nest
+                                                               , text
+                                                               , blankLine
+                                                               , (<+>)
+                                                               , vcat
+                                                               , hsep
+                                                               , comma
+                                                               , colon
+                                                               , parens
+                                                               , empty
+                                                               , char
+                                                               , panic
+                                                               , int
+                                                               , hcat
+                                                               , showPpr
+                                                               , punctuate
+                                                               , mapSndM
+                                                               , ($$)
+                                                               , braces
+                                                               , angleBrackets
+                                                               , brackets
+                                                               )
 import           Data.String
 import           GHC.Generics
-import           PrelInfo                               (isNumericClass)
 import           Prelude                          hiding  (error)
 import qualified Prelude
-import           TyCon
 
 import           Control.Monad                          (liftM, liftM2, liftM3, liftM4)
 import           Control.DeepSeq
@@ -969,7 +995,7 @@ type OkRT c tv r = ( TyConable c
 instance TyConable RTyCon where
   isFun      = isFunTyCon . rtc_tc
   isList     = (listTyCon ==) . rtc_tc
-  isTuple    = TyCon.isTupleTyCon   . rtc_tc
+  isTuple    = Ghc.isTupleTyCon   . rtc_tc
   isClass    = isClass . rtc_tc -- isClassRTyCon
   isEqual    = isEqual . rtc_tc
   ppTycon    = F.toFix
@@ -985,7 +1011,7 @@ instance TyConable RTyCon where
 instance TyConable TyCon where
   isFun      = isFunTyCon
   isList     = (listTyCon ==)
-  isTuple    = TyCon.isTupleTyCon
+  isTuple    = Ghc.isTupleTyCon
   isClass c  = isClassTyCon c   || isEqual c -- c == eqPrimTyCon
   isEqual c  = c == eqPrimTyCon || c == eqReprPrimTyCon
   ppTycon    = text . showPpr
@@ -1153,7 +1179,7 @@ data DataDecl   = DataDecl
   { tycName   :: DataName              -- ^ Type  Constructor Name
   , tycTyVars :: [Symbol]              -- ^ Tyvar Parameters
   , tycPVars  :: [PVar BSort]          -- ^ PVar  Parameters
-  , tycDCons  :: [DataCtor]            -- ^ Data Constructors
+  , tycDCons  :: Maybe [DataCtor]      -- ^ Data Constructors (Nothing is reserved for non-GADT style empty data declarations)
   , tycSrcPos :: !F.SourcePos          -- ^ Source Position
   , tycSFun   :: Maybe SizeFun         -- ^ Default termination measure
   , tycPropTy :: Maybe BareType        -- ^ Type of Ind-Prop
@@ -1998,7 +2024,7 @@ data Cinfo    = Ci { ci_loc :: !SrcSpan
                    , ci_err :: !(Maybe Error)
                    , ci_var :: !(Maybe Var)
                    }
-                deriving (Eq, Ord, Generic)
+                deriving (Eq, Generic)
 
 instance F.Loc Cinfo where
   srcSpan = srcSpanFSrcSpan . ci_loc
@@ -2020,17 +2046,11 @@ data ModType = Target | SrcImport | SpecImport
 
 instance Hashable ModType 
 
-instance Hashable ModuleName where
-  hashWithSalt i = hashWithSalt i . show
-
 instance Hashable ModName where
   hashWithSalt i (ModName t n) = hashWithSalt i (t, show n)
 
 instance F.PPrint ModName where
   pprintTidy _ = text . show
-
-instance Show ModuleName where
-  show = moduleNameString
 
 instance F.Symbolic ModName where
   symbol (ModName _ m) = F.symbol m
@@ -2327,6 +2347,9 @@ data Output a = O
   , o_result :: ErrorResult
   } deriving (Typeable, Generic, Functor)
 
+instance (F.PPrint a) => F.PPrint (Output a) where
+  pprintTidy _ out = F.resultDoc (F.pprint <$> o_result out)
+
 emptyOutput :: Output a
 emptyOutput = O Nothing mempty mempty [] mempty
 
@@ -2335,12 +2358,20 @@ instance Monoid (Output a) where
   mappend = (<>)
 
 instance Semigroup (Output a) where
-  o1 <> o2 = O { o_vars   = sortNub <$> mappend (o_vars   o1) (o_vars   o2)
-               , o_types  =             mappend (o_types  o1) (o_types  o2)
-               , o_templs =             mappend (o_templs o1) (o_templs o2)
-               , o_bots   = sortNub  $  mappend (o_bots o1)   (o_bots   o2)
-               , o_result =             mappend (o_result o1) (o_result o2)
+  o1 <> o2 = O { o_vars   =            sortNub <$> mappend (o_vars   o1) (o_vars   o2)
+               , o_types  =                        mappend (o_types  o1) (o_types  o2)
+               , o_templs =                        mappend (o_templs o1) (o_templs o2)
+               , o_bots   = sortNubBy ordSrcSpan $ mappend (o_bots o1)   (o_bots   o2)
+               , o_result =                        mappend (o_result o1) (o_result o2)
                }
+
+-- Ord a 'SrcSpan' if it's meaningful to do so (i.e. we have a 'RealSrcSpan'). Otherwise we default to EQ.
+ordSrcSpan :: SrcSpan -> SrcSpan -> Ordering
+ordSrcSpan (RealSrcSpan r1 _) (RealSrcSpan r2 _) = r1 `compare` r2
+ordSrcSpan (RealSrcSpan _ _ ) _                  = GT
+ordSrcSpan _                  (RealSrcSpan _ _ ) = LT
+ordSrcSpan _                  _                  = EQ
+
 
 --------------------------------------------------------------------------------
 -- | KVar Profile --------------------------------------------------------------

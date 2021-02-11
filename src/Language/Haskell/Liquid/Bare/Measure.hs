@@ -206,7 +206,7 @@ tyConDataDecl ((tc, dn), NoDecl szF)
       { tycName   = dn
       , tycTyVars = F.symbol <$> GM.tyConTyVarsDef tc
       , tycPVars  = []
-      , tycDCons  = decls tc
+      , tycDCons  = Just (decls tc)
       , tycSrcPos = GM.getSourcePos tc
       , tycSFun   = szF
       , tycPropTy = Nothing
@@ -292,7 +292,7 @@ dataConSel dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] (mempty <
 bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RRType r, r))
 bkDataCon dc nFlds  = (as, ts, (F.dummySymbol, t, mempty))
   where
-    ts                = RT.ofType <$> Misc.takeLast nFlds _ts
+    ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $
                           RT.ofType  $ Ghc.mkTyConApp tc tArgs'
     as                = makeRTVar . RT.rTyVar <$> (αs ++ αs')

@@ -25,26 +25,15 @@ module Language.Haskell.Liquid.Constraint.Generate ( generateConstraints, genera
 import Control.Monad.Fail
 #endif
 
-import           Outputable                                    (Outputable)
 import           Prelude                                       hiding (error)
 import           GHC.Stack
-import           CoreUtils                                     (exprType)
-import           MkCore
-import           Coercion
-import           DataCon
-import           Pair
-import           CoreSyn
-import           SrcLoc                                 hiding (Located)
-import           Type
-import           VarEnv (mkRnEnv2, emptyInScopeSet)
-import           TyCon
-import           CoAxiom
-import           PrelNames
-import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (exprType)
+import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding ( panic
+                                                                                 , checkErr
+                                                                                 , (<+>)
+                                                                                 , text
+                                                                                 , vcat
+                                                                                 )
 import           Language.Haskell.Liquid.GHC.TypeRep           ()
-import           IdInfo
-import           Unify
-import           UniqSet (mkUniqSet)
 import           Text.PrettyPrint.HughesPJ hiding ((<>)) 
 import           Control.Monad.State
 import           Data.Maybe                                    (fromMaybe, catMaybes, isJust)
@@ -457,11 +446,12 @@ consCB _ _ γ (NonRec x e)
        extender γ (x, makeSingleton γ (simplify e) <$> to')
 
 grepDictionary :: CoreExpr -> Maybe (Var, [Type])
-grepDictionary = go [] 
+grepDictionary = go []
   where 
     go ts (App (Var w) (Type t)) = Just (w, reverse (t:ts))
     go ts (App e (Type t))       = go (t:ts) e
     go ts (App e (Var _))        = go ts e
+    go ts (Let _ e)              = go ts e
     go _ _                       = Nothing
 
 --------------------------------------------------------------------------------
@@ -941,6 +931,7 @@ getExprDict γ           =  go
     go (Var x)          = case dlookup (denv γ) x of {Just _ -> Just x; Nothing -> Nothing}
     go (Tick _ e)       = go e
     go (App a (Type _)) = go a
+    go (Let _ e)        = go e
     go _                = Nothing
 
 --------------------------------------------------------------------------------
@@ -1087,7 +1078,7 @@ isClassConCo co
   , isClassPred t2
   , (tc,ts) <- splitTyConApp t2
   , [dc]    <- tyConDataCons tc
-  , [tm]    <- dataConOrigArgTys dc
+  , [tm]    <- map irrelevantMult (Ghc.dataConOrigArgTys dc)
                -- tcMatchTy because we have to instantiate the class tyvars
   , Just _  <- ruleMatchTyX (mkUniqSet $ tyConTyVars tc) (mkRnEnv2 emptyInScopeSet) emptyTvSubstEnv tm t1
   = Just (\e -> mkCoreConApps dc $ map Type ts ++ [e])

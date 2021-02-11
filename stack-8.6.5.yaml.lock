@@ -12,6 +12,13 @@ packages:
   original:
     hackage: hashable-1.3.0.0
 - completed:
+    hackage: megaparsec-8.0.0@sha256:362f85e243ecbcb550e1de6e5c74ba5a50c09edaa1208c99bc5b9fd242227fc6,3808
+    pantry-tree:
+      size: 1446
+      sha256: 955117c00a86970f2d0c215f33cf5293b16589c04678a0a790c03368ab6fd0aa
+  original:
+    hackage: megaparsec-8.0.0
+- completed:
     hackage: optics-0.2@sha256:813ef6cc4d2e2b5ee00435831031f38917ba01d1e56dcb62dc18cd0315a9ccb7,6296
     pantry-tree:
       size: 1003
@@ -32,6 +39,13 @@ packages:
       sha256: f6b89e2e06d38d0a2d73c220648811a54684b476778904416b22f1ccae7eab67
   original:
     hackage: tasty-rerun-1.1.14
+- completed:
+    hackage: th-compat-0.1@sha256:ff11df2bbd6ad519987f8fe5b2fd783349260681a91565a40d4096bb0a536b0b,2818
+    pantry-tree:
+      size: 529
+      sha256: c794a1d447edb8cf039f47514f50eee20c2584452f1a60848f905dc710c9b59f
+  original:
+    hackage: th-compat-0.1
 snapshots:
 - completed:
     size: 545658

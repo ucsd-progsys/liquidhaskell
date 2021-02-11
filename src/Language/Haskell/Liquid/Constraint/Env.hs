@@ -53,9 +53,6 @@ module Language.Haskell.Liquid.Constraint.Env (
 
 -- import Name (getSrcSpan)
 import Prelude hiding (error)
-import CoreSyn (CoreExpr)
-import SrcLoc
-import Var
 -- import Outputable
 -- import FastString (fsLit)
 import Control.Monad.State
@@ -75,6 +72,7 @@ import           Language.Fixpoint.SortCheck (pruneUnsortedReft)
 
 
 
+import           Language.Haskell.Liquid.GHC.API hiding (panic)
 import           Language.Haskell.Liquid.Types.RefType
 import qualified Language.Haskell.Liquid.GHC.SpanStack as Sp
 import           Language.Haskell.Liquid.Types            hiding (binds, Loc, loc, freeTyVars, Def)

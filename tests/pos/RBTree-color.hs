@@ -19,7 +19,7 @@ data Color = B -- ^ Black
 {-@ add :: (Ord a) => a -> RBT a -> RBT a @-}
 add x s = makeBlack (ins x s)
 
-{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((IsB t) => (isRB v))} @-}
+{-@ ins :: (Ord a) => a -> t:RBT a -> {v: ARBT a | ((notR t) => (isRB v))} @-}
 ins kx Leaf             = Node R kx Leaf Leaf
 ins kx s@(Node B x l r) = case compare kx x of
                             LT -> let t = lbal x (ins kx l) r in t 
@@ -96,13 +96,13 @@ deleteMin' x (Node B lx ll lr) r = (k, lbalS x l' r )   where (k, l') = deleteMi
 -- | Rotations ------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ lbalS                             :: k:a -> l:ARBT a -> r:RBT a -> {v: ARBT a | ((IsB r) => (isRB v))} @-}
+{-@ lbalS                             :: k:a -> l:ARBT a -> r:RBT a -> {v: ARBT a | ((notR r) => (isRB v))} @-}
 lbalS k (Node R x a b) r              = Node R k (Node B x a b) r
 lbalS k l (Node B y a b)              = let t = rbal k l (Node R y a b) in t 
 lbalS k l (Node R z (Node B y a b) c) = Node R y (Node B k l a) (rbal z b (makeRed c))
 lbalS k l r                           = unsafeError "nein"
 
-{-@ rbalS                             :: k:a -> l:RBT a -> r:ARBT a -> {v: ARBT a | ((IsB l) => (isRB v))} @-}
+{-@ rbalS                             :: k:a -> l:RBT a -> r:ARBT a -> {v: ARBT a | ((notR l) => (isRB v))} @-}
 rbalS k l (Node R y b c)              = Node R k l (Node B y b c)
 rbalS k (Node B x a b) r              = let t = lbal k (Node R x a b) r in t 
 rbalS k (Node R x a (Node B y b c)) r = Node R y (lbal x (makeRed a) b) (Node B k c r)
@@ -122,7 +122,7 @@ rbal x l r                            = Node B x l r
 ---------------------------------------------------------------------------
 ---------------------------------------------------------------------------
 
-{-@ type BlackRBT a = {v: RBT a | (IsB v)} @-}
+{-@ type BlackRBT a = {v: RBT a | (notR v)} @-}
 
 {-@ makeRed :: l:BlackRBT a -> ARBT a @-}
 makeRed (Node B x l r) = Node R x l r
@@ -140,44 +140,46 @@ makeBlack (Node _ x l r) = Node B x l r
 
 {-@ type RBT a    = {v: RBTree a | (isRB v)} @-}
 
-{-@ measure isRB        :: RBTree a -> Bool
-    isRB (Leaf)         = true
-    isRB (Node c x l r) = ((isRB l) && (isRB r) && ((c == R) => ((IsB l) && (IsB r))))
-  @-}
+{-@ measure isRB @-}
+isRB :: RBTree a -> Bool
+isRB Leaf           = True
+isRB (Node c x l r) = (isRB l) && (isRB r) && ((c /= R) || ((notR l) && (notR r)))
 
 -- | Almost Red-Black Trees
 
 {-@ type ARBT a    = {v: RBTree a | (isARB v) } @-}
 
-{-@ measure isARB        :: (RBTree a) -> Bool
-    isARB (Leaf)         = true 
-    isARB (Node c x l r) = ((isRB l) && (isRB r))
-  @-}
+{-@ measure isARB @-} 
+isARB :: RBTree a -> Bool
+isARB Leaf         = True 
+isARB (Node c x l r) = isRB l && isRB r
 
 -- | Conditionally Red-Black Tree
 
-{-@ type ARBT2 a L R = {v:ARBT a | (((IsB L) && (IsB R)) => (isRB v))} @-}
+{-@ type ARBT2 a L R = {v:ARBT a | (((notR L) && (notR R)) => (isRB v))} @-}
 
 -- | Color of a tree
 
-{-@ measure col         :: RBTree a -> Color
-    col (Node c x l r)  = c
-    col (Leaf)          = B
-  @-}
+{-@ measure col @-}
+col :: RBTree a -> Color
+col (Node c x l r) = c
+col Leaf           = B
 
-{-@ measure isB        :: RBTree a -> Bool
-    isB (Leaf)         = false
-    isB (Node c x l r) = c == B 
-  @-}
+{-@ measure isB @-} 
+isB :: RBTree a -> Bool
+isB Leaf           = False
+isB (Node c x l r) = (c == B) 
 
-{-@ predicate IsB T = not ((col T) == R) @-}
+{-@ inline notR @-}
+notR :: RBTree a -> Bool
+notR t = not ((col t) == R)
 
 ------------------------------------------------------------------
 -- | Auxiliary Invariants ----------------------------------------
 ------------------------------------------------------------------
 
 {-@ predicate Invs V = ((Inv1 V) && (Inv2 V))               @-}
-{-@ predicate Inv1 V = (((isARB V) && (IsB V)) => (isRB V)) @-}
+{-@ predicate Inv1 V = (((isARB V) && (notR V)) => (isRB V)) @-}
 {-@ predicate Inv2 V = ((isRB V) => (isARB V))              @-}
 
 {-@ invariant {v: Color | (v = R || v = B)}                 @-}

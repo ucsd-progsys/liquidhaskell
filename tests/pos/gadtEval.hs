@@ -69,23 +69,23 @@ toBool _     = liquidError "impossible"
 
 
 {-@ measure isValue       :: Expr -> Bool
-    isValue (I i)         = true
-    isValue (B b)         = true
-    isValue (Equal e1 e2) = false 
-    isValue (Plus e1 e2)  = false
+      isValue (I i)         = true
+      isValue (B b)         = true
+      isValue (Equal e1 e2) = false 
+      isValue (Plus e1 e2)  = false
   @-}  
 
 {-@ measure eType       :: Expr -> Ty 
-    eType (I i)         = TInt  
-    eType (Plus  e1 e2) = TInt 
-    eType (B b)         = TBool 
-    eType (Equal e1 e2) = TBool 
+      eType (I i)         = TInt  
+      eType (Plus  e1 e2) = TInt 
+      eType (B b)         = TBool 
+      eType (Equal e1 e2) = TBool 
   @-}
 
 {-@ measure isValid       :: Expr -> Bool
-    isValid (I i)         = true
-    isValid (B b)         = true
-    isValid (Equal e1 e2) = (((eType e1) = (eType e2)) && (isValid e1) && (isValid e2))
-    isValid (Plus e1 e2)  = ((IsTInt e1) && (IsTInt e2) && (isValid e1) && (isValid e2))
+      isValid (I i)         = true
+      isValid (B b)         = true
+      isValid (Equal e1 e2) = (((eType e1) = (eType e2)) && (isValid e1) && (isValid e2))
+      isValid (Plus e1 e2)  = ((IsTInt e1) && (IsTInt e2) && (isValid e1) && (isValid e2))
   @-}
 

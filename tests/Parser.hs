@@ -467,7 +467,7 @@ testSucceeds =
        parseSingleSpec (unlines $
          [ "data List a where"
          , "    Nil  :: List a "
-         , "  | Cons :: listHead:a -> listTail:List a -> List a  "])
+         , "    Cons :: listHead:a -> listTail:List a -> List a  "])
         @?==
             "data List  [a] =\n    | Cons :: forall a . listHead : a ->listTail : (List a) -> (List a)\n    | Nil :: forall a . -> (List a)"
 
@@ -475,7 +475,7 @@ testSucceeds =
        parseSingleSpec (unlines $
          [ "data List2 a b <p :: a -> Bool> where"
          , "    Nil2  :: List2 a "
-         , "  | Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
+         , "    Cons2 :: listHead:a -> listTail:List a -> List2 a b"])
         @?== 
            "data List2  [a, b] = \ 
             \  | Cons2 :: forall a b . listHead : a ->listTail : (List a) -> (List2 a b) \
@@ -485,7 +485,7 @@ testSucceeds =
        parseSingleSpec (unlines $
          [ "data Ev :: Peano -> Prop where"
          , "  EZ  :: Prop (Ev Z)"
-         , "| ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))"
+         , "  ESS :: n:Peano -> Prop (Ev n) -> Prop (Ev (S (S n)))"
          ])
         @?==
             "data Ev  [] =\n    | ESS :: forall . n : Peano ->lq_tmp$db##4 : (Prop (Ev n)) -> (Prop (Ev (S (S n))))\n    | EZ :: forall . -> (Prop (Ev Z))"
@@ -493,7 +493,7 @@ testSucceeds =
     , testCase "type spec 29" $
        parseSingleSpec (unlines $
          [ "measure fst :: (a,b) -> a"
-         , "fst (a,b) = a"
+         , "  fst (a,b) = a"
          ])
         @?==
             "measure fst :: lq_tmp$db##0:(a, b) -> a\n        fst ((,)a b) = a"

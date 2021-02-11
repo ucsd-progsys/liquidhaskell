@@ -166,8 +166,8 @@ makeTargetSpec cfg lmap targetSrc bareSpec dependencies = do
         let (targetSpec, liftedSpec) = view targetSpecGetter ghcSpec
         pure (phaseOneWarns <> warns, targetSpec, liftedSpec)
 
-    toLegacyDep :: (StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
-    toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . unStableModule $ sm), unsafeFromLiftedSpec ls)
+    toLegacyDep :: (Ghc.StableModule, LiftedSpec) -> (ModName, Ms.BareSpec)
+    toLegacyDep (sm, ls) = (ModName SrcImport (Ghc.moduleName . Ghc.unStableModule $ sm), unsafeFromLiftedSpec ls)
 
     toLegacyTarget :: Ms.BareSpec -> (ModName, Ms.BareSpec)
     toLegacyTarget validatedSpec = (giTargetMod targetSrc, validatedSpec)
@@ -884,7 +884,7 @@ makeNewType env sigEnv name d
     tcMb                      = Bare.lookupGhcDnTyCon env name "makeNewType" tcName
     tcName                    = tycName d
     t                         = Bare.cookSpecType env sigEnv name Bare.GenTV bt
-    bt                        = getTy tcName (tycSrcPos d) (tycDCons d)
+    bt                        = getTy tcName (tycSrcPos d) (Mb.fromMaybe [] (tycDCons d))
     getTy _ l [c]
       | [(_, t)] <- dcFields c = Loc l l t
     getTy n l _                = Ex.throw (err n l) 
@@ -981,9 +981,9 @@ mkReft :: LocSymbol -> Symbol -> SpecType -> SpecType -> Maybe (Symbol, Expr)
 mkReft x z _t tr 
   | Just q <- stripRTypeBase tr
   = let Reft (v, p) = toReft q
-        su          = mkSubst [(v, mkEApp x [EVar v])]
-        p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
-    in  Just (v, subst su p')
+        su          = mkSubst [(v, mkEApp x [EVar v]), (z,EVar v)]
+        -- p'          = pAnd $ filter (\e -> z `notElem` syms e) $ conjuncts p
+    in  Just (v, subst su p)
 mkReft _ _ _ _  
   = Nothing 
 

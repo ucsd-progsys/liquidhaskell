@@ -27,10 +27,6 @@ import           Data.Bifunctor
 import qualified Data.HashSet as S 
 import           System.Exit
 import           Text.PrettyPrint.HughesPJ
-import           Var                              (Var)
-import           CoreSyn
-import           HscTypes                         (SourceError)
-import           GHC (HscEnv)
 import           System.Console.CmdArgs.Verbosity (whenLoud, whenNormal)
 import           Control.Monad (when, unless)
 import qualified Data.Maybe as Mb
@@ -54,6 +50,7 @@ import           Language.Haskell.Liquid.Constraint.Types
 import           Language.Haskell.Liquid.UX.Annotate (mkOutput)
 import qualified Language.Haskell.Liquid.Termination.Structural as ST
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
+import           Language.Haskell.Liquid.GHC.API as GHC hiding (text, vcat, ($+$), getOpts, (<+>))
 
 type MbEnv = Maybe HscEnv
 

@@ -56,8 +56,6 @@ import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare
 -- import           Language.Haskell.Liquid.Bare.OfType
 
 import           Text.Printf                     (printf)
-import           Text.PrettyPrint.HughesPJ       ((<+>))
--- import           Debug.Trace (trace)
 
 --------------------------------------------------------------------------------
 -- | 'DataConMap' stores the names of those ctor-fields that have been declared
@@ -399,28 +397,42 @@ dataDeclKey :: Bare.Env -> ModName -> DataDecl -> Maybe F.Symbol
 -- dataDeclKey env name = fmap F.symbol . Bare.lookupGhcDnTyCon env name "canonizeDecls" . tycName
 dataDeclKey env name d = do 
   tc    <- Bare.lookupGhcDnTyCon env name "canonizeDecls" (tycName d)
-  _     <- checkDataCtors env name tc (tycDCons d)   
+  _     <- checkDataCtors env name tc d (tycDCons d)
   return (F.symbol tc)
 
-checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> [DataCtor] -> Maybe [DataCtor] 
-checkDataCtors env name c = mapM (checkDataCtor2 env name c dcs . checkDataCtor1) 
-  where 
-    dcs                   = S.fromList . fmap F.symbol $ Ghc.tyConDataCons c
+-- | Perform sanity check on the data constructors of a LH datatype declaration.
+--
+-- In the special situation where the LH datatype declaration is only used to
+-- attach a termination measure, we pass 'Nothing', and our check always succeeds.
+--
+-- Otherwise, we check that the constructors match the constructors for the
+-- Haskell datatype. This replaces an older check that only verified that any
+-- constructor we list in a datatype is indeed a constructor of that corresponding
+-- Haskell datatype.
+--
+-- We also check that constructors do not have duplicate fields.
+--
+checkDataCtors :: Bare.Env -> ModName -> Ghc.TyCon -> DataDecl -> Maybe [DataCtor] -> Maybe [DataCtor]
+checkDataCtors _env _name _c _dd Nothing     = return []
+checkDataCtors  env  name  c  dd (Just cons) = do
+  -- The GHC data constructors (these are qualified)
+  let dcs :: S.HashSet F.Symbol
+      dcs = S.fromList . fmap F.symbol $ Ghc.tyConDataCons c
+  -- The data constructors in the spec (which we have to qualify for them to match the GHC data constructors)
+  rdcs <-
+      fmap (S.fromList . fmap F.symbol)
+    $ mapM (\ x -> Bare.failMaybe env name
+          (Bare.resolveLocSym env name "checkDataCtors" (dcName x) :: Either UserError Ghc.DataCon)) cons
+  if dcs == rdcs
+    then mapM checkDataCtorDupField cons
+    else Ex.throw (errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs)
 
-checkDataCtor2 :: Bare.Env -> ModName -> Ghc.TyCon -> S.HashSet F.Symbol -> DataCtor 
-               -> Maybe DataCtor 
-checkDataCtor2 env name c dcs d = do
-  let dn = dcName d
-  ctor  <- Bare.failMaybe env name (Bare.resolveLocSym env name "checkDataCtor2" dn :: Either UserError Ghc.DataCon) 
-  let x  = F.symbol ctor 
-  if S.member x dcs 
-    then Just d
-    else Ex.throw (errInvalidDataCon c dn)
-
-checkDataCtor1 :: DataCtor -> DataCtor 
-checkDataCtor1 d 
+-- | Checks whether the given data constructor has duplicate fields.
+--
+checkDataCtorDupField :: DataCtor -> Maybe DataCtor 
+checkDataCtorDupField d 
   | x : _ <- dups = uError (err lc x :: UserError)
-  | otherwise     = d 
+  | otherwise     = return d 
     where
       lc          = dcName   d 
       xts         = dcFields d
@@ -479,7 +491,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
     πs         = Bare.ofBPVar env name pos <$> ps
     tc'        = getDnTyCon env name tc
     -- cts        = checkDataCtors env name tc' cts0
-    cts'       = ofBDataCtor env name lc lc' tc' αs ps πs <$> cts
+    cts'       = ofBDataCtor env name lc lc' tc' αs ps πs <$> Mb.fromMaybe [] cts
     pd         = Bare.ofBareType env name lc (Just []) <$> pt
     tys        = [t | dcp <- cts', (_, t) <- dcpTyArgs dcp]
     initmap    = zip (RT.uPVar <$> πs) [0..]
@@ -549,12 +561,11 @@ ofBDataCtor env name l l' tc αs ps πs _ctor@(DataCtor c as _ xts res) = DataCo
 
 
 
-errInvalidDataCon :: Ghc.TyCon -> LocSymbol -> UserError
-errInvalidDataCon c d = ErrBadGADT sp v msg
+errDataConMismatch :: LocSymbol -> S.HashSet F.Symbol -> S.HashSet F.Symbol -> UserError
+errDataConMismatch d dcs rdcs = ErrDataConMismatch sp v (ppTicks <$> S.toList dcs) (ppTicks <$> S.toList rdcs)
   where
     v                 = pprint (val d)
     sp                = GM.sourcePosSrcSpan (loc d)
-    msg               = ppTicks c <+> "is not the type constructed by" <+> ppTicks v
 
 varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance
 varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of

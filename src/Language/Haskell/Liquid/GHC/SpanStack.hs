@@ -16,13 +16,15 @@ module Language.Haskell.Liquid.GHC.SpanStack
    ) where
 
 import           Prelude                   hiding (error)
-import           SrcLoc
-import qualified Var
-import           CoreSyn                   hiding (Tick, Var)
-import           Name                             (getSrcSpan)
-import           FastString                       (fsLit)
 import           Data.Maybe                       (listToMaybe, fromMaybe)
 import           Language.Haskell.Liquid.GHC.Misc (tickSrcSpan, showPpr)
+import qualified Language.Haskell.Liquid.GHC.API  as Ghc
+import           Language.Haskell.Liquid.GHC.API  ( SrcSpan
+                                                  , fsLit
+                                                  , getSrcSpan
+                                                  , isGoodSrcSpan
+                                                  , mkGeneralSrcSpan
+                                                  )
 
 -- | Opaque type for a stack of spans
 newtype SpanStack = SpanStack { unStack :: [(Span, SrcSpan)] }
@@ -41,8 +43,8 @@ push !s stk -- @(SpanStack stk)
 
 -- | A single span
 data Span
-  = Var  !Var.Var           -- ^ binder for whom we are generating constraint
-  | Tick !(Tickish Var.Var) -- ^ nearest known Source Span
+  = Var  !Ghc.Var               -- ^ binder for whom we are generating constraint
+  | Tick !(Ghc.Tickish Ghc.Var) -- ^ nearest known Source Span
   | Span SrcSpan
 
 instance Show Span where

@@ -7,8 +7,8 @@ import           Text.PrettyPrint.HughesPJ                  hiding ((<>))
 
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.Types.Equality
-import           Language.Haskell.Liquid.GHC.API
-import qualified Language.Fixpoint.Types                     as F
+import           Language.Haskell.Liquid.GHC.API            hiding ((<+>), text)
+import qualified Language.Fixpoint.Types                    as F
 
 checkLawInstances :: GhcSpecLaws -> Diagnostics
 checkLawInstances speclaws = foldMap go (gsLawInst speclaws)

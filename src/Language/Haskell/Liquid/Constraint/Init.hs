@@ -16,14 +16,6 @@ module Language.Haskell.Liquid.Constraint.Init (
     ) where
 
 import           Prelude                                       hiding (error, undefined)
-import           Coercion
-import           DataCon
-import           CoreSyn
-import           Type
-import           TyCon
-import           Var
-import           Id                                           -- hiding (isExportedId)
-import           Name        hiding (varName)
 import           Control.Monad.State
 import           Data.Maybe                                    (isNothing, fromMaybe, catMaybes)
 import qualified Data.HashMap.Strict                           as M
@@ -38,6 +30,7 @@ import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.WiredIn               (dictionaryVar)
 import qualified Language.Haskell.Liquid.GHC.SpanStack         as Sp
 import           Language.Haskell.Liquid.GHC.Misc             ( idDataConM, hasBaseTypeVar, isDataConId) -- dropModuleNames, simplesymbol)
+import           Language.Haskell.Liquid.GHC.API               as Ghc hiding (mapSndM)
 import           Language.Haskell.Liquid.Misc
 import           Language.Fixpoint.Misc
 import           Language.Haskell.Liquid.Constraint.Types

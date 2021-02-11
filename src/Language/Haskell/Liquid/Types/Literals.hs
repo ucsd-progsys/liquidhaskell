@@ -9,8 +9,7 @@ module Language.Haskell.Liquid.Types.Literals
 
 import Prelude hiding (error)
 import Language.Haskell.Liquid.GHC.TypeRep ()
-import Language.Haskell.Liquid.GHC.API
-import qualified TyCon  as TC
+import Language.Haskell.Liquid.GHC.API hiding (panic)
 
 import Language.Haskell.Liquid.Types.Types
 import Language.Haskell.Liquid.Types.RefType
@@ -44,7 +43,7 @@ mkReft = F.exprReft
 --    otherwise string-literals show up as global int-constants
 --    which blow up qualifier instantiation.
 
-literalConst :: F.TCEmb TC.TyCon -> Literal -> (F.Sort, Maybe F.Expr)
+literalConst :: F.TCEmb TyCon -> Literal -> (F.Sort, Maybe F.Expr)
 literalConst tce l = (t, mkLit l)
   where
     t              = typeSort tce $ literalType l

@@ -24,5 +24,5 @@ data StepProof where
     EFake :: Vname -> Expr -> Expr -> StepProof
 
 {-@ data StepProof where
-    EFake :: x:Vname -> e:Expr -> v:_ -> ProofOf( Step (App (Lambda x e) v) e)
+      EFake :: x:Vname -> e:Expr -> v:_ -> ProofOf( Step (App (Lambda x e) v) e)
   @-}

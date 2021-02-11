@@ -66,16 +66,16 @@ import Language.Haskell.Liquid.Prelude  (liquidAssume, liquidAssert)
 {-@ data PairS a b <p :: x0:a -> b -> Bool> = (:*:) (x::a) (y::b<p x>)  @-}
 
 {-@ measure pfst :: (PairS a b) -> a 
-    pfst ((:*:) x y) = x 
+      pfst ((:*:) x y) = x 
   @-} 
 
 {-@ measure psnd :: (PairS a b) -> b 
-    psnd ((:*:) x y) = y 
+      psnd ((:*:) x y) = y 
   @-} 
 
 {-@ measure isJustS    :: (MaybeS a) -> Bool
-    isJustS (JustS x)  = true
-    isJustS (NothingS) = false
+      isJustS (JustS x)  = true
+      isJustS NothingS = false
   @-}
 
 {-@ qualif PlusOne(v:int, x:int): v = x + 1 @-} 

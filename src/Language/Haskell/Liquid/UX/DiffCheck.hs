@@ -32,31 +32,29 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    where
 
 
-import           FastString                             (FastString)
 import           Prelude                                hiding (error)
 import           Data.Aeson
 import qualified Data.Text                              as T
 import           Data.Algorithm.Diff
-import           Data.Maybe                             (listToMaybe, mapMaybe, fromMaybe)
+import           Data.Maybe                             (maybeToList, listToMaybe, mapMaybe, fromMaybe)
 import qualified Data.IntervalMap.FingerTree            as IM
-import           CoreSyn                                hiding (sourceName)
-import           Name                                   (getSrcSpan, NamedThing)
-import           Outputable                             (Outputable, OutputableBndr)
-import           SrcLoc                                 hiding (Located)
-import           Var
 import qualified Data.HashSet                           as S
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.List                              as L
 import           System.Directory                       (copyFile, doesFileExist)
 import           Language.Fixpoint.Types                (atLoc, FixResult (..), SourcePos(..), safeSourcePos, unPos)
+-- import qualified Language.Fixpoint.Misc                 as Misc
 import           Language.Fixpoint.Utils.Files
-import           Language.Fixpoint.Solver.Stats         as Solver
-import           Language.Haskell.Liquid.Misc           (ifM, mkGraph)
+import           Language.Fixpoint.Solver.Stats ()     
+import           Language.Haskell.Liquid.Misc           (mkGraph)
 import           Language.Haskell.Liquid.GHC.Misc
--- import           Language.Haskell.Liquid.Types.Visitors
--- import           Text.Megaparsec.Pos                        (sourceName, sourceLine, sourceColumn, SourcePos, newPos)
+import           Language.Haskell.Liquid.GHC.API        as Ghc hiding ( Located
+                                                                      , sourceName
+                                                                      , text
+                                                                      , panic
+                                                                      , showPpr
+                                                                      )
 import           Text.PrettyPrint.HughesPJ              (text, render, Doc)
--- import           Language.Haskell.Liquid.Types.Errors
 import qualified Data.ByteString                        as B
 import qualified Data.ByteString.Lazy                   as LB                                               
 
@@ -67,20 +65,23 @@ import           Language.Haskell.Liquid.Types          hiding (Def, LMap)
 --------------------------------------------------------------------------------
 
 -- | Main type of value returned for diff-check.
-data DiffCheck = DC { newBinds  :: [CoreBind]
-                    , oldOutput :: !(Output Doc)
-                    , newSpec   :: !TargetSpec
-                    }
+data DiffCheck = DC 
+  { newBinds  :: [CoreBind]
+  , oldOutput :: !(Output Doc)
+  , newSpec   :: !TargetSpec
+  }
 
 instance PPrint DiffCheck where
-  pprintTidy k = pprintTidy k . checkedVars
+  pprintTidy k dc = pprintTidy k (checkedVars dc) <> pprintTidy k (oldOutput dc)
+
 
 -- | Variable definitions
-data Def  = D { start  :: Int -- ^ line at which binder definition starts
-              , end    :: Int -- ^ line at which binder definition ends
-              , binder :: Var -- ^ name of binder
-              }
-            deriving (Eq, Ord)
+data Def  = D 
+  { start  :: Int -- ^ line at which binder definition starts
+  , end    :: Int -- ^ line at which binder definition ends
+  , binder :: Var -- ^ name of binder
+  }
+  deriving (Eq, Ord)
 
 -- | Variable dependencies "call-graph"
 type Deps = M.HashMap Var (S.HashSet Var)
@@ -110,9 +111,11 @@ checkedVars              = concatMap names . newBinds
 --------------------------------------------------------------------------------
 slice :: FilePath -> [CoreBind] -> TargetSpec -> IO (Maybe DiffCheck)
 --------------------------------------------------------------------------------
-slice target cbs sp = ifM (doesFileExist savedFile)
-                          doDiffCheck
-                          (return Nothing)
+slice target cbs sp = do 
+  ex <- doesFileExist savedFile
+  if ex 
+    then doDiffCheck 
+    else return Nothing
   where
     savedFile       = extFileName Saved target
     doDiffCheck     = sliceSaved target savedFile cbs sp
@@ -170,9 +173,6 @@ globalDiff srcF ls gspec = measDiff || invsDiff || dconsDiff
     invsDiff  = any (isDiff srcF ls) (snd <$> gsInvariants spec)
     dconsDiff = any (isDiff srcF ls) [ atLoc ldc () | ldc <- gsDconsP (gsName gspec) ]
     spec      = gsData gspec
-    -- (dloc . snd <$> gsDconsP spec)
-    -- dloc dc   = Loc (dc_loc dc) (dc_locE dc) ()
-
 
 isDiff :: FilePath -> [Int] -> Located a -> Bool
 isDiff srcF ls x = file x == srcF && any hits ls
@@ -203,11 +203,10 @@ thin cbs sp vs = DC (filterBinds      cbs vs') mempty sp'
     xs         = S.fromList $ fst <$> xts
 
 thinWith :: S.HashSet Var -> [CoreBind] -> [Var] -> [CoreBind]
-thinWith sigs cbs xs = filterBinds cbs ys
+thinWith sigs cbs xs = filterBinds cbs calls
   where
-    ys       = calls `S.union` calledBy
-    calls    = txClosure (coreDeps cbs) sigs (S.fromList xs)
-    calledBy = dependsOn (coreDeps cbs) xs
+    calls    = txClosure cbDeps sigs (S.fromList xs)
+    cbDeps   = coreDeps cbs 
 
 coreDeps    :: [CoreBind] -> Deps
 coreDeps bs = mkGraph $ calls ++ calls'
@@ -215,7 +214,10 @@ coreDeps bs = mkGraph $ calls ++ calls'
     calls   = concatMap deps bs
     calls'  = [(y, x) | (x, y) <- calls]
     deps b  = [(x, y) | x <- bindersOf b
-                      , y <- freeVars S.empty b]
+                      , y <- freeVars S.empty b
+                      , S.member y defVars 
+              ]
+    defVars = S.fromList (letVars bs)
 
 -- | Given a call graph, and a list of vars, `dependsOn`
 --   checks all functions to see if they call any of the
@@ -265,22 +267,82 @@ specSigs sp = gsTySigs  (gsSig  sp)
            ++ gsAsmSigs (gsSig  sp) 
            ++ gsCtors   (gsData sp)
 
+instance PPrint Def where
+  pprintTidy _ d = text (show d)
+
+
 --------------------------------------------------------------------------------
 coreDefs     :: [CoreBind] -> [Def]
 --------------------------------------------------------------------------------
-coreDefs cbs = L.sort [D l l' x | b <- cbs
+coreDefs cbs = coreExprDefs xm xes
+  where
+    xes      = coreVarExprs cbs
+    xm       = varBounds xes
+
+coreExprDefs :: M.HashMap Var (Int, Int) -> [(Var, CoreExpr)]-> [Def]
+coreExprDefs xm xes = 
+  L.sort 
+    [ D l l' x 
+      | (x, e) <- xes
+      , (l, l') <- maybeToList $ coreExprDef xm (x, e)
+    ]
+
+coreExprDef :: M.HashMap Var (Int, Int) -> (Var, CoreExpr) -> Maybe (Int, Int)
+coreExprDef m (x, e) = meetSpans eSp vSp
+  where
+    eSp              = lineSpan x $ catSpans x $ exprSpans e
+    vSp              = M.lookup x m
+    -- vSp   = lineSpan x (getSrcSpan x)
+
+coreVarExprs :: [CoreBind] -> [(Var, CoreExpr)]
+coreVarExprs = filter ok . concatMap varExprs
+  where
+    ok       = isGoodSrcSpan . getSrcSpan . fst 
+
+varExprs :: Bind a -> [(a, Expr a)]
+varExprs (NonRec x e) = [(x, e)]
+varExprs (Rec xes)    = xes
+
+-- | varBounds computes upper and lower bounds on where each top-level binder's 
+--   definition can be by using ONLY the lines where the binder is defined.
+varBounds :: [(Var, CoreExpr)] -> M.HashMap Var (Int, Int)
+varBounds = M.fromList . defBounds . varDefs 
+
+varDefs :: [(Var, CoreExpr)] -> [(Int, Var)]
+varDefs xes = 
+  L.sort [ (l, x) | (x,_) <- xes, let Just (l, _) = lineSpan x (getSrcSpan x) ]
+
+defBounds :: [(Int, Var)] -> [(Var, (Int, Int) )]
+defBounds ((l, x) : lxs@((l', _) : _ )) = (x, (l, l' - 1)) : defBounds lxs
+defBounds _                             = []
+
+{- 
+--------------------------------------------------------------------------------
+coreDefs     :: [CoreBind] -> [Def]
+--------------------------------------------------------------------------------
+coreDefs cbs = tracepp "coreDefs" $ 
+               L.sort [D l l' x | b <- cbs
                                 , x <- bindersOf b
                                 , isGoodSrcSpan (getSrcSpan x)
                                 , (l, l') <- coreDef b]
 
-coreDef :: (NamedThing a, OutputableBndr a)
-        => Bind a -> [(Int, Int)]
-coreDef b    = meetSpans b eSp vSp
+coreDef :: CoreBind -> [(Int, Int)]
+coreDef b 
+  | True  = tracepp ("coreDef: " ++ showpp (vs, vSp)) $ maybeToList vSp
+  | False = tracepp ("coreDef: " ++ showpp (b, eSp, vSp)) $ meetSpans b eSp vSp
   where
-    eSp      = lineSpan b $ catSpans b $ bindSpans b
-    vSp      = lineSpan b $ catSpans b $ getSrcSpan <$> bindersOf b
+    eSp   = lineSpan b $ catSpans b $ bindSpans b
+    vSp   = lineSpan b $ catSpans b $ getSrcSpan <$> vs
+    vs    = bindersOf b 
 
-
+meetSpans :: Maybe (Int, Int) -> Maybe (Int, Int) -> Maybe (Int, Int)
+meetSpans Nothing       _
+  = Nothing
+meetSpans (Just (l,l')) Nothing
+  = Just (l, l')
+meetSpans (Just (l,l')) (Just (m,_))
+  = Just (max l m, l')
+-}
 --------------------------------------------------------------------------------
 -- | `meetSpans` cuts off the start-line to be no less than the line at which
 --   the binder is defined. Without this, i.e. if we ONLY use the ticks and
@@ -292,33 +354,44 @@ coreDef b    = meetSpans b eSp vSp
 --   where `spanEnd` is a single line function around 1092 but where
 --   the generated span starts mysteriously at 222 where Data.List is imported.
 
-meetSpans :: Ord t1 => t -> Maybe (t1, t2) -> Maybe (t1, t3) -> [(t1, t2)]
-meetSpans _ Nothing       _
-  = []
-meetSpans _ (Just (l,l')) Nothing
-  = [(l, l')]
-meetSpans _ (Just (l,l')) (Just (m,_))
-  = [(max l m, l')]
+meetSpans :: Maybe (Int, Int) -> Maybe (Int, Int) -> Maybe (Int, Int)
+meetSpans Nothing       _
+  = Nothing
+meetSpans (Just (l,l')) Nothing
+  = Just (l, l')
+meetSpans (Just (l,l')) (Just (m, m'))
+  = Just (max l m, min l' m')
+
+-- spanLower :: Maybe (Int, Int) -> Maybe Int -> Maybe (Int, Int)
+-- spanLower Nothing        _        = Nothing
+-- spanLower sp             Nothing  = sp
+-- spanLower (Just (l, l')) (Just m) = Just (max l m, l')
+
+-- spanUpper :: Maybe (Int, Int) -> Maybe Int -> Maybe (Int, Int)
+-- spanUpper Nothing        _        = Nothing
+-- spanUpper sp             Nothing  = sp
+-- spanUpper (Just (l, l')) (Just m) = Just (l, min l' m)
+
+
 
 lineSpan :: t -> SrcSpan -> Maybe (Int, Int)
-lineSpan _ (RealSrcSpan sp) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
-lineSpan _ _                = Nothing
+lineSpan _ (RealSrcSpan sp _) = Just (srcSpanStartLine sp, srcSpanEndLine sp)
+lineSpan _ _                  = Nothing
 
-catSpans :: (NamedThing r, OutputableBndr r)
-         => Bind r -> [SrcSpan] -> SrcSpan
+catSpans :: Var -> [SrcSpan] -> SrcSpan
 catSpans b []               = panic Nothing $ "DIFFCHECK: catSpans: no spans found for " ++ showPpr b
-catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z) <- xs, bindFile b == srcSpanFile z]
+catSpans b xs               = foldr combineSrcSpans noSrcSpan [x | x@(RealSrcSpan z _) <- xs, varFile b == srcSpanFile z]
 
-bindFile
-  :: (Outputable r, NamedThing r) =>
-     Bind r -> FastString
-bindFile (NonRec x _) = varFile x
-bindFile (Rec xes)    = varFile $ fst $ head xes
+-- bindFile
+--   :: (Outputable r, NamedThing r) =>
+--      Bind r -> FastString
+-- bindFile (NonRec x _) = varFile x
+-- bindFile (Rec xes)    = varFile $ fst $ head xes
 
 varFile :: (Outputable a, NamedThing a) => a -> FastString
 varFile b = case getSrcSpan b of
-              RealSrcSpan z -> srcSpanFile z
-              _             -> panic Nothing $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
+              RealSrcSpan z _ -> srcSpanFile z
+              _               -> panic Nothing $ "DIFFCHECK: getFile: no file found for: " ++ showPpr b
 
 
 bindSpans :: NamedThing a => Bind a -> [SrcSpan]
@@ -346,8 +419,8 @@ altSpans :: (NamedThing a, NamedThing a1) => (t, [a], Expr a1) -> [SrcSpan]
 altSpans (_, xs, e)       = map getSrcSpan xs ++ exprSpans e
 
 isJunkSpan :: SrcSpan -> Bool
-isJunkSpan (RealSrcSpan _) = False
-isJunkSpan _               = True
+isJunkSpan RealSrcSpan{} = False
+isJunkSpan _             = True
 
 --------------------------------------------------------------------------------
 -- | Diff Interface ------------------------------------------------------------
@@ -400,20 +473,24 @@ diffShifts = go 1 1
 --------------------------------------------------------------------------------
 saveResult :: FilePath -> Output Doc -> IO ()
 --------------------------------------------------------------------------------
-saveResult target res
-  = do copyFile target saveF
-       B.writeFile errF $ LB.toStrict $ encode res
-    where
-       saveF = extFileName Saved  target
-       errF  = extFileName Cache  target
+saveResult target res = do 
+  copyFile target saveF
+  B.writeFile errF $ LB.toStrict $ encode res
+  where
+    saveF = extFileName Saved  target
+    errF  = extFileName Cache  target
 
 --------------------------------------------------------------------------------
 loadResult   :: FilePath -> IO (Output Doc)
 --------------------------------------------------------------------------------
-loadResult f = ifM (doesFileExist jsonF) out (return mempty)
+loadResult f = do 
+  ex <- doesFileExist jsonF
+  if ex 
+    then convert <$> B.readFile jsonF
+    else return mempty
   where
+    convert  = fromMaybe mempty . decode . LB.fromStrict 
     jsonF    = extFileName Cache f
-    out      = (fromMaybe mempty . decode . LB.fromStrict) <$> B.readFile jsonF
 
 --------------------------------------------------------------------------------
 adjustOutput :: LMap -> ChkItv -> Output Doc -> Output Doc
@@ -422,7 +499,7 @@ adjustOutput lm cm o  = mempty { o_types  = adjustTypes  lm cm (o_types  o) }
                                { o_result = adjustResult lm cm (o_result o) }
 
 adjustTypes :: LMap -> ChkItv -> AnnInfo a -> AnnInfo a
-adjustTypes lm cm (AI m)          = AI $ M.fromList
+adjustTypes lm cm (AI m)          = AI $ if True then mempty else M.fromList -- FIXME PLEASE
                                     [(sp', v) | (sp, v)  <- M.toList m
                                               , Just sp' <- [adjustSrcSpan lm cm sp]]
 
@@ -435,15 +512,12 @@ errorsResult :: ([a] -> FixResult b) -> [a] -> FixResult b
 errorsResult _ []                 = Safe mempty
 errorsResult f es                 = f es
 
-adjustErrors :: LMap -> ChkItv -> [TError a] -> [TError a]
+adjustErrors :: (PPrint (TError a)) => LMap -> ChkItv -> [TError a] -> [TError a]
 adjustErrors lm cm                = mapMaybe adjustError
   where
-    adjustError e                 = case adjustSrcSpan lm cm (pos e) of
-                                      Just sp' -> Just (e {pos = sp'})
-                                      Nothing  -> Nothing
-
-    -- adjustError (ErrSaved sp m)   =  (`ErrSaved` m) <$>
-    -- adjustError e                 = Just e
+    adjustError e                = case adjustSrcSpan lm cm (pos e) of
+                                     Just sp' -> Just (e {pos = sp'})
+                                     Nothing  -> Nothing
 
 --------------------------------------------------------------------------------
 adjustSrcSpan :: LMap -> ChkItv -> SrcSpan -> Maybe SrcSpan
@@ -455,22 +529,23 @@ adjustSrcSpan lm cm sp
          else Just sp'
 
 isCheckedSpan :: IM.IntervalMap Int a -> SrcSpan -> Bool
-isCheckedSpan cm (RealSrcSpan sp) = isCheckedRealSpan cm sp
-isCheckedSpan _  _                = False
+isCheckedSpan cm (RealSrcSpan sp _) = isCheckedRealSpan cm sp
+isCheckedSpan _  _                  = False
 
 isCheckedRealSpan :: IM.IntervalMap Int a -> RealSrcSpan -> Bool
 isCheckedRealSpan cm              = not . null . (`IM.search` cm) . srcSpanStartLine
 
 adjustSpan :: LMap -> SrcSpan -> Maybe SrcSpan
-adjustSpan lm (RealSrcSpan rsp)   = RealSrcSpan <$> adjustReal lm rsp
+adjustSpan lm (RealSrcSpan rsp _) = RealSrcSpan <$> adjustReal lm rsp <*> pure Nothing
 adjustSpan _  sp                  = Just sp
 
 adjustReal :: LMap -> RealSrcSpan -> Maybe RealSrcSpan
 adjustReal lm rsp
-  | Just δ <- getShift l1 lm      = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
+  | Just δ <- sh                  = Just $ realSrcSpan f (l1 + δ) c1 (l2 + δ) c2
   | otherwise                     = Nothing
   where
     (f, l1, c1, l2, c2)           = unpackRealSrcSpan rsp
+    sh                            = getShift l1 lm
 
 
 -- | @getShift lm old@ returns @Just δ@ if the line number @old@ shifts by @δ@
@@ -509,14 +584,6 @@ instance FromJSON SourcePos where
                                 <*> v .: "sourceColumn"
   parseJSON _          = mempty
 
-instance ToJSON Solver.Stats where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
-instance FromJSON Solver.Stats
-
-instance ToJSON ErrorResult where
-  toJSON = genericToJSON defaultOptions
-  toEncoding = genericToEncoding defaultOptions
 instance FromJSON ErrorResult
 
 instance ToJSON Doc where
@@ -534,8 +601,8 @@ instance FromJSON a => FromJSON (AnnInfo a)
 instance ToJSON (Output Doc) where
   toJSON = genericToJSON defaultOptions
   toEncoding = genericToEncoding defaultOptions
-instance FromJSON (Output Doc)
-
+instance FromJSON (Output Doc) where
+  parseJSON = genericParseJSON defaultOptions
 
 file :: Located a -> FilePath
 file = sourceName . loc

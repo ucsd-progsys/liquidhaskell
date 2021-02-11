@@ -82,8 +82,8 @@ import Foreign.C.Types (CInt(CInt), CSize(CSize))
 import Foreign.C.Types (CInt, CSize)
 #endif
 import GHC.Base (ByteArray#, MutableByteArray#, Int(..),
-                 indexWord16Array#, newByteArray#,
-                 unsafeCoerce#, writeWord16Array#)
+                 indexWord16Array#, newByteArray#, writeWord16Array#)
+import GHC.Exts (unsafeCoerce#) -- Importing from GHC.Exts makes this future-proof (i.e. works for GHC >= 9)
 import GHC.ST (ST(..), runST)
 import GHC.Word (Word16(..))
 import Prelude hiding (error, length, read)
@@ -114,9 +114,7 @@ data Array = Array {
                        , aLen :: Nat }
   @-}
 
-{- measure alen :: Array  -> Nat 
-    alen (Array ba n) = n
-  -}
+
 
 
 {-@ type ArrayN N = {v:Array | (aLen v) = N} @-}
@@ -145,10 +143,6 @@ data MArray s = MArray {
                            }
   @-}
 
-
-{- measure malen :: MArray s -> Nat 
-    malen (MArray ba n) = n
-  -}
 
 {-@ type MArrayN s N = {v:MArray s | (maLen v) = N} @-}
 

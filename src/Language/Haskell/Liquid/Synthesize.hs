@@ -21,18 +21,12 @@ import           Language.Fixpoint.Types hiding (SEnv, SVar, Error)
 import qualified Language.Fixpoint.Types        as F 
 import qualified Language.Fixpoint.Types.Config as F
 import           Language.Haskell.Liquid.Synthesize.Env
+import           Language.Haskell.Liquid.GHC.API as GHC hiding (text, ($+$))
 
-import           CoreSyn (CoreExpr)
-import qualified CoreSyn as GHC
-import           Var 
-import           TyCon
-import           DataCon
 import           Text.PrettyPrint.HughesPJ (text, ($+$))
 import           Control.Monad.State.Lazy
 import qualified Data.HashMap.Strict as M 
 import           Data.Maybe
-import           CoreUtils (exprType)
-import           TyCoRep
 
 synthesize :: FilePath -> F.Config -> CGInfo -> IO [Error]
 synthesize tgt fcfg cginfo = 

@@ -9,7 +9,7 @@ type Rel a = a -> a -> Bool
 
 {-@ data Star [toNat] a where
         Refl :: r:_ -> x:_ -> Prop (Star r x x)
-      | Step :: r:_ -> x:_ -> y:{_ | r x y} -> z:_ -> Prop (Star r y z) -> Prop (Star r x z)
+        Step :: r:_ -> x:_ -> y:{_ | r x y} -> z:_ -> Prop (Star r y z) -> Prop (Star r x z)
   @-}
 
 {-@ thm :: r:Rel a -> x:a -> y:a -> z:a

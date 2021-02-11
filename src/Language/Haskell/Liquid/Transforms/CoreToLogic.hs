@@ -20,17 +20,9 @@ module Language.Haskell.Liquid.Transforms.CoreToLogic
 import           Data.ByteString                       (ByteString)
 import           Prelude                               hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep   () -- needed for Eq 'Type'
-import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located)
--- import qualified Id 
-import qualified Var
-import qualified TyCon 
-import           Coercion
-import qualified Outputable                            as O
-import qualified CoreSubst                             as C
-import qualified Pair
--- import qualified Text.Printf as Printf
-import qualified CoreSyn                               as C
-import           IdInfo
+import           Language.Haskell.Liquid.GHC.API       hiding (Expr, Located, panic)
+import qualified Language.Haskell.Liquid.GHC.API       as Ghc
+import qualified Language.Haskell.Liquid.GHC.API       as C
 import qualified Data.List                             as L
 import           Data.Maybe                            (listToMaybe) 
 import qualified Data.Text                             as T
@@ -233,7 +225,7 @@ measureFail x msg = panic sp e
 isMeasureArg :: Var -> Maybe Type 
 isMeasureArg x 
   | Just tc <- tcMb 
-  , TyCon.isAlgTyCon tc = F.notracepp "isMeasureArg" $ Just t 
+  , Ghc.isAlgTyCon tc = F.notracepp "isMeasureArg" $ Just t 
   | otherwise           = Nothing 
   where 
     t                   = GM.expandVarType x  
@@ -276,18 +268,20 @@ coreToLg allowTC (C.Var x)
 coreToLg allowTC e@(C.App _ _)         = toPredApp allowTC e
 coreToLg allowTC (C.Case e b _ alts)
   | eqType (GM.expandVarType b) boolTy  = checkBoolAlts alts >>= coreToIte allowTC e
-coreToLg allowTC (C.Lam x e)           = do p     <- coreToLg allowTC e
-                                            tce   <- lsEmb <$> getState
-                                            return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
-coreToLg allowTC (C.Case e b _ alts)   = do p <- coreToLg allowTC e
+-- coreToLg (C.Lam x e)           = do p     <- coreToLg e
+--                                     tce   <- lsEmb <$> getState
+--                                     return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
+coreToLg allowTC (C.Case e b _ alts)   = do p <- coreToLg e
                                             casesToLg allowTC b p alts
 coreToLg allowTC (C.Lit l)             = case mkLit l of
-                                           Nothing -> throw $ "Bad Literal in measure definition" ++ GM.showPpr l
-                                           Just i  -> return i
+                                          Nothing -> throw $ "Bad Literal in measure definition" ++ GM.showPpr l
+                                          Just i  -> return i
 coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
-                                            e'     <- coreToLg allowTC   e
+                                            e'     <- coreToLg allowTC e
                                             return (ECoerc s t e')
-coreToLg _       e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
+coreToLg allowTC e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
+                                            "\n\n Try using a helper function to remove the lambda.")
+coreToLg allowTC e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
 
 
@@ -297,7 +291,7 @@ coerceToLg = typeEqToLg . coercionTypeEq
 
 coercionTypeEq :: Coercion -> (Type, Type)
 coercionTypeEq co
-  | Pair.Pair s t <- -- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
+  | Ghc.Pair s t <- -- GM.tracePpr ("coercion-type-eq-1: " ++ GM.showPpr co) $
                        coercionKind co
   = (s, t)
 
@@ -466,7 +460,7 @@ isPolyCst _              = False
 
 isCst :: Type -> Bool
 isCst (ForAllTy _ t) = isCst t
-isCst (FunTy _ _ _)    = False
+isCst FunTy{}        = False
 isCst _              = True
 
 
@@ -550,23 +544,26 @@ mkC                    = Just . ECon . (`F.L` F.charSort)  . repr
 ignoreVar :: Id -> Bool
 ignoreVar i = simpleSymbolVar i `elem` ["I#", "D#"]
 
-isBangInteger :: [C.CoreAlt] -> Bool 
-isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)] 
-  =  symbol s  == "GHC.Integer.Type.S#" 
-  && symbol jp == "GHC.Integer.Type.Jp#" 
-  && symbol jn == "GHC.Integer.Type.Jn#"  
-isBangInteger _ = False 
+-- | Tries to determine if a 'CoreAlt' maps to one of the 'Integer' type constructors.
+-- We need the disjuction for GHC >= 9, where the Integer now comes from the \"ghc-bignum\" package,
+-- and it has different names for the constructors.
+isBangInteger :: [C.CoreAlt] -> Bool
+isBangInteger [(C.DataAlt s, _, _), (C.DataAlt jp,_,_), (C.DataAlt jn,_,_)]
+  =  (symbol s  == "GHC.Integer.Type.S#"  || symbol s  == "GHC.Num.Integer.IS")
+  && (symbol jp == "GHC.Integer.Type.Jp#" || symbol jp == "GHC.Num.Integer.IP")
+  && (symbol jn == "GHC.Integer.Type.Jn#" || symbol jn == "GHC.Num.Integer.IN")
+isBangInteger _ = False
 
 isErasable :: Id -> Bool
 isErasable v = F.notracepp msg $ isGhcSplId v && not (isDCId v) 
   where 
-    msg      = "isErasable: " ++ GM.showPpr (v, Var.idDetails v)
+    msg      = "isErasable: " ++ GM.showPpr (v, Ghc.idDetails v)
 
 isGhcSplId :: Id -> Bool
 isGhcSplId v = isPrefixOfSym (symbol ("$" :: String)) (simpleSymbolVar v)
 
 isDCId :: Id -> Bool
-isDCId v = case Var.idDetails v of 
+isDCId v = case Ghc.idDetails v of 
   DataConWorkId _ -> True 
   DataConWrapId _ -> True 
   _               -> False 
@@ -575,7 +572,7 @@ isANF :: Id -> Bool
 isANF      v = isPrefixOfSym (symbol ("lq_anf" :: String)) (simpleSymbolVar v)
 
 isDead :: Id -> Bool
-isDead     = isDeadOcc . occInfo . Var.idInfo
+isDead     = isDeadOcc . occInfo . Ghc.idInfo
 
 class Simplify a where
   simplify :: Bool -> a -> a

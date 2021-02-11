@@ -25,19 +25,13 @@ import           Language.Haskell.Liquid.Parse            ( specSpecificationP )
 import           Language.Fixpoint.Utils.Files            ( Ext(Spec), withExt )
 
 import           Optics
-import qualified Outputable                              as O
-import           GHC                                     hiding (lookupModule)
-import           HscTypes
-import           CoreMonad                                ( getDynFlags )
-import           Finder                                   ( findExposedPackageModule
-                                                          )
+import qualified Language.Haskell.Liquid.GHC.API         as O
+import           Language.Haskell.Liquid.GHC.API         as GHC hiding (linear)
 
 import           Data.Bifunctor
-import           Data.Foldable
 import           Data.Maybe
 
 import           Control.Exception
-import           Control.Monad.IO.Class
 import           Control.Monad.Trans                      ( lift )
 import           Control.Monad.Trans.Maybe
 
@@ -58,9 +52,9 @@ data SearchLocation =
   -- ^ The spec was loaded from disk (e.g. 'Prelude.spec' or similar)
   deriving Show
 
--- | Load any relevant spec in the input 'SpecEnv', by updating it. The update will happen only if necessary,
--- i.e. if the spec is not already present.
-findRelevantSpecs :: forall m. GhcMonadLike m 
+-- | Load any relevant spec for the input list of 'Module's, by querying both the 'ExternalPackageState'
+-- and the 'HomePackageTable'.
+findRelevantSpecs :: forall m. GhcMonadLike m
                   => ExternalPackageState
                   -> HomePackageTable
                   -> [Module]

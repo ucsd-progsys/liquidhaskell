@@ -19,16 +19,12 @@ import           Language.Haskell.Liquid.Constraint.Fresh
 import           Language.Haskell.Liquid.Constraint.ToFixpoint
 import           Language.Haskell.Liquid.Synthesize.Monad
 import           Language.Haskell.Liquid.Synthesize.GHC
+import           Language.Haskell.Liquid.GHC.API as Ghc
 import           Language.Haskell.Liquid.Misc   ( mapThd3 )
-import           CoreSyn
-import           Var
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity
-import           CoreUtils
 import           Language.Haskell.Liquid.GHC.TypeRep
 import           Language.Haskell.Liquid.Types
-import           MkCore
-import           DynFlags
 
 hasType :: SpecType -> CoreExpr -> SM Bool
 hasType t !e' = notrace (" [ Check ] " ++ show e') $ do 
@@ -81,8 +77,10 @@ check cgi γ cfg x e t = do
 checkError :: SpecType -> SM (Maybe CoreExpr)
 checkError t = do 
   errVar <- varError
-  let errorExpr = App (App (Var errVar) (Type (toType t))) errorInt
-      errorInt  = mkIntExprInt unsafeGlobalDynFlags 42
+  let errorExpr   = App (App (Var errVar) (Type (toType t))) errorInt
+      globalFlags = unsafeGlobalDynFlags
+      platform    = targetPlatform globalFlags
+      errorInt    = mkIntExprInt platform 42
   b <- hasType t errorExpr
   if b 
     then return $ Just errorExpr

@@ -8,28 +8,24 @@
 {-# LANGUAGE TypeSynonymInstances       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings          #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 
 module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Prelude                          hiding (error)
-import           CoreSyn                          hiding (mkTyArg)
-import           CoreUtils                        (exprType)
-import qualified DsMonad
-import           DsMonad                          (initDsWithModGuts)
-import           GHC                              hiding (exprType)
-import           HscTypes
-import           Literal
-import           MkCore                           (mkCoreLets)
-import           Outputable                       (trace)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import           Language.Haskell.Liquid.GHC.API  hiding (exprType, mkTyArg)
-import           VarEnv                           (VarEnv, emptyVarEnv, extendVarEnv, lookupWithDefaultVarEnv)
-import           UniqSupply                       (MonadUnique, getUniqueM)
+import qualified Language.Haskell.Liquid.GHC.API  as O
+import           Language.Haskell.Liquid.GHC.API  as Ghc hiding ( mkTyArg
+                                                                , showPpr
+                                                                , DsM
+                                                                , panic)
+import qualified Language.Haskell.Liquid.GHC.API  as Ghc
 import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
+import qualified Language.Haskell.Liquid.Types.PrettyPrint as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX hiding (inlineAux)
 import qualified Language.Haskell.Liquid.Misc       as Misc 
@@ -45,6 +41,9 @@ import           Data.Maybe                       (fromMaybe)
 import           Data.List                        (sortBy, (\\))
 import           Data.Function                    (on)
 import qualified Text.Printf as Printf 
+import           Data.Hashable
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 
 --------------------------------------------------------------------------------
 -- | A-Normalize a module ------------------------------------------------------
@@ -89,7 +88,7 @@ modGutsTypeEnv mg  = typeEnvFromEntities ids tcs fis
 -- Can't make the below default for normalizeBind as it
 -- fails tests/pos/lets.hs due to GHCs odd let-bindings
 
-normalizeTopBind :: AnfEnv -> Bind CoreBndr -> DsMonad.DsM [CoreBind]
+normalizeTopBind :: AnfEnv -> Bind CoreBndr -> Ghc.DsM [CoreBind]
 normalizeTopBind γ (NonRec x e)
   = do e' <- runDsM $ evalStateT (stitch γ e) (DsST [])
        return [normalizeTyVars $ NonRec x e']
@@ -128,7 +127,7 @@ normalizeForAllTys e = case e of
   (tvs, _) = splitForAllTys (exprType e)
 
 
-newtype DsM a = DsM {runDsM :: DsMonad.DsM a}
+newtype DsM a = DsM {runDsM :: Ghc.DsM a}
    deriving (Functor, Monad, MonadUnique, Applicative)
 
 data DsST = DsST { st_binds :: [CoreBind] }
@@ -370,34 +369,66 @@ freshNormalVar γ t = do
   u     <- getUniqueM
   let i  = getKey u
   let sp = Sp.srcSpan (aeSrcSpan γ)
-  return (mkUserLocal (anfOcc i) u t sp)
+  return (mkUserLocal (anfOcc i) u Ghc.Many t sp)
 
 anfOcc :: Int -> OccName
 anfOcc = mkVarOccFS . GM.symbolFastString . F.intSymbol F.anfPrefix
 
 data AnfEnv = AnfEnv
-  { aeVarEnv    :: VarEnv Id
+  { aeVarEnv    :: HashMap StableId Id
+  -- ^ A mapping between a 'StableId' (see below) and an 'Id'.
   , aeSrcSpan   :: Sp.SpanStack
   , aeCfg       :: UX.Config
   , aeCaseDepth :: !Int
   }
 
+-- | A \"stable\" 'Id'. When transforming 'Core' into ANF notation, we need to keep around a mapping between
+-- a particular 'Var' (typically an 'Id') and an 'Id'. Previously this was accomplished using a 'VarEnv',
+-- a GHC data structure where keys are 'Unique's. Working with 'Unique' in GHC is not always robust enough
+-- when it comes to LH. First of all, the /way/ 'Unique's are constructed might change between GHC versions,
+-- and they are not stable between rebuilds/compilations. In the case of this module, in GHC 9 the test
+-- BST.hs was failing because two different 'Id's, namely \"wild_X2\" and \"dOrd_X2\" were being given the
+-- same 'Unique' by GHC (i.e. \"X2\") which was causing the relevant entry to be overwritten in the 'AnfEnv'
+-- causing a unification error.
+--
+-- A 'StableId' is simply a wrapper over an 'Id' with a different 'Eq' instance that really guarantee
+-- uniqueness (for our purposes, anyway).
+newtype StableId = StableId Id
+
+instance Eq StableId where
+  (StableId id1) == (StableId id2) =
+    -- We first use the default 'Eq' instance, which works on uniques (basically, integers) and is
+    -- efficient. If we get 'False' it means those 'Unique' are really different, but if we get 'True',
+    -- we need to be /really/ sure that's the case by using the 'stableNameCmp' function on the 'Name's.
+    case id1 == id2 of
+      False -> False -- Nothing to do, as the uniques are /really/ different
+      True  -> stableNameCmp (getName id1) (getName id2) == EQ -- Avoid unique clashing.
+
+-- For the 'Hashable' instance, we rely on the 'Unique'. This means in pratice there is a tiny chance
+-- of collision, but this should only marginally affects the efficiency of the data structure.
+instance Hashable StableId where
+  hashWithSalt s (StableId id1) = hashWithSalt s (getKey $ getUnique id1)
+
+-- Shows this 'StableId' by also outputting the associated unique.
+instance Show StableId where
+  show (StableId id1) = nameStableString (getName id1) <> "_" <> show (getUnique id1)
+
 instance UX.HasConfig AnfEnv where
   getConfig = aeCfg
 
 emptyAnfEnv :: UX.Config -> AnfEnv
-emptyAnfEnv cfg = AnfEnv 
-  { aeVarEnv    = emptyVarEnv 
-  , aeSrcSpan   = Sp.empty 
-  , aeCfg       = cfg 
+emptyAnfEnv cfg = AnfEnv
+  { aeVarEnv    = mempty
+  , aeSrcSpan   = Sp.empty
+  , aeCfg       = cfg
   , aeCaseDepth = 1
   }
 
 lookupAnfEnv :: AnfEnv -> Id -> Id -> Id
-lookupAnfEnv γ x y = lookupWithDefaultVarEnv (aeVarEnv γ) x y
+lookupAnfEnv γ x (StableId -> y) = HM.lookupDefault x y (aeVarEnv γ)
 
 extendAnfEnv :: AnfEnv -> Id -> Id -> AnfEnv
-extendAnfEnv γ x y = γ { aeVarEnv = extendVarEnv (aeVarEnv γ) x y }
+extendAnfEnv γ (StableId -> x) y = γ { aeVarEnv = HM.insert x y (aeVarEnv γ) }
 
 incrCaseDepth :: AltCon -> AnfEnv -> AnfEnv 
 incrCaseDepth DEFAULT γ = γ { aeCaseDepth = 1 + aeCaseDepth γ }

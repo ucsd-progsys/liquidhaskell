@@ -8,7 +8,7 @@ module Shadow where
 data Poo = Poo Int
 
 {-@ measure shadow :: Poo -> Int
-    shadow (Poo n) = n
+      shadow (Poo n) = n
   @-}
 
 {-@ test :: p:Poo -> {v:Int | v = shadow p} @-}

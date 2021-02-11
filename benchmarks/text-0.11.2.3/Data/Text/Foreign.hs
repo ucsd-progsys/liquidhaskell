@@ -82,7 +82,7 @@ data I16 = I16 Int
 {-@ data I16 = I16 { i16Val ::Nat } @-}
 
 {-@ measure getI16 :: I16 -> Int
-    getI16 (I16 n) = n
+      getI16 (I16 n) = n
   @-}
 
 {-@ qualif PtrFree(v:Int, p:Ptr a, l:Int): ((l+l)-(v+v)) <= (plen p) @-}
