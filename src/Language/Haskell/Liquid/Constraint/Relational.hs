@@ -131,8 +131,12 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
         True <- all (length qs ==) [length xs1, length xs2, length vs1, length vs2, length ts1, length ts2]
       = Just (xs1, xs2, vs1, vs2, ts1, ts2, qs)
     args _ _ _ _ _ = Nothing
-consRelCheckBind _ _ b1 b2 t1 t2 p = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args" ++ 
-                                               F.showpp (b1, b2, t1, t2, p)
+consRelCheckBind _ _ (Rec [b1]) (Rec [b2]) t1 t2 p
+  = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args " ++ 
+    F.showpp (b1, b2, t1, t2, p)
+consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ 
+  = F.panic $ "consRelCheckBind Rec: multiple binders are not supported " ++ F.showpp (b1, b2)
+
 
 -- Definition of CoreExpr: https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html
 consRelCheck :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> 
@@ -201,22 +205,38 @@ consRelCheck γ ψ l1@(Let (Rec ((x1, d1):bs1)) e1) l2@(Let (Rec ((x2, d2):bs2))
     γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
     γ''' <- γ'' `addPred` q
     consRelCheck γ''' ψ (Let (Rec bs1) e1') (Let (Rec bs2) e2') t1 t2 p
-  
-consRelCheck γ ψ c1@(Case e1 x1 _ alts1) c2@(Case e2 x2 _ alts2) t1 t2 p 
+
+{- consRelCheck γ ψ c1@(Case e1 x1 _ alts1) c2@(Case e2 x2 _ alts2) t1 t2 p 
   | Just alts <- unifyAlts x1 x2 alts1 alts2 = 
-  traceChk "Case" c1 c2 t1 t2 p $ do
+  traceChk "Case Sync " c1 c2 t1 t2 p $ do
   (s1, s2, _) <- consRelSynth γ ψ e1 e2
-  γ' <- γ += ("consRelCheck Case L", x1', s1)
-  γ'' <- γ' += ("consRelCheck Case R", x2', s2)
+  γ' <- γ += ("consRelCheck Case Sync L", x1', s1)
+  γ'' <- γ' += ("consRelCheck Case Sync R", x2', s2)
   forM_ (ctors alts) $ consSameCtors γ'' ψ x1' x2' s1 s2 (nonDefaults alts)
-  forM_ alts $ consRelCheckAlt γ'' ψ t1 t2 p x1' x2' s1 s2
+  forM_ alts $ consRelCheckAltSync γ'' ψ t1 t2 p x1' x2' s1 s2
   where
     nonDefaults = filter (/= DEFAULT) . ctors
     ctors = map (\(c, _, _, _, _) -> c)
     (evar1, evar2) = mkRelCopies x1 x2
     x1' = F.symbol evar1
-    x2' = F.symbol evar2
+    x2' = F.symbol evar2 -}
   
+consRelCheck γ ψ c1@(Case e1 x1 _ alts1) e2 t1 t2 p =
+  traceChk "Case Async L" c1 e2 t1 t2 p $ do
+    s1 <- consUnarySynth γ e1
+    γ' <- γ += ("consRelCheck Case Async L", x1', s1)
+    forM_ alts1 $ consRelCheckAltAsyncL γ' ψ t1 t2 p x1' s1 e2
+  where
+    x1' = F.symbol $ mkCopyWithSuffix relSuffixL x1
+
+consRelCheck γ ψ e1 c2@(Case e2 x2 _ alts2) t1 t2 p =
+  traceChk "Case Async R" e1 c2 t1 t2 p $ do
+    s2 <- consUnarySynth γ e2
+    γ' <- γ += ("consRelCheck Case Async R", x2', s2)
+    forM_ alts2 $ consRelCheckAltAsyncR γ' ψ t1 t2 p e1 x2' s2
+  where
+    x2' = F.symbol $ mkCopyWithSuffix relSuffixR x2
+
 consRelCheck γ ψ e d t1 t2 p = 
   traceChk "Synth" e d t1 t2 p $ do
   (s1, s2, q) <- consRelSynth γ ψ e d
@@ -238,9 +258,23 @@ consSameCtors _ _ _ _ _ _ alts DEFAULT
 isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
 isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
 
-consRelCheckAlt :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
+consRelCheckAltAsyncL :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
+  F.Symbol -> SpecType -> CoreExpr -> Alt CoreBndr -> CG ()
+consRelCheckAltAsyncL γ ψ t1 t2 p x1 s1 e2 (c, bs1, e1) = do
+  ct1 <- ctorTy γ c s1
+  γ'  <- unapply γ x1 s1 bs1 ct1
+  consRelCheck γ' ψ e1 e2 t1 t2 p
+
+consRelCheckAltAsyncR :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
+  CoreExpr -> F.Symbol -> SpecType -> Alt CoreBndr -> CG ()
+consRelCheckAltAsyncR γ ψ t1 t2 p e1 x2 s2 (c, bs2, e2) = do
+  ct2 <- ctorTy γ c s2
+  γ'  <- unapply γ x2 s2 bs2 ct2
+  consRelCheck γ' ψ e1 e2 t1 t2 p
+
+consRelCheckAltSync :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
   F.Symbol -> F.Symbol -> SpecType -> SpecType -> RelAlt -> CG ()
-consRelCheckAlt γ ψ t1 t2 p x1 x2 s1 s2 (c, bs1, bs2, e1, e2) = do
+consRelCheckAltSync γ ψ t1 t2 p x1 x2 s1 s2 (c, bs1, bs2, e1, e2) = do
   ct1 <- ctorTy γ c s1 
   ct2 <- ctorTy γ c s2
   γ'  <- unapply γ x1 s1 bs1 ct1 
