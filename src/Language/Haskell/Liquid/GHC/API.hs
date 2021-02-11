@@ -250,9 +250,9 @@ import                   Binary
 import                   Data.ByteString (ByteString)
 import                   Data.Data (Data)
 import Kind              as Ghc
-import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
+import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy, extendCvSubst)
 import TyCon             as Ghc hiding (mkAnonTyConBinders, TyConBndrVis(AnonTCB))
-import qualified TyCoRep as Ty
+import qualified TyCoRep as Ty hiding (extendCvSubst)
 import qualified TyCon   as Ty
 import Platform as Ghc
 import qualified HsExtension
