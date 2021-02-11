@@ -404,6 +404,20 @@ dataCtorSorts = map dfSort . dcFields
 class SymConsts a where
   symConsts :: a -> [SymConst]
 
+
+instance SymConsts a => SymConsts [a] where
+  symConsts xs = concatMap symConsts xs 
+  
+instance SymConsts AxiomEnv where 
+  symConsts xs =  symConsts (aenvEqs xs) ++ symConsts (aenvSimpl xs)
+
+instance SymConsts Equation where 
+  symConsts = symConsts . eqBody 
+
+instance SymConsts Rewrite where 
+  symConsts = symConsts . smBody 
+
+
 -- instance  SymConsts (FInfo a) where
 instance (SymConsts (c a)) => SymConsts (GInfo c a) where
   symConsts fi = Misc.sortNub $ csLits ++ bsLits ++ qsLits
