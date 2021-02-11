@@ -255,7 +255,7 @@ coreToLogic allowTC cb = coreToLg allowTC (normalize allowTC cb)
 
 coreToLg :: Bool -> C.CoreExpr -> LogicM Expr
 coreToLg allowTC  (C.Let (C.NonRec x (C.Coercion c)) e)
-  = coreToLg allowTC (C.substExpr O.empty (C.extendCvSubst C.emptySubst x c) e)
+  = coreToLg allowTC (C.substExpr C.empty (C.extendCvSubst C.emptySubst x c) e)
 coreToLg allowTC  (C.Let b e)
   = subst1 <$> coreToLg allowTC e <*>  makesub allowTC b
 coreToLg allowTC (C.Tick _ e)          = coreToLg allowTC e
@@ -271,7 +271,7 @@ coreToLg allowTC (C.Case e b _ alts)
 -- coreToLg (C.Lam x e)           = do p     <- coreToLg e
 --                                     tce   <- lsEmb <$> getState
 --                                     return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
-coreToLg allowTC (C.Case e b _ alts)   = do p <- coreToLg e
+coreToLg allowTC (C.Case e b _ alts)   = do p <- coreToLg allowTC e
                                             casesToLg allowTC b p alts
 coreToLg allowTC (C.Lit l)             = case mkLit l of
                                           Nothing -> throw $ "Bad Literal in measure definition" ++ GM.showPpr l

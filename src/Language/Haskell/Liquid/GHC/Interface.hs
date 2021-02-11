@@ -499,7 +499,7 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
   -- set up the interactive context
   when (typeclass cfg) $
     loadContext (view bareSpecIso bareSpec) dependencies targetSrc
-  (msgs, specM) <- withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
+  (msgs, specM) <- Ghc.withSession $ \hsc_env -> liftIO $ runTcInteractive hsc_env
     (makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies)
   case specM of
     Nothing -> panic Nothing  $ O.showSDoc dynFlags $ O.sep (Ghc.pprErrMsgBagWithLoc (snd msgs))

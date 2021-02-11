@@ -98,6 +98,8 @@ module Language.Haskell.Liquid.GHC.API (
   , isBootSummary
   , mkIntExprInt
   , dataConFullSig
+  , prependGHCRealQual
+  , isFromGHCReal
 #endif
 #endif
 
@@ -140,7 +142,7 @@ import Coercion                 as Ghc
 import ConLike                  as Ghc
 import CoreLint                 as Ghc hiding (dumpIfSet)
 import CoreMonad                as Ghc (CoreToDo(..))
-import CoreSubst                as Ghc (deShadowBinds)
+import CoreSubst                as Ghc (deShadowBinds, substExpr, emptySubst, extendCvSubst)
 import CoreSyn                  as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import CoreUtils                as Ghc (exprType)
 import CostCentre               as Ghc
@@ -158,6 +160,7 @@ import FamInstEnv               as Ghc hiding (pprFamInst)
 import Finder                   as Ghc
 import ForeignCall              (CType)
 import GHC                      as Ghc (SrcSpan)
+import GhcMonad                 as Ghc (withSession)
 import GhcPlugins               as Ghc (deserializeWithData , fromSerialized , toSerialized)
 import HscMain                  as Ghc
 import HscTypes                 as Ghc hiding (IsBootInterface, isBootSummary)
@@ -204,6 +207,15 @@ import qualified Id             as Ghc
 import qualified MkCore         as Ghc
 import qualified Var            as Ghc
 import qualified WwLib          as Ghc
+import           RnExpr         as Ghc (rnLExpr)
+import           TcExpr         as Ghc (tcInferSigma)
+import           TcBinds        as Ghc (tcValBinds)
+import           Inst           as Ghc (deeplyInstantiate)
+import           TcSimplify     as Ghc ( simplifyInfer, simplifyInteractive
+                                       , InferMode (..))
+import           TcHsSyn        as Ghc (zonkTopLExpr)
+import           TcEvidence     as Ghc ( TcEvBinds (EvBinds))
+import           DsExpr         as Ghc (dsLExpr)
 #endif
 #endif
 
@@ -220,7 +232,7 @@ import qualified WwLib          as Ghc
 import qualified Literal as Lit
 import FastString        as Ghc hiding (bytesFS, LitString)
 import TcType            as Ghc hiding (typeKind, mkFunTy)
-import Type              as Ghc hiding (typeKind, mkFunTy, splitFunTys)
+import Type              as Ghc hiding (typeKind, mkFunTy, splitFunTys, extendCvSubst)
 import qualified Type    as Ghc
 import qualified Var     as Var
 import qualified GHC.Real
@@ -257,7 +269,7 @@ import qualified HsExtension
 
 import FastString           as Ghc hiding (bytesFS)
 import TcType               as Ghc hiding (typeKind, mkFunTy, isEqPred)
-import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred, splitFunTys)
+import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred, splitFunTys, extendCvSubst)
 import qualified Type       as Ghc
 import qualified Type       as Ghc (isEvVarType)
 import qualified PrelNames  as Ghc
@@ -274,8 +286,8 @@ import Data.Foldable        (asum)
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
 import DynFlags          as  Ghc (targetPlatform)
 import GHC.Platform      as  Ghc (Platform)
-import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys)
-import qualified Type    as  Ghc
+import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys, extendCvSubst)
+import qualified Type    as  Ghc hiding (extendCvSubst)
 import TyCon             as  Ghc
 import qualified TyCoRep as  Ty
 import TcType            as  Ghc

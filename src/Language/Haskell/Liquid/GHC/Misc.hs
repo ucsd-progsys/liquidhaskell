@@ -29,7 +29,7 @@ import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
                                                                           , panic
                                                                           , showSDoc
                                                                           )
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc (showSDoc, panic, showSDocDump)
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic, showSDocDump)
 
 
 import           Data.Char                                  (isLower, isSpace, isUpper)
@@ -43,7 +43,7 @@ import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
-import           Control.Monad                              ((>=>))
+import           Control.Monad                              ((>=>), foldM)
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
@@ -801,7 +801,7 @@ expandVarType = expandTypeSynonyms . varType
 --   such expressions arbitrarily.
 --------------------------------------------------------------------------------
 isEmbeddedDictExpr :: CoreExpr -> Bool
-isEmbeddedDictExpr = isEmbeddedDictType . CoreUtils.exprType
+isEmbeddedDictExpr = isEmbeddedDictType . exprType
 
 isEmbeddedDictVar :: Var -> Bool
 isEmbeddedDictVar v = F.notracepp msg . isEmbeddedDictType . varType $ v
@@ -990,7 +990,7 @@ withWiredIn m = discardConstraints $ do
   wiredIns <- mkWiredIns
   -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
   snd <$> tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
-  
+
  where
   -- lookupUndef = do
   --   lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
@@ -1026,7 +1026,7 @@ withWiredIn m = discardConstraints $ do
       inf <> t
     ) wiredIns
 
-  locSpan = UnhelpfulSpan "Language.Haskell.Liquid.GHC.Misc: WiredIn"
+  locSpan = UnhelpfulSpan (UnhelpfulOther "Language.Haskell.Liquid.GHC.Misc: WiredIn")
 
   mkWiredIns = sequence [impl, dimpl, eq, len]
 
