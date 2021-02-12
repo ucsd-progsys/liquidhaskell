@@ -388,17 +388,21 @@ badRhs1 (i, c) = E.err E.dummySpan $ vcat [ "Malformed RHS for constraint id" <+
 --   it makes it hard to actually find the fundefs within (breaking PLE.)
 --------------------------------------------------------------------------------
 symbolEnv :: Config -> F.SInfo a -> F.SymEnv
-symbolEnv cfg si = F.symEnv sEnv tEnv ds (F.dLits si) (ts ++ ts')
+symbolEnv cfg si = F.symEnv sEnv tEnv ds lits (ts ++ ts')
   where
     ts'          = applySorts ae' 
     ae'          = elaborate (F.atLoc E.dummySpan "symbolEnv") env0 (F.ae si)
-    env0         = F.symEnv sEnv tEnv ds (F.dLits si) ts
+    env0         = F.symEnv sEnv tEnv ds lits ts
     tEnv         = Thy.theorySymbols ds
     ds           = F.ddecls si
     ts           = Misc.hashNub (applySorts si ++ [t | (_, t) <- F.toListSEnv sEnv])
     sEnv         = (F.tsSort <$> tEnv) `mappend` (F.fromListSEnv xts)
-    xts          = symbolSorts cfg si
+    xts          = symbolSorts cfg si ++ alits
+    lits         = F.dLits si `F.unionSEnv'` F.fromListSEnv alits
+    alits        = litsAEnv $ F.ae si
 
+litsAEnv :: F.AxiomEnv -> [(F.Symbol, F.Sort)]
+litsAEnv ae = zip (F.symbol <$> (symConsts ae)) (repeat $ F.strSort)
 
 symbolSorts :: Config -> F.GInfo c a -> [(F.Symbol, F.Sort)]
 symbolSorts cfg fi = either E.die id $ symbolSorts' cfg fi
