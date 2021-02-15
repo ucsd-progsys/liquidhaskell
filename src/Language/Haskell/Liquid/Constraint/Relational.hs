@@ -116,7 +116,7 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
     γ' <- γ += ("Bind Rec f1", fsym1, t1) >>= (+= ("Bind Rec f2", fsym2, t2))
     γ'' <- foldM (\γ (x, t) -> γ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2') 
-    γ''' <- γ'' `addPred` vs2xs (F.PAnd qs)
+    γ''' <- γ'' `addPred` D.trace ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
     let p' = unapp p (zip vs1 vs2)
     let ψ' = ForAll f1' f2' vs1 vs2 p' : ForAll f2' f1' vs2 vs1 p' : ψ
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (ret t1) (ret t2) (vs2xs $ concl p')
@@ -178,7 +178,7 @@ consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFu
     γ'' <- γ' += ("consRelCheck Lam R", pvar2, s2)
     let p'    = unapplyRelArgs v1 v2 p
     let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
-    γ''' <- γ'' `addPred` subst q
+    γ''' <- γ'' `addPred` D.trace ("PRECONDITION " ++ F.showpp (subst q)) subst q
     consRelCheck γ''' ψ e1' e2' (subst t1) (subst t2) (subst p')
 
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
@@ -246,7 +246,7 @@ consRelCheck γ ψ e d t1 t2 p =
   addC (SubC γ s2 t2) ("consRelCheck (Synth): s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
 
 consSameCtors :: CGEnv -> PrEnv -> F.Symbol -> F.Symbol -> SpecType -> SpecType -> [AltCon] -> AltCon  -> CG ()
-consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c) | c == Ghc.trueDataCon || c == Ghc.falseDataCon
+consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c) | isBoolDataCon c
   = entl γ (F.PIff (F.EVar x1) (F.EVar x2)) "consSameCtors DataAlt Bool"
 consSameCtors γ ψ x1 x2 s1 s2 alts (DataAlt c)
   = entl γ (F.PIff (isCtor c $ F.EVar x1) (isCtor c $ F.EVar x2)) "consSameCtors DataAlt"
@@ -255,31 +255,29 @@ consSameCtors γ ψ x1 x2 _ _ _ (LitAlt l)
 consSameCtors _ _ _ _ _ _ alts DEFAULT
   = F.panic "consSameCtors undefined for default"
 
-isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
-isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
+consExtAltEnv :: CGEnv -> F.Symbol -> SpecType -> AltCon -> [Var] -> CoreExpr -> String -> CG (CGEnv, CoreExpr)
+consExtAltEnv γ x s c bs e suf = do 
+  ct <- ctorTy γ c s
+  unapply γ x s bs ct e suf
 
 consRelCheckAltAsyncL :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
   F.Symbol -> SpecType -> CoreExpr -> Alt CoreBndr -> CG ()
 consRelCheckAltAsyncL γ ψ t1 t2 p x1 s1 e2 (c, bs1, e1) = do
-  ct1 <- ctorTy γ c s1
-  γ'  <- unapply γ x1 s1 bs1 ct1
-  consRelCheck γ' ψ e1 e2 t1 t2 p
+  (γ', e1') <- consExtAltEnv γ x1 s1 c bs1 e1 relSuffixL
+  consRelCheck γ' ψ e1' e2 t1 t2 p
 
 consRelCheckAltAsyncR :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
   CoreExpr -> F.Symbol -> SpecType -> Alt CoreBndr -> CG ()
 consRelCheckAltAsyncR γ ψ t1 t2 p e1 x2 s2 (c, bs2, e2) = do
-  ct2 <- ctorTy γ c s2
-  γ'  <- unapply γ x2 s2 bs2 ct2
-  consRelCheck γ' ψ e1 e2 t1 t2 p
+  (γ', e2') <- consExtAltEnv γ x2 s2 c bs2 e2 relSuffixR
+  consRelCheck γ' ψ e1 e2' t1 t2 p
 
 consRelCheckAltSync :: CGEnv -> PrEnv -> SpecType -> SpecType -> F.Expr -> 
   F.Symbol -> F.Symbol -> SpecType -> SpecType -> RelAlt -> CG ()
 consRelCheckAltSync γ ψ t1 t2 p x1 x2 s1 s2 (c, bs1, bs2, e1, e2) = do
-  ct1 <- ctorTy γ c s1 
-  ct2 <- ctorTy γ c s2
-  γ'  <- unapply γ x1 s1 bs1 ct1 
-  γ'' <- unapply γ' x2 s2 bs2 ct2
-  consRelCheck γ'' ψ e1 e2 t1 t2 p
+  (γ', e1') <- consExtAltEnv γ x1 s1 c bs1 e1 relSuffixL
+  (γ'', e2') <- consExtAltEnv γ' x2 s2 c bs2 e2 relSuffixR
+  consRelCheck γ'' ψ e1' e2' t1 t2 p
 
 ctorTy :: CGEnv -> AltCon -> SpecType -> CG SpecType
 ctorTy γ (DataAlt c) (RApp _ ts _ _) 
@@ -291,13 +289,19 @@ ctorTy _ (DataAlt _) t =
 ctorTy _ (LitAlt c) _ = return $ uTop <$> literalFRefType c
 ctorTy _ DEFAULT t = return t
 
-unapply :: CGEnv -> F.Symbol -> SpecType -> [Var] -> SpecType -> CG CGEnv
-unapply γ y yt (z : zs) (RFun x s t _) = do
-  let evar = F.symbol z
+unapply :: CGEnv -> F.Symbol -> SpecType -> [Var] -> SpecType -> CoreExpr -> String -> CG (CGEnv, CoreExpr)
+unapply γ y yt (z : zs) (RFun x s t _) e suffix = do
   γ' <- γ += ("unapply arg", evar, s)
-  unapply γ' y yt zs (t `F.subst1` (x, F.EVar evar))
-unapply _ _ _ (_ : _) t = F.panic $ "can't unapply type " ++ F.showpp t
-unapply γ y yt [] t = γ += ("unapply res", y, t `F.meet` yt)
+  unapply γ' y yt zs (t `F.subst1` (x, F.EVar evar)) e' suffix
+  where 
+    z' = mkCopyWithSuffix suffix z
+    evar = F.symbol z'
+    e' = subVarAndTy z z' e
+unapply _ _ _ (_ : _) t _ _ = F.panic $ "can't unapply type " ++ F.showpp t
+unapply γ y yt [] t e _ = do
+  let yt' = t `F.meet` yt
+  γ' <- γ += ("unapply res", y, yt')
+  return $ D.trace ("SCRUTINEE " ++ F.showpp (y, yt')) (γ', e)
 
 instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
@@ -360,7 +364,7 @@ consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick _ e) = consUnarySynth γ e
 consUnarySynth γ (Var x) =
   case γ ?= F.symbol x of
-    Just t -> return $ selfify t x
+    Just t -> return $ D.trace ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
     Nothing -> F.panic $ "consUnarySynth (Var) " ++ F.showpp x ++ " not in scope " ++ F.showpp γ
 consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
 consUnarySynth γ e@(Let _ _) = 
@@ -383,19 +387,40 @@ consUnarySynth γ e@(Lam x d)  = do
   t  <- consUnarySynth γ' d
   addW $ WfC γ t
   return $ RFun (F.symbol x) s t mempty
-
-consUnarySynth _ e@(Case _ _ _ _) = F.panic $ "consUnarySynth is undefined for Case " ++ F.showpp e
+consUnarySynth γ e@(Case _ _ _ alts) = do
+  t   <- freshTy_type (caseKVKind alts) e $ exprType e
+  addW $ WfC γ t
+  consUnaryCheck γ e t
+  return t
 consUnarySynth _ e@(Cast _ _) = F.panic $ "consUnarySynth is undefined for Cast " ++ F.showpp e
 consUnarySynth _ e@(Type _) = F.panic $ "consUnarySynth is undefined for Type " ++ F.showpp e
 consUnarySynth _ e@(Coercion _) = F.panic $ "consUnarySynth is undefined for Coercion " ++ F.showpp e
+
+caseKVKind :: [Alt Var] -> KVKind
+caseKVKind [(DataAlt _, _, Var _)] = ProjectE
+caseKVKind cs                      = CaseE (length cs)
 
 checkFun :: CoreExpr -> Type -> Type 
 checkFun _ t@FunTy{} = t 
 checkFun e t = F.panic $ "FunTy was expected but got " ++ F.showpp t ++ "\t for expression" ++ F.showpp e
 
+base :: SpecType -> Bool
+base RApp{} = True
+base RVar{} = True
+base _      = False
+
+selfifyExpr :: SpecType -> F.Expr -> Maybe SpecType
+selfifyExpr (RFun v s t r) f = (\t -> RFun v s t r) <$> selfifyExpr t (F.EApp f (F.EVar v))
+-- selfifyExpr (RAllT α t r) f = (\t -> RAllT α t r) <$> selfifyExpr t f
+-- selfifyExpr (RAllT α t r) f = (\t -> RAllT α t r) <$> selfifyExpr t (F.ETApp f (F.FVar 0))
+selfifyExpr t e | base t = Just $ t `strengthen` eq e
+  where eq = uTop . F.exprReft
+selfifyExpr _ _ = Nothing
+
 selfify :: F.Symbolic a => SpecType -> a -> SpecType
-selfify t@RApp{} x = t `strengthen` eq x  
+selfify t x | base t = t `strengthen` eq x  
   where eq = uTop . F.symbolReft . F.symbol
+selfify t e | Just t' <- selfifyExpr t (F.EVar $ F.symbol e) = t'
 selfify t _ = t
 
 consUnarySynthApp :: CGEnv -> SpecType -> CoreExpr -> CG SpecType
@@ -463,6 +488,19 @@ wfTruth _ _ = F.PTrue
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
 --------------------------------------------------------------
+
+isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
+isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
+
+isAltCon :: AltCon -> F.Symbol -> F.Expr
+isAltCon (DataAlt c) x | c == Ghc.trueDataCon  = F.EVar x
+isAltCon (DataAlt c) x | c == Ghc.falseDataCon = F.PNot $ F.EVar x
+isAltCon (DataAlt c) x                         = isCtor c (F.EVar x)
+isAltCon _           _                         = F.PTrue
+
+isBoolDataCon :: DataCon -> Bool
+isBoolDataCon c = c == Ghc.trueDataCon || c == Ghc.falseDataCon
+
 xargs :: CoreExpr -> [Var]
 xargs (Tick _ e) = xargs e
 xargs (Lam  x e) = x : xargs e
@@ -555,11 +593,11 @@ entlFunRefts γ r1 r2 msg = do
   entlFunReft γ r2 $ msg ++ " R"
 
 subRelCopies :: CoreExpr -> Var -> CoreExpr -> Var -> (CoreExpr, CoreExpr)
-subRelCopies e1 x1 e2 x2 = (subExpAndTy x1 evar1 e1, subExpAndTy x2 evar2 e2)
-  where
-    subExpAndTy :: Var -> Var -> CoreExpr -> CoreExpr
-    subExpAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
-    (evar1, evar2) = mkRelCopies x1 x2
+subRelCopies e1 x1 e2 x2 = (subVarAndTy x1 evar1 e1, subVarAndTy x2 evar2 e2)
+  where (evar1, evar2) = mkRelCopies x1 x2
+
+subVarAndTy :: Var -> Var -> CoreExpr -> CoreExpr
+subVarAndTy x v = subTy (M.singleton x $ TyVarTy v) . sub (M.singleton x $ Var v)
 
 mkRelCopies :: Var -> Var -> (Var, Var)
 mkRelCopies x1 x2 = (mkCopyWithSuffix relSuffixL x1, mkCopyWithSuffix relSuffixR x2)

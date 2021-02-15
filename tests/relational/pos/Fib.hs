@@ -13,6 +13,6 @@ leq Z     _     = True
 leq _     Z     = False
 leq (S n) (S m) = leq n m
 
-{-@ relational fib ~ fib :: a1:N -> { v:Int | v >= 1 } ~ a2:N -> { v:Int | v >= 1 }
-                         ~~ Fixme.leq a1 a2 => r1 a1 <= r2 a2 @-}
+{-@ relational fib ~ fib :: n1:_ -> { v:Int | v >= 1 } ~ n2:_ -> { v:Int | v >= 1 }
+                         ~~ n1 == n2 => r1 n1 == r2 n2 @-}
 
