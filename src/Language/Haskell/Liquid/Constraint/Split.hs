@@ -139,7 +139,7 @@ bsplitW' γ t temp isHO
 splitfWithVariance :: Applicative f
                    => (t -> t -> f [a]) -> t -> t -> Variance -> f [a]
 splitfWithVariance f t1 t2 Invariant     = (++) <$> f t1 t2 <*> f t2 t1
-splitfWithVariance f t1 t2 Bivariant     = (++) <$> f t1 t2 <*> f t2 t1
+splitfWithVariance f t1 t2 Bivariant     = pure [] -- (++) <$> f t1 t2 <*> f t2 t1
 splitfWithVariance f t1 t2 Covariant     = f t1 t2
 splitfWithVariance f t1 t2 Contravariant = f t2 t1
 
