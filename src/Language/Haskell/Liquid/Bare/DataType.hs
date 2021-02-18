@@ -568,9 +568,9 @@ errDataConMismatch d dcs rdcs = ErrDataConMismatch sp v (ppTicks <$> S.toList dc
 
 varSignToVariance :: Eq a => [(a, Bool)] -> a -> Variance
 varSignToVariance varsigns i = case filter (\p -> fst p == i) varsigns of
-                                []       -> Invariant
+                                []       -> Bivariant
                                 [(_, b)] -> if b then Covariant else Contravariant
-                                _        -> Bivariant
+                                _        -> Invariant
 
 getPsSig :: [(UsedPVar, a)] -> Bool -> SpecType -> [(a, Bool)]
 getPsSig m pos (RAllT _ t r)
