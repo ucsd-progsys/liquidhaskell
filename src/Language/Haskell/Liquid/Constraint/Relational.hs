@@ -59,11 +59,13 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Transforms.CoreToLogic (weakenResult)
 import           Language.Haskell.Liquid.Transforms.Rec
 import           Language.Haskell.Liquid.Types.Dictionaries
-import           Text.PrettyPrint.HughesPJ                      hiding ((<>))
-
 import           Language.Haskell.Liquid.Types                  hiding (Def,
                                                                  Loc, binds,
                                                                  loc)
+import           System.Console.CmdArgs.Verbosity               (whenLoud)
+import           System.IO.Unsafe                               (unsafePerformIO)
+import           Text.PrettyPrint.HughesPJ                      hiding ( (<>) )
+
 
 consRelTop :: Config -> TargetInfo -> CGEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG ()
 consRelTop _ ti γ (x,y,t,s,p) = do
@@ -116,7 +118,7 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
     γ' <- γ += ("Bind Rec f1", fsym1, t1) >>= (+= ("Bind Rec f2", fsym2, t2))
     γ'' <- foldM (\γ (x, t) -> γ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2') 
-    γ''' <- γ'' `addPred` D.trace ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
+    γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
     let p' = unapp p (zip vs1 vs2)
     let ψ' = ForAll f1' f2' vs1 vs2 p' : ForAll f2' f1' vs2 vs1 p' : ψ
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (ret t1) (ret t2) (vs2xs $ concl p')
@@ -178,7 +180,7 @@ consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFu
     γ'' <- γ' += ("consRelCheck Lam R", pvar2, s2)
     let p'    = unapplyRelArgs v1 v2 p
     let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
-    γ''' <- γ'' `addPred` D.trace ("PRECONDITION " ++ F.showpp (subst q)) subst q
+    γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (subst q)) subst q
     consRelCheck γ''' ψ e1' e2' (subst t1) (subst t2) (subst p')
 
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
@@ -301,7 +303,7 @@ unapply _ _ _ (_ : _) t _ _ = F.panic $ "can't unapply type " ++ F.showpp t
 unapply γ y yt [] t e _ = do
   let yt' = t `F.meet` yt
   γ' <- γ += ("unapply res", y, yt')
-  return $ D.trace ("SCRUTINEE " ++ F.showpp (y, yt')) (γ', e)
+  return $ traceWhenLoud ("SCRUTINEE " ++ F.showpp (y, yt')) (γ', e)
 
 instantiateTys :: SpecType -> [SpecType] -> SpecType
 instantiateTys = L.foldl' go
@@ -364,7 +366,7 @@ consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick _ e) = consUnarySynth γ e
 consUnarySynth γ (Var x) =
   case γ ?= F.symbol x of
-    Just t -> return $ D.trace ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
+    Just t -> return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
     Nothing -> F.panic $ "consUnarySynth (Var) " ++ F.showpp x ++ " not in scope " ++ F.showpp γ
 consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
 consUnarySynth γ e@(Let _ _) = 
@@ -390,7 +392,7 @@ consUnarySynth γ e@(Lam x d)  = do
 consUnarySynth γ e@(Case _ _ _ alts) = do
   t   <- freshTy_type (caseKVKind alts) e $ exprType e
   addW $ WfC γ t
-  consUnaryCheck γ e t
+  -- consUnaryCheck γ e t
   return t
 consUnarySynth _ e@(Cast _ _) = F.panic $ "consUnarySynth is undefined for Cast " ++ F.showpp e
 consUnarySynth _ e@(Type _) = F.panic $ "consUnarySynth is undefined for Type " ++ F.showpp e
@@ -552,7 +554,7 @@ instantiateApp e1 e2 ψ
     = let s = zip (args1 qpr ++ args2 qpr) (F.EVar . F.symbol <$> xs1 ++ xs2)
       in let sub = F.mkSubst s
         in let p = F.subst sub $ prop qpr
-          in D.trace ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) $ Just p
+          in traceWhenLoud ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) $ Just p
   inst _ _ _ = Nothing
 instantiateApp _ _ _ = Nothing
 
@@ -650,7 +652,7 @@ unapplyRelArgs x1 x2 = unapplyArg resL x1 . unapplyArg resR x2
 traceUnapply
   :: (PPrint x1, PPrint x2, PPrint e1, PPrint e2)
   => x1 -> x2 -> e1 -> e2 -> e2
-traceUnapply x1 x2 e1 e2 = D.trace ("Unapply\n"
+traceUnapply x1 x2 e1 e2 = traceWhenLoud ("Unapply\n"
                       ++ "x1: " ++ F.showpp x1 ++ "\n\n"
                       ++ "x2: " ++ F.showpp x2 ++ "\n\n"
                       ++ "e1: " ++ F.showpp e1 ++ "\n\n"
@@ -660,7 +662,7 @@ traceUnapply x1 x2 e1 e2 = D.trace ("Unapply\n"
 traceSub 
   :: (PPrint t, PPrint s, PPrint p, PPrint q)
   => String -> t -> s -> p -> q -> a -> a
-traceSub msg t s p q = D.trace (msg ++ " RelSub\n"
+traceSub msg t s p q = traceWhenLoud (msg ++ " RelSub\n"
                       ++ "t: " ++ F.showpp t ++ "\n\n"
                       ++ "s: " ++ F.showpp s ++ "\n\n"
                       ++ "p: " ++ F.showpp p ++ "\n\n"
@@ -691,9 +693,12 @@ traceUSyn expr e cg = do
 trace
   :: (PPrint e, PPrint d, PPrint t, PPrint s, PPrint p)
   => String -> e -> d -> t -> s -> p -> a -> a
-trace msg e d t s p = D.trace (msg ++ "\n"
+trace msg e d t s p = traceWhenLoud (msg ++ "\n"
                       ++ "e: " ++ F.showpp e ++ "\n\n"
                       ++ "d: " ++ F.showpp d ++ "\n\n"
                       ++ "t: " ++ F.showpp t ++ "\n\n"
                       ++ "s: " ++ F.showpp s ++ "\n\n"
                       ++ "p: " ++ F.showpp p)
+
+traceWhenLoud :: String -> a -> a
+traceWhenLoud s a = unsafePerformIO $ whenLoud (putStrLn s) >> return a
