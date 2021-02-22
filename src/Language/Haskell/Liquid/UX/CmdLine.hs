@@ -416,7 +416,16 @@ config = cmdArgsMode $ Config {
     = def
         &= name "skip-module"
         &= help "Completely skip this module, don't even compile any specifications in it."
+  ,
+    noLazyPLE
+    = def
+        &= name "no-lazy-ple"
+        &= help "Don't use Lazy PLE"
  
+  , fuel 
+    = Nothing 
+        &= help "Maximum fuel (per-function unfoldings) for PLE"
+
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -660,7 +669,9 @@ defConfig = Config
   , maxArgsDepth             = 1
   , maxRWOrderingConstraints = Nothing
   , rwTerminationCheck       = False
-  , skipModule            = False
+  , skipModule               = False
+  , noLazyPLE                = False
+  , fuel 	             = Nothing
   }
 
 

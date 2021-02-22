@@ -58,8 +58,9 @@ fixConfig tgt cfg = def
   , FC.oldPLE                   = oldPLE cfg
   , FC.maxRWOrderingConstraints = maxRWOrderingConstraints cfg
   , FC.rwTerminationCheck       = rwTerminationCheck cfg
+  , FC.noLazyPLE                = noLazyPLE cfg
+  , FC.fuel                     = fuel      cfg
   }
-
 
 cgInfoFInfo :: TargetInfo -> CGInfo -> IO (F.FInfo Cinfo)
 cgInfoFInfo info cgi = return (targetFInfo info cgi)
