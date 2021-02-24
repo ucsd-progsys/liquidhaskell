@@ -66,29 +66,29 @@ import           System.Console.CmdArgs.Verbosity               (whenLoud)
 import           System.IO.Unsafe                               (unsafePerformIO)
 import           Text.PrettyPrint.HughesPJ                      hiding ( (<>) )
 
+data RelPred
+  = RelPred { fun1 :: Var
+            , fun2 :: Var
+            , args1 :: [F.Symbol]
+            , args2 :: [F.Symbol]
+            , prop :: F.Expr
+            }
 
-consRelTop :: Config -> TargetInfo -> CGEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG ()
-consRelTop _ ti γ (x,y,t,s,p) = do
+
+type PrEnv = [RelPred]
+type RelAlt = (AltCon, [Var], [Var], CoreExpr, CoreExpr)
+
+consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG PrEnv
+consRelTop _ ti γ ψ (x,y,t,s,p) = do
   let cbs = giCbs $ giSrc ti
   let e = findBody x cbs
   let d = findBody y cbs
   let e' = traceChk "Init" e d t s p e
-  consRelCheckBind (γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))) [] e' d (val t) (val s) p
+  consRelCheckBind (γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))) ψ e' d (val t) (val s) p
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
 --------------------------------------------------------------
-
-data RelPred
-  = ForAll { fun1 :: Var
-           , fun2 :: Var
-           , args1 :: [F.Symbol]
-           , args2 :: [F.Symbol]
-           , prop :: F.Expr 
-           }
-
-type PrEnv = [RelPred]
-type RelAlt = (AltCon, [Var], [Var], CoreExpr, CoreExpr)
 
 resL, resR :: F.Symbol
 resL = fromString "r1"
@@ -99,12 +99,16 @@ relSuffixL = "l"
 relSuffixR = "r"
 
 -- recursion rule
-consRelCheckBind :: CGEnv -> PrEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> F.Expr -> CG ()
+consRelCheckBind :: CGEnv -> PrEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> F.Expr -> CG PrEnv
 consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p =
-  traceChk "Bind NonRec" b1 b2 t1 t2 p $ consRelCheck γ ψ e1 e2 t1 t2 p
-consRelCheckBind γ ψ (NonRec x1 e1) b2@(Rec _) t1 t2 p =
+  traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
+    consRelCheck γ ψ e1 e2 t1 t2 p
+    return ψ
+
+-- convert all binders to recursive for now
+consRelCheckBind γ ψ (NonRec x1 e1) b2 t1 t2 p =
   consRelCheckBind γ ψ (Rec [(x1, e1)]) b2 t1 t2 p
-consRelCheckBind γ ψ b1@(Rec _) (NonRec x2 e2) t1 t2 p =
+consRelCheckBind γ ψ b1 (NonRec x2 e2) t1 t2 p =
   consRelCheckBind γ ψ b1 (Rec [(x2, e2)]) t1 t2 p
 consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
   | Just (xs1, xs2, vs1, vs2, ts1, ts2, qs) <- args e1 e2 t1 t2 p
@@ -120,8 +124,9 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2') 
     γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
     let p' = unapp p (zip vs1 vs2)
-    let ψ' = ForAll f1' f2' vs1 vs2 p' : ForAll f2' f1' vs2 vs1 p' : ψ
+    let ψ' = RelPred f1' f2' vs1 vs2 p' : RelPred f2' f1' vs2 vs1 p' : ψ
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (ret t1) (ret t2) (vs2xs $ concl p')
+    return ψ'
   where 
     (f1', f2') = mkRelCopies f1 f2
     unapp = L.foldl (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
