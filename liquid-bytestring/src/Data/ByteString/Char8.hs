@@ -1,3 +1,4 @@
+{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE CPP #-}
 module Data.ByteString.Char8 ( module Exports ) where
 
