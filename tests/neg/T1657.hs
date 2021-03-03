@@ -1,5 +1,6 @@
 module T1657 where
 
+{-@ data variance I invariant @-}
 {-@ data I <p :: Int -> Bool> = I _ @-}
 data I = I Int
 

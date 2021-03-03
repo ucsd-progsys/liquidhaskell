@@ -253,7 +253,7 @@ splitC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
 
-splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
+splitC (SubC γ t1@(RApp c _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
        γ'    <- if (bscope (getConfig γ)) then γ `extendEnvWithVV` t1' else return γ
@@ -261,8 +261,8 @@ splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
        let RApp _ t2s r2s _ = t2'
        let isapplied = True -- TC.tyConArity (rtc_tc c) == length t1s
        let tyInfo = rtc_info c
-       csvar  <-  splitsCWithVariance           γ' t1s t2s $ varianceTyArgs tyInfo
-       csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ variancePsArgs tyInfo
+       csvar  <-  splitsCWithVariance           γ' t1s t2s $ F.notracepp (" variance for " ++ showpp c) $ varianceTyArgs tyInfo
+       csvar' <- rsplitsCWithVariance isapplied γ' r1s r2s $ F.notracepp ("rvariance for " ++ showpp c) $ variancePsArgs tyInfo
        return $ cs ++ csvar ++ csvar'
 
 splitC (SubC γ t1@(RVar a1 _) t2@(RVar a2 _))

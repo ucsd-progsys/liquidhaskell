@@ -1843,9 +1843,9 @@ makeTyConVariance c = varSignToVariance <$> tvs
                   else L.nub $ concatMap goDCon $ Ghc.tyConDataCons c
 
     varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
-                            []       -> Invariant
+                            []       -> Bivariant
                             [(_, b)] -> if b then Covariant else Contravariant
-                            _        -> Bivariant
+                            _        -> Invariant
 
 
     goDCon dc = concatMap (go True) (map irrelevantMult $ Ghc.dataConOrigArgTys dc)
