@@ -282,6 +282,7 @@ test-suite test
   hs-source-dirs:   tests
   build-depends:    base                 >= 4.8.1.0 && < 5
                   , containers           >= 0.5
+                  , aeson
                   , directory            >= 1.2
                   , filepath             >= 1.3
                   , mtl                  >= 2.1

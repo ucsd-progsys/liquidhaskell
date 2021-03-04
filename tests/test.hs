@@ -39,13 +39,15 @@ import System.IO
 import System.IO.Error
 import System.Process
 import Test.Tasty
-import Test.Tasty.Golden
+import Test.Tasty.Golden.Advanced
 import Test.Tasty.HUnit
+    ( testCase, assertBool, assertEqual, Assertion )
 import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
 import Paths_liquidhaskell
+import Data.Aeson (toJSON)
 
 import Text.Printf
 
@@ -257,18 +259,24 @@ macroTests = group "Macro"
 
 goldenTests :: IO TestTree
 goldenTests = group "Golden tests"
-   [ pure $ goldenTest "--json output" "tests/golden" "json_output" [LO "--json"]
+   [ pure $ goldenTest' "--json output" "tests/golden" "json_output" [LO "--json"]
    ] 
 
-goldenTest :: TestName -> FilePath -> FilePath -> [LiquidOpts] -> TestTree
-goldenTest testName dir filePrefix testOpts =
+goldenTest' :: TestName -> FilePath -> FilePath -> [LiquidOpts] -> TestTree
+goldenTest' testName dir filePrefix testOpts =
   askOption $ \(smt  :: SmtSolver) -> 
   askOption $ \(opts :: LiquidOpts) ->
   askOption $ \(bin  :: LiquidRunner) ->
-    goldenVsString testName
-                   (dir </> filePrefix <> ".golden") 
-                   (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) bin dir (filePrefix <> ".hs"))
-
+    goldenTest testName
+                   (readFile (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) bin dir (filePrefix <> ".hs")))
+                   (dir </> filePrefix <> ".golden")
+                   cmp 
+                   (\_ -> return ())
+    where 
+      cmp x y = if toJSON x == toJSON y 
+                   then return Nothing 
+                   else return $ Just ("Test output was different from" ++ x ++  "It was:\n" ++ y)
+                   
 
 microTests :: IO TestTree
 microTests = group "Micro"
