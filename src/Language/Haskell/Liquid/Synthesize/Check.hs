@@ -40,7 +40,7 @@ hasType t !e' = notrace (" [ Check ] " ++ show e') $ do
 -- Returns true if the expression is well-typed.
 isWellTyped :: CoreExpr -> SM Bool
 isWellTyped e =  do 
-  t <- liftCG $ trueTy $ exprType e 
+  t <- liftCG $ trueTy False $ exprType e 
   hasType t e 
 
 

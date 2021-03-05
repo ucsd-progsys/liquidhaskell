@@ -387,6 +387,14 @@ config = cmdArgsMode $ Config {
     = def
         &= name "typed-holes"
         &= help "Use (refinement) typed-holes [currently warns on '_x' variables]"
+  , typeclass
+    = def
+        &= help "Enable Typeclass"
+        &= name "typeclass"
+  , auxInline
+    = def
+        &= help "Enable inlining of class methods"
+        &= name "aux-inline"
   , maxMatchDepth
     = def
         &= name "max-match-depth"
@@ -664,6 +672,8 @@ defConfig = Config
   , compileSpec              = False
   , noCheckImports           = False
   , typedHoles               = False
+  , typeclass                = False
+  , auxInline                = False
   , maxMatchDepth            = 4
   , maxAppDepth              = 2
   , maxArgsDepth             = 1

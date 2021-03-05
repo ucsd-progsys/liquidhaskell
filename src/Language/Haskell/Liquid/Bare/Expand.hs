@@ -32,6 +32,7 @@ import Data.Maybe
 import           Control.Monad.State
 import qualified Control.Exception         as Ex
 import qualified Data.HashMap.Strict       as M
+import qualified Data.HashSet              as S
 import qualified Data.Char                 as Char
 import qualified Data.List                 as L
 import qualified Text.Printf               as Printf 
@@ -63,7 +64,12 @@ makeRTEnv env m mySpec iSpecs lmap
   where
     tAs   = [ t                   | (_, s)  <- specs, t <- Ms.aliases  s ]
     eAs   = [ specREAlias env m e | (m, s)  <- specs, e <- Ms.ealiases s ]
-         ++ [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
+         ++ if typeclass (getConfig env) then []
+                                              -- lmap expansion happens during elaboration
+                                              -- this clearly breaks things if a signature
+                                              -- contains lmap functions but never gets
+                                              -- elaborated
+              else [ specREAlias env m e | (_, xl) <- M.toList (lmSymDefs lmap)
                                   , let e    = lmapEAlias xl             ]
     specs = (m, mySpec) : M.toList iSpecs
 
@@ -488,20 +494,32 @@ cookSpecType env sigEnv name x bt
 cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
               -> Either UserError LocSpecType 
 -----------------------------------------------------------------------------------------
-cookSpecTypeE env sigEnv name x bt
-  = id 
-  . fmap (plugHoles sigEnv name x)
+cookSpecTypeE env sigEnv name@(ModName _ mname) x bt
+  = id
+  . fmap (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id) 
   . fmap (fmap (addTyConInfo   embs tyi))
   . fmap (Bare.txRefSort tyi embs)     
   . fmap (fmap txExpToBind)      -- What does this function DO
   . fmap (specExpandType rtEnv)                        
   . fmap (fmap (generalizeWith x))
-  . fmap (maybePlug       sigEnv name x)
-  . fmap (Bare.qualifyTop    env name l) 
+  . fmap (if doplug || not allowTC then maybePlug allowTC  sigEnv name x else id)
+  -- we do not qualify/resolve Expr/Pred when typeclass is enabled
+  -- since ghci will not be able to recognize fully qualified names
+  -- instead, we leave qualification to ghc elaboration
+  . fmap (Bare.qualifyTop env name l )
   . bareSpecType       env name 
   . bareExpandType     rtEnv
   $ bt 
-  where 
+  where
+    allowTC = typeclass (getConfig env)
+    -- modT   = mname `S.member` wiredInMods
+    doplug
+      | Bare.LqTV v <- x
+      , GM.isMethod v || GM.isSCSel v
+      , not (isTarget name)
+      = False
+      | otherwise
+      = True
     _msg i = "cook-" ++ show i ++ " : " ++ F.showpp x
     rtEnv  = Bare.sigRTEnv    sigEnv
     embs   = Bare.sigEmbs     sigEnv 
@@ -540,13 +558,13 @@ bareSpecType env name bt = case Bare.ofBareTypeE env name (F.loc bt) Nothing (va
   Left e  -> Left e 
   Right t -> Right (F.atLoc bt t)
 
-maybePlug :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
-maybePlug sigEnv name kx = case Bare.plugSrc kx of 
+maybePlug :: Bool -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
+maybePlug allowTC sigEnv name kx = case Bare.plugSrc kx of 
                              Nothing -> id  
-                             Just _  -> plugHoles sigEnv name kx 
+                             Just _  -> plugHoles allowTC sigEnv name kx 
 
-plugHoles :: Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
-plugHoles sigEnv name = Bare.makePluggedSig name embs tyi exports
+plugHoles :: Bool -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocSpecType -> LocSpecType 
+plugHoles allowTC sigEnv name = Bare.makePluggedSig allowTC name embs tyi exports
   where 
     embs              = Bare.sigEmbs     sigEnv 
     tyi               = Bare.sigTyRTyMap sigEnv 
@@ -771,3 +789,61 @@ freshSymbol
        modify $ \s -> s {fresh = n+1}
        return $ F.symbol $ "ex#" ++ show n
 
+
+wiredInMods :: S.HashSet Ghc.ModuleName
+wiredInMods = S.fromList $ Ghc.mkModuleName <$>
+  ["Language.Haskell.Liquid.String",
+  "Language.Haskell.Liquid.Prelude",
+  "Language.Haskell.Liquid.Foreign",
+  "Language.Haskell.Liquid.Bag",
+  "Prelude",
+  "System.IO",
+  "Data.Word",
+  "Data.Time.Calendar",
+  "Data.Set",
+  "Data.Either",
+  "Data.ByteString.Unsafe",
+  "Data.ByteString.Lazy",
+  "Data.ByteString.Short",
+  "Data.Foldable",
+  "Data.OldList",
+  "Data.Text",
+  "Data.Tuple",
+  "Data.Bits",
+  "Data.Chare",
+  "Data.String",
+  "Data.Vector",
+  "Data.Time",
+  "Data.Int",
+  "Data.Text.Fusion",
+  "Data.Map",
+  "Data.Text.Fusion.Common",
+  "KMeansHelper",
+  "Data.Text.Lazy.Fusion",
+  "Control.Exception",
+  "Control.Parallel.Strategies",
+  "Data.Traversable",
+  "GHC.Read",
+  "Data.ByteString",
+  "GHC.Classes",
+  "GHC.Ptr",
+  "GHC.Word",
+  "Language.Haskell.Liquid.Equational",
+  "GHC.Types",
+  "GHC.Num",
+  "GHC.CString",
+  "GHC.IO.Handle",
+  "GHC.Prim",
+  "GHC.Int",
+  "GHC.Base",
+  "Foreign.Ptr",
+  "GHC.ForeignPtr",
+  "GHC.List",
+  "Foreign.C.String",
+  "GHC.Exts",
+  "Foreign.Marshal.Alloc",
+  "Foreign.Marshal.Array",
+  "Foreign.C.Types",
+  "GHC.Real",
+  "Foreign.Storable",
+  "Foreign.ForeignPtr"]

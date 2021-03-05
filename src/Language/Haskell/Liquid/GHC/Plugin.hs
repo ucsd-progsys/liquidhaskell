@@ -472,8 +472,9 @@ processModule LiquidHaskellContext{..} = do
   -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
   -- call 'evaluate' to force any exception and catch it, if we can.
 
+  -- what to do when maketargetspec is already in the monad?
   result <-
-    (liftIO $ evaluate (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies))
+    makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
       `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
       `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
 

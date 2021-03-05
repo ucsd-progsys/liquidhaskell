@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP                       #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE FlexibleInstances         #-}
+{-# LANGUAGE FlexibleContexts          #-}
 {-# LANGUAGE GADTs                     #-}
 {-# LANGUAGE NoMonomorphismRestriction #-}
 {-# LANGUAGE RankNTypes                #-}
@@ -28,23 +29,25 @@ import           Language.Haskell.Liquid.GHC.API            as Ghc hiding ( L
                                                                           , panic
                                                                           , showSDoc
                                                                           )
-import qualified Language.Haskell.Liquid.GHC.API            as Ghc (showSDoc, panic, showSDocDump)
+import qualified Language.Haskell.Liquid.GHC.API            as Ghc (GenLocated (L), showSDoc, panic, showSDocDump)
 
 
 import           Data.Char                                  (isLower, isSpace, isUpper)
-import           Data.Maybe                                 (isJust, fromMaybe, fromJust)
+import           Data.Maybe                                 (isJust, fromMaybe, fromJust, maybeToList)
 import           Data.Hashable
 import qualified Data.HashSet                               as S
+import qualified Data.Map.Strict                            as OM
+import           Control.Monad.State                        (evalState, get, modify)
 
 import qualified Data.Text.Encoding.Error                   as TE
 import qualified Data.Text.Encoding                         as T
 import qualified Data.Text                                  as T
 import           Control.Arrow                              (second)
-import           Control.Monad                              ((>=>))
+import           Control.Monad                              ((>=>), foldM)
 import qualified Text.PrettyPrint.HughesPJ                  as PJ
 import           Language.Fixpoint.Types                    hiding (L, panic, Loc (..), SrcSpan, Constant, SESearch (..))
 import qualified Language.Fixpoint.Types                    as F
-import           Language.Fixpoint.Misc                     (safeHead) -- , safeLast, safeInit)
+import           Language.Fixpoint.Misc                     (safeHead, safeLast, errorstar) -- , safeLast, safeInit)
 import           Language.Haskell.Liquid.Misc               (keyDiff) 
 import           Control.DeepSeq
 import           Language.Haskell.Liquid.Types.Errors
@@ -90,6 +93,18 @@ stringVar s t = mkLocalVar VanillaId name Many t vanillaIdInfo
    where
       name = mkInternalName (mkUnique 'x' 25) occ noSrcSpan
       occ  = mkVarOcc s
+
+-- FIXME: plugging in dummy type like this is really dangerous
+maybeAuxVar :: Symbol -> Maybe Var
+maybeAuxVar s
+  | isMethod sym = Just sv
+  | otherwise = Nothing 
+  where (_, uid) = splitModuleUnique s
+        sym = dropModuleNames s
+        sv = mkExportedLocalId VanillaId name anyTy 
+        -- 'x' is chosen for no particular reason..
+        name = mkInternalName (mkUnique 'x' uid) occ noSrcSpan
+        occ = mkVarOcc (T.unpack (symbolText sym))
 
 stringTyCon :: Char -> Int -> String -> TyCon
 stringTyCon = stringTyConWithKind anyTy
@@ -145,6 +160,9 @@ unTickExpr x                  = x
 
 isFractionalClass :: Class -> Bool
 isFractionalClass clas = classKey clas `elem` fractionalClassKeys
+
+isOrdClass :: Class -> Bool
+isOrdClass clas = classKey clas == ordClassKey
 
 --------------------------------------------------------------------------------
 -- | Pretty Printers -----------------------------------------------------------
@@ -517,6 +535,9 @@ instance Hashable Var where
 instance Hashable TyCon where
   hashWithSalt = uniqueHash
 
+instance Hashable Class where
+  hashWithSalt = uniqueHash
+
 instance Hashable DataCon where
   hashWithSalt = uniqueHash
 
@@ -556,6 +577,23 @@ instance NFData Var where
 --------------------------------------------------------------------------------
 -- | Manipulating Symbols ------------------------------------------------------
 --------------------------------------------------------------------------------
+
+takeModuleUnique :: Symbol -> Symbol
+takeModuleUnique = mungeNames tailName sepUnique   "takeModuleUnique: "
+  where
+    tailName msg = symbol . safeLast msg
+
+splitModuleUnique :: Symbol -> (Symbol, Int)
+splitModuleUnique x = (dropModuleNamesAndUnique x, base62ToI (takeModuleUnique x))
+
+base62ToI :: Symbol -> Int
+base62ToI s =  fromMaybe (errorstar "base62ToI Out Of Range") $ go (F.symbolText s)
+  where
+    digitToI :: OM.Map Char Int
+    digitToI = OM.fromList $ zip (['0'..'9'] ++ ['a'..'z'] ++ ['A'..'Z']) [0..]
+    f acc (flip OM.lookup digitToI -> x) = (acc * 62 +) <$> x
+    go s = foldM f 0 (T.unpack s)
+
 
 splitModuleName :: Symbol -> (Symbol, Symbol)
 splitModuleName x = (takeModuleNames x, dropModuleNamesAndUnique x)
@@ -649,7 +687,8 @@ isWorker s = notracepp ("isWorkerSym: s = " ++ ss) $ "$W" `L.isInfixOf` ss
   where 
     ss     = symbolString (symbol s)
 
-
+isSCSel :: Symbolic a => a -> Bool
+isSCSel  = isPrefixOfSym "$p" . dropModuleNames . symbol
 
 stripParens :: T.Text -> T.Text
 stripParens t = fromMaybe t (strip t)
@@ -717,6 +756,32 @@ findVarDef x cbs = case xCbs of
     unRec nonRec    = [nonRec]
 
 
+findVarDefMethod :: Symbol -> [CoreBind] -> Maybe (Var, CoreExpr)
+findVarDefMethod x cbs =
+  case rcbs  of
+                     (NonRec v def   : _ ) -> Just (v, def)
+                     (Rec [(v, def)] : _ ) -> Just (v, def)
+                     _                     -> Nothing
+  where
+    rcbs | isMethod x = mCbs
+         | isDictionary (dropModuleNames x) = dCbs
+         | otherwise  = xCbs
+    xCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` coreBindSymbols cb 
+                           ]
+    mCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` methodSymbols cb]
+    dCbs            = [ cb | cb <- concatMap unRec cbs, x `elem` dictionarySymbols cb]
+    unRec (Rec xes) = [NonRec x es | (x,es) <- xes]
+    unRec nonRec    = [nonRec]
+
+dictionarySymbols :: CoreBind -> [Symbol]
+dictionarySymbols = filter isDictionary . map (dropModuleNames . symbol) . binders
+
+
+methodSymbols :: CoreBind -> [Symbol]
+methodSymbols = filter isMethod . map (dropModuleNames . symbol) . binders
+
+
+
 coreBindSymbols :: CoreBind -> [Symbol]
 coreBindSymbols = map (dropModuleNames . simplesymbol) . binders
 
@@ -729,6 +794,48 @@ binders (Rec xes)    = fst <$> xes
 
 expandVarType :: Var -> Type
 expandVarType = expandTypeSynonyms . varType
+
+--------------------------------------------------------------------------------
+-- | The following functions test if a `CoreExpr` or `CoreVar` can be
+--   embedded in logic. With type-class support, we can no longer erase
+--   such expressions arbitrarily.
+--------------------------------------------------------------------------------
+isEmbeddedDictExpr :: CoreExpr -> Bool
+isEmbeddedDictExpr = isEmbeddedDictType . exprType
+
+isEmbeddedDictVar :: Var -> Bool
+isEmbeddedDictVar v = F.notracepp msg . isEmbeddedDictType . varType $ v
+  where
+    msg     =  "isGoodCaseBind v = " ++ show v
+
+isEmbeddedDictType :: Type -> Bool
+isEmbeddedDictType = anyF [isOrdPred, isNumericPred, isEqPred, isPrelEqPred]
+
+-- unlike isNumCls, isFracCls, these two don't check if the argument's
+-- superclass is Ord or Num. I believe this is the more predictable behavior
+
+isPrelEqPred :: Type -> Bool
+isPrelEqPred ty = case tyConAppTyCon_maybe ty of
+  Just tyCon -> isPrelEqTyCon tyCon
+  _          -> False
+
+
+isPrelEqTyCon :: TyCon -> Bool
+isPrelEqTyCon tc = tc `hasKey` eqClassKey
+
+isOrdPred :: Type -> Bool
+isOrdPred ty = case tyConAppTyCon_maybe ty of
+  Just tyCon -> tyCon `hasKey` ordClassKey
+  _          -> False
+
+-- Not just Num, but Fractional, Integral as well
+isNumericPred :: Type -> Bool
+isNumericPred ty = case tyConAppTyCon_maybe ty of
+  Just tyCon -> getUnique tyCon `elem` numericClassKeys
+  _          -> False
+
+
+
 --------------------------------------------------------------------------------
 -- | The following functions test if a `CoreExpr` or `CoreVar` are just types
 --   in disguise, e.g. have `PredType` (in the GHC sense of the word), and so
@@ -766,3 +873,210 @@ defaultDataCons _ _ =
 
 isEvVar :: Id -> Bool 
 isEvVar x = isPredVar x || isTyVar x || isCoVar x
+
+
+--------------------------------------------------------------------------------
+-- | Elaboration
+--------------------------------------------------------------------------------
+
+-- FIXME: the handling of exceptions seems to be broken
+
+-- partially stolen from GHC'sa exprType
+
+-- elaborateHsExprInst
+--   :: GhcMonad m => LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+-- elaborateHsExprInst expr = elaborateHsExpr TM_Inst expr
+
+
+-- elaborateHsExpr
+--   :: GhcMonad m => TcRnExprMode -> LHsExpr GhcPs -> m (Messages, Maybe CoreExpr)
+-- elaborateHsExpr mode expr =
+--   withSession $ \hsc_env -> liftIO $ hscElabHsExpr hsc_env mode expr
+
+-- hscElabHsExpr :: HscEnv -> TcRnExprMode -> LHsExpr GhcPs -> IO (Messages, Maybe CoreExpr)
+-- hscElabHsExpr hsc_env0 mode expr = runInteractiveHsc hsc_env0 $ do
+--   hsc_env <- Ghc.getHscEnv
+--   liftIO $ elabRnExpr hsc_env mode expr
+
+
+elabRnExpr
+  :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
+elabRnExpr mode rdr_expr = do
+    (rn_expr, _fvs) <- rnLExpr rdr_expr
+    failIfErrsM
+    uniq <- newUnique
+    let fresh_it = itName uniq (getLoc rdr_expr)
+        orig     = Ghc.lexprCtOrigin rn_expr
+    (tclvl, lie, (tc_expr, res_ty)) <- pushLevelAndCaptureConstraints $ do
+      (_tc_expr, expr_ty) <- tcInferSigma rn_expr
+      expr_ty'            <- if inst
+        then snd <$> deeplyInstantiate orig expr_ty
+        else return expr_ty
+      return (_tc_expr, expr_ty')
+    (_, _, evbs, residual, _) <- simplifyInfer tclvl
+                                            infer_mode
+                                            []    {- No sig vars -}
+                                            [(fresh_it, res_ty)]
+                                            lie
+    evbs' <- perhaps_disable_default_warnings $ simplifyInteractive residual
+    full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
+    initDsTc $ dsLExpr full_expr
+ where
+  (inst, infer_mode, perhaps_disable_default_warnings) = case mode of
+    TM_Inst    -> (True, NoRestrictions, id)
+    TM_NoInst  -> (False, NoRestrictions, id)
+    TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
+
+newtype HashableType = HashableType {getHType :: Type}
+
+instance Eq HashableType where
+  x == y = eqType (getHType x) (getHType y)
+
+instance Ord HashableType where
+  compare x y = nonDetCmpType (getHType x) (getHType y)
+
+instance Outputable HashableType where
+  ppr = ppr . getHType
+
+
+--------------------------------------------------------------------------------
+-- | Superclass coherence
+--------------------------------------------------------------------------------
+
+canonSelectorChains :: PredType -> OM.Map HashableType [Id]
+canonSelectorChains t = foldr (OM.unionWith const) mempty (zs : xs)
+ where
+  (cls, ts) = Ghc.getClassPredTys t
+  scIdTys   = classSCSelIds cls
+  ys        = fmap (\d -> (d, piResultTys (idType d) (ts ++ [t]))) scIdTys
+  zs        = OM.fromList $ fmap (\(x, y) -> (HashableType y, [x])) ys
+  xs        = fmap (\(d, t') -> fmap (d :) (canonSelectorChains t')) ys
+
+buildCoherenceOblig :: Class -> [[([Id], [Id])]]
+buildCoherenceOblig cls = evalState (mapM f xs) OM.empty
+ where
+  (ts, _, selIds, _) = classBigSig cls
+  tts                = mkTyVarTy <$> ts
+  t                  = mkClassPred cls tts
+  ys = fmap (\d -> (d, piResultTys (idType d) (tts ++ [t]))) selIds
+  xs                 = fmap (\(d, t') -> fmap (d:) (canonSelectorChains t')) ys
+  f tid = do
+    ctid' <- get
+    modify (flip (OM.unionWith const) tid)
+    pure . OM.elems $ OM.intersectionWith (,) ctid' (fmap tail tid)
+
+
+-- to be zipped onto the super class selectors
+coherenceObligToRef :: (F.Symbolic s) => s -> [Id] -> [Id] -> F.Reft
+coherenceObligToRef d = coherenceObligToRefE (F.eVar $ F.symbol d)
+
+coherenceObligToRefE :: F.Expr -> [Id] -> [Id] -> F.Reft
+coherenceObligToRefE e rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
+  where lhs = L.foldr EApp e ps0
+        rhs = L.foldr EApp (F.eVar F.vv_) ps1
+        ps0 = F.eVar . F.symbol <$> L.reverse rps0
+        ps1 = F.eVar . F.symbol <$> L.reverse rps1
+
+data TcWiredIn = TcWiredIn {
+    tcWiredInName :: Name
+  , tcWiredInFixity :: Maybe (Int, FixityDirection)
+  , tcWiredInType :: HsType GhcRn
+  }
+
+-- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
+withWiredIn :: TcM a -> TcM a
+withWiredIn m = discardConstraints $ do
+  -- undef <- lookupUndef
+  wiredIns <- mkWiredIns
+  -- snd <$> tcValBinds Ghc.NotTopLevel (binds undef wiredIns) (sigs wiredIns) m
+  snd <$> tcValBinds Ghc.NotTopLevel [] (sigs wiredIns) m
+
+ where
+  -- lookupUndef = do
+  --   lookupOrig gHC_ERR (Ghc.mkVarOcc "undefined")
+  --   -- tcLookupGlobal undefName
+
+  -- binds :: Name -> [TcWiredIn] -> [(Ghc.RecFlag, LHsBinds GhcRn)]
+  -- binds undef wiredIns = map (\w -> 
+  --     let ext = Ghc.unitNameSet undef in -- $ varName $ tyThingId undef in
+  --     let co_fn = idHsWrapper in
+  --     let matches = 
+  --           let ctxt = LambdaExpr in
+  --           let grhss = GRHSs Ghc.noExtField [Ghc.L locSpan (GRHS Ghc.noExtField [] (Ghc.L locSpan (HsVar Ghc.noExtField (Ghc.L locSpan undef))))] (Ghc.L locSpan emptyLocalBinds) in
+  --           MG Ghc.noExtField (Ghc.L locSpan [Ghc.L locSpan (Match Ghc.noExtField ctxt [] grhss)]) Ghc.Generated 
+  --     in
+  --     let b = FunBind ext (Ghc.L locSpan $ tcWiredInName w) matches co_fn [] in
+  --     (Ghc.NonRecursive, unitBag (Ghc.L locSpan b))
+  --   ) wiredIns
+
+  sigs wiredIns = concatMap (\w ->
+      let inf = maybeToList $ fmap (\(fPrec, fDir) -> Ghc.L locSpan $ FixSig Ghc.noExtField $ FixitySig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ Ghc.Fixity Ghc.NoSourceText fPrec fDir) $ tcWiredInFixity w in
+      let t = 
+            let ext = 
+#ifdef MIN_VERSION_GLASGOW_HASKELL
+#if MIN_VERSION_GLASGOW_HASKELL(8,6,5,0) && !MIN_VERSION_GLASGOW_HASKELL(8,8,1,0)
+                      HsIBRn {hsib_vars = [], hsib_closed = True} in -- TODO: What goes here? XXX
+#else
+                      [] in
+#endif
+#endif
+            let ext' = [] in
+            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
+      in
+      inf <> t
+    ) wiredIns
+
+  locSpan = UnhelpfulSpan (UnhelpfulOther "Language.Haskell.Liquid.GHC.Misc: WiredIn")
+
+  mkWiredIns = sequence [impl, dimpl, eq, len]
+
+  toName s = do
+    u <- getUniqueM
+    return $ Ghc.mkInternalName u (Ghc.mkVarOcc s) locSpan
+
+  toLoc = Ghc.L locSpan
+  nameToTy = Ghc.L locSpan . HsTyVar Ghc.noExtField Ghc.NotPromoted
+
+  boolTy = nameToTy $ toLoc boolTyConName
+    -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
+    -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
+  intTy = nameToTy $ toLoc intTyConName
+  listTy lt = toLoc $ HsAppTy Ghc.noExtField (nameToTy $ toLoc listTyConName) lt
+ 
+  -- infixr 1 ==> :: Bool -> Bool -> Bool
+  impl = do
+    n <- toName "==>"
+    let ty = HsFunTy Ghc.noExtField boolTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField boolTy boolTy)
+    return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
+
+  -- infixr 1 <=> :: Bool -> Bool -> Bool
+  dimpl = do
+    n <- toName "<=>"
+    let ty = HsFunTy Ghc.noExtField boolTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField boolTy boolTy)
+    return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
+
+  -- infix 4 == :: forall a . a -> a -> Bool
+  eq = do
+    n <- toName "=="
+    aName <- Ghc.L locSpan <$> toName "a"
+    let aTy = nameToTy aName
+    let ty = HsForAllTy Ghc.noExtField
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)    
+             ForallInvis
+#endif
+             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ Ghc.L locSpan $ HsFunTy Ghc.noExtField aTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField aTy boolTy)
+    return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
+  
+  -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
+  -- len :: forall a. [a] -> Int
+  len = do
+    n <- toName "len"
+    aName <- Ghc.L locSpan <$> toName "a"
+    let aTy = nameToTy aName
+    let ty = HsForAllTy Ghc.noExtField
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
+               ForallInvis
+#endif
+               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ Ghc.L locSpan $ HsFunTy Ghc.noExtField (listTy aTy) intTy
+    return $ TcWiredIn n Nothing ty
+

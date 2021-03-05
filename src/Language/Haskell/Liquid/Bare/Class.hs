@@ -41,10 +41,10 @@ import qualified Control.Exception                 as Ex
 
 
 -------------------------------------------------------------------------------
-makeMethodTypes :: DEnv Ghc.Var LocSpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType LocSpecType)]
+makeMethodTypes :: Bool -> DEnv Ghc.Var LocSpecType -> [DataConP] -> [Ghc.CoreBind] -> [(Ghc.Var, MethodType LocSpecType)]
 -------------------------------------------------------------------------------
-makeMethodTypes (DEnv m) cls cbs 
-  = [(x, MT (addCC x . fromRISig <$> methodType d x m) (addCC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
+makeMethodTypes allowTC (DEnv m) cls cbs 
+  = [(x, MT (addCC allowTC x . fromRISig <$> methodType d x m) (addCC allowTC x <$> classType (splitDictionary e) x)) | (d,e) <- ds, x <- grepMethods e]
     where 
       grepMethods = filter GM.isMethod . freeVars mempty
       ds = filter (GM.isDictionary . fst) (concatMap unRec cbs)
@@ -67,8 +67,8 @@ makeMethodTypes (DEnv m) cls cbs
       subst [] t = t 
       subst ((a,ta):su) t = subsTyVar_meet' (a,ofType ta) (subst su t)
 
-addCC :: Ghc.Var -> LocSpecType -> LocSpecType
-addCC x zz@(Loc l l' st0) 
+addCC :: Bool -> Ghc.Var -> LocSpecType -> LocSpecType
+addCC allowTC x zz@(Loc l l' st0) 
   = Loc l l' 
   . addForall hst  
   . mkArrow [] ps' [] [] 
@@ -79,7 +79,7 @@ addCC x zz@(Loc l l' st0)
   where
     hst           = ofType (Ghc.expandTypeSynonyms t0) :: SpecType
     t0            = Ghc.varType x 
-    tyvsmap       = case Bare.runMapTyVars t0 st err of
+    tyvsmap       = case Bare.runMapTyVars allowTC t0 st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
     su            = [(y, rTyVar x)           | (x, y) <- tyvsmap]
