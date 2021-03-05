@@ -204,7 +204,7 @@ stitchArgs :: (Monoid t1, PPrint a)
            -> a
            -> [(Symbol, Maybe (RRType Reft))]
            -> [Type]
-           -> [(Symbol, RRType Reft, t1)]
+           -> [(Symbol, RFInfo, RRType Reft, t1)]
 stitchArgs allowTC sp dc allXs allTs
   | nXs == nTs         = (g (dummySymbol, Nothing) . ofType <$> pts)
                       ++ zipWith g xs (ofType <$> ts)
@@ -214,8 +214,8 @@ stitchArgs allowTC sp dc allXs allTs
       (_  , xs)        = L.partition (coArg . snd) allXs
       nXs              = length xs
       nTs              = length ts
-      g (x, Just t) _  = (x, t, mempty)
-      g (x, _)      t  = (x, t, mempty)
+      g (x, Just t) _  = (x, classRFInfo allowTC, t, mempty)
+      g (x, _)      t  = (x, classRFInfo allowTC, t, mempty)
       coArg Nothing    = False
       coArg (Just t)   = (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ). toType $ t
 

@@ -85,13 +85,13 @@ data MapTyVarST = MTVST
   }
 
 mapTyVars :: Bool -> Type -> SpecType -> StateT MapTyVarST (Either Error) ()
-mapTyVars allowTC t (RImpF _ _ t' _)
+mapTyVars allowTC t (RImpF _ _ _ t' _)
    = mapTyVars allowTC t t'
 mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) t 
   | isErasable τ
   = mapTyVars allowTC τ' t
   where isErasable = if allowTC then isEmbeddedDictType else isClassPred
-mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) (RFun _ t t' _)
+mapTyVars allowTC (FunTy { ft_arg = τ, ft_res = τ'}) (RFun _ _ t t' _)
    = mapTyVars allowTC τ t >> mapTyVars allowTC τ' t'
 mapTyVars allowTC τ (RAllT _ t _)
   = mapTyVars allowTC τ t

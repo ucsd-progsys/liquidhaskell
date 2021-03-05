@@ -85,10 +85,10 @@ trueRefType allowTC (RAllT α t r)
 trueRefType allowTC (RAllP π t)
   = RAllP π <$> true allowTC t
 
-trueRefType allowTC (RImpF _ t t' _)
+trueRefType allowTC (RImpF _ _ t t' _)
   = rImpF <$> fresh <*> true allowTC t <*> true allowTC t'
 
-trueRefType allowTC (RFun _ t t' _)
+trueRefType allowTC (RFun _ _ t t' _)
   = rFun <$> fresh <*> true allowTC t <*> true allowTC t'
 
 trueRefType allowTC (RApp c ts _  _) | if allowTC then isEmbeddedDict c else isClass c
@@ -136,13 +136,13 @@ refreshRefType allowTC (RAllT α t r)
 refreshRefType allowTC (RAllP π t)
   = RAllP π <$> refresh allowTC t
 
-refreshRefType allowTC (RImpF b t t' _)
-  | b == F.dummySymbol = rImpF <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
-  | otherwise          = rImpF     b     <$> refresh allowTC t <*> refresh allowTC t'
+refreshRefType allowTC (RImpF b i t t' _)
+  | b == F.dummySymbol = (\b t1 t2 -> RImpF b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise          = (\t1 t2 -> RImpF b i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
-refreshRefType allowTC (RFun b t t' _)
-  | b == F.dummySymbol = rFun <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
-  | otherwise          = rFun     b     <$> refresh allowTC t <*> refresh allowTC t'
+refreshRefType allowTC (RFun b i t t' _)
+  | b == F.dummySymbol = (\b t1 t2 -> RFun b i t1 t2 mempty) <$> fresh <*> refresh allowTC t <*> refresh allowTC t'
+  | otherwise          = (\t1 t2 -> RFun b i t1 t2 mempty)   <$> refresh allowTC t <*> refresh allowTC t'
 
 refreshRefType allowTC (RApp rc ts _ _) | isClass rc
   = return $ rRCls rc ts
@@ -200,15 +200,15 @@ refreshVV (REx x t1 t2) = do
   t2' <- refreshVV t2
   shiftVV (REx x t1' t2') <$> fresh
 
-refreshVV (RImpF x t1 t2 r) = do
+refreshVV (RImpF x i t1 t2 r) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
-  shiftVV (RImpF x t1' t2' r) <$> fresh
+  shiftVV (RImpF x i t1' t2' r) <$> fresh
 
-refreshVV (RFun x t1 t2 r) = do
+refreshVV (RFun x i t1 t2 r) = do
   t1' <- refreshVV t1
   t2' <- refreshVV t2
-  shiftVV (RFun x t1' t2' r) <$> fresh
+  shiftVV (RFun x i t1' t2' r) <$> fresh
 
 refreshVV (RAppTy t1 t2 r) = do 
   t1' <- refreshVV t1

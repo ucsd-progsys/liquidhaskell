@@ -139,7 +139,7 @@ strengthenRes t r = go t
   where 
     go (RAllT a t r)   = RAllT a (go t) r  
     go (RAllP p t)     = RAllP p $ go t
-    go (RFun x tx t r) = RFun x tx (go t) r 
+    go (RFun x i tx t r) = RFun x i tx (go t) r 
     go t               =  t `strengthen` F.ofReft r 
 
 class Subable a where
@@ -183,13 +183,13 @@ axiomType allowTC s t = AT to (reverse xts) res
     (to, (_,xts, Just res)) = runState (go t) (1,[], Nothing)
     go (RAllT a t r) = RAllT a <$> go t <*> return r 
     go (RAllP p t) = RAllP p <$> go t 
-    go (RFun x tx t r) | isErasable tx = (\t' -> RFun x tx t' r) <$> go t
-    go (RFun x tx t r) = do 
+    go (RFun x i tx t r) | isErasable tx = (\t' -> RFun x i tx t' r) <$> go t
+    go (RFun x ii tx t r) = do 
       (i,bs,res) <- get 
       let x' = unDummy x i 
       put (i+1, (x', tx):bs,res)
       t' <- go t 
-      return $ RFun x' tx t' r 
+      return $ RFun x' ii tx t' r 
     go t = do 
       (i,bs,_) <- get 
       let ys = reverse $ map fst bs

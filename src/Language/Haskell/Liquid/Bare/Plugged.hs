@@ -136,7 +136,7 @@ plugMany :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap
 plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes) 
                      = F.notracepp msg (drop nTyVars (zip xs ts), t) 
   where 
-    (_,(xs,ts,_), t) = bkArrow (val pT) 
+    (_,(xs,_,ts,_), t) = bkArrow (val pT) 
     pT               = plugHoles allowTC (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr (Ghc.mkFunTy Ghc.VisArg Ghc.Many) hsRes hsArgs' 
     lqT              = foldr (uncurry rFun) lqRes lqArgs' 
@@ -231,8 +231,10 @@ plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
     su           = case Bare.runMapTyVars allowTC (toType rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
-    (as,_,cs,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
-    (_,ps,cs' ,st) = bkUnivClass' st0
+    (as,_,cs0,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
+    (_,ps,cs0' ,st) = bkUnivClass' st0
+    cs  = [ (x, defRFInfo, t, r) | (x,t,r)<-cs0]
+    cs' = [ (x, defRFInfo, t, r) | (x,t,r)<-cs0']
 
     err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types new")
@@ -259,8 +261,8 @@ goPlug tce tyi err f = go
         addHole t                  = t
 
     go (RVar _ _)       v@(RVar _ _)       = v
-    go t'               (RImpF x i o r)    = RImpF x i  (go t' o)             r
-    go (RFun _ i o _)   (RFun x i' o' r)   = RFun x     (go i i')   (go o o') r
+    go t'               (RImpF x ii i o r)   = RImpF x ii i  (go t' o)             r
+    go (RFun _ _ i o _) (RFun x ii i' o' r)  = RFun x  ii   (go i i')   (go o o') r
     go (RAllT _ t _)    (RAllT a t' r)     = RAllT a    (go t t') r
     go (RAllT a t r)    t'                 = RAllT a    (go t t') r
     go t                (RAllP p t')       = RAllP p    (go t t')

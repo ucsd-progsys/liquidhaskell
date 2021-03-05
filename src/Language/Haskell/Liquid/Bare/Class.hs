@@ -109,8 +109,8 @@ addCC allowTC x zz@(Loc l l' st0)
       = addForall t t'
     addForall _ (RAllP p t')
       = RAllP (fmap (subts su') p) t' 
-    addForall (RFun _ t1 t2 _) (RFun x t1' t2' r)
-      = RFun x (addForall t1 t1') (addForall t2 t2') r  
+    addForall (RFun _ _ t1 t2 _) (RFun x i t1' t2' r)
+      = RFun x i (addForall t1 t1') (addForall t2 t2') r  
     addForall _ t 
       = t 
 

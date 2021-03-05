@@ -34,7 +34,7 @@ import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F 
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.Misc              (condNull, snd4)
+import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
@@ -497,8 +497,8 @@ checkAppTys = go
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
-    go (RImpF _ t1 t2 _)= go t1 <|> go t2
-    go (RFun _ t1 t2 _) = go t1 <|> go t2
+    go (RImpF _ _ t1 t2 _)= go t1 <|> go t2
+    go (RFun _ _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
     go (REx _ t1 t2)    = go t1 <|> go t2
@@ -530,8 +530,8 @@ checkAbstractRefs t = go t
     go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
-    go t@(RImpF _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
-    go t@(RFun _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
+    go t@(RImpF _ _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
+    go t@(RFun _ _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RVar _ r)       = check (toRSort t :: RSort) r
     go (RAllE _ t1 t2)    = go t1 <|> go t2
     go (REx _ t1 t2)      = go t1 <|> go t2
@@ -626,7 +626,7 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
     xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> filter (not . isClassType)  (ty_args trep)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
-    txs   = snd4 $ bkArrowDeep sort
+    txs   = thd5 $ bkArrowDeep sort
     ct    = ofType $ dataConWrapperType c :: SpecType
 
 checkMBodyUnify
@@ -700,9 +700,9 @@ isRefined ty
   | otherwise = False
 
 hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
-hasInnerRefinement (RFun _ rIn rOut _) =
+hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
-hasInnerRefinement (RImpF _ rIn rOut _) =
+hasInnerRefinement (RImpF _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =
   isRefined ty

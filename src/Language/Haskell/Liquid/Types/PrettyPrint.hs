@@ -208,9 +208,9 @@ ppr_rtype bb p t@(RAllP _ _)
   = ppr_forall bb p t
 ppr_rtype _ _ (RVar a r)
   = F.ppTy r $ pprint a
-ppr_rtype bb p t@(RImpF _ _ _ _)
+ppr_rtype bb p t@(RImpF _ _ _ _ _)
   = maybeParen p funPrec (ppr_rty_fun bb empty t)
-ppr_rtype bb p t@(RFun _ _ _ _)
+ppr_rtype bb p t@(RFun _ _ _ _ _)
   = maybeParen p funPrec (ppr_rty_fun bb empty t)
 ppr_rtype bb p (RApp c [t] rs r)
   | isList c
@@ -341,9 +341,9 @@ ppr_rty_fun' bb t
 -}
 
 brkFun :: RType c tv r -> ([(F.Symbol, RType c tv r, Doc)], RType c tv r) 
-brkFun (RImpF b t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'  
-brkFun (RFun b t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'  
-brkFun out              = ([], out) 
+brkFun (RImpF b _ t t' _) = ((b, t, (text "~>")) : args, out)   where (args, out)     = brkFun t'  
+brkFun (RFun b _ t t' _)  = ((b, t, (text "->")) : args, out)   where (args, out)     = brkFun t'  
+brkFun out                = ([], out) 
 
 
 

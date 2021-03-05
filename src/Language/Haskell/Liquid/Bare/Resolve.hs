@@ -850,13 +850,13 @@ ofBRType :: (Expandable r) => Env -> ModName -> ([F.Symbol] -> r -> r) -> F.Sour
 ofBRType env name f l t  = go [] t 
   where
     goReft bs r             = return (f bs r) 
-    goRImpF bs x t1 t2 r    = RImpF x <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
-    goRFun  bs x t1 t2 r    = RFun  x <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
+    goRImpF bs x i t1 t2 r  = RImpF x i <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
+    goRFun  bs x i t1 t2 r  = RFun  x i <$> (rebind x <$> go bs t1) <*> go (x:bs) t2 <*> goReft bs r
     rebind x t              = F.subst1 t (x, F.EVar $ rTypeValueVar t)
     go bs (RAppTy t1 t2 r)  = RAppTy <$> go bs t1 <*> go bs t2 <*> goReft bs r
     go bs (RApp tc ts rs r) = goRApp bs tc ts rs r 
-    go bs (RImpF x t1 t2 r) = goRImpF bs x t1 t2 r 
-    go bs (RFun  x t1 t2 r) = goRFun  bs x t1 t2 r 
+    go bs (RImpF x i t1 t2 r) = goRImpF bs x i t1 t2 r 
+    go bs (RFun  x i t1 t2 r) = goRFun  bs x i t1 t2 r 
     go bs (RVar a r)        = RVar (RT.bareRTyVar a) <$> goReft bs r
     go bs (RAllT a t r)     = RAllT a' <$> go bs t <*> goReft bs r 
       where a'              = dropTyVarInfo (mapTyVarValue RT.bareRTyVar a) 

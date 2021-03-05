@@ -73,7 +73,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
     go t@(RApp c _ts _ _r) = do  
       let coreProgram = giCbs $ giSrc $ ghcI cgi
           args  = drop 1 (argsP coreProgram xtop)
-          (_, (xs, txs, _), _) = bkArrow ttop
+          (_, (xs, _, txs, _), _) = bkArrow ttop
       addEnv xtop $ decrType xtop ttop args (zip xs txs)
 
       if R.isNumeric (tyConEmbed cgi) c
@@ -111,7 +111,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               scruts <- synthesizeScrut ys
               modify (\s -> s { scrutinees = scruts })
               GHC.mkLams ys <$$> synthesizeBasic goalType
-      where (_, (xs, txs, _), to) = bkArrow t 
+      where (_, (xs, _,txs, _), to) = bkArrow t 
 
     go t = error (" Unmatched t = " ++ show t)
 

@@ -80,6 +80,8 @@ snd4 (_,b,_,_) = b
 thrd3 :: (t1, t2, t3) -> t3
 thrd3 (_,_,c) = c
 
+mapFifth5 :: (t -> t4) -> (t0, t1, t2, t3, t) -> (t0, t1, t2, t3, t4)
+mapFifth5 f (a, x, y, z, w) = (a, x, y, z, f w)
 
 mapFourth4 :: (t -> t4) -> (t1, t2, t3, t) -> (t1, t2, t3, t4)
 mapFourth4 f (x, y, z, w) = (x, y, z, f w)
@@ -98,6 +100,16 @@ dropThd3 (x, y, _) = (x, y)
 
 replaceN :: (Enum a, Eq a, Num a) => a -> t -> [t] -> [t]
 replaceN n y ls = [if i == n then y else x | (x, i) <- zip ls [0..]]
+
+
+thd5 :: (t0, t1, t2, t3,t4) -> t2
+thd5 (_,_,x,_,_) = x
+
+snd5 :: (t0, t1, t2, t3,t4) -> t1
+snd5 (_,x,_,_,_) = x
+
+fst5 :: (t0, t1, t2, t3,t4) -> t0
+fst5 (x,_,_,_,_) = x
 
 fourth4 :: (t, t1, t2, t3) -> t3
 fourth4 (_,_,_,x) = x
@@ -177,6 +189,12 @@ safeZip3WithError :: String -> [t] -> [t1] -> [t2] -> [(t, t1, t2)]
 safeZip3WithError msg (x:xs) (y:ys) (z:zs) = (x,y,z) : safeZip3WithError msg xs ys zs
 safeZip3WithError _   []     []     []     = []
 safeZip3WithError msg _      _      _      = errorstar msg
+
+safeZip4WithError :: String -> [t1] -> [t2] -> [t3] -> [t4] -> [(t1, t2, t3, t4)]
+safeZip4WithError msg (x:xs) (y:ys) (z:zs) (w:ws) = (x,y,z,w) : safeZip4WithError msg xs ys zs ws
+safeZip4WithError _   []     []     []     []     = []
+safeZip4WithError msg _      _      _      _      = errorstar msg
+
 
 mapNs :: (Eq a, Num a, Foldable t) => t a -> (a1 -> a1) -> [a1] -> [a1]
 mapNs ns f xs = foldl (\xs n -> mapN n f xs) xs ns

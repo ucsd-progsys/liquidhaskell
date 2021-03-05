@@ -135,6 +135,7 @@ data RTypeF c tv r f
 
   | RFunF  {
       rtf_bind   :: !F.Symbol
+    , rtf_rinfo  :: !RFInfo
     , rtf_in     :: !f
     , rtf_out    :: !f
     , rtf_reft   :: !r
@@ -142,6 +143,7 @@ data RTypeF c tv r f
 
   | RImpFF  {
       rtf_bind   :: !F.Symbol
+    , rtd_rinfo  :: !RFInfo
     , rtf_in     :: !f
     , rtf_out    :: !f
     , rtf_reft   :: !r
@@ -216,8 +218,8 @@ type instance Base (RType c tv r) = RTypeF c tv r
 
 instance Recursive (RType c tv r) where
   project (RVar var reft           ) = RVarF var reft
-  project (RFun  bind tin tout reft) = RFunF bind tin tout reft
-  project (RImpF bind tin tout reft) = RImpFF bind tin tout reft
+  project (RFun  bind i tin tout reft) = RFunF bind i tin tout reft
+  project (RImpF bind i tin tout reft) = RImpFF bind i tin tout reft
   project (RAllT tvbind ty ref     ) = RAllTF tvbind ty ref
   project (RAllP pvbind ty         ) = RAllPF pvbind ty
   project (RApp c args pargs reft  ) = RAppF c args pargs reft
@@ -230,8 +232,8 @@ instance Recursive (RType c tv r) where
 
 instance Corecursive (RType c tv r) where
   embed (RVarF var reft           ) = RVar var reft
-  embed (RFunF  bind tin tout reft) = RFun bind tin tout reft
-  embed (RImpFF bind tin tout reft) = RImpF bind tin tout reft
+  embed (RFunF  bind i tin tout reft) = RFun bind  i tin tout reft
+  embed (RImpFF bind i tin tout reft) = RImpF bind i tin tout reft
   embed (RAllTF tvbind ty ref     ) = RAllT tvbind ty ref
   embed (RAllPF pvbind ty         ) = RAllP pvbind ty
   embed (RAppF c args pargs reft  ) = RApp c args pargs reft
@@ -268,9 +270,9 @@ plugType t = refix . f
 -- | returns (lambda binders, forall binders)
 collectSpecTypeBinders :: SpecType -> ([F.Symbol], [F.Symbol])
 collectSpecTypeBinders = para $ \case
-  RFunF bind (tin, _) (_, (bs, abs)) _ | isClassType tin -> (bs, abs)
+  RFunF bind _ (tin, _) (_, (bs, abs)) _ | isClassType tin -> (bs, abs)
                                        | otherwise       -> (bind : bs, abs)
-  RImpFF bind (tin, _) (_, (bs, abs)) _ | isClassType tin -> (bs, abs)
+  RImpFF bind _ (tin, _) (_, (bs, abs)) _ | isClassType tin -> (bs, abs)
                                         | otherwise       -> (bind : bs, abs)
   RAllEF b _ (_, (bs, abs))  -> (b : bs, abs)
   RAllTF (RTVar (RTV ab) _) (_, (bs, abs)) _ -> (bs, F.symbol ab : abs)
@@ -284,10 +286,10 @@ collectSpecTypeBinders = para $ \case
 -- namespace related issues (whether the symbol denotes a varName or a datacon)
 buildHsExpr :: LHsExpr GhcPs -> SpecType -> LHsExpr GhcPs
 buildHsExpr res = para $ \case
-  RFunF bind (tin, _) (_, res) _
+  RFunF bind _ (tin, _) (_, res) _
     | isClassType tin -> res
     | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
-  RImpFF bind (tin, _) (_, res) _
+  RImpFF bind _ (tin, _) (_, res) _
     | isClassType tin -> res
     | otherwise       -> mkHsLam [nlVarPat (varSymbolToRdrName bind)] res
   RAllEF  _ _        (_, res) -> res
@@ -339,11 +341,11 @@ elaborateSpecType' partialTp coreToLogic simplify t =
         (pure (t, []))
         (\bs' ee -> pure (RVar (RTV tv) (MkUReft (F.Reft (vv, ee)) p), bs'))
         -- YL : Fix
-    RFun bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
+    RFun bind i tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
       -- the reft is never actually used by the child
       -- maybe i should enforce this information at the type level
       let partialFunTp =
-            Free (RFunF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
+            Free (RFunF bind i (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
       (eTin , bs ) <- elaborateSpecType' partialTp coreToLogic simplify tin
       (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
@@ -353,14 +355,14 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                     canonicalizeDictBinder bs (eTout, bs0')
               pure
                 ( F.notracepp "RFunTrivial0"
-                  $ RFun dictBinder eTin eToutRenamed ureft
+                  $ RFun dictBinder i eTin eToutRenamed ureft
                 , canonicalBinders
                 )
             | otherwise = do
               let (eToutRenamed, canonicalBinders) =
                     canonicalizeDictBinder bs (eTout, bs')
               pure
-                ( F.notracepp "RFunTrivial1" $ RFun bind eTin eToutRenamed ureft
+                ( F.notracepp "RFunTrivial1" $ RFun bind i eTin eToutRenamed ureft
                 , canonicalBinders
                 )
           buildRFunCont bs'' ee
@@ -370,7 +372,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                   (eeRenamed, canonicalBinders') =
                     canonicalizeDictBinder canonicalBinders (ee, bs'')
               pure
-                ( RFun dictBinder
+                ( RFun dictBinder i
                        eTin
                        eToutRenamed
                        (MkUReft (F.Reft (vv, eeRenamed)) p)
@@ -382,7 +384,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
                   (eeRenamed, canonicalBinders') =
                     canonicalizeDictBinder canonicalBinders (ee, bs'')
               pure
-                ( RFun bind
+                ( RFun bind i
                        eTin
                        eToutRenamed
                        (MkUReft (F.Reft (vv, eeRenamed)) p)
@@ -395,9 +397,9 @@ elaborateSpecType' partialTp coreToLogic simplify t =
         --    pure (RFun bind eTin eToutRenamed (MkUReft (F.Reft (vv, eeRenamed)) p), bs')
         -- )
     -- YL: implicit dictionary param doesn't seem possible..
-    RImpF bind tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
+    RImpF bind i tin tout ureft@(MkUReft reft@(F.Reft (vv, _oldE)) p) -> do
       let partialFunTp =
-            Free (RImpFF bind (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
+            Free (RImpFF bind i (wrap $ specTypeToPartial tin) (pure ()) ureft) :: PartialSpecType
           partialTp' = partialTp >> partialFunTp :: PartialSpecType
       (eTin , bs ) <- elaborateSpecType' partialTp' coreToLogic simplify tin
       (eTout, bs') <- elaborateSpecType' partialTp' coreToLogic simplify tout
@@ -409,12 +411,12 @@ elaborateSpecType' partialTp coreToLogic simplify t =
       -- if isClassType eTin
       elaborateReft
         (reft, t)
-        (pure (RImpF bind eTin eToutRenamed ureft, canonicalBinders))
+        (pure (RImpF bind i eTin eToutRenamed ureft, canonicalBinders))
         (\bs'' ee -> do
           let (eeRenamed, canonicalBinders') =
                 canonicalizeDictBinder canonicalBinders (ee, bs'')
           pure
-            ( RImpF bind eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p)
+            ( RImpF bind i eTin eTout (MkUReft (F.Reft (vv, eeRenamed)) p)
             , canonicalBinders'
             )
         )
@@ -738,10 +740,10 @@ specTypeToLHsType =
     RVarF (RTV tv) _ -> nlHsTyVar
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv)) 
-    RFunF _ (tin, tin') (_, tout) _
+    RFunF _ _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
-    RImpFF _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
+    RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
       Ghc.noExtField
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
@@ -776,10 +778,10 @@ bareTypeToLHsType =
     RVarF (BTV tv) _ -> nlHsTyVar
       -- (GM.notracePpr ("varRdr" ++ F.showpp (F.symbol tv)) $ getRdrName tv)
       (symbolToRdrNameNs tvName (F.symbol tv)) 
-    RFunF _ (tin, tin') (_, tout) _
+    RFunF _ _ (tin, tin') (_, tout) _
       | isClassType tin -> noLoc $ HsQualTy Ghc.noExtField (noLoc [tin']) tout
       | otherwise       -> nlHsFunTy tin' tout
-    RImpFF _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
+    RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (BTV tv)) (_, t) _ -> noLoc $ HsForAllTy
       Ghc.noExtField
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)

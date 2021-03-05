@@ -194,7 +194,7 @@ makeRecType autoenv t vs dxs is
 unOCons :: RType c tv r -> RType c tv r
 unOCons (RAllT v t r)      = RAllT v (unOCons t) r 
 unOCons (RAllP p t)        = RAllP p $ unOCons t
-unOCons (RFun x tx t r)    = RFun x (unOCons tx) (unOCons t) r
+unOCons (RFun x i tx t r)  = RFun x i (unOCons tx) (unOCons t) r
 unOCons (RRTy _ _ OCons t) = unOCons t
 unOCons t                  = t
 
@@ -202,7 +202,7 @@ mergecondition :: RType c tv r -> RType c tv r -> RType c tv r
 mergecondition (RAllT _ t1 _) (RAllT v t2 r2)          = RAllT v (mergecondition t1 t2) r2 
 mergecondition (RAllP _ t1) (RAllP p t2)               = RAllP p (mergecondition t1 t2)
 mergecondition (RRTy xts r OCons t1) t2                = RRTy xts r OCons (mergecondition t1 t2)
-mergecondition (RFun _ t11 t12 _) (RFun x2 t21 t22 r2) = RFun x2 (mergecondition t11 t21) (mergecondition t12 t22) r2
+mergecondition (RFun _ _ t11 t12 _) (RFun x2 i t21 t22 r2) = RFun x2 i (mergecondition t11 t21) (mergecondition t12 t22) r2
 mergecondition _ t                                     = t
 
 safeLogIndex :: Error -> [a] -> Int -> CG (Maybe a)
@@ -355,8 +355,8 @@ makeTermEnvs :: CGEnv -> [(Var, [F.Located F.Expr])] -> [(Var, CoreExpr)]
 makeTermEnvs γ xtes xes ts ts' = setTRec γ . zip xs <$> rts
   where
     vs   = zipWith collectArgs ts es
-    ys   = (fst4 . bkArrowDeep) <$> ts
-    ys'  = (fst4 . bkArrowDeep) <$> ts'
+    ys   = (fst5 . bkArrowDeep) <$> ts
+    ys'  = (fst5 . bkArrowDeep) <$> ts'
     sus' = zipWith mkSub ys ys'
     sus  = zipWith mkSub ys ((F.symbol <$>) <$> vs)
     ess  = (\x -> (safeFromJust (err x) $ (x `L.lookup` xtes))) <$> xs
@@ -373,9 +373,9 @@ addObligation :: Oblig -> SpecType -> RReft -> SpecType
 addObligation o t r  = mkArrow αs πs yts xts $ RRTy [] r o t2
   where
     (αs, πs, t1) = bkUniv t
-    ((xs',ts',rs'),(xs, ts, rs), t2) = bkArrow t1
-    xts              = zip3 xs ts rs
-    yts              = zip3 xs' ts' rs'
+    ((xs',is',ts',rs'),(xs, is, ts, rs), t2) = bkArrow t1
+    xts              = zip4 xs is ts rs
+    yts              = zip4 xs' is' ts' rs'
 
 --------------------------------------------------------------------------------
 consCB :: Bool -> Bool -> CGEnv -> CoreBind -> CG CGEnv
@@ -652,11 +652,11 @@ cconsE' γ (Lam α e) (RAllT α' t r) | isTyVar α
        addForAllConstraint γ' α e (RAllT α' t r)
        cconsE γ' e $ subsTyVar_meet' (ty_var_value α', rVar α) t
 
-cconsE' γ (Lam x e) (RFun y ty t r)
+cconsE' γ (Lam x e) (RFun y i ty t r)
   | not (isTyVar x)
   = do γ' <- γ += ("cconsE", x', ty)
        cconsE γ' e t'
-       addFunctionConstraint γ x e (RFun x' ty t' r')
+       addFunctionConstraint γ x e (RFun x' i ty t' r')
        addIdA x (AnnDef ty)
   where
     x'  = F.symbol x
@@ -708,10 +708,10 @@ addForAllConstraint γ _ _ _
 
   
 addFunctionConstraint :: CGEnv -> Var -> CoreExpr -> SpecType -> CG ()
-addFunctionConstraint γ x e (RFun y ty t r)
+addFunctionConstraint γ x e (RFun y i ty t r)
   = do ty'      <- true (typeclass (getConfig γ)) ty
        t'       <- true (typeclass (getConfig γ)) t
-       let truet = RFun y ty' t'
+       let truet = RFun y i ty' t'
        case (lamExpr γ e, higherOrderFlag γ) of
           (Just e', True) -> do tce    <- tyConEmbed <$> get
                                 let sx  = typeSort tce $ varType x
@@ -725,8 +725,8 @@ splitConstraints :: TyConable c
                  => Bool -> RType c tv r -> ([[(F.Symbol, RType c tv r)]], RType c tv r)
 splitConstraints allowTC (RRTy cs _ OCons t)
   = let (css, t') = splitConstraints allowTC t in (cs:css, t')
-splitConstraints allowTC (RFun x tx@(RApp c _ _ _) t r) | isErasable c
-  = let (css, t') = splitConstraints allowTC  t in (css, RFun x tx t' r)
+splitConstraints allowTC (RFun x i tx@(RApp c _ _ _) t r) | isErasable c
+  = let (css, t') = splitConstraints allowTC  t in (css, RFun x i tx t' r)
   where isErasable = if allowTC then isEmbeddedDict else isClass
 splitConstraints _ t
   = ([], t)
@@ -753,7 +753,7 @@ instantiateGhosts γ t = return (False, γ, t)
 bkImplicit :: RType c tv r
            -> ( [(F.Symbol, RType c tv r)]
               , RType c tv r)
-bkImplicit (RImpF x tx t _) = ((x,tx):acc, t')
+bkImplicit (RImpF x _ tx t _) = ((x,tx):acc, t')
   where (acc,t') = bkImplicit t
 bkImplicit t = ([],t)
 
@@ -838,7 +838,7 @@ consE γ e'@(App e a) | Just aDict <- getExprDict γ a
         (γ', te''')  <- dropExists γ te'
         te''         <- dropConstraints γ te'''
         updateLocA {- πs -}  (exprLoc e) te''
-        let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
+        let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te''
         cconsE γ' a tx
         addPost γ'        $ maybe (checkUnbound γ' e' x t a) (F.subst1 t . (x,)) (argExpr γ a)
 
@@ -849,7 +849,7 @@ consE γ e'@(App e a)
        te''         <- dropConstraints γ te'''
        updateLocA (exprLoc e) te''
        (hasGhost, γ'', te''')     <- instantiateGhosts γ' te''
-       let RFun x tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
+       let RFun x _ tx t _ = checkFun ("Non-fun App with caller ", e') γ te'''
        cconsE γ'' a tx
        tout <- makeSingleton γ'' (simplify e') <$> (addPost γ'' $ maybe (checkUnbound γ'' e' x t a) (F.subst1 t . (x,)) (argExpr γ $ simplify a))
        if hasGhost
@@ -872,7 +872,7 @@ consE γ  e@(Lam x e1)
        addIdA x $ AnnDef tx
        addW     $ WfC γ tx
        tce     <- tyConEmbed <$> get
-       return   $ RFun (F.symbol x) tx t1 $ lambdaSingleton γ tce x e1
+       return   $ RFun (F.symbol x) (mkRFInfo $ getConfig γ) tx t1 $ lambdaSingleton γ tce x e1
     where
       FunTy { ft_arg = τx } = exprType e
 
@@ -1136,8 +1136,8 @@ dropExists γ (REx x tx t) =         (, t) <$> γ += ("dropExists", x, tx)
 dropExists γ t            = return (γ, t)
 
 dropConstraints :: CGEnv -> SpecType -> CG SpecType
-dropConstraints γ (RFun x tx@(RApp c _ _ _) t r) | isErasable c
-  = (flip (RFun x tx)) r <$> dropConstraints γ t
+dropConstraints γ (RFun x i tx@(RApp c _ _ _) t r) | isErasable c
+  = (flip (RFun x i tx)) r <$> dropConstraints γ t
   where
     isErasable = if typeclass (getConfig γ) then isEmbeddedDict else isClass
 dropConstraints γ (RRTy cts _ OCons t)
@@ -1220,7 +1220,7 @@ unfoldR td (RApp _ ts rs _) ys = (t3, tvys ++ yts, ignoreOblig rt)
   where
         tbody              = instantiatePvs (instantiateTys td ts) (reverse rs)
         -- TODO: if we ever want to support applying implicits explicitly, will need to rejigger
-        ((_,_,_),(ys0,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
+        ((_,_,_,_),(ys0,_,yts',_), rt) = safeBkArrow (F.notracepp msg $ instantiateTys tbody tvs')
         msg                = "INST-TY: " ++ F.showpp (td, ts, tbody, ys, tvs') 
         yts''              = zipWith F.subst sus (yts'++[rt])
         (t3,yts)           = (last yts'', init yts'')
@@ -1249,8 +1249,8 @@ checkTyCon _ _ t@(RApp _ _ _ _) = t
 checkTyCon x g t                = checkErr x g t
 
 checkFun :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
-checkFun _ _ t@(RFun _ _ _ _) = t
-checkFun x g t                = checkErr x g t
+checkFun _ _ t@(RFun _ _ _ _ _) = t
+checkFun x g t                  = checkErr x g t
 
 checkAll :: (Outputable a) => (String, a) -> CGEnv -> SpecType -> SpecType
 checkAll _ _ t@(RAllT _ _ _)  = t
@@ -1421,7 +1421,7 @@ singletonReft = uTop . F.symbolReft . F.symbol
 strengthenTop :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenTop (RApp c ts rs r) r'  = RApp c ts rs $ F.meet r r'
 strengthenTop (RVar a r) r'        = RVar a       $ F.meet r r'
-strengthenTop (RFun b t1 t2 r) r'  = RFun b t1 t2 $ F.meet r r'
+strengthenTop (RFun b i t1 t2 r) r'= RFun b i t1 t2 $ F.meet r r'
 strengthenTop (RAppTy t1 t2 r) r'  = RAppTy t1 t2 $ F.meet r r'
 strengthenTop (RAllT a t r)    r'  = RAllT a t    $ F.meet r r'
 strengthenTop t _                  = t
@@ -1430,7 +1430,7 @@ strengthenTop t _                  = t
 strengthenMeet :: (PPrint r, F.Reftable r) => RType c tv r -> r -> RType c tv r
 strengthenMeet (RApp c ts rs r) r'  = RApp c ts rs (r `F.meet` r')
 strengthenMeet (RVar a r) r'        = RVar a       (r `F.meet` r')
-strengthenMeet (RFun b t1 t2 r) r'  = RFun b t1 t2 (r `F.meet` r')
+strengthenMeet (RFun b i t1 t2 r) r'= RFun b i t1 t2 (r `F.meet` r')
 strengthenMeet (RAppTy t1 t2 r) r'  = RAppTy t1 t2 (r `F.meet` r')
 strengthenMeet (RAllT a t r) r'     = RAllT a (strengthenMeet t r') (r `F.meet` r')
 strengthenMeet t _                  = t

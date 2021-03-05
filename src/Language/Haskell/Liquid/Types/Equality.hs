@@ -36,10 +36,10 @@ compareRType i1 i2 = res && unify vs
       = do tell [(v1, v2)]
            return (r1 =*= r2) 
      -- = v1 == v2 && r1 =*= r2 
-    go (RFun x1 t11 t12 r1) (RFun x2 t21 t22 r2)
+    go (RFun x1 _ t11 t12 r1) (RFun x2 _ t21 t22 r2)
       | x1 == x2 && r1 =*= r2
       = liftM2 (&&) (go t11 t21) (go t12 t22)
-    go (RImpF x1 t11 t12 r1) (RImpF x2 t21 t22 r2)
+    go (RImpF x1 _ t11 t12 r1) (RImpF x2 _ t21 t22 r2)
       | x1 == x2    && r1 =*= r2
       = liftM2 (&&) (go t11 t21) (go t12 t22)    
     go (RAllP x1 t1) (RAllP x2 t2)
