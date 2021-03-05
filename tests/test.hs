@@ -84,7 +84,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                             proverTests :
                             goldenTests :
                             benchTests  : 
-                            []
+                            [] -- [goldenTests]
                            
 
     -- tests = group "Tests" [ unitTests  ]
@@ -268,8 +268,8 @@ goldenTest' testName dir filePrefix testOpts =
   askOption $ \(opts :: LiquidOpts) ->
   askOption $ \(bin  :: LiquidRunner) ->
     goldenTest testName
-                   (readFile (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) bin dir (filePrefix <> ".hs")))
-                   (dir </> filePrefix <> ".golden")
+                   (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) bin dir (filePrefix <> ".hs"))
+                   (readFile (dir </> filePrefix <> ".golden"))
                    cmp 
                    (\_ -> return ())
     where 
