@@ -6,7 +6,7 @@
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedStrings #-}
-
+{-# LANGUAGE FlexibleInstances #-}
 module Main where
 
 import Data.Function (on)
@@ -20,7 +20,8 @@ import qualified Data.Functor.Compose as Functor
 import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.List as L 
-import Data.Maybe (fromMaybe)
+import Data.Maybe (fromMaybe, isJust)
+import Data.List  (find)
 import Data.Monoid (Sum(..))
 import Data.Proxy
 import Data.String
@@ -47,9 +48,10 @@ import Test.Tasty.Options
 import Test.Tasty.Runners
 import Test.Tasty.Runners.AntXML
 import Paths_liquidhaskell
-import Data.Aeson (toJSON)
-
-import Text.Printf
+import qualified Data.Aeson as JS 
+import qualified Data.HashMap.Strict as H
+import qualified Data.Vector as V 
+import Text.Printf 
 
 
 
@@ -273,10 +275,37 @@ goldenTest' testName dir filePrefix testOpts =
                    cmp 
                    (\_ -> return ())
     where 
-      cmp x y = if toJSON x == toJSON y 
+      cmp x y = if JS.toJSON x === JS.toJSON y 
                    then return Nothing 
                    else return $ Just ("Test output was different from" ++ x ++  "It was:\n" ++ y)
-                   
+
+class JEq a where 
+  (===) :: a -> a -> Bool 
+
+instance JEq JS.Value where
+  JS.Null      === JS.Null      = True 
+  JS.Bool b1   === JS.Bool b2   = b1 == b2 
+  JS.Number n1 === JS.Number n2 = n1 == n2 
+  JS.String s1 === JS.String s2 = s1 == s2
+  JS.Array  a1 === JS.Array a2  = a1 === a2 
+  JS.Object o1 === JS.Object o2 = o1 === o2  
+  _            === _            = False 
+
+instance JEq a => JEq (H.HashMap T.Text a) where 
+  m1 === m2 = let l1 = H.toList m1 
+                  l2 = H.toList m2 
+              in length l1 == length l2 && all (\(k,v) -> 
+                  case H.lookup k m2 of 
+                     Nothing -> False 
+                     Just v2 -> v === v2 
+                 ) l1
+  
+instance JEq a => JEq (V.Vector a) where 
+  v1 === v2 = V.toList v1 === V.toList v2 
+
+instance JEq a => JEq [a] where 
+  l1 === l2 = length l1 == length l2 && all (\v1 -> isJust (find (===v1) l2)) l1 
+
 
 microTests :: IO TestTree
 microTests = group "Micro"
