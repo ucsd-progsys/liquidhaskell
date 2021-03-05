@@ -20,6 +20,8 @@ instance PersistEntity Blob where
       = typ ~ Int => BlobXVal |
         typ ~ Int => BlobYVal
 
+{-@ data variance EntityField invariant invariant @-}
+
 data Blob  = B { xVal :: Int, yVal :: Int }
 
 data Update record typ = Update

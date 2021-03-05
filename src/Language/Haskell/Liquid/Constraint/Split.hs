@@ -137,11 +137,11 @@ bsplitW' γ t temp isHO
     ci                = Ci (getLocation γ) Nothing (cgVar γ)
 
 splitfWithVariance :: Applicative f
-                   => (t -> t -> f [a]) -> t -> t -> Variance -> f [a]
-splitfWithVariance f t1 t2 Invariant     = (++) <$> f t1 t2 <*> f t2 t1
-splitfWithVariance f t1 t2 Bivariant     = pure [] -- (++) <$> f t1 t2 <*> f t2 t1
-splitfWithVariance f t1 t2 Covariant     = f t1 t2
-splitfWithVariance f t1 t2 Contravariant = f t2 t1
+                   => Variance -> (t -> t -> f [a]) -> t -> t -> Variance -> f [a]
+splitfWithVariance _ f t1 t2 Invariant     = (++) <$> f t1 t2 <*> f t2 t1
+splitfWithVariance v f t1 t2 Bivariant     = if v == Bivariant then pure [] else splitfWithVariance v f t1 t2 v -- (++) <$> f t1 t2 <*> f t2 t1
+splitfWithVariance _ f t1 t2 Covariant     = f t1 t2
+splitfWithVariance _ f t1 t2 Contravariant = f t2 t1
 
 updateEnv :: CGEnv -> RTVar RTyVar (RType RTyCon RTyVar b0) -> CG CGEnv
 updateEnv γ a
@@ -253,7 +253,7 @@ splitC (SubC γ t1'@(RAllT α1 t1 _) t2'@(RAllT α2 t2 _))
 splitC (SubC _ (RApp c1 _ _ _) (RApp c2 _ _ _)) | isClass c1 && c1 == c2
   = return []
 
-splitC (SubC γ t1@(RApp c _ _ _) t2@(RApp _ _ _ _))
+splitC (SubC γ t1@(RApp _ _ _ _) t2@(RApp _ _ _ _))
   = do (t1',t2') <- unifyVV t1 t2
        cs    <- bsplitC γ t1' t2'
        γ'    <- if (bscope (getConfig γ)) then γ `extendEnvWithVV` t1' else return γ
@@ -316,7 +316,7 @@ splitsCWithVariance :: CGEnv
                     -> [Variance]
                     -> CG [FixSubC]
 splitsCWithVariance γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (fromMaybe mempty $ ghostVariance $ getConfig γ) (\s1 s2 -> (splitC (SubC γ s1 s2))) t1 t2 v) (zip3 t1s t2s variants)
 
 rsplitsCWithVariance :: Bool
                      -> CGEnv
@@ -328,7 +328,7 @@ rsplitsCWithVariance False _ _ _ _
   = return []
 
 rsplitsCWithVariance _ γ t1s t2s variants
-  = concatMapM (\(t1, t2, v) -> splitfWithVariance (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
+  = concatMapM (\(t1, t2, v) -> splitfWithVariance (fromMaybe mempty $ ghostVariance $ getConfig γ) (rsplitC γ) t1 t2 v) (zip3 t1s t2s variants)
 
 bsplitC :: CGEnv
         -> SpecType

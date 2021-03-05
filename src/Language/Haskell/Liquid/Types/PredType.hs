@@ -56,6 +56,7 @@ import           Language.Haskell.Liquid.Misc
 import           Language.Haskell.Liquid.Types.RefType hiding (generalize)
 import           Language.Haskell.Liquid.Types.Types
 import           Data.Default
+import           Language.Haskell.Liquid.Types.Variance
 
 makeTyConInfo :: F.TCEmb Ghc.TyCon -> [Ghc.TyCon] -> [TyConP] -> TyConMap
 makeTyConInfo tce fiTcs tcps = TyConMap 
@@ -76,7 +77,7 @@ mkFInstRTyCon tce fiTcs tcm = M.fromList
     , (c, ts) <- Mb.maybeToList (famInstArgs fiTc)
   ] 
 
-mkRTyCon ::  TyConP -> RTyCon
+mkRTyCon :: TyConP -> RTyCon
 mkRTyCon (TyConP _ tc αs' ps tyvariance predvariance size)
   = RTyCon tc pvs' (mkTyConInfo tc tyvariance predvariance size)
   where

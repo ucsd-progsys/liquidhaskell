@@ -7,8 +7,8 @@ import Language.Haskell.Liquid.Prelude (liquidAssert)
 import Data.IORef
 
 
-{-@ data variance IO bivariant @-}
-{-@ data variance IORef bivariant @-}
+{-@ data variance IO invariant @-}
+{-@ data variance IORef invariant @-}
 
 job :: IO () 
 job = do

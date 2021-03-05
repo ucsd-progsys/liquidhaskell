@@ -1,4 +1,5 @@
 module RG where
+{-@ LIQUID "--ghost-variance=Invariant" @-}
 
 import Data.IORef as R
 

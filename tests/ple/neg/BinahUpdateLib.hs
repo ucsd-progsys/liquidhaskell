@@ -20,6 +20,8 @@ instance PersistEntity Blob where
         BlobXVal :: EntityField Blob Int
         BlobYVal :: EntityField Blob Int
 
+{-@ data variance EntityField invariant invariant @-}
+
 {-@ data Blob  = B { xVal :: {v:Int | v >= 0}, yVal :: Int } @-}
 data Blob  = B { xVal :: Int, yVal :: Int }
 
