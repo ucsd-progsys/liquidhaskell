@@ -468,7 +468,7 @@ consBind isRec γ (x, e, Asserted spect)
 
        -- take implcits out of the function's SpecType and into the env
        let tyr = toRTypeRep spect
-       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_eargs = [], ty_erefts = [] })
+       let spect' = fromRTypeRep (tyr { ty_ebinds = [], ty_einfo = [], ty_eargs = [], ty_erefts = [] })
        γπ <- foldM (+=) γπ $ (\(y,t)->("implicitError",y,t)) <$> zip (ty_ebinds tyr) (ty_eargs tyr)
 
        cconsE γπ e (weakenResult (typeclass (getConfig γ)) x spect')

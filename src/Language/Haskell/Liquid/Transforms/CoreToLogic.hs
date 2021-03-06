@@ -34,6 +34,7 @@ import           Control.Monad.State
 import           Control.Monad.Except
 import           Control.Monad.Identity
 import qualified Language.Fixpoint.Misc                as Misc 
+import qualified Language.Haskell.Liquid.Misc          as Misc 
 import           Language.Fixpoint.Types               hiding (panic, Error, R, simplify)
 import qualified Language.Fixpoint.Types               as F
 import qualified Language.Haskell.Liquid.GHC.Misc      as GM
@@ -49,10 +50,10 @@ import           Language.Haskell.Liquid.Types.RefType
 import qualified Data.HashMap.Strict                   as M
 
 logicType :: (Reftable r) => Bool -> Type -> RRType r
-logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_args = as, ty_refts = rs}
+logicType allowTC τ      = fromRTypeRep $ t { ty_binds = bs, ty_info = is, ty_args = as, ty_refts = rs}
   where
     t            = toRTypeRep $ ofType τ
-    (bs, as, rs) = unzip3 $ dropWhile (isErasable . Misc.snd3) $ zip3 (ty_binds t) (ty_args t) (ty_refts t)
+    (bs, is, as, rs) = Misc.unzip4 $ dropWhile (isErasable . Misc.thd4) $ Misc.zip4 (ty_binds t) (ty_info t) (ty_args t) (ty_refts t)
     isErasable   = if allowTC then isEmbeddedClass else isClassType
 
 {- | [NOTE:inlineSpecType type]: the refinement depends on whether the result type is a Bool or not:

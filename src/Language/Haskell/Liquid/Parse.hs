@@ -528,7 +528,7 @@ constraintP
        return $ fromRTypeRep $ RTypeRep [] [] []
                                         [] [] []
                                         ((val . fst <$> xts) ++ [dummySymbol])
-                                        []
+                                        (replicate (length xts + 1) defRFInfo)
                                         (replicate (length xts + 1) mempty)
                                         ((snd <$> xts) ++ [t1]) t2
 

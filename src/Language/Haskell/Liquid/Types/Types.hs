@@ -1371,8 +1371,8 @@ fromRTypeRep :: RTypeRep c tv r -> RType c tv r
 fromRTypeRep (RTypeRep {..})
   = mkArrow ty_vars ty_preds earrs arrs ty_res
   where
-    arrs  = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_args, length ty_refts)) ty_binds ty_info ty_args ty_refts
-    earrs = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_eargs, length ty_erefts)) ty_ebinds ty_einfo ty_eargs ty_erefts
+    arrs  = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_binds, length ty_info, length ty_args, length ty_refts)) ty_binds ty_info ty_args ty_refts
+    earrs = safeZip4WithError ("fromRTypeRep: " ++ show (length ty_ebinds, length ty_einfo, length ty_eargs, length ty_erefts)) ty_ebinds ty_einfo ty_eargs ty_erefts
 
 --------------------------------------------------------------------------------
 toRTypeRep           :: RType c tv r -> RTypeRep c tv r

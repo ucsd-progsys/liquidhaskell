@@ -77,6 +77,10 @@ fst4 (a,_,_,_) = a
 snd4 :: (t, t1, t2, t3) -> t1
 snd4 (_,b,_,_) = b
 
+thd4 :: (t1, t2, t3, t4) -> t3
+thd4 (_,_,b,_) = b
+
+
 thrd3 :: (t1, t2, t3) -> t3
 thrd3 (_,_,c) = c
 
@@ -142,6 +146,18 @@ third3 f (a,b,c) = (a,b,f c)
 zip4 :: [t] -> [t1] -> [t2] -> [t3] -> [(t, t1, t2, t3)]
 zip4 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) = (x1, x2, x3, x4) : zip4 xs1 xs2 xs3 xs4
 zip4 _ _ _ _                             = []
+
+zip5 :: [t] -> [t1] -> [t2] -> [t3] -> [t4] -> [(t, t1, t2, t3, t4)]
+zip5 (x1:xs1) (x2:xs2) (x3:xs3) (x4:xs4) (x5:xs5) = (x1, x2, x3, x4,x5) : zip5 xs1 xs2 xs3 xs4 xs5
+zip5 _ _ _ _ _                                    = []
+
+
+
+unzip4 :: [(t, t1, t2, t3)] -> ([t],[t1],[t2],[t3]) 
+unzip4 = go [] [] [] []
+  where go a1 a2 a3 a4 ((x1,x2,x3,x4):xs) = go (x1:a1) (x2:a2) (x3:a3) (x4:a4) xs 
+        go a1 a2 a3 a4 [] = (reverse  a1, reverse a2, reverse a3, reverse a4)
+  
 
 isIncludeFile :: FilePath -> FilePath -> Bool 
 isIncludeFile incDir src = -- do 

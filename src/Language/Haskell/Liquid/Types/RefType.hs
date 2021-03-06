@@ -1691,25 +1691,25 @@ expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar (
                   => Var -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
 expandProductType x t
   | isTrivial       = t
-  | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_args = ts', ty_refts = rs'}
+  | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_info=is', ty_args = ts', ty_refts = rs'}
      where
       isTrivial     = ofType (varType x) == toRSort t
       τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTys $ toType t
       trep          = toRTypeRep t
-      (xs',ts',rs') = unzip3 $ concatMap mkProductTy $ zip4 τs (ty_binds trep) (ty_args trep) (ty_refts trep)
+      (xs',is',ts',rs') = unzip4 $ concatMap mkProductTy $ zip5 τs (ty_binds trep) (ty_info trep) (ty_args trep) (ty_refts trep)
 
 -- splitFunTys :: Type -> ([Type], Type)
 
 
 mkProductTy :: forall t r. (Monoid t, Monoid r)
-            => (Type, Symbol, RType RTyCon RTyVar r, t)
-            -> [(Symbol, RType RTyCon RTyVar r, t)]
-mkProductTy (τ, x, t, r) = maybe [(x, t, r)] f $ do
+            => (Type, Symbol, RFInfo, RType RTyCon RTyVar r, t)
+            -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
+mkProductTy (τ, x, i, t, r) = maybe [(x, i, t, r)] f $ do
   DataConAppContext{..} <- deepSplitProductType_maybe menv τ
   pure $ (dcac_dc, dcac_tys, map (\(t,s) -> (irrelevantMult t, s)) dcac_arg_tys, dcac_co)
   where
-    f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RType RTyCon RTyVar r, t)]
-    f    = map ((dummySymbol, , mempty) . ofType . fst) . third4
+    f    :: (DataCon, [Type], [(Type, StrictnessMark)], Coercion) -> [(Symbol, RFInfo, RType RTyCon RTyVar r, t)]
+    f    = map ((dummySymbol, defRFInfo, , mempty) . ofType . fst) . third4
     menv = (emptyFamInstEnv, emptyFamInstEnv)
 
 -----------------------------------------------------------------------------------------

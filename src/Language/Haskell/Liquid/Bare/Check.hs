@@ -653,11 +653,12 @@ checkMBody' emb sort γ sp body = case body of
     sort' = dropNArgs 1 sort
 
 dropNArgs :: Int -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
-dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
+dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_info = is, ty_args = ts, ty_refts = rs}
   where
     xs   = drop i $ ty_binds trep
     ts   = drop i $ ty_args  trep
     rs   = drop i $ ty_refts trep
+    is   = drop i $ ty_info trep
     trep = toRTypeRep t
 
 
