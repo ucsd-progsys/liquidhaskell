@@ -1,2 +1,2 @@
 LIQUID
-["message":"Type Mismatch\n    .\n    The inferred type\n      VV : {v : GHC.Types.Int | v == 7}\n    .\n    is not a subtype of the required type\n      VV : {VV : GHC.Types.Int | VV mod 2 == 0}\n    ."},{"start":{"column":1,"line":9},"stop":{"column":12,"line":9}]
+[{"message":"Type Mismatch\n    .\n    The inferred type\n      VV : {v : GHC.Types.Int | v == 7}\n    .\n    is not a subtype of the required type\n      VV : {VV : GHC.Types.Int | VV mod 2 == 0}\n    ."},{"start":{"column":1,"line":9},"stop":{"column":12,"line":9}}]
