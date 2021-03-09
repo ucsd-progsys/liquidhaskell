@@ -168,7 +168,7 @@ jobs:
 
   cabal_900:
     docker:
-      - image: kosmikus/ubuntu-ghc-cabal-stack:9.0.0.20201227
+      - image: phadej/ghc:9.0.1-focal
     steps:
       - cabal_build_and_test:
           cabal_update_command: "cabal v2-update && ./scripts/head.hackage.sh update"
