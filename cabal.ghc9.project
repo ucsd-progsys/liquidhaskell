@@ -13,6 +13,8 @@ package liquid-fixpoint
 package liquid-platform
   flags: +devel
 
+tests: True
+
 with-compiler: ghc-9.0.1
 
 source-repository-package
@@ -58,7 +60,7 @@ constraints:
   foundation ==0.0.25,
   free ==5.1.3,
   free-algebras ==0.1.0.0,
-  generic-deriving ==1.13.1,
+  generic-deriving ==1.14,
   generic-lens ==2.0.0.0,
   generic-lens-core ==2.0.0.0,
   generics-sop ==0.5.1.0,

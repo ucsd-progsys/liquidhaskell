@@ -171,7 +171,6 @@ jobs:
       - image: phadej/ghc:9.0.1-focal
     steps:
       - cabal_build_and_test:
-          cabal_update_command: "cabal v2-update && ./scripts/head.hackage.sh update"
           project_file: "cabal.ghc9.project"
           liquid_runner: "--liquid-runner=cabal -v0 v2-exec --project-file cabal.ghc9.project liquidhaskell -- -v0 \
                           -package-env=$(./scripts/generate_testing_ghc_env cabal.ghc9.project) \
