@@ -16,11 +16,14 @@ bsplit = undefined
 merge :: [Int] -> [Int] -> Tick [Int]
 merge = undefined
 
+{-@ relational msort ~ msort :: xs1:_ -> _ ~ xs2:_ -> _ ~~ diff xs1 xs2  @-}
 msort :: [Int] -> Tick [Int]
 msort [] = T [] 0
 msort [x] = T [x] 1
-msort xs@(_:_:_) = let merge (msort ls) (msort rs)) 0
-    where T (S ls rs) _ = bsplit xs
+msort xs@(_:_:_) = T xs' (tsplit + tmerge)
+    where 
+		T (S ls rs) tsplit = bsplit xs
+		T xs' tmerge = merge (msort ls) (msort rs)) 0
         
 {-
 fix msort(z). lam f. Lam. Lam. lam l. caseL l of 

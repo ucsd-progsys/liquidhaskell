@@ -328,12 +328,25 @@ consRelSynth γ ψ (Tick _ e) d =
 consRelSynth γ ψ e (Tick _ d) =
   {- traceSyn "Right Tick" e d -} consRelSynth γ ψ e d
 
-consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2) =
-    traceSyn "App" a1 a2 $ do
-    (ft1, ft2, fp) <- consRelSynth γ ψ e1 e2
-    (t1, t2, p) <- consRelSynthApp γ ψ ft1 ft2 fp (GM.unTickExpr d1) (GM.unTickExpr d2)
-    return (t1, t2, head $ MB.maybeToList (instantiateApp a1 a2 ψ) ++ [p])
- 
+consRelSynth γ ψ a1@(App e1 d1) e2 | Type t1 <- GM.unTickExpr d1 =
+  traceSyn "App Ty L" a1 e2 $ do
+    (ft1', t2, p) <- consRelSynth γ ψ e1 e2
+    let (α1, ft1, r1) = unRAllT ft1' "consRelSynth App Ty L"
+    t1' <- trueTy t1
+    return (subsTyVar_meet' (ty_var_value α1, t1') ft1, t2, p)
+
+consRelSynth γ ψ e1 a2@(App e2 d2) | Type t2 <- GM.unTickExpr d2 =
+  traceSyn "App Ty R" e1 a2 $ do
+    (t1, ft2', p) <- consRelSynth γ ψ e1 e2
+    let (α2, ft2, r2) = unRAllT ft2' "consRelSynth App Ty R"
+    t2' <- trueTy t2
+    return (t1, subsTyVar_meet' (ty_var_value α2, t2') ft2, p)
+
+consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2) = traceSyn "App Exp Exp" a1 a2 $ do
+  (ft1, ft2, fp) <- consRelSynth γ ψ e1 e2
+  (t1, t2, p) <- consRelSynthApp γ ψ ft1 ft2 fp (GM.unTickExpr d1) (GM.unTickExpr d2)
+  return (t1, t2, head $ MB.maybeToList (instantiateApp a1 a2 ψ) ++ [p])
+
 consRelSynth γ _ e d = traceSyn "Unary" e d $ do
   t <- consUnarySynth γ e >>= refreshTy
   s <- consUnarySynth γ d >>= refreshTy
@@ -341,16 +354,6 @@ consRelSynth γ _ e d = traceSyn "Unary" e d $ do
 
 consRelSynthApp :: CGEnv -> PrEnv -> SpecType -> SpecType -> 
   F.Expr -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, F.Expr)
-consRelSynthApp γ _ (RAllT α1 ft1 r1) (RAllT α2 ft2 r2) p (Type t1) (Type t2) =
-  do
-    entlFunRefts γ r1 r2 "consRelSynthApp"
-    t1' <- trueTy t1
-    t2' <- trueTy t2
-    return
-      ( subsTyVar_meet' (ty_var_value α1, t1') ft1
-      , subsTyVar_meet' (ty_var_value α2, t2') ft2
-      , p
-      )
 consRelSynthApp γ ψ (RFun v1 s1 t1 r1) (RFun v2 s2 t2 r2) (F.PImp q p) d1@(Var x1) d2@(Var x2)
   = do
     entlFunRefts γ r1 r2 "consRelSynthApp"
@@ -487,7 +490,8 @@ consRelSub _ t1 t2 _ _ =  F.panic $ "consRelSub is undefined for different types
 --------------------------------------------------------------
 
 wfTruth :: SpecType -> SpecType -> F.Expr
-wfTruth (RAllT _ t1 _) (RAllT _ t2 _) = wfTruth t1 t2
+wfTruth (RAllT _ t1 _) t2 = wfTruth t1 t2
+wfTruth t1 (RAllT _ t2 _) = wfTruth t1 t2
 wfTruth (RFun _ _ t1 _) (RFun _ _ t2 _) = 
   F.PImp F.PTrue $ wfTruth t1 t2
 wfTruth _ _ = F.PTrue
@@ -495,6 +499,10 @@ wfTruth _ _ = F.PTrue
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
 --------------------------------------------------------------
+
+unRAllT :: SpecType -> String -> (RTVU RTyCon RTyVar, SpecType, RReft)
+unRAllT (RAllT α2 ft2 r2) _ = (α2, ft2, r2)
+unRAllT t msg = F.panic $ msg ++ ": expected RAllT, got: " ++ F.showpp t 
 
 isCtor :: Ghc.DataCon -> F.Expr -> F.Expr
 isCtor d = F.EApp (F.EVar $ makeDataConChecker d)
