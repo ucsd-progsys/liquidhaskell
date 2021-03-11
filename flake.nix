@@ -24,9 +24,9 @@
         {
 
           packages = {
+            # LH without tests
             liquidhaskell = pkgs.haskellPackages.liquidhaskell;
-            liquid-fixpoint = pkgs.haskellPackages.liquid-fixpoint;
-            ## LH spec packages
+            ## LH spec/shadow packages
             liquid-base = pkgs.haskellPackages.liquid-base;
             liquid-bytestring = pkgs.haskellPackages.liquid-bytestring;
             liquid-containers = pkgs.haskellPackages.liquid-containers;
@@ -36,7 +36,7 @@
             ## LH bundles
             liquid-platform = pkgs.haskellPackages.liquid-platform;
             liquid-prelude = pkgs.haskellPackages.liquid-prelude;
-            ## Duplicate
+            ## LH with tests
             liquidhaskell_with_tests = pkgs.haskellPackages.liquidhaskell_with_tests;
           };
 
