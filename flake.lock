@@ -25,11 +25,11 @@
         ]
       },
       "locked": {
-        "lastModified": 1615531608,
-        "narHash": "sha256-CdkCQVHxQXZ+/zdLigXXO67+FWAtf7+hzhUlscBp0A0=",
+        "lastModified": 1615579815,
+        "narHash": "sha256-8ia/RYdREtbPPeAP5PqrH2YrNjU0FbqJj0DcsqZQ+7M=",
         "owner": "plredmond",
         "repo": "liquid-fixpoint",
-        "rev": "b5b210101e23c790827de5d92cd150e83f6ef8f3",
+        "rev": "5234645f7bd53c6ebb044a2846b7ce5d18213bdc",
         "type": "github"
       },
       "original": {
