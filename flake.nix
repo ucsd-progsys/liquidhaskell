@@ -44,7 +44,7 @@
 
           defaultPackage = pkgs.haskellPackages.liquidhaskell_with_tests;
 
-          devShell = self.defaultPackage.${system}.env;
+          devShell = pkgs.haskellPackages.liquidhaskell.env;
 
           overlay = composeOverlays [
             liquid-fixpoint.overlay.${system}
