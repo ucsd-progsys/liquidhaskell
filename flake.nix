@@ -68,7 +68,7 @@
                   # LH without tests
                   liquidhaskell =
                     let src = prev.nix-gitignore.gitignoreSource ([ "liquid-*" ] ++ source-ignores) ./.;
-                    in dontCheck (callCabal2nix "liquidhaskell" src { });
+                    in dontCheck (disableLibraryProfiling (callCabal2nix "liquidhaskell" src { }));
                   ## LH spec/shadow packages
                   liquid-base = dontHaddock (callCabal2nix "liquid-base" (source ./liquid-base) { });
                   liquid-bytestring = dontHaddock (callCabal2nix "liquid-bytestring" (source ./liquid-bytestring) { });
