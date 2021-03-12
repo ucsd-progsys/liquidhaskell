@@ -15,8 +15,10 @@
   outputs = { self, nixpkgs, flake-utils, liquid-fixpoint }:
     let
       composeOverlays = funs: builtins.foldl' nixpkgs.lib.composeExtensions (self: super: { }) funs;
-      withZ3 = nixpkgs: pkg: nixpkgs.haskell.lib.overrideCabal pkg
-        (old: { buildTools = old.buildTools or [ ] ++ [ nixpkgs.z3 ]; });
+      beComponent = pkgs: pkg: pkgs.haskell.lib.overrideCabal pkg (old: {
+        enableLibraryProfiling = false;
+        buildTools = old.buildTools or [ ] ++ [ pkgs.z3 ];
+      });
       haskellPackagesOverlay = compiler: final: prev: overrides: {
         haskell = prev.haskell // {
           packages = prev.haskell.packages // {
@@ -75,27 +77,27 @@
               with prev.haskell.lib; {
                 liquidhaskell =
                   let src = prev.nix-gitignore.gitignoreSource [ "*.nix" "result" "liquid-*" ] ./.;
-                  in dontCheck (disableLibraryProfiling (callCabal2nix "liquidhaskell" src { }));
+                  in dontCheck (beComponent prev (callCabal2nix "liquidhaskell" src { }));
               });
             addLiquidGHCPrim = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
               with prev.haskell.lib; {
-                liquid-ghc-prim = dontHaddock (withZ3 prev (callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim { }));
+                liquid-ghc-prim = dontHaddock (beComponent prev (callCabal2nix "liquid-ghc-prim" ./liquid-ghc-prim { }));
               });
             addLiquidBase = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
               with prev.haskell.lib; {
-                liquid-base = dontHaddock (withZ3 prev (callCabal2nix "liquid-base" ./liquid-base { }));
+                liquid-base = dontHaddock (beComponent prev (callCabal2nix "liquid-base" ./liquid-base { }));
               });
             addLiquidHaskellPackages = final: prev: haskellPackagesOverlay ghc final prev (selfH: superH:
               let callCabal2nix = prev.haskell.packages.${ghc}.callCabal2nix; in
               with prev.haskell.lib; {
-                liquid-bytestring = dontHaddock (withZ3 prev (callCabal2nix "liquid-bytestring" ./liquid-bytestring { }));
-                liquid-containers = (withZ3 prev (callCabal2nix "liquid-containers" ./liquid-containers { }));
-                liquid-parallel = (withZ3 prev (callCabal2nix "liquid-parallel" ./liquid-parallel { }));
-                liquid-platform = (withZ3 prev (callCabal2nix "liquid-platform" ./liquid-platform { }));
-                liquid-prelude = dontHaddock (withZ3 prev (callCabal2nix "liquid-prelude" ./liquid-prelude { }));
-                liquid-vector = (withZ3 prev (callCabal2nix "liquid-vector" ./liquid-vector { }));
+                liquid-bytestring = dontHaddock (beComponent prev (callCabal2nix "liquid-bytestring" ./liquid-bytestring { }));
+                liquid-containers = (beComponent prev (callCabal2nix "liquid-containers" ./liquid-containers { }));
+                liquid-parallel = (beComponent prev (callCabal2nix "liquid-parallel" ./liquid-parallel { }));
+                liquid-platform = (beComponent prev (callCabal2nix "liquid-platform" ./liquid-platform { }));
+                liquid-prelude = dontHaddock (beComponent prev (callCabal2nix "liquid-prelude" ./liquid-prelude { }));
+                liquid-vector = (beComponent prev (callCabal2nix "liquid-vector" ./liquid-vector { }));
                 # disable tests on some depenedencies
                 optics = dontCheck selfH.optics;
               });
