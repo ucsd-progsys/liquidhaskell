@@ -19,7 +19,7 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            overlays = [ liquid-fixpoint.overlay.${system} self.overlay.${system} ];
+            overlays = [ self.overlay.${system} ];
           };
         in
         {
@@ -47,6 +47,7 @@
           devShell = self.defaultPackage.${system}.env;
 
           overlay = composeOverlays [
+            liquid-fixpoint.overlay.${system}
             self.overlays.${system}.addTHCompat
             self.overlays.${system}.addLiquidHaskellPackages
           ];
