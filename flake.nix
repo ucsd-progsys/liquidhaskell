@@ -37,12 +37,9 @@
             ## LH bundles
             liquid-platform = pkgs.haskellPackages.liquid-platform;
             liquid-prelude = pkgs.haskellPackages.liquid-prelude;
-            ## LH with tests
-            liquidhaskell_with_tests = pkgs.haskellPackages.liquidhaskell_with_tests;
           };
 
-          #defaultPackage = pkgs.haskellPackages.liquidhaskell_with_tests;
-          defaultPackage = pkgs.haskellPackages.liquidhaskell; # TODO once all packages build, switch to returning the _with_tests version
+          defaultPackage = pkgs.haskellPackages.liquidhaskell_with_tests;
 
           devShell = self.defaultPackage.${system}.env;
 
@@ -82,8 +79,9 @@
                   liquid-prelude = dontHaddock (callCabal2nix "liquid-prelude" (source ./liquid-prelude) { });
                   ## LH with tests
                   liquidhaskell_with_tests = overrideCabal selfH.liquidhaskell (old: {
+                    doCheck = true;
                     testDepends = old.testDepends or [ ] ++ [ prev.hostname ];
-                    #testHaskellDepends = old.testHaskellDepends ++ projectPackages; # TODO use the packages list somehow
+                    testHaskellDepends = old.testHaskellDepends ++ builtins.attrValues self.packages.${system};
                     preCheck = ''export TASTY_LIQUID_RUNNER="liquidhaskell -v0"'';
                   });
                 });
