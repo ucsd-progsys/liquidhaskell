@@ -44,9 +44,9 @@
             # Group 3: Depends on liquid-ghc-prim
             liquid-base = pkgs.haskell.packages.${ghc}.liquid-base;
             # Group 4: Depends on liquid-base
-            liquid-bytestring = pkgs.haskell.packages.${ghc}.liquid-bytestring;
-            liquid-containers = pkgs.haskell.packages.${ghc}.liquid-containers;
-            liquid-parallel = pkgs.haskell.packages.${ghc}.liquid-parallel;
+            liquid-bytestring = pkgs.haskell.packages.${ghc}.liquid-bytestring; # XXX Builds
+            liquid-containers = pkgs.haskell.packages.${ghc}.liquid-containers; # XXX Builds
+            liquid-parallel = pkgs.haskell.packages.${ghc}.liquid-parallel; # XXX Builds
             liquid-platform = pkgs.haskell.packages.${ghc}.liquid-platform;
             liquid-prelude = pkgs.haskell.packages.${ghc}.liquid-prelude;
             liquid-vector = pkgs.haskell.packages.${ghc}.liquid-vector;
@@ -54,7 +54,8 @@
             # liquidhaskell_with_tests
           };
 
-          defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
+          #defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
+          defaultPackage = pkgs.haskell.packages.${ghc}.liquid-parallel;
 
           devShell = pkgs.haskell.packages.${ghc}.liquidhaskell.env;
 
