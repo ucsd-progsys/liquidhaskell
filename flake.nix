@@ -44,18 +44,17 @@
             # Group 3: Depends on liquid-ghc-prim
             liquid-base = pkgs.haskell.packages.${ghc}.liquid-base;
             # Group 4: Depends on liquid-base
-            liquid-bytestring = pkgs.haskell.packages.${ghc}.liquid-bytestring; # XXX Builds
-            liquid-containers = pkgs.haskell.packages.${ghc}.liquid-containers; # XXX Builds
-            liquid-parallel = pkgs.haskell.packages.${ghc}.liquid-parallel; # XXX Builds
-            liquid-platform = pkgs.haskell.packages.${ghc}.liquid-platform;
+            liquid-bytestring = pkgs.haskell.packages.${ghc}.liquid-bytestring;
+            liquid-containers = pkgs.haskell.packages.${ghc}.liquid-containers;
+            liquid-parallel = pkgs.haskell.packages.${ghc}.liquid-parallel;
+            #liquid-platform = pkgs.haskell.packages.${ghc}.liquid-platform; # FIXME can't find z3
             liquid-prelude = pkgs.haskell.packages.${ghc}.liquid-prelude;
             liquid-vector = pkgs.haskell.packages.${ghc}.liquid-vector;
             # Group 5: Depends on all of the above
             # liquidhaskell_with_tests
           };
 
-          #defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
-          defaultPackage = pkgs.haskell.packages.${ghc}.liquid-parallel;
+          defaultPackage = pkgs.haskell.packages.${ghc}.liquidhaskell_with_tests;
 
           devShell = pkgs.haskell.packages.${ghc}.liquidhaskell.env;
 
