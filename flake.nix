@@ -23,6 +23,7 @@
         haskell = prev.haskell // {
           packages = prev.haskell.packages // {
             ${compiler} = prev.haskell.packages.${compiler}.extend overrides;
+            # FIXME: we could combine a bunch of overlays into one if we used override/overrides instead of extend
           };
         };
       };
