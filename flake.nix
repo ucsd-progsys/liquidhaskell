@@ -65,7 +65,7 @@
             self.overlays.${system}.addLiquidGHCPrim
             self.overlays.${system}.addLiquidBase
             self.overlays.${system}.addLiquidHaskellPackages
-            self.overlays.${system}.addLiquidHaskellWithTests
+            #self.overlays.${system}.addLiquidHaskellWithTests
           ];
 
           overlays = {
