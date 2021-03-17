@@ -43,13 +43,18 @@ import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
 import           Language.Haskell.Liquid.Constraint.Types
-import           Language.Haskell.Liquid.GHC.API                as Ghc hiding
-                                                                       (checkErr,
-                                                                        panic,
-                                                                        text,
-                                                                        trace,
-                                                                        vcat,
-                                                                        (<+>))
+import           Language.Haskell.Liquid.GHC.API                ( Alt(..)
+                                                                , AltCon(..) 
+                                                                , Bind(..)
+                                                                , CoreBind(..)
+                                                                , CoreBndr(..)
+                                                                , CoreExpr(..)
+                                                                , DataCon(..)
+                                                                , Expr(..)
+                                                                , Type(..)
+                                                                , TyVar(..)
+                                                                , Var(..))
+import qualified Language.Haskell.Liquid.GHC.API                as Ghc
 import qualified Language.Haskell.Liquid.GHC.Misc               as GM
 import           Language.Haskell.Liquid.GHC.Play               (isHoleVar, Subable(sub, subTy))
 import qualified Language.Haskell.Liquid.GHC.Resugar            as Rs
@@ -84,7 +89,11 @@ consRelTop _ ti γ ψ (x,y,t,s,p) = do
   let e = findBody x cbs
   let d = findBody y cbs
   let e' = traceChk "Init" e d t s p e
-  consRelCheckBind (γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))) ψ e' d (val t) (val s) p
+  consRelCheckBind γ' ψ e' d t' s' p
+  where
+    t' = val t 
+    s' = val s
+    γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
@@ -155,7 +164,7 @@ consRelCheck γ ψ e (Tick _ d) t s p =
   {- traceChk "Right Tick" e d t s p $ -} consRelCheck γ ψ e d t s p
 
 consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAllT s2 t2 r2) p 
-  | isTyVar α1 && isTyVar α2
+  | Ghc.isTyVar α1 && Ghc.isTyVar α2
   = traceChk "Lam Type" l1 l2 rt1 rt2 p $ do
     entlFunRefts γ r1 r2 "consRelCheck Lam Type"
     let (tvar1, tvar2) = mkRelCopies α1 α2
@@ -190,13 +199,13 @@ consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFu
 
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
   = traceChk "Let" l1 l2 t1 t2 p $ do
-    (s1, s2, q) <- consRelSynth γ ψ d1 d2
+    (s1, s2, qs) <- consRelSynth γ ψ d1 d2
     let (evar1, evar2) = mkRelCopies x1 x2
     let (e1', e2')     = subRelCopies e1 x1 e2 x2
     γ'  <- γ += ("consRelCheck Let L", F.symbol evar1, s1)
     γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
     let rs2xs = F.mkSubst [(resL, F.EVar $ F.symbol evar1), (resR, F.EVar $ F.symbol evar2)]
-    γ''' <- γ'' `addPred` F.subst rs2xs q
+    γ''' <- γ'' `addPreds` map (F.subst rs2xs) qs
     consRelCheck γ''' ψ e1' e2' t1 t2 p
 
 consRelCheck γ ψ l1@(Let (Rec []) e1) l2@(Let (Rec []) e2) t1 t2 p 
@@ -205,12 +214,12 @@ consRelCheck γ ψ l1@(Let (Rec []) e1) l2@(Let (Rec []) e2) t1 t2 p
 
 consRelCheck γ ψ l1@(Let (Rec ((x1, d1):bs1)) e1) l2@(Let (Rec ((x2, d2):bs2)) e2) t1 t2 p
   = traceChk "Let Rec Cons" l1 l2 t1 t2 p $ do
-    (s1, s2, q) <- consRelSynth γ ψ d1 d2
+    (s1, s2, qs) <- consRelSynth γ ψ d1 d2
     let (evar1, evar2) = mkRelCopies x1 x2
     let (e1', e2')     = subRelCopies e1 x1 e2 x2
     γ'  <- γ += ("consRelCheck Let L", F.symbol evar1, s1)
     γ'' <- γ' += ("consRelCheck Let R", F.symbol evar2, s2)
-    γ''' <- γ'' `addPred` q
+    γ''' <- γ'' `addPreds` qs
     consRelCheck γ''' ψ (Let (Rec bs1) e1') (Let (Rec bs2) e2') t1 t2 p
 
 {- consRelCheck γ ψ c1@(Case e1 x1 _ alts1) c2@(Case e2 x2 _ alts2) t1 t2 p 
@@ -246,9 +255,9 @@ consRelCheck γ ψ e1 c2@(Case e2 x2 _ alts2) t1 t2 p =
 
 consRelCheck γ ψ e d t1 t2 p = 
   traceChk "Synth" e d t1 t2 p $ do
-  (s1, s2, q) <- consRelSynth γ ψ e d
+  (s1, s2, qs) <- consRelSynth γ ψ e d
   let psubst = F.substf (matchFunArgs t1 s1) . F.substf (matchFunArgs t2 s2)
-  consRelSub γ s1 s2 q (psubst p)
+  consRelSub γ s1 s2 (F.PAnd qs) (psubst p)
   addC (SubC γ s1 t1) ("consRelCheck (Synth): s1 = " ++ F.showpp s1 ++ " t1 = " ++ F.showpp t1)
   addC (SubC γ s2 t2) ("consRelCheck (Synth): s2 = " ++ F.showpp s2 ++ " t2 = " ++ F.showpp t2)
 
@@ -290,7 +299,7 @@ ctorTy :: CGEnv -> AltCon -> SpecType -> CG SpecType
 ctorTy γ (DataAlt c) (RApp _ ts _ _) 
   | Just ct <- mbct = refreshTy $ ct `instantiateTys` ts
   | Nothing <- mbct = F.panic $ "ctorTy: data constructor out of scope" ++ F.showpp c
-  where mbct = γ ?= F.symbol (dataConWorkId c)
+  where mbct = γ ?= F.symbol (Ghc.dataConWorkId c)
 ctorTy _ (DataAlt _) t =
   F.panic $ "ctorTy: type " ++ F.showpp t ++ " doesn't have top-level data constructor"
 ctorTy _ (LitAlt c) _ = return $ uTop <$> literalFRefType c
@@ -321,7 +330,7 @@ instantiateTys = L.foldl' go
 -- Core Synthesis Rules --------------------------------------
 --------------------------------------------------------------
 
-consRelSynth :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, F.Expr)
+consRelSynth :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, [F.Expr])
 consRelSynth γ ψ (Tick _ e) d =
   {- traceSyn "Left Tick" e d -} consRelSynth γ ψ e d
 
@@ -330,39 +339,41 @@ consRelSynth γ ψ e (Tick _ d) =
 
 consRelSynth γ ψ a1@(App e1 d1) e2 | Type t1 <- GM.unTickExpr d1 =
   traceSyn "App Ty L" a1 e2 $ do
-    (ft1', t2, p) <- consRelSynth γ ψ e1 e2
+    (ft1', t2, ps) <- consRelSynth γ ψ e1 e2
     let (α1, ft1, r1) = unRAllT ft1' "consRelSynth App Ty L"
     t1' <- trueTy t1
-    return (subsTyVar_meet' (ty_var_value α1, t1') ft1, t2, p)
+    return (subsTyVar_meet' (ty_var_value α1, t1') ft1, t2, ps)
 
 consRelSynth γ ψ e1 a2@(App e2 d2) | Type t2 <- GM.unTickExpr d2 =
   traceSyn "App Ty R" e1 a2 $ do
-    (t1, ft2', p) <- consRelSynth γ ψ e1 e2
+    (t1, ft2', ps) <- consRelSynth γ ψ e1 e2
     let (α2, ft2, r2) = unRAllT ft2' "consRelSynth App Ty R"
     t2' <- trueTy t2
-    return (t1, subsTyVar_meet' (ty_var_value α2, t2') ft2, p)
+    return (t1, subsTyVar_meet' (ty_var_value α2, t2') ft2, ps)
 
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2) = traceSyn "App Exp Exp" a1 a2 $ do
-  (ft1, ft2, fp) <- consRelSynth γ ψ e1 e2
-  (t1, t2, p) <- consRelSynthApp γ ψ ft1 ft2 fp (GM.unTickExpr d1) (GM.unTickExpr d2)
-  return (t1, t2, head $ MB.maybeToList (instantiateApp a1 a2 ψ) ++ [p])
+  (ft1, ft2, fps) <- consRelSynth γ ψ e1 e2
+  (t1, t2, ps) <- consRelSynthApp γ ψ ft1 ft2 fps (GM.unTickExpr d1) (GM.unTickExpr d2)
+  return (t1, t2, instantiateApp a1 a2 ψ ++ ps)
 
 consRelSynth γ _ e d = traceSyn "Unary" e d $ do
   t <- consUnarySynth γ e >>= refreshTy
   s <- consUnarySynth γ d >>= refreshTy
-  return (t, s, wfTruth t s)
+  return (t, s, [wfTruth t s])
 
 consRelSynthApp :: CGEnv -> PrEnv -> SpecType -> SpecType -> 
-  F.Expr -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, F.Expr)
-consRelSynthApp γ ψ (RFun v1 s1 t1 r1) (RFun v2 s2 t2 r2) (F.PImp q p) d1@(Var x1) d2@(Var x2)
+  [F.Expr] -> CoreExpr -> CoreExpr -> CG (SpecType, SpecType, [F.Expr])
+consRelSynthApp γ _ (RFun v1 s1 t1 r1) (RFun v2 s2 t2 r2) ps d1@(Var x1) d2@(Var x2)
   = do
     entlFunRefts γ r1 r2 "consRelSynthApp"
-    let qsubst = F.subst $ F.mkSubst [(v1, F.EVar resL), (v2, F.EVar resR)]
-    consRelCheck γ ψ d1 d2 s1 s2 (qsubst q)
+    -- let qsubst = F.subst $ F.mkSubst [(v1, F.EVar resL), (v2, F.EVar resR)]
+    -- consRelCheck γ ψ d1 d2 s1 s2 (qsubst q)
+    consUnaryCheck γ d1 s1
+    consUnaryCheck γ d2 s2
     let subst =
           F.subst $ F.mkSubst
             [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
-    return (subst t1, subst t2, subst $ unapplyRelArgs v1 v2 p)
+    return (subst t1, subst t2, map (subst . unapplyRelArgs v1 v2) ps)
 consRelSynthApp _ _ t1 t2 p d1 d2 = 
   F.panic $ "consRelSynthApp: malformed function types or predicate for arguments " ++ F.showpp (t1, t2, p, d1, d2)
 
@@ -370,35 +381,38 @@ consRelSynthApp _ _ t1 t2 p d1 d2 =
 -- Unary Rules -----------------------------------------------
 --------------------------------------------------------------
 
+symbolType :: CGEnv -> Var -> String -> SpecType
+symbolType γ x msg
+  | Just t <- γ ?= F.symbol x = t
+  | otherwise = F.panic $ msg ++ " " ++ F.showpp x ++ " not in scope " ++ F.showpp γ 
+
 consUnarySynth :: CGEnv -> CoreExpr -> CG SpecType
 consUnarySynth γ (Tick _ e) = consUnarySynth γ e
-consUnarySynth γ (Var x) =
-  case γ ?= F.symbol x of
-    Just t -> return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
-    Nothing -> F.panic $ "consUnarySynth (Var) " ++ F.showpp x ++ " not in scope " ++ F.showpp γ
+consUnarySynth γ (Var x) = return $ traceWhenLoud ("SELFIFICATION " ++ F.showpp (x, t, selfify t x)) selfify t x
+  where t = symbolType γ x "consUnarySynth (Var)"
 consUnarySynth _ (Lit c) = return $ uRType $ literalFRefType c
 consUnarySynth γ e@(Let _ _) = 
   traceUSyn "Let" e $ do
-  t   <- freshTy_type LetE e $ exprType e
+  t   <- freshTy_type LetE e $ Ghc.exprType e
   addW $ WfC γ t
   consUnaryCheck γ e t
   return t
 consUnarySynth γ (App e d) = do
   et <- consUnarySynth γ e
   consUnarySynthApp γ et (GM.unTickExpr d)
-consUnarySynth γ (Lam α e) | isTyVar α = do
+consUnarySynth γ (Lam α e) | Ghc.isTyVar α = do
   γ' <- γ `extendWithTyVar` α
   t' <- consUnarySynth γ' e
   return $ RAllT (makeRTVar $ rTyVar α) t' mempty
 consUnarySynth γ e@(Lam x d)  = do
-  let FunTy { ft_arg = s' } = checkFun e $ exprType e
+  let Ghc.FunTy { ft_arg = s' } = checkFun e $ Ghc.exprType e
   s  <- freshTy_type LamE (Var x) s'
   γ' <- γ += ("consUnarySynth (Lam)", F.symbol x, s)
   t  <- consUnarySynth γ' d
   addW $ WfC γ t
   return $ RFun (F.symbol x) s t mempty
 consUnarySynth γ e@(Case _ _ _ alts) = do
-  t   <- freshTy_type (caseKVKind alts) e $ exprType e
+  t   <- freshTy_type (caseKVKind alts) e $ Ghc.exprType e
   addW $ WfC γ t
   -- consUnaryCheck γ e t
   return t
@@ -411,7 +425,7 @@ caseKVKind [(DataAlt _, _, Var _)] = ProjectE
 caseKVKind cs                      = CaseE (length cs)
 
 checkFun :: CoreExpr -> Type -> Type 
-checkFun _ t@FunTy{} = t 
+checkFun _ t@Ghc.FunTy{} = t 
 checkFun e t = F.panic $ "FunTy was expected but got " ++ F.showpp t ++ "\t for expression" ++ F.showpp e
 
 base :: SpecType -> Bool
@@ -556,25 +570,26 @@ unpackApp = fmap reverse . unpack' . GM.unTickExpr
   unpack' (App e (Var x)) = (x :) <$> unpack' e
   unpack' _               = Nothing
 
-instantiateApp :: CoreExpr -> CoreExpr -> PrEnv -> Maybe F.Expr
+instantiateApp :: CoreExpr -> CoreExpr -> PrEnv -> [F.Expr]
 instantiateApp e1 e2 ψ
-  | Just (f1:xs1) <- unpackApp e1, Just (f2:xs2) <- unpackApp e2
-  = L.find (\tpr -> (fun1 tpr, fun2 tpr) == (f1, f2)) ψ >>= inst xs1 xs2
+  = concatMap (inst (unpackApp e1) (unpackApp e2)) ψ 
  where
-  inst :: [Var] -> [Var] -> RelPred -> Maybe F.Expr
-  inst xs1 xs2 qpr
-    | length xs1 == length (args1 qpr) && length xs2 == length (args2 qpr)
+  inst :: Maybe [Var] -> Maybe [Var] -> RelPred -> [F.Expr]
+  inst (Just (f1:xs1)) (Just (f2:xs2)) qpr
+    | fun1 qpr == f1
+    , fun2 qpr == f2
+    , length (args1 qpr) == length xs1
+    , length (args2 qpr) == length xs2
     = let s = zip (args1 qpr ++ args2 qpr) (F.EVar . F.symbol <$> xs1 ++ xs2)
       in let sub = F.mkSubst s
         in let p = F.subst sub $ prop qpr
-          in traceWhenLoud ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) $ Just p
-  inst _ _ _ = Nothing
-instantiateApp _ _ _ = Nothing
+          in traceWhenLoud ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) $ [p]
+  inst _ _ _ = []
 
 extendWithTyVar :: CGEnv -> TyVar -> CG CGEnv
 extendWithTyVar γ a
-  | isValKind (tyVarKind a) 
-  = γ += ("extendWithTyVar", F.symbol a, kindToRType $ tyVarKind a)
+  | isValKind (Ghc.tyVarKind a) 
+  = γ += ("extendWithTyVar", F.symbol a, kindToRType $ Ghc.tyVarKind a)
   | otherwise 
   = return γ
 
@@ -641,6 +656,9 @@ findBody x bs = case lookup x (concatMap binds bs) of
 addPred :: CGEnv -> F.Expr -> CG CGEnv
 addPred γ p = extendWithExprs γ [p]
 
+addPreds :: CGEnv -> [F.Expr] -> CG CGEnv
+addPreds = extendWithExprs
+
 extendWithExprs :: CGEnv -> [F.Expr] -> CG CGEnv 
 extendWithExprs γ ps = do
   dummy <- fresh
@@ -658,9 +676,43 @@ unapplyArg f y e = F.mapExpr sub e
 unapplyRelArgs :: F.Symbol -> F.Symbol -> F.Expr -> F.Expr
 unapplyRelArgs x1 x2 = unapplyArg resL x1 . unapplyArg resR x2
 
+-- unRAllP :: SpecType -> SpecType
+-- unRAllP (RAllP _ t       ) = unRAllP t
+-- unRAllP (RAllT α t r     ) = RAllT α (unRAllP t) r
+-- unRAllP (RImpF x t t' r  ) = RImpF x (unRAllP t) (unRAllP t') r
+-- unRAllP (RFun  x t t' r  ) = RFun x (unRAllP t) (unRAllP t') r
+-- unRAllP (RAllE  x t  t'  ) = RAllE x (unRAllP t) (unRAllP t')
+-- unRAllP (REx    x t  t'  ) = REx x (unRAllP t) (unRAllP t')
+-- unRAllP (RAppTy t t' r   ) = RAppTy (unRAllP t) (unRAllP t') r
+-- unRAllP (RApp c   ts _ r) = RApp c (unRAllP <$> ts) [] r
+-- unRAllP (RRTy xts r  o  t) = RRTy (mapSnd unRAllP <$> xts) r o (unRAllP t)
+-- unRAllP (RVar t r        ) = RVar t mempty
+-- unRAllP t                  = t
+
 --------------------------------------------------------------
 -- Debug -----------------------------------------------------
 --------------------------------------------------------------
+
+showType :: SpecType -> String
+showType (RAllP _ t  ) = "RAllP " ++ showType t
+showType (RAllT _ t _) = "RAllT " ++ showType t
+showType (RImpF _ t t' _) =
+  "RImpF(" ++ showType t ++ ", " ++ showType t' ++ ") "
+showType (RFun _ t t' _) = "RFun(" ++ showType t ++ ", " ++ showType t' ++ ") "
+showType (RAllE _ t t' ) = "RAllE(" ++ showType t ++ ", " ++ showType t' ++ ") "
+showType (REx   _ t t' ) = "REx(" ++ showType t ++ ", " ++ showType t' ++ ") "
+showType (RAppTy t t' _) =
+  "RAppTy(" ++ showType t ++ ", " ++ showType t' ++ ") "
+showType (RApp _ ts _ _) = "RApp" ++ show (showType <$> ts)
+showType (RRTy xts _ _ t) =
+  "RRTy("
+    ++ show (map (\(_, t) -> showType t) xts)
+    ++ ", "
+    ++ showType t
+    ++ ") "
+showType v@(RVar _ _  ) = "RVar " ++ F.showpp v
+showType v@(RExprArg _) = "RExprArg " ++ F.showpp v
+showType v@(RHole    _) = "RHole" ++ F.showpp v
 
 traceUnapply
   :: (PPrint x1, PPrint x2, PPrint e1, PPrint e2)
