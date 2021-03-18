@@ -9,6 +9,7 @@ add = (+)
 incr :: Int -> Int
 incr x = let one = 1 in add x one
 
+{-@ incrf :: Nat -> Pos @-}
 incrf :: Int -> Int
 incrf x = (\f -> f x + 1) incr
 

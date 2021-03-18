@@ -89,8 +89,13 @@ consRelTop _ ti γ ψ (x,y,t,s,p) = do
   let e = findBody x cbs
   let d = findBody y cbs
   let e' = traceChk "Init" e d t s p e
-  addC (SubC γ tUnary t') $ "consRelTop L tUnary = " ++ F.showpp tUnary ++ " t = " ++ F.showpp t'
-  addC (SubC γ sUnary s') $ "consRelTop R sUnary = " ++ F.showpp sUnary ++ " t = " ++ F.showpp s'
+  -- addC (SubC γ tUnary t') $ "consRelTop L tUnary = " ++ F.showpp tUnary ++ " t = " ++ F.showpp t'
+  -- addC (SubC γ sUnary s') $ "consRelTop R sUnary = " ++ F.showpp sUnary ++ " t = " ++ F.showpp s'
+  let targs = zip (snd $ vargs t') (snd $ vargs tUnary)
+  let sargs = zip (snd $ vargs s') (snd $ vargs sUnary)
+  forM_ targs $ \(t, ut) -> addC (SubC γ' ut t) $ "consRelTop L tUnary = " ++ F.showpp ut ++ " t = " ++ F.showpp t
+  forM_ sargs $ \(s, us) -> addC (SubC γ' us s) $ "consRelTop R sUnary = " ++ F.showpp us ++ " s = " ++ F.showpp s
+  -- addC (SubC γ' s' sUnary) $ "consRelTop R s = " ++ F.showpp s' ++ " sUnary = " ++ F.showpp sUnary
   consRelCheckBind γ' ψ e' d t' s' p
   where
     tUnary = symbolType γ x "consRelTop L" 
@@ -113,10 +118,11 @@ relSuffixR = "r"
 
 -- recursion rule
 consRelCheckBind :: CGEnv -> PrEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> F.Expr -> CG PrEnv
--- consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p =
---   traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
---     consRelCheck γ ψ e1 e2 t1 t2 p
---     return ψ
+consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p 
+  | Nothing <- args e1 e2 t1 t2 p =
+  traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
+    consRelCheck γ ψ e1 e2 t1 t2 p
+    return ψ
 
 -- convert all binders to recursive for now
 consRelCheckBind γ ψ (NonRec x1 e1) b2 t1 t2 p =
@@ -138,19 +144,14 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
     γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
     let p' = unapp p (zip vs1 vs2)
     let ψ' = RelPred f1' f2' vs1 vs2 p' : RelPred f2' f1' vs2 vs1 p' : ψ
-    consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (ret t1) (ret t2) (vs2xs $ concl p')
+    -- traceWhenLoud 
+    --   ("consRelCheckBind Rec: " ++ F.showpp t1 ++ " -> " ++ F.showpp (subst t1) ++ "; " ++ F.showpp t2 ++ " -> " ++ F.showpp (subst t2)) 
+    consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl p')
     return ψ'
   where 
     (f1', f2') = mkRelCopies f1 f2
     unapp = L.foldl (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
     subRel (e1, e2) (x1, x2) = subRelCopies e1 x1 e2 x2
-    args e1 e2 t1 t2 ps
-      | xs1 <- xargs e1, xs2 <- xargs e2, 
-        (vs1, ts1) <- vargs t1, (vs2, ts2) <- vargs t2,
-        qs  <- prems ps,
-        True <- all (length qs ==) [length xs1, length xs2, length vs1, length vs2, length ts1, length ts2]
-      = Just (xs1, xs2, vs1, vs2, ts1, ts2, qs)
-    args _ _ _ _ _ = Nothing
 consRelCheckBind _ _ (Rec [b1]) (Rec [b2]) t1 t2 p
   = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args " ++ 
     F.showpp (b1, b2, t1, t2, p)
@@ -194,10 +195,10 @@ consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFu
     let (evar1, evar2) = mkRelCopies x1 x2
     let (e1', e2')     = subRelCopies e1 x1 e2 x2
     let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
-    γ'  <- γ += ("consRelCheck Lam L", pvar1, s1)
-    γ'' <- γ' += ("consRelCheck Lam R", pvar2, s2)
-    let p'    = unapplyRelArgs v1 v2 p
     let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
+    γ'  <- γ += ("consRelCheck Lam L", pvar1, subst s1)
+    γ'' <- γ' += ("consRelCheck Lam R", pvar2, subst s2)
+    let p'    = unapplyRelArgs v1 v2 p
     γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (subst q)) subst q
     consRelCheck γ''' ψ e1' e2' (subst t1) (subst t2) (subst p')
 
@@ -533,6 +534,16 @@ isAltCon _           _                         = F.PTrue
 
 isBoolDataCon :: DataCon -> Bool
 isBoolDataCon c = c == Ghc.trueDataCon || c == Ghc.falseDataCon
+
+args :: CoreExpr -> CoreExpr -> SpecType -> SpecType -> F.Expr -> 
+  Maybe ([Var], [Var], [F.Symbol], [F.Symbol], [SpecType], [SpecType], [F.Expr])
+args e1 e2 t1 t2 ps
+  | xs1 <- xargs e1, xs2 <- xargs e2, 
+    (vs1, ts1) <- vargs t1, (vs2, ts2) <- vargs t2,
+    qs  <- prems ps,
+    True <- all (length qs ==) [length xs1, length xs2, length vs1, length vs2, length ts1, length ts2]
+  = Just (xs1, xs2, vs1, vs2, ts1, ts2, qs)
+args _ _ _ _ _ = Nothing
 
 xargs :: CoreExpr -> [Var]
 xargs (Tick _ e) = xargs e
