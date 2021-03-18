@@ -117,9 +117,9 @@ wiredTyDataCons = (concat tcs, dummyLoc <$> concat dcs)
     (tcs, dcs)  = unzip $ listTyDataCons : map tupleTyDataCons [2..maxArity]
 
 listTyDataCons :: ([TyConP] , [DataConP])
-listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just fsize))]
-                   , [(DataConP l0 Ghc.nilDataCon  [RTV tyv] [p] [] []    lt False wiredInName l0)
-                     ,(DataConP l0 Ghc.consDataCon [RTV tyv] [p] [] cargs lt False wiredInName l0)])
+listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [] [Covariant] [] (Just fsize))]
+                   , [(DataConP l0 Ghc.nilDataCon  [RTV tyv] [] [] []    lt False wiredInName l0)
+                     ,(DataConP l0 Ghc.consDataCon [RTV tyv] [] [] cargs lt False wiredInName l0)])
     where
       l0         = F.dummyPos "LH.Bare.listTyDataCons"
       c          = Ghc.listTyCon
@@ -130,9 +130,9 @@ listTyDataCons   = ( [(TyConP l0 c [RTV tyv] [p] [Covariant] [Covariant] (Just f
       xTail      = "tail"
       p          = PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar fld)]
       px         = pdVarReft $ PV "p" (PVProp t) (F.vv Nothing) [(t, fld, F.EVar xHead)]
-      lt         = rApp c [xt] [rPropP [] $ pdVarReft p] mempty
+      lt         = rApp c [xt] [] mempty
       xt         = rVar tyv
-      xst        = rApp c [RVar (RTV tyv) px] [rPropP [] $ pdVarReft p] mempty
+      xst        = rApp c [RVar (RTV tyv) mempty] [] mempty
       cargs      = [(xTail, xst), (xHead, xt)]
       fsize      = SymSizeFun (dummyLoc "len")
 
