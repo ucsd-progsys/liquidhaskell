@@ -1,12 +1,13 @@
-l :: [Int] -> Int 
-l [] = 0
-l (_:xs) = 1 + l xs 
+module MultiRel where
 
-{-@ relational l ~ l :: xs:_ -> _ ~ ys:_ -> _ 
-                     ~~ len xs == len ys => (r1 xs) == (r2 ys) @-}
+foo :: Int -> Int
+foo x = x
 
-foo :: [Int] -> Int
-foo [] = l []
-foo (_:xs) = foo xs
+{-@ relational foo ~ foo :: x:Int -> Int ~ y:Int -> Int ~~ x < y => r1 x < r2 y @-}
+{-@ relational foo ~ foo :: x:Int -> Int ~ y:Int -> Int ~~ x > y => r1 x > r2 y @-}
+{-@ relational foo ~ foo :: x:Int -> Int ~ y:Int -> Int ~~ x = y => r1 x = r2 y @-}
 
-{-@ relational foo ~ foo :: xs:_ -> _ ~ ys:_ -> _ ~~ len xs == len ys => (r1 xs) == (r2 ys) @-}
+bar :: Int -> Int
+bar x = foo x
+
+{-@ relational bar ~ bar :: x:Int -> Int ~ y:Int -> Int ~~ true => (x <= y <=> r1 x <= r2 y) @-}

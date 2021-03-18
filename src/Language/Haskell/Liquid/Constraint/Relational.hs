@@ -77,7 +77,7 @@ data RelPred
             , args1 :: [F.Symbol]
             , args2 :: [F.Symbol]
             , prop :: F.Expr
-            }
+            } deriving Show
 
 
 type PrEnv = [RelPred]
@@ -89,8 +89,12 @@ consRelTop _ ti γ ψ (x,y,t,s,p) = do
   let e = findBody x cbs
   let d = findBody y cbs
   let e' = traceChk "Init" e d t s p e
+  addC (SubC γ tUnary t') $ "consRelTop L tUnary = " ++ F.showpp tUnary ++ " t = " ++ F.showpp t'
+  addC (SubC γ sUnary s') $ "consRelTop R sUnary = " ++ F.showpp sUnary ++ " t = " ++ F.showpp s'
   consRelCheckBind γ' ψ e' d t' s' p
   where
+    tUnary = symbolType γ x "consRelTop L" 
+    sUnary = symbolType γ y "consRelTop R" 
     t' = val t 
     s' = val s
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
@@ -109,10 +113,10 @@ relSuffixR = "r"
 
 -- recursion rule
 consRelCheckBind :: CGEnv -> PrEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> F.Expr -> CG PrEnv
-consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p =
-  traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
-    consRelCheck γ ψ e1 e2 t1 t2 p
-    return ψ
+-- consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p =
+--   traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
+--     consRelCheck γ ψ e1 e2 t1 t2 p
+--     return ψ
 
 -- convert all binders to recursive for now
 consRelCheckBind γ ψ (NonRec x1 e1) b2 t1 t2 p =
@@ -572,18 +576,18 @@ unpackApp = fmap reverse . unpack' . GM.unTickExpr
 
 instantiateApp :: CoreExpr -> CoreExpr -> PrEnv -> [F.Expr]
 instantiateApp e1 e2 ψ
-  = concatMap (inst (unpackApp e1) (unpackApp e2)) ψ 
+  = traceWhenLoud ("instantiateApp " ++ F.showpp e1 ++ " " ++ F.showpp e2 ++ " " ++ show ψ) concatMap (inst (unpackApp e1) (unpackApp e2)) ψ 
  where
   inst :: Maybe [Var] -> Maybe [Var] -> RelPred -> [F.Expr]
   inst (Just (f1:xs1)) (Just (f2:xs2)) qpr
-    | fun1 qpr == f1
-    , fun2 qpr == f2
-    , length (args1 qpr) == length xs1
-    , length (args2 qpr) == length xs2
+    | traceWhenLoud ("INST GUARD" ++ F.showpp (fun1 qpr) ++ " == " ++ F.showpp f1) fun1 qpr == f1
+    , traceWhenLoud ("INST GUARD" ++ F.showpp (fun2 qpr) ++ " == " ++ F.showpp f2) fun2 qpr == f2
+    , traceWhenLoud ("INST GUARD" ++ F.showpp (args1 qpr) ++ " -> " ++ F.showpp xs1) length (args1 qpr) == length xs1
+    , traceWhenLoud ("INST GUARD" ++ F.showpp (args2 qpr) ++ " -> " ++ F.showpp xs2) length (args2 qpr) == length xs2
     = let s = zip (args1 qpr ++ args2 qpr) (F.EVar . F.symbol <$> xs1 ++ xs2)
       in let sub = F.mkSubst s
         in let p = F.subst sub $ prop qpr
-          in traceWhenLoud ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) $ [p]
+          in traceWhenLoud ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) [p]
   inst _ _ _ = []
 
 extendWithTyVar :: CGEnv -> TyVar -> CG CGEnv
