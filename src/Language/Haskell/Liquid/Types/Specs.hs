@@ -225,6 +225,7 @@ data GhcSpecSig = SpSig
   , gsMethods  :: ![(Var, MethodType LocSpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
   , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr)]
+  , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr)]
   }
 
 data GhcSpecData = SpData 
@@ -338,7 +339,8 @@ data Spec ty bndr  = Spec
   , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
   , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
-  , relational :: ![(LocSymbol, LocSymbol, LocBareType, LocBareType, F.Expr)]
+  , relational :: ![(LocSymbol, LocSymbol, ty, ty, F.Expr)] -- ^ Relational types
+  , asmRel     :: ![(LocSymbol, LocSymbol, ty, ty, F.Expr)] -- ^ Assumed relational types
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
@@ -381,6 +383,7 @@ instance Semigroup (Spec ty bndr) where
            , classes    =           classes    s1 ++ classes    s2
            , claws      =           claws      s1 ++ claws      s2
            , relational =           relational s1 ++ relational s2 
+           , asmRel     =           asmRel     s1 ++ asmRel     s2 
            , termexprs  =           termexprs  s1 ++ termexprs  s2
            , rinstance  =           rinstance  s1 ++ rinstance  s2
            , ilaws      =               ilaws  s1 ++ ilaws      s2 
@@ -442,6 +445,7 @@ instance Monoid (Spec ty bndr) where
            , classes    = []
            , claws      = []
            , relational = []  
+           , asmRel     = []  
            , termexprs  = []
            , rinstance  = []
            , ilaws      = [] 
@@ -758,6 +762,7 @@ unsafeFromLiftedSpec a = Spec
   , localSigs  = mempty
   , reflSigs   = mempty
   , relational = mempty 
+  , asmRel     = mempty 
   , invariants = S.toList . liftedInvariants $ a
   , ialiases   = S.toList . liftedIaliases $ a
   , imports    = S.toList . liftedImports $ a

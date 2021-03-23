@@ -843,7 +843,8 @@ data Pspec ty ctor
   | Impt    Symbol                                        -- ^ 'import' a specification module
   | DDecl   DataDecl                                      -- ^ refined 'data'    declaration 
   | NTDecl  DataDecl                                      -- ^ refined 'newtype' declaration
-  | Relational (LocSymbol,LocSymbol,LocBareType,LocBareType,Expr)
+  | Relational (LocSymbol, LocSymbol, ty, ty, Expr)       -- ^ relational signature
+  | AssmRel (LocSymbol, LocSymbol, ty, ty, Expr)          -- ^ 'assume' relational signature
   | Class   (RClass ty)                                   -- ^ refined 'class' definition
   | CLaws   (RClass ty)                                   -- ^ 'class laws' definition
   | ILaws   (RILaws ty)
@@ -1065,6 +1066,7 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
   , Measure.imeasures  = [m | IMeas  m <- xs]
   , Measure.classes    = [c | Class  c <- xs]
   , Measure.relational = [r | Relational r <- xs]
+  , Measure.asmRel     = [r | AssmRel r <- xs]
   , Measure.claws      = [c | CLaws  c <- xs]
   , Measure.dvariance  = [v | Varia  v <- xs]
   , Measure.rinstance  = [i | RInst  i <- xs]
@@ -1088,7 +1090,9 @@ mkSpec name xs         = (name,) $ qualifySpec (symbol name) Measure.Spec
 -- | Parse a single top level liquid specification
 specP :: Parser BPspec
 specP
-  =     (fallbackSpecP "assume"     (liftM Assm    tyBindP  ))
+  =     (fallbackSpecP "assume"     
+         ((reserved "relational" >>  liftM AssmRel relationalP)
+         <|> liftM Assm   tyBindP                           ))
     <|> (fallbackSpecP "assert"     (liftM Asrt    tyBindP  ))
     <|> (fallbackSpecP "autosize"   (liftM ASize   asizeP   ))
     <|> (reserved "local"         >> liftM LAsrt   tyBindP  )
@@ -1556,7 +1560,7 @@ dataSizeP
   = brackets (Just . SymSizeFun <$> locLowerIdP)
   <|> return Nothing
 
-relationalP :: Parser (LocSymbol,LocSymbol,LocBareType,LocBareType,Expr)
+relationalP :: Parser (LocSymbol, LocSymbol, LocBareType, LocBareType, Expr)
 relationalP = do 
    x <- locBinderP
    reserved "~"

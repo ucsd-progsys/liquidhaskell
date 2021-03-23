@@ -52,7 +52,7 @@ import           Language.Haskell.Liquid.Constraint.Init
 import           Language.Haskell.Liquid.Constraint.Env
 import           Language.Haskell.Liquid.Constraint.Monad
 import           Language.Haskell.Liquid.Constraint.Split
-import           Language.Haskell.Liquid.Constraint.Relational (consRelTop)
+import           Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop)
 import           Language.Haskell.Liquid.Types.Dictionaries
 import           Language.Haskell.Liquid.GHC.Play          (isHoleVar) 
 import qualified Language.Haskell.Liquid.GHC.Resugar           as Rs
@@ -90,7 +90,8 @@ consAct γ cfg info = do
   let gSrc = giSrc info
   when (gradual cfg) (mapM_ (addW . WfC γ . val . snd) (gsTySigs sSpc ++ gsAsmSigs sSpc))
   γ' <- foldM (consCBTop cfg info) γ (giCbs gSrc)
-  foldM_ (consRelTop cfg info γ') [] (gsRelation sSpc)
+  ψ <- foldM (consAssmRel cfg info γ') [] (gsAsmRel sSpc)
+  foldM_ (consRelTop cfg info γ') ψ (gsRelation sSpc)
   mapM (consClass γ) (gsMethods $ gsSig $ giSpec info) 
   hcs <- hsCs  <$> get
   hws <- hsWfs <$> get

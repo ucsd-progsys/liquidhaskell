@@ -18,7 +18,7 @@
 -- | This module defines the representation of Subtyping and WF Constraints,
 --   and the code for syntax-directed constraint generation.
 
-module Language.Haskell.Liquid.Constraint.Relational (consRelTop) where
+module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) where
 
 #if !MIN_VERSION_base(4,14,0)
 import           Control.Monad.Fail
@@ -83,26 +83,32 @@ data RelPred
 type PrEnv = [RelPred]
 type RelAlt = (AltCon, [Var], [Var], CoreExpr, CoreExpr)
 
-consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG PrEnv
-consRelTop _ ti γ ψ (x,y,t,s,p) = do
-  let cbs = giCbs $ giSrc ti
-  let e = findBody x cbs
-  let d = findBody y cbs
-  let e' = traceChk "Init" e d t s p e
-  -- addC (SubC γ tUnary t') $ "consRelTop L tUnary = " ++ F.showpp tUnary ++ " t = " ++ F.showpp t'
-  -- addC (SubC γ sUnary s') $ "consRelTop R sUnary = " ++ F.showpp sUnary ++ " t = " ++ F.showpp s'
-  let targs = zip (snd $ vargs t') (snd $ vargs tUnary)
-  let sargs = zip (snd $ vargs s') (snd $ vargs sUnary)
-  forM_ targs $ \(t, ut) -> addC (SubC γ' ut t) $ "consRelTop L tUnary = " ++ F.showpp ut ++ " t = " ++ F.showpp t
-  forM_ sargs $ \(s, us) -> addC (SubC γ' us s) $ "consRelTop R sUnary = " ++ F.showpp us ++ " s = " ++ F.showpp s
-  -- addC (SubC γ' s' sUnary) $ "consRelTop R s = " ++ F.showpp s' ++ " sUnary = " ++ F.showpp sUnary
-  consRelCheckBind γ' ψ e' d t' s' p
+consAssmRel :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG PrEnv
+consAssmRel _ ti γ ψ (x, y, t, s, p) = traceChk "Assm" x y t s p $ do
+  traceWhenLoud ("ASSUME " ++ F.showpp (p', p)) $ subUnarySig γ' x t'
+  subUnarySig γ' y s'
+  return $ RelPred x' y' vs us p' : RelPred y' x' us vs p' : ψ
   where
-    tUnary = symbolType γ x "consRelTop L" 
-    sUnary = symbolType γ y "consRelTop R" 
+    γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
+    (x', y') = mkRelCopies x y
+    t' = val t
+    s' = val s
+    (vs, _) = vargs t'
+    (us, _) = vargs s'
+    p' = L.foldl (\p (v, u) -> unapplyRelArgs v u p) p (zip vs us)
+
+consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG PrEnv
+consRelTop _ ti γ ψ (x, y, t, s, p) = traceChk "Init" e d t s p $ do
+  subUnarySig γ' x t'
+  subUnarySig γ' y s'
+  consRelCheckBind γ' ψ e d t' s' p
+  where
+    γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
+    cbs = giCbs $ giSrc ti
+    e = lookupBind x cbs
+    d = lookupBind y cbs
     t' = val t 
     s' = val s
-    γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
 
 --------------------------------------------------------------
 -- Core Checking Rules ---------------------------------------
@@ -123,8 +129,6 @@ consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p
   traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
     consRelCheck γ ψ e1 e2 t1 t2 p
     return ψ
-
--- convert all binders to recursive for now
 consRelCheckBind γ ψ (NonRec x1 e1) b2 t1 t2 p =
   consRelCheckBind γ ψ (Rec [(x1, e1)]) b2 t1 t2 p
 consRelCheckBind γ ψ b1 (NonRec x2 e2) t1 t2 p =
@@ -133,23 +137,20 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
   | Just (xs1, xs2, vs1, vs2, ts1, ts2, qs) <- args e1 e2 t1 t2 p
   = traceChk "Bind Rec" b1 b2 t1 t2 p $ do
     forM_ (refts t1 ++ refts t2) (\r -> entlFunReft γ r "consRelCheckBind Rec")
-    let (e1', e2') = subRelCopies e1 f1 e2 f2
     let xs' = zipWith mkRelCopies xs1 xs2
     let (xs1', xs2') = unzip xs'
     let (e1'', e2'') = L.foldl' subRel (e1', e2') (zip xs1 xs2)
-    let (fsym1, fsym2) = (F.symbol f1', F.symbol f2')
-    γ' <- γ += ("Bind Rec f1", fsym1, t1) >>= (+= ("Bind Rec f2", fsym2, t2))
+    γ' <- γ += ("Bind Rec f1", F.symbol f1', t1) >>= (+= ("Bind Rec f2", F.symbol f2', t2))
     γ'' <- foldM (\γ (x, t) -> γ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2') 
     γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
     let p' = unapp p (zip vs1 vs2)
     let ψ' = RelPred f1' f2' vs1 vs2 p' : RelPred f2' f1' vs2 vs1 p' : ψ
-    -- traceWhenLoud 
-    --   ("consRelCheckBind Rec: " ++ F.showpp t1 ++ " -> " ++ F.showpp (subst t1) ++ "; " ++ F.showpp t2 ++ " -> " ++ F.showpp (subst t2)) 
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl p')
     return ψ'
   where 
     (f1', f2') = mkRelCopies f1 f2
+    (e1', e2') = subRelCopies e1 f1 e2 f2
     unapp = L.foldl (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
     subRel (e1, e2) (x1, x2) = subRelCopies e1 x1 e2 x2
 consRelCheckBind _ _ (Rec [b1]) (Rec [b2]) t1 t2 p
@@ -157,7 +158,6 @@ consRelCheckBind _ _ (Rec [b1]) (Rec [b2]) t1 t2 p
     F.showpp (b1, b2, t1, t2, p)
 consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ 
   = F.panic $ "consRelCheckBind Rec: multiple binders are not supported " ++ F.showpp (b1, b2)
-
 
 -- Definition of CoreExpr: https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html
 consRelCheck :: CGEnv -> PrEnv -> CoreExpr -> CoreExpr -> 
@@ -379,6 +379,8 @@ consRelSynthApp γ _ (RFun v1 s1 t1 r1) (RFun v2 s2 t2 r2) ps d1@(Var x1) d2@(Va
           F.subst $ F.mkSubst
             [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
     return (subst t1, subst t2, map (subst . unapplyRelArgs v1 v2) ps)
+consRelSynthApp _ _ RFun{} RFun{} _ d1 d2 = 
+  F.panic $ "consRelSynthApp: expected application to variables, got" ++ F.showpp (d1, d2)
 consRelSynthApp _ _ t1 t2 p d1 d2 = 
   F.panic $ "consRelSynthApp: malformed function types or predicate for arguments " ++ F.showpp (t1, t2, p, d1, d2)
 
@@ -459,6 +461,8 @@ consUnarySynthApp γ (RFun x s t _) d@(Var y) = do
 consUnarySynthApp _ (RAllT α t _) (Type s) = do
     s' <- trueTy s
     return $ subsTyVar_meet' (ty_var_value α, s') t
+consUnarySynthApp γ RFun{} d = 
+  F.panic $ "consUnarySynthApp expected Var as a funciton arg, got " ++ F.showpp d
 consUnarySynthApp _ ft d = 
   F.panic $ "consUnarySynthApp malformed function type " ++ F.showpp ft ++
             " for argument " ++ F.showpp d  
@@ -660,13 +664,20 @@ mkCopyWithName s v =
 mkCopyWithSuffix :: String -> Var -> Var
 mkCopyWithSuffix s v = mkCopyWithName (Ghc.getOccString v ++ s) v
 
-findBody :: Var -> [CoreBind] -> CoreBind
-findBody x bs = case lookup x (concatMap binds bs) of
+lookupBind :: Var -> [CoreBind] -> CoreBind
+lookupBind x bs = case lookup x (concatMap binds bs) of
   Nothing -> F.panic $ "Not found definition for " ++ show x
   Just e  -> e
  where
   binds b@(NonRec x _) = [ (x, b) ]
   binds b@(Rec bs    ) = [ (x, b) | x <- fst <$> bs ]
+
+subUnarySig :: CGEnv -> Var -> SpecType -> CG ()
+subUnarySig γ x tRel =
+  forM_ args $ \(rt, ut) -> addC (SubC γ ut rt) $ "subUnarySig tUn = " ++ F.showpp ut ++ " tRel = " ++ F.showpp rt
+  where
+    args = zip (snd $ vargs tRel) (snd $ vargs tUn)
+    tUn = symbolType γ x $ "subUnarySig " ++ F.showpp x
 
 addPred :: CGEnv -> F.Expr -> CG CGEnv
 addPred γ p = extendWithExprs γ [p]
