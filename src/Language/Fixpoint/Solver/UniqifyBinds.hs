@@ -25,12 +25,12 @@ renameAll    :: SInfo a -> SInfo a
 --------------------------------------------------------------------------------
 renameAll fi2 = fi6
   where
-    fi6       = {-# SCC "dropDead"    #-} dropDeadSubsts  fi5
-    fi5       = {-# SCC "dropUnused"  #-} dropUnusedBinds fi4
-    fi4       = {-# SCC "renameBinds" #-} renameBinds fi3 $!! rnm
-    fi3       = {-# SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
-    rnm       = {-# SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
-    idm       = {-# SCC "mkIdMap"     #-} mkIdMap fi2
+    fi6       = {- SCC "dropDead"    #-} dropDeadSubsts  fi5
+    fi5       = {- SCC "dropUnused"  #-} dropUnusedBinds fi4
+    fi4       = {- SCC "renameBinds" #-} renameBinds fi3 $!! rnm
+    fi3       = {- SCC "renameVars"  #-} renameVars fi2 rnm $!! idm
+    rnm       = {- SCC "mkRenameMap" #-} mkRenameMap $!! bs fi2
+    idm       = {- SCC "mkIdMap"     #-} mkIdMap fi2
 
 
 --------------------------------------------------------------------------------

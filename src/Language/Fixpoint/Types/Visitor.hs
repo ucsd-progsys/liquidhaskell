@@ -176,8 +176,8 @@ instance Visitable Rewrite where
 visitExpr :: (Monoid a) => Visitor a ctx -> ctx -> Expr -> VisitM a Expr
 visitExpr !v    = vE
   where
-    vE !c !e    = do {-# SCC "visitExpr.vE.accum" #-} accum acc
-                     {-# SCC "visitExpr.vE.step" #-}  step c' e'
+    vE !c !e    = do {- SCC "visitExpr.vE.accum" #-} accum acc
+                     {- SCC "visitExpr.vE.step" #-}  step c' e'
       where !c'  = ctxExpr v c  e
             !e'  = txExpr  v c' e
             !acc = accExpr v c' e

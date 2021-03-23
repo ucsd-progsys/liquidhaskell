@@ -171,7 +171,7 @@ smtWrite :: Context -> Raw -> IO ()
 smtWrite me !s = smtWriteRaw me s
 
 smtRead :: Context -> IO Response
-smtRead me = {-# SCC "smtRead" #-} do
+smtRead me = {- SCC "smtRead" #-} do
   when (ctxVerbose me) $ LTIO.putStrLn "SMT READ"
   ln  <- smtReadRaw me
   res <- A.parseWith (smtReadRaw me) responseP ln
@@ -187,13 +187,13 @@ smtRead me = {-# SCC "smtRead" #-} do
 type SmtParser a = Parser T.Text a
 
 responseP :: SmtParser Response
-responseP = {-# SCC "responseP" #-} A.char '(' *> sexpP
+responseP = {- SCC "responseP" #-} A.char '(' *> sexpP
          <|> A.string "sat"     *> return Sat
          <|> A.string "unsat"   *> return Unsat
          <|> A.string "unknown" *> return Unknown
 
 sexpP :: SmtParser Response
-sexpP = {-# SCC "sexpP" #-} A.string "error" *> (Error <$> errorP)
+sexpP = {- SCC "sexpP" #-} A.string "error" *> (Error <$> errorP)
      <|> Values <$> valuesP
 
 errorP :: SmtParser T.Text
@@ -203,7 +203,7 @@ valuesP :: SmtParser [(Symbol, T.Text)]
 valuesP = A.many1' pairP <* A.char ')'
 
 pairP :: SmtParser (Symbol, T.Text)
-pairP = {-# SCC "pairP" #-}
+pairP = {- SCC "pairP" #-}
   do A.skipSpace
      A.char '('
      !x <- symbolP
@@ -213,10 +213,10 @@ pairP = {-# SCC "pairP" #-}
      return (x,v)
 
 symbolP :: SmtParser Symbol
-symbolP = {-# SCC "symbolP" #-} symbol <$> A.takeWhile1 (not . isSpace)
+symbolP = {- SCC "symbolP" #-} symbol <$> A.takeWhile1 (not . isSpace)
 
 valueP :: SmtParser T.Text
-valueP = {-# SCC "valueP" #-} negativeP
+valueP = {- SCC "valueP" #-} negativeP
       <|> A.takeWhile1 (\c -> not (c == ')' || isSpace c))
 
 negativeP :: SmtParser T.Text
@@ -225,14 +225,14 @@ negativeP
        return $ "(" <> v <> ")"
 
 smtWriteRaw      :: Context -> Raw -> IO ()
-smtWriteRaw me !s = {-# SCC "smtWriteRaw" #-} do
+smtWriteRaw me !s = {- SCC "smtWriteRaw" #-} do
   -- whenLoud $ do LTIO.appendFile debugFile (s <> "\n")
   --               LTIO.putStrLn ("CMD-RAW:" <> s <> ":CMD-RAW:DONE")
   hPutStrLnNow (ctxCout me) s
   maybe (return ()) (`hPutStrLnNow` s) (ctxLog me)
 
 smtReadRaw       :: Context -> IO T.Text
-smtReadRaw me    = {-# SCC "smtReadRaw" #-} TIO.hGetLine (ctxCin me)
+smtReadRaw me    = {- SCC "smtReadRaw" #-} TIO.hGetLine (ctxCin me)
 
 hPutStrLnNow     :: Handle -> LT.Text -> IO ()
 hPutStrLnNow h !s = LTIO.hPutStrLn h s >> hFlush h

@@ -157,12 +157,12 @@ solveGradual_ :: (NFData a, F.Fixpoint a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solveGradual_ cfg fi s0 ks wkl = do
-  let s1  = mappend s0 $ {-# SCC "sol-init" #-} S.init cfg fi ks
-  s2      <- {-# SCC "sol-local"  #-} filterLocal s1
-  s       <- {-# SCC "sol-refine" #-} refine s2 wkl
-  res     <- {-# SCC "sol-result" #-} result cfg wkl s
+  let s1  = mappend s0 $ {- SCC "sol-init" #-} S.init cfg fi ks
+  s2      <- {- SCC "sol-local"  #-} filterLocal s1
+  s       <- {- SCC "sol-refine" #-} refine s2 wkl
+  res     <- {- SCC "sol-result" #-} result cfg wkl s
   st      <- stats
-  let res' = {-# SCC "sol-tidy"   #-} tidyResult res
+  let res' = {- SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
 filterLocal :: Sol.GSolution -> SolveM Sol.GSolution

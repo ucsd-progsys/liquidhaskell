@@ -117,11 +117,11 @@ readFInfo f
 readFq :: FilePath -> IO (FInfo (), [String])
 readFq file = do
   str   <- readFile file
-  let q  = {-# SCC "parsefq" #-} rr' file str :: FInfoWithOpts ()
+  let q  = {- SCC "parsefq" #-} rr' file str :: FInfoWithOpts ()
   return (fioFI q, fioOpts q)
 
 readBinFq :: FilePath -> IO (FInfo ())
-readBinFq file = {-# SCC "parseBFq" #-} decodeFile file
+readBinFq file = {- SCC "parseBFq" #-} decodeFile file
 
 --------------------------------------------------------------------------------
 -- | Solve in parallel after partitioning an FInfo to indepdendant parts
@@ -191,23 +191,23 @@ simplifyFInfo !cfg !fi0 = do
   -- whenLoud $ print qs
   -- whenLoud $ putStrLn $ showFix (quals fi1)
   let fi1   = fi0 { quals = remakeQual <$> quals fi0 }
-  let si0   = {-# SCC "convertFormat" #-} convertFormat fi1
+  let si0   = {- SCC "convertFormat" #-} convertFormat fi1
   -- writeLoud $ "fq file after format convert: \n" ++ render (toFixpoint cfg si0)
   -- rnf si0 `seq` donePhase Loud "Format Conversion"
-  let si1   = either die id $ ({-# SCC "sanitize" #-} sanitize cfg $!! si0)
+  let si1   = either die id $ ({- SCC "sanitize" #-} sanitize cfg $!! si0)
   -- writeLoud $ "fq file after sanitize: \n" ++ render (toFixpoint cfg si1)
   -- rnf si1 `seq` donePhase Loud "Validated Constraints"
   graphStatistics cfg si1
-  let si2  = {-# SCC "wfcUniqify" #-} wfcUniqify $!! si1
-  let si3  = {-# SCC "renameAll"  #-} renameAll  $!! si2
+  let si2  = {- SCC "wfcUniqify" #-} wfcUniqify $!! si1
+  let si3  = {- SCC "renameAll"  #-} renameAll  $!! si2
   rnf si3 `seq` whenLoud $ donePhase Loud "Uniqify & Rename"
   loudDump 1 cfg si3
-  let si4  = {-# SCC "defunction" #-} defunctionalize cfg $!! si3
+  let si4  = {- SCC "defunction" #-} defunctionalize cfg $!! si3
   -- putStrLn $ "AXIOMS: " ++ showpp (asserts si4)
   loudDump 2 cfg si4
-  let si5  = {-# SCC "elaborate"  #-} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
+  let si5  = {- SCC "elaborate"  #-} elaborate (atLoc dummySpan "solver") (symbolEnv cfg si4) si4
   loudDump 3 cfg si5
-  let si6 = if extensionality cfg then {-# SCC "expand"     #-} expand cfg si5 else si5
+  let si6 = if extensionality cfg then {- SCC "expand"     #-} expand cfg si5 else si5
   if rewriteAxioms cfg && noLazyPLE cfg
     then instantiate cfg si6 $!! Nothing
     else return si6
@@ -215,7 +215,7 @@ simplifyFInfo !cfg !fi0 = do
 
 solveNative' !cfg !fi0 = do
   si6 <- simplifyFInfo cfg fi0
-  res <- {-# SCC "Sol.solve" #-} Sol.solve cfg $!! si6
+  res <- {- SCC "Sol.solve" #-} Sol.solve cfg $!! si6
   -- rnf soln `seq` donePhase Loud "Solve2"
   --let stat = resStatus res
   saveSolution cfg res

@@ -100,19 +100,19 @@ solve_ :: (NFData a, F.Fixpoint a, F.Loc a)
        -> SolveM (F.Result (Integer, a), Stats)
 --------------------------------------------------------------------------------
 solve_ cfg fi s0 ks wkl = do
-  let s1   = {-# SCC "sol-init" #-} S.init cfg fi ks
+  let s1   = {- SCC "sol-init" #-} S.init cfg fi ks
   let s2   = mappend s0 s1
   -- let s3   = solveEbinds fi s2
-  s3       <- {-# SCC "sol-refine" #-} refine s2 wkl
-  res0     <- {-# SCC "sol-result" #-} result cfg wkl s3
+  s3       <- {- SCC "sol-refine" #-} refine s2 wkl
+  res0     <- {- SCC "sol-result" #-} result cfg wkl s3
   res      <- case resStatus res0 of
     Unsafe _ bads | not (noLazyPLE cfg) && rewriteAxioms cfg -> do
       doPLE cfg fi (map fst bads)
-      s4 <- {-# SCC "sol-refine" #-} refine s3 wkl
+      s4 <- {- SCC "sol-refine" #-} refine s3 wkl
       result cfg wkl s4
     _ -> return res0
   st      <- stats
-  let res' = {-# SCC "sol-tidy"   #-} tidyResult res
+  let res' = {- SCC "sol-tidy"   #-} tidyResult res
   return $!! (res', st)
 
 --------------------------------------------------------------------------------

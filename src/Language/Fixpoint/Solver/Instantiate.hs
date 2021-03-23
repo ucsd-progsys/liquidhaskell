@@ -606,14 +606,14 @@ evalRecApplication γ stk e (EIte b e1 e2) = do
             b1 <- liftIO (isValid γ b')
             if b1
               then addEquality γ e e1 >>
-                   ({-# SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
+                   ({- SCC "assertSelectors-1" #-} assertSelectors γ e1) >>
                    eval γ stk (mytracepp ("evalREC-1: " ++ showpp stk) e1) >>=
                    ((e, "App1: ") ~>)
               else do
                    b2 <- liftIO (isValid γ (PNot b'))
                    if b2
                       then addEquality γ e e2 >>
-                           ({-# SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
+                           ({- SCC "assertSelectors-2" #-} assertSelectors γ e2) >>
                            eval γ stk (mytracepp ("evalREC-2: " ++ showpp stk) e2) >>=
                            ((e, ("App2: " ++ showpp stk ) ) ~>)
                       else return e
