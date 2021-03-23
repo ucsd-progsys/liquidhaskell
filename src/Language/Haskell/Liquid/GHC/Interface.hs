@@ -65,7 +65,6 @@ import           Language.Haskell.Liquid.GHC.API as Ghc hiding ( text
                                                                , (<+>)
                                                                , panic
                                                                , vcat
-                                                               , linear
                                                                , showPpr
                                                                , isHomeModule
                                                                , Target

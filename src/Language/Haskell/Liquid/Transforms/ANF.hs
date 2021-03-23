@@ -15,7 +15,6 @@ module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Prelude                          hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import qualified Language.Haskell.Liquid.GHC.API  as O
 import           Language.Haskell.Liquid.GHC.API  as Ghc hiding ( mkTyArg
                                                                 , showPpr
                                                                 , DsM
@@ -25,9 +24,8 @@ import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
-import qualified Language.Haskell.Liquid.Types.PrettyPrint as F
 
-import           Language.Haskell.Liquid.UX.Config  as UX hiding (inlineAux)
+import           Language.Haskell.Liquid.UX.Config  as UX
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec

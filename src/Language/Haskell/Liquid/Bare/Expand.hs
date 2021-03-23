@@ -494,7 +494,7 @@ cookSpecType env sigEnv name x bt
 cookSpecTypeE :: Bare.Env -> Bare.SigEnv -> ModName -> Bare.PlugTV Ghc.Var -> LocBareType 
               -> Either UserError LocSpecType 
 -----------------------------------------------------------------------------------------
-cookSpecTypeE env sigEnv name@(ModName _ mname) x bt
+cookSpecTypeE env sigEnv name@(ModName _ _) x bt
   = id
   . fmap (if doplug || not allowTC then plugHoles allowTC sigEnv name x else id) 
   . fmap (fmap (addTyConInfo   embs tyi))

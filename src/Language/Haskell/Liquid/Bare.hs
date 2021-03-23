@@ -25,7 +25,7 @@ module Language.Haskell.Liquid.Bare (
 
 import           Prelude                                    hiding (error)
 import           Optics
-import           Control.Monad                              (unless, when, void, forM)
+import           Control.Monad                              (unless, forM)
 import           Control.Applicative                        ((<|>))
 import qualified Control.Exception                          as Ex
 import qualified Data.Binary                                as B

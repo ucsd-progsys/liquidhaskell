@@ -1567,7 +1567,7 @@ instance (F.Reftable r, TyConable c) => F.Subable (RTProp c tv r) where
 
 
 instance (F.Subable r, F.Reftable r, TyConable c) => F.Subable (RType c tv r) where
-  syms        = foldReft (const False) False (\_ r acc -> F.syms r ++ acc) []
+  syms        = foldReft False (\_ r acc -> F.syms r ++ acc) []
   -- 'substa' will substitute bound vars
   substa f    = emapExprArg (\_ -> F.substa f) []      . mapReft  (F.substa f)
   -- 'substf' will NOT substitute bound vars
@@ -1613,7 +1613,7 @@ mapExprReft f = mapReft g
 -- const False (not dropping dict) is probably fine since there will not be refinement on
 -- dictionaries
 isTrivial :: (F.Reftable r, TyConable c) => RType c tv r -> Bool
-isTrivial t = foldReft (const False) False (\_ r b -> F.isTauto r && b) True t
+isTrivial t = foldReft False (\_ r b -> F.isTauto r && b) True t
 
 mapReft ::  (r1 -> r2) -> RType c tv r1 -> RType c tv r2
 mapReft f = emapReft (const f) []
@@ -1758,21 +1758,20 @@ mapPropM f (RRTy xts r o t)   = liftM4  RRTy (mapM (mapSndM (mapPropM f)) xts) (
 -- foldReft f = efoldReft (\_ _ -> []) (\_ -> ()) (\_ _ -> f) (\_ γ -> γ) emptyF.SEnv
 
 --------------------------------------------------------------------------------
-foldReft :: (F.Reftable r, TyConable c) => (c -> Bool) -> BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
+foldReft :: (F.Reftable r, TyConable c) => BScope -> (F.SEnv (RType c tv r) -> r -> a -> a) -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft isErasable bsc f = foldReft' isErasable (\_ _ -> False) bsc id (\γ _ -> f γ)
+foldReft bsc f = foldReft'  (\_ _ -> False) bsc id (\γ _ -> f γ)
 
 --------------------------------------------------------------------------------
 foldReft' :: (F.Reftable r, TyConable c)
-          => (c -> Bool)
-          -> (Symbol -> RType c tv r -> Bool)
+          => (Symbol -> RType c tv r -> Bool)
           -> BScope
           -> (RType c tv r -> b)
           -> (F.SEnv b -> Maybe (RType c tv r) -> r -> a -> a)
           -> a -> RType c tv r -> a
 --------------------------------------------------------------------------------
-foldReft' isErasable logicBind bsc g f 
-  = efoldReft isErasable logicBind bsc 
+foldReft' logicBind bsc g f 
+  = efoldReft logicBind bsc 
               (\_ _ -> [])
               (\_ -> [])
               g
@@ -1784,8 +1783,7 @@ foldReft' isErasable logicBind bsc g f
 
 -- efoldReft :: F.Reftable r =>(p -> [RType c tv r] -> [(Symbol, a)])-> (RType c tv r -> a)-> (SEnv a -> Maybe (RType c tv r) -> r -> c1 -> c1)-> SEnv a-> c1-> RType c tv r-> c1
 efoldReft :: (F.Reftable r, TyConable c)
-          => (c -> Bool) -- ^ Determines which type constructors should be erased.
-          -> (Symbol -> RType c tv r -> Bool)
+          => (Symbol -> RType c tv r -> Bool)
           -> BScope
           -> (c  -> [RType c tv r] -> [(Symbol, a)])
           -> (RTVar tv (RType c tv ()) -> [(Symbol, a)])
@@ -1796,7 +1794,7 @@ efoldReft :: (F.Reftable r, TyConable c)
           -> b
           -> RType c tv r
           -> b
-efoldReft isErasable logicBind bsc cb dty g f fp = go
+efoldReft logicBind bsc cb dty g f fp = go
   where
     -- folding over RType
     go γ z me@(RVar _ r)                = f γ (Just me) r z
@@ -1805,6 +1803,8 @@ efoldReft isErasable logicBind bsc cb dty g f fp = go
        | otherwise                      = f γ (Just me) r (go γ z t)
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RImpF x i t t' r)             = go γ z (RFun x i t t' r)
+    go γ z me@(RFun _ RFInfo{permitTC = Just True} (RApp c ts _ _) t' r)
+       | isEmbeddedDict c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun _ _ (RApp c ts _ _) t' r)
        | isClass c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x _ t t' r)

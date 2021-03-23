@@ -1198,7 +1198,7 @@ caseEnv γ x acs a _ _ = do
 --   when projecting out fields of single-ctor datatypes.
 --------------------------------------------------------------------------------
 projectTypes :: Bool -> Maybe [Int] -> [SpecType] -> CG [SpecType]
-projectTypes allowTC Nothing   ts = return ts
+projectTypes _ Nothing   ts = return ts
 projectTypes allowTC (Just is) ts = mapM (projT is) (zip [0..] ts)
   where
     projT is (j, t)
