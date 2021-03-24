@@ -157,7 +157,7 @@ dataConArgs trep = unzip [ (x, t) | (x, t) <- zip xs ts, isValTy t]
   where
     xs           = ty_binds trep
     ts           = ty_args trep
-    isValTy      = not . Ghc.isEvVarType . toType
+    isValTy      = not . Ghc.isEvVarType . toType False
 
 
 pdVar :: PVar t -> Predicate
@@ -836,7 +836,7 @@ pvArgs pv = [(s, t) | (t, s, _) <- pargs pv]
 appRTyCon :: (ToTypeable r) => TCEmb TyCon -> TyConMap -> RTyCon -> [RRType r] -> (RTyCon, [RPVar])
 appRTyCon tce tyi rc ts = F.notracepp _msg (resTc, ps'') 
   where
-    _msg  = "appRTyCon-family: " ++ showpp (Ghc.isFamilyTyCon c, Ghc.tyConRealArity c, toType <$> ts)
+    _msg  = "appRTyCon-family: " ++ showpp (Ghc.isFamilyTyCon c, Ghc.tyConRealArity c, toType False <$> ts)
     resTc = RTyCon c ps'' (rtc_info rc'')
     c     = rtc_tc rc
    
@@ -1217,7 +1217,7 @@ subts = flip (foldr subt)
 
 instance SubsTy RTyVar (RType RTyCon RTyVar ()) RTyVar where
   subt (RTV x, t) (RTV z) | isTyVar z, tyVarKind z == TyVarTy x
-    = RTV (setVarType z $ toType t)
+    = RTV (setVarType z $ toType False t)
   subt _ v
     = v
 
@@ -1304,7 +1304,7 @@ instance SubsTy Symbol RSort Sort where
 
 instance SubsTy RTyVar RSort Sort where
   subt (v, sv) (FObj s)
-    | symbol v == s = typeSort mempty (toType sv)
+    | symbol v == s = typeSort mempty (toType True sv)
     | otherwise     = FObj s
   subt _ s          = s
 
@@ -1483,35 +1483,41 @@ dataConMsReft ty ys  = subst su (rTypeReft (ignoreOblig $ ty_res trep))
 type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable (RTProp RTyCon RTyVar r))
 
 -- TODO: remove toType, generalize typeSort
-toType  :: (ToTypeable r) => RRType r -> Type
-toType (RImpF x i t t' r)
- = toType (RFun x i t t' r)
-toType (RFun _ _ t t' _)
-  = FunTy VisArg Many (toType t) (toType t') -- FIXME(adinapoli) Is 'VisArg' correct here?
-toType (RAllT a t _) | RTV α <- ty_var_value a
-  = ForAllTy (Bndr α Required) (toType t)
-toType (RAllP _ t)
-  = toType t
-toType (RVar (RTV α) _)
+-- YL: really should take a type-level Bool
+toType  :: (ToTypeable r) => Bool -> RRType r -> Type
+toType useRFInfo (RImpF x i t t' r)
+ = toType useRFInfo (RFun x i t t' r)
+toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
+  | useRFInfo && isErasable c  = toType useRFInfo t'  -- FIXME(adinapoli) Is 'VisArg' correct here?
+  | otherwise
+  = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
+  where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
+toType useRFInfo (RFun _ _ t t' _)
+  = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
+toType useRFInfo (RAllT a t _) | RTV α <- ty_var_value a
+  = ForAllTy (Bndr α Required) (toType useRFInfo t)
+toType useRFInfo (RAllP _ t)
+  = toType useRFInfo t
+toType _ (RVar (RTV α) _)
   = TyVarTy α
-toType (RApp (RTyCon {rtc_tc = c}) ts _ _)
-  = TyConApp c (toType <$> filter notExprArg ts)
+toType useRFInfo (RApp (RTyCon {rtc_tc = c}) ts _ _)
+  = TyConApp c (toType useRFInfo <$> filter notExprArg ts)
   where
     notExprArg (RExprArg _) = False
     notExprArg _            = True
-toType (RAllE _ _ t)
-  = toType t
-toType (REx _ _ t)
-  = toType t
-toType (RAppTy t (RExprArg _) _)
-  = toType t
-toType (RAppTy t t' _)
-  = AppTy (toType t) (toType t')
-toType t@(RExprArg _)
+toType useRFInfo (RAllE _ _ t)
+  = toType useRFInfo t
+toType useRFInfo (REx _ _ t)
+  = toType useRFInfo t
+toType useRFInfo (RAppTy t (RExprArg _) _)
+  = toType useRFInfo t
+toType useRFInfo (RAppTy t t' _)
+  = AppTy (toType useRFInfo t) (toType useRFInfo t')
+toType _ t@(RExprArg _)
   = impossible Nothing $ "CANNOT HAPPEN: RefType.toType called with: " ++ show t
-toType (RRTy _ _ _ t)
-  = toType t
-toType (RHole _)
+toType useRFInfo (RRTy _ _ _ t)
+  = toType useRFInfo t
+toType _ (RHole _)
   = LitTy holeLit  
 -- toType t
 --  = {- impossible Nothing -} Prelude.error $ "RefType.toType cannot handle: " ++ show t
@@ -1558,7 +1564,7 @@ rTypeSortedReft emb t = RR (rTypeSort emb t) (rTypeReft t)
 
 rTypeSort     ::  (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
               => TCEmb TyCon -> RRType r -> Sort
-rTypeSort tce = typeSort tce . toType
+rTypeSort tce = typeSort tce . toType True
 
 --------------------------------------------------------------------------------
 applySolution :: (Functor f) => FixSolution -> f SpecType -> f SpecType
@@ -1676,15 +1682,16 @@ grabArgs :: [Type] -> Type -> [Type]
 grabArgs τs (FunTy _ _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
-  | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
-  = grabArgs (τ1:τs) τ2
+  -- -- | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
   | otherwise
-  = grabArgs τs τ2
+  = grabArgs (τ1:τs) τ2
+  -- -- | otherwise
+  -- -- = grabArgs τs τ2
 grabArgs τs τ
   = reverse (τ:τs)
 
-isNonValueTy :: Type -> Bool
-isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
+-- isNonValueTy :: Type -> Bool
+-- isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
@@ -1694,7 +1701,7 @@ expandProductType x t
   | otherwise       = fromRTypeRep $ trep {ty_binds = xs', ty_info=is', ty_args = ts', ty_refts = rs'}
      where
       isTrivial     = ofType (varType x) == toRSort t
-      τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTys $ toType t
+      τs            = map irrelevantMult $ fst $ splitFunTys $ snd $ splitForAllTys $ toType False t
       trep          = toRTypeRep t
       (xs',is',ts',rs') = unzip4 $ concatMap mkProductTy $ zip5 τs (ty_binds trep) (ty_info trep) (ty_args trep) (ty_refts trep)
 
@@ -1730,10 +1737,10 @@ classBinds  emb ty@(RApp c [_, (RVar a _), t] _ _)
   | otherwise 
   = notracepp ("CLASSBINDS-0: " ++ showpp c) [] 
 classBinds _ t
-  = notracepp ("CLASSBINDS-1: " ++ showpp (toType t, isEqualityConstr t)) []
+  = notracepp ("CLASSBINDS-1: " ++ showpp (toType False t, isEqualityConstr t)) []
 
 isEqualityConstr :: SpecType -> Bool
-isEqualityConstr (toType -> ty) = Ghc.isEqPred ty || Ghc.isEqPrimPred ty
+isEqualityConstr (toType False -> ty) = Ghc.isEqPred ty || Ghc.isEqPrimPred ty
 
 --------------------------------------------------------------------------------
 -- | Termination Predicates ----------------------------------------------------

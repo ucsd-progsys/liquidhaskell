@@ -39,11 +39,11 @@ synthesize tgt fcfg cginfo =
           coreProgram = giCbs $ giSrc $ ghcI cgi
           (uniVars, _) = getUniVars coreProgram topLvlBndr
           fromREnv' = filterREnv (reLocal env)
-          fromREnv'' = M.fromList (filter (rmClassVars . toType . snd) (M.toList fromREnv'))
+          fromREnv'' = M.fromList (filter (rmClassVars . toType False . snd) (M.toList fromREnv'))
           rmClassVars t = case t of { TyConApp c _ -> not . isClassTyCon $ c; _ -> True }
           fromREnv  = M.fromList (rmMeasures measures (M.toList fromREnv''))
           isForall t = case t of { ForAllTy{} -> True; _ -> False}
-          rEnvForalls = M.fromList (filter (isForall . toType . snd) (M.toList fromREnv))
+          rEnvForalls = M.fromList (filter (isForall . toType False . snd) (M.toList fromREnv))
           fs = map (snd . snd) $ M.toList (symbolToVar coreProgram topLvlBndr rEnvForalls)
 
           ssenv0 = symbolToVar coreProgram topLvlBndr fromREnv
@@ -78,7 +78,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
 
       if R.isNumeric (tyConEmbed cgi) c
           then error " [ Numeric in synthesize ] Update liquid fixpoint. "
-          else do let ts = unifyWith (toType t)
+          else do let ts = unifyWith (toType False t)
                   if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                               else modify (\s -> s { sUGoalTy = Just ts } )
                   modify (\s -> s {sForalls = (foralls, [])})
@@ -100,7 +100,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
               addEmem xtop dt
               senv1 <- getSEnv
               let goalType = subst su to
-                  hsGoalTy = toType goalType 
+                  hsGoalTy = toType False goalType 
                   ts = unifyWith hsGoalTy
               if null ts  then modify (\s -> s { sUGoalTy = Nothing } )
                           else modify (\s -> s { sUGoalTy = Just ts } )
@@ -117,7 +117,7 @@ synthesize' ctx cgi senv tx xtop ttop foralls st2
 
 synthesizeBasic :: SpecType -> SM [CoreExpr]
 synthesizeBasic t = do
-  let ts = unifyWith (toType t) -- All the types that are used for instantiation.
+  let ts = unifyWith (toType False t) -- All the types that are used for instantiation.
   if null ts  then  modify (\s -> s { sUGoalTy = Nothing } )
               else  modify (\s -> s { sUGoalTy = Just ts } )
   modify (\s -> s { sGoalTys = [] })

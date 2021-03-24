@@ -217,7 +217,7 @@ stitchArgs allowTC sp dc allXs allTs
       g (x, Just t) _  = (x, classRFInfo allowTC, t, mempty)
       g (x, _)      t  = (x, classRFInfo allowTC, t, mempty)
       coArg Nothing    = False
-      coArg (Just t)   = (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ). toType $ t
+      coArg (Just t)   = (if allowTC then isEmbeddedDictType else Ghc.isEvVarType ). toType False $ t
 
 panicFieldNumMismatch :: (PPrint a, PPrint a1, PPrint a3)
                       => SrcSpan -> a3 -> a1 -> a -> a2

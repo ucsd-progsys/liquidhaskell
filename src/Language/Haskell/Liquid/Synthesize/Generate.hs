@@ -36,11 +36,11 @@ data SearchMode
 genTerms' :: SearchMode -> SpecType -> SM [CoreExpr] 
 genTerms' i specTy = 
   do  goalTys <- sGoalTys <$> get
-      case find (== toType specTy) goalTys of 
-        Nothing -> modify (\s -> s { sGoalTys = (toType specTy) : sGoalTys s })
+      case find (== toType False specTy) goalTys of 
+        Nothing -> modify (\s -> s { sGoalTys = (toType False specTy) : sGoalTys s })
         Just _  -> return ()
       fixEMem specTy 
-      fnTys <- functionCands (toType specTy)
+      fnTys <- functionCands (toType False specTy)
       es    <- withTypeEs specTy 
       es0   <- structuralCheck es
 
@@ -54,10 +54,10 @@ genTerms' i specTy =
 genArgs :: SpecType -> SM [CoreExpr]
 genArgs t =
   do  goalTys <- sGoalTys <$> get
-      case find (== toType t) goalTys of 
-        Nothing -> do modify (\s -> s { sGoalTys = toType t : sGoalTys s }) 
+      case find (== toType False t) goalTys of 
+        Nothing -> do modify (\s -> s { sGoalTys = toType False t : sGoalTys s }) 
                       fixEMem t 
-                      fnTys <- functionCands (toType t)
+                      fnTys <- functionCands (toType False t)
                       es <- withDepthFillArgs t 0 fnTys
                       if null es
                         then  return []

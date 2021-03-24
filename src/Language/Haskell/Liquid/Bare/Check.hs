@@ -454,7 +454,7 @@ errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
   where
     d1              = pprint $ varType x
-    d2              = pprint $ toType $ val t
+    d2              = pprint $ toType False $ val t
     lqSp            = GM.fSrcSpan t
     hsSp            = getSrcSpan x
 

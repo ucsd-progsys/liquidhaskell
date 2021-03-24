@@ -302,7 +302,7 @@ goodInvs ts (RInv ts' t _)
 
 
 unifiable :: RSort -> RSort -> Bool
-unifiable t1 t2 = isJust $ tcUnifyTy (toType t1) (toType t2)
+unifiable t1 t2 = isJust $ tcUnifyTy (toType False t1) (toType False t2)
 
 addRInv :: RTyConInv -> (Var, SpecType) -> (Var, SpecType)
 addRInv m (x, t)
@@ -353,7 +353,7 @@ restoreInvariant γ is = γ {invs = is}
 makeRecInvariants :: CGEnv -> [Var] -> CGEnv
 makeRecInvariants γ [x] = γ {invs = M.unionWith (++) (invs γ) is}
   where
-    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType . _rinv_type)) (rinvs γ)
+    is  =  M.map (map f . filter (isJust . (varType x `tcUnifyTy`) . toType False . _rinv_type)) (rinvs γ)
     f i = i{_rinv_type = guard $ _rinv_type i}
 
     guard (RApp c ts rs r)

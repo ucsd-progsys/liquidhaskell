@@ -943,7 +943,7 @@ tyApp t                []  []  r  = t `RT.strengthen` r
 tyApp _                 _  _   _  = panic Nothing $ "Bare.Type.tyApp on invalid inputs"
 
 expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r
-expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType
+expandRTypeSynonyms = RT.ofType . Ghc.expandTypeSynonyms . RT.toType False
 
 {- 
 expandRTypeSynonyms :: (Expandable r) => RRType r -> RRType r

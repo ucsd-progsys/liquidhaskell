@@ -167,7 +167,7 @@ plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
     . subts su 
     $ st
   where 
-    tyvsmap      = case Bare.runMapTyVars allowTC (toType rt) st err of
+    tyvsmap      = case Bare.runMapTyVars allowTC (toType False rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> Bare.vmap s
     su           = [(y, rTyVar x)           | (x, y) <- tyvsmap]
@@ -201,7 +201,7 @@ plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
     (as',rs)     = unzip as 
     cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
-    su           = case Bare.runMapTyVars allowTC (toType rt) st err of
+    su           = case Bare.runMapTyVars allowTC (toType False rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
@@ -228,7 +228,7 @@ plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
     (as',rs)     = unzip as 
     -- cs'          = [ (F.dummySymbol, ct) | (c, t) <- cs, let ct = tx (RApp c t [] mempty) ]
     tx           = subts su
-    su           = case Bare.runMapTyVars allowTC (toType rt) st err of
+    su           = case Bare.runMapTyVars allowTC (toType False rt) st err of
                           Left e  -> Ex.throw e 
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs0,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)

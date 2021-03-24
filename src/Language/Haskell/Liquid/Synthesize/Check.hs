@@ -31,7 +31,7 @@ hasType t !e' = notrace (" [ Check ] " ++ show e') $ do
   x  <- freshVar t 
   st <- get 
   let tpOfE = exprType e'
-      ht    = toType t
+      ht    = toType False t
   if tpOfE == ht
     then liftIO $ quietly $ check (sCGI st) (sCGEnv st) (sFCfg st) x e (Just t) 
     else error $ " [ hasType ] Expression = " ++ show e' ++ " with type " ++ showTy tpOfE ++ " , specType = " ++ show t
@@ -77,7 +77,7 @@ check cgi γ cfg x e t = do
 checkError :: SpecType -> SM (Maybe CoreExpr)
 checkError t = do 
   errVar <- varError
-  let errorExpr   = App (App (Var errVar) (Type (toType t))) errorInt
+  let errorExpr   = App (App (Var errVar) (Type (toType False t))) errorInt
       globalFlags = unsafeGlobalDynFlags
       platform    = targetPlatform globalFlags
       errorInt    = mkIntExprInt platform 42

@@ -101,7 +101,7 @@ makeAssumeType allowTC tce lmap dm x mbT v def
     xts        = [(F.symbol x, rTypeSortExp tce t) | (x, t) <- aargs at]
 
 rTypeSortExp :: F.TCEmb Ghc.TyCon -> SpecType -> F.Sort
-rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType
+rTypeSortExp tce = typeSort tce . Ghc.expandTypeSynonyms . toType False
 
 grabBody :: Bool -- ^ typeclass enabled
          -> Ghc.Type -> Ghc.CoreExpr -> ([Ghc.Var], Ghc.CoreExpr)

@@ -1271,7 +1271,7 @@ varAnn γ x t
 -----------------------------------------------------------------------
 freshPredRef :: CGEnv -> CoreExpr -> PVar RSort -> CG SpecProp
 freshPredRef γ e (PV _ (PVProp τ) _ as)
-  = do t    <- freshTy_type (typeclass (getConfig γ))  PredInstE e (toType τ)
+  = do t    <- freshTy_type (typeclass (getConfig γ))  PredInstE e (toType False τ)
        args <- mapM (\_ -> fresh) as
        let targs = [(x, s) | (x, (s, y, z)) <- zip args as, (F.EVar y) == z ]
        γ' <- foldM (+=) γ [("freshPredRef", x, ofRSort τ) | (x, τ) <- targs]
