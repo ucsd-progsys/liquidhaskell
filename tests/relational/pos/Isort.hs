@@ -1,45 +1,53 @@
-module MapFusion where
+module Isort where
 
-import           Prelude                 hiding ( mapM
-                                                , Applicative(..)
+import           Prelude                 hiding ( Applicative(..)
                                                 , Monad(..)
+                                                , fmap
                                                 , length
                                                 )
-
 {-@ infix   >>= @-}
 {-@ infix   >=> @-}
 {-@ infix   :   @-}
 
-{-@ reflect mapM @-}
-{-@ mapM :: (Int -> Tick Int) -> xs:[Int] -> Tick {os:[Int] | length os == length xs} @-}
-mapM :: (Int -> Tick Int) -> [Int] -> Tick [Int]
-mapM f []       = pure []
-mapM f (x : xs) = step 1 (liftA2 cons (f x) (mapM f xs))
+{-@ reflect insert @-}
+{-@ insert :: y:Int -> xs:[Int] -> {v:Tick [Int]| leq y xs => Isort.tcost v <= 1} @-}
+insert :: Int -> [Int] -> Tick [Int]
+insert y []                  = pure [y]
+insert y xs@(x : _) | y <= x = step 1 $ pure (y : xs)
+insert y (x : xs)            = step 1 $ fmap (cons x) (insert y xs)
 
-seqMap :: (Int -> Tick Int) -> (Int -> Tick Int) -> [Int] -> Tick [Int]
-seqMap _ _ []       = pure []
-seqMap f g (x : xs) = step 2 $ liftA2 cons (g fx) (seqMap f g xs)
-  where Tick _ fx = f x
+{-@ reflect isort @-}
+isort :: [Int] -> Tick [Int]
+isort []       = pure []
+isort (x : xs) = step t $ insert x xs'
+  where Tick t xs' = isort xs
 
-compMap :: (Int -> Tick Int) -> (Int -> Tick Int) -> [Int] -> Tick [Int]
-compMap _ _ []       = pure []
-compMap f g (x : xs) = step 1 $ liftA2 cons (g fx) (compMap f g xs)
-  where Tick _ fx = f x
+-- Unary 
 
-{-@ relational seqMap ~ compMap :: f1:(Int -> Tick Int) -> g1:(Int -> Tick Int) -> xs1:[Int] -> {v:Tick [Int]|v = mapM f1 xs1 >>= mapM g1}
-                                 ~ f2:(Int -> Tick Int) -> g2:(Int -> Tick Int) -> xs2:[Int] -> {v:Tick [Int]|v = mapM (f2 >=> g2) xs2}
-                                ~~ f1 = f2 => g1 = g2 => xs1 = xs2 => 
-                                    MapFusion.tcost (r1 f1 g1 xs1) = len xs1 + MapFusion.tcost (r2 f2 g2 xs2) &&
-                                      MapFusion.tval (r1 f1 g1 xs1) = MapFusion.tval (r2 f2 g2 xs2) @-}
+{-@ isortThm :: {xs:[Int]|sorted xs} -> {ys:[Int]|len ys = len xs} -> 
+                  {tcost (isort xs) <= tcost (isort ys)} @-}
+isortThm :: [Int] -> [Int] -> ()
+isortThm [] [] = ()
+isortThm (x:xs) (y:ys) = undefined
 
-mapFusion :: (Int -> Tick Int) -> (Int -> Tick Int) -> [Int] -> ()
-{-@ mapFusion :: f:(Int -> Tick Int) -> g:(Int -> Tick Int) -> xs:[Int] 
-              -> { (tval (mapM f xs >>= mapM g)  == tval (mapM (f >=> g) xs)) && 
-                   (tcost (mapM f xs >>= mapM g) == length xs  + tcost (mapM (f >=> g) xs))
-                 }
-  @-}
-mapFusion f g []       = ()
-mapFusion f g (_ : xs) = mapFusion f g xs
+-- Relational
+
+{-@ relational isort ~ isort :: xs1:[Int] -> Tick [Int]
+                              ~ xs2:[Int] -> Tick [Int]
+                             ~~ Isort.sorted xs1 && len xs1 = len xs2 => 
+                                  Isort.tcost (r1 xs1) <= Isort.tcost (r2 xs2) @-}
+
+-- Axiomatization
+
+{-@ reflect leq @-}
+leq :: Int -> [Int] -> Bool
+leq _ []       = True
+leq y (x : xs) = y <= x && leq y xs
+
+{-@ reflect sorted @-}
+sorted :: [Int] -> Bool
+sorted []       = True
+sorted (x : xs) = sorted xs && leq x xs
 
 -- Data.Lists
 
@@ -62,6 +70,10 @@ data Tick a = Tick { tcost :: Int, tval :: a }
 {-@ reflect pure @-}
 pure :: a -> Tick a
 pure x = Tick 0 x
+
+{-@ reflect fmap @-}
+fmap :: (a -> b) -> Tick a -> Tick b
+fmap f (Tick i x) = Tick i (f x)
 
 {-@ reflect liftA2 @-}
 liftA2 :: (a -> b -> c) -> Tick a -> Tick b -> Tick c
