@@ -1487,11 +1487,11 @@ type ToTypeable r = (Reftable r, PPrint r, SubsTy RTyVar (RRType ()) r, Reftable
 toType  :: (ToTypeable r) => Bool -> RRType r -> Type
 toType useRFInfo (RImpF x i t t' r)
  = toType useRFInfo (RFun x i t t' r)
-toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
-  | useRFInfo && isErasable c  = toType useRFInfo t'  -- FIXME(adinapoli) Is 'VisArg' correct here?
-  | otherwise
-  = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
-  where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
+-- toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
+--   | useRFInfo && isErasable c  = toType useRFInfo t'  -- FIXME(adinapoli) Is 'VisArg' correct here?
+--   | otherwise
+--   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
+--   where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
 toType useRFInfo (RFun _ _ t t' _)
   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType useRFInfo (RAllT a t _) | RTV α <- ty_var_value a
@@ -1682,16 +1682,17 @@ grabArgs :: [Type] -> Type -> [Type]
 grabArgs τs (FunTy _ _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
-  -- -- | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
-  | otherwise
+  | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
   = grabArgs (τ1:τs) τ2
+  | otherwise
+  = grabArgs τs τ2
   -- -- | otherwise
   -- -- = grabArgs τs τ2
 grabArgs τs τ
   = reverse (τ:τs)
 
--- isNonValueTy :: Type -> Bool
--- isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
+isNonValueTy :: Type -> Bool
+isNonValueTy = GM.isPredType-- GM.isEmbeddedDictType 
 
 
 expandProductType :: (PPrint r, Reftable r, SubsTy RTyVar (RType RTyCon RTyVar ()) r, Reftable (RTProp RTyCon RTyVar r))
