@@ -898,7 +898,11 @@ matchTyCon :: Env -> ModName -> LocSymbol -> Int -> Either UserError Ghc.TyCon
 matchTyCon env name lc@(Loc _ _ c) arity
   | isList c && arity == 1  = Right Ghc.listTyCon
   | isTuple c               = Right tuplTc 
-  | otherwise               = resolveLocSym env name msg lc 
+  | otherwise               = case resolveLocSym env name msg lc of 
+                                Right c -> Right c
+                                no -> case resolveLocSym env name msg lc of 
+                                       Right t -> Right (Ghc.promoteDataCon t)
+                                       _       -> no 
   where 
     msg                     = "matchTyCon: " ++ F.showpp c
     tuplTc                  = Ghc.tupleTyCon Ghc.Boxed arity 
