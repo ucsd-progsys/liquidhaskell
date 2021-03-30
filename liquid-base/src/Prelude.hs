@@ -1,3 +1,4 @@
+{-# LANGUAGE Trustworthy #-}
 module Prelude (module Exports) where
 
 import Data.Foldable
