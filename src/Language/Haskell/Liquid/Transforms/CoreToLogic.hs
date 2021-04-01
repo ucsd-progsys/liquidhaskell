@@ -280,6 +280,9 @@ coreToLg allowTC (C.Lit l)             = case mkLit l of
 coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
                                             e'     <- coreToLg allowTC e
                                             return (ECoerc s t e')
+-- coreToLg True (C.Lam x e) = do p     <- coreToLg True e
+--                                tce   <- lsEmb <$> getState
+--                                return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
 coreToLg allowTC e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
                                             "\n\n Try using a helper function to remove the lambda.")
 coreToLg allowTC e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
