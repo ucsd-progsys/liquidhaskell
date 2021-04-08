@@ -1491,7 +1491,7 @@ toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
   | useRFInfo && isErasable c  = toType useRFInfo t'  -- FIXME(adinapoli) Is 'VisArg' correct here?
   | otherwise
   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
-  where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
+  where isErasable = if True then isEmbeddedDict else isClass
 toType useRFInfo (RFun _ _ t t' _)
   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType useRFInfo (RAllT a t _) | RTV α <- ty_var_value a

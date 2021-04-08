@@ -50,7 +50,7 @@ compileClasses src env (name, spec) rest =
  where
   clsSpec = mempty
     { dataDecls = clsDecls
-    , reflects  = F.notracepp "reflects " $ S.fromList
+    , reflects  = F.tracepp "reflects " $ S.fromList
                     (  fmap
                         ( fmap GM.dropModuleNames
                         . GM.namedLocSymbol
@@ -139,7 +139,7 @@ classDeclToDataDecl cls refinedIds = DataDecl
   , tycKind   = DataUser
   }
  where
-  dctor = DataCtor { dcName   = F.dummyLoc $ F.symbol classDc
+  dctor = F.tracepp "classDeclToDataDecl" DataCtor { dcName   = F.dummyLoc $ F.symbol classDc
     -- YL: same as class tyvars??
     -- Ans: it's been working so far so probably yes
                    , dcTyVars = tyVars

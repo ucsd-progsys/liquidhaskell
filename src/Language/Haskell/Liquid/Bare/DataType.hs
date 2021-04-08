@@ -696,7 +696,7 @@ unDummy x i | x /= F.dummySymbol = x
             | otherwise          = F.symbol ("_cls_lq" ++ show i)
 
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
-makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
+makeRecordSelectorSigs env name = F.tracepp "makeRecordSelectorSigs" . checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
     | Just cls <- maybe_cls
@@ -726,7 +726,7 @@ makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   
       su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
       args = dcpTyArgs dcp
-      z    = F.notracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+      z    = F.tracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
       res  = dropPreds (dcpTyRes dcp)
   
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem

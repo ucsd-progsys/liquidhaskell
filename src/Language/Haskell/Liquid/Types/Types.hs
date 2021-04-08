@@ -1804,7 +1804,8 @@ efoldReft logicBind bsc cb dty g f fp = go
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RImpF x i t t' r)             = go γ z (RFun x i t t' r)
     go γ z me@(RFun _ RFInfo{permitTC = permitTC} (RApp c ts _ _) t' r)
-       | (if permitTC == Just True then isEmbeddedDict else isClass) c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
+       | -- (if permitTC == Just True then isEmbeddedDict else isClass)
+         isEmbeddedDict c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     -- go γ z me@(RFun _ _ (RApp c ts _ _) t' r)
     --    | isClass c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x _ t t' r)

@@ -616,7 +616,9 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
-    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> filter (not . isClassType)  (ty_args trep)
+            -- YL: remember to revert this back! match on the info from rep
+    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> -- filter (not . isClassType)  
+            (ty_args trep)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort
