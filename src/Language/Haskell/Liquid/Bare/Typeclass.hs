@@ -224,7 +224,7 @@ elaborateClassDcp coreToLg simplifier dcp = do
     []
     []
     [ ( recsel{- F.symbol dc-}
-      , defRFInfo 
+      , defRFInfo {permitTC = Just True}
       , resTy
       , mempty
       )

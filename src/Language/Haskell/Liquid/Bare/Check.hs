@@ -33,7 +33,7 @@ import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F 
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.Misc              (condNull, thd5)
+import           Language.Haskell.Liquid.Misc              (condNull, thd5, safeZipWithError)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
@@ -617,9 +617,15 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
     sp    = F.srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
             -- YL: remember to revert this back! match on the info from rep
-    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> -- filter (not . isClassType)  
-            (ty_args trep)
+    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> 
+            [arg | (arg, info) <- safeZipWithError
+              "ty_args and ty_infos do not match"
+              (ty_args trep)
+              (ty_info trep),
+              (keep info arg)]
     trep  = toRTypeRep ct
+    keep RFInfo {permitTC = Just True} = not . isClassType -- isEmbeddedClass
+    keep _ = not . isClassType
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort
     ct    = ofType $ dataConWrapperType c :: SpecType
