@@ -770,6 +770,7 @@ instance Simplifiable Expr where
         | Just e' <- M.lookup e (icSimpl ictx)
         = e' 
       tx (EBin bop e1 e2) = applyConstantFolding bop e1 e2
+      tx (ENeg e)         = applyConstantFolding Minus (ECon (I 0)) e
       tx (EApp (EVar f) a)
         | Just (dc, c)  <- L.lookup f (knConsts γ) 
         , (EVar dc', _) <- splitEApp a
