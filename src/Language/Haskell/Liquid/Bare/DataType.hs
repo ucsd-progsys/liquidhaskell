@@ -716,7 +716,7 @@ makeRecordSelectorSigs env name = F.tracepp "makeRecordSelectorSigs" . checkReco
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
       ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
-                                 [] [(z, defRFInfo, res, mempty)]
+                                 [] [(z, defRFInfo {permitTC = Just True}, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
              , let vv = rTypeValueVar t

@@ -616,16 +616,13 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
-            -- YL: remember to revert this back! match on the info from rep
     xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> 
-            [arg | (arg, info) <- safeZipWithError
-              "ty_args and ty_infos do not match"
-              (ty_args trep)
-              (ty_info trep),
-              (keep info arg)]
+            filter keep (ty_args trep)
+    keep | allowTC = not . isEmbeddedClass
+         | otherwise = not . isClassType
+    -- YL: extract permitTC information from sort
+    allowTC = or $ fmap (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
     trep  = toRTypeRep ct
-    keep RFInfo {permitTC = Just True} = not . isClassType -- isEmbeddedClass
-    keep _ = not . isClassType
     su    = checkMBodyUnify (ty_res trep) (last txs)
     txs   = thd5 $ bkArrowDeep sort
     ct    = ofType $ dataConWrapperType c :: SpecType
