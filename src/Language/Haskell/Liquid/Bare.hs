@@ -477,15 +477,20 @@ makeDecrs env name mySpec =
   ]
 
 makeRelation :: Bare.Env -> ModName -> Bare.SigEnv ->
-  [(LocSymbol, LocSymbol, LocBareType, LocBareType, Expr)] -> [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, F.Expr)]
+  [(LocSymbol, LocSymbol, LocBareType, LocBareType, Expr, Expr)] -> [(Ghc.Var, Ghc.Var, LocSpecType, LocSpecType, Expr, Expr)]
 makeRelation env name sigEnv = map go
-  where 
-   go (x,y,tx,ty,e) = let vx = Bare.lookupGhcVar env name "Var" x
-                          vy = Bare.lookupGhcVar env name "Var" y
-                      in ( vx, vy                      
-                         , Bare.cookSpecType env sigEnv name (Bare.HsTV vx) tx
-                         , Bare.cookSpecType env sigEnv name (Bare.HsTV vy) ty
-                         , e)
+ where
+  go (x, y, tx, ty, a, e) =
+    let vx = Bare.lookupGhcVar env name "Var" x
+        vy = Bare.lookupGhcVar env name "Var" y
+    in  ( vx
+        , vy
+        , Bare.cookSpecType env sigEnv name (Bare.HsTV vx) tx
+        , Bare.cookSpecType env sigEnv name (Bare.HsTV vy) ty
+        , a
+        , e
+        )
+
 
 makeLazy :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.Var
 makeLazy env name spec = 

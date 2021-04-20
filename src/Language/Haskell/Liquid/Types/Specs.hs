@@ -224,8 +224,8 @@ data GhcSpecSig = SpSig
   , gsDicts    :: !(DEnv Var LocSpecType)            -- ^ Refined Classes from Instances 
   , gsMethods  :: ![(Var, MethodType LocSpecType)]   -- ^ Refined Classes from Classes 
   , gsTexprs   :: ![(Var, LocSpecType, [F.Located F.Expr])]  -- ^ Lexicographically ordered expressions for termination
-  , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr)]
-  , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr)]
+  , gsRelation :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr, F.Expr)]
+  , gsAsmRel   :: ![(Var, Var, LocSpecType, LocSpecType, F.Expr, F.Expr)]
   }
 
 data GhcSpecData = SpData 
@@ -339,8 +339,8 @@ data Spec ty bndr  = Spec
   , imeasures  :: ![Measure ty bndr]              -- ^ Mappings from (measure,type) -> measure
   , classes    :: ![RClass ty]                    -- ^ Refined Type-Classes
   , claws      :: ![RClass ty]                    -- ^ Refined Type-Classe Laws
-  , relational :: ![(LocSymbol, LocSymbol, ty, ty, F.Expr)] -- ^ Relational types
-  , asmRel     :: ![(LocSymbol, LocSymbol, ty, ty, F.Expr)] -- ^ Assumed relational types
+  , relational :: ![(LocSymbol, LocSymbol, ty, ty, F.Expr, F.Expr)] -- ^ Relational types
+  , asmRel     :: ![(LocSymbol, LocSymbol, ty, ty, F.Expr, F.Expr)] -- ^ Assumed relational types
   , termexprs  :: ![(F.LocSymbol, [F.Located F.Expr])] -- ^ Terminating Conditions for functions
   , rinstance  :: ![RInstance ty]
   , ilaws      :: ![RILaws ty]
