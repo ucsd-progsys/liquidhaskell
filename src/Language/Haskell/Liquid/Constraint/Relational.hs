@@ -83,8 +83,8 @@ data RelPred
 type PrEnv = [RelPred]
 type RelAlt = (AltCon, [Var], [Var], CoreExpr, CoreExpr)
 
-consAssmRel :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG PrEnv
-consAssmRel _ ti γ ψ (x, y, t, s, p) = traceChk "Assm" x y t s p $ do
+consAssmRel :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr, F.Expr) -> CG PrEnv
+consAssmRel _ ti γ ψ (x, y, t, s, _, p) = traceChk "Assm" x y t s p $ do
   traceWhenLoud ("ASSUME " ++ F.showpp (p', p)) $ subUnarySig γ' x t'
   subUnarySig γ' y s'
   return $ RelPred x' y' vs us p' : RelPred y' x' us vs p' : ψ
@@ -97,11 +97,11 @@ consAssmRel _ ti γ ψ (x, y, t, s, p) = traceChk "Assm" x y t s p $ do
     (us, _) = vargs s'
     p' = L.foldl (\p (v, u) -> unapplyRelArgs v u p) p (zip vs us)
 
-consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr) -> CG PrEnv
-consRelTop _ ti γ ψ (x, y, t, s, p) = traceChk "Init" e d t s p $ do
+consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr, F.Expr) -> CG PrEnv
+consRelTop _ ti γ ψ (x, y, t, s, a, p) = traceChk "Init" e d t s p $ do
   subUnarySig γ' x t'
   subUnarySig γ' y s'
-  consRelCheckBind γ' ψ e d t' s' p
+  consRelCheckBind γ' ψ e d t' s' a p
   where
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     cbs = giCbs $ giSrc ti
@@ -123,17 +123,17 @@ relSuffixL = "l"
 relSuffixR = "r"
 
 -- recursion rule
-consRelCheckBind :: CGEnv -> PrEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> F.Expr -> CG PrEnv
-consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 p 
+consRelCheckBind :: CGEnv -> PrEnv -> CoreBind -> CoreBind -> SpecType -> SpecType -> F.Expr -> F.Expr -> CG PrEnv
+consRelCheckBind γ ψ b1@(NonRec _ e1) b2@(NonRec _ e2) t1 t2 a p 
   | Nothing <- args e1 e2 t1 t2 p =
   traceChk "Bind NonRec" b1 b2 t1 t2 p $ do
     consRelCheck γ ψ e1 e2 t1 t2 p
     return ψ
-consRelCheckBind γ ψ (NonRec x1 e1) b2 t1 t2 p =
-  consRelCheckBind γ ψ (Rec [(x1, e1)]) b2 t1 t2 p
-consRelCheckBind γ ψ b1 (NonRec x2 e2) t1 t2 p =
-  consRelCheckBind γ ψ b1 (Rec [(x2, e2)]) t1 t2 p
-consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
+consRelCheckBind γ ψ (NonRec x1 e1) b2 t1 t2 a p =
+  consRelCheckBind γ ψ (Rec [(x1, e1)]) b2 t1 t2 a p
+consRelCheckBind γ ψ b1 (NonRec x2 e2) t1 t2 a p =
+  consRelCheckBind γ ψ b1 (Rec [(x2, e2)]) t1 t2 a p
+consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 a p
   | Just (xs1, xs2, vs1, vs2, ts1, ts2, qs) <- args e1 e2 t1 t2 p
   = traceChk "Bind Rec" b1 b2 t1 t2 p $ do
     forM_ (refts t1 ++ refts t2) (\r -> entlFunReft γ r "consRelCheckBind Rec")
@@ -143,7 +143,9 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
     γ' <- γ += ("Bind Rec f1", F.symbol f1', t1) >>= (+= ("Bind Rec f2", F.symbol f2', t2))
     γ'' <- foldM (\γ (x, t) -> γ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
     let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2') 
-    γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs))) vs2xs (F.PAnd qs)
+    γ''' <- γ'' `addPreds` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs)) ++ "\n" ++ 
+                                          "ASSUMPTION " ++ F.showpp (vs2xs a)) 
+                              [vs2xs (F.PAnd qs), vs2xs a]
     let p' = unapp p (zip vs1 vs2)
     let ψ' = RelPred f1' f2' vs1 vs2 p' : RelPred f2' f1' vs2 vs1 p' : ψ
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl p')
@@ -153,10 +155,10 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 p
     (e1', e2') = subRelCopies e1 f1 e2 f2
     unapp = L.foldl (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
     subRel (e1, e2) (x1, x2) = subRelCopies e1 x1 e2 x2
-consRelCheckBind _ _ (Rec [b1]) (Rec [b2]) t1 t2 p
+consRelCheckBind _ _ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 _ p
   = F.panic $ "consRelCheckBind Rec: exprs, types, and pred should have same number of args " ++ 
-    F.showpp (b1, b2, t1, t2, p)
-consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ 
+    show (args e1 e2 t1 t2 p)
+consRelCheckBind _ _ b1@(Rec _) b2@(Rec _) _ _ _ _
   = F.panic $ "consRelCheckBind Rec: multiple binders are not supported " ++ F.showpp (b1, b2)
 
 -- Definition of CoreExpr: https://hackage.haskell.org/package/ghc-8.10.1/docs/CoreSyn.html
@@ -168,26 +170,30 @@ consRelCheck γ ψ (Tick _ e) d t s p =
 consRelCheck γ ψ e (Tick _ d) t s p =
   {- traceChk "Right Tick" e d t s p $ -} consRelCheck γ ψ e d t s p
 
+consRelCheck γ ψ l1@(Lam α1 e1) e2 rt1@(RAllT s1 t1 r1) t2 p 
+  | Ghc.isTyVar α1
+  = traceChk "Lam Type L" l1 e2 rt1 t2 p $ do
+    entlFunReft γ r1 "consRelCheck Lam Type"
+    γ'  <- γ `extendWithTyVar` α1
+    consRelCheck γ' ψ e1 e2 (sub (s1, α1) t1) t2 p
+  where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
+
+consRelCheck γ ψ e1 l2@(Lam α2 e2) t1 rt2@(RAllT s2 t2 r2) p 
+  | Ghc.isTyVar α2
+  = traceChk "Lam Type" e1 l2 t1 rt2 p $ do
+    entlFunReft γ r2 "consRelCheck Lam Type"
+    γ'  <- γ `extendWithTyVar` α2
+    consRelCheck γ' ψ e1 e2 t1 (sub (s2, α2) t2) p
+  where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
+
 consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAllT s2 t2 r2) p 
   | Ghc.isTyVar α1 && Ghc.isTyVar α2
   = traceChk "Lam Type" l1 l2 rt1 rt2 p $ do
     entlFunRefts γ r1 r2 "consRelCheck Lam Type"
-    let (tvar1, tvar2) = mkRelCopies α1 α2
-    let (e1', e2')     = subRelCopies e1 α1 e2 α2
-    γ'  <- γ `extendWithTyVar` tvar1
-    γ'' <- γ' `extendWithTyVar` tvar2
-    consRelCheck γ'' ψ e1' e2' (sub (s1, tvar1) t1) (sub (s2, tvar2) t2) p
+    γ'  <- γ `extendWithTyVar` α1
+    γ'' <- γ' `extendWithTyVar` α2
+    consRelCheck γ'' ψ e1 e2 (sub (s1, α1) t1) (sub (s2, α2) t2) p
   where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
-
--- consRelCheck γ ψ l1@(Lam α1 e1) e2 rt1@(RAllT s1 t1 r1) rt2 p
---   = traceChk "Lam Type L" l1 e2 rt1 rt2 p $ do
---     entlFunReft γ ψ r1 "consRelCheck Lam Type L"
---     let tvar1 = mkCopyWithSuffix relSuffixL α1 
---     let (e1', e2')     = subRelCopy e1 α1 e2 α2
---     γ'  <- γ `extendWithTyVar` tvar1
---     γ'' <- γ' `extendWithTyVar` tvar2
---     consRelCheck γ'' ψ e1' e2' (sub (s1, tvar1) t1) (sub (s2, tvar2) t2) p
---   where sub (s, α) = subsTyVar_meet' (ty_var_value s, rVar α)
 
 consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFun v2 s2 t2 r2) pr@(F.PImp q p)
   = traceChk "Lam Expr" l1 l2 rt1 rt2 pr $ do
@@ -545,12 +551,13 @@ args e1 e2 t1 t2 ps
   | xs1 <- xargs e1, xs2 <- xargs e2, 
     (vs1, ts1) <- vargs t1, (vs2, ts2) <- vargs t2,
     qs  <- prems ps,
-    True <- all (length qs ==) [length xs1, length xs2, length vs1, length vs2, length ts1, length ts2]
+    all (length qs ==) [length xs1, length xs2, length vs1, length vs2, length ts1, length ts2]
   = Just (xs1, xs2, vs1, vs2, ts1, ts2, qs)
-args _ _ _ _ _ = Nothing
+args e1 e2 t1 t2 ps = traceWhenLoud ("args guard" ++ F.showpp (xargs e1, xargs e2, vargs t1, vargs t2, prems ps)) Nothing
 
 xargs :: CoreExpr -> [Var]
 xargs (Tick _ e) = xargs e
+xargs (Lam  x e) | Ghc.isTyVar x = xargs e
 xargs (Lam  x e) = x : xargs e
 xargs _          = []
 
