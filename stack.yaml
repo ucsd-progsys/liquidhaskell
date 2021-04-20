@@ -12,10 +12,9 @@ flags:
     devel: true 
 
 packages:
+- ../../rewriting-paper/formalization/haskell
 - '.'
 
-packages:
-- '.'
 
 extra-deps:
 - dotgen-0.4.2

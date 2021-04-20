@@ -134,6 +134,7 @@ library
                   , transformers
                   , unordered-containers
                   , aeson
+                  , rest
   default-language: Haskell98
   ghc-options:      -W -fno-warn-missing-methods -fwarn-missing-signatures
 
