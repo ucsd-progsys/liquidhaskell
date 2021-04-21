@@ -4,6 +4,7 @@
 
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
+
   , subExprs
   , unify
   , RewriteArgs(..)
@@ -25,6 +26,8 @@ import qualified Data.Text as TX
 import Text.PrettyPrint (text)
 import qualified Language.REST.Types as RT
 import           Language.REST.Op
+import           Language.REST.OrderingConstraints as OC
+import           Language.REST.Core (orient)
 
 type SubExpr = (Expr, Expr -> Expr)
 
@@ -48,6 +51,7 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
+
 getRewrite :: RewriteArgs -> [(Expr, TermOrigin)] -> SubExpr -> AutoRewrite -> MaybeT IO (Expr, TermOrigin)
 getRewrite rwArgs path (subE, toE) (AutoRewrite args lhs rhs) =
   do
@@ -58,15 +62,20 @@ getRewrite rwArgs path (subE, toE) (AutoRewrite args lhs rhs) =
     mapM_ (check . subst su) exprs
     let termPath = map (\(t, o) -> (convert t, o)) path
     case rwTerminationOpts rwArgs of
-      RWTerminationCheckEnabled maxConstraints ->
-        case diverges maxConstraints termPath (convert expr') of
-          NotDiverging opOrdering  ->
-            return (expr', RW opOrdering)
-          Diverging ->
-            mzero
-      RWTerminationCheckDisabled -> return (expr', RW [])
+      RWTerminationCheckEnabled _ ->
+        if diverges (convert expr')
+        then mzero
+        else return (expr', RW)
+      RWTerminationCheckDisabled -> return (expr', RW)
   where
-    
+
+    diverges :: RT.RuntimeTerm -> Bool
+    diverges e =
+      let
+        p = map (convert . fst) path
+      in
+        OC.isUnsatisfiable $ orient (p ++ [e])
+
     convert (EIte i t e) = RT.App "$ite" $ map convert [i,t,e]
     convert (EApp (EVar s) (EVar var))
       | dcPrefix `isPrefixOfSym` s
