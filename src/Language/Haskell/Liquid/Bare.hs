@@ -207,10 +207,10 @@ makeGhcSpec cfg src lmap validatedSpecs = do
     cbs         = _giCbs src
 
 ghcSpecEnv :: GhcSpec -> SEnv SortedReft
-ghcSpecEnv sp = fromListSEnv binds
+ghcSpecEnv sp = F.notracepp "RENV" $ fromListSEnv binds
   where
     emb       = gsTcEmbeds (_gsName sp)
-    binds     = concat 
+    binds     = F.notracepp "binds" $ concat 
                  [ [(x,        rSort t) | (x, Loc _ _ t)  <- gsMeas     (_gsData sp)]
                  , [(symbol v, rSort t) | (v, Loc _ _ t)  <- gsCtors    (_gsData sp)]
                  , [(symbol v, vSort v) | v               <- gsReflects (_gsRefl sp)]
@@ -218,7 +218,8 @@ ghcSpecEnv sp = fromListSEnv binds
                  , [(x, RR s mempty)    | (x, s)          <- wiredSortedSyms       ]
                  , [(x, RR s mempty)    | (x, s)          <- _gsImps sp       ]
                  ]
-    vSort     = Bare.varSortedReft emb
+    vSort     = rSort . classRFInfoType (typeclass $ getConfig sp) .
+                (ofType :: Ghc.Type -> SpecType) . Ghc.varType
     rSort     = rTypeSortedReft    emb
 
 
@@ -1092,7 +1093,7 @@ makeMeasEnv env tycEnv sigEnv specs = Bare.MeasEnv
     cms'          = [ (x, Loc l l' $ cSort t)  | (Loc l l' x, t) <- cms ]
     ms'           = [ (F.val lx, F.atLoc lx t) | (lx, t) <- ms
                                                , Mb.isNothing (lookup (val lx) cms') ]
-    cs'           = [ (v, txRefs v t) | (v, t) <- Bare.meetDataConSpec (typeclass (getConfig env)) embs cs (datacons ++ cls)]
+    cs'           = [ (v, txRefs v (F.tracepp ("MAKEMEASENV:" ++ F.showpp v ++ " " ++ show (ty_info (toRTypeRep t))) t)) | (v, t) <- Bare.meetDataConSpec (typeclass (getConfig env)) embs cs (datacons ++ cls)]
     txRefs v t    = Bare.txRefSort tyi embs (const t <$> GM.locNamedThing v) 
     -- unpacking the environment
     tyi           = Bare.tcTyConMap    tycEnv 

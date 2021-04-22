@@ -240,7 +240,7 @@ module Language.Haskell.Liquid.Types.Types (
   , rtyVarType, tyVarVar
 
   -- * Refined Function Info 
-  , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo
+  , RFInfo(..), defRFInfo, mkRFInfo, classRFInfo, classRFInfoType
 
   , ordSrcSpan
   )
@@ -337,6 +337,10 @@ defRFInfo = RFInfo Nothing
 classRFInfo :: Bool -> RFInfo
 classRFInfo b = RFInfo (Just b) 
 
+classRFInfoType :: Bool -> RType c tv r -> RType c tv r
+classRFInfoType b = fromRTypeRep .
+                    (\trep@RTypeRep{..} -> trep{ty_info = map (\i -> i{permitTC = pure b}) ty_info}) .
+                    toRTypeRep
 
 mkRFInfo :: Config  -> RFInfo
 mkRFInfo cfg = RFInfo $ Just (typeclass cfg)  

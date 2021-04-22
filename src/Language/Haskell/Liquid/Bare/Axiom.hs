@@ -83,7 +83,10 @@ makeAssumeType
 makeAssumeType allowTC tce lmap dm x mbT v def
   = (x {val = aty at `strengthenRes` F.subst su ref},  F.mkEquation (val x) xts (F.subst su le) out)
   where
-    t     = Mb.fromMaybe (ofType τ) mbT
+    t     = fromRTypeRep .
+            (\trep@RTypeRep{..} ->
+                trep{ty_info = fmap (\rinfo -> rinfo{permitTC = Just allowTC}) ty_info}) .
+            toRTypeRep $ Mb.fromMaybe (ofType $ τ) mbT
     τ     = Ghc.varType v
     at    = axiomType allowTC x t
     out   = rTypeSort tce $ ares at 

@@ -233,8 +233,8 @@ plugHoles_new allowTC@True tce tyi x f t0 zz@(Loc l l' st0)
                           Right s -> [ (rTyVar x, y) | (x, y) <- Bare.vmap s]
     (as,_,cs0,rt) = bkUnivClass' (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,cs0' ,st) = bkUnivClass' st0
-    cs  = [ (x, defRFInfo, t, r) | (x,t,r)<-cs0]
-    cs' = [ (x, defRFInfo, t, r) | (x,t,r)<-cs0']
+    cs  = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0]
+    cs' = [ (x, classRFInfo allowTC, t, r) | (x,t,r)<-cs0']
 
     err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types new")

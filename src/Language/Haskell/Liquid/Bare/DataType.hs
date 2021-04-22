@@ -696,7 +696,7 @@ unDummy x i | x /= F.dummySymbol = x
             | otherwise          = F.symbol ("_cls_lq" ++ show i)
 
 makeRecordSelectorSigs :: Bare.Env -> ModName -> [Located DataConP] -> [(Ghc.Var, LocSpecType)]
-makeRecordSelectorSigs env name = F.tracepp "makeRecordSelectorSigs" . checkRecordSelectorSigs . concatMap makeOne
+makeRecordSelectorSigs env name = checkRecordSelectorSigs . concatMap makeOne
   where
   makeOne (Loc l l' dcp)
     | Just cls <- maybe_cls
@@ -716,7 +716,7 @@ makeRecordSelectorSigs env name = F.tracepp "makeRecordSelectorSigs" . checkReco
       fs  = Bare.lookupGhcNamedVar env name . Ghc.flSelector <$> fls 
       ts :: [ LocSpecType ]
       ts = [ Loc l l' (mkArrow (zip (makeRTVar <$> dcpFreeTyVars dcp) (repeat mempty)) []
-                                 [] [(z, defRFInfo {permitTC = Just True}, res, mempty)]
+                                 [] [(z, classRFInfo True, res, mempty)]
                                  (dropPreds (F.subst su t `RT.strengthen` mt)))
              | (x, t) <- reverse args -- NOTE: the reverse here is correct
              , let vv = rTypeValueVar t
@@ -726,7 +726,7 @@ makeRecordSelectorSigs env name = F.tracepp "makeRecordSelectorSigs" . checkReco
   
       su   = F.mkSubst [ (x, F.EApp (F.EVar x) (F.EVar z)) | x <- fst <$> args ]
       args = dcpTyArgs dcp
-      z    = F.tracepp ("makeRecordSelectorSigs:" ++ show args) "lq$recSel"
+      z    = "lq$recSel"
       res  = dropPreds (dcpTyRes dcp)
   
       -- FIXME: this is clearly imprecise, but the preds in the DataConP seem

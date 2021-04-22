@@ -94,6 +94,7 @@ module Language.Haskell.Liquid.Types.RefType (
 import Prelude hiding (error)
 -- import qualified Prelude
 import           Data.Maybe               (fromMaybe, isJust, fromJust)
+import           Data.Monoid              (First(..))
 import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
@@ -696,10 +697,12 @@ strengthenRefType_ f (RImpF x1 i t1 t1' r1) (RImpF x2 _ t2 t2' r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
 
-strengthenRefType_ f (RFun x1 i t1 t1' r1) (RFun x2 _ t2 t2' r2)
-  = RFun x2 i t t' (r1 `meet` r2)
+-- YL: Evidence that we need a Monoid instance for RFInfo?
+strengthenRefType_ f (RFun x1 i1 t1 t1' r1) (RFun x2 i2 t2 t2' r2)
+  = RFun x2 i1{permitTC = getFirst b} t t' (r1 `meet` r2)
     where t  = strengthenRefType_ f t1 t2
           t' = strengthenRefType_ f (subst1 t1' (x1, EVar x2)) t2'
+          b  = First (permitTC i1) <> First (permitTC i2)
 
 strengthenRefType_ f (RApp tid t1s rs1 r1) (RApp _ t2s rs2 r2)
   = RApp tid ts rs (r1 `meet` r2)
@@ -1491,7 +1494,7 @@ toType useRFInfo (RFun _ RFInfo{permitTC = permitTC} t@(RApp c _ _ _) t' _)
   | useRFInfo && isErasable c  = toType useRFInfo t'  -- FIXME(adinapoli) Is 'VisArg' correct here?
   | otherwise
   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
-  where isErasable = if True then isEmbeddedDict else isClass
+  where isErasable = if permitTC == Just True then isEmbeddedDict else isClass
 toType useRFInfo (RFun _ _ t t' _)
   = FunTy VisArg Many (toType useRFInfo t) (toType useRFInfo t') -- FIXME(adinapoli) Is 'VisArg' correct here?
 toType useRFInfo (RAllT a t _) | RTV α <- ty_var_value a

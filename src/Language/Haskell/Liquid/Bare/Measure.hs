@@ -291,7 +291,7 @@ dataConSel permitTC dc n (Proj i) = mkArrow (zip as (repeat mempty)) [] [] [xt] 
 
 -- bkDataCon :: DataCon -> Int -> ([RTVar RTyVar RSort], [SpecType], (Symbol, SpecType, RReft))
 bkDataCon :: (F.Reftable (RTProp RTyCon RTyVar r), PPrint r, F.Reftable r) => Bool -> Ghc.DataCon -> Int -> ([RTVar RTyVar RSort], [RRType r], (F.Symbol, RFInfo, RRType r, r))
-bkDataCon permitTC dc nFlds  = (as, ts, (F.dummySymbol, defRFInfo {permitTC = Just permitTC}, t, mempty))
+bkDataCon permitTC dc nFlds  = (as, ts, (F.dummySymbol, classRFInfo permitTC, t, mempty))
   where
     ts                = RT.ofType <$> Misc.takeLast nFlds (map Ghc.irrelevantMult _ts)
     t                 = -- Misc.traceShow ("bkDataConResult" ++ GM.showPpr (dc, _t, _t0)) $

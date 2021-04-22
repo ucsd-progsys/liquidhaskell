@@ -50,7 +50,7 @@ compileClasses src env (name, spec) rest =
  where
   clsSpec = mempty
     { dataDecls = clsDecls
-    , reflects  = F.tracepp "reflects " $ S.fromList
+    , reflects  = F.notracepp "reflects " $ S.fromList
                     (  fmap
                         ( fmap GM.dropModuleNames
                         . GM.namedLocSymbol
@@ -224,7 +224,7 @@ elaborateClassDcp coreToLg simplifier dcp = do
     []
     []
     [ ( recsel{- F.symbol dc-}
-      , defRFInfo {permitTC = Just True}
+      , classRFInfo True
       , resTy
       , mempty
       )
@@ -341,7 +341,8 @@ makeClassAuxTypesOne elab (ldcp, inst, methods) =
             Just sig -> sig
         -- dict binder will never be changed because we optimized PAnd[]
         -- lq0 lq1 ...
-        ptys    = [(F.vv (Just i), defRFInfo, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
+            -- 
+        ptys    = [(F.vv (Just i), classRFInfo True, pty, mempty) | (i,pty) <- zip [0,1..] isPredSpecTys]
         fullSig =
           mkArrow
             (zip isRTvs (repeat mempty))
