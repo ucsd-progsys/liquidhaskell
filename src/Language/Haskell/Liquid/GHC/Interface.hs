@@ -460,23 +460,23 @@ loadModule' tm = loadModule tm'
 processTargetModule :: Config -> LogicMap -> DepGraph -> SpecEnv -> FilePath -> TypecheckedModule -> Ms.BareSpec
                     -> Ghc TargetInfo
 processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = do
-  cfg          <- liftIO $ withPragmas cfg0 file (Ms.pragmas bareSpec)
-  let modSum    = pm_mod_summary (tm_parsed_module typechecked)
-  ghcSrc       <- makeGhcSrc    cfg file     typechecked modSum
-  dependencies <- makeDependencies cfg depGraph specEnv modSum bareSpec
+  withPragmas cfg0 file (Ms.pragmas bareSpec) $ \cfg -> do
+    let modSum    = pm_mod_summary (tm_parsed_module typechecked)
+    ghcSrc       <- makeGhcSrc    cfg file     typechecked modSum
+    dependencies <- makeDependencies cfg depGraph specEnv modSum bareSpec
 
-  let targetSrc = view targetSrcIso ghcSrc
-  dynFlags <- getDynFlags
+    let targetSrc = view targetSrcIso ghcSrc
+    dynFlags <- getDynFlags
 
-  case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
-    Left diagnostics -> do
-      mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
-      throw (allErrors diagnostics)
-    Right (warns, targetSpec, liftedSpec) -> do
-      mapM_ (liftIO . printWarning dynFlags) warns
-      -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
-      _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
-      return      $ TargetInfo targetSrc targetSpec
+    case makeTargetSpec cfg logicMap targetSrc (view bareSpecIso bareSpec) dependencies of
+      Left diagnostics -> do
+        mapM_ (liftIO . printWarning dynFlags) (allWarnings diagnostics)
+        throw (allErrors diagnostics)
+      Right (warns, targetSpec, liftedSpec) -> do
+        mapM_ (liftIO . printWarning dynFlags) warns
+        -- The call below is temporary, we should really load & save directly 'LiftedSpec's.
+        _          <- liftIO $ saveLiftedSpec (_giTarget ghcSrc) (unsafeFromLiftedSpec liftedSpec)
+        return      $ TargetInfo targetSrc targetSpec
 
 ---------------------------------------------------------------------------------------
 -- | @makeGhcSrc@ builds all the source-related information needed for consgen 
