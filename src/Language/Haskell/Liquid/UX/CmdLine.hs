@@ -84,6 +84,7 @@ import qualified Language.Haskell.Liquid.GHC.API as GHC
 import           Language.Haskell.TH.Syntax.Compat (fromCode, toCode)
 
 import Text.PrettyPrint.HughesPJ           hiding (Mode, (<>))
+import Language.Haskell.Liquid.Types.Variance
 
 
 
@@ -426,6 +427,11 @@ config = cmdArgsMode $ Config {
     = Nothing 
         &= help "Maximum fuel (per-function unfoldings) for PLE"
 
+  , ghostVariance
+    = def 
+       &= name "ghost-variance"
+       &= help "Specify the variance of short type arguments: Invariant | Bivariant | Contravariant | Covariant"
+
   } &= program "liquid"
     &= help    "Refinement Types for Haskell"
     &= summary copyright
@@ -671,7 +677,8 @@ defConfig = Config
   , rwTerminationCheck       = False
   , skipModule               = False
   , noLazyPLE                = False
-  , fuel 	             = Nothing
+  , fuel 	                   = Nothing
+  , ghostVariance            = mempty 
   }
 
 

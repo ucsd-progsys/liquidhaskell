@@ -3,6 +3,8 @@
 {-@ LIQUID "--higherorder"                         @-}
 {-@ LIQUID "--no-termination"                      @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--ghost-variance=Invariant" @-}
+
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 
@@ -19,6 +21,8 @@ instance PersistEntity Blob where
    data EntityField Blob typ
       = typ ~ Int => BlobXVal |
         typ ~ Int => BlobYVal
+
+{-@ data variance EntityField invariant invariant @-}
 
 data Blob  = B { xVal :: Int, yVal :: Int }
 

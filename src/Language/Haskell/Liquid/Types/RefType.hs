@@ -542,10 +542,10 @@ rApp :: TyCon
 rApp c = RApp (tyConRTyCon c)
 
 gApp :: TyCon -> [RTyVar] -> [PVar a] -> SpecType
-gApp tc αs πs = rApp tc
-                  [rVar α | RTV α <- αs]
-                  (rPropP [] . pdVarReft <$> πs)
-                  mempty
+gApp tc αs πs = RApp (tyConRTyCon tc)
+                    [rVar α | RTV α <- αs]
+                    (rPropP [] . pdVarReft <$> πs)
+                    mempty
 
 pdVarReft :: PVar t -> UReft Reft
 pdVarReft = (\p -> MkUReft mempty p) . pdVar
@@ -1842,10 +1842,10 @@ makeTyConVariance c = varSignToVariance <$> tvs
                   then go True (fromJust $ Ghc.synTyConRhs_maybe c)
                   else L.nub $ concatMap goDCon $ Ghc.tyConDataCons c
 
-    varSignToVariance v = case filter (\p -> GM.showPpr (fst p) == GM.showPpr v) varsigns of
-                            []       -> Invariant
+    varSignToVariance a = case filter (\p -> GM.showPpr (fst p) == GM.showPpr a) varsigns of
+                            []       -> Bivariant 
                             [(_, b)] -> if b then Covariant else Contravariant
-                            _        -> Bivariant
+                            _        -> Invariant
 
 
     goDCon dc = concatMap (go True) (map irrelevantMult $ Ghc.dataConOrigArgTys dc)

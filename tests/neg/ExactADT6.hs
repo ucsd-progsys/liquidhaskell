@@ -1,5 +1,6 @@
 {-@ LIQUID "--no-adt"         @-}
 {-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--ghost-variance=Invariant" @-}
 
 {-# LANGUAGE ExistentialQuantification, KindSignatures, TypeFamilies, GADTs #-}
 

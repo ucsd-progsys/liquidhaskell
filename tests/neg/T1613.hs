@@ -4,6 +4,8 @@ module Subclass2 where
 
 data MyFunctor f = CMyFunctor {myfmap :: forall a b. (a -> b) -> f a -> f b}
 
+{- data variance MyFunctor invariant @-}
+{- data variance MyApplicative invariant @-}
 
 {-@ reflect myid @-}
 myid :: a -> a

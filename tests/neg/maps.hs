@@ -1,3 +1,4 @@
+{-@ LIQUID "--ghost-variance=invariant" @-}
 module Maps where
 
 {-@ prop1 :: x:_ -> y:{_ | y == x} -> TT @-}
@@ -17,6 +18,7 @@ prop2 x y = (z == 10)
 -----------------------------------------------------------------------
 
 data Map k v = M
+{- data variance Map invariant invariant @-}
 
 {-@ embed Map as Map_t @-}
 {-@ measure Map_select :: Map k v -> k -> v @-}

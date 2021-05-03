@@ -1,6 +1,7 @@
 module T1657A where
 
 {-@ data I <pigbert :: Int -> Bool> = I Int @-}
+{-@ data variance I invariant @-}
 
 data I = I Int
 {-@ getI :: forall <pp :: Int -> Bool>. 

@@ -1,3 +1,4 @@
+{-@ LIQUID "--ghost-variance=Invariant" @-}
 module Variance1 where
 
 import Data.Binary
