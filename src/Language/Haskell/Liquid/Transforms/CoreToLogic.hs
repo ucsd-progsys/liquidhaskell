@@ -275,7 +275,7 @@ coreToLg (C.Lit l)             = case mkLit l of
 coreToLg (C.Cast e c)          = do (s, t) <- coerceToLg c
                                     e'     <- coreToLg   e
                                     return (ECoerc s t e')
-coreToLg e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
+coreToLg e@(C.Lam _ _)         = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
                                         "\n\n Try using a helper function to remove the lambda.")
 coreToLg e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
