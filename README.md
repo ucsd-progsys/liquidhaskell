@@ -62,7 +62,13 @@ See the examples in `tests/horn/{pos, neg}` eg
 - [list00](tests/horn/pos/ple_list00.smt2)
 - [list03](tests/horn/pos/ple_list03.smt2)
 
-For how to write VCs "by hand"
+For how to write VCs "by hand".
+
+See [this tutorial](https://arxiv.org/abs/2010.07763) 
+with [accompanying code](https://github.com/ranjitjhala/sprite-lang) 
+for an example of how to generate Horn queries.
+
+The main datatypes are described in [src/Language/Fixpoint/Horn/Types.hs](src/Language/Fixpoint/Horn/Types.hs)
 
 
 Configuration Management
