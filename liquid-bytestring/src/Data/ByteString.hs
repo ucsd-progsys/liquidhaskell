@@ -1,3 +1,4 @@
+{-# LANGUAGE Trustworthy #-}
 module Data.ByteString ( module Exports ) where
 
 import Data.String
