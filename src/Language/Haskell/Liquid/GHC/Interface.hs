@@ -521,10 +521,13 @@ processTargetModule cfg0 logicMap depGraph specEnv file typechecked bareSpec = d
 
 loadContext :: BareSpec -> TargetDependencies -> TargetSrc -> Ghc ()
 loadContext bareSpec dependencies targetSrc = do
-        Ghc.setContext [iimport |(modName, _) <- allSpecs legacyBareSpec,
-                        let iimport = if isTarget modName
-                                      then Ghc.IIModule (getModName modName)
-                                      else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
+  Ghc.setContext $ [Ghc.IIModule (getModName modName) |(modName, _) <- allSpecs legacyBareSpec,
+                    isTarget modName]
+
+  -- Ghc.setContext $ [iimport |(modName, _) <- allSpecs legacyBareSpec,
+  --                       let iimport = if isTarget (tracepp "MODNAME" modName)
+  --                                     then Ghc.IIModule (getModName modName)
+  --                                     else Ghc.IIDecl (Ghc.simpleImportDecl (getModName modName))]
 --         void $ Ghc.execStmt
 --           "let {infixr 1 ==>; True ==> False = False; _ ==> _ = True}"
 --           Ghc.execOptions

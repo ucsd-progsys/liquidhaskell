@@ -274,18 +274,19 @@ coreToLg allowTC (C.Case e b _ alts)
 --                                     return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
 coreToLg allowTC (C.Case e b _ alts)   = do p <- coreToLg allowTC e
                                             casesToLg allowTC b p alts
-coreToLg allowTC (C.Lit l)             = case mkLit l of
+coreToLg _ (C.Lit l)             = case mkLit l of
                                           Nothing -> throw $ "Bad Literal in measure definition" ++ GM.showPpr l
                                           Just i  -> return i
 coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
                                             e'     <- coreToLg allowTC e
                                             return (ECoerc s t e')
+-- elaboration reuses coretologic
 coreToLg True (C.Lam x e) = do p     <- coreToLg True e
                                tce   <- lsEmb <$> getState
                                return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
-coreToLg allowTC e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
+coreToLg _ e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
                                             "\n\n Try using a helper function to remove the lambda.")
-coreToLg allowTC e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
+coreToLg _ e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
 
 
@@ -589,9 +590,9 @@ class Simplify a where
     inline_anf   = inline isANF
 
 instance Simplify C.CoreExpr where
-  simplify allowTC e@(C.Var _)
+  simplify _ e@(C.Var _)
     = e
-  simplify allowTC e@(C.Lit _)
+  simplify _ e@(C.Lit _)
     = e
   simplify allowTC (C.App e (C.Type _))
     = simplify allowTC e
@@ -622,9 +623,9 @@ instance Simplify C.CoreExpr where
     = C.Cast (simplify allowTC e) c
   simplify allowTC (C.Tick _ e)
     = simplify allowTC e
-  simplify allowTC (C.Coercion c)
+  simplify _ (C.Coercion c)
     = C.Coercion c
-  simplify allowTC (C.Type t)
+  simplify _ (C.Type t)
     = C.Type t
 
   inline p (C.Let (C.NonRec x ex) e) | p x

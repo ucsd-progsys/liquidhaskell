@@ -18,7 +18,7 @@ module Language.Haskell.Liquid.Bare.Elaborate
 where
 
 import qualified Language.Fixpoint.Types       as F
-import           Control.Arrow
+-- import           Control.Arrow
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import           Language.Haskell.Liquid.Types.Types
@@ -508,7 +508,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
       else do
         let
           querySpecType =
-            plugType (rFun vv vvTy boolType) partialTp :: SpecType
+            plugType (rFun' (classRFInfo True) vv vvTy boolType) partialTp :: SpecType
 
           (origBinders, origTyBinders) = F.notracepp "collectSpecTypeBinders"
             $ collectSpecTypeBinders querySpecType
@@ -594,7 +594,7 @@ renameBinderCoerc f = rename
   rename (   F.PImp e0 e1      ) = F.PImp (rename e0) (rename e1)
   rename (   F.PIff e0 e1      ) = F.PIff (rename e0) (rename e1)
   rename (   F.PAtom brel e0 e1) = F.PAtom brel (rename e0) (rename e1)
-  rename (F.ECoerc t0 t1 e') = rename e'
+  rename (F.ECoerc _ _ e') = rename e'
     
   rename e = panic
     Nothing
@@ -624,7 +624,7 @@ renameBinderSort f = rename
 --   It allows us to bypass the GHC parser and use arbitrary symbols
 --   for identifiers (compared to using the string API)
 fixExprToHsExpr :: S.HashSet F.Symbol -> F.Expr -> LHsExpr GhcPs
-fixExprToHsExpr env (F.ECon c) = constantToHsExpr c
+fixExprToHsExpr _ (F.ECon c) = constantToHsExpr c
 fixExprToHsExpr env (F.EVar x)
   | x == "GHC.Types.[]" =  GM.notracePpr "Empty" $ nlHsVar (mkVarUnqual (mkFastString "[]"))
   | x == "GHC.Types.:" = GM.notracePpr "Cons" $ nlHsVar (mkVarUnqual (mkFastString ":"))
@@ -646,7 +646,7 @@ fixExprToHsExpr env (F.EIte p e0 e1) = nlHsIf (fixExprToHsExpr env p)
 -- Int or Integer?
 fixExprToHsExpr env (F.ECst e0 _    ) = fixExprToHsExpr env e0
 -- fixExprToHsExpr env (F.PAnd []      ) = nlHsVar true_RDR
-fixExprToHsExpr env (F.PAnd []      ) = nlHsVar true_RDR
+fixExprToHsExpr _ (F.PAnd []      ) = nlHsVar true_RDR
 fixExprToHsExpr env (F.PAnd (e : es)) = L.foldr f (fixExprToHsExpr env e) es
  where
   f x acc = mkHsApp (mkHsApp (nlHsVar and_RDR) (fixExprToHsExpr env x)) acc
@@ -672,7 +672,7 @@ fixExprToHsExpr env (F.PImp e0 e1) = mkHsApp
   )
   (fixExprToHsExpr env e1)
 
-fixExprToHsExpr env e =
+fixExprToHsExpr _ e =
   todo Nothing ("toGhcExpr: Don't know how to handle " ++ show e)
 
 constantToHsExpr :: F.Constant -> LHsExpr GhcPs

@@ -6,7 +6,6 @@ module Language.Haskell.Liquid.Transforms.InlineAux
 where
 import qualified Language.Haskell.Liquid.UX.Config  as UX
 import           CoreSyn
-import           DynFlags
 import qualified Outputable                    as O
 import           MkCore
 import           Control.Arrow                  ( second )

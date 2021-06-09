@@ -116,7 +116,7 @@ module Language.Haskell.Liquid.Types.Types (
   , RTypeRep(..), fromRTypeRep, toRTypeRep
   , mkArrow, bkArrowDeep, bkArrow, safeBkArrow
   , mkUnivs, bkUniv, bkClass, bkUnivClass, bkUnivClass'
-  , rImpF, rFun, rCls, rRCls
+  , rImpF, rFun, rFun', rCls, rRCls, rFunDebug
 
   -- * Manipulating `Predicates`
   , pvars, pappSym, pApp
@@ -131,7 +131,7 @@ module Language.Haskell.Liquid.Types.Types (
   , efoldReft, foldReft, foldReft'
   , emapReft, mapReft, mapReftM, mapPropM
   , mapExprReft
-  , mapBot, mapBind
+  , mapBot, mapBind, mapRFInfo
   , foldRType
 
 
@@ -1490,6 +1490,12 @@ rImpF b t t' = RImpF b defRFInfo t t' mempty
 rFun :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
 rFun b t t' = RFun b defRFInfo t t' mempty
 
+rFun' :: Monoid r => RFInfo -> Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFun' i b t t' = RFun b i t t' mempty
+
+rFunDebug :: Monoid r => Symbol -> RType c tv r -> RType c tv r -> RType c tv r
+rFunDebug b t t' = RFun b (classRFInfo True) t t' mempty
+
 rCls :: Monoid r => TyCon -> [RType RTyCon tv r] -> RType RTyCon tv r
 rCls c ts   = RApp (RTyCon c [] defaultTyConInfo) ts [] mempty
 
@@ -1808,10 +1814,8 @@ efoldReft logicBind bsc cb dty g f fp = go
     go γ z (RAllP p t)                  = go (fp p γ) z t
     go γ z (RImpF x i t t' r)             = go γ z (RFun x i t t' r)
     go γ z me@(RFun _ RFInfo{permitTC = permitTC} (RApp c ts _ _) t' r)
-       | -- (if permitTC == Just True then isEmbeddedDict else isClass)
-         isEmbeddedDict c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
-    -- go γ z me@(RFun _ _ (RApp c ts _ _) t' r)
-    --    | isClass c               = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
+       | (if permitTC == Just True then isEmbeddedDict else isClass)
+         c  = f γ (Just me) r (go (insertsSEnv γ (cb c ts)) (go' γ z ts) t')
     go γ z me@(RFun x _ t t' r)
        | logicBind x t                  = f γ (Just me) r (go γ' (go γ z t) t')
        | otherwise                      = f γ (Just me) r (go γ  (go γ z t) t')
@@ -1839,6 +1843,23 @@ efoldReft logicBind bsc cb dty g f fp = go
     ho' γ z rs                 = foldr (flip $ ho γ) z rs
 
     envtoType xts = foldr (\(x,t1) t2 -> rFun x t1 t2) (snd $ last xts) (init xts)
+
+mapRFInfo :: (RFInfo -> RFInfo) -> RType c tv r -> RType c tv r
+mapRFInfo f (RAllT α t r)     = RAllT α (mapRFInfo f t) r
+mapRFInfo f (RAllP π t)       = RAllP π (mapRFInfo f t)
+mapRFInfo f (RImpF x i t t' r) = RImpF x (f i) (mapRFInfo f t) (mapRFInfo f t') r
+mapRFInfo f (RFun x i t t' r)  = RFun x (f i) (mapRFInfo f t) (mapRFInfo f t') r
+mapRFInfo f (RAppTy t t' r)   = RAppTy (mapRFInfo f t) (mapRFInfo f t') r
+mapRFInfo f (RApp c ts rs r)  = RApp c (mapRFInfo f <$> ts) (mapRFInfoRef f <$> rs) r
+mapRFInfo f (REx b t1 t2)     = REx b  (mapRFInfo f t1) (mapRFInfo f t2)
+mapRFInfo f (RAllE b t1 t2)   = RAllE b  (mapRFInfo f t1) (mapRFInfo f t2)
+mapRFInfo f (RRTy e r o t)    = RRTy (mapSnd (mapRFInfo f) <$> e) r o (mapRFInfo f t)
+mapRFInfo _ t'                = t'
+
+mapRFInfoRef :: (RFInfo -> RFInfo)
+          -> Ref τ (RType c tv r) -> Ref τ (RType c tv r)
+mapRFInfoRef _ (RProp s (RHole r)) = RProp s $ RHole r
+mapRFInfoRef f (RProp s t)    = RProp  s $ mapRFInfo f t
 
 mapBot :: (RType c tv r -> RType c tv r) -> RType c tv r -> RType c tv r
 mapBot f (RAllT α t r)     = RAllT α (mapBot f t) r

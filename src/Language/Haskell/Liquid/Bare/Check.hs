@@ -33,7 +33,7 @@ import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F 
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.Misc              (condNull, thd5, safeZipWithError)
+import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
@@ -120,7 +120,7 @@ checkTargetSpec specs src env cbs sp
                      <> condNull noPrune
                         (foldMap (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
                      <> foldMap (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     <> foldMap (checkBind allowHO bsc "reflect"      emb tcEnv env) (gsRefSigs    (gsSig sp))
+                     <> foldMap (checkBind allowHO bsc "reflect"      emb tcEnv env) (fmap (\sig@(_,s) -> F.notracepp (show (ty_info (toRTypeRep (F.val s)))) sig) $ gsRefSigs    (gsSig sp))
                      <> checkTySigs allowHO bsc cbs            emb tcEnv env                (gsSig sp)
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp))
                      <> foldMap (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))

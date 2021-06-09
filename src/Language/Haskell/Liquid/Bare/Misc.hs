@@ -22,7 +22,6 @@ import qualified Data.Maybe                            as Mb --(fromMaybe, isNot
 
 import qualified Text.PrettyPrint.HughesPJ             as PJ 
 import qualified Data.List                             as L
-import qualified Data.HashMap.Strict                   as M
 import           Language.Fixpoint.Misc                as Misc -- (singleton, sortNub)
 import qualified Language.Fixpoint.Types as F
 import           Language.Haskell.Liquid.GHC.Misc
@@ -97,7 +96,7 @@ mapTyVars allowTC τ (RAllT _ t _)
   = mapTyVars allowTC τ t
 mapTyVars allowTC (TyConApp _ τs) (RApp _ ts _ _)
    = zipWithM_ (mapTyVars allowTC) τs (matchKindArgs' τs ts)
-mapTyVars allowTC (TyVarTy α) (RVar a _)
+mapTyVars _ (TyVarTy α) (RVar a _)
    = do s  <- get
         s' <- mapTyRVar α a s
         put s'
@@ -109,18 +108,18 @@ mapTyVars allowTC τ (RRTy _ _ _ t)
   = mapTyVars allowTC τ t
 mapTyVars allowTC τ (REx _ _ t)
   = mapTyVars allowTC τ t
-mapTyVars allowTC _ (RExprArg _)
+mapTyVars _ _ (RExprArg _)
   = return ()
 mapTyVars allowTC (AppTy τ τ') (RAppTy t t' _)
   = do  mapTyVars allowTC τ t
         mapTyVars allowTC τ' t'
-mapTyVars allowTC _ (RHole _)
+mapTyVars _ _ (RHole _)
   = return ()
-mapTyVars allowTC k _ | isKind k
+mapTyVars _ k _ | isKind k
   = return ()
 mapTyVars allowTC (ForAllTy _ τ) t
   = mapTyVars allowTC τ t
-mapTyVars allowTC hsT lqT
+mapTyVars _ hsT lqT
   = do err <- errmsg <$> get
        throwError (err (F.pprint hsT) (F.pprint lqT)) 
 

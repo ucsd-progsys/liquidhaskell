@@ -125,7 +125,7 @@ grabBody allowTC t@(Ghc.FunTy {}) e
    where (ts,tr)  = splitFun t 
          (xs, e') = grabBody allowTC tr (foldl Ghc.App e (Ghc.Var <$> txs))
          txs      = [ stringVar ("ls" ++ show i) t |  (t,i) <- zip ts [1..]]
-grabBody allowTC _ e              
+grabBody _ _ e
   = ([], e)
 
 splitFun :: Ghc.Type -> ([Ghc.Type], Ghc.Type)

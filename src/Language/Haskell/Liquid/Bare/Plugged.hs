@@ -139,7 +139,7 @@ plugMany allowTC embs tyi ldcp (hsAs, hsArgs, hsRes) (lqAs, lqArgs, lqRes)
     (_,(xs,_,ts,_), t) = bkArrow (val pT) 
     pT               = plugHoles allowTC (Bare.LqTV dcName) embs tyi (const killHoles) hsT (F.atLoc ldcp lqT)
     hsT              = foldr (Ghc.mkFunTy Ghc.VisArg Ghc.Many) hsRes hsArgs' 
-    lqT              = foldr (uncurry rFun) lqRes lqArgs' 
+    lqT              = foldr (uncurry (rFun' (classRFInfo allowTC))) lqRes lqArgs' 
     hsArgs'          = [ Ghc.mkTyVarTy a               | a <- hsAs] ++ hsArgs 
     lqArgs'          = [(F.dummySymbol, RVar a mempty) | a <- lqAs] ++ lqArgs 
     nTyVars          = length hsAs -- == length lqAs
@@ -179,7 +179,7 @@ plugHoles_old allowTC tce tyi x f t0 zz@(Loc l l' st0)
     (αs,_,cs,rt) = bkUnivClass (F.notracepp "hs-spec" $ ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass (F.notracepp "lq-spec" st0)
 
-    makeCls cs t = foldr (uncurry rFun) t cs
+    makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
     err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types old")
                           (pprint $ Ghc.expandTypeSynonyms t0)
@@ -207,7 +207,7 @@ plugHoles_new allowTC@False tce tyi x f t0 zz@(Loc l l' st0)
     (as,_,cs,rt) = bkUnivClass (ofType (Ghc.expandTypeSynonyms t0) :: SpecType)
     (_,ps,_ ,st) = bkUnivClass st0
 
-    makeCls cs t = foldr (uncurry rFun) t cs
+    makeCls cs t = foldr (uncurry (rFun' (classRFInfo allowTC))) t cs
     err hsT lqT  = ErrMismatch (GM.fSrcSpan zz) (pprint x) 
                           (text "Plugged Init types new")
                           (pprint $ Ghc.expandTypeSynonyms t0)
