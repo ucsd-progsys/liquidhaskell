@@ -18,6 +18,7 @@
 {-# LANGUAGE PatternGuards             #-}
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ScopedTypeVariables       #-}
 
 module Language.Fixpoint.Solver.PLE (instantiate) where
 
@@ -33,12 +34,18 @@ import           Language.Fixpoint.SortCheck
 import           Language.Fixpoint.Graph.Deps             (isTarget) 
 import           Language.Fixpoint.Solver.Sanitize        (symbolEnv)
 import           Language.Fixpoint.Solver.Rewrite
+
+import Language.REST.AbstractOC as OC
+import Language.REST.ExploredTerms as ET
+import Language.REST.RuntimeTerm as RT
+
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
+import qualified Data.Set             as SS
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -82,7 +89,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg)
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty)
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -348,6 +355,7 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
+  , explored   :: ExploredTerms RuntimeTerm
   }
 
 data FuelCount = FC 
@@ -375,8 +383,10 @@ evalOne γ env ctx e | null (getAutoRws γ ctx) = do
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx e = do
-  env' <- execStateT (eval γ ctx [(e, PLE)]) (env { evFuel = icFuel ctx }) 
+  env' <- execStateT (eval γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
+  where
+    rp = RP ordConstraints [(e, PLE)] (OC.top ordConstraints)
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -454,29 +464,59 @@ fastEval γ ctx e =
     go e@(POr es)       = fromMaybeM (POr  <$> (go <$$> es))    (evalBool γ e)
     go e                = return e
 
-eval :: Knowledge -> ICtx -> [(Expr, TermOrigin)] -> EvalST ()
-eval _ ctx path
-  | pathExprs <- map fst (mytracepp "EVAL1: path" path)
+data RESTParams oc = RP
+  { oc   :: AbstractOC oc Expr
+  , path :: [(Expr, TermOrigin)]
+  , c    :: oc
+  }
+
+eval :: forall oc. Show oc => Knowledge -> ICtx -> RESTParams oc -> EvalST ()
+eval _ ctx rp
+  | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
   = when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
         
-eval γ ctx path =
+eval γ ctx rp =
   do
-    rws <- getRWs 
-    e'  <- simplify γ ctx <$> evalStep γ ctx e
-    let evalIsNewExpr = e' `L.notElem` pathExprs
-    let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
-    let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
-    modify (\st -> st { evAccum = S.union evAccum' (evAccum st)})
-    when evalIsNewExpr $ eval γ (addConst (e, e')) (path ++ [(e', PLE)])
-    mapM_ (\rw -> (eval γ ctx) (path ++ [rw])) rws
+    exploredTerms <- gets explored
+    when True $ -- (shouldExploreTerm exploredTerms)
+      (do
+        possibleRWs <- getRWs
+        let rws = filter allowed possibleRWs
+        e'  <- simplify γ ctx <$> evalStep γ ctx e
+        let evalIsNewExpr = e' `L.notElem` pathExprs
+        let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
+        let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
+        modify (\st ->
+                  st {
+                    evAccum  = S.union evAccum' (evAccum st)
+                  , explored = ET.insert
+                    (convert e)
+                    (SS.insert (convert e') $ SS.fromList (map (convert . fst) possibleRWs))
+                    (explored st)
+                  })
+        when evalIsNewExpr $ eval γ (addConst (e, e')) (rpEval e')
+        mapM_ (\rw -> eval γ ctx (rpRW rw)) rws)
   where
-    pathExprs = map fst (mytracepp "EVAL2: path" path)
-    e         = last pathExprs
-    autorws   = getAutoRws γ ctx
+    shouldExploreTerm = not .
+      case rwTerminationOpts rwArgs of
+        RWTerminationCheckDisabled  -> visited (convert e)
+        RWTerminationCheckEnabled _ -> isFullyExplored (convert e)
 
-    getRWs :: EvalST [(Expr, TermOrigin)]
+    allowed (rwE, c) =
+      rwE `L.notElem` pathExprs && passesTerminationCheck (oc rp) rwArgs c
+    rpEval e'     = rp{path = path rp ++ [(e', PLE)], c = refine (oc rp) (c rp) e e'}
+
+    rpRW (e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
+
+    pathExprs       = map fst (mytracepp "EVAL2: path" $ path rp)
+    e               = last pathExprs
+    autorws         = getAutoRws γ ctx
+
+    rwArgs = RWArgs (isValid γ) (knRWTerminationOpts γ)
+
+    getRWs :: EvalST [(Expr, oc)]
     getRWs =
       let
         ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)
@@ -485,9 +525,8 @@ eval γ ctx path =
         subst' ee =
           let ee' = subst su ee
           in if ee == ee' then ee else subst' ee'
-        rwArgs = RWArgs (isValid γ) (knRWTerminationOpts γ)
-        getRWs' s = 
-          Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRewrite rwArgs path s) autorws
+        getRW     = getRewrite (oc rp) rwArgs (c rp)
+        getRWs' s = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
       in concat <$> mapM getRWs' (subExprs e')
           
     addConst (e,e') = if isConstant (knDCs γ) e'
