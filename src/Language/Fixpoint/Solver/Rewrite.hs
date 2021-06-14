@@ -35,6 +35,8 @@ import           Language.REST.Op
 import           Language.REST.OrderingConstraints as OC
 import           Language.REST.Core (orient)
 
+import Debug.Trace
+
 type SubExpr = (Expr, Expr -> Expr)
 
 data TermOrigin = PLE | RW deriving (Show, Eq)
@@ -91,13 +93,14 @@ getRewrite ::
   -> MaybeT IO (Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
   do
+    lift $ putStrLn $ "Match: " ++ show subE
     su <- MaybeT $ return $ unify freeVars lhs subE
-    lift $ putStrLn "Unified"
     let subE' = subst su rhs
     let expr  = toE subE
     let expr' = toE subE'
+    -- lift $ putStrLn $ "Unified " ++ (show subE) ++ " to " ++ (show subE')
     mapM_ (check . subst su) exprs
-    lift $ putStrLn $ (show $ convert expr) ++ " -> " ++ (show $ convert expr')
+    -- lift $ putStrLn $ (show $ convert expr) ++ " -> " ++ (show $ convert expr')
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled _ ->
         let
@@ -154,13 +157,13 @@ subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> PAtom op lhs (f e'))) rhs'
 
--- subExprs' e@(EApp{}) = concatMap replace indexedArgs
---   where
---     (f, es)          = splitEApp e
---     indexedArgs      = zip [0..] es
---     replace (i, arg) = do
---       (subArg, toArg) <- subExprs arg
---       return (subArg, \subArg' -> eApps f $ (take i es) ++ (toArg subArg'):(drop (i+1) es))
+subExprs' e@(EApp{}) = concatMap replace indexedArgs
+  where
+    (f, es)          = splitEApp e
+    indexedArgs      = zip [0..] es
+    replace (i, arg) = do
+      (subArg, toArg) <- subExprs arg
+      return (subArg, \subArg' -> eApps f $ (take i es) ++ (toArg subArg'):(drop (i+1) es))
       
 subExprs' _ = []
 
@@ -180,6 +183,14 @@ unify _ template seenExpr | template == seenExpr = Just (Su M.empty)
 unify freeVars template seenExpr = case (template, seenExpr) of
   (EVar rwVar, _) | rwVar `elem` freeVars ->
     return $ Su (M.singleton rwVar seenExpr)
+  (EVar lhs, EVar rhs) | removeModName lhs == removeModName rhs ->
+                         trace ("Withoutmodname" ++ show lhs ++ " " ++ show rhs) $
+                         Just (Su M.empty)
+    where
+      removeModName ts = go "" (symbolString ts) where
+        go buf []         = trace (symbolString ts ++ " -> " ++ buf) buf
+        go _   ('.':rest) = go [] rest
+        go buf (x:xs)     = go (buf ++ [x]) xs
   (EApp templateF templateBody, EApp seenF seenBody) ->
     unifyAll freeVars [templateF, templateBody] [seenF, seenBody]
   (ENeg rw, ENeg seen) ->

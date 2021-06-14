@@ -479,15 +479,18 @@ eval _ ctx rp
         
 eval γ ctx rp =
   do
+    -- liftIO $ putStrLn $ "AutoRWS: " ++ (show autorws)
     exploredTerms <- gets explored
-    when True $ -- (shouldExploreTerm exploredTerms)
+    when (shouldExploreTerm exploredTerms)
       (do
         possibleRWs <- getRWs
-        let rws = filter allowed possibleRWs
+        let rws = notVisitedFirst exploredTerms $ filter allowed possibleRWs
         e'  <- simplify γ ctx <$> evalStep γ ctx e
+
         let evalIsNewExpr = e' `L.notElem` pathExprs
         let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
         let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
+
         modify (\st ->
                   st {
                     evAccum  = S.union evAccum' (evAccum st)
@@ -496,16 +499,25 @@ eval γ ctx rp =
                     (SS.insert (convert e') $ SS.fromList (map (convert . fst) possibleRWs))
                     (explored st)
                   })
+
         when evalIsNewExpr $ eval γ (addConst (e, e')) (rpEval e')
+
         mapM_ (\rw -> eval γ ctx (rpRW rw)) rws)
   where
     shouldExploreTerm = not .
       case rwTerminationOpts rwArgs of
         RWTerminationCheckDisabled  -> visited (convert e)
-        RWTerminationCheckEnabled _ -> isFullyExplored (convert e)
+        RWTerminationCheckEnabled _ -> visited (convert e)
 
     allowed (rwE, c) =
       rwE `L.notElem` pathExprs && passesTerminationCheck (oc rp) rwArgs c
+
+    notVisitedFirst et rws =
+      let
+        (nv, v) = L.partition (\(e, _) -> visited (convert e) et) rws
+      in
+        nv ++ v
+
     rpEval e'     = rp{path = path rp ++ [(e', PLE)], c = refine (oc rp) (c rp) e e'}
 
     rpRW (e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
@@ -716,6 +728,7 @@ knowledge cfg ctx si = KN
   , knLams                     = [] 
   , knSummary                  =    ((\s -> (smName s, 1)) <$> sims) 
                                  ++ ((\s -> (eqName s, length (eqArgs s))) <$> aenvEqs aenv)
+                                 ++ lits
   , knDCs                      = S.fromList (smDC <$> sims) 
   , knSels                     = Mb.catMaybes $ map makeSel  sims 
   , knConsts                   = Mb.catMaybes $ map makeCons sims 
@@ -727,7 +740,16 @@ knowledge cfg ctx si = KN
   } 
   where 
     sims = aenvSimpl aenv ++ concatMap reWriteDDecl (ddecls si) 
-    aenv = ae si 
+    aenv = ae si
+
+    lits = map toSum (toListSEnv (gLits si))
+      where
+        toSum (sym, sort)      = (sym, getArity sort)
+
+        getArity (FFunc _ rhs) = 1 + getArity rhs
+        getArity _             = 0
+
+
 
     makeCons rw 
       | null (syms $ smBody rw)
