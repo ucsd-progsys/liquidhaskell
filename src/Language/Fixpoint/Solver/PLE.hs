@@ -8,6 +8,8 @@
 --     2. "Reasoning about Functions", VMCAI 2018, https://ranjitjhala.github.io/static/reasoning-about-functions.pdf 
 --------------------------------------------------------------------------------
 
+{-# LANGUAGE ImplicitParams            #-}
+{-# LANGUAGE DeriveAnyClass            #-}
 {-# LANGUAGE DeriveGeneric             #-}
 {-# LANGUAGE OverloadedStrings         #-}
 {-# LANGUAGE PartialTypeSignatures     #-}
@@ -19,6 +21,7 @@
 {-# LANGUAGE RecordWildCards           #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables       #-}
+{-# LANGUAGE MultiParamTypeClasses     #-}
 
 module Language.Fixpoint.Solver.PLE (instantiate) where
 
@@ -37,15 +40,23 @@ import           Language.Fixpoint.Solver.Rewrite
 
 import Language.REST.AbstractOC as OC
 import Language.REST.ExploredTerms as ET
+import Language.REST.Path
 import Language.REST.RuntimeTerm as RT
+import Language.REST.Rest (rest, terms, termsResult)
+import Language.REST.Dot
+import Language.REST.RESTDot
+import Language.REST.RewriteRule
+import Language.REST.OrderingConstraints.Strict
+import Language.REST.Op
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
+import           GHC.Generics
+import           Data.Hashable
 import qualified Data.HashMap.Strict  as M
 import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
-import qualified Data.Set             as SS
 import           Debug.Trace          (trace)
 
 mytracepp :: (PPrint a) => String -> a -> a
@@ -89,7 +100,7 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty)
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty (const False))
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -355,7 +366,7 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
-  , explored   :: ExploredTerms RuntimeTerm
+  , explored   :: ExploredTerms RuntimeTerm (StrictOC Op)
   }
 
 data FuelCount = FC 
@@ -383,10 +394,12 @@ evalOne γ env ctx e | null (getAutoRws γ ctx) = do
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx e = do
+  -- env' <- execStateT (evalREST γ ctx e) (env { evFuel = icFuel ctx })
   env' <- execStateT (eval γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
     rp = RP ordConstraints [(e, PLE)] (OC.top ordConstraints)
+
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -470,7 +483,78 @@ data RESTParams oc = RP
   , c    :: oc
   }
 
-eval :: forall oc. Show oc => Knowledge -> ICtx -> RESTParams oc -> EvalST ()
+data RESTRule =
+    EvalStep Knowledge ICtx
+  | RewriteRule AutoRewrite Knowledge ICtx
+
+instance Hashable RESTRule where
+  hashWithSalt s (EvalStep _ _)    = s
+  hashWithSalt s (RewriteRule r _ _) = hashWithSalt s r
+
+instance Eq RESTRule where
+  (EvalStep _ _)       == (EvalStep _ _)        = True
+  (RewriteRule r1 _ _) == (RewriteRule r2  _ _) = r1 == r2
+  _ == _                                        = False
+
+instance Show RESTRule where
+  show (EvalStep _ _)        = "PLE"
+  show (RewriteRule ar _ _ ) = "RW"
+
+instance RewriteRule (StateT EvalEnv IO) RESTRule Expr where
+  apply e rule = go rule
+    where
+      go (EvalStep y ctx) | Just v    <- M.lookup e (icSimpl ctx)
+                              = do
+                                  when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
+                                  return $ S.singleton v
+      go (EvalStep y ctx) | otherwise = S.singleton <$> simplify y ctx <$> evalStep y ctx e
+      go (RewriteRule r y ctx) = result
+        where
+          result :: EvalST (S.HashSet Expr)
+          result = S.fromList <$> (Mb.catMaybes <$> mapM getRW (subExprs e'))
+          ints   = concatMap subsFromAssm (S.toList $ icAssms ctx)
+          su     = Su (M.fromList ints)
+          e'     = subst' e
+          rwArgs = RWArgs (isValid y) (knRWTerminationOpts y)
+          subst' ee =
+            let ee' = subst su ee
+            in if ee == ee' then ee else subst' ee'
+          getRW s = liftIO $ runMaybeT $ getRewrite' rwArgs s r
+
+evalREST :: Knowledge -> ICtx -> Expr -> EvalST ()
+evalREST y ctx t =
+  let
+    ?impl =
+      case knRWTerminationOpts y of
+        RWTerminationCheckEnabled _ ->
+          ordConstraints
+        RWTerminationCheckDisabled ->
+          AbstractOC (const True) (\ s _ _ -> s) (OC.top ordConstraints)
+  in
+    do
+      restResult <- rest ple rws t convert termsResult
+      -- liftIO $ writeDot ("graph" ++ show (hash t)) Tree pp paths
+      modify (\st -> st { evAccum = evAccum st `S.union` evAccum' restResult})
+  where
+
+    -- pp = PrettyPrinter
+    --   show
+    --   (show . convert)
+    --   show
+
+    evAccum' restResult = go (S.toList $ terms restResult) where
+      go path | length path < 2 = S.empty
+      go path =
+        let
+          pairs = zip path (tail path)
+        in
+          S.fromList pairs
+
+    ple = S.singleton (EvalStep y ctx)
+    rws = S.fromList $ map (\r -> RewriteRule r y ctx) $ getAutoRws y ctx
+
+
+eval :: Knowledge -> ICtx -> RESTParams (StrictOC Op) -> EvalST ()
 eval _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
@@ -481,10 +565,14 @@ eval γ ctx rp =
   do
     -- liftIO $ putStrLn $ "AutoRWS: " ++ (show autorws)
     exploredTerms <- gets explored
+    -- when (ET.size exploredTerms > 25) $ error "boom"
+    -- liftIO $ print (ET.size exploredTerms)
     when (shouldExploreTerm exploredTerms)
       (do
         possibleRWs <- getRWs
+        -- liftIO $ putStrLn "Check Start"
         let rws = notVisitedFirst exploredTerms $ filter allowed possibleRWs
+        -- liftIO $ putStrLn ("Check done" ++ show (hash rws))
         e'  <- simplify γ ctx <$> evalStep γ ctx e
 
         let evalIsNewExpr = e' `L.notElem` pathExprs
@@ -496,7 +584,8 @@ eval γ ctx rp =
                     evAccum  = S.union evAccum' (evAccum st)
                   , explored = ET.insert
                     (convert e)
-                    (SS.insert (convert e') $ SS.fromList (map (convert . fst) possibleRWs))
+                    (c rp)
+                    (S.insert (convert e') $ S.fromList (map (convert . fst) possibleRWs))
                     (explored st)
                   })
 
@@ -504,21 +593,22 @@ eval γ ctx rp =
 
         mapM_ (\rw -> eval γ ctx (rpRW rw)) rws)
   where
-    shouldExploreTerm = not .
+    shouldExploreTerm et =
       case rwTerminationOpts rwArgs of
-        RWTerminationCheckDisabled  -> visited (convert e)
-        RWTerminationCheckEnabled _ -> visited (convert e)
+        RWTerminationCheckDisabled  -> not $ visited (convert e) et
+        RWTerminationCheckEnabled _ -> shouldExplore (convert e) (c rp) et
 
     allowed (rwE, c) =
-      rwE `L.notElem` pathExprs && passesTerminationCheck (oc rp) rwArgs c
+      -- trace ("Check " ++ (show $ convert rwE) ++ " >= " ++ (show $ convert e)) $
+        rwE `L.notElem` pathExprs && passesTerminationCheck (oc rp) rwArgs c
 
     notVisitedFirst et rws =
       let
-        (nv, v) = L.partition (\(e, _) -> visited (convert e) et) rws
+        (v, nv) = L.partition (\(e, _) -> visited (convert e) et) rws
       in
         nv ++ v
 
-    rpEval e'     = rp{path = path rp ++ [(e', PLE)], c = refine (oc rp) (c rp) e e'}
+    rpEval e'     = rp{path = path rp ++ [(e', PLE)]}
 
     rpRW (e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
 
@@ -528,7 +618,6 @@ eval γ ctx rp =
 
     rwArgs = RWArgs (isValid γ) (knRWTerminationOpts γ)
 
-    getRWs :: EvalST [(Expr, oc)]
     getRWs =
       let
         ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)

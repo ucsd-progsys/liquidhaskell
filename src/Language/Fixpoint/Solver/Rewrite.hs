@@ -5,7 +5,7 @@
 
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
-
+  , getRewrite'
   , subExprs
   , unify
   , ordConstraints
@@ -61,6 +61,7 @@ data RewriteArgs = RWArgs
 
 ordConstraints = contramap convert defaultOC
 
+
 convert :: Expr -> RT.RuntimeTerm
 convert (EIte i t e) = RT.App "$ite" $ map convert [i,t,e]
 convert (EApp (EVar s) (EVar var))
@@ -68,8 +69,8 @@ convert (EApp (EVar s) (EVar var))
   = RT.App (Op $ TX.unpack $ TX.concat [symbolText s, "$", symbolText var]) []
 
 convert e@(EApp{})    | (EVar fName, terms) <- splitEApp e
-                      = RT.App (Op (show fName)) $ map convert terms
-convert (EVar s)      = RT.App (Op (show s)) []
+                      = RT.App (Op (symbolString fName)) $ map convert terms
+convert (EVar s)      = RT.App (Op (symbolString s)) []
 convert (PAnd es)     = RT.App "$and" $ map convert es
 convert (POr es)      = RT.App "$or" $ map convert es
 convert (PAtom s l r) = RT.App (Op $ "$atom" ++ show s) [convert l, convert r]
@@ -83,6 +84,26 @@ passesTerminationCheck aoc rwArgs c =
     RWTerminationCheckEnabled _ -> isSat aoc c
     RWTerminationCheckDisabled  -> True
 
+getRewrite' ::
+     RewriteArgs
+  -> SubExpr
+  -> AutoRewrite
+  -> MaybeT IO Expr
+getRewrite' rwArgs (subE, toE) (AutoRewrite args lhs rhs) =
+  do
+    su <- MaybeT $ return $ unify freeVars lhs subE
+    let subE' = subst su rhs
+    mapM_ (check . subst su) exprs
+    let expr' = toE subE'
+    return expr'
+  where
+    check :: Expr -> MaybeT IO ()
+    check e = do
+      valid <- MaybeT $ Just <$> isRWValid rwArgs e
+      guard valid
+
+    freeVars = [s | RR _ (Reft (s, _)) <- args ]
+    exprs    = [e | RR _ (Reft (_, e)) <- args ]
 
 getRewrite ::
      AbstractOC oc Expr
@@ -93,7 +114,6 @@ getRewrite ::
   -> MaybeT IO (Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) =
   do
-    lift $ putStrLn $ "Match: " ++ show subE
     su <- MaybeT $ return $ unify freeVars lhs subE
     let subE' = subst su rhs
     let expr  = toE subE
@@ -164,7 +184,7 @@ subExprs' e@(EApp{}) = concatMap replace indexedArgs
     replace (i, arg) = do
       (subArg, toArg) <- subExprs arg
       return (subArg, \subArg' -> eApps f $ (take i es) ++ (toArg subArg'):(drop (i+1) es))
-      
+
 subExprs' _ = []
 
 unifyAll :: [Symbol] -> [Expr] -> [Expr] -> Maybe Subst
@@ -184,11 +204,10 @@ unify freeVars template seenExpr = case (template, seenExpr) of
   (EVar rwVar, _) | rwVar `elem` freeVars ->
     return $ Su (M.singleton rwVar seenExpr)
   (EVar lhs, EVar rhs) | removeModName lhs == removeModName rhs ->
-                         trace ("Withoutmodname" ++ show lhs ++ " " ++ show rhs) $
                          Just (Su M.empty)
     where
       removeModName ts = go "" (symbolString ts) where
-        go buf []         = trace (symbolString ts ++ " -> " ++ buf) buf
+        go buf []         = buf
         go _   ('.':rest) = go [] rest
         go buf (x:xs)     = go (buf ++ [x]) xs
   (EApp templateF templateBody, EApp seenF seenBody) ->
