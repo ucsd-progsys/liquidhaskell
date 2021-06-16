@@ -46,7 +46,9 @@ import Language.REST.Rest (rest, terms, termsResult)
 import Language.REST.Dot
 import Language.REST.RESTDot
 import Language.REST.RewriteRule
-import Language.REST.OrderingConstraints.Strict
+-- import Language.REST.OrderingConstraints.Strict
+-- import Language.REST.OrderingConstraints.Lazy
+import Language.REST.OrderingConstraints.ADT
 import Language.REST.Op
 
 import           Control.Monad.State
@@ -366,7 +368,7 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
-  , explored   :: ExploredTerms RuntimeTerm (StrictOC Op)
+  , explored   :: ExploredTerms RuntimeTerm (ConstraintsADT Op)
   }
 
 data FuelCount = FC 
@@ -554,7 +556,7 @@ evalREST y ctx t =
     rws = S.fromList $ map (\r -> RewriteRule r y ctx) $ getAutoRws y ctx
 
 
-eval :: Knowledge -> ICtx -> RESTParams (StrictOC Op) -> EvalST ()
+eval :: Knowledge -> ICtx -> RESTParams (ConstraintsADT Op) -> EvalST ()
 eval _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs

@@ -149,7 +149,7 @@ subExprs' (EIte c lhs rhs)  = c'' ++ l'' ++ r''
     c'' = map (\(e, f) -> (e, \e' -> EIte (f e') lhs rhs)) c'
     l'' = map (\(e, f) -> (e, \e' -> EIte c (f e') rhs)) l'
     r'' = map (\(e, f) -> (e, \e' -> EIte c lhs (f e'))) r'
-    
+
 subExprs' (EBin op lhs rhs) = lhs'' ++ rhs''
   where
     lhs' = subExprs lhs
