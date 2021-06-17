@@ -102,7 +102,7 @@ import           Data.Generics             (Data)
 import           Data.Typeable             (Typeable)
 import           Data.Hashable
 import           GHC.Generics              (Generic)
-import           Data.List                 (foldl', partition)
+import           Data.List                 (foldl', partition, nub)
 import           Data.String
 import           Data.Text                 (Text)
 import qualified Data.Text                 as T
@@ -726,7 +726,13 @@ isSingletonExpr v (PIff e1 e2)
 isSingletonExpr _ _        = Nothing
 
 pAnd, pOr     :: ListNE Pred -> Pred
-pAnd          = simplify . PAnd
+pAnd          = simplify . PAnd . nub . flatten
+  where
+    flatten ps = foldl' go [] ps
+  
+    go acc (PAnd ps) = flatten ps ++ acc
+    go acc p         = p : acc
+  
 pOr           = simplify . POr
 
 (&.&) :: Pred -> Pred -> Pred
