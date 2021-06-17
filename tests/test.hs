@@ -682,17 +682,15 @@ icfpIgnored
     ]
 
 autoIgnored 
-  = "Ackermann.hs" 
-  : proverIgnored
+  = proverIgnored
 
 proverIgnored  :: [FilePath]
 proverIgnored 
-  = [ "OverviewListInfix.hs"
-    -- , "Proves.hs"
-    -- , "Helper.hs"
-    , "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
+  = [ "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
     , "MonadReader.hs"        -- NOPROP: ""
     , "ApplicativeReader.hs"  -- NOPROP: ""
+    -- , "Proves.hs"
+    -- , "Helper.hs"
     , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
     -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
     ]
