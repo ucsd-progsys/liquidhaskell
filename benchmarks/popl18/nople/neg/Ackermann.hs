@@ -3,7 +3,7 @@
 -- | http://www.cs.yorku.ca/~gt/papers/Ackermann-function.pdf
 
 {-@ LIQUID "--higherorder"     @-}
-{-@ LIQUID "--autoproofs"      @-}
+{- @ LIQUID "--autoproofs"      @-}
 
 module Ackermann where
 
@@ -315,7 +315,7 @@ ladder_prop1 n l x
 
 
 {-@ ladder_prop2 :: x:Nat -> y:Nat -> n:{Int | 0 < n} -> z:Nat
-   -> {v:Proof | ladder (x + y) n z == ladder x n (ladder y n z)} / [x] @-}
+      -> {v:Proof | ladder (x + y) n z == ladder x n (ladder y n z)} / [x] @-}
 ladder_prop2 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop2 x y n z
   | x == 0
@@ -328,7 +328,7 @@ ladder_prop2 x y n z
                        ==. ladder x n (ladder y n z)
 
 {-@ ladder_prop3 :: x:Nat -> y:{Nat | x < y} -> n:{Int | 0 < n} -> l:Nat
-   -> {v:Proof | ladder l n x < ladder l n y }  @-}
+      -> {v:Proof | ladder l n x < ladder l n y }  @-}
 ladder_prop3 :: Int -> Int -> Int -> Int -> Proof
 ladder_prop3 x y n l
   = proof $
