@@ -689,9 +689,9 @@ proverIgnored
   = [ "FunctorReader.hs"      -- NOPROP: TODO: Niki please fix!
     , "MonadReader.hs"        -- NOPROP: ""
     , "ApplicativeReader.hs"  -- NOPROP: ""
+    , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
     -- , "Proves.hs"
     -- , "Helper.hs"
-    , "FunctorReader.NoExtensionality.hs" -- Name resolution issues
     -- , "Fibonacci.hs"          -- REFLECT-IMPORTS: TODO: Niki please fix!
     ]
 
