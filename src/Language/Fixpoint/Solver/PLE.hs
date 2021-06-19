@@ -46,9 +46,9 @@ import Language.REST.Rest (rest, terms, termsResult)
 import Language.REST.Dot
 import Language.REST.RESTDot
 import Language.REST.RewriteRule
--- import Language.REST.OrderingConstraints.Strict
--- import Language.REST.OrderingConstraints.Lazy
-import Language.REST.OrderingConstraints.ADT
+import Language.REST.OrderingConstraints.Strict
+import Language.REST.OrderingConstraints.Lazy
+import Language.REST.OrderingConstraints.ADT (ConstraintsADT)
 import Language.REST.Op
 
 import           Control.Monad.State
@@ -60,6 +60,9 @@ import qualified Data.HashSet         as S
 import qualified Data.List            as L
 import qualified Data.Maybe           as Mb
 import           Debug.Trace          (trace)
+import Text.Printf
+
+type OCType = ConstraintsADT
 
 mytracepp :: (PPrint a) => String -> a -> a
 mytracepp = notracepp
@@ -102,7 +105,8 @@ instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty (const False))
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty ef)
+    ef                = EF (OC.union ordConstraints) (OC.notStrongerThan ordConstraints)
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -368,7 +372,7 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
-  , explored   :: ExploredTerms RuntimeTerm (ConstraintsADT Op)
+  , explored   :: ExploredTerms RuntimeTerm (OCType Op)
   }
 
 data FuelCount = FC 
@@ -400,8 +404,25 @@ evalOne γ env ctx e = do
   env' <- execStateT (eval γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
-    rp = RP ordConstraints [(e, PLE)] (OC.top ordConstraints)
+    rp = RP ordConstraints (map (,PLE) (pathTo [e])) constraints
+    constraints = foldl go (OC.top ordConstraints) (pairs (pathTo [e]))
+      where
+        go c (t, u) = refine ordConstraints c t u
 
+    pairs [] = []
+    pairs xs = zip xs (tail xs)
+
+    pathTo ts | Just (t, _) <- L.find (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
+              = pathTo (t:ts)
+    pathTo ts | otherwise = ts
+    -- pathTo e = L.last (L.sortOn length (pathsTo [e]))
+    -- pathsTo ts =
+    --   let
+    --     heads = L.map fst $ L.filter (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
+    --   in
+    --     if heads == []
+    --     then trace ("NO head for " ++ (show $ head ts)) [ts]
+    --     else concatMap pathsTo (map (\h -> h:ts) heads)
 
 notGuardedApps :: Expr -> [Expr]
 notGuardedApps = go 
@@ -523,40 +544,47 @@ instance RewriteRule (StateT EvalEnv IO) RESTRule Expr where
             in if ee == ee' then ee else subst' ee'
           getRW s = liftIO $ runMaybeT $ getRewrite' rwArgs s r
 
-evalREST :: Knowledge -> ICtx -> Expr -> EvalST ()
-evalREST y ctx t =
-  let
-    ?impl =
-      case knRWTerminationOpts y of
-        RWTerminationCheckEnabled _ ->
-          ordConstraints
-        RWTerminationCheckDisabled ->
-          AbstractOC (const True) (\ s _ _ -> s) (OC.top ordConstraints)
-  in
-    do
-      restResult <- rest ple rws t convert termsResult
-      -- liftIO $ writeDot ("graph" ++ show (hash t)) Tree pp paths
-      modify (\st -> st { evAccum = evAccum st `S.union` evAccum' restResult})
-  where
+-- evalREST :: Knowledge -> ICtx -> Expr -> EvalST ()
+-- evalREST y ctx t =
+--   let
+--     ?impl =
+--       case knRWTerminationOpts y of
+--         RWTerminationCheckEnabled _ ->
+--           ordConstraints
+--         RWTerminationCheckDisabled ->
+--           AbstractOC (const True) (\ s _ _ -> s) (OC.top ordConstraints)
+--   in
+--     do
+--       restResult <- rest ple rws t convert termsResult
+--       -- liftIO $ writeDot ("graph" ++ show (hash t)) Tree pp paths
+--       modify (\st -> st { evAccum = evAccum st `S.union` evAccum' restResult})
+--   where
 
-    -- pp = PrettyPrinter
-    --   show
-    --   (show . convert)
-    --   show
+--     -- pp = PrettyPrinter
+--     --   show
+--     --   (show . convert)
+--     --   show
 
-    evAccum' restResult = go (S.toList $ terms restResult) where
-      go path | length path < 2 = S.empty
-      go path =
-        let
-          pairs = zip path (tail path)
-        in
-          S.fromList pairs
+--     evAccum' restResult = go (S.toList $ terms restResult) where
+--       go path | length path < 2 = S.empty
+--       go path =
+--         let
+--           pairs = zip path (tail path)
+--         in
+--           S.fromList pairs
 
-    ple = S.singleton (EvalStep y ctx)
-    rws = S.fromList $ map (\r -> RewriteRule r y ctx) $ getAutoRws y ctx
+--     ple = S.singleton (EvalStep y ctx)
+--     rws = S.fromList $ map (\r -> RewriteRule r y ctx) $ getAutoRws y ctx
 
+unsubst ctx e = subst' e where
+  ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)
+  su        = Su (M.fromList ints)
+  e'        = subst' e
+  subst' ee =
+    let ee' = subst su ee
+    in if ee == ee' then ee else subst' ee'
 
-eval :: Knowledge -> ICtx -> RESTParams (ConstraintsADT Op) -> EvalST ()
+eval :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
 eval _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
@@ -565,44 +593,44 @@ eval _ ctx rp
         
 eval γ ctx rp =
   do
-    -- liftIO $ putStrLn $ "AutoRWS: " ++ (show autorws)
+    liftIO $ print $ length pathExprs
     exploredTerms <- gets explored
     -- when (ET.size exploredTerms > 25) $ error "boom"
-    -- liftIO $ print (ET.size exploredTerms)
-    when (shouldExploreTerm exploredTerms)
-      (do
-        possibleRWs <- getRWs
-        -- liftIO $ putStrLn "Check Start"
-        let rws = notVisitedFirst exploredTerms $ filter allowed possibleRWs
-        -- liftIO $ putStrLn ("Check done" ++ show (hash rws))
-        e'  <- simplify γ ctx <$> evalStep γ ctx e
+    se <- liftIO (shouldExploreTerm exploredTerms)
+    when se $ do
+      possibleRWs <- getRWs
+      -- liftIO $ putStrLn "Check Start"
+      rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
+      e'  <- simplify γ ctx <$> evalStep γ ctx e
 
-        let evalIsNewExpr = e' `L.notElem` pathExprs
-        let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
-        let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
+      let evalIsNewExpr = e' `L.notElem` pathExprs
+      let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
+      let evAccum'      = S.fromList $ map (e,) $ exprsToAdd
 
-        modify (\st ->
-                  st {
-                    evAccum  = S.union evAccum' (evAccum st)
-                  , explored = ET.insert
-                    (convert e)
-                    (c rp)
-                    (S.insert (convert e') $ S.fromList (map (convert . fst) possibleRWs))
-                    (explored st)
-                  })
+      modify (\st ->
+                st {
+                  evAccum  = S.union evAccum' (evAccum st)
+                , explored = ET.insert
+                  (convert e)
+                  (c rp)
+                  (S.insert (convert e') $ S.fromList (map (convert . fst) possibleRWs))
+                  (explored st)
+                })
 
-        when evalIsNewExpr $ eval γ (addConst (e, e')) (rpEval e')
+      when evalIsNewExpr $ eval γ (addConst (e, e')) (rpEval e')
 
-        mapM_ (\rw -> eval γ ctx (rpRW rw)) rws)
+      mapM_ (\rw -> eval γ ctx (rpRW rw)) rws
   where
     shouldExploreTerm et =
       case rwTerminationOpts rwArgs of
-        RWTerminationCheckDisabled  -> not $ visited (convert e) et
+        RWTerminationCheckDisabled  -> return $ not $ visited (convert e) et
         RWTerminationCheckEnabled _ -> shouldExplore (convert e) (c rp) et
 
-    allowed (rwE, c) =
-      -- trace ("Check " ++ (show $ convert rwE) ++ " >= " ++ (show $ convert e)) $
-        rwE `L.notElem` pathExprs && passesTerminationCheck (oc rp) rwArgs c
+    allowed (rwE, c) | rwE `elem` pathExprs = return False
+    allowed (rwE, c) | otherwise =
+      trace msg (passesTerminationCheck (oc rp) rwArgs c)
+      where
+        msg = "Check if //////\n\n" ++ (L.intercalate "\n\n" (map (show . convert) (pathExprs ++ [rwE]))) ++ "\n\n////// pass check"
 
     notVisitedFirst et rws =
       let
@@ -610,7 +638,18 @@ eval γ ctx rp =
       in
         nv ++ v
 
-    rpEval e'     = rp{path = path rp ++ [(e', PLE)]}
+    initFuel = 0
+
+    rpEval e' =
+      let
+        c' =
+          if any isRW (path rp) && length pathExprs > initFuel
+            then refine (oc rp) (c rp) e e'
+            else c rp
+        isRW (_, r) = r == RW
+
+      in
+        rp{path = path rp ++ [(e', PLE)], c = c'}
 
     rpRW (e', c') = rp{path = path rp ++ [(e', RW)], c = c' }
 
@@ -618,16 +657,14 @@ eval γ ctx rp =
     e               = last pathExprs
     autorws         = getAutoRws γ ctx
 
-    rwArgs = RWArgs (isValid γ) (knRWTerminationOpts γ)
+    rwArgs = RWArgs (isValid γ) $
+      if length pathExprs > initFuel
+      then (knRWTerminationOpts γ)
+      else RWTerminationCheckDisabled
 
     getRWs =
       let
-        ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)
-        su        = Su (M.fromList ints)
-        e'        = subst' e
-        subst' ee =
-          let ee' = subst su ee
-          in if ee == ee' then ee else subst' ee'
+        e'        = unsubst ctx e
         getRW     = getRewrite (oc rp) rwArgs (c rp)
         getRWs' s = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
       in concat <$> mapM getRWs' (subExprs e')

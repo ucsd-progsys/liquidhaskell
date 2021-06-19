@@ -59,30 +59,27 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
-ordConstraints = contramap convert defaultOC
+ordConstraints = contramap convert adtRPO
 
 
 convert :: Expr -> RT.RuntimeTerm
-convert (EIte i t e) = RT.App "$ite" $ map convert [i,t,e]
-convert (EApp (EVar s) (EVar var))
-  | "lqdc" `isPrefixOfSym` s
-  = RT.App (Op $ TX.unpack $ TX.concat [symbolText s, "$", symbolText var]) []
+convert (EIte i t e)   = RT.App "$ite" $ map convert [i,t,e]
+convert e@(EApp{})     | (EVar fName, terms) <- splitEApp e
+                       = RT.App (Op (symbolText fName)) $ map convert terms
+convert (EVar s)       = RT.App (Op (symbolText s)) []
+convert (PAnd es)      = RT.App "$and" $ map convert es
+convert (POr es)       = RT.App "$or" $ map convert es
+convert (PAtom s l r)  = RT.App (Op $ "$atom" `TX.append` (TX.pack . show) s) [convert l, convert r]
+convert (EBin o l r)   = RT.App (Op $ "$ebin" `TX.append` (TX.pack . show) o) [convert l, convert r]
+convert (ECon c)       = RT.App (Op $ "$econ" `TX.append` (TX.pack . show) c) []
+convert (ESym (SL tx)) = RT.App (Op tx) []
+convert e              = error (show e)
 
-convert e@(EApp{})    | (EVar fName, terms) <- splitEApp e
-                      = RT.App (Op (symbolString fName)) $ map convert terms
-convert (EVar s)      = RT.App (Op (symbolString s)) []
-convert (PAnd es)     = RT.App "$and" $ map convert es
-convert (POr es)      = RT.App "$or" $ map convert es
-convert (PAtom s l r) = RT.App (Op $ "$atom" ++ show s) [convert l, convert r]
-convert (EBin o l r)  = RT.App (Op $ "$ebin" ++ show o) [convert l, convert r]
-convert (ECon c)      = RT.App (Op $ "$econ" ++ show c) []
-convert e             = error (show e)
-
-passesTerminationCheck :: AbstractOC oc a -> RewriteArgs -> oc -> Bool
+passesTerminationCheck :: AbstractOC oc a -> RewriteArgs -> oc -> IO Bool
 passesTerminationCheck aoc rwArgs c =
   case rwTerminationOpts rwArgs of
     RWTerminationCheckEnabled _ -> isSat aoc c
-    RWTerminationCheckDisabled  -> True
+    RWTerminationCheckDisabled  -> return True
 
 getRewrite' ::
      RewriteArgs
