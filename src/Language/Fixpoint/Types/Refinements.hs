@@ -728,7 +728,7 @@ isSingletonExpr _ _        = Nothing
 pAnd, pOr     :: ListNE Pred -> Pred
 pAnd          = simplify . PAnd . nub . flatten
   where
-    flatten ps = foldl' go [] ps
+    flatten ps = foldl' go [] $ reverse ps
   
     go acc (PAnd ps) = flatten ps ++ acc
     go acc p         = p : acc
