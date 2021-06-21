@@ -5,6 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
+      - add_ssh_keys
       - run: apt-get update && apt-get install -y git ssh unzip
       - run:
           name: Install z3
