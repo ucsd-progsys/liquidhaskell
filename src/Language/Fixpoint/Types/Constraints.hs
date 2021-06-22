@@ -842,12 +842,12 @@ type BindM = M.HashMap Integer BindId
 type Solver a = Config -> FInfo a -> IO (Result (Integer, a))
 
 --------------------------------------------------------------------------------
-saveQuery :: Config -> FInfo a -> IO ()
+saveQuery :: Fixpoint a => Config -> FInfo a -> IO ()
 --------------------------------------------------------------------------------
 saveQuery cfg fi = {- when (save cfg) $ -} do
   let fi'  = void fi
   saveBinaryQuery cfg fi'
-  saveTextQuery cfg   fi'
+  saveTextQuery cfg   fi
 
 saveBinaryQuery :: Config -> FInfo () -> IO ()
 saveBinaryQuery cfg fi = do
@@ -856,7 +856,7 @@ saveBinaryQuery cfg fi = do
   ensurePath bfq
   B.encodeFile bfq fi
 
-saveTextQuery :: Config -> FInfo () -> IO ()
+saveTextQuery :: Fixpoint a => Config -> FInfo a -> IO ()
 saveTextQuery cfg fi = do
   let fq   = queryFile Files.Fq cfg
   putStrLn $ "Saving Text Query: "   ++ fq ++ "\n"
