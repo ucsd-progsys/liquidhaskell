@@ -67,6 +67,7 @@ convert (EIte i t e)   = RT.App "$ite" $ map convert [i,t,e]
 convert e@(EApp{})     | (EVar fName, terms) <- splitEApp e
                        = RT.App (Op (symbolText fName)) $ map convert terms
 convert (EVar s)       = RT.App (Op (symbolText s)) []
+convert (PNot e)       = RT.App "$not" [ convert e ]
 convert (PAnd es)      = RT.App "$and" $ map convert es
 convert (POr es)       = RT.App "$or" $ map convert es
 convert (PAtom s l r)  = RT.App (Op $ "$atom" `TX.append` (TX.pack . show) s) [convert l, convert r]

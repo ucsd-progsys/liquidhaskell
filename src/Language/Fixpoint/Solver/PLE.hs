@@ -412,9 +412,13 @@ evalOne γ env ctx e = do
     pairs [] = []
     pairs xs = zip xs (tail xs)
 
+    -- pathTo ts = ts
+
+    -- Hack to get original path from subsequent PLE iterations
     pathTo ts | Just (t, _) <- L.find (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
               = pathTo (t:ts)
     pathTo ts | otherwise = ts
+
     -- pathTo e = L.last (L.sortOn length (pathsTo [e]))
     -- pathsTo ts =
     --   let
@@ -506,43 +510,43 @@ data RESTParams oc = RP
   , c    :: oc
   }
 
-data RESTRule =
-    EvalStep Knowledge ICtx
-  | RewriteRule AutoRewrite Knowledge ICtx
+-- data RESTRule =
+--     EvalStep Knowledge ICtx
+--   | RewriteRule AutoRewrite Knowledge ICtx
 
-instance Hashable RESTRule where
-  hashWithSalt s (EvalStep _ _)    = s
-  hashWithSalt s (RewriteRule r _ _) = hashWithSalt s r
+-- instance Hashable RESTRule where
+--   hashWithSalt s (EvalStep _ _)    = s
+--   hashWithSalt s (RewriteRule r _ _) = hashWithSalt s r
 
-instance Eq RESTRule where
-  (EvalStep _ _)       == (EvalStep _ _)        = True
-  (RewriteRule r1 _ _) == (RewriteRule r2  _ _) = r1 == r2
-  _ == _                                        = False
+-- instance Eq RESTRule where
+--   (EvalStep _ _)       == (EvalStep _ _)        = True
+--   (RewriteRule r1 _ _) == (RewriteRule r2  _ _) = r1 == r2
+--   _ == _                                        = False
 
-instance Show RESTRule where
-  show (EvalStep _ _)        = "PLE"
-  show (RewriteRule ar _ _ ) = "RW"
+-- instance Show RESTRule where
+--   show (EvalStep _ _)        = "PLE"
+--   show (RewriteRule ar _ _ ) = "RW"
 
-instance RewriteRule (StateT EvalEnv IO) RESTRule Expr where
-  apply e rule = go rule
-    where
-      go (EvalStep y ctx) | Just v    <- M.lookup e (icSimpl ctx)
-                              = do
-                                  when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
-                                  return $ S.singleton v
-      go (EvalStep y ctx) | otherwise = S.singleton <$> simplify y ctx <$> evalStep y ctx e
-      go (RewriteRule r y ctx) = result
-        where
-          result :: EvalST (S.HashSet Expr)
-          result = S.fromList <$> (Mb.catMaybes <$> mapM getRW (subExprs e'))
-          ints   = concatMap subsFromAssm (S.toList $ icAssms ctx)
-          su     = Su (M.fromList ints)
-          e'     = subst' e
-          rwArgs = RWArgs (isValid y) (knRWTerminationOpts y)
-          subst' ee =
-            let ee' = subst su ee
-            in if ee == ee' then ee else subst' ee'
-          getRW s = liftIO $ runMaybeT $ getRewrite' rwArgs s r
+-- instance RewriteRule (StateT EvalEnv IO) RESTRule Expr where
+--   apply e rule = go rule
+--     where
+--       go (EvalStep y ctx) | Just v    <- M.lookup e (icSimpl ctx)
+--                               = do
+--                                   when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
+--                                   return $ S.singleton v
+--       go (EvalStep y ctx) | otherwise = S.singleton <$> simplify y ctx <$> evalStep y ctx e
+--       go (RewriteRule r y ctx) = result
+--         where
+--           result :: EvalST (S.HashSet Expr)
+--           result = S.fromList <$> (Mb.catMaybes <$> mapM getRW (subExprs e'))
+--           ints   = concatMap subsFromAssm (S.toList $ icAssms ctx)
+--           su     = Su (M.fromList ints)
+--           e'     = subst' e
+--           rwArgs = RWArgs (isValid y) (knRWTerminationOpts y)
+--           subst' ee =
+--             let ee' = subst su ee
+--             in if ee == ee' then ee else subst' ee'
+--           getRW s = liftIO $ runMaybeT $ getRewrite' rwArgs s r
 
 -- evalREST :: Knowledge -> ICtx -> Expr -> EvalST ()
 -- evalREST y ctx t =
@@ -593,7 +597,7 @@ eval _ ctx rp
         
 eval γ ctx rp =
   do
-    liftIO $ print $ length pathExprs
+    -- liftIO $ print $ length pathExprs
     exploredTerms <- gets explored
     -- when (ET.size exploredTerms > 25) $ error "boom"
     se <- liftIO (shouldExploreTerm exploredTerms)
@@ -628,9 +632,15 @@ eval γ ctx rp =
 
     allowed (rwE, c) | rwE `elem` pathExprs = return False
     allowed (rwE, c) | otherwise =
-      trace msg (passesTerminationCheck (oc rp) rwArgs c)
-      where
-        msg = "Check if //////\n\n" ++ (L.intercalate "\n\n" (map (show . convert) (pathExprs ++ [rwE]))) ++ "\n\n////// pass check"
+                       do
+                         r <- passesTerminationCheck (oc rp) rwArgs c
+                         -- when (not r) $ printf "Rewrite blocked:\n%s\n\n" path
+                         return r
+                         where
+                           path = (L.intercalate " ->\n" (map (show . convert) (pathExprs ++ [rwE])))
+      -- trace msg (passesTerminationCheck (oc rp) rwArgs c)
+      -- where
+      --   msg = "Check if //////\n\n" ++ (L.intercalate "\n\n" (map (show . convert) (pathExprs ++ [rwE]))) ++ "\n\n////// pass check"
 
     notVisitedFirst et rws =
       let
