@@ -86,7 +86,7 @@ plugHoles _ _                   _ _ = \_ _ t -> t
 
 makePluggedDataCon :: Bool -> F.TCEmb Ghc.TyCon -> Bare.TyConMap -> Located DataConP -> Located DataConP
 makePluggedDataCon allowTC embs tyi ldcp 
-  | mismatchFlds      = Ex.throw (err $  "fields:" <+> F.pprint (length dts) <+> " vs " <+> F.pprint ( dcArgs))
+  | mismatchFlds      = Ex.throw (err "fields") -- (err $  "fields:" <+> F.pprint (length dts) <+> " vs " <+> F.pprint ( dcArgs))
   | mismatchTyVars    = Ex.throw (err "type variables")
   | otherwise         = F.atLoc ldcp $ F.notracepp "makePluggedDataCon" $ dcp 
                           { dcpFreeTyVars = dcVars
