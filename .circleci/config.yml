@@ -5,6 +5,7 @@ commands:
   setup_project:
     description: "Setup the machine, clone the repo, checkout the submodules."
     steps:
+      - add_ssh_keys
       - run: apt-get update && apt-get install -y git ssh unzip
       - run:
           name: Install z3
@@ -127,7 +128,7 @@ jobs:
 
   stack_865_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-17.15
+      - image: fpco/stack-build:lts-15.4
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.6.5.yaml"
@@ -136,7 +137,7 @@ jobs:
 
   stack_884_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-17.15
+      - image: fpco/stack-build:lts-16.8
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack-8.8.4.yaml"
@@ -145,7 +146,7 @@ jobs:
 
   stack_810_legacy_executable:
     docker:
-      - image: fpco/stack-build:lts-17.15
+      - image: fpco/stack-build:lts-15.4
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
@@ -154,7 +155,7 @@ jobs:
 
   stack_810:
     docker:
-      - image: fpco/stack-build:lts-17.15
+      - image: fpco/stack-build:lts-15.4
     steps:
         - stack_build_and_test:
             stack_yaml_file: "stack.yaml"
