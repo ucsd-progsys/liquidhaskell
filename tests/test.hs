@@ -312,7 +312,7 @@ microTests = group "Micro"
     mkMicroLaw name dir = testGroup name <$> dirTests dir [] (ExitFailure 1) (Just "Law Instance Error") Nothing
 
 
-posIgnored    = [ "mapreduce.hs" ]
+posIgnored    = [ "mapreduce.hs", "Variance.hs" ]
 gPosIgnored   = ["Intro.hs"]
 gNegIgnored   = ["Interpretations.hs", "Gradual.hs"]
 
