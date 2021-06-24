@@ -39,7 +39,7 @@ import System.IO
 import System.IO.Error
 import System.Process
 import Test.Tasty
-import Test.Tasty.Golden
+-- import Test.Tasty.Golden
 import Test.Tasty.HUnit
 import Test.Tasty.Ingredients.Rerun
 import Test.Tasty.Options
@@ -80,7 +80,7 @@ main = do unsetEnv "LIQUIDHASKELL_OPTS"
                             errorTests  : 
                             macroTests  :
                             proverTests :
-                            goldenTests :
+                           --  goldenTests :
                             benchTests  : 
                             []
                            
@@ -255,6 +255,7 @@ macroTests = group "Macro"
    , testGroup "unit-neg"       <$> dirTests "tests/neg"                            negIgnored        (ExitFailure 1) (Just " UNSAFE ") Nothing
    ] 
 
+{- 
 goldenTests :: IO TestTree
 goldenTests = group "Golden tests"
    [ pure $ goldenTest "--json output" "tests/golden" "json_output" [LO "--json"]
@@ -269,6 +270,7 @@ goldenTest testName dir filePrefix testOpts =
                    (dir </> filePrefix <> ".golden") 
                    (toS . snd <$> runLiquidOn smt (mconcat testOpts <> opts) bin dir (filePrefix <> ".hs"))
 
+-}
 
 microTests :: IO TestTree
 microTests = group "Micro"
