@@ -50,6 +50,7 @@ import Language.REST.OrderingConstraints.Strict
 import Language.REST.OrderingConstraints.Lazy
 import Language.REST.OrderingConstraints.ADT (ConstraintsADT)
 import Language.REST.Op
+import Language.REST.SMT (withZ3, SolverHandle)
 
 import           Control.Monad.State
 import           Control.Monad.Trans.Maybe
@@ -85,10 +86,10 @@ instantiate :: (Loc a) => Config -> SInfo a -> Maybe [SubcId] -> IO (SInfo a)
 instantiate cfg fi' subcIds = do
     let cs = [ (i, c) | (i, c) <- M.toList (cm fi), isPleCstr aEnv i c,
                maybe True (i `L.elem`) subcIds ]
-    let t  = mkCTrie cs                                               -- 1. BUILD the Trie
-    res   <- withProgress (1 + length cs) $
-               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs)  -- 2. TRAVERSE Trie to compute InstRes
-    return $ resSInfo cfg sEnv fi res                                 -- 3. STRENGTHEN SInfo using InstRes
+    let t  = mkCTrie cs                                                 -- 1. BUILD the Trie
+    res   <- withZ3 $ \z3 -> withProgress (1 + length cs) $
+               withCtx cfg file sEnv (pleTrie t . instEnv cfg fi cs z3) -- 2. TRAVERSE Trie to compute InstRes
+    return $ resSInfo cfg sEnv fi res                                   -- 3. STRENGTHEN SInfo using InstRes
   where
     file   = srcFile cfg ++ ".evals"
     sEnv   = symbolEnv cfg fi
@@ -99,14 +100,14 @@ instantiate cfg fi' subcIds = do
 
 ------------------------------------------------------------------------------- 
 -- | Step 1a: @instEnv@ sets up the incremental-PLE environment 
-instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SMT.Context -> InstEnv a 
-instEnv cfg fi cs ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
+instEnv :: (Loc a) => Config -> SInfo a -> [(SubcId, SimpC a)] -> SolverHandle -> SMT.Context -> InstEnv a
+instEnv cfg fi cs z3 ctx = InstEnv cfg ctx bEnv aEnv cs γ s0
   where 
     bEnv              = bs fi
     aEnv              = ae fi
     γ                 = knowledge cfg ctx fi  
-    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty ef)
-    ef                = EF (OC.union ordConstraints) (OC.notStrongerThan ordConstraints)
+    s0                = EvalEnv (SMT.ctxSymEnv ctx) mempty (defFuelCount cfg) (ET.empty ef) z3
+    ef                = EF (OC.union (ordConstraints z3)) (OC.notStrongerThan (ordConstraints z3))
 
 ---------------------------------------------------------------------------------------------- 
 -- | Step 1b: @mkCTrie@ builds the @Trie@ of constraints indexed by their environments 
@@ -372,7 +373,8 @@ data EvalEnv = EvalEnv
   { evEnv      :: !SymEnv
   , evAccum    :: EvAccum
   , evFuel     :: FuelCount
-  , explored   :: ExploredTerms RuntimeTerm (OCType Op)
+  , explored   :: ExploredTerms RuntimeTerm (OCType Op) IO
+  , z3         :: SolverHandle
   }
 
 data FuelCount = FC 
@@ -404,10 +406,11 @@ evalOne γ env ctx e = do
   env' <- execStateT (eval γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
-    rp = RP ordConstraints (map (,PLE) (pathTo [e])) constraints
-    constraints = foldl go (OC.top ordConstraints) (pairs (pathTo [e]))
+    oc = ordConstraints (z3 env)
+    rp = RP oc (map (,PLE) (pathTo [e])) constraints
+    constraints = foldl go (OC.top oc) (pairs (pathTo [e]))
       where
-        go c (t, u) = refine ordConstraints c t u
+        go c (t, u) = refine oc c t u
 
     pairs [] = []
     pairs xs = zip xs (tail xs)
@@ -505,7 +508,7 @@ fastEval γ ctx e =
     go e                = return e
 
 data RESTParams oc = RP
-  { oc   :: AbstractOC oc Expr
+  { oc   :: AbstractOC oc Expr IO
   , path :: [(Expr, TermOrigin)]
   , c    :: oc
   }

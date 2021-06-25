@@ -59,7 +59,7 @@ data RewriteArgs = RWArgs
  , rwTerminationOpts  :: RWTerminationOpts
  }
 
-ordConstraints = contramap convert adtRPO
+ordConstraints z3 = contramap convert (adtRPO z3)
 
 
 convert :: Expr -> RT.RuntimeTerm
@@ -74,9 +74,10 @@ convert (PAtom s l r)  = RT.App (Op $ "$atom" `TX.append` (TX.pack . show) s) [c
 convert (EBin o l r)   = RT.App (Op $ "$ebin" `TX.append` (TX.pack . show) o) [convert l, convert r]
 convert (ECon c)       = RT.App (Op $ "$econ" `TX.append` (TX.pack . show) c) []
 convert (ESym (SL tx)) = RT.App (Op tx) []
+convert (ECst t _)     = convert t
 convert e              = error (show e)
 
-passesTerminationCheck :: AbstractOC oc a -> RewriteArgs -> oc -> IO Bool
+passesTerminationCheck :: AbstractOC oc a IO -> RewriteArgs -> oc -> IO Bool
 passesTerminationCheck aoc rwArgs c =
   case rwTerminationOpts rwArgs of
     RWTerminationCheckEnabled _ -> isSat aoc c
@@ -104,7 +105,7 @@ getRewrite' rwArgs (subE, toE) (AutoRewrite args lhs rhs) =
     exprs    = [e | RR _ (Reft (_, e)) <- args ]
 
 getRewrite ::
-     AbstractOC oc Expr
+     AbstractOC oc Expr IO
   -> RewriteArgs
   -> oc
   -> SubExpr
