@@ -721,6 +721,7 @@ negIgnored
     , "elim-ex-map-2.hs"
     , "elim-ex-map-1.hs"
     , "elim-ex-let.hs"
+    , "Variance1.hs"
     ]
 
 bsIgnored :: [FilePath]
