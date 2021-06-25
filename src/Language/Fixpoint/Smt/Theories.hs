@@ -263,7 +263,7 @@ stringPreamble cfg | stringTheory cfg
   = [ bSort string "String" 
     , bFun strLen [("s", bb string)] "Int" (key (bb z3strlen) "s")
     , bFun strSubstr [("s", bb string), ("i", "Int"), ("j", "Int")] (bb string) (key (bb z3strsubstr) "s i j")
-    , bFun strConcat [("x", bb string), ("y", "string")] (bb string) (key (bb z3strconcat) "x y")
+    , bFun strConcat [("x", bb string), ("y", bb string)] (bb string) (key (bb z3strconcat) "x y")
     ]
 
 stringPreamble _
