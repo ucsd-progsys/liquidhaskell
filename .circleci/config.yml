@@ -91,6 +91,7 @@ commands:
         type: string
         default: ""
     steps:
+      - run: sudo apt-key adv --keyserver keyserver.ubuntu.com --recv 8B1DA6120C2BF624
       - setup_project
       - restore_cache:
           keys:
