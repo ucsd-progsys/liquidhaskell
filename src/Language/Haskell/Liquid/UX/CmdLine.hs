@@ -592,10 +592,16 @@ canonConfig cfg = cfg
   }
 
 --------------------------------------------------------------------------------
-withPragmas :: Config -> FilePath -> [Located String] -> IO Config
+withPragmas :: MonadIO m => Config -> FilePath -> [Located String] -> (Config -> m a) -> m a
 --------------------------------------------------------------------------------
-withPragmas cfg fp ps
-  = foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+withPragmas cfg fp ps action
+  = do cfg' <- liftIO $ foldM withPragma cfg ps >>= canonicalizePaths fp >>= (return . canonConfig)
+       -- As the verbosity is set /globally/ via the cmdargs lib, re-set it.
+       liftIO $ setVerbosity (loggingVerbosity cfg')
+       res <- action cfg'
+       liftIO $ setVerbosity (loggingVerbosity cfg) -- restore the original verbosity.
+       pure res
+
 
 withPragma :: Config -> Located String -> IO Config
 withPragma c s = withArgs [val s] $ cmdArgsRun

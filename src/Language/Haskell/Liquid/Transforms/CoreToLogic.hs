@@ -281,6 +281,7 @@ coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
                                             e'     <- coreToLg allowTC e
                                             return (ECoerc s t e')
 -- elaboration reuses coretologic
+-- TODO: fix this
 coreToLg True (C.Lam x e) = do p     <- coreToLg True e
                                tce   <- lsEmb <$> getState
                                return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p

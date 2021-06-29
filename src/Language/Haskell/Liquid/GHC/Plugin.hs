@@ -449,57 +449,55 @@ processModule LiquidHaskellContext{..} = do
 
   _                   <- LH.checkFilePragmas $ Ms.pragmas (review bareSpecIso bareSpec)
 
-  moduleCfg           <- liftIO $ withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec)
-  eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
+  withPragmas lhGlobalCfg file (Ms.pragmas $ review bareSpecIso bareSpec) $ \moduleCfg -> do
+    eps                 <- liftIO $ readIORef (hsc_EPS hscEnv)
 
-  dependencies       <- loadDependencies moduleCfg
-                                         eps
-                                         (hsc_HPT hscEnv)
-                                         thisModule
-                                         (S.toList lhRelevantModules)
+    dependencies       <- loadDependencies moduleCfg
+                                           eps
+                                           (hsc_HPT hscEnv)
+                                           thisModule
+                                           (S.toList lhRelevantModules)
 
-  debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
-  when debugLogs $
-    forM_ (HM.keys . getDependencies $ dependencies) $ debugLog . moduleStableString . unStableModule
+    debugLog $ "Found " <> show (HM.size $ getDependencies dependencies) <> " dependencies:"
+    when debugLogs $
+      forM_ (HM.keys . getDependencies $ dependencies) $ debugLog . moduleStableString . unStableModule
 
-  debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
-  debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
+    debugLog $ "mg_exports => " ++ (O.showSDocUnsafe $ O.ppr $ mg_exports modGuts)
+    debugLog $ "mg_tcs => " ++ (O.showSDocUnsafe $ O.ppr $ mg_tcs modGuts)
 
-  targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
-  dynFlags <- getDynFlags
+    targetSrc  <- makeTargetSrc moduleCfg file lhModuleTcData modGuts hscEnv
+    dynFlags <- getDynFlags
 
-  -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
-  -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
-  -- call 'evaluate' to force any exception and catch it, if we can.
+    -- See https://github.com/ucsd-progsys/liquidhaskell/issues/1711
+    -- Due to the fact the internals can throw exceptions from pure code at any point, we need to
+    -- call 'evaluate' to force any exception and catch it, if we can.
 
-  -- what to do when maketargetspec is already in the monad?
-  result <-
-    makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies
-      `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
-      `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
+    result <-
+      (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies)
+        `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
+        `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
 
-  case result of
-    -- Print warnings and errors, aborting the compilation.
-    Left diagnostics -> do
-      liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
-      LH.reportErrors Full (allErrors diagnostics)
-      failM
+    case result of
+      -- Print warnings and errors, aborting the compilation.
+      Left diagnostics -> do
+        liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
+        LH.reportErrors Full (allErrors diagnostics)
+        failM
+      Right (warnings, targetSpec, liftedSpec) -> do
+        liftIO $ mapM_ (printWarning dynFlags) warnings
+        let targetInfo = TargetInfo targetSrc targetSpec
 
-    Right (warnings, targetSpec, liftedSpec) -> do
-      liftIO $ mapM_ (printWarning dynFlags) warnings
-      let targetInfo = TargetInfo targetSrc targetSpec
+        debugLog $ "bareSpec ==> "   ++ show bareSpec
+        debugLog $ "liftedSpec ==> " ++ show liftedSpec
 
-      debugLog $ "bareSpec ==> "   ++ show bareSpec
-      debugLog $ "liftedSpec ==> " ++ show liftedSpec
+        let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
 
-      let clientLib  = mkLiquidLib liftedSpec & addLibDependencies dependencies
+        let result = ProcessModuleResult {
+              pmrClientLib  = clientLib
+            , pmrTargetInfo = targetInfo
+            }
 
-      let result = ProcessModuleResult {
-            pmrClientLib  = clientLib
-          , pmrTargetInfo = targetInfo
-          }
-
-      pure result
+        pure result
 
   where
     modGuts    = fromUnoptimised lhModuleGuts
