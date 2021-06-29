@@ -1,4 +1,4 @@
-# Get involved
+# Contribute
 
 We are excited for you to try LH! 
 
