@@ -8,6 +8,7 @@ mkShell {
   buildInputs = [
     less
     git
+    hostname
     nix
     stack
     z3
