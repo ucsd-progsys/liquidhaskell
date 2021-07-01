@@ -24,6 +24,7 @@ module Language.Haskell.Liquid.Constraint.Relational (consAssmRel, consRelTop) w
 import           Control.Monad.Fail
 #endif
 
+import           Control.Applicative                            ( ZipList (..) )
 import           Control.Monad.State
 import           Data.Bifunctor                                 ( Bifunctor(bimap) )
 import qualified Data.HashMap.Strict                            as M
@@ -74,11 +75,10 @@ import           Text.PrettyPrint.HughesPJ                      hiding ( (<>) )
 data RelPred
   = RelPred { fun1 :: Var
             , fun2 :: Var
-            , args1 :: [F.Symbol]
-            , args2 :: [F.Symbol]
+            , args1 :: [(F.Symbol, [F.Symbol])]
+            , args2 :: [(F.Symbol, [F.Symbol])]
             , prop :: F.Expr
             } deriving Show
-
 
 type PrEnv = [RelPred]
 type RelAlt = (AltCon, [Var], [Var], CoreExpr, CoreExpr)
@@ -87,14 +87,16 @@ consAssmRel :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType,
 consAssmRel _ ti γ ψ (x, y, t, s, _, p) = traceChk "Assm" x y t s p $ do
   traceWhenLoud ("ASSUME " ++ F.showpp (p', p)) $ subUnarySig γ' x t'
   subUnarySig γ' y s'
-  return $ RelPred x' y' vs us p' : RelPred y' x' us vs p' : ψ
+  return $ RelPred x' y' bs cs p' : RelPred y' x' cs bs p' : ψ
   where
     γ' = γ `setLocation` Sp.Span (GM.fSrcSpan (F.loc t))
     (x', y') = mkRelCopies x y
     t' = val t
     s' = val s
-    (vs, _) = vargs t'
-    (us, _) = vargs s'
+    (vs, ts) = vargs t'
+    (us, ss) = vargs s'
+    bs = zip vs (fst . vargs <$> ts)
+    cs = zip us (fst . vargs <$> ss)
     p' = L.foldl (\p (v, u) -> unapplyRelArgs v u p) p (zip vs us)
 
 consRelTop :: Config -> TargetInfo -> CGEnv -> PrEnv -> (Var, Var, LocSpecType, LocSpecType, F.Expr, F.Expr) -> CG PrEnv
@@ -142,12 +144,15 @@ consRelCheckBind γ ψ b1@(Rec [(f1, e1)]) b2@(Rec [(f2, e2)]) t1 t2 a p
     let (e1'', e2'') = L.foldl' subRel (e1', e2') (zip xs1 xs2)
     γ' <- γ += ("Bind Rec f1", F.symbol f1', t1) >>= (+= ("Bind Rec f2", F.symbol f2', t2))
     γ'' <- foldM (\γ (x, t) -> γ += ("Bind Rec x1", F.symbol x, t)) γ' (zip (xs1' ++ xs2') (ts1 ++ ts2))
-    let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2') 
-    γ''' <- γ'' `addPreds` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd qs)) ++ "\n" ++ 
+    let vs2xs =  F.subst $ F.mkSubst $ zip (vs1 ++ vs2) $ map (F.EVar . F.symbol) (xs1' ++ xs2')
+    let (ho, fo) = partitionArgs xs1 xs2 ts1 ts2 qs
+    γ''' <- γ'' `addPreds` traceWhenLoud ("PRECONDITION " ++ F.showpp (vs2xs (F.PAnd fo)) ++ "\n" ++ 
                                           "ASSUMPTION " ++ F.showpp (vs2xs a)) 
-                              [vs2xs (F.PAnd qs), vs2xs a]
+                              map (vs2xs . filterHO) [F.PAnd fo, vs2xs a]
     let p' = unapp p (zip vs1 vs2)
-    let ψ' = RelPred f1' f2' vs1 vs2 p' : RelPred f2' f1' vs2 vs1 p' : ψ
+    let bs1 = zip vs1 (fst . vargs <$> ts1)
+    let bs2 = zip vs2 (fst . vargs <$> ts2)
+    let ψ' = ho ++ RelPred f1' f2' bs1 bs2 p' : RelPred f2' f1' bs2 bs1 p' : ψ
     consRelCheck γ''' ψ' (xbody e1'') (xbody e2'') (vs2xs $ ret t1) (vs2xs $ ret t2) (vs2xs $ concl p')
     return ψ'
   where 
@@ -198,15 +203,17 @@ consRelCheck γ ψ l1@(Lam α1 e1) l2@(Lam α2 e2) rt1@(RAllT s1 t1 r1) rt2@(RAl
 consRelCheck γ ψ l1@(Lam x1 e1) l2@(Lam x2 e2) rt1@(RFun v1 s1 t1 r1) rt2@(RFun v2 s2 t2 r2) pr@(F.PImp q p)
   = traceChk "Lam Expr" l1 l2 rt1 rt2 pr $ do
     entlFunRefts γ r1 r2 "consRelCheck Lam Expr"
-    let (evar1, evar2) = mkRelCopies x1 x2
-    let (e1', e2')     = subRelCopies e1 x1 e2 x2
     let (pvar1, pvar2) = (F.symbol evar1, F.symbol evar2)
     let subst = F.subst $ F.mkSubst [(v1, F.EVar pvar1), (v2, F.EVar pvar2)]
     γ'  <- γ += ("consRelCheck Lam L", pvar1, subst s1)
     γ'' <- γ' += ("consRelCheck Lam R", pvar2, subst s2)
     let p'    = unapplyRelArgs v1 v2 p
-    γ''' <- γ'' `addPred` traceWhenLoud ("PRECONDITION " ++ F.showpp (subst q)) subst q
-    consRelCheck γ''' ψ e1' e2' (subst t1) (subst t2) (subst p')
+    let (ho, fo) = partitionArg x1 x2 s1 s2 q
+    γ''' <- γ'' `addPreds` traceWhenLoud ("PRECONDITION " ++ F.showpp (map subst fo)) map subst fo
+    consRelCheck γ''' (ho ++ ψ) e1' e2' (subst t1) (subst t2) (subst p')
+  where
+    (evar1, evar2) = mkRelCopies x1 x2
+    (e1', e2')     = subRelCopies e1 x1 e2 x2
 
 consRelCheck γ ψ l1@(Let (NonRec x1 d1) e1) l2@(Let (NonRec x2 d2) e2) t1 t2 p
   = traceChk "Let" l1 l2 t1 t2 p $ do
@@ -365,7 +372,8 @@ consRelSynth γ ψ e1 a2@(App e2 d2) | Type t2 <- GM.unTickExpr d2 =
 consRelSynth γ ψ a1@(App e1 d1) a2@(App e2 d2) = traceSyn "App Exp Exp" a1 a2 $ do
   (ft1, ft2, fps) <- consRelSynth γ ψ e1 e2
   (t1, t2, ps) <- consRelSynthApp γ ψ ft1 ft2 fps (GM.unTickExpr d1) (GM.unTickExpr d2)
-  return (t1, t2, instantiateApp a1 a2 ψ ++ ps)
+  qs <- instantiateApp a1 a2 γ ψ  
+  return (t1, t2, qs ++ ps)
 
 consRelSynth γ _ e d = traceSyn "Unary" e d $ do
   t <- consUnarySynth γ e >>= refreshTy
@@ -422,7 +430,7 @@ consUnarySynth γ e@(Lam x d)  = do
   s  <- freshTy_type LamE (Var x) s'
   γ' <- γ += ("consUnarySynth (Lam)", F.symbol x, s)
   t  <- consUnarySynth γ' d
-  addW $ WfC γ t
+  addW $ WfC γ s
   return $ RFun (F.symbol x) s t mempty
 consUnarySynth γ e@(Case _ _ _ alts) = do
   t   <- freshTy_type (caseKVKind alts) e $ Ghc.exprType e
@@ -487,6 +495,14 @@ consUnaryCheck γ e t = do
 --------------------------------------------------------------
 
 consRelSub :: CGEnv -> SpecType -> SpecType -> F.Expr -> F.Expr -> CG ()
+consRelSub γ f1@(RFun g1 s1@(RFun x1' s1' t1' _) t1 _) f2@(RFun g2 s2@(RFun x2' s2' t2' _) t2 _) 
+             pr1@(F.PImp qr1@(F.PImp q1 q1') p1)            pr2@(F.PImp qr2@(F.PImp q2 q2') p2)
+  = traceSub "hof" f1 f2 pr1 pr2 $ do
+    consRelSub γ s1 s2 qr2 qr1
+    γ' <- γ += ("consRelSub HOF", F.symbol g1, s1)
+    γ'' <- γ' += ("consRelSub HOF", F.symbol g2, s2)
+    let psubst = unapplyArg resL g1 <> unapplyArg resR g2
+    consRelSub γ'' t1 t2 (psubst p1) (psubst p2)
 consRelSub γ f1@(RFun x1 s1 e1 _) f2 p1 p2 =
   traceSub "fun" f1 f2 p1 p2 $ do
     γ' <- γ += ("consRelSub RFun L", F.symbol x1, s1)
@@ -528,6 +544,36 @@ wfTruth _ _ = F.PTrue
 --------------------------------------------------------------
 -- Helper Definitions ----------------------------------------
 --------------------------------------------------------------
+
+zip5 :: [a] -> [b] -> [c] -> [d] -> [e] -> [(a, b, c, d, e)]
+zip5 as bs cs ds es =
+  getZipList
+    $   (\a b c d e -> (a, b, c, d, e))
+    <$> ZipList as
+    <*> ZipList bs
+    <*> ZipList cs
+    <*> ZipList ds
+    <*> ZipList es
+
+isFuncPred :: F.Expr -> Bool
+isFuncPred (F.PImp _ _) = True
+isFuncPred _            = False
+
+partitionArg :: Var -> Var -> SpecType -> SpecType -> F.Expr -> (PrEnv, [F.Expr])
+partitionArg x1 x2 s1 s2 q = partitionArgs [x1] [x2] [s1] [s2] [q]
+
+partitionArgs :: [Var] -> [Var] -> [SpecType] -> [SpecType] -> [F.Expr] -> (PrEnv, [F.Expr])
+partitionArgs xs1 xs2 ts1 ts2 qs = (map toRel ho, map toUnary fo)
+ where
+  (ho, fo) = L.partition (isFuncPred . toUnary) (zip5 xs1 xs2 ts1 ts2 qs)
+  unapp    = L.foldl (\p (v1, v2) -> unapplyRelArgs v1 v2 p)
+  toRel (f1, f2, t1, t2, q) =
+    let (vs1, ts1) = vargs t1
+    in  let (vs2, ts2) = vargs t2
+        in  let bs1 = zip vs1 (fst . vargs <$> ts1)
+            in  let bs2 = zip vs2 (fst . vargs <$> ts2)
+                in  RelPred f1 f2 bs1 bs2 $ unapp q (zip vs1 vs2)
+  toUnary = (\(_, _, _, _, q) -> q)
 
 unRAllT :: SpecType -> String -> (RTVU RTyCon RTyVar, SpecType, RReft)
 unRAllT (RAllT α2 ft2 r2) _ = (α2, ft2, r2)
@@ -592,25 +638,48 @@ concl p            = p
 unpackApp :: CoreExpr -> Maybe [Var]
 unpackApp = fmap reverse . unpack' . GM.unTickExpr
  where
-  unpack' (Var f        ) = Just [f]
-  unpack' (App e (Var x)) = (x :) <$> unpack' e
-  unpack' _               = Nothing
-
-instantiateApp :: CoreExpr -> CoreExpr -> PrEnv -> [F.Expr]
-instantiateApp e1 e2 ψ
-  = traceWhenLoud ("instantiateApp " ++ F.showpp e1 ++ " " ++ F.showpp e2 ++ " " ++ show ψ) concatMap (inst (unpackApp e1) (unpackApp e2)) ψ 
+  unpack' :: CoreExpr -> Maybe [Var]
+  unpack' (Tick _ e)                      = unpack' e
+  unpack' (Var f   )                      = Just [f]
+  unpack' (App e (Var α)) | Ghc.isTyVar α = unpack' e
+  unpack' (App e (Type α))                = unpack' e
+  unpack' (App e (Var  x))                = (x :) <$> unpack' e
+  unpack' e = traceWhenLoud ("can't unpackApp APP " ++ show e) Nothing
+             
+instantiateApp :: CoreExpr -> CoreExpr -> CGEnv -> PrEnv -> CG [F.Expr]
+instantiateApp e1 e2 γ ψ = traceWhenLoud
+  ("instantiateApp " ++ F.showpp e1 ++ " " ++ F.showpp e2 ++ " " ++ show ψ)
+  concatMapM (inst (unpackApp e1) (unpackApp e2)) ψ
  where
-  inst :: Maybe [Var] -> Maybe [Var] -> RelPred -> [F.Expr]
+  inst :: Maybe [Var] -> Maybe [Var] -> RelPred -> CG [F.Expr]
   inst (Just (f1:xs1)) (Just (f2:xs2)) qpr
-    | traceWhenLoud ("INST GUARD" ++ F.showpp (fun1 qpr) ++ " == " ++ F.showpp f1) fun1 qpr == f1
-    , traceWhenLoud ("INST GUARD" ++ F.showpp (fun2 qpr) ++ " == " ++ F.showpp f2) fun2 qpr == f2
-    , traceWhenLoud ("INST GUARD" ++ F.showpp (args1 qpr) ++ " -> " ++ F.showpp xs1) length (args1 qpr) == length xs1
-    , traceWhenLoud ("INST GUARD" ++ F.showpp (args2 qpr) ++ " -> " ++ F.showpp xs2) length (args2 qpr) == length xs2
-    = let s = zip (args1 qpr ++ args2 qpr) (F.EVar . F.symbol <$> xs1 ++ xs2)
-      in let sub = F.mkSubst s
-        in let p = F.subst sub $ prop qpr
-          in traceWhenLoud ("INSTANTIATION " ++ F.showpp (p, prop qpr) ++ " " ++ show s) [p]
-  inst _ _ _ = []
+    | fun1 qpr == f1
+    , fun2 qpr == f2
+    , length (args1 qpr) == length xs1
+    , length (args2 qpr) == length xs2
+    = do
+        p <- consTotalHOPred xs1 xs2 (args1 qpr) (args2 qpr) (prems (prop qpr) ++ [concl (prop qpr)]) []
+        return $ traceWhenLoud ("consTotalHOPred " ++ F.showpp p ++ "\nconsTotalHOPred qpr: " ++ F.showpp (prop qpr)) [p]
+  inst _ _ _ = return []
+  consTotalHOPred :: [Var] -> [Var] -> [(F.Symbol, [F.Symbol])] -> [(F.Symbol, [F.Symbol])] -> [F.Expr] -> [F.Expr] -> CG F.Expr
+  consTotalHOPred [] [] [] [] ps qs = return $ if null p then F.PTrue else L.foldr1 F.PImp p
+    where p = reverse qs ++ ps
+  consTotalHOPred (x1:xs1) (x2:xs2) ((_, bs1):vs1) ((_, bs2):vs2) (q@(F.PImp _ _):ps) qs
+    | RFun x1' s1 _ _ <- f1, RFun x2' s2 _ _ <- f2 = do
+        γ' <- γ += ("consTotalHOPred L", x1', s1)
+        γ'' <- γ' += ("consTotalHOPred R", x2', s2)
+        consRelSub γ'' f1 f2 F.PTrue (F.subst sub q)
+        consTotalHOPred xs1 xs2 vs1 vs2 ps qs
+    where 
+      f1 = symbolType γ x1 "consTotalHOPred funArg L"
+      f2 = symbolType γ x2 "consTotalHOPred funArg R"
+      bs2args = zip (bs1 ++ bs2) (F.EVar <$> fst (vargs f1) ++ fst (vargs f2))
+      sub = F.mkSubst bs2args
+  consTotalHOPred (x1:xs1) (x2:xs2) ((v1, _):vs1) ((v2, _):vs2) (q:ps) qs
+    = consTotalHOPred xs1 xs2 vs1 vs2 (F.subst sub <$> ps) (F.subst sub <$> q : qs) 
+    where 
+      sub = F.mkSubst [(v1, F.EVar $ F.symbol x1), (v2, F.EVar $ F.symbol x2)]
+  consTotalHOPred _ _ _ _ _ _ = F.panic "consTotalHOPred: number of premises should be >= length of arg list"
 
 extendWithTyVar :: CGEnv -> TyVar -> CG CGEnv
 extendWithTyVar γ a
@@ -747,9 +816,7 @@ showType v@(RVar _ _  ) = "RVar " ++ F.showpp v
 showType v@(RExprArg _) = "RExprArg " ++ F.showpp v
 showType v@(RHole    _) = "RHole" ++ F.showpp v
 
-traceUnapply
-  :: (PPrint x1, PPrint x2, PPrint e1, PPrint e2)
-  => x1 -> x2 -> e1 -> e2 -> e2
+traceUnapply :: (PPrint x1, PPrint x2, PPrint e1, PPrint e2) => x1 -> x2 -> e1 -> e2 -> e2
 traceUnapply x1 x2 e1 e2 = traceWhenLoud ("Unapply\n"
                       ++ "x1: " ++ F.showpp x1 ++ "\n\n"
                       ++ "x2: " ++ F.showpp x2 ++ "\n\n"
@@ -757,9 +824,7 @@ traceUnapply x1 x2 e1 e2 = traceWhenLoud ("Unapply\n"
                       ++ "e2: " ++ F.showpp e2) e2
 
 
-traceSub 
-  :: (PPrint t, PPrint s, PPrint p, PPrint q)
-  => String -> t -> s -> p -> q -> a -> a
+traceSub :: (PPrint t, PPrint s, PPrint p, PPrint q) => String -> t -> s -> p -> q -> a -> a
 traceSub msg t s p q = traceWhenLoud (msg ++ " RelSub\n"
                       ++ "t: " ++ F.showpp t ++ "\n\n"
                       ++ "s: " ++ F.showpp s ++ "\n\n"
