@@ -17,12 +17,13 @@ import           Language.Haskell.Liquid.Constraint.Types
 import qualified Language.Haskell.Liquid.Types.RefType as RT
 import           Language.Haskell.Liquid.Constraint.Qualifier
 import           Control.Monad (guard)
-import qualified Data.Maybe as Mb 
+import qualified Data.Maybe as Mb
+import Debug.Trace
 
 -- AT: Move to own module?
 -- imports for AxiomEnv
 import qualified Language.Haskell.Liquid.UX.Config as Config
-import           Language.Haskell.Liquid.UX.DiffCheck (coreDeps, dependsOn)
+import           Language.Haskell.Liquid.UX.DiffCheck (coreDefs, coreDeps, dependsOn, Def(..))
 import qualified Language.Haskell.Liquid.GHC.Misc  as GM -- (simplesymbol)
 import qualified Data.List                         as L
 import qualified Data.HashMap.Strict               as M
@@ -103,27 +104,40 @@ makeAxiomEnvironment info xts fcs
 
 
 makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
-makeRewrites info sub = concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
+makeRewrites info sub = trace' $ concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
   where
     tce        = gsTcEmbeds (gsName spec)
     spec       = giSpec info
     sig        = gsSig spec
     sigs       = gsTySigs sig ++ gsAsmSigs sig
-    isGlobalRw = Mb.maybe False (`elem` globalRws) (subVar sub)
+    isGlobalRw = Mb.maybe False (`elem` globalRws) (theVar)
 
-    rws        =
+    trace' t = t -- trace (show (theVar) ++ " " ++ (show (ci_loc $ F.sinfo sub)) ++ " " ++ (show rws)) t
+
+    theVar =
+      case subVar sub of
+        Just v -> Just v
+        Nothing ->
+          Mb.listToMaybe $ do
+            D s e v <- coreDefs $ giCbs $ giSrc info
+            let (Ghc.RealSrcSpan cc _) = (ci_loc $ F.sinfo sub)
+            guard $ s <= Ghc.srcSpanStartLine cc && e >= Ghc.srcSpanEndLine cc
+            return v
+
+    rws =
       if isGlobalRw
-      then S.empty
-      else S.difference
+      then trace "GLOBAL!!!!" S.empty
+      else
+        S.difference
         (S.union localRws globalRws)
-        (Mb.maybe S.empty forbiddenRWs (subVar sub))
+        (Mb.maybe S.empty forbiddenRWs theVar)
 
     allDeps         = coreDeps $ giCbs $ giSrc info
     forbiddenRWs sv =
       S.insert sv $ dependsOn allDeps [sv]
 
     localRws = Mb.fromMaybe S.empty $ do
-      var    <- subVar sub
+      var    <- theVar
       usable <- M.lookup var $ gsRewritesWith $ gsRefl spec
       return $ S.fromList usable
     globalRws  = S.map val $ gsRewrites $ gsRefl spec

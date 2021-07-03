@@ -28,6 +28,8 @@ module Language.Haskell.Liquid.UX.DiffCheck (
    , filterBinds
    , coreDeps
    , dependsOn
+   , Def(..)
+   , coreDefs
    )
    where
 
