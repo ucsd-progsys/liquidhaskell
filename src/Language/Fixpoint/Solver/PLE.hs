@@ -172,7 +172,9 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
       in 
         exprs <> (S.fromList $ concat rws)
     go ictx | S.null (icCands ictx) = return ictx 
-    go ictx =  do let cands = icCands ictx
+    go ictx =  do
+                  liftIO $ putStrLn "New loop"
+                  let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env 
                                  , evFuel  = icFuel   ictx 
                                  }
@@ -490,7 +492,7 @@ fastEval γ ctx e =
     go (ECoerc s t e)   = ECoerc s t  <$> go e
     go e@(EApp _ _)     = case splitEApp e of 
                            (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)
-                                         evalApp γ ctx (eApps f' es) (f',es')
+                                         evalApp γ ctx (eApps f' es) (f',es') True
 
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = do e'  <- fastEval γ ctx e
@@ -603,9 +605,9 @@ eval γ ctx rp =
     -- liftIO $ print $ length pathExprs
     exploredTerms <- gets explored
     -- when (ET.size exploredTerms > 25) $ error "boom"
-    se <- liftIO (shouldExploreTerm exploredTerms)
+    se <- liftIO (shouldExploreTerm exploredTerms e)
     when se $ do
-      possibleRWs <- getRWs
+      possibleRWs <- getRWs exploredTerms
       -- liftIO $ putStrLn "Check Start"
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
       e'  <- simplify γ ctx <$> evalStep γ ctx e
@@ -624,11 +626,12 @@ eval γ ctx rp =
                   (explored st)
                 })
 
-      when evalIsNewExpr $ eval γ (addConst (e, e')) (rpEval e')
+      se' <- liftIO (shouldExploreTerm exploredTerms e')
+      when (evalIsNewExpr && se') $ do eval γ (addConst (e, e')) (rpEval e')
 
       mapM_ (\rw -> eval γ ctx (rpRW rw)) rws
   where
-    shouldExploreTerm et =
+    shouldExploreTerm et e =
       case rwTerminationOpts rwArgs of
         RWTerminationCheckDisabled  -> return $ not $ visited (convert e) et
         RWTerminationCheckEnabled _ -> shouldExplore (convert e) (c rp) et
@@ -675,11 +678,11 @@ eval γ ctx rp =
       then (knRWTerminationOpts γ)
       else RWTerminationCheckDisabled
 
-    getRWs =
+    getRWs et =
       let
-        e'        = unsubst ctx e
-        getRW     = getRewrite (oc rp) rwArgs (c rp)
-        getRWs' s = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
+        e'         = unsubst ctx e
+        getRW e ar = getRewrite (oc rp) rwArgs (c rp) e ar (shouldExploreTerm et)
+        getRWs' s  = Mb.catMaybes <$> mapM (liftIO . runMaybeT . getRW s) autorws
       in concat <$> mapM getRWs' (subExprs e')
           
     addConst (e,e') = if isConstant (knDCs γ) e'
@@ -700,7 +703,7 @@ evalStep γ ctx e@(EApp _ _)     = case splitEApp e of
             es' <- mapM (evalStep γ ctx) es
             if es /= es'
               then return (eApps f' es')
-              else evalApp γ ctx (eApps f' es') (f',es')
+              else evalApp γ ctx (eApps f' es') (f',es') False
 evalStep γ ctx e@(PAtom r e1 e2) =
   fromMaybeM (PAtom r <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
 evalStep γ ctx (ENeg e) = ENeg <$> evalStep γ ctx e
@@ -730,8 +733,8 @@ f <$$> xs = f Misc.<$$> xs
 
 
 
-evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalST Expr
-evalApp γ ctx _e0 (EVar f, es)
+evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> Bool -> EvalST Expr
+evalApp γ ctx _e0 (EVar f, es) allowExpand
   | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
   , length (eqArgs eq) <= length es 
   = do 
@@ -741,7 +744,7 @@ evalApp γ ctx _e0 (EVar f, es)
          then do
                 useFuel f
                 let (es1,es2) = splitAt (length (eqArgs eq)) es
-                shortcut (substEq env eq es1) es2          -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
+                shortcut (substEq env eq es1) es2 -- TODO:FUEL this is where an "unfolding" happens, CHECK/BUMP counter
          else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
@@ -751,17 +754,25 @@ evalApp γ ctx _e0 (EVar f, es)
       r <- if b' 
         then shortcut e1 es2
         else if nb' then shortcut e2 es2
-        else return $ eApps (EIte b e1 e2) es2
+        else
+          let
+            e' = eApps (EIte b e1 e2) es2
+          in
+            if allowExpand
+            then return e'
+            else do
+              modify (\st -> st { evAccum = S.insert (traceE (_e0, e')) (evAccum st) })
+              return $ _e0
       return r
     shortcut e' es2 = return $ eApps e' es2
 
-evalApp γ _ _ (EVar f, e:es) 
+evalApp γ _ _ (EVar f, e:es) _
   | (EVar dc, as) <- splitEApp e
   , Just rw <- L.find (\rw -> smName rw == f && smDC rw == dc) (knSims γ)
   , length as == length (smArgs rw)
   = return $ eApps (subst (mkSubst $ zip (smArgs rw) as) (smBody rw)) es 
 
-evalApp _ _ e _
+evalApp _ _ e _ _
   = return e 
   
 --------------------------------------------------------------------------------
