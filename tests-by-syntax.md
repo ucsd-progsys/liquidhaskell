@@ -64,6 +64,7 @@ It does *not* intend to explain the features that the syntax implements.
 
 ### Binding in Data Declaration
 
+[Map.hs](tests/pos/Map.hs)
 [deptup0.hs](tests/absref/pos/deptup0.hs)
 [deptupW.hs](tests/absref/pos/deptupW.hs)
 [state00.hs](tests/absref/pos/state00.hs)
@@ -76,12 +77,14 @@ It does *not* intend to explain the features that the syntax implements.
 
 ### Binding via lambdas
 
+[Map.hs](tests/pos/Map.hs)
 [ListISort.hs](tests/absref/pos/ListISort.hs)
 [ListQSort.hs](tests/absref/pos/ListQSort.hs)
 [deppair2.hs](tests/absref/pos/deppair2.hs)
 
 ### Application
 
+[Map.hs](tests/pos/Map.hs)
 [ListISort.hs](tests/absref/pos/ListISort.hs)
 [ListQSort.hs](tests/absref/pos/ListQSort.hs)
 [deptup0.hs](tests/absref/pos/deptup0.hs)
@@ -91,6 +94,7 @@ It does *not* intend to explain the features that the syntax implements.
 
 ### Multi-Parameter Abstract Refinements
 
+[Map.hs](tests/pos/Map.hs)
 [VectorLoop.hs](tests/absref/pos/VectorLoop.hs)
 [deppair2.hs](tests/absref/pos/deppair2.hs)
 
