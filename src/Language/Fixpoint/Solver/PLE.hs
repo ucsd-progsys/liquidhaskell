@@ -180,7 +180,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                  }
                   (ictx', evalResults)  <- SMT.smtBracket ctx "PLE.evaluate" $ do
                                SMT.smtAssert ctx (pAnd (S.toList $ icAssms ictx)) 
-                               foldM (evalOneCandStep γ env') (ictx, []) (S.toList cands) 
+                               foldM (evalOneCandStep γ env' i) (ictx, []) (S.toList cands)
                                -- foldM (\ictx e -> undefined) 
                                -- mapM (evalOne γ env' ictx) (S.toList cands)
                   let us = mconcat evalResults 
@@ -197,9 +197,9 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
                                  
 -- evalOneCands :: Knowledge -> EvalEnv -> ICtx -> [Expr] -> IO (ICtx, [EvAccum])
 -- evalOneCands γ env' ictx = foldM step (ictx, [])
-evalOneCandStep :: Knowledge -> EvalEnv -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
-evalOneCandStep γ env' (ictx, acc) e = do 
-  (res, fm) <- evalOne γ env' ictx e 
+evalOneCandStep :: Knowledge -> EvalEnv -> Int -> (ICtx, [EvAccum]) -> Expr -> IO (ICtx, [EvAccum])
+evalOneCandStep γ env' i (ictx, acc) e = do
+  (res, fm) <- evalOne γ env' ictx i e
   return (ictx { icFuel = fm}, res : acc)
 
 rewrite :: Expr -> Rewrite -> [(Expr,Expr)] 
@@ -407,12 +407,12 @@ getAutoRws γ ctx =
     cid <- icSubcId ctx
     M.lookup cid $ knAutoRWs γ
 
-evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (EvAccum, FuelCount)
-evalOne γ env ctx e | null (getAutoRws γ ctx) = do
+evalOne :: Knowledge -> EvalEnv -> ICtx -> Int -> Expr -> IO (EvAccum, FuelCount)
+evalOne γ env ctx i e | null (getAutoRws γ ctx) = do
     (e', st) <- runStateT (eval γ ctx NoRewrites e) (env { evFuel = icFuel ctx })
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
-evalOne γ env ctx e = do
+evalOne γ env ctx _ e = do
   -- env' <- execStateT (evalREST γ ctx e) (env { evFuel = icFuel ctx })
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
@@ -518,7 +518,13 @@ eval γ ctx et e =
           (f':es') <- mapM (eval γ ctx (Rewrites True)) (f:es)
           if f /= f || es /= es'
             then return (eApps f' es')
-            else evalApp γ ctx (eApps f' es) (f',es') et
+            else do
+              e' <- evalApp γ ctx (eApps f' es) (f',es') et
+              if e' /= (eApps f' es)
+                then return e'
+                else return e' -- do
+                  -- (f'':es'') <- mapM (eval γ ctx NoRewrites) (f:es)
+                  -- evalApp γ ctx (eApps f'' es) (f'',es'') NoRewrites
 
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
     go (ENeg e)         = do e'  <- eval γ ctx et e
@@ -621,11 +627,10 @@ unsubst ctx e = subst' e where
   subst' ee =
     let ee' = subst su ee
     in
-      if ee == ee'
-      then ee
-        -- if "anf" `L.isInfixOf` (show ee)
-        -- then error $ "\n\n" ++ show su ++ "------\n" ++ show ee
-        -- else ee
+      if ee == ee' then
+        if "anf" `L.isInfixOf` (show ee) && not ("ProofCombinators" `L.isInfixOf` (show ee))
+        then error $ "\n\n" ++ show su ++ "------\n" ++ show ee
+        else ee
       else subst' ee'
 
 evalREST :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
