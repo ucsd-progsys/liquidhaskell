@@ -122,7 +122,7 @@ getRewrite ::
   -> MaybeT IO (Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
   do
-    -- liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE)
+    -- liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE) ++ " with " ++ show lhs
     su <- MaybeT $ return $ unify freeVars lhs subE
     -- liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
     let subE' = subst su rhs
@@ -132,7 +132,7 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
     -- lift $ putStrLn $ "Unified " ++ (show subE) ++ " to " ++ (show subE')
     -- liftIO (shouldApply expr') >>= guard
     mapM_ (checkSubst su) exprs
-    -- lift $ putStrLn $ (show $ convert expr) ++ " -> " ++ (show $ convert expr')
+    -- lift $ putStrLn $ (show $ convert expr) ++ " ->R\n " ++ (show $ convert expr')
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled _ ->
         let

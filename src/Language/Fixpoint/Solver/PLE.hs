@@ -409,12 +409,12 @@ getAutoRws γ ctx =
 
 evalOne :: Knowledge -> EvalEnv -> ICtx -> Expr -> IO (EvAccum, FuelCount)
 evalOne γ env ctx e | null (getAutoRws γ ctx) = do
-    (e', st) <- runStateT (fastEval γ ctx e) (env { evFuel = icFuel ctx }) 
+    (e', st) <- runStateT (eval γ ctx NoRewrites e) (env { evFuel = icFuel ctx })
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx e = do
   -- env' <- execStateT (evalREST γ ctx e) (env { evFuel = icFuel ctx })
-  env' <- execStateT (eval γ ctx rp) (env { evFuel = icFuel ctx })
+  env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
     oc = ordConstraints (z3 env)
@@ -476,38 +476,55 @@ subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
                            , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
 subsFromAssm _                                           = []
 
-fastEval :: Knowledge -> ICtx -> Expr -> EvalST Expr
-fastEval _ ctx e
+data EvalType = NoRewrites | Rewrites Bool
+
+inc (Rewrites False) = Rewrites True
+inc et               = et
+
+eval :: Knowledge -> ICtx -> EvalType -> Expr -> EvalST Expr
+eval _ ctx _ e
   | Just v <- M.lookup e (icSimpl ctx)
   = return v
   
-fastEval γ ctx e =
+eval γ ctx et e =
   do acc <- gets (S.toList . evAccum)
      case L.lookup e acc of
-        Just e' -> fastEval γ ctx e'
+        -- Just e' -> eval γ ctx et e'
         _ -> do
           e'  <- simplify γ ctx <$> go e
           if e /= e' 
-            then do 
-              modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st) })
-              fastEval γ (addConst (e,e') ctx) e'
+            then
+              case et of
+                Rewrites _ -> return e'
+                _ -> do
+                  modify (\st -> st { evAccum = S.insert (traceE (e, e')) (evAccum st) })
+                  eval γ (addConst (e,e') ctx) NoRewrites e'
             else 
               return e
   where
     addConst (e,e') ctx = if isConstant (knDCs γ) e'
                            then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
-    go (ELam (x,s) e)   = ELam (x, s) <$> fastEval γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
-    go e@(EIte b e1 e2) = fastEvalIte γ ctx e b e1 e2
+    go (ELam (x,s) e)   = ELam (x, s) <$> eval γ' ctx et e where γ' = γ { knLams = (x, s) : knLams γ }
+    go e@(EIte b e1 e2) = evalIte γ ctx et e b e1 e2
     go (ECoerc s t e)   = ECoerc s t  <$> go e
-    go e@(EApp _ _)     = case splitEApp e of 
-                           (f, es) -> do (f':es') <- mapM (fastEval γ ctx) (f:es)
-                                         evalApp γ ctx (eApps f' es) (f',es') True
+    go e@(EApp _ _)     =
+      case (splitEApp e, et) of
+      ((f, es), NoRewrites) ->
+        do
+          (f':es') <- mapM (eval γ ctx et) (f:es)
+          evalApp γ ctx (eApps f' es) (f',es') et
+      ((f, es), Rewrites _) ->
+        do
+          (f':es') <- mapM (eval γ ctx (Rewrites True)) (f:es)
+          if f /= f || es /= es'
+            then return (eApps f' es')
+            else evalApp γ ctx (eApps f' es) (f',es') et
 
     go e@(PAtom r e1 e2) = fromMaybeM (PAtom r <$> go e1 <*> go e2) (evalBool γ e)
-    go (ENeg e)         = do e'  <- fastEval γ ctx e
+    go (ENeg e)         = do e'  <- eval γ ctx et e
                              return $ ENeg e'
-    go (EBin o e1 e2)   = do e1' <- fastEval γ ctx e1 
-                             e2' <- fastEval γ ctx e2 
+    go (EBin o e1 e2)   = do e1' <- eval γ ctx et e1
+                             e2' <- eval γ ctx et e2
                              return $ EBin o e1' e2'
     go (ETApp e t)      = flip ETApp t <$> go e
     go (ETAbs e s)      = flip ETAbs s <$> go e
@@ -611,14 +628,14 @@ unsubst ctx e = subst' e where
         -- else ee
       else subst' ee'
 
-eval :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
-eval _ ctx rp
+evalREST :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
+evalREST _ ctx rp
   | pathExprs <- map fst (mytracepp "EVAL1: path" $ path rp)
   , e         <- last pathExprs
   , Just v    <- M.lookup e (icSimpl ctx)
   = when (v /= e) $ modify (\st -> st { evAccum = S.insert (e, v) (evAccum st)})
         
-eval γ ctx rp =
+evalREST γ ctx rp =
   do
     -- liftIO $ print $ length pathExprs
     exploredTerms <- gets explored
@@ -628,7 +645,7 @@ eval γ ctx rp =
       possibleRWs <- getRWs exploredTerms
       -- liftIO $ putStrLn "Check Start"
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
-      e'  <- simplify γ ctx <$> evalStep γ ctx e
+      e'  <- simplify γ ctx <$> eval γ ctx (Rewrites False) e
       -- when (e' /= e) $
       --   liftIO $
       --     printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e')
@@ -647,9 +664,9 @@ eval γ ctx rp =
                   (explored st)
                 })
 
-      when evalIsNewExpr $ do eval γ (addConst (e, e')) (rpEval e')
+      when evalIsNewExpr $ do evalREST γ (addConst (e, e')) (rpEval e')
 
-      mapM_ (\rw -> eval γ ctx (rpRW rw)) rws
+      mapM_ (\rw -> evalREST γ ctx (rpRW rw)) rws
   where
     shouldExploreTerm et e =
       case rwTerminationOpts rwArgs of
@@ -708,38 +725,6 @@ eval γ ctx rp =
     addConst (e,e') = if isConstant (knDCs γ) e'
                       then ctx { icSimpl = M.insert e e' $ icSimpl ctx} else ctx 
 
-evalStep :: Knowledge -> ICtx -> Expr -> EvalST Expr
-evalStep γ ctx (ELam (x,s) e)   = ELam (x, s) <$> evalStep γ' ctx e where γ' = γ { knLams = (x, s) : knLams γ }
-evalStep γ ctx e@(EIte b e1 e2) = evalIte γ ctx e b e1 e2
-evalStep γ ctx (ECoerc s t e)   = ECoerc s t <$> evalStep γ ctx e
-evalStep γ ctx e@(EApp _ _)     = case splitEApp e of 
-  (f, es) ->
-    do
-      f' <- evalStep γ ctx f
-      if f' /= f
-        then return (eApps f' es)
-        else
-          do
-            es' <- mapM (evalStep γ ctx) es
-            if es /= es'
-              then return (eApps f' es')
-              else evalApp γ ctx (eApps f' es') (f',es') False
-evalStep γ ctx e@(PAtom r e1 e2) =
-  fromMaybeM (PAtom r <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
-evalStep γ ctx (ENeg e) = ENeg <$> evalStep γ ctx e
-evalStep γ ctx (EBin o e1 e2)   = do
-  e1' <- evalStep γ ctx e1
-  if e1' /= e1
-    then return (EBin o e1' e2)
-    else EBin o e1 <$> evalStep γ ctx e2
-evalStep γ ctx (ETApp e t)      = flip ETApp t <$> evalStep γ ctx e
-evalStep γ ctx (ETAbs e s)      = flip ETAbs s <$> evalStep γ ctx e
-evalStep γ ctx e@(PNot e')      = fromMaybeM (PNot <$> evalStep γ ctx e') (evalBool γ e)
-evalStep γ ctx e@(PImp e1 e2)   = fromMaybeM (PImp <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
-evalStep γ ctx e@(PIff e1 e2)   = fromMaybeM (PIff <$> evalStep γ ctx e1 <*> evalStep γ ctx e2) (evalBool γ e)
-evalStep γ ctx e@(PAnd es)      = fromMaybeM (PAnd <$> (evalStep γ ctx <$$> es)) (evalBool γ e)
-evalStep γ ctx e@(POr es)       = fromMaybeM (POr  <$> (evalStep γ ctx <$$> es)) (evalBool γ e)
-evalStep _ _   e                = return e
 
 fromMaybeM :: (Monad m) => m a -> m (Maybe a) -> m a 
 fromMaybeM a ma = do 
@@ -753,8 +738,8 @@ f <$$> xs = f Misc.<$$> xs
 
 
 
-evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> Bool -> EvalST Expr
-evalApp γ ctx _e0 (EVar f, es) allowExpand
+evalApp :: Knowledge -> ICtx -> Expr -> (Expr, [Expr]) -> EvalType -> EvalST Expr
+evalApp γ ctx _e0 (EVar f, es) et
   | Just eq <- L.find ((== f) . eqName) (knAms γ) -- TODO:FUEL make this a fast lookup map!
   , length (eqArgs eq) <= length es 
   = do 
@@ -768,21 +753,15 @@ evalApp γ ctx _e0 (EVar f, es) allowExpand
          else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
-      b   <- if allowExpand then fastEval γ ctx i else evalStep γ ctx i
+      b   <- eval γ ctx et i
       b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
       nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
       r <- if b' 
         then shortcut e1 es2
         else if nb' then shortcut e2 es2
-        else
-          let
-            e' = eApps (EIte b e1 e2) es2
-          in
-            if allowExpand
-            then return e'
-            else do
-              modify (\st -> st { evAccum = S.insert (traceE (_e0, e')) (evAccum st) })
-              return $ _e0
+        else return $ case et of
+              Rewrites True -> _e0
+              _             -> eApps (EIte b e1 e2) es2
       return r
     shortcut e' es2 = return $ eApps e' es2
 
@@ -844,9 +823,9 @@ evalBool γ e = do
     if bf then return $ Just PFalse 
           else return Nothing
                
-fastEvalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-fastEvalIte γ ctx _ b0 e1 e2 = do 
-  b <- fastEval γ ctx b0 
+evalIte :: Knowledge -> ICtx -> EvalType -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
+evalIte γ ctx et _ b0 e1 e2 = do
+  b <- eval γ ctx et b0
   b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp b) <$> isValid γ b)
   nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (PNot b)) <$> isValid γ (PNot b))
   if b' 
@@ -854,19 +833,6 @@ fastEvalIte γ ctx _ b0 e1 e2 = do
     else if nb' then return $ e2 
     else return $ EIte b e1 e2  
 
-evalIte :: Knowledge -> ICtx -> Expr -> Expr -> Expr -> Expr -> EvalST Expr
-evalIte γ ctx _ b0 e1 e2 = do 
-  b   <- evalStep γ ctx b0
-  if b /= b0 then return (EIte b e1 e2) else
-    do
-      b'  <- liftIO $ isValid γ b
-      nb' <- liftIO $ isValid γ (PNot b)
-      return $
-        if b'
-        then e1
-        else if nb' then e2 
-        else EIte b e1 e2
-        
 --------------------------------------------------------------------------------
 -- | Knowledge (SMT Interaction)
 --------------------------------------------------------------------------------
