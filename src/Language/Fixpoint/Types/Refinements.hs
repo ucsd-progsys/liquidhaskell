@@ -80,6 +80,7 @@ module Language.Fixpoint.Types.Refinements (
   , conjuncts
   , eApps
   , eAppC
+  , exprKVars
   , exprSymbolsSet
   , splitEApp
   , splitPAnd

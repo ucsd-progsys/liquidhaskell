@@ -33,7 +33,7 @@ module Language.Fixpoint.Types.Constraints (
   -- * Constraints
   , WfC (..), isGWfc, updateWfCExpr
   , SubC, SubcId
-  , mkSubC, subcId, sid, senv, slhs, srhs, stag, subC, wfC
+  , mkSubC, subcId, sid, senv, updateSEnv, slhs, srhs, stag, subC, wfC
   , SimpC (..)
   , Tag
   , TaggedC, clhs, crhs
@@ -226,6 +226,7 @@ strengthenSortedReft (RR s (Reft (v, r))) e = RR s (Reft (v, pAnd [r, e]))
 
 class TaggedC c a where
   senv  :: c a -> IBindEnv
+  updateSEnv  :: c a -> (IBindEnv -> IBindEnv) -> c a
   sid   :: c a -> Maybe Integer
   stag  :: c a -> Tag
   sinfo :: c a -> a
@@ -234,6 +235,7 @@ class TaggedC c a where
 
 instance TaggedC SimpC a where
   senv      = _cenv
+  updateSEnv c f = c { _cenv = f (_cenv c) }
   sid       = _cid
   stag      = _ctag
   sinfo     = _cinfo
@@ -242,6 +244,7 @@ instance TaggedC SimpC a where
 
 instance TaggedC SubC a where
   senv      = _senv
+  updateSEnv c f = c { _senv = f (_senv c) }
   sid       = _sid
   stag      = _stag
   sinfo     = _sinfo
