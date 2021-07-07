@@ -152,7 +152,7 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
     checkSubst su (s, e) =
       do
         let su' = (catSubst su $ mkSubst [("VV", subst su (EVar s))])
-        liftIO $ printf "Substitute %s in %s\n" (show su') (show e)
+        -- liftIO $ printf "Substitute %s in %s\n" (show su') (show e)
         check $ subst (catSubst su su') e
 
 
@@ -196,13 +196,16 @@ subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
     rhs'' :: [SubExpr]
     rhs'' = map (\(e, f) -> (e, \e' -> PAtom op lhs (f e'))) rhs'
 
-subExprs' e@(EApp{}) = concatMap replace indexedArgs
-  where
-    (f, es)          = splitEApp e
-    indexedArgs      = zip [0..] es
-    replace (i, arg) = do
-      (subArg, toArg) <- subExprs arg
-      return (subArg, \subArg' -> eApps f $ (take i es) ++ (toArg subArg'):(drop (i+1) es))
+subExprs' e@(EApp{}) =
+  if f == EVar "Language.Haskell.Liquid.ProofCombinators.==="
+  then []
+  else concatMap replace indexedArgs
+    where
+      (f, es)          = splitEApp e
+      indexedArgs      = zip [0..] es
+      replace (i, arg) = do
+        (subArg, toArg) <- subExprs arg
+        return (subArg, \subArg' -> eApps f $ (take i es) ++ (toArg subArg'):(drop (i+1) es))
 
 subExprs' _ = []
 

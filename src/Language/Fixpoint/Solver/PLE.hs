@@ -163,7 +163,7 @@ evalToSMT :: String -> Config -> SMT.Context -> (Expr, Expr) -> Pred
 evalToSMT msg cfg ctx (e1,e2) = toSMT ("evalToSMT:" ++ msg) cfg ctx [] (EEq e1 e2)
 
 evalCandsLoop :: Config -> ICtx -> SMT.Context -> Knowledge -> EvalEnv -> IO ICtx 
-evalCandsLoop cfg ictx0 ctx γ env = go ictx0 
+evalCandsLoop cfg ictx0 ctx γ env = go ictx0 0
   where
     withRewrites exprs =
       let
@@ -171,9 +171,9 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                             ,  e <- S.toList (snd `S.map` exprs)]
       in 
         exprs <> (S.fromList $ concat rws)
-    go ictx | S.null (icCands ictx) = return ictx 
-    go ictx =  do
-                  liftIO $ putStrLn "New loop"
+    go ictx _ | S.null (icCands ictx) = return ictx
+    go ictx i =  do
+                  printf "Loop %s\n" (show i)
                   let cands = icCands ictx
                   let env' = env { evAccum = icEquals ictx <> evAccum env 
                                  , evFuel  = icFuel   ictx 
@@ -193,7 +193,7 @@ evalCandsLoop cfg ictx0 ctx γ env = go ictx0
                                                       , icEquals = icEquals ictx <> us'
                                                       , icAssms  = icAssms  ictx <> S.filter (not . isTautoPred) eqsSMT }
                                  let newcands = mconcat (makeCandidates γ ictx'' <$> S.toList (cands <> (snd `S.map` us)))
-                                 go (ictx'' { icCands = S.fromList newcands})
+                                 go (ictx'' { icCands = S.fromList newcands}) (i + 1)
                                  
 -- evalOneCands :: Knowledge -> EvalEnv -> ICtx -> [Expr] -> IO (ICtx, [EvAccum])
 -- evalOneCands γ env' ictx = foldM step (ictx, [])
@@ -252,6 +252,7 @@ data ICtx    = ICtx
   , icSimpl    :: !ConstMap                 -- ^ Map of expressions to constants
   , icSubcId   :: Maybe SubcId              -- ^ Current subconstraint ID
   , icFuel     :: !FuelCount                -- ^ Current fuel-count
+  , icANFs     :: S.HashSet Pred            -- Hopefully contain only ANF things
   } 
 
 ---------------------------------------------------------------------------------------------- 
@@ -279,6 +280,7 @@ initCtx env es   = ICtx
   , icSimpl  = mempty 
   , icSubcId = Nothing
   , icFuel   = evFuel (ieEvEnv env)
+  , icANFs   = mempty
   }
 
 equalitiesPred :: S.HashSet (Expr, Expr) -> [Expr]
@@ -306,10 +308,17 @@ updCtx InstEnv {..} ctx delta cidMb
                     , icEquals = initEqs                    <> icEquals ctx
                     , icSimpl  = M.fromList (S.toList sims) <> icSimpl ctx <> econsts
                     , icSubcId = fst <$> L.find (\(_, b) -> (head delta) `memberIBindEnv` (_cenv b)) ieCstrs
+                    , icANFs   = anfs <> icANFs ctx
                     }
   where         
     initEqs   = S.fromList $ concat [rewrite e rw | e  <- cands ++ (snd <$> S.toList (icEquals ctx))
                                                   , rw <- knSims ieKnowl]
+    anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
+                            (concat
+                             [ equalitiesPred initEqs
+                             , equalitiesPred sims
+                             , [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ]
+                             ]))
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
     econsts   = M.fromList $ findConstants ieKnowl es
@@ -586,15 +595,21 @@ data RESTParams oc = RP
 --     rws = S.fromList $ map (\r -> RewriteRule r y ctx) $ getAutoRws y ctx
 
 unsubst ctx e = subst' e where
-  ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)
-  ints' = map go (L.groupBy (\x y -> fst x == fst y) ints) where
+  ints      = concatMap subsFromAssm (S.toList $ icANFs ctx) --
+  ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.nub ints) where
     go ([(t, u)]) = (t, u)
-    go ts         = head ts
+    go ts         = head ts -- trace (show ts) $ head ts
   su        = Su (M.fromList ints')
   e'        = subst' e
   subst' ee =
     let ee' = subst su ee
-    in if ee == ee' then ee else subst' ee'
+    in
+      if ee == ee'
+      then ee
+        -- if "anf" `L.isInfixOf` (show ee)
+        -- then error $ "\n\n" ++ show su ++ "------\n" ++ show ee
+        -- else ee
+      else subst' ee'
 
 eval :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
 eval _ ctx rp
