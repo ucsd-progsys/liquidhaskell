@@ -104,16 +104,25 @@ makeAxiomEnvironment info xts fcs
 
 
 makeRewrites :: TargetInfo -> F.SubC Cinfo -> [F.AutoRewrite]
-makeRewrites info sub = trace' $ concatMap (makeRewriteOne tce)  $ filter ((`S.member` rws) . fst) sigs
+makeRewrites info sub = trace' $ concatMap (makeRewriteOne tce) toMake
   where
     tce        = gsTcEmbeds (gsName spec)
     spec       = giSpec info
     sig        = gsSig spec
     sigs       = gsTySigs sig ++ gsAsmSigs sig
-    isGlobalRw = Mb.maybe False (`elem` globalRws) (theVar)
+    isGlobalRw =
+      Mb.isJust $ do
+        var <- theVar
+        L.lookup var globalRws
 
     trace' t = t -- trace (show (theVar) ++ " " ++ (show (ci_loc $ F.sinfo sub)) ++ " " ++ (show rws)) t
 
+    toMake = do
+      sig@(var, _) <- sigs
+      directed <- Mb.maybeToList $ lookup var rws
+      return (directed, sig)
+
+    theVar :: Maybe Var
     theVar =
       case subVar sub of
         Just v -> Just v
@@ -124,23 +133,33 @@ makeRewrites info sub = trace' $ concatMap (makeRewriteOne tce)  $ filter ((`S.m
             guard $ s <= Ghc.srcSpanStartLine cc && e >= Ghc.srcSpanEndLine cc
             return v
 
+    rws :: [(Var, Bool)]
     rws =
       if isGlobalRw
-      then trace "GLOBAL!!!!" S.empty
+      then []
       else
-        S.difference
-        (S.union localRws globalRws)
-        (Mb.maybe S.empty forbiddenRWs theVar)
+        do
+          rw@(var, _) <- localRws ++ globalRws
+          case theVar of
+            Just v -> if S.member var (forbiddenRws v) then [] else [rw]
+            Nothing -> [rw]
 
     allDeps         = coreDeps $ giCbs $ giSrc info
-    forbiddenRWs sv =
+    forbiddenRws sv =
       S.insert sv $ dependsOn allDeps [sv]
 
-    localRws = Mb.fromMaybe S.empty $ do
-      var    <- theVar
-      usable <- M.lookup var $ gsRewritesWith $ gsRefl spec
-      return $ S.fromList usable
-    globalRws  = S.map val $ gsRewrites $ gsRefl spec
+    localRws :: [(Var, Bool)]
+    localRws = Mb.fromMaybe [] $ do
+      var <- theVar
+      ls  <- M.lookup var $ gsRewritesWith $ gsRefl spec
+      return $ map flip ls
+      where
+        flip (d,v) = (v,d)
+
+    globalRws :: [(Var, Bool)]
+    globalRws  = map go $ S.toList  $ gsRewrites $ gsRefl spec where
+      go var = (val var, False)
+
 
 canRewrite :: S.HashSet F.Symbol -> F.Expr -> F.Expr -> Bool
 canRewrite freeVars from to = noFreeSyms && doesNotDiverge
@@ -162,15 +181,15 @@ refinementEQs t =
     tres = ty_res tRep
     tRep = toRTypeRep $ val t 
   
-makeRewriteOne :: (F.TCEmb TyCon) -> (Var,LocSpecType) -> [F.AutoRewrite]
-makeRewriteOne tce (_,t)
+makeRewriteOne :: (F.TCEmb TyCon) -> (Bool, (Var, LocSpecType)) -> [F.AutoRewrite]
+makeRewriteOne tce (directed, (_,t))
   = [rw | (lhs, rhs) <- refinementEQs t , rw <- rewrites lhs rhs ]
   where
 
     rewrites :: F.Expr -> F.Expr -> [F.AutoRewrite]
     rewrites lhs rhs =
          (guard (canRewrite freeVars lhs rhs) >> [F.AutoRewrite xs lhs rhs])
-      ++ (guard (canRewrite freeVars rhs lhs) >> [F.AutoRewrite xs rhs lhs])
+      ++ (guard (not directed && (canRewrite freeVars rhs lhs)) >> [F.AutoRewrite xs rhs lhs])
 
     freeVars = S.fromList (ty_binds tRep)
 

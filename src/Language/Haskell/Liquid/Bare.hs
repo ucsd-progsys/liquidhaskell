@@ -488,10 +488,12 @@ makeRewrite :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet (Located Ghc.Var)
 makeRewrite env name spec = 
   S.map (\x -> x{ val = Bare.lookupGhcVar env name "Var" x}) (Ms.rewrites spec)
 
-makeRewriteWith :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var [Ghc.Var]
+makeRewriteWith :: Bare.Env -> ModName -> Ms.BareSpec -> M.HashMap Ghc.Var [(Bool, Ghc.Var)]
 makeRewriteWith env name spec = 
-  M.fromList [ (lu x, lu <$> xs) | (x,xs) <- M.toList $ Ms.rewriteWith spec]
-    where lu = Bare.lookupGhcVar env name "Var"  
+  M.fromList [ (lookup x, lu <$> xs) | (x,xs) <- M.toList $ Ms.rewriteWith spec]
+    where
+      lookup = Bare.lookupGhcVar env name "Var"
+      lu (di, v) = (di, lookup v)
 
 
 makeAutoSize :: Bare.Env -> ModName -> Ms.BareSpec -> S.HashSet Ghc.TyCon

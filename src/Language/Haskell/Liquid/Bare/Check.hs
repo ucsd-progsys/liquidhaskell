@@ -715,7 +715,7 @@ checkRewrites targetSpec = mkDiagnostics mempty (concatMap getRewriteErrors rwSi
     sig    = gsSig targetSpec
     sigs   = gsTySigs sig ++ gsAsmSigs sig
     rws    = S.union (S.map val $ gsRewrites refl)
-                   (S.fromList $ concat $ M.elems (gsRewritesWith refl))
+                   (S.fromList $ map snd $ concat $ M.elems (gsRewritesWith refl))
 
 
 checkClassMeasures :: [Measure SpecType DataCon] -> Diagnostics
