@@ -13,6 +13,7 @@ module Language.Fixpoint.Types.Substitutions (
   , subst1Except
   , targetSubstSyms
   , filterSubst
+  , catSubst
   ) where
 
 import           Data.Maybe

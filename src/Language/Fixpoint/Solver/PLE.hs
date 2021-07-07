@@ -587,7 +587,10 @@ data RESTParams oc = RP
 
 unsubst ctx e = subst' e where
   ints      = concatMap subsFromAssm (S.toList $ icAssms ctx)
-  su        = Su (M.fromList ints)
+  ints' = map go (L.groupBy (\x y -> fst x == fst y) ints) where
+    go ([(t, u)]) = (t, u)
+    go ts         = head ts
+  su        = Su (M.fromList ints')
   e'        = subst' e
   subst' ee =
     let ee' = subst su ee
@@ -611,6 +614,9 @@ eval γ ctx rp =
       -- liftIO $ putStrLn "Check Start"
       rws <- notVisitedFirst exploredTerms <$> filterM (liftIO . allowed) possibleRWs
       e'  <- simplify γ ctx <$> evalStep γ ctx e
+      -- when (e' /= e) $
+      --   liftIO $
+      --     printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e')
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
@@ -626,8 +632,7 @@ eval γ ctx rp =
                   (explored st)
                 })
 
-      se' <- liftIO (shouldExploreTerm exploredTerms e')
-      when (evalIsNewExpr && se') $ do eval γ (addConst (e, e')) (rpEval e')
+      when evalIsNewExpr $ do eval γ (addConst (e, e')) (rpEval e')
 
       mapM_ (\rw -> eval γ ctx (rpRW rw)) rws
   where
@@ -748,7 +753,7 @@ evalApp γ ctx _e0 (EVar f, es) allowExpand
          else return _e0
   where
     shortcut (EIte i e1 e2) es2 = do
-      b   <- fastEval γ ctx i
+      b   <- if allowExpand then fastEval γ ctx i else evalStep γ ctx i
       b'  <- liftIO $ (mytracepp ("evalEIt POS " ++ showpp (i, b)) <$> isValid γ b)
       nb' <- liftIO $ (mytracepp ("evalEIt NEG " ++ showpp (i, PNot b)) <$> isValid γ (PNot b))
       r <- if b' 

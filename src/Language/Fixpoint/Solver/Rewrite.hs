@@ -5,7 +5,7 @@
 
 module Language.Fixpoint.Solver.Rewrite
   ( getRewrite
-  , getRewrite'
+  -- , getRewrite'
   , subExprs
   , unify
   , ordConstraints
@@ -34,6 +34,7 @@ import qualified Language.REST.RuntimeTerm as RT
 import           Language.REST.Op
 import           Language.REST.OrderingConstraints as OC
 import           Language.REST.Core (orient)
+import Text.Printf
 
 import Debug.Trace
 
@@ -83,26 +84,33 @@ passesTerminationCheck aoc rwArgs c =
     RWTerminationCheckEnabled _ -> isSat aoc c
     RWTerminationCheckDisabled  -> return True
 
-getRewrite' ::
-     RewriteArgs
-  -> SubExpr
-  -> AutoRewrite
-  -> MaybeT IO Expr
-getRewrite' rwArgs (subE, toE) (AutoRewrite args lhs rhs) =
-  do
-    su <- MaybeT $ return $ unify freeVars lhs subE
-    let subE' = subst su rhs
-    mapM_ (check . subst su) exprs
-    let expr' = toE subE'
-    return expr'
-  where
-    check :: Expr -> MaybeT IO ()
-    check e = do
-      valid <- MaybeT $ Just <$> isRWValid rwArgs e
-      guard valid
+-- getRewrite' ::
+--      RewriteArgs
+--   -> SubExpr
+--   -> AutoRewrite
+--   -> MaybeT IO Expr
+-- getRewrite' rwArgs (subE, toE) (AutoRewrite args lhs rhs) =
+--   do
+--     su <- MaybeT $ return $ unify freeVars lhs subE
+--     let subE' = subst su rhs
+--     guard $ subE' /= subE
+--     mapM_ (checkSubst su) exprs
+--     let expr' = toE subE'
+--     return expr'
+--   where
+--     check :: Expr -> MaybeT IO ()
+--     check e = do
+--       valid <- MaybeT $ Just <$> isRWValid rwArgs e
+--       guard valid
 
-    freeVars = [s | RR _ (Reft (s, _)) <- args ]
-    exprs    = [e | RR _ (Reft (_, e)) <- args ]
+--     freeVars = [s | RR _ (Reft (s, _)) <- args ]
+--     exprs    = [(s, e) | RR _ (Reft (s, e)) <- args ]
+
+--     checkSubst su (s, e) =
+--       do
+--         let su' = (catSubst su $ mkSubst [("VV", EVar s)])
+--         liftIO $ printf "Substitute %s in %s\n" (show su') (show e)
+--         check $ subst (catSubst su $ mkSubst [("VV", EVar s)]) e
 
 getRewrite ::
      AbstractOC oc Expr IO
@@ -114,16 +122,17 @@ getRewrite ::
   -> MaybeT IO (Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
   do
-    -- liftIO $ putStrLn "Attempt rw app"
+    -- liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE)
     su <- MaybeT $ return $ unify freeVars lhs subE
+    -- liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
     let subE' = subst su rhs
     guard $ subE /= subE'
     let expr  = toE subE
     let expr' = toE subE'
     -- lift $ putStrLn $ "Unified " ++ (show subE) ++ " to " ++ (show subE')
-    liftIO (shouldApply expr') >>= guard
-    mapM_ (check . subst su) exprs
-    lift $ putStrLn $ (show $ convert expr) ++ " -> " ++ (show $ convert expr')
+    -- liftIO (shouldApply expr') >>= guard
+    mapM_ (checkSubst su) exprs
+    -- lift $ putStrLn $ (show $ convert expr) ++ " -> " ++ (show $ convert expr')
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled _ ->
         let
@@ -138,7 +147,14 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
       guard valid
 
     freeVars = [s | RR _ (Reft (s, _)) <- args ]
-    exprs    = [e | RR _ (Reft (_, e)) <- args ]
+    exprs    = [(s, e) | RR _ (Reft (s, e)) <- args ]
+
+    checkSubst su (s, e) =
+      do
+        let su' = (catSubst su $ mkSubst [("VV", subst su (EVar s))])
+        liftIO $ printf "Substitute %s in %s\n" (show su') (show e)
+        check $ subst (catSubst su su') e
+
 
 subExprs :: Expr -> [SubExpr]
 subExprs e = (e,id):subExprs' e
