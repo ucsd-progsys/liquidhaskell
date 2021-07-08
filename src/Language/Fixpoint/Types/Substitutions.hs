@@ -13,6 +13,7 @@ module Language.Fixpoint.Types.Substitutions (
   , subst1Except
   , targetSubstSyms
   , filterSubst
+  , exprSymbolsSet
   ) where
 
 import           Data.Maybe
@@ -313,8 +314,12 @@ ppRas = cat . punctuate comma . map toFix . flattenRefas
     -- go (PAll xts p)       = (fst <$> xts) ++ go p
     -- go _                  = []
 
+
 exprSymbols :: Expr -> [Symbol]
-exprSymbols = S.toList . go 
+exprSymbols = S.toList . exprSymbolsSet
+
+exprSymbolsSet :: Expr -> S.HashSet Symbol
+exprSymbolsSet = go
   where
     gos es                = S.unions (go <$> es)
     go (EVar x)           = S.singleton x
