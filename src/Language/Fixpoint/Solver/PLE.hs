@@ -315,9 +315,9 @@ updCtx InstEnv {..} ctx delta cidMb
                                                   , rw <- knSims ieKnowl]
     anfs      = S.fromList (toSMT "updCtx" ieCfg ieSMT [] <$> L.nub
                             (concat
-                             [ equalitiesPred initEqs
-                             , equalitiesPred sims
-                             , [ expr xr   | xr@(_, r) <- bs ]
+                             [ --equalitiesPred initEqs
+                             -- , equalitiesPred sims
+                               [ expr xr   | xr <- bs' ]
                              ]))
     cands     = concatMap (makeCandidates ieKnowl ctx) (rhs:es)
     sims      = S.filter (isSimplification (knDCs ieKnowl)) (initEqs <> icEquals ctx)
@@ -328,14 +328,16 @@ updCtx InstEnv {..} ctx delta cidMb
                   , equalitiesPred (icEquals ctx)
                   , bexprs
                   ])
-    things = case subMb of
-      Just s -> show $ envCs ieBEnv (senv s)
-      Nothing -> "Nothing"
+    curBinds = case subMb of
+      Just s  -> [] -- elemsIBindEnv (senv s)
+      Nothing -> []
     bexprs    = [ expr xr   | xr@(_, r) <- bs, null (Vis.kvars r) ]
+    bs'        = unElab <$> binds'
     bs        = unElab <$> binds
     (rhs:es)  = unElab <$> (eRhs : (expr <$> binds))
     eRhs      = maybe PTrue crhs subMb
-    binds     = [ lookupBindEnv i ieBEnv | i <- delta ] 
+    binds     = [ lookupBindEnv i ieBEnv | i <- delta ]
+    binds'    = [ lookupBindEnv i ieBEnv | i <- delta ++ curBinds ]
     subMb     = getCstr (M.fromList ieCstrs) <$> cidMb
 
 
@@ -477,6 +479,8 @@ subsFromAssm :: Expr -> [(Symbol, Expr)]
 subsFromAssm (PAnd es)                                   = concatMap subsFromAssm es
 subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab lhs
                            , anfPrefix `isPrefixOfSym` v = [(v, unElab rhs)]
+subsFromAssm (EEq lhs rhs) | (EVar v) <- unElab rhs
+                           , anfPrefix `isPrefixOfSym` v = [(v, unElab lhs)]
 subsFromAssm _                                           = []
 
 data EvalType =
@@ -599,21 +603,26 @@ data RESTParams oc = RP
   }
 
 
-unsubst ctx e = subst' e where
+getBest ts | Just t <- L.find isVar ts = t
+  where
+    isVar (EVar _) = True
+    isVar _        = False
+getBest ts | otherwise = head ts
+
+unsubst ctx e = subst' 0 e where
   ints      = concatMap subsFromAssm (S.toList $ icANFs ctx) --
-  ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.nub ints) where
+  ints' = map go (L.groupBy (\x y -> fst x == fst y) $ L.sortOn fst $ L.nub ints) where
     go ([(t, u)]) = (t, u)
-    go ts         = head ts -- trace (show ts) $ head ts
+    go ts         = (fst (head ts), getBest (map snd ts)) -- trace (show ts) $ head ts
   su        = Su (M.fromList ints')
-  e'        = subst' e
-  subst' ee =
-    let ee' = subst su ee
+  subst' n ee =
+    let ee' = trace (show n ++ "++++++++\n" ++ L.intercalate "\n" (map show ints') ++ "<<<<<<<<") subst su ee
     in
-      if ee == ee' then ee
-        -- if "anf" `L.isInfixOf` (show ee) && not ("ProofCombinators" `L.isInfixOf` (show ee))
-        -- then error $ "\n\n" ++ show ee ++ "------\n" ++ (L.intercalate "\n" $ map show $  S.toList $ icAssms ctx)
-        -- else ee
-      else subst' ee'
+      if ee == ee' then
+        if "anf" `L.isInfixOf` (show ee) && not ("ProofCombinators" `L.isInfixOf` (show ee))
+        then error $ "\n\n" ++ show ee -- ++ "------\n" ++ (L.intercalate "\n" $ map show $  S.toList $ icAssms ctx)
+        else ee
+      else subst' (n + 1) ee'
 
 evalREST :: Knowledge -> ICtx -> RESTParams (OCType Op) -> EvalST ()
 evalREST _ ctx rp
@@ -638,9 +647,9 @@ evalREST γ ctx rp =
           then return r
           else eval γ ctx RWNormal e
 
-      when (e' /= e) $
-        liftIO $
-          printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e')
+      -- when (e' /= e) $
+      liftIO $
+        printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e') --
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
@@ -658,7 +667,10 @@ evalREST γ ctx rp =
 
       when evalIsNewExpr $
         if fe && any isRW (path rp)
-          then eval γ (addConst (e, e')) NoRW e' >> return ()
+          then do
+            r@(e'', _) <- eval γ (addConst (e, e')) NoRW e'
+            liftIO $
+              printf "FINAL %s \n-> %s\n\n\n" (show $ convert e') (show $ convert e'') --
           else evalREST γ (addConst (e, e')) (rpEval e')
 
       mapM_ (\rw -> evalREST γ ctx (rpRW rw)) rws

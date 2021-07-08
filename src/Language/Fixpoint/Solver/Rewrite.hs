@@ -104,7 +104,7 @@ getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
     -- lift $ putStrLn $ "Unified " ++ (show subE) ++ " to " ++ (show subE')
     -- liftIO (shouldApply expr') >>= guard
     mapM_ (checkSubst su) exprs
-    lift $ putStrLn $ (show $ convert expr) ++ " ->R\n " ++ (show $ convert expr')
+    -- lift $ putStrLn $ (show $ convert expr) ++ " ->R\n " ++ (show $ convert expr')
     return $ case rwTerminationOpts rwArgs of
       RWTerminationCheckEnabled _ ->
         let
