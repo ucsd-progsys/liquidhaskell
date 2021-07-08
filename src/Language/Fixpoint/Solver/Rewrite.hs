@@ -84,34 +84,6 @@ passesTerminationCheck aoc rwArgs c =
     RWTerminationCheckEnabled _ -> isSat aoc c
     RWTerminationCheckDisabled  -> return True
 
--- getRewrite' ::
---      RewriteArgs
---   -> SubExpr
---   -> AutoRewrite
---   -> MaybeT IO Expr
--- getRewrite' rwArgs (subE, toE) (AutoRewrite args lhs rhs) =
---   do
---     su <- MaybeT $ return $ unify freeVars lhs subE
---     let subE' = subst su rhs
---     guard $ subE' /= subE
---     mapM_ (checkSubst su) exprs
---     let expr' = toE subE'
---     return expr'
---   where
---     check :: Expr -> MaybeT IO ()
---     check e = do
---       valid <- MaybeT $ Just <$> isRWValid rwArgs e
---       guard valid
-
---     freeVars = [s | RR _ (Reft (s, _)) <- args ]
---     exprs    = [(s, e) | RR _ (Reft (s, e)) <- args ]
-
---     checkSubst su (s, e) =
---       do
---         let su' = (catSubst su $ mkSubst [("VV", EVar s)])
---         liftIO $ printf "Substitute %s in %s\n" (show su') (show e)
---         check $ subst (catSubst su $ mkSubst [("VV", EVar s)]) e
-
 getRewrite ::
      AbstractOC oc Expr IO
   -> RewriteArgs
@@ -122,9 +94,9 @@ getRewrite ::
   -> MaybeT IO (Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
   do
-    -- liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE) ++ " with " ++ show lhs
+    liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE) ++ " with " ++ show lhs
     su <- MaybeT $ return $ unify freeVars lhs subE
-    -- liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
+    liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
     let subE' = subst su rhs
     guard $ subE /= subE'
     let expr  = toE subE
@@ -198,6 +170,7 @@ subExprs' (PAtom op lhs rhs) = lhs'' ++ rhs''
 
 subExprs' e@(EApp{}) =
   if (f == EVar "Language.Haskell.Liquid.ProofCombinators.===" ||
+      f == EVar "Language.Haskell.Liquid.ProofCombinators.==." ||
       f == EVar "Language.Haskell.Liquid.ProofCombinators.?")
   then []
   else concatMap replace indexedArgs

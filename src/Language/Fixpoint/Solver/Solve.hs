@@ -80,7 +80,7 @@ siKvars :: F.SInfo a -> S.HashSet F.KVar
 siKvars = S.fromList . M.keys . F.ws
 
 
-doPLE :: (F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM ()
+doPLE :: (F.Fixpoint a, F.Loc a) =>  Config -> F.SInfo a -> [F.SubcId] -> SolveM ()
 doPLE cfg fi0 subcIds = do
   fi <- liftIO $ instantiate cfg fi0 (Just subcIds)
   modify $ update' fi
