@@ -417,7 +417,6 @@ evalOne γ env ctx i e | i > 0 || null (getAutoRws γ ctx) = do
     let evAcc' = if (mytracepp ("evalOne: " ++ showpp e) e') == e then evAccum st else S.insert (e, e') (evAccum st)
     return (evAcc', evFuel st) 
 evalOne γ env ctx _ e = do
-  -- env' <- execStateT (evalREST γ ctx e) (env { evFuel = icFuel ctx })
   env' <- execStateT (evalREST γ ctx rp) (env { evFuel = icFuel ctx })
   return (evAccum env', evFuel env')
   where
@@ -430,12 +429,12 @@ evalOne γ env ctx _ e = do
     pairs [] = []
     pairs xs = zip xs (tail xs)
 
-    -- pathTo ts = ts
+    pathTo ts = ts
 
     -- Hack to get original path from subsequent PLE iterations
-    pathTo ts | Just (t, _) <- L.find (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
-              = pathTo (t:ts)
-    pathTo ts | otherwise = ts
+    -- pathTo ts | Just (t, _) <- L.find (\(t, t') -> t' == head ts && not (t `elem` ts)) $ S.toList (evAccum env)
+    --           = pathTo (t:ts)
+    -- pathTo ts | otherwise = ts
 
     -- pathTo e = L.last (L.sortOn length (pathsTo [e]))
     -- pathsTo ts =
@@ -546,13 +545,13 @@ eval γ ctx et e =
                 (f', fe)  <- eval γ ctx et f
                 (e', fe') <- evalApp γ ctx (eApps f' es) (f',es) et
                 return $ (e', feChoose fe fe')
-            liftIO $ printf "Simplify %s to %s\n" (show e) (show r)
+            -- liftIO $ printf "Simplify %s to %s\n" (show e) (show r)
             return r
        (f, es) ->
           do
             ((f':es'), fe) <- feSeq <$> mapM (eval γ ctx et) (f:es)
             (e', fe') <- evalApp γ ctx (eApps f' es) (f',es') et
-            liftIO $ printf "Simplify (fnormal) %s to %s\n" (show e) (show e')
+            -- liftIO $ printf "Simplify %s to %s\n" (show e) (show e')
             return $ (e', feChoose fe fe')
 
     go e@(PAtom r e1 e2) = do
@@ -639,9 +638,9 @@ evalREST γ ctx rp =
           then return r
           else eval γ ctx RWNormal e
 
-      -- when (e' /= e) $
-      liftIO $
-        printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e')
+      when (e' /= e) $
+        liftIO $
+          printf "%s \n i.e %s \n-> %s\n\n\n" (show $ convert e) (show $ convert (unsubst ctx e)) (show $ convert e')
 
       let evalIsNewExpr = e' `L.notElem` pathExprs
       let exprsToAdd    = [e' | evalIsNewExpr]  ++ map fst rws
@@ -658,7 +657,7 @@ evalREST γ ctx rp =
                 })
 
       when evalIsNewExpr $
-        if fe
+        if fe && any isRW (path rp)
           then eval γ (addConst (e, e')) NoRW e' >> return ()
           else evalREST γ (addConst (e, e')) (rpEval e')
 
@@ -683,12 +682,10 @@ evalREST γ ctx rp =
       in
         nv ++ v
 
-    initFuel = 0
-
     rpEval e' =
       let
         c' =
-          if any isRW (path rp) && length pathExprs > initFuel
+          if any isRW (path rp)
             then refine (oc rp) (c rp) e e'
             else c rp
 
@@ -703,10 +700,7 @@ evalREST γ ctx rp =
     e               = last pathExprs
     autorws         = getAutoRws γ ctx
 
-    rwArgs = RWArgs (isValid γ) $
-      if length pathExprs > initFuel
-      then (knRWTerminationOpts γ)
-      else RWTerminationCheckDisabled
+    rwArgs = RWArgs (isValid γ) $ knRWTerminationOpts γ
 
     -- getRWs et | debruijnIndex (unsubst ctx e) > 50 = return []
     getRWs et | otherwise =
@@ -759,7 +753,7 @@ evalApp γ ctx _e0 (EVar f, es) et
       r <- if b' 
         then shortcut noExpand e1 es2
         else if nb' then shortcut noExpand e2 es2
-        else return $ (eApps (EIte b e1 e2) es2, et')
+        else return $ (eApps (EIte b e1 e2) es2, expand)
       return r
     shortcut _ e' es2 = return $ (eApps e' es2, noExpand)
 

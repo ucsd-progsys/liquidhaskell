@@ -94,9 +94,9 @@ getRewrite ::
   -> MaybeT IO (Expr, oc)
 getRewrite aoc rwArgs c (subE, toE) (AutoRewrite args lhs rhs) shouldApply =
   do
-    liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE) ++ " with " ++ show lhs
+    -- liftIO $ putStrLn $ "Attempt rw app " ++ (show $ convert subE) ++ " with " ++ show lhs
     su <- MaybeT $ return $ unify freeVars lhs subE
-    liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
+    -- liftIO $ putStrLn $ "Could unify" ++ (show $ convert subE)
     let subE' = subst su rhs
     guard $ subE /= subE'
     let expr  = toE subE
@@ -132,7 +132,7 @@ subExprs :: Expr -> [SubExpr]
 subExprs e = (e,id):subExprs' e
 
 subExprs' :: Expr -> [SubExpr]
-subExprs' (EIte c lhs rhs)  = c'' -- ++ l'' ++ r''
+subExprs' (EIte c lhs rhs)  = c'' ++ l'' ++ r''
   where
     c' = subExprs c
     l' = subExprs lhs
