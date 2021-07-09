@@ -53,6 +53,8 @@ module Language.Haskell.Liquid.Constraint.Types
   , removeInvariant, restoreInvariant, makeRecInvariants
 
   , getTemplates
+
+  , getLocation
   ) where
 
 import Prelude hiding (error)
@@ -128,6 +130,9 @@ instance PPrint CGEnv where
 instance Show CGEnv where
   show = showpp
 
+getLocation :: CGEnv -> SrcSpan
+getLocation = srcSpan . cgLoc
+
 --------------------------------------------------------------------------------
 -- | Subtyping Constraints -----------------------------------------------------
 --------------------------------------------------------------------------------
@@ -154,14 +159,42 @@ subVar :: FixSubC -> Maybe Var
 subVar = ci_var . F.sinfo
 
 instance PPrint SubC where
-  pprintTidy k c@(SubC {}) = pprintTidy k (senv c)
-                             $+$ ("||-" <+> vcat [ pprintTidy k (lhs c)
-                                                 , "<:"
-                                                 , pprintTidy k (rhs c) ] )
-  pprintTidy k c@(SubR {}) = pprintTidy k (senv c)
-                             $+$ ("||-" <+> vcat [ pprintTidy k (ref c)
-                                                 , parens (pprintTidy k (oblig c))])
+  pprintTidy k c@(SubC {}) =
+    "The environment:"
+    $+$
+    ""
+    $+$
+    pprintTidy k (senv c)
+    $+$
+    ""
+    $+$
+    "Location: " <> pprintTidy k (getLocation (senv c))
+    $+$
+    "The constraint:"
+    $+$
+    ""
+    $+$
+    "||-" <+> vcat [ pprintTidy k (lhs c)
+                   , "<:"
+                   , pprintTidy k (rhs c) ]
 
+  pprintTidy k c@(SubR {}) =
+    "The environment:"
+    $+$
+    ""
+    $+$
+    pprintTidy k (senv c)
+    $+$
+    ""
+    $+$
+    "Location: " <> pprintTidy k (getLocation (senv c))
+    $+$
+    "The constraint:"
+    $+$
+    ""
+    $+$
+    "||-" <+> vcat [ pprintTidy k (ref c)
+                   , parens (pprintTidy k (oblig c))]
 
 instance PPrint WfC where
   pprintTidy k (WfC _ r) = {- pprintTidy k w <> text -} "<...> |-" <+> pprintTidy k r
