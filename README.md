@@ -16,6 +16,7 @@
 
 * [LH Documentation](http://ucsd-progsys.github.io/liquidhaskell/) 
 * [Edit here](/docs/mkDocs)
+* ([Latest syntax](tests-by-syntax.md))
 
 ## Questions
 
