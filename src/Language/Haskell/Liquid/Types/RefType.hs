@@ -1685,10 +1685,10 @@ grabArgs :: [Type] -> Type -> [Type]
 grabArgs τs (FunTy _ _ τ1 τ2)
   | Just a <- stringClassArg τ1
   = grabArgs τs (mapType (\t -> if t == a then stringTy else t) τ2)
-  -- | not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
+  -- not ( F.notracepp ("isNonArg: " ++ GM.showPpr τ1) $ isNonValueTy τ1)
   | otherwise
   = grabArgs (τ1:τs) τ2
-  -- | otherwise
+  -- otherwise
   -- = grabArgs τs τ2
   -- -- | otherwise
   -- -- = grabArgs τs τ2
