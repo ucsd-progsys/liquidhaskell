@@ -487,6 +487,15 @@ instance Fixpoint Expr where
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
+  simplify (PIff p q)    =
+    let sp = simplify p
+        sq = simplify q
+     in if sp == sq then PTrue
+        else if sp == PTrue then sq
+        else if sq == PTrue then sp
+        else if sp == PFalse then PNot sq
+        else if sq == PFalse then PNot sp
+        else PIff sp sq
 
   simplify (PGrad k su i e)
     | isContraPred e      = PFalse
