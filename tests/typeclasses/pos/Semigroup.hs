@@ -4,7 +4,7 @@
 {-@ LIQUID "--aux-inline" @-}
 {-@ LIQUID "--ple" @-}
 
-module Data.Semigroup.Classes where
+module Semigroup where
 
 import           Prelude                 hiding ( Semigroup(..)
                                                 , Monoid(..)
@@ -15,33 +15,7 @@ import           Prelude                 hiding ( Semigroup(..)
                                                 , Maybe (..)
                                                 , Foldable (..)
                                                 )
-
-
-{-@ data List a = Nil | Cons {lh::a, lt::List a} @-}
-data List a = Nil | Cons a (List a)
-
-{-@ reflect foldrList @-}
-foldrList :: (a -> b -> b) -> b -> List a -> b
-foldrList _ x Nil         = x
-foldrList f x (Cons y ys) = f y (foldrList f x ys)
-
-{-@ reflect foldlList @-}
-foldlList :: (b -> a -> b) -> b -> List a -> b
-foldlList _ x Nil         = x
-foldlList f x (Cons y ys) = foldlList f (f x y) ys
-
-
-{-@ data NonEmpty a = NonEmpty {neh::a, net:: (List a)} @-}
-data NonEmpty a = NonEmpty a (List a)
-
-{-@ reflect head' @-}
-head' :: NonEmpty a -> a
-head' (NonEmpty a _) = a
-
-{-@ reflect tail' @-}
-tail' :: NonEmpty a -> List a
-tail' (NonEmpty _ t) = t
-
+import Lib
 
 class Semigroup a where
     {-@ mappend :: a -> a -> a @-}
@@ -67,52 +41,3 @@ class (VSemigroup a, Monoid a) => VMonoid a where
 
     {-@ lawMconcat :: xs:List a -> {mconcat xs == foldrList mappend mempty xs} @-}
     lawMconcat :: List a -> ()
-
-data PNat = Z | S PNat
-
-instance Semigroup PNat where
-  mappend Z     n = n
-  mappend (S m) n = S (mappend m n)
-
-  sconcat (NonEmpty h t) = foldlList mappend h t
-
-instance VSemigroup PNat where
-  lawAssociative Z     _ _ = ()
-  lawAssociative (S p) m n = lawAssociative p m n
-  lawSconcat (NonEmpty h t) = ()
-
-instance Monoid PNat where
-  mempty = Z
-  mconcat xs = foldrList mappend mempty xs
-
-instance VMonoid PNat where
-  lawEmpty Z     = ()
-  lawEmpty (S m) = lawEmpty m
-  lawMconcat _ = ()
-
-
-
-
-
-
-
-
-
-instance Semigroup (List a) where
-  mappend Nil l2 = l2
-  mappend (Cons h l1) l2 = Cons h (mappend l1 l2)
-  sconcat (NonEmpty h t) = foldlList mappend h t
-
-instance VSemigroup (List a) where
-  lawAssociative Nil y z = ()
-  lawAssociative (Cons _ x) y z = lawAssociative x y z
-  lawSconcat (NonEmpty h t) = ()
-
-instance Monoid (List a) where
-  mempty = Nil
-  mconcat xs = foldrList mappend mempty xs
-
-instance VMonoid (List a) where
-  lawEmpty Nil = ()
-  lawEmpty (Cons _ t) = lawEmpty t
-  lawMconcat _ = ()
