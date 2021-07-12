@@ -300,7 +300,7 @@ makeGhcSpec0 cfg src lmap mspecsNoCls = do
     elaborateSig si auxsig = do
       tySigs <-
         forM (gsTySigs si) $ \(x, t) ->
-          if Ghc.isFromGHCReal x then
+          if GM.isFromGHCReal x then
             pure (x, t)
           else do t' <- traverse (elaborateSpecType coreToLg simplifier) t
                   pure (x, t')

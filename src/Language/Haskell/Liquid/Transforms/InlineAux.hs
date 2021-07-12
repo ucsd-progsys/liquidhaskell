@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP              #-}
 {-# LANGUAGE FlexibleContexts #-}
 
 module Language.Haskell.Liquid.Transforms.InlineAux
@@ -5,35 +6,11 @@ module Language.Haskell.Liquid.Transforms.InlineAux
   )
 where
 import qualified Language.Haskell.Liquid.UX.Config  as UX
-import           CoreSyn
-import qualified Outputable                    as O
-import           MkCore
-import           Control.Arrow                  ( second )
-import           OccurAnal                      ( occurAnalysePgm )
+import           Language.Haskell.Liquid.GHC.API
+import           Control.Arrow                  (second)
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
-import qualified Language.Haskell.Liquid.GHC.API
-                                               as Ghc
-import           Class                          ( classAllSelIds )
-import           Id
-import           CoreFVs                        ( exprFreeVarsList )
-import           InstEnv
-import           TcType                         ( tcSplitDFunTy )
-import           GhcPlugins                     ( isDFunId
-                                                , exprType
-                                                , OccName
-                                                , Module
-                                                , occNameString
-                                                , getOccName
-                                                , mkCoreApps
-                                                )
--- import           Predicate                      ( isDictId )
 import qualified Data.HashMap.Strict           as M
-import           CoreSubst
-import           GHC                            ( isDictonaryId )
-import           SimplMonad
-import           SimplCore
-import           Control.Monad.State
 import           Data.Functor.Foldable
 
 buildDictSubst :: CoreProgram -> M.HashMap Id CoreExpr
@@ -75,25 +52,25 @@ inlineAux cfg m cbs =  if UX.auxInline cfg then occurAnalysePgm m (const False) 
 --    where
 --     -- wcBinder = mkWildValBinder t
 --     (binders, _) = GM.tracePpr "collectBinders"$ collectBinders e
---     e' = substExprAll O.empty subst e
+--     e' = substExprAll empty subst e
 --   go recs = pure recs
 --   subst = buildDictSubst cbs
 
 
 
-lookupIdSubstAll :: O.SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
+lookupIdSubstAll :: SDoc -> M.HashMap Id CoreExpr -> Id -> CoreExpr
 lookupIdSubstAll doc env v | Just e <- M.lookup v env = e
                            | otherwise                = Var v
 
 
-substExprAll :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
+substExprAll :: SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
 substExprAll doc subst orig_expr = subst_expr_all doc subst orig_expr
 
 
-subst_expr_all :: O.SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
+subst_expr_all :: SDoc -> M.HashMap Id CoreExpr -> CoreExpr -> CoreExpr
 subst_expr_all doc subst expr = go expr
  where
-  go (Var v) = lookupIdSubstAll (doc O.$$ O.text "subst_expr_all") subst v
+  go (Var v) = lookupIdSubstAll (doc $$ text "subst_expr_all") subst v
   go (Type     ty      ) = Type ty
   go (Coercion co      ) = Coercion co
   go (Lit      lit     ) = Lit lit
@@ -146,8 +123,12 @@ inlineAuxExpr dfunId methodToAux e = go e
   go :: CoreExpr -> CoreExpr
   go (Lam b body) = Lam b (go body)
   go (Let b body)
-    | NonRec x e <- b, Ghc.isDictId x = go
-    $ substExpr O.empty (extendIdSubst emptySubst x e) body
+    | NonRec x e <- b, isDictId x = go
+     $ substExpr
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)     
+        empty
+#endif
+        (extendIdSubst emptySubst x e) body
     | otherwise = Let (mapBnd go b) (go body)
   go (Case e x t alts) = Case (go e) x t (fmap (mapAlt go) alts)
   go (Cast e c       ) = Cast (go e) c

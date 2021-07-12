@@ -898,7 +898,7 @@ isEvVar x = isPredVar x || isTyVar x || isCoVar x
 --   hsc_env <- Ghc.getHscEnv
 --   liftIO $ elabRnExpr hsc_env mode expr
 
-
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 elabRnExpr
   :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
 elabRnExpr mode rdr_expr = do
@@ -926,7 +926,45 @@ elabRnExpr mode rdr_expr = do
     TM_Inst    -> (True, NoRestrictions, id)
     TM_NoInst  -> (False, NoRestrictions, id)
     TM_Default -> (True, EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
+#else
+elabRnExpr
+  :: TcRnExprMode -> LHsExpr GhcPs -> TcRn CoreExpr
+elabRnExpr mode rdr_expr = do
+    (rn_expr, _fvs) <- rnLExpr rdr_expr
+    failIfErrsM
 
+        -- Now typecheck the expression, and generalise its type
+        -- it might have a rank-2 type (e.g. :t runST)
+    uniq <- newUnique ;
+    let fresh_it  = itName uniq (getLoc rdr_expr) 
+    ((tclvl, (tc_expr, res_ty)), lie)
+          <- captureTopConstraints $
+             pushTcLevelM          $
+             tc_infer rn_expr
+
+    -- Generalise
+    (qtvs, dicts, evbs, residual, _)
+         <- simplifyInfer tclvl infer_mode
+                          []    {- No sig vars -}
+                          [(fresh_it, res_ty)]
+                          lie
+
+    -- Ignore the dictionary bindings
+    evbs' <- perhaps_disable_default_warnings $
+         simplifyInteractive residual
+    full_expr <- zonkTopLExpr (mkHsDictLet (EvBinds evbs') (mkHsDictLet evbs tc_expr))
+    initDsTc $ dsLExpr full_expr
+  where
+    tc_infer expr | inst      = tcInferRho expr
+                  | otherwise = tcInferSigma expr
+                  -- tcInferSigma: see Note [Implementing :type]
+
+    -- See Note [TcRnExprMode]
+    (inst, infer_mode, perhaps_disable_default_warnings) = case mode of
+      TM_Inst    -> (True,  NoRestrictions, id)
+      TM_NoInst  -> (False, NoRestrictions, id)
+      TM_Default -> (True,  EagerDefaulting, unsetWOptM Opt_WarnTypeDefaults)
+#endif
 newtype HashableType = HashableType {getHType :: Type}
 
 instance Eq HashableType where
@@ -980,7 +1018,7 @@ coherenceObligToRefE e rps0 rps1 = F.Reft (F.vv_, F.PAtom F.Eq lhs rhs)
 data TcWiredIn = TcWiredIn {
     tcWiredInName :: Name
   , tcWiredInFixity :: Maybe (Int, FixityDirection)
-  , tcWiredInType :: HsType GhcRn
+  , tcWiredInType :: LHsType GhcRn
   }
 
 -- | Run a computation in GHC's typechecking monad with wired in values locally bound in the typechecking environment.
@@ -1021,12 +1059,15 @@ withWiredIn m = discardConstraints $ do
 #endif
 #endif
             let ext' = [] in
-            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ Ghc.L locSpan $ tcWiredInType w]
+            [Ghc.L locSpan $ TypeSig Ghc.noExtField [Ghc.L locSpan (tcWiredInName w)] $ HsWC ext' $ HsIB ext $ tcWiredInType w]
       in
       inf <> t
     ) wiredIns
 
   locSpan = UnhelpfulSpan (UnhelpfulOther "Language.Haskell.Liquid.GHC.Misc: WiredIn")
+
+  mkHsFunTy :: LHsType GhcRn -> LHsType GhcRn -> LHsType GhcRn
+  mkHsFunTy a b = nlHsFunTy a b
 
   mkWiredIns = sequence [impl, dimpl, eq, len]
 
@@ -1037,6 +1078,7 @@ withWiredIn m = discardConstraints $ do
   toLoc = Ghc.L locSpan
   nameToTy = Ghc.L locSpan . HsTyVar Ghc.noExtField Ghc.NotPromoted
 
+  boolTy :: LHsType GhcRn
   boolTy = nameToTy $ toLoc boolTyConName
     -- boolName <- lookupOrig (Module (stringToUnitId "Data.Bool") (mkModuleName "Data.Bool")) (Ghc.mkVarOcc "Bool")
     -- return $ Ghc.L locSpan $ HsTyVar Ghc.noExtField Ghc.NotPromoted $ Ghc.L locSpan boolName
@@ -1046,13 +1088,13 @@ withWiredIn m = discardConstraints $ do
   -- infixr 1 ==> :: Bool -> Bool -> Bool
   impl = do
     n <- toName "==>"
-    let ty = HsFunTy Ghc.noExtField boolTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField boolTy boolTy)
+    let ty = mkHsFunTy boolTy (mkHsFunTy boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infixr 1 <=> :: Bool -> Bool -> Bool
   dimpl = do
     n <- toName "<=>"
-    let ty = HsFunTy Ghc.noExtField boolTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField boolTy boolTy)
+    let ty = mkHsFunTy boolTy (mkHsFunTy boolTy boolTy)
     return $ TcWiredIn n (Just (1, Ghc.InfixR)) ty
 
   -- infix 4 == :: forall a . a -> a -> Bool
@@ -1060,11 +1102,15 @@ withWiredIn m = discardConstraints $ do
     n <- toName "=="
     aName <- Ghc.L locSpan <$> toName "a"
     let aTy = nameToTy aName
-    let ty = HsForAllTy Ghc.noExtField
-#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)    
+    let ty = noLoc $ HsForAllTy Ghc.noExtField
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+#if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
              ForallInvis
 #endif
-             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ Ghc.L locSpan $ HsFunTy Ghc.noExtField aTy (Ghc.L locSpan $ HsFunTy Ghc.noExtField aTy boolTy)
+             [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy aTy (mkHsFunTy aTy boolTy)
+#else
+             (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy aTy (mkHsFunTy aTy boolTy)
+#endif
     return $ TcWiredIn n (Just (4, Ghc.InfixN)) ty
   
   -- TODO: This is defined as a measure in liquid-base GHC.Base. We probably want to insert all measures to the environment.
@@ -1073,10 +1119,23 @@ withWiredIn m = discardConstraints $ do
     n <- toName "len"
     aName <- Ghc.L locSpan <$> toName "a"
     let aTy = nameToTy aName
-    let ty = HsForAllTy Ghc.noExtField
+    let ty =
+          noLoc $ HsForAllTy Ghc.noExtField
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
                ForallInvis
 #endif
-               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ Ghc.L locSpan $ HsFunTy Ghc.noExtField (listTy aTy) intTy
+               [Ghc.L locSpan $ UserTyVar Ghc.noExtField aName] $ mkHsFunTy (listTy aTy) intTy
     return $ TcWiredIn n Nothing ty
+#else
+               (mkHsForAllInvisTele [Ghc.L locSpan $ UserTyVar Ghc.noExtField SpecifiedSpec aName]) $ mkHsFunTy (listTy aTy) intTy
+    return $ TcWiredIn n Nothing ty
+#endif
 
+
+
+prependGHCRealQual :: FastString -> RdrName
+prependGHCRealQual = varQual_RDR gHC_REAL
+
+isFromGHCReal :: NamedThing a => a -> Bool
+isFromGHCReal x = Ghc.nameModule (Ghc.getName x) == gHC_REAL

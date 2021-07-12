@@ -255,7 +255,9 @@ library
                     , transformers         >= 0.3
                     , unordered-containers >= 0.2
                     , vector               >= 0.10
+                    , free
                     , recursion-schemes    <= 5.2.2
+                    , data-fix
                     , extra 
   default-language:   Haskell98
   default-extensions: PatternGuards, RecordWildCards, DoAndIfThenElse

@@ -19,6 +19,7 @@ where
 
 import qualified Language.Fixpoint.Types       as F
 -- import           Control.Arrow
+import           Language.Haskell.Liquid.GHC.API hiding (panic, varName)
 import qualified Language.Haskell.Liquid.GHC.Misc
                                                as GM
 import           Language.Haskell.Liquid.Types.Types
@@ -28,28 +29,39 @@ import qualified Data.List                     as L
 import qualified Data.HashMap.Strict           as M
 import qualified Data.HashSet                  as S
 import           Control.Monad.Free
+#if MIN_VERSION_recursion_schemes(5,2,0)
+import           Data.Fix                      hiding (hylo)
+import           Data.Functor.Foldable         hiding (Fix)
+#else
 import           Data.Functor.Foldable
-import           TcRnMonad (TcRn)
+#endif
+
+-- import           TcRnMonad (TcRn)
 import           Data.Char                      ( isUpper )
-import           GHC
+#if MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+import           GHC.Types.Name.Occurrence
+#else
+import           OccName
+#endif
+-- import           GHC
 -- import           GhcPlugins                     ( isDFunId
 --                                                 )
-import           OccName
-import           FastString
-import           CoreSyn
-import           PrelNames
+
+-- import           FastString
+-- import           CoreSyn
+-- import           PrelNames
 import qualified Language.Haskell.Liquid.GHC.API as Ghc
-                                                (prependGHCRealQual, noExtField)
+                                                (noExtField)
 
 -- import qualified Outputable                    as O
-import           TysWiredIn                     ( boolTyCon
-                                                , true_RDR
-                                                )
-import           RdrName
-import           BasicTypes
+-- import           TysWiredIn                     ( boolTyCon
+--                                                 , true_RDR
+--                                                 )
+-- import           RdrName
+-- import           BasicTypes
 import           Data.Default                   ( def )
 import qualified Data.Maybe                    as Mb
-import qualified CoreUtils                     as Utils
+-- import qualified CoreUtils                     as Utils
 
 
 -- TODO: make elaboration monadic so typeclass names are unified to something
@@ -535,7 +547,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
           (_, tyBinders) =
             collectSpecTypeBinders
               . ofType
-              . Utils.exprType
+              . exprType
               $ eeWithLamsCore'
           substTy = zip tyBinders origTyBinders
           eeWithLams =
@@ -558,7 +570,7 @@ elaborateSpecType' partialTp coreToLogic simplify t =
               ++ F.showpp substTy
               ++ "  "
               ++ F.showpp
-                   (ofType $ Utils.exprType eeWithLamsCore' :: SpecType)
+                   (ofType $ exprType eeWithLamsCore' :: SpecType)
               )
               ee
           )  -- (GM.dropModuleUnique <$> bs')
@@ -692,9 +704,9 @@ bopToHsExpr bop = noLoc (HsVar Ghc.noExtField (noLoc (f bop)))
   f F.Minus  = minus_RDR
   f F.Times  = times_RDR
   f F.Div    = mkVarUnqual (fsLit "/")
-  f F.Mod    = Ghc.prependGHCRealQual (fsLit "mod")
+  f F.Mod    = GM.prependGHCRealQual (fsLit "mod")
   f F.RTimes = times_RDR
-  f F.RDiv   = Ghc.prependGHCRealQual (fsLit "/")
+  f F.RDiv   = GM.prependGHCRealQual (fsLit "/")
 
 brelToHsExpr :: F.Brel -> LHsExpr GhcPs
 brelToHsExpr brel = noLoc (HsVar Ghc.noExtField (noLoc (f brel)))
@@ -746,10 +758,14 @@ specTypeToLHsType =
     RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (RTV tv)) (_, t) _ -> noLoc $ HsForAllTy
       Ghc.noExtField
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
       ForallInvis
 #endif
       [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
+#else
+      (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField SpecifiedSpec (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
+#endif
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF RTyCon { rtc_tc = tc } ts _ _ -> nlHsTyConApp
@@ -784,10 +800,14 @@ bareTypeToLHsType =
     RImpFF _ _ (_, tin) (_, tout) _              -> nlHsFunTy tin tout
     RAllTF (ty_var_value -> (BTV tv)) (_, t) _ -> noLoc $ HsForAllTy
       Ghc.noExtField
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0)
       ForallInvis
 #endif
       [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
+#else
+      (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
+#endif
       t
     RAllPF _ (_, ty)                    -> ty
     RAppF BTyCon { btc_tc = tc } ts _ _ -> nlHsTyConApp
