@@ -28,11 +28,13 @@ appendL :: List a -> List a -> List a
 appendL Nil         ys = ys
 appendL (Cons x xs) ys = Cons x (appendL xs ys)
 
+{-@ reflect appendLNil @-}
 {-@ appendLNil :: xs:List a -> {appendL xs Nil == xs} @-}
 appendLNil :: List a -> ()
 appendLNil Nil         = ()
 appendLNil (Cons x xs) = appendLNil xs
 
+{-@ reflect appendLAssoc @-}
 {-@ appendLAssoc :: xs:List a -> ys:List a -> zs:List a -> {appendL (appendL xs ys) zs == appendL xs (appendL ys zs)} @-}
 appendLAssoc :: List a -> List a -> List a -> ()
 appendLAssoc Nil         _  _  = ()

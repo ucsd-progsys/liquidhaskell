@@ -19,7 +19,7 @@ import           Prelude                 hiding ( Functor(..)
                                                 )
 import Liquid.ProofCombinators
 import Data.Function
-import Data.Maybe
+import Data.Maybe hiding (maybe)
 import Data.Functor.Classes
 
 instance Functor Maybe where

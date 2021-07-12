@@ -305,6 +305,7 @@ microTests = group "Micro"
   -- RJ: disabling because broken by adt PR #1068
   -- , testGroup "gradual/pos"    <$> dirTests "tests/gradual/pos"                    []                ExitSuccess
   -- , testGroup "gradual/neg"    <$> dirTests "tests/gradual/neg"                    []                (ExitFailure 1)
+  , mkMicroPos "typeclass-pos"  "tests/typeclasses/pos"
   ]
   where
     mkMicroPos name dir = testGroup name <$> dirTests dir [] ExitSuccess     (Just " SAFE ") (Just " UNSAFE ")

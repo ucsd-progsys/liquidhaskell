@@ -1,6 +1,7 @@
 {-@ LIQUID "--reflection" @-}
 {-@ LIQUID "--ple" @-}
 {-@ LIQUID "--aux-inline" @-}
+{-@ LIQUID "--exactdc" @-}
 
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}

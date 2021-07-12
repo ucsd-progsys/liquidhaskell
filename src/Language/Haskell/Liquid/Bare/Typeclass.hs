@@ -139,7 +139,7 @@ classDeclToDataDecl cls refinedIds = DataDecl
   , tycKind   = DataUser
   }
  where
-  dctor = F.tracepp "classDeclToDataDecl" DataCtor { dcName   = F.dummyLoc $ F.symbol classDc
+  dctor = F.notracepp "classDeclToDataDecl" DataCtor { dcName   = F.dummyLoc $ F.symbol classDc
     -- YL: same as class tyvars??
     -- Ans: it's been working so far so probably yes
                    , dcTyVars = tyVars
