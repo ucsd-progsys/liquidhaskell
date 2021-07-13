@@ -629,8 +629,12 @@ renameBinderSort f = rename
   rename (   F.FApp t0 t1 ) = F.FApp (rename t0) (rename t1)
 
 
-
-
+mkHsTyConApp ::  IdP (GhcPass p) -> [LHsType (GhcPass p)] -> LHsType (GhcPass p)
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+mkHsTyConApp = nlHsTyConApp 
+#else
+mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map (HsTypeArg (UnhelpfulSpan (UnhelpfulOther "LH: Location Info Lost"))) tyargs)
+#endif
 
 -- | Embed fixpoint expressions into parsed haskell expressions.
 --   It allows us to bypass the GHC parser and use arbitrary symbols
@@ -768,7 +772,7 @@ specTypeToLHsType =
 #endif
       t
     RAllPF _ (_, ty)                    -> ty
-    RAppF RTyCon { rtc_tc = tc } ts _ _ -> nlHsTyConApp
+    RAppF RTyCon { rtc_tc = tc } ts _ _ -> mkHsTyConApp
       (getRdrName tc)
       [ hst | (t, hst) <- ts, notExprArg t ]
      where
@@ -806,11 +810,11 @@ bareTypeToLHsType =
 #endif
       [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))]
 #else
-      (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
+      (mkHsForAllInvisTele [noLoc $ UserTyVar Ghc.noExtField SpecifiedSpec (noLoc $ symbolToRdrNameNs tvName (F.symbol tv))])
 #endif
       t
     RAllPF _ (_, ty)                    -> ty
-    RAppF BTyCon { btc_tc = tc } ts _ _ -> nlHsTyConApp
+    RAppF BTyCon { btc_tc = tc } ts _ _ -> mkHsTyConApp
       (symbolToRdrNameNs tcName (F.val tc))
       [ hst | (t, hst) <- ts, notExprArg t ]
      where

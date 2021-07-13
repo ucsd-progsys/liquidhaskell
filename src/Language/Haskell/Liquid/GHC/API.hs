@@ -328,10 +328,10 @@ import GHC.Core.Make                  as Ghc
 import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
 import GHC.Core.Opt.WorkWrap.Utils    as Ghc
 import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId)
-import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst)
-import GHC.Core.TyCo.Rep              as Ghc
+import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst, extendCvSubst)
+import GHC.Core.TyCo.Rep              as Ghc hiding (extendCvSubst)
 import GHC.Core.TyCon                 as Ghc
-import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy)
+import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
 import GHC.Core.Unify                 as Ghc
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
@@ -344,6 +344,7 @@ import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
 import GHC.Driver.Types               as Ghc
+import GHC.Driver.Monad               as Ghc (withSession)
 import GHC.HsToCore.Monad             as Ghc
 import GHC.Iface.Syntax               as Ghc
 import GHC.Plugins                    as Ghc ( deserializeWithData
@@ -360,7 +361,7 @@ import GHC.Tc.Instance.Family         as Ghc
 import GHC.Tc.Module                  as Ghc
 import GHC.Tc.Types                   as Ghc
 import GHC.Tc.Utils.Monad             as Ghc hiding (getGHCiMonad)
-import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy)
+import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Types.Annotations          as Ghc
 import GHC.Types.Avail                as Ghc
 import GHC.Types.Basic                as Ghc
@@ -368,7 +369,7 @@ import GHC.Types.CostCentre           as Ghc
 import GHC.Types.Id                   as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import GHC.Types.Id.Info              as Ghc
 import GHC.Types.Literal              as Ghc hiding (LitNumber)
-import GHC.Types.Name                 as Ghc hiding (varName)
+import GHC.Types.Name                 as Ghc hiding (varName, isWiredIn)
 import GHC.Types.Name.Reader          as Ghc
 import GHC.Types.Name.Set             as Ghc
 import GHC.Types.SrcLoc               as Ghc

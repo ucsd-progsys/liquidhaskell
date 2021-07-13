@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleInstances      #-}
+{-# LANGUAGE CPP                    #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE OverloadedStrings      #-}
@@ -256,7 +257,11 @@ coreToLogic allowTC cb = coreToLg allowTC (normalize allowTC cb)
 
 coreToLg :: Bool -> C.CoreExpr -> LogicM Expr
 coreToLg allowTC  (C.Let (C.NonRec x (C.Coercion c)) e)
-  = coreToLg allowTC (C.substExpr C.empty (C.extendCvSubst C.emptySubst x c) e)
+  = coreToLg allowTC (C.substExpr
+#if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
+                      C.empty
+#endif
+                      (C.extendCvSubst C.emptySubst x c) e)
 coreToLg allowTC  (C.Let b e)
   = subst1 <$> coreToLg allowTC e <*>  makesub allowTC b
 coreToLg allowTC (C.Tick _ e)          = coreToLg allowTC e
@@ -285,7 +290,7 @@ coreToLg allowTC (C.Cast e c)          = do (s, t) <- coerceToLg c
 coreToLg True (C.Lam x e) = do p     <- coreToLg True e
                                tce   <- lsEmb <$> getState
                                return $ ELam (symbol x, typeSort tce (GM.expandVarType x)) p
-coreToLg _ e @(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
+coreToLg _ e@(C.Lam _ _)        = throw ("Cannot transform lambda abstraction to Logic:\t" ++ GM.showPpr e ++ 
                                             "\n\n Try using a helper function to remove the lambda.")
 coreToLg _ e                     = throw ("Cannot transform to Logic:\t" ++ GM.showPpr e)
 
