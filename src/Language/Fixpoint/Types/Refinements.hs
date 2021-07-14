@@ -487,6 +487,16 @@ instance Fixpoint Expr where
   simplify (POr  [])     = PFalse
   simplify (PAnd [p])    = simplify p
   simplify (POr  [p])    = simplify p
+  simplify (PNot p) =
+    let sp = simplify p
+     in case sp of
+          PNot e -> e
+          _ -> PNot sp
+  simplify (PImp p q) =
+    let sq = simplify q
+     in if sq == PTrue then PTrue
+        else if sq == PFalse then simplify (PNot p)
+        else PImp (simplify p) sq
   simplify (PIff p q)    =
     let sp = simplify p
         sq = simplify q
