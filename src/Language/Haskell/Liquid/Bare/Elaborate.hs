@@ -633,7 +633,7 @@ mkHsTyConApp ::  IdP (GhcPass p) -> [LHsType (GhcPass p)] -> LHsType (GhcPass p)
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 mkHsTyConApp = nlHsTyConApp 
 #else
-mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map (HsTypeArg (UnhelpfulSpan (UnhelpfulOther "LH: Location Info Lost"))) tyargs)
+mkHsTyConApp tyconId tyargs = nlHsTyConApp Prefix tyconId (map HsValArg tyargs)
 #endif
 
 -- | Embed fixpoint expressions into parsed haskell expressions.
