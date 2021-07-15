@@ -79,7 +79,7 @@ unify mkError c li t1 t2
     esubst1 = zip  (fst <$> args1) ((F.EVar . fst) <$> args2)
 
     tsubst = reverse $ zip ((\(RTV v) -> v) <$> (findTyVars tc1 ++ (ty_var_value <$> concat argVars)))
-                 (toType <$> (argBds ++ (((`RVar` mempty) . ty_var_value) <$> (fst <$> ty_vars trep2))))
+                 (toType False <$> (argBds ++ (((`RVar` mempty) . ty_var_value) <$> (fst <$> ty_vars trep2))))
 
     (argVars, argBds) = unzip (splitForall [] . val <$> lilTyArgs li)
 

@@ -26,7 +26,7 @@ tpToCons (RAllT _a t _x)
   = tpToCons t 
 tpToCons (RApp c args _ _r) 
   = tyConDataCons (rtc_tc c) ++ concatMap tpToCons args
-tpToCons (RFun _sym rt0 rt1 _reft)
+tpToCons (RFun _sym _ rt0 rt1 _reft)
   = tpToCons rt0 ++ tpToCons rt1
 tpToCons RVar{} 
   = []

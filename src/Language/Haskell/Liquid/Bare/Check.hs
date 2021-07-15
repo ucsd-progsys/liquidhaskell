@@ -19,7 +19,6 @@ import           Language.Haskell.Liquid.GHC.API                   as Ghc hiding
                                                                                  , panic
                                                                                  , ($+$)
                                                                                  , empty
-                                                                                 , isWiredIn
                                                                                  )
 import           Control.Applicative                       ((<|>))
 import           Control.Arrow                             ((&&&))
@@ -34,7 +33,7 @@ import qualified Language.Fixpoint.Misc                    as Misc
 import           Language.Fixpoint.SortCheck               (checkSorted, checkSortedReftFull, checkSortFull)
 import qualified Language.Fixpoint.Types                   as F 
 import qualified Language.Haskell.Liquid.GHC.Misc          as GM 
-import           Language.Haskell.Liquid.Misc              (condNull, snd4)
+import           Language.Haskell.Liquid.Misc              (condNull, thd5)
 import           Language.Haskell.Liquid.Types
 import           Language.Haskell.Liquid.WiredIn
 import           Language.Haskell.Liquid.LawInstances      (checkLawInstances)
@@ -121,8 +120,8 @@ checkTargetSpec specs src env cbs sp
                      <> condNull noPrune
                         (foldMap (checkBind allowHO bsc "constructor"  emb tcEnv env) (txCtors $ gsCtors      (gsData sp)))
                      <> foldMap (checkBind allowHO bsc "assume"       emb tcEnv env) (gsAsmSigs    (gsSig sp))
-                     <> foldMap (checkBind allowHO bsc "reflect"      emb tcEnv env) (gsRefSigs    (gsSig sp))
-                     <> checkTySigs         allowHO bsc cbs            emb tcEnv env                (gsSig sp)
+                     <> foldMap (checkBind allowHO bsc "reflect"      emb tcEnv env) (fmap (\sig@(_,s) -> F.notracepp (show (ty_info (toRTypeRep (F.val s)))) sig) $ gsRefSigs    (gsSig sp))
+                     <> checkTySigs allowHO bsc cbs            emb tcEnv env                (gsSig sp)
                      -- ++ mapMaybe (checkTerminationExpr             emb       env) (gsTexprs     (gsSig  sp))
                      <> foldMap (checkBind allowHO bsc "class method" emb tcEnv env) (clsSigs      (gsSig sp))
                      <> foldMap (checkInv allowHO bsc emb tcEnv env)                 (gsInvariants (gsData sp))
@@ -130,7 +129,8 @@ checkTargetSpec specs src env cbs sp
                      <> checkMeasures emb env ms
                      <> checkClassMeasures                                        (gsMeasures (gsData sp))
                      <> checkClassMethods (gsCls src) (gsCMethods (gsVars sp)) (gsTySigs     (gsSig sp))
-                     <> foldMap checkMismatch sigs
+                     -- <> foldMap checkMismatch sigs
+                     <> foldMap checkMismatch (L.filter (\(v,_) -> not (GM.isSCSel v || GM.isMethod v)) sigs)
                      <> checkDuplicate                                            (gsTySigs     (gsSig sp))
                      -- TODO-REBARE ++ checkQualifiers env                                       (gsQualifiers (gsQual sp))
                      <> checkDuplicate                                            (gsAsmSigs    (gsSig sp))
@@ -155,6 +155,7 @@ checkTargetSpec specs src env cbs sp
     ms               = gsMeasures (gsData sp)
     clsSigs sp       = [ (v, t) | (v, t) <- gsTySigs sp, isJust (isClassOpId_maybe v) ]
     sigs             = gsTySigs (gsSig sp) ++ gsAsmSigs (gsSig sp) ++ gsCtors (gsData sp)
+    -- allowTC          = typeclass (getConfig sp)
     allowHO          = higherOrderFlag sp
     bsc              = bscope (getConfig sp)
     noPrune          = not (pruneFlag sp)
@@ -185,10 +186,12 @@ checkTySigs :: Bool
 --------------------------------------------------------------------------------
 checkTySigs allowHO bsc cbs emb tcEnv env sig
                    = mconcat (map (check env) topTs)
-                     -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
-                     -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs])
+                   -- = concatMap (check env) topTs
+                   -- (mapMaybe   (checkT env) [ (x, t)     | (x, (t, _)) <- topTs])
+                   -- ++ (mapMaybe   (checkE env) [ (x, t, es) | (x, (t, Just es)) <- topTs]) 
                   <> coreVisitor checkVisitor env emptyDiagnostics cbs
-  where
+                   -- ++ coreVisitor checkVisitor env [] cbs 
+  where 
     check env      = checkSigTExpr allowHO bsc emb tcEnv env
     locTm          = M.fromList locTs
     (locTs, topTs) = Bare.partitionLocalBinds vtes
@@ -206,13 +209,15 @@ checkTySigs allowHO bsc cbs emb tcEnv env sig
                          Nothing -> emptyDiagnostics
                          Just t  -> check env (v, t) 
 
-checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft
-              -> (Var, (LocSpecType, Maybe [Located F.Expr]))
+checkSigTExpr :: Bool -> BScope -> F.TCEmb TyCon -> Bare.TyConMap -> F.SEnv F.SortedReft 
+              -> (Var, (LocSpecType, Maybe [Located F.Expr])) 
               -> Diagnostics
-checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) = mbErr1 <> mbErr2
-   where
-    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t)
+checkSigTExpr allowHO bsc emb tcEnv env (x, (t, es)) 
+           = mbErr1 <> mbErr2
+   where 
+    mbErr1 = checkBind allowHO bsc empty emb tcEnv env (x, t) 
     mbErr2 = maybe emptyDiagnostics (checkTerminationExpr emb env . (x, t,)) es
+    -- mbErr2 = checkTerminationExpr emb env . (x, t,) =<< es 
 
 _checkQualifiers :: F.SEnv F.SortedReft -> [F.Qualifier] -> [Error]
 _checkQualifiers = mapMaybe . checkQualifier
@@ -449,7 +454,7 @@ errTypeMismatch     :: Var -> Located SpecType -> Error
 errTypeMismatch x t = ErrMismatch lqSp (pprint x) (text "Checked")  d1 d2 Nothing hsSp
   where
     d1              = pprint $ varType x
-    d2              = pprint $ toType $ val t
+    d2              = pprint $ toType False $ val t
     lqSp            = GM.fSrcSpan t
     hsSp            = getSrcSpan x
 
@@ -463,6 +468,7 @@ checkRType allowHO bsc emb env lt
   <|> checkAbstractRefs t
   <|> efoldReft farg bsc cb (tyToBind emb) (rTypeSortedReft emb) f insertPEnv env Nothing t
   where
+    -- isErasable         = if allowTC then isEmbeddedDict else isClass
     t                  = val lt
     cb c ts            = classBinds emb (rRCls c ts)
     farg _ t           = allowHO || isBase t  -- NOTE: this check should be the same as the one in addCGEnv
@@ -484,8 +490,8 @@ checkAppTys = go
     go (RApp rtc ts _ _)
       = checkTcArity rtc (length ts) <|>
         L.foldl' (\merr t -> merr <|> go t) Nothing ts
-    go (RImpF _ t1 t2 _)= go t1 <|> go t2
-    go (RFun _ t1 t2 _) = go t1 <|> go t2
+    go (RImpF _ _ t1 t2 _)= go t1 <|> go t2
+    go (RFun _ _ t1 t2 _) = go t1 <|> go t2
     go (RVar _ _)       = Nothing
     go (RAllE _ t1 t2)  = go t1 <|> go t2
     go (REx _ t1 t2)    = go t1 <|> go t2
@@ -517,8 +523,8 @@ checkAbstractRefs t = go t
     go t@(RAllT _ t1 r)   = check (toRSort t :: RSort) r <|>  go t1
     go (RAllP _ t)        = go t
     go t@(RApp c ts rs r) = check (toRSort t :: RSort) r <|>  efold go ts <|> go' c rs
-    go t@(RImpF _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
-    go t@(RFun _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
+    go t@(RImpF _ _ t1 t2 r)= check (toRSort t :: RSort) r <|> go t1 <|> go t2
+    go t@(RFun _ _ t1 t2 r) = check (toRSort t :: RSort) r <|> go t1 <|> go t2
     go t@(RVar _ r)       = check (toRSort t :: RSort) r
     go (RAllE _ t1 t2)    = go t1 <|> go t2
     go (REx _ t1 t2)      = go t1 <|> go t2
@@ -610,10 +616,15 @@ checkMBody γ emb _ sort (Def m c _ bs body) = checkMBody' emb sort γ' sp body
   where
     sp    = F.srcSpan m
     γ'    = L.foldl' (\γ (x, t) -> F.insertSEnv x t γ) γ xts
-    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su <$> filter (not . isClassType) (ty_args trep)
+    xts   = zip (fst <$> bs) $ rTypeSortedReft emb . subsTyVars_meet su  <$> 
+            filter keep (ty_args trep)
+    keep | allowTC = not . isEmbeddedClass
+         | otherwise = not . isClassType
+    -- YL: extract permitTC information from sort
+    allowTC = or $ fmap (fromMaybe False . permitTC) (ty_info $ toRTypeRep sort)
     trep  = toRTypeRep ct
     su    = checkMBodyUnify (ty_res trep) (last txs)
-    txs   = snd4 $ bkArrowDeep sort
+    txs   = thd5 $ bkArrowDeep sort
     ct    = ofType $ dataConWrapperType c :: SpecType
 
 checkMBodyUnify
@@ -640,11 +651,12 @@ checkMBody' emb sort γ sp body = case body of
     sort' = dropNArgs 1 sort
 
 dropNArgs :: Int -> RType RTyCon RTyVar r -> RType RTyCon RTyVar r
-dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_args = ts, ty_refts = rs}
+dropNArgs i t = fromRTypeRep $ trep {ty_binds = xs, ty_info = is, ty_args = ts, ty_refts = rs}
   where
     xs   = drop i $ ty_binds trep
     ts   = drop i $ ty_args  trep
     rs   = drop i $ ty_refts trep
+    is   = drop i $ ty_info trep
     trep = toRTypeRep t
 
 
@@ -687,9 +699,9 @@ isRefined ty
   | otherwise = False
 
 hasInnerRefinement :: F.Reftable r => RType c tv r -> Bool
-hasInnerRefinement (RFun _ rIn rOut _) =
+hasInnerRefinement (RFun _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
-hasInnerRefinement (RImpF _ rIn rOut _) =
+hasInnerRefinement (RImpF _ _ rIn rOut _) =
   isRefined rIn || isRefined rOut
 hasInnerRefinement (RAllT _ ty  _) =
   isRefined ty

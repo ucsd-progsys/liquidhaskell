@@ -15,7 +15,6 @@ module Language.Haskell.Liquid.Transforms.ANF (anormalize) where
 
 import           Prelude                          hiding (error)
 import           Language.Haskell.Liquid.GHC.TypeRep
-import qualified Language.Haskell.Liquid.GHC.API  as O
 import           Language.Haskell.Liquid.GHC.API  as Ghc hiding ( mkTyArg
                                                                 , showPpr
                                                                 , DsM
@@ -25,12 +24,12 @@ import           Control.Monad.State.Lazy
 import           System.Console.CmdArgs.Verbosity (whenLoud)
 import qualified Language.Fixpoint.Misc     as F
 import qualified Language.Fixpoint.Types    as F
-import qualified Language.Haskell.Liquid.Types.PrettyPrint as F
 
 import           Language.Haskell.Liquid.UX.Config  as UX
 import qualified Language.Haskell.Liquid.Misc       as Misc 
 import           Language.Haskell.Liquid.GHC.Misc   as GM
 import           Language.Haskell.Liquid.Transforms.Rec
+import           Language.Haskell.Liquid.Transforms.InlineAux
 import           Language.Haskell.Liquid.Transforms.Rewrite
 import           Language.Haskell.Liquid.Types.Errors
 
@@ -63,7 +62,8 @@ anormalize cfg hscEnv modGuts = do
       act      = Misc.concatMapM (normalizeTopBind γ0) rwr_cbs
       γ0       = emptyAnfEnv cfg
       rwr_cbs  = rewriteBinds cfg orig_cbs
-      orig_cbs = transformRecExpr $ mg_binds modGuts
+      orig_cbs = transformRecExpr inl_cbs
+      inl_cbs  = inlineAux cfg (mg_module modGuts) $ mg_binds modGuts
       untidy   = UX.untidyCore cfg
 
 {-

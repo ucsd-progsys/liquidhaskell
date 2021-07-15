@@ -127,7 +127,7 @@ simplifyBareType'' ([], []) (RVar v _) =
   return $ VarT $ symbolName v
 simplifyBareType'' ([], []) (RAppTy t1 t2 _) =
   AppT <$> simplifyBareType' t1 <*> simplifyBareType' t2
-simplifyBareType'' ([], []) (RFun _ i o _) =
+simplifyBareType'' ([], []) (RFun _ _ i o _) =
   (\x y -> ArrowT `AppT` x `AppT` y)
     <$> simplifyBareType' i <*> simplifyBareType' o
 simplifyBareType'' ([], []) (RApp cc as _ _) =
@@ -152,7 +152,7 @@ simplifyBareType'' s (REx _ _ t) =
 simplifyBareType'' s (RRTy _ _ _ t) =
   simplifyBareType'' s t
 
-simplifyBareType'' (tvs, cls) (RFun _ i o _)
+simplifyBareType'' (tvs, cls) (RFun _ _ i o _)
   | isClassType i = simplifyBareType'' (tvs, i : cls) o
 simplifyBareType'' (tvs, cls) (RAllT tv t _) =
   simplifyBareType'' (ty_var_value tv : tvs, cls) t

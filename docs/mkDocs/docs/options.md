@@ -391,6 +391,17 @@ an instance of `GHC.Generics.Generic` or `Test.Targetable.Targetable`
 counter-examples for polymorphic types, but will try (naively) to
 instantiate type variables with `Int` (as seen in the example above).
 
+## Typeclasses
+
+**Options:** `typeclass`
+
+**Status:** `experimental`
+
+The `--typeclass` flag enables LiquidHaskell's support of
+typeclasses. One limitation is that proofs cannot be written directly
+within the instance definition unless the `--aux-inline` flag is
+turned on as well.
+
 ## Generating HTML Output
 
 The system produces HTML files with colorized source, and mouseover

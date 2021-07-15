@@ -473,7 +473,7 @@ processModule LiquidHaskellContext{..} = do
     -- call 'evaluate' to force any exception and catch it, if we can.
 
     result <-
-      (liftIO $ evaluate (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies))
+      (makeTargetSpec moduleCfg lhModuleLogicMap targetSrc bareSpec dependencies)
         `gcatch` (\(e :: UserError) -> LH.reportErrors Full [e] >> failM)
         `gcatch` (\(e :: Error)     -> LH.reportErrors Full [e] >> failM)
 
@@ -483,7 +483,6 @@ processModule LiquidHaskellContext{..} = do
         liftIO $ mapM_ (printWarning dynFlags)    (allWarnings diagnostics)
         LH.reportErrors Full (allErrors diagnostics)
         failM
-
       Right (warnings, targetSpec, liftedSpec) -> do
         liftIO $ mapM_ (printWarning dynFlags) warnings
         let targetInfo = TargetInfo targetSrc targetSpec

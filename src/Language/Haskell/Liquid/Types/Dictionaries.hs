@@ -51,7 +51,7 @@ makeDictionaryName t ts
 --   class resolution.
 
 makeDicTypeName :: Ghc.SrcSpan -> SpecType -> String
-makeDicTypeName _ (RFun _ _ _ _)   = "(->)"
+makeDicTypeName _ (RFun _ _ _ _ _) = "(->)"
 makeDicTypeName _ (RApp c _ _ _)   = F.symbolString . GM.dropModuleNamesCorrect . F.symbol . rtc_tc $ c
 makeDicTypeName _ (RVar (RTV a) _) = show (Ghc.getName a)      
 makeDicTypeName sp t               = panic (Just sp) ("makeDicTypeName: called with invalid type " ++ show t)

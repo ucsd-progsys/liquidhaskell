@@ -44,6 +44,7 @@ module Language.Haskell.Liquid.GHC.API (
   , mkFunTy
   , isEvVarType
   , isEqPrimPred
+  , noExtField
   , Mult
   , pattern Many
 #endif
@@ -128,6 +129,8 @@ import           GHC                                               as Ghc hiding
 #ifdef MIN_VERSION_GLASGOW_HASKELL
 #if !MIN_VERSION_GLASGOW_HASKELL(9,0,0,0)
 
+import CoreFVs                  as Ghc (exprFreeVarsList)
+import OccurAnal                as Ghc (occurAnalysePgm)
 import Annotations              as Ghc
 import ApiAnnotation            as Ghc
 import Avail                    as Ghc
@@ -139,7 +142,7 @@ import Coercion                 as Ghc
 import ConLike                  as Ghc
 import CoreLint                 as Ghc hiding (dumpIfSet)
 import CoreMonad                as Ghc (CoreToDo(..))
-import CoreSubst                as Ghc (deShadowBinds)
+import CoreSubst                as Ghc (deShadowBinds, substExpr, emptySubst, extendCvSubst)
 import CoreSyn                  as Ghc hiding (AnnExpr, AnnExpr' (..), AnnRec, AnnCase)
 import CoreUtils                as Ghc (exprType)
 import CostCentre               as Ghc
@@ -157,7 +160,8 @@ import FamInstEnv               as Ghc hiding (pprFamInst)
 import Finder                   as Ghc
 import ForeignCall              (CType)
 import GHC                      as Ghc (SrcSpan)
-import GhcPlugins               as Ghc (deserializeWithData , fromSerialized , toSerialized)
+import GhcMonad                 as Ghc (withSession)
+import GhcPlugins               as Ghc (deserializeWithData , fromSerialized , toSerialized, extendIdSubst)
 import HscMain                  as Ghc
 import HscTypes                 as Ghc hiding (IsBootInterface, isBootSummary)
 import Id                       as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported, mkUserLocal)
@@ -203,6 +207,15 @@ import qualified Id             as Ghc
 import qualified MkCore         as Ghc
 import qualified Var            as Ghc
 import qualified WwLib          as Ghc
+import           RnExpr         as Ghc (rnLExpr)
+import           TcExpr         as Ghc (tcInferSigma)
+import           TcBinds        as Ghc (tcValBinds)
+import           Inst           as Ghc (deeplyInstantiate)
+import           TcSimplify     as Ghc ( simplifyInfer, simplifyInteractive
+                                       , InferMode (..))
+import           TcHsSyn        as Ghc (zonkTopLExpr)
+import           TcEvidence     as Ghc ( TcEvBinds (EvBinds))
+import           DsExpr         as Ghc (dsLExpr)
 #endif
 #endif
 
@@ -219,11 +232,11 @@ import qualified WwLib          as Ghc
 import qualified Literal as Lit
 import FastString        as Ghc hiding (bytesFS, LitString)
 import TcType            as Ghc hiding (typeKind, mkFunTy)
-import Type              as Ghc hiding (typeKind, mkFunTy, splitFunTys)
+import Type              as Ghc hiding (typeKind, mkFunTy, splitFunTys, extendCvSubst)
 import qualified Type    as Ghc
 import qualified Var     as Var
 import qualified GHC.Real
-
+-- import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL, varQual_RDR)
 #endif
 #endif
 
@@ -237,11 +250,13 @@ import                   Binary
 import                   Data.ByteString (ByteString)
 import                   Data.Data (Data)
 import Kind              as Ghc
-import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy)
+import TyCoRep           as Ghc hiding (Type (FunTy), mkFunTy, extendCvSubst)
 import TyCon             as Ghc hiding (mkAnonTyConBinders, TyConBndrVis(AnonTCB))
-import qualified TyCoRep as Ty
+import qualified TyCoRep as Ty hiding (extendCvSubst)
 import qualified TyCon   as Ty
 import Platform as Ghc
+import qualified HsExtension
+-- import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL, varQual_RDR)
 
 #endif
 #endif
@@ -254,12 +269,12 @@ import Platform as Ghc
 
 import FastString           as Ghc hiding (bytesFS)
 import TcType               as Ghc hiding (typeKind, mkFunTy, isEqPred)
-import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred, splitFunTys)
+import Type                 as Ghc hiding (typeKind, mkFunTy, isEvVarType, isEqPred, splitFunTys, extendCvSubst)
 import qualified Type       as Ghc
 import qualified Type       as Ghc (isEvVarType)
 import qualified PrelNames  as Ghc
 import Data.Foldable        (asum)
-
+-- import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL, varQual_RDR)
 #endif
 #endif
 
@@ -267,18 +282,22 @@ import Data.Foldable        (asum)
 -- Specific imports for GHC 8.10
 --
 #ifdef MIN_VERSION_GLASGOW_HASKELL
+
 #if MIN_VERSION_GLASGOW_HASKELL(8,10,0,0) && !MIN_VERSION_GLASGOW_HASKELL (9,0,0,0)
 import DynFlags          as  Ghc (targetPlatform)
 import GHC.Platform      as  Ghc (Platform)
-import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys)
-import qualified Type    as  Ghc
+import Type              as  Ghc hiding (typeKind , isPredTy, splitFunTys, extendCvSubst)
+import qualified Type    as  Ghc hiding (extendCvSubst)
 import TyCon             as  Ghc
 import qualified TyCoRep as  Ty
 import TcType            as  Ghc
 import TyCoRep           as  Ghc hiding (Type (FunTy), mkFunTy, ft_arg, ft_res, ft_af)
 import FastString        as  Ghc
-import Predicate         as  Ghc (getClassPredTys_maybe, isEvVarType)
+import Predicate      as Ghc (getClassPredTys_maybe, isEvVarType, getClassPredTys, isDictId)
+import TcOrigin       as Ghc (lexprCtOrigin)
 import Data.Foldable  (asum)
+import Util           (lengthIs)
+-- import PrelNames      (eqPrimTyConKey, eqReprPrimTyConKey, gHC_REAL, varQual_RDR)
 #endif
 #endif
 
@@ -308,11 +327,11 @@ import GHC.Core.Lint                  as Ghc hiding (dumpIfSet)
 import GHC.Core.Make                  as Ghc
 import GHC.Core.Opt.Monad             as Ghc (CoreToDo(..))
 import GHC.Core.Opt.WorkWrap.Utils    as Ghc
-import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, isEvVarType, isEqPrimPred, isEqPred, isClassPred)
-import GHC.Core.Subst                 as Ghc (deShadowBinds)
-import GHC.Core.TyCo.Rep              as Ghc
+import GHC.Core.Predicate             as Ghc (getClassPredTys_maybe, getClassPredTys, isEvVarType, isEqPrimPred, isEqPred, isClassPred, isDictId)
+import GHC.Core.Subst                 as Ghc (deShadowBinds, emptySubst, extendCvSubst)
+import GHC.Core.TyCo.Rep              as Ghc hiding (extendCvSubst)
 import GHC.Core.TyCon                 as Ghc
-import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy)
+import GHC.Core.Type                  as Ghc hiding (typeKind , isPredTy, extendCvSubst, linear)
 import GHC.Core.Unify                 as Ghc
 import GHC.Core.Utils                 as Ghc (exprType)
 import GHC.Data.Bag                   as Ghc
@@ -325,6 +344,7 @@ import GHC.Driver.Phases              as Ghc (Phase(StopLn))
 import GHC.Driver.Pipeline            as Ghc (compileFile)
 import GHC.Driver.Session             as Ghc
 import GHC.Driver.Types               as Ghc
+import GHC.Driver.Monad               as Ghc (withSession)
 import GHC.HsToCore.Monad             as Ghc
 import GHC.Iface.Syntax               as Ghc
 import GHC.Plugins                    as Ghc ( deserializeWithData
@@ -334,11 +354,14 @@ import GHC.Plugins                    as Ghc ( deserializeWithData
                                              , Plugin(..)
                                              , CommandLineOption
                                              , purePlugin
+                                             , extendIdSubst
+                                             , substExpr
                                              )
 import GHC.Tc.Instance.Family         as Ghc
 import GHC.Tc.Module                  as Ghc
 import GHC.Tc.Types                   as Ghc
 import GHC.Tc.Utils.Monad             as Ghc hiding (getGHCiMonad)
+import GHC.Tc.Utils.TcType            as Ghc (tcSplitDFunTy, tcSplitMethodTy)
 import GHC.Types.Annotations          as Ghc
 import GHC.Types.Avail                as Ghc
 import GHC.Types.Basic                as Ghc
@@ -346,7 +369,7 @@ import GHC.Types.CostCentre           as Ghc
 import GHC.Types.Id                   as Ghc hiding (lazySetIdInfo, setIdExported, setIdNotExported)
 import GHC.Types.Id.Info              as Ghc
 import GHC.Types.Literal              as Ghc hiding (LitNumber)
-import GHC.Types.Name                 as Ghc hiding (varName)
+import GHC.Types.Name                 as Ghc hiding (varName, isWiredIn)
 import GHC.Types.Name.Reader          as Ghc
 import GHC.Types.Name.Set             as Ghc
 import GHC.Types.SrcLoc               as Ghc
@@ -364,6 +387,17 @@ import GHC.Utils.Outputable           as Ghc hiding ((<>), renderWithStyle, mkUs
 import GHC.Utils.Panic                as Ghc
 import qualified GHC.Types.Literal    as Ghc
 import qualified GHC.Utils.Outputable as Ghc
+import GHC.Tc.Types.Origin            as Ghc (lexprCtOrigin)
+import GHC.Rename.Expr                as Ghc (rnLExpr)
+import GHC.Tc.Gen.Expr                as Ghc (tcInferSigma, tcInferRho)
+import GHC.Tc.Gen.Bind                as Ghc (tcValBinds)
+import GHC.Tc.Solver                  as Ghc
+import GHC.Tc.Utils.Zonk              as Ghc
+import GHC.Core.FVs                   as Ghc (exprFreeVarsList)
+import GHC.Tc.Types.Evidence          as Ghc
+import GHC.HsToCore.Expr              as Ghc
+import GHC.Core.Predicate             as Ghc (mkClassPred)
+import GHC.Core.Opt.OccurAnal         as Ghc
 #endif
 #endif
 
@@ -685,6 +719,9 @@ pattern FunTy { ft_af, ft_mult, ft_arg, ft_res } <- ((VisArg,Many,) -> (ft_af, f
 pattern AnonTCB :: AnonArgFlag -> Ty.TyConBndrVis
 pattern AnonTCB af <- ((VisArg,) -> (af, Ty.AnonTCB)) where
     AnonTCB _af = Ty.AnonTCB
+
+noExtField :: NoExt
+noExtField = NoExt
 
 #endif
 
