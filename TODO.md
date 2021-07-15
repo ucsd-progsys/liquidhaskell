@@ -1,39 +1,92 @@
 # TODO
 
+## Issue 1773 
 
-## Build
+### Reproduce 
 
-## 1474
+```sh
+$ cd ../storm-demo
+$ git checkout T1773
+$ LIQUID_DEV_MODE=true cabal v2-build
+```
 
-This does type-substitutions in GHC
+which after some grinding will produce
 
-- https://hackage.haskell.org/package/ghc-8.6.5/docs/src/TyCoRep.html#subst_ty
+```
+Branch to fix LH #1773
 
-The key bit:
+ghc: panic! (the 'impossible' happened)
+  (GHC version 8.10.2:
+        error-strictResolveSymUnknown type constructor `EntityFieldWrapper`
+    ofBDataDecl-2
+CallStack (from HasCallStack):
+  error, called at src/Language/Fixpoint/Misc.hs:152:14 in liquid-fixpoint-0.8.10.2.1-inplace:Language.Fixpoint.Misc
+```
 
- go (AppTy fun arg)   = mkAppTy (go fun) $! (go arg)
-                -- The mkAppTy smart constructor is important
-                -- we might be replacing (a Int), represented with App
-                -- by [Int], represented with TyConApp
+### Problem
+
+1. import chain: `Config` -> `Storm.SMTP` -> `Storm.Core`
+2. `Storm.Core` *defines* `EntityFieldWrapper` but
+3. `Storm.Core` *not imported* into the GHC env so name resolution fails
+
+The bug disappears if you extend `src/Config.hs` with
+
+```
+import Storm.Core
+```
 
 
-mkRAppTy (TyConApp tc tys) ty2 = mkRTyConApp tc (tys ++ [ty2])
-mkRAppTy ty1               ty2 = RAppTy ty1 ty2
+## Fix: SpecDependencyGraph
 
--- | Analog of GHC's @mkTyConApp@
+1. Implement `Bare.SpecDep` 
+2. Use `slice` to pre-filter the `BareSpec` prior to resolution 
 
-mkRTyConApp :: c -> [RType c tv r] -> RType c tv r
-mkRTyConApp c t
+```haskell
+-- | This module has datatypes and code for building a Specification Dependency Graph 
+--   whose vertices are 'names' that need to be resolve, and edges are 'dependencies'.
 
-mkRTyConApp :: TyCon -> [Type] -> Type
-mkRTyConApp c ts
-  | isFunTyCon c
-  , [_rep1,_rep2,ty1,ty2] <- tys
-  = FunTy _ ty1 ty2
+module SpecDep (slice) where
 
-  | otherwise
-  = RTyConApp c ts
+-- | A datatype for the different kinds of names we have to resolve
+data Label
+  = Sign
+  | Mesr
+  | Refl
+  | DCon
+  | TCon
 
+-- | A datatype for nodes which are pairs of names and labels
+data Node = MkNode
+  { nodeName  :: LocSymbol
+  , nodeLabel :: Label
+  }
+
+type Graph = Map Node [Node]
+
+-- | A way to combine graphs of multiple modules
+
+instance Semigroup Graph where
+  TODO
+
+instance Monoid Graph where
+  TODO
+
+-- | A function to build the dependencies for each module
+
+specDepGraph :: BareSpec -> Graph
+specDepGraph = _TODO
+
+mkDepGraph :: [BareSpec] -> Graph
+mkDepGraph specs = mconcat [specDepGraph sp | sp <- specs]
+
+-- | 'reachable roots g' returns the list of Node transitively reachable from roots
+reachable :: [Node] -> Graph -> [Node]
+reachable roots g = _TODO
+
+-- | Top-level "slicing" function
+slice :: (ModName, BareSpec) -> [(ModName, BareSpec)] -> [(ModName, BareSpec)]
+slice (tgt, tgtSpec) specs = _TODO
+```
 
 ## CallStack/Error
 

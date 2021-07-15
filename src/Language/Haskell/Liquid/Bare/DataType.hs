@@ -367,11 +367,12 @@ dataConSpec' = concatMap tx
 --------------------------------------------------------------------------------
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
-makeConTypes :: Bare.Env -> (ModName, Ms.BareSpec) 
+makeConTypes :: ModName -> Bare.Env -> (ModName, Ms.BareSpec) 
              -> ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
-makeConTypes env (name, spec) 
-         = unzip  [ ofBDataDecl env name x y | (x, y) <- gvs ] 
+makeConTypes myName env (name, spec) 
+         = unzip  [ ofBDataDecl env name x y | (x, y) <- F.tracepp msg gvs ] 
   where 
+    msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
     gvs  = groupVariances dcs' vdcs
     dcs' = canonizeDecls env name dcs
     dcs  = Ms.dataDecls spec 
@@ -479,7 +480,7 @@ getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDa
     ugh                = impossible Nothing "getDnTyCon"
 
 -- FIXME: ES: why the maybes?
-ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> (Maybe (LocSymbol, [Variance]))
+ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> Maybe (LocSymbol, [Variance])
             -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
 ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
@@ -504,7 +505,8 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
     Loc lc lc' _ = dataNameSymbol tc
     f defPs      = case maybe_invariance_info of
                      Nothing     -> ([], defPs)
-                     Just (_,is) -> (take n is, if null (drop n is) then defPs else (drop n is))
+                     Just (_,is) -> let is_n = drop n is in 
+                                    (take n is, if null is_n then defPs else is_n)
 
 ofBDataDecl env name Nothing (Just (tc, is))
   = ((name, TyConP srcpos tc' [] [] tcov tcontr Nothing, Nothing), [])

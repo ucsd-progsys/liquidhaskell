@@ -948,7 +948,7 @@ makeTycEnv cfg myName env embs mySpec iSpecs = Bare.TycEnv
   , tcName        = myName
   }
   where 
-    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes env <$> specs 
+    (tcDds, dcs)  = Misc.concatUnzip $ Bare.makeConTypes myName env <$> specs 
     specs         = (myName, mySpec) : M.toList iSpecs
     tcs           = Misc.snd3 <$> tcDds 
     tyi           = Bare.qualifyTopDummy env myName (makeTyConInfo embs fiTcs tycons)
