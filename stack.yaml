@@ -31,3 +31,6 @@ extra-deps:
 resolver: lts-16.8
 compiler: ghc-8.10.2
 
+nix:
+  shell-file: shell-stack.nix
+  path: ["nixpkgs=./nixpkgs.nix"]
