@@ -492,11 +492,13 @@ instance Fixpoint Expr where
      in case sp of
           PNot e -> e
           _ -> PNot sp
-  simplify (PImp p q) =
-    let sq = simplify q
-     in if sq == PTrue then PTrue
-        else if sq == PFalse then simplify (PNot p)
-        else PImp (simplify p) sq
+  -- XXX: Do not simplify PImp until PLE can handle it
+  -- https://github.com/ucsd-progsys/liquid-fixpoint/issues/475
+  -- simplify (PImp p q) =
+  --   let sq = simplify q
+  --    in if sq == PTrue then PTrue
+  --       else if sq == PFalse then simplify (PNot p)
+  --       else PImp (simplify p) sq
   simplify (PIff p q)    =
     let sp = simplify p
         sq = simplify q
