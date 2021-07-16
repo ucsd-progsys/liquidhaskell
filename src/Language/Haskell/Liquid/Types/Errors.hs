@@ -740,17 +740,16 @@ errSaved sp body = ErrSaved sp (text n) (text $ unlines m)
   where
     n : m        = lines body
 
-
 totalityType :: PPrint a =>  Tidy -> a -> Bool
 totalityType td tE = pprintTidy td tE == text "{VV : Addr# | 5 < 4}"
 
 hint :: TError a -> Doc
 hint e = maybe empty (\d -> "" $+$ ("HINT:" <+> d)) (go e)
   where
-    go (ErrMismatch {}) = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
-    go (ErrSubType {})  = Just "Use \"--no-totality\" to deactivate totality checking."
-    go (ErrNoSpec {})   = Just "Run 'liquid' on the source file first."
-    go _                = Nothing
+    go ErrMismatch {} = Just "Use the hole '_' instead of the mismatched component (in the Liquid specification)"
+    go ErrSubType {}  = Just "Use \"--no-totality\" to deactivate totality checking."
+    go ErrNoSpec {}   = Just "Run 'liquid' on the source file first."
+    go _              = Nothing
 
 --------------------------------------------------------------------------------
 ppError' :: (PPrint a, Show a) => Tidy -> Doc -> TError a -> Doc
@@ -813,7 +812,7 @@ ppError' _ dCtx (ErrTySpec _ _k v t s)
 ppError' _ dCtx (ErrLiftExp _ v)
   = text "Cannot lift" <+> ppTicks v <+> "into refinement logic"
         $+$ dCtx
-        $+$ (nest 4 $ text "Please export the binder from the module to enable lifting.")
+        $+$ nest 4 (text "Please export the binder from the module to enable lifting.")
 
 ppError' _ dCtx (ErrBadData _ v s)
   = text "Bad Data Specification"
@@ -845,24 +844,24 @@ ppError' _ dCtx (ErrTermSpec _ v msg e t s)
 
 ppError' _ _ (ErrInvt _ t s)
   = text "Bad Invariant Specification"
-        $+$ (nest 4 $ text "invariant " <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "invariant " <+> pprint t $+$ pprint s)
 
 ppError' _ _ (ErrIAl _ t s)
   = text "Bad Using Specification"
-        $+$ (nest 4 $ text "as" <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "as" <+> pprint t $+$ pprint s)
 
 ppError' _ _ (ErrIAlMis _ t1 t2 s)
   = text "Incompatible Using Specification"
-        $+$ (nest 4 $ (text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
+        $+$ nest 4 ((text "using" <+> pprint t1 <+> text "as" <+> pprint t2) $+$ pprint s)
 
 ppError' _ _ (ErrMeas _ t s)
   = text "Bad Measure Specification"
-        $+$ (nest 4 $ text "measure " <+> pprint t $+$ pprint s)
+        $+$ nest 4 (text "measure " <+> pprint t $+$ pprint s)
 
 ppError' _ dCtx (ErrHMeas _ t s)
   = text "Cannot lift Haskell function" <+> ppTicks t <+> text "to logic"
         $+$ dCtx
-        $+$ (nest 4 $ pprint s)
+        $+$ nest 4 (pprint s)
 
 ppError' _ dCtx (ErrDupSpecs _ v ls)
   = text "Multiple specifications for" <+> ppTicks v <+> colon

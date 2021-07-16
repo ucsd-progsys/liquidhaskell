@@ -49,11 +49,10 @@ module SpecDep (slice) where
 
 -- | A datatype for the different kinds of names we have to resolve
 data Label
-  = Sign
-  | Mesr
-  | Refl
-  | DCon
-  | TCon
+  = Sign  -- ^ identifier signature
+  | Func  -- ^ measure or reflect
+  | DCon  -- ^ data constructor
+  | TCon  -- ^ type constructor
 
 -- | A datatype for nodes which are pairs of names and labels
 data Node = MkNode

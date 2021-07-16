@@ -21,18 +21,12 @@ module Language.Haskell.Liquid.Bare.DataType
 
 import           Prelude                                hiding (error)
 
--- import           Text.Parsec
--- import           Var
--- import           Data.Maybe
--- import           Language.Haskell.Liquid.GHC.TypeRep
-
 import qualified Control.Exception                      as Ex
 import qualified Data.List                              as L
 import qualified Data.HashMap.Strict                    as M
 import qualified Data.HashSet                           as S
 import qualified Data.Maybe                             as Mb 
 
--- import qualified Language.Fixpoint.Types.Visitor        as V
 import qualified Language.Fixpoint.Types                as F
 import qualified Language.Haskell.Liquid.GHC.Misc       as GM 
 import qualified Language.Haskell.Liquid.GHC.API        as Ghc 
@@ -48,11 +42,6 @@ import           Language.Haskell.Liquid.WiredIn
 import qualified Language.Haskell.Liquid.Measure        as Ms
 import qualified Language.Haskell.Liquid.Bare.Types     as Bare  
 import qualified Language.Haskell.Liquid.Bare.Resolve   as Bare 
-
--- import qualified Language.Haskell.Liquid.Bare.Misc      as GM
--- import           Language.Haskell.Liquid.Bare.Env
--- import           Language.Haskell.Liquid.Bare.Lookup
--- import           Language.Haskell.Liquid.Bare.OfType
 
 import           Text.Printf                     (printf)
 
@@ -368,10 +357,12 @@ dataConSpec' = concatMap tx
 -- | Bare Predicate: DataCon Definitions ---------------------------------------
 --------------------------------------------------------------------------------
 makeConTypes :: ModName -> Bare.Env -> (ModName, Ms.BareSpec) 
-             -> ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
-makeConTypes myName env (name, spec) 
-         = unzip  [ ofBDataDecl env name x y | (x, y) <- F.tracepp msg gvs ] 
-  where 
+             -> Either Diagnostics ([(ModName, TyConP, Maybe DataPropDecl)], [[Located DataConP]])
+makeConTypes myName env (name, spec) = case cts of
+    Left errs -> Left (mkDiagnostics [] errs)
+    Right rs  -> Right (unzip rs)
+  where
+    cts  = Misc.catEithers [ ofBDataDecl env name x y | (x, y) <- F.tracepp msg gvs ] 
     msg  = printf "makeConTypes (%s): %s" (show myName) (show name)
     gvs  = groupVariances dcs' vdcs
     dcs' = canonizeDecls env name dcs
@@ -420,9 +411,9 @@ checkDataCtors  env  name  c  dd (Just cons) = do
       dcs = S.fromList . fmap F.symbol $ Ghc.tyConDataCons c
   -- The data constructors in the spec (which we have to qualify for them to match the GHC data constructors)
   rdcs <-
-      fmap (S.fromList . fmap F.symbol)
-    $ mapM (\ x -> Bare.failMaybe env name
-          (Bare.resolveLocSym env name "checkDataCtors" (dcName x) :: Either UserError Ghc.DataCon)) cons
+    S.fromList . fmap F.symbol
+      <$> mapM (\ x -> Bare.failMaybe env name
+          (Bare.resolveLocSym env name "checkDataCtors" (dcName x) :: Either Error Ghc.DataCon)) cons
   if dcs == rdcs
     then mapM checkDataCtorDupField cons
     else Ex.throw (errDataConMismatch (dataNameSymbol (tycName dd)) dcs rdcs)
@@ -456,8 +447,8 @@ groupVariances dcs vdcs     =  merge (L.sort dcs) (L.sortBy (\x y -> compare (fs
       | F.symbol d == sym v = (Just d, Just v)  : merge ds vs
       | F.symbol d <  sym v = (Just d, Nothing) : merge ds (v:vs)
       | otherwise           = (Nothing, Just v) : merge (d:ds) vs
-    merge []     vs         = ((Nothing,) . Just) <$> vs
-    merge ds     []         = ((,Nothing) . Just) <$> ds
+    merge []     vs         = (Nothing,) . Just <$> vs
+    merge ds     []         = (,Nothing) . Just <$> ds
     sym                     = val . fst
 
 
@@ -481,12 +472,12 @@ getDnTyCon env name dn = Mb.fromMaybe ugh (Bare.lookupGhcDnTyCon env name "ofBDa
 
 -- FIXME: ES: why the maybes?
 ofBDataDecl :: Bare.Env -> ModName -> Maybe DataDecl -> Maybe (LocSymbol, [Variance])
-            -> ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP])
+            -> Either Error ( (ModName, TyConP, Maybe DataPropDecl), [Located DataConP] )
 ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invariance_info
   | not (checkDataDecl tc' dd)
-  = uError err
+  = Left err
   | otherwise
-  = ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
+  = Right ((name, tcp, Just (dd { tycDCons = cts }, pd)), Loc lc lc' <$> cts')
   where
     πs         = Bare.ofBPVar env name pos <$> ps
     tc'        = getDnTyCon env name tc
@@ -499,7 +490,7 @@ ofBDataDecl env name (Just dd@(DataDecl tc as ps cts pos sfun pt _)) maybe_invar
     defPs      = varSignToVariance varInfo <$> [0 .. (length πs - 1)]
     (tvi, pvi) = f defPs
     tcp          = TyConP lc tc' αs πs tvi pvi sfun
-    err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: UserError
+    err          = ErrBadData (GM.fSrcSpan tc) (pprint tc) "Mismatch in number of type variables" :: Error
     αs           = RTV . GM.symbolTyVar <$> as
     n            = length αs
     Loc lc lc' _ = dataNameSymbol tc
