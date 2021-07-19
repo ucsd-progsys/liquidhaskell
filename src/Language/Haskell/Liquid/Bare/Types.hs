@@ -145,12 +145,12 @@ varRSort  = RT.ofType . Ghc.varType
 -------------------------------------------------------------------------------
 -- | Handling failed resolution 
 -------------------------------------------------------------------------------
-failMaybe :: Env -> ModName -> Either Error r -> Maybe r
+failMaybe :: Env -> ModName -> Either Error r -> Either Error (Maybe r)
 failMaybe env name res = case res of 
-  Right r -> Just r 
+  Right r -> Right (Just r) 
   Left  e -> if isTargetModName env name 
-              then Ex.throw e
-              else Nothing 
+              then Left e
+              else Right Nothing 
 
 isTargetModName :: Env -> ModName -> Bool 
 isTargetModName env name = name == _giTargetMod (reSrc env) 

@@ -90,7 +90,7 @@ slice (tgt, tgtSpec) specs = _TODO
 ## CallStack/Error
 
 The use of `Prelude.error` gives a crazy performance hit
-apparently even without cutvars being generated, this is
+apparently even without cut-vars being generated, this is
 because of some bizarro GHC transforms, that thwart eliminate.
 This is because GHC now threads `callstack` through such
 computations, which make a top-level signature no longer top-level.
