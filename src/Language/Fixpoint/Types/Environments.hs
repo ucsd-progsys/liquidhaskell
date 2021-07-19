@@ -43,6 +43,7 @@ module Language.Fixpoint.Types.Environments (
   -- * Global Binder Environments
   , BindEnv, beBinds
   , emptyBindEnv
+  , fromListBindEnv
   , insertBindEnv, lookupBindEnv
   , filterBindEnv, mapBindEnv, mapWithKeyMBindEnv, adjustBindEnv
   , bindEnvFromList, bindEnvToList, deleteBindEnv, elemsBindEnv
@@ -206,6 +207,9 @@ fromListIBindEnv = FB . S.fromList
 -- | Functions for Global Binder Environment
 insertBindEnv :: Symbol -> SortedReft -> BindEnv -> (BindId, BindEnv)
 insertBindEnv x r (BE n m) = (n, BE (n + 1) (M.insert n (x, r) m))
+
+fromListBindEnv :: [(BindId, (Symbol, SortedReft))] -> BindEnv
+fromListBindEnv xs = BE (length xs) (M.fromList xs)
 
 emptyBindEnv :: BindEnv
 emptyBindEnv = BE 0 M.empty
